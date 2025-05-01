@@ -1346,7 +1346,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         // if option arch = 00:0B {
         //   filename "rpi4mb/pxe/grubaa64.efi";
         // }
-        // elsif option arch = 00:13 and option vendor-class-identifier = "HTTPClient" {
+        // elsif option arch = 00:13 {
         //   filename "http://<IP_ADDRESS>:5248/images/bootloaders/uefi/arm64/grubaa64.efi";
         //   option vendor-class-identifier "HTTPClient";
         // }
