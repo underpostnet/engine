@@ -1389,14 +1389,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         //   .readFileSync(`${tftpRoot}/ipxe.cfg`, 'utf8')
         //   .replaceAll('amd64', 'arm64')
         //   .replaceAll('${next-server}', IP_ADDRESS);
-
-        // setTimeout(() => {
-        //   fs.writeFileSync(`${tftpRoot}/ipxe.cfg`, ipxeSrc, 'utf8');
-        // }, 1000);
         // fs.writeFileSync(`${tftpRoot}${bootFolder}/ipxe.cfg`, ipxeSrc, 'utf8');
 
         const grub_cpu = 'arm64';
-        const dist = `/home/dd/rpi-os-lite-boot`;
+        // const dist = `/home/dd/rpi-os-lite-boot`;
+        const dist = `/home/dd/boot-ubuntu-arm-20.04`;
 
         {
           const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
@@ -1409,27 +1406,44 @@ configfile /grub/grub.cfg-default-${grub_cpu}
           );
         }
         {
-          const grubCfgPath = `${tftpRoot}/grub/grub.cfg-default-${grub_cpu}`;
-          shellExec(`sudo cp -a ${dist}/vmlinuz-6.6.51+rpt-rpi-2712 ${tftpRoot}${bootFolder}/pxe/vmlinuz-efi`);
-          shellExec(`sudo cp -a ${dist}/initrd.img-6.6.51+rpt-rpi-2712 ${tftpRoot}${bootFolder}/pxe/initrd`);
+          // shellExec(`sudo cp -a ${dist}/vmlinuz-6.6.51+rpt-rpi-2712 ${tftpRoot}${bootFolder}/pxe/vmlinuz-efi`);
+          // shellExec(`sudo cp -a ${dist}/initrd.img-6.6.51+rpt-rpi-2712 ${tftpRoot}${bootFolder}/pxe/initrd`);
+
+          shellExec(`sudo cp -a ${dist}/vmlinuz ${tftpRoot}${bootFolder}/pxe/vmlinuz`);
+          shellExec(`sudo cp -a ${dist}/initrd.img ${tftpRoot}${bootFolder}/pxe/initrd.img`);
+
+          const _dist = `../bootloaders/EEPROM_RPiOSlite`;
+
+          // shellExec(`sudo cp -a ${dist}/config.txt ${tftpRoot}${bootFolder}/config.txt`);
+
+          // const configTxtSrc = fs.readFileSync(`${_dist}/config.txt`, 'utf8');
+          // fs.writeFileSync(
+          //   `${tftpRoot}${bootFolder}/config.txt`,
+          //   configTxtSrc
+          //     .replace(`kernel=kernel8.img`, `kernel=vmlinuz`)
+          //     .replace(`# max_framebuffers=2`, `max_framebuffers=2`)
+          //     .replace(`initramfs initramfs8 followkernel`, `initramfs initrd.img followkernel`),
+          //   'utf8',
+          // );
+
+          const cmdLineCat = fs.readFileSync(`${_dist}/cmdline.txt`, 'utf8');
+          const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
+          console.log({ cmdLineCat, cmdlineReplace });
+
+          // const grubCfgPath = `${tftpRoot}/grub/grub.cfg-default-${grub_cpu}`;
+          const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
           fs.writeFileSync(
             grubCfgPath,
             `
 insmod gzio
 insmod http
 insmod nfs
-set timeout=5
+set timeout=10
 set default=0
 
 menuentry 'MAAS commissioning (ARM64)' {
-  linux  ${bootFolder}/pxe/vmlinuz-efi \
-         ip=dhcp \
-         root=/dev/nfs \
-         nfsroot=${IP_ADDRESS}:/nfs-export/rpi4mb,tcp,rw \
-         console=serial0,115200 \
-         rootfstype=nfs \
-         rootwait
-  initrd ${bootFolder}/pxe/initrd
+  linux  ${bootFolder}/pxe/vmlinuz ${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}
+  initrd ${bootFolder}/pxe/initrd.img
   boot
 }
 
