@@ -1428,7 +1428,6 @@ configfile /grub/grub.cfg-default-${grub_cpu}
 
           const cmdLineCat = fs.readFileSync(`${_dist}/cmdline.txt`, 'utf8');
           const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
-          console.log({ cmdLineCat, cmdlineReplace });
 
           // const grubCfgPath = `${tftpRoot}/grub/grub.cfg-default-${grub_cpu}`;
           const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
