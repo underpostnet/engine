@@ -1199,11 +1199,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       //     ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
       // );
       if (process.argv.includes('boot-info')) {
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`);
+        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`);
         // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read <id>`);
-        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 1`);
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-sources read`);
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} commissioning-scripts read`);
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 60`);
+        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-sources read`);
+        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} commissioning-scripts read`);
         process.exit(0);
       }
       if (process.argv.includes('grub-arm64')) {
@@ -1345,30 +1345,14 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // Poweroff:
       // grub> halt
 
-      let bootLoader, bootFolder;
-      switch (process.argv[3]) {
-        case '0':
-          {
-            bootLoader = '/EEPROM_RPiOSlite';
-            bootFolder = '/rpi4mb';
-          }
-          break;
-        case '1':
-          {
-            bootLoader = '/RPi4_UEFI_Firmware_v1.41';
-            bootFolder = '/rpi4mb';
-          }
-          break;
-
-        default:
-          process.exit(1);
-      }
+      const bootLoader = '/RPi4_UEFI_Firmware_v1.41';
+      const bootFolder = '/rpi4mb';
 
       shellExec(`sudo rm -rf ${tftpRoot}${bootFolder}`);
       shellExec(`sudo cp -a ../bootloaders${bootLoader} ${tftpRoot}${bootFolder}`);
 
       shellExec(`sudo rm -rf /etc/exports`);
-      shellExec(`sudo cp -a ../bootloaders/EEPROM_RPiOSlite/exports /etc/exports`);
+      shellExec(`sudo cp -a ../bootloaders/exports /etc/exports`);
       shellExec(`node bin/deploy nfs`);
 
       shellExec(`sudo snap restart maas.pebble`);
@@ -1405,21 +1389,12 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         //   .replaceAll('${next-server}', IP_ADDRESS);
         // fs.writeFileSync(`${tftpRoot}${bootFolder}/ipxe.cfg`, ipxeSrc, 'utf8');
 
-        // const dist = `/home/dd/rpi-os-lite-boot`;
-        const dist = `/home/dd/boot-ubuntu-arm-20.04`;
-
         {
-          // shellExec(`sudo cp -a ${dist}/vmlinuz-6.6.51+rpt-rpi-2712 ${tftpRoot}${bootFolder}/pxe/vmlinuz-efi`);
-          // shellExec(`sudo cp -a ${dist}/initrd.img-6.6.51+rpt-rpi-2712 ${tftpRoot}${bootFolder}/pxe/initrd`);
-
-          shellExec(`sudo cp -a ${dist}/vmlinuz ${tftpRoot}${bootFolder}/pxe/vmlinuz-efi`);
-          shellExec(`sudo cp -a ${dist}/initrd.img ${tftpRoot}${bootFolder}/pxe/initrd.img`);
-
-          const _dist = `../bootloaders/EEPROM_RPiOSlite`;
+          shellExec(`sudo cp -a ../pxe${bootFolder}/vmlinuz-efi ${tftpRoot}${bootFolder}/pxe/vmlinuz-efi`);
+          shellExec(`sudo cp -a ../pxe${bootFolder}/initrd.img ${tftpRoot}${bootFolder}/pxe/initrd.img`);
 
           // shellExec(`sudo cp -a ${dist}/config.txt ${tftpRoot}${bootFolder}/config.txt`);
-
-          // const configTxtSrc = fs.readFileSync(`${_dist}/config.txt`, 'utf8');
+          // const configTxtSrc = fs.readFileSync(`/config.txt`, 'utf8');
           // fs.writeFileSync(
           //   `${tftpRoot}${bootFolder}/config.txt`,
           //   configTxtSrc
@@ -1429,7 +1404,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           //   'utf8',
           // );
 
-          const cmdLineCat = fs.readFileSync(`${_dist}/cmdline.txt`, 'utf8');
+          const cmdLineCat = fs.readFileSync(`../bootloaders/cmdline.txt`, 'utf8');
           const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
 
           const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
