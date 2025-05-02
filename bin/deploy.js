@@ -1198,6 +1198,14 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       //   `maas init region+rack --database-uri "postgres://$DB_PG_MAAS_USER:$DB_PG_MAAS_PASS@$DB_PG_MAAS_HOST/$DB_PG_MAAS_NAME"` +
       //     ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
       // );
+      if (process.argv.includes('boot-info')) {
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`);
+        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read <id>`);
+        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 1`);
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-sources read`);
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} commissioning-scripts read`);
+        process.exit(0);
+      }
       if (process.argv.includes('grub-arm64')) {
         shellExec(`sudo dnf install grub2-efi-aa64-modules`);
         shellExec(`sudo dnf install grub2-efi-x64-modules`);
@@ -1225,7 +1233,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       }
       if (process.argv.includes('dhcp')) {
         const snippets = JSON.parse(
-          shellExec(`maas maas dhcpsnippets read`, { stdout: true, silent: true, disableLog: true }),
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} dhcpsnippets read`, {
+            stdout: true,
+            silent: true,
+            disableLog: true,
+          }),
         );
         for (const snippet of snippets) {
           switch (snippet.name) {
@@ -1234,7 +1246,9 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
               snippet.value[1] = `          filename "http://${IP_ADDRESS}:5248/images/bootloaders/uefi/arm64/grubaa64.efi";`;
               snippet.value[5] = `          filename "http://${IP_ADDRESS}:5248/images/bootloaders/uefi/arm64/grubaa64.efi";`;
               snippet.value = snippet.value.join(`\n`);
-              shellExec(`maas maas dhcpsnippet update ${snippet.name} value='${snippet.value}'`);
+              shellExec(
+                `maas ${process.env.MAAS_ADMIN_USERNAME} dhcpsnippet update ${snippet.name} value='${snippet.value}'`,
+              );
               break;
 
             default:
@@ -1428,7 +1442,7 @@ insmod nfs
 set timeout=10
 set default=0
 
-menuentry 'MAAS commissioning (ARM64)' {
+menuentry 'UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)' {
   linux  ${bootFolder}/pxe/vmlinuz-efi ${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}
   initrd ${bootFolder}/pxe/initrd.img
   boot
