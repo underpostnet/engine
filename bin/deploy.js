@@ -1469,6 +1469,9 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       // 7) shutdown and restart without sd card
 
+      // sudo apt update
+      // sudo apt install git
+
       break;
     }
 
