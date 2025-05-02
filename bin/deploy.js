@@ -1170,6 +1170,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     case 'maas': {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const IP_ADDRESS = getLocalIPv4Address();
+      const tftpRoot = `/var/snap/maas/common/maas/tftp_root`;
 
       if (process.argv.includes('db')) {
         // DROP, ALTER, CREATE, WITH ENCRYPTED
@@ -1197,6 +1198,12 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       //   `maas init region+rack --database-uri "postgres://$DB_PG_MAAS_USER:$DB_PG_MAAS_PASS@$DB_PG_MAAS_HOST/$DB_PG_MAAS_NAME"` +
       //     ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
       // );
+      if (process.argv.includes('grub-arm64')) {
+        shellExec(`sudo dnf install grub2-efi-aa64-modules`);
+        shellExec(`sudo dnf install grub2-efi-x64-modules`);
+        // sudo grub2-mknetdir --net-directory=${tftpRoot} --subdir=/boot/grub --module-path=/usr/lib/grub/arm64-efi arm64-efi
+        process.exit(0);
+      }
 
       if (process.argv.includes('psql')) {
         const cmd = `psql -U ${process.env.DB_PG_MAAS_USER} -h ${process.env.DB_PG_MAAS_HOST} -W ${process.env.DB_PG_MAAS_NAME}`;
@@ -1323,7 +1330,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       // Poweroff:
       // grub> halt
-      const tftpRoot = `/var/snap/maas/common/maas/tftp_root`;
+
       let bootLoader, bootFolder;
       switch (process.argv[3]) {
         case '0':
@@ -1350,7 +1357,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       shellExec(`sudo cp -a ../bootloaders/EEPROM_RPiOSlite/exports /etc/exports`);
       shellExec(`node bin/deploy nfs`);
 
-      shellExec(`sudo chown -R root:root ${tftpRoot}${bootFolder}`);
       shellExec(`sudo snap restart maas.pebble`);
       let secs = 0;
       while (
@@ -1404,32 +1410,34 @@ configfile /grub/grub.cfg-default-${grub_cpu}
         }
         {
           const grubCfgPath = `${tftpRoot}/grub/grub.cfg-default-${grub_cpu}`;
+          shellExec(`sudo cp -a ${dist}/vmlinuz-6.6.51+rpt-rpi-2712 ${tftpRoot}${bootFolder}/pxe/vmlinuz-efi`);
+          shellExec(`sudo cp -a ${dist}/initrd.img-6.6.51+rpt-rpi-2712 ${tftpRoot}${bootFolder}/pxe/initrd`);
           fs.writeFileSync(
             grubCfgPath,
             `
 insmod gzio
 insmod http
+insmod nfs
 set timeout=5
 set default=0
 
 menuentry 'MAAS commissioning (ARM64)' {
-echo 'Load rpi OS lite kernel...'
-linux  ${dist}/vmlinuz-6.6.51+rpt-rpi-2712 \
-     ip=dhcp                          \
-     root=/dev/nfs                    \
-     nfsroot=${IP_ADDRESS}:/nfs-export/rpi4mb,tcp,rw \
-     rw                               \
-     console=serial0,115200           \
-     rootfstype=nfs                   \
-     rootwait
-echo 'Load initramfs...'
-initrd ${dist}/initrd.img-6.6.51+rpt-rpi-2712
-boot
+  linux  ${bootFolder}/pxe/vmlinuz-efi \
+         ip=dhcp \
+         root=/dev/nfs \
+         nfsroot=${IP_ADDRESS}:/nfs-export/rpi4mb,tcp,rw \
+         console=serial0,115200 \
+         rootfstype=nfs \
+         rootwait
+  initrd ${bootFolder}/pxe/initrd
+  boot
 }
+
     `,
             'utf8',
           );
         }
+        shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${tftpRoot}/grub/arm64-efi`);
       }
 
       // ../rpi-os-lite-boot/
@@ -1448,6 +1456,8 @@ boot
       shellExec(`node engine-private/r`);
       shellExec(`node bin/deploy maas dhcp`);
       shellExec(`node bin/deploy maas logs`);
+      shellExec(`sudo chown -R root:root ${tftpRoot}`);
+      shellExec(`sudo sudo chmod 755 ${tftpRoot}`);
 
       break;
     }
