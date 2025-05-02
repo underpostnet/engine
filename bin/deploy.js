@@ -1388,7 +1388,61 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         //   fs.writeFileSync(`${tftpRoot}/ipxe.cfg`, ipxeSrc, 'utf8');
         // }, 1000);
         // fs.writeFileSync(`${tftpRoot}${bootFolder}/ipxe.cfg`, ipxeSrc, 'utf8');
+
+        const grub_cpu = 'arm64';
+        const dist = `/home/dd/rpi-os-lite-boot`;
+
+        {
+          const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
+          fs.writeFileSync(
+            grubCfgPath,
+            `
+configfile /grub/grub.cfg-default-${grub_cpu}
+    `,
+            'utf8',
+          );
+        }
+        {
+          const grubCfgPath = `${tftpRoot}/grub/grub.cfg-default-${grub_cpu}`;
+          fs.writeFileSync(
+            grubCfgPath,
+            `
+insmod gzio
+insmod http
+set timeout=5
+set default=0
+
+menuentry 'MAAS commissioning (ARM64)' {
+echo 'Load rpi OS lite kernel...'
+linux  ${dist}/vmlinuz-6.6.51+rpt-rpi-2712 \
+     ip=dhcp                          \
+     root=/dev/nfs                    \
+     nfsroot=${IP_ADDRESS}:/nfs-export/rpi4mb,tcp,rw \
+     rw                               \
+     console=serial0,115200           \
+     rootfstype=nfs                   \
+     rootwait
+echo 'Load initramfs...'
+initrd ${dist}/initrd.img-6.6.51+rpt-rpi-2712
+boot
+}
+    `,
+            'utf8',
+          );
+        }
       }
+
+      // ../rpi-os-lite-boot/
+
+      // cmdline.txt                 config-6.6.51+rpt-rpi-v8  firmware
+      // initrd.img-6.6.51+rpt-rpi-2712  issue.txt  System.map-6.6.51+rpt-rpi-2712
+      // vmlinuz-6.6.51+rpt-rpi-2712
+
+      // config-6.6.51+rpt-rpi-2712  config.txt
+      // .git
+      // initrd.img-6.6.51+rpt-rpi-v8
+      // overlays   System.map-6.6.51+rpt-rpi-v8
+      // vmlinuz-6.6.51+rpt-rpi-v8
 
       logger.info('succes maas deploy', { tftpRoot, bootFolder, bootLoader });
       shellExec(`node engine-private/r`);
