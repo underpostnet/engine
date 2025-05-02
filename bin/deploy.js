@@ -1391,25 +1391,14 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         //   .replaceAll('${next-server}', IP_ADDRESS);
         // fs.writeFileSync(`${tftpRoot}${bootFolder}/ipxe.cfg`, ipxeSrc, 'utf8');
 
-        const grub_cpu = 'arm64';
         // const dist = `/home/dd/rpi-os-lite-boot`;
         const dist = `/home/dd/boot-ubuntu-arm-20.04`;
 
         {
-          const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
-          fs.writeFileSync(
-            grubCfgPath,
-            `
-configfile /grub/grub.cfg-default-${grub_cpu}
-    `,
-            'utf8',
-          );
-        }
-        {
           // shellExec(`sudo cp -a ${dist}/vmlinuz-6.6.51+rpt-rpi-2712 ${tftpRoot}${bootFolder}/pxe/vmlinuz-efi`);
           // shellExec(`sudo cp -a ${dist}/initrd.img-6.6.51+rpt-rpi-2712 ${tftpRoot}${bootFolder}/pxe/initrd`);
 
-          shellExec(`sudo cp -a ${dist}/vmlinuz ${tftpRoot}${bootFolder}/pxe/vmlinuz`);
+          shellExec(`sudo cp -a ${dist}/vmlinuz ${tftpRoot}${bootFolder}/pxe/vmlinuz-efi`);
           shellExec(`sudo cp -a ${dist}/initrd.img ${tftpRoot}${bootFolder}/pxe/initrd.img`);
 
           const _dist = `../bootloaders/EEPROM_RPiOSlite`;
@@ -1429,7 +1418,6 @@ configfile /grub/grub.cfg-default-${grub_cpu}
           const cmdLineCat = fs.readFileSync(`${_dist}/cmdline.txt`, 'utf8');
           const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
 
-          // const grubCfgPath = `${tftpRoot}/grub/grub.cfg-default-${grub_cpu}`;
           const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
           fs.writeFileSync(
             grubCfgPath,
@@ -1441,7 +1429,7 @@ set timeout=10
 set default=0
 
 menuentry 'MAAS commissioning (ARM64)' {
-  linux  ${bootFolder}/pxe/vmlinuz ${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}
+  linux  ${bootFolder}/pxe/vmlinuz-efi ${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}
   initrd ${bootFolder}/pxe/initrd.img
   boot
 }
@@ -1450,20 +1438,10 @@ menuentry 'MAAS commissioning (ARM64)' {
             'utf8',
           );
         }
-        shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${tftpRoot}/grub/arm64-efi`);
+        const arm64EfiPath = `${tftpRoot}/grub/arm64-efi`;
+        if (fs.existsSync(arm64EfiPath)) shellExec(`sudo rm -rf ${arm64EfiPath}`);
+        shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${arm64EfiPath}`);
       }
-
-      // ../rpi-os-lite-boot/
-
-      // cmdline.txt                 config-6.6.51+rpt-rpi-v8  firmware
-      // initrd.img-6.6.51+rpt-rpi-2712  issue.txt  System.map-6.6.51+rpt-rpi-2712
-      // vmlinuz-6.6.51+rpt-rpi-2712
-
-      // config-6.6.51+rpt-rpi-2712  config.txt
-      // .git
-      // initrd.img-6.6.51+rpt-rpi-v8
-      // overlays   System.map-6.6.51+rpt-rpi-v8
-      // vmlinuz-6.6.51+rpt-rpi-v8
 
       logger.info('succes maas deploy', { tftpRoot, bootFolder, bootLoader });
       shellExec(`node engine-private/r`);
