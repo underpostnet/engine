@@ -1181,6 +1181,17 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         name: o.name,
         architecture: o.architecture,
       }));
+      const machines = JSON.parse(
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read `, {
+          stdout: true,
+          silent: true,
+        }),
+      ).map((o) => ({
+        system_id: o.interface_set[0].system_id,
+        mac_address: o.interface_set[0].mac_address,
+        hostname: o.hostname,
+        status_name: o.status_name,
+      }));
 
       if (process.argv.includes('db')) {
         // DROP, ALTER, CREATE, WITH ENCRYPTED
@@ -1209,6 +1220,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} commissioning-scripts read`);
         // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 60`);
         console.table(resources);
+        console.table(machines);
         process.exit(0);
       }
       if (process.argv.includes('grub-arm64')) {
@@ -1381,11 +1393,17 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             'initrd.img': bootFiles['boot-initrd' + suffix].filename_on_disk,
             squashfs: bootFiles['squashfs'].filename_on_disk,
           };
-          const cmdLineCat = fs.readFileSync(`../bootloaders/cmdline.txt`, 'utf8');
-          const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
-          nfsConnectStr = `${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}`.trim();
+
+          const machineIp = '192.168.1.87';
+          const netmask = '255.255.255.0';
+          const gatewayip = '192.168.1.1';
+          nfsConnectStr = `${fs
+            .readFileSync(`../bootloaders/cmdline.txt`, 'utf8')
+            .replaceAll('${ipaddr}', machineIp)
+            .replaceAll('${serverip}', IP_ADDRESS)
+            .replaceAll('${netmask}', netmask)
+            .replaceAll('${gatewayip}', gatewayip)}`.trim();
           // nfsConnectStr = `console=serial0,115200 console=tty1 ip=dhcp`;
-          // nfsConnectStr = `console=serial0,115200 console=tty1 ip=dhcp url=http://${IP_ADDRESS}/MAAS/metadata/ cloud-config-url=/dev/null`;
 
           break;
 
@@ -1419,54 +1437,53 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       switch (process.argv[3]) {
         case 'rpi4mb':
           {
+            // subnet DHCP snippets
+            // # UEFI ARM64
+            // if option arch = 00:0B {
+            //   filename "rpi4mb/pxe/grubaa64.efi";
+            // }
+            // elsif option arch = 00:13 {
+            //   filename "http://<IP_ADDRESS>:5248/images/bootloaders/uefi/arm64/grubaa64.efi";
+            //   option vendor-class-identifier "HTTPClient";
+            // }
+            for (const file of ['bootaa64.efi', 'grubaa64.efi']) {
+              shellExec(
+                `sudo cp -a /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file} ${tftpRoot}${tftpSubDir}/pxe/${file}`,
+              );
+            }
+            // const file = 'bcm2711-rpi-4-b.dtb';
+            // shellExec(
+            //   `sudo cp -a  ${firmwarePath}/${file} /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file}`,
+            // );
+
+            // const ipxeSrc = fs
+            //   .readFileSync(`${tftpRoot}/ipxe.cfg`, 'utf8')
+            //   .replaceAll('amd64', 'arm64')
+            //   .replaceAll('${next-server}', IP_ADDRESS);
+            // fs.writeFileSync(`${tftpRoot}/ipxe.cfg`, ipxeSrc, 'utf8');
+
             {
-              // subnet DHCP snippets
-              // # UEFI ARM64
-              // if option arch = 00:0B {
-              //   filename "rpi4mb/pxe/grubaa64.efi";
-              // }
-              // elsif option arch = 00:13 {
-              //   filename "http://<IP_ADDRESS>:5248/images/bootloaders/uefi/arm64/grubaa64.efi";
-              //   option vendor-class-identifier "HTTPClient";
-              // }
-              for (const file of ['bootaa64.efi', 'grubaa64.efi']) {
+              for (const file of Object.keys(kernelFilesPaths)) {
                 shellExec(
-                  `sudo cp -a /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file} ${tftpRoot}${tftpSubDir}/pxe/${file}`,
+                  `sudo cp -a /var/snap/maas/common/maas/image-storage/${kernelFilesPaths[file]} ${tftpRoot}${tftpSubDir}/pxe/${file}`,
                 );
               }
-              // const file = 'bcm2711-rpi-4-b.dtb';
-              // shellExec(
-              //   `sudo cp -a  ${firmwarePath}/${file} /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file}`,
+              // const configTxtSrc = fs.readFileSync(`${firmwarePath}/config.txt`, 'utf8');
+              // fs.writeFileSync(
+              //   `${tftpRoot}${tftpSubDir}/config.txt`,
+              //   configTxtSrc
+              //     .replace(`kernel=kernel8.img`, `kernel=vmlinuz`)
+              //     .replace(`# max_framebuffers=2`, `max_framebuffers=2`)
+              //     .replace(`initramfs initramfs8 followkernel`, `initramfs initrd.img followkernel`),
+              //   'utf8',
               // );
 
-              // const ipxeSrc = fs
-              //   .readFileSync(`${tftpRoot}/ipxe.cfg`, 'utf8')
-              //   .replaceAll('amd64', 'arm64')
-              //   .replaceAll('${next-server}', IP_ADDRESS);
-              // fs.writeFileSync(`${tftpRoot}/ipxe.cfg`, ipxeSrc, 'utf8');
-
-              {
-                for (const file of Object.keys(kernelFilesPaths)) {
-                  shellExec(
-                    `sudo cp -a /var/snap/maas/common/maas/image-storage/${kernelFilesPaths[file]} ${tftpRoot}${tftpSubDir}/pxe/${file}`,
-                  );
-                }
-                // const configTxtSrc = fs.readFileSync(`${firmwarePath}/config.txt`, 'utf8');
-                // fs.writeFileSync(
-                //   `${tftpRoot}${tftpSubDir}/config.txt`,
-                //   configTxtSrc
-                //     .replace(`kernel=kernel8.img`, `kernel=vmlinuz`)
-                //     .replace(`# max_framebuffers=2`, `max_framebuffers=2`)
-                //     .replace(`initramfs initramfs8 followkernel`, `initramfs initrd.img followkernel`),
-                //   'utf8',
-                // );
-
-                // UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)
-                const menuentryStr = 'underpost.net rpi4mb maas commissioning (ARM64)';
-                const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
-                fs.writeFileSync(
-                  grubCfgPath,
-                  `
+              // UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)
+              const menuentryStr = 'underpost.net rpi4mb maas commissioning (ARM64)';
+              const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
+              fs.writeFileSync(
+                grubCfgPath,
+                `
     insmod gzio
     insmod http
     insmod nfs
@@ -1480,13 +1497,22 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     }
     
         `,
-                  'utf8',
-                );
-              }
-              const arm64EfiPath = `${tftpRoot}/grub/arm64-efi`;
-              if (fs.existsSync(arm64EfiPath)) shellExec(`sudo rm -rf ${arm64EfiPath}`);
-              shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${arm64EfiPath}`);
+                'utf8',
+              );
             }
+            const arm64EfiPath = `${tftpRoot}/grub/arm64-efi`;
+            if (fs.existsSync(arm64EfiPath)) shellExec(`sudo rm -rf ${arm64EfiPath}`);
+            shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${arm64EfiPath}`);
+            for (const machine of machines) {
+              const { system_id, hostname } = machine;
+              if (!hostname.match('Rpi4')) continue;
+              shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${system_id}`, {
+                silent: true,
+              });
+            }
+            shellExec(
+              `maas ${process.env.MAAS_ADMIN_USERNAME} machines read | jq '.[] | {system_id: .interface_set[0].system_id, hostname, status_name, mac_address: .interface_set[0].mac_address}'`,
+            );
           }
 
           break;
