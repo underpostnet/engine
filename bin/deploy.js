@@ -39,6 +39,7 @@ import { Xampp } from '../src/runtime/xampp/Xampp.js';
 import { ejs } from '../src/server/json-schema.js';
 import { buildCliDoc } from '../src/cli/index.js';
 import { getLocalIPv4Address } from '../src/server/dns.js';
+import { Downloader } from '../src/server/downloader.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -1375,13 +1376,24 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         resource,
         nfsConnectStr,
         etcExports,
-        nfsServerRootPath;
+        nfsServerRootPath,
+        bootConf,
+        zipFirmwareFileName,
+        zipFirmwareName,
+        zipFirmwareUrl;
 
       switch (process.argv[3]) {
         case 'rpi4mb':
-          firmwarePath = '../bootloaders/RPi4_UEFI_Firmware_v1.41';
-          tftpSubDir = '/rpi4mb';
           const resourceId = process.argv[4] ?? '39';
+          tftpSubDir = '/rpi4mb';
+          zipFirmwareFileName = `RPi4_UEFI_Firmware_v1.41.zip`;
+          zipFirmwareName = zipFirmwareFileName.split('.zip')[0];
+          zipFirmwareUrl = `https://github.com/pftf/RPi4/releases/download/v1.41/RPi4_UEFI_Firmware_v1.41.zip`;
+          firmwarePath = `../${zipFirmwareName}`;
+          if (!fs.existsSync(firmwarePath)) {
+            await Downloader(zipFirmwareUrl, `../${zipFirmwareFileName}`);
+            shellExec(`cd .. && mkdir ${zipFirmwareName} && cd ${zipFirmwareName} && unzip ../${zipFirmwareFileName}`);
+          }
           resource = resources.find((o) => o.id == resourceId);
           name = resource.name;
           architecture = resource.architecture;
@@ -1422,7 +1434,22 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           ];
 
           nfsConnectStr = cmd.join(' ');
-          // nfsConnectStr = `console=serial0,115200 console=tty1 ip=dhcp`;
+          bootConf = `[all]
+MAC_ADDRESS=dc:00:00:00:00:00
+MAC_ADDRESS_OTP=0,1
+BOOT_UART=0
+WAKE_ON_GPIO=1
+POWER_OFF_ON_HALT=0
+ENABLE_SELF_UPDATE=1
+DISABLE_HDMI=0
+TFTP_IP=${serverip}
+TFTP_PREFIX=1
+TFTP_PREFIX_STR=${tftpSubDir.slice(1)}/
+NET_INSTALL_ENABLED=1
+DHCP_TIMEOUT=45000
+DHCP_REQ_TIMEOUT=4000
+TFTP_FILE_TIMEOUT=30000
+BOOT_ORDER=0x21`;
 
           break;
 
@@ -1435,6 +1462,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       shellExec(`mkdir -p ${tftpRoot}${tftpSubDir}/pxe`);
 
       fs.writeFileSync(`/etc/exports`, etcExports, 'utf8');
+      if (bootConf) fs.writeFileSync(`${tftpRoot}${tftpSubDir}/boot.conf`, bootConf, 'utf8');
+
       shellExec(`node bin/deploy nfs`);
 
       if (process.argv.includes('restart')) {
@@ -1542,10 +1571,12 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       logger.info('succes maas deploy', {
         resource,
         kernelFilesPaths,
-        nfsConnectStr,
         tftpRoot,
         tftpSubDir,
         firmwarePath,
+        etcExports,
+        nfsServerRootPath,
+        nfsConnectStr,
       });
       if (process.argv.includes('restart')) {
         if (fs.existsSync(`node engine-private/r.js`)) shellExec(`node engine-private/r`);
