@@ -1354,15 +1354,14 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // Poweroff:
       // grub> halt
 
-      let firmwarePath, tftpSubDir, kernelPath;
+      let firmwarePath, tftpSubDir, kernelFilesPaths;
 
       switch (process.argv[3]) {
         case 'rpi4mb':
           firmwarePath = '../bootloaders/RPi4_UEFI_Firmware_v1.41';
           tftpSubDir = '/rpi4mb';
-          kernelPath = '../pxe/rpi4mb';
 
-          const resource = resources.find((o) => o.name === 'ubuntu/focal' && o.architecture === 'amd64/ga-20.04');
+          const resource = resources.find((o) => o.name === 'ubuntu/focal' && o.architecture === 'arm64/ga-20.04');
           const resourceData = JSON.parse(
             shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
               stdout: true,
@@ -1371,21 +1370,18 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             }),
           );
           const bootFiles = resourceData.sets[Object.keys(resourceData.sets)[0]].files;
-          const bootFilesPaths = {
-            'boot-kernel': bootFiles['boot-kernel'].filename_on_disk,
-            'boot-initrd': bootFiles['boot-initrd'].filename_on_disk,
+          kernelFilesPaths = {
+            vmlinuz: bootFiles['boot-kernel'].filename_on_disk,
+            'initrd.img': bootFiles['boot-initrd'].filename_on_disk,
             squashfs: bootFiles['squashfs'].filename_on_disk,
           };
 
           console.log({
-            resourceData,
-            bootFiles,
-            bootFilesPaths,
+            resource,
+            // resourceData,
+            // bootFiles,
+            kernelFilesPaths,
           });
-
-          process.exit(0);
-
-          // create pxe folder logic
           break;
 
         default:
@@ -1445,9 +1441,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
               // fs.writeFileSync(`${tftpRoot}/ipxe.cfg`, ipxeSrc, 'utf8');
 
               {
-                shellExec(`sudo cp -a ${kernelPath}/vmlinuz-efi ${tftpRoot}${tftpSubDir}/pxe/vmlinuz`);
-                shellExec(`sudo cp -a ${kernelPath}/initrd.img ${tftpRoot}${tftpSubDir}/pxe/initrd.img`);
-
+                for (const file of Object.keys(kernelFilesPaths)) {
+                  shellExec(
+                    `sudo cp -a /var/snap/maas/common/maas/image-storage/${kernelFilesPaths[file]} ${tftpRoot}${tftpSubDir}/pxe/${file}`,
+                  );
+                }
                 // const configTxtSrc = fs.readFileSync(`${firmwarePath}/config.txt`, 'utf8');
                 // fs.writeFileSync(
                 //   `${tftpRoot}${tftpSubDir}/config.txt`,
@@ -1473,7 +1471,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     set default=0
     
     menuentry 'UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)' {
-      linux ${tftpSubDir}/pxe/vmlinuz
+      linux ${tftpSubDir}/pxe/vmlinuz ${nfsConnectStr}
       initrd ${tftpSubDir}/pxe/initrd.img
       boot
     }
