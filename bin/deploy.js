@@ -1460,7 +1460,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
                 const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
                 // const nfsConnectStr = `${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}`;
                 const nfsConnectStr = `console=serial0,115200 console=tty1 ip=dhcp`;
-
+                // UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)
+                const menuentryStr = 'underpost.net rpi4mb commissioning (ARM64)';
                 const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
                 fs.writeFileSync(
                   grubCfgPath,
@@ -1471,7 +1472,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     set timeout=5
     set default=0
     
-    menuentry 'UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)' {
+    menuentry '${menuentryStr}' {
       linux ${tftpSubDir}/pxe/vmlinuz ${nfsConnectStr}
       initrd ${tftpSubDir}/pxe/initrd.img
       boot
