@@ -1183,7 +1183,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         architecture: o.architecture,
       }));
       const machines = JSON.parse(
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read `, {
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
           stdout: true,
           silent: true,
         }),
@@ -1425,12 +1425,12 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             `console=serial0,115200`,
             `console=tty1`,
             `root=/dev/nfs`,
-            `nfsroot=${serverip}:${nfsServerRootPath},udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr`,
+            `nfsroot=${serverip}:${nfsServerRootPath}`, // ,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr
             // `ip=${ipaddr}:${serverip}:${gatewayip}`,
             `ip=${ipaddr}:${serverip}`,
             // `ip=dhcp`,
-            `rw`,
-            `rootwait`,
+            // `rw`,
+            // `rootwait`,
           ];
 
           nfsConnectStr = cmd.join(' ');
