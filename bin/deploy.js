@@ -1458,7 +1458,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
                 const cmdLineCat = fs.readFileSync(`../bootloaders/cmdline.txt`, 'utf8');
                 const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
-                const nfsConnectStr = `${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}`;
+                // const nfsConnectStr = `${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}`;
+                const nfsConnectStr = `console=serial0,115200 console=tty1 ip=dhcp`;
 
                 const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
                 fs.writeFileSync(
