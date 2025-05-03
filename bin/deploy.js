@@ -1461,7 +1461,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
                 // const nfsConnectStr = `${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}`;
                 const nfsConnectStr = `console=serial0,115200 console=tty1 ip=dhcp`;
                 // UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)
-                const menuentryStr = 'underpost.net rpi4mb commissioning (ARM64)';
+                const menuentryStr = 'underpost.net rpi4mb maas commissioning (ARM64)';
                 const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
                 fs.writeFileSync(
                   grubCfgPath,
