@@ -1171,6 +1171,16 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const IP_ADDRESS = getLocalIPv4Address();
       const tftpRoot = `/var/snap/maas/common/maas/tftp_root`;
+      const resources = JSON.parse(
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
+          silent: true,
+          stdout: true,
+        }),
+      ).map((o) => ({
+        id: o.id,
+        name: o.name,
+        architecture: o.architecture,
+      }));
 
       if (process.argv.includes('db')) {
         // DROP, ALTER, CREATE, WITH ENCRYPTED
@@ -1198,12 +1208,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-sources read`);
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} commissioning-scripts read`);
         // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 60`);
-        const resources = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
-            silent: true,
-            stdout: true,
-          }),
-        );
         console.table(resources);
         process.exit(0);
       }
@@ -1350,105 +1354,153 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // Poweroff:
       // grub> halt
 
-      const bootLoader = '/RPi4_UEFI_Firmware_v1.41';
-      const bootFolder = '/rpi4mb';
+      let firmwarePath, tftpSubDir, kernelPath;
 
-      shellExec(`sudo rm -rf ${tftpRoot}${bootFolder}`);
-      shellExec(`sudo cp -a ../bootloaders${bootLoader} ${tftpRoot}${bootFolder}`);
+      switch (process.argv[3]) {
+        case 'rpi4mb':
+          firmwarePath = '../bootloaders/RPi4_UEFI_Firmware_v1.41';
+          tftpSubDir = '/rpi4mb';
+          kernelPath = '../pxe/rpi4mb';
+
+          const resource = resources.find((o) => o.name === 'ubuntu/focal' && o.architecture === 'amd64/ga-20.04');
+          const resourceData = JSON.parse(
+            shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
+              stdout: true,
+              silent: true,
+              disableLog: true,
+            }),
+          );
+          const bootFiles = resourceData.sets[Object.keys(resourceData.sets)[0]].files;
+          const bootFilesPaths = {
+            'boot-kernel': bootFiles['boot-kernel'].filename_on_disk,
+            'boot-initrd': bootFiles['boot-initrd'].filename_on_disk,
+            squashfs: bootFiles['squashfs'].filename_on_disk,
+          };
+
+          console.log({
+            resourceData,
+            bootFiles,
+            bootFilesPaths,
+          });
+
+          process.exit(0);
+
+          // create pxe folder logic
+          break;
+
+        default:
+          break;
+      }
+
+      shellExec(`sudo rm -rf ${tftpRoot}${tftpSubDir}`);
+      shellExec(`sudo cp -a ${firmwarePath} ${tftpRoot}${tftpSubDir}`);
+      shellExec(`mkdir -p ${tftpRoot}${tftpSubDir}/pxe`);
 
       shellExec(`sudo rm -rf /etc/exports`);
       shellExec(`sudo cp -a ../bootloaders/exports /etc/exports`);
       shellExec(`node bin/deploy nfs`);
 
-      shellExec(`sudo snap restart maas.pebble`);
-      let secs = 0;
-      while (
-        !(
-          shellExec(`maas status`, { silent: true, disableLog: true, stdout: true })
-            .split(' ')
-            .filter((l) => l.match('inactive')).length === 1
-        )
-      ) {
-        await timer(1000);
-        console.log(`Waiting... (${++secs}s)`);
-      }
-      if (bootFolder === '/rpi4mb') {
-        // subnet DHCP snippets
-        // # UEFI ARM64
-        // if option arch = 00:0B {
-        //   filename "rpi4mb/pxe/grubaa64.efi";
-        // }
-        // elsif option arch = 00:13 {
-        //   filename "http://<IP_ADDRESS>:5248/images/bootloaders/uefi/arm64/grubaa64.efi";
-        //   option vendor-class-identifier "HTTPClient";
-        // }
-        shellExec(`mkdir ${tftpRoot}${bootFolder}/pxe`);
-        for (const file of ['bootaa64.efi', 'grubaa64.efi']) {
-          shellExec(
-            `sudo cp -a /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file} ${tftpRoot}${bootFolder}/pxe/${file}`,
-          );
+      if (process.argv.includes('restart')) {
+        shellExec(`sudo snap restart maas.pebble`);
+        let secs = 0;
+        while (
+          !(
+            shellExec(`maas status`, { silent: true, disableLog: true, stdout: true })
+              .split(' ')
+              .filter((l) => l.match('inactive')).length === 1
+          )
+        ) {
+          await timer(1000);
+          console.log(`Waiting... (${++secs}s)`);
         }
-        // const file = 'bcm2711-rpi-4-b.dtb';
-        // shellExec(
-        //   `sudo cp -a  ../bootloaders${bootLoader}/${file} /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file}`,
-        // );
-
-        // const ipxeSrc = fs
-        //   .readFileSync(`${tftpRoot}/ipxe.cfg`, 'utf8')
-        //   .replaceAll('amd64', 'arm64')
-        //   .replaceAll('${next-server}', IP_ADDRESS);
-        // fs.writeFileSync(`${tftpRoot}${bootFolder}/ipxe.cfg`, ipxeSrc, 'utf8');
-
-        {
-          shellExec(`sudo cp -a ../pxe${bootFolder}/vmlinuz-efi ${tftpRoot}${bootFolder}/pxe/vmlinuz`);
-          shellExec(`sudo cp -a ../pxe${bootFolder}/initrd.img ${tftpRoot}${bootFolder}/pxe/initrd.img`);
-
-          // shellExec(`sudo cp -a ${dist}/config.txt ${tftpRoot}${bootFolder}/config.txt`);
-          // const configTxtSrc = fs.readFileSync(`/config.txt`, 'utf8');
-          // fs.writeFileSync(
-          //   `${tftpRoot}${bootFolder}/config.txt`,
-          //   configTxtSrc
-          //     .replace(`kernel=kernel8.img`, `kernel=vmlinuz`)
-          //     .replace(`# max_framebuffers=2`, `max_framebuffers=2`)
-          //     .replace(`initramfs initramfs8 followkernel`, `initramfs initrd.img followkernel`),
-          //   'utf8',
-          // );
-
-          const cmdLineCat = fs.readFileSync(`../bootloaders/cmdline.txt`, 'utf8');
-          const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
-          const nfsConnectStr = `${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}`;
-
-          const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
-          fs.writeFileSync(
-            grubCfgPath,
-            `
-insmod gzio
-insmod http
-insmod nfs
-set timeout=5
-set default=0
-
-menuentry 'UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)' {
-  linux ${bootFolder}/pxe/vmlinuz
-  initrd ${bootFolder}/pxe/initrd.img
-  boot
-}
-
-    `,
-            'utf8',
-          );
-        }
-        const arm64EfiPath = `${tftpRoot}/grub/arm64-efi`;
-        if (fs.existsSync(arm64EfiPath)) shellExec(`sudo rm -rf ${arm64EfiPath}`);
-        shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${arm64EfiPath}`);
       }
 
-      logger.info('succes maas deploy', { tftpRoot, bootFolder, bootLoader });
-      shellExec(`node engine-private/r`);
-      shellExec(`node bin/deploy maas dhcp`);
-      shellExec(`node bin/deploy maas logs`);
-      shellExec(`sudo chown -R root:root ${tftpRoot}`);
-      shellExec(`sudo sudo chmod 755 ${tftpRoot}`);
+      switch (process.argv[3]) {
+        case 'rpi4mb':
+          {
+            {
+              // subnet DHCP snippets
+              // # UEFI ARM64
+              // if option arch = 00:0B {
+              //   filename "rpi4mb/pxe/grubaa64.efi";
+              // }
+              // elsif option arch = 00:13 {
+              //   filename "http://<IP_ADDRESS>:5248/images/bootloaders/uefi/arm64/grubaa64.efi";
+              //   option vendor-class-identifier "HTTPClient";
+              // }
+              for (const file of ['bootaa64.efi', 'grubaa64.efi']) {
+                shellExec(
+                  `sudo cp -a /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file} ${tftpRoot}${tftpSubDir}/pxe/${file}`,
+                );
+              }
+              // const file = 'bcm2711-rpi-4-b.dtb';
+              // shellExec(
+              //   `sudo cp -a  ${firmwarePath}/${file} /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file}`,
+              // );
+
+              // const ipxeSrc = fs
+              //   .readFileSync(`${tftpRoot}/ipxe.cfg`, 'utf8')
+              //   .replaceAll('amd64', 'arm64')
+              //   .replaceAll('${next-server}', IP_ADDRESS);
+              // fs.writeFileSync(`${tftpRoot}/ipxe.cfg`, ipxeSrc, 'utf8');
+
+              {
+                shellExec(`sudo cp -a ${kernelPath}/vmlinuz-efi ${tftpRoot}${tftpSubDir}/pxe/vmlinuz`);
+                shellExec(`sudo cp -a ${kernelPath}/initrd.img ${tftpRoot}${tftpSubDir}/pxe/initrd.img`);
+
+                // const configTxtSrc = fs.readFileSync(`${firmwarePath}/config.txt`, 'utf8');
+                // fs.writeFileSync(
+                //   `${tftpRoot}${tftpSubDir}/config.txt`,
+                //   configTxtSrc
+                //     .replace(`kernel=kernel8.img`, `kernel=vmlinuz`)
+                //     .replace(`# max_framebuffers=2`, `max_framebuffers=2`)
+                //     .replace(`initramfs initramfs8 followkernel`, `initramfs initrd.img followkernel`),
+                //   'utf8',
+                // );
+
+                const cmdLineCat = fs.readFileSync(`../bootloaders/cmdline.txt`, 'utf8');
+                const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
+                const nfsConnectStr = `${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}`;
+
+                const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
+                fs.writeFileSync(
+                  grubCfgPath,
+                  `
+    insmod gzio
+    insmod http
+    insmod nfs
+    set timeout=5
+    set default=0
+    
+    menuentry 'UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)' {
+      linux ${tftpSubDir}/pxe/vmlinuz
+      initrd ${tftpSubDir}/pxe/initrd.img
+      boot
+    }
+    
+        `,
+                  'utf8',
+                );
+              }
+              const arm64EfiPath = `${tftpRoot}/grub/arm64-efi`;
+              if (fs.existsSync(arm64EfiPath)) shellExec(`sudo rm -rf ${arm64EfiPath}`);
+              shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${arm64EfiPath}`);
+            }
+          }
+
+          break;
+
+        default:
+          break;
+      }
+
+      logger.info('succes maas deploy', { tftpRoot, tftpSubDir, firmwarePath });
+      if (process.argv.includes('restart')) {
+        if (fs.existsSync(`node engine-private/r.js`)) shellExec(`node engine-private/r`);
+        shellExec(`node bin/deploy maas dhcp`);
+        shellExec(`sudo chown -R root:root ${tftpRoot}`);
+        shellExec(`sudo sudo chmod 755 ${tftpRoot}`);
+      }
 
       break;
     }
