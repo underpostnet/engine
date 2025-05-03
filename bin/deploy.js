@@ -1194,16 +1194,17 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         shellExec(`sudo -i -u postgres psql -c "\\l"`);
       }
 
-      // shellExec(
-      //   `maas init region+rack --database-uri "postgres://$DB_PG_MAAS_USER:$DB_PG_MAAS_PASS@$DB_PG_MAAS_HOST/$DB_PG_MAAS_NAME"` +
-      //     ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
-      // );
-      if (process.argv.includes('boot-info')) {
-        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`);
-        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read <id>`);
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 60`);
-        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-sources read`);
-        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} commissioning-scripts read`);
+      if (process.argv.includes('ls')) {
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-sources read`);
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} commissioning-scripts read`);
+        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 60`);
+        const resources = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
+            silent: true,
+            stdout: true,
+          }),
+        );
+        console.table(resources);
         process.exit(0);
       }
       if (process.argv.includes('grub-arm64')) {
@@ -1225,6 +1226,10 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         process.exit(0);
       }
       if (process.argv.includes('reset')) {
+        // shellExec(
+        //   `maas init region+rack --database-uri "postgres://$DB_PG_MAAS_USER:$DB_PG_MAAS_PASS@$DB_PG_MAAS_HOST/$DB_PG_MAAS_NAME"` +
+        //     ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
+        // );
         const cmd =
           `maas init region+rack --database-uri "postgres://${process.env.DB_PG_MAAS_USER}:${process.env.DB_PG_MAAS_PASS}@${process.env.DB_PG_MAAS_HOST}/${process.env.DB_PG_MAAS_NAME}"` +
           ` --maas-url http://${IP_ADDRESS}:5240/MAAS`;
