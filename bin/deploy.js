@@ -1426,8 +1426,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             `console=tty1`,
             `root=/dev/nfs`,
             `nfsroot=${serverip}:${nfsServerRootPath}`, // ,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr
-            // `ip=${ipaddr}:${serverip}:${gatewayip}`,
-            `ip=${ipaddr}:${serverip}`,
+            `ip=${ipaddr}:${serverip}:${serverip}:${netmask}`,
+            // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask} `, // :eth0:static
             // `ip=dhcp`,
             // `rw`,
             // `rootwait`,
