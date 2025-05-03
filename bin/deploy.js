@@ -1361,10 +1361,9 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         case 'rpi4mb':
           firmwarePath = '../bootloaders/RPi4_UEFI_Firmware_v1.41';
           tftpSubDir = '/rpi4mb';
-          name = 'ubuntu/noble';
-          // architecture = 'arm64/ga-20.04'
-          // architecture = 'arm64/xgene-uboot';
-          architecture = 'arm64/ga-24.04';
+          resource = resources.find((o) => o.id == process.argv[4]);
+          name = resource.name;
+          architecture = resource.architecture;
           resource = resources.find((o) => o.name === name && o.architecture === architecture);
 
           const resourceData = JSON.parse(
