@@ -1383,6 +1383,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             `sudo cp -a /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file} ${tftpRoot}${bootFolder}/pxe/${file}`,
           );
         }
+        // const file = 'bcm2711-rpi-4-b.dtb';
+        // shellExec(
+        //   `sudo cp -a  ../bootloaders${bootLoader}/${file} /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file}`,
+        // );
+
         // const ipxeSrc = fs
         //   .readFileSync(`${tftpRoot}/ipxe.cfg`, 'utf8')
         //   .replaceAll('amd64', 'arm64')
@@ -1390,7 +1395,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         // fs.writeFileSync(`${tftpRoot}${bootFolder}/ipxe.cfg`, ipxeSrc, 'utf8');
 
         {
-          shellExec(`sudo cp -a ../pxe${bootFolder}/vmlinuz-efi ${tftpRoot}${bootFolder}/pxe/vmlinuz-efi`);
+          shellExec(`sudo cp -a ../pxe${bootFolder}/vmlinuz-efi ${tftpRoot}${bootFolder}/pxe/vmlinuz`);
           shellExec(`sudo cp -a ../pxe${bootFolder}/initrd.img ${tftpRoot}${bootFolder}/pxe/initrd.img`);
 
           // shellExec(`sudo cp -a ${dist}/config.txt ${tftpRoot}${bootFolder}/config.txt`);
@@ -1406,6 +1411,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
           const cmdLineCat = fs.readFileSync(`../bootloaders/cmdline.txt`, 'utf8');
           const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
+          const nfsConnectStr = `${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}`;
 
           const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
           fs.writeFileSync(
@@ -1414,11 +1420,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 insmod gzio
 insmod http
 insmod nfs
-set timeout=10
+set timeout=5
 set default=0
 
 menuentry 'UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)' {
-  linux  ${bootFolder}/pxe/vmlinuz-efi ${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}
+  linux ${bootFolder}/pxe/vmlinuz
   initrd ${bootFolder}/pxe/initrd.img
   boot
 }
