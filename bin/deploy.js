@@ -1373,7 +1373,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         case 'rpi4mb':
           firmwarePath = '../bootloaders/RPi4_UEFI_Firmware_v1.41';
           tftpSubDir = '/rpi4mb';
-          resource = resources.find((o) => o.id == process.argv[4]);
+          const resourceId = process.argv[4] ?? '39';
+          resource = resources.find((o) => o.id == resourceId);
           name = resource.name;
           architecture = resource.architecture;
           resource = resources.find((o) => o.name === name && o.architecture === architecture);
