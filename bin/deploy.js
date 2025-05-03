@@ -1367,7 +1367,15 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // grub > halt
       // initramfs > poweroff
 
-      let firmwarePath, tftpSubDir, kernelFilesPaths, name, architecture, resource, nfsConnectStr;
+      let firmwarePath,
+        tftpSubDir,
+        kernelFilesPaths,
+        name,
+        architecture,
+        resource,
+        nfsConnectStr,
+        etcExports,
+        nfsServerRootPath;
 
       switch (process.argv[3]) {
         case 'rpi4mb':
@@ -1378,7 +1386,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           name = resource.name;
           architecture = resource.architecture;
           resource = resources.find((o) => o.name === name && o.architecture === architecture);
-
+          nfsServerRootPath = `/nfs-export/rpi4mb`;
+          etcExports = `${nfsServerRootPath} *`;
           const resourceData = JSON.parse(
             shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
               stdout: true,
@@ -1395,15 +1404,24 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             squashfs: bootFiles['squashfs'].filename_on_disk,
           };
 
-          const machineIp = '192.168.1.87';
+          const ipaddr = '192.168.1.87';
           const netmask = '255.255.255.0';
           const gatewayip = '192.168.1.1';
-          nfsConnectStr = `${fs
-            .readFileSync(`../bootloaders/cmdline.txt`, 'utf8')
-            .replaceAll('${ipaddr}', machineIp)
-            .replaceAll('${serverip}', IP_ADDRESS)
-            .replaceAll('${netmask}', netmask)
-            .replaceAll('${gatewayip}', gatewayip)}`.trim();
+          const serverip = IP_ADDRESS;
+
+          const cmd = [
+            `console=serial0,115200`,
+            `console=tty1`,
+            `root=/dev/nfs`,
+            `nfsroot=${serverip}:${nfsServerRootPath},udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr`,
+            // `ip=${ipaddr}:${serverip}:${gatewayip}`,
+            `ip=${ipaddr}:${serverip}`,
+            // `ip=dhcp`,
+            `rw`,
+            `rootwait`,
+          ];
+
+          nfsConnectStr = cmd.join(' ');
           // nfsConnectStr = `console=serial0,115200 console=tty1 ip=dhcp`;
 
           break;
@@ -1416,8 +1434,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       shellExec(`sudo cp -a ${firmwarePath} ${tftpRoot}${tftpSubDir}`);
       shellExec(`mkdir -p ${tftpRoot}${tftpSubDir}/pxe`);
 
-      shellExec(`sudo rm -rf /etc/exports`);
-      shellExec(`sudo cp -a ../bootloaders/exports /etc/exports`);
+      fs.writeFileSync(`/etc/exports`, etcExports, 'utf8');
       shellExec(`node bin/deploy nfs`);
 
       if (process.argv.includes('restart')) {
