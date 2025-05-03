@@ -1352,16 +1352,21 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // grub> fwsetup
 
       // Poweroff:
-      // grub> halt
+      // grub > halt
+      // initramfs > poweroff
 
-      let firmwarePath, tftpSubDir, kernelFilesPaths;
+      let firmwarePath, tftpSubDir, kernelFilesPaths, name, architecture, resource, nfsConnectStr;
 
       switch (process.argv[3]) {
         case 'rpi4mb':
           firmwarePath = '../bootloaders/RPi4_UEFI_Firmware_v1.41';
           tftpSubDir = '/rpi4mb';
+          name = 'ubuntu/noble';
+          // architecture = 'arm64/ga-20.04'
+          // architecture = 'arm64/xgene-uboot';
+          architecture = 'arm64/ga-24.04';
+          resource = resources.find((o) => o.name === name && o.architecture === architecture);
 
-          const resource = resources.find((o) => o.name === 'ubuntu/focal' && o.architecture === 'arm64/ga-20.04');
           const resourceData = JSON.parse(
             shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
               stdout: true,
@@ -1370,18 +1375,19 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             }),
           );
           const bootFiles = resourceData.sets[Object.keys(resourceData.sets)[0]].files;
+          const suffix = architecture.match('xgene') ? '.xgene' : '';
+
           kernelFilesPaths = {
-            vmlinuz: bootFiles['boot-kernel'].filename_on_disk,
-            'initrd.img': bootFiles['boot-initrd'].filename_on_disk,
+            vmlinuz: bootFiles['boot-kernel' + suffix].filename_on_disk,
+            'initrd.img': bootFiles['boot-initrd' + suffix].filename_on_disk,
             squashfs: bootFiles['squashfs'].filename_on_disk,
           };
+          const cmdLineCat = fs.readFileSync(`../bootloaders/cmdline.txt`, 'utf8');
+          const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
+          nfsConnectStr = `${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}`.trim();
+          // nfsConnectStr = `console=serial0,115200 console=tty1 ip=dhcp`;
+          // nfsConnectStr = `console=serial0,115200 console=tty1 ip=dhcp url=http://${IP_ADDRESS}/MAAS/metadata/ cloud-config-url=/dev/null`;
 
-          console.log({
-            resource,
-            // resourceData,
-            // bootFiles,
-            kernelFilesPaths,
-          });
           break;
 
         default:
@@ -1456,10 +1462,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
                 //   'utf8',
                 // );
 
-                const cmdLineCat = fs.readFileSync(`../bootloaders/cmdline.txt`, 'utf8');
-                const cmdlineReplace = cmdLineCat.split('nfsroot=')[1].split(':')[0];
-                // const nfsConnectStr = `${cmdLineCat.replace(cmdlineReplace, IP_ADDRESS)}`;
-                const nfsConnectStr = `console=serial0,115200 console=tty1 ip=dhcp`;
                 // UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)
                 const menuentryStr = 'underpost.net rpi4mb maas commissioning (ARM64)';
                 const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
@@ -1494,7 +1496,14 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           break;
       }
 
-      logger.info('succes maas deploy', { tftpRoot, tftpSubDir, firmwarePath });
+      logger.info('succes maas deploy', {
+        resource,
+        kernelFilesPaths,
+        nfsConnectStr,
+        tftpRoot,
+        tftpSubDir,
+        firmwarePath,
+      });
       if (process.argv.includes('restart')) {
         if (fs.existsSync(`node engine-private/r.js`)) shellExec(`node engine-private/r`);
         shellExec(`node bin/deploy maas dhcp`);
