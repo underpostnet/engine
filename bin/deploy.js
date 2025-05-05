@@ -1598,6 +1598,10 @@ BOOT_ORDER=0x21`;
 
       // active nfs
       shellExec(`sudo exportfs -s`);
+
+      // Nfs client:
+      // mount -t nfs <server-ip>:/server-mnt /mnt
+      // umount /mnt
       break;
     }
 
