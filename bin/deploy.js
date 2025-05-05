@@ -1187,17 +1187,20 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         name: o.name,
         architecture: o.architecture,
       }));
-      const machines = JSON.parse(
+
+      const machineFactory = (m) => ({
+        system_id: m.interface_set[0].system_id,
+        mac_address: m.interface_set[0].mac_address,
+        hostname: m.hostname,
+        status_name: m.status_name,
+      });
+
+      let machines = JSON.parse(
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
           stdout: true,
           silent: true,
         }),
-      ).map((o) => ({
-        system_id: o.interface_set[0].system_id,
-        mac_address: o.interface_set[0].mac_address,
-        hostname: o.hostname,
-        status_name: o.status_name,
-      }));
+      ).map((m) => machineFactory(m));
 
       if (process.argv.includes('db')) {
         // DROP, ALTER, CREATE, WITH ENCRYPTED
@@ -1470,58 +1473,6 @@ BOOT_ORDER=0x21`;
           break;
       }
 
-      if (process.argv.includes('d')) {
-        // discoveries         Query observed discoveries.
-        // discovery           Read or delete an observed discovery.
-
-        const discoveries = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries read`, {
-            silent: true,
-            stdout: true,
-          }),
-        ).filter(
-          (o) => o.ip !== IP_ADDRESS && o.ip !== gatewayip && !machines.find((_o) => _o.mac_address === o.mac_address),
-        );
-
-        //   {
-        //     "discovery_id": "MTkyLjE2OC4xLjE4OSwwMDowMDowMDowMDowMDowMA==",
-        //     "ip": "192.168.1.189",
-        //     "mac_address": "00:00:00:00:00:00",
-        //     "last_seen": "2025-05-05T14:17:37.354",
-        //     "hostname": null,
-        //     "fabric_name": "fabric-0",
-        //     "vid": null,
-        //     "mac_organization": "XEROX CORPORATION",
-        //     "observer": {
-        //         "system_id": "pcnqc6",
-        //         "hostname": "asus-tuf-gaming-a-15",
-        //         "interface_id": 1,
-        //         "interface_name": "eno1"
-        //     },
-        //     "resource_uri": "/MAAS/api/2.0/discovery/MTkyLjE2OC4xLjE4OSwwMDowMDowMDowMDowMDowMA==/"
-        // },
-
-        for (const discovery of discoveries) {
-          const machine = {
-            architecture,
-            mac_address: discovery.mac_address,
-            hostname: discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? 'unknown-' + s4(),
-            // description: '',
-            power_type: 'amt', // manual
-          };
-
-          console.log(discovery);
-
-          console.log(
-            `maas ${process.env.MAAS_ADMIN_USERNAME} machines create ${Object.keys(machine)
-              .map((k) => `${k}="${machine[k]}"`)
-              .join(' ')}`,
-          );
-        }
-
-        process.exit(0);
-      }
-
       shellExec(`sudo rm -rf ${tftpRoot}${tftpSubDir}`);
       shellExec(`sudo cp -a ${firmwarePath} ${tftpRoot}${tftpSubDir}`);
       shellExec(`mkdir -p ${tftpRoot}${tftpSubDir}/pxe`);
@@ -1615,16 +1566,6 @@ BOOT_ORDER=0x21`;
             const arm64EfiPath = `${tftpRoot}/grub/arm64-efi`;
             if (fs.existsSync(arm64EfiPath)) shellExec(`sudo rm -rf ${arm64EfiPath}`);
             shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${arm64EfiPath}`);
-            for (const machine of machines) {
-              const { system_id, hostname } = machine;
-              if (!hostname.match('Rpi4')) continue;
-              shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${system_id}`, {
-                silent: true,
-              });
-            }
-            shellExec(
-              `maas ${process.env.MAAS_ADMIN_USERNAME} machines read | jq '.[] | {system_id: .interface_set[0].system_id, hostname, status_name, mac_address: .interface_set[0].mac_address}'`,
-            );
           }
 
           break;
@@ -1650,6 +1591,87 @@ BOOT_ORDER=0x21`;
         shellExec(`sudo sudo chmod 755 ${tftpRoot}`);
       }
 
+      // delete all machines
+      // for (const machine of machines) {
+      //   shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
+      // }
+      // machines = [];
+      // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries clear all=true`);
+      // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries scan force=true`);
+
+      const monitor = async () => {
+        // discoveries         Query observed discoveries.
+        // discovery           Read or delete an observed discovery.
+
+        const discoveries = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries read`, {
+            silent: true,
+            stdout: true,
+          }),
+        ).filter(
+          (o) => o.ip !== IP_ADDRESS && o.ip !== gatewayip && !machines.find((_o) => _o.mac_address === o.mac_address),
+        );
+
+        //   {
+        //     "discovery_id": "",
+        //     "ip": "192.168.1.189",
+        //     "mac_address": "00:00:00:00:00:00",
+        //     "last_seen": "2025-05-05T14:17:37.354",
+        //     "hostname": null,
+        //     "fabric_name": "",
+        //     "vid": null,
+        //     "mac_organization": "",
+        //     "observer": {
+        //         "system_id": "",
+        //         "hostname": "",
+        //         "interface_id": 1,
+        //         "interface_name": ""
+        //     },
+        //     "resource_uri": "/MAAS/api/2.0/discovery/MTkyLjE2OC4xLjE4OSwwMDowMDowMDowMDowMDowMA==/"
+        // },
+
+        for (const discovery of discoveries) {
+          const machine = {
+            architecture: architecture.match('amd') ? 'amd64/generic' : 'arm64/generic',
+            mac_address: discovery.mac_address,
+            hostname: discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? 'unknown-' + s4(),
+            // description: '',
+            // https://maas.io/docs/reference-power-drivers
+            power_type: 'manual', // manual
+            // power_parameters_power_address: discovery.ip,
+            mac_addresses: discovery.mac_address,
+          };
+          machine.hostname = machine.hostname.replaceAll(' ', '').replaceAll('.', '');
+
+          try {
+            let newMachine = shellExec(
+              `maas ${process.env.MAAS_ADMIN_USERNAME} machines create ${Object.keys(machine)
+                .map((k) => `${k}="${machine[k]}"`)
+                .join(' ')}`,
+              {
+                silent: true,
+                stdout: true,
+              },
+            );
+            newMachine = machineFactory(JSON.parse(newMachine));
+            console.log('newMachine', newMachine);
+            machines.push(newMachine);
+            shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.system_id}`, {
+              silent: true,
+            });
+          } catch (error) {
+            logger.error(error, error.stack);
+          }
+        }
+        if (discoveries.length > 0) {
+          shellExec(
+            `maas ${process.env.MAAS_ADMIN_USERNAME} machines read | jq '.[] | {system_id: .interface_set[0].system_id, hostname, status_name, mac_address: .interface_set[0].mac_address}'`,
+          );
+        }
+        await timer(1000);
+        monitor();
+      };
+      monitor();
       break;
     }
 
