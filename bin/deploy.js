@@ -29,7 +29,7 @@ import {
   getUnderpostRootPath,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
-import { range, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
+import { range, s4, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
 import { MongooseDB } from '../src/db/mongo/MongooseDB.js';
 import { Lampp } from '../src/runtime/lampp/Lampp.js';
 import { DefaultConf } from '../conf.js';
@@ -1172,6 +1172,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const IP_ADDRESS = getLocalIPv4Address();
       const tftpRoot = `/var/snap/maas/common/maas/tftp_root`;
+      const ipaddr = '192.168.1.87';
+      const netmask = '255.255.255.0';
+      const gatewayip = '192.168.1.1';
+      const serverip = IP_ADDRESS;
+
       const resources = JSON.parse(
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
           silent: true,
@@ -1416,21 +1421,29 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             squashfs: bootFiles['squashfs'].filename_on_disk,
           };
 
-          const ipaddr = '192.168.1.87';
-          const netmask = '255.255.255.0';
-          const gatewayip = '192.168.1.1';
-          const serverip = IP_ADDRESS;
-
           const cmd = [
-            `console=serial0,115200`,
-            `console=tty1`,
-            `root=/dev/nfs`,
-            `nfsroot=${serverip}:${nfsServerRootPath}`, // ,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr
-            //`ip=${ipaddr}:${serverip}:${serverip}:${netmask}`,
-            `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}`, // :eth0:static
-            // `ip=dhcp`,
+            // `console=serial0,115200`,
+            // `console=tty1`,
+            // `root=/dev/nfs`,
+            // `nfsroot=${serverip}:${nfsServerRootPath}`, // ,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr
+            // //`ip=${ipaddr}:${serverip}:${serverip}:${netmask}`,
+            // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}`, // :eth0:static
+            // // `ip=dhcp`,
             // `rw`,
             // `rootwait`,
+            `initrd=-1`,
+            `net.ifnames=0`,
+            `dwc_otg.lpm_enable=0`,
+            `console=serial0,115200`,
+            `console=tty1`,
+            `elevator=deadline`,
+            `root=/dev/nfs`,
+            // `nfsroot=${serverip}:/nfs-export/rpi4mb,tcp,rw`,
+            `nfsroot=${serverip}:/nfs-export/rpi4mb,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr`,
+            `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}`, // :eth0:static
+            `rootfstype=nfs`,
+            `rootwait`,
+            `fixrtc`,
           ];
 
           nfsConnectStr = cmd.join(' ');
@@ -1455,6 +1468,58 @@ BOOT_ORDER=0x21`;
 
         default:
           break;
+      }
+
+      if (process.argv.includes('d')) {
+        // discoveries         Query observed discoveries.
+        // discovery           Read or delete an observed discovery.
+
+        const discoveries = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries read`, {
+            silent: true,
+            stdout: true,
+          }),
+        ).filter(
+          (o) => o.ip !== IP_ADDRESS && o.ip !== gatewayip && !machines.find((_o) => _o.mac_address === o.mac_address),
+        );
+
+        //   {
+        //     "discovery_id": "MTkyLjE2OC4xLjE4OSwwMDowMDowMDowMDowMDowMA==",
+        //     "ip": "192.168.1.189",
+        //     "mac_address": "00:00:00:00:00:00",
+        //     "last_seen": "2025-05-05T14:17:37.354",
+        //     "hostname": null,
+        //     "fabric_name": "fabric-0",
+        //     "vid": null,
+        //     "mac_organization": "XEROX CORPORATION",
+        //     "observer": {
+        //         "system_id": "pcnqc6",
+        //         "hostname": "asus-tuf-gaming-a-15",
+        //         "interface_id": 1,
+        //         "interface_name": "eno1"
+        //     },
+        //     "resource_uri": "/MAAS/api/2.0/discovery/MTkyLjE2OC4xLjE4OSwwMDowMDowMDowMDowMDowMA==/"
+        // },
+
+        for (const discovery of discoveries) {
+          const machine = {
+            architecture,
+            mac_address: discovery.mac_address,
+            hostname: discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? 'unknown-' + s4(),
+            // description: '',
+            power_type: 'amt', // manual
+          };
+
+          console.log(discovery);
+
+          console.log(
+            `maas ${process.env.MAAS_ADMIN_USERNAME} machines create ${Object.keys(machine)
+              .map((k) => `${k}="${machine[k]}"`)
+              .join(' ')}`,
+          );
+        }
+
+        process.exit(0);
       }
 
       shellExec(`sudo rm -rf ${tftpRoot}${tftpSubDir}`);
