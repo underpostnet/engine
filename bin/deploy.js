@@ -1589,15 +1589,30 @@ BOOT_ORDER=0x21`;
     }
 
     case 'nfs': {
-      // disable share:
-      // sudo exportfs -u <client-ip>:/nfs-export/rpi4mb
+      // Configure /etc/exports
 
-      // update exports:
+      // Client users have read-only access to resources and are identified as anonymous on the server.
+      // /share ip-client(ro,all_squash)
+
+      // Client users can modify resources and keep their UID on the server. Only root is identified as anonymous.
+      // /share ip-client(rw)
+
+      // Users on client workstation 1 can modify resources, while those on client workstation 2 have read-only access.
+      // UIDs are kept on the server, and only root is identified as anonymous.
+      // /share ip-client1(rw) ip-client2(ro)
+
+      // Client1 users can modify resources. Their UID is changed to 1001 and their GID to 100 on the server.
+      // /share ip-client(rw,all_squash,anonuid=1001,anongid=100)
+
+      // Update exports:
       shellExec(`sudo exportfs -a -r`);
       shellExec(`sudo exportfs -v`);
 
-      // active nfs
+      // Active nfs
       shellExec(`sudo exportfs -s`);
+
+      // Disable share:
+      // sudo exportfs -u <client-ip>:/nfs-export/rpi4mb
 
       // Nfs client:
       // mount -t nfs <server-ip>:/server-mnt /mnt
