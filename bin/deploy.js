@@ -1605,6 +1605,25 @@ BOOT_ORDER=0x21`;
       break;
     }
 
+    case 'mount': {
+      const mounts = shellExec(`mount`).split(`\n`);
+      console.table(
+        mounts
+          .filter((l) => l.trim())
+          .map(
+            (o) => (
+              (o = o.split(' ')),
+              {
+                path: o[2],
+                type: o[4],
+                permissions: o[5],
+              }
+            ),
+          ),
+      );
+      break;
+    }
+
     case 'maas-ports': {
       // Configure firewall:
 
