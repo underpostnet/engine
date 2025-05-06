@@ -1173,7 +1173,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       const IP_ADDRESS = getLocalIPv4Address();
       const serverip = IP_ADDRESS;
       const tftpRoot = process.env.TFTP_ROOT;
-      const ipaddr = process.env.IP_ADDR;
+      const ipaddr = IP_ADDRESS;
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
       const interfaceName = process.env.INTERFACE_NAME;
@@ -1441,20 +1441,26 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             // //`ip=${ipaddr}:${serverip}:${serverip}:${netmask}`,
             // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}`, // :eth0:static
             // // `ip=dhcp`,
-
             // `initrd=-1`,
-            `net.ifnames=0`,
-            `dwc_otg.lpm_enable=0`,
+            // `net.ifnames=0`,
+            // `dwc_otg.lpm_enable=0`,
             // `elevator=deadline`,
             `root=/dev/nfs`,
+            `nfsroot=${serverip}:/nfs-export/rpi4mb`,
             // `nfsroot=${serverip}:/nfs-export/rpi4mb,tcp,rw`,
-            `nfsroot=${serverip}:/nfs-export/rpi4mb,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr`,
-            // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}`, // :eth0:static
-            `ip=${ipaddr}::${gatewayip}:${netmask}::${interfaceName}:static`,
-            `rootfstype=nfs`,
-            `rw`,
-            `rootwait`,
+            // `nfsroot=${serverip}:/nfs-export/rpi4mb,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr`,
+            `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${interfaceName}:static`,
+            // `ip=${ipaddr}::${serverip}:${netmask}::${interfaceName}:static`,
+            //  `ip=${ipaddr}::${netmask}::${interfaceName}:static`, // `rootfstype=nfs`, // `ip=${ipaddr}::${serverip}:${netmask}::${'lo'}:static`,
+            // `rw`,
+            // `rootwait`,
             // `fixrtc`,
+            'initrd=initrd.img',
+            // 'boot=casper',
+            // 'ro',
+            'netboot=nfs',
+            // 'ip=dhcp',
+            'autoinstall',
           ];
 
           nfsConnectStr = cmd.join(' ');
@@ -1599,10 +1605,12 @@ BOOT_ORDER=0x21`;
         shellExec(`sudo sudo chmod 755 ${tftpRoot}`);
       }
       for (const machine of machines) {
+        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${machine.system_id}`, {
           silent: true,
         });
       }
+      // machines = [];
 
       const monitor = async () => {
         // discoveries         Query observed discoveries.
