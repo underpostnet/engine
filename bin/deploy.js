@@ -1176,8 +1176,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       const ipaddr = '192.168.1.87';
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
-      const interfaceName = process.env.INTERFACE_NAME;
-      const nfsHost = process.env.MAAS_NFS_HOST;
       const resources = JSON.parse(
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
           silent: true,
@@ -1398,7 +1396,9 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         bootConf,
         zipFirmwareFileName,
         zipFirmwareName,
-        zipFirmwareUrl;
+        zipFirmwareUrl,
+        interfaceName,
+        nfsHost;
 
       switch (process.argv[3]) {
         case 'rpi4mb':
@@ -1408,6 +1408,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           zipFirmwareName = zipFirmwareFileName.split('.zip')[0];
           zipFirmwareUrl = `https://github.com/pftf/RPi4/releases/download/v1.41/RPi4_UEFI_Firmware_v1.41.zip`;
           firmwarePath = `../${zipFirmwareName}`;
+          interfaceName = process.env.RPI4_INTERFACE_NAME;
+          nfsHost = 'rpi4mb';
           if (!fs.existsSync(firmwarePath)) {
             await Downloader(zipFirmwareUrl, `../${zipFirmwareFileName}`);
             shellExec(`cd .. && mkdir ${zipFirmwareName} && cd ${zipFirmwareName} && unzip ../${zipFirmwareFileName}`);
@@ -1417,7 +1419,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           architecture = resource.architecture;
           resource = resources.find((o) => o.name === name && o.architecture === architecture);
           nfsServerRootPath = `/nfs-export/rpi4mb`;
-          etcExports = `${nfsServerRootPath} *`;
+          // ,anonuid=1001,anongid=100
+          etcExports = `${nfsServerRootPath} *(rw,all_squash,sync,no_root_squash,insecure)`;
           const resourceData = JSON.parse(
             shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
               stdout: true,
@@ -1433,9 +1436,23 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             'initrd.img': bootFiles['boot-initrd' + suffix].filename_on_disk,
             squashfs: bootFiles['squashfs'].filename_on_disk,
           };
-          const protocol = 'tcp';
-          // interfaceName
-          // nfsHost
+          const protocol = 'tcp'; // v3 -> tcp, v4 -> udp
+
+          const mountOptions = [
+            protocol,
+            'vers=3',
+            'nfsvers=3',
+            'nolock',
+            // 'protocol=tcp',
+            // 'hard=true',
+            'port=2049',
+            // 'sec=none',
+            'rw',
+            'hard',
+            'intr',
+            // 'nodev',
+            // 'nosuid',
+          ];
           const cmd = [
             `console=serial0,115200`,
             `console=tty1`,
@@ -1444,20 +1461,23 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             // `dwc_otg.lpm_enable=0`,
             // `elevator=deadline`,
             `root=/dev/nfs`,
-            `nfsroot=${serverip}:/nfs-export/rpi4mb,${protocol},nfsvers=3,rsize=32768,wsize=32768,hard,intr`,
-            `ip=${ipaddr}:${serverip}:${serverip}:${netmask}:${'rpi4mb'}:${interfaceName}:static`,
+            `nfsroot=${serverip}:/nfs-export/rpi4mb,${mountOptions}`,
+            // `nfsroot=${serverip}:/nfs-export/rpi4mb,${protocol},${
+            //   true ? 'vers' : 'nfsvers'
+            // }=3,rsize=32768,wsize=32768,hard,intr`,
+            `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${nfsHost}:${interfaceName}:static`,
             // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${'rpi4mb'}`,
             `rootfstype=nfs`,
-            // `rw`,
-            // `rootwait`,
-            // `fixrtc`,
-            // 'initrd=initrd.img',
+            `rw`,
+            `rootwait`,
+            `fixrtc`,
+            'initrd=initrd.img',
             // 'boot=casper',
             // 'ro',
-            // 'netboot=nfs',
+            'netboot=nfs',
             // 'ip=dhcp',
             // 'ip=dfcp',
-            // 'autoinstall',
+            'autoinstall',
           ];
 
           nfsConnectStr = cmd.join(' ');
@@ -1552,6 +1572,9 @@ BOOT_ORDER=0x21`;
               //   'utf8',
               // );
 
+              // grub:
+              // set root=(pxe)
+
               // UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)
               const menuentryStr = 'underpost.net rpi4mb maas commissioning (ARM64)';
               const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
@@ -1565,6 +1588,7 @@ BOOT_ORDER=0x21`;
     set default=0
     
     menuentry '${menuentryStr}' {
+      set root=(tftp,${serverip}) 
       linux ${tftpSubDir}/pxe/vmlinuz-efi ${nfsConnectStr}
       initrd ${tftpSubDir}/pxe/initrd.img
       boot
