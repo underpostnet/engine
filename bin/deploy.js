@@ -1173,7 +1173,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       const IP_ADDRESS = getLocalIPv4Address();
       const serverip = IP_ADDRESS;
       const tftpRoot = process.env.TFTP_ROOT;
-      const ipaddr = IP_ADDRESS;
+      const ipaddr = '192.168.1.87';
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
       const interfaceName = process.env.INTERFACE_NAME;
@@ -1449,7 +1449,9 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             `nfsroot=${serverip}:/nfs-export/rpi4mb`,
             // `nfsroot=${serverip}:/nfs-export/rpi4mb,tcp,rw`,
             // `nfsroot=${serverip}:/nfs-export/rpi4mb,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr`,
-            `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${interfaceName}:static`,
+            // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${interfaceName}:static`,
+            `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}`,
+            // `ip=${ipaddr}:${serverip}:${gatewayip}:${interfaceName}:static`,
             // `ip=${ipaddr}::${serverip}:${netmask}::${interfaceName}:static`,
             //  `ip=${ipaddr}::${netmask}::${interfaceName}:static`, // `rootfstype=nfs`, // `ip=${ipaddr}::${serverip}:${netmask}::${'lo'}:static`,
             // `rw`,
