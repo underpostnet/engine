@@ -1171,12 +1171,12 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     case 'maas': {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const IP_ADDRESS = getLocalIPv4Address();
-      const tftpRoot = `/var/snap/maas/common/maas/tftp_root`;
-      const ipaddr = '192.168.1.87';
-      const netmask = '255.255.255.0';
-      const gatewayip = '192.168.1.1';
       const serverip = IP_ADDRESS;
-
+      const tftpRoot = process.env.TFTP_ROOT;
+      const ipaddr = process.env.IP_ADDR;
+      const netmask = process.env.NETMASK;
+      const gatewayip = process.env.GATEWAY_IP;
+      const interfaceName = process.env.INTERFACE_NAME;
       const resources = JSON.parse(
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
           silent: true,
@@ -1230,6 +1230,15 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 60`);
         console.table(resources);
         console.table(machines);
+        process.exit(0);
+      }
+      if (process.argv.includes('clear')) {
+        for (const machine of machines) {
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
+        }
+        // machines = [];
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries clear all=true`);
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries scan force=true`);
         process.exit(0);
       }
       if (process.argv.includes('grub-arm64')) {
@@ -1419,34 +1428,33 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           const suffix = architecture.match('xgene') ? '.xgene' : '';
 
           kernelFilesPaths = {
-            vmlinuz: bootFiles['boot-kernel' + suffix].filename_on_disk,
+            'vmlinuz-efi': bootFiles['boot-kernel' + suffix].filename_on_disk,
             'initrd.img': bootFiles['boot-initrd' + suffix].filename_on_disk,
             squashfs: bootFiles['squashfs'].filename_on_disk,
           };
 
           const cmd = [
-            // `console=serial0,115200`,
-            // `console=tty1`,
+            `console=serial0,115200`,
+            `console=tty1`,
             // `root=/dev/nfs`,
             // `nfsroot=${serverip}:${nfsServerRootPath}`, // ,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr
             // //`ip=${ipaddr}:${serverip}:${serverip}:${netmask}`,
             // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}`, // :eth0:static
             // // `ip=dhcp`,
-            // `rw`,
-            // `rootwait`,
-            `initrd=-1`,
+
+            // `initrd=-1`,
             `net.ifnames=0`,
             `dwc_otg.lpm_enable=0`,
-            `console=serial0,115200`,
-            `console=tty1`,
-            `elevator=deadline`,
+            // `elevator=deadline`,
             `root=/dev/nfs`,
             // `nfsroot=${serverip}:/nfs-export/rpi4mb,tcp,rw`,
             `nfsroot=${serverip}:/nfs-export/rpi4mb,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr`,
-            `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}`, // :eth0:static
+            // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}`, // :eth0:static
+            `ip=${ipaddr}::${gatewayip}:${netmask}::${interfaceName}:static`,
             `rootfstype=nfs`,
+            `rw`,
             `rootwait`,
-            `fixrtc`,
+            // `fixrtc`,
           ];
 
           nfsConnectStr = cmd.join(' ');
@@ -1554,7 +1562,7 @@ BOOT_ORDER=0x21`;
     set default=0
     
     menuentry '${menuentryStr}' {
-      linux ${tftpSubDir}/pxe/vmlinuz ${nfsConnectStr}
+      linux ${tftpSubDir}/pxe/vmlinuz-efi ${nfsConnectStr}
       initrd ${tftpSubDir}/pxe/initrd.img
       boot
     }
@@ -1590,14 +1598,11 @@ BOOT_ORDER=0x21`;
         shellExec(`sudo chown -R root:root ${tftpRoot}`);
         shellExec(`sudo sudo chmod 755 ${tftpRoot}`);
       }
-
-      // delete all machines
-      // for (const machine of machines) {
-      //   shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
-      // }
-      // machines = [];
-      // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries clear all=true`);
-      // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries scan force=true`);
+      for (const machine of machines) {
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${machine.system_id}`, {
+          silent: true,
+        });
+      }
 
       const monitor = async () => {
         // discoveries         Query observed discoveries.
@@ -1654,8 +1659,8 @@ BOOT_ORDER=0x21`;
               },
             );
             newMachine = machineFactory(JSON.parse(newMachine));
-            console.log('newMachine', newMachine);
             machines.push(newMachine);
+            console.log(newMachine);
             shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.system_id}`, {
               silent: true,
             });
@@ -1663,11 +1668,11 @@ BOOT_ORDER=0x21`;
             logger.error(error, error.stack);
           }
         }
-        if (discoveries.length > 0) {
-          shellExec(
-            `maas ${process.env.MAAS_ADMIN_USERNAME} machines read | jq '.[] | {system_id: .interface_set[0].system_id, hostname, status_name, mac_address: .interface_set[0].mac_address}'`,
-          );
-        }
+        // if (discoveries.length > 0) {
+        //   shellExec(
+        //     `maas ${process.env.MAAS_ADMIN_USERNAME} machines read | jq '.[] | {system_id: .interface_set[0].system_id, hostname, status_name, mac_address: .interface_set[0].mac_address}'`,
+        //   );
+        // }
         await timer(1000);
         monitor();
       };
