@@ -1450,6 +1450,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             'rw',
             'hard',
             'intr',
+            'rsize=32768',
+            'wsize=32768',
             // 'nodev',
             // 'nosuid',
           ];
@@ -1462,11 +1464,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             // `elevator=deadline`,
             `root=/dev/nfs`,
             `nfsroot=${serverip}:/nfs-export/rpi4mb,${mountOptions}`,
-            // `nfsroot=${serverip}:/nfs-export/rpi4mb,${protocol},${
-            //   true ? 'vers' : 'nfsvers'
-            // }=3,rsize=32768,wsize=32768,hard,intr`,
+            // `nfsroot=${serverip}:/nfs-export/rpi4mb`,
             `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${nfsHost}:${interfaceName}:static`,
-            // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${'rpi4mb'}`,
             `rootfstype=nfs`,
             `rw`,
             `rootwait`,
@@ -1731,6 +1730,11 @@ BOOT_ORDER=0x21`;
 
       // Active nfs
       shellExec(`sudo exportfs -s`);
+
+      shellExec(`sudo exportfs -rav`);
+
+      // Rocky enable virt_use_nfs
+      // sudo setsebool -P virt_use_nfs 1
 
       // Disable share:
       // sudo exportfs -u <client-ip>:/nfs-export/rpi4mb
