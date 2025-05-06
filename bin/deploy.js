@@ -1433,7 +1433,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             'initrd.img': bootFiles['boot-initrd' + suffix].filename_on_disk,
             squashfs: bootFiles['squashfs'].filename_on_disk,
           };
-          const protocol = 'udp';
+          const protocol = 'tcp';
           // interfaceName
           // nfsHost
           const cmd = [
@@ -1445,19 +1445,19 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             // `elevator=deadline`,
             `root=/dev/nfs`,
             `nfsroot=${serverip}:/nfs-export/rpi4mb,${protocol},nfsvers=3,rsize=32768,wsize=32768,hard,intr`,
-            `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${'rpi4mb'}:${interfaceName}:static`,
+            `ip=${ipaddr}:${serverip}:${serverip}:${netmask}:${'rpi4mb'}:${interfaceName}:static`,
             // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${'rpi4mb'}`,
             `rootfstype=nfs`,
-            `rw`,
-            `rootwait`,
-            `fixrtc`,
-            'initrd=initrd.img',
+            // `rw`,
+            // `rootwait`,
+            // `fixrtc`,
+            // 'initrd=initrd.img',
             // 'boot=casper',
             // 'ro',
-            'netboot=nfs',
+            // 'netboot=nfs',
             // 'ip=dhcp',
             // 'ip=dfcp',
-            'autoinstall',
+            // 'autoinstall',
           ];
 
           nfsConnectStr = cmd.join(' ');
