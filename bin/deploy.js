@@ -1177,6 +1177,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
       const interfaceName = process.env.INTERFACE_NAME;
+      const nfsHost = process.env.MAAS_NFS_HOST;
       const resources = JSON.parse(
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
           silent: true,
@@ -1436,33 +1437,27 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           const cmd = [
             `console=serial0,115200`,
             `console=tty1`,
-            // `root=/dev/nfs`,
-            // `nfsroot=${serverip}:${nfsServerRootPath}`, // ,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr
             // //`ip=${ipaddr}:${serverip}:${serverip}:${netmask}`,
             // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}`, // :eth0:static
-            // // `ip=dhcp`,
             // `initrd=-1`,
             // `net.ifnames=0`,
             // `dwc_otg.lpm_enable=0`,
             // `elevator=deadline`,
             `root=/dev/nfs`,
-            `nfsroot=${serverip}:/nfs-export/rpi4mb`,
-            // `nfsroot=${serverip}:/nfs-export/rpi4mb,tcp,rw`,
+            `nfsroot=${serverip}:/nfs-export/rpi4mb,rw`,
+            `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${nfsHost}:${interfaceName}:static`,
             // `nfsroot=${serverip}:/nfs-export/rpi4mb,udp,nfsvers=3,rsize=32768,wsize=32768,hard,intr`,
-            // `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${interfaceName}:static`,
-            `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}`,
-            // `ip=${ipaddr}:${serverip}:${gatewayip}:${interfaceName}:static`,
-            // `ip=${ipaddr}::${serverip}:${netmask}::${interfaceName}:static`,
-            //  `ip=${ipaddr}::${netmask}::${interfaceName}:static`, // `rootfstype=nfs`, // `ip=${ipaddr}::${serverip}:${netmask}::${'lo'}:static`,
+            // `ip=${ipaddr}::${serverip}:${netmask}::${'eno1'}:static`,
             // `rw`,
             // `rootwait`,
             // `fixrtc`,
-            'initrd=initrd.img',
+            // 'initrd=initrd.img',
             // 'boot=casper',
             // 'ro',
-            'netboot=nfs',
+            // 'netboot=nfs',
             // 'ip=dhcp',
-            'autoinstall',
+            // 'ip=dfcp',
+            // 'autoinstall',
           ];
 
           nfsConnectStr = cmd.join(' ');
