@@ -1734,6 +1734,27 @@ BOOT_ORDER=0x21`;
       // Configure ports:
       // /etc/nfs.conf
 
+      fs.writeFileSync(
+        `/etc/nfs.conf`,
+        `
+[mountd]
+port = 20048
+
+[statd]
+port = 32765
+outgoing-port = 32765
+
+[nfsd]
+rdma=y
+rdma-port=20049
+
+[lockd]
+port = 32766
+udp-port = 32766
+        `,
+        'utf8',
+      );
+
       // Client users have read-only access to resources and are identified as anonymous on the server.
       // /share ip-client(ro,all_squash)
 
@@ -1769,6 +1790,8 @@ BOOT_ORDER=0x21`;
       // Nfs client:
       // mount -t nfs <server-ip>:/server-mnt /mnt
       // umount /mnt
+
+      shellExec(`sudo systemctl restart nfs-server`);
       break;
     }
 
@@ -1794,7 +1817,7 @@ BOOT_ORDER=0x21`;
     case 'create-ports': {
       const cmd = [];
       const ipaddr = getLocalIPv4Address();
-      for (const port of ['20048', '32765', '32766']) {
+      for (const port of ['20049']) {
         const name = 'maas';
         cmd.push(`${name}:${port}-${port}:${ipaddr}`);
       }
@@ -1813,7 +1836,7 @@ BOOT_ORDER=0x21`;
 
       // sudo snap install ufw
       // const ports = ['80', '443', '22', '3000-3100'];
-      const ports = ['43', '53', '60', '66', '67', '69', '4011', '111', '2049', '20048', '32765', '32766'];
+      const ports = ['43', '53', '60', '66', '67', '69', '4011', '111', '2049', '20048', '20049', '32765', '32766'];
       for (const port of ports) {
         shellExec(`ufw allow ${port}/tcp`);
         shellExec(`ufw allow ${port}/udp`);
