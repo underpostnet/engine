@@ -1384,6 +1384,10 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // grub > halt
       // initramfs > poweroff
 
+      // Check interface
+      // ip link show
+      // nmcli con show
+
       let firmwarePath,
         tftpSubDir,
         kernelFilesPaths,
@@ -1420,7 +1424,14 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           resource = resources.find((o) => o.name === name && o.architecture === architecture);
           nfsServerRootPath = `/nfs-export/rpi4mb`;
           // ,anonuid=1001,anongid=100
-          etcExports = `${nfsServerRootPath} *(rw,all_squash,sync,no_root_squash,insecure)`;
+          // etcExports = `${nfsServerRootPath} *(rw,all_squash,sync,no_root_squash,insecure)`;
+          etcExports = `${nfsServerRootPath} 192.168.1.0/24(${[
+            'rw',
+            'all_squash',
+            'sync',
+            'no_root_squash',
+            'insecure',
+          ]})`;
           const resourceData = JSON.parse(
             shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
               stdout: true,
@@ -1709,7 +1720,19 @@ BOOT_ORDER=0x21`;
     }
 
     case 'nfs': {
-      // Configure /etc/exports
+      // Daemon RPC  NFSv3. ports:
+
+      // 2049 (TCP/UDP) – puerto estándar de nfsd.
+      // 111 (TCP/UDP) – rpcbind/portmapper.
+      // 20048 (TCP/UDP) – rpc.mountd.
+      // 32765 (TCP/UDP) – rpc.statd.
+      // 32766 (TCP/UDP) – lockd (NLM).
+
+      // Configure export and permissions:
+      // /etc/exports
+
+      // Configure ports:
+      // /etc/nfs.conf
 
       // Client users have read-only access to resources and are identified as anonymous on the server.
       // /share ip-client(ro,all_squash)
@@ -1723,6 +1746,10 @@ BOOT_ORDER=0x21`;
 
       // Client1 users can modify resources. Their UID is changed to 1001 and their GID to 100 on the server.
       // /share ip-client(rw,all_squash,anonuid=1001,anongid=100)
+
+      // sudo dnf install nfs-utils
+      // sudo systemctl enable --now rpcbind    // RPC map service
+      // sudo systemctl enable --now nfs-server // nfs domains nfsd
 
       // Update exports:
       shellExec(`sudo exportfs -a -r`);
@@ -1764,6 +1791,17 @@ BOOT_ORDER=0x21`;
       break;
     }
 
+    case 'create-ports': {
+      const cmd = [];
+      const ipaddr = getLocalIPv4Address();
+      for (const port of ['20048', '32765', '32766']) {
+        const name = 'maas';
+        cmd.push(`${name}:${port}-${port}:${ipaddr}`);
+      }
+      pbcopy(`node engine-private/r create-port ${cmd}`);
+      break;
+    }
+
     case 'maas-ports': {
       // Configure firewall:
 
@@ -1774,33 +1812,12 @@ BOOT_ORDER=0x21`;
       // ufw enable
 
       // sudo snap install ufw
-
-      shellExec(`ufw allow 43/tcp`);
-      shellExec(`ufw allow 43/udp`);
-
-      shellExec(`ufw allow 53/tcp`);
-      shellExec(`ufw allow 53/udp`);
-
-      shellExec(`ufw allow 60/tcp`);
-      shellExec(`ufw allow 60/udp`);
-
-      shellExec(`ufw allow 66/tcp`);
-      shellExec(`ufw allow 66/udp`);
-
-      shellExec(`ufw allow 67/tcp`);
-      shellExec(`ufw allow 67/udp`);
-
-      shellExec(`ufw allow 69/tcp`);
-      shellExec(`ufw allow 69/udp`);
-
-      shellExec(`ufw allow 4011/tcp`);
-      shellExec(`ufw allow 4011/udp`);
-
-      shellExec(`ufw allow 111/tcp`); // nfs
-      shellExec(`ufw allow 111/udp`); // nfs
-
-      shellExec(`ufw allow 2049/tcp`); // nfs
-      shellExec(`ufw allow 2049/udp`); // nfs
+      // const ports = ['80', '443', '22', '3000-3100'];
+      const ports = ['43', '53', '60', '66', '67', '69', '4011', '111', '2049', '20048', '32765', '32766'];
+      for (const port of ports) {
+        shellExec(`ufw allow ${port}/tcp`);
+        shellExec(`ufw allow ${port}/udp`);
+      }
 
       break;
     }
