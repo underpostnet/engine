@@ -1795,6 +1795,29 @@ udp-port = 32766
       break;
     }
 
+    case 'build-nfs-root': {
+      // dnf install debootstrap
+
+      let cmd;
+      switch (process.argv[2]) {
+        case 'rpi4mb':
+          cmd = [
+            `sudo debootstrap`,
+            `--arch=arm64`,
+            `--variant=minbase`,
+            `noble`,
+            `/nfs-export/rpi4mb`,
+            `http://ports.ubuntu.com/ubuntu-ports/`,
+          ];
+          break;
+
+        default:
+          break;
+      }
+      shellExec(cmd.join(' '));
+      break;
+    }
+
     case 'mount': {
       const mounts = shellExec(`mount`).split(`\n`);
       console.table(
