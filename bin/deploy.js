@@ -1492,7 +1492,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
           nfsConnectStr = cmd.join(' ');
           bootConf = `[all]
-MAC_ADDRESS=dc:00:00:00:00:00
+MAC_ADDRESS=00:00:00:00:00:00
 MAC_ADDRESS_OTP=0,1
 BOOT_UART=0
 WAKE_ON_GPIO=1
@@ -1513,6 +1513,8 @@ BOOT_ORDER=0x21`;
         default:
           break;
       }
+      shellExec(`sudo chown -R root:root /nfs-export/${nfsHost}`);
+      shellExec(`sudo chmod 755 /nfs-export/${nfsHost}`);
 
       shellExec(`sudo rm -rf ${tftpRoot}${tftpSubDir}`);
       shellExec(`sudo cp -a ${firmwarePath} ${tftpRoot}${tftpSubDir}`);
@@ -1798,15 +1800,20 @@ udp-port = 32766
     case 'build-nfs-root': {
       // dnf install debootstrap
 
+      // sudo modprobe binfmt_misc
+      // sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
+
       let cmd;
       switch (process.argv[2]) {
         case 'rpi4mb':
+          const nftRootPaht = '/nfs-export/rpi4mb';
+          shellExec(`sudo rm -rf ${nftRootPaht}/*`);
           cmd = [
             `sudo debootstrap`,
             `--arch=arm64`,
             `--variant=minbase`,
             `noble`,
-            `/nfs-export/rpi4mb`,
+            nftRootPaht,
             `http://ports.ubuntu.com/ubuntu-ports/`,
           ];
           break;
