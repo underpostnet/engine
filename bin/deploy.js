@@ -1806,14 +1806,14 @@ udp-port = 32766
       let cmd;
       switch (process.argv[2]) {
         case 'rpi4mb':
-          const nftRootPaht = '/nfs-export/rpi4mb';
-          shellExec(`sudo rm -rf ${nftRootPaht}/*`);
+          const nftRootPath = '/nfs-export/rpi4mb';
+          shellExec(`sudo rm -rf ${nftRootPath}/*`);
           cmd = [
             `sudo debootstrap`,
             `--arch=arm64`,
             `--variant=minbase`,
             `noble`,
-            nftRootPaht,
+            nftRootPath,
             `http://ports.ubuntu.com/ubuntu-ports/`,
           ];
           break;
