@@ -1716,7 +1716,7 @@ BOOT_ORDER=0x21`;
         await timer(1000);
         monitor();
       };
-      shellExec(`node bin/deploy open-virtual-root ${architecture.match('amd') ? 'amd64' : 'arm64'} ${nfsHost}`);
+      // shellExec(`node bin/deploy open-virtual-root ${architecture.match('amd') ? 'amd64' : 'arm64'} ${nfsHost}`);
       monitor();
       break;
     }
@@ -1775,8 +1775,8 @@ udp-port = 32766
       // sudo systemctl enable --now nfs-server // nfs domains nfsd
 
       // Update exports:
-      shellExec(`sudo exportfs -a -r`);
-      shellExec(`sudo exportfs -v`);
+      // shellExec(`sudo exportfs -a -r`);
+      // shellExec(`sudo exportfs -v`);
 
       // Active nfs
       shellExec(`sudo exportfs -s`);
@@ -1810,6 +1810,9 @@ udp-port = 32766
         default:
           break;
       }
+
+      shellExec(`sudo modprobe binfmt_misc`);
+      shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
 
       if (process.argv.includes('build')) {
         let cmd;
@@ -1852,13 +1855,11 @@ udp-port = 32766
 /debootstrap/debootstrap --second-stage
 EOF`);
       }
-
-      shellExec(`sudo modprobe binfmt_misc`);
-      shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
-
-      shellExec(`sudo mount --bind /proc ${nftRootPath}/proc`);
-      shellExec(`sudo mount --bind /sys  ${nftRootPath}/sys`);
-      shellExec(`sudo mount --bind /dev  ${nftRootPath}/dev`);
+      if (process.argv.includes('mount')) {
+        shellExec(`sudo mount --bind /proc ${nftRootPath}/proc`);
+        shellExec(`sudo mount --bind /sys  ${nftRootPath}/sys`);
+        shellExec(`sudo mount --bind /dev  ${nftRootPath}/dev`);
+      }
 
       if (process.argv.includes('build')) {
         switch (host) {
