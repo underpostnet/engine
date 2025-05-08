@@ -1513,7 +1513,6 @@ BOOT_ORDER=0x21`;
         default:
           break;
       }
-      shellExec(`sudo chown -R root:root /nfs-export/${nfsHost}`);
       shellExec(`sudo chmod 755 /nfs-export/${nfsHost}`);
 
       shellExec(`sudo rm -rf ${tftpRoot}${tftpSubDir}`);
@@ -1821,6 +1820,7 @@ udp-port = 32766
       switch (host) {
         case 'rpi4mb':
           shellExec(`sudo rm -rf ${nftRootPath}/*`);
+          shellExec(`sudo chown -R root:root ${nftRootPath}`);
           cmd = [
             `sudo debootstrap`,
             `--arch=arm64`,
@@ -1873,7 +1873,7 @@ EOF`);
 
           shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
-apt install linux-lowlatency-hwe-22.04
+apt install -y linux-lowlatency-hwe-22.04
 EOF`);
           break;
 
