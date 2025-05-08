@@ -1809,70 +1809,79 @@ udp-port = 32766
         default:
           break;
       }
-      let cmd;
-      switch (host) {
-        case 'rpi4mb':
-          shellExec(`sudo rm -rf ${nftRootPath}/*`);
-          shellExec(`sudo chown -R root:root ${nftRootPath}`);
-          cmd = [
-            `sudo debootstrap`,
-            `--arch=arm64`,
-            `--variant=minbase`,
-            `--foreign`, // arm64 on amd64
-            `noble`,
-            nftRootPath,
-            `http://ports.ubuntu.com/ubuntu-ports/`,
-          ];
-          break;
 
-        default:
-          break;
+      if (process.argv.includes('build')) {
+        let cmd;
+        switch (host) {
+          case 'rpi4mb':
+            shellExec(`sudo rm -rf ${nftRootPath}/*`);
+            shellExec(`sudo chown -R root:root ${nftRootPath}`);
+            cmd = [
+              `sudo debootstrap`,
+              `--arch=arm64`,
+              `--variant=minbase`,
+              `--foreign`, // arm64 on amd64
+              `noble`,
+              nftRootPath,
+              `http://ports.ubuntu.com/ubuntu-ports/`,
+            ];
+            break;
+
+          default:
+            break;
+        }
+        shellExec(cmd.join(' '));
+
+        shellExec(`sudo podman create --name extract multiarch/qemu-user-static`);
+        shellExec(`podman ps -a`);
+        shellExec(`sudo podman cp extract:/usr/bin/qemu-aarch64-static ${nftRootPath}/usr/bin/`);
+        shellExec(`sudo podman rm extract`);
+        shellExec(`podman ps -a`);
+
+        switch (host) {
+          case 'rpi4mb':
+            shellExec(`file ${nftRootPath}/bin/bash`); // expected: ELF 64-bit LSB pie executable, ARM aarch64 …
+            break;
+
+          default:
+            break;
+        }
+
+        shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+/debootstrap/debootstrap --second-stage
+EOF`);
       }
-      shellExec(cmd.join(' '));
-
-      shellExec(`sudo podman create --name extract multiarch/qemu-user-static`);
-      shellExec(`podman ps -a`);
-      shellExec(`sudo podman cp extract:/usr/bin/qemu-aarch64-static ${nftRootPath}/usr/bin/`);
-      shellExec(`sudo podman rm extract`);
-      shellExec(`podman ps -a`);
 
       shellExec(`sudo modprobe binfmt_misc`);
       shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
-
-      switch (host) {
-        case 'rpi4mb':
-          shellExec(`file ${nftRootPath}/bin/bash`); // expected: ELF 64-bit LSB pie executable, ARM aarch64 …
-          break;
-
-        default:
-          break;
-      }
-
-      shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-/debootstrap/debootstrap --second-stage
-EOF`);
 
       shellExec(`sudo mount --bind /proc ${nftRootPath}/proc`);
       shellExec(`sudo mount --bind /sys  ${nftRootPath}/sys`);
       shellExec(`sudo mount --bind /dev  ${nftRootPath}/dev`);
 
-      switch (host) {
-        case 'rpi4mb':
-          // https://www.cyberciti.biz/faq/understanding-etcgroup-file/
-          // https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/4/html/introduction_to_system_administration/s3-acctspgrps-group#s3-acctspgrps-group
-          // shellExec(`grep '^root:'  ${nftRootPath}/etc/group`); // check group root
-          // shellExec(`echo 'root:x:0:' | sudo tee -a  ${nftRootPath}/etc/group`); // set group root
-          // console.log(`echo 'root:x:0:0:root:/root:/bin/bash' > ${nftRootPath}/nfs-export/rpi4mb/etc/passwd`);
+      if (process.argv.includes('build')) {
+        switch (host) {
+          case 'rpi4mb':
+            // https://www.cyberciti.biz/faq/understanding-etcgroup-file/
+            // https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/4/html/introduction_to_system_administration/s3-acctspgrps-group#s3-acctspgrps-group
+            // shellExec(`grep '^root:'  ${nftRootPath}/etc/group`); // check group root
+            // shellExec(`echo 'root:x:0:' | sudo tee -a  ${nftRootPath}/etc/group`); // set group root
+            // console.log(`echo 'root:x:0:0:root:/root:/bin/bash' > ${nftRootPath}/nfs-export/rpi4mb/etc/passwd`);
 
-          shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+            shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
 apt install -y linux-lowlatency-hwe-22.04
 EOF`);
-          break;
+            break;
 
-        default:
-          break;
+          default:
+            break;
+        }
       }
+
+      shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+apt update
+EOF`);
 
       break;
     }
