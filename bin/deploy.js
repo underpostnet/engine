@@ -1795,12 +1795,11 @@ udp-port = 32766
       shellExec(`sudo systemctl restart nfs-server`);
       break;
     }
-    case 'install-virtual-root': {
+    case 'open-virtual-root': {
       const architecture = process.argv[3];
       const host = process.argv[4];
       const nftRootPath = `/nfs-export/${host}`;
-
-      shellExec(`dnf install debootstrap`);
+      shellExec(`dnf install -y debootstrap`);
       switch (architecture) {
         case 'arm64':
           shellExec(`sudo podman run --rm --privileged multiarch/qemu-user-static --reset -p yes`);
@@ -1810,12 +1809,6 @@ udp-port = 32766
         default:
           break;
       }
-      break;
-    }
-    case 'open-virtual-root': {
-      const architecture = process.argv[3];
-      const host = process.argv[4];
-      const nftRootPath = `/nfs-export/${host}`;
       let cmd;
       switch (host) {
         case 'rpi4mb':
