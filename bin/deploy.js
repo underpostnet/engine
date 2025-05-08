@@ -1716,6 +1716,7 @@ BOOT_ORDER=0x21`;
         await timer(1000);
         monitor();
       };
+      shellExec(`node bin/deploy open-virtual-root ${architecture.match('amd') ? 'amd64' : 'arm64'} ${nfsHost}`);
       monitor();
       break;
     }
