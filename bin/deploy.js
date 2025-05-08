@@ -1797,6 +1797,8 @@ udp-port = 32766
       break;
     }
     case 'open-virtual-root': {
+      dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
+
       const architecture = process.argv[3];
       const host = process.argv[4];
       const nftRootPath = `/nfs-export/${host}`;
@@ -1873,6 +1875,21 @@ EOF`);
             shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
 apt install -y linux-lowlatency-hwe-22.04
+ln -sf /lib/systemd/systemd /sbin/init
+apt install --yes sudo
+useradd -m -s /bin/bash ${process.env.MAAS_ADMIN_USERNAME}
+echo '${process.env.MAAS_ADMIN_USERNAME}:${process.env.MAAS_ADMIN_PASSWORD}' | chpasswd
+adduser ${process.env.MAAS_ADMIN_USERNAME} sudo
+apt install --yes openssh-server
+mkdir -p /home/${process.env.MAAS_ADMIN_USERNAME}/.ssh
+echo '${fs.readFileSync(`/home/dd/engine/engine-private/deploy/dd.pub`, 'utf8')}' >> /home/${
+              process.env.MAAS_ADMIN_USERNAME
+            }/.ssh/authorized_keys
+chown -R ${process.env.MAAS_ADMIN_USERNAME}:${process.env.MAAS_ADMIN_USERNAME} /home/${
+              process.env.MAAS_ADMIN_USERNAME
+            }/.ssh
+chmod 700 /home/${process.env.MAAS_ADMIN_USERNAME}/.ssh
+chmod 600 /home/${process.env.MAAS_ADMIN_USERNAME}/.ssh/authorized_keys
 EOF`);
             break;
 
