@@ -1798,7 +1798,7 @@ udp-port = 32766
     }
     case 'open-virtual-root': {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
-
+      const IP_ADDRESS = getLocalIPv4Address();
       const architecture = process.argv[3];
       const host = process.argv[4];
       const nftRootPath = `/nfs-export/${host}`;
@@ -1860,7 +1860,7 @@ EOF`);
       if (process.argv.includes('mount')) {
         shellExec(`sudo mount --bind /proc ${nftRootPath}/proc`);
         shellExec(`sudo mount --bind /sys  ${nftRootPath}/sys`);
-        shellExec(`sudo mount --bind /dev  ${nftRootPath}/dev`);
+        shellExec(`sudo mount --rbind /dev  ${nftRootPath}/dev`);
       }
 
       if (process.argv.includes('build')) {
@@ -1891,6 +1891,9 @@ chown -R ${process.env.MAAS_ADMIN_USERNAME}:${process.env.MAAS_ADMIN_USERNAME} /
 chmod 700 /home/${process.env.MAAS_ADMIN_USERNAME}/.ssh
 chmod 600 /home/${process.env.MAAS_ADMIN_USERNAME}/.ssh/authorized_keys
 EOF`);
+            // check sudo
+            // sudo -u ${process.env.MAAS_ADMIN_USERNAME} whoami
+            // sudo whoami
             break;
 
           default:
@@ -1900,6 +1903,13 @@ EOF`);
 
       shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
+EOF`);
+
+      shellExec(`sudo tee -a ${nftRootPath}/etc/hosts <<EOF
+127.0.0.1 ${process.env.MAAS_MACHINE_NAME}
+${IP_ADDRESS} ${process.env.MAAS_MACHINE_NAME}
+127.0.0.1 ${process.env.MAAS_ADMIN_HOST}
+${IP_ADDRESS} ${process.env.MAAS_ADMIN_HOST}
 EOF`);
 
       break;
