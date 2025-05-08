@@ -1820,11 +1820,13 @@ udp-port = 32766
       console.log(`apt update`);
       console.log(`apt install --yes linux-image-lowlatency-hwe-24.04-edge`);
 
+      // https://www.cyberciti.biz/faq/understanding-etcgroup-file/
+      // https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/4/html/introduction_to_system_administration/s3-acctspgrps-group#s3-acctspgrps-group
       console.log(`grep '^root:'  ${nftRootPath}/etc/group`); // check group root
-
       console.log(`echo 'root:x:0:' | sudo tee -a  ${nftRootPath}/etc/group`); // set group root
 
       console.log(`/debootstrap/debootstrap --second-stage`);
+      console.log(`apt install linux-lowlatency-hwe-22.04`);
 
       console.log(`sudo chroot /nfs-export/rpi4mb /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
