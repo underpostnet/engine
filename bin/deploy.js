@@ -1797,14 +1797,60 @@ udp-port = 32766
       break;
     }
 
+    case 'qemu-arm64': {
+      const nftRootPath = '/nfs-export/rpi4mb';
+
+      if (process.argv.includes('podman')) {
+        shellExec(`sudo podman run --rm --privileged multiarch/qemu-user-static --reset -p yes`);
+
+        shellExec(`sudo podman create --name extract multiarch/qemu-user-static`);
+
+        shellExec(`podman ps -a`);
+
+        shellExec(`sudo podman cp extract:/usr/bin/qemu-aarch64-static ${nftRootPath}/usr/bin/`);
+
+        shellExec(`sudo podman rm extract`);
+
+        shellExec(`podman ps -a`);
+      }
+
+      console.log(`file ${nftRootPath}/bin/bash`); // expected: ELF 64-bit LSB pie executable, ARM aarch64 …
+
+      console.log(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash`); // virtual bash
+      console.log(`apt update`);
+      console.log(`apt install --yes linux-image-lowlatency-hwe-24.04-edge`);
+
+      console.log(`grep '^root:'  ${nftRootPath}/etc/group`); // check group root
+
+      console.log(`echo 'root:x:0:' | sudo tee -a  ${nftRootPath}/etc/group`); // set group root
+
+      console.log(`/debootstrap/debootstrap --second-stage`);
+
+      console.log(`sudo chroot /nfs-export/rpi4mb /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+apt update
+apt install --yes linux-image-lowlatency-hwe-24.04-edge
+EOF`);
+
+      break;
+    }
+    case 'qemu-arm64-mount': {
+      const nftRootPath = '/nfs-export/rpi4mb';
+      console.log(`sudo mount --bind /proc ${nftRootPath}/proc`);
+      console.log(`sudo mount --bind /sys  ${nftRootPath}/sys`);
+      console.log(`sudo mount --bind /dev  ${nftRootPath}/dev`);
+
+      console.log(`sudo umount ${nftRootPath}/proc`);
+      console.log(`sudo umount ${nftRootPath}/sys`);
+      console.log(`sudo umount ${nftRootPath}/dev`);
+
+      break;
+    }
+
     case 'build-nfs-root': {
       // dnf install debootstrap
 
-      // sudo modprobe binfmt_misc
-      // sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
-
       let cmd;
-      switch (process.argv[2]) {
+      switch (process.argv[3]) {
         case 'rpi4mb':
           const nftRootPath = '/nfs-export/rpi4mb';
           shellExec(`sudo rm -rf ${nftRootPath}/*`);
@@ -1812,6 +1858,7 @@ udp-port = 32766
             `sudo debootstrap`,
             `--arch=arm64`,
             `--variant=minbase`,
+            `--foreign`, // arm64 on amd64
             `noble`,
             nftRootPath,
             `http://ports.ubuntu.com/ubuntu-ports/`,
@@ -1822,6 +1869,8 @@ udp-port = 32766
           break;
       }
       shellExec(cmd.join(' '));
+      shellExec(`sudo modprobe binfmt_misc`);
+      shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
       break;
     }
 
