@@ -1877,20 +1877,27 @@ apt update
 apt install -y linux-lowlatency-hwe-22.04
 ln -sf /lib/systemd/systemd /sbin/init
 apt install --yes sudo
-useradd -m -s /bin/bash ${process.env.MAAS_ADMIN_USERNAME}
-echo '${process.env.MAAS_ADMIN_USERNAME}:${process.env.MAAS_ADMIN_PASSWORD}' | chpasswd
-adduser ${process.env.MAAS_ADMIN_USERNAME} sudo
+useradd -m -s /bin/bash ${process.env.MAAS_COMMISSION_USERNAME}
+echo '${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_PASSWORD}' | chpasswd
+adduser ${process.env.MAAS_COMMISSION_USERNAME} sudo
 apt install --yes openssh-server
-mkdir -p /home/${process.env.MAAS_ADMIN_USERNAME}/.ssh
+mkdir -p /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
 echo '${fs.readFileSync(`/home/dd/engine/engine-private/deploy/dd.pub`, 'utf8')}' >> /home/${
-              process.env.MAAS_ADMIN_USERNAME
+              process.env.MAAS_COMMISSION_USERNAME
             }/.ssh/authorized_keys
-chown -R ${process.env.MAAS_ADMIN_USERNAME}:${process.env.MAAS_ADMIN_USERNAME} /home/${
-              process.env.MAAS_ADMIN_USERNAME
+chown -R ${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_USERNAME} /home/${
+              process.env.MAAS_COMMISSION_USERNAME
             }/.ssh
-chmod 700 /home/${process.env.MAAS_ADMIN_USERNAME}/.ssh
-chmod 600 /home/${process.env.MAAS_ADMIN_USERNAME}/.ssh/authorized_keys
+chmod 700 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
+chmod 600 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh/authorized_keys
 EOF`);
+            shellExec(`sudo tee -a ${nftRootPath}/etc/hosts <<EOF
+127.0.0.1 ${process.env.MAAS_COMMISSION_USERNAME}
+${IP_ADDRESS} ${process.env.MAAS_COMMISSION_USERNAME}
+127.0.0.1 ${process.env.MAAS_COMMISSION_HOSTNAME}
+${IP_ADDRESS} ${process.env.MAAS_COMMISSION_HOSTNAME}
+EOF`);
+
             // check sudo
             // sudo -u ${process.env.MAAS_ADMIN_USERNAME} whoami
             // sudo whoami
@@ -1903,13 +1910,6 @@ EOF`);
 
       shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
-EOF`);
-
-      shellExec(`sudo tee -a ${nftRootPath}/etc/hosts <<EOF
-127.0.0.1 ${process.env.MAAS_MACHINE_NAME}
-${IP_ADDRESS} ${process.env.MAAS_MACHINE_NAME}
-127.0.0.1 ${process.env.MAAS_ADMIN_HOST}
-${IP_ADDRESS} ${process.env.MAAS_ADMIN_HOST}
 EOF`);
 
       break;
