@@ -1493,7 +1493,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             // 'ip=dhcp',
             // 'ip=dfcp',
             // 'autoinstall',
-            'rd.break',
+            // 'rd.break',
           ];
 
           nfsConnectStr = cmd.join(' ');
@@ -1879,16 +1879,19 @@ EOF`);
             // console.log(`echo 'root:x:0:0:root:/root:/bin/bash' > ${nftRootPath}/nfs-export/rpi4mb/etc/passwd`);
 
             // apt install -y linux-lowlatency-hwe-22.04
+            // chown -R ${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_USERNAME} /home/${
+            //   process.env.MAAS_COMMISSION_USERNAME
+            // }/.ssh
+            // echo '${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_PASSWORD}' | chpasswd
+
             shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
-apt install -y linux-generic-hwe-24.04
-ln -sf /lib/systemd/systemd /sbin/init
-apt install --yes sudo
-useradd -m -s /bin/bash ${process.env.MAAS_COMMISSION_USERNAME}
-echo '${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_PASSWORD}' | chpasswd
-adduser ${process.env.MAAS_COMMISSION_USERNAME} sudo
-apt install --yes openssh-server
+apt install -y sudo
+apt install -y openssh-server
 mkdir -p /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
+useradd -m -s /bin/bash -G sudo ${process.env.MAAS_COMMISSION_USERNAME}
+echo "${process.env.MAAS_COMMISSION_USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu-nopasswd
+chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
 echo '${fs.readFileSync(`/home/dd/engine/engine-private/deploy/dd.pub`, 'utf8')}' >> /home/${
               process.env.MAAS_COMMISSION_USERNAME
             }/.ssh/authorized_keys
@@ -1897,6 +1900,11 @@ chown -R ${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_U
             }/.ssh
 chmod 700 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
 chmod 600 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh/authorized_keys
+systemctl enable ssh
+apt install -y ntp
+apt install -y cloud-init
+ln -sf /lib/systemd/systemd /sbin/init
+apt install -y linux-generic-hwe-24.04
 EOF`);
             shellExec(`sudo tee -a ${nftRootPath}/etc/hosts <<EOF
 127.0.0.1 ${process.env.MAAS_COMMISSION_USERNAME}
