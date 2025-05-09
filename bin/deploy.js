@@ -1686,7 +1686,8 @@ BOOT_ORDER=0x21`;
           const machine = {
             architecture: architecture.match('amd') ? 'amd64/generic' : 'arm64/generic',
             mac_address: discovery.mac_address,
-            hostname: discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? 'unknown-' + s4(),
+            hostname: discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? nfsHost,
+            // 'unknown-' + s4()
             // description: '',
             // https://maas.io/docs/reference-power-drivers
             power_type: 'manual', // manual
@@ -1914,6 +1915,9 @@ datasource_list: [ MAAS ]
 datasource:
   MAAS:
     metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
+resize_rootfs: False
+growpart:
+  mode: off
 EOF_MAAS_CFG
 mkdir -p /etc/network
 cat <<EOF_NET > /etc/network/interfaces
@@ -1980,7 +1984,7 @@ EOF`);
     case 'create-ports': {
       const cmd = [];
       const ipaddr = getLocalIPv4Address();
-      for (const port of ['5248']) {
+      for (const port of ['5240']) {
         const name = 'maas';
         cmd.push(`${name}:${port}-${port}:${ipaddr}`);
       }
@@ -2014,6 +2018,7 @@ EOF`);
         '32765',
         '32766',
         '5248',
+        '5240',
       ];
       for (const port of ports) {
         shellExec(`ufw allow ${port}/tcp`);
