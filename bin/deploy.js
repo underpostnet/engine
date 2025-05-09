@@ -1463,6 +1463,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             'intr',
             'rsize=32768',
             'wsize=32768',
+            'acregmin=0',
+            'acregmax=0',
+            'acdirmin=0',
+            'acdirmax=0',
+            'noac',
             // 'nodev',
             // 'nosuid',
           ];
@@ -1487,7 +1492,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             'netboot=nfs',
             // 'ip=dhcp',
             // 'ip=dfcp',
-            'autoinstall',
+            // 'autoinstall',
+            'rd.break',
           ];
 
           nfsConnectStr = cmd.join(' ');
@@ -1872,9 +1878,10 @@ EOF`);
             // shellExec(`echo 'root:x:0:' | sudo tee -a  ${nftRootPath}/etc/group`); // set group root
             // console.log(`echo 'root:x:0:0:root:/root:/bin/bash' > ${nftRootPath}/nfs-export/rpi4mb/etc/passwd`);
 
+            // apt install -y linux-lowlatency-hwe-22.04
             shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
-apt install -y linux-lowlatency-hwe-22.04
+apt install -y linux-generic-hwe-24.04
 ln -sf /lib/systemd/systemd /sbin/init
 apt install --yes sudo
 useradd -m -s /bin/bash ${process.env.MAAS_COMMISSION_USERNAME}
