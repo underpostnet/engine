@@ -1931,6 +1931,11 @@ users:
 packages:
   - git
   - htop
+  - ufw
+package_update: true
+runcmd:
+  - ufw allow ssh
+  - ufw enable
 resize_rootfs: False
 growpart:
   mode: off
