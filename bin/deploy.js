@@ -1915,6 +1915,22 @@ datasource_list: [ MAAS ]
 datasource:
   MAAS:
     metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
+users:
+  - name: ${process.env.MAAS_ADMIN_USERNAME}
+    ssh_authorized_keys:
+      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/dd.pub`, 'utf8')}
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    groups: sudo
+    shell: /bin/bash
+  - name: ${process.env.MAAS_COMMISSION_USERNAME}
+    ssh_authorized_keys:
+      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/dd.pub`, 'utf8')}
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    groups: sudo
+    shell: /bin/bash
+packages:
+  - git
+  - htop
 resize_rootfs: False
 growpart:
   mode: off
