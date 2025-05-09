@@ -1980,7 +1980,7 @@ EOF`);
     case 'create-ports': {
       const cmd = [];
       const ipaddr = getLocalIPv4Address();
-      for (const port of ['20049']) {
+      for (const port of ['5248']) {
         const name = 'maas';
         cmd.push(`${name}:${port}-${port}:${ipaddr}`);
       }
@@ -1999,7 +1999,22 @@ EOF`);
 
       // sudo snap install ufw
       // const ports = ['80', '443', '22', '3000-3100'];
-      const ports = ['43', '53', '60', '66', '67', '69', '4011', '111', '2049', '20048', '20049', '32765', '32766'];
+      const ports = [
+        '43',
+        '53',
+        '60',
+        '66',
+        '67',
+        '69',
+        '4011',
+        '111',
+        '2049',
+        '20048',
+        '20049',
+        '32765',
+        '32766',
+        '5248',
+      ];
       for (const port of ports) {
         shellExec(`ufw allow ${port}/tcp`);
         shellExec(`ufw allow ${port}/udp`);
