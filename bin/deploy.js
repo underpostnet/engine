@@ -1427,9 +1427,10 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           // etcExports = `${nfsServerRootPath} *(rw,all_squash,sync,no_root_squash,insecure)`;
           etcExports = `${nfsServerRootPath} 192.168.1.0/24(${[
             'rw',
-            'all_squash',
+            // 'all_squash',
             'sync',
             'no_root_squash',
+            'no_subtree_check',
             'insecure',
           ]})`;
           const resourceData = JSON.parse(
@@ -1897,14 +1898,31 @@ echo '${fs.readFileSync(`/home/dd/engine/engine-private/deploy/dd.pub`, 'utf8')}
             }/.ssh/authorized_keys
 chown -R ${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_USERNAME} /home/${
               process.env.MAAS_COMMISSION_USERNAME
-            }/.ssh
+            }
 chmod 700 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
 chmod 600 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh/authorized_keys
 systemctl enable ssh
 apt install -y ntp
-apt install -y cloud-init
 ln -sf /lib/systemd/systemd /sbin/init
 apt install -y linux-generic-hwe-24.04
+apt install -y cloud-init
+mkdir -p /var/lib/cloud
+chown -R root:root /var/lib/cloud
+chmod -R 0755 /var/lib/cloud
+cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
+datasource_list: [ MAAS ]
+datasource:
+  MAAS:
+    metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
+EOF_MAAS_CFG
+mkdir -p /etc/network
+cat <<EOF_NET > /etc/network/interfaces
+auto lo
+iface lo inet loopback
+
+auto ${process.env.RPI4_INTERFACE_NAME}
+iface ${process.env.RPI4_INTERFACE_NAME} inet dhcp
+EOF_NET
 EOF`);
             shellExec(`sudo tee -a ${nftRootPath}/etc/hosts <<EOF
 127.0.0.1 ${process.env.MAAS_COMMISSION_USERNAME}
