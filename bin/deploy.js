@@ -1173,19 +1173,25 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       const IP_ADDRESS = getLocalIPv4Address();
       const serverip = IP_ADDRESS;
       const tftpRoot = process.env.TFTP_ROOT;
-      const ipaddr = '192.168.1.87';
+      const ipaddr = '192.168.1.83';
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
-      const resources = JSON.parse(
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
-          silent: true,
-          stdout: true,
-        }),
-      ).map((o) => ({
-        id: o.id,
-        name: o.name,
-        architecture: o.architecture,
-      }));
+
+      let resources;
+      try {
+        resources = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
+            silent: true,
+            stdout: true,
+          }),
+        ).map((o) => ({
+          id: o.id,
+          name: o.name,
+          architecture: o.architecture,
+        }));
+      } catch (error) {
+        logger.error(error);
+      }
 
       const machineFactory = (m) => ({
         system_id: m.interface_set[0].system_id,
@@ -1194,12 +1200,17 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         status_name: m.status_name,
       });
 
-      let machines = JSON.parse(
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
-          stdout: true,
-          silent: true,
-        }),
-      ).map((m) => machineFactory(m));
+      let machines;
+      try {
+        machines = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
+            stdout: true,
+            silent: true,
+          }),
+        ).map((m) => machineFactory(m));
+      } catch (error) {
+        logger.error(error);
+      }
 
       if (process.argv.includes('db')) {
         // DROP, ALTER, CREATE, WITH ENCRYPTED
@@ -1934,8 +1945,8 @@ packages:
   - ufw
 package_update: true
 runcmd:
-  - ufw allow ssh
   - ufw enable
+  - ufw allow ssh
 resize_rootfs: False
 growpart:
   mode: off
