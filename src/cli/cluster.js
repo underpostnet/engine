@@ -82,11 +82,12 @@ class UnderpostCluster {
       ) {
         shellExec(`sudo setenforce 0`);
         shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
-        shellExec(`sudo systemctl enable --now kubelet`);
+        // sudo systemctl disable kubelet
+        // shellExec(`sudo systemctl enable --now kubelet`);
         shellExec(`containerd config default > /etc/containerd/config.toml`);
         shellExec(`sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
         // shellExec(`cp /etc/kubernetes/admin.conf ~/.kube/config`);
-        shellExec(`sudo systemctl restart kubelet`);
+        // shellExec(`sudo systemctl restart kubelet`);
         shellExec(`sudo service docker restart`);
         shellExec(`sudo systemctl enable --now containerd.service`);
         shellExec(`sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab`);
@@ -229,6 +230,11 @@ class UnderpostCluster {
         `sudo sed -i -e "s@/var/lib/containers/storage@/home/containers/storage@g" /etc/containers/storage.conf`,
       );
       shellExec(`sudo podman system reset -f`);
+      // https://github.com/kubernetes-sigs/kind/issues/2886
+      shellExec(`sysctl net.bridge.bridge-nf-call-iptables=0`);
+      shellExec(`sysctl net.bridge.bridge-nf-call-arptables=0`);
+      shellExec(`sysctl net.bridge.bridge-nf-call-ip6tables=0`);
+      shellExec(`docker network rm kind`);
     },
     getResourcesCapacity() {
       const resources = {};
