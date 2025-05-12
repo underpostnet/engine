@@ -16,7 +16,7 @@ spec:
       hostname: mongo
       containers:
         - name: mongodb
-          image: docker.io/library/mongo:4.4
+          image: mongo:4.4
           command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
           # -- bash
           # mongo

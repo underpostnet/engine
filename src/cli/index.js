@@ -102,6 +102,7 @@ program
   .option('--list-pods', 'Display list pods information')
   .option('--info-capacity', 'display current total machine capacity info')
   .option('--info-capacity-pod', 'display current machine capacity pod info')
+  .option('--pull-image', 'Set optional pull associated image')
   .action(Underpost.cluster.init)
   .description('Manage cluster, for default initialization base kind cluster');
 

@@ -25,6 +25,7 @@ class UnderpostCluster {
         infoCapacity: false,
         infoCapacityPod: false,
         istio: false,
+        pullImage: false,
       },
     ) {
       // 1) Install kind, kubeadm, docker, podman
@@ -131,6 +132,10 @@ class UnderpostCluster {
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb`);
       }
       if (options.mongodb4 === true) {
+        if (options.pullImage === true) {
+          shellExec(`docker pull mongo:4.4`);
+          shellExec(`sudo kind load docker-image mongo:4.4`);
+        }
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb-4.4`);
 
         const deploymentName = 'mongodb-deployment';
