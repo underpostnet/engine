@@ -1697,8 +1697,10 @@ BOOT_ORDER=0x21`;
           const machine = {
             architecture: architecture.match('amd') ? 'amd64/generic' : 'arm64/generic',
             mac_address: discovery.mac_address,
-            hostname: discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? nfsHost,
-            // 'unknown-' + s4()
+            hostname:
+              discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? discovery.ip.match(ipaddr)
+                ? nfsHost
+                : `unknown-${s4()}`,
             // description: '',
             // https://maas.io/docs/reference-power-drivers
             power_type: 'manual', // manual
