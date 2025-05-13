@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: service-valkey
-          image: docker.io/valkey/valkey:latest
+          image: valkey/valkey:latest
           env:
             - name: TZ
               value: Europe/Zurich
@@ -35,5 +35,6 @@ spec:
             failureThreshold: 2
             periodSeconds: 30
             timeoutSeconds: 5
+          imagePullPolicy: IfNotPresent
       restartPolicy: Always
       automountServiceAccountToken: false

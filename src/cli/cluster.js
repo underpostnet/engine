@@ -118,6 +118,11 @@ class UnderpostCluster {
       } else logger.warn('Cluster already initialized');
 
       if (options.full === true || options.valkey === true) {
+        if (options.pullImage === true) {
+          // kubectl patch statefulset service-valkey --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"valkey/valkey:latest"}]'
+          shellExec(`docker pull valkey/valkey`);
+          shellExec(`sudo kind load docker-image valkey/valkey`);
+        }
         shellExec(`kubectl delete statefulset service-valkey`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey`);
       }
