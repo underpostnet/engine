@@ -1,4 +1,3 @@
----
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -15,9 +14,14 @@ spec:
       labels:
         app: service-valkey
     spec:
+      # Prevent automatic token mounting if you're not using the default ServiceAccount
+      automountServiceAccountToken: false
+
       containers:
         - name: service-valkey
           image: valkey/valkey:latest
+          # Ensure you pull only if not present (Never will error if missing)
+          imagePullPolicy: IfNotPresent
           env:
             - name: TZ
               value: Europe/Zurich
@@ -35,6 +39,3 @@ spec:
             failureThreshold: 2
             periodSeconds: 30
             timeoutSeconds: 5
-          imagePullPolicy: IfNotPresent
-      restartPolicy: Always
-      automountServiceAccountToken: false
