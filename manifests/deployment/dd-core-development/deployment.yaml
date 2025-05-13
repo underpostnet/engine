@@ -228,6 +228,24 @@ spec:
       protocol: UDP
       port: 4032
       targetPort: 4032
+
+    - name: 'tcp-4033'
+      protocol: TCP
+      port: 4033
+      targetPort: 4033
+    - name: 'udp-4033'
+      protocol: UDP
+      port: 4033
+      targetPort: 4033
+
+    - name: 'tcp-4034'
+      protocol: TCP
+      port: 4034
+      targetPort: 4034
+    - name: 'udp-4034'
+      protocol: UDP
+      port: 4034
+      targetPort: 4034
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -459,4 +477,22 @@ spec:
       protocol: UDP
       port: 4032
       targetPort: 4032
+
+    - name: 'tcp-4033'
+      protocol: TCP
+      port: 4033
+      targetPort: 4033
+    - name: 'udp-4033'
+      protocol: UDP
+      port: 4033
+      targetPort: 4033
+
+    - name: 'tcp-4034'
+      protocol: TCP
+      port: 4034
+      targetPort: 4034
+    - name: 'udp-4034'
+      protocol: UDP
+      port: 4034
+      targetPort: 4034
   type: LoadBalancer

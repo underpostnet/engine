@@ -276,3 +276,28 @@ spec:
           port: 4032
           weight: 100
     
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: vitaintegral.nexodev.org
+spec:
+  virtualhost:
+    fqdn: vitaintegral.nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4033
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4034
+          weight: 100
+    
