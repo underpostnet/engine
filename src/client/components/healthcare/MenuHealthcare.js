@@ -8,7 +8,7 @@ import { LogOut } from '../core/LogOut.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { append, getProxyPath, getQueryParams, htmls, prepend, s } from '../core/VanillaJs.js';
 import { ElementsHealthcare } from './ElementsHealthcare.js';
 import Sortable from 'sortablejs';
 import { RouterHealthcare } from './RoutesHealthcare.js';
@@ -36,6 +36,7 @@ const MenuHealthcare = {
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;
+    const vitaintegralMod = location.host.match('vitaintegral') || getQueryParams().vitaintegral;
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -208,12 +209,20 @@ const MenuHealthcare = {
               height: 200px;
               top: -50px;
             }
+            .vitaintegral-bar-logo {
+              height: 85px;
+              top: 8px;
+              left: 14px;
+            }
             .slide-menu-top-bar-fix {
               overflow: hidden;
             }
           </style>
 
-          <img class="in healthcare-bar-logo" src="${getProxyPath()}assets/icons/23.png" />`;
+          <img
+            class="in ${vitaintegralMod ? `vitaintegral-bar-logo` : `healthcare-bar-logo`}"
+            src="${getProxyPath()}assets/${vitaintegralMod ? `vitaintegral/logo.png` : `icons/23.png`}"
+          />`;
       },
       mode: 'slide-menu',
       RouterInstance,
@@ -260,8 +269,14 @@ const MenuHealthcare = {
           };
           ThemeEvents['banner']();
         });
+        if (vitaintegralMod) {
+          s(`link[rel='icon']`).remove();
+          // setAttribute('href', `${getProxyPath()}assets/vitaintegral/favicon.png`);
+          prepend('head', html`<link rel="icon" type="image/x-icon" href="/assets/vitaintegral/favicon.png" />`);
+        }
         let render = '';
         for (const routeId of Object.keys(MenuHomeHealthcare)) {
+          if (vitaintegralMod && routeId === 'size-baby') continue;
           const { icon } = MenuHomeHealthcare[routeId];
           render += html`${await BtnIcon.Render({
             label: html`<div class="abs center" style="top: 30%">
@@ -281,7 +296,10 @@ const MenuHealthcare = {
           </div>
           <div class="fl home-menu-container">
             <div class="in home-h1-font-container">
-              <img class="in healthcare-banner hide" src="${getProxyPath()}assets/icons/23.png" />
+              <img
+                class="in ${vitaintegralMod ? `vitaintegral-banner` : `healthcare-banner`} hide"
+                src="${getProxyPath()}assets/${vitaintegralMod ? `vitaintegral/logo.png` : `icons/23.png`}"
+              />
               ${Translate.Render('¿')}${Translate.Render('home-getting')}
             </div>
             ${render}

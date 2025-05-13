@@ -15,6 +15,7 @@ const CssCommonHealthcare = async () => {
         height: 150px;
         width: 150px;
         font-size: 18px;
+        border-radius: 35px;
       }
       .home-menu-container {
         margin: auto;
