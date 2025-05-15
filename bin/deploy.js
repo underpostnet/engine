@@ -1791,7 +1791,9 @@ udp-port = 32766
       const IP_ADDRESS = getLocalIPv4Address();
       const architecture = process.argv[3];
       const host = process.argv[4];
-      const nftRootPath = `/nfs-export/${host}`;
+      const tftpRoot = `/nfs-export`;
+      const tftpSubDir = `/${host}`;
+      const tftHostPath = `${tftpRoot}${tftpSubDir}`;
       shellExec(`dnf install -y debootstrap`);
       switch (architecture) {
         case 'arm64':
@@ -1810,15 +1812,15 @@ udp-port = 32766
         let cmd;
         switch (host) {
           case 'rpi4mb':
-            shellExec(`sudo rm -rf ${nftRootPath}/*`);
-            shellExec(`sudo chown -R root:root ${nftRootPath}`);
+            shellExec(`sudo rm -rf ${tftHostPath}/*`);
+            shellExec(`sudo chown -R root:root ${tftHostPath}`);
             cmd = [
               `sudo debootstrap`,
               `--arch=arm64`,
               `--variant=minbase`,
               `--foreign`, // arm64 on amd64
               `noble`,
-              nftRootPath,
+              tftHostPath,
               `http://ports.ubuntu.com/ubuntu-ports/`,
             ];
             break;
@@ -1830,27 +1832,27 @@ udp-port = 32766
 
         shellExec(`sudo podman create --name extract multiarch/qemu-user-static`);
         shellExec(`podman ps -a`);
-        shellExec(`sudo podman cp extract:/usr/bin/qemu-aarch64-static ${nftRootPath}/usr/bin/`);
+        shellExec(`sudo podman cp extract:/usr/bin/qemu-aarch64-static ${tftHostPath}/usr/bin/`);
         shellExec(`sudo podman rm extract`);
         shellExec(`podman ps -a`);
 
         switch (host) {
           case 'rpi4mb':
-            shellExec(`file ${nftRootPath}/bin/bash`); // expected: ELF 64-bit LSB pie executable, ARM aarch64 …
+            shellExec(`file ${tftHostPath}/bin/bash`); // expected: ELF 64-bit LSB pie executable, ARM aarch64 …
             break;
 
           default:
             break;
         }
 
-        shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+        shellExec(`sudo chroot ${tftHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 /debootstrap/debootstrap --second-stage
 EOF`);
       }
       if (process.argv.includes('mount')) {
-        shellExec(`sudo mount --bind /proc ${nftRootPath}/proc`);
-        shellExec(`sudo mount --bind /sys  ${nftRootPath}/sys`);
-        shellExec(`sudo mount --rbind /dev  ${nftRootPath}/dev`);
+        shellExec(`sudo mount --bind /proc ${tftHostPath}/proc`);
+        shellExec(`sudo mount --bind /sys  ${tftHostPath}/sys`);
+        shellExec(`sudo mount --rbind /dev  ${tftHostPath}/dev`);
       }
 
       if (process.argv.includes('build')) {
@@ -1858,9 +1860,9 @@ EOF`);
           case 'rpi4mb':
             // https://www.cyberciti.biz/faq/understanding-etcgroup-file/
             // https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/4/html/introduction_to_system_administration/s3-acctspgrps-group#s3-acctspgrps-group
-            // shellExec(`grep '^root:'  ${nftRootPath}/etc/group`); // check group root
-            // shellExec(`echo 'root:x:0:' | sudo tee -a  ${nftRootPath}/etc/group`); // set group root
-            // console.log(`echo 'root:x:0:0:root:/root:/bin/bash' > ${nftRootPath}/nfs-export/rpi4mb/etc/passwd`);
+            // shellExec(`grep '^root:'  ${tftHostPath}/etc/group`); // check group root
+            // shellExec(`echo 'root:x:0:' | sudo tee -a  ${tftHostPath}/etc/group`); // set group root
+            // console.log(`echo 'root:x:0:0:root:/root:/bin/bash' > ${tftHostPath}/nfs-export/rpi4mb/etc/passwd`);
 
             // apt install -y linux-lowlatency-hwe-22.04
             // chown -R ${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_USERNAME} /home/${
@@ -1868,7 +1870,7 @@ EOF`);
             // }/.ssh
             // echo '${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_PASSWORD}' | chpasswd
 
-            shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+            shellExec(`sudo chroot ${tftHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
 apt install -y sudo
 apt install -y openssh-server
@@ -1931,7 +1933,7 @@ auto ${process.env.RPI4_INTERFACE_NAME}
 iface ${process.env.RPI4_INTERFACE_NAME} inet dhcp
 EOF_NET
 EOF`);
-            shellExec(`sudo tee -a ${nftRootPath}/etc/hosts <<EOF
+            shellExec(`sudo tee -a ${tftHostPath}/etc/hosts <<EOF
 127.0.0.1 ${process.env.MAAS_COMMISSION_USERNAME}
 ${IP_ADDRESS} ${process.env.MAAS_COMMISSION_USERNAME}
 127.0.0.1 ${process.env.MAAS_COMMISSION_HOSTNAME}
@@ -1947,8 +1949,15 @@ EOF`);
             break;
         }
       }
+      if (process.argv.includes('build') || process.argv.includes('export')) {
+        shellExec(`sudo cp -a ${tftpRoot}${tftpSubDir} ${tftpRoot}${tftpSubDir}-bak`);
+      }
+      if (process.argv.includes('import')) {
+        shellExec(`sudo rm -rf ${tftpRoot}${tftpSubDir}`);
+        shellExec(`sudo cp -a ${tftpRoot}${tftpSubDir}-bak ${tftpRoot}${tftpSubDir}`);
+      }
 
-      shellExec(`sudo chroot ${nftRootPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+      shellExec(`sudo chroot ${tftpRoot} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
 EOF`);
 
@@ -1958,10 +1967,10 @@ EOF`);
     case 'close-virtual-root': {
       const architecture = process.argv[3];
       const host = process.argv[4];
-      const nftRootPath = `/nfs-export/${host}`;
-      shellExec(`sudo umount ${nftRootPath}/proc`);
-      shellExec(`sudo umount ${nftRootPath}/sys`);
-      shellExec(`sudo umount ${nftRootPath}/dev`);
+      const tftHostPath = `/nfs-export/${host}`;
+      shellExec(`sudo umount ${tftHostPath}/proc`);
+      shellExec(`sudo umount ${tftHostPath}/sys`);
+      shellExec(`sudo umount ${tftHostPath}/dev`);
       break;
     }
 
