@@ -868,157 +868,26 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       break;
     }
-    case 'ssh-export-server-keys': {
-      fs.copyFile('/etc/ssh/ssh_host_rsa_key', './engine-private/deploy/ssh_host_rsa_key');
-      fs.copyFile('/etc/ssh/ssh_host_rsa_key.pub', './engine-private/deploy/ssh_host_rsa_key.pub');
-      break;
-    }
-    case 'ssh-import-server-keys': {
-      fs.copyFile('./engine-private/deploy/ssh_host_rsa_key', '/etc/ssh/ssh_host_rsa_key');
-      fs.copyFile('./engine-private/deploy/ssh_host_rsa_key.pub', '/etc/ssh/ssh_host_rsa_key.pub');
-      break;
-    }
-    case 'ssh-import-client-keys': {
-      const host = process.argv[3];
-      shellExec(
-        `node bin/deploy set-ssh-keys ./engine-private/deploy/ssh_host_rsa_key ${host ? ` ${host}` : ``} ${
-          process.argv.includes('clean') ? 'clean' : ''
-        }`,
-      );
-      break;
-    }
-    case 'ssh-keys': {
-      // create ssh keys
-      const sshAccount = process.argv[3]; // [sudo username]@[host/ip]
-      const destPath = process.argv[4];
-      // shellExec(`ssh-keygen -t ed25519 -C "${sshAccount}" -f ${destPath}`);
-      if (fs.existsSync(destPath)) {
-        fs.removeSync(destPath);
-        fs.removeSync(destPath + '.pub');
-      }
-      shellExec(`ssh-keygen -t rsa -b 4096 -C "${sshAccount}" -f ${destPath}`);
-      // add host to keyscan
-      // shellExec(`ssh-keyscan -t rsa ${sshAccount.split(`@`)[1]} >> ~/.ssh/known_hosts`);
-      break;
-    }
-
-    case 'set-ssh-keys': {
-      const files = ['authorized_keys', 'id_rsa', 'id_rsa.pub', 'known_hosts ', 'known_hosts.old'];
-
-      // > write
-      // >> append
-
-      // /root/.ssh/id_rsa
-      // /root/.ssh/id_rsa.pub
-      if (process.argv.includes('clean')) {
-        for (const file of files) {
-          if (fs.existsSync(`/root/.ssh/${file}`)) {
-            logger.info('remove', `/root/.ssh/${file}`);
-            fs.removeSync(`/root/.ssh/${file}`);
-          }
-          fs.writeFileSync(`/root/.ssh/${file}`, '', 'utf8');
-        }
-        shellExec('eval `ssh-agent -s`' + ` && ssh-add -D`);
-      }
-
-      const destPath = process.argv[3];
-      const sshAuthKeyTarget = '/root/.ssh/authorized_keys';
-      if (!fs.existsSync(sshAuthKeyTarget)) shellExec(`touch ${sshAuthKeyTarget}`);
-      shellExec(`cat ${destPath}.pub > ${sshAuthKeyTarget}`);
-      shellExec(`cat ${destPath} >> ${sshAuthKeyTarget}`);
-
-      if (!fs.existsSync('/root/.ssh/id_rsa')) shellExec(`touch ${'/root/.ssh/id_rsa'}`);
-      shellExec(`cat ${destPath} > ${'/root/.ssh/id_rsa'}`);
-
-      if (!fs.existsSync('/root/.ssh/id_rsa.pub')) shellExec(`touch ${'/root/.ssh/id_rsa.pub'}`);
-      shellExec(`cat ${destPath}.pub > ${'/root/.ssh/id_rsa.pub'}`);
-
-      shellExec(`chmod 700 /root/.ssh/`);
-      for (const file of files) {
-        shellExec(`chmod 600 /root/.ssh/${file}`);
-      }
-      const host = process.argv[4];
-      // add key
-      shellExec('eval `ssh-agent -s`' + ' && ssh-add /root/.ssh/id_rsa' + ' && ssh-add -l');
-      if (host) shellExec(`ssh-keyscan -H ${host} >> ~/.ssh/known_hosts`);
-      shellExec(`sudo systemctl enable ssh`);
-      shellExec(`sudo systemctl restart ssh`);
-      shellExec(`sudo systemctl status ssh`);
-
-      break;
-    }
 
     case 'ssh': {
-      if (process.argv.includes('rocky')) {
-        shellExec(`sudo systemctl enable sshd`);
+      const host = process.argv[3];
+      const password = process.argv[4] ?? '';
 
-        shellExec(`sudo systemctl start sshd`);
+      shellExec(`sudo rm -rf ./id_rsa`);
+      shellExec(`sudo rm -rf ./id_rsa.pub`);
 
-        shellExec(`sudo systemctl status sshd`);
+      if (process.argv.includes('legacy'))
+        shellExec(`ssh-keygen -t rsa -b 4096 -f id_rsa -N "${password}" -q -C "${host}"`);
+      else shellExec(`ssh-keygen -t ed25519 -f id_rsa -N "${password}" -q -C "${host}"`);
 
-        shellExec(`sudo ss -lt`);
-      } else {
-        if (!process.argv.includes('server')) {
-          shellExec(`sudo apt update`);
-          shellExec(`sudo apt install openssh-server -y`);
-          shellExec(`sudo apt install ssh-askpass`);
-        }
-        shellExec(`sudo systemctl enable ssh`);
-        shellExec(`sudo systemctl restart ssh`);
-        shellExec(`sudo systemctl status ssh`);
-      }
-      // sudo service ssh restart
-      shellExec(`ip a`);
+      shellExec(`sudo cp ./id_rsa ~/.ssh/id_rsa`);
+      shellExec(`sudo cp ./id_rsa.pub ~/.ssh/id_rsa.pub`);
 
-      // adduser newuser
-      // usermod -aG sudo newuser
+      shellExec(`sudo cp ./id_rsa ./engine-private/deploy/id_rsa`);
+      shellExec(`sudo cp ./id_rsa.pub ./engine-private/deploy/id_rsa.pub`);
 
-      // ssh -i '/path/to/keyfile' username@server
-
-      // ssh-keygen -t ed25519 -C "your_email@example.com" -f $HOME/.ssh/id_rsa
-
-      // legacy: ssh-keygen -t rsa -b 4096 -C "your_email@example.com" -f $HOME/.ssh/id_rsa
-
-      // vi .ssh/authorized_keys
-      // chmod 700 .ssh
-      // chmod 600 authorized_keys
-
-      // cat id_rsa.pub > .ssh/authorized_keys
-
-      // add public key to authorized keys
-      // cat .ssh/id_ed25519.pub | ssh [sudo username]@[host/ip] 'cat >> .ssh/authorized_keys'
-
-      // 2. Open /etc/ssh/sshd_config file
-      // nano /etc/ssh/sshd_config
-
-      // 3. add example code to last line of file
-      // Match User newuser
-      //   PasswordAuthentication yes
-
-      // ssh [sudo username]@[host/ip]
-      // open port 22
-
-      // init ssh agent service
-      // eval `ssh-agent -s`
-
-      // list keys
-      // ssh-add -l
-
-      // add key
-      // ssh-add /root/.ssh/id_rsa
-
-      // remove
-      // ssh-add -d /path/to/private/key
-
-      // remove all
-      // ssh-add -D
-
-      // sshpass -p ${{ secrets.PSWD }} ssh -o StrictHostKeyChecking=no -p 22 ${{ secrets.USER}}@${{ secrets.VPS_IP }} 'cd /home/adam && ./deploy.sh'
-
-      // copies the public key of your default identity (use -i identity_file for other identities) to the remote host.
-      // ssh-copy-id user@hostname.example.com
-      // ssh-copy-id "user@hostname.example.com -p <port-number>"
-
+      shellExec(`sudo rm -rf ./id_rsa`);
+      shellExec(`sudo rm -rf ./id_rsa.pub`);
       break;
     }
 

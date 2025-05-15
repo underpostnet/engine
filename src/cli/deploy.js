@@ -22,7 +22,7 @@ class UnderpostDeploy {
   static NETWORK = {};
   static API = {
     sync(deployList, { versions, replicas }) {
-      const deployGroupId = 'dd.tmp';
+      const deployGroupId = 'dd.router';
       fs.writeFileSync(`./engine-private/deploy/${deployGroupId}`, deployList, 'utf8');
       const totalPods = deployList.split(',').length * versions.split(',').length * parseInt(replicas);
       const limitFactor = 0.8;
