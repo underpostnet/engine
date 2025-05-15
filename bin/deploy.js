@@ -873,6 +873,12 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       const host = process.argv[3];
       const password = process.argv[4] ?? '';
 
+      if (process.argv.includes('import')) {
+        shellExec(`sudo cp ./engine-private/deploy/id_rsa ~/.ssh/id_rsa`);
+        shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub ~/.ssh/id_rsa.pub`);
+        break;
+      }
+
       shellExec(`sudo rm -rf ./id_rsa`);
       shellExec(`sudo rm -rf ./id_rsa.pub`);
 
