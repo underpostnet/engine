@@ -871,11 +871,35 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
     case 'ssh': {
       const host = process.argv[3];
+      const user = host.split('@')[0];
       const password = process.argv[4] ?? '';
+      const port = 22;
+
+      const setUpSSH = () => {
+        shellExec(`cat ./engine-private/deploy/id_rsa.pub > ~/.ssh/authorized_keys`);
+
+        // local trust on first use validator
+        // check ~/.ssh/known_hosts
+
+        shellExec(`sudo sed -i -e "s@#PasswordAuthentication yes@PasswordAuthentication no@g" /etc/ssh/sshd_config`);
+        shellExec(`sudo chmod 700 ~/.ssh/`);
+        shellExec(`sudo chmod 600 ~/.ssh/authorized_keys`);
+        shellExec(`sudo chmod 644 ~/.ssh/known_hosts`);
+        // shellExec(`chown -R ${user}:${user} ~/.ssh`);
+        shellExec(`chown -R root:root ~/.ssh`);
+
+        shellExec(`ufw allow ${port}/tcp`);
+        shellExec(`ufw allow ${port}/udp`);
+
+        shellExec(`sudo systemctl enable sshd`);
+        shellExec(`sudo systemctl restart sshd`);
+        shellExec(`sudo systemctl status sshd`);
+      };
 
       if (process.argv.includes('import')) {
         shellExec(`sudo cp ./engine-private/deploy/id_rsa ~/.ssh/id_rsa`);
         shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub ~/.ssh/id_rsa.pub`);
+        setUpSSH();
         break;
       }
 
@@ -894,6 +918,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       shellExec(`sudo rm -rf ./id_rsa`);
       shellExec(`sudo rm -rf ./id_rsa.pub`);
+      setUpSSH();
       break;
     }
 
