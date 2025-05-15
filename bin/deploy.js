@@ -1319,8 +1319,8 @@ EOF`);
       // sudo systemctl restart nfs-server
       // Check mounts: showmount -e <server-ip>
       // Check nfs ports: rpcinfo -p
-      // sudo chown -R root:root /nfs-export/rpi4mb
-      // sudo chmod 755 /nfs-export/rpi4mb
+      // sudo chown -R root:root ${process.env.NFS_EXPORT_PATH}/rpi4mb
+      // sudo chmod 755 ${process.env.NFS_EXPORT_PATH}/rpi4mb
 
       // tftp server
       // sudo chown -R root:root /var/snap/maas/common/maas/tftp_root/rpi4mb
@@ -1402,7 +1402,7 @@ EOF`);
           name = resource.name;
           architecture = resource.architecture;
           resource = resources.find((o) => o.name === name && o.architecture === architecture);
-          nfsServerRootPath = `/nfs-export/rpi4mb`;
+          nfsServerRootPath = `${process.env.NFS_EXPORT_PATH}/rpi4mb`;
           // ,anonuid=1001,anongid=100
           // etcExports = `${nfsServerRootPath} *(rw,all_squash,sync,no_root_squash,insecure)`;
           etcExports = `${nfsServerRootPath} 192.168.1.0/24(${[
@@ -1460,8 +1460,8 @@ EOF`);
             // `dwc_otg.lpm_enable=0`,
             // `elevator=deadline`,
             `root=/dev/nfs`,
-            `nfsroot=${serverip}:/nfs-export/rpi4mb,${mountOptions}`,
-            // `nfsroot=${serverip}:/nfs-export/rpi4mb`,
+            `nfsroot=${serverip}:${process.env.NFS_EXPORT_PATH}/rpi4mb,${mountOptions}`,
+            // `nfsroot=${serverip}:${process.env.NFS_EXPORT_PATH}/rpi4mb`,
             `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${nfsHost}:${interfaceName}:static`,
             `rootfstype=nfs`,
             `rw`,
@@ -1500,7 +1500,7 @@ BOOT_ORDER=0x21`;
         default:
           break;
       }
-      shellExec(`sudo chmod 755 /nfs-export/${nfsHost}`);
+      shellExec(`sudo chmod 755 ${process.env.NFS_EXPORT_PATH}/${nfsHost}`);
 
       shellExec(`sudo rm -rf ${tftpRoot}${tftpSubDir}`);
       shellExec(`sudo cp -a ${firmwarePath} ${tftpRoot}${tftpSubDir}`);
@@ -1777,7 +1777,7 @@ udp-port = 32766
       // sudo setsebool -P virt_use_nfs 1
 
       // Disable share:
-      // sudo exportfs -u <client-ip>:/nfs-export/rpi4mb
+      // sudo exportfs -u <client-ip>:${process.env.NFS_EXPORT_PATH}/rpi4mb
 
       // Nfs client:
       // mount -t nfs <server-ip>:/server-mnt /mnt
@@ -1791,7 +1791,7 @@ udp-port = 32766
       const IP_ADDRESS = getLocalIPv4Address();
       const architecture = process.argv[3];
       const host = process.argv[4];
-      const tftpRoot = `/nfs-export`;
+      const tftpRoot = `${process.env.NFS_EXPORT_PATH}`;
       const tftpSubDir = `/${host}`;
       const tftHostPath = `${tftpRoot}${tftpSubDir}`;
       shellExec(`dnf install -y debootstrap`);
@@ -1862,7 +1862,7 @@ EOF`);
             // https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/4/html/introduction_to_system_administration/s3-acctspgrps-group#s3-acctspgrps-group
             // shellExec(`grep '^root:'  ${tftHostPath}/etc/group`); // check group root
             // shellExec(`echo 'root:x:0:' | sudo tee -a  ${tftHostPath}/etc/group`); // set group root
-            // console.log(`echo 'root:x:0:0:root:/root:/bin/bash' > ${tftHostPath}/nfs-export/rpi4mb/etc/passwd`);
+            // console.log(`echo 'root:x:0:0:root:/root:/bin/bash' > ${process.env.NFS_EXPORT_PATH}/rpi4mb/etc/passwd`);
 
             // apt install -y linux-lowlatency-hwe-22.04
             // chown -R ${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_USERNAME} /home/${
@@ -1967,7 +1967,7 @@ EOF`);
     case 'close-virtual-root': {
       const architecture = process.argv[3];
       const host = process.argv[4];
-      const tftHostPath = `/nfs-export/${host}`;
+      const tftHostPath = `${process.env.NFS_EXPORT_PATH}/${host}`;
       shellExec(`sudo umount ${tftHostPath}/proc`);
       shellExec(`sudo umount ${tftHostPath}/sys`);
       shellExec(`sudo umount ${tftHostPath}/dev`);
