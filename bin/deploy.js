@@ -894,6 +894,15 @@ UsePAM yes
 PubkeyAuthentication Yes
 RSAAuthentication Yes
 PermitRootLogin Yes
+X11Forwarding yes
+X11DisplayOffset 10
+LoginGraceTime 120
+StrictModes yes
+SyslogFacility AUTH
+LogLevel INFO
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
 EOF`);
 
         shellExec(`sudo chmod 700 ~/.ssh/`);
@@ -908,11 +917,11 @@ EOF`);
         shellExec(`ssh-add ~/.ssh/id_rsa`);
         shellExec(`ssh-add -l`);
 
-        // shellExec(`ssh-keyscan -H -t ed25519 ${host.split(`@`)[1]} > ~/.ssh/known_hosts`);
-        // ssh-copy-id -i ~/.ssh/id_rsa.pub -p <port_number> <username>@<host>
-        // shellExec(`ssh-copy-id -i ~/.ssh/id_rsa.pub -p ${port} ${host}`);
+        // shellExec(`echo "@${host.split(`@`)[1]} * $(cat ~/.ssh/id_rsa.pub)" > ~/.ssh/known_hosts`);
+        shellExec(`ssh-keyscan -H -t ed25519 ${host.split(`@`)[1]} > ~/.ssh/known_hosts`);
 
-        shellExec(`echo "@${host.split(`@`)[1]} * $(cat ~/.ssh/id_rsa.pub)" > ~/.ssh/known_hosts`);
+        // ssh-copy-id -i ~/.ssh/id_rsa.pub -p <port_number> <username>@<host>
+        shellExec(`ssh-copy-id -i ~/.ssh/id_rsa.pub -p ${port} ${host}`);
 
         shellExec(`sudo systemctl enable sshd`);
         shellExec(`sudo systemctl restart sshd`);
@@ -926,6 +935,15 @@ EOF`);
       if (process.argv.includes('import')) {
         shellExec(`sudo cp ./engine-private/deploy/id_rsa ~/.ssh/id_rsa`);
         shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub ~/.ssh/id_rsa.pub`);
+
+        shellExec(`sudo cp ./engine-private/deploy/id_rsa /etc/ssh/ssh_host_ecdsa_key`);
+        shellExec(`sudo cp ./engine-private/deploy/id_rsa /etc/ssh/ssh_host_ed25519_key`);
+        shellExec(`sudo cp ./engine-private/deploy/id_rsa /etc/ssh/ssh_host_rsa_key`);
+
+        shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub /etc/ssh/ssh_host_ecdsa_key.pub`);
+        shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub /etc/ssh/ssh_host_ed25519_key.pub`);
+        shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub /etc/ssh/ssh_host_rsa_key.pub`);
+
         setUpSSH();
         break;
       }
