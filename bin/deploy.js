@@ -880,6 +880,13 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       const port = 22;
 
       const setUpSSH = () => {
+        // required port mapping
+        // ssh	TCP	2222	22	<local-server-ip>
+        // ssh	UDP	2222	22	<local-server-ip>
+
+        // remote connect via public key
+        // ssh -i <key-path> <user>@<host>:2222
+
         shellExec(`cat ./engine-private/deploy/id_rsa.pub > ~/.ssh/authorized_keys`);
 
         // local trust on first use validator
