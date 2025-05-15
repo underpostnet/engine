@@ -38,7 +38,7 @@ import { JSONweb } from '../src/server/client-formatted.js';
 import { Xampp } from '../src/runtime/xampp/Xampp.js';
 import { ejs } from '../src/server/json-schema.js';
 import { buildCliDoc } from '../src/cli/index.js';
-import { getLocalIPv4Address } from '../src/server/dns.js';
+import { getLocalIPv4Address, ip } from '../src/server/dns.js';
 import { Downloader } from '../src/server/downloader.js';
 import colors from 'colors';
 
@@ -873,7 +873,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     }
 
     case 'ssh': {
-      const host = process.argv[3];
+      const host = process.argv[3] ?? `root@${await ip.public.ipv4()}`;
       const user = 'root'; // host.split('@')[0];
       const password = process.argv[4] ?? '';
       const port = 22;
@@ -916,6 +916,7 @@ EOF`);
 
         shellExec(`ufw allow ${port}/tcp`);
         shellExec(`ufw allow ${port}/udp`);
+        shellExec(`ufw allow ssh`);
 
         shellExec('eval `ssh-agent -s`');
         shellExec(`ssh-add ~/.ssh/id_rsa`);
@@ -926,17 +927,9 @@ EOF`);
 
         // ssh-copy-id -i ~/.ssh/id_rsa.pub -p <port_number> <username>@<host>
         shellExec(`ssh-copy-id -i ~/.ssh/id_rsa.pub -p ${port} ${host}`);
+        // debug:
+        // shellExec(`ssh -vvv ${host}`);
 
-        shellExec(`sudo systemctl enable sshd`);
-        shellExec(`sudo systemctl restart sshd`);
-
-        const status = shellExec(`sudo systemctl status sshd`, { silent: true, stdout: true });
-        console.log(
-          status.match('running') ? status.replaceAll(`running`, `running`.green) : `ssh service not running`.red,
-        );
-      };
-
-      if (process.argv.includes('import')) {
         shellExec(`sudo cp ./engine-private/deploy/id_rsa ~/.ssh/id_rsa`);
         shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub ~/.ssh/id_rsa.pub`);
 
@@ -948,6 +941,16 @@ EOF`);
         shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub /etc/ssh/ssh_host_ed25519_key.pub`);
         shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub /etc/ssh/ssh_host_rsa_key.pub`);
 
+        shellExec(`sudo systemctl enable sshd`);
+        shellExec(`sudo systemctl restart sshd`);
+
+        const status = shellExec(`sudo systemctl status sshd`, { silent: true, stdout: true });
+        console.log(
+          status.match('running') ? status.replaceAll(`running`, `running`.green) : `ssh service not running`.red,
+        );
+      };
+
+      if (process.argv.includes('import')) {
         setUpSSH();
         break;
       }
