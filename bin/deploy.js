@@ -1948,13 +1948,13 @@ EOF`);
             break;
         }
       }
-      if (process.argv.includes('build') || process.argv.includes('export')) {
-        shellExec(`sudo cp -a ${nfsHostPath} ${nfsHostPath}-bak`);
-      }
-      if (process.argv.includes('import')) {
-        shellExec(`sudo rm -rf ${nfsHostPath}`);
-        shellExec(`sudo cp -a ${nfsHostPath}-bak ${nfsHostPath}`);
-      }
+      // if (process.argv.includes('build') || process.argv.includes('export')) {
+      //   shellExec(`sudo cp -a ${nfsHostPath} ${nfsHostPath}-bak`);
+      // }
+      // if (process.argv.includes('import')) {
+      //   shellExec(`sudo rm -rf ${nfsHostPath}`);
+      //   shellExec(`sudo cp -a ${nfsHostPath}-bak ${nfsHostPath}`);
+      // }
 
       shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
