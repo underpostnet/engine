@@ -874,6 +874,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
     case 'ssh': {
       const host = process.argv[3] ?? `root@${await ip.public.ipv4()}`;
+      const domain = host.split('@')[1];
       const user = 'root'; // host.split('@')[0];
       const password = process.argv[4] ?? '';
       const port = 22;
@@ -902,11 +903,15 @@ LoginGraceTime	120
 StrictModes	yes
 SyslogFacility	AUTH
 LogLevel	INFO
-HostKey	/etc/ssh/ssh_host_ecdsa_key
+#HostKey	/etc/ssh/ssh_host_ecdsa_key
 HostKey	/etc/ssh/ssh_host_ed25519_key
-HostKey	/etc/ssh/ssh_host_rsa_key
+#HostKey	/etc/ssh/ssh_host_rsa_key
 AuthorizedKeysFile	~/.ssh/authorized_keys
 Subsystem	sftp	/usr/libexec/openssh/sftp-server
+ListenAddress 0.0.0.0
+ListenAddress ::
+ListenAddress ${domain}
+ListenAddress ${domain}:22
 EOF`);
 
         shellExec(`sudo chmod 700 ~/.ssh/`);
@@ -917,13 +922,18 @@ EOF`);
         shellExec(`ufw allow ${port}/tcp`);
         shellExec(`ufw allow ${port}/udp`);
         shellExec(`ufw allow ssh`);
+        shellExec(`ufw allow from 192.168.0.0/16 to any port 22`);
 
-        shellExec('eval `ssh-agent -s`');
-        shellExec(`ssh-add ~/.ssh/id_rsa`);
-        shellExec(`ssh-add -l`);
+        // active ssh-agent
+        shellExec('eval `ssh-agent -s`' + ` && ssh-add ~/.ssh/id_rsa` + ` && ssh-add -l`);
+        // remove all
+        // shellExec(`ssh-add -D`);
+        // remove single
+        // shellExec(`ssh-add -d ~/.ssh/id_rsa`);
 
         // shellExec(`echo "@${host.split(`@`)[1]} * $(cat ~/.ssh/id_rsa.pub)" > ~/.ssh/known_hosts`);
-        shellExec(`ssh-keyscan -H -t ed25519 ${host.split(`@`)[1]} > ~/.ssh/known_hosts`);
+        shellExec('eval `ssh-agent -s`' + `&& ssh-keyscan -H -t ed25519 ${host.split(`@`)[1]} > ~/.ssh/known_hosts`);
+        // shellExec(`sudo echo "" > ~/.ssh/known_hosts`);
 
         // ssh-copy-id -i ~/.ssh/id_rsa.pub -p <port_number> <username>@<host>
         shellExec(`ssh-copy-id -i ~/.ssh/id_rsa.pub -p ${port} ${host}`);
@@ -933,13 +943,13 @@ EOF`);
         shellExec(`sudo cp ./engine-private/deploy/id_rsa ~/.ssh/id_rsa`);
         shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub ~/.ssh/id_rsa.pub`);
 
-        shellExec(`sudo cp ./engine-private/deploy/id_rsa /etc/ssh/ssh_host_ecdsa_key`);
+        shellExec(`sudo echo "" > /etc/ssh/ssh_host_ecdsa_key`);
         shellExec(`sudo cp ./engine-private/deploy/id_rsa /etc/ssh/ssh_host_ed25519_key`);
-        shellExec(`sudo cp ./engine-private/deploy/id_rsa /etc/ssh/ssh_host_rsa_key`);
+        shellExec(`sudo echo "" > /etc/ssh/ssh_host_rsa_key`);
 
-        shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub /etc/ssh/ssh_host_ecdsa_key.pub`);
+        shellExec(`sudo echo "" > /etc/ssh/ssh_host_ecdsa_key.pub`);
         shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub /etc/ssh/ssh_host_ed25519_key.pub`);
-        shellExec(`sudo cp ./engine-private/deploy/id_rsa.pub /etc/ssh/ssh_host_rsa_key.pub`);
+        shellExec(`sudo echo "" > /etc/ssh/ssh_host_rsa_key.pub`);
 
         shellExec(`sudo systemctl enable sshd`);
         shellExec(`sudo systemctl restart sshd`);
@@ -1859,7 +1869,7 @@ mkdir -p /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
 useradd -m -s /bin/bash -G sudo ${process.env.MAAS_COMMISSION_USERNAME}
 echo "${process.env.MAAS_COMMISSION_USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu-nopasswd
 chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
-echo '${fs.readFileSync(`/home/dd/engine/engine-private/deploy/dd.pub`, 'utf8')}' >> /home/${
+echo '${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}' >> /home/${
               process.env.MAAS_COMMISSION_USERNAME
             }/.ssh/authorized_keys
 chown -R ${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_USERNAME} /home/${
@@ -1883,13 +1893,13 @@ datasource:
 users:
   - name: ${process.env.MAAS_ADMIN_USERNAME}
     ssh_authorized_keys:
-      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/dd.pub`, 'utf8')}
+      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
     sudo: "ALL=(ALL) NOPASSWD:ALL"
     groups: sudo
     shell: /bin/bash
   - name: ${process.env.MAAS_COMMISSION_USERNAME}
     ssh_authorized_keys:
-      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/dd.pub`, 'utf8')}
+      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
     sudo: "ALL=(ALL) NOPASSWD:ALL"
     groups: sudo
     shell: /bin/bash
@@ -2010,6 +2020,29 @@ EOF`);
         shellExec(`ufw allow ${port}/tcp`);
         shellExec(`ufw allow ${port}/udp`);
       }
+
+      shellExec(`sudo systemctl mask firewalld`);
+
+      break;
+    }
+
+    case 'iptables': {
+      shellExec(`sudo systemctl enable nftables`);
+      shellExec(`sudo systemctl restart nftables`);
+
+      shellExec(`sudo tee /etc/nftables.conf <<EOF
+table inet filter {
+  chain input {
+    type filter hook input priority 0;
+    policy drop;
+    tcp dport 22 accept
+  }
+}
+EOF`);
+      shellExec(`sudo nft -f /etc/nftables.conf`);
+
+      // sudo systemctl stop nftables
+      // sudo systemctl disable nftables
 
       break;
     }
