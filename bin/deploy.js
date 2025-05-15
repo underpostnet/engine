@@ -908,10 +908,11 @@ EOF`);
         shellExec(`ssh-add ~/.ssh/id_rsa`);
         shellExec(`ssh-add -l`);
 
-        shellExec(`ssh-keyscan -H -t ed25519 ${host.split(`@`)[1]} > ~/.ssh/known_hosts`);
-
+        // shellExec(`ssh-keyscan -H -t ed25519 ${host.split(`@`)[1]} > ~/.ssh/known_hosts`);
         // ssh-copy-id -i ~/.ssh/id_rsa.pub -p <port_number> <username>@<host>
-        shellExec(`ssh-copy-id -i ~/.ssh/id_rsa.pub -p ${port} ${host}`);
+        // shellExec(`ssh-copy-id -i ~/.ssh/id_rsa.pub -p ${port} ${host}`);
+
+        shellExec(`echo "@${host.split(`@`)[1]} * $(cat ~/.ssh/id_rsa.pub)" > ~/.ssh/known_hosts`);
 
         shellExec(`sudo systemctl enable sshd`);
         shellExec(`sudo systemctl restart sshd`);
