@@ -1807,6 +1807,7 @@ udp-port = 32766
       shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
 
       if (process.argv.includes('build')) {
+        shellExec(`mkdir -p ${nfsHostPath}`);
         let cmd;
         switch (host) {
           case 'rpi4mb':
