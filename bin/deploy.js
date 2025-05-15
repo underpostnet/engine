@@ -40,6 +40,9 @@ import { ejs } from '../src/server/json-schema.js';
 import { buildCliDoc } from '../src/cli/index.js';
 import { getLocalIPv4Address } from '../src/server/dns.js';
 import { Downloader } from '../src/server/downloader.js';
+import colors from 'colors';
+
+colors.enable();
 
 const logger = loggerFactory(import.meta);
 
@@ -881,7 +884,15 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         // local trust on first use validator
         // check ~/.ssh/known_hosts
 
-        shellExec(`sudo sed -i -e "s@#PasswordAuthentication yes@PasswordAuthentication no@g" /etc/ssh/sshd_config`);
+        // shellExec(`sudo sed -i -e "s@#PasswordAuthentication yes@PasswordAuthentication no@g" /etc/ssh/sshd_config`);
+        // shellExec(`sudo sed -i -e "s@#UsePAM no@UsePAM yes@g" /etc/ssh/sshd_config`);
+
+        shellExec(`sudo tee /etc/ssh/sshd_config.d/99-custom.conf <<EOF
+PasswordAuthentication yes
+ChallengeResponseAuthentication yes
+UsePAM yes
+EOF`);
+
         shellExec(`sudo chmod 700 ~/.ssh/`);
         shellExec(`sudo chmod 600 ~/.ssh/authorized_keys`);
         shellExec(`sudo chmod 644 ~/.ssh/known_hosts`);
@@ -893,7 +904,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
         shellExec(`sudo systemctl enable sshd`);
         shellExec(`sudo systemctl restart sshd`);
-        shellExec(`sudo systemctl status sshd`);
+
+        const status = shellExec(`sudo systemctl status sshd`, { silent: true, stdout: true });
+        console.log(
+          status.match('running') ? status.replaceAll(`running`, `running`.green) : `ssh service not running`.red,
+        );
       };
 
       if (process.argv.includes('import')) {
