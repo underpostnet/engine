@@ -904,6 +904,15 @@ EOF`);
         shellExec(`ufw allow ${port}/tcp`);
         shellExec(`ufw allow ${port}/udp`);
 
+        shellExec('eval `ssh-agent -s`');
+        shellExec(`ssh-add ~/.ssh/id_rsa`);
+        shellExec(`ssh-add -l`);
+
+        shellExec(`ssh-keyscan -H -t ed25519 ${host.split(`@`)[1]} > ~/.ssh/known_hosts`);
+
+        // ssh-copy-id -i ~/.ssh/id_rsa.pub -p <port_number> <username>@<host>
+        shellExec(`ssh-copy-id -i ~/.ssh/id_rsa.pub -p ${port} ${host}`);
+
         shellExec(`sudo systemctl enable sshd`);
         shellExec(`sudo systemctl restart sshd`);
 
