@@ -874,7 +874,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
     case 'ssh': {
       const host = process.argv[3];
-      const user = host.split('@')[0];
+      const user = 'root'; // host.split('@')[0];
       const password = process.argv[4] ?? '';
       const port = 22;
 
@@ -888,16 +888,18 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         // shellExec(`sudo sed -i -e "s@#UsePAM no@UsePAM yes@g" /etc/ssh/sshd_config`);
 
         shellExec(`sudo tee /etc/ssh/sshd_config.d/99-custom.conf <<EOF
-PasswordAuthentication yes
+PasswordAuthentication no
 ChallengeResponseAuthentication yes
 UsePAM yes
+PubkeyAuthentication Yes
+RSAAuthentication Yes
+PermitRootLogin Yes
 EOF`);
 
         shellExec(`sudo chmod 700 ~/.ssh/`);
         shellExec(`sudo chmod 600 ~/.ssh/authorized_keys`);
         shellExec(`sudo chmod 644 ~/.ssh/known_hosts`);
-        // shellExec(`chown -R ${user}:${user} ~/.ssh`);
-        shellExec(`chown -R root:root ~/.ssh`);
+        shellExec(`chown -R ${user}:${user} ~/.ssh`);
 
         shellExec(`ufw allow ${port}/tcp`);
         shellExec(`ufw allow ${port}/udp`);
