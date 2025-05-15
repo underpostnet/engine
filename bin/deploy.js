@@ -887,22 +887,26 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         // shellExec(`sudo sed -i -e "s@#PasswordAuthentication yes@PasswordAuthentication no@g" /etc/ssh/sshd_config`);
         // shellExec(`sudo sed -i -e "s@#UsePAM no@UsePAM yes@g" /etc/ssh/sshd_config`);
 
-        shellExec(`sudo tee /etc/ssh/sshd_config.d/99-custom.conf <<EOF
-PasswordAuthentication no
-ChallengeResponseAuthentication yes
-UsePAM yes
-PubkeyAuthentication Yes
-RSAAuthentication Yes
-PermitRootLogin Yes
-X11Forwarding yes
-X11DisplayOffset 10
-LoginGraceTime 120
-StrictModes yes
-SyslogFacility AUTH
-LogLevel INFO
-HostKey /etc/ssh/ssh_host_ecdsa_key
-HostKey /etc/ssh/ssh_host_ed25519_key
-HostKey /etc/ssh/ssh_host_rsa_key
+        // Include /etc/ssh/sshd_config.d/*.conf
+        // sudo tee /etc/ssh/sshd_config.d/99-custom.conf
+        shellExec(`sudo tee /etc/ssh/sshd_config <<EOF
+PasswordAuthentication	no
+ChallengeResponseAuthentication	yes
+UsePAM	yes
+PubkeyAuthentication	Yes
+RSAAuthentication	Yes
+PermitRootLogin	Yes
+X11Forwarding	yes
+X11DisplayOffset	10
+LoginGraceTime	120
+StrictModes	yes
+SyslogFacility	AUTH
+LogLevel	INFO
+HostKey	/etc/ssh/ssh_host_ecdsa_key
+HostKey	/etc/ssh/ssh_host_ed25519_key
+HostKey	/etc/ssh/ssh_host_rsa_key
+AuthorizedKeysFile	~/.ssh/authorized_keys
+Subsystem	sftp	/usr/libexec/openssh/sftp-server
 EOF`);
 
         shellExec(`sudo chmod 700 ~/.ssh/`);
