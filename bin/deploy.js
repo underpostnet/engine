@@ -1666,10 +1666,10 @@ BOOT_ORDER=0x21`;
           const machine = {
             architecture: architecture.match('amd') ? 'amd64/generic' : 'arm64/generic',
             mac_address: discovery.mac_address,
-            hostname:
-              discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? discovery.ip.match(ipaddr)
-                ? nfsHost
-                : `unknown-${s4()}`,
+            hostname: discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? `generic-host-${s4()}`,
+            // discovery.ip.match(ipaddr)
+            //   ? nfsHost
+            //   : `unknown-${s4()}`,
             // description: '',
             // https://maas.io/docs/reference-power-drivers
             power_type: 'manual', // manual
@@ -1868,7 +1868,8 @@ EOF`);
             //   process.env.MAAS_COMMISSION_USERNAME
             // }/.ssh
             // echo '${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_PASSWORD}' | chpasswd
-
+// check
+            // sudo cp /etc/resolv.conf ${nfsHostPath}/etc/resolv.conf
             shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
 apt install -y sudo
@@ -1900,12 +1901,6 @@ datasource:
     metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
 users:
   - name: ${process.env.MAAS_ADMIN_USERNAME}
-    ssh_authorized_keys:
-      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
-    sudo: "ALL=(ALL) NOPASSWD:ALL"
-    groups: sudo
-    shell: /bin/bash
-  - name: ${process.env.MAAS_COMMISSION_USERNAME}
     ssh_authorized_keys:
       - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
     sudo: "ALL=(ALL) NOPASSWD:ALL"
