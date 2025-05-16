@@ -1897,7 +1897,7 @@ EOF`);
 apt update
 ln -sf /lib/systemd/systemd /sbin/init
 apt install -y linux-generic-hwe-24.04
-apt install -y cloud-init
+apt install -y openssh-server sudo ntp cloud-init
 mkdir -p /var/lib/cloud
 chown -R root:root /var/lib/cloud
 chmod -R 0755 /var/lib/cloud
@@ -1971,7 +1971,7 @@ EOF`);
       // }
 
       shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
+echo "nameserver 8.8.8.8" | tee /etc/resolv.conf > /dev/null
 apt update
 EOF`);
 
