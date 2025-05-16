@@ -1857,6 +1857,7 @@ EOF`);
       if (process.argv.includes('build')) {
         switch (host) {
           case 'rpi4mb':
+            const ipaddr = '192.168.1.83';
             // https://www.cyberciti.biz/faq/understanding-etcgroup-file/
             // https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/4/html/introduction_to_system_administration/s3-acctspgrps-group#s3-acctspgrps-group
             // shellExec(`grep '^root:'  ${nfsHostPath}/etc/group`); // check group root
@@ -1870,24 +1871,30 @@ EOF`);
             // echo '${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_PASSWORD}' | chpasswd
             // check
             // sudo cp /etc/resolv.conf ${nfsHostPath}/etc/resolv.conf
+
+            // apt install -y sudo
+            // useradd -m -s /bin/bash -G sudo ${process.env.MAAS_COMMISSION_USERNAME}
+            // echo "ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu-nopasswd
+            // echo "${process.env.MAAS_COMMISSION_USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu-nopasswd
+            // chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
+
+            // apt install -y openssh-server
+            // mkdir -p /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
+            // echo '${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}' >> /home/${
+            //               process.env.MAAS_COMMISSION_USERNAME
+            //             }/.ssh/authorized_keys
+            // chown -R ${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_USERNAME} /home/${
+            //               process.env.MAAS_COMMISSION_USERNAME
+            //             }
+            // chmod 700 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
+            // chmod 600 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh/authorized_keys
+            // systemctl enable ssh
+
+            // apt install -y ntp // time sync
+            // systemctl enable ntp
+
             shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
-apt install -y sudo
-apt install -y openssh-server
-mkdir -p /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
-useradd -m -s /bin/bash -G sudo ${process.env.MAAS_COMMISSION_USERNAME}
-echo "${process.env.MAAS_COMMISSION_USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu-nopasswd
-chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
-echo '${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}' >> /home/${
-              process.env.MAAS_COMMISSION_USERNAME
-            }/.ssh/authorized_keys
-chown -R ${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_USERNAME} /home/${
-              process.env.MAAS_COMMISSION_USERNAME
-            }
-chmod 700 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
-chmod 600 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh/authorized_keys
-systemctl enable ssh
-apt install -y ntp
 ln -sf /lib/systemd/systemd /sbin/init
 apt install -y linux-generic-hwe-24.04
 apt install -y cloud-init
@@ -1914,25 +1921,39 @@ package_update: true
 runcmd:
   - ufw enable
   - ufw allow ssh
-resize_rootfs: False
+resize_rootfs: false
 growpart:
   mode: off
+network:
+  version: 2
+  ethernets:
+    ${process.env.RPI4_INTERFACE_NAME}:
+        dhcp4: true
+        addresses:
+          - ${ipaddr}/24
 EOF_MAAS_CFG
-mkdir -p /etc/network
-cat <<EOF_NET > /etc/network/interfaces
-auto lo
-iface lo inet loopback
+`);
 
-auto ${process.env.RPI4_INTERFACE_NAME}
-iface ${process.env.RPI4_INTERFACE_NAME} inet dhcp
-EOF_NET
-EOF`);
-            shellExec(`sudo tee -a ${nfsHostPath}/etc/hosts <<EOF
-127.0.0.1 ${process.env.MAAS_COMMISSION_USERNAME}
-${IP_ADDRESS} ${process.env.MAAS_COMMISSION_USERNAME}
-127.0.0.1 ${process.env.MAAS_COMMISSION_HOSTNAME}
-${IP_ADDRESS} ${process.env.MAAS_COMMISSION_HOSTNAME}
-EOF`);
+            // match:
+            //   macaddress: '52:54:00:01:01:02'
+            // set-name: enp2s0
+
+            // mkdir -p /etc/network
+            // cat <<EOF_NET > /etc/network/interfaces
+            // auto lo
+            // iface lo inet loopback
+
+            // auto ${process.env.RPI4_INTERFACE_NAME}
+            // iface ${process.env.RPI4_INTERFACE_NAME} inet dhcp
+            // EOF_NET
+            // EOF
+
+            // shellExec(`sudo tee -a ${nfsHostPath}/etc/hosts <<EOF
+            // 127.0.0.1 ${process.env.MAAS_COMMISSION_USERNAME}
+            // ${IP_ADDRESS} ${process.env.MAAS_COMMISSION_USERNAME}
+            // 127.0.0.1 ${process.env.MAAS_COMMISSION_HOSTNAME}
+            // ${IP_ADDRESS} ${process.env.MAAS_COMMISSION_HOSTNAME}
+            // EOF`);
 
             // check sudo
             // sudo -u ${process.env.MAAS_ADMIN_USERNAME} whoami
