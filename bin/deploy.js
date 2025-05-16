@@ -1857,7 +1857,7 @@ EOF`);
       if (process.argv.includes('build')) {
         switch (host) {
           case 'rpi4mb':
-            const ipaddr = '192.168.1.83';
+            const ipaddr = '192.168.1.84';
             // https://www.cyberciti.biz/faq/understanding-etcgroup-file/
             // https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/4/html/introduction_to_system_administration/s3-acctspgrps-group#s3-acctspgrps-group
             // shellExec(`grep '^root:'  ${nfsHostPath}/etc/group`); // check group root
@@ -1973,6 +1973,7 @@ EOF_MAAS_CFG
       // }
 
       shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
 apt update
 EOF`);
 
