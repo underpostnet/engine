@@ -50,6 +50,68 @@ logger.info('argv', process.argv);
 
 const [exe, dir, operator] = process.argv;
 
+const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
+  shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+echo "step 1/11"
+apt update
+echo "step 2/11"
+ln -sf /lib/systemd/systemd /sbin/init
+echo "step 3/11"
+apt install -y linux-generic-hwe-24.04
+echo "step 4/11"
+apt install -y sudo
+echo "step 5/11"
+apt install -y ntp
+echo "step 6/11"
+apt install -y openssh-server
+echo "step 7/11"
+apt install -y cloud-init
+echo "step 8/11"
+mkdir -p /var/lib/cloud
+echo "step 9/11"
+chown -R root:root /var/lib/cloud
+echo "step 10/11"
+chmod -R 0755 /var/lib/cloud
+echo "step 11/11"
+cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
+datasource_list: [ MAAS ]
+datasource:
+  MAAS:
+    metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
+users:
+  - name: ${process.env.MAAS_ADMIN_USERNAME}
+    ssh_authorized_keys:
+      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    groups: sudo
+    shell: /bin/bash
+packages:
+  - git
+  - htop
+  - ufw
+package_update: true
+runcmd:
+  - ufw enable
+  - ufw allow ssh
+resize_rootfs: false
+growpart:
+  mode: off
+network:
+  version: 2
+  ethernets:
+    ${process.env.RPI4_INTERFACE_NAME}:
+        dhcp4: true
+        addresses:
+          - ${ipaddr}/24
+EOF_MAAS_CFG
+EOF`);
+
+  shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+echo "nameserver 8.8.8.8" | tee /etc/resolv.conf > /dev/null
+apt update
+EOF`);
+};
+
 try {
   switch (operator) {
     case 'save':
@@ -1789,6 +1851,22 @@ udp-port = 32766
       shellExec(`sudo systemctl restart nfs-server`);
       break;
     }
+    case 'update-virtual-root': {
+      dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
+      const IP_ADDRESS = getLocalIPv4Address();
+      const architecture = process.argv[3];
+      const host = process.argv[4];
+      const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${host}`;
+      const ipaddr = '192.168.1.83';
+      await updateVirtualRoot({
+        IP_ADDRESS,
+        architecture,
+        host,
+        nfsHostPath,
+        ipaddr,
+      });
+      break;
+    }
     case 'open-virtual-root': {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const IP_ADDRESS = getLocalIPv4Address();
@@ -1896,46 +1974,13 @@ EOF`);
             // apt install -y ntp // time sync
             // systemctl enable ntp
 
-            shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-apt update
-ln -sf /lib/systemd/systemd /sbin/init
-apt install -y linux-generic-hwe-24.04
-apt install -y openssh-server sudo ntp cloud-init
-mkdir -p /var/lib/cloud
-chown -R root:root /var/lib/cloud
-chmod -R 0755 /var/lib/cloud
-cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
-datasource_list: [ MAAS ]
-datasource:
-  MAAS:
-    metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
-users:
-  - name: ${process.env.MAAS_ADMIN_USERNAME}
-    ssh_authorized_keys:
-      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
-    sudo: "ALL=(ALL) NOPASSWD:ALL"
-    groups: sudo
-    shell: /bin/bash
-packages:
-  - git
-  - htop
-  - ufw
-package_update: true
-runcmd:
-  - ufw enable
-  - ufw allow ssh
-resize_rootfs: false
-growpart:
-  mode: off
-network:
-  version: 2
-  ethernets:
-    ${process.env.RPI4_INTERFACE_NAME}:
-        dhcp4: true
-        addresses:
-          - ${ipaddr}/24
-EOF_MAAS_CFG
-EOF`);
+            await updateVirtualRoot({
+              IP_ADDRESS,
+              architecture,
+              host,
+              nfsHostPath,
+              ipaddr,
+            });
             // match:
             //   macaddress: '52:54:00:01:01:02'
             // set-name: enp2s0
@@ -1972,11 +2017,6 @@ EOF`);
       //   shellExec(`sudo rm -rf ${nfsHostPath}`);
       //   shellExec(`sudo cp -a ${nfsHostPath}-bak ${nfsHostPath}`);
       // }
-
-      shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-echo "nameserver 8.8.8.8" | tee /etc/resolv.conf > /dev/null
-apt update
-EOF`);
 
       break;
     }
