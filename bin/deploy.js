@@ -1714,7 +1714,7 @@ BOOT_ORDER=0x21`;
     case 'nfs': {
       // Daemon RPC  NFSv3. ports:
 
-      // 2049 (TCP/UDP) – puerto estándar de nfsd.
+      // 2049 (TCP/UDP) – nfsd standard port.
       // 111 (TCP/UDP) – rpcbind/portmapper.
       // 20048 (TCP/UDP) – rpc.mountd.
       // 32765 (TCP/UDP) – rpc.statd.
@@ -1868,7 +1868,7 @@ EOF`);
             //   process.env.MAAS_COMMISSION_USERNAME
             // }/.ssh
             // echo '${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_PASSWORD}' | chpasswd
-// check
+            // check
             // sudo cp /etc/resolv.conf ${nfsHostPath}/etc/resolv.conf
             shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 apt update
