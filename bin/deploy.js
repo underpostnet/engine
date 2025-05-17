@@ -59,6 +59,7 @@ const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
     `apt install -y ntp`,
     `apt install -y openssh-server`,
     `apt install -y iptables`,
+    `update-alternatives --set iptables /usr/sbin/iptables-legacy`,
     `apt install -y locales`,
     `apt install -y cloud-init`,
     `mkdir -p /var/lib/cloud`,
