@@ -51,29 +51,20 @@ logger.info('argv', process.argv);
 const [exe, dir, operator] = process.argv;
 
 const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
-  shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-echo "step 1/11"
-apt update
-echo "step 2/11"
-ln -sf /lib/systemd/systemd /sbin/init
-echo "step 3/11"
-apt install -y linux-generic-hwe-24.04
-echo "step 4/11"
-apt install -y sudo
-echo "step 5/11"
-apt install -y ntp
-echo "step 6/11"
-apt install -y openssh-server
-echo "step 7/11"
-apt install -y cloud-init
-echo "step 8/11"
-mkdir -p /var/lib/cloud
-echo "step 9/11"
-chown -R root:root /var/lib/cloud
-echo "step 10/11"
-chmod -R 0755 /var/lib/cloud
-echo "step 11/11"
-cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
+  const steps = [
+    `apt update`,
+    `ln -sf /lib/systemd/systemd /sbin/init`,
+    `apt install -y linux-generic-hwe-24.04`,
+    `apt install -y sudo`,
+    `apt install -y ntp`,
+    `apt install -y openssh-server`,
+    `apt install -y iptables`,
+    `apt install -y locales`,
+    `apt install -y cloud-init`,
+    `mkdir -p /var/lib/cloud`,
+    `chown -R root:root /var/lib/cloud`,
+    `chmod -R 0755 /var/lib/cloud`,
+    `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
 datasource_list: [ MAAS ]
 datasource:
   MAAS:
@@ -103,7 +94,17 @@ network:
         dhcp4: true
         addresses:
           - ${ipaddr}/24
-EOF_MAAS_CFG
+EOF_MAAS_CFG`,
+  ];
+
+  shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+${steps
+  .map(
+    (s, i) => `echo "step ${i + 1}/${steps.length}: ${s.split('\n')[0]}"
+${s}
+`,
+  )
+  .join(``)}
 EOF`);
 
   shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
@@ -1540,6 +1541,7 @@ EOF`);
             // 'boot=casper',
             // 'ro',
             'netboot=nfs',
+            `cloud-config-url=/dev/null`,
             // 'ip=dhcp',
             // 'ip=dfcp',
             // 'autoinstall',
