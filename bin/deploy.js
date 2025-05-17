@@ -109,7 +109,7 @@ ${s}
 EOF`);
 
   shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-echo "nameserver 8.8.8.8" | tee /etc/resolv.conf > /dev/null
+echo "nameserver ${process.env.MAAS_DNS}" | tee /etc/resolv.conf > /dev/null
 apt update
 EOF`);
 };
@@ -1277,7 +1277,7 @@ EOF`);
       }
 
       // TODO: - Disable maas proxy (egress forwarding to public dns)
-      //       - Configure maas dns forwarding 8.8.8.8
+      //       - Configure maas dns forwarding ${process.env.MAAS_DNS}
       //       - Enable DNSSEC validation of upstream zones: Automatic (use default root key)
 
       if (process.argv.includes('clear')) {
