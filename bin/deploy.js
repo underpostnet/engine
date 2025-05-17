@@ -55,16 +55,19 @@ const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
     `apt update`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
     `apt install -y linux-generic-hwe-24.04`,
+    // `sudo apt install linux-modules-extra-6.8.0-31-generic`,
     `apt install -y sudo`,
     `apt install -y ntp`,
     `apt install -y openssh-server`,
     `apt install -y iptables`,
     `update-alternatives --set iptables /usr/sbin/iptables-legacy`,
+    `update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy`,
     `apt install -y locales`,
     `apt install -y cloud-init`,
     `mkdir -p /var/lib/cloud`,
     `chown -R root:root /var/lib/cloud`,
     `chmod -R 0755 /var/lib/cloud`,
+    `modprobe ip_tables`,
     `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
 datasource_list: [ MAAS ]
 datasource:
@@ -1882,7 +1885,9 @@ udp-port = 32766
       const architecture = process.argv[3];
       const host = process.argv[4];
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${host}`;
-      shellExec(`dnf install -y debootstrap`);
+      shellExec(`sudo dnf install -y iptables-legacy`);
+      shellExec(`sudo dnf install -y debootstrap`);
+      shellExec(`sudo dnf install kernel-modules-extra-$(uname -r)`);
       switch (architecture) {
         case 'arm64':
           shellExec(`sudo podman run --rm --privileged multiarch/qemu-user-static --reset -p yes`);
@@ -1942,6 +1947,7 @@ EOF`);
         shellExec(`sudo mount --bind /proc ${nfsHostPath}/proc`);
         shellExec(`sudo mount --bind /sys  ${nfsHostPath}/sys`);
         shellExec(`sudo mount --rbind /dev  ${nfsHostPath}/dev`);
+        shellExec(`sudo mount --bind /lib/modules ${nfsHostPath}/lib/modules`);
       }
 
       if (process.argv.includes('build')) {
@@ -2037,6 +2043,7 @@ EOF`);
       shellExec(`sudo umount ${nfsHostPath}/proc`);
       shellExec(`sudo umount ${nfsHostPath}/sys`);
       shellExec(`sudo umount ${nfsHostPath}/dev`);
+      shellExec(`sudo umount ${nfsHostPath}/lib/modules`);
       break;
     }
 
