@@ -1687,12 +1687,12 @@ BOOT_ORDER=0x21`;
         shellExec(`sudo chown -R root:root ${tftpRoot}`);
         shellExec(`sudo sudo chmod 755 ${tftpRoot}`);
       }
-      for (const machine of machines) {
-        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${machine.system_id}`, {
-          silent: true,
-        });
-      }
+      // for (const machine of machines) {
+      //   // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
+      //   shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${machine.system_id}`, {
+      //     silent: true,
+      //   });
+      // }
       // machines = [];
 
       const monitor = async () => {
@@ -1771,6 +1771,7 @@ BOOT_ORDER=0x21`;
         monitor();
       };
       // shellExec(`node bin/deploy open-virtual-root ${architecture.match('amd') ? 'amd64' : 'arm64'} ${nfsHost}`);
+      machines = [];
       shellExec(`node bin/deploy maas clear`);
       monitor();
       break;
