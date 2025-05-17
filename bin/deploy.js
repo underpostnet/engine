@@ -1273,6 +1273,11 @@ EOF`);
         console.table(machines);
         process.exit(0);
       }
+
+      // TODO: - Disable maas proxy (egress forwarding to public dns)
+      //       - Configure maas dns forwarding 8.8.8.8
+      //       - Enable DNSSEC validation of upstream zones: Automatic (use default root key)
+
       if (process.argv.includes('clear')) {
         for (const machine of machines) {
           shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
