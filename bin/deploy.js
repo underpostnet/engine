@@ -1947,7 +1947,6 @@ EOF`);
         shellExec(`sudo mount --bind /proc ${nfsHostPath}/proc`);
         shellExec(`sudo mount --bind /sys  ${nfsHostPath}/sys`);
         shellExec(`sudo mount --rbind /dev  ${nfsHostPath}/dev`);
-        shellExec(`sudo mount --bind /lib/modules ${nfsHostPath}/lib/modules`);
       }
 
       if (process.argv.includes('build')) {
@@ -2024,6 +2023,9 @@ EOF`);
           default:
             break;
         }
+      }
+      if (process.argv.includes('mount')) {
+        shellExec(`sudo mount --bind /lib/modules ${nfsHostPath}/lib/modules`);
       }
       // if (process.argv.includes('build') || process.argv.includes('export')) {
       //   shellExec(`sudo cp -a ${nfsHostPath} ${nfsHostPath}-bak`);
