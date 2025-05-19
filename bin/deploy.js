@@ -54,7 +54,6 @@ const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
   const steps = [
     `apt update`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
-    `apt install -y linux-generic-hwe-24.04`,
     // `sudo apt install linux-modules-extra-6.8.0-31-generic`,
     `apt install -y sudo`,
     `apt install -y ntp`,
@@ -67,6 +66,16 @@ const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
     `mkdir -p /var/lib/cloud`,
     `chown -R root:root /var/lib/cloud`,
     `chmod -R 0755 /var/lib/cloud`,
+    `mkdir -p /home/root/.ssh`,
+    `echo '${fs.readFileSync(
+      `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
+      'utf8',
+    )}' >> /home/root/.ssh/authorized_keys`,
+    `chmod 700 /home/root/.ssh`,
+    `chmod 600 /home/root/.ssh/authorized_keys`,
+    `systemctl enable ssh`,
+    `systemctl enable ntp`,
+    `apt install -y linux-generic-hwe-24.04`,
     `modprobe ip_tables`,
     `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
 datasource_list: [ MAAS ]
@@ -1902,7 +1911,7 @@ udp-port = 32766
       shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
 
       if (process.argv.includes('build')) {
-        shellExec(`depmod -a`);
+        // shellExec(`depmod -a`);
         shellExec(`mkdir -p ${nfsHostPath}`);
         let cmd;
         switch (host) {
@@ -1983,7 +1992,7 @@ EOF`);
       shellExec(`sudo umount ${nfsHostPath}/proc`);
       shellExec(`sudo umount ${nfsHostPath}/sys`);
       shellExec(`sudo umount ${nfsHostPath}/dev`);
-      shellExec(`sudo umount ${nfsHostPath}/lib/modules`);
+      // shellExec(`sudo umount ${nfsHostPath}/lib/modules`);
       break;
     }
 
