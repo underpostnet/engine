@@ -1209,7 +1209,7 @@ EOF`);
       const IP_ADDRESS = getLocalIPv4Address();
       const serverip = IP_ADDRESS;
       const tftpRoot = process.env.TFTP_ROOT;
-      const ipaddr = '192.168.1.83';
+      const ipaddr = process.env.RPI4_IP;
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
 
@@ -1869,7 +1869,7 @@ udp-port = 32766
       const architecture = process.argv[3];
       const host = process.argv[4];
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${host}`;
-      const ipaddr = '192.168.1.83';
+      const ipaddr = process.env.RPI4_IP;
       await updateVirtualRoot({
         IP_ADDRESS,
         architecture,
@@ -1902,6 +1902,7 @@ udp-port = 32766
       shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
 
       if (process.argv.includes('build')) {
+        shellExec(`depmod -a`);
         shellExec(`mkdir -p ${nfsHostPath}`);
         let cmd;
         switch (host) {
@@ -1952,41 +1953,7 @@ EOF`);
       if (process.argv.includes('build')) {
         switch (host) {
           case 'rpi4mb':
-            const ipaddr = '192.168.1.83';
-            // https://www.cyberciti.biz/faq/understanding-etcgroup-file/
-            // https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/4/html/introduction_to_system_administration/s3-acctspgrps-group#s3-acctspgrps-group
-            // shellExec(`grep '^root:'  ${nfsHostPath}/etc/group`); // check group root
-            // shellExec(`echo 'root:x:0:' | sudo tee -a  ${nfsHostPath}/etc/group`); // set group root
-            // console.log(`echo 'root:x:0:0:root:/root:/bin/bash' > ${process.env.NFS_EXPORT_PATH}/rpi4mb/etc/passwd`);
-
-            // apt install -y linux-lowlatency-hwe-22.04
-            // chown -R ${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_USERNAME} /home/${
-            //   process.env.MAAS_COMMISSION_USERNAME
-            // }/.ssh
-            // echo '${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_PASSWORD}' | chpasswd
-            // check
-            // sudo cp /etc/resolv.conf ${nfsHostPath}/etc/resolv.conf
-
-            // apt install -y sudo
-            // useradd -m -s /bin/bash -G sudo ${process.env.MAAS_COMMISSION_USERNAME}
-            // echo "ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu-nopasswd
-            // echo "${process.env.MAAS_COMMISSION_USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu-nopasswd
-            // chmod 0440 /etc/sudoers.d/ubuntu-nopasswd
-
-            // apt install -y openssh-server
-            // mkdir -p /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
-            // echo '${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}' >> /home/${
-            //               process.env.MAAS_COMMISSION_USERNAME
-            //             }/.ssh/authorized_keys
-            // chown -R ${process.env.MAAS_COMMISSION_USERNAME}:${process.env.MAAS_COMMISSION_USERNAME} /home/${
-            //               process.env.MAAS_COMMISSION_USERNAME
-            //             }
-            // chmod 700 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh
-            // chmod 600 /home/${process.env.MAAS_COMMISSION_USERNAME}/.ssh/authorized_keys
-            // systemctl enable ssh
-
-            // apt install -y ntp // time sync
-            // systemctl enable ntp
+            const ipaddr = process.env.RPI4_IP;
 
             await updateVirtualRoot({
               IP_ADDRESS,
@@ -1995,44 +1962,15 @@ EOF`);
               nfsHostPath,
               ipaddr,
             });
-            // match:
-            //   macaddress: '52:54:00:01:01:02'
-            // set-name: enp2s0
 
-            // mkdir -p /etc/network
-            // cat <<EOF_NET > /etc/network/interfaces
-            // auto lo
-            // iface lo inet loopback
-
-            // auto ${process.env.RPI4_INTERFACE_NAME}
-            // iface ${process.env.RPI4_INTERFACE_NAME} inet dhcp
-            // EOF_NET
-            // EOF
-
-            // shellExec(`sudo tee -a ${nfsHostPath}/etc/hosts <<EOF
-            // 127.0.0.1 ${process.env.MAAS_COMMISSION_USERNAME}
-            // ${IP_ADDRESS} ${process.env.MAAS_COMMISSION_USERNAME}
-            // 127.0.0.1 ${process.env.MAAS_COMMISSION_HOSTNAME}
-            // ${IP_ADDRESS} ${process.env.MAAS_COMMISSION_HOSTNAME}
-
-            // check sudo
-            // sudo -u ${process.env.MAAS_ADMIN_USERNAME} whoami
-            // sudo whoami
             break;
 
           default:
             break;
         }
       }
-      if (process.argv.includes('mount')) {
-        shellExec(`sudo mount --bind /lib/modules ${nfsHostPath}/lib/modules`);
-      }
-      // if (process.argv.includes('build') || process.argv.includes('export')) {
-      //   shellExec(`sudo cp -a ${nfsHostPath} ${nfsHostPath}-bak`);
-      // }
-      // if (process.argv.includes('import')) {
-      //   shellExec(`sudo rm -rf ${nfsHostPath}`);
-      //   shellExec(`sudo cp -a ${nfsHostPath}-bak ${nfsHostPath}`);
+      // if (process.argv.includes('mount')) {
+      //   shellExec(`sudo mount --bind /lib/modules ${nfsHostPath}/lib/modules`);
       // }
 
       break;
