@@ -317,11 +317,13 @@ program.command('ol').action(async () => {
       COLORS: [],
       FRAME_DURATION: 0.3,
       IS_STATELESS: false,
+      FLIP: false,
     };
 
-    const COLOR = [];
     for (const direction of await fs.readdir(`./src/client/public/cyberia/assets/skin/${objectLayerId}`)) {
-      for (const frame of await fs.readdir(`./src/client/public/cyberia/assets/skin/${objectLayerId}/${direction}`)) {
+      const dirFolder = `./src/client/public/cyberia/assets/skin/${objectLayerId}/${direction}`;
+      if (!fs.statSync(dirFolder).isDirectory()) continue;
+      for (const frame of await fs.readdir(dirFolder)) {
         const imageFilePath = `./src/client/public/cyberia/assets/skin/${objectLayerId}/${direction}/${frame}`;
         console.log('Parse', imageFilePath);
         const FRAMES = [];
@@ -340,12 +342,12 @@ program.command('ol').action(async () => {
                 const rgba = Object.values(Jimp.intToRGBA(image.getPixelColor(x, y)));
                 if (y % mazeFactor === 0 && x % mazeFactor === 0) {
                   _x++;
-                  const indexColor = COLOR.findIndex(
+                  const indexColor = RENDER_DATA.COLORS.findIndex(
                     (c) => c[0] === rgba[0] && c[1] === rgba[1] && c[2] === rgba[2] && c[3] === rgba[3],
                   );
                   if (indexColor === -1) {
-                    COLOR.push(rgba);
-                    FRAMES[_y][_x] = COLOR.length - 1;
+                    RENDER_DATA.COLORS.push(rgba);
+                    FRAMES[_y][_x] = RENDER_DATA.COLORS.length - 1;
                   } else {
                     FRAMES[_y][_x] = indexColor;
                   }
@@ -355,11 +357,64 @@ program.command('ol').action(async () => {
             resolve();
           });
         });
-        console.log('FRAMES', FRAMES.length, FRAMES[0].length);
-        console.log('COLOR', COLOR);
-        return;
+        // console.log('FRAMES', FRAMES.length, FRAMES[0].length);
+        // console.log('COLORS', RENDER_DATA.COLORS);
+        switch (direction) {
+          case '08':
+            RENDER_DATA.FRAMES.DOWN_IDLE.push(FRAMES);
+            break;
+          case '18':
+            RENDER_DATA.FRAMES.DOWN_WALKING.push(FRAMES);
+            break;
+          case '02':
+            RENDER_DATA.FRAMES.UP_IDLE.push(FRAMES);
+            break;
+          case '12':
+            RENDER_DATA.FRAMES.UP_WALKING.push(FRAMES);
+            break;
+          case '04':
+            RENDER_DATA.FRAMES.LEFT_IDLE.push(FRAMES);
+            RENDER_DATA.FRAMES.UP_LEFT_IDLE.push(FRAMES);
+            RENDER_DATA.FRAMES.DOWN_LEFT_IDLE.push(FRAMES);
+            break;
+          case '14':
+            RENDER_DATA.FRAMES.LEFT_WALKING.push(FRAMES);
+            RENDER_DATA.FRAMES.UP_LEFT_WALKING.push(FRAMES);
+            RENDER_DATA.FRAMES.DOWN_LEFT_WALKING.push(FRAMES);
+            break;
+          case '06 ':
+            RENDER_DATA.FRAMES.RIGHT_IDLE.push(FRAMES);
+            RENDER_DATA.FRAMES.UP_RIGHT_IDLE.push(FRAMES);
+            RENDER_DATA.FRAMES.DOWN_RIGHT_IDLE.push(FRAMES);
+            break;
+          case '16':
+            RENDER_DATA.FRAMES.RIGHT_WALKING.push(FRAMES);
+            RENDER_DATA.FRAMES.UP_RIGHT_WALKING.push(FRAMES);
+            RENDER_DATA.FRAMES.DOWN_RIGHT_WALKING.push(FRAMES);
+            break;
+        }
       }
     }
+    if (!fs.existsSync(`../cyberia-client/object_layer/skin/${objectLayerId}`))
+      fs.mkdirSync(`../cyberia-client/object_layer/skin/${objectLayerId}`);
+    fs.writeFileSync(
+      `../cyberia-client/object_layer/skin/${objectLayerId}/object_layer_data_${objectLayerId}.json`,
+      JSON.stringify(
+        {
+          RENDER_DATA,
+          SEED_DATA: {
+            EFFECT: random(0, 10),
+            RESISTANCE: random(0, 10),
+            AGILITY: random(0, 10),
+            RANGE: random(0, 10),
+            INTELLIGENCE: random(0, 10),
+            UTILITY: random(0, 10),
+          },
+        },
+        null,
+        2,
+      ),
+    );
   }
 });
 
