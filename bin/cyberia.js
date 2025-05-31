@@ -294,9 +294,69 @@ program
 
 program.command('ol').action(async () => {
   for (const objectLayerId of await fs.readdir(`./src/client/public/cyberia/assets/skin`)) {
+    const RENDER_DATA = {
+      FRAMES: {
+        UP_IDLE: [],
+        DOWN_IDLE: [],
+        RIGHT_IDLE: [],
+        LEFT_IDLE: [],
+        UP_RIGHT_IDLE: [],
+        DOWN_RIGHT_IDLE: [],
+        UP_LEFT_IDLE: [],
+        DOWN_LEFT_IDLE: [],
+        DEFAULT_IDLE: [],
+        UP_WALKING: [],
+        DOWN_WALKING: [],
+        RIGHT_WALKING: [],
+        LEFT_WALKING: [],
+        UP_RIGHT_WALKING: [],
+        DOWN_RIGHT_WALKING: [],
+        UP_LEFT_WALKING: [],
+        DOWN_LEFT_WALKING: [],
+      },
+      COLORS: [],
+      FRAME_DURATION: 0.3,
+      IS_STATELESS: false,
+    };
+
+    const COLOR = [];
     for (const direction of await fs.readdir(`./src/client/public/cyberia/assets/skin/${objectLayerId}`)) {
       for (const frame of await fs.readdir(`./src/client/public/cyberia/assets/skin/${objectLayerId}/${direction}`)) {
-        console.log('->', `./src/client/public/cyberia/assets/skin/${objectLayerId}/${direction}/${frame}`);
+        const imageFilePath = `./src/client/public/cyberia/assets/skin/${objectLayerId}/${direction}/${frame}`;
+        console.log('Parse', imageFilePath);
+        const FRAMES = [];
+
+        await new Promise((resolve) => {
+          Jimp.read(imageFilePath).then(async (image) => {
+            const mazeFactor = parseInt(image.bitmap.height / 24);
+            let _y = -1;
+            for (const y of range(0, image.bitmap.height - 1)) {
+              if (y % mazeFactor === 0) {
+                _y++;
+                if (!FRAMES[_y]) FRAMES[_y] = [];
+              }
+              let _x = -1;
+              for (const x of range(0, image.bitmap.width - 1)) {
+                const rgba = Object.values(Jimp.intToRGBA(image.getPixelColor(x, y)));
+                if (y % mazeFactor === 0 && x % mazeFactor === 0) {
+                  _x++;
+                  const indexColor = COLOR.findIndex(
+                    (c) => c[0] === rgba[0] && c[1] === rgba[1] && c[2] === rgba[2] && c[3] === rgba[3],
+                  );
+                  if (indexColor === -1) {
+                    COLOR.push(rgba);
+                    FRAMES[_y][_x] = COLOR.length - 1;
+                  } else {
+                    FRAMES[_y][_x] = indexColor;
+                  }
+                }
+              }
+            }
+            resolve();
+          });
+        });
+        console.log('FRAMES', FRAMES.length, FRAMES[0].length);
+        console.log('COLOR', COLOR);
         return;
       }
     }
