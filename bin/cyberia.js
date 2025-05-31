@@ -313,6 +313,7 @@ program.command('ol').action(async () => {
         DOWN_RIGHT_WALKING: [],
         UP_LEFT_WALKING: [],
         DOWN_LEFT_WALKING: [],
+        NONE_IDLE: [],
       },
       COLORS: [],
       FRAME_DURATION: 0.3,
@@ -362,6 +363,8 @@ program.command('ol').action(async () => {
         switch (direction) {
           case '08':
             RENDER_DATA.FRAMES.DOWN_IDLE.push(FRAMES);
+            RENDER_DATA.FRAMES.NONE_IDLE.push(FRAMES);
+            RENDER_DATA.FRAMES.DEFAULT_IDLE.push(FRAMES);
             break;
           case '18':
             RENDER_DATA.FRAMES.DOWN_WALKING.push(FRAMES);
@@ -382,15 +385,36 @@ program.command('ol').action(async () => {
             RENDER_DATA.FRAMES.UP_LEFT_WALKING.push(FRAMES);
             RENDER_DATA.FRAMES.DOWN_LEFT_WALKING.push(FRAMES);
             break;
-          case '06 ':
-            RENDER_DATA.FRAMES.RIGHT_IDLE.push(FRAMES);
-            RENDER_DATA.FRAMES.UP_RIGHT_IDLE.push(FRAMES);
-            RENDER_DATA.FRAMES.DOWN_RIGHT_IDLE.push(FRAMES);
+          case '06':
+            switch (objectLayerId) {
+              case 'people':
+                RENDER_DATA.FRAMES.RIGHT_IDLE.push(FRAMES.reverse());
+                RENDER_DATA.FRAMES.UP_RIGHT_IDLE.push(FRAMES.reverse());
+                RENDER_DATA.FRAMES.DOWN_RIGHT_IDLE.push(FRAMES.reverse());
+                break;
+
+              default:
+                RENDER_DATA.FRAMES.RIGHT_IDLE.push(FRAMES);
+                RENDER_DATA.FRAMES.UP_RIGHT_IDLE.push(FRAMES);
+                RENDER_DATA.FRAMES.DOWN_RIGHT_IDLE.push(FRAMES);
+                break;
+            }
             break;
           case '16':
-            RENDER_DATA.FRAMES.RIGHT_WALKING.push(FRAMES);
-            RENDER_DATA.FRAMES.UP_RIGHT_WALKING.push(FRAMES);
-            RENDER_DATA.FRAMES.DOWN_RIGHT_WALKING.push(FRAMES);
+            switch (objectLayerId) {
+              case 'people':
+                RENDER_DATA.FRAMES.RIGHT_WALKING.push(FRAMES.reverse());
+                RENDER_DATA.FRAMES.UP_RIGHT_WALKING.push(FRAMES.reverse());
+                RENDER_DATA.FRAMES.DOWN_RIGHT_WALKING.push(FRAMES.reverse());
+                break;
+
+              default:
+                RENDER_DATA.FRAMES.RIGHT_WALKING.push(FRAMES);
+                RENDER_DATA.FRAMES.UP_RIGHT_WALKING.push(FRAMES);
+                RENDER_DATA.FRAMES.DOWN_RIGHT_WALKING.push(FRAMES);
+                break;
+            }
+
             break;
         }
       }
