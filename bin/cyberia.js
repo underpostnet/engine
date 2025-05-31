@@ -318,7 +318,6 @@ program.command('ol').action(async () => {
       COLORS: [],
       FRAME_DURATION: 0.3,
       IS_STATELESS: false,
-      FLIP: false,
     };
 
     for (const direction of await fs.readdir(`./src/client/public/cyberia/assets/skin/${objectLayerId}`)) {
@@ -423,21 +422,17 @@ program.command('ol').action(async () => {
     //   fs.mkdirSync(`../cyberia-client/object_layer/skin/${objectLayerId}`);
     fs.writeFileSync(
       `../cyberia-client/object_layer/skin/object_layer_data_${objectLayerId}.json`,
-      JSON.stringify(
-        {
-          RENDER_DATA,
-          SEED_DATA: {
-            EFFECT: random(0, 10),
-            RESISTANCE: random(0, 10),
-            AGILITY: random(0, 10),
-            RANGE: random(0, 10),
-            INTELLIGENCE: random(0, 10),
-            UTILITY: random(0, 10),
-          },
+      JSON.stringify({
+        RENDER_DATA,
+        SEED_DATA: {
+          EFFECT: random(0, 10),
+          RESISTANCE: random(0, 10),
+          AGILITY: random(0, 10),
+          RANGE: random(0, 10),
+          INTELLIGENCE: random(0, 10),
+          UTILITY: random(0, 10),
         },
-        null,
-        2,
-      ),
+      }),
     );
   }
 });
