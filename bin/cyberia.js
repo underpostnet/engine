@@ -395,10 +395,10 @@ program.command('ol').action(async () => {
         }
       }
     }
-    if (!fs.existsSync(`../cyberia-client/object_layer/skin/${objectLayerId}`))
-      fs.mkdirSync(`../cyberia-client/object_layer/skin/${objectLayerId}`);
+    // if (!fs.existsSync(`../cyberia-client/object_layer/skin/${objectLayerId}`))
+    //   fs.mkdirSync(`../cyberia-client/object_layer/skin/${objectLayerId}`);
     fs.writeFileSync(
-      `../cyberia-client/object_layer/skin/${objectLayerId}/object_layer_data_${objectLayerId}.json`,
+      `../cyberia-client/object_layer/skin/object_layer_data_${objectLayerId}.json`,
       JSON.stringify(
         {
           RENDER_DATA,
