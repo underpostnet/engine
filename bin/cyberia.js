@@ -292,6 +292,17 @@ program
   })
   .description('File management');
 
+program.command('ol').action(async () => {
+  for (const objectLayerId of await fs.readdir(`./src/client/public/cyberia/assets/skin`)) {
+    for (const direction of await fs.readdir(`./src/client/public/cyberia/assets/skin/${objectLayerId}`)) {
+      for (const frame of await fs.readdir(`./src/client/public/cyberia/assets/skin/${objectLayerId}/${direction}`)) {
+        console.log('->', `./src/client/public/cyberia/assets/skin/${objectLayerId}/${direction}/${frame}`);
+        return;
+      }
+    }
+  }
+});
+
 program
   .command('media')
   .argument('[saga-id]')

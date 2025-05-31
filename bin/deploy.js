@@ -93,7 +93,7 @@ packages:
   - git
   - htop
   - ufw
-package_update: true
+# package_update: true
 runcmd:
   - ufw enable
   - ufw allow ssh
