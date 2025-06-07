@@ -120,6 +120,11 @@ class UnderpostMonitor {
                           fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'),
                         );
 
+                        shellExec(`kubectl delete configmap underpost-config`);
+                        shellExec(
+                          `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env}`,
+                        );
+
                         for (const host of Object.keys(confServer)) {
                           shellExec(`sudo kubectl delete HTTPProxy ${host}`);
                         }
