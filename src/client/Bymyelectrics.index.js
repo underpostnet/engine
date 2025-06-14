@@ -172,10 +172,12 @@ const htmlMainBody = async () => {
         </div>
       </div>   -->
       <br />
+      <!--
       <div class="in sub-title">${Translate.Render('our-clients')}</div>
       <br />
       <img class="in clients-img" src="${getProxyPath()}assets/clients.png" />
       <br />
+      -->
       <br />
       <br />
     </div>
