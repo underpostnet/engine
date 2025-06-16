@@ -142,6 +142,8 @@ const buildRuntime = async () => {
           // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
           //   $_SERVER['HTTPS'] = 'on';
           // }
+          // For plugins:
+          // define( 'FS_METHOD', 'direct' );
 
           // ErrorDocument 404 /custom_404.html
           // ErrorDocument 500 /custom_50x.html
