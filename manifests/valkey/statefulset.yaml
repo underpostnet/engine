@@ -21,7 +21,7 @@ spec:
         - name: service-valkey
           image: valkey/valkey:latest
           # Ensure you pull only if not present (Never will error if missing)
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Never
           env:
             - name: TZ
               value: Europe/Zurich

@@ -253,6 +253,7 @@ spec:
 kubectl rollout restart deployment/deployment-name
 kubectl rollout undo deployment/deployment-name
 kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
+kubectl get pods -w
         `);
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
