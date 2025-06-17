@@ -121,7 +121,7 @@ class UnderpostCluster {
         if (options.pullImage === true) {
           // kubectl patch statefulset service-valkey --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"valkey/valkey:latest"}]'
           // kubectl patch statefulset service-valkey -p '{"spec":{"template":{"spec":{"containers":[{"name":"service-valkey","imagePullPolicy":"Never"}]}}}}'
-          // shellExec(`docker pull valkey/valkey`);
+          shellExec(`docker pull valkey/valkey`);
           // shellExec(`sudo kind load docker-image valkey/valkey`);
           // shellExec(`sudo podman pull docker.io/valkey/valkey:latest`);
           // shellExec(`podman save -o valkey.tar valkey/valkey`);
