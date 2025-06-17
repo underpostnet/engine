@@ -54,7 +54,7 @@ class UnderpostImage {
           shellExec(
             `cd ${path}${secretsInput}&& sudo podman build -f ./${
               dockerfileName && typeof dockerfileName === 'string' ? dockerfileName : 'Dockerfile'
-            } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache}${secretDockerInput}`,
+            } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache}${secretDockerInput} --network host`,
           );
 
         if (podmanSave === true) shellExec(`podman save -o ${tarFile} ${podManImg}`);
