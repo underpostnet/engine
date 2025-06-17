@@ -254,7 +254,9 @@ kubectl rollout restart deployment/deployment-name
 kubectl rollout undo deployment/deployment-name
 kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
 kubectl get pods -w
-        `);
+kubectl patch statefulset service-valkey --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"valkey/valkey:latest"}]'
+kubectl patch statefulset service-valkey -p '{"spec":{"template":{"spec":{"containers":[{"name":"service-valkey","imagePullPolicy":"Never"}]}}}}'
+`);
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
       if (options.infoTraffic === true) {
