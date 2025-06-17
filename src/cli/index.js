@@ -90,6 +90,7 @@ program
   .option('--reset', `Delete all clusters and prune all data and caches`)
   .option('--mariadb', 'Init with mariadb statefulset')
   .option('--mongodb', 'Init with mongodb statefulset')
+  .option('--postgresql', 'Init with postgresql statefulset')
   .option('--mongodb4', 'Init with mongodb 4.4 service')
   .option('--istio', 'Init base istio cluster')
   .option('--valkey', 'Init with valkey service')

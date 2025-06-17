@@ -14,6 +14,7 @@ class UnderpostCluster {
         mongodb: false,
         mongodb4: false,
         mariadb: false,
+        postgresql: false,
         valkey: false,
         full: false,
         info: false,
@@ -141,6 +142,12 @@ class UnderpostCluster {
         );
         shellExec(`kubectl delete statefulset mariadb-statefulset`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb`);
+      }
+      if (options.full === true || options.postgresql === true) {
+        shellExec(
+          `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password`,
+        );
+        shellExec(`kubectl apply -k ./manifests/postgresql`);
       }
       if (options.mongodb4 === true) {
         if (options.pullImage === true) {
