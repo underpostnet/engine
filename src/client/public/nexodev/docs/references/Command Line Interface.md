@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.652
+## underpost ci/cd cli v2.8.67
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -197,7 +197,9 @@ Options:
   --reset              Delete all clusters and prune all data and caches
   --mariadb            Init with mariadb statefulset
   --mongodb            Init with mongodb statefulset
+  --postgresql         Init with postgresql statefulset
   --mongodb4           Init with mongodb 4.4 service
+  --istio              Init base istio cluster
   --valkey             Init with valkey service
   --contour            Init with project contour base HTTPProxy and envoy
   --cert-manager       Init with letsencrypt-prod ClusterIssuer
@@ -208,6 +210,7 @@ Options:
   --list-pods          Display list pods information
   --info-capacity      display current total machine capacity info
   --info-capacity-pod  display current machine capacity pod info
+  --pull-image         Set optional pull associated image
   -h, --help           display help for command
  
 ```
@@ -239,6 +242,10 @@ Options:
   --versions <deployment-versions>  Comma separated custom deployment versions
   --traffic <traffic-versions>      Comma separated custom deployment traffic
   --disable-update-deployment       Disable update deployments
+  --info-traffic                    get traffic conf form current resources
+                                    deployments
+  --rebuild-clients-bundle          Inside container, rebuild clients bundle,
+                                    only static public or storage client files
   -h, --help                        display help for command
  
 ```
@@ -383,16 +390,17 @@ Options:
 File storage management, for default upload file
 
 Arguments:
-  path                     Absolute or relative directory
+  path                                     Absolute or relative directory
 
 Options:
-  --rm                     Remove file
-  --git                    Current git changes
-  --recursive              Upload files recursively
-  --deploy-id <deploy-id>  Deploy configuration id
-  --pull                   Download file
-  --force                  Force action
-  -h, --help               display help for command
+  --rm                                     Remove file
+  --git                                    Current git changes
+  --recursive                              Upload files recursively
+  --deploy-id <deploy-id>                  Deploy configuration id
+  --pull                                   Download file
+  --force                                  Force action
+  --storage-file-path <storage-file-path>  custom file storage path
+  -h, --help                               display help for command
  
 ```
   
@@ -433,7 +441,10 @@ Options:
   --ms-interval <ms-interval>  Custom ms interval delta time
   --now                        Exec immediately monitor script
   --single                     Disable recurrence
+  --replicas <replicas>        Set custom number of replicas
   --type <type>                Set custom monitor type
+  --sync                       Sync with current proxy deployments proxy
+                               traffic
   -h, --help                   display help for command
  
 ```

@@ -1277,6 +1277,31 @@ const DefaultConf = /**/ {
         },
       },
     },
+    'vitaintegral.nexodev.org': {
+      '/': {
+        client: 'healthcare',
+        runtime: 'nodejs',
+        apis: ['user', 'test', 'document', 'file', 'event-scheduler', 'healthcare-appointment', 'default'],
+        origins: [],
+        minifyBuild: false,
+        liteBuild: true,
+        docsBuild: false,
+        iconsBuild: false,
+        ws: 'core',
+        peer: true,
+        proxy: [80, 443],
+        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        mailer: {
+          sender: { email: 'noreply@default.net', name: 'Default' },
+          transport: {
+            host: 'smtp.default.com',
+            port: 465,
+            secure: true,
+            auth: { user: 'noreply@default.net', pass: '' },
+          },
+        },
+      },
+    },
   },
   cron: {
     records: { A: [{ host: 'example.com', dns: 'dondominio', api_key: '???', user: '???' }] },
