@@ -2163,6 +2163,10 @@ EOF`);
           );
         }
       }
+      if (process.argv.includes('run')) {
+        shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/backend-deployment.yml`);
+        shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/backend-service.yml`);
+      }
       break;
     }
   }
