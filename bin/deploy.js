@@ -1415,6 +1415,8 @@ EOF`);
       // Check firewall-cmd
       // firewall-cmd --permanent --add-service=rpc-bind
       // firewall-cmd --reload
+      // systemctl disable firewalld
+      // sudo firewall-cmd --permanent --add-port=10259/tcp --zone=public
 
       // Image extension transform (.img.xz to .tar.gz):
       // tar -cvzf image-name.tar.gz image-name.img.xz
