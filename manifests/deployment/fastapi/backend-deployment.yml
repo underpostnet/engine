@@ -25,7 +25,7 @@ spec:
 
           env:
             - name: POSTGRES_SERVER
-              value: postgres
+              value: postgres-service
             - name: POSTGRES_PORT
               value: '5432'
             - name: POSTGRES_DB
