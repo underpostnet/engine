@@ -120,14 +120,7 @@ class UnderpostCluster {
 
       if (options.full === true || options.valkey === true) {
         if (options.pullImage === true) {
-          // kubectl patch statefulset service-valkey --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"valkey/valkey:latest"}]'
-          // kubectl patch statefulset service-valkey -p '{"spec":{"template":{"spec":{"containers":[{"name":"service-valkey","imagePullPolicy":"Never"}]}}}}'
           shellExec(`docker pull valkey/valkey`);
-          // shellExec(`sudo kind load docker-image valkey/valkey`);
-          // shellExec(`sudo podman pull docker.io/valkey/valkey:latest`);
-          // shellExec(`podman save -o valkey.tar valkey/valkey`);
-          // shellExec(`sudo kind load image-archive valkey.tar`);
-          // shellExec(`sudo rm -rf ./valkey.tar`);
           shellExec(`sudo kind load docker-image valkey/valkey:latest`);
         }
         shellExec(`kubectl delete statefulset service-valkey`);
@@ -144,6 +137,10 @@ class UnderpostCluster {
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb`);
       }
       if (options.full === true || options.postgresql === true) {
+        if (options.pullImage === true) {
+          shellExec(`docker pull postgres:latest`);
+          shellExec(`sudo kind load docker-image postgres:latest`);
+        }
         shellExec(
           `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password`,
         );

@@ -72,17 +72,17 @@ spec:
             # - name: SMTP_HOST
             #   valueFrom:
             #     secretKeyRef:
-            #       name: backend-config-secret
+            #       name: fastapi-backend-config-secret
             #       key: SMTP_HOST
             # - name: SMTP_USER
             #   valueFrom:
             #     secretKeyRef:
-            #       name: backend-config-secret
+            #       name: fastapi-backend-config-secret
             #       key: SMTP_USER
             # - name: SMTP_PASSWORD
             #   valueFrom:
             #     secretKeyRef:
-            #       name: backend-config-secret
+            #       name: fastapi-backend-config-secret
             #       key: SMTP_PASSWORD
             - name: EMAILS_FROM_EMAIL
               value: 'info@example.com'

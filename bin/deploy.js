@@ -2141,6 +2141,26 @@ EOF`);
         ];
         shellExec(args.join(' '));
       }
+      if (process.argv.includes('build') || process.argv.includes('secret')) {
+        {
+          const secretSelector = `fastapi-postgres-credentials`;
+          shellExec(
+            `sudo kubectl create secret generic ${secretSelector}` +
+              ` --from-literal=POSTGRES_DB=postgresdb` +
+              ` --from-literal=POSTGRES_USER=admin` +
+              ` --from-file=POSTGRES_PASSWORD=/home/dd/engine/engine-private/postgresql-password`,
+          );
+        }
+        {
+          const secretSelector = `fastapi-backend-config-secret`;
+          shellExec(
+            `sudo kubectl create secret generic ${secretSelector}` +
+              ` --from-file=SECRET_KEY=/home/dd/engine/engine-private/postgresql-password` +
+              ` --from-literal=FIRST_SUPERUSER=admin` +
+              ` --from-file=FIRST_SUPERUSER_PASSWORD=/home/dd/engine/engine-private/postgresql-password`,
+          );
+        }
+      }
       break;
     }
   }
