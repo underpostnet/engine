@@ -2128,6 +2128,8 @@ EOF`);
       break;
 
     case 'fastapi': {
+      // https://github.com/NonsoEchendu/full-stack-fastapi-project
+      // https://github.com/fastapi/full-stack-fastapi-template
       if (process.argv.includes('build')) {
         const path = `../full-stack-fastapi-template`;
         const imageName = `fastapi-backend:latest`;
