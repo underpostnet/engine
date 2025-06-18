@@ -2144,6 +2144,7 @@ EOF`);
       if (process.argv.includes('build') || process.argv.includes('secret')) {
         {
           const secretSelector = `fastapi-postgres-credentials`;
+          shellExec(`sudo kubectl delete secret ${secretSelector}`);
           shellExec(
             `sudo kubectl create secret generic ${secretSelector}` +
               ` --from-literal=POSTGRES_DB=postgresdb` +
@@ -2153,10 +2154,11 @@ EOF`);
         }
         {
           const secretSelector = `fastapi-backend-config-secret`;
+          shellExec(`sudo kubectl delete secret ${secretSelector}`);
           shellExec(
             `sudo kubectl create secret generic ${secretSelector}` +
               ` --from-file=SECRET_KEY=/home/dd/engine/engine-private/postgresql-password` +
-              ` --from-literal=FIRST_SUPERUSER=admin` +
+              ` --from-literal=FIRST_SUPERUSER=development@underpost.net` +
               ` --from-file=FIRST_SUPERUSER_PASSWORD=/home/dd/engine/engine-private/postgresql-password`,
           );
         }
