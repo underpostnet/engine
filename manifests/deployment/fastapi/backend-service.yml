@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-backend-service
+  labels:
+    app: fastapi-backend
+spec:
+  selector:
+    app: fastapi-backend
+  ports:
+    - name: 'tcp-8000'
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
+    - name: 'udp-8000'
+      protocol: UDP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
