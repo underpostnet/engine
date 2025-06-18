@@ -2173,7 +2173,10 @@ EOF`);
     }
 
     case 'conda': {
-      shellExec(`export PATH="/root/miniconda3/bin:$PATH" && conda init`);
+      shellExec(
+        `export PATH="/root/miniconda3/bin:$PATH" && conda init && conda config --set auto_activate_base false`,
+      );
+      shellExec(`conda env list`);
       break;
     }
   }
