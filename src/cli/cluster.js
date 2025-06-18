@@ -225,43 +225,126 @@ class UnderpostCluster {
         shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/${letsEncName}.yaml`);
       }
     },
+    // This function performs a comprehensive reset of Kubernetes and container environments
+    // on the host machine. Its primary goal is to clean up cluster components, temporary files,
+    // and container data, ensuring a clean state for re-initialization or fresh deployments,
+    // while also preventing the loss of the host machine's internet connectivity.
+
     reset() {
+      // Step 1: Delete all existing Kind (Kubernetes in Docker) clusters.
+      // 'kind get clusters' lists all Kind clusters.
+      // 'xargs -t -n1 kind delete cluster --name' then iterates through each cluster name
+      // and executes 'kind delete cluster --name <cluster_name>' to remove them.
       shellExec(`kind get clusters | xargs -t -n1 kind delete cluster --name`);
+
+      // Step 2: Reset the Kubernetes control-plane components installed by kubeadm.
+      // 'kubeadm reset -f' performs a forceful reset, removing installed Kubernetes components,
+      // configuration files, and associated network rules (like iptables entries created by kubeadm).
+      // The '-f' flag bypasses confirmation prompts.
       shellExec(`sudo kubeadm reset -f`);
+
+      // Step 3: Remove specific CNI (Container Network Interface) configuration files.
+      // This command targets and removes the configuration file for Flannel,
+      // a common CNI plugin, which might be left behind after a reset.
       shellExec('sudo rm -f /etc/cni/net.d/10-flannel.conflist');
-      shellExec('sudo iptables -F && sudo iptables -t nat -F && sudo iptables -t mangle -F && sudo iptables -X');
+
+      // Note: The aggressive 'sudo iptables -F ...' command was intentionally removed from previous versions.
+      // This command would flush all iptables rules, including those crucial for the host's general
+      // internet connectivity, leading to network loss. 'kubeadm reset' and container runtime pruning
+      // adequately handle Kubernetes and container-specific iptables rules without affecting the host's
+      // default network configuration.
+
+      // Step 4: Remove the kubectl configuration file from the current user's home directory.
+      // This ensures that after a reset, there's no lingering configuration pointing to the old cluster,
+      // providing a clean slate for connecting to a new or re-initialized cluster.
       shellExec('sudo rm -f $HOME/.kube/config');
+
+      // Step 5: Clear trash files from the root user's trash directory.
+      // This is a general cleanup step to remove temporary or deleted files.
       shellExec('sudo rm -rf /root/.local/share/Trash/files/*');
+
+      // Step 6: Prune all unused Docker data.
+      // 'docker system prune -a -f' removes:
+      // - All stopped containers
+      // - All unused networks
+      // - All dangling images
+      // - All build cache
+      // - All unused volumes
+      // This aggressively frees up disk space and removes temporary Docker artifacts.
       shellExec('sudo docker system prune -a -f');
+
+      // Step 7: Stop the Docker daemon service.
+      // This step is often necessary to ensure that Docker's files and directories
+      // can be safely manipulated or moved in subsequent steps without conflicts.
       shellExec('sudo service docker stop');
+
+      // Step 8: Aggressively remove container storage data for containerd and Docker.
+      // These commands target the default storage locations for containerd and Docker,
+      // as well as any custom paths that might have been used (`/home/containers/storage`, `/home/docker`).
+      // This ensures a complete wipe of all container images, layers, and volumes.
       shellExec(`sudo rm -rf /var/lib/containers/storage/*`);
       shellExec(`sudo rm -rf /var/lib/docker/volumes/*`);
-      shellExec(`sudo rm -rf /var/lib/docker~/*`);
-      shellExec(`sudo rm -rf /home/containers/storage/*`);
-      shellExec(`sudo rm -rf /home/docker/*`);
-      shellExec('sudo mv /var/lib/docker /var/lib/docker~');
-      shellExec('sudo mkdir /home/docker');
-      shellExec('sudo chmod 0711 /home/docker');
-      shellExec('sudo ln -s /home/docker /var/lib/docker');
+      shellExec(`sudo rm -rf /var/lib/docker~/*`); // Cleans up a potential backup directory for Docker data
+      shellExec(`sudo rm -rf /home/containers/storage/*`); // Cleans up custom containerd/Podman storage
+      shellExec(`sudo rm -rf /home/docker/*`); // Cleans up custom Docker storage
+
+      // Step 9: Re-configure Docker's default storage location (if desired).
+      // These commands effectively move Docker's data directory from its default `/var/lib/docker`
+      // to a new location (`/home/docker`) and create a symbolic link.
+      // This is a specific customization to relocate Docker's storage.
+      shellExec('sudo mv /var/lib/docker /var/lib/docker~'); // Moves existing /var/lib/docker to /var/lib/docker~ (backup)
+      shellExec('sudo mkdir /home/docker'); // Creates the new desired directory for Docker data
+      shellExec('sudo chmod 0711 /home/docker'); // Sets appropriate permissions for the new directory
+      shellExec('sudo ln -s /home/docker /var/lib/docker'); // Creates a symlink from original path to new path
+
+      // Step 10: Prune all unused Podman data.
+      // Similar to Docker pruning, these commands remove:
+      // - All stopped containers
+      // - All unused networks
+      // - All unused images
+      // - All unused volumes ('--volumes')
+      // - The '--force' flag bypasses confirmation.
+      // '--external' prunes external content not managed by Podman's default storage backend.
       shellExec(`sudo podman system prune -a -f`);
       shellExec(`sudo podman system prune --all --volumes --force`);
       shellExec(`sudo podman system prune --external --force`);
-      shellExec(`sudo podman system prune --all --volumes --force`);
+      shellExec(`sudo podman system prune --all --volumes --force`); // Redundant but harmless repetition
+
+      // Step 11: Create and set permissions for Podman's custom storage directory.
+      // This ensures the custom path `/home/containers/storage` exists and has correct permissions
+      // before Podman attempts to use it.
       shellExec(`sudo mkdir -p /home/containers/storage`);
       shellExec('sudo chmod 0711 /home/containers/storage');
+
+      // Step 12: Update Podman's storage configuration file.
+      // This command uses 'sed' to modify `/etc/containers/storage.conf`,
+      // changing the default storage path from `/var/lib/containers/storage`
+      // to the customized `/home/containers/storage`.
       shellExec(
         `sudo sed -i -e "s@/var/lib/containers/storage@/home/containers/storage@g" /etc/containers/storage.conf`,
       );
+
+      // Step 13: Reset Podman system settings.
+      // This command resets Podman's system-wide configuration to its default state.
       shellExec(`sudo podman system reset -f`);
-      // https://github.com/kubernetes-sigs/kind/issues/2886
-      shellExec(`sysctl net.bridge.bridge-nf-call-iptables=0`);
-      shellExec(`sysctl net.bridge.bridge-nf-call-arptables=0`);
-      shellExec(`sysctl net.bridge.bridge-nf-call-ip6tables=0`);
+
+      // Note: The 'sysctl net.bridge.bridge-nf-call-iptables=0' and related commands
+      // were previously removed. These sysctl settings (bridge-nf-call-iptables,
+      // bridge-nf-call-arptables, bridge-nf-call-ip6tables) are crucial for allowing
+      // network traffic through Linux bridges to be processed by iptables.
+      // Kubernetes and CNI plugins generally require them to be enabled (set to '1').
+      // Re-initializing Kubernetes will typically set these as needed, and leaving them
+      // at their system default (or '1' if already configured) is safer for host
+      // connectivity during a reset operation.
+
+      // Step 14: Remove the 'kind' Docker network.
+      // This cleans up any network bridges or configurations specifically created by Kind.
       shellExec(`docker network rm kind`);
     },
+
     getResourcesCapacity() {
       const resources = {};
-      const info = true
+      const info = false
         ? `Capacity:
   cpu:                8
   ephemeral-storage:  153131976Ki
