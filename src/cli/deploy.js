@@ -259,6 +259,8 @@ kubectl patch statefulset service-valkey -p '{"spec":{"template":{"spec":{"conta
 kubectl logs -f <pod-name>
 kubectl exec -it <pod-name> -- bash
 kubectl exec -it <pod-name> -- sh
+docker exec -it kind-control-plane bash
+curl -4 -v google.com
 `);
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
