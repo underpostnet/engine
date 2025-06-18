@@ -2126,6 +2126,23 @@ EOF`);
 
     default:
       break;
+
+    case 'fastapi': {
+      if (process.argv.includes('build')) {
+        const path = `../full-stack-fastapi-template`;
+        const imageName = `fastapi-backend:latest`;
+        shellExec(`sudo podman pull docker.io/library/python:3.10`);
+        shellExec(`sudo podman pull ghcr.io/astral-sh/uv:0.5.11`);
+        shellExec(`sudo rm -rf ${path}/${imageName.replace(':', '_')}.tar`);
+        const args = [
+          `node bin dockerfile-image-build --path ${path}/backend/`,
+          `--image-name=${imageName} --image-path=${path}`,
+          `--podman-save --kind-load --no-cache`,
+        ];
+        shellExec(args.join(' '));
+      }
+      break;
+    }
   }
 } catch (error) {
   logger.error(error, error.stack);
