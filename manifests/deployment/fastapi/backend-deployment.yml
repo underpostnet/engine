@@ -31,17 +31,17 @@ spec:
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: postgres-credentials
+                  name: fastapi-postgres-credentials
                   key: POSTGRES_DB
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: postgres-credentials
+                  name: fastapi-postgres-credentials
                   key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-credentials
+                  name: fastapi-postgres-credentials
                   key: POSTGRES_PASSWORD
 
             - name: PROJECT_NAME
@@ -54,17 +54,17 @@ spec:
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: backend-config-secret
+                  name: fastapi-backend-config-secret
                   key: SECRET_KEY
             - name: FIRST_SUPERUSER
               valueFrom:
                 secretKeyRef:
-                  name: backend-config-secret
+                  name: fastapi-backend-config-secret
                   key: FIRST_SUPERUSER
             - name: FIRST_SUPERUSER_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: backend-config-secret
+                  name: fastapi-backend-config-secret
                   key: FIRST_SUPERUSER_PASSWORD
             - name: USERS_OPEN_REGISTRATION
               value: 'True'
