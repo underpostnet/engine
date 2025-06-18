@@ -71,22 +71,6 @@ spec:
             cidr: 0.0.0.0/0 # Allows traffic to any IPv4 address
 
 ---
-# Policy for the 'calico-system' namespace
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-all-egress-calico-system-namespace
-  namespace: calico-system # This policy applies to the 'calico-system' namespace
-spec:
-  podSelector: {} # Selects all pods in this namespace
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0 # Allows traffic to any IPv4 address
-
----
 # Policy for the 'kube-node-lease' namespace
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
