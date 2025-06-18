@@ -337,6 +337,11 @@ class UnderpostCluster {
       // at their system default (or '1' if already configured) is safer for host
       // connectivity during a reset operation.
 
+      // https://github.com/kubernetes-sigs/kind/issues/2886
+      // shellExec(`sysctl net.bridge.bridge-nf-call-iptables=0`);
+      // shellExec(`sysctl net.bridge.bridge-nf-call-arptables=0`);
+      // shellExec(`sysctl net.bridge.bridge-nf-call-ip6tables=0`);
+
       // Step 14: Remove the 'kind' Docker network.
       // This cleans up any network bridges or configurations specifically created by Kind.
       shellExec(`docker network rm kind`);
