@@ -105,7 +105,7 @@ class UnderpostCluster {
           // shellExec(
           //   `wget https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml`,
           // );
-          shellExec(`sudo kubectl apply -f ./manifests/calico-custom-resources.yaml`);
+          shellExec(`sudo kubectl apply -f ./manifests/kubeadm-calico-config.yaml`);
           shellExec(`sudo systemctl restart containerd`);
         } else {
           shellExec(`sudo systemctl restart containerd`);

@@ -1,0 +1,58 @@
+# This consolidated YAML file contains configurations for:
+# 1. Calico Installation (Installation and APIServer resources)
+# 2. A permissive Egress NetworkPolicy for the 'default' namespace
+#
+# These are standard Kubernetes resources that can be applied directly using 'kubectl apply'.
+# The kubeadm-specific ClusterConfiguration and InitConfiguration have been removed
+# as they are only processed by the 'kubeadm init' command, not 'kubectl apply'.
+
+# --- Calico Installation: Base configuration for Calico ---
+# For more information, see: https://projectcalico.docs.tigera.io/master/reference/installation/api#operator.tigera.io/v1.Installation
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  # Configures Calico networking.
+  calicoNetwork:
+    # Note: The ipPools section cannot be modified post-install.
+    ipPools:
+      - blockSize: 26
+        cidr: 192.168.0.0/16
+        encapsulation: VXLANCrossSubnet
+        natOutgoing: Enabled
+        nodeSelector: all()
+
+---
+# This section configures the Calico API server.
+# For more information, see: https://projectcalico.docs.tigera.io/master/reference/installation/api#operator.tigera.io/v1.APIServer
+apiVersion: operator.tigera.io/v1
+kind: APIServer
+metadata:
+  name: default
+spec: {}
+
+---
+# This NetworkPolicy ensures that all pods in the 'default' namespace
+# have unrestricted egress (outbound) access.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all-egress-default-namespace
+  namespace: default # This policy applies to the 'default' namespace
+spec:
+  # podSelector: Selects the pods to which this policy applies.
+  # An empty podSelector {} selects all pods in the specified namespace.
+  podSelector: {}
+  # policyTypes: Specifies the types of traffic this policy controls.
+  # 'Egress' means this policy only concerns outbound traffic.
+  policyTypes:
+    - Egress
+  # egress: Defines the rules for outbound traffic.
+  # An empty 'egress' section with an empty 'to' rule allows all outbound traffic.
+  egress:
+    - to:
+        - ipBlock: # This rule allows traffic to any IP address.
+            # '0.0.0.0/0' represents all IPv4 addresses.
+            # You might also want to add '::/0' for IPv6 if applicable.
+            cidr: 0.0.0.0/0
