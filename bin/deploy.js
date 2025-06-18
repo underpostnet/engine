@@ -1197,6 +1197,17 @@ EOF`);
       break;
     }
 
+    case 'pg-stop': {
+      shellExec(`sudo systemctl stop postgresql-14`);
+      shellExec(`sudo systemctl disable postgresql-14`);
+      break;
+    }
+    case 'pg-start': {
+      shellExec(`sudo systemctl enable postgresql-14`);
+      shellExec(`sudo systemctl restart postgresql-14`);
+      break;
+    }
+
     case 'pg-list-db': {
       shellExec(`sudo -i -u postgres psql -c "\\l"`);
       break;
@@ -1210,6 +1221,11 @@ EOF`);
     case 'pg-drop-db': {
       shellExec(`sudo -i -u postgres psql -c "DROP DATABASE ${process.argv[3]} WITH (FORCE)"`);
       shellExec(`sudo -i -u postgres psql -c "DROP USER ${process.argv[4]}"`);
+      break;
+    }
+
+    case 'maas-stop': {
+      shellExec(`sudo snap stop maas`);
       break;
     }
 
