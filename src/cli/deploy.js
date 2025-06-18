@@ -266,6 +266,7 @@ kubectl run test-pod --image=busybox:latest --restart=Never -- /bin/sh -c "while
 kubectl run test-pod --image=alpine/curl:latest --restart=Never -- sh -c "sleep infinity"
 kubectl get node <node-name> -o jsonpath='{.spec.podCIDR}'
 kubectl patch ippool default-ipv4-ippool --type='json' -p='[{"op": "replace", "path": "/spec/cidr", "value": "10.244.0.0/16"}]'
+kubectl patch ippool default-ipv4-ippool --type='json' -p='[{"op": "replace", "path": "/spec/cidr", "value": "192.168.0.0/24"}]'
 `);
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
