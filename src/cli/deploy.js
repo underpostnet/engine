@@ -265,6 +265,7 @@ kubectl taint nodes <node-name> node-role.kubernetes.io/control-plane:NoSchedule
 kubectl run test-pod --image=busybox:latest --restart=Never -- /bin/sh -c "while true; do sleep 30; done;"
 kubectl run test-pod --image=alpine/curl:latest --restart=Never -- sh -c "sleep infinity"
 kubectl get node <node-name> -o jsonpath='{.spec.podCIDR}'
+kubectl patch ippool default-ipv4-ippool --type='json' -p='[{"op": "replace", "path": "/spec/cidr", "value": "10.244.0.0/16"}]'
 `);
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
