@@ -2171,6 +2171,11 @@ EOF`);
       }
       break;
     }
+
+    case 'conda': {
+      shellExec(`export PATH="/root/miniconda3/bin:$PATH" && conda init`);
+      break;
+    }
   }
 } catch (error) {
   logger.error(error, error.stack);
