@@ -2220,6 +2220,14 @@ EOF`);
       shellExec(`conda env list`);
       break;
     }
+
+    case 'kafka': {
+      const imageName = `doughgle/kafka-kraft`;
+      shellExec(`docker pull ${imageName}`);
+      shellExec(`kind load docker-image ${imageName}`);
+      shellExec(`kubectl create namespace kafka`);
+      break;
+    }
   }
 } catch (error) {
   logger.error(error, error.stack);
