@@ -2140,6 +2140,13 @@ EOF`);
       break;
     }
 
+    case 'fastapi-models': {
+      shellExec(`chmod +x ../full-stack-fastapi-template/backend/initial_data.sh`);
+      shellExec(`../full-stack-fastapi-template/backend/initial_data.sh`);
+      shellExec(`../full-stack-fastapi-template/backend/initial_data.sh`);
+      break;
+    }
+
     case 'fastapi': {
       // node bin/deploy fastapi reset
       // node bin/deploy fastapi reset build-back build-front secret run-back run-front
@@ -2177,6 +2184,8 @@ EOF`);
 
         'utf8',
       );
+
+      fs.copySync(`./manifests/deployment/fastapi/initial_data.sh`, `${path}/backend/initial_data.sh`);
 
       fs.writeFileSync(
         `${path}/frontend/Dockerfile`,
