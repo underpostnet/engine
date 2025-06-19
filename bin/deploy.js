@@ -2205,6 +2205,11 @@ EOF`);
         'utf8',
       );
 
+      if (process.argv.includes('models')) {
+        shellExec(`node bin/deploy fastapi-models`);
+        break;
+      }
+
       if (process.argv.includes('build-back')) {
         const imageName = `fastapi-backend:latest`;
         shellExec(`sudo podman pull docker.io/library/python:3.10`);
