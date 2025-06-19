@@ -20,11 +20,11 @@ spec:
           image: localhost/debian:underpost
           resources:
             requests:
-              memory: "99289Ki"
-              cpu: "66m"
+              memory: "128417Ki"
+              cpu: "100m"
             limits:
-              memory: "1588628Ki"
-              cpu: "1066m"
+              memory: "2054672Ki"
+              cpu: "1600m"
           command:
             - /bin/sh
             - -c
@@ -143,11 +143,11 @@ spec:
           image: localhost/debian:underpost
           resources:
             requests:
-              memory: "99289Ki"
-              cpu: "66m"
+              memory: "128417Ki"
+              cpu: "100m"
             limits:
-              memory: "1588628Ki"
-              cpu: "1066m"
+              memory: "2054672Ki"
+              cpu: "1600m"
           command:
             - /bin/sh
             - -c
