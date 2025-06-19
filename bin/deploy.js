@@ -2222,10 +2222,22 @@ EOF`);
     }
 
     case 'kafka': {
+      // https://medium.com/@martin.hodges/deploying-kafka-on-a-kind-kubernetes-cluster-for-development-and-testing-purposes-ed7adefe03cb
       const imageName = `doughgle/kafka-kraft`;
       shellExec(`docker pull ${imageName}`);
       shellExec(`kind load docker-image ${imageName}`);
       shellExec(`kubectl create namespace kafka`);
+      shellExec(`kubectl apply -f ./manifests/deployment/kafka/deployment.yaml`);
+      // kubectl logs kafka-0 -n kafka | grep STARTED
+      // kubectl logs kafka-1 -n kafka | grep STARTED
+      // kubectl logs kafka-2 -n kafka | grep STARTED
+
+      // kafka-topics.sh --create --topic my-topic --bootstrap-server kafka-svc:9092
+      // kafka-topics.sh --list --topic my-topic --bootstrap-server kafka-svc:9092
+      // kafka-topics.sh --delete --topic my-topic --bootstrap-server kafka-svc:9092
+
+      // kafka-console-producer.sh --bootstrap-server kafka-svc:9092 --topic my-topic
+      // kafka-console-consumer.sh --bootstrap-server kafka-svc:9092 --topic my-topic
       break;
     }
   }
