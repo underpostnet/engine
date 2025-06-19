@@ -13,7 +13,9 @@
         "ms-python.debugpy",
         "ms-python.python",
         "ms-python.vscode-pylance",
+        "scala-lang.scala",
         "streetsidesoftware.code-spell-checker",
+        "tamasfe.even-better-toml",
         "tobermory.es6-string-html"
     ]
 }
