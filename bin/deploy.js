@@ -2147,13 +2147,26 @@ EOF`);
       // https://github.com/NonsoEchendu/full-stack-fastapi-project
       // https://github.com/fastapi/full-stack-fastapi-template
       const path = `../full-stack-fastapi-template`;
-      const imageName = `fastapi-backend:latest`;
-      if (process.argv.includes('build')) {
+
+      if (process.argv.includes('build-back')) {
+        const imageName = `fastapi-backend:latest`;
         shellExec(`sudo podman pull docker.io/library/python:3.10`);
         shellExec(`sudo podman pull ghcr.io/astral-sh/uv:0.5.11`);
         shellExec(`sudo rm -rf ${path}/${imageName.replace(':', '_')}.tar`);
         const args = [
           `node bin dockerfile-image-build --path ${path}/backend/`,
+          `--image-name=${imageName} --image-path=${path}`,
+          `--podman-save --kind-load --no-cache`,
+        ];
+        shellExec(args.join(' '));
+      }
+      if (process.argv.includes('build-front')) {
+        const imageName = `fastapi-frontend:latest`;
+        shellExec(`sudo podman pull docker.io/library/node:20`);
+        shellExec(`sudo podman pull docker.io/library/nginx:1`);
+        shellExec(`sudo rm -rf ${path}/${imageName.replace(':', '_')}.tar`);
+        const args = [
+          `node bin dockerfile-image-build --path ${path}/frontend/`,
           `--image-name=${imageName} --image-path=${path}`,
           `--podman-save --kind-load --no-cache`,
         ];
