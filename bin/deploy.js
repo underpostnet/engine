@@ -2146,9 +2146,9 @@ EOF`);
     case 'fastapi': {
       // https://github.com/NonsoEchendu/full-stack-fastapi-project
       // https://github.com/fastapi/full-stack-fastapi-template
+      const path = `../full-stack-fastapi-template`;
+      const imageName = `fastapi-backend:latest`;
       if (process.argv.includes('build')) {
-        const path = `../full-stack-fastapi-template`;
-        const imageName = `fastapi-backend:latest`;
         shellExec(`sudo podman pull docker.io/library/python:3.10`);
         shellExec(`sudo podman pull ghcr.io/astral-sh/uv:0.5.11`);
         shellExec(`sudo rm -rf ${path}/${imageName.replace(':', '_')}.tar`);
@@ -2184,6 +2184,31 @@ EOF`);
       if (process.argv.includes('run')) {
         shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/backend-deployment.yml`);
         shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/backend-service.yml`);
+      }
+      if (process.argv.includes('env')) {
+        const password = fs.readFileSync(`/home/dd/engine/engine-private/postgresql-password`, 'utf8');
+
+        fs.writeFileSync(
+          `${path}/.env`,
+          fs
+            .readFileSync(`${path}/.env`, 'utf8')
+            .replace(`FIRST_SUPERUSER=admin@example.com`, `FIRST_SUPERUSER=development@underpost.net`)
+            .replace(`FIRST_SUPERUSER_PASSWORD=changethis`, `FIRST_SUPERUSER_PASSWORD=${password}`)
+            .replace(`SECRET_KEY=changethis`, `SECRET_KEY=${password}`)
+            .replace(`POSTGRES_DB=app`, `POSTGRES_DB=postgresdb`)
+            .replace(`POSTGRES_USER=postgres`, `POSTGRES_USER=admin`)
+            .replace(`POSTGRES_PASSWORD=changethis`, `POSTGRES_PASSWORD=${password}`),
+          'utf8',
+        );
+        fs.writeFileSync(
+          `${path}/backend/app/core/db.py`,
+          fs
+            .readFileSync(`${path}/backend/app/core/db.py`, 'utf8')
+            .replace(`    # from sqlmodel import SQLModel`, `    from sqlmodel import SQLModel`)
+            .replace(`   # SQLModel.metadata.create_all(engine)`, `   SQLModel.metadata.create_all(engine)`),
+
+          'utf8',
+        );
       }
       break;
     }
