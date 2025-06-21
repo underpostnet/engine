@@ -30,7 +30,7 @@ class UnderpostCluster {
       },
     ) {
       // sudo dnf update
-      // 1) Install kind, kubeadm, docker, podman
+      // 1) Install kind, kubeadm, docker, podman, helm
       // 2) Check kubectl, kubelet, containerd.io
       // 3) Install Nvidia drivers from Rocky Linux docs
       // 4) Install LXD with MAAS from Rocky Linux docs

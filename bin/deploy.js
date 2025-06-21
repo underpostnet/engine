@@ -2294,6 +2294,36 @@ EOF`);
       // kafka-console-consumer.sh --bootstrap-server kafka-svc:9092 --topic my-topic
       break;
     }
+
+    case 'kubeflow-spark-operator': {
+      // Use case:
+      // Data Processing Pipelines: Used for ETL tasks where Spark can handle large data volumes efficiently.
+      // Real-Time Analytics: Processing data from streaming sources (e.g., Kafka) for real-time analytics.
+      // Machine Learning and Data Science: Training and deploying machine learning models at scale using Spark MLlib.
+
+      shellExec(`helm repo add spark-operator https://kubeflow.github.io/spark-operator`);
+      shellExec(`helm install spark-operator spark-operator/spark-operator \
+--namespace spark-operator \
+--create-namespace \
+--wait`);
+
+      const image = `spark:3.5.3`;
+      shellExec(`sudo docker pull ${image}`);
+      shellExec(`sudo kind load docker-image ${image}`);
+      shellExec(`kubectl apply -f ./manifests/deployment/spark/spark-pi-py.yaml`);
+
+      // Check the status of the Spark job:
+      // kubectl get sparkapplications.sparkoperator.k8s.io -n default
+
+      // Check case log:
+      // kubectl logs -f spark-pi-python-driver
+      // kubectl logs -f spark-pi-python-driver | grep Pi
+
+      // Uninstall:
+      // kubectl delete sparkapplications.sparkoperator.k8s.io spark-pi-python -n default
+      // helm delete spark-operator -n spark-operator
+      break;
+    }
   }
 } catch (error) {
   logger.error(error, error.stack);
