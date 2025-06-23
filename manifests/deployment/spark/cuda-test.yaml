@@ -11,7 +11,7 @@ spec:
   imagePullPolicy: IfNotPresent
 
   # Define the main application file (the Python script copied into the Docker image)
-  mainApplicationFile: local:///opt/spark/work-dir/check_gpu.py
+  mainApplicationFile: local:///opt/spark/work-dir/main_check_gpu.py
 
   # Spark version used in the Docker image
   sparkVersion: '3.5.1'
