@@ -1,0 +1,79 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: spark-gpu-test # Name of your Spark Application
+  namespace: default # Namespace where Spark Operator is deployed and where you want to run this app
+spec:
+  type: Python
+  pythonVersion: '3'
+  mode: cluster
+  image: localhost/spark-cuda:latest
+  imagePullPolicy: IfNotPresent
+
+  # Define the main application file (the Python script copied into the Docker image)
+  mainApplicationFile: local:///opt/spark/work-dir/check_gpu.py
+
+  # Spark version used in the Docker image
+  sparkVersion: '3.5.1'
+
+  # Driver configuration
+  driver:
+    cores: 1
+    memory: '2g'
+    # No direct 'resources' block here. GPU requests are handled via sparkConf.
+
+    # Node selector (optional): if you want to schedule on specific nodes with GPUs
+    # nodeSelector:
+    #   gpu-node: "true" # Example: Only schedule on nodes labeled with 'gpu-node=true'
+
+    # Pod template to add specific environment variables or tolerations (e.g., for tainted GPU nodes)
+    # This is still valid for custom pod definitions if required for GPU nodes.
+    # podTemplate:
+    #   spec:
+    #     tolerations:
+    #     - key: "nvidia.com/gpu"
+    #       operator: "Exists"
+    #       effect: "NoSchedule"
+
+  # Executor configuration
+  executor:
+    cores: 1
+    instances: 1 # Number of Spark executors
+    memory: '2g'
+    # No direct 'resources' block here. GPU requests are handled via sparkConf.
+
+    # Node selector (optional): similar to driver
+    # nodeSelector:
+    #   gpu-node: "true"
+
+    # Pod template (optional): similar to driver
+    # podTemplate:
+    #   spec:
+    #     tolerations:
+    #     - key: "nvidia.com/gpu"
+    #       operator: "Exists"
+    #       effect: "NoSchedule"
+
+  # Spark configurations to enable GPU scheduling within Spark itself.
+  # These are crucial for Spark to request GPU resources from Kubernetes.
+  sparkConf:
+    # Use explicit Kubernetes resource names for GPU requests
+    # These properties tell Spark to request 'nvidia.com/gpu' resources for driver and executor pods.
+    # Spark internally maps these to the Kubernetes device plugin.
+    spark.kubernetes.driver.resources.nvidia.com/gpu.amount: '1'
+    spark.kubernetes.executor.resources.nvidia.com/gpu.amount: '1'
+
+    # Optionally, you can specify how much of the allocated GPU an individual task consumes.
+    # If each task needs full GPU, set to "1". If tasks share, set to a fraction (e.g., "0.01").
+    spark.task.resources.nvidia.com/gpu.amount: '0.01'
+
+  # Restart policy for the application
+  restartPolicy:
+    type: Never # Do not restart the application after completion or failure
+
+
+  # Monitoring (optional, uncomment if you have Prometheus set up with Spark Operator)
+  # metrics:
+  #   enable: true
+  #   applications:
+  #     enable: true

@@ -2268,6 +2268,10 @@ EOF`);
     }
 
     case 'conda': {
+      // set -e
+      // ENV_NAME="${1:-cuda_env}"
+      // eval "$(conda shell.bash hook)"
+      // conda activate "${ENV_NAME}"
       shellExec(
         `export PATH="/root/miniconda3/bin:$PATH" && conda init && conda config --set auto_activate_base false`,
       );
@@ -2314,10 +2318,12 @@ EOF`);
 
       // Check the status of the Spark job:
       // kubectl get sparkapplications.sparkoperator.k8s.io -n default
+      // kubectl get sparkapplication
 
       // Check case log:
       // kubectl logs -f spark-pi-python-driver
       // kubectl logs -f spark-pi-python-driver | grep Pi
+      // kubectl describe sparkapplication spark-gpu-test
 
       // Uninstall:
       // kubectl delete sparkapplications.sparkoperator.k8s.io spark-pi-python -n default
