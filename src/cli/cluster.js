@@ -27,6 +27,7 @@ class UnderpostCluster {
         infoCapacityPod: false,
         istio: false,
         pullImage: false,
+        dedicatedGpu: false,
       },
     ) {
       // sudo dnf update
@@ -110,14 +111,22 @@ class UnderpostCluster {
           shellExec(`sudo systemctl restart containerd`);
         } else {
           shellExec(`sudo systemctl restart containerd`);
-          shellExec(
-            `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${
-              options?.dev === true ? '-dev' : ''
-            }.yaml`,
-          );
+          if (options.full === true || options.dedicatedGpu === true) {
+            shellExec(`cd ${underpostRoot}/manifests && kind create cluster --config kind-config-cuda.yaml`);
+          } else {
+            shellExec(
+              `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${
+                options?.dev === true ? '-dev' : ''
+              }.yaml`,
+            );
+          }
           shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
         }
       } else logger.warn('Cluster already initialized');
+
+      if (options.full === true || options.dedicatedGpu === true) {
+        shellExec(`node ${underpostRoot}/bin/deploy kubeflow-spark-operator`);
+      }
 
       if (options.full === true || options.valkey === true) {
         if (options.pullImage === true) {

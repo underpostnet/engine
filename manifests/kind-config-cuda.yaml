@@ -3,7 +3,7 @@
 # This allows the nvidia-device-plugin to access host GPU drivers.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-name: cuda-kind-cluster
+# name: cuda-kind-cluster
 nodes:
   - role: control-plane
     # For a multi-node cluster, you might add worker nodes here.
