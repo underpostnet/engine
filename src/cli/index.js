@@ -96,6 +96,7 @@ program
   .option('--valkey', 'Init with valkey service')
   .option('--contour', 'Init with project contour base HTTPProxy and envoy')
   .option('--cert-manager', 'Init with letsencrypt-prod ClusterIssuer')
+  .option('--dedicated-gpu', 'Init with dedicated gpu base resources env')
   .option('--info', 'Get all kinds objects deployed')
   .option('--full', 'Init with all statefulsets and services available')
   .option('--ns-use <ns-name>', 'Switches current context to namespace')
