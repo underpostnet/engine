@@ -1,0 +1,42 @@
+# kind-config.yaml
+# Configures a Kind cluster with extra mounts for NVIDIA GPU compatibility.
+# This allows the nvidia-device-plugin to access host GPU drivers.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: cuda-kind-cluster
+nodes:
+  - role: control-plane
+    # For a multi-node cluster, you might add worker nodes here.
+    # For simplicity, we'll run on the control-plane node.
+    extraMounts:
+      # Mount /usr/lib/nvidia from host to node for driver libraries
+      - hostPath: /usr/lib/nvidia
+        containerPath: /usr/lib/nvidia
+        readOnly: true
+      # Mount /usr/bin/nvidia from host to node for utilities like nvidia-smi
+      - hostPath: /usr/bin/nvidia
+        containerPath: /usr/bin/nvidia
+        readOnly: true
+      # Mount /etc/nvidia from host to node for configuration files
+      - hostPath: /etc/nvidia
+        containerPath: /etc/nvidia
+        readOnly: true
+      # Mount /var/lib/nvidia from host to node for persistent data
+      - hostPath: /var/lib/nvidia
+        containerPath: /var/lib/nvidia
+        readOnly: true
+      # Mount /dev/nvidia* devices from host to node
+      # This is critical for containerized applications to access the GPU.
+      # Note: On some systems, /dev/nvidiactl and /dev/nvidia-uvm might also be needed.
+      - hostPath: /dev/nvidia0
+        containerPath: /dev/nvidia0
+      - hostPath: /dev/nvidiactl
+        containerPath: /dev/nvidiactl
+      - hostPath: /dev/nvidia-uvm
+        containerPath: /dev/nvidia-uvm
+      - hostPath: /dev/nvidia-uvm-tools
+        containerPath: /dev/nvidia-uvm-tools
+      # Add other /dev/nvidia* devices if you have multiple GPUs (e.g., /dev/nvidia1)
+      # For RTX 3050, usually /dev/nvidia0 is sufficient for a single GPU.
+# Ensure the container runtime is compatible with NVIDIA container toolkit.
+# Kind uses containerd by default, which is generally compatible if the host has the toolkit.
