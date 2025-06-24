@@ -1000,6 +1000,8 @@ EOF`);
         shellExec(`sudo chmod 700 ~/.ssh/`);
         shellExec(`sudo chmod 600 ~/.ssh/authorized_keys`);
         shellExec(`sudo chmod 644 ~/.ssh/known_hosts`);
+        shellExec(`sudo chmod 600 ~/.ssh/id_rsa`);
+        shellExec(`sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`);
         shellExec(`chown -R ${user}:${user} ~/.ssh`);
 
         shellExec(`ufw allow ${port}/tcp`);
