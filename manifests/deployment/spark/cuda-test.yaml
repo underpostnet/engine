@@ -63,6 +63,12 @@ spec:
     spark.kubernetes.driver.resources.nvidia.com/gpu.amount: '1'
     spark.kubernetes.executor.resources.nvidia.com/gpu.amount: '1'
 
+    # Ensure Spark explicitly knows it's in cluster deploy mode.
+    # While 'mode: cluster' is set at the top level, this ensures the internal
+    # Spark configuration reflects it, potentially preventing the driver from
+    # attempting to re-create its own pod.
+    spark.submit.deployMode: cluster
+
     # Optionally, you can specify how much of the allocated GPU an individual task consumes.
     # If each task needs full GPU, set to "1". If tasks share, set to a fraction (e.g., "0.01").
     spark.task.resources.nvidia.com/gpu.amount: '0.01'

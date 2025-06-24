@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spark-pod-creator
+  namespace: default # Ensure this matches your SparkApplication namespace
+rules:
+  - apiGroups: [''] # "" indicates the core API group
+    resources: ['pods', 'pods/exec', 'pods/log']
+    verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete']
+  - apiGroups: ['']
+    resources: ['configmaps']
+    verbs: ['get', 'create', 'delete']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spark-default-role-binding
+  namespace: default # Ensure this matches your SparkApplication namespace
+subjects:
+  - kind: ServiceAccount
+    name: default # The default ServiceAccount in the 'default' namespace
+    namespace: default # The namespace of the ServiceAccount
+roleRef:
+  kind: Role
+  name: spark-pod-creator # Name of the Role you just created
+  apiGroup: rbac.authorization.k8s.io
