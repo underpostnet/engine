@@ -112,6 +112,7 @@ class UnderpostCluster {
         } else {
           shellExec(`sudo systemctl restart containerd`);
           if (options.full === true || options.dedicatedGpu === true) {
+            // https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
             shellExec(`cd ${underpostRoot}/manifests && kind create cluster --config kind-config-cuda.yaml`);
           } else {
             shellExec(

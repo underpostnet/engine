@@ -2330,6 +2330,20 @@ EOF`);
       // Uninstall:
       // kubectl delete sparkapplications.sparkoperator.k8s.io spark-pi-python -n default
       // helm delete spark-operator -n spark-operator
+
+      // Gpu plugins:
+      // https://github.com/NVIDIA/spark-rapids
+      // RAPIDS Accelerator
+      break;
+    }
+
+    case 'sbt': {
+      // https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html
+
+      // sudo rm -f /etc/yum.repos.d/bintray-rpm.repo
+      // curl -L https://www.scala-sbt.org/sbt-rpm.repo > sbt-rpm.repo
+      // sudo mv sbt-rpm.repo /etc/yum.repos.d/
+      // sudo yum install sbt
       break;
     }
   }
