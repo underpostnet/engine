@@ -2349,6 +2349,7 @@ nvidia/gpu-operator \
       shellExec(
         `break;kubectl get nodes -o json | jq '.items[].metadata.labels | keys | any(startswith("feature.node.kubernetes.io"))'`,
       );
+      break;
     }
 
     case 'kubeflow-spark-operator': {
