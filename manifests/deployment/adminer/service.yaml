@@ -9,5 +9,5 @@ spec:
   selector:
     app: adminer
   ports:
-    - port: 8080
+    - port: 8079
       targetPort: 8080
