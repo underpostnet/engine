@@ -2322,11 +2322,28 @@ libnvidia-container1-${NVIDIA_CONTAINER_TOOLKIT_VERSION}`);
       shellExec(`helm repo add nvidia https://helm.ngc.nvidia.com/nvidia \
     && helm repo update`);
 
+      //       shellExec(`helm install --wait --generate-name \
+      // -n gpu-operator --create-namespace \
+      // nvidia/gpu-operator \
+      // --version=v25.3.1 \
+      // --set toolkit.version=v1.16.1-ubi8`);
+
       shellExec(`helm install --wait --generate-name \
 -n gpu-operator --create-namespace \
 nvidia/gpu-operator \
 --version=v25.3.1 \
---set toolkit.version=v1.16.1-ubi8`);
+--set driver.enabled=false \
+--set driver.repository=nvcr.io/nvidia \
+--set cdi.enabled=true \
+--set cdi.default=true \
+--set toolkit.env[0].name=CONTAINERD_CONFIG \
+--set toolkit.env[0].value=/etc/containerd/config.toml \
+--set toolkit.env[1].name=CONTAINERD_SOCKET \
+--set toolkit.env[1].value=/run/containerd/containerd.sock \
+--set toolkit.env[2].name=CONTAINERD_RUNTIME_CLASS \
+--set toolkit.env[2].value=nvidia \
+--set-string toolkit.env[3].name=CONTAINERD_SET_AS_DEFAULT \
+--set-string toolkit.env[3].value=true`);
 
       // Check gpu drivers
       shellExec(
