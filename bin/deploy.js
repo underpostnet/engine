@@ -2301,6 +2301,27 @@ EOF`);
       break;
     }
 
+    case 'nvidia-gpu-operator': {
+      // https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/getting-started.html
+
+      shellExec(`kubectl create ns gpu-operator`);
+      shellExec(`kubectl label --overwrite ns gpu-operator pod-security.kubernetes.io/enforce=privileged`);
+
+      shellExec(`helm repo add nvidia https://helm.ngc.nvidia.com/nvidia \
+    && helm repo update`);
+
+      shellExec(`helm install --wait --generate-name \
+     -n gpu-operator --create-namespace \
+     nvidia/gpu-operator \
+     --version=v25.3.1 \
+     --set toolkit.version=v1.16.1-ubi8`);
+
+      // Check gpu drivers
+      shellExec(
+        `break;kubectl get nodes -o json | jq '.items[].metadata.labels | keys | any(startswith("feature.node.kubernetes.io"))'`,
+      );
+    }
+
     case 'kubeflow-spark-operator': {
       // Use case:
       // Data Processing Pipelines: Used for ETL tasks where Spark can handle large data volumes efficiently.
