@@ -2302,6 +2302,18 @@ EOF`);
     }
 
     case 'nvidia-gpu-operator': {
+      // https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+      shellExec(`curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | \
+sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo`);
+
+      const NVIDIA_CONTAINER_TOOLKIT_VERSION = '1.17.8-1';
+
+      shellExec(`sudo dnf install -y \
+nvidia-container-toolkit-${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+nvidia-container-toolkit-base-${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+libnvidia-container-tools-${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+libnvidia-container1-${NVIDIA_CONTAINER_TOOLKIT_VERSION}`);
+
       // https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/getting-started.html
 
       shellExec(`kubectl create ns gpu-operator`);
@@ -2311,10 +2323,10 @@ EOF`);
     && helm repo update`);
 
       shellExec(`helm install --wait --generate-name \
-     -n gpu-operator --create-namespace \
-     nvidia/gpu-operator \
-     --version=v25.3.1 \
-     --set toolkit.version=v1.16.1-ubi8`);
+-n gpu-operator --create-namespace \
+nvidia/gpu-operator \
+--version=v25.3.1 \
+--set toolkit.version=v1.16.1-ubi8`);
 
       // Check gpu drivers
       shellExec(
