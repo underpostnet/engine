@@ -126,6 +126,7 @@ class UnderpostCluster {
       } else logger.warn('Cluster already initialized');
 
       if (options.full === true || options.dedicatedGpu === true) {
+        shellExec(`node ${underpostRoot}/bin/deploy nvidia-gpu-operator`);
         shellExec(`node ${underpostRoot}/bin/deploy kubeflow-spark-operator`);
       }
 
