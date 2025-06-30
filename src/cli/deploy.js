@@ -270,6 +270,7 @@ kubectl get node <node-name> -o jsonpath='{.spec.podCIDR}'
 kubectl patch ippool default-ipv4-ippool --type='json' -p='[{"op": "replace", "path": "/spec/cidr", "value": "10.244.0.0/16"}]'
 kubectl patch ippool default-ipv4-ippool --type='json' -p='[{"op": "replace", "path": "/spec/cidr", "value": "192.168.0.0/24"}]'
 sudo podman run --rm localhost/<image-name>:<image-version> <command>
+kubectl get configmap kubelet-config -n kube-system -o yaml > kubelet-config.yaml
 `);
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
