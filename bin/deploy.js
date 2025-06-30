@@ -2285,7 +2285,9 @@ EOF`);
       // https://medium.com/@martin.hodges/deploying-kafka-on-a-kind-kubernetes-cluster-for-development-and-testing-purposes-ed7adefe03cb
       const imageName = `doughgle/kafka-kraft`;
       shellExec(`docker pull ${imageName}`);
-      shellExec(`kind load docker-image ${imageName}`);
+      shellExec(
+        `${process.argv.includes('kubeadm') ? `ctr -n k8s.io images import` : `kind load docker-image`} ${imageName}`,
+      );
       shellExec(`kubectl create namespace kafka`);
       shellExec(`kubectl apply -f ./manifests/deployment/kafka/deployment.yaml`);
       // kubectl logs kafka-0 -n kafka | grep STARTED
@@ -2366,7 +2368,9 @@ nvidia/gpu-operator \
 
       const image = `spark:3.5.3`;
       shellExec(`sudo docker pull ${image}`);
-      shellExec(`sudo kind load docker-image ${image}`);
+      shellExec(
+        `sudo ${process.argv.includes('kubeadm') ? `ctr -n k8s.io images import` : `kind load docker-image`} ${image}`,
+      );
       shellExec(`kubectl apply -f ./manifests/deployment/spark/spark-pi-py.yaml`);
 
       // Check the status of the Spark job:
