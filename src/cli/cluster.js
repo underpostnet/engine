@@ -142,11 +142,12 @@ class UnderpostCluster {
       if (options.full === true || options.valkey === true) {
         if (options.pullImage === true) {
           shellExec(`docker pull valkey/valkey`);
-          shellExec(
-            `sudo ${
-              options.kubeadm === true ? `ctr -n k8s.io images import` : `kind load docker-image`
-            } valkey/valkey:latest`,
-          );
+          if (!options.kubeadm)
+            shellExec(
+              `sudo ${
+                options.kubeadm === true ? `ctr -n k8s.io images import` : `kind load docker-image`
+              } valkey/valkey:latest`,
+            );
         }
         shellExec(`kubectl delete statefulset service-valkey`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey`);
@@ -164,11 +165,12 @@ class UnderpostCluster {
       if (options.full === true || options.postgresql === true) {
         if (options.pullImage === true) {
           shellExec(`docker pull postgres:latest`);
-          shellExec(
-            `sudo ${
-              options.kubeadm === true ? `ctr -n k8s.io images import` : `kind load docker-image`
-            } docker-image postgres:latest`,
-          );
+          if (!options.kubeadm)
+            shellExec(
+              `sudo ${
+                options.kubeadm === true ? `ctr -n k8s.io images import` : `kind load docker-image`
+              } docker-image postgres:latest`,
+            );
         }
         shellExec(
           `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password`,
@@ -178,11 +180,12 @@ class UnderpostCluster {
       if (options.mongodb4 === true) {
         if (options.pullImage === true) {
           shellExec(`docker pull mongo:4.4`);
-          shellExec(
-            `sudo ${
-              options.kubeadm === true ? `ctr -n k8s.io images import` : `kind load docker-image`
-            } docker-image mongo:4.4`,
-          );
+          if (!options.kubeadm)
+            shellExec(
+              `sudo ${
+                options.kubeadm === true ? `ctr -n k8s.io images import` : `kind load docker-image`
+              } docker-image mongo:4.4`,
+            );
         }
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb-4.4`);
 
