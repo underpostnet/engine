@@ -155,6 +155,7 @@ program
   .option('--dockerfile-name [dockerfile-name]', 'set Dockerfile name')
   .option('--podman-save', 'Export tar file from podman')
   .option('--kind-load', 'Import tar image to Kind cluster')
+  .option('--kubeadm-load', 'Import tar image to Kubeadm cluster')
   .option('--secrets', 'Dockerfile env secrets')
   .option('--secrets-path [secrets-path]', 'Dockerfile custom path env secrets')
   .option('--no-cache', 'Build without using cache')

@@ -23,13 +23,24 @@ class UnderpostImage {
           dockerfileName: '',
           podmanSave: false,
           kindLoad: false,
+          kubeadmLoad: false,
           secrets: false,
           secretsPath: '',
           noCache: false,
         },
       ) {
-        const { path, imageName, imagePath, dockerfileName, podmanSave, secrets, secretsPath, kindLoad, noCache } =
-          options;
+        const {
+          path,
+          imageName,
+          imagePath,
+          dockerfileName,
+          podmanSave,
+          secrets,
+          secretsPath,
+          kindLoad,
+          noCache,
+          kubeadmLoad,
+        } = options;
         const podManImg = `localhost/${imageName}`;
         if (imagePath && typeof imagePath === 'string' && !fs.existsSync(imagePath))
           fs.mkdirSync(imagePath, { recursive: true });
@@ -59,6 +70,7 @@ class UnderpostImage {
 
         if (podmanSave === true) shellExec(`podman save -o ${tarFile} ${podManImg}`);
         if (kindLoad === true) shellExec(`sudo kind load image-archive ${tarFile}`);
+        if (kubeadmLoad === true) shellExec(`sudo ctr -n k8s.io images import ${tarFile}`);
       },
     },
   };
