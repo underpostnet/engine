@@ -358,7 +358,7 @@ class UnderpostCluster {
 
       // Step 14: Remove the 'kind' Docker network.
       // This cleans up any network bridges or configurations specifically created by Kind.
-      shellExec(`docker network rm kind`);
+      // shellExec(`docker network rm kind`);
     },
 
     getResourcesCapacity() {
