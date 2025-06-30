@@ -3,6 +3,7 @@ import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import UnderpostDeploy from './deploy.js';
 import UnderpostTest from './test.js';
+import os from 'os';
 
 const logger = loggerFactory(import.meta);
 
@@ -109,6 +110,8 @@ class UnderpostCluster {
           // );
           shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/kubeadm-calico-config.yaml`);
           shellExec(`sudo systemctl restart containerd`);
+          const nodeName = os.hostname();
+          shellExec(`kubectl taint nodes ${nodeName} node-role.kubernetes.io/control-plane:NoSchedule-`);
         } else {
           shellExec(`sudo systemctl restart containerd`);
           if (options.full === true || options.dedicatedGpu === true) {

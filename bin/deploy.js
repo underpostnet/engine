@@ -2360,9 +2360,9 @@ nvidia/gpu-operator \
 
       shellExec(`helm repo add spark-operator https://kubeflow.github.io/spark-operator`);
       shellExec(`helm install spark-operator spark-operator/spark-operator \
---namespace spark-operator \
---create-namespace \
---wait`);
+  --namespace spark-operator \
+  --create-namespace \
+  --wait`);
 
       const image = `spark:3.5.3`;
       shellExec(`sudo docker pull ${image}`);
