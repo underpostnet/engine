@@ -2367,7 +2367,7 @@ nvidia/gpu-operator \
   --create-namespace \
   --wait`);
 
-      const image = `spark:3.5.3`;
+      const image = `spark:3.5.5`;
       shellExec(`sudo docker pull ${image}`);
       if (!process.argv.includes('kubeadm'))
         shellExec(
