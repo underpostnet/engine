@@ -100,6 +100,7 @@ program
   .option('--info', 'Get all kinds objects deployed')
   .option('--full', 'Init with all statefulsets and services available')
   .option('--ns-use <ns-name>', 'Switches current context to namespace')
+  .option('--kubeadm', 'Init with kubeadm controlplane management')
   .option('--dev', 'init with dev cluster')
   .option('--list-pods', 'Display list pods information')
   .option('--info-capacity', 'display current total machine capacity info')
