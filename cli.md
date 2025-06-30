@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.71
+## underpost ci/cd cli v2.8.75
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -203,9 +203,11 @@ Options:
   --valkey             Init with valkey service
   --contour            Init with project contour base HTTPProxy and envoy
   --cert-manager       Init with letsencrypt-prod ClusterIssuer
+  --dedicated-gpu      Init with dedicated gpu base resources env
   --info               Get all kinds objects deployed
   --full               Init with all statefulsets and services available
   --ns-use <ns-name>   Switches current context to namespace
+  --kubeadm            Init with kubeadm controlplane management
   --dev                init with dev cluster
   --list-pods          Display list pods information
   --info-capacity      display current total machine capacity info
@@ -282,6 +284,7 @@ Options:
   --dockerfile-name [dockerfile-name]  set Dockerfile name
   --podman-save                        Export tar file from podman
   --kind-load                          Import tar image to Kind cluster
+  --kubeadm-load                       Import tar image to Kubeadm cluster
   --secrets                            Dockerfile env secrets
   --secrets-path [secrets-path]        Dockerfile custom path env secrets
   --no-cache                           Build without using cache

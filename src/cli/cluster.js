@@ -41,7 +41,8 @@ class UnderpostCluster {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       if (options.infoCapacityPod === true) return logger.info('', UnderpostDeploy.API.resourcesFactory());
-      if (options.infoCapacity === true) return logger.info('', UnderpostCluster.API.getResourcesCapacity());
+      if (options.infoCapacity === true)
+        return logger.info('', UnderpostCluster.API.getResourcesCapacity(options.kubeadm));
       if (options.reset === true) return await UnderpostCluster.API.reset();
       if (options.listPods === true) return console.table(UnderpostDeploy.API.get(podName ?? undefined));
 
@@ -380,7 +381,7 @@ class UnderpostCluster {
       // shellExec(`docker network rm kind`);
     },
 
-    getResourcesCapacity() {
+    getResourcesCapacity(kubeadm = false) {
       const resources = {};
       const info = false
         ? `Capacity:
@@ -397,10 +398,15 @@ Allocatable:
   hugepages-2Mi:      0
   memory:             11914720Ki
   pods: `
-        : shellExec(`kubectl describe node kind-worker | grep -E '(Allocatable:|Capacity:)' -A 6`, {
-            stdout: true,
-            silent: true,
-          });
+        : shellExec(
+            `kubectl describe node ${
+              kubeadm === true ? os.hostname() : 'kind-worker'
+            } | grep -E '(Allocatable:|Capacity:)' -A 6`,
+            {
+              stdout: true,
+              silent: true,
+            },
+          );
       info
         .split('Allocatable:')[1]
         .split('\n')

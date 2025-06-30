@@ -816,8 +816,8 @@ try {
       shellExec(`node bin/deploy update-dependencies`);
       shellExec(`auto-changelog`);
       shellExec(`node bin/build dd`);
-      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd`);
-      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd production`);
+      shellExec(`node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 dd`);
+      shellExec(`node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 dd production`);
       break;
     }
 
