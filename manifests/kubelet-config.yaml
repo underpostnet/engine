@@ -19,7 +19,7 @@ data:
     clusterDNS:
     - 10.96.0.10
     clusterDomain: cluster.local
-    containerRuntimeEndpoint: ""
+    containerRuntimeEndpoint: unix:///run/containerd/containerd.sock
     cpuManagerReconcilePeriod: 0s
     crashLoopBackOff: {}
     evictionHard:
