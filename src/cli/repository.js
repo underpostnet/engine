@@ -12,23 +12,25 @@ const logger = loggerFactory(import.meta);
 
 class UnderpostRepository {
   static API = {
-    clone(gitUri = 'underpostnet/pwa-microservices-template', options = { bare: false }) {
+    clone(gitUri = 'underpostnet/pwa-microservices-template', options = { bare: false, g8: false }) {
+      const gExtension = options.g8 === true ? '.g8' : '.git';
       const repoName = gitUri.split('/').pop();
       if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
       shellExec(
         `git clone ${options?.bare === true ? ` --bare ` : ''}https://${
           process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
-        }github.com/${gitUri}.git`,
+        }github.com/${gitUri}${gExtension}`,
         {
           disableLog: true,
         },
       );
     },
-    pull(repoPath = './', gitUri = 'underpostnet/pwa-microservices-template') {
+    pull(repoPath = './', gitUri = 'underpostnet/pwa-microservices-template', options = { g8: false }) {
+      const gExtension = options.g8 === true ? '.g8' : '.git';
       shellExec(
         `cd ${repoPath} && git pull https://${
           process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
-        }github.com/${gitUri}.git`,
+        }github.com/${gitUri}${gExtension}`,
         {
           disableLog: true,
         },
@@ -57,9 +59,10 @@ class UnderpostRepository {
       shellExec(`cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}-m "${_message}"`);
     },
 
-    push(repoPath = './', gitUri = 'underpostnet/pwa-microservices-template', options = { f: false }) {
+    push(repoPath = './', gitUri = 'underpostnet/pwa-microservices-template', options = { f: false, g8: false }) {
+      const gExtension = options.g8 === true ? '.g8' : '.git';
       shellExec(
-        `cd ${repoPath} && git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}.git${
+        `cd ${repoPath} && git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}${gExtension}${
           options?.f === true ? ' --force' : ''
         }`,
         {

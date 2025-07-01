@@ -34,6 +34,7 @@ program
   .command('clone')
   .argument(`<uri>`, 'e.g. username/repository')
   .option('--bare', 'Clone only .git files')
+  .option('-g8', 'Use g8 repo extension')
   .description('Clone github repository')
   .action(Underpost.repo.clone);
 
@@ -42,6 +43,7 @@ program
   .argument('<path>', 'Absolute or relative directory')
   .argument(`<uri>`, 'e.g. username/repository')
   .description('Pull github repository')
+  .option('-g8', 'Use g8 repo extension')
   .action(Underpost.repo.pull);
 
 program
@@ -61,6 +63,7 @@ program
   .argument('<path>', 'Absolute or relative directory')
   .argument(`<uri>`, 'e.g. username/repository')
   .option('-f', 'Force push overwriting repository')
+  .option('-g8', 'Use g8 repo extension')
   .description('Push github repository')
   .action(Underpost.repo.push);
 
