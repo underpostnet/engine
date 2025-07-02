@@ -129,6 +129,7 @@ program
   .option('--traffic <traffic-versions>', 'Comma separated custom deployment traffic')
   .option('--disable-update-deployment', 'Disable update deployments')
   .option('--info-traffic', 'get traffic conf form current resources deployments')
+  .option('--kubeadm', 'Enable kubeadm context')
   .option(
     '--rebuild-clients-bundle',
     'Inside container, rebuild clients bundle, only static public or storage client files',
