@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.75
+## underpost ci/cd cli v2.8.77
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -10,7 +10,7 @@ Commands:
   new <app-name>                                             Create a new project
   start [options] <deploy-id> [env]                          Start up server, build pipelines, or services
   clone [options] <uri>                                      Clone github repository
-  pull <path> <uri>                                          Pull github repository
+  pull [options] <path> <uri>                                Pull github repository
   cmt [options] <path> <commit-type> [module-tag] [message]  Commit github repository
   push [options] <path> <uri>                                Push github repository
   env <deploy-id> [env]                                      Set environment variables files and conf related to <deploy-id>
@@ -79,6 +79,7 @@ Arguments:
 
 Options:
   --bare      Clone only .git files
+  -g8         Use g8 repo extension
   -h, --help  display help for command
  
 ```
@@ -95,6 +96,7 @@ Arguments:
   uri         e.g. username/repository
 
 Options:
+  -g8         Use g8 repo extension
   -h, --help  display help for command
  
 ```
@@ -134,6 +136,7 @@ Arguments:
 
 Options:
   -f          Force push overwriting repository
+  -g8         Use g8 repo extension
   -h, --help  display help for command
  
 ```
@@ -246,6 +249,7 @@ Options:
   --disable-update-deployment       Disable update deployments
   --info-traffic                    get traffic conf form current resources
                                     deployments
+  --kubeadm                         Enable kubeadm context
   --rebuild-clients-bundle          Inside container, rebuild clients bundle,
                                     only static public or storage client files
   -h, --help                        display help for command

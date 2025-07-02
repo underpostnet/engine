@@ -46,7 +46,7 @@ After template installation, the server will be running on <a target="_top" href
 
 Package repo and usage info: <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/README.md">pwa-microservices-template</a>
 
-## underpost ci/cd cli v2.8.75
+## underpost ci/cd cli v2.8.77
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -58,7 +58,7 @@ Commands:
   new <app-name>                                             Create a new project
   start [options] <deploy-id> [env]                          Start up server, build pipelines, or services
   clone [options] <uri>                                      Clone github repository
-  pull <path> <uri>                                          Pull github repository
+  pull [options] <path> <uri>                                Pull github repository
   cmt [options] <path> <commit-type> [module-tag] [message]  Commit github repository
   push [options] <path> <uri>                                Push github repository
   env <deploy-id> [env]                                      Set environment variables files and conf related to <deploy-id>
