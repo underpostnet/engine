@@ -115,7 +115,7 @@ program
 
 program
   .command('deploy')
-  .argument('<deploy-list>', 'Deploy id list, e.g. default-a,default-b')
+  .argument('[deploy-list]', 'Deploy id list, e.g. default-a,default-b')
   .argument('[env]', 'Optional environment, for default is development')
   .option('--remove', 'Delete deployments and services')
   .option('--sync', 'Sync deployments env, ports, and replicas')
@@ -131,6 +131,7 @@ program
   .option('--disable-update-deployment', 'Disable update deployments')
   .option('--info-traffic', 'get traffic conf form current resources deployments')
   .option('--kubeadm', 'Enable kubeadm context')
+  .option('--restore-hosts', 'Restore defautl etc hosts')
   .option(
     '--rebuild-clients-bundle',
     'Inside container, rebuild clients bundle, only static public or storage client files',

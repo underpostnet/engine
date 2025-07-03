@@ -244,6 +244,7 @@ spec:
         traffic: '',
         dashboardUpdate: false,
         replicas: '',
+        restoreHosts: false,
         disableUpdateDeployment: false,
         infoTraffic: false,
         rebuildClientsBundle: false,
@@ -298,11 +299,17 @@ kubectl get configmap kubelet-config -n kube-system -o yaml > kubelet-config.yam
       shellExec(
         `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env}`,
       );
+      let renderHosts = '';
+      let concatHots = '';
       const etcHost = (
         concat,
       ) => `127.0.0.1  ${concat} localhost localhost.localdomain localhost4 localhost4.localdomain4
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6`;
-      let concatHots = '';
+      if (options.restoreHosts === true) {
+        renderHosts = etcHost(concatHots);
+        fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
+        return;
+      }
 
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
@@ -343,7 +350,6 @@ kubectl get configmap kubelet-config -n kube-system -o yaml > kubelet-config.yam
             shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml`);
         }
       }
-      let renderHosts;
       switch (process.platform) {
         case 'linux':
           {
