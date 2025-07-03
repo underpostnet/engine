@@ -101,7 +101,9 @@ class UnderpostCluster {
         shellExec(`sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab`);
         if (options.istio === true) {
           shellExec(`sysctl net.bridge.bridge-nf-call-iptables=1`);
-          shellExec(`sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --control-plane-endpoint="k8s-control:6443"`);
+          shellExec(
+            `sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --control-plane-endpoint="${os.hostname()}:6443"`,
+          );
           shellExec(`sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config`);
           shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
           // https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart
