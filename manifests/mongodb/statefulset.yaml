@@ -3,7 +3,7 @@ kind: StatefulSet
 metadata:
   name: mongodb # Specifies the name of the statefulset
 spec:
-  serviceName: 'mongodb-service' # Specifies the service to use
+  serviceName: "mongodb-service" # Specifies the service to use
   replicas: 2
   selector:
     matchLabels:
@@ -18,8 +18,8 @@ spec:
           image: docker.io/library/mongo:latest
           command:
             - mongod
-            - '--replSet'
-            - 'rs0'
+            - "--replSet"
+            - "rs0"
             # - '--config'
             # - '-f'
             # - '/etc/mongod.conf'
@@ -35,9 +35,9 @@ spec:
             # - '--setParameter'
             # - 'authenticationMechanisms=SCRAM-SHA-1'
             # - '--fork'
-            - '--logpath'
-            - '/var/log/mongodb/mongod.log'
-            - '--bind_ip_all'
+            - "--logpath"
+            - "/var/log/mongodb/mongod.log"
+            - "--bind_ip_all"
           # command: ['sh', '-c']
           # args:
           #   - |
@@ -99,11 +99,11 @@ spec:
                   key: password
           resources:
             requests:
-              cpu: '100m'
-              memory: '256Mi'
+              cpu: "100m"
+              memory: "256Mi"
             limits:
-              cpu: '500m'
-              memory: '512Mi'
+              cpu: "500m"
+              memory: "512Mi"
       volumes:
         - name: keyfile
           secret:
@@ -119,7 +119,8 @@ spec:
     - metadata:
         name: mongodb-storage
       spec:
-        accessModes: ['ReadWriteOnce']
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: mongodb-storage-class
         resources:
           requests:
             storage: 5Gi

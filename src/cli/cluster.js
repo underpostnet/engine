@@ -121,6 +121,9 @@ class UnderpostCluster {
           shellExec(`sudo systemctl restart containerd`);
           const nodeName = os.hostname();
           shellExec(`kubectl taint nodes ${nodeName} node-role.kubernetes.io/control-plane:NoSchedule-`);
+          shellExec(
+            `kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml`,
+          );
         } else {
           shellExec(`sudo systemctl restart containerd`);
           if (options.full === true || options.dedicatedGpu === true) {
@@ -216,6 +219,9 @@ class UnderpostCluster {
 
         // await UnderpostTest.API.statusMonitor('mongodb-1');
       } else if (options.full === true || options.mongodb === true) {
+        if (options.pullImage === true) {
+          shellExec(`docker pull mongo:latest`);
+        }
         shellExec(
           `sudo kubectl create secret generic mongodb-keyfile --from-file=/home/dd/engine/engine-private/mongodb-keyfile`,
         );
@@ -223,6 +229,8 @@ class UnderpostCluster {
           `sudo kubectl create secret generic mongodb-secret --from-file=username=/home/dd/engine/engine-private/mongodb-username --from-file=password=/home/dd/engine/engine-private/mongodb-password`,
         );
         shellExec(`kubectl delete statefulset mongodb`);
+        if (options.kubeadm === true)
+          shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb`);
 
         const successInstance = await UnderpostTest.API.statusMonitor('mongodb-1');

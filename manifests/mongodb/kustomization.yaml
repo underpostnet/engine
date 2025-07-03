@@ -6,6 +6,6 @@ resources:
   - pv-pvc.yaml
   - headless-service.yaml
   - statefulset.yaml
-  - backup-pv-pvc.yaml
+  # - backup-pv-pvc.yaml
   # - backup-cronjob.yaml
   # - backup-access.yaml
