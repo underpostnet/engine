@@ -254,8 +254,12 @@ class UnderpostCluster {
         }
       }
 
-      if (options.full === true || options.contour === true)
+      if (options.full === true || options.contour === true) {
         shellExec(`kubectl apply -f https://projectcontour.io/quickstart/contour.yaml`);
+        if (options.kubeadm === true) {
+          shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/envoy-service-nodeport.yaml`);
+        }
+      }
 
       if (options.full === true || options.certManager === true) {
         if (!UnderpostDeploy.API.get('cert-manager').find((p) => p.STATUS === 'Running')) {
