@@ -168,13 +168,16 @@ class UnderpostCluster {
         shellExec(
           `sudo kubectl create secret generic mariadb-secret --from-file=username=/home/dd/engine/engine-private/mariadb-username --from-file=password=/home/dd/engine/engine-private/mariadb-password`,
         );
-        shellExec(
-          `sudo kubectl create secret generic github-secret --from-literal=GITHUB_TOKEN=${process.env.GITHUB_TOKEN}`,
-        );
         shellExec(`kubectl delete statefulset mariadb-statefulset`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb`);
       }
       if (options.full === true || options.mysql === true) {
+        shellExec(
+          `sudo kubectl create secret generic mysql-secret --from-file=username=/home/dd/engine/engine-private/mysql-username --from-file=password=/home/dd/engine/engine-private/mysql-password`,
+        );
+        shellExec(`sudo mkdir -p /mnt/data`);
+        shellExec(`sudo chmod 777 /mnt/data`);
+        shellExec(`sudo chown -R root:root /mnt/data`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mysql`);
       }
       if (options.full === true || options.postgresql === true) {
