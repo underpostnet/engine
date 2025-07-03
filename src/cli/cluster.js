@@ -31,6 +31,7 @@ class UnderpostCluster {
         pullImage: false,
         dedicatedGpu: false,
         kubeadm: false,
+        initHost: false,
       },
     ) {
       // sudo dnf update
@@ -39,6 +40,7 @@ class UnderpostCluster {
       // 3) Install Nvidia drivers from Rocky Linux docs
       // 4) Install LXD with MAAS from Rocky Linux docs
       // 5) Install MAAS src from snap
+      if (options.initHost === true) return UnderpostCluster.API.initHost();
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       if (options.infoCapacityPod === true) return logger.info('', UnderpostDeploy.API.resourcesFactory());
@@ -95,8 +97,8 @@ class UnderpostCluster {
       ) {
         shellExec(`sudo setenforce 0`);
         shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
-        // sudo systemctl disable kubelet
-        // shellExec(`sudo systemctl enable --now kubelet`);
+        shellExec(`sudo systemctl enable --now docker`);
+        shellExec(`sudo systemctl enable --now kubelet`);
         shellExec(`containerd config default > /etc/containerd/config.toml`);
         shellExec(`sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
         // shellExec(`cp /etc/kubernetes/admin.conf ~/.kube/config`);
@@ -459,6 +461,35 @@ Allocatable:
         });
 
       return resources;
+    },
+    initHost() {
+      // Install docker
+      shellExec(`sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo`);
+      shellExec(`sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`);
+      // Install podman
+      shellExec(`sudo dnf install podman`);
+      // Install kind
+      shellExec(`[ $(uname -m) = aarch64 ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-arm64
+chmod +x ./kind
+sudo mv ./kind /bin/kind`);
+      // Install kubeadm
+      shellExec(`cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.33/rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://pkgs.k8s.io/core:/stable:/v1.33/rpm/repodata/repomd.xml.key
+exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
+EOF`);
+      shellExec(`sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes`);
+      // Install helm
+      shellExec(`curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+chmod +x /usr/local/bin/helm
+sudo mv /usr/local/bin/helm /bin/helm`);
     },
   };
 }

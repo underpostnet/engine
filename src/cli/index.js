@@ -111,6 +111,7 @@ program
   .option('--info-capacity', 'display current total machine capacity info')
   .option('--info-capacity-pod', 'display current machine capacity pod info')
   .option('--pull-image', 'Set optional pull associated image')
+  .option('--init-host', 'Install k8s node necessary cli env: kind, kubeadm, docker, podman, helm')
   .action(Underpost.cluster.init)
   .description('Manage cluster, for default initialization base kind cluster');
 
