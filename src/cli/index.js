@@ -5,6 +5,7 @@ import { getUnderpostRootPath, loadConf } from '../server/conf.js';
 import fs from 'fs-extra';
 import { commitData } from '../client/components/core/CommonJs.js';
 import { shellExec } from '../server/process.js';
+import UnderpostLxd from './lxd.js';
 
 const underpostRootPath = getUnderpostRootPath();
 fs.existsSync(`${underpostRootPath}/.env`)
@@ -258,6 +259,14 @@ program
   .option('--sync', 'Sync with current proxy deployments proxy traffic')
   .description('Monitor health server management')
   .action(Underpost.monitor.callback);
+
+program
+  .command('lxd')
+  .option('--init', 'Init lxd')
+  .option('--reset', 'Reset lxd on current machine')
+  .option('--install', 'Install lxd on current machine')
+  .description('Lxd management')
+  .action(UnderpostLxd.API.callback);
 
 const buildCliDoc = () => {
   let md = shellExec(`node bin help`, { silent: true, stdout: true }).split('Options:');
