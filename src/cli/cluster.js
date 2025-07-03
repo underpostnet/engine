@@ -83,10 +83,14 @@ class UnderpostCluster {
         shellExec(`sudo kubectl api-resources`);
         return;
       }
+      const alrreadyCluster =
+        UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0] ||
+        UnderpostDeploy.API.get('calico-kube-controllers')[0];
 
       if (
-        (!options.istio && !UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0]) ||
-        (options.istio === true && !UnderpostDeploy.API.get('calico-kube-controllers')[0])
+        !alrreadyCluster &&
+        ((!options.istio && !UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0]) ||
+          (options.istio === true && !UnderpostDeploy.API.get('calico-kube-controllers')[0]))
       ) {
         shellExec(`sudo setenforce 0`);
         shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
