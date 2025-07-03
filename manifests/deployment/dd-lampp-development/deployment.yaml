@@ -17,13 +17,13 @@ spec:
     spec:
       containers:
         - name: dd-lampp-development-blue
-          image: localhost/debian-underpost:v2.8.78
+          image: localhost/debian-underpost:v2.8.781
           resources:
             requests:
-              memory: "127563Ki"
+              memory: "127539Ki"
               cpu: "100m"
             limits:
-              memory: "2041019Ki"
+              memory: "2040627Ki"
               cpu: "1600m"
           command:
             - /bin/sh
@@ -104,13 +104,13 @@ spec:
     spec:
       containers:
         - name: dd-lampp-development-green
-          image: localhost/debian-underpost:v2.8.78
+          image: localhost/debian-underpost:v2.8.781
           resources:
             requests:
-              memory: "127563Ki"
+              memory: "127539Ki"
               cpu: "100m"
             limits:
-              memory: "2041019Ki"
+              memory: "2040627Ki"
               cpu: "1600m"
           command:
             - /bin/sh

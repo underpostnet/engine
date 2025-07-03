@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.78
+## underpost ci/cd cli v2.8.781
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -218,6 +218,8 @@ Options:
   --info-capacity      display current total machine capacity info
   --info-capacity-pod  display current machine capacity pod info
   --pull-image         Set optional pull associated image
+  --init-host          Install k8s node necessary cli env: kind, kubeadm,
+                       docker, podman, helm
   -h, --help           display help for command
  
 ```
