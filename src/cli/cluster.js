@@ -101,7 +101,7 @@ class UnderpostCluster {
         shellExec(`sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab`);
         if (options.istio === true) {
           shellExec(`sysctl net.bridge.bridge-nf-call-iptables=1`);
-          shellExec(`sudo kubeadm init --pod-network-cidr=192.168.0.0/16`);
+          shellExec(`sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --control-plane-endpoint="k8s-control:6443"`);
           shellExec(`sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config`);
           shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
           // https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart
@@ -379,6 +379,14 @@ class UnderpostCluster {
       // Step 14: Remove the 'kind' Docker network.
       // This cleans up any network bridges or configurations specifically created by Kind.
       // shellExec(`docker network rm kind`);
+
+      // Reset kubelet
+      shellExec(`sudo systemctl stop kubelet`);
+      shellExec(`sudo rm -rf /etc/kubernetes/*`);
+      shellExec(`sudo rm -rf /var/lib/kubelet/*`);
+      shellExec(`sudo rm -rf /etc/cni/net.d/*`);
+      shellExec(`sudo systemctl daemon-reload`);
+      shellExec(`sudo systemctl start kubelet`);
     },
 
     getResourcesCapacity(kubeadm = false) {
