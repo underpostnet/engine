@@ -1,9 +1,9 @@
 import fs from 'fs-extra';
-import { shellCd, shellExec } from '../server/process.js';
 import dotenv from 'dotenv';
-import { awaitDeployMonitor, getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
-import UnderpostMonitor from './monitor.js';
+import Underpost from '../index.js';
+import { getUnderpostRootPath } from '../server/conf.js';
+import { shellExec } from '../server/process.js';
 
 dotenv.config();
 
@@ -12,8 +12,23 @@ const logger = loggerFactory(import.meta);
 class UnderpostImage {
   static API = {
     dockerfile: {
-      pullBaseImages() {
+      pullBaseImages(
+        options = {
+          kindLoad: false,
+          kubeadmLoad: false,
+          path: false,
+          version: '',
+        },
+      ) {
         shellExec(`sudo podman pull docker.io/library/debian:buster`);
+        const IMAGE_NAME = `debian-underpost`;
+        const IMAGE_NAME_FULL = `${IMAGE_NAME}:${options.version ?? Underpost.version}`;
+        const LOAD_TYPE = options.kindLoad === true ? `--kin-load` : `--kubeadm-load`;
+        shellExec(
+          `underpost dockerfile-image-build --podman-save --no-cache --image-path=. --path ${
+            options.path ?? getUnderpostRootPath()
+          } --image-name=${IMAGE_NAME_FULL} ${LOAD_TYPE}`,
+        );
       },
       build(
         options = {

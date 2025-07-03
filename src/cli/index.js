@@ -170,6 +170,10 @@ program
 
 program
   .command('dockerfile-pull-base-images')
+  .option('--path [path]', 'Dockerfile path')
+  .option('--kind-load', 'Import tar image to Kind cluster')
+  .option('--kubeadm-load', 'Import tar image to Kubeadm cluster')
+  .option('--version', 'Set custom version')
   .description('Pull underpost dockerfile images requirements')
   .action(Underpost.image.dockerfile.pullBaseImages);
 

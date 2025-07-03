@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import UnderpostRootEnv from './env.js';
 import UnderpostCluster from './cluster.js';
+import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -80,7 +81,7 @@ spec:
     spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
-          image: localhost/debian:underpost
+          image: localhost/debian-underpost:${Underpost.version}
           resources:
             requests:
               memory: "${resources.requests.memory}"
