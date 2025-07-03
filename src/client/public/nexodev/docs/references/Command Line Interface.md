@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.77
+## underpost ci/cd cli v2.8.78
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -17,10 +17,10 @@ Commands:
   config <operator> [key] [value]                            Manage configuration, operators
   root                                                       Get npm root path
   cluster [options] [pod-name]                               Manage cluster, for default initialization base kind cluster
-  deploy [options] <deploy-list> [env]                       Manage deployment, for default deploy development pods
+  deploy [options] [deploy-list] [env]                       Manage deployment, for default deploy development pods
   secret [options] <platform>                                Manage secrets
   dockerfile-image-build [options]                           Build image from Dockerfile
-  dockerfile-pull-base-images                                Pull underpost dockerfile images requirements
+  dockerfile-pull-base-images [options]                      Pull underpost dockerfile images requirements
   install                                                    Fast import underpost npm dependencies
   db [options] <deploy-list>                                 Manage databases
   script [options] <operator> <script-name> [script-value]   Supports a number of built-in underpost global scripts and their preset life cycle events as well as arbitrary scripts
@@ -28,6 +28,7 @@ Commands:
   fs [options] [path]                                        File storage management, for default upload file
   test [options] [deploy-list]                               Manage Test, for default run current underpost default test
   monitor [options] <deploy-id> [env]                        Monitor health server management
+  lxd [options]                                              Lxd management
   help [command]                                             display help for command
  
 ```
@@ -199,6 +200,7 @@ Arguments:
 Options:
   --reset              Delete all clusters and prune all data and caches
   --mariadb            Init with mariadb statefulset
+  --mysql              Init with mysql statefulset
   --mongodb            Init with mongodb statefulset
   --postgresql         Init with postgresql statefulset
   --mongodb4           Init with mongodb 4.4 service
@@ -223,7 +225,7 @@ Options:
 
 ### `deploy` :
 ```
- Usage: underpost deploy [options] <deploy-list> [env]
+ Usage: underpost deploy [options] [deploy-list] [env]
 
 Manage deployment, for default deploy development pods
 
@@ -250,6 +252,7 @@ Options:
   --info-traffic                    get traffic conf form current resources
                                     deployments
   --kubeadm                         Enable kubeadm context
+  --restore-hosts                   Restore defautl etc hosts
   --rebuild-clients-bundle          Inside container, rebuild clients bundle,
                                     only static public or storage client files
   -h, --help                        display help for command
@@ -304,7 +307,11 @@ Options:
 Pull underpost dockerfile images requirements
 
 Options:
-  -h, --help  display help for command
+  --path [path]   Dockerfile path
+  --kind-load     Import tar image to Kind cluster
+  --kubeadm-load  Import tar image to Kubeadm cluster
+  --version       Set custom version
+  -h, --help      display help for command
  
 ```
   
@@ -453,6 +460,21 @@ Options:
   --sync                       Sync with current proxy deployments proxy
                                traffic
   -h, --help                   display help for command
+ 
+```
+  
+
+### `lxd` :
+```
+ Usage: underpost lxd [options]
+
+Lxd management
+
+Options:
+  --init      Init lxd
+  --reset     Reset lxd on current machine
+  --install   Install lxd on current machine
+  -h, --help  display help for command
  
 ```
   

@@ -46,7 +46,7 @@ After template installation, the server will be running on <a target="_top" href
 
 Package repo and usage info: <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/README.md">pwa-microservices-template</a>
 
-## underpost ci/cd cli v2.8.77
+## underpost ci/cd cli v2.8.78
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -65,10 +65,10 @@ Commands:
   config <operator> [key] [value]                            Manage configuration, operators
   root                                                       Get npm root path
   cluster [options] [pod-name]                               Manage cluster, for default initialization base kind cluster
-  deploy [options] <deploy-list> [env]                       Manage deployment, for default deploy development pods
+  deploy [options] [deploy-list] [env]                       Manage deployment, for default deploy development pods
   secret [options] <platform>                                Manage secrets
   dockerfile-image-build [options]                           Build image from Dockerfile
-  dockerfile-pull-base-images                                Pull underpost dockerfile images requirements
+  dockerfile-pull-base-images [options]                      Pull underpost dockerfile images requirements
   install                                                    Fast import underpost npm dependencies
   db [options] <deploy-list>                                 Manage databases
   script [options] <operator> <script-name> [script-value]   Supports a number of built-in underpost global scripts and their preset life cycle events as well as arbitrary scripts
@@ -76,6 +76,7 @@ Commands:
   fs [options] [path]                                        File storage management, for default upload file
   test [options] [deploy-list]                               Manage Test, for default run current underpost default test
   monitor [options] <deploy-id> [env]                        Monitor health server management
+  lxd [options]                                              Lxd management
   help [command]                                             display help for command
  
 ```
