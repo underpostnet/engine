@@ -15,6 +15,7 @@ class UnderpostCluster {
         mongodb: false,
         mongodb4: false,
         mariadb: false,
+        mysql: false,
         postgresql: false,
         valkey: false,
         full: false,
@@ -172,6 +173,9 @@ class UnderpostCluster {
         );
         shellExec(`kubectl delete statefulset mariadb-statefulset`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb`);
+      }
+      if (options.full === true || options.mysql === true) {
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mysql`);
       }
       if (options.full === true || options.postgresql === true) {
         if (options.pullImage === true) {

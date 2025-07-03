@@ -93,6 +93,7 @@ program
   .argument('[pod-name]', 'Optional pod name filter')
   .option('--reset', `Delete all clusters and prune all data and caches`)
   .option('--mariadb', 'Init with mariadb statefulset')
+  .option('--mysql', 'Init with mysql statefulset')
   .option('--mongodb', 'Init with mongodb statefulset')
   .option('--postgresql', 'Init with postgresql statefulset')
   .option('--mongodb4', 'Init with mongodb 4.4 service')
