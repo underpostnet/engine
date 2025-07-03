@@ -151,7 +151,8 @@ class UnderpostCluster {
 
       if (options.full === true || options.valkey === true) {
         if (options.pullImage === true) {
-          shellExec(`docker pull valkey/valkey`);
+          shellExec(`docker pull valkey/valkey:latest`);
+          shellExec(`sudo podman pull valkey/valkey:latest`);
           if (!options.kubeadm)
             shellExec(
               `sudo ${

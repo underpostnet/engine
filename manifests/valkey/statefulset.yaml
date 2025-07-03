@@ -19,9 +19,8 @@ spec:
 
       containers:
         - name: service-valkey
-          image: valkey/valkey:latest
-          # Ensure you pull only if not present (Never will error if missing)
-          imagePullPolicy: Never
+          image: docker.io/valkey/valkey:latest
+          imagePullPolicy: IfNotPresent
           env:
             - name: TZ
               value: Europe/Zurich
