@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.782
+## underpost ci/cd cli v2.8.783
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -472,10 +472,15 @@ Options:
 Lxd management
 
 Options:
-  --init      Init lxd
-  --reset     Reset lxd on current machine
-  --install   Install lxd on current machine
-  -h, --help  display help for command
+  --init                    Init lxd
+  --reset                   Reset lxd on current machine
+  --install                 Install lxd on current machine
+  --dev                     Set dev context env
+  --create-virtual-network  Create lxd virtual network bridge
+  --create-admin-profile    Create admin profile for lxd management
+  --create-vm <vm-id>       Create default virtual machines
+  --init-vm <vm-id>         Get init vm underpost script
+  -h, --help                display help for command
  
 ```
   
