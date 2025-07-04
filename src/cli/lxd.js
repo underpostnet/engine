@@ -1,9 +1,11 @@
 import { getNpmRootPath } from '../server/conf.js';
-import { shellExec } from '../server/process.js';
+import { pbcopy, shellExec } from '../server/process.js';
 
 class UnderpostLxd {
   static API = {
-    async callback(options = { init: false, reset: false, dev: false, install: false, createVirtualNetwork: false }) {
+    async callback(
+      options = { init: false, reset: false, dev: false, install: false, createVirtualNetwork: false, createVm: '' },
+    ) {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       if (options.reset === true) {
@@ -25,9 +27,14 @@ ipv4.dhcp=true \
 ipv6.address=none`);
       }
       if (options.createAdminProfile === true) {
-        shellExec(`lxc profile create admin-profile`);
+        console.log(`lxc profile create admin-profile`);
         shellExec(`cat ${underpostRoot}/manifests/lxd/lxd-admin-profile.yaml | lxc profile edit admin-profile`);
         shellExec(`lxc profile show admin-profile`);
+      }
+      if (options.createVm && typeof options.createVm === 'string') {
+        pbcopy(
+          `lxc launch images:rockylinux/9 ${options.createVm} --vm --target lxd-node1 -c limits.cpu=2 -c limits.memory=4GB --profile admin-profile`,
+        );
       }
     },
   };
