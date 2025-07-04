@@ -1,0 +1,30 @@
+config:
+  core.https_address: 127.0.0.1:8443
+networks: []
+storage_pools:
+  - config:
+      size: 100GiB
+    description: ""
+    name: local
+    driver: zfs
+storage_volumes: []
+profiles:
+  - config: {}
+    description: ""
+    devices:
+      root:
+        path: /
+        pool: local
+        type: disk
+    name: default
+projects: []
+cluster:
+  server_name: lxd-node1
+  enabled: true
+  member_config: []
+  cluster_address: ""
+  cluster_certificate: ""
+  server_address: ""
+  cluster_password: ""
+  cluster_token: ""
+  cluster_certificate_path: ""

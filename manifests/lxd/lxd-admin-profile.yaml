@@ -1,0 +1,16 @@
+config:
+  limits.cpu: "2"
+  limits.memory: 4GB
+description: vm nat network
+devices:
+  eth0:
+    name: eth0
+    network: lxdbr0
+    type: nic
+  root:
+    path: /
+    pool: local # lxc storage list
+    size: 100GB
+    type: disk
+name: admin-profile
+used_by: []

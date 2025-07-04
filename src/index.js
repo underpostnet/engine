@@ -11,6 +11,7 @@ import UnderpostDeploy from './cli/deploy.js';
 import UnderpostRootEnv from './cli/env.js';
 import UnderpostFileStorage from './cli/fs.js';
 import UnderpostImage from './cli/image.js';
+import UnderpostLxd from './cli/lxd.js';
 import UnderpostMonitor from './cli/monitor.js';
 import UnderpostRepository from './cli/repository.js';
 import UnderpostScript from './cli/script.js';
@@ -122,6 +123,13 @@ class Underpost {
    * @memberof Underpost
    */
   static monitor = UnderpostMonitor.API;
+  /**
+   * LXD cli API
+   * @static
+   * @type {UnderpostLxd.API}
+   * @memberof Underpost
+   */
+  static monitor = UnderpostLxd.API;
 }
 
 const up = Underpost;
