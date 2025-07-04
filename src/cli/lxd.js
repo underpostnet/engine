@@ -4,7 +4,15 @@ import { pbcopy, shellExec } from '../server/process.js';
 class UnderpostLxd {
   static API = {
     async callback(
-      options = { init: false, reset: false, dev: false, install: false, createVirtualNetwork: false, createVm: '' },
+      options = {
+        init: false,
+        reset: false,
+        dev: false,
+        install: false,
+        createVirtualNetwork: false,
+        initVm: false,
+        createVm: '',
+      },
     ) {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
@@ -27,7 +35,7 @@ ipv4.dhcp=true \
 ipv6.address=none`);
       }
       if (options.createAdminProfile === true) {
-        console.log(`lxc profile create admin-profile`);
+        pbcopy(`lxc profile create admin-profile`);
         shellExec(`cat ${underpostRoot}/manifests/lxd/lxd-admin-profile.yaml | lxc profile edit admin-profile`);
         shellExec(`lxc profile show admin-profile`);
       }
@@ -35,6 +43,9 @@ ipv6.address=none`);
         pbcopy(
           `lxc launch images:rockylinux/9 ${options.createVm} --vm --target lxd-node1 -c limits.cpu=2 -c limits.memory=4GB --profile admin-profile`,
         );
+      }
+      if (options.initVm && typeof options.initVm === 'string') {
+        pbcopy(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash`);
       }
     },
   };
