@@ -106,6 +106,8 @@ class UnderpostCluster {
         shellExec(`sudo service docker restart`);
         shellExec(`sudo systemctl enable --now containerd.service`);
         shellExec(`sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab`);
+        shellExec(`sudo systemctl daemon-reload`);
+        shellExec(`sudo systemctl restart containerd`);
         if (options.kubeadm === true) {
           shellExec(`sysctl net.bridge.bridge-nf-call-iptables=1`);
           shellExec(
@@ -121,14 +123,12 @@ class UnderpostCluster {
           //   `wget https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml`,
           // );
           shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/kubeadm-calico-config.yaml`);
-          shellExec(`sudo systemctl restart containerd`);
           const nodeName = os.hostname();
           shellExec(`kubectl taint nodes ${nodeName} node-role.kubernetes.io/control-plane:NoSchedule-`);
           shellExec(
             `kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml`,
           );
         } else {
-          shellExec(`sudo systemctl restart containerd`);
           if (options.full === true || options.dedicatedGpu === true) {
             // https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
             shellExec(`cd ${underpostRoot}/manifests && kind create cluster --config kind-config-cuda.yaml`);
