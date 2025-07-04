@@ -129,7 +129,7 @@ class Underpost {
    * @type {UnderpostLxd.API}
    * @memberof Underpost
    */
-  static monitor = UnderpostLxd.API;
+  static lxd = UnderpostLxd.API;
 }
 
 const up = Underpost;
