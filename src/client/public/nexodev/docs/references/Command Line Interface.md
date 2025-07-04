@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.781
+## underpost ci/cd cli v2.8.782
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -204,7 +204,6 @@ Options:
   --mongodb            Init with mongodb statefulset
   --postgresql         Init with postgresql statefulset
   --mongodb4           Init with mongodb 4.4 service
-  --istio              Init base istio cluster
   --valkey             Init with valkey service
   --contour            Init with project contour base HTTPProxy and envoy
   --cert-manager       Init with letsencrypt-prod ClusterIssuer

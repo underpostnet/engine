@@ -464,14 +464,14 @@ Allocatable:
     },
     initHost() {
       // Base
-      shellExec(`sudo dnf update -y`);
-      shellExec(`sudo dnf install epel-release -y`);
+      shellExec(`sudo dnf -y update`);
+      shellExec(`sudo dnf -y install epel-release`);
       // Install docker
       shellExec(`sudo dnf -y install dnf-plugins-core
 sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo`);
-      shellExec(`sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`);
+      shellExec(`sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`);
       // Install podman
-      shellExec(`sudo dnf install podman`);
+      shellExec(`sudo dnf -y install podman`);
       // Install kind
       shellExec(`[ $(uname -m) = aarch64 ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-arm64
 chmod +x ./kind

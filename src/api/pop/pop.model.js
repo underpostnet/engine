@@ -44,7 +44,7 @@ const PopSchema = new Schema(
           enum: ['gate', 'maas', 'storage', 'rack', 'edge', 'guest', 'network', 'firewall', 'power', 'cooling'],
           required: true,
         },
-        status: { type: String, enum: ['active', 'inactive', 'planned'], default: 'inactive' },
+        status: { type: String, enum: ['active', 'inactive', 'planned'], default: 'planned' },
         createdAt: { type: Date },
       },
     ],
