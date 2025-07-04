@@ -92,8 +92,8 @@ class UnderpostCluster {
 
       if (
         !alrreadyCluster &&
-        ((!options.istio && !UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0]) ||
-          (options.istio === true && !UnderpostDeploy.API.get('calico-kube-controllers')[0]))
+        ((!options.kubeadm && !UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0]) ||
+          (options.kubeadm === true && !UnderpostDeploy.API.get('calico-kube-controllers')[0]))
       ) {
         shellExec(`sudo setenforce 0`);
         shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
@@ -106,7 +106,7 @@ class UnderpostCluster {
         shellExec(`sudo service docker restart`);
         shellExec(`sudo systemctl enable --now containerd.service`);
         shellExec(`sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab`);
-        if (options.istio === true) {
+        if (options.kubeadm === true) {
           shellExec(`sysctl net.bridge.bridge-nf-call-iptables=1`);
           shellExec(
             `sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --control-plane-endpoint="${os.hostname()}:6443"`,

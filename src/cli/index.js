@@ -97,7 +97,7 @@ program
   .option('--mongodb', 'Init with mongodb statefulset')
   .option('--postgresql', 'Init with postgresql statefulset')
   .option('--mongodb4', 'Init with mongodb 4.4 service')
-  .option('--istio', 'Init base istio cluster')
+  //  .option('--istio', 'Init base istio service mesh')
   .option('--valkey', 'Init with valkey service')
   .option('--contour', 'Init with project contour base HTTPProxy and envoy')
   .option('--cert-manager', 'Init with letsencrypt-prod ClusterIssuer')
