@@ -277,6 +277,7 @@ program
   .option('--create-admin-profile', 'Create admin profile for lxd management')
   .option('--create-vm <vm-id>', 'Create default virtual machines')
   .option('--init-vm <vm-id>', 'Get init vm underpost script')
+  .option('--info-vm <vm-id>', 'Get all info vm')
   .description('Lxd management')
   .action(UnderpostLxd.API.callback);
 

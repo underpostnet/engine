@@ -12,6 +12,7 @@ class UnderpostLxd {
         createVirtualNetwork: false,
         initVm: false,
         createVm: '',
+        infoVm: '',
       },
     ) {
       const npmRoot = getNpmRootPath();
@@ -46,6 +47,11 @@ ipv6.address=none`);
       }
       if (options.initVm && typeof options.initVm === 'string') {
         pbcopy(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash`);
+      }
+      if (options.infoVm && typeof options.infoVm === 'string') {
+        shellExec(`lxc config show ${options.infoVm}`);
+        shellExec(`lxc info ${options.infoVm}`);
+        shellExec(`lxc list ${options.infoVm}`);
       }
     },
   };
