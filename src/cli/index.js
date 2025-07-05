@@ -278,6 +278,7 @@ program
   .option('--create-vm <vm-id>', 'Create default virtual machines')
   .option('--init-vm <vm-id>', 'Get init vm underpost script')
   .option('--info-vm <vm-id>', 'Get all info vm')
+  .option('--root-size <gb-size>', 'Set root size vm')
   .description('Lxd management')
   .action(UnderpostLxd.API.callback);
 
