@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.783
+## underpost ci/cd cli v2.8.784
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -480,6 +480,8 @@ Options:
   --create-admin-profile    Create admin profile for lxd management
   --create-vm <vm-id>       Create default virtual machines
   --init-vm <vm-id>         Get init vm underpost script
+  --info-vm <vm-id>         Get all info vm
+  --root-size <gb-size>     Set root size vm
   -h, --help                display help for command
  
 ```

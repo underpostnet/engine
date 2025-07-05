@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-blue
-          image: localhost/debian-underpost:v2.8.783
+          image: localhost/debian-underpost:v2.8.784
           resources:
             requests:
               memory: "127539Ki"
@@ -140,7 +140,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-green
-          image: localhost/debian-underpost:v2.8.783
+          image: localhost/debian-underpost:v2.8.784
           resources:
             requests:
               memory: "127539Ki"
