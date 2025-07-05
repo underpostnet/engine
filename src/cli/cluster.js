@@ -113,8 +113,9 @@ class UnderpostCluster {
           shellExec(
             `sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --control-plane-endpoint="${os.hostname()}:6443"`,
           );
-          shellExec(`sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config`);
-          shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
+          shellExec(`mkdir -p ~/.kube`);
+          shellExec(`sudo -E cp -i /etc/kubernetes/admin.conf ~/.kube/config`);
+          shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
           // https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart
           shellExec(
             `sudo kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.3/manifests/tigera-operator.yaml`,
