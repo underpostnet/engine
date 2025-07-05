@@ -55,6 +55,7 @@ ipv6.address=none`);
       }
       if (options.infoVm && typeof options.infoVm === 'string') {
         shellExec(`lxc config show ${options.infoVm}`);
+        shellExec(`lxc info --show-log ${options.infoVm}`);
         shellExec(`lxc info ${options.infoVm}`);
         shellExec(`lxc list ${options.infoVm}`);
       }
