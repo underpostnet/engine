@@ -34,6 +34,7 @@ class UnderpostCluster {
         initHost: false,
         config: false,
         worker: false,
+        chown: false,
       },
     ) {
       // sudo dnf update
@@ -43,7 +44,8 @@ class UnderpostCluster {
       // 4) Install LXD with MAAS from Rocky Linux docs
       // 5) Install MAAS src from snap
       if (options.initHost === true) return UnderpostCluster.API.initHost();
-      if (options.config) UnderpostCluster.API.config();
+      if (options.config === true) UnderpostCluster.API.config();
+      if (options.chown === true) UnderpostCluster.API.chown();
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       if (options.infoCapacityPod === true) return logger.info('', UnderpostDeploy.API.resourcesFactory());
@@ -104,6 +106,7 @@ class UnderpostCluster {
           shellExec(
             `sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --control-plane-endpoint="${os.hostname()}:6443"`,
           );
+          UnderpostCluster.API.chown();
           // https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart
           shellExec(
             `sudo kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.3/manifests/tigera-operator.yaml`,
@@ -121,6 +124,7 @@ class UnderpostCluster {
           if (options.full === true || options.dedicatedGpu === true) {
             // https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
             shellExec(`cd ${underpostRoot}/manifests && kind create cluster --config kind-config-cuda.yaml`);
+            UnderpostCluster.API.chown();
           } else {
             shellExec(
               `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${
@@ -289,6 +293,8 @@ class UnderpostCluster {
       shellExec(`sudo systemctl daemon-reload`);
       shellExec(`sudo systemctl restart containerd`);
       shellExec(`sysctl net.bridge.bridge-nf-call-iptables=1`);
+    },
+    chown() {
       shellExec(`mkdir -p ~/.kube`);
       shellExec(`sudo -E cp -i /etc/kubernetes/admin.conf ~/.kube/config`);
       shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
