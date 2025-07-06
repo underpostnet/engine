@@ -28,6 +28,8 @@ echo "Disk and filesystem resized successfully."
 sudo dnf install -y tar
 sudo dnf install -y bzip2
 sudo dnf install -y git
+sudo dnf -y update
+sudo dnf -y install epel-release
 sudo dnf install -y ufw
 sudo systemctl enable --now ufw
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash

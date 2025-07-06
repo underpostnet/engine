@@ -475,9 +475,6 @@ Allocatable:
       return resources;
     },
     initHost() {
-      // Base
-      shellExec(`sudo dnf -y update`);
-      shellExec(`sudo dnf -y install epel-release`);
       // Install docker
       shellExec(`sudo dnf -y install dnf-plugins-core
 sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo`);

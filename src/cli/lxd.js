@@ -19,6 +19,7 @@ class UnderpostLxd {
         infoVm: '',
         rootSize: '',
         joinNode: '',
+        expose: '',
       },
     ) {
       const npmRoot = getNpmRootPath();
@@ -63,6 +64,8 @@ ipv6.address=none`);
         let flag = '';
         if (options.control === true) {
           flag = ' -s -- --kubeadm';
+          shellExec(`lxc exec ${options.initVm} -- bash -c 'mkdir -p /home/dd/engine'`);
+          shellExec(`lxc file push /home/dd/engine/engine-private ${options.initVm}/home/dd/engine --recursive`);
         } else if (options.worker == true) {
           flag = ' -s -- --worker';
         }
