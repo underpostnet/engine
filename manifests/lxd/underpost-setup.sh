@@ -131,13 +131,13 @@ done
 if $USE_KUBEADM; then
     echo "Running control node with kubeadm..."
     underpost cluster --kubeadm
-    kubectl get pods --all-namespaces -o wide -w
+    # kubectl get pods --all-namespaces -o wide -w
 fi
 
 if $USE_KIND; then
     echo "Running control node with kind..."
     underpost cluster
-    kubectl get pods --all-namespaces -o wide -w
+    # kubectl get pods --all-namespaces -o wide -w
 fi
 
 if $USE_WORKER; then
