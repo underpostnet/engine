@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.787
+## underpost ci/cd cli v2.8.788
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -482,6 +482,7 @@ Options:
   --create-virtual-network  Create lxd virtual network bridge
   --create-admin-profile    Create admin profile for lxd management
   --control                 set control node vm context
+  --worker                  set worker node context
   --create-vm <vm-id>       Create default virtual machines
   --init-vm <vm-id>         Get init vm underpost script
   --info-vm <vm-id>         Get all info vm
