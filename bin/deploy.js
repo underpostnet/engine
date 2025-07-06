@@ -822,6 +822,9 @@ try {
     }
 
     case 'version-deploy': {
+      shellExec(
+        `underpost secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
+      );
       shellExec(`node bin/build dd conf`);
       shellExec(`git add . && cd ./engine-private && git add .`);
       shellExec(`node bin cmt . ci package-pwa-microservices-template`);
