@@ -11,6 +11,7 @@ class UnderpostLxd {
         install: false,
         createVirtualNetwork: false,
         control: false,
+        worker: false,
         initVm: '',
         createVm: '',
         infoVm: '',

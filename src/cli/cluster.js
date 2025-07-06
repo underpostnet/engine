@@ -32,6 +32,9 @@ class UnderpostCluster {
         dedicatedGpu: false,
         kubeadm: false,
         initHost: false,
+        config: false,
+        postConfig: false,
+        worker: false,
       },
     ) {
       // sudo dnf update
@@ -41,6 +44,8 @@ class UnderpostCluster {
       // 4) Install LXD with MAAS from Rocky Linux docs
       // 5) Install MAAS src from snap
       if (options.initHost === true) return UnderpostCluster.API.initHost();
+      if (options.config) UnderpostCluster.API.config();
+      if (options.postConfig) UnderpostCluster.API.postConfig();
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       if (options.infoCapacityPod === true) return logger.info('', UnderpostDeploy.API.resourcesFactory());
@@ -91,31 +96,16 @@ class UnderpostCluster {
         UnderpostDeploy.API.get('calico-kube-controllers')[0];
 
       if (
+        !options.worker &&
         !alrreadyCluster &&
         ((!options.kubeadm && !UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0]) ||
           (options.kubeadm === true && !UnderpostDeploy.API.get('calico-kube-controllers')[0]))
       ) {
-        shellExec(`sudo setenforce 0`);
-        shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
-        shellExec(`sudo systemctl enable --now docker`);
-        shellExec(`sudo systemctl enable --now kubelet`);
-        shellExec(`containerd config default > /etc/containerd/config.toml`);
-        shellExec(`sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
-        // shellExec(`cp /etc/kubernetes/admin.conf ~/.kube/config`);
-        // shellExec(`sudo systemctl restart kubelet`);
-        shellExec(`sudo service docker restart`);
-        shellExec(`sudo systemctl enable --now containerd.service`);
-        shellExec(`sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab`);
-        shellExec(`sudo systemctl daemon-reload`);
-        shellExec(`sudo systemctl restart containerd`);
+        UnderpostCluster.API.config();
         if (options.kubeadm === true) {
-          shellExec(`sysctl net.bridge.bridge-nf-call-iptables=1`);
           shellExec(
             `sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --control-plane-endpoint="${os.hostname()}:6443"`,
           );
-          shellExec(`mkdir -p ~/.kube`);
-          shellExec(`sudo -E cp -i /etc/kubernetes/admin.conf ~/.kube/config`);
-          shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
           // https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart
           shellExec(
             `sudo kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.3/manifests/tigera-operator.yaml`,
@@ -140,8 +130,8 @@ class UnderpostCluster {
               }.yaml`,
             );
           }
-          shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
         }
+        UnderpostCluster.API.postConfig({ postConfig: true });
       } else logger.warn('Cluster already initialized');
 
       // shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/kubelet-config.yaml`);
@@ -287,6 +277,27 @@ class UnderpostCluster {
         shellExec(`sudo kubectl delete ClusterIssuer ${letsEncName}`);
         shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/${letsEncName}.yaml`);
       }
+    },
+
+    config(options = { postConfig: false }) {
+      if (options.postConfig === true) {
+        shellExec(`mkdir -p ~/.kube`);
+        shellExec(`sudo -E cp -i /etc/kubernetes/admin.conf ~/.kube/config`);
+        shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
+        return;
+      }
+      shellExec(`sudo setenforce 0`);
+      shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
+      shellExec(`sudo systemctl enable --now docker`);
+      shellExec(`sudo systemctl enable --now kubelet`);
+      shellExec(`containerd config default > /etc/containerd/config.toml`);
+      shellExec(`sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
+      shellExec(`sudo service docker restart`);
+      shellExec(`sudo systemctl enable --now containerd.service`);
+      shellExec(`sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab`);
+      shellExec(`sudo systemctl daemon-reload`);
+      shellExec(`sudo systemctl restart containerd`);
+      shellExec(`sysctl net.bridge.bridge-nf-call-iptables=1`);
     },
     // This function performs a comprehensive reset of Kubernetes and container environments
     // on the host machine. Its primary goal is to clean up cluster components, temporary files,

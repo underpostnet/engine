@@ -53,6 +53,7 @@ underpost cluster --init-host
 # Default flags
 USE_KUBEADM=false
 USE_KIND=false
+USE_WORKER=false
 
 # Loop through arguments
 for arg in "$@"; do
@@ -63,22 +64,29 @@ for arg in "$@"; do
     --kind)
         USE_KIND=true
         ;;
+    --worker)
+        USE_WORKER=true
+        ;;
     esac
 done
 
+underpost cluster --kubeadm
+underpost --reset
+
 # Behavior based on flags
 if $USE_KUBEADM; then
-    echo "Running with kubeadm..."
-    underpost cluster --kubeadm
-    underpost --reset
+    echo "Running control node with kubeadm..."
     underpost cluster --kubeadm
     kubectl get pods --all-namespaces -o wide -w
 fi
 
 if $USE_KIND; then
-    echo "Running with kind..."
-    underpost cluster
-    underpost --reset
+    echo "Running control node with kind..."
     underpost cluster
     kubectl get pods --all-namespaces -o wide -w
+fi
+
+if $USE_WORKER; then
+    echo "Running worker..."
+    underpost cluster --worker --config --post-config
 fi
