@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.785
+## underpost ci/cd cli v2.8.786
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -220,8 +220,8 @@ Options:
   --init-host          Install k8s node necessary cli env: kind, kubeadm,
                        docker, podman, helm
   --config             Set k8s base node config
-  --post-config        Set k8s base node post config
   --worker             Set worker node context
+  --chown              Set k8s kube chown
   -h, --help           display help for command
  
 ```

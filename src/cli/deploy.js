@@ -82,13 +82,13 @@ spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
           image: localhost/debian-underpost:${Underpost.version}
-          resources:
-            requests:
-              memory: "${resources.requests.memory}"
-              cpu: "${resources.requests.cpu}"
-            limits:
-              memory: "${resources.limits.memory}"
-              cpu: "${resources.limits.cpu}"
+#          resources:
+#            requests:
+#              memory: "${resources.requests.memory}"
+#              cpu: "${resources.requests.cpu}"
+#            limits:
+#              memory: "${resources.limits.memory}"
+#              cpu: "${resources.limits.cpu}"
           command:
             - /bin/sh
             - -c
