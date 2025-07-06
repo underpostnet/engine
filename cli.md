@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.784
+## underpost ci/cd cli v2.8.785
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -219,6 +219,9 @@ Options:
   --pull-image         Set optional pull associated image
   --init-host          Install k8s node necessary cli env: kind, kubeadm,
                        docker, podman, helm
+  --config             Set k8s base node config
+  --post-config        Set k8s base node post config
+  --worker             Set worker node context
   -h, --help           display help for command
  
 ```
@@ -478,6 +481,7 @@ Options:
   --dev                     Set dev context env
   --create-virtual-network  Create lxd virtual network bridge
   --create-admin-profile    Create admin profile for lxd management
+  --control                 set control node vm context
   --create-vm <vm-id>       Create default virtual machines
   --init-vm <vm-id>         Get init vm underpost script
   --info-vm <vm-id>         Get all info vm
