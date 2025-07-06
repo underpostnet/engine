@@ -45,7 +45,7 @@ class UnderpostCluster {
       // 5) Install MAAS src from snap
       if (options.initHost === true) return UnderpostCluster.API.initHost();
       if (options.config) UnderpostCluster.API.config();
-      if (options.postConfig) UnderpostCluster.API.postConfig();
+      if (options.postConfig) UnderpostCluster.API.config({ postConfig: true });
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       if (options.infoCapacityPod === true) return logger.info('', UnderpostDeploy.API.resourcesFactory());
@@ -131,7 +131,7 @@ class UnderpostCluster {
             );
           }
         }
-        UnderpostCluster.API.postConfig({ postConfig: true });
+        UnderpostCluster.API.config({ postConfig: true });
       } else logger.warn('Cluster already initialized');
 
       // shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/kubelet-config.yaml`);
