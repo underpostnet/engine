@@ -70,9 +70,15 @@ done
 if $USE_KUBEADM; then
     echo "Running with kubeadm..."
     underpost cluster --kubeadm
+    underpost --reset
+    underpost cluster --kubeadm
+    kubectl get pods --all-namespaces -o wide -w
 fi
 
 if $USE_KIND; then
     echo "Running with kind..."
     underpost cluster
+    underpost --reset
+    underpost cluster
+    kubectl get pods --all-namespaces -o wide -w
 fi

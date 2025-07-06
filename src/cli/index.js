@@ -275,6 +275,7 @@ program
   .option('--dev', 'Set dev context env')
   .option('--create-virtual-network', 'Create lxd virtual network bridge')
   .option('--create-admin-profile', 'Create admin profile for lxd management')
+  .option('--control', 'set control node vm context')
   .option('--create-vm <vm-id>', 'Create default virtual machines')
   .option('--init-vm <vm-id>', 'Get init vm underpost script')
   .option('--info-vm <vm-id>', 'Get all info vm')

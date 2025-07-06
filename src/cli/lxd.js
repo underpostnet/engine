@@ -10,7 +10,8 @@ class UnderpostLxd {
         dev: false,
         install: false,
         createVirtualNetwork: false,
-        initVm: false,
+        control: false,
+        initVm: '',
         createVm: '',
         infoVm: '',
         rootSize: '',
@@ -51,7 +52,8 @@ ipv6.address=none`);
         );
       }
       if (options.initVm && typeof options.initVm === 'string') {
-        pbcopy(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash`);
+        const flag = options.control === true ? '--kubeadm' : '';
+        pbcopy(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash -s ${flag}`);
       }
       if (options.infoVm && typeof options.infoVm === 'string') {
         shellExec(`lxc config show ${options.infoVm}`);
