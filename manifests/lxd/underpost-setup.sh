@@ -70,8 +70,12 @@ for arg in "$@"; do
     esac
 done
 
+echo "USE_KUBEADM = $USE_KUBEADM"
+echo "USE_KIND   = $USE_KIND"
+echo "USE_WORKER = $USE_WORKER"
+
 underpost cluster --kubeadm
-underpost --reset
+underpost cluster --reset
 
 # Behavior based on flags
 if $USE_KUBEADM; then
