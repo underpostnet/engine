@@ -25,8 +25,6 @@ EOF
 resize2fs /dev/sda2
 
 echo "Disk and filesystem resized successfully."
-
-mkdir -p /home/dd
 sudo dnf install -y tar
 sudo dnf install -y bzip2
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
@@ -34,6 +32,47 @@ NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 nvm install 23.8.0
 nvm use 23.8.0
+echo "
+██╗░░░██╗███╗░░██╗██████╗░███████╗██████╗░██████╗░░█████╗░░██████╗████████╗
+██║░░░██║████╗░██║██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔════╝╚══██╔══╝
+██║░░░██║██╔██╗██║██║░░██║█████╗░░██████╔╝██████╔╝██║░░██║╚█████╗░░░░██║░░░
+██║░░░██║██║╚████║██║░░██║██╔══╝░░██╔══██╗██╔═══╝░██║░░██║░╚═══██╗░░░██║░░░
+╚██████╔╝██║░╚███║██████╔╝███████╗██║░░██║██║░░░░░╚█████╔╝██████╔╝░░░██║░░░
+░╚═════╝░╚═╝░░╚══╝╚═════╝░╚══════╝╚═╝░░╚═╝╚═╝░░░░░░╚════╝░╚═════╝░░░░╚═╝░░░
+
+Installing underpost k8s node ...
+
+"
 npm install -g underpost
 chmod +x /root/.nvm/versions/node/v23.8.0/bin/underpost
 sudo modprobe br_netfilter
+mkdir -p /home/dd
+cd $(underpost root)/underpost
+underpost cluster --init-host
+
+# Default flags
+USE_KUBEADM=false
+USE_KIND=false
+
+# Loop through arguments
+for arg in "$@"; do
+    case "$arg" in
+    --kubeadm)
+        USE_KUBEADM=true
+        ;;
+    --kind)
+        USE_KIND=true
+        ;;
+    esac
+done
+
+# Behavior based on flags
+if $USE_KUBEADM; then
+    echo "Running with kubeadm..."
+    underpost cluster --kubeadm
+fi
+
+if $USE_KIND; then
+    echo "Running with kind..."
+    underpost cluster
+fi
