@@ -53,8 +53,13 @@ ipv6.address=none`);
         );
       }
       if (options.initVm && typeof options.initVm === 'string') {
-        const flag = options.control === true ? '--kubeadm' : '';
-        pbcopy(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash -s ${flag}`);
+        let flag = '';
+        if (options.control === true) {
+          flag = ' -s -- --kubeadm';
+        } else if (options.worker == true) {
+          flag = ' -s -- --worker';
+        }
+        pbcopy(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash${flag}`);
       }
       if (options.infoVm && typeof options.infoVm === 'string') {
         shellExec(`lxc config show ${options.infoVm}`);
