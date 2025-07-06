@@ -287,7 +287,7 @@ program
   .option('--join-node <nodes>', 'Comma separated worker and control node e. g. k8s-worker-1,k8s-control')
   .option(
     '--expose <vm-name-ports>',
-    'Vm name and | separated with Comma separated vm port to expose e. g. k8s-control|80,443',
+    'Vm name and : separated with Comma separated vm port to expose e. g. k8s-control:80,443',
   )
   .description('Lxd management')
   .action(UnderpostLxd.API.callback);

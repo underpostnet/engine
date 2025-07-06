@@ -85,6 +85,23 @@ ipv6.address=none`);
         shellExec(`lxc info ${options.infoVm}`);
         shellExec(`lxc list ${options.infoVm}`);
       }
+      if (options.expose && typeof options.expose === 'string') {
+        const [controlNode, ports] = options.expose.split(':');
+        console.log({ controlNode, ports });
+        const protocols = ['tcp', 'udp'];
+        const hostIp = getLocalIPv4Address();
+        const vmIp = shellExec(
+          `lxc list ${controlNode} --format json | jq -r '.[0].state.network.enp5s0.addresses[] | select(.family=="inet") | .address'`,
+          { stdout: true },
+        ).trim();
+        for (const port of ports.split(',')) {
+          for (const protocol of protocols) {
+            shellExec(
+              `lxc config device add ${controlNode} ${controlNode}-port-${port} proxy listen=${protocol}:${hostIp}:${port} connect=${protocol}:${vmIp}:${port} nat=true`,
+            );
+          }
+        }
+      }
     },
   };
 }
