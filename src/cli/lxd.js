@@ -1,5 +1,7 @@
 import { getNpmRootPath } from '../server/conf.js';
+import { getLocalIPv4Address } from '../server/dns.js';
 import { pbcopy, shellExec } from '../server/process.js';
+import fs from 'fs-extra';
 
 class UnderpostLxd {
   static API = {
@@ -28,7 +30,11 @@ class UnderpostLxd {
       if (options.init === true) {
         shellExec(`sudo systemctl start snap.lxd.daemon`);
         shellExec(`sudo systemctl status snap.lxd.daemon`);
-        shellExec(`lxd init --preseed < ${underpostRoot}/manifests/lxd/lxd-preseed.yaml`);
+        const lxdPressedContent = fs
+          .readFileSync(`${underpostRoot}/manifests/lxd/lxd-preseed.yaml`, 'utf8')
+          .replaceAll(`127.0.0.1`, getLocalIPv4Address());
+        // shellExec(`lxd init --preseed < ${underpostRoot}/manifests/lxd/lxd-preseed.yaml`);
+        shellExec(`echo "${lxdPressedContent}" | lxd init --preseed`);
         shellExec(`lxc cluster list`);
       }
       if (options.createVirtualNetwork === true) {
