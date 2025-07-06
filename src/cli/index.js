@@ -113,7 +113,6 @@ program
   .option('--pull-image', 'Set optional pull associated image')
   .option('--init-host', 'Install k8s node necessary cli env: kind, kubeadm, docker, podman, helm')
   .option('--config', 'Set k8s base node config')
-  .option('--post-config', 'Set k8s base node post config')
   .option('--worker', 'Set worker node context')
   .action(Underpost.cluster.init)
   .description('Manage cluster, for default initialization base kind cluster');

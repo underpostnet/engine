@@ -88,5 +88,5 @@ fi
 
 if $USE_WORKER; then
     echo "Running worker..."
-    underpost cluster --worker --config --post-config
+    underpost cluster --worker --config
 fi

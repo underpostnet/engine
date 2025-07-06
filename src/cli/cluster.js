@@ -33,7 +33,6 @@ class UnderpostCluster {
         kubeadm: false,
         initHost: false,
         config: false,
-        postConfig: false,
         worker: false,
       },
     ) {
@@ -45,7 +44,6 @@ class UnderpostCluster {
       // 5) Install MAAS src from snap
       if (options.initHost === true) return UnderpostCluster.API.initHost();
       if (options.config) UnderpostCluster.API.config();
-      if (options.postConfig) UnderpostCluster.API.config({ postConfig: true });
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       if (options.infoCapacityPod === true) return logger.info('', UnderpostDeploy.API.resourcesFactory());
@@ -131,7 +129,6 @@ class UnderpostCluster {
             );
           }
         }
-        UnderpostCluster.API.config({ postConfig: true });
       } else logger.warn('Cluster already initialized');
 
       // shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/kubelet-config.yaml`);
@@ -279,13 +276,7 @@ class UnderpostCluster {
       }
     },
 
-    config(options = { postConfig: false }) {
-      if (options.postConfig === true) {
-        shellExec(`mkdir -p ~/.kube`);
-        shellExec(`sudo -E cp -i /etc/kubernetes/admin.conf ~/.kube/config`);
-        shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
-        return;
-      }
+    config() {
       shellExec(`sudo setenforce 0`);
       shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
       shellExec(`sudo systemctl enable --now docker`);
@@ -298,6 +289,9 @@ class UnderpostCluster {
       shellExec(`sudo systemctl daemon-reload`);
       shellExec(`sudo systemctl restart containerd`);
       shellExec(`sysctl net.bridge.bridge-nf-call-iptables=1`);
+      shellExec(`mkdir -p ~/.kube`);
+      shellExec(`sudo -E cp -i /etc/kubernetes/admin.conf ~/.kube/config`);
+      shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
     },
     // This function performs a comprehensive reset of Kubernetes and container environments
     // on the host machine. Its primary goal is to clean up cluster components, temporary files,
