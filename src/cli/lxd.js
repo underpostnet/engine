@@ -18,6 +18,7 @@ class UnderpostLxd {
         createVm: '',
         infoVm: '',
         rootSize: '',
+        joinNode: '',
       },
     ) {
       const npmRoot = getNpmRootPath();
@@ -66,6 +67,14 @@ ipv6.address=none`);
           flag = ' -s -- --worker';
         }
         pbcopy(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash${flag}`);
+      }
+      if (options.joinNode && typeof options.joinNode === 'string') {
+        const [workerNode, controlNode] = options.joinNode.split(',');
+        const token = shellExec(
+          `echo "$(lxc exec ${controlNode} -- bash -c 'sudo kubeadm token create --print-join-command')"`,
+          { stdout: true },
+        );
+        shellExec(`lxc exec ${workerNode} -- bash -c '${token}'`);
       }
       if (options.infoVm && typeof options.infoVm === 'string') {
         shellExec(`lxc config show ${options.infoVm}`);
