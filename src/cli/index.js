@@ -289,6 +289,10 @@ program
     '--expose <vm-name-ports>',
     'Vm name and : separated with Comma separated vm port to expose e. g. k8s-control:80,443',
   )
+  .option(
+    '--delete-expose <vm-name-ports>',
+    'Vm name and : separated with Comma separated vm port to remove expose e. g. k8s-control:80,443',
+  )
   .description('Lxd management')
   .action(UnderpostLxd.API.callback);
 

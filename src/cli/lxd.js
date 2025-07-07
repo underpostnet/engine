@@ -20,6 +20,7 @@ class UnderpostLxd {
         rootSize: '',
         joinNode: '',
         expose: '',
+        deleteExpose: '',
       },
     ) {
       const npmRoot = getNpmRootPath();
@@ -88,17 +89,30 @@ ipv6.address=none`);
       if (options.expose && typeof options.expose === 'string') {
         const [controlNode, ports] = options.expose.split(':');
         console.log({ controlNode, ports });
-        const protocols = ['tcp', 'udp'];
+        const protocols = ['tcp']; // udp
         const hostIp = getLocalIPv4Address();
+        // The vmIp will now be the static IP assigned in the admin-profile
         const vmIp = shellExec(
           `lxc list ${controlNode} --format json | jq -r '.[0].state.network.enp5s0.addresses[] | select(.family=="inet") | .address'`,
           { stdout: true },
         ).trim();
         for (const port of ports.split(',')) {
           for (const protocol of protocols) {
+            shellExec(`lxc config device remove ${controlNode} ${controlNode}-${protocol}-port-${port}`);
             shellExec(
-              `lxc config device add ${controlNode} ${controlNode}-port-${port} proxy listen=${protocol}:${hostIp}:${port} connect=${protocol}:${vmIp}:${port} nat=true`,
+              `lxc config device add ${controlNode} ${controlNode}-${protocol}-port-${port} proxy listen=${protocol}:${hostIp}:${port} connect=${protocol}:${vmIp}:${port} nat=true`,
             );
+          }
+        }
+      }
+      if (options.deleteExpose && typeof options.deleteExpose === 'string') {
+        const [controlNode, ports] = options.deleteExpose.split(':');
+        console.log({ controlNode, ports });
+        const protocols = ['tcp']; // udp
+        for (const port of ports.split(',')) {
+          for (const protocol of protocols) {
+            // The device name is consistent: {controlNode}-port-{port}
+            shellExec(`lxc config device remove ${controlNode} ${controlNode}-${protocol}-port-${port}`);
           }
         }
       }

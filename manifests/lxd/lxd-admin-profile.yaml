@@ -7,6 +7,7 @@ devices:
     name: eth0
     network: lxdbr0
     type: nic
+    ipv4.address: 10.250.250.100
   root:
     path: /
     pool: local # lxc storage list
