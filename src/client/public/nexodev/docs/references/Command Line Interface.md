@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.788
+## underpost ci/cd cli v2.8.791
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -475,19 +475,26 @@ Options:
 Lxd management
 
 Options:
-  --init                    Init lxd
-  --reset                   Reset lxd on current machine
-  --install                 Install lxd on current machine
-  --dev                     Set dev context env
-  --create-virtual-network  Create lxd virtual network bridge
-  --create-admin-profile    Create admin profile for lxd management
-  --control                 set control node vm context
-  --worker                  set worker node context
-  --create-vm <vm-id>       Create default virtual machines
-  --init-vm <vm-id>         Get init vm underpost script
-  --info-vm <vm-id>         Get all info vm
-  --root-size <gb-size>     Set root size vm
-  -h, --help                display help for command
+  --init                           Init lxd
+  --reset                          Reset lxd on current machine
+  --install                        Install lxd on current machine
+  --dev                            Set dev context env
+  --create-virtual-network         Create lxd virtual network bridge
+  --create-admin-profile           Create admin profile for lxd management
+  --control                        set control node vm context
+  --worker                         set worker node context
+  --create-vm <vm-id>              Create default virtual machines
+  --init-vm <vm-id>                Get init vm underpost script
+  --info-vm <vm-id>                Get all info vm
+  --root-size <gb-size>            Set root size vm
+  --join-node <nodes>              Comma separated worker and control node e.
+                                   g. k8s-worker-1,k8s-control
+  --expose <vm-name-ports>         Vm name and : separated with Comma separated
+                                   vm port to expose e. g. k8s-control:80,443
+  --delete-expose <vm-name-ports>  Vm name and : separated with Comma separated
+                                   vm port to remove expose e. g.
+                                   k8s-control:80,443
+  -h, --help                       display help for command
  
 ```
   
