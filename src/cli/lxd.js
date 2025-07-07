@@ -67,6 +67,7 @@ ipv6.address=none`);
           flag = ' -s -- --kubeadm';
           shellExec(`lxc exec ${options.initVm} -- bash -c 'mkdir -p /home/dd/engine'`);
           shellExec(`lxc file push /home/dd/engine/engine-private ${options.initVm}/home/dd/engine --recursive`);
+          shellExec(`lxc file push /home/dd/engine/manifests ${options.initVm}/home/dd/engine --recursive`);
         } else if (options.worker == true) {
           flag = ' -s -- --worker';
         }
