@@ -331,6 +331,8 @@ class UnderpostCluster {
       // Also ensure these are set for persistence across reboots
       shellExec(`echo "net.bridge.bridge-nf-call-iptables=1" | sudo tee /etc/sysctl.d/k8s.conf`);
       shellExec(`echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.d/k8s.conf`); // Enable IP forwarding
+      shellExec(`sudo sysctl -w net.ipv4.ip_forward=1`);
+      shellExec(`echo "net.ipv4.ip_forward = 1" | sudo tee /etc/sysctl.d/99-k8s-ipforward.conf`);
       shellExec(`sudo sysctl --system`); // Apply sysctl changes immediately
 
       // Removed iptables flushing commands.
