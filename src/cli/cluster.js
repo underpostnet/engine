@@ -37,39 +37,39 @@ class UnderpostCluster {
         chown: false,
       },
     ) {
-      // sudo dnf update
-      // 1) Install kind, kubeadm, docker, podman, helm
-      // 2) Check kubectl, kubelet, containerd.io
-      // 3) Install Nvidia drivers from Rocky Linux docs
-      // 4) Install LXD with MAAS from Rocky Linux docs
-      // 5) Install MAAS src from snap
+      // Handles initial host setup (installing docker, podman, kind, kubeadm, helm)
       if (options.initHost === true) return UnderpostCluster.API.initHost();
+
+      // Applies general host configuration (SELinux, containerd, sysctl)
       if (options.config === true) UnderpostCluster.API.config();
+
+      // Sets up kubectl configuration for the current user
       if (options.chown === true) UnderpostCluster.API.chown();
+
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
+
+      // Information gathering options
       if (options.infoCapacityPod === true) return logger.info('', UnderpostDeploy.API.resourcesFactory());
       if (options.infoCapacity === true)
         return logger.info('', UnderpostCluster.API.getResourcesCapacity(options.kubeadm));
-      if (options.reset === true) return await UnderpostCluster.API.reset();
       if (options.listPods === true) return console.table(UnderpostDeploy.API.get(podName ?? undefined));
-
       if (options.nsUse && typeof options.nsUse === 'string') {
         shellExec(`kubectl config set-context --current --namespace=${options.nsUse}`);
         return;
       }
       if (options.info === true) {
-        shellExec(`kubectl config get-contexts`); // config env persisente for manage multiple clusters
+        shellExec(`kubectl config get-contexts`);
         shellExec(`kubectl config get-clusters`);
-        shellExec(`kubectl get nodes -o wide`); // set of nodes of a cluster
+        shellExec(`kubectl get nodes -o wide`);
         shellExec(`kubectl config view | grep namespace`);
-        shellExec(`kubectl get ns -o wide`); // A namespace can have pods of different nodes
-        shellExec(`kubectl get pvc --all-namespaces -o wide`); // PersistentVolumeClaim -> request storage service
-        shellExec(`kubectl get pv --all-namespaces -o wide`); // PersistentVolume -> real storage
+        shellExec(`kubectl get ns -o wide`);
+        shellExec(`kubectl get pvc --all-namespaces -o wide`);
+        shellExec(`kubectl get pv --all-namespaces -o wide`);
         shellExec(`kubectl get cronjob --all-namespaces -o wide`);
-        shellExec(`kubectl get svc --all-namespaces -o wide`); // proxy dns gate way -> deployments, statefulsets, pods
-        shellExec(`kubectl get statefulsets --all-namespaces -o wide`); // set pods with data/volume persistence
-        shellExec(`kubectl get deployments --all-namespaces -o wide`); // set pods
+        shellExec(`kubectl get svc --all-namespaces -o wide`);
+        shellExec(`kubectl get statefulsets --all-namespaces -o wide`);
+        shellExec(`kubectl get deployments --all-namespaces -o wide`);
         shellExec(`kubectl get configmap --all-namespaces -o wide`);
         shellExec(`kubectl get pods --all-namespaces -o wide`);
         shellExec(
@@ -91,38 +91,46 @@ class UnderpostCluster {
         shellExec(`sudo kubectl api-resources`);
         return;
       }
-      const alrreadyCluster =
+
+      // Reset Kubernetes cluster components (Kind/Kubeadm) and container runtimes
+      if (options.reset === true) return await UnderpostCluster.API.reset();
+
+      // Check if a cluster (Kind or Kubeadm with Calico) is already initialized
+      const alreadyCluster =
         UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0] ||
         UnderpostDeploy.API.get('calico-kube-controllers')[0];
 
-      if (
-        !options.worker &&
-        !alrreadyCluster &&
-        ((!options.kubeadm && !UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0]) ||
-          (options.kubeadm === true && !UnderpostDeploy.API.get('calico-kube-controllers')[0]))
-      ) {
-        UnderpostCluster.API.config();
+      // --- Kubeadm/Kind Cluster Initialization ---
+      // This block handles the initial setup of the Kubernetes cluster (control plane or worker).
+      // It prevents re-initialization if a cluster is already detected.
+      if (!options.worker && !alreadyCluster) {
+        // If it's a kubeadm setup and no Calico controller is found (indicating no kubeadm cluster)
         if (options.kubeadm === true) {
+          logger.info('Initializing Kubeadm control plane...');
+          // Initialize kubeadm control plane
           shellExec(
             `sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --control-plane-endpoint="${os.hostname()}:6443"`,
           );
+          // Configure kubectl for the current user
           UnderpostCluster.API.chown();
-          // https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart
+          // Install Calico CNI
+          logger.info('Installing Calico CNI...');
           shellExec(
             `sudo kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.3/manifests/tigera-operator.yaml`,
           );
-          // shellExec(
-          //   `wget https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml`,
-          // );
           shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/kubeadm-calico-config.yaml`);
+          // Untaint control plane node to allow scheduling pods
           const nodeName = os.hostname();
           shellExec(`kubectl taint nodes ${nodeName} node-role.kubernetes.io/control-plane:NoSchedule-`);
+          // Install local-path-provisioner for dynamic PVCs (optional but recommended)
+          logger.info('Installing local-path-provisioner...');
           shellExec(
             `kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml`,
           );
         } else {
+          // Kind cluster initialization (if not using kubeadm)
+          logger.info('Initializing Kind cluster...');
           if (options.full === true || options.dedicatedGpu === true) {
-            // https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
             shellExec(`cd ${underpostRoot}/manifests && kind create cluster --config kind-config-cuda.yaml`);
             UnderpostCluster.API.chown();
           } else {
@@ -133,9 +141,18 @@ class UnderpostCluster {
             );
           }
         }
-      } else logger.warn('Cluster already initialized');
+      } else if (options.worker === true) {
+        // Worker node specific configuration (kubeadm join command needs to be executed separately)
+        logger.info('Worker node configuration applied. Awaiting kubeadm join command...');
+        // No direct cluster initialization here for workers. The `kubeadm join` command
+        // needs to be run on the worker after the control plane is up and a token is created.
+        // This part of the script is for general worker setup, not the join itself.
+      } else {
+        logger.warn('Cluster already initialized or worker flag not set for worker node.');
+      }
 
-      // shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/kubelet-config.yaml`);
+      // --- Optional Component Deployments (Databases, Ingress, Cert-Manager) ---
+      // These deployments happen after the base cluster is up.
 
       if (options.full === true || options.dedicatedGpu === true) {
         shellExec(`node ${underpostRoot}/bin/deploy nvidia-gpu-operator`);
@@ -218,8 +235,6 @@ class UnderpostCluster {
         --eval 'rs.initiate(${JSON.stringify(mongoConfig)})'`,
           );
         }
-
-        // await UnderpostTest.API.statusMonitor('mongodb-1');
       } else if (options.full === true || options.mongodb === true) {
         if (options.pullImage === true) {
           shellExec(`docker pull mongo:latest`);
@@ -280,193 +295,144 @@ class UnderpostCluster {
       }
     },
 
+    /**
+     * @method config
+     * @description Configures host-level settings required for Kubernetes.
+     * IMPORTANT: This method has been updated to REMOVE all iptables flushing commands
+     * to prevent conflicts with Kubernetes' own network management.
+     */
     config() {
+      console.log('Applying host configuration: SELinux, Docker, Containerd, and Sysctl settings.');
+      // Disable SELinux (permissive mode)
       shellExec(`sudo setenforce 0`);
       shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
+
+      // Enable and start Docker and Kubelet services
       shellExec(`sudo systemctl enable --now docker`);
       shellExec(`sudo systemctl enable --now kubelet`);
-      shellExec(`containerd config default > /etc/containerd/config.toml`);
-      shellExec(`sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
-      shellExec(`sudo service docker restart`);
+
+      // Configure containerd for SystemdCgroup
+      // This is crucial for kubelet to interact correctly with containerd
+      shellExec(`containerd config default | sudo tee /etc/containerd/config.toml > /dev/null`);
+      shellExec(`sudo sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
+      shellExec(`sudo service docker restart`); // Restart docker after containerd config changes
       shellExec(`sudo systemctl enable --now containerd.service`);
+      shellExec(`sudo systemctl restart containerd`); // Restart containerd to apply changes
+
+      // Disable swap (required by Kubernetes)
       shellExec(`sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab`);
+
+      // Reload systemd daemon to pick up new unit files/changes
       shellExec(`sudo systemctl daemon-reload`);
-      shellExec(`sudo systemctl restart containerd`);
-      shellExec(`sysctl net.bridge.bridge-nf-call-iptables=1`);
-      // Clean ip tables
-      shellExec(`sudo iptables -F`);
-      shellExec(`sudo iptables -X`);
-      shellExec(`sudo iptables -t nat -F`);
-      shellExec(`sudo iptables -t nat -X`);
-      shellExec(`sudo iptables -t raw -F`);
-      shellExec(`sudo iptables -t raw -X`);
-      shellExec(`sudo iptables -t mangle -F`);
-      shellExec(`sudo iptables -t mangle -X`);
-      shellExec(`sudo iptables -P INPUT ACCEPT`);
-      shellExec(`sudo iptables -P FORWARD ACCEPT`);
-      shellExec(`sudo iptables -P OUTPUT ACCEPT`);
+
+      // Enable bridge-nf-call-iptables for Kubernetes networking
+      // This ensures traffic through Linux bridges is processed by iptables (crucial for CNI)
+      shellExec(`sudo sysctl net.bridge.bridge-nf-call-iptables=1`);
+      // Also ensure these are set for persistence across reboots
+      shellExec(`echo "net.bridge.bridge-nf-call-iptables=1" | sudo tee /etc/sysctl.d/k8s.conf`);
+      shellExec(`echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.d/k8s.conf`); // Enable IP forwarding
+      shellExec(`sudo sysctl --system`); // Apply sysctl changes immediately
+
+      // Removed iptables flushing commands.
+      // Kubernetes (kube-proxy and CNI) manages its own iptables rules.
+      // Flushing them here would break cluster networking.
     },
+
+    /**
+     * @method chown
+     * @description Sets up kubectl configuration for the current user.
+     * This is typically run after kubeadm init on the control plane.
+     */
     chown() {
+      console.log('Setting up kubectl configuration...');
       shellExec(`mkdir -p ~/.kube`);
       shellExec(`sudo -E cp -i /etc/kubernetes/admin.conf ~/.kube/config`);
       shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
+      console.log('kubectl config set up successfully.');
     },
-    // This function performs a comprehensive reset of Kubernetes and container environments
-    // on the host machine. Its primary goal is to clean up cluster components, temporary files,
-    // and container data, ensuring a clean state for re-initialization or fresh deployments,
-    // while also preventing the loss of the host machine's internet connectivity.
 
+    /**
+     * @method reset
+     * @description Performs a comprehensive reset of Kubernetes and container environments.
+     * This function is for cleaning up a node, not for initial setup.
+     * It avoids aggressive iptables flushing that would break host connectivity.
+     */
     reset() {
-      // Step 1: Delete all existing Kind (Kubernetes in Docker) clusters.
-      // 'kind get clusters' lists all Kind clusters.
-      // 'xargs -t -n1 kind delete cluster --name' then iterates through each cluster name
-      // and executes 'kind delete cluster --name <cluster_name>' to remove them.
-      shellExec(`kind get clusters | xargs -t -n1 kind delete cluster --name`);
+      console.log('Starting comprehensive reset of Kubernetes and container environments...');
 
-      // Step 2: Reset the Kubernetes control-plane components installed by kubeadm.
-      // 'kubeadm reset -f' performs a forceful reset, removing installed Kubernetes components,
-      // configuration files, and associated network rules (like iptables entries created by kubeadm).
-      // The '-f' flag bypasses confirmation prompts.
+      // Delete all existing Kind (Kubernetes in Docker) clusters.
+      shellExec(`kind get clusters | xargs -r -t -n1 kind delete cluster --name`); // -r for no-op if no clusters
+
+      // Reset the Kubernetes control-plane components installed by kubeadm.
       shellExec(`sudo kubeadm reset -f`);
 
-      // Step 3: Remove specific CNI (Container Network Interface) configuration files.
-      // This command targets and removes the configuration file for Flannel,
-      // a common CNI plugin, which might be left behind after a reset.
+      // Remove specific CNI configuration files (e.g., Flannel)
       shellExec('sudo rm -f /etc/cni/net.d/10-flannel.conflist');
 
-      // Note: The aggressive 'sudo iptables -F ...' command was intentionally removed from previous versions.
-      // This command would flush all iptables rules, including those crucial for the host's general
-      // internet connectivity, leading to network loss. 'kubeadm reset' and container runtime pruning
-      // adequately handle Kubernetes and container-specific iptables rules without affecting the host's
-      // default network configuration.
-
-      // Step 4: Remove the kubectl configuration file from the current user's home directory.
-      // This ensures that after a reset, there's no lingering configuration pointing to the old cluster,
-      // providing a clean slate for connecting to a new or re-initialized cluster.
+      // Remove the kubectl configuration file
       shellExec('sudo rm -f $HOME/.kube/config');
 
-      // Step 5: Clear trash files from the root user's trash directory.
-      // This is a general cleanup step to remove temporary or deleted files.
+      // Clear trash files from the root user's trash directory.
       shellExec('sudo rm -rf /root/.local/share/Trash/files/*');
 
-      // Step 6: Prune all unused Docker data.
-      // 'docker system prune -a -f' removes:
-      // - All stopped containers
-      // - All unused networks
-      // - All dangling images
-      // - All build cache
-      // - All unused volumes
-      // This aggressively frees up disk space and removes temporary Docker artifacts.
+      // Prune all unused Docker data.
       shellExec('sudo docker system prune -a -f');
 
-      // Step 7: Stop the Docker daemon service.
-      // This step is often necessary to ensure that Docker's files and directories
-      // can be safely manipulated or moved in subsequent steps without conflicts.
+      // Stop the Docker daemon service.
       shellExec('sudo service docker stop');
 
-      // Step 8: Aggressively remove container storage data for containerd and Docker.
-      // These commands target the default storage locations for containerd and Docker,
-      // as well as any custom paths that might have been used (`/home/containers/storage`, `/home/docker`).
-      // This ensures a complete wipe of all container images, layers, and volumes.
+      // Aggressively remove container storage data for containerd and Docker.
       shellExec(`sudo rm -rf /var/lib/containers/storage/*`);
       shellExec(`sudo rm -rf /var/lib/docker/volumes/*`);
-      shellExec(`sudo rm -rf /var/lib/docker~/*`); // Cleans up a potential backup directory for Docker data
-      shellExec(`sudo rm -rf /home/containers/storage/*`); // Cleans up custom containerd/Podman storage
-      shellExec(`sudo rm -rf /home/docker/*`); // Cleans up custom Docker storage
+      shellExec(`sudo rm -rf /var/lib/docker~/*`);
+      shellExec(`sudo rm -rf /home/containers/storage/*`);
+      shellExec(`sudo rm -rf /home/docker/*`);
 
-      // Step 9: Re-configure Docker's default storage location (if desired).
-      // These commands effectively move Docker's data directory from its default `/var/lib/docker`
-      // to a new location (`/home/docker`) and create a symbolic link.
-      // This is a specific customization to relocate Docker's storage.
-      shellExec('sudo mv /var/lib/docker /var/lib/docker~'); // Moves existing /var/lib/docker to /var/lib/docker~ (backup)
-      shellExec('sudo mkdir /home/docker'); // Creates the new desired directory for Docker data
-      shellExec('sudo chmod 0711 /home/docker'); // Sets appropriate permissions for the new directory
-      shellExec('sudo ln -s /home/docker /var/lib/docker'); // Creates a symlink from original path to new path
+      // Re-configure Docker's default storage location (if desired).
+      shellExec('sudo mv /var/lib/docker /var/lib/docker~ || true'); // Use || true to prevent error if dir doesn't exist
+      shellExec('sudo mkdir -p /home/docker');
+      shellExec('sudo chmod 0711 /home/docker');
+      shellExec('sudo ln -s /home/docker /var/lib/docker');
 
-      // Step 10: Prune all unused Podman data.
-      // Similar to Docker pruning, these commands remove:
-      // - All stopped containers
-      // - All unused networks
-      // - All unused images
-      // - All unused volumes ('--volumes')
-      // - The '--force' flag bypasses confirmation.
-      // '--external' prunes external content not managed by Podman's default storage backend.
+      // Prune all unused Podman data.
       shellExec(`sudo podman system prune -a -f`);
       shellExec(`sudo podman system prune --all --volumes --force`);
       shellExec(`sudo podman system prune --external --force`);
-      shellExec(`sudo podman system prune --all --volumes --force`); // Redundant but harmless repetition
 
-      // Step 11: Create and set permissions for Podman's custom storage directory.
-      // This ensures the custom path `/home/containers/storage` exists and has correct permissions
-      // before Podman attempts to use it.
+      // Create and set permissions for Podman's custom storage directory.
       shellExec(`sudo mkdir -p /home/containers/storage`);
       shellExec('sudo chmod 0711 /home/containers/storage');
 
-      // Step 12: Update Podman's storage configuration file.
-      // This command uses 'sed' to modify `/etc/containers/storage.conf`,
-      // changing the default storage path from `/var/lib/containers/storage`
-      // to the customized `/home/containers/storage`.
+      // Update Podman's storage configuration file.
       shellExec(
         `sudo sed -i -e "s@/var/lib/containers/storage@/home/containers/storage@g" /etc/containers/storage.conf`,
       );
 
-      // Step 13: Reset Podman system settings.
-      // This command resets Podman's system-wide configuration to its default state.
+      // Reset Podman system settings.
       shellExec(`sudo podman system reset -f`);
 
-      // Note: The 'sysctl net.bridge.bridge-nf-call-iptables=0' and related commands
-      // were previously removed. These sysctl settings (bridge-nf-call-iptables,
-      // bridge-nf-call-arptables, bridge-nf-call-ip6tables) are crucial for allowing
-      // network traffic through Linux bridges to be processed by iptables.
-      // Kubernetes and CNI plugins generally require them to be enabled (set to '1').
-      // Re-initializing Kubernetes will typically set these as needed, and leaving them
-      // at their system default (or '1' if already configured) is safer for host
-      // connectivity during a reset operation.
-
-      // https://github.com/kubernetes-sigs/kind/issues/2886
-      // shellExec(`sysctl net.bridge.bridge-nf-call-iptables=0`);
-      // shellExec(`sysctl net.bridge.bridge-nf-call-arptables=0`);
-      // shellExec(`sysctl net.bridge.bridge-nf-call-ip6tables=0`);
-
-      // Step 14: Remove the 'kind' Docker network.
-      // This cleans up any network bridges or configurations specifically created by Kind.
-      // shellExec(`docker network rm kind`);
-
-      // Reset kubelet
+      // Reset kubelet components
       shellExec(`sudo systemctl stop kubelet`);
       shellExec(`sudo rm -rf /etc/kubernetes/*`);
       shellExec(`sudo rm -rf /var/lib/kubelet/*`);
       shellExec(`sudo rm -rf /etc/cni/net.d/*`);
       shellExec(`sudo systemctl daemon-reload`);
       shellExec(`sudo systemctl start kubelet`);
+
+      console.log('Comprehensive reset completed.');
     },
 
     getResourcesCapacity(kubeadm = false) {
       const resources = {};
-      const info = false
-        ? `Capacity:
-  cpu:                8
-  ephemeral-storage:  153131976Ki
-  hugepages-1Gi:      0
-  hugepages-2Mi:      0
-  memory:             11914720Ki
-  pods:               110
-Allocatable:
-  cpu:                8
-  ephemeral-storage:  153131976Ki
-  hugepages-1Gi:      0
-  hugepages-2Mi:      0
-  memory:             11914720Ki
-  pods: `
-        : shellExec(
-            `kubectl describe node ${
-              kubeadm === true ? os.hostname() : 'kind-worker'
-            } | grep -E '(Allocatable:|Capacity:)' -A 6`,
-            {
-              stdout: true,
-              silent: true,
-            },
-          );
+      const info = shellExec(
+        `kubectl describe node ${
+          kubeadm === true ? os.hostname() : 'kind-worker'
+        } | grep -E '(Allocatable:|Capacity:)' -A 6`,
+        {
+          stdout: true,
+          silent: true,
+        },
+      );
       info
         .split('Allocatable:')[1]
         .split('\n')
@@ -487,17 +453,20 @@ Allocatable:
       return resources;
     },
     initHost() {
+      console.log('Installing Docker, Podman, Kind, Kubeadm, and Helm...');
       // Install docker
-      shellExec(`sudo dnf -y install dnf-plugins-core
-sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo`);
+      shellExec(`sudo dnf -y install dnf-plugins-core`);
+      shellExec(`sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo`);
       shellExec(`sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`);
+
       // Install podman
       shellExec(`sudo dnf -y install podman`);
+
       // Install kind
       shellExec(`[ $(uname -m) = aarch64 ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-arm64
 chmod +x ./kind
 sudo mv ./kind /bin/kind`);
-      // Install kubeadm
+      // Install kubeadm, kubelet, kubectl
       shellExec(`cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
@@ -508,12 +477,14 @@ gpgkey=https://pkgs.k8s.io/core:/stable:/v1.33/rpm/repodata/repomd.xml.key
 exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
 EOF`);
       shellExec(`sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes`);
+
       // Install helm
-      shellExec(`curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-chmod 700 get_helm.sh
-./get_helm.sh
-chmod +x /usr/local/bin/helm
-sudo mv /usr/local/bin/helm /bin/helm`);
+      shellExec(`curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3`);
+      shellExec(`chmod 700 get_helm.sh`);
+      shellExec(`./get_helm.sh`);
+      shellExec(`chmod +x /usr/local/bin/helm`);
+      shellExec(`sudo mv /usr/local/bin/helm /bin/helm`);
+      console.log('Host prerequisites installed successfully.');
     },
   };
 }

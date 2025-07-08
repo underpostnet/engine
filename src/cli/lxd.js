@@ -30,6 +30,7 @@ class UnderpostLxd {
      * @param {string} [options.expose=''] - Expose ports from a VM to the host (format: 'vmName:port1,port2').
      * @param {string} [options.deleteExpose=''] - Delete exposed ports from a VM (format: 'vmName:port1,port2').
      * @param {string} [options.test=''] - Test health, status and network connectivity for a VM.
+     * @param {string} [options.autoExposeK8sPorts=''] - Automatically expose common Kubernetes ports for the VM.
      */
     async callback(
       options = {
@@ -49,6 +50,7 @@ class UnderpostLxd {
         expose: '',
         deleteExpose: '',
         test: '',
+        autoExposeK8sPorts: '',
       },
     ) {
       const npmRoot = getNpmRootPath();
@@ -64,7 +66,6 @@ class UnderpostLxd {
         const lxdPressedContent = fs
           .readFileSync(`${underpostRoot}/manifests/lxd/lxd-preseed.yaml`, 'utf8')
           .replaceAll(`127.0.0.1`, getLocalIPv4Address());
-        // shellExec(`lxd init --preseed < ${underpostRoot}/manifests/lxd/lxd-preseed.yaml`);
         shellExec(`echo "${lxdPressedContent}" | lxd init --preseed`);
         shellExec(`lxc cluster list`);
       }
@@ -99,7 +100,86 @@ ipv6.address=none`);
         } else if (options.worker == true) {
           flag = ' -s -- --worker';
         }
-        pbcopy(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash${flag}`);
+        console.log(`Executing underpost-setup.sh on VM: ${options.initVm}`);
+        shellExec(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash${flag}`);
+        console.log(`underpost-setup.sh execution completed on VM: ${options.initVm}`);
+      }
+      // --- Automatic Kubernetes Port Exposure ---
+      if (options.autoExposeK8sPorts && typeof options.autoExposeK8sPorts === 'string') {
+        console.log(`Automatically exposing Kubernetes ports for VM: ${options.autoExposeK8sPorts}`);
+        const vmName = options.autoExposeK8sPorts;
+        const hostIp = getLocalIPv4Address();
+        let vmIp = '';
+        let retries = 0;
+        const maxRetries = 10;
+        const delayMs = 5000; // 5 seconds
+
+        // Wait for VM to get an IP address
+        while (!vmIp && retries < maxRetries) {
+          try {
+            console.log(`Attempting to get IPv4 address for ${vmName} (Attempt ${retries + 1}/${maxRetries})...`);
+            vmIp = shellExec(
+              `lxc list ${vmName} --format json | jq -r '.[0].state.network.enp5s0.addresses[] | select(.family=="inet") | .address'`,
+              { stdout: true },
+            ).trim();
+            if (vmIp) {
+              console.log(`IPv4 address found for ${vmName}: ${vmIp}`);
+            } else {
+              console.log(`IPv4 address not yet available for ${vmName}. Retrying in ${delayMs / 1000} seconds...`);
+              await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
+          } catch (error) {
+            console.error(`Error getting IPv4 address for exposure: ${error.message}`);
+            console.log(`Retrying in ${delayMs / 1000} seconds...`);
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+          retries++;
+        }
+
+        if (!vmIp) {
+          console.error(`Failed to get VM IP for ${vmName} after ${maxRetries} attempts. Cannot expose ports.`);
+          return;
+        }
+
+        let portsToExpose = [];
+        if (options.control === true) {
+          // Kubernetes API Server
+          portsToExpose.push('6443');
+          // Standard HTTP/HTTPS for Ingress if deployed
+          portsToExpose.push('80');
+          portsToExpose.push('443');
+        }
+        // NodePort range for all nodes (control plane can also run pods with NodePorts)
+        // It's safer to expose the entire range for flexibility, or specific NodePorts if known.
+        // For production, you might only expose specific NodePorts or use a LoadBalancer.
+        // For a general setup, exposing the range is common.
+        // Note: LXD proxy device can only expose individual ports, not ranges directly.
+        // We will expose a few common ones, or rely on specific 'expose' calls for others.
+        // Let's add some common NodePorts that might be used by applications.
+        // The full range 30000-32767 would require individual proxy rules for each port.
+        // For this automatic setup, we'll focus on critical K8s ports and common app ports.
+        // If a user needs the full NodePort range, they should use the `expose` option explicitly.
+        portsToExpose.push('30000'); // Example NodePort
+        portsToExpose.push('30001'); // Example NodePort
+        portsToExpose.push('30002'); // Example NodePort
+
+        const protocols = ['tcp']; // Most K8s services are TCP, UDP for some like DNS
+
+        for (const port of portsToExpose) {
+          for (const protocol of protocols) {
+            const deviceName = `${vmName}-${protocol}-port-${port}`;
+            try {
+              // Remove existing device first to avoid conflicts if re-running
+              shellExec(`lxc config device remove ${vmName} ${deviceName} || true`);
+              shellExec(
+                `lxc config device add ${vmName} ${deviceName} proxy listen=${protocol}:${hostIp}:${port} connect=${protocol}:${vmIp}:${port} nat=true`,
+              );
+              console.log(`Exposed ${protocol}:${hostIp}:${port} -> ${vmIp}:${port} for ${vmName}`);
+            } catch (error) {
+              console.error(`Failed to expose port ${port} for ${vmName}: ${error.message}`);
+            }
+          }
+        }
       }
       if (options.joinNode && typeof options.joinNode === 'string') {
         const [workerNode, controlNode] = options.joinNode.split(',');
@@ -116,20 +196,26 @@ ipv6.address=none`);
         shellExec(`lxc list ${options.infoVm}`);
       }
       if (options.expose && typeof options.expose === 'string') {
-        const [controlNode, ports] = options.expose.split(':');
-        console.log({ controlNode, ports });
+        const [vmName, ports] = options.expose.split(':');
+        console.log({ vmName, ports });
         const protocols = ['tcp']; // udp
         const hostIp = getLocalIPv4Address();
         const vmIp = shellExec(
-          `lxc list ${controlNode} --format json | jq -r '.[0].state.network.enp5s0.addresses[] | select(.family=="inet") | .address'`,
+          `lxc list ${vmName} --format json | jq -r '.[0].state.network.enp5s0.addresses[] | select(.family=="inet") | .address'`,
           { stdout: true },
         ).trim();
+        if (!vmIp) {
+          console.error(`Could not get VM IP for ${vmName}. Cannot expose ports.`);
+          return;
+        }
         for (const port of ports.split(',')) {
           for (const protocol of protocols) {
-            shellExec(`lxc config device remove ${controlNode} ${controlNode}-${protocol}-port-${port}`);
+            const deviceName = `${vmName}-${protocol}-port-${port}`;
+            shellExec(`lxc config device remove ${vmName} ${deviceName} || true`); // Use || true to prevent error if device doesn't exist
             shellExec(
-              `lxc config device add ${controlNode} ${controlNode}-${protocol}-port-${port} proxy listen=${protocol}:${hostIp}:${port} connect=${protocol}:${vmIp}:${port} nat=true`,
+              `lxc config device add ${vmName} ${deviceName} proxy listen=${protocol}:${hostIp}:${port} connect=${protocol}:${vmIp}:${port} nat=true`,
             );
+            console.log(`Manually exposed ${protocol}:${hostIp}:${port} -> ${vmIp}:${port} for ${vmName}`);
           }
         }
       }
@@ -181,25 +267,25 @@ ipv6.address=none`);
           return;
         }
 
-        // 2. Iteratively check connection to google.cl
+        // 2. Iteratively check connection to google.com
         let connectedToGoogle = false;
         retries = 0;
         while (!connectedToGoogle && retries < maxRetries) {
           try {
-            console.log(`Checking connectivity to google.cl from ${vmName} (Attempt ${retries + 1}/${maxRetries})...`);
+            console.log(`Checking connectivity to google.com from ${vmName} (Attempt ${retries + 1}/${maxRetries})...`);
             const curlOutput = shellExec(
-              `lxc exec ${vmName} -- curl -s -o /dev/null -w "%{http_code}" http://google.cl`,
+              `lxc exec ${vmName} -- bash -c 'curl -s -o /dev/null -w "%{http_code}" http://google.com'`,
               { stdout: true },
             );
             if (curlOutput.startsWith('2') || curlOutput.startsWith('3')) {
-              console.log(`Successfully connected to google.cl from ${vmName}.`);
+              console.log(`Successfully connected to google.com from ${vmName}.`);
               connectedToGoogle = true;
             } else {
-              console.log(`Connectivity to google.cl not yet verified. Retrying in ${delayMs / 1000} seconds...`);
+              console.log(`Connectivity to google.com not yet verified. Retrying in ${delayMs / 1000} seconds...`);
               await new Promise((resolve) => setTimeout(resolve, delayMs));
             }
           } catch (error) {
-            console.error(`Error checking connectivity to google.cl: ${error.message}`);
+            console.error(`Error checking connectivity to google.com: ${error.message}`);
             console.log(`Retrying in ${delayMs / 1000} seconds...`);
             await new Promise((resolve) => setTimeout(resolve, delayMs));
           }
@@ -208,7 +294,7 @@ ipv6.address=none`);
 
         if (!connectedToGoogle) {
           console.error(
-            `Failed to connect to google.cl from ${vmName} after ${maxRetries} attempts. Aborting further tests.`,
+            `Failed to connect to google.com from ${vmName} after ${maxRetries} attempts. Aborting further tests.`,
           );
           return;
         }

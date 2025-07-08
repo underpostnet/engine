@@ -294,6 +294,7 @@ program
     '--delete-expose <vm-name-ports>',
     'Vm name and : separated with Comma separated vm port to remove expose e. g. k8s-control:80,443',
   )
+  .option('--auto-expose-k8s-ports <vm-id>', 'Automatically expose common Kubernetes ports for the VM.')
   .description('Lxd management')
   .action(UnderpostLxd.API.callback);
 
