@@ -273,6 +273,25 @@ kubectl patch ippool default-ipv4-ippool --type='json' -p='[{"op": "replace", "p
 kubectl patch ippool default-ipv4-ippool --type='json' -p='[{"op": "replace", "path": "/spec/cidr", "value": "192.168.0.0/24"}]'
 sudo podman run --rm localhost/<image-name>:<image-version> <command>
 kubectl get configmap kubelet-config -n kube-system -o yaml > kubelet-config.yaml
+kubectl -n kube-system rollout restart daemonset kube-proxy
+
+kubectl get EndpointSlice -o wide --all-namespaces -w
+
+kubectl run --rm -it test-dns --image=busybox:latest --restart=Never -- /bin/sh -c "
+  nslookup kubernetes.default.svc.cluster.local;
+  nslookup mongodb-service.default.svc.cluster.local;
+  nslookup service-valkey.default.svc.cluster.local;
+  nc -vz mongodb-service 27017;
+  nc -vz service-valkey 6379;
+  echo exit code: \\\$?
+"
+
+kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ...
+EOF
 `);
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
