@@ -283,6 +283,7 @@ program
   .option('--create-vm <vm-id>', 'Create default virtual machines')
   .option('--init-vm <vm-id>', 'Get init vm underpost script')
   .option('--info-vm <vm-id>', 'Get all info vm')
+  .option('--test <vm-id>', 'Test health, status and network connectivity for a VM')
   .option('--root-size <gb-size>', 'Set root size vm')
   .option('--join-node <nodes>', 'Comma separated worker and control node e. g. k8s-worker-1,k8s-control')
   .option(

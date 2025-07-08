@@ -3,8 +3,34 @@ import { getLocalIPv4Address } from '../server/dns.js';
 import { pbcopy, shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 
+/**
+ * @class UnderpostLxd
+ * @description Provides a set of static methods to interact with LXD,
+ * encapsulating common LXD operations for VM management and network testing.
+ */
 class UnderpostLxd {
   static API = {
+    /**
+     * @method callback
+     * @description Main entry point for LXD operations based on provided options.
+     * @param {object} options - Configuration options for LXD operations.
+     * @param {boolean} [options.init=false] - Initialize LXD.
+     * @param {boolean} [options.reset=false] - Reset LXD installation.
+     * @param {boolean} [options.dev=false] - Run in development mode (adjusts paths).
+     * @param {boolean} [options.install=false] - Install LXD snap.
+     * @param {boolean} [options.createVirtualNetwork=false] - Create default LXD bridge network (lxdbr0).
+     * @param {boolean} [options.createAdminProfile=false] - Create admin-profile for VMs.
+     * @param {boolean} [options.control=false] - Flag for control plane VM initialization.
+     * @param {boolean} [options.worker=false] - Flag for worker node VM initialization.
+     * @param {string} [options.initVm=''] - Initialize a specific VM.
+     * @param {string} [options.createVm=''] - Create a new VM with the given name.
+     * @param {string} [options.infoVm=''] - Display information about a specific VM.
+     * @param {string} [options.rootSize=''] - Root disk size for new VMs (e.g., '32GiB').
+     * @param {string} [options.joinNode=''] - Join a worker node to a control plane (format: 'workerName,controlName').
+     * @param {string} [options.expose=''] - Expose ports from a VM to the host (format: 'vmName:port1,port2').
+     * @param {string} [options.deleteExpose=''] - Delete exposed ports from a VM (format: 'vmName:port1,port2').
+     * @param {string} [options.test=''] - Test health, status and network connectivity for a VM.
+     */
     async callback(
       options = {
         init: false,
@@ -12,6 +38,7 @@ class UnderpostLxd {
         dev: false,
         install: false,
         createVirtualNetwork: false,
+        createAdminProfile: false,
         control: false,
         worker: false,
         initVm: '',
@@ -21,6 +48,7 @@ class UnderpostLxd {
         joinNode: '',
         expose: '',
         deleteExpose: '',
+        test: '',
       },
     ) {
       const npmRoot = getNpmRootPath();
@@ -114,6 +142,135 @@ ipv6.address=none`);
             shellExec(`lxc config device remove ${controlNode} ${controlNode}-${protocol}-port-${port}`);
           }
         }
+      }
+
+      // New 'test' option implementation
+      if (options.test && typeof options.test === 'string') {
+        const vmName = options.test;
+        console.log(`Starting comprehensive test for VM: ${vmName}`);
+
+        // 1. Monitor for IPv4 address
+        let vmIp = '';
+        let retries = 0;
+        const maxRetries = 10;
+        const delayMs = 5000; // 5 seconds
+
+        while (!vmIp && retries < maxRetries) {
+          try {
+            console.log(`Attempting to get IPv4 address for ${vmName} (Attempt ${retries + 1}/${maxRetries})...`);
+            vmIp = shellExec(
+              `lxc list ${vmName} --format json | jq -r '.[0].state.network.enp5s0.addresses[] | select(.family=="inet") | .address'`,
+              { stdout: true },
+            ).trim();
+            if (vmIp) {
+              console.log(`IPv4 address found for ${vmName}: ${vmIp}`);
+            } else {
+              console.log(`IPv4 address not yet available for ${vmName}. Retrying in ${delayMs / 1000} seconds...`);
+              await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
+          } catch (error) {
+            console.error(`Error getting IPv4 address: ${error.message}`);
+            console.log(`Retrying in ${delayMs / 1000} seconds...`);
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+          retries++;
+        }
+
+        if (!vmIp) {
+          console.error(`Failed to get IPv4 address for ${vmName} after ${maxRetries} attempts. Aborting tests.`);
+          return;
+        }
+
+        // 2. Iteratively check connection to google.cl
+        let connectedToGoogle = false;
+        retries = 0;
+        while (!connectedToGoogle && retries < maxRetries) {
+          try {
+            console.log(`Checking connectivity to google.cl from ${vmName} (Attempt ${retries + 1}/${maxRetries})...`);
+            const curlOutput = shellExec(
+              `lxc exec ${vmName} -- curl -s -o /dev/null -w "%{http_code}" http://google.cl`,
+              { stdout: true },
+            );
+            if (curlOutput.startsWith('2') || curlOutput.startsWith('3')) {
+              console.log(`Successfully connected to google.cl from ${vmName}.`);
+              connectedToGoogle = true;
+            } else {
+              console.log(`Connectivity to google.cl not yet verified. Retrying in ${delayMs / 1000} seconds...`);
+              await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
+          } catch (error) {
+            console.error(`Error checking connectivity to google.cl: ${error.message}`);
+            console.log(`Retrying in ${delayMs / 1000} seconds...`);
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+          retries++;
+        }
+
+        if (!connectedToGoogle) {
+          console.error(
+            `Failed to connect to google.cl from ${vmName} after ${maxRetries} attempts. Aborting further tests.`,
+          );
+          return;
+        }
+
+        // 3. Check other connectivity, network, and VM health parameters
+        console.log(`\n--- Comprehensive Health Report for ${vmName} ---`);
+
+        // VM Status
+        console.log('\n--- VM Status ---');
+        try {
+          const vmStatus = shellExec(`lxc list ${vmName} --format json`, { stdout: true, silent: true });
+          console.log(JSON.stringify(JSON.parse(vmStatus), null, 2));
+        } catch (error) {
+          console.error(`Error getting VM status: ${error.message}`);
+        }
+
+        // CPU Usage
+        console.log('\n--- CPU Usage ---');
+        try {
+          const cpuUsage = shellExec(`lxc exec ${vmName} -- bash -c 'top -bn1 | grep "Cpu(s)"'`, { stdout: true });
+          console.log(cpuUsage.trim());
+        } catch (error) {
+          console.error(`Error getting CPU usage: ${error.message}`);
+        }
+
+        // Memory Usage
+        console.log('\n--- Memory Usage ---');
+        try {
+          const memoryUsage = shellExec(`lxc exec ${vmName} -- bash -c 'free -m'`, { stdout: true });
+          console.log(memoryUsage.trim());
+        } catch (error) {
+          console.error(`Error getting memory usage: ${error.message}`);
+        }
+
+        // Disk Usage
+        console.log('\n--- Disk Usage (Root Partition) ---');
+        try {
+          const diskUsage = shellExec(`lxc exec ${vmName} -- bash -c 'df -h /'`, { stdout: true });
+          console.log(diskUsage.trim());
+        } catch (error) {
+          console.error(`Error getting disk usage: ${error.message}`);
+        }
+
+        // Network Interface Status
+        console.log('\n--- Network Interface Status (ip a) ---');
+        try {
+          const ipA = shellExec(`lxc exec ${vmName} -- bash -c 'ip a'`, { stdout: true });
+          console.log(ipA.trim());
+        } catch (error) {
+          console.error(`Error getting network interface status: ${error.message}`);
+        }
+
+        // DNS Resolution (resolv.conf)
+        console.log('\n--- DNS Configuration (/etc/resolv.conf) ---');
+        try {
+          const resolvConf = shellExec(`lxc exec ${vmName} -- bash -c 'cat /etc/resolv.conf'`, { stdout: true });
+          console.log(resolvConf.trim());
+        } catch (error) {
+          console.error(`Error getting DNS configuration: ${error.message}`);
+        }
+
+        console.log(`\nComprehensive test for VM: ${vmName} completed.`);
       }
     },
   };
