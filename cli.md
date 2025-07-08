@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.791
+## underpost ci/cd cli v2.8.792
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -486,6 +486,8 @@ Options:
   --create-vm <vm-id>              Create default virtual machines
   --init-vm <vm-id>                Get init vm underpost script
   --info-vm <vm-id>                Get all info vm
+  --test <vm-id>                   Test health, status and network connectivity
+                                   for a VM
   --root-size <gb-size>            Set root size vm
   --join-node <nodes>              Comma separated worker and control node e.
                                    g. k8s-worker-1,k8s-control
