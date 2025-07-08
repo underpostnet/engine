@@ -293,6 +293,18 @@ class UnderpostCluster {
       shellExec(`sudo systemctl daemon-reload`);
       shellExec(`sudo systemctl restart containerd`);
       shellExec(`sysctl net.bridge.bridge-nf-call-iptables=1`);
+      // Clean ip tables
+      shellExec(`sudo iptables -F`);
+      shellExec(`sudo iptables -X`);
+      shellExec(`sudo iptables -t nat -F`);
+      shellExec(`sudo iptables -t nat -X`);
+      shellExec(`sudo iptables -t raw -F`);
+      shellExec(`sudo iptables -t raw -X`);
+      shellExec(`sudo iptables -t mangle -F`);
+      shellExec(`sudo iptables -t mangle -X`);
+      shellExec(`sudo iptables -P INPUT ACCEPT`);
+      shellExec(`sudo iptables -P FORWARD ACCEPT`);
+      shellExec(`sudo iptables -P OUTPUT ACCEPT`);
     },
     chown() {
       shellExec(`mkdir -p ~/.kube`);

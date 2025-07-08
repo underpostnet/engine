@@ -161,6 +161,7 @@ try {
           }
           break;
         case 'show-all':
+          // show dbs
           break;
         case 'show':
           break;

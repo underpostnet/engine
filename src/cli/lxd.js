@@ -92,7 +92,6 @@ ipv6.address=none`);
         console.log({ controlNode, ports });
         const protocols = ['tcp']; // udp
         const hostIp = getLocalIPv4Address();
-        // The vmIp will now be the static IP assigned in the admin-profile
         const vmIp = shellExec(
           `lxc list ${controlNode} --format json | jq -r '.[0].state.network.enp5s0.addresses[] | select(.family=="inet") | .address'`,
           { stdout: true },
@@ -112,7 +111,6 @@ ipv6.address=none`);
         const protocols = ['tcp']; // udp
         for (const port of ports.split(',')) {
           for (const protocol of protocols) {
-            // The device name is consistent: {controlNode}-port-{port}
             shellExec(`lxc config device remove ${controlNode} ${controlNode}-${protocol}-port-${port}`);
           }
         }
