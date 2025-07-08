@@ -74,29 +74,6 @@ npm install -g underpost
 echo "Loading br_netfilter kernel module..."
 sudo modprobe br_netfilter
 
-# --- Disable UFW (Crucial for Kubernetes) ---
-# UFW conflicts with Kubernetes' iptables management. Disable it completely.
-echo "Disabling UFW to prevent conflicts with Kubernetes..."
-if sudo systemctl is-active --quiet ufw; then
-    sudo systemctl stop ufw
-fi
-if sudo systemctl is-enabled --quiet ufw; then
-    sudo systemctl disable ufw
-fi
-# Attempt to remove ufw package. dnf will handle if it's not installed.
-echo "Attempting to remove ufw package..."
-sudo dnf remove -y ufw
-
-# --- Kubernetes Required Ports (Informational - not for UFW) ---
-# These ports are opened by Kubernetes itself or are expected to be open
-# by external firewalls. UFW is no longer managing them.
-echo "Note: Kubernetes requires the following ports to be open (managed by K8s or external firewall):"
-echo "  - Control Plane: 6443/TCP (Kubernetes API), 2379-2380/TCP (etcd)"
-echo "  - Worker Nodes: 10250/TCP (Kubelet API), 30000-32767/TCP/UDP (NodePorts)"
-echo "  - CNI specific ports (e.g., Calico: 179/TCP, 4789/UDP; Flannel: 8472/UDP)"
-echo "  - SSH: 22/TCP"
-echo "  - HTTP/HTTPS: 80/TCP, 443/TCP (for Ingress/Load Balancers)"
-
 # --- Initial Host Setup for Kubernetes Prerequisites ---
 # This calls the initHost method in cluster.js to install Docker, Podman, Kind, Kubeadm, Helm.
 echo "Running initial host setup for Kubernetes prerequisites..."
