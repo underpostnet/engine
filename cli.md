@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.792
+## underpost ci/cd cli v2.8.793
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -496,6 +496,8 @@ Options:
   --delete-expose <vm-name-ports>  Vm name and : separated with Comma separated
                                    vm port to remove expose e. g.
                                    k8s-control:80,443
+  --auto-expose-k8s-ports <vm-id>  Automatically expose common Kubernetes ports
+                                   for the VM.
   -h, --help                       display help for command
  
 ```
