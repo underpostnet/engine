@@ -14,27 +14,25 @@ spec:
       labels:
         app: service-valkey
     spec:
-      # Prevent automatic token mounting if you're not using the default ServiceAccount
       automountServiceAccountToken: false
-
       containers:
         - name: service-valkey
           image: docker.io/valkey/valkey:latest
           imagePullPolicy: IfNotPresent
-          env:
-            - name: TZ
-              value: Europe/Zurich
+          command: ["valkey-server"]
+          args: ["--port", "6379"]
           ports:
             - containerPort: 6379
           startupProbe:
             tcpSocket:
               port: 6379
-            failureThreshold: 30
             periodSeconds: 5
             timeoutSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             tcpSocket:
               port: 6379
-            failureThreshold: 2
+            initialDelaySeconds: 10
             periodSeconds: 30
             timeoutSeconds: 5
+            failureThreshold: 2
