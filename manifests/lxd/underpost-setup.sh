@@ -107,9 +107,8 @@ echo "USE_WORKER   = $USE_WORKER"
 
 # --- Kubernetes Cluster Initialization Logic ---
 
-# Call config first to apply SELinux, Docker, Containerd, and sysctl settings.
-# This config function in cluster.js will be modified to remove iptables flushing.
-echo "Applying Kubernetes host configuration (SELinux, Containerd, Sysctl)..."
+# Apply host configuration (SELinux, Containerd, Sysctl, and now firewalld disabling)
+echo "Applying Kubernetes host configuration (SELinux, Containerd, Sysctl, Firewalld)..."
 underpost cluster --config
 
 if $USE_KUBEADM; then
@@ -121,7 +120,8 @@ if $USE_KUBEADM; then
         # For a full automated setup, you'd typically pass the join token/command here.
         # Example: underpost cluster --worker --join-command "kubeadm join ..."
         # For now, this just runs the worker-specific config.
-        underpost cluster --worker --config
+        underpost cluster --worker
+        underpost cluster --chown
         echo "Worker node setup initiated. You will need to manually join this worker to your control plane."
         echo "On your control plane, run 'kubeadm token create --print-join-command' and execute the output here."
     else
@@ -133,7 +133,6 @@ if $USE_KUBEADM; then
 elif $USE_KIND; then
     echo "Running control node with kind..."
     underpost cluster
-    underpost cluster --chown
     echo "Kind cluster initialized. Check cluster status with 'kubectl get nodes'."
 else
     echo "No specific cluster role (--kubeadm, --kind, --worker) specified. Please provide one."

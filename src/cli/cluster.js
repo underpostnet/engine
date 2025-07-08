@@ -41,10 +41,10 @@ class UnderpostCluster {
       if (options.initHost === true) return UnderpostCluster.API.initHost();
 
       // Applies general host configuration (SELinux, containerd, sysctl)
-      if (options.config === true) UnderpostCluster.API.config();
+      if (options.config === true) return UnderpostCluster.API.config();
 
       // Sets up kubectl configuration for the current user
-      if (options.chown === true) UnderpostCluster.API.chown();
+      if (options.chown === true) return UnderpostCluster.API.chown();
 
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
@@ -132,7 +132,6 @@ class UnderpostCluster {
           logger.info('Initializing Kind cluster...');
           if (options.full === true || options.dedicatedGpu === true) {
             shellExec(`cd ${underpostRoot}/manifests && kind create cluster --config kind-config-cuda.yaml`);
-            UnderpostCluster.API.chown();
           } else {
             shellExec(
               `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${
@@ -140,6 +139,7 @@ class UnderpostCluster {
               }.yaml`,
             );
           }
+          UnderpostCluster.API.chown();
         }
       } else if (options.worker === true) {
         // Worker node specific configuration (kubeadm join command needs to be executed separately)
@@ -327,17 +327,20 @@ class UnderpostCluster {
 
       // Enable bridge-nf-call-iptables for Kubernetes networking
       // This ensures traffic through Linux bridges is processed by iptables (crucial for CNI)
-      shellExec(`sudo sysctl net.bridge.bridge-nf-call-iptables=1`);
-      // Also ensure these are set for persistence across reboots
-      shellExec(`echo "net.bridge.bridge-nf-call-iptables=1" | sudo tee /etc/sysctl.d/k8s.conf`);
-      shellExec(`echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.d/k8s.conf`); // Enable IP forwarding
-      shellExec(`sudo sysctl -w net.ipv4.ip_forward=1`);
-      shellExec(`echo "net.ipv4.ip_forward = 1" | sudo tee /etc/sysctl.d/99-k8s-ipforward.conf`);
+      for (const iptableConfPath of [
+        `/etc/sysctl.d/k8s.conf`,
+        `/etc/sysctl.d/99-k8s-ipforward.conf`,
+        `/etc/sysctl.d/99-k8s.conf`,
+      ])
+        shellExec(`echo 'net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-arptables = 1
+net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
       shellExec(`sudo sysctl --system`); // Apply sysctl changes immediately
 
-      // Removed iptables flushing commands.
-      // Kubernetes (kube-proxy and CNI) manages its own iptables rules.
-      // Flushing them here would break cluster networking.
+      // Disable firewalld (common cause of network issues in Kubernetes)
+      shellExec(`sudo systemctl stop firewalld || true`); // Stop if running
+      shellExec(`sudo systemctl disable firewalld || true`); // Disable from starting on boot
     },
 
     /**
@@ -393,7 +396,7 @@ class UnderpostCluster {
       // Re-configure Docker's default storage location (if desired).
       shellExec('sudo mv /var/lib/docker /var/lib/docker~ || true'); // Use || true to prevent error if dir doesn't exist
       shellExec('sudo mkdir -p /home/docker');
-      shellExec('sudo chmod 0711 /home/docker');
+      shellExec('sudo chmod 777 /home/docker');
       shellExec('sudo ln -s /home/docker /var/lib/docker');
 
       // Prune all unused Podman data.
