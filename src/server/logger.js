@@ -176,7 +176,7 @@ const loggerMiddleware = (meta = { url: '' }) => {
   );
 };
 
-const underpostASCI = () => `
+const underpostASCII = () => `
 
 ██╗░░░██╗███╗░░██╗██████╗░███████╗██████╗░██████╗░░█████╗░░██████╗████████╗
 ██║░░░██║████╗░██║██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔════╝╚══██╔══╝
@@ -188,10 +188,10 @@ const underpostASCI = () => `
 
 const actionInitLog = () =>
   console.log(
-    underpostASCI() +
+    underpostASCII() +
       `
     https://www.nexodev.org/docs
 `,
   );
 
-export { loggerFactory, loggerMiddleware, setUpInfo, underpostASCI, actionInitLog };
+export { loggerFactory, loggerMiddleware, setUpInfo, underpostASCII, actionInitLog };
