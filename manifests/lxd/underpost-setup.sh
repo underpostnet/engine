@@ -128,8 +128,6 @@ if $USE_KUBEADM; then
         echo "Running control plane setup with kubeadm..."
         # This will initialize the kubeadm control plane and install Calico
         underpost cluster --kubeadm
-        # Ensure kubectl config is set up for the current user
-        underpost cluster --chown
         echo "Kubeadm control plane initialized. Check cluster status with 'kubectl get nodes'."
     fi
 elif $USE_KIND; then
