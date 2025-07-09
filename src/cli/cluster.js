@@ -9,6 +9,37 @@ const logger = loggerFactory(import.meta);
 
 class UnderpostCluster {
   static API = {
+    /**
+     * @method init
+     * @description Initializes and configures the Kubernetes cluster based on provided options.
+     * This method handles host prerequisites, cluster initialization (Kind or Kubeadm),
+     * and optional component deployments.
+     * @param {string} [podName] - Optional name of a pod for specific operations (e.g., listing).
+     * @param {object} [options] - Configuration options for cluster initialization.
+     * @param {boolean} [options.mongodb=false] - Deploy MongoDB.
+     * @param {boolean} [options.mongodb4=false] - Deploy MongoDB 4.4.
+     * @param {boolean} [options.mariadb=false] - Deploy MariaDB.
+     * @param {boolean} [options.mysql=false] - Deploy MySQL.
+     * @param {boolean} [options.postgresql=false] - Deploy PostgreSQL.
+     * @param {boolean} [options.valkey=false] - Deploy Valkey.
+     * @param {boolean} [options.full=false] - Deploy a full set of common components.
+     * @param {boolean} [options.info=false] - Display extensive Kubernetes cluster information.
+     * @param {boolean} [options.certManager=false] - Deploy Cert-Manager for certificate management.
+     * @param {boolean} [options.listPods=false] - List Kubernetes pods.
+     * @param {boolean} [options.reset=false] - Perform a comprehensive reset of Kubernetes and container environments.
+     * @param {boolean} [options.dev=false] - Run in development mode (adjusts paths).
+     * @param {string} [options.nsUse=''] - Set the current kubectl namespace.
+     * @param {boolean} [options.infoCapacity=false] - Display resource capacity information for the cluster.
+     * @param {boolean} [options.infoCapacityPod=false] - Display resource capacity information for pods.
+     * @param {boolean} [options.istio=false] - Deploy Istio service mesh.
+     * @param {boolean} [options.pullImage=false] - Pull necessary Docker images before deployment.
+     * @param {boolean} [options.dedicatedGpu=false] - Configure for dedicated GPU usage (e.g., NVIDIA GPU Operator).
+     * @param {boolean} [options.kubeadm=false] - Initialize the cluster using Kubeadm.
+     * @param {boolean} [options.initHost=false] - Perform initial host setup (install Docker, Podman, Kind, Kubeadm, Helm).
+     * @param {boolean} [options.config=false] - Apply general host configuration (SELinux, containerd, sysctl, firewalld).
+     * @param {boolean} [options.worker=false] - Configure as a worker node (for Kubeadm join).
+     * @param {boolean} [options.chown=false] - Set up kubectl configuration for the current user.
+     */
     async init(
       podName,
       options = {
@@ -113,6 +144,12 @@ class UnderpostCluster {
           );
           // Configure kubectl for the current user
           UnderpostCluster.API.chown();
+
+          // Apply kubelet-config.yaml explicitly
+          // Using 'kubectl replace --force' to ensure the ConfigMap is updated,
+          // even if it was modified by kubeadm or other processes, resolving conflicts.
+          // shellExec(`kubectl replace --force -f ${underpostRoot}/manifests/kubelet-config.yaml`);
+
           // Install Calico CNI
           logger.info('Installing Calico CNI...');
           shellExec(
@@ -298,8 +335,9 @@ class UnderpostCluster {
     /**
      * @method config
      * @description Configures host-level settings required for Kubernetes.
-     * IMPORTANT: This method has been updated to REMOVE all iptables flushing commands
-     * to prevent conflicts with Kubernetes' own network management.
+     * This method ensures proper SELinux, Docker, Containerd, and Sysctl settings
+     * are applied for a healthy Kubernetes environment. It explicitly avoids
+     * iptables flushing commands to prevent conflicts with Kubernetes' own network management.
      */
     config() {
       console.log('Applying host configuration: SELinux, Docker, Containerd, and Sysctl settings.');
@@ -346,7 +384,8 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
     /**
      * @method chown
      * @description Sets up kubectl configuration for the current user.
-     * This is typically run after kubeadm init on the control plane.
+     * This is typically run after kubeadm init on the control plane
+     * to allow non-root users to interact with the cluster.
      */
     chown() {
       console.log('Setting up kubectl configuration...');
@@ -360,6 +399,8 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
      * @method reset
      * @description Performs a comprehensive reset of Kubernetes and container environments.
      * This function is for cleaning up a node, not for initial setup.
+     * It includes deleting Kind clusters, resetting kubeadm, removing CNI configs,
+     * cleaning Docker and Podman data, and resetting kubelet components.
      * It avoids aggressive iptables flushing that would break host connectivity.
      */
     reset() {
@@ -427,6 +468,14 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
       console.log('Comprehensive reset completed.');
     },
 
+    /**
+     * @method getResourcesCapacity
+     * @description Retrieves and returns the allocatable CPU and memory resources
+     * of the Kubernetes node.
+     * @param {boolean} [kubeadm=false] - If true, assumes a kubeadm-managed node;
+     * otherwise, assumes a Kind worker node.
+     * @returns {object} An object containing CPU and memory resources with values and units.
+     */
     getResourcesCapacity(kubeadm = false) {
       const resources = {};
       const info = shellExec(
@@ -457,6 +506,11 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
 
       return resources;
     },
+    /**
+     * @method initHost
+     * @description Installs essential host-level prerequisites for Kubernetes,
+     * including Docker, Podman, Kind, Kubeadm, and Helm.
+     */
     initHost() {
       console.log('Installing Docker, Podman, Kind, Kubeadm, and Helm...');
       // Install docker

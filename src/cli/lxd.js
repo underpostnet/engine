@@ -75,6 +75,10 @@ ipv4.address=10.250.250.1/24 \
 ipv4.nat=true \
 ipv4.dhcp=true \
 ipv6.address=none`);
+        // Explicitly set DNS nameservers for lxdbr0 to public DNS (e.g., Google DNS)
+        // This makes VM DNS resolution independent of the host's resolv.conf
+        shellExec(`lxc network set lxdbr0 dns.nameservers 8.8.8.8,8.8.4.4`);
+        shellExec(`lxc network set lxdbr0 dns.mode managed`); // Ensure LXD manages DNS for the bridge
       }
       if (options.createAdminProfile === true) {
         pbcopy(`lxc profile create admin-profile`);
