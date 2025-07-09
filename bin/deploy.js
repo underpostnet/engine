@@ -797,6 +797,13 @@ try {
           .replaceAll(`engine.version: '${version}'`, `engine.version: '${newVersion}'`),
         'utf8',
       );
+      fs.writeFileSync(
+        `./manifests/deployment/dd-template-development/deployment.yaml`,
+        fs
+          .readFileSync(`./manifests/deployment/dd-template-development/deployment.yaml`, 'utf8')
+          .replaceAll(`underpost:${version}`, `underpost:${newVersion}`),
+        'utf8',
+      );
 
       if (fs.existsSync(`./.github/workflows/docker-image.yml`))
         fs.writeFileSync(
