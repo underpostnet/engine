@@ -921,6 +921,16 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         };
         DefaultConf.server[host][path].apiBaseProxyPath = '/';
         DefaultConf.server[host][path].apiBaseHost = 'www.nexodev.org';
+      } else if (confName === 'template') {
+        const host = 'default.net';
+        const path = '/';
+        DefaultConf.server[host][path].valkey = {
+          port: 6379,
+          host: 'service-valkey.default.svc.cluster.local',
+        };
+        // mongodb-0.mongodb-service
+        DefaultConf.server[host][path].db.host = 'mongodb://mongodb-service:27017';
+        confName = '';
       } else if (confName) {
         DefaultConf.client = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.client.json`, 'utf8'));
         DefaultConf.server = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.server.json`, 'utf8'));

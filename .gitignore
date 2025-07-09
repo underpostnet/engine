@@ -16,5 +16,6 @@
 /src/client/public/doc/.gitignore/engine
 .cache
 .nyc_output
+*.tar
 _
 _.js

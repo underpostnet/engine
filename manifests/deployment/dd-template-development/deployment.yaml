@@ -1,0 +1,167 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dd-template-development-blue
+  labels:
+    app: dd-template-development-blue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dd-template-development-blue
+  template:
+    metadata:
+      labels:
+        app: dd-template-development-blue
+    spec:
+      containers:
+        - name: dd-template-development-blue
+          image: localhost/debian-underpost:v2.8.794
+          #          resources:
+          #            requests:
+          #              memory: "124Ki"
+          #              cpu: "100m"
+          #            limits:
+          #              memory: "1992Ki"
+          #              cpu: "1600m"
+          command:
+            - /bin/sh
+            - -c
+            - >
+              npm install -g npm@11.2.0 &&
+              npm install -g underpost &&
+              cd $(underpost root)/underpost &&
+              node bin/deploy update-default-conf template &&
+              mkdir -p /home/dd &&
+              cd /home/dd &&
+              underpost new engine
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dd-template-development-blue-service
+spec:
+  selector:
+    app: dd-template-development-blue
+  ports:
+    - name: "tcp-4001"
+      protocol: TCP
+      port: 4001
+      targetPort: 4001
+    - name: "udp-4001"
+      protocol: UDP
+      port: 4001
+      targetPort: 4001
+
+    - name: "tcp-4002"
+      protocol: TCP
+      port: 4002
+      targetPort: 4002
+    - name: "udp-4002"
+      protocol: UDP
+      port: 4002
+      targetPort: 4002
+
+    - name: "tcp-4003"
+      protocol: TCP
+      port: 4003
+      targetPort: 4003
+    - name: "udp-4003"
+      protocol: UDP
+      port: 4003
+      targetPort: 4003
+
+    - name: "tcp-4004"
+      protocol: TCP
+      port: 4004
+      targetPort: 4004
+    - name: "udp-4004"
+      protocol: UDP
+      port: 4004
+      targetPort: 4004
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dd-template-development-green
+  labels:
+    app: dd-template-development-green
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dd-template-development-green
+  template:
+    metadata:
+      labels:
+        app: dd-template-development-green
+    spec:
+      containers:
+        - name: dd-template-development-green
+          image: localhost/debian-underpost:v2.8.794
+          #          resources:
+          #            requests:
+          #              memory: "124Ki"
+          #              cpu: "100m"
+          #            limits:
+          #              memory: "1992Ki"
+          #              cpu: "1600m"
+          command:
+            - /bin/sh
+            - -c
+            - >
+              npm install -g npm@11.2.0 &&
+              npm install -g underpost &&
+              cd $(underpost root)/underpost &&
+              node bin/deploy update-default-conf template &&
+              mkdir -p /home/dd &&
+              cd /home/dd &&
+              underpost new engine
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dd-template-development-green-service
+spec:
+  selector:
+    app: dd-template-development-green
+  ports:
+    - name: "tcp-4001"
+      protocol: TCP
+      port: 4001
+      targetPort: 4001
+    - name: "udp-4001"
+      protocol: UDP
+      port: 4001
+      targetPort: 4001
+
+    - name: "tcp-4002"
+      protocol: TCP
+      port: 4002
+      targetPort: 4002
+    - name: "udp-4002"
+      protocol: UDP
+      port: 4002
+      targetPort: 4002
+
+    - name: "tcp-4003"
+      protocol: TCP
+      port: 4003
+      targetPort: 4003
+    - name: "udp-4003"
+      protocol: UDP
+      port: 4003
+      targetPort: 4003
+
+    - name: "tcp-4004"
+      protocol: TCP
+      port: 4004
+      targetPort: 4004
+    - name: "udp-4004"
+      protocol: UDP
+      port: 4004
+      targetPort: 4004
+  type: LoadBalancer

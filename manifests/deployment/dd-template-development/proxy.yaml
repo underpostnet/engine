@@ -1,0 +1,46 @@
+# "http://default.net:4001/socket.io": "http://localhost:4001/socket.io",
+# "http://default.net:4002/peer": "http://localhost:4002/peer",
+# "http://default.net:4001/": "http://localhost:4001/",
+# "http://www.default.net:4003/": "http://localhost:4003/"
+
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: default.net
+spec:
+  virtualhost:
+    fqdn: default.net
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-template-development-blue-service
+          port: 4001
+          weight: 100
+
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-template-development-blue-service
+          port: 4002
+          weight: 100
+
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.default.net
+spec:
+  virtualhost:
+    fqdn: www.default.net
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-template-development-blue-service
+          port: 4003
+          weight: 100
