@@ -23,9 +23,9 @@ class UnderpostImage {
         shellExec(`sudo podman pull docker.io/library/debian:buster`);
         const IMAGE_NAME = `debian-underpost`;
         const IMAGE_NAME_FULL = `${IMAGE_NAME}:${options.version ?? Underpost.version}`;
-        const LOAD_TYPE = options.kindLoad === true ? `--kin-load` : `--kubeadm-load`;
+        const LOAD_TYPE = options.kindLoad === true ? `--kind-load` : `--kubeadm-load`;
         shellExec(
-          `underpost dockerfile-image-build --podman-save --no-cache --image-path=. --path ${
+          `underpost dockerfile-image-build --podman-save --reset --image-path=. --path ${
             options.path ?? getUnderpostRootPath()
           } --image-name=${IMAGE_NAME_FULL} ${LOAD_TYPE}`,
         );
@@ -41,7 +41,7 @@ class UnderpostImage {
           kubeadmLoad: false,
           secrets: false,
           secretsPath: '',
-          noCache: false,
+          reset: false,
         },
       ) {
         const {
@@ -53,7 +53,7 @@ class UnderpostImage {
           secrets,
           secretsPath,
           kindLoad,
-          noCache,
+          reset,
           kubeadmLoad,
         } = options;
         const podManImg = `localhost/${imageName}`;
@@ -75,7 +75,7 @@ class UnderpostImage {
             secretDockerInput += ` --secret id=${key},env=${key} \ `;
           }
         }
-        if (noCache === true) cache += ' --rm --no-cache';
+        if (reset === true) cache += ' --rm --no-cache';
         if (path && typeof path === 'string')
           shellExec(
             `cd ${path}${secretsInput}&& sudo podman build -f ./${

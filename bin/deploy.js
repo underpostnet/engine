@@ -2240,7 +2240,7 @@ EOF`);
         const args = [
           `node bin dockerfile-image-build --path ${path}/backend/`,
           `--image-name=${imageName} --image-path=${path}`,
-          `--podman-save --${process.argv.includes('kubeadm') ? 'kubeadm' : 'kind'}-load --no-cache`,
+          `--podman-save --${process.argv.includes('kubeadm') ? 'kubeadm' : 'kind'}-load --reset`,
         ];
         shellExec(args.join(' '));
       }
@@ -2252,7 +2252,7 @@ EOF`);
         const args = [
           `node bin dockerfile-image-build --path ${path}/frontend/`,
           `--image-name=${imageName} --image-path=${path}`,
-          `--podman-save --${process.argv.includes('kubeadm') ? 'kubeadm' : 'kind'}-load --no-cache`,
+          `--podman-save --${process.argv.includes('kubeadm') ? 'kubeadm' : 'kind'}-load --reset`,
         ];
         shellExec(args.join(' '));
       }

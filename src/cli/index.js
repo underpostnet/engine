@@ -170,7 +170,7 @@ program
   .option('--kubeadm-load', 'Import tar image to Kubeadm cluster')
   .option('--secrets', 'Dockerfile env secrets')
   .option('--secrets-path [secrets-path]', 'Dockerfile custom path env secrets')
-  .option('--no-cache', 'Build without using cache')
+  .option('--reset', 'Build without using cache')
   .description('Build image from Dockerfile')
   .action(Underpost.image.dockerfile.build);
 
