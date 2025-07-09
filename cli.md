@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.794
+## underpost ci/cd cli v2.8.795
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -298,7 +298,7 @@ Options:
   --kubeadm-load                       Import tar image to Kubeadm cluster
   --secrets                            Dockerfile env secrets
   --secrets-path [secrets-path]        Dockerfile custom path env secrets
-  --no-cache                           Build without using cache
+  --reset                              Build without using cache
   -h, --help                           display help for command
  
 ```
