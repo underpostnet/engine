@@ -801,7 +801,7 @@ try {
         `./manifests/deployment/dd-template-development/deployment.yaml`,
         fs
           .readFileSync(`./manifests/deployment/dd-template-development/deployment.yaml`, 'utf8')
-          .replaceAll(`underpost:${version}`, `underpost:${newVersion}`),
+          .replaceAll(`underpost:v${version}`, `underpost:v${newVersion}`),
         'utf8',
       );
 
