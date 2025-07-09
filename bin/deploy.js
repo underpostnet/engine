@@ -933,7 +933,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         const path = '/';
         DefaultConf.server[host][path].valkey = {
           port: 6379,
-          host: 'service-valkey.default.svc.cluster.local',
+          host: 'valkey-service.default.svc.cluster.local',
         };
         // mongodb-0.mongodb-service
         DefaultConf.server[host][path].db.host = 'mongodb://mongodb-service:27017';

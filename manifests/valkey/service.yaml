@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: service-valkey
+  name: valkey-service
   namespace: default
 spec:
   selector:
-    app: service-valkey
+    app: valkey-service
   ports:
     - port: 6379
       targetPort: 6379

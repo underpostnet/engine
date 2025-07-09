@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: service-valkey
+  name: valkey-service
   namespace: default
 spec:
-  serviceName: service-valkey
+  serviceName: valkey-service
   replicas: 1
   selector:
     matchLabels:
-      app: service-valkey
+      app: valkey-service
   template:
     metadata:
       labels:
-        app: service-valkey
+        app: valkey-service
     spec:
       automountServiceAccountToken: false
       containers:
-        - name: service-valkey
+        - name: valkey-service
           image: docker.io/valkey/valkey:latest
           imagePullPolicy: IfNotPresent
           command: ["valkey-server"]

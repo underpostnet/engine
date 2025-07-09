@@ -172,7 +172,7 @@ class UnderpostCluster {
               } valkey/valkey:latest`,
             );
         }
-        shellExec(`kubectl delete statefulset service-valkey`);
+        shellExec(`kubectl delete statefulset valkey-service`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey`);
       }
       if (options.full === true || options.mariadb === true) {

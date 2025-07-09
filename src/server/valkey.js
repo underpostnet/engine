@@ -34,7 +34,7 @@ const selectDtoFactory = (payload, select) => {
 const valkeyClientFactory = async (options) => {
   const valkey = new Valkey({
     // port: 6379,
-    // host: 'service-valkey.default.svc.cluster.local',
+    // host: 'valkey-service.default.svc.cluster.local',
     port: options?.port ? options.port : undefined,
     host: options?.port ? options.host : undefined,
     retryStrategy: (attempt) => {
