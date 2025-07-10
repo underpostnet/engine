@@ -366,7 +366,7 @@ const buildRuntime = async () => {
           if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
 
           // valkey server
-          await createValkeyConnection({ host, path }, valkey);
+          if (valkey) await createValkeyConnection({ host, path }, valkey);
 
           if (mailer) {
             const mailerSsrConf = confSSR[getCapVariableName(client)];
