@@ -17,13 +17,13 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-blue
-          image: localhost/debian-underpost:v2.8.795
+          image: localhost/debian-underpost:v2.8.796
 #          resources:
 #            requests:
-#              memory: "124Ki"
+#              memory: "127539Ki"
 #              cpu: "100m"
 #            limits:
-#              memory: "1992Ki"
+#              memory: "2040627Ki"
 #              cpu: "1600m"
           command:
             - /bin/sh
@@ -140,13 +140,13 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-green
-          image: localhost/debian-underpost:v2.8.795
+          image: localhost/debian-underpost:v2.8.796
 #          resources:
 #            requests:
-#              memory: "124Ki"
+#              memory: "127539Ki"
 #              cpu: "100m"
 #            limits:
-#              memory: "1992Ki"
+#              memory: "2040627Ki"
 #              cpu: "1600m"
           command:
             - /bin/sh
