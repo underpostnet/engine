@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.797
+## underpost ci/cd cli v2.8.798
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -222,6 +222,7 @@ Options:
   --config             Set k8s base node config
   --worker             Set worker node context
   --chown              Set k8s kube chown
+  --k3s                Initialize the cluster using K3s
   -h, --help           display help for command
  
 ```
@@ -299,6 +300,7 @@ Options:
   --secrets                            Dockerfile env secrets
   --secrets-path [secrets-path]        Dockerfile custom path env secrets
   --reset                              Build without using cache
+  --k3s-load                           Load image into K3s cluster.
   -h, --help                           display help for command
  
 ```
@@ -315,6 +317,7 @@ Options:
   --kind-load     Import tar image to Kind cluster
   --kubeadm-load  Import tar image to Kubeadm cluster
   --version       Set custom version
+  --k3s-load      Load image into K3s cluster.
   -h, --help      display help for command
  
 ```
