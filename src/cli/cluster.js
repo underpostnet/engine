@@ -145,6 +145,11 @@ class UnderpostCluster {
           shellExec(`curl -sfL https://get.k3s.io | sh -`);
           console.log('K3s installation completed.');
 
+          // Move k3s binary to /bin/k3s and make it executable
+          shellExec(`sudo mv /usr/local/bin/k3s /bin/k3s`);
+          shellExec(`sudo chmod +x /bin/k3s`);
+          console.log('K3s binary moved to /bin/k3s and made executable.');
+
           // Configure kubectl for the current user for K3s *before* checking readiness
           // This ensures kubectl can find the K3s kubeconfig immediately after K3s installation.
           UnderpostCluster.API.chown('k3s');

@@ -172,6 +172,7 @@ program
   .option('--secrets', 'Dockerfile env secrets')
   .option('--secrets-path [secrets-path]', 'Dockerfile custom path env secrets')
   .option('--reset', 'Build without using cache')
+  .option('--k3s-load', 'Load image into K3s cluster.')
   .description('Build image from Dockerfile')
   .action(Underpost.image.dockerfile.build);
 
@@ -181,6 +182,7 @@ program
   .option('--kind-load', 'Import tar image to Kind cluster')
   .option('--kubeadm-load', 'Import tar image to Kubeadm cluster')
   .option('--version', 'Set custom version')
+  .option('--k3s-load', 'Load image into K3s cluster.')
   .description('Pull underpost dockerfile images requirements')
   .action(Underpost.image.dockerfile.pullBaseImages);
 

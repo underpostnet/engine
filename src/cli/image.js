@@ -12,10 +12,22 @@ const logger = loggerFactory(import.meta);
 class UnderpostImage {
   static API = {
     dockerfile: {
+      /**
+       * @method pullBaseImages
+       * @description Pulls base images and builds a 'debian-underpost' image,
+       * then loads it into the specified Kubernetes cluster type (Kind, Kubeadm, or K3s).
+       * @param {object} options - Options for pulling and loading images.
+       * @param {boolean} [options.kindLoad=false] - If true, load image into Kind cluster.
+       * @param {boolean} [options.kubeadmLoad=false] - If true, load image into Kubeadm cluster.
+       * @param {boolean} [options.k3sLoad=false] - If true, load image into K3s cluster.
+       * @param {string} [options.path=false] - Path to the Dockerfile context.
+       * @param {string} [options.version=''] - Version tag for the image.
+       */
       pullBaseImages(
         options = {
           kindLoad: false,
           kubeadmLoad: false,
+          k3sLoad: false,
           path: false,
           version: '',
         },
@@ -23,13 +35,39 @@ class UnderpostImage {
         shellExec(`sudo podman pull docker.io/library/debian:buster`);
         const IMAGE_NAME = `debian-underpost`;
         const IMAGE_NAME_FULL = `${IMAGE_NAME}:${options.version ?? Underpost.version}`;
-        const LOAD_TYPE = options.kindLoad === true ? `--kind-load` : `--kubeadm-load`;
+        let LOAD_TYPE = '';
+        if (options.kindLoad === true) {
+          LOAD_TYPE = `--kind-load`;
+        } else if (options.kubeadmLoad === true) {
+          LOAD_TYPE = `--kubeadm-load`;
+        } else if (options.k3sLoad === true) {
+          // Handle K3s load type
+          LOAD_TYPE = `--k3s-load`;
+        }
+
         shellExec(
           `underpost dockerfile-image-build --podman-save --reset --image-path=. --path ${
             options.path ?? getUnderpostRootPath()
           } --image-name=${IMAGE_NAME_FULL} ${LOAD_TYPE}`,
         );
       },
+      /**
+       * @method build
+       * @description Builds a Docker image using Podman, optionally saves it as a tar archive,
+       * and loads it into a specified Kubernetes cluster (Kind, Kubeadm, or K3s).
+       * @param {object} options - Options for building and loading images.
+       * @param {string} [options.path=''] - The path to the directory containing the Dockerfile.
+       * @param {string} [options.imageName=''] - The name and tag for the image (e.g., 'my-app:latest').
+       * @param {string} [options.imagePath=''] - Directory to save the image tar file.
+       * @param {string} [options.dockerfileName=''] - Name of the Dockerfile (defaults to 'Dockerfile').
+       * @param {boolean} [options.podmanSave=false] - If true, save the image as a tar archive using Podman.
+       * @param {boolean} [options.kindLoad=false] - If true, load the image archive into a Kind cluster.
+       * @param {boolean} [options.kubeadmLoad=false] - If true, load the image archive into a Kubeadm cluster (uses 'ctr').
+       * @param {boolean} [options.k3sLoad=false] - If true, load the image archive into a K3s cluster (uses 'k3s ctr').
+       * @param {boolean} [options.secrets=false] - If true, load secrets from the .env file for the build.
+       * @param {string} [options.secretsPath=''] - Custom path to the .env file for secrets.
+       * @param {boolean} [options.reset=false] - If true, perform a no-cache build.
+       */
       build(
         options = {
           path: '',
@@ -39,6 +77,7 @@ class UnderpostImage {
           podmanSave: false,
           kindLoad: false,
           kubeadmLoad: false,
+          k3sLoad: false,
           secrets: false,
           secretsPath: '',
           reset: false,
@@ -53,8 +92,9 @@ class UnderpostImage {
           secrets,
           secretsPath,
           kindLoad,
-          reset,
           kubeadmLoad,
+          k3sLoad,
+          reset,
         } = options;
         const podManImg = `localhost/${imageName}`;
         if (imagePath && typeof imagePath === 'string' && !fs.existsSync(imagePath))
@@ -71,7 +111,7 @@ class UnderpostImage {
             ),
           );
           for (const key of Object.keys(envObj)) {
-            secretsInput += ` && export ${key}="${envObj[key]}" `; // $(cat gitlab-token.txt)
+            secretsInput += ` && export ${key}="${envObj[key]}" `; // Example: $(cat gitlab-token.txt)
             secretDockerInput += ` --secret id=${key},env=${key} \ `;
           }
         }
@@ -85,7 +125,14 @@ class UnderpostImage {
 
         if (podmanSave === true) shellExec(`podman save -o ${tarFile} ${podManImg}`);
         if (kindLoad === true) shellExec(`sudo kind load image-archive ${tarFile}`);
-        if (kubeadmLoad === true) shellExec(`sudo ctr -n k8s.io images import ${tarFile}`);
+        if (kubeadmLoad === true) {
+          // Use 'ctr' for Kubeadm
+          shellExec(`sudo ctr -n k8s.io images import ${tarFile}`);
+        }
+        if (k3sLoad === true) {
+          // Use 'k3s ctr' for K3s
+          shellExec(`sudo k3s ctr images import ${tarFile}`);
+        }
       },
     },
   };
