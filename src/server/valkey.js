@@ -36,12 +36,12 @@ const valkeyClientFactory = async (options) => {
     // port: 6379,
     // host: 'valkey-service.default.svc.cluster.local',
     port: options?.port ? options.port : undefined,
-    host: options?.port ? options.host : undefined,
+    host: options?.host ? options.host : undefined,
     retryStrategy: (attempt) => {
       if (attempt === 1) {
         valkey.disconnect();
         valkeyEnabled = false;
-        logger.warn('Valkey service not enabled', { valkeyEnabled });
+        logger.warn('Valkey service not enabled', { options, valkeyEnabled });
         return;
       }
       return 1000; // 1 second interval attempt
