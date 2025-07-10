@@ -274,8 +274,8 @@ kubectl patch ippool default-ipv4-ippool --type='json' -p='[{"op": "replace", "p
 sudo podman run --rm localhost/<image-name>:<image-version> <command>
 kubectl get configmap kubelet-config -n kube-system -o yaml > kubelet-config.yaml
 kubectl -n kube-system rollout restart daemonset kube-proxy
-
 kubectl get EndpointSlice -o wide --all-namespaces -w
+kubectl apply -k manifests/deployment/adminer/.
 
 kubectl run --rm -it test-dns --image=busybox:latest --restart=Never -- /bin/sh -c "
   nslookup kubernetes.default.svc.cluster.local;

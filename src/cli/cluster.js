@@ -415,6 +415,9 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
       // Remove specific CNI configuration files (e.g., Flannel)
       shellExec('sudo rm -f /etc/cni/net.d/10-flannel.conflist');
 
+      // Remove local path provisioner data
+      shellExec(`sudo rm -rf /opt/local-path-provisioner/*`);
+
       // Remove the kubectl configuration file
       shellExec('sudo rm -f $HOME/.kube/config');
 
@@ -435,7 +438,9 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
       shellExec(`sudo rm -rf /home/docker/*`);
 
       // Re-configure Docker's default storage location (if desired).
-      shellExec('sudo mv /var/lib/docker /var/lib/docker~ || true'); // Use || true to prevent error if dir doesn't exist
+      // shellExec('sudo mv /var/lib/docker /var/lib/docker~ || true'); // Use || true to prevent error if dir doesn't exist
+
+      shellExec(`sudo rm -rf /var/lib/docker/*`);
       shellExec('sudo mkdir -p /home/docker');
       shellExec('sudo chmod 777 /home/docker');
       shellExec('sudo ln -s /home/docker /var/lib/docker');
