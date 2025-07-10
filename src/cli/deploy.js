@@ -327,6 +327,7 @@ EOF
       if (options.restoreHosts === true) {
         renderHosts = etcHost(concatHots);
         fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
+        logger.info(renderHosts);
         return;
       }
 
