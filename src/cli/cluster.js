@@ -398,79 +398,132 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
     /**
      * @method reset
      * @description Performs a comprehensive reset of Kubernetes and container environments.
-     * This function is for cleaning up a node, not for initial setup.
+     * This function is for cleaning up a node, reverting changes made by 'kubeadm init' or 'kubeadm join'.
      * It includes deleting Kind clusters, resetting kubeadm, removing CNI configs,
-     * cleaning Docker and Podman data, and resetting kubelet components.
-     * It avoids aggressive iptables flushing that would break host connectivity.
+     * cleaning Docker and Podman data, persistent volumes, and resetting kubelet components.
+     * It avoids aggressive iptables flushing that would break host connectivity, relying on kube-proxy's
+     * control loop to eventually clean up rules if the cluster is not re-initialized.
      */
-    reset() {
-      console.log('Starting comprehensive reset of Kubernetes and container environments...');
+    async reset() {
+      logger.info('Starting comprehensive reset of Kubernetes and container environments...');
 
-      // Delete all existing Kind (Kubernetes in Docker) clusters.
-      shellExec(`kind get clusters | xargs -r -t -n1 kind delete cluster --name`); // -r for no-op if no clusters
+      try {
+        // Phase 1: Pre-reset Kubernetes Cleanup (while API server is still up)
+        logger.info('Phase 1/6: Cleaning up Kubernetes resources (PVCs, PVs) while API server is accessible...');
 
-      // Reset the Kubernetes control-plane components installed by kubeadm.
-      shellExec(`sudo kubeadm reset -f`);
+        // Delete all Persistent Volume Claims (PVCs) to release the PVs.
+        // This must happen before deleting PVs or the host paths.
+        // shellExec(`kubectl delete pvc --all-namespaces --all --ignore-not-found || true`);
 
-      // Remove specific CNI configuration files (e.g., Flannel)
-      shellExec('sudo rm -f /etc/cni/net.d/10-flannel.conflist');
+        // Get all Persistent Volumes and identify their host paths for data deletion.
+        // This needs to be done *before* deleting the PVs themselves.
+        // The '|| echo '{"items":[]}'` handles cases where 'kubectl get pv' might return empty or error.
+        const pvListJson = shellExec(`kubectl get pv -o json || echo '{"items":[]}'`, { stdout: true, silent: true });
+        const pvList = JSON.parse(pvListJson);
 
-      // Remove local path provisioner data
-      shellExec(`sudo rm -rf /opt/local-path-provisioner/*`);
+        if (pvList.items && pvList.items.length > 0) {
+          for (const pv of pvList.items) {
+            // Check if the PV uses hostPath and delete its contents
+            if (pv.spec.hostPath && pv.spec.hostPath.path) {
+              const hostPath = pv.spec.hostPath.path;
+              logger.info(`Removing data from host path for PV '${pv.metadata.name}': ${hostPath}`);
+              shellExec(`sudo rm -rf ${hostPath}/* || true`);
+            }
+          }
+        } else {
+          logger.info('No Persistent Volumes found with hostPath to clean up.');
+        }
 
-      // Remove the kubectl configuration file
-      shellExec('sudo rm -f $HOME/.kube/config');
+        // Then, delete all Persistent Volumes (PVs).
+        // shellExec(`kubectl delete pv --all --ignore-not-found || true`);
 
-      // Clear trash files from the root user's trash directory.
-      shellExec('sudo rm -rf /root/.local/share/Trash/files/*');
+        // Phase 2: Stop Kubelet and remove CNI configuration
+        logger.info('Phase 2/6: Stopping Kubelet and removing CNI configurations...');
+        // Stop kubelet service to prevent further activity and release resources.
+        shellExec(`sudo systemctl stop kubelet || true`);
 
-      // Prune all unused Docker data.
-      shellExec('sudo docker system prune -a -f');
+        // CNI plugins use /etc/cni/net.d to store their configuration.
+        // Removing this prevents conflicts and potential issues during kubeadm reset.
+        shellExec('sudo rm -rf /etc/cni/net.d/* || true');
 
-      // Stop the Docker daemon service.
-      shellExec('sudo service docker stop');
+        // Phase 3: Kind Cluster Cleanup
+        logger.info('Phase 3/6: Cleaning up Kind clusters...');
+        // Delete all existing Kind (Kubernetes in Docker) clusters.
+        shellExec(`kind get clusters | xargs -r -t -n1 kind delete cluster || true`);
 
-      // Aggressively remove container storage data for containerd and Docker.
-      shellExec(`sudo rm -rf /var/lib/containers/storage/*`);
-      shellExec(`sudo rm -rf /var/lib/docker/volumes/*`);
-      shellExec(`sudo rm -rf /var/lib/docker~/*`);
-      shellExec(`sudo rm -rf /home/containers/storage/*`);
-      shellExec(`sudo rm -rf /home/docker/*`);
+        // Phase 4: Kubeadm Reset
+        logger.info('Phase 4/6: Performing kubeadm reset...');
+        // Reset the Kubernetes control-plane components installed by kubeadm.
+        // The --force flag skips confirmation prompts. This command will tear down the cluster.
+        shellExec(`sudo kubeadm reset --force`);
 
-      // Re-configure Docker's default storage location (if desired).
-      // shellExec('sudo mv /var/lib/docker /var/lib/docker~ || true'); // Use || true to prevent error if dir doesn't exist
+        // Phase 5: Post-reset File System Cleanup (Local Storage, Kubeconfig)
+        logger.info('Phase 5/6: Cleaning up local storage provisioner data and kubeconfig...');
+        // Remove the kubectl configuration file for the current user.
+        // This is important to prevent stale credentials after the cluster is reset.
+        shellExec('rm -rf $HOME/.kube || true');
 
-      shellExec(`sudo rm -rf /var/lib/docker/*`);
-      shellExec('sudo mkdir -p /home/docker');
-      shellExec('sudo chmod 777 /home/docker');
-      shellExec('sudo ln -s /home/docker /var/lib/docker');
+        // Remove local path provisioner data, which stores data for dynamically provisioned PVCs.
+        shellExec(`sudo rm -rf /opt/local-path-provisioner/* || true`);
 
-      // Prune all unused Podman data.
-      shellExec(`sudo podman system prune -a -f`);
-      shellExec(`sudo podman system prune --all --volumes --force`);
-      shellExec(`sudo podman system prune --external --force`);
+        // Phase 6: Container Runtime Cleanup (Docker and Podman)
+        logger.info('Phase 6/6: Cleaning up Docker and Podman data...');
+        // Prune all unused Docker data (containers, images, volumes, networks).
+        shellExec('sudo docker system prune -a -f');
 
-      // Create and set permissions for Podman's custom storage directory.
-      shellExec(`sudo mkdir -p /home/containers/storage`);
-      shellExec('sudo chmod 0711 /home/containers/storage');
+        // Stop the Docker daemon service to ensure all files can be removed.
+        shellExec('sudo service docker stop || true');
 
-      // Update Podman's storage configuration file.
-      shellExec(
-        `sudo sed -i -e "s@/var/lib/containers/storage@/home/containers/storage@g" /etc/containers/storage.conf`,
-      );
+        // Aggressively remove container storage data for containerd and Docker.
+        // This targets the underlying storage directories.
+        shellExec(`sudo rm -rf /var/lib/containers/storage/* || true`);
+        shellExec(`sudo rm -rf /var/lib/docker/volumes/* || true`);
+        shellExec(`sudo rm -rf /var/lib/docker~/* || true`); // Cleanup any old Docker directories
+        shellExec(`sudo rm -rf /home/containers/storage/* || true`);
+        shellExec(`sudo rm -rf /home/docker/* || true`);
 
-      // Reset Podman system settings.
-      shellExec(`sudo podman system reset -f`);
+        // Ensure Docker's default storage location is clean and re-linked if custom.
+        shellExec(`sudo rm -rf /var/lib/docker/* || true`);
+        shellExec('sudo mkdir -p /home/docker || true');
+        shellExec('sudo chmod 777 /home/docker || true');
+        shellExec('sudo ln -sf /home/docker /var/lib/docker || true'); // Use -sf for symbolic link, force and silent
 
-      // Reset kubelet components
-      shellExec(`sudo systemctl stop kubelet`);
-      shellExec(`sudo rm -rf /etc/kubernetes/*`);
-      shellExec(`sudo rm -rf /var/lib/kubelet/*`);
-      shellExec(`sudo rm -rf /etc/cni/net.d/*`);
-      shellExec(`sudo systemctl daemon-reload`);
-      shellExec(`sudo systemctl start kubelet`);
+        // Prune all unused Podman data.
+        shellExec(`sudo podman system prune -a -f`);
+        shellExec(`sudo podman system prune --all --volumes --force`);
+        shellExec(`sudo podman system prune --external --force`);
 
-      console.log('Comprehensive reset completed.');
+        // Create and set permissions for Podman's custom storage directory.
+        shellExec(`sudo mkdir -p /home/containers/storage || true`);
+        shellExec('sudo chmod 0711 /home/containers/storage || true');
+
+        // Update Podman's storage configuration file.
+        shellExec(
+          `sudo sed -i -e "s@/var/lib/containers/storage@/home/containers/storage@g" /etc/containers/storage.conf || true`,
+        );
+
+        // Reset Podman system settings.
+        shellExec(`sudo podman system reset -f`);
+
+        // Final Kubelet and System Cleanup (after all other operations)
+        logger.info('Finalizing Kubelet and system file cleanup...');
+        // Remove Kubernetes configuration and kubelet data directories.
+        shellExec(`sudo rm -rf /etc/kubernetes/* || true`);
+        shellExec(`sudo rm -rf /var/lib/kubelet/* || true`);
+
+        // Clear trash files from the root user's trash directory.
+        shellExec('sudo rm -rf /root/.local/share/Trash/files/* || true');
+
+        // Reload systemd daemon to pick up any service file changes.
+        shellExec(`sudo systemctl daemon-reload`);
+        // Attempt to start kubelet; it might fail if the cluster is fully reset, which is expected.
+        shellExec(`sudo systemctl start kubelet || true`);
+
+        logger.info('Comprehensive reset completed successfully.');
+      } catch (error) {
+        logger.error(`Error during reset: ${error.message}`);
+        console.error(error);
+      }
     },
 
     /**
