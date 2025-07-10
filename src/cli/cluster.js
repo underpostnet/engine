@@ -63,7 +63,7 @@ class UnderpostCluster {
         pullImage: false,
         dedicatedGpu: false,
         kubeadm: false,
-        k3s: false, // New K3s option
+        k3s: false,
         initHost: false,
         config: false,
         worker: false,

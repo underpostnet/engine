@@ -12,7 +12,6 @@ import validator from 'validator';
 dotenv.config();
 
 // import { Types } from 'mongoose';
-// new Types.ObjectId()
 const logger = loggerFactory(import.meta);
 
 const CyberiaUserService = {

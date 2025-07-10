@@ -288,6 +288,7 @@ program
   .option('--info-vm <vm-id>', 'Get all info vm')
   .option('--test <vm-id>', 'Test health, status and network connectivity for a VM')
   .option('--root-size <gb-size>', 'Set root size vm')
+  .option('--k3s', 'Flag to indicate K3s cluster type for VM initialization')
   .option('--join-node <nodes>', 'Comma separated worker and control node e. g. k8s-worker-1,k8s-control')
   .option(
     '--expose <vm-name-ports>',

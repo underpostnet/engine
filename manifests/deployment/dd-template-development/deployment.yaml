@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dd-template-development-blue
-          image: localhost/debian-underpost:v2.8.798
+          image: localhost/debian-underpost:v2.8.799
           #          resources:
           #            requests:
           #              memory: "124Ki"
@@ -100,7 +100,7 @@ spec:
     spec:
       containers:
         - name: dd-template-development-green
-          image: localhost/debian-underpost:v2.8.798
+          image: localhost/debian-underpost:v2.8.799
           #          resources:
           #            requests:
           #              memory: "124Ki"

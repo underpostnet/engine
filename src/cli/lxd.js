@@ -43,7 +43,7 @@ class UnderpostLxd {
         createAdminProfile: false,
         control: false,
         worker: false,
-        k3s: false, // New k3s option
+        k3s: false,
         initVm: '',
         createVm: '',
         infoVm: '',
@@ -96,7 +96,6 @@ ipv6.address=none`);
         let flag = '';
         if (options.control === true) {
           if (options.k3s === true) {
-            // New K3s flag for control plane
             flag = ' -s -- --k3s';
           } else {
             // Default to kubeadm if not K3s
@@ -107,7 +106,6 @@ ipv6.address=none`);
           shellExec(`lxc file push /home/dd/engine/manifests ${options.initVm}/home/dd/engine --recursive`);
         } else if (options.worker == true) {
           if (options.k3s === true) {
-            // New K3s flag for worker
             flag = ' -s -- --worker --k3s';
           } else {
             // Default to kubeadm worker
@@ -263,7 +261,6 @@ ipv6.address=none`);
         }
       }
 
-      // New 'test' option implementation
       if (options.test && typeof options.test === 'string') {
         const vmName = options.test;
         console.log(`Starting comprehensive test for VM: ${vmName}`);

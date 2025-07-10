@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.798
+## underpost ci/cd cli v2.8.799
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -492,6 +492,8 @@ Options:
   --test <vm-id>                   Test health, status and network connectivity
                                    for a VM
   --root-size <gb-size>            Set root size vm
+  --k3s                            Flag to indicate K3s cluster type for VM
+                                   initialization
   --join-node <nodes>              Comma separated worker and control node e.
                                    g. k8s-worker-1,k8s-control
   --expose <vm-name-ports>         Vm name and : separated with Comma separated
