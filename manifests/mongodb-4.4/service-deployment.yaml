@@ -13,11 +13,11 @@ spec:
       labels:
         app: mongodb
     spec:
-      hostname: mongo
+      hostname: mongodb-service
       containers:
         - name: mongodb
           image: mongo:4.4
-          command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
+          command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
           # -- bash
           # mongo
           # use admin
