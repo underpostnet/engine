@@ -276,6 +276,10 @@ kubectl get configmap kubelet-config -n kube-system -o yaml > kubelet-config.yam
 kubectl -n kube-system rollout restart daemonset kube-proxy
 kubectl get EndpointSlice -o wide --all-namespaces -w
 kubectl apply -k manifests/deployment/adminer/.
+kubectl wait --for=condition=Ready pod/busybox1
+kubectl wait --for=jsonpath='{.status.phase}'=Running pod/busybox1
+kubectl wait --for='jsonpath={.status.conditions[?(@.type=="Ready")].status}=True' pod/busybox1
+kubectl wait --for=delete pod/busybox1 --timeout=60s
 
 kubectl run --rm -it test-dns --image=busybox:latest --restart=Never -- /bin/sh -c "
   nslookup kubernetes.default.svc.cluster.local;
