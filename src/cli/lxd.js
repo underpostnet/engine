@@ -22,6 +22,7 @@ class UnderpostLxd {
      * @param {boolean} [options.createAdminProfile=false] - Create admin-profile for VMs.
      * @param {boolean} [options.control=false] - Flag for control plane VM initialization.
      * @param {boolean} [options.worker=false] - Flag for worker node VM initialization.
+     * @param {boolean} [options.k3s=false] - Flag to indicate K3s cluster type for VM initialization.
      * @param {string} [options.initVm=''] - Initialize a specific VM.
      * @param {string} [options.createVm=''] - Create a new VM with the given name.
      * @param {string} [options.infoVm=''] - Display information about a specific VM.
@@ -42,6 +43,7 @@ class UnderpostLxd {
         createAdminProfile: false,
         control: false,
         worker: false,
+        k3s: false, // New k3s option
         initVm: '',
         createVm: '',
         infoVm: '',
@@ -56,8 +58,8 @@ class UnderpostLxd {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       if (options.reset === true) {
-        shellExec(`sudo systemctl stop snap.lxd.daemon`);
-        shellExec(`sudo snap remove lxd --purge`);
+        shellExec(`sudo systemctl stop snap.lxd.daemon || true`);
+        shellExec(`sudo snap remove lxd --purge || true`);
       }
       if (options.install === true) shellExec(`sudo snap install lxd`);
       if (options.init === true) {
@@ -93,12 +95,24 @@ ipv6.address=none`);
       if (options.initVm && typeof options.initVm === 'string') {
         let flag = '';
         if (options.control === true) {
-          flag = ' -s -- --kubeadm';
+          if (options.k3s === true) {
+            // New K3s flag for control plane
+            flag = ' -s -- --k3s';
+          } else {
+            // Default to kubeadm if not K3s
+            flag = ' -s -- --kubeadm';
+          }
           shellExec(`lxc exec ${options.initVm} -- bash -c 'mkdir -p /home/dd/engine'`);
           shellExec(`lxc file push /home/dd/engine/engine-private ${options.initVm}/home/dd/engine --recursive`);
           shellExec(`lxc file push /home/dd/engine/manifests ${options.initVm}/home/dd/engine --recursive`);
         } else if (options.worker == true) {
-          flag = ' -s -- --worker';
+          if (options.k3s === true) {
+            // New K3s flag for worker
+            flag = ' -s -- --worker --k3s';
+          } else {
+            // Default to kubeadm worker
+            flag = ' -s -- --worker';
+          }
         }
         console.log(`Executing underpost-setup.sh on VM: ${options.initVm}`);
         shellExec(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash${flag}`);
@@ -143,22 +157,13 @@ ipv6.address=none`);
 
         let portsToExpose = [];
         if (options.control === true) {
-          // Kubernetes API Server
+          // Kubernetes API Server (Kubeadm and K3s both use 6443 by default)
           portsToExpose.push('6443');
           // Standard HTTP/HTTPS for Ingress if deployed
           portsToExpose.push('80');
           portsToExpose.push('443');
         }
-        // NodePort range for all nodes (control plane can also run pods with NodePorts)
-        // It's safer to expose the entire range for flexibility, or specific NodePorts if known.
-        // For production, you might only expose specific NodePorts or use a LoadBalancer.
-        // For a general setup, exposing the range is common.
-        // Note: LXD proxy device can only expose individual ports, not ranges directly.
-        // We will expose a few common ones, or rely on specific 'expose' calls for others.
-        // Let's add some common NodePorts that might be used by applications.
-        // The full range 30000-32767 would require individual proxy rules for each port.
-        // For this automatic setup, we'll focus on critical K8s ports and common app ports.
-        // If a user needs the full NodePort range, they should use the `expose` option explicitly.
+        // Add common NodePorts if needed, or rely on explicit 'expose'
         portsToExpose.push('30000'); // Example NodePort
         portsToExpose.push('30001'); // Example NodePort
         portsToExpose.push('30002'); // Example NodePort
@@ -183,11 +188,39 @@ ipv6.address=none`);
       }
       if (options.joinNode && typeof options.joinNode === 'string') {
         const [workerNode, controlNode] = options.joinNode.split(',');
-        const token = shellExec(
-          `echo "$(lxc exec ${controlNode} -- bash -c 'sudo kubeadm token create --print-join-command')"`,
-          { stdout: true },
-        );
-        shellExec(`lxc exec ${workerNode} -- bash -c '${token}'`);
+        // Determine if it's a Kubeadm or K3s join
+        const isK3sJoin = options.k3s === true;
+
+        if (isK3sJoin) {
+          console.log(`Attempting to join K3s worker node ${workerNode} to control plane ${controlNode}`);
+          // Get K3s token from control plane
+          const k3sToken = shellExec(
+            `lxc exec ${controlNode} -- bash -c 'sudo cat /var/lib/rancher/k3s/server/node-token'`,
+            { stdout: true },
+          ).trim();
+          // Get control plane IP
+          const controlPlaneIp = shellExec(
+            `lxc list ${controlNode} --format json | jq -r '.[0].state.network.enp5s0.addresses[] | select(.family=="inet") | .address'`,
+            { stdout: true },
+          ).trim();
+
+          if (!k3sToken || !controlPlaneIp) {
+            console.error(`Failed to get K3s token or control plane IP. Cannot join worker.`);
+            return;
+          }
+          const k3sJoinCommand = `K3S_URL=https://${controlPlaneIp}:6443 K3S_TOKEN=${k3sToken} curl -sfL https://get.k3s.io | sh -`;
+          shellExec(`lxc exec ${workerNode} -- bash -c '${k3sJoinCommand}'`);
+          console.log(`K3s worker node ${workerNode} join command executed.`);
+        } else {
+          // Kubeadm join
+          console.log(`Attempting to join Kubeadm worker node ${workerNode} to control plane ${controlNode}`);
+          const token = shellExec(
+            `echo "$(lxc exec ${controlNode} -- bash -c 'sudo kubeadm token create --print-join-command')"`,
+            { stdout: true },
+          );
+          shellExec(`lxc exec ${workerNode} -- bash -c '${token}'`);
+          console.log(`Kubeadm worker node ${workerNode} join command executed.`);
+        }
       }
       if (options.infoVm && typeof options.infoVm === 'string') {
         shellExec(`lxc config show ${options.infoVm}`);

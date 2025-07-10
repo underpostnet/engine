@@ -115,6 +115,7 @@ program
   .option('--config', 'Set k8s base node config')
   .option('--worker', 'Set worker node context')
   .option('--chown', 'Set k8s kube chown')
+  .option('--k3s', 'Initialize the cluster using K3s')
   .action(Underpost.cluster.init)
   .description('Manage cluster, for default initialization base kind cluster');
 

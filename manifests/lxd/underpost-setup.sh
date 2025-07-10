@@ -3,7 +3,7 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-echo "Starting Underpost Kubernetes Node Setup for Production (Kubeadm Use Case)..."
+echo "Starting Underpost Kubernetes Node Setup for Production (Kubeadm/K3s Use Case)..."
 
 # --- Disk Partition Resizing (Keep as is, seems functional) ---
 echo "Expanding /dev/sda2 partition and resizing filesystem..."
@@ -53,7 +53,7 @@ echo "
 ██╗░░░██╗███╗░░██╗██████╗░███████╗██████╗░██████╗░░█████╗░░██████╗████████╗
 ██║░░░██║████╗░██║██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔════╝╚══██╔══╝
 ██║░░░██║██╔██╗██║██║░░██║█████╗░░██████╔╝██████╔╝██║░░██║╚█████╗░░░░██║░░░
-██║░░░██║██║╚████║██║░░██║██╔══╝░░██╔══██╗██╔═══╝░██║░░██║░╚═══██╗░░░██║░░░
+██║░░░██║██║╚████║██║░░██║██╔══╝░░██╔══██╗██╔═╝░░░██║░░██║░╚═══██╗░░░██║░░░
 ╚██████╔╝██║░╚███║██████╔╝███████╗██║░░██║██║░░░░░╚█████╔╝██████╔╝░░░██║░░░
 ░╚═════╝░╚═╝░░╚══╝╚═════╝░╚══════╝╚═╝░░╚═╝╚═╝░░░░░░╚════╝░╚═════╝░░░░╚═╝░░░
 
@@ -82,9 +82,10 @@ echo "Running initial host setup for Kubernetes prerequisites..."
 cd "$(underpost root)/underpost"
 underpost cluster --init-host
 
-# --- Argument Parsing for Kubeadm/Kind/Worker ---
+# --- Argument Parsing for Kubeadm/Kind/K3s/Worker ---
 USE_KUBEADM=false
 USE_KIND=false # Not the primary focus for this request, but keeping the logic
+USE_K3S=false  # New K3s option
 USE_WORKER=false
 
 for arg in "$@"; do
@@ -95,6 +96,9 @@ for arg in "$@"; do
     --kind)
         USE_KIND=true
         ;;
+    --k3s) # New K3s argument
+        USE_K3S=true
+        ;;
     --worker)
         USE_WORKER=true
         ;;
@@ -102,7 +106,8 @@ for arg in "$@"; do
 done
 
 echo "USE_KUBEADM = $USE_KUBEADM"
-echo "USE_KIND     = $USE_KIND"
+echo "USE_KIND      = $USE_KIND"
+echo "USE_K3S      = $USE_K3S" # Display K3s flag status
 echo "USE_WORKER   = $USE_WORKER"
 
 # --- Kubernetes Cluster Initialization Logic ---
@@ -117,7 +122,6 @@ if $USE_KUBEADM; then
         # For worker nodes, the 'underpost cluster --worker' command will handle joining
         # the cluster. The join command itself needs to be provided from the control plane.
         # This script assumes the join command will be executed separately or passed in.
-        # For a full automated setup, you'd typically pass the join token/command here.
         # Example: underpost cluster --worker --join-command "kubeadm join ..."
         # For now, this just runs the worker-specific config.
         underpost cluster --worker
@@ -130,12 +134,28 @@ if $USE_KUBEADM; then
         underpost cluster --kubeadm
         echo "Kubeadm control plane initialized. Check cluster status with 'kubectl get nodes'."
     fi
+elif $USE_K3S; then # New K3s initialization block
+    if $USE_WORKER; then
+        echo "Running worker node setup for K3s..."
+        # For K3s worker nodes, the 'underpost cluster --worker' command will handle joining
+        # the cluster. The K3s join command (k3s agent --server ...) needs to be provided.
+        underpost cluster --worker --k3s
+        underpost cluster --chown
+        echo "K3s Worker node setup initiated. You will need to manually join this worker to your control plane."
+        echo "On your K3s control plane, get the K3S_TOKEN from /var/lib/rancher/k3s/server/node-token"
+        echo "and the K3S_URL (e.g., https://<control-plane-ip>:6443)."
+        echo "Then execute: K3S_URL=${K3S_URL} K3S_TOKEN=${K3S_TOKEN} curl -sfL https://get.k3s.io | sh -"
+    else
+        echo "Running control plane setup with K3s..."
+        underpost cluster --k3s
+        echo "K3s control plane initialized. Check cluster status with 'kubectl get nodes'."
+    fi
 elif $USE_KIND; then
     echo "Running control node with kind..."
     underpost cluster
     echo "Kind cluster initialized. Check cluster status with 'kubectl get nodes'."
 else
-    echo "No specific cluster role (--kubeadm, --kind, --worker) specified. Please provide one."
+    echo "No specific cluster role (--kubeadm, --kind, --k3s, --worker) specified. Please provide one."
     exit 1
 fi
 

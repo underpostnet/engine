@@ -12,7 +12,7 @@ class UnderpostCluster {
     /**
      * @method init
      * @description Initializes and configures the Kubernetes cluster based on provided options.
-     * This method handles host prerequisites, cluster initialization (Kind or Kubeadm),
+     * This method handles host prerequisites, cluster initialization (Kind, Kubeadm, or K3s),
      * and optional component deployments.
      * @param {string} [podName] - Optional name of a pod for specific operations (e.g., listing).
      * @param {object} [options] - Configuration options for cluster initialization.
@@ -35,9 +35,10 @@ class UnderpostCluster {
      * @param {boolean} [options.pullImage=false] - Pull necessary Docker images before deployment.
      * @param {boolean} [options.dedicatedGpu=false] - Configure for dedicated GPU usage (e.g., NVIDIA GPU Operator).
      * @param {boolean} [options.kubeadm=false] - Initialize the cluster using Kubeadm.
+     * @param {boolean} [options.k3s=false] - Initialize the cluster using K3s.
      * @param {boolean} [options.initHost=false] - Perform initial host setup (install Docker, Podman, Kind, Kubeadm, Helm).
      * @param {boolean} [options.config=false] - Apply general host configuration (SELinux, containerd, sysctl, firewalld).
-     * @param {boolean} [options.worker=false] - Configure as a worker node (for Kubeadm join).
+     * @param {boolean} [options.worker=false] - Configure as a worker node (for Kubeadm or K3s join).
      * @param {boolean} [options.chown=false] - Set up kubectl configuration for the current user.
      */
     async init(
@@ -62,6 +63,7 @@ class UnderpostCluster {
         pullImage: false,
         dedicatedGpu: false,
         kubeadm: false,
+        k3s: false, // New K3s option
         initHost: false,
         config: false,
         worker: false,
@@ -83,7 +85,7 @@ class UnderpostCluster {
       // Information gathering options
       if (options.infoCapacityPod === true) return logger.info('', UnderpostDeploy.API.resourcesFactory());
       if (options.infoCapacity === true)
-        return logger.info('', UnderpostCluster.API.getResourcesCapacity(options.kubeadm));
+        return logger.info('', UnderpostCluster.API.getResourcesCapacity(options.kubeadm || options.k3s)); // Adjust for k3s
       if (options.listPods === true) return console.table(UnderpostDeploy.API.get(podName ?? undefined));
       if (options.nsUse && typeof options.nsUse === 'string') {
         shellExec(`kubectl config set-context --current --namespace=${options.nsUse}`);
@@ -123,32 +125,78 @@ class UnderpostCluster {
         return;
       }
 
-      // Reset Kubernetes cluster components (Kind/Kubeadm) and container runtimes
+      // Reset Kubernetes cluster components (Kind/Kubeadm/K3s) and container runtimes
       if (options.reset === true) return await UnderpostCluster.API.reset();
 
-      // Check if a cluster (Kind or Kubeadm with Calico) is already initialized
-      const alreadyCluster =
-        UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0] ||
-        UnderpostDeploy.API.get('calico-kube-controllers')[0];
+      // Check if a cluster (Kind, Kubeadm, or K3s) is already initialized
+      const alreadyKubeadmCluster = UnderpostDeploy.API.get('calico-kube-controllers')[0];
+      const alreadyKindCluster = UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0];
+      // K3s pods often contain 'svclb-traefik' in the kube-system namespace
+      const alreadyK3sCluster = UnderpostDeploy.API.get('svclb-traefik')[0];
 
-      // --- Kubeadm/Kind Cluster Initialization ---
+      // --- Kubeadm/Kind/K3s Cluster Initialization ---
       // This block handles the initial setup of the Kubernetes cluster (control plane or worker).
       // It prevents re-initialization if a cluster is already detected.
-      if (!options.worker && !alreadyCluster) {
-        // If it's a kubeadm setup and no Calico controller is found (indicating no kubeadm cluster)
-        if (options.kubeadm === true) {
+      if (!options.worker && !alreadyKubeadmCluster && !alreadyKindCluster && !alreadyK3sCluster) {
+        if (options.k3s === true) {
+          logger.info('Initializing K3s control plane...');
+          // Install K3s
+          console.log('Installing K3s...');
+          shellExec(`curl -sfL https://get.k3s.io | sh -`);
+          console.log('K3s installation completed.');
+
+          // Configure kubectl for the current user for K3s *before* checking readiness
+          // This ensures kubectl can find the K3s kubeconfig immediately after K3s installation.
+          UnderpostCluster.API.chown('k3s');
+
+          // Wait for K3s to be ready
+          logger.info('Waiting for K3s to be ready...');
+          let k3sReady = false;
+          let retries = 0;
+          const maxRetries = 20; // Increased retries for K3s startup
+          const delayMs = 5000; // 5 seconds
+
+          while (!k3sReady && retries < maxRetries) {
+            try {
+              // Explicitly use KUBECONFIG for kubectl commands to ensure it points to K3s config
+              const nodes = shellExec(`KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes -o json`, {
+                stdout: true,
+                silent: true,
+              });
+              const parsedNodes = JSON.parse(nodes);
+              if (
+                parsedNodes.items.some((node) =>
+                  node.status.conditions.some((cond) => cond.type === 'Ready' && cond.status === 'True'),
+                )
+              ) {
+                k3sReady = true;
+                logger.info('K3s cluster is ready.');
+              } else {
+                logger.info(`K3s not yet ready. Retrying in ${delayMs / 1000} seconds...`);
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+              }
+            } catch (error) {
+              logger.info(`Error checking K3s status: ${error.message}. Retrying in ${delayMs / 1000} seconds...`);
+              await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
+            retries++;
+          }
+
+          if (!k3sReady) {
+            logger.error('K3s cluster did not become ready in time. Please check the K3s logs.');
+            return;
+          }
+
+          // K3s includes local-path-provisioner by default, so no need to install explicitly.
+          logger.info('K3s comes with local-path-provisioner by default. Skipping explicit installation.');
+        } else if (options.kubeadm === true) {
           logger.info('Initializing Kubeadm control plane...');
           // Initialize kubeadm control plane
           shellExec(
             `sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --control-plane-endpoint="${os.hostname()}:6443"`,
           );
           // Configure kubectl for the current user
-          UnderpostCluster.API.chown();
-
-          // Apply kubelet-config.yaml explicitly
-          // Using 'kubectl replace --force' to ensure the ConfigMap is updated,
-          // even if it was modified by kubeadm or other processes, resolving conflicts.
-          // shellExec(`kubectl replace --force -f ${underpostRoot}/manifests/kubelet-config.yaml`);
+          UnderpostCluster.API.chown('kubeadm'); // Pass 'kubeadm' to chown
 
           // Install Calico CNI
           logger.info('Installing Calico CNI...');
@@ -165,7 +213,7 @@ class UnderpostCluster {
             `kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml`,
           );
         } else {
-          // Kind cluster initialization (if not using kubeadm)
+          // Kind cluster initialization (if not using kubeadm or k3s)
           logger.info('Initializing Kind cluster...');
           if (options.full === true || options.dedicatedGpu === true) {
             shellExec(`cd ${underpostRoot}/manifests && kind create cluster --config kind-config-cuda.yaml`);
@@ -176,12 +224,12 @@ class UnderpostCluster {
               }.yaml`,
             );
           }
-          UnderpostCluster.API.chown();
+          UnderpostCluster.API.chown('kind'); // Pass 'kind' to chown
         }
       } else if (options.worker === true) {
         // Worker node specific configuration (kubeadm join command needs to be executed separately)
-        logger.info('Worker node configuration applied. Awaiting kubeadm join command...');
-        // No direct cluster initialization here for workers. The `kubeadm join` command
+        logger.info('Worker node configuration applied. Awaiting join command...');
+        // No direct cluster initialization here for workers. The `kubeadm join` or `k3s agent` command
         // needs to be run on the worker after the control plane is up and a token is created.
         // This part of the script is for general worker setup, not the join itself.
       } else {
@@ -202,26 +250,26 @@ class UnderpostCluster {
         if (options.pullImage === true) {
           shellExec(`docker pull valkey/valkey:latest`);
           shellExec(`sudo podman pull valkey/valkey:latest`);
-          if (!options.kubeadm)
-            shellExec(
-              `sudo ${
-                options.kubeadm === true ? `ctr -n k8s.io images import` : `kind load docker-image`
-              } valkey/valkey:latest`,
-            );
+          if (!options.kubeadm && !options.k3s)
+            // Only load if not kubeadm/k3s (Kind needs it)
+            shellExec(`sudo kind load docker-image valkey/valkey:latest`);
+          else if (options.kubeadm || options.k3s)
+            // For kubeadm/k3s, ensure it's available for containerd
+            shellExec(`sudo crictl pull valkey/valkey:latest`);
         }
-        shellExec(`kubectl delete statefulset valkey-service`);
+        shellExec(`kubectl delete statefulset valkey-service --ignore-not-found`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey`);
       }
       if (options.full === true || options.mariadb === true) {
         shellExec(
-          `sudo kubectl create secret generic mariadb-secret --from-file=username=/home/dd/engine/engine-private/mariadb-username --from-file=password=/home/dd/engine/engine-private/mariadb-password`,
+          `sudo kubectl create secret generic mariadb-secret --from-file=username=/home/dd/engine/engine-private/mariadb-username --from-file=password=/home/dd/engine/engine-private/mariadb-password --dry-run=client -o yaml | kubectl apply -f -`,
         );
-        shellExec(`kubectl delete statefulset mariadb-statefulset`);
+        shellExec(`kubectl delete statefulset mariadb-statefulset --ignore-not-found`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb`);
       }
       if (options.full === true || options.mysql === true) {
         shellExec(
-          `sudo kubectl create secret generic mysql-secret --from-file=username=/home/dd/engine/engine-private/mysql-username --from-file=password=/home/dd/engine/engine-private/mysql-password`,
+          `sudo kubectl create secret generic mysql-secret --from-file=username=/home/dd/engine/engine-private/mysql-username --from-file=password=/home/dd/engine/engine-private/mysql-password --dry-run=client -o yaml | kubectl apply -f -`,
         );
         shellExec(`sudo mkdir -p /mnt/data`);
         shellExec(`sudo chmod 777 /mnt/data`);
@@ -231,27 +279,27 @@ class UnderpostCluster {
       if (options.full === true || options.postgresql === true) {
         if (options.pullImage === true) {
           shellExec(`docker pull postgres:latest`);
-          if (!options.kubeadm)
-            shellExec(
-              `sudo ${
-                options.kubeadm === true ? `ctr -n k8s.io images import` : `kind load docker-image`
-              } docker-image postgres:latest`,
-            );
+          if (!options.kubeadm && !options.k3s)
+            // Only load if not kubeadm/k3s (Kind needs it)
+            shellExec(`sudo kind load docker-image postgres:latest`);
+          else if (options.kubeadm || options.k3s)
+            // For kubeadm/k3s, ensure it's available for containerd
+            shellExec(`sudo crictl pull postgres:latest`);
         }
         shellExec(
-          `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password`,
+          `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password --dry-run=client -o yaml | kubectl apply -f -`,
         );
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/postgresql`);
       }
       if (options.mongodb4 === true) {
         if (options.pullImage === true) {
           shellExec(`docker pull mongo:4.4`);
-          if (!options.kubeadm)
-            shellExec(
-              `sudo ${
-                options.kubeadm === true ? `ctr -n k8s.io images import` : `kind load docker-image`
-              } docker-image mongo:4.4`,
-            );
+          if (!options.kubeadm && !options.k3s)
+            // Only load if not kubeadm/k3s (Kind needs it)
+            shellExec(`sudo kind load docker-image mongo:4.4`);
+          else if (options.kubeadm || options.k3s)
+            // For kubeadm/k3s, ensure it's available for containerd
+            shellExec(`sudo crictl pull mongo:4.4`);
         }
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb-4.4`);
 
@@ -275,15 +323,22 @@ class UnderpostCluster {
       } else if (options.full === true || options.mongodb === true) {
         if (options.pullImage === true) {
           shellExec(`docker pull mongo:latest`);
+          if (!options.kubeadm && !options.k3s)
+            // Only load if not kubeadm/k3s (Kind needs it)
+            shellExec(`sudo kind load docker-image mongo:latest`);
+          else if (options.kubeadm || options.k3s)
+            // For kubeadm/k3s, ensure it's available for containerd
+            shellExec(`sudo crictl pull mongo:latest`);
         }
         shellExec(
-          `sudo kubectl create secret generic mongodb-keyfile --from-file=/home/dd/engine/engine-private/mongodb-keyfile`,
+          `sudo kubectl create secret generic mongodb-keyfile --from-file=/home/dd/engine/engine-private/mongodb-keyfile --dry-run=client -o yaml | kubectl apply -f -`,
         );
         shellExec(
-          `sudo kubectl create secret generic mongodb-secret --from-file=username=/home/dd/engine/engine-private/mongodb-username --from-file=password=/home/dd/engine/engine-private/mongodb-password`,
+          `sudo kubectl create secret generic mongodb-secret --from-file=username=/home/dd/engine/engine-private/mongodb-username --from-file=password=/home/dd/engine/engine-private/mongodb-password --dry-run=client -o yaml | kubectl apply -f -`,
         );
-        shellExec(`kubectl delete statefulset mongodb`);
+        shellExec(`kubectl delete statefulset mongodb --ignore-not-found`);
         if (options.kubeadm === true)
+          // This storage class is specific to kubeadm setup
           shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb`);
 
@@ -310,8 +365,11 @@ class UnderpostCluster {
       if (options.full === true || options.contour === true) {
         shellExec(`kubectl apply -f https://projectcontour.io/quickstart/contour.yaml`);
         if (options.kubeadm === true) {
+          // Envoy service might need NodePort for kubeadm
           shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/envoy-service-nodeport.yaml`);
         }
+        // K3s has a built-in LoadBalancer (Klipper-lb) that can expose services,
+        // so a specific NodePort service might not be needed or can be configured differently.
       }
 
       if (options.full === true || options.certManager === true) {
@@ -327,7 +385,7 @@ class UnderpostCluster {
         }
 
         const letsEncName = 'letsencrypt-prod';
-        shellExec(`sudo kubectl delete ClusterIssuer ${letsEncName}`);
+        shellExec(`sudo kubectl delete ClusterIssuer ${letsEncName} --ignore-not-found`);
         shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/${letsEncName}.yaml`);
       }
     },
@@ -346,14 +404,14 @@ class UnderpostCluster {
       shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
 
       // Enable and start Docker and Kubelet services
-      shellExec(`sudo systemctl enable --now docker`);
-      shellExec(`sudo systemctl enable --now kubelet`);
+      shellExec(`sudo systemctl enable --now docker || true`); // Docker might not be needed for K3s
+      shellExec(`sudo systemctl enable --now kubelet || true`); // Kubelet might not be needed for K3s (K3s uses its own agent)
 
       // Configure containerd for SystemdCgroup
-      // This is crucial for kubelet to interact correctly with containerd
+      // This is crucial for kubelet/k3s to interact correctly with containerd
       shellExec(`containerd config default | sudo tee /etc/containerd/config.toml > /dev/null`);
       shellExec(`sudo sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
-      shellExec(`sudo service docker restart`); // Restart docker after containerd config changes
+      shellExec(`sudo service docker restart || true`); // Restart docker after containerd config changes
       shellExec(`sudo systemctl enable --now containerd.service`);
       shellExec(`sudo systemctl restart containerd`); // Restart containerd to apply changes
 
@@ -383,22 +441,41 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
 
     /**
      * @method chown
-     * @description Sets up kubectl configuration for the current user.
-     * This is typically run after kubeadm init on the control plane
-     * to allow non-root users to interact with the cluster.
+     * @description Sets up kubectl configuration for the current user based on the cluster type.
+     * @param {string} clusterType - The type of Kubernetes cluster ('kubeadm', 'k3s', or 'kind').
      */
-    chown() {
-      console.log('Setting up kubectl configuration...');
+    chown(clusterType) {
+      console.log(`Setting up kubectl configuration for ${clusterType} cluster...`);
       shellExec(`mkdir -p ~/.kube`);
-      shellExec(`sudo -E cp -i /etc/kubernetes/admin.conf ~/.kube/config`);
-      shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
+
+      let kubeconfigPath;
+      if (clusterType === 'k3s') {
+        kubeconfigPath = '/etc/rancher/k3s/k3s.yaml';
+      } else if (clusterType === 'kubeadm') {
+        kubeconfigPath = '/etc/kubernetes/admin.conf';
+      } else {
+        // Default to kind if not specified or unknown
+        kubeconfigPath = ''; // Kind's kubeconfig is usually managed by kind itself, or merged
+      }
+
+      if (kubeconfigPath) {
+        shellExec(`sudo -E cp -i ${kubeconfigPath} ~/.kube/config`);
+        shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
+      } else if (clusterType === 'kind') {
+        // For Kind, the kubeconfig is usually merged automatically or can be explicitly exported
+        // This command ensures it's merged into the default kubeconfig
+        shellExec(`kind get kubeconfig > ~/.kube/config || true`);
+        shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
+      } else {
+        logger.warn('No specific kubeconfig path defined for this cluster type, or it is managed automatically.');
+      }
       console.log('kubectl config set up successfully.');
     },
 
     /**
      * @method reset
      * @description Performs a comprehensive reset of Kubernetes and container environments.
-     * This function is for cleaning up a node, reverting changes made by 'kubeadm init' or 'kubeadm join'.
+     * This function is for cleaning up a node, reverting changes made by 'kubeadm init', 'kubeadm join', or 'k3s install'.
      * It includes deleting Kind clusters, resetting kubeadm, removing CNI configs,
      * cleaning Docker and Podman data, persistent volumes, and resetting kubelet components.
      * It avoids aggressive iptables flushing that would break host connectivity, relying on kube-proxy's
@@ -411,13 +488,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
         // Phase 1: Pre-reset Kubernetes Cleanup (while API server is still up)
         logger.info('Phase 1/6: Cleaning up Kubernetes resources (PVCs, PVs) while API server is accessible...');
 
-        // Delete all Persistent Volume Claims (PVCs) to release the PVs.
-        // This must happen before deleting PVs or the host paths.
-        // shellExec(`kubectl delete pvc --all-namespaces --all --ignore-not-found || true`);
-
         // Get all Persistent Volumes and identify their host paths for data deletion.
-        // This needs to be done *before* deleting the PVs themselves.
-        // The '|| echo '{"items":[]}'` handles cases where 'kubectl get pv' might return empty or error.
         const pvListJson = shellExec(`kubectl get pv -o json || echo '{"items":[]}'`, { stdout: true, silent: true });
         const pvList = JSON.parse(pvListJson);
 
@@ -434,90 +505,57 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
           logger.info('No Persistent Volumes found with hostPath to clean up.');
         }
 
-        // Then, delete all Persistent Volumes (PVs).
-        // shellExec(`kubectl delete pv --all --ignore-not-found || true`);
-
-        // Phase 2: Stop Kubelet and remove CNI configuration
-        logger.info('Phase 2/6: Stopping Kubelet and removing CNI configurations...');
-        // Stop kubelet service to prevent further activity and release resources.
-        shellExec(`sudo systemctl stop kubelet || true`);
+        // Phase 2: Stop Kubelet/K3s agent and remove CNI configuration
+        logger.info('Phase 2/6: Stopping Kubelet/K3s agent and removing CNI configurations...');
+        shellExec(`sudo systemctl stop kubelet || true`); // Stop kubelet if it's running (kubeadm)
+        shellExec(`sudo /usr/local/bin/k3s-uninstall.sh || true`); // Run K3s uninstall script if it exists
 
         // CNI plugins use /etc/cni/net.d to store their configuration.
-        // Removing this prevents conflicts and potential issues during kubeadm reset.
         shellExec('sudo rm -rf /etc/cni/net.d/* || true');
 
         // Phase 3: Kind Cluster Cleanup
         logger.info('Phase 3/6: Cleaning up Kind clusters...');
-        // Delete all existing Kind (Kubernetes in Docker) clusters.
         shellExec(`kind get clusters | xargs -r -t -n1 kind delete cluster || true`);
 
-        // Phase 4: Kubeadm Reset
-        logger.info('Phase 4/6: Performing kubeadm reset...');
-        // Reset the Kubernetes control-plane components installed by kubeadm.
-        // The --force flag skips confirmation prompts. This command will tear down the cluster.
-        shellExec(`sudo kubeadm reset --force`);
+        // Phase 4: Kubeadm Reset (if applicable)
+        logger.info('Phase 4/6: Performing kubeadm reset (if applicable)...');
+        shellExec(`sudo kubeadm reset --force || true`); // Use || true to prevent script from failing if kubeadm is not installed
 
         // Phase 5: Post-reset File System Cleanup (Local Storage, Kubeconfig)
         logger.info('Phase 5/6: Cleaning up local storage provisioner data and kubeconfig...');
-        // Remove the kubectl configuration file for the current user.
-        // This is important to prevent stale credentials after the cluster is reset.
         shellExec('rm -rf $HOME/.kube || true');
-
-        // Remove local path provisioner data, which stores data for dynamically provisioned PVCs.
         shellExec(`sudo rm -rf /opt/local-path-provisioner/* || true`);
 
         // Phase 6: Container Runtime Cleanup (Docker and Podman)
         logger.info('Phase 6/6: Cleaning up Docker and Podman data...');
-        // Prune all unused Docker data (containers, images, volumes, networks).
-        shellExec('sudo docker system prune -a -f');
-
-        // Stop the Docker daemon service to ensure all files can be removed.
+        shellExec('sudo docker system prune -a -f || true');
         shellExec('sudo service docker stop || true');
-
-        // Aggressively remove container storage data for containerd and Docker.
-        // This targets the underlying storage directories.
         shellExec(`sudo rm -rf /var/lib/containers/storage/* || true`);
         shellExec(`sudo rm -rf /var/lib/docker/volumes/* || true`);
-        shellExec(`sudo rm -rf /var/lib/docker~/* || true`); // Cleanup any old Docker directories
+        shellExec(`sudo rm -rf /var/lib/docker~/* || true`);
         shellExec(`sudo rm -rf /home/containers/storage/* || true`);
         shellExec(`sudo rm -rf /home/docker/* || true`);
-
-        // Ensure Docker's default storage location is clean and re-linked if custom.
-        shellExec(`sudo rm -rf /var/lib/docker/* || true`);
         shellExec('sudo mkdir -p /home/docker || true');
         shellExec('sudo chmod 777 /home/docker || true');
-        shellExec('sudo ln -sf /home/docker /var/lib/docker || true'); // Use -sf for symbolic link, force and silent
+        shellExec('sudo ln -sf /home/docker /var/lib/docker || true');
 
-        // Prune all unused Podman data.
-        shellExec(`sudo podman system prune -a -f`);
-        shellExec(`sudo podman system prune --all --volumes --force`);
-        shellExec(`sudo podman system prune --external --force`);
-
-        // Create and set permissions for Podman's custom storage directory.
+        shellExec(`sudo podman system prune -a -f || true`);
+        shellExec(`sudo podman system prune --all --volumes --force || true`);
+        shellExec(`sudo podman system prune --external --force || true`);
         shellExec(`sudo mkdir -p /home/containers/storage || true`);
         shellExec('sudo chmod 0711 /home/containers/storage || true');
-
-        // Update Podman's storage configuration file.
         shellExec(
           `sudo sed -i -e "s@/var/lib/containers/storage@/home/containers/storage@g" /etc/containers/storage.conf || true`,
         );
-
-        // Reset Podman system settings.
-        shellExec(`sudo podman system reset -f`);
+        shellExec(`sudo podman system reset -f || true`);
 
         // Final Kubelet and System Cleanup (after all other operations)
         logger.info('Finalizing Kubelet and system file cleanup...');
-        // Remove Kubernetes configuration and kubelet data directories.
         shellExec(`sudo rm -rf /etc/kubernetes/* || true`);
         shellExec(`sudo rm -rf /var/lib/kubelet/* || true`);
-
-        // Clear trash files from the root user's trash directory.
-        shellExec('sudo rm -rf /root/.local/share/Trash/files/* || true');
-
-        // Reload systemd daemon to pick up any service file changes.
+        shellExec(`sudo rm -rf /root/.local/share/Trash/files/* || true`);
         shellExec(`sudo systemctl daemon-reload`);
-        // Attempt to start kubelet; it might fail if the cluster is fully reset, which is expected.
-        shellExec(`sudo systemctl start kubelet || true`);
+        shellExec(`sudo systemctl start kubelet || true`); // Attempt to start kubelet; might fail if fully reset
 
         logger.info('Comprehensive reset completed successfully.');
       } catch (error) {
@@ -530,21 +568,17 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
      * @method getResourcesCapacity
      * @description Retrieves and returns the allocatable CPU and memory resources
      * of the Kubernetes node.
-     * @param {boolean} [kubeadm=false] - If true, assumes a kubeadm-managed node;
+     * @param {boolean} [isKubeadmOrK3s=false] - If true, assumes a kubeadm or k3s-managed node;
      * otherwise, assumes a Kind worker node.
      * @returns {object} An object containing CPU and memory resources with values and units.
      */
-    getResourcesCapacity(kubeadm = false) {
+    getResourcesCapacity(isKubeadmOrK3s = false) {
       const resources = {};
-      const info = shellExec(
-        `kubectl describe node ${
-          kubeadm === true ? os.hostname() : 'kind-worker'
-        } | grep -E '(Allocatable:|Capacity:)' -A 6`,
-        {
-          stdout: true,
-          silent: true,
-        },
-      );
+      const nodeName = isKubeadmOrK3s ? os.hostname() : 'kind-worker';
+      const info = shellExec(`kubectl describe node ${nodeName} | grep -E '(Allocatable:|Capacity:)' -A 6`, {
+        stdout: true,
+        silent: true,
+      });
       info
         .split('Allocatable:')[1]
         .split('\n')
@@ -568,9 +602,36 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
      * @method initHost
      * @description Installs essential host-level prerequisites for Kubernetes,
      * including Docker, Podman, Kind, Kubeadm, and Helm.
+     *
+     * Quick-Start Guide for K3s Installation:
+     * This guide will help you quickly launch a cluster with default options. Make sure your nodes meet the requirements before proceeding.
+     * Consult the Installation page for greater detail on installing and configuring K3s.
+     * For information on how K3s components work together, refer to the Architecture page.
+     * If you are new to Kubernetes, the official Kubernetes docs have great tutorials covering basics that all cluster administrators should be familiar with.
+     *
+     * Install Script:
+     * K3s provides an installation script that is a convenient way to install it as a service on systemd or openrc based systems. This script is available at https://get.k3s.io. To install K3s using this method, just run:
+     * curl -sfL https://get.k3s.io | sh -
+     *
+     * After running this installation:
+     * - The K3s service will be configured to automatically restart after node reboots or if the process crashes or is killed
+     * - Additional utilities will be installed, including kubectl, crictl, ctr, k3s-killall.sh, and k3s-uninstall.sh
+     * - A kubeconfig file will be written to /etc/rancher/k3s/k3s.yaml and the kubectl installed by K3s will automatically use it
+     *
+     * A single-node server installation is a fully-functional Kubernetes cluster, including all the datastore, control-plane, kubelet, and container runtime components necessary to host workload pods. It is not necessary to add additional server or agents nodes, but you may want to do so to add additional capacity or redundancy to your cluster.
+     *
+     * To install additional agent nodes and add them to the cluster, run the installation script with the K3S_URL and K3S_TOKEN environment variables. Here is an example showing how to join an agent:
+     * curl -sfL https://get.k3s.io | K3S_URL=https://myserver:6443 K3S_TOKEN=mynodetoken sh -
+     *
+     * Setting the K3S_URL parameter causes the installer to configure K3s as an agent, instead of a server. The K3s agent will register with the K3s server listening at the supplied URL. The value to use for K3S_TOKEN is stored at /var/lib/rancher/k3s/server/node-token on your server node.
+     *
+     * Note: Each machine must have a unique hostname. If your machines do not have unique hostnames, pass the K3S_NODE_NAME environment variable and provide a value with a valid and unique hostname for each node.
+     * If you are interested in having more server nodes, see the High Availability Embedded etcd and High Availability External DB pages for more information.
      */
     initHost() {
-      console.log('Installing Docker, Podman, Kind, Kubeadm, and Helm...');
+      console.log(
+        'Installing essential host-level prerequisites for Kubernetes (Docker, Podman, Kind, Kubeadm, Helm) and providing K3s Quick-Start Guide information...',
+      );
       // Install docker
       shellExec(`sudo dnf -y install dnf-plugins-core`);
       shellExec(`sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo`);
@@ -583,7 +644,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
       shellExec(`[ $(uname -m) = aarch64 ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-arm64
 chmod +x ./kind
 sudo mv ./kind /bin/kind`);
-      // Install kubeadm, kubelet, kubectl
+      // Install kubeadm, kubelet, kubectl (these are also useful for K3s for kubectl command)
       shellExec(`cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
