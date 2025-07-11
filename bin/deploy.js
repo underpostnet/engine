@@ -1384,6 +1384,23 @@ EOF`);
 
         process.exit(0);
       }
+
+      if (process.argv.includes('restart')) {
+        shellExec(`sudo snap restart maas.pebble`);
+        let secs = 0;
+        while (
+          !(
+            shellExec(`maas status`, { silent: true, disableLog: true, stdout: true })
+              .split(' ')
+              .filter((l) => l.match('inactive')).length === 1
+          )
+        ) {
+          await timer(1000);
+          console.log(`Waiting... (${++secs}s)`);
+        }
+        process.exit(0);
+      }
+
       // shellExec(`MAAS_ADMIN_USERNAME=${process.env.MAAS_ADMIN_USERNAME}`);
       // shellExec(`MAAS_ADMIN_EMAIL=${process.env.MAAS_ADMIN_EMAIL}`);
       // shellExec(`maas createadmin --username $MAAS_ADMIN_USERNAME --email $MAAS_ADMIN_EMAIL`);
@@ -1647,21 +1664,6 @@ BOOT_ORDER=0x21`;
       if (bootConf) fs.writeFileSync(`${tftpRoot}${tftpSubDir}/boot.conf`, bootConf, 'utf8');
 
       shellExec(`node bin/deploy nfs`);
-
-      if (process.argv.includes('restart')) {
-        shellExec(`sudo snap restart maas.pebble`);
-        let secs = 0;
-        while (
-          !(
-            shellExec(`maas status`, { silent: true, disableLog: true, stdout: true })
-              .split(' ')
-              .filter((l) => l.match('inactive')).length === 1
-          )
-        ) {
-          await timer(1000);
-          console.log(`Waiting... (${++secs}s)`);
-        }
-      }
 
       switch (process.argv[3]) {
         case 'rpi4mb':
