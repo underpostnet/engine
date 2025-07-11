@@ -1171,7 +1171,7 @@ const writeEnv = (envPath, envObj) =>
     'utf8',
   );
 
-const buildCliDoc = () => {
+const buildCliDoc = (program) => {
   let md = shellExec(`node bin help`, { silent: true, stdout: true }).split('Options:');
   const baseOptions =
     `## ${md[0].split(`\n`)[2]}

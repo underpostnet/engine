@@ -41,6 +41,7 @@ import { ejs } from '../src/server/json-schema.js';
 import { getLocalIPv4Address, ip } from '../src/server/dns.js';
 import { Downloader } from '../src/server/downloader.js';
 import colors from 'colors';
+import { program } from '../src/cli/index.js';
 
 colors.enable();
 
@@ -1158,7 +1159,7 @@ EOF`);
     }
 
     case 'cli-docs': {
-      buildCliDoc();
+      buildCliDoc(program);
       break;
     }
 

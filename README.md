@@ -46,7 +46,7 @@ After template installation, the server will be running on <a target="_top" href
 
 Package repo and usage info: <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/README.md">pwa-microservices-template</a>
 
-## underpost ci/cd cli v2.8.799
+## underpost ci/cd cli v2.8.8
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -62,7 +62,7 @@ Commands:
   cmt [options] <path> <commit-type> [module-tag] [message]  Commit github repository
   push [options] <path> <uri>                                Push github repository
   env <deploy-id> [env]                                      Set environment variables files and conf related to <deploy-id>
-  config <operator> [key] [value]                            Manage configuration, operators
+  config [options] <operator> [key] [value]                  Manage configuration, operators
   root                                                       Get npm root path
   cluster [options] [pod-name]                               Manage cluster, for default initialization base kind cluster
   deploy [options] [deploy-list] [env]                       Manage deployment, for default deploy development pods
@@ -77,6 +77,7 @@ Commands:
   test [options] [deploy-list]                               Manage Test, for default run current underpost default test
   monitor [options] <deploy-id> [env]                        Monitor health server management
   lxd [options]                                              Lxd management
+  baremetal [options]                                        Baremetal management
   help [command]                                             display help for command
  
 ```
