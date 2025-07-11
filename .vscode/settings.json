@@ -124,5 +124,8 @@
   },
   "[shellscript]": {
     "editor.defaultFormatter": "foxundermoon.shell-format"
+  },
+  "files.watcherExclude": {
+    "**/target": true
   }
 }

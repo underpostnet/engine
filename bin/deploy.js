@@ -1211,6 +1211,37 @@ EOF`);
       break;
     }
 
+    case 'postgresql-17': {
+      if (process.argv.includes('install')) {
+        shellExec(`sudo dnf module reset postgresql -y`);
+        shellExec(`sudo dnf -qy module disable postgresql`);
+        shellExec(
+          `sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm`,
+        );
+        shellExec(`sudo dnf -qy module disable postgresql`);
+        shellExec(`sudo dnf install -y postgresql17-server`);
+        shellExec(`sudo /usr/pgsql-17/bin/postgresql-17-setup initdb`);
+      }
+      if (process.argv.includes('uninstall')) {
+        shellExec(`sudo systemctl stop postgresql-17`);
+        shellExec(`sudo systemctl disable postgresql-17`);
+
+        // Remove PostgreSQL 17 packages and repo
+        shellExec(`sudo dnf remove -y postgresql17-server postgresql17`);
+        shellExec(`sudo rpm -e pgdg-redhat-repo-$(rpm -q pgdg-redhat-repo --qf '%{VERSION}-%{RELEASE}') || true`);
+        shellExec(`sudo rm -f /etc/yum.repos.d/pgdg-redhat-*.repo`);
+
+        // Clean up data, logs, config, and the postgres user
+        shellExec(`sudo rm -rf /var/lib/pgsql/17 /var/log/pgsql`);
+        shellExec(`sudo rm -rf /etc/postgresql`);
+        shellExec(`sudo userdel -r postgres || true`);
+      } else {
+        shellExec(`sudo systemctl enable postgresql-17`);
+        shellExec(`sudo systemctl start postgresql-17`);
+      }
+      break;
+    }
+
     case 'postgresql-14': {
       if (process.argv.includes('install')) {
         shellExec(`sudo dnf module reset postgresql -y`);
@@ -1224,11 +1255,19 @@ EOF`);
 
         shellExec(`sudo dnf install postgresql14 postgresql14-server postgresql14-contrib -y`);
       }
-      shellExec(`sudo /usr/pgsql-14/bin/postgresql-14-setup initdb`);
-      shellExec(`sudo systemctl start postgresql-14`);
-      shellExec(`sudo systemctl enable postgresql-14`);
-      shellExec(`sudo systemctl status postgresql-14`);
-      // sudo dnf install postgresql14-contrib
+      if (process.argv.includes('uninstall')) {
+        shellExec(`sudo systemctl stop postgresql-14`);
+        shellExec(`sudo systemctl disable postgresql-14`);
+        shellExec(`sudo dnf remove -y postgresql14 postgresql14-server postgresql14-contrib`);
+        shellExec(`sudo rm -rf /var/lib/pgsql /var/log/pgsql /etc/postgresql`);
+      } else {
+        shellExec(`sudo /usr/pgsql-14/bin/postgresql-14-setup initdb`);
+        shellExec(`sudo systemctl start postgresql-14`);
+        shellExec(`sudo systemctl enable postgresql-14`);
+        shellExec(`sudo systemctl status postgresql-14`);
+        // sudo dnf install postgresql14-contrib
+      }
+
       break;
     }
 

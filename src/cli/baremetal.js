@@ -17,10 +17,10 @@ class UnderpostBaremetal {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
-      const dbProviderId = 'postgresql-14';
+      const dbProviderId = 'postgresql-17';
       if (options.controlServerUninstall === true) {
         // Stop MAAS services
-        shellExec(`sudo systemctl stop maas.pebble || true`);
+        shellExec(`sudo snap stop maas.pebble || true`);
         shellExec(`sudo snap stop maas`);
         shellExec(`sudo snap remove maas --purge || true`);
 

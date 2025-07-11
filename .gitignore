@@ -17,5 +17,7 @@
 .cache
 .nyc_output
 *.tar
+*.metals
+*scala-build
 _
 _.js
