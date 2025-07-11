@@ -35,13 +35,28 @@ const PopSchema = new Schema(
         type: [Number],
       },
     },
-    components: [
+    physicalNodes: [
       {
         name: { type: String, required: true, trim: true },
         id: { type: String, required: true }, // UUID
         type: {
           type: String,
-          enum: ['gate', 'maas', 'storage', 'rack', 'edge', 'guest', 'network', 'firewall', 'power', 'cooling'],
+          enum: [
+            'router',
+            'switch',
+            'gate',
+            'maas',
+            'storage',
+            'rack',
+            'edge',
+            'guest',
+            'network',
+            'firewall',
+            'power',
+            'gpu',
+            'asic',
+            'cooling',
+          ],
           required: true,
         },
         status: { type: String, enum: ['active', 'inactive', 'planned'], default: 'planned' },
