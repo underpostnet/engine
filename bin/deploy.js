@@ -1219,7 +1219,8 @@ EOF`);
           `sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm`,
         );
         shellExec(`sudo dnf -qy module disable postgresql`);
-        shellExec(`sudo dnf install -y postgresql17-server`);
+        shellExec(`sudo dnf install -y postgresql17 postgresql17-server postgresql17-contrib`);
+
         shellExec(`sudo /usr/pgsql-17/bin/postgresql-17-setup initdb`);
       }
       if (process.argv.includes('uninstall')) {
@@ -1227,7 +1228,7 @@ EOF`);
         shellExec(`sudo systemctl disable postgresql-17`);
 
         // Remove PostgreSQL 17 packages and repo
-        shellExec(`sudo dnf remove -y postgresql17-server postgresql17`);
+        shellExec(`sudo dnf remove -y postgresql17 postgresql17-server postgresql17-contrib`);
         shellExec(`sudo rpm -e pgdg-redhat-repo-$(rpm -q pgdg-redhat-repo --qf '%{VERSION}-%{RELEASE}') || true`);
         shellExec(`sudo rm -f /etc/yum.repos.d/pgdg-redhat-*.repo`);
 
