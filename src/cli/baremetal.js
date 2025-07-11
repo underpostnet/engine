@@ -7,6 +7,7 @@ class UnderpostBaremetal {
       options = {
         dev: false,
         controlServerInitDb: false,
+        controlServerReset: false,
       },
     ) {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
@@ -19,6 +20,9 @@ class UnderpostBaremetal {
           `node ${underpostRoot}/bin/deploy pg-drop-db ${process.env.DB_PG_MAAS_NAME} ${process.env.DB_PG_MAAS_USER}`,
         );
         shellExec(`node ${underpostRoot}/bin/deploy maas db`);
+      }
+      if (options.controlServerReset === true) {
+        shellExec(`node ${underpostRoot}/bin/deploy maas reset`);
       }
     },
   };

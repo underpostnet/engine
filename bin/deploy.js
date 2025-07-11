@@ -1218,10 +1218,10 @@ EOF`);
         shellExec(`sudo systemctl stop postgresql-14`);
         shellExec(`sudo systemctl disable postgresql-14`);
 
-        shellExec(`sudo dnf remove -y postgresql14 postgresql14-server`);
+        shellExec(`sudo dnf remove -y postgresql14 postgresql14-server postgresql14-contrib`);
         shellExec(`sudo rm -rf /var/lib/pgsql`);
 
-        shellExec(`sudo dnf install postgresql14 postgresql14-server -y`);
+        shellExec(`sudo dnf install postgresql14 postgresql14-server postgresql14-contrib -y`);
       }
       shellExec(`sudo /usr/pgsql-14/bin/postgresql-14-setup initdb`);
       shellExec(`sudo systemctl start postgresql-14`);

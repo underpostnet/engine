@@ -306,6 +306,7 @@ program
 program
   .command('baremetal')
   .option('--control-server-init-db', 'Setup database control server')
+  .option('--control-server-reset', 'Reset baremetal control server')
   .option('--dev', 'Set dev context env')
   .description('Baremetal management')
   .action(UnderpostBaremetal.API.callback);
