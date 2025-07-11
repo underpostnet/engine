@@ -1,0 +1,10 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: mariadb-storage-class # Renamed for clarity
+  annotations:
+    # Set this to "true" if you want this to be the default StorageClass
+    # storageclass.kubernetes.io/is-default-class: "true"
+provisioner: rancher.io/local-path # Ensure this provisioner is installed in your cluster
+reclaimPolicy: Retain # Or Delete, depending on your data retention policy
+volumeBindingMode: WaitForFirstConsumer

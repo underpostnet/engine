@@ -270,6 +270,20 @@ class UnderpostCluster {
           `sudo kubectl create secret generic mariadb-secret --from-file=username=/home/dd/engine/engine-private/mariadb-username --from-file=password=/home/dd/engine/engine-private/mariadb-password --dry-run=client -o yaml | kubectl apply -f -`,
         );
         shellExec(`kubectl delete statefulset mariadb-statefulset --ignore-not-found`);
+
+        if (options.pullImage === true) {
+          shellExec(`docker pull mariadb:latest`);
+          shellExec(`sudo podman pull mariadb:latest`);
+          if (!options.kubeadm && !options.k3s)
+            // Only load if not kubeadm/k3s (Kind needs it)
+            shellExec(`sudo kind load docker-image mariadb:latest`);
+          else if (options.kubeadm || options.k3s)
+            // For kubeadm/k3s, ensure it's available for containerd
+            shellExec(`sudo crictl pull mariadb:latest`);
+        }
+        if (options.kubeadm === true)
+          // This storage class is specific to kubeadm setup
+          shellExec(`kubectl apply -f ${underpostRoot}/manifests/mariadb/storage-class.yaml`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb`);
       }
       if (options.full === true || options.mysql === true) {

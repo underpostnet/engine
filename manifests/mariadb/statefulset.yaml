@@ -49,7 +49,8 @@ spec:
     - metadata:
         name: mariadb-storage
       spec:
-        accessModes: ['ReadWriteOnce']
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: mariadb-storage-class
         resources:
           requests:
             storage: 1Gi
