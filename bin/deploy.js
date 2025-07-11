@@ -1272,6 +1272,13 @@ EOF`);
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
 
+      const machineFactory = (m) => ({
+        system_id: m.interface_set[0].system_id,
+        mac_address: m.interface_set[0].mac_address,
+        hostname: m.hostname,
+        status_name: m.status_name,
+      });
+
       if (process.argv.includes('db')) {
         // DROP, ALTER, CREATE, WITH ENCRYPTED
         // sudo -u <user> -h <host> psql <db-name>
@@ -1293,41 +1300,6 @@ EOF`);
 
         shellExec(`sudo -i -u postgres psql -c "\\l"`);
         process.exit(0);
-      }
-
-      let resources;
-      try {
-        resources = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
-            silent: true,
-            stdout: true,
-          }),
-        ).map((o) => ({
-          id: o.id,
-          name: o.name,
-          architecture: o.architecture,
-        }));
-      } catch (error) {
-        logger.error(error);
-      }
-
-      const machineFactory = (m) => ({
-        system_id: m.interface_set[0].system_id,
-        mac_address: m.interface_set[0].mac_address,
-        hostname: m.hostname,
-        status_name: m.status_name,
-      });
-
-      let machines;
-      try {
-        machines = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
-            stdout: true,
-            silent: true,
-          }),
-        ).map((m) => machineFactory(m));
-      } catch (error) {
-        logger.error(error);
       }
 
       if (process.argv.includes('ls')) {
@@ -1503,6 +1475,34 @@ EOF`);
       // Check interface
       // ip link show
       // nmcli con show
+
+      let resources;
+      try {
+        resources = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
+            silent: true,
+            stdout: true,
+          }),
+        ).map((o) => ({
+          id: o.id,
+          name: o.name,
+          architecture: o.architecture,
+        }));
+      } catch (error) {
+        logger.error(error);
+      }
+
+      let machines;
+      try {
+        machines = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
+            stdout: true,
+            silent: true,
+          }),
+        ).map((m) => machineFactory(m));
+      } catch (error) {
+        logger.error(error);
+      }
 
       let firmwarePath,
         tftpSubDir,
