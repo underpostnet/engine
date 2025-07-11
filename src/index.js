@@ -4,6 +4,7 @@
  * @namespace Underpost
  */
 
+import UnderpostBaremetal from './cli/baremetal.js';
 import UnderpostCluster from './cli/cluster.js';
 import UnderpostCron from './cli/cron.js';
 import UnderpostDB from './cli/db.js';
@@ -130,6 +131,13 @@ class Underpost {
    * @memberof Underpost
    */
   static lxd = UnderpostLxd.API;
+  /**
+   * Baremetal cli API
+   * @static
+   * @type {UnderpostBaremetal.API}
+   * @memberof Underpost
+   */
+  static baremetal = UnderpostBaremetal.API;
 }
 
 const up = Underpost;

@@ -6,6 +6,7 @@ import fs from 'fs-extra';
 import { commitData } from '../client/components/core/CommonJs.js';
 import { shellExec } from '../server/process.js';
 import UnderpostLxd from './lxd.js';
+import UnderpostBaremetal from './baremetal.js';
 
 const underpostRootPath = getUnderpostRootPath();
 fs.existsSync(`${underpostRootPath}/.env`)
@@ -301,5 +302,12 @@ program
   .option('--auto-expose-k8s-ports <vm-id>', 'Automatically expose common Kubernetes ports for the VM.')
   .description('Lxd management')
   .action(UnderpostLxd.API.callback);
+
+program
+  .command('baremetal')
+  .option('--control-server-init-db', 'Setup database control server')
+  .option('--dev', 'Set dev context env')
+  .description('Baremetal management')
+  .action(UnderpostBaremetal.API.callback);
 
 export { program };
