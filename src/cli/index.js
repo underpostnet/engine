@@ -81,8 +81,9 @@ program
   .argument('operator', `Options: ${Object.keys(Underpost.env)}`)
   .argument('[key]', 'Config key')
   .argument('[value]', 'Config value')
+  .option('--plain', 'Print plain value')
   .description(`Manage configuration, operators`)
-  .action((...args) => Underpost.env[args[0]](args[1], args[2]));
+  .action((...args) => Underpost.env[args[0]](args[1], args[2], args[3]));
 
 program
   .command('root')

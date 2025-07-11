@@ -25,7 +25,7 @@ class UnderpostRootEnv {
       delete env[key];
       writeEnv(envPath, env);
     },
-    get(key) {
+    get(key, value, options = { plain: false }) {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
       if (!fs.existsSync(envPath)) {
@@ -33,7 +33,7 @@ class UnderpostRootEnv {
         return undefined;
       }
       const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-      logger.info(`${key}(${typeof env[key]})`, env[key]);
+      options?.plain === true ? console.log(env[key]) : logger.info(`${key}(${typeof env[key]})`, env[key]);
       return env[key];
     },
     list() {
