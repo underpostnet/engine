@@ -27,6 +27,7 @@ import {
   setUpProxyMaintenanceServer,
   writeEnv,
   getUnderpostRootPath,
+  buildCliDoc,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, s4, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
@@ -37,7 +38,6 @@ import { JSONweb } from '../src/server/client-formatted.js';
 
 import { Xampp } from '../src/runtime/xampp/Xampp.js';
 import { ejs } from '../src/server/json-schema.js';
-import { buildCliDoc } from '../src/cli/index.js';
 import { getLocalIPv4Address, ip } from '../src/server/dns.js';
 import { Downloader } from '../src/server/downloader.js';
 import colors from 'colors';

@@ -1171,6 +1171,63 @@ const writeEnv = (envPath, envObj) =>
     'utf8',
   );
 
+const buildCliDoc = () => {
+  let md = shellExec(`node bin help`, { silent: true, stdout: true }).split('Options:');
+  const baseOptions =
+    `## ${md[0].split(`\n`)[2]}
+
+### Usage: ` +
+    '`' +
+    md[0].split(`\n`)[0].split('Usage: ')[1] +
+    '`' +
+    `
+  ` +
+    '```\n Options:' +
+    md[1] +
+    ' \n```';
+  md =
+    baseOptions +
+    `
+
+## Commands:
+    `;
+  program.commands.map((o) => {
+    md +=
+      `
+
+` +
+      '### `' +
+      o._name +
+      '` :' +
+      `
+` +
+      '```\n ' +
+      shellExec(`node bin help ${o._name}`, { silent: true, stdout: true }) +
+      ' \n```' +
+      `
+  `;
+  });
+  fs.writeFileSync(`./src/client/public/nexodev/docs/references/Command Line Interface.md`, md, 'utf8');
+  fs.writeFileSync(`./cli.md`, md, 'utf8');
+  const readmeSplit = `pwa-microservices-template</a>`;
+  const readme = fs.readFileSync(`./README.md`, 'utf8').split(readmeSplit);
+  fs.writeFileSync(
+    './README.md',
+    readme[0] +
+      readmeSplit +
+      `
+
+` +
+      baseOptions +
+      `
+      
+<a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/cli.md">See complete CLI Docs here.</a>
+      
+`,
+    'utf8',
+  );
+};
+
 export {
   Cmd,
   Config,
@@ -1214,4 +1271,5 @@ export {
   deployRangePortFactory,
   awaitDeployMonitor,
   rebuildConfFactory,
+  buildCliDoc,
 };
