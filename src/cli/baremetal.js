@@ -11,6 +11,7 @@ class UnderpostBaremetal {
         controlServerInit: false,
         controlServerUninstall: false,
         controlServerStop: false,
+        controlServerStart: false,
       },
     ) {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
@@ -31,6 +32,9 @@ class UnderpostBaremetal {
         shellExec(`sudo rm -rf /etc/maas`);
         shellExec(`sudo rm -rf /var/lib/maas`);
         shellExec(`sudo rm -rf /var/log/maas`);
+      }
+      if (options.controlServerStart === true) {
+        shellExec(`sudo snap restart maas`);
       }
       if (options.controlServerStop === true) {
         shellExec(`sudo snap stop maas`);
