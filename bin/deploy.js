@@ -1252,7 +1252,6 @@ EOF`);
         // Clean up data, logs, config, and the postgres user
         shellExec(`sudo rm -rf /var/lib/pgsql/17 /var/log/pgsql`);
         shellExec(`sudo rm -rf /etc/postgresql`);
-        shellExec(`sudo userdel -r postgres || true`);
       } else {
         shellExec(`sudo systemctl enable postgresql-17`);
         shellExec(`sudo systemctl start postgresql-17`);
@@ -1403,6 +1402,7 @@ EOF`);
       }
 
       // TODO: - Disable maas proxy (egress forwarding to public dns)
+      //       - Configure maas dhcp control server
       //       - Configure maas dns forwarding ${process.env.MAAS_DNS}
       //       - Enable DNSSEC validation of upstream zones: Automatic (use default root key)
 
