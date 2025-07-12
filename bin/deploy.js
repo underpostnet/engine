@@ -54,20 +54,14 @@ const [exe, dir, operator] = process.argv;
 const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
   const steps = [
     `apt update`,
+    `apt install -y cloud-init systemd-sysv openssh-server sudo`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
-    `apt install -y sudo openssh-server iptables ntp locales`,
-    `update-alternatives --set iptables /usr/sbin/iptables-legacy`,
-    `update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy`,
-    `apt install -y systemd-sysv`,
-    // k3s
-    //     `cat <<EOF > /etc/modules-load.d/k8s.conf
-    // br_netfilter
-    // EOF`,
-    //     `cat <<EOF > /etc/sysctl.d/99-k8s.conf
-    // net.bridge.bridge-nf-call-iptables = 1
-    // net.bridge.bridge-nf-call-ip6tables = 1
-    // EOF`,
-    //     `sysctl --system`,
+    `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
+datasource_list: [ MAAS ]
+datasource:
+  MAAS:
+    metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
+EOF_MAAS_CFG`,
   ];
 
   const stepsCloudInit = [
@@ -1689,7 +1683,7 @@ EOF`);
             // 'ro',
             'netboot=nfs',
             `init=/sbin/init`,
-            `cloud-config-url=/dev/null`,
+            // `cloud-config-url=/dev/null`,
             // 'ip=dhcp',
             // 'ip=dfcp',
             // 'autoinstall',
