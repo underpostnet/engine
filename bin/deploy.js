@@ -1322,6 +1322,9 @@ EOF`);
     }
 
     case 'maas': {
+      shellExec(
+        `underpost secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
+      );
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const IP_ADDRESS = getLocalIPv4Address();
       const serverip = IP_ADDRESS;
@@ -1599,7 +1602,7 @@ EOF`);
 
       switch (process.argv[3]) {
         case 'rpi4mb':
-          const resourceId = process.argv[4] ?? '39';
+          const resourceId = process.argv[4] ?? '12';
           tftpSubDir = '/rpi4mb';
           zipFirmwareFileName = `RPi4_UEFI_Firmware_v1.41.zip`;
           zipFirmwareName = zipFirmwareFileName.split('.zip')[0];
