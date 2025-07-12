@@ -1640,6 +1640,40 @@ EOF`);
             // 'rd.break',
           ];
 
+          // TODO: use autoinstall cloud-config-url=http://<MAAS_IP>:5240/MAAS/metadata/latest
+          // #cloud-config
+          // autoinstall:
+          //   version: 1
+
+          //   keyboard:
+          //     layout: es
+          //     variant: latinamerican
+
+          //   identity:
+          //     hostname: rpi4
+          //     username: rpiadmin
+          //     password: "{{PASSWORD}}"
+
+          //   ssh:
+          //     install-server: true
+          //     allow-pw: true
+          //     authorized-keys:
+          //       - "{{SSH_KEY}}"
+
+          //   locale: es_ES.UTF-8
+          //   timezone: America/Santiago
+
+          //   packages:
+          //     - cloud-init
+          //     - systemd-sysv
+          //     - openssh-server
+          //     - sudo
+          //     - udev
+          //     - netplan.io
+
+          //   late-commands:
+          //     - curtin in-target --target=/target ln -sf /lib/systemd/systemd /sbin/init
+
           nfsConnectStr = cmd.join(' ');
           bootConf = `[all]
 MAC_ADDRESS=00:00:00:00:00:00
