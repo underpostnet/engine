@@ -54,13 +54,44 @@ const [exe, dir, operator] = process.argv;
 const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
   const steps = [
     `apt update`,
-    `apt install -y cloud-init systemd-sysv openssh-server sudo`,
+    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev iproute2 netplan.io ca-certificates curl wget`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
+
+    // 1. Create default user 'rpiadmin'
+    `useradd -m -s /bin/bash -G sudo rpiadmin`,
+    `echo 'rpiadmin:changeme' | chpasswd`,
+    `mkdir -p /home/rpiadmin/.ssh`,
+    `echo '${fs.readFileSync(
+      `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
+      'utf8',
+    )}' > /home/rpiadmin/.ssh/authorized_keys`,
+    `chown -R rpiadmin:rpiadmin /home/rpiadmin/.ssh`,
+    `chmod 700 /home/rpiadmin/.ssh`,
+    `chmod 600 /home/rpiadmin/.ssh/authorized_keys`,
+
+    // 2. Enable SSH service
+    `systemctl enable ssh`,
+
+    // 3. Configure cloud-init for MAAS
     `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
 datasource_list: [ MAAS ]
 datasource:
   MAAS:
     metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
+users:
+  - name: rpiadmin
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    shell: /bin/bash
+    lock_passwd: false
+    plain_text_passwd: 'changeme'
+    ssh_authorized_keys:
+      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
+packages:
+  - git
+  - htop
+resize_rootfs: false
+growpart:
+  mode: off
 EOF_MAAS_CFG`,
   ];
 
