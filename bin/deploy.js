@@ -58,6 +58,7 @@ const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
     `apt install -y sudo openssh-server iptables ntp locales`,
     `update-alternatives --set iptables /usr/sbin/iptables-legacy`,
     `update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy`,
+    `apt install -y systemd-sysv`,
     // k3s
     //     `cat <<EOF > /etc/modules-load.d/k8s.conf
     // br_netfilter
@@ -1687,6 +1688,7 @@ EOF`);
             // 'boot=casper',
             // 'ro',
             'netboot=nfs',
+            `init=/sbin/init`,
             `cloud-config-url=/dev/null`,
             // 'ip=dhcp',
             // 'ip=dfcp',
