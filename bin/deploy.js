@@ -55,6 +55,23 @@ const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
   const steps = [
     `apt update`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
+    `apt install -y sudo openssh-server iptables ntp locales`,
+    `update-alternatives --set iptables /usr/sbin/iptables-legacy`,
+    `update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy`,
+    // k3s
+    //     `cat <<EOF > /etc/modules-load.d/k8s.conf
+    // br_netfilter
+    // EOF`,
+    //     `cat <<EOF > /etc/sysctl.d/99-k8s.conf
+    // net.bridge.bridge-nf-call-iptables = 1
+    // net.bridge.bridge-nf-call-ip6tables = 1
+    // EOF`,
+    //     `sysctl --system`,
+  ];
+
+  const stepsCloudInit = [
+    `apt update`,
+    `ln -sf /lib/systemd/systemd /sbin/init`,
     // `sudo apt install linux-modules-extra-6.8.0-31-generic`,
     `apt install -y sudo`,
     `apt install -y ntp`,
@@ -1320,6 +1337,45 @@ EOF`);
         status_name: m.status_name,
       });
 
+      let resources;
+      try {
+        resources = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
+            silent: true,
+            stdout: true,
+          }),
+        ).map((o) => ({
+          id: o.id,
+          name: o.name,
+          architecture: o.architecture,
+        }));
+      } catch (error) {
+        logger.error(error);
+      }
+
+      let machines;
+      try {
+        machines = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
+            stdout: true,
+            silent: true,
+          }),
+        ).map((m) => machineFactory(m));
+      } catch (error) {
+        logger.error(error);
+      }
+
+      if (process.argv.includes('ls')) {
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-sources read`);
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} commissioning-scripts read`);
+        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 60`);
+        logger.info('Resources');
+        console.table(resources);
+        logger.info('Machines');
+        console.table(machines);
+        process.exit(0);
+      }
+
       if (process.argv.includes('db')) {
         // DROP, ALTER, CREATE, WITH ENCRYPTED
         // sudo -u <user> -h <host> psql <db-name>
@@ -1340,15 +1396,6 @@ EOF`);
         shellExec(`sudo -i -u postgres createdb -O "$DB_PG_MAAS_USER" "$DB_PG_MAAS_NAME"`);
 
         shellExec(`sudo -i -u postgres psql -c "\\l"`);
-        process.exit(0);
-      }
-
-      if (process.argv.includes('ls')) {
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-sources read`);
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} commissioning-scripts read`);
-        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 60`);
-        console.table(resources);
-        console.table(machines);
         process.exit(0);
       }
 
@@ -1533,34 +1580,6 @@ EOF`);
       // Check interface
       // ip link show
       // nmcli con show
-
-      let resources;
-      try {
-        resources = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
-            silent: true,
-            stdout: true,
-          }),
-        ).map((o) => ({
-          id: o.id,
-          name: o.name,
-          architecture: o.architecture,
-        }));
-      } catch (error) {
-        logger.error(error);
-      }
-
-      let machines;
-      try {
-        machines = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
-            stdout: true,
-            silent: true,
-          }),
-        ).map((m) => machineFactory(m));
-      } catch (error) {
-        logger.error(error);
-      }
 
       let firmwarePath,
         tftpSubDir,
