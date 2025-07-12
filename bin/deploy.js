@@ -92,58 +92,6 @@ packages:
 resize_rootfs: false
 growpart:
   mode: off
-EOF_MAAS_CFG`,
-  ];
-
-  const stepsCloudInit = [
-    `apt update`,
-    `ln -sf /lib/systemd/systemd /sbin/init`,
-    // `sudo apt install linux-modules-extra-6.8.0-31-generic`,
-    `apt install -y sudo`,
-    `apt install -y ntp`,
-    `apt install -y openssh-server`,
-    `apt install -y iptables`,
-    `update-alternatives --set iptables /usr/sbin/iptables-legacy`,
-    `update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy`,
-    `apt install -y locales`,
-    `apt install -y cloud-init`,
-    `mkdir -p /var/lib/cloud`,
-    `chown -R root:root /var/lib/cloud`,
-    `chmod -R 0755 /var/lib/cloud`,
-    `mkdir -p /home/root/.ssh`,
-    `echo '${fs.readFileSync(
-      `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
-      'utf8',
-    )}' >> /home/root/.ssh/authorized_keys`,
-    `chmod 700 /home/root/.ssh`,
-    `chmod 600 /home/root/.ssh/authorized_keys`,
-    `systemctl enable ssh`,
-    `systemctl enable ntp`,
-    `apt install -y linux-generic-hwe-24.04`,
-    `modprobe ip_tables`,
-    `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
-datasource_list: [ MAAS ]
-datasource:
-  MAAS:
-    metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
-users:
-  - name: ${process.env.MAAS_ADMIN_USERNAME}
-    ssh_authorized_keys:
-      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
-    sudo: "ALL=(ALL) NOPASSWD:ALL"
-    groups: sudo
-    shell: /bin/bash
-packages:
-  - git
-  - htop
-  - ufw
-# package_update: true
-runcmd:
-  - ufw enable
-  - ufw allow ssh
-resize_rootfs: false
-growpart:
-  mode: off
 network:
   version: 2
   ethernets:
@@ -1430,7 +1378,7 @@ EOF`);
       // TODO: - Disable maas proxy (egress forwarding to public dns)
       //       - Configure maas dhcp control server
       //       - Configure maas dns forwarding ${process.env.MAAS_DNS}
-      //       - Enable DNSSEC validation of upstream zones: Automatic (use default root key)
+      //       - Disable DNSSEC validation to No (Disable DNSSEC; useful when upstream DNS is misconfigured)
 
       if (process.argv.includes('clear')) {
         for (const machine of machines) {
@@ -1470,35 +1418,6 @@ EOF`);
           `maas init region+rack --database-uri "postgres://${process.env.DB_PG_MAAS_USER}:${process.env.DB_PG_MAAS_PASS}@${process.env.DB_PG_MAAS_HOST}/${process.env.DB_PG_MAAS_NAME}"` +
           ` --maas-url http://${IP_ADDRESS}:5240/MAAS`;
         pbcopy(cmd);
-        process.exit(0);
-      }
-      if (process.argv.includes('dhcp')) {
-        const snippets = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} dhcpsnippets read`, {
-            stdout: true,
-            silent: true,
-            disableLog: true,
-          }),
-        );
-        for (const snippet of snippets) {
-          switch (snippet.name) {
-            case 'arm64':
-              snippet.value = snippet.value.split(`\n`);
-              snippet.value[1] = `          filename "http://${IP_ADDRESS}:5248/images/bootloaders/uefi/arm64/grubaa64.efi";`;
-              snippet.value[5] = `          filename "http://${IP_ADDRESS}:5248/images/bootloaders/uefi/arm64/grubaa64.efi";`;
-              snippet.value = snippet.value.join(`\n`);
-              shellExec(
-                `maas ${process.env.MAAS_ADMIN_USERNAME} dhcpsnippet update ${snippet.name} value='${snippet.value}'`,
-              );
-              break;
-
-            default:
-              break;
-          }
-        }
-
-        console.log(snippets);
-
         process.exit(0);
       }
 
@@ -1920,9 +1839,12 @@ BOOT_ORDER=0x21`;
             newMachine = machineFactory(JSON.parse(newMachine));
             machines.push(newMachine);
             console.log(newMachine);
-            shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.system_id}`, {
-              silent: true,
-            });
+            shellExec(
+              `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.system_id}  enable_ssh=1 commissioning_scripts=90-verify-user.sh skip_bmc_config=1 skip_networking=1 skip_storage=1`,
+              {
+                silent: true,
+              },
+            );
           } catch (error) {
             logger.error(error, error.stack);
           }
