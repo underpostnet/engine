@@ -12,12 +12,18 @@ class UnderpostBaremetal {
         controlServerUninstall: false,
         controlServerStop: false,
         controlServerStart: false,
+        controlServerLogin: false,
       },
     ) {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       const dbProviderId = 'postgresql-17';
+      if (options.controlServerLogin === true) {
+        shellExec(`MAAS_ADMIN_USERNAME=$(underpost config get --plain MAAS_ADMIN_USERNAME)
+APIKEY=$(maas apikey --username "$MAAS_ADMIN_USERNAME")
+maas login "$MAAS_ADMIN_USERNAME" "http://localhost:5240/MAAS/" "$APIKEY"`);
+      }
       if (options.controlServerUninstall === true) {
         // Stop MAAS services
         shellExec(`sudo snap stop maas.pebble || true`);
