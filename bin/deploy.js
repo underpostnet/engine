@@ -52,6 +52,12 @@ logger.info('argv', process.argv);
 const [exe, dir, operator] = process.argv;
 
 const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update }) => {
+  // <consumer_key>:<consumer_token>:<secret>
+  const MAAS_API_TOKEN = shellExec(`maas apikey --username ${process.env.MAAS_ADMIN_USERNAME}`, {
+    stdout: true,
+  }).trim();
+  const [consumer_key, consumer_token, secret] = MAAS_API_TOKEN.split(':');
+
   const installSteps = [
     `apt update`,
     `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev iproute2 netplan.io ca-certificates curl wget`,
@@ -84,6 +90,9 @@ datasource_list: [ MAAS ]
 datasource:
   MAAS:
     metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
+    consumer_key: ${consumer_key}
+    token_key: ${consumer_token}
+    token_secret: ${secret}
 users:
   - name: rpiadmin
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
@@ -91,8 +100,8 @@ users:
     lock_passwd: true
     ssh_authorized_keys:
       - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
-keyboard:
-  layout: es
+# keyboard:
+#   layout: es
 
 ntp:
   enabled: true
