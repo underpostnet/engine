@@ -1386,6 +1386,14 @@ EOF`);
         process.exit(0);
       }
 
+      if (process.argv.includes('config')) {
+        shellExec(`sudo sed -i 's/^#Storage=auto/Storage=volatile/' /etc/systemd/journald.conf`);
+        shellExec(`sudo systemctl daemon-reload`);
+        shellExec(`sudo systemctl restart systemd-journald`);
+        shellExec(`journalctl --disk-usage`);
+        process.exit(0);
+      }
+
       if (process.argv.includes('db')) {
         // DROP, ALTER, CREATE, WITH ENCRYPTED
         // sudo -u <user> -h <host> psql <db-name>
