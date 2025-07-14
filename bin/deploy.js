@@ -92,13 +92,13 @@ users:
     ssh_authorized_keys:
       - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
 keyboard:
-    layout: es
+  layout: es
 
-ssh:
-  allow-pw: false
-  install-server: true
+# ssh:
+#   allow-pw: false
+#   install-server: true
 
-ssh_pwauth: false
+# ssh_pwauth: false
 
 package_update: true
 package_upgrade: true
