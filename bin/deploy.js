@@ -1725,7 +1725,8 @@ DHCP_TIMEOUT=45000
 DHCP_REQ_TIMEOUT=4000
 TFTP_FILE_TIMEOUT=30000
 BOOT_ORDER=0x21`;
-
+          // CLIENT_IP=${ipaddr}
+          // SUBNET=255.255.255.0
           break;
 
         default:
