@@ -7,7 +7,8 @@ class UnderpostBaremetal {
       options = {
         dev: false,
         controlServerInstall: false,
-        controlServerInitDb: false,
+        controlServerDbInit: false,
+        controlServerDbUninstall: false,
         controlServerInit: false,
         controlServerUninstall: false,
         controlServerStop: false,
@@ -45,12 +46,15 @@ maas login "$MAAS_ADMIN_USERNAME" "http://localhost:5240/MAAS/" "$APIKEY"`);
       if (options.controlServerStop === true) {
         shellExec(`sudo snap stop maas`);
       }
-      if (options.controlServerInitDb === true) {
+      if (options.controlServerDbInit === true) {
         shellExec(`node ${underpostRoot}/bin/deploy ${dbProviderId} install`);
         shellExec(
           `node ${underpostRoot}/bin/deploy pg-drop-db ${process.env.DB_PG_MAAS_NAME} ${process.env.DB_PG_MAAS_USER}`,
         );
         shellExec(`node ${underpostRoot}/bin/deploy maas db`);
+      }
+      if (options.controlServerDbUninstall === true) {
+        shellExec(`node ${underpostRoot}/bin/deploy ${dbProviderId} uninstall`);
       }
       if (options.controlServerInstall === true) {
         shellExec(`chmod +x ${underpostRoot}/manifests/maas/maas-setup.sh`);

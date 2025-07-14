@@ -307,7 +307,8 @@ program
 program
   .command('baremetal')
   .option('--control-server-install', 'Install baremetal control server')
-  .option('--control-server-init-db', 'Setup database baremetal control server')
+  .option('--control-server-db-init', 'Setup database baremetal control server')
+  .option('--control-server-db-uninstall', 'Uninstall database baremetal control server')
   .option('--control-server-init', 'Init baremetal control server')
   .option('--control-server-login', 'Control server admin login')
   .option('--control-server-uninstall', 'Uninstall baremetal control server')
