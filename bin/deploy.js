@@ -105,6 +105,7 @@ package_upgrade: true
 packages:
   - git
   - htop
+  - snapd
 resize_rootfs: false
 growpart:
   mode: off
