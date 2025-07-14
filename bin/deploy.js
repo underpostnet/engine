@@ -51,12 +51,11 @@ logger.info('argv', process.argv);
 
 const [exe, dir, operator] = process.argv;
 
-const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr }) => {
-  const steps = [
+const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update }) => {
+  const installSteps = [
     `apt update`,
     `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev iproute2 netplan.io ca-certificates curl wget`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
-
     // 1. Create default user 'rpiadmin'
     // `useradd -m -s /bin/bash -G sudo rpiadmin`,
     // `echo 'rpiadmin:changeme' | chpasswd`,
@@ -68,10 +67,11 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     // `chown -R rpiadmin:rpiadmin /home/rpiadmin/.ssh`,
     // `chmod 700 /home/rpiadmin/.ssh`,
     // `chmod 600 /home/rpiadmin/.ssh/authorized_keys`,
-
     // 2. Enable SSH service
     `systemctl enable ssh`,
+  ];
 
+  let steps = [
     // 3. Configure cloud-init for MAAS
     `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
 #cloud-config
@@ -93,6 +93,11 @@ users:
       - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
 keyboard:
   layout: es
+
+ntp:
+  enabled: true
+  servers:
+    - ${IP_ADDRESS}
 
 # ssh:
 #   allow-pw: false
@@ -124,11 +129,11 @@ network:
 
 final_message: "The system is up, after $UPTIME seconds"
 
-power_state:
-  mode: reboot
-  message: Rebooting after initial setup
-  timeout: 30
-  condition: True
+# power_state:
+#   mode: reboot
+#   message: Rebooting after initial setup
+#   timeout: 30
+#   condition: True
 
 runcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
@@ -136,6 +141,10 @@ runcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 EOF_MAAS_CFG`,
   ];
+
+  if (!update) {
+    steps = installSteps.concat(steps);
+  }
 
   shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 ${steps
@@ -151,6 +160,13 @@ EOF`);
 echo "nameserver ${process.env.MAAS_DNS}" | tee /etc/resolv.conf > /dev/null
 apt update
 EOF`);
+
+  if (update) {
+    shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+sudo cloud-init clean --logs --reboot
+EOF`);
+    fs.writeFileSync(`${nfsHostPath}/var/log/cloud-init.log`, '', 'utf8');
+  }
 };
 
 try {
@@ -2030,6 +2046,7 @@ udp-port = 32766
         host,
         nfsHostPath,
         ipaddr,
+        update: true,
       });
       break;
     }
