@@ -51,7 +51,7 @@ logger.info('argv', process.argv);
 
 const [exe, dir, operator] = process.argv;
 
-const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
+const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr }) => {
   const steps = [
     `apt update`,
     `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev iproute2 netplan.io ca-certificates curl wget`,
@@ -74,18 +74,34 @@ const updateVirtualRoot = async ({ nfsHostPath, IP_ADDRESS, ipaddr }) => {
 
     // 3. Configure cloud-init for MAAS
     `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
+#cloud-config
+
+hostname: ${host}
+# fqdn: server01.midominio.cl
+# prefer_fqdn_over_hostname: true
+
 datasource_list: [ MAAS ]
 datasource:
   MAAS:
     metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
 users:
   - name: rpiadmin
-    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
     shell: /bin/bash
-    lock_passwd: false
-    plain_text_passwd: 'changeme'
+    lock_passwd: true
     ssh_authorized_keys:
       - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
+keyboard:
+    layout: es
+
+ssh:
+  allow-pw: false
+  install-server: true
+
+ssh_pwauth: false
+
+package_update: true
+package_upgrade: true
 packages:
   - git
   - htop
@@ -99,6 +115,24 @@ network:
         dhcp4: true
         addresses:
           - ${ipaddr}/24
+
+# chpasswd:
+#   expire: false
+#   users:
+#   - {name: rpiadmin, password: changeme, type: text}
+
+final_message: "The system is up, after $UPTIME seconds"
+
+power_state:
+  mode: reboot
+  message: Rebooting after initial setup
+  timeout: 30
+  condition: True
+
+runcmd:
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+  - echo "Test run cmd message"
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 EOF_MAAS_CFG`,
   ];
 
