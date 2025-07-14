@@ -58,16 +58,16 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     `ln -sf /lib/systemd/systemd /sbin/init`,
 
     // 1. Create default user 'rpiadmin'
-    `useradd -m -s /bin/bash -G sudo rpiadmin`,
-    `echo 'rpiadmin:changeme' | chpasswd`,
-    `mkdir -p /home/rpiadmin/.ssh`,
-    `echo '${fs.readFileSync(
-      `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
-      'utf8',
-    )}' > /home/rpiadmin/.ssh/authorized_keys`,
-    `chown -R rpiadmin:rpiadmin /home/rpiadmin/.ssh`,
-    `chmod 700 /home/rpiadmin/.ssh`,
-    `chmod 600 /home/rpiadmin/.ssh/authorized_keys`,
+    // `useradd -m -s /bin/bash -G sudo rpiadmin`,
+    // `echo 'rpiadmin:changeme' | chpasswd`,
+    // `mkdir -p /home/rpiadmin/.ssh`,
+    // `echo '${fs.readFileSync(
+    //   `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
+    //   'utf8',
+    // )}' > /home/rpiadmin/.ssh/authorized_keys`,
+    // `chown -R rpiadmin:rpiadmin /home/rpiadmin/.ssh`,
+    // `chmod 700 /home/rpiadmin/.ssh`,
+    // `chmod 600 /home/rpiadmin/.ssh/authorized_keys`,
 
     // 2. Enable SSH service
     `systemctl enable ssh`,
