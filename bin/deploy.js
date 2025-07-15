@@ -60,7 +60,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
 
   const installSteps = [
     `apt update`,
-    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev iproute2 netplan.io ca-certificates curl wget`,
+    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev iproute2 netplan.io ca-certificates curl wget chrony`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
     // 1. Create default user 'rpiadmin'
     // `useradd -m -s /bin/bash -G sudo rpiadmin`,
@@ -103,10 +103,18 @@ users:
 # keyboard:
 #   layout: es
 
+timezone: America/Santiago
+
 ntp:
   enabled: true
   servers:
     - ${IP_ADDRESS}
+  ntp_client: chrony
+  config:
+    confpath: /etc/chrony/chrony.conf
+    packages:
+      - chrony
+    service_name: chrony
 
 # ssh:
 #   allow-pw: false
