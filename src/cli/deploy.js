@@ -81,7 +81,7 @@ spec:
     spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
-          image: localhost/debian-underpost:${Underpost.version}
+          image: localhost/rockylinux9-underpost:${Underpost.version}
 #          resources:
 #            requests:
 #              memory: "${resources.requests.memory}"

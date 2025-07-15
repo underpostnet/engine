@@ -32,8 +32,9 @@ class UnderpostImage {
           version: '',
         },
       ) {
-        shellExec(`sudo podman pull docker.io/library/debian:buster`);
-        const IMAGE_NAME = `debian-underpost`;
+        // shellExec(`sudo podman pull docker.io/library/debian:buster`);
+        shellExec(`sudo podman pull docker.io/library/rockylinux:9`);
+        const IMAGE_NAME = `rockylinux9-underpost`;
         const IMAGE_NAME_FULL = `${IMAGE_NAME}:${options.version ?? Underpost.version}`;
         let LOAD_TYPE = '';
         if (options.kindLoad === true) {
