@@ -1615,7 +1615,7 @@ EOF`);
 
       switch (process.argv[3]) {
         case 'rpi4mb':
-          const resourceId = process.argv[4] ?? '23';
+          const resourceId = process.argv[4] ?? '12';
           tftpSubDir = '/rpi4mb';
           zipFirmwareFileName = `RPi4_UEFI_Firmware_v1.41.zip`;
           zipFirmwareName = zipFirmwareFileName.split('.zip')[0];
@@ -2094,7 +2094,7 @@ udp-port = 32766
               `--arch=arm64`,
               `--variant=minbase`,
               `--foreign`, // arm64 on amd64
-              [`noble`, `jammy`][1],
+              [`noble`, `jammy`][0],
               nfsHostPath,
               `http://ports.ubuntu.com/ubuntu-ports/`,
             ];
