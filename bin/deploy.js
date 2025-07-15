@@ -85,11 +85,11 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
 hostname: ${host}
 # fqdn: server01.midominio.cl
 # prefer_fqdn_over_hostname: true
-
+# metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
 datasource_list: [ MAAS ]
 datasource:
   MAAS:
-    metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
+    metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
     consumer_key: ${consumer_key}
     token_key: ${consumer_token}
     token_secret: ${secret}
