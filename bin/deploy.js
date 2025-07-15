@@ -56,7 +56,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
   const MAAS_API_TOKEN = shellExec(`maas apikey --username ${process.env.MAAS_ADMIN_USERNAME}`, {
     stdout: true,
   }).trim();
-  const [consumer_key, consumer_token, secret] = MAAS_API_TOKEN.split(':');
+  const [consumer_key, consumer_token, secret] = MAAS_API_TOKEN.split(`\n`)[1].split(':');
 
   const installSteps = [
     `apt update`,

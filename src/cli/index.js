@@ -314,6 +314,8 @@ program
   .option('--control-server-uninstall', 'Uninstall baremetal control server')
   .option('--control-server-stop', 'Stop baremetal control server')
   .option('--control-server-start', 'Start baremetal control server')
+  .option('--get-users', 'Get users')
+  .option('--new-api-key', 'Get new api key')
   .option('--dev', 'Set dev context env')
   .description('Baremetal management')
   .action(UnderpostBaremetal.API.callback);
