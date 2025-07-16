@@ -57,12 +57,13 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     stdout: true,
   }).trim();
   const [consumer_key, consumer_token, secret] = MAAS_API_TOKEN.split(`\n`)[1].split(':');
-
+  const chronyConfPath = `/etc/chrony/chrony.conf`;
   const installSteps = [
     `apt update`,
     `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev iproute2 netplan.io ca-certificates curl wget chrony`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
-    // 1. Create default user 'rpiadmin'
+
+    // Create default user 'rpiadmin'
     // `useradd -m -s /bin/bash -G sudo rpiadmin`,
     // `echo 'rpiadmin:changeme' | chpasswd`,
     // `mkdir -p /home/rpiadmin/.ssh`,
@@ -73,12 +74,16 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     // `chown -R rpiadmin:rpiadmin /home/rpiadmin/.ssh`,
     // `chmod 700 /home/rpiadmin/.ssh`,
     // `chmod 600 /home/rpiadmin/.ssh/authorized_keys`,
-    // 2. Enable SSH service
+
+    // Enable SSH service
     `systemctl enable ssh`,
   ];
 
   let steps = [
-    // 3. Configure cloud-init for MAAS
+    // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
+    // `date`,
+
+    // Configure cloud-init for MAAS
     `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
 #cloud-config
 
@@ -103,7 +108,9 @@ users:
 # keyboard:
 #   layout: es
 
-timezone: America/Santiago
+# check timedatectl on host
+# timezone: America/Santiago
+timezone: America/New_York 
 
 ntp:
   enabled: true
@@ -111,7 +118,7 @@ ntp:
     - ${IP_ADDRESS}
   ntp_client: chrony
   config:
-    confpath: /etc/chrony/chrony.conf
+    confpath: ${chronyConfPath}
     packages:
       - chrony
     service_name: chrony
@@ -153,6 +160,7 @@ final_message: "The system is up, after $UPTIME seconds"
 #   condition: True
 
 runcmd:
+  - ${JSON.stringify(chronySetUp(chronyConfPath))}
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Test run cmd message"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
@@ -184,6 +192,64 @@ sudo cloud-init clean --logs --reboot
 EOF`);
     fs.writeFileSync(`${nfsHostPath}/var/log/cloud-init.log`, '', 'utf8');
   }
+};
+
+const chronySetUp = (path) => {
+  return [
+    `echo '
+# Use public servers from the pool.ntp.org project.
+# Please consider joining the pool (http://www.pool.ntp.org/join.html).
+pool 2.pool.ntp.org iburst
+
+# Record the rate at which the system clock gains/losses time.
+driftfile /var/lib/chrony/drift
+
+# Allow the system clock to be stepped in the first three updates
+# if its offset is larger than 1 second.
+makestep 1.0 3
+
+# Enable kernel synchronization of the real-time clock (RTC).
+rtcsync
+
+# Enable hardware timestamping on all interfaces that support it.
+#hwtimestamp *
+
+# Increase the minimum number of selectable sources required to adjust
+# the system clock.
+#minsources 2
+
+# Allow NTP client access from local network.
+#allow 192.168.0.0/16
+
+# Serve time even if not synchronized to a time source.
+#local stratum 10
+
+# Specify file containing keys for NTP authentication.
+keyfile /etc/chrony.keys
+
+# Get TAI-UTC offset and leap seconds from the system tz database.
+leapsectz right/UTC
+
+# Specify directory for log files.
+logdir /var/log/chrony
+
+# Select which information is logged.
+#log measurements statistics tracking
+' > ${path} `,
+
+    `sudo systemctl enable --now chronyd`,
+    `sudo systemctl restart chronyd`,
+    `sudo systemctl status chronyd`,
+
+    `chronyd -q 'server 0.europe.pool.ntp.org iburst'`,
+
+    `chronyc sources`,
+    `chronyc tracking`,
+    // sudo firewall-cmd --add-service=ntp --permanent
+    // sudo firewall-cmd --reload
+
+    `chronyc sourcestats -v`,
+  ];
 };
 
 try {
@@ -2568,64 +2634,7 @@ nvidia/gpu-operator \
     case 'chrony': {
       shellExec(`sudo dnf install chrony -y`);
       // debian chroot: sudo apt install chrony
-
-      fs.writeFileSync(
-        `/etc/chrony.conf`,
-        `
-# Use public servers from the pool.ntp.org project.
-# Please consider joining the pool (http://www.pool.ntp.org/join.html).
-pool 2.pool.ntp.org iburst
-
-# Record the rate at which the system clock gains/losses time.
-driftfile /var/lib/chrony/drift
-
-# Allow the system clock to be stepped in the first three updates
-# if its offset is larger than 1 second.
-makestep 1.0 3
-
-# Enable kernel synchronization of the real-time clock (RTC).
-rtcsync
-
-# Enable hardware timestamping on all interfaces that support it.
-#hwtimestamp *
-
-# Increase the minimum number of selectable sources required to adjust
-# the system clock.
-#minsources 2
-
-# Allow NTP client access from local network.
-#allow 192.168.0.0/16
-
-# Serve time even if not synchronized to a time source.
-#local stratum 10
-
-# Specify file containing keys for NTP authentication.
-keyfile /etc/chrony.keys
-
-# Get TAI-UTC offset and leap seconds from the system tz database.
-leapsectz right/UTC
-
-# Specify directory for log files.
-logdir /var/log/chrony
-
-# Select which information is logged.
-#log measurements statistics tracking
-`,
-        'utf8',
-      );
-
-      shellExec(`sudo systemctl enable --now chronyd`);
-      shellExec(`sudo systemctl restart chronyd`);
-      shellExec(`sudo systemctl status chronyd`);
-
-      shellExec(`chronyd -q 'server 0.europe.pool.ntp.org iburst'`);
-
-      shellExec(`chronyc sources`);
-      shellExec(`chronyc tracking`);
-      // sudo firewall-cmd --add-service=ntp --permanent
-      // sudo firewall-cmd --reload
-
-      shellExec(`chronyc sourcestats -v`);
+      for (const cmd of chronySetUp(`/etc/chrony.conf`)) shellExec(cmd);
 
       break;
     }
