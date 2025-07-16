@@ -1,7 +1,6 @@
-# Use Rocky Linux 9 as the base image
 FROM rockylinux:9
 
-# Set environment variable for non-interactive mode (though less critical for DNF than APT)
+# Set environment variable for non-interactive mode
 ENV DNF_ASSUMEYES=1
 
 # Set root password to root
@@ -23,6 +22,7 @@ RUN dnf install -y --allowerasing openssl-devel
 RUN dnf install -y --allowerasing wget
 RUN dnf install -y --allowerasing git
 RUN dnf install -y --allowerasing gnupg2
+RUN dnf install -y --allowerasing bzip2
 RUN dnf clean all
 
 # Configure SSH
@@ -55,6 +55,5 @@ EXPOSE 443
 EXPOSE 3000-3100
 EXPOSE 4000-4100
 
-# Default command to start SSH and XAMPP (Apache and MySQL)
 # Using supervisord to manage multiple processes
 CMD ["/usr/bin/supervisord", "-n"]
