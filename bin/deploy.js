@@ -69,9 +69,16 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata`,
     `dpkg-reconfigure --frontend noninteractive tzdata`,
   ];
+  const keyboardSteps = [
+    `sudo locale-gen en_US.UTF-8`,
+    `sudo update-locale LANG=en_US.UTF-8`,
+    `sudo sed -i 's/XKBLAYOUT="us"/XKBLAYOUT="es"/' /etc/default/keyboard`,
+    `sudo dpkg-reconfigure --frontend noninteractive keyboard-configuration`,
+    `sudo systemctl restart keyboard-setup.service`,
+  ];
   const installSteps = [
     `apt update`,
-    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
+    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony keyboard-configuration`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
 
     `echo 'deb http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
@@ -117,10 +124,18 @@ hostname: ${host}
 # fqdn: server01.midominio.cl
 # prefer_fqdn_over_hostname: true
 # metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
+# metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
+
+# Check:
+# /MAAS/metadata/latest/enlist-preseed/?op=get_enlist_preseed
+
+# Debug:
+# https://maas.io/docs/how-to-use-logging
+
 datasource_list: [ MAAS ]
 datasource:
   MAAS:
-    metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
+    metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
     consumer_key: ${consumer_key}
     token_key: ${consumer_token}
     token_secret: ${secret}
@@ -131,9 +146,12 @@ users:
     lock_passwd: true
     ssh_authorized_keys:
       - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
-# keyboard:
-#   layout: es
 
+
+keyboard:
+  layout: es
+
+  
 # check timedatectl on host
 # timezone: America/Santiago
 timezone: ${timezone}
@@ -188,12 +206,13 @@ bootcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init bootcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-  - ${JSON.stringify([...timeZoneSteps, ...chronySetUp(chronyConfPath)])}
+#  - ${JSON.stringify([...timeZoneSteps, ...chronySetUp(chronyConfPath)])}
 runcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init runcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 EOF_MAAS_CFG`,
+    ...keyboardSteps,
   ];
 
   if (!update) {
