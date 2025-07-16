@@ -2585,6 +2585,8 @@ rtcsync
       shellExec(`sudo systemctl status chronyd`);
       shellExec(`chronyc sources`);
       shellExec(`chronyc tracking`);
+      // sudo firewall-cmd --add-service=ntp --permanent
+      // sudo firewall-cmd --reload
 
       break;
     }
