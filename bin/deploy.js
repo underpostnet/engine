@@ -59,6 +59,16 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
   const [consumer_key, consumer_token, secret] = MAAS_API_TOKEN.split(`\n`)[1].split(':');
   const chronyConfPath = `/etc/chrony/chrony.conf`;
   const timezone = 'America/New_York';
+  const timeZoneSteps = [
+    `apt-get update`,
+
+    `export DEBIAN_FRONTEND=noninteractive`,
+
+    `ln -fs /usr/share/zoneinfo/${timezone} /etc/localtime`,
+
+    `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata`,
+    `dpkg-reconfigure --frontend noninteractive tzdata`,
+  ];
   const installSteps = [
     `apt update`,
     `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
@@ -84,15 +94,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
     // `date`,
 
-    `apt-get update`,
-
-    `export DEBIAN_FRONTEND=noninteractive`,
-
-    `ln -fs /usr/share/zoneinfo/${timezone} /etc/localtime`,
-
-    `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata`,
-    `dpkg-reconfigure --frontend noninteractive tzdata`,
-
+    ...timeZoneSteps,
     ...chronySetUp(chronyConfPath),
 
     // Configure cloud-init for MAAS
@@ -170,10 +172,14 @@ final_message: "The system is up, after $UPTIME seconds"
 #   message: Rebooting after initial setup
 #   timeout: 30
 #   condition: True
-
+bootcmd:
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+  - echo "Init bootcmd"
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+  - ${JSON.stringify([...timeZoneSteps, ...chronySetUp(chronyConfPath)])}
 runcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-  - echo "End cloud init test cmd message"
+  - echo "Init runcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 EOF_MAAS_CFG`,
   ];
@@ -2248,6 +2254,7 @@ EOF`);
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${host}`;
       shellExec(`sudo umount ${nfsHostPath}/proc`);
       shellExec(`sudo umount ${nfsHostPath}/sys`);
+      shellExec(`sudo umount ${nfsHostPath}/dev/pts`);
       shellExec(`sudo umount ${nfsHostPath}/dev`);
       // shellExec(`sudo umount ${nfsHostPath}/lib/modules`);
       break;
