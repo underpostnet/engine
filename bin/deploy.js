@@ -74,18 +74,6 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
 
-    // Create default user 'rpiadmin'
-    // `useradd -m -s /bin/bash -G sudo rpiadmin`,
-    // `echo 'rpiadmin:changeme' | chpasswd`,
-    // `mkdir -p /home/rpiadmin/.ssh`,
-    // `echo '${fs.readFileSync(
-    //   `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
-    //   'utf8',
-    // )}' > /home/rpiadmin/.ssh/authorized_keys`,
-    // `chown -R rpiadmin:rpiadmin /home/rpiadmin/.ssh`,
-    // `chmod 700 /home/rpiadmin/.ssh`,
-    // `chmod 600 /home/rpiadmin/.ssh/authorized_keys`,
-
     // Enable SSH service
     `systemctl enable ssh`,
   ];
@@ -96,6 +84,18 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
 
     ...timeZoneSteps,
     ...chronySetUp(chronyConfPath),
+
+    // Create ubuntu user
+    `useradd -m -s /bin/bash -G sudo ubuntu`,
+    `echo 'ubuntu:ubuntu' | chpasswd`,
+    `mkdir -p /home/ubuntu/.ssh`,
+    `echo '${fs.readFileSync(
+      `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
+      'utf8',
+    )}' > /home/ubuntu/.ssh/authorized_keys`,
+    `chown -R ubuntu:ubuntu /home/ubuntu/.ssh`,
+    `chmod 700 /home/ubuntu/.ssh`,
+    `chmod 600 /home/ubuntu/.ssh/authorized_keys`,
 
     // Configure cloud-init for MAAS
     `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
@@ -216,7 +216,8 @@ const chronySetUp = (path) => {
     `echo '
 # Use public servers from the pool.ntp.org project.
 # Please consider joining the pool (http://www.pool.ntp.org/join.html).
-pool 2.pool.ntp.org iburst
+# pool 2.pool.ntp.org iburst
+server ntp.ubuntu.com iburst
 
 # Record the rate at which the system clock gains/losses time.
 driftfile /var/lib/chrony/drift
@@ -253,13 +254,14 @@ logdir /var/log/chrony
 # Select which information is logged.
 #log measurements statistics tracking
 ' > ${path} `,
+    `sudo systemctl stop chronyd`,
+
+    // `chronyd -q 'server 0.europe.pool.ntp.org iburst'`,
+    `chronyd -q 'server ntp.ubuntu.com iburst'`,
 
     `sudo systemctl enable --now chronyd`,
     `sudo systemctl restart chronyd`,
     `sudo systemctl status chronyd`,
-
-    // `chronyd -q 'server 0.europe.pool.ntp.org iburst'`,
-    `chronyd -q 'server ntp.ubuntu.com iburst'`,
 
     `chronyc sources`,
     `chronyc tracking`,
