@@ -60,7 +60,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
   const chronyConfPath = `/etc/chrony/chrony.conf`;
   const installSteps = [
     `apt update`,
-    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev iproute2 netplan.io ca-certificates curl wget chrony`,
+    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
 
     // Create default user 'rpiadmin'
@@ -82,6 +82,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
   let steps = [
     // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
     // `date`,
+    ...chronySetUp(chronyConfPath),
 
     // Configure cloud-init for MAAS
     `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
@@ -160,9 +161,8 @@ final_message: "The system is up, after $UPTIME seconds"
 #   condition: True
 
 runcmd:
-  - ${JSON.stringify(chronySetUp(chronyConfPath))}
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-  - echo "Test run cmd message"
+  - echo "End cloud init test cmd message"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 EOF_MAAS_CFG`,
   ];
@@ -2202,6 +2202,7 @@ EOF`);
         shellExec(`sudo mount --bind /proc ${nfsHostPath}/proc`);
         shellExec(`sudo mount --bind /sys  ${nfsHostPath}/sys`);
         shellExec(`sudo mount --rbind /dev  ${nfsHostPath}/dev`);
+        shellExec(`sudo mount --rbind /dev/pts  ${nfsHostPath}/dev/pts`);
       }
 
       if (process.argv.includes('build')) {
