@@ -85,17 +85,17 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     ...timeZoneSteps,
     ...chronySetUp(chronyConfPath),
 
-    // Create ubuntu user
-    `useradd -m -s /bin/bash -G sudo ubuntu`,
-    `echo 'ubuntu:ubuntu' | chpasswd`,
-    `mkdir -p /home/ubuntu/.ssh`,
+    // Create root user
+    `useradd -m -s /bin/bash -G sudo root`,
+    `echo 'root:root' | chpasswd`,
+    `mkdir -p /home/root/.ssh`,
     `echo '${fs.readFileSync(
       `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
       'utf8',
-    )}' > /home/ubuntu/.ssh/authorized_keys`,
-    `chown -R ubuntu:ubuntu /home/ubuntu/.ssh`,
-    `chmod 700 /home/ubuntu/.ssh`,
-    `chmod 600 /home/ubuntu/.ssh/authorized_keys`,
+    )}' > /home/root/.ssh/authorized_keys`,
+    `chown -R root /home/root/.ssh`,
+    `chmod 700 /home/root/.ssh`,
+    `chmod 600 /home/root/.ssh/authorized_keys`,
 
     // Configure cloud-init for MAAS
     `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
