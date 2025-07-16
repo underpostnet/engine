@@ -58,6 +58,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
   }).trim();
   const [consumer_key, consumer_token, secret] = MAAS_API_TOKEN.split(`\n`)[1].split(':');
   const chronyConfPath = `/etc/chrony/chrony.conf`;
+  const timezone = 'America/New_York';
   const installSteps = [
     `apt update`,
     `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
@@ -82,6 +83,16 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
   let steps = [
     // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
     // `date`,
+
+    `apt-get update`,
+
+    `export DEBIAN_FRONTEND=noninteractive`,
+
+    `ln -fs /usr/share/zoneinfo/${timezone} /etc/localtime`,
+
+    `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata`,
+    `dpkg-reconfigure --frontend noninteractive tzdata`,
+
     ...chronySetUp(chronyConfPath),
 
     // Configure cloud-init for MAAS
@@ -111,7 +122,7 @@ users:
 
 # check timedatectl on host
 # timezone: America/Santiago
-timezone: America/New_York 
+timezone: ${timezone}
 
 ntp:
   enabled: true
