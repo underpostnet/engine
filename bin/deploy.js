@@ -2564,6 +2564,30 @@ nvidia/gpu-operator \
       // sudo yum install sbt
       break;
     }
+
+    case 'chrony': {
+      shellExec(`sudo dnf install chrony -y`);
+      // debian chroot: sudo apt install chrony
+
+      fs.writeFileSync(
+        `/etc/chrony.conf`,
+        `server 0.pool.ntp.org iburst
+allow 192.168.1.0/24
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+`,
+        'utf8',
+      );
+
+      shellExec(`sudo systemctl enable --now chronyd`);
+      shellExec(`sudo systemctl restart chronyd`);
+      shellExec(`sudo systemctl status chronyd`);
+      shellExec(`chronyc sources`);
+      shellExec(`chronyc tracking`);
+
+      break;
+    }
   }
 } catch (error) {
   logger.error(error, error.stack);
