@@ -258,7 +258,8 @@ logdir /var/log/chrony
     `sudo systemctl restart chronyd`,
     `sudo systemctl status chronyd`,
 
-    `chronyd -q 'server 0.europe.pool.ntp.org iburst'`,
+    // `chronyd -q 'server 0.europe.pool.ntp.org iburst'`,
+    `chronyd -q 'server ntp.ubuntu.com iburst'`,
 
     `chronyc sources`,
     `chronyc tracking`,
