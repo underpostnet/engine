@@ -95,6 +95,9 @@ deb http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe
     // `apt install -y cloud-init=25.1.2-0ubuntu0~24.04.1`,
 
     `systemctl enable ssh`,
+
+    `apt update -qq`,
+    `apt install -y xinput x11-xkb-utils usbutils`,
   ];
 
   let steps = [
@@ -148,8 +151,8 @@ users:
       - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
 
 
-keyboard:
-  layout: es
+# keyboard:
+#   layout: es
 
   
 # check timedatectl on host
