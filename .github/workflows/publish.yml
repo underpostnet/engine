@@ -66,6 +66,7 @@ jobs:
       - name: Install Node.js
         run: |
           curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
+          dnf install nodejs -y
 
       - name: Install Dependencies
         run: npm install
@@ -82,6 +83,7 @@ jobs:
       - name: Install Node.js
         run: |
           curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
+          dnf install nodejs -y
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         name: Publish to npm
@@ -98,6 +100,7 @@ jobs:
       - name: Install Node.js
         run: |
           curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
+          dnf install nodejs -y
 
       - run: |
           npm config set //npm.pkg.github.com/:_authToken=${{ secrets.GIT_AUTH_TOKEN }}

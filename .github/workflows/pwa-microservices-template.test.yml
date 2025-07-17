@@ -21,6 +21,7 @@ jobs:
       - name: Install Node.js
         run: |
           curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
+          dnf install nodejs -y
 
       - name: Get npm root
         run: npm root -g
