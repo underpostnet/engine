@@ -51,7 +51,7 @@ logger.info('argv', process.argv);
 
 const [exe, dir, operator] = process.argv;
 
-const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update }) => {
+const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip }) => {
   // <consumer_key>:<consumer_token>:<secret>
   const MAAS_API_TOKEN = shellExec(`maas apikey --username ${process.env.MAAS_ADMIN_USERNAME}`, {
     stdout: true,
@@ -191,9 +191,12 @@ network:
   version: 2
   ethernets:
     ${process.env.RPI4_INTERFACE_NAME}:
-        dhcp4: true
+        dhcp4: false
         addresses:
           - ${ipaddr}/24
+        routes:
+          - to: default
+            via: ${gatewayip}
 
 # chpasswd:
 #   expire: false
@@ -2194,6 +2197,7 @@ udp-port = 32766
       const host = process.argv[4];
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${host}`;
       const ipaddr = process.env.RPI4_IP;
+      const gatewayip = process.env.GATEWAY_IP;
       await updateVirtualRoot({
         IP_ADDRESS,
         architecture,
@@ -2201,6 +2205,7 @@ udp-port = 32766
         nfsHostPath,
         ipaddr,
         update: true,
+        gatewayip,
       });
       break;
     }
@@ -2210,6 +2215,7 @@ udp-port = 32766
       const architecture = process.argv[3];
       const host = process.argv[4];
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${host}`;
+      const gatewayip = process.env.GATEWAY_IP;
       shellExec(`sudo dnf install -y iptables-legacy`);
       shellExec(`sudo dnf install -y debootstrap`);
       shellExec(`sudo dnf install kernel-modules-extra-$(uname -r)`);
@@ -2288,6 +2294,7 @@ EOF`);
               host,
               nfsHostPath,
               ipaddr,
+              gatewayip,
             });
 
             break;
