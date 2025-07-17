@@ -6,7 +6,7 @@ on:
     branches: ['master']
 jobs:
   test:
-    name: Node ${{ matrix.node }} on ${{ matrix.os }}
+    name: Coverall Test
     runs-on: ubuntu-latest
     container:
       image: rockylinux/rockylinux:9
@@ -17,7 +17,7 @@ jobs:
       - name: Set Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '23.x'
 
       - name: Get npm root
         run: sudo npm root -g
