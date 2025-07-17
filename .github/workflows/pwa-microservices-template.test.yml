@@ -1,26 +1,29 @@
 name: Test
+
 on: [push]
+
 jobs:
   test:
-    # if: (github.repository == 'underpostnet/pwa-microservices-template') || (github.repository == 'underpostnet/pwa-microservices-template-ghpkg')
     name: Template Test
     runs-on: ubuntu-latest
     container:
       image: rockylinux/rockylinux:9
+      options: --entrypoint /bin/bash
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
 
-      - name: Set Node.js version
-        uses: actions/setup-node@v3
-        with:
-          node-version: '23.x'
+      - name: Install required packages
+        run: |
+          dnf install -y sudo curl tar gzip bzip2 \
+            && curl -fsSL https://rpm.nodesource.com/setup_23.x | bash - \
+            && dnf install -y nodejs
 
       - name: Get npm root
-        run: sudo npm root -g
+        run: npm root -g
 
-      - name: Install underpost cli
-        run: sudo npm install -g underpost
+      - name: Install underpost CLI
+        run: npm install -g underpost
 
       - name: Run test
-        run: sudo underpost test
+        run: underpost test
