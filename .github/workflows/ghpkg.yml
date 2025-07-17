@@ -55,28 +55,24 @@ jobs:
           node ./bin/deploy rename-package @underpostnet/underpost
           node ./bin/deploy set-repo underpostnet/pwa-microservices-template-ghpkg
 
-      - name: Clone github package repository
-        run: |
-          underpost clone --bare underpostnet/pwa-microservices-template-ghpkg
-          rm -rf ./.git
-          cp -rf -a ./pwa-microservices-template-ghpkg.git ./.git
-          rm -rf ./pwa-microservices-template-ghpkg.git
-
       - name: Set git global credentials
         run: |
           git config --global credential.helper ""
           git config --global user.name 'underpost.net'
           git config --global user.email 'admin@underpost.net'
 
-      - name: Push to github package repository
+      - name: Clone and Push to github package repository
         run: |
+          underpost clone --bare underpostnet/pwa-microservices-template-ghpkg
+          rm -rf ./.git
+          cp -rf -a ./pwa-microservices-template-ghpkg.git ./.git
+          rm -rf ./pwa-microservices-template-ghpkg.git
           pwd
-          git init
           git config user.name 'underpost.net'
           git config user.email 'admin@underpost.net'
-          git status
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template-ghpkg.git
-          git add .       
+          git add .
+          git status
           underpost cmt . ci package-pwa-microservices-template-ghpkg 'Update github repo package'
           underpost push . underpostnet/pwa-microservices-template-ghpkg
 
