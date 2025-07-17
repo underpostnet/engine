@@ -7,13 +7,9 @@ on:
 jobs:
   test:
     name: Node ${{ matrix.node }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        node-version: [23.x]
-        os: [rocky]
-      #  os: [rocky]
-
+    runs-on: ubuntu-latest
+    container:
+      image: rockylinux/rockylinux:9
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
@@ -53,21 +49,23 @@ jobs:
           path-to-lcov: '/usr/local/lib/node_modules/underpost/coverage/lcov.info'
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-      #     COVERALLS_GIT_BRANCH: "${{ github.ref }}"
+    #     COVERALLS_GIT_BRANCH: "${{ github.ref }}"
 
-      # - name: Coveralls
-      #   run: node ./node_modules/coveralls-next/bin/coveralls.js # cat ./coverage/lcov.info |
-      #   env:
-      #     COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-      #     COVERALLS_SERVICE_NAME: CI-pipeline
-      #     COVERALLS_SERVICE_JOB_ID: ${{github.run_id}}
-      #     COVERALLS_SERVICE_JOB_NUMBER: ${{github.run_number}}
-      #     COVERALLS_FLAG_NAME: ${{matrix.os}}-node-${{ matrix.node }}
-      #     COVERALLS_PARALLEL: true
-      #     NODE_COVERALLS_DEBUG: 1
+    # - name: Coveralls
+    #   run: node ./node_modules/coveralls-next/bin/coveralls.js # cat ./coverage/lcov.info |
+    #   env:
+    #     COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+    #     COVERALLS_SERVICE_NAME: CI-pipeline
+    #     COVERALLS_SERVICE_JOB_ID: ${{github.run_id}}
+    #     COVERALLS_SERVICE_JOB_NUMBER: ${{github.run_number}}
+    #     COVERALLS_FLAG_NAME: ${{matrix.os}}-node-${{ matrix.node }}
+    #     COVERALLS_PARALLEL: true
+    #     NODE_COVERALLS_DEBUG: 1
   finish:
     needs: test
-    runs-on: rocky
+    runs-on: ubuntu-latest
+    container:
+      image: rockylinux/rockylinux:9
     steps:
       - name: Clone repository
         uses: actions/checkout@v2

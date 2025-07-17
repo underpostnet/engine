@@ -7,12 +7,12 @@ on:
 jobs:
   build:
     # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(docker-image-engine)')
-    runs-on: rocky
-
+    runs-on: ubuntu-latest
     permissions:
       packages: write
       contents: read
-
+    container:
+      image: rockylinux/rockylinux:9
     steps:
       - uses: actions/checkout@v3
       - name: Build the Docker image

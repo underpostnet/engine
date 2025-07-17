@@ -8,11 +8,13 @@ jobs:
   pwa-microservices-template:
     if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(api-rest-engine)')
     name: Remote API REST deployment
-    runs-on: rocky
     permissions:
       contents: write
       packages: write
       id-token: write
+    runs-on: ubuntu-latest
+    container:
+      image: rockylinux/rockylinux:9
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v4

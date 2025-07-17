@@ -6,7 +6,9 @@ jobs:
   build-and-publish:
     # prevents this action from running on forks
     if: github.repository == 'underpostnet/pwa-microservices-template'
-    runs-on: rocky
+    runs-on: ubuntu-latest
+    container:
+      image: rockylinux/rockylinux:9
     permissions:
       contents: read
       id-token: write
@@ -37,7 +39,9 @@ jobs:
   build-and-publish-ghpkg:
     # prevents this action from running on forks
     if: github.repository == 'underpostnet/pwa-microservices-template-ghpkg'
-    runs-on: rocky
+    runs-on: ubuntu-latest
+    container:
+      image: rockylinux/rockylinux:9
     permissions:
       contents: read
       id-token: write

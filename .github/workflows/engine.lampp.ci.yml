@@ -12,7 +12,9 @@ jobs:
   pwa-microservices-template:
     # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-lampp-repo-build)')
     name: Update github repo package Jobs
-    runs-on: rocky
+    runs-on: ubuntu-latest
+    container:
+      image: rockylinux/rockylinux:9
     permissions:
       contents: write
       packages: write

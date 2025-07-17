@@ -28,7 +28,9 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: rocky
+    runs-on: ubuntu-latest
+    container:
+      image: rockylinux/rockylinux:9
     steps:
       - name: Checkout
         uses: actions/checkout@v4

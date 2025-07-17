@@ -3,14 +3,10 @@ on: [push]
 jobs:
   test:
     # if: (github.repository == 'underpostnet/pwa-microservices-template') || (github.repository == 'underpostnet/pwa-microservices-template-ghpkg')
-    name: Node ${{ matrix.node }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        node-version: [23.x]
-        os: [rocky]
-      #  os: [rocky]
-
+    name: Template Test
+    runs-on: ubuntu-latest
+    container:
+      image: rockylinux/rockylinux:9
     steps:
       - name: Clone repository
         uses: actions/checkout@v3
@@ -18,7 +14,7 @@ jobs:
       - name: Set Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '23.x'
 
       - name: Get npm root
         run: sudo npm root -g
