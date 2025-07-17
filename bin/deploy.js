@@ -219,15 +219,18 @@ EOF_MAAS_CFG`,
   ];
 
   const runSteps = (steps = []) => {
-    shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-      ${steps
-        .map(
-          (s, i) => `echo "step ${i + 1}/${steps.length}: ${s.split('\n')[0]}"
-      ${s}
-      `,
-        )
-        .join(``)}
-      EOF`);
+    const script = steps
+      .map(
+        (s, i) => `echo "step ${i + 1}/${steps.length}: ${s.split('\n')[0]}"
+${s}`,
+      )
+      .join('\n');
+
+    const cmd = `sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF_OUTER'
+${script}
+EOF_OUTER`;
+
+    shellExec(cmd);
   };
 
   if (update) {
