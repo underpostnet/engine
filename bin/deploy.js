@@ -2086,8 +2086,9 @@ BOOT_ORDER=0x21`;
             newMachine = machineFactory(JSON.parse(newMachine));
             machines.push(newMachine);
             console.log(newMachine);
+            // commissioning_scripts=90-verify-user.sh
             shellExec(
-              `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.system_id}  enable_ssh=1 commissioning_scripts=90-verify-user.sh skip_bmc_config=1 skip_networking=1 skip_storage=1`,
+              `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.system_id} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
               {
                 silent: true,
               },
