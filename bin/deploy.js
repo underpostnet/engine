@@ -2254,9 +2254,10 @@ EOF`);
       }
       if (process.argv.includes('mount')) {
         shellExec(`sudo mount --bind /proc ${nfsHostPath}/proc`);
-        shellExec(`sudo mount --bind /sys  ${nfsHostPath}/sys`);
-        shellExec(`sudo mount --rbind /dev  ${nfsHostPath}/dev`);
-        shellExec(`sudo mount --rbind /dev/pts  ${nfsHostPath}/dev/pts`);
+        shellExec(`sudo mount --bind /sys ${nfsHostPath}/sys`);
+        shellExec(`sudo mount --rbind /dev ${nfsHostPath}/dev`);
+        shellExec(`sudo mount --rbind /dev/pts ${nfsHostPath}/dev/pts`);
+        shellExec(`sudo mount --bind /run ${nfsHostPath}/run`);
       }
 
       if (process.argv.includes('build')) {
