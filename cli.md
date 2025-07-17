@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.81
+## Underpost CI/CD CLI tool version v2.8.811
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -7,29 +7,29 @@
   -h, --help                                                 display help for command
 
 Commands:
-  new <app-name>                                             Create a new project
-  start [options] <deploy-id> [env]                          Start up server, build pipelines, or services
-  clone [options] <uri>                                      Clone github repository
-  pull [options] <path> <uri>                                Pull github repository
-  cmt [options] <path> <commit-type> [module-tag] [message]  Commit github repository
-  push [options] <path> <uri>                                Push github repository
-  env <deploy-id> [env]                                      Set environment variables files and conf related to <deploy-id>
-  config [options] <operator> [key] [value]                  Manage configuration, operators
-  root                                                       Get npm root path
-  cluster [options] [pod-name]                               Manage cluster, for default initialization base kind cluster
-  deploy [options] [deploy-list] [env]                       Manage deployment, for default deploy development pods
-  secret [options] <platform>                                Manage secrets
-  dockerfile-image-build [options]                           Build image from Dockerfile
-  dockerfile-pull-base-images [options]                      Pull underpost dockerfile images requirements
-  install                                                    Fast import underpost npm dependencies
-  db [options] <deploy-list>                                 Manage databases
-  script [options] <operator> <script-name> [script-value]   Supports a number of built-in underpost global scripts and their preset life cycle events as well as arbitrary scripts
-  cron [options] [deploy-list] [job-list]                    Cron jobs management
-  fs [options] [path]                                        File storage management, for default upload file
-  test [options] [deploy-list]                               Manage Test, for default run current underpost default test
-  monitor [options] <deploy-id> [env]                        Monitor health server management
-  lxd [options]                                              Lxd management
-  baremetal [options]                                        Baremetal management
+  new <app-name>                                             Initializes a new Underpost project with a predefined structure.
+  start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
+  clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
+  pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
+  cmt [options] <path> <commit-type> [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
+  push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
+  env <deploy-id> [env]                                      Sets environment variables and configurations related to a specific deployment ID.
+  config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
+  root                                                       Displays the root path of the npm installation.
+  cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
+  deploy [options] [deploy-list] [env]                       Manages application deployments, defaulting to deploying development pods.
+  secret [options] <platform>                                Manages secrets for various platforms.
+  dockerfile-image-build [options]                           Builds a Docker image from a specified Dockerfile with various options for naming, saving, and loading.
+  dockerfile-pull-base-images [options]                      Pulls required Underpost Dockerfile base images and optionally loads them into clusters.
+  install                                                    Quickly imports Underpost npm dependencies by copying them.
+  db [options] <deploy-list>                                 Manages database operations, including import, export, and collection management.
+  script [options] <operator> <script-name> [script-value]   Supports a variety of built-in Underpost global scripts, their preset lifecycle events, and arbitrary custom scripts.
+  cron [options] [deploy-list] [job-list]                    Manages cron jobs, including initialization, execution, and configuration updates.
+  fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
+  test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
+  monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
+  lxd [options]                                              Manages LXD containers and virtual machines.
+  baremetal [options]                                        Manages baremetal server operations, including installation, database setup, and user management.
   help [command]                                             display help for command
  
 ```
@@ -41,10 +41,10 @@ Commands:
 ```
  Usage: underpost new [options] <app-name>
 
-Create a new project
+Initializes a new Underpost project with a predefined structure.
 
 Arguments:
-  app-name    Application name
+  app-name    The name of the application to create.
 
 Options:
   -h, --help  display help for command
@@ -56,15 +56,17 @@ Options:
 ```
  Usage: underpost start [options] <deploy-id> [env]
 
-Start up server, build pipelines, or services
+Initiates application servers, build pipelines, or other defined services based
+on the deployment ID.
 
 Arguments:
-  deploy-id   Deploy configuration id
-  env         Optional environment, for default is development
+  deploy-id   The unique identifier for the deployment configuration.
+  env         Optional: The environment to start (e.g., "development",
+              "production"). Defaults to "development".
 
 Options:
-  --run       Run app servers and monitor health server
-  --build     Build app client
+  --run       Starts application servers and monitors their health.
+  --build     Triggers the client-side application build process.
   -h, --help  display help for command
  
 ```
@@ -74,14 +76,14 @@ Options:
 ```
  Usage: underpost clone [options] <uri>
 
-Clone github repository
+Clones a specified GitHub repository into the current directory.
 
 Arguments:
-  uri         e.g. username/repository
+  uri         The URI of the GitHub repository (e.g., "username/repository").
 
 Options:
-  --bare      Clone only .git files
-  -g8         Use g8 repo extension
+  --bare      Performs a bare clone, downloading only the .git files.
+  -g8         Uses the g8 repository extension for cloning.
   -h, --help  display help for command
  
 ```
@@ -91,14 +93,15 @@ Options:
 ```
  Usage: underpost pull [options] <path> <uri>
 
-Pull github repository
+Pulls the latest changes from a specified GitHub repository.
 
 Arguments:
-  path        Absolute or relative directory
-  uri         e.g. username/repository
+  path        The absolute or relative directory path where the repository is
+              located.
+  uri         The URI of the GitHub repository (e.g., "username/repository").
 
 Options:
-  -g8         Use g8 repo extension
+  -g8         Uses the g8 repository extension for pulling.
   -h, --help  display help for command
  
 ```
@@ -108,19 +111,20 @@ Options:
 ```
  Usage: underpost cmt [options] <path> <commit-type> [module-tag] [message]
 
-Commit github repository
+Manages commits to a GitHub repository, supporting various commit types and
+options.
 
 Arguments:
-  path         Absolute or relative directory
-  commit-type  Options:
-               feat,fix,docs,style,refactor,perf,cd,test,build,ci,chore,revert,backup
-  module-tag   Optional set module tag
-  message      Optional set additional message
+  path         The absolute or relative directory path of the repository.
+  commit-type  The type of commit to perform. Options: feat, fix, docs, style,
+               refactor, perf, cd, test, build, ci, chore, revert, backup.
+  module-tag   Optional: Sets a specific module tag for the commit.
+  message      Optional: Provides an additional custom message for the commit.
 
 Options:
-  --empty      Allow empty files
-  --copy       Copy to clipboard message
-  --info       Info commit types
+  --empty      Allows committing with empty files.
+  --copy       Copies the generated commit message to the clipboard.
+  --info       Displays information about available commit types.
   -h, --help   display help for command
  
 ```
@@ -130,15 +134,15 @@ Options:
 ```
  Usage: underpost push [options] <path> <uri>
 
-Push github repository
+Pushes committed changes from a local repository to a remote GitHub repository.
 
 Arguments:
-  path        Absolute or relative directory
-  uri         e.g. username/repository
+  path        The absolute or relative directory path of the repository.
+  uri         The URI of the GitHub repository (e.g., "username/repository").
 
 Options:
-  -f          Force push overwriting repository
-  -g8         Use g8 repo extension
+  -f          Forces the push, overwriting the remote repository history.
+  -g8         Uses the g8 repository extension for pushing.
   -h, --help  display help for command
  
 ```
@@ -148,11 +152,14 @@ Options:
 ```
  Usage: underpost env [options] <deploy-id> [env]
 
-Set environment variables files and conf related to <deploy-id>
+Sets environment variables and configurations related to a specific deployment
+ID.
 
 Arguments:
-  deploy-id   deploy configuration id, if 'clean' restore default
-  env         Optional environment, for default is production
+  deploy-id   The deployment configuration ID. Use 'clean' to restore default
+              environment settings.
+  env         Optional: The environment to set (e.g., "production",
+              "development"). Defaults to "production".
 
 Options:
   -h, --help  display help for command
@@ -164,15 +171,16 @@ Options:
 ```
  Usage: underpost config [options] <operator> [key] [value]
 
-Manage configuration, operators
+Manages Underpost configurations using various operators.
 
 Arguments:
-  operator    Options: set,delete,get,list,clean
-  key         Config key
-  value       Config value
+  operator    The configuration operation to perform. Options: set, delete,
+              get, list, clean.
+  key         Optional: The specific configuration key to manage.
+  value       Optional: The value to set for the configuration key.
 
 Options:
-  --plain     Print plain value
+  --plain     Prints the configuration value in plain text.
   -h, --help  display help for command
  
 ```
@@ -182,7 +190,7 @@ Options:
 ```
  Usage: underpost root [options]
 
-Get npm root path
+Displays the root path of the npm installation.
 
 Options:
   -h, --help  display help for command
@@ -194,37 +202,50 @@ Options:
 ```
  Usage: underpost cluster [options] [pod-name]
 
-Manage cluster, for default initialization base kind cluster
+Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 
 Arguments:
-  pod-name             Optional pod name filter
+  pod-name             Optional: Filters information by a specific pod name.
 
 Options:
-  --reset              Delete all clusters and prune all data and caches
-  --mariadb            Init with mariadb statefulset
-  --mysql              Init with mysql statefulset
-  --mongodb            Init with mongodb statefulset
-  --postgresql         Init with postgresql statefulset
-  --mongodb4           Init with mongodb 4.4 service
-  --valkey             Init with valkey service
-  --contour            Init with project contour base HTTPProxy and envoy
-  --cert-manager       Init with letsencrypt-prod ClusterIssuer
-  --dedicated-gpu      Init with dedicated gpu base resources env
-  --info               Get all kinds objects deployed
-  --full               Init with all statefulsets and services available
-  --ns-use <ns-name>   Switches current context to namespace
-  --kubeadm            Init with kubeadm controlplane management
-  --dev                init with dev cluster
-  --list-pods          Display list pods information
-  --info-capacity      display current total machine capacity info
-  --info-capacity-pod  display current machine capacity pod info
-  --pull-image         Set optional pull associated image
-  --init-host          Install k8s node necessary cli env: kind, kubeadm,
-                       docker, podman, helm
-  --config             Set k8s base node config
-  --worker             Set worker node context
-  --chown              Set k8s kube chown
-  --k3s                Initialize the cluster using K3s
+  --reset              Deletes all clusters and prunes all related data and
+                       caches.
+  --mariadb            Initializes the cluster with a MariaDB statefulset.
+  --mysql              Initializes the cluster with a MySQL statefulset.
+  --mongodb            Initializes the cluster with a MongoDB statefulset.
+  --postgresql         Initializes the cluster with a PostgreSQL statefulset.
+  --mongodb4           Initializes the cluster with a MongoDB 4.4 service.
+  --valkey             Initializes the cluster with a Valkey service.
+  --contour            Initializes the cluster with Project Contour base
+                       HTTPProxy and Envoy.
+  --cert-manager       Initializes the cluster with a Let's Encrypt production
+                       ClusterIssuer.
+  --dedicated-gpu      Initializes the cluster with dedicated GPU base
+                       resources and environment settings.
+  --info               Retrieves information about all deployed Kubernetes
+                       objects.
+  --full               Initializes the cluster with all available statefulsets
+                       and services.
+  --ns-use <ns-name>   Switches the current Kubernetes context to the specified
+                       namespace.
+  --kubeadm            Initializes the cluster using kubeadm for control plane
+                       management.
+  --dev                Initializes a development-specific cluster
+                       configuration.
+  --list-pods          Displays detailed information about all pods.
+  --info-capacity      Displays the current total machine capacity information.
+  --info-capacity-pod  Displays the current machine capacity information per
+                       pod.
+  --pull-image         Sets an optional associated image to pull during
+                       initialization.
+  --init-host          Installs necessary Kubernetes node CLI tools (e.g.,
+                       kind, kubeadm, docker, podman, helm).
+  --config             Sets the base Kubernetes node configuration.
+  --worker             Sets the context for a worker node.
+  --chown              Sets the appropriate ownership for Kubernetes kubeconfig
+                       files.
+  --k3s                Initializes the cluster using K3s (Lightweight
+                       Kubernetes).
   -h, --help           display help for command
  
 ```
@@ -234,34 +255,48 @@ Options:
 ```
  Usage: underpost deploy [options] [deploy-list] [env]
 
-Manage deployment, for default deploy development pods
+Manages application deployments, defaulting to deploying development pods.
 
 Arguments:
-  deploy-list                       Deploy id list, e.g. default-a,default-b
-  env                               Optional environment, for default is
-                                    development
+  deploy-list                       A comma-separated list of deployment IDs
+                                    (e.g., "default-a,default-b").
+  env                               Optional: The environment for deployment
+                                    (e.g., "development", "production").
+                                    Defaults to "development".
 
 Options:
-  --remove                          Delete deployments and services
-  --sync                            Sync deployments env, ports, and replicas
-  --info-router                     Display router structure
-  --expose                          Expose service match deploy-list
-  --info-util                       Display kubectl util management commands
-  --cert                            Reset tls/ssl certificate secrets
-  --build-manifest                  Build kind yaml manifests: deployments,
-                                    services, proxy and secrets
-  --dashboard-update                Update dashboard instance data with current
-                                    router config
-  --replicas <replicas>             Set custom number of replicas
-  --versions <deployment-versions>  Comma separated custom deployment versions
-  --traffic <traffic-versions>      Comma separated custom deployment traffic
-  --disable-update-deployment       Disable update deployments
-  --info-traffic                    get traffic conf form current resources
-                                    deployments
-  --kubeadm                         Enable kubeadm context
-  --restore-hosts                   Restore defautl etc hosts
-  --rebuild-clients-bundle          Inside container, rebuild clients bundle,
-                                    only static public or storage client files
+  --remove                          Deletes specified deployments and their
+                                    associated services.
+  --sync                            Synchronizes deployment environment
+                                    variables, ports, and replica counts.
+  --info-router                     Displays the current router structure and
+                                    configuration.
+  --expose                          Exposes services matching the provided
+                                    deployment ID list.
+  --info-util                       Displays useful `kubectl` utility
+                                    management commands.
+  --cert                            Resets TLS/SSL certificate secrets for
+                                    deployments.
+  --build-manifest                  Builds Kubernetes YAML manifests, including
+                                    deployments, services, proxies, and
+                                    secrets.
+  --dashboard-update                Updates dashboard instance data with the
+                                    current router configuration.
+  --replicas <replicas>             Sets a custom number of replicas for
+                                    deployments.
+  --versions <deployment-versions>  A comma-separated list of custom deployment
+                                    versions.
+  --traffic <traffic-versions>      A comma-separated list of custom deployment
+                                    traffic weights.
+  --disable-update-deployment       Disables updates to deployments.
+  --info-traffic                    Retrieves traffic configuration from
+                                    current resource deployments.
+  --kubeadm                         Enables the kubeadm context for deployment
+                                    operations.
+  --restore-hosts                   Restores default `/etc/hosts` entries.
+  --rebuild-clients-bundle          Inside the container, rebuilds client
+                                    bundles (only static public or storage
+                                    client files).
   -h, --help                        display help for command
  
 ```
@@ -271,15 +306,19 @@ Options:
 ```
  Usage: underpost secret [options] <platform>
 
-Manage secrets
+Manages secrets for various platforms.
 
 Arguments:
-  platform                            Options: docker,underpost
+  platform                            The secret management platform. Options:
+                                      docker, underpost.
 
 Options:
-  --init                              Init secrets platform environment
-  --create-from-file <path-env-file>  Create secret from env file
-  --list                              Lists secrets
+  --init                              Initializes the secrets platform
+                                      environment.
+  --create-from-file <path-env-file>  Creates secrets from a specified
+                                      environment file.
+  --list                              Lists all available secrets for the
+                                      platform.
   -h, --help                          display help for command
  
 ```
@@ -289,20 +328,28 @@ Options:
 ```
  Usage: underpost dockerfile-image-build [options]
 
-Build image from Dockerfile
+Builds a Docker image from a specified Dockerfile with various options for
+naming, saving, and loading.
 
 Options:
-  --path [path]                        Dockerfile path
-  --image-name [image-name]            Set image name
-  --image-path [image-path]            Set tar image path
-  --dockerfile-name [dockerfile-name]  set Dockerfile name
-  --podman-save                        Export tar file from podman
-  --kind-load                          Import tar image to Kind cluster
-  --kubeadm-load                       Import tar image to Kubeadm cluster
-  --secrets                            Dockerfile env secrets
-  --secrets-path [secrets-path]        Dockerfile custom path env secrets
-  --reset                              Build without using cache
-  --k3s-load                           Load image into K3s cluster.
+  --path [path]                        The path to the Dockerfile directory.
+  --image-name [image-name]            Sets a custom name for the Docker image.
+  --image-path [image-path]            Sets the output path for the tar image
+                                       archive.
+  --dockerfile-name [dockerfile-name]  Sets a custom name for the Dockerfile.
+  --podman-save                        Exports the built image as a tar file
+                                       using Podman.
+  --kind-load                          Imports the tar image into a Kind
+                                       cluster.
+  --kubeadm-load                       Imports the tar image into a Kubeadm
+                                       cluster.
+  --secrets                            Includes Dockerfile environment secrets
+                                       during the build.
+  --secrets-path [secrets-path]        Specifies a custom path for Dockerfile
+                                       environment secrets.
+  --reset                              Performs a build without using the
+                                       cache.
+  --k3s-load                           Loads the image into a K3s cluster.
   -h, --help                           display help for command
  
 ```
@@ -312,14 +359,15 @@ Options:
 ```
  Usage: underpost dockerfile-pull-base-images [options]
 
-Pull underpost dockerfile images requirements
+Pulls required Underpost Dockerfile base images and optionally loads them into
+clusters.
 
 Options:
-  --path [path]   Dockerfile path
-  --kind-load     Import tar image to Kind cluster
-  --kubeadm-load  Import tar image to Kubeadm cluster
-  --version       Set custom version
-  --k3s-load      Load image into K3s cluster.
+  --path [path]   The path to the Dockerfile directory.
+  --kind-load     Imports the pulled image into a Kind cluster.
+  --kubeadm-load  Imports the pulled image into a Kubeadm cluster.
+  --version       Sets a custom version for the base images.
+  --k3s-load      Loads the image into a K3s cluster.
   -h, --help      display help for command
  
 ```
@@ -329,7 +377,7 @@ Options:
 ```
  Usage: underpost install [options]
 
-Fast import underpost npm dependencies
+Quickly imports Underpost npm dependencies by copying them.
 
 Options:
   -h, --help  display help for command
@@ -341,23 +389,31 @@ Options:
 ```
  Usage: underpost db [options] <deploy-list>
 
-Manage databases
+Manages database operations, including import, export, and collection
+management.
 
 Arguments:
-  deploy-list                  Deploy id list, e.g. default-a,default-b
+  deploy-list                  A comma-separated list of deployment IDs (e.g.,
+                               "default-a,default-b").
 
 Options:
-  --import                     Import container backups from repositories
-  --export                     Export container backups to repositories
-  --pod-name <pod-name>        Optional pod context
-  --collections <collections>  Comma separated collections
-  --out-path <out-path>        Custom out path backup
-  --drop                       Drop databases
-  --preserveUUID               Preserve Ids
-  --git                        Upload to github
-  --hosts <hosts>              Comma separated hosts
-  --paths <paths>              Comma separated paths
-  --ns <ns-name>               Optional name space context
+  --import                     Imports container backups from specified
+                               repositories.
+  --export                     Exports container backups to specified
+                               repositories.
+  --pod-name <pod-name>        Optional: Specifies the pod context for database
+                               operations.
+  --collections <collections>  A comma-separated list of database collections
+                               to operate on.
+  --out-path <out-path>        Specifies a custom output path for backups.
+  --drop                       Drops the specified databases or collections.
+  --preserveUUID               Preserves UUIDs during database operations.
+  --git                        Uploads database backups to GitHub.
+  --hosts <hosts>              A comma-separated list of database hosts.
+  --paths <paths>              A comma-separated list of paths for database
+                               files.
+  --ns <ns-name>               Optional: Specifies the namespace context for
+                               database operations.
   -h, --help                   display help for command
  
 ```
@@ -367,19 +423,23 @@ Options:
 ```
  Usage: underpost script [options] <operator> <script-name> [script-value]
 
-Supports a number of built-in underpost global scripts and their preset life
-cycle events as well as arbitrary scripts
+Supports a variety of built-in Underpost global scripts, their preset lifecycle
+events, and arbitrary custom scripts.
 
 Arguments:
-  operator               Options: set,run,get
-  script-name            Script name
-  script-value           Literal command, or path
+  operator               The script operation to perform. Options: set, run,
+                         get.
+  script-name            The name of the script to execute.
+  script-value           Optional: A literal command or a path to a script
+                         file.
 
 Options:
-  --itc                  Inside container execution context
-  --itc-path             Inside container path options
-  --ns <ns-name>         Options name space context
-  --pod-name <pod-name>
+  --itc                  Executes the script within the container execution
+                         context.
+  --itc-path             Specifies container path options for script execution.
+  --ns <ns-name>         Optional: Specifies the namespace context for script
+                         execution.
+  --pod-name <pod-name>  Optional: Specifies the pod name for script execution.
   -h, --help             display help for command
  
 ```
@@ -389,18 +449,22 @@ Options:
 ```
  Usage: underpost cron [options] [deploy-list] [job-list]
 
-Cron jobs management
+Manages cron jobs, including initialization, execution, and configuration
+updates.
 
 Arguments:
-  deploy-list         Deploy id list, e.g. default-a,default-b
-  job-list            Deploy id list, e.g. callback,updateDashboardData, for
-                      default all available jobs
+  deploy-list         A comma-separated list of deployment IDs (e.g.,
+                      "default-a,default-b").
+  job-list            A comma-separated list of job IDs. Options: callback,
+                      updateDashboardData. Defaults to all available jobs.
 
 Options:
-  --itc               Inside container execution context
-  --init              Init cron jobs for cron job default deploy id
-  --git               Upload to github
-  --dashboard-update  Update dashboard cron data with current jobs config
+  --itc               Executes cron jobs within the container execution
+                      context.
+  --init              Initializes cron jobs for the default deployment ID.
+  --git               Uploads cron job configurations to GitHub.
+  --dashboard-update  Updates dashboard cron data with the current job
+                      configurations.
   -h, --help          display help for command
  
 ```
@@ -410,19 +474,19 @@ Options:
 ```
  Usage: underpost fs [options] [path]
 
-File storage management, for default upload file
+Manages file storage, defaulting to file upload operations.
 
 Arguments:
-  path                                     Absolute or relative directory
+  path                                     The absolute or relative directory path for file operations.
 
 Options:
-  --rm                                     Remove file
-  --git                                    Current git changes
-  --recursive                              Upload files recursively
-  --deploy-id <deploy-id>                  Deploy configuration id
-  --pull                                   Download file
-  --force                                  Force action
-  --storage-file-path <storage-file-path>  custom file storage path
+  --rm                                     Removes the specified file.
+  --git                                    Displays current Git changes related to file storage.
+  --recursive                              Uploads files recursively from the specified path.
+  --deploy-id <deploy-id>                  Specifies the deployment configuration ID for file operations.
+  --pull                                   Downloads the specified file.
+  --force                                  Forces the action, overriding any warnings or conflicts.
+  --storage-file-path <storage-file-path>  Specifies a custom file storage path.
   -h, --help                               display help for command
  
 ```
@@ -432,19 +496,23 @@ Options:
 ```
  Usage: underpost test [options] [deploy-list]
 
-Manage Test, for default run current underpost default test
+Manages and runs tests, defaulting to the current Underpost default test suite.
 
 Arguments:
-  deploy-list                Deploy id list, e.g. default-a,default-b
+  deploy-list                A comma-separated list of deployment IDs (e.g.,
+                             "default-a,default-b").
 
 Options:
-  --itc                      Inside container execution context
-  --sh                       Copy to clipboard, container entrypoint shell
-                             command
-  --logs                     Display container logs
-  --pod-name <pod-name>
-  --pod-status <pod-status>
-  --kind-type <kind-type>
+  --itc                      Executes tests within the container execution
+                             context.
+  --sh                       Copies the container entrypoint shell command to
+                             the clipboard.
+  --logs                     Displays container logs for test debugging.
+  --pod-name <pod-name>      Optional: Specifies the pod name for test
+                             execution.
+  --pod-status <pod-status>  Optional: Filters tests by pod status.
+  --kind-type <kind-type>    Optional: Specifies the Kind cluster type for
+                             tests.
   -h, --help                 display help for command
  
 ```
@@ -454,20 +522,24 @@ Options:
 ```
  Usage: underpost monitor [options] <deploy-id> [env]
 
-Monitor health server management
+Manages health server monitoring for specified deployments.
 
 Arguments:
-  deploy-id                    Deploy configuration id
-  env                          Optional environment, for default is development
+  deploy-id                    The deployment configuration ID to monitor.
+  env                          Optional: The environment to monitor (e.g.,
+                               "development", "production"). Defaults to
+                               "development".
 
 Options:
-  --ms-interval <ms-interval>  Custom ms interval delta time
-  --now                        Exec immediately monitor script
-  --single                     Disable recurrence
-  --replicas <replicas>        Set custom number of replicas
-  --type <type>                Set custom monitor type
-  --sync                       Sync with current proxy deployments proxy
-                               traffic
+  --ms-interval <ms-interval>  Sets a custom millisecond interval for
+                               monitoring checks.
+  --now                        Executes the monitor script immediately.
+  --single                     Disables recurrence, running the monitor script
+                               only once.
+  --replicas <replicas>        Sets a custom number of replicas for monitoring.
+  --type <type>                Sets a custom monitor type.
+  --sync                       Synchronizes with current proxy deployments and
+                               traffic configurations.
   -h, --help                   display help for command
  
 ```
@@ -477,34 +549,42 @@ Options:
 ```
  Usage: underpost lxd [options]
 
-Lxd management
+Manages LXD containers and virtual machines.
 
 Options:
-  --init                           Init lxd
-  --reset                          Reset lxd on current machine
-  --install                        Install lxd on current machine
-  --dev                            Set dev context env
-  --create-virtual-network         Create lxd virtual network bridge
-  --create-admin-profile           Create admin profile for lxd management
-  --control                        set control node vm context
-  --worker                         set worker node context
-  --create-vm <vm-id>              Create default virtual machines
-  --init-vm <vm-id>                Get init vm underpost script
-  --info-vm <vm-id>                Get all info vm
-  --test <vm-id>                   Test health, status and network connectivity
-                                   for a VM
-  --root-size <gb-size>            Set root size vm
-  --k3s                            Flag to indicate K3s cluster type for VM
-                                   initialization
-  --join-node <nodes>              Comma separated worker and control node e.
-                                   g. k8s-worker-1,k8s-control
-  --expose <vm-name-ports>         Vm name and : separated with Comma separated
-                                   vm port to expose e. g. k8s-control:80,443
-  --delete-expose <vm-name-ports>  Vm name and : separated with Comma separated
-                                   vm port to remove expose e. g.
-                                   k8s-control:80,443
-  --auto-expose-k8s-ports <vm-id>  Automatically expose common Kubernetes ports
-                                   for the VM.
+  --init                           Initializes LXD on the current machine.
+  --reset                          Resets LXD on the current machine, deleting
+                                   all configurations.
+  --install                        Installs LXD on the current machine.
+  --dev                            Sets the development context environment for
+                                   LXD.
+  --create-virtual-network         Creates an LXD virtual network bridge.
+  --create-admin-profile           Creates an admin profile for LXD management.
+  --control                        Sets the context for a control node VM.
+  --worker                         Sets the context for a worker node VM.
+  --create-vm <vm-id>              Creates default virtual machines with the
+                                   specified ID.
+  --init-vm <vm-id>                Retrieves the Underpost initialization
+                                   script for the specified VM.
+  --info-vm <vm-id>                Retrieves all information about the
+                                   specified VM.
+  --test <vm-id>                   Tests the health, status, and network
+                                   connectivity for a VM.
+  --root-size <gb-size>            Sets the root partition size (in GB) for the
+                                   VM.
+  --k3s                            Flag to indicate that the VM initialization
+                                   is for a K3s cluster type.
+  --join-node <nodes>              A comma-separated list of worker and control
+                                   nodes to join (e.g.,
+                                   "k8s-worker-1,k8s-control").
+  --expose <vm-name-ports>         Exposes specified ports on a VM (e.g.,
+                                   "k8s-control:80,443"). Multiple VM-port
+                                   pairs can be comma-separated.
+  --delete-expose <vm-name-ports>  Removes exposed ports on a VM (e.g.,
+                                   "k8s-control:80,443"). Multiple VM-port
+                                   pairs can be comma-separated.
+  --auto-expose-k8s-ports <vm-id>  Automatically exposes common Kubernetes
+                                   ports for the specified VM.
   -h, --help                       display help for command
  
 ```
@@ -514,20 +594,27 @@ Options:
 ```
  Usage: underpost baremetal [options]
 
-Baremetal management
+Manages baremetal server operations, including installation, database setup,
+and user management.
 
 Options:
-  --control-server-install       Install baremetal control server
-  --control-server-db-init       Setup database baremetal control server
-  --control-server-db-uninstall  Uninstall database baremetal control server
-  --control-server-init          Init baremetal control server
-  --control-server-login         Control server admin login
-  --control-server-uninstall     Uninstall baremetal control server
-  --control-server-stop          Stop baremetal control server
-  --control-server-start         Start baremetal control server
-  --get-users                    Get users
-  --new-api-key                  Get new api key
-  --dev                          Set dev context env
+  --control-server-install       Installs the baremetal control server.
+  --control-server-db-init       Sets up the database for the baremetal control
+                                 server.
+  --control-server-db-uninstall  Uninstalls the database for the baremetal
+                                 control server.
+  --control-server-init          Initializes the baremetal control server.
+  --control-server-login         Logs in as an administrator to the control
+                                 server.
+  --control-server-uninstall     Uninstalls the baremetal control server.
+  --control-server-stop          Stops the baremetal control server.
+  --control-server-start         Starts the baremetal control server.
+  --get-users                    Retrieves a list of users from the control
+                                 server.
+  --new-api-key                  Generates a new API key for the control
+                                 server.
+  --dev                          Sets the development context environment for
+                                 baremetal operations.
   -h, --help                     display help for command
  
 ```

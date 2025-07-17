@@ -7,23 +7,15 @@ jobs:
     # prevents this action from running on forks
     if: github.repository == 'underpostnet/pwa-microservices-template'
     runs-on: ubuntu-latest
-    container:
-      image: rockylinux/rockylinux:9
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install required packages
-        run: |
-          dnf install -y sudo tar gzip bzip2 git
-          dnf install -y curl --allowerasing
-
-      - name: Install Node.js
-        run: |
-          curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
-          dnf install nodejs -y
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install Dependencies
         run: npm install
@@ -31,16 +23,12 @@ jobs:
       - run: npm ci
 
       # Publish to npm
-
-      - name: Install required packages
-        run: |
-          dnf install -y sudo tar gzip bzip2 git
-          dnf install -y curl --allowerasing
-
-      - name: Install Node.js
-        run: |
-          curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
-          dnf install nodejs -y
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
+          # Defaults to the user or organization that owns the workflow file
+          # scope: '@underpostnet'
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         name: Publish to npm
@@ -50,23 +38,15 @@ jobs:
     # prevents this action from running on forks
     if: github.repository == 'underpostnet/pwa-microservices-template-ghpkg'
     runs-on: ubuntu-latest
-    container:
-      image: rockylinux/rockylinux:9
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install required packages
-        run: |
-          dnf install -y sudo tar gzip bzip2 git
-          dnf install -y curl --allowerasing
-
-      - name: Install Node.js
-        run: |
-          curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
-          dnf install nodejs -y
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install Dependencies
         run: npm install
@@ -74,16 +54,12 @@ jobs:
       - run: npm ci
 
       # Publish to npm git hub package
-
-      - name: Install required packages
-        run: |
-          dnf install -y sudo tar gzip bzip2 git
-          dnf install -y curl --allowerasing
-
-      - name: Install Node.js
-        run: |
-          curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
-          dnf install nodejs -y
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
+          # Defaults to the user or organization that owns the workflow file
+          scope: '@underpostnet'
       - env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         name: Publish to npm
@@ -91,16 +67,13 @@ jobs:
           npm publish --provenance --access public
 
       # Publish to GitHub Packages
-
-      - name: Install required packages
-        run: |
-          dnf install -y sudo tar gzip bzip2 git
-          dnf install -y curl --allowerasing
-
-      - name: Install Node.js
-        run: |
-          curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
-          dnf install nodejs -y
+      - name: Setup node to publish to GitHub Packages
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          registry-url: 'https://npm.pkg.github.com'
+          # Defaults to the user or organization that owns the workflow file
+          scope: '@underpostnet'
 
       - run: |
           npm config set //npm.pkg.github.com/:_authToken=${{ secrets.GIT_AUTH_TOKEN }}
