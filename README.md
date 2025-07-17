@@ -16,7 +16,7 @@ core server
 
 <div align="center">
 
-<a target="_top" href='https://www.npmjs.com/package/npm/v/11.1.0'><img alt='npm' src='https://img.shields.io/badge/npm v11.1.0-100000?style=flat&logo=npm&logoColor=white&labelColor=CB3837&color=727273'/></a> <a target="_top" href='https://nodejs.org/download/release/v22.9.0/'><img alt='nodedotjs' src='https://img.shields.io/badge/node v23.8.0-100000?style=flat&logo=nodedotjs&logoColor=white&labelColor=5FA04E&color=727273'/></a> <a target="_top" href='https://pgp.mongodb.com/'><img alt='mongodb' src='https://img.shields.io/badge/mongodb_server v7.0-100000?style=flat&logo=mongodb&logoColor=white&labelColor=47A248&color=727273'/></a>
+<a target="_top" href='https://rockylinux.org/download'><img alt='rockylinux' src='https://img.shields.io/badge/Rocky Linux v9.6-100000?style=flat&logo=rockylinux&logoColor=white&labelColor=10b981&color=727273'/></a> <a target="_top" href='https://www.npmjs.com/package/npm/v/11.1.0'><img alt='npm' src='https://img.shields.io/badge/npm v11.1.0-100000?style=flat&logo=npm&logoColor=white&labelColor=CB3837&color=727273'/></a> <a target="_top" href='https://nodejs.org/download/release/v22.9.0/'><img alt='nodedotjs' src='https://img.shields.io/badge/node v23.8.0-100000?style=flat&logo=nodedotjs&logoColor=white&labelColor=5FA04E&color=727273'/></a> <a target="_top" href='https://pgp.mongodb.com/'><img alt='mongodb' src='https://img.shields.io/badge/mongodb_server v7.0-100000?style=flat&logo=mongodb&logoColor=white&labelColor=47A248&color=727273'/></a>
 
 </div>
 
@@ -49,38 +49,38 @@ Package repo and usage info: <a target="_top" href="https://github.com/underpost
 ## underpost ci/cd cli v2.8.8
 
 ### Usage: `underpost [options] [command]`
-  ```
- Options:
-  -V, --version                                              output the version number
-  -h, --help                                                 display help for command
+
+```
+Options:
+-V, --version                                              output the version number
+-h, --help                                                 display help for command
 
 Commands:
-  new <app-name>                                             Create a new project
-  start [options] <deploy-id> [env]                          Start up server, build pipelines, or services
-  clone [options] <uri>                                      Clone github repository
-  pull [options] <path> <uri>                                Pull github repository
-  cmt [options] <path> <commit-type> [module-tag] [message]  Commit github repository
-  push [options] <path> <uri>                                Push github repository
-  env <deploy-id> [env]                                      Set environment variables files and conf related to <deploy-id>
-  config [options] <operator> [key] [value]                  Manage configuration, operators
-  root                                                       Get npm root path
-  cluster [options] [pod-name]                               Manage cluster, for default initialization base kind cluster
-  deploy [options] [deploy-list] [env]                       Manage deployment, for default deploy development pods
-  secret [options] <platform>                                Manage secrets
-  dockerfile-image-build [options]                           Build image from Dockerfile
-  dockerfile-pull-base-images [options]                      Pull underpost dockerfile images requirements
-  install                                                    Fast import underpost npm dependencies
-  db [options] <deploy-list>                                 Manage databases
-  script [options] <operator> <script-name> [script-value]   Supports a number of built-in underpost global scripts and their preset life cycle events as well as arbitrary scripts
-  cron [options] [deploy-list] [job-list]                    Cron jobs management
-  fs [options] [path]                                        File storage management, for default upload file
-  test [options] [deploy-list]                               Manage Test, for default run current underpost default test
-  monitor [options] <deploy-id> [env]                        Monitor health server management
-  lxd [options]                                              Lxd management
-  baremetal [options]                                        Baremetal management
-  help [command]                                             display help for command
- 
+new <app-name>                                             Create a new project
+start [options] <deploy-id> [env]                          Start up server, build pipelines, or services
+clone [options] <uri>                                      Clone github repository
+pull [options] <path> <uri>                                Pull github repository
+cmt [options] <path> <commit-type> [module-tag] [message]  Commit github repository
+push [options] <path> <uri>                                Push github repository
+env <deploy-id> [env]                                      Set environment variables files and conf related to <deploy-id>
+config [options] <operator> [key] [value]                  Manage configuration, operators
+root                                                       Get npm root path
+cluster [options] [pod-name]                               Manage cluster, for default initialization base kind cluster
+deploy [options] [deploy-list] [env]                       Manage deployment, for default deploy development pods
+secret [options] <platform>                                Manage secrets
+dockerfile-image-build [options]                           Build image from Dockerfile
+dockerfile-pull-base-images [options]                      Pull underpost dockerfile images requirements
+install                                                    Fast import underpost npm dependencies
+db [options] <deploy-list>                                 Manage databases
+script [options] <operator> <script-name> [script-value]   Supports a number of built-in underpost global scripts and their preset life cycle events as well as arbitrary scripts
+cron [options] [deploy-list] [job-list]                    Cron jobs management
+fs [options] [path]                                        File storage management, for default upload file
+test [options] [deploy-list]                               Manage Test, for default run current underpost default test
+monitor [options] <deploy-id> [env]                        Monitor health server management
+lxd [options]                                              Lxd management
+baremetal [options]                                        Baremetal management
+help [command]                                             display help for command
+
 ```
-      
+
 <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/cli.md">See complete CLI Docs here.</a>
-      

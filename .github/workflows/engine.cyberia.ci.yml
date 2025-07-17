@@ -12,7 +12,7 @@ jobs:
   pwa-microservices-template:
     # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-cyberia-repo-build)')
     name: Update github repo package Jobs
-    runs-on: ubuntu-latest
+    runs-on: rocky
     permissions:
       contents: write
       packages: write

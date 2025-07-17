@@ -8,7 +8,7 @@ jobs:
   build:
     if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-engine)')
     name: Remote SSH deployment
-    runs-on: ubuntu-latest
+    runs-on: rocky
     steps:
       # - name: 🖊 Write SSH keys
       #   run: |

@@ -8,8 +8,8 @@ jobs:
     strategy:
       matrix:
         node-version: [23.x]
-        os: [ubuntu-latest]
-      #  os: [ubuntu-latest, windows-latest]
+        os: [rocky]
+      #  os: [rocky]
 
     steps:
       - name: Clone repository
