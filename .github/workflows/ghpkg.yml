@@ -22,9 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '23.x'
+      - name: Install required packages
+        run: |
+          dnf install -y sudo tar gzip bzip2 git
+          dnf install -y curl --allowerasing
+
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
 
         # - name: Get npm root
         #   run: sudo npm root -g
@@ -56,16 +61,12 @@ jobs:
           cp -rf -a ./pwa-microservices-template-ghpkg.git ./.git
           rm -rf ./pwa-microservices-template-ghpkg.git
 
-      - name: Set git credentials
+      - name: Set git global credentials
         run: |
           git config --global credential.helper ""
-          git config credential.helper ""
           git config --global user.name 'underpostnet'
           git config --global user.email 'development@underpost.net'
           git config --global credential.interactive always
-          git config user.name 'underpostnet'
-          git config user.email 'development@underpost.net'
-          git config credential.interactive always
 
       - name: Push to github package repository
         run: |

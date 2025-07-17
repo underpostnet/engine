@@ -38,9 +38,15 @@ jobs:
         #   lfs: true
       # - name: Checkout LFS objects
       #   run: git lfs checkout
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '23.x'
+
+      - name: Install required packages
+        run: |
+          dnf install -y sudo tar gzip bzip2 git
+          dnf install -y curl --allowerasing
+
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
 
       - name: Build the site
         run: |

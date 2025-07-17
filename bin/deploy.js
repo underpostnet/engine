@@ -242,6 +242,14 @@ EOF`);
 sudo cloud-init clean --logs --reboot
 EOF`);
     fs.writeFileSync(`${nfsHostPath}/var/log/cloud-init.log`, '', 'utf8');
+
+    fs.writeFileSync(
+      `${nfsHostPath}/dns.sh`,
+      `rm /etc/resolv.conf
+echo 'nameserver 8.8.8.8' > /run/systemd/resolve/stub-resolv.conf
+ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
+      'utf8',
+    );
   }
 };
 

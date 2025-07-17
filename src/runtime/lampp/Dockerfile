@@ -55,8 +55,6 @@ RUN ln -s /www /opt/lampp/htdocs
 # Install Node.js
 # Add NodeSource repository for Node.js 23.x (for RHEL-based systems)
 RUN curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
-# Install Node.js
-RUN dnf install -y nodejs
 RUN dnf clean all
 
 # Verify Node.js and npm versions
