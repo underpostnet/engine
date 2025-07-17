@@ -71,6 +71,7 @@ jobs:
           git init
           git config user.name 'underpost.net'
           git config user.email 'admin@underpost.net'
+          git config --global --add safe.directory /__w/pwa-microservices-template/pwa-microservices-template
           git add .
           git status
           underpost cmt . ci package-pwa-microservices-template-ghpkg 'Update github repo package'
