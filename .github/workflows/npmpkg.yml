@@ -37,16 +37,12 @@ jobs:
           underpost config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
           npm install
 
-      - name: Set git credentials
+      - name: Set git global credentials
         run: |
           git config --global credential.helper ""
-          git config credential.helper ""
           git config --global user.name 'underpostnet'
           git config --global user.email 'development@underpost.net'
           git config --global credential.interactive always
-          git config user.name 'underpostnet'
-          git config user.email 'development@underpost.net'
-          git config credential.interactive always
 
       - name: Clone github package repository
         run: |
