@@ -18,7 +18,7 @@ jobs:
 
       - name: Install required packages
         run: |
-          dnf install -y sudo tar gzip bzip2
+          dnf install -y sudo tar gzip bzip2 git
           dnf install -y curl --allowerasing
 
       - name: Install Node.js
