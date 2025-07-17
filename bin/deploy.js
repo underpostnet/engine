@@ -76,6 +76,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     `sudo dpkg-reconfigure --frontend noninteractive keyboard-configuration`,
     `sudo systemctl restart keyboard-setup.service`,
   ];
+  // #  - ${JSON.stringify([...timeZoneSteps, ...chronySetUp(chronyConfPath)])}
   const installSteps = [
     `apt update`,
     `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony keyboard-configuration`,
@@ -98,14 +99,13 @@ deb http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe
 
     `apt update -qq`,
     `apt install -y xinput x11-xkb-utils usbutils`,
-  ];
 
-  let steps = [
     // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
     // `date`,
 
     ...timeZoneSteps,
     ...chronySetUp(chronyConfPath),
+    ...keyboardSteps,
 
     // Create root user
     `useradd -m -s /bin/bash -G sudo root`,
@@ -118,7 +118,9 @@ deb http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe
     `chown -R root /home/root/.ssh`,
     `chmod 700 /home/root/.ssh`,
     `chmod 600 /home/root/.ssh/authorized_keys`,
+  ];
 
+  let steps = [
     // Configure cloud-init for MAAS
     `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
 #cloud-config
@@ -141,7 +143,7 @@ datasource:
     metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
     consumer_key: ${consumer_key}
     token_key: ${consumer_token}
-    token_secret: ${secret}
+    token_secret: &${secret}
 users:
   - name: rpiadmin
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
@@ -209,40 +211,43 @@ bootcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init bootcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-#  - ${JSON.stringify([...timeZoneSteps, ...chronySetUp(chronyConfPath)])}
 runcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init runcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 EOF_MAAS_CFG`,
-    ...keyboardSteps,
   ];
 
-  if (!update) {
-    steps = installSteps.concat(steps);
-  }
-
-  shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-${steps
-  .map(
-    (s, i) => `echo "step ${i + 1}/${steps.length}: ${s.split('\n')[0]}"
-${s}
-`,
-  )
-  .join(``)}
-EOF`);
-
-  shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-echo "nameserver ${process.env.MAAS_DNS}" | tee /etc/resolv.conf > /dev/null
-apt update
-EOF`);
+  const runSteps = (steps = []) => {
+    shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+      ${steps
+        .map(
+          (s, i) => `echo "step ${i + 1}/${steps.length}: ${s.split('\n')[0]}"
+      ${s}
+      `,
+        )
+        .join(``)}
+      EOF`);
+  };
 
   if (update) {
     shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 sudo cloud-init clean --logs --reboot
 EOF`);
-    fs.writeFileSync(`${nfsHostPath}/var/log/cloud-init.log`, '', 'utf8');
 
+    if (fs.existsSync(`${nfsHostPath}/var/log/`)) {
+      fs.writeFileSync(`${nfsHostPath}/var/log/cloud-init.log`, '', 'utf8');
+      fs.writeFileSync(`${nfsHostPath}/var/log/cloud-init-output.log`, '', 'utf8');
+    }
+
+    runSteps(steps);
+  } else {
+    runSteps(installSteps.concat(steps));
+
+    shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+echo "nameserver ${process.env.MAAS_DNS}" | tee /etc/resolv.conf > /dev/null
+apt update
+EOF`);
     fs.writeFileSync(
       `${nfsHostPath}/dns.sh`,
       `rm /etc/resolv.conf
