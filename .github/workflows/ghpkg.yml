@@ -67,7 +67,6 @@ jobs:
           git config --global credential.helper ""
           git config --global user.name 'underpostnet'
           git config --global user.email 'development@underpost.net'
-          git config --global credential.interactive always
 
       - name: Push to github package repository
         run: |
