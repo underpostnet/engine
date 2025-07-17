@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.8
+## underpost ci/cd cli v2.8.81
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -517,14 +517,18 @@ Options:
 Baremetal management
 
 Options:
-  --control-server-install    Install baremetal control server
-  --control-server-init-db    Setup database baremetal control server
-  --control-server-init       Init baremetal control server
-  --control-server-uninstall  Uninstall baremetal control server
-  --control-server-stop       Stop baremetal control server
-  --control-server-start      Start baremetal control server
-  --dev                       Set dev context env
-  -h, --help                  display help for command
+  --control-server-install       Install baremetal control server
+  --control-server-db-init       Setup database baremetal control server
+  --control-server-db-uninstall  Uninstall database baremetal control server
+  --control-server-init          Init baremetal control server
+  --control-server-login         Control server admin login
+  --control-server-uninstall     Uninstall baremetal control server
+  --control-server-stop          Stop baremetal control server
+  --control-server-start         Start baremetal control server
+  --get-users                    Get users
+  --new-api-key                  Get new api key
+  --dev                          Set dev context env
+  -h, --help                     display help for command
  
 ```
   

@@ -46,41 +46,41 @@ After template installation, the server will be running on <a target="_top" href
 
 Package repo and usage info: <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/README.md">pwa-microservices-template</a>
 
-## underpost ci/cd cli v2.8.8
+## underpost ci/cd cli v2.8.81
 
 ### Usage: `underpost [options] [command]`
-
-```
-Options:
--V, --version                                              output the version number
--h, --help                                                 display help for command
+  ```
+ Options:
+  -V, --version                                              output the version number
+  -h, --help                                                 display help for command
 
 Commands:
-new <app-name>                                             Create a new project
-start [options] <deploy-id> [env]                          Start up server, build pipelines, or services
-clone [options] <uri>                                      Clone github repository
-pull [options] <path> <uri>                                Pull github repository
-cmt [options] <path> <commit-type> [module-tag] [message]  Commit github repository
-push [options] <path> <uri>                                Push github repository
-env <deploy-id> [env]                                      Set environment variables files and conf related to <deploy-id>
-config [options] <operator> [key] [value]                  Manage configuration, operators
-root                                                       Get npm root path
-cluster [options] [pod-name]                               Manage cluster, for default initialization base kind cluster
-deploy [options] [deploy-list] [env]                       Manage deployment, for default deploy development pods
-secret [options] <platform>                                Manage secrets
-dockerfile-image-build [options]                           Build image from Dockerfile
-dockerfile-pull-base-images [options]                      Pull underpost dockerfile images requirements
-install                                                    Fast import underpost npm dependencies
-db [options] <deploy-list>                                 Manage databases
-script [options] <operator> <script-name> [script-value]   Supports a number of built-in underpost global scripts and their preset life cycle events as well as arbitrary scripts
-cron [options] [deploy-list] [job-list]                    Cron jobs management
-fs [options] [path]                                        File storage management, for default upload file
-test [options] [deploy-list]                               Manage Test, for default run current underpost default test
-monitor [options] <deploy-id> [env]                        Monitor health server management
-lxd [options]                                              Lxd management
-baremetal [options]                                        Baremetal management
-help [command]                                             display help for command
-
+  new <app-name>                                             Create a new project
+  start [options] <deploy-id> [env]                          Start up server, build pipelines, or services
+  clone [options] <uri>                                      Clone github repository
+  pull [options] <path> <uri>                                Pull github repository
+  cmt [options] <path> <commit-type> [module-tag] [message]  Commit github repository
+  push [options] <path> <uri>                                Push github repository
+  env <deploy-id> [env]                                      Set environment variables files and conf related to <deploy-id>
+  config [options] <operator> [key] [value]                  Manage configuration, operators
+  root                                                       Get npm root path
+  cluster [options] [pod-name]                               Manage cluster, for default initialization base kind cluster
+  deploy [options] [deploy-list] [env]                       Manage deployment, for default deploy development pods
+  secret [options] <platform>                                Manage secrets
+  dockerfile-image-build [options]                           Build image from Dockerfile
+  dockerfile-pull-base-images [options]                      Pull underpost dockerfile images requirements
+  install                                                    Fast import underpost npm dependencies
+  db [options] <deploy-list>                                 Manage databases
+  script [options] <operator> <script-name> [script-value]   Supports a number of built-in underpost global scripts and their preset life cycle events as well as arbitrary scripts
+  cron [options] [deploy-list] [job-list]                    Cron jobs management
+  fs [options] [path]                                        File storage management, for default upload file
+  test [options] [deploy-list]                               Manage Test, for default run current underpost default test
+  monitor [options] <deploy-id> [env]                        Monitor health server management
+  lxd [options]                                              Lxd management
+  baremetal [options]                                        Baremetal management
+  help [command]                                             display help for command
+ 
 ```
-
+      
 <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/cli.md">See complete CLI Docs here.</a>
+      
