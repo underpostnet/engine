@@ -12,13 +12,13 @@ jobs:
   pwa-microservices-template:
     # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-core-repo-build)')
     name: Update github repo package Jobs
+    runs-on: ubuntu-latest
+    container:
+      image: rockylinux/rockylinux:9
     permissions:
       contents: write
       packages: write
       id-token: write
-    runs-on: ubuntu-latest
-    container:
-      image: rockylinux/rockylinux:9
     steps:
       - uses: actions/checkout@v3
 
@@ -38,16 +38,10 @@ jobs:
           npm install
           underpost config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
 
-      - name: Set git credentials
+      - name: Set git global credentials
         run: |
-          git config --global credential.helper ""
-          git config credential.helper ""
           git config --global user.name 'underpostnet'
           git config --global user.email 'development@underpost.net'
-          git config --global credential.interactive always
-          git config user.name 'underpostnet'
-          git config user.email 'development@underpost.net'
-          git config credential.interactive always
 
       - name: Build repository
         run: |
@@ -59,6 +53,8 @@ jobs:
           rm -rf ./.git
           mv ../engine-core.git ./.git
           git init
+          git config user.name 'underpostnet'
+          git config user.email 'development@underpost.net'
           git add .
           underpost cmt . ci engine-core-repo-build 'Update engine core repository'
           underpost push . underpostnet/engine-core
