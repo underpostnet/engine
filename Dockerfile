@@ -6,6 +6,7 @@ RUN dnf clean all
 
 # Install Node.js
 RUN curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
+RUN dnf install nodejs -y
 RUN dnf clean all
 
 # Verify Node.js and npm versions

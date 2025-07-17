@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dd-template-development-blue
-          image: localhost/debian-underpost:v2.8.81
+          image: localhost/rockylinux9-underpost:v2.8.81
           #          resources:
           #            requests:
           #              memory: "124Ki"
@@ -45,38 +45,38 @@ spec:
   selector:
     app: dd-template-development-blue
   ports:
-    - name: "tcp-4001"
+    - name: 'tcp-4001'
       protocol: TCP
       port: 4001
       targetPort: 4001
-    - name: "udp-4001"
+    - name: 'udp-4001'
       protocol: UDP
       port: 4001
       targetPort: 4001
 
-    - name: "tcp-4002"
+    - name: 'tcp-4002'
       protocol: TCP
       port: 4002
       targetPort: 4002
-    - name: "udp-4002"
+    - name: 'udp-4002'
       protocol: UDP
       port: 4002
       targetPort: 4002
 
-    - name: "tcp-4003"
+    - name: 'tcp-4003'
       protocol: TCP
       port: 4003
       targetPort: 4003
-    - name: "udp-4003"
+    - name: 'udp-4003'
       protocol: UDP
       port: 4003
       targetPort: 4003
 
-    - name: "tcp-4004"
+    - name: 'tcp-4004'
       protocol: TCP
       port: 4004
       targetPort: 4004
-    - name: "udp-4004"
+    - name: 'udp-4004'
       protocol: UDP
       port: 4004
       targetPort: 4004
@@ -100,7 +100,7 @@ spec:
     spec:
       containers:
         - name: dd-template-development-green
-          image: localhost/debian-underpost:v2.8.81
+          image: localhost/rockylinux9-underpost:v2.8.81
           #          resources:
           #            requests:
           #              memory: "124Ki"
@@ -129,38 +129,38 @@ spec:
   selector:
     app: dd-template-development-green
   ports:
-    - name: "tcp-4001"
+    - name: 'tcp-4001'
       protocol: TCP
       port: 4001
       targetPort: 4001
-    - name: "udp-4001"
+    - name: 'udp-4001'
       protocol: UDP
       port: 4001
       targetPort: 4001
 
-    - name: "tcp-4002"
+    - name: 'tcp-4002'
       protocol: TCP
       port: 4002
       targetPort: 4002
-    - name: "udp-4002"
+    - name: 'udp-4002'
       protocol: UDP
       port: 4002
       targetPort: 4002
 
-    - name: "tcp-4003"
+    - name: 'tcp-4003'
       protocol: TCP
       port: 4003
       targetPort: 4003
-    - name: "udp-4003"
+    - name: 'udp-4003'
       protocol: UDP
       port: 4003
       targetPort: 4003
 
-    - name: "tcp-4004"
+    - name: 'tcp-4004'
       protocol: TCP
       port: 4004
       targetPort: 4004
-    - name: "udp-4004"
+    - name: 'udp-4004'
       protocol: UDP
       port: 4004
       targetPort: 4004

@@ -14,7 +14,7 @@ class UnderpostImage {
     dockerfile: {
       /**
        * @method pullBaseImages
-       * @description Pulls base images and builds a 'debian-underpost' image,
+       * @description Pulls base images and builds a 'rockylinux9-underpost' image,
        * then loads it into the specified Kubernetes cluster type (Kind, Kubeadm, or K3s).
        * @param {object} options - Options for pulling and loading images.
        * @param {boolean} [options.kindLoad=false] - If true, load image into Kind cluster.
