@@ -2302,6 +2302,7 @@ EOF`);
       shellExec(`sudo umount ${nfsHostPath}/sys`);
       shellExec(`sudo umount ${nfsHostPath}/dev/pts`);
       shellExec(`sudo umount ${nfsHostPath}/dev`);
+      shellExec(`sudo umount ${nfsHostPath}/run`);
       // shellExec(`sudo umount ${nfsHostPath}/lib/modules`);
       break;
     }
