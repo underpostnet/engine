@@ -66,11 +66,11 @@ jobs:
           underpost clone --bare underpostnet/pwa-microservices-template-ghpkg
           rm -rf ./.git
           mv ./pwa-microservices-template-ghpkg.git ./.git
-          git init
           pwd
+          git remote set-url origin git@github.com:underpostnet/pwa-microservices-template-ghpkg.git
+          git init
           git config user.name 'underpost.net'
           git config user.email 'admin@underpost.net'
-          git remote set-url origin git@github.com:underpostnet/pwa-microservices-template-ghpkg.git
           git add .
           git status
           underpost cmt . ci package-pwa-microservices-template-ghpkg 'Update github repo package'
