@@ -17,10 +17,7 @@ fs.existsSync(`${underpostRootPath}/.env`)
 const program = new Command();
 
 // Set up the main program information
-program
-  .name('underpost')
-  .description(`Underpost CI/CD CLI tool version ${Underpost.version}`)
-  .version(Underpost.version);
+program.name('underpost').description(`underpost ci/cd cli ${Underpost.version}`).version(Underpost.version);
 
 // 'new' command: Create a new project
 program
