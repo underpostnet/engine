@@ -65,13 +65,15 @@ jobs:
       - name: Set git global credentials
         run: |
           git config --global credential.helper ""
-          git config --global user.name 'underpostnet'
-          git config --global user.email 'development@underpost.net'
+          git config --global user.name 'underpost.net'
+          git config --global user.email 'admin@underpost.net'
 
       - name: Push to github package repository
         run: |
           pwd
           git init
+          git config user.name 'underpost.net'
+          git config user.email 'admin@underpost.net'
           git status
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template-ghpkg.git
           git add .       

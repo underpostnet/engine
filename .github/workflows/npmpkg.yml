@@ -41,8 +41,8 @@ jobs:
       - name: Set git global credentials
         run: |
           git config --global credential.helper ""
-          git config --global user.name 'underpostnet'
-          git config --global user.email 'development@underpost.net'
+          git config --global user.name 'underpost.net'
+          git config --global user.email 'admin@underpost.net'
 
       - name: Clone github package repository
         run: |
@@ -52,6 +52,8 @@ jobs:
           cd ../pwa-microservices-template
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template.git
           git add .       
+          git config user.name 'underpost.net'
+          git config user.email 'admin@underpost.net'
           underpost cmt . ci package-pwa-microservices-template-ghpkg 'Update npm repo package'
           underpost push . underpostnet/pwa-microservices-template
   # cd ../engine
