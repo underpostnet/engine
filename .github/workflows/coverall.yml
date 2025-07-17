@@ -14,11 +14,15 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v3
 
-      - name: Set Node.js version
-        uses: actions/setup-node@v3
-        with:
-          node-version: '23.x'
+      - name: Install required packages
+        run: |
+          dnf install -y sudo tar gzip bzip2
+          dnf install -y curl --allowerasing
 
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
+          dnf install -y nodejs
       - name: Get npm root
         run: sudo npm root -g
 
