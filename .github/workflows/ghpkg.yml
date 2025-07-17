@@ -65,8 +65,8 @@ jobs:
         run: |
           underpost clone --bare underpostnet/pwa-microservices-template-ghpkg
           rm -rf ./.git
-          cp -rf -a ./pwa-microservices-template-ghpkg.git ./.git
-          rm -rf ./pwa-microservices-template-ghpkg.git
+          mv ../pwa-microservices-template-ghpkg.git ./.git
+          git init
           pwd
           git config user.name 'underpost.net'
           git config user.email 'admin@underpost.net'
