@@ -235,16 +235,6 @@ EOF`);
     }
 
     runSteps(steps);
-
-    await timer(5000);
-
-    runSteps([
-      // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
-      // `date`,
-      ...timeZoneSteps,
-      ...chronySetUp(chronyConfPath),
-      ...keyboardSteps,
-    ]);
   } else {
     runSteps(installSteps.concat(steps));
 
@@ -259,6 +249,16 @@ echo 'nameserver 8.8.8.8' > /run/systemd/resolve/stub-resolv.conf
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
       'utf8',
     );
+
+    await timer(5000);
+
+    runSteps([
+      // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
+      // `date`,
+      ...timeZoneSteps,
+      ...chronySetUp(chronyConfPath),
+      ...keyboardSteps,
+    ]);
   }
 };
 
