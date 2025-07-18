@@ -508,20 +508,24 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
         logger.info('Phase 1/6: Cleaning up Kubernetes resources (PVCs, PVs) while API server is accessible...');
 
         // Get all Persistent Volumes and identify their host paths for data deletion.
-        const pvListJson = shellExec(`kubectl get pv -o json || echo '{"items":[]}'`, { stdout: true, silent: true });
-        const pvList = JSON.parse(pvListJson);
+        try {
+          const pvListJson = shellExec(`kubectl get pv -o json || echo '{"items":[]}'`, { stdout: true, silent: true });
+          const pvList = JSON.parse(pvListJson);
 
-        if (pvList.items && pvList.items.length > 0) {
-          for (const pv of pvList.items) {
-            // Check if the PV uses hostPath and delete its contents
-            if (pv.spec.hostPath && pv.spec.hostPath.path) {
-              const hostPath = pv.spec.hostPath.path;
-              logger.info(`Removing data from host path for PV '${pv.metadata.name}': ${hostPath}`);
-              shellExec(`sudo rm -rf ${hostPath}/* || true`);
+          if (pvList.items && pvList.items.length > 0) {
+            for (const pv of pvList.items) {
+              // Check if the PV uses hostPath and delete its contents
+              if (pv.spec.hostPath && pv.spec.hostPath.path) {
+                const hostPath = pv.spec.hostPath.path;
+                logger.info(`Removing data from host path for PV '${pv.metadata.name}': ${hostPath}`);
+                shellExec(`sudo rm -rf ${hostPath}/* || true`);
+              }
             }
+          } else {
+            logger.info('No Persistent Volumes found with hostPath to clean up.');
           }
-        } else {
-          logger.info('No Persistent Volumes found with hostPath to clean up.');
+        } catch (error) {
+          logger.error('Failed to clean up Persistent Volumes:', error);
         }
 
         // Phase 2: Stop Kubelet/K3s agent and remove CNI configuration
