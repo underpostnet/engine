@@ -238,8 +238,10 @@ EOF_OUTER`;
   };
 
   if (update) {
+    // --reboot
     shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-sudo cloud-init clean --logs --reboot
+sudo cloud-init clean --logs --seed --configs all --machine-id
+sudo rm -rf /var/lib/cloud/*
 EOF`);
 
     if (fs.existsSync(`${nfsHostPath}/var/log/`)) {
