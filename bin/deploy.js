@@ -56,7 +56,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
   const MAAS_API_TOKEN = shellExec(`maas apikey --username ${process.env.MAAS_ADMIN_USERNAME}`, {
     stdout: true,
   }).trim();
-  const [consumer_key, consumer_token, secret] = MAAS_API_TOKEN.split(`\n`)[1].split(':');
+  const [consumer_key, consumer_token, secret] = MAAS_API_TOKEN.split(`\n`)[0].split(':');
   const chronyConfPath = `/etc/chrony/chrony.conf`;
   const timezone = 'America/New_York';
   const timeZoneSteps = [
@@ -79,7 +79,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
   // #  - ${JSON.stringify([...timeZoneSteps, ...chronySetUp(chronyConfPath)])}
   const installSteps = [
     `apt update`,
-    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony keyboard-configuration`,
+    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony ntpdate keyboard-configuration`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
 
     `echo 'deb http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
@@ -143,7 +143,7 @@ datasource:
     metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
     consumer_key: ${consumer_key}
     token_key: ${consumer_token}
-    token_secret: &${secret}
+    token_secret: ${secret}
 users:
   - name: rpiadmin
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
@@ -214,6 +214,7 @@ bootcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init bootcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+  - ntpdate -u ${IP_ADDRESS} || ntpdate -u ${process.env.MAAS_NTP_SERVER}
 runcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init runcmd"
@@ -270,7 +271,7 @@ const chronySetUp = (path) => {
 # Use public servers from the pool.ntp.org project.
 # Please consider joining the pool (http://www.pool.ntp.org/join.html).
 # pool 2.pool.ntp.org iburst
-server ntp.ubuntu.com iburst
+server ${process.env.MAAS_NTP_SERVER} iburst
 
 # Record the rate at which the system clock gains/losses time.
 driftfile /var/lib/chrony/drift
@@ -1762,7 +1763,6 @@ EOF`);
 
       switch (process.argv[3]) {
         case 'rpi4mb':
-          const resourceId = process.argv[4] ?? '12';
           tftpSubDir = '/rpi4mb';
           zipFirmwareFileName = `RPi4_UEFI_Firmware_v1.41.zip`;
           zipFirmwareName = zipFirmwareFileName.split('.zip')[0];
@@ -1774,7 +1774,7 @@ EOF`);
             await Downloader(zipFirmwareUrl, `../${zipFirmwareFileName}`);
             shellExec(`cd .. && mkdir ${zipFirmwareName} && cd ${zipFirmwareName} && unzip ../${zipFirmwareFileName}`);
           }
-          resource = resources.find((o) => o.id == resourceId);
+          resource = resources.find((o) => o.architecture === 'arm64/ga-24.04' && o.name === 'ubuntu/noble');
           name = resource.name;
           architecture = resource.architecture;
           resource = resources.find((o) => o.name === name && o.architecture === architecture);
