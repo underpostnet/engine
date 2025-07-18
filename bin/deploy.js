@@ -91,12 +91,6 @@ EOF`,
     `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony keyboard-configuration`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
 
-    // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
-    // `date`,
-    ...timeZoneSteps,
-    ...chronySetUp(chronyConfPath),
-    ...keyboardSteps,
-
     // Create root user
     `systemctl enable ssh`,
     `useradd -m -s /bin/bash -G sudo root`,
@@ -241,6 +235,16 @@ EOF`);
     }
 
     runSteps(steps);
+
+    await timer(5000);
+
+    runSteps([
+      // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
+      // `date`,
+      ...timeZoneSteps,
+      ...chronySetUp(chronyConfPath),
+      ...keyboardSteps,
+    ]);
   } else {
     runSteps(installSteps.concat(steps));
 
