@@ -176,12 +176,12 @@ network:
   version: 2
   ethernets:
     ${process.env.RPI4_INTERFACE_NAME}:
-        dhcp4: false
+        dhcp4: true
         addresses:
           - ${ipaddr}/24
-        routes:
-          - to: default
-            via: ${gatewayip}
+#         routes:
+#           - to: default
+#             via: ${gatewayip}
 
 # chpasswd:
 #   expire: false
