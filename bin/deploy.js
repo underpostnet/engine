@@ -259,6 +259,20 @@ ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
       `chmod 600 /home/root/.ssh/authorized_keys`,
     ]);
   }
+
+  logger.info('Check virtual root user config');
+  {
+    const cmd = `sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF_OUTER'
+echo -e "\n=== Current date/time ==="
+date '+%Y-%m-%d %H:%M:%S'
+echo -e "\n=== Keyboard layout ==="
+cat /etc/default/keyboard
+echo -e "\n=== Registered users ==="
+cut -d: -f1 /etc/passwd
+EOF_OUTER`;
+
+    shellExec(cmd);
+  }
 };
 
 const chronySetUp = (path) => {
