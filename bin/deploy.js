@@ -59,15 +59,13 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
   const [consumer_key, consumer_token, secret] = MAAS_API_TOKEN.split(`\n`)[0].split(':');
   const chronyConfPath = `/etc/chrony/chrony.conf`;
   const timezone = 'America/New_York';
-  const timeZoneSteps = [
-    `apt-get update`,
 
+  const timeZoneSteps = [
     `export DEBIAN_FRONTEND=noninteractive`,
 
     `ln -fs /usr/share/zoneinfo/${timezone} /etc/localtime`,
 
-    `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata ntpdate`,
-    `dpkg-reconfigure --frontend noninteractive tzdata`,
+    `sudo dpkg-reconfigure --frontend noninteractive tzdata`,
   ];
   const keyboardSteps = [
     `sudo locale-gen en_US.UTF-8`,
@@ -88,21 +86,12 @@ EOF`,
     `apt -y full-upgrade`,
     `apt install -y xinput x11-xkb-utils usbutils`,
     // `apt install -y cloud-init=25.1.2-0ubuntu0~24.04.1`,
-    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony keyboard-configuration`,
+    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
 
-    // Create root user
-    `systemctl enable ssh`,
-    `useradd -m -s /bin/bash -G sudo root`,
-    `echo 'root:root' | chpasswd`,
-    `mkdir -p /home/root/.ssh`,
-    `echo '${fs.readFileSync(
-      `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
-      'utf8',
-    )}' > /home/root/.ssh/authorized_keys`,
-    `chown -R root /home/root/.ssh`,
-    `chmod 700 /home/root/.ssh`,
-    `chmod 600 /home/root/.ssh/authorized_keys`,
+    `apt-get update`,
+    `DEBIAN_FRONTEND=noninteractive apt-get install -y apt-utils`,
+    `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata kmod keyboard-configuration console-setup`,
   ];
 
   let steps = [
@@ -199,7 +188,6 @@ bootcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init bootcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-  - ntpdate -u ${IP_ADDRESS} || ntpdate -u ${process.env.MAAS_NTP_SERVER}
 runcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init runcmd"
@@ -250,14 +238,25 @@ ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
       'utf8',
     );
 
-    await timer(5000);
-
     runSteps([
       // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
       // `date`,
       ...timeZoneSteps,
       ...chronySetUp(chronyConfPath),
       ...keyboardSteps,
+    ]);
+
+    runSteps([
+      `useradd -m -s /bin/bash -G sudo root`,
+      `echo 'root:root' | chpasswd`,
+      `mkdir -p /home/root/.ssh`,
+      `echo '${fs.readFileSync(
+        `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
+        'utf8',
+      )}' > /home/root/.ssh/authorized_keys`,
+      `chown -R root /home/root/.ssh`,
+      `chmod 700 /home/root/.ssh`,
+      `chmod 600 /home/root/.ssh/authorized_keys`,
     ]);
   }
 };
