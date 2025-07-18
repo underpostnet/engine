@@ -66,7 +66,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
 
     `ln -fs /usr/share/zoneinfo/${timezone} /etc/localtime`,
 
-    `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata`,
+    `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata ntpdate`,
     `dpkg-reconfigure --frontend noninteractive tzdata`,
   ];
   const keyboardSteps = [
@@ -88,7 +88,7 @@ EOF`,
     `apt -y full-upgrade`,
     `apt install -y xinput x11-xkb-utils usbutils`,
     // `apt install -y cloud-init=25.1.2-0ubuntu0~24.04.1`,
-    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony ntpdate keyboard-configuration`,
+    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony keyboard-configuration`,
     `ln -sf /lib/systemd/systemd /sbin/init`,
 
     // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
