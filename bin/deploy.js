@@ -76,7 +76,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
   ];
   // #  - ${JSON.stringify([...timeZoneSteps, ...chronySetUp(chronyConfPath)])}
   const installSteps = [
-    `cat <<EOF | sudo tee /etc/apt/sources.list
+    `cat <<EOF | tee /etc/apt/sources.list
 deb http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
 deb http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse
 deb http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse
