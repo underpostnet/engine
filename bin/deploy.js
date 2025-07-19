@@ -53,19 +53,21 @@ const [exe, dir, operator] = process.argv;
 
 const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip }) => {
   // <consumer_key>:<consumer_token>:<secret>
-  // const MAAS_API_TOKEN = shellExec(`maas apikey --username ${process.env.MAAS_ADMIN_USERNAME}`, {
-  //   stdout: true,
-  // }).trim();
-  // MAAS_API_TOKEN.split(`\n`)[0].split(':');
 
-  const [consumer_key, consumer_token, secret] = shellExec(
-    `maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}`,
-    {
-      stdout: true,
-    },
-  )
-    .trim()
-    .split(':');
+  let [consumer_key, consumer_token, secret] = process.argv.includes('reset')
+    ? shellExec(`maas apikey --username ${process.env.MAAS_ADMIN_USERNAME}`, {
+        stdout: true,
+      })
+        .trim()
+        .split(`\n`)[0]
+        .split(':')
+    : shellExec(`maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}`, {
+        stdout: true,
+      })
+        .trim()
+        .split(':');
+
+  if (process.argv.includes('reset')) secret = '&' + secret;
 
   logger.info('Maas api token generated', { consumer_key, consumer_token, secret });
 
@@ -224,7 +226,8 @@ EOF_OUTER`;
 
   if (update) {
     // --reboot
-    shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+    if (process.argv.includes('reset'))
+      shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
 sudo cloud-init clean --logs --seed --configs all --machine-id
 sudo rm -rf /var/lib/cloud/*
 EOF`);
