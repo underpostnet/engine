@@ -111,11 +111,11 @@ hostname: ${host}
 
 datasource_list: [ MAAS ]
 datasource:
-MAAS:
-  metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
-  consumer_key: ${consumer_key}
-  token_key: ${consumer_token}
-  token_secret: ${secret}
+  MAAS:
+    metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
+    consumer_key: ${consumer_key}
+    token_key: ${consumer_token}
+    token_secret: ${secret}
 users:
 - name: rpiadmin
   sudo: ['ALL=(ALL) NOPASSWD:ALL']
@@ -133,16 +133,16 @@ users:
 # timezone: America/Santiago
 timezone: ${timezone}
 
-ntp:
-enabled: true
-servers:
-  - ${IP_ADDRESS}
-ntp_client: chrony
-config:
-  confpath: ${chronyConfPath}
-  packages:
-    - chrony
-  service_name: chrony
+# ntp:
+#   enabled: true
+#   servers:
+#     - ${IP_ADDRESS}
+#   ntp_client: chrony
+#   config:
+#     confpath: ${chronyConfPath}
+#     packages:
+#       - chrony
+#     service_name: chrony
 
 # ssh:
 #   allow-pw: false
@@ -153,12 +153,12 @@ config:
 package_update: true
 package_upgrade: true
 packages:
-- git
-- htop
-- snapd
+  - git
+  - htop
+  - snapd
 resize_rootfs: false
 growpart:
-mode: off
+  mode: off
 # network:
 #   version: 2
 #   ethernets:
@@ -183,13 +183,13 @@ final_message: "The system is up, after $UPTIME seconds"
 #   timeout: 30
 #   condition: True
 bootcmd:
-- echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-- echo "Init bootcmd"
-- echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+  - echo "Init bootcmd"
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 runcmd:
-- echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-- echo "Init runcmd"
-- echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+  - echo "Init runcmd"
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 EOF_MAAS_CFG`,
 ];
 
