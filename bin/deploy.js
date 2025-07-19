@@ -116,6 +116,7 @@ datasource:
     consumer_key: ${consumer_key}
     token_key: ${consumer_token}
     token_secret: ${secret}
+
 users:
 - name: root
   sudo: ['ALL=(ALL) NOPASSWD:ALL']
@@ -124,14 +125,16 @@ users:
   ssh_authorized_keys:
     - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
 
+manage_resolv_conf: true
+resolv_conf:
+  nameservers: [8.8.8.8]
 
 # keyboard:
 #   layout: es
 
-
 # check timedatectl on host
 # timezone: America/Santiago
-timezone: ${timezone}
+# timezone: ${timezone}
 
 # ntp:
 #   enabled: true
@@ -324,12 +327,16 @@ cut -d: -f1 /etc/passwd
     'utf8',
   );
 
+  logger.info('Build', `${nfsHostPath}/underpost/config-path.sh`);
+  fs.writeFileSync(`${nfsHostPath}/underpost/config-path.sh`, `echo "/etc/cloud/cloud.cfg.d/90_maas.cfg"`, 'utf8');
+
   logger.info('Run', `${nfsHostPath}/underpost/test.sh`);
   runSteps(nfsHostPath, [
     `chmod +x /underpost/date.sh`,
     `chmod +x /underpost/keyboard.sh`,
     `chmod +x /underpost/dns.sh`,
     `chmod +x /underpost/help.sh`,
+    `chmod +x /underpost/config-path.sh`,
     `chmod +x /underpost/test.sh`,
     `/underpost/test.sh`,
   ]);
