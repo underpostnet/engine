@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dd-core-development-blue
-          image: localhost/rockylinux9-underpost:v2.8.814
+          image: localhost/rockylinux9-underpost:v2.8.815
 #          resources:
 #            requests:
 #              memory: "127539Ki"
@@ -266,7 +266,7 @@ spec:
     spec:
       containers:
         - name: dd-core-development-green
-          image: localhost/rockylinux9-underpost:v2.8.814
+          image: localhost/rockylinux9-underpost:v2.8.815
 #          resources:
 #            requests:
 #              memory: "127539Ki"
