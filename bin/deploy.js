@@ -51,6 +51,21 @@ logger.info('argv', process.argv);
 
 const [exe, dir, operator] = process.argv;
 
+const runSteps = (steps = []) => {
+  const script = steps
+    .map(
+      (s, i) => `echo "step ${i + 1}/${steps.length}: ${s.split('\n')[0]}"
+${s}`,
+    )
+    .join('\n');
+
+  const cmd = `sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF_OUTER'
+${script}
+EOF_OUTER`;
+
+  shellExec(cmd);
+};
+
 const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip }) => {
   // <consumer_key>:<consumer_token>:<secret>
 
@@ -209,21 +224,6 @@ runcmd:
 EOF_MAAS_CFG`,
   ];
 
-  const runSteps = (steps = []) => {
-    const script = steps
-      .map(
-        (s, i) => `echo "step ${i + 1}/${steps.length}: ${s.split('\n')[0]}"
-${s}`,
-      )
-      .join('\n');
-
-    const cmd = `sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF_OUTER'
-${script}
-EOF_OUTER`;
-
-    shellExec(cmd);
-  };
-
   if (update) {
     // --reboot
     if (process.argv.includes('reset'))
@@ -241,10 +241,10 @@ EOF`);
   } else {
     runSteps(installSteps.concat(steps));
 
-    shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-echo "nameserver ${process.env.MAAS_DNS}" | tee /etc/resolv.conf > /dev/null
-apt update
-EOF`);
+    //     shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+    // echo "nameserver ${process.env.MAAS_DNS}" | tee /etc/resolv.conf > /dev/null
+    // apt update
+    // EOF`);
 
     runSteps([
       // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
@@ -268,34 +268,7 @@ EOF`);
     ]);
   }
 
-  fs.writeFileSync(
-    `${nfsHostPath}/underpost-setup.sh`,
-    `rm /etc/resolv.conf
-echo 'nameserver 8.8.8.8' > /run/systemd/resolve/stub-resolv.conf
-ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
-${timeZoneSteps.join('\n')}
-${chronySetUp(chronyConfPath).join('\n')}
-# sudo cloud-init init --local
-# sudo cloud-init init
-# sudo cloud-init modules --mode=config
-# sudo cloud-init modules --mode=final
-`,
-    'utf8',
-  );
-
-  logger.info('Check virtual root user config');
-  {
-    const cmd = `sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF_OUTER'
-echo -e "\n=== Current date/time ==="
-date '+%Y-%m-%d %H:%M:%S'
-echo -e "\n=== Keyboard layout ==="
-cat /etc/default/keyboard
-echo -e "\n=== Registered users ==="
-cut -d: -f1 /etc/passwd
-EOF_OUTER`;
-
-    shellExec(cmd);
-  }
+  installUbuntuUnderpostTools();
 };
 
 const chronySetUp = (path) => {
@@ -357,6 +330,71 @@ logdir /var/log/chrony
 
     `chronyc sourcestats -v`,
   ];
+};
+
+const installUbuntuUnderpostTools = () => {
+  fs.mkdirSync(`${nfsHostPath}/underpost`, { recursive: true });
+
+  logger.info('Build', `${nfsHostPath}/underpost/date.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/date.sh`,
+    `${timeZoneSteps.join('\n')}
+${chronySetUp(chronyConfPath).join('\n')}
+`,
+    'utf8',
+  );
+
+  logger.info('Build', `${nfsHostPath}/underpost/keyboard.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/keyboard.sh`,
+    `${keyboardSteps.join('\n')}
+`,
+    'utf8',
+  );
+
+  logger.info('Build', `${nfsHostPath}/underpost/dns.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/dns.sh`,
+    `rm /etc/resolv.conf
+echo 'nameserver 8.8.8.8' > /run/systemd/resolve/stub-resolv.conf
+ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
+    'utf8',
+  );
+
+  logger.info('Build', `${nfsHostPath}/underpost/help.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/help.sh`,
+    `echo "=== Cloud init utils ==="
+echo "sudo cloud-init --all-stages"
+echo "sudo cloud-init init --local"
+echo "sudo cloud-init init"
+echo "sudo cloud-init modules --mode=config"
+echo "sudo cloud-init modules --mode=final"`,
+    'utf8',
+  );
+
+  logger.info('Build', `${nfsHostPath}/underpost/test.js`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/test.js`,
+    `echo -e "\n=== Current date/time ==="
+date '+%Y-%m-%d %H:%M:%S'
+echo -e "\n=== Keyboard layout ==="
+cat /etc/default/keyboard
+echo -e "\n=== Registered users ==="
+cut -d: -f1 /etc/passwd
+    `,
+    'utf8',
+  );
+
+  logger.info('Run', `${nfsHostPath}/underpost/test.js`);
+  runSteps([
+    `chmod +x /underpost/date.sh`,
+    `chmod +x /underpost/keyboard.sh`,
+    `chmod +x /underpost/dns.sh`,
+    `chmod +x /underpost/help.sh`,
+    `chmod +x /underpost/test.js`,
+    `/underpost/test.sh`,
+  ]);
 };
 
 try {
