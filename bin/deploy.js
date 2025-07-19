@@ -112,7 +112,7 @@ hostname: ${host}
 datasource_list: [ MAAS ]
 datasource:
   MAAS:
-    metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
+    metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
     consumer_key: ${consumer_key}
     token_key: ${consumer_token}
     token_secret: ${secret}
@@ -125,9 +125,9 @@ users:
   ssh_authorized_keys:
     - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
 
-manage_resolv_conf: true
-resolv_conf:
-  nameservers: [8.8.8.8]
+# manage_resolv_conf: true
+# resolv_conf:
+#   nameservers: [8.8.8.8]
 
 # keyboard:
 #   layout: es
@@ -330,6 +330,11 @@ cut -d: -f1 /etc/passwd
   logger.info('Build', `${nfsHostPath}/underpost/config-path.sh`);
   fs.writeFileSync(`${nfsHostPath}/underpost/config-path.sh`, `echo "/etc/cloud/cloud.cfg.d/90_maas.cfg"`, 'utf8');
 
+  shellExec(`sudo rm -rf ${nfsHostPath}/root/.ssh`);
+  shellExec(`sudo rm -rf ${nfsHostPath}/home/root/.ssh`);
+
+  fs.copySync(`/root/.ssh`, `${nfsHostPath}/root/.ssh`);
+
   logger.info('Run', `${nfsHostPath}/underpost/test.sh`);
   runSteps(nfsHostPath, [
     `chmod +x /underpost/date.sh`,
@@ -338,6 +343,12 @@ cut -d: -f1 /etc/passwd
     `chmod +x /underpost/help.sh`,
     `chmod +x /underpost/config-path.sh`,
     `chmod +x /underpost/test.sh`,
+    `sudo chmod 700 ~/.ssh/`,
+    `sudo chmod 600 ~/.ssh/authorized_keys`,
+    `sudo chmod 644 ~/.ssh/known_hosts`,
+    `sudo chmod 600 ~/.ssh/id_rsa`,
+    `sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`,
+    `chown -R root:root ~/.ssh`,
     `/underpost/test.sh`,
   ]);
 };
