@@ -117,7 +117,7 @@ datasource:
     token_key: ${consumer_token}
     token_secret: ${secret}
 users:
-- name: rpiadmin
+- name: root
   sudo: ['ALL=(ALL) NOPASSWD:ALL']
   shell: /bin/bash
   lock_passwd: true
@@ -173,7 +173,7 @@ growpart:
 # chpasswd:
 #   expire: false
 #   users:
-#   - {name: rpiadmin, password: changeme, type: text}
+#   - {name: root, password: changeme, type: text}
 
 final_message: "The system is up, after $UPTIME seconds"
 
@@ -1943,7 +1943,7 @@ EOF`);
 
           //   identity:
           //     hostname: rpi4
-          //     username: rpiadmin
+          //     username: root
           //     password: "{{PASSWORD}}"
 
           //   ssh:
