@@ -51,81 +51,50 @@ logger.info('argv', process.argv);
 
 const [exe, dir, operator] = process.argv;
 
-const runSteps = (steps = []) => {
-  const script = steps
-    .map(
-      (s, i) => `echo "step ${i + 1}/${steps.length}: ${s.split('\n')[0]}"
-${s}`,
-    )
-    .join('\n');
+const chronyConfPath = `/etc/chrony/chrony.conf`;
 
-  const cmd = `sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF_OUTER'
-${script}
-EOF_OUTER`;
+const timezone = 'America/New_York';
 
-  shellExec(cmd);
-};
+const timeZoneSteps = [
+  `export DEBIAN_FRONTEND=noninteractive`,
 
-const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip }) => {
-  // <consumer_key>:<consumer_token>:<secret>
+  `ln -fs /usr/share/zoneinfo/${timezone} /etc/localtime`,
 
-  let [consumer_key, consumer_token, secret] = process.argv.includes('reset')
-    ? shellExec(`maas apikey --username ${process.env.MAAS_ADMIN_USERNAME}`, {
-        stdout: true,
-      })
-        .trim()
-        .split(`\n`)[0]
-        .split(':')
-    : shellExec(`maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}`, {
-        stdout: true,
-      })
-        .trim()
-        .split(':');
-
-  if (process.argv.includes('reset')) secret = '&' + secret;
-
-  logger.info('Maas api token generated', { consumer_key, consumer_token, secret });
-
-  const chronyConfPath = `/etc/chrony/chrony.conf`;
-  const timezone = 'America/New_York';
-
-  const timeZoneSteps = [
-    `export DEBIAN_FRONTEND=noninteractive`,
-
-    `ln -fs /usr/share/zoneinfo/${timezone} /etc/localtime`,
-
-    `sudo dpkg-reconfigure --frontend noninteractive tzdata`,
-  ];
-  const keyboardSteps = [
-    `sudo locale-gen en_US.UTF-8`,
-    `sudo update-locale LANG=en_US.UTF-8`,
-    `sudo sed -i 's/XKBLAYOUT="us"/XKBLAYOUT="es"/' /etc/default/keyboard`,
-    `sudo dpkg-reconfigure --frontend noninteractive keyboard-configuration`,
-    `sudo systemctl restart keyboard-setup.service`,
-  ];
-  // #  - ${JSON.stringify([...timeZoneSteps, ...chronySetUp(chronyConfPath)])}
-  const installSteps = [
-    `cat <<EOF | tee /etc/apt/sources.list
+  `sudo dpkg-reconfigure --frontend noninteractive tzdata`,
+];
+const keyboardSteps = [
+  `sudo locale-gen en_US.UTF-8`,
+  `sudo update-locale LANG=en_US.UTF-8`,
+  `sudo sed -i 's/XKBLAYOUT="us"/XKBLAYOUT="es"/' /etc/default/keyboard`,
+  `sudo dpkg-reconfigure --frontend noninteractive keyboard-configuration`,
+  `sudo systemctl restart keyboard-setup.service`,
+];
+// #  - ${JSON.stringify([...timeZoneSteps, ...chronySetUp(chronyConfPath)])}
+const installSteps = [
+  `cat <<EOF | tee /etc/apt/sources.list
 deb http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
 deb http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse
 deb http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse
 EOF`,
 
-    `apt update -qq`,
-    `apt -y full-upgrade`,
-    `apt install -y xinput x11-xkb-utils usbutils`,
-    // `apt install -y cloud-init=25.1.2-0ubuntu0~24.04.1`,
-    `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
-    `ln -sf /lib/systemd/systemd /sbin/init`,
+  `apt update -qq`,
+  `apt -y full-upgrade`,
+  `apt install -y xinput x11-xkb-utils usbutils`,
+  // `apt install -y cloud-init=25.1.2-0ubuntu0~24.04.1`,
+  `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
+  `ln -sf /lib/systemd/systemd /sbin/init`,
 
-    `apt-get update`,
-    `DEBIAN_FRONTEND=noninteractive apt-get install -y apt-utils`,
-    `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata kmod keyboard-configuration console-setup iputils-ping`,
-  ];
+  `apt-get update`,
+  `DEBIAN_FRONTEND=noninteractive apt-get install -y apt-utils`,
+  `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata kmod keyboard-configuration console-setup iputils-ping`,
+];
 
-  let steps = [
-    // Configure cloud-init for MAAS
-    `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
+const cloudConfigFactory = (
+  { IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip },
+  { consumer_key, consumer_token, secret },
+) => [
+  // Configure cloud-init for MAAS
+  `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
 #cloud-config
 
 hostname: ${host}
@@ -142,38 +111,38 @@ hostname: ${host}
 
 datasource_list: [ MAAS ]
 datasource:
-  MAAS:
-    metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
-    consumer_key: ${consumer_key}
-    token_key: ${consumer_token}
-    token_secret: ${secret}
+MAAS:
+  metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
+  consumer_key: ${consumer_key}
+  token_key: ${consumer_token}
+  token_secret: ${secret}
 users:
-  - name: rpiadmin
-    sudo: ['ALL=(ALL) NOPASSWD:ALL']
-    shell: /bin/bash
-    lock_passwd: true
-    ssh_authorized_keys:
-      - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
+- name: rpiadmin
+  sudo: ['ALL=(ALL) NOPASSWD:ALL']
+  shell: /bin/bash
+  lock_passwd: true
+  ssh_authorized_keys:
+    - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
 
 
 # keyboard:
 #   layout: es
 
-  
+
 # check timedatectl on host
 # timezone: America/Santiago
 timezone: ${timezone}
 
 ntp:
-  enabled: true
-  servers:
-    - ${IP_ADDRESS}
-  ntp_client: chrony
-  config:
-    confpath: ${chronyConfPath}
-    packages:
-      - chrony
-    service_name: chrony
+enabled: true
+servers:
+  - ${IP_ADDRESS}
+ntp_client: chrony
+config:
+  confpath: ${chronyConfPath}
+  packages:
+    - chrony
+  service_name: chrony
 
 # ssh:
 #   allow-pw: false
@@ -184,12 +153,12 @@ ntp:
 package_update: true
 package_upgrade: true
 packages:
-  - git
-  - htop
-  - snapd
+- git
+- htop
+- snapd
 resize_rootfs: false
 growpart:
-  mode: off
+mode: off
 # network:
 #   version: 2
 #   ethernets:
@@ -214,61 +183,29 @@ final_message: "The system is up, after $UPTIME seconds"
 #   timeout: 30
 #   condition: True
 bootcmd:
-  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-  - echo "Init bootcmd"
-  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+- echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+- echo "Init bootcmd"
+- echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 runcmd:
-  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-  - echo "Init runcmd"
-  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+- echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+- echo "Init runcmd"
+- echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 EOF_MAAS_CFG`,
-  ];
+];
 
-  if (update) {
-    // --reboot
-    if (process.argv.includes('reset'))
-      shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-sudo cloud-init clean --logs --seed --configs all --machine-id
-sudo rm -rf /var/lib/cloud/*
-EOF`);
+const runSteps = (nfsHostPath, steps = []) => {
+  const script = steps
+    .map(
+      (s, i) => `echo "step ${i + 1}/${steps.length}: ${s.split('\n')[0]}"
+${s}`,
+    )
+    .join('\n');
 
-    if (fs.existsSync(`${nfsHostPath}/var/log/`)) {
-      fs.writeFileSync(`${nfsHostPath}/var/log/cloud-init.log`, '', 'utf8');
-      fs.writeFileSync(`${nfsHostPath}/var/log/cloud-init-output.log`, '', 'utf8');
-    }
+  const cmd = `sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF_OUTER'
+${script}
+EOF_OUTER`;
 
-    runSteps(steps);
-  } else {
-    runSteps(installSteps.concat(steps));
-
-    //     shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-    // echo "nameserver ${process.env.MAAS_DNS}" | tee /etc/resolv.conf > /dev/null
-    // apt update
-    // EOF`);
-
-    runSteps([
-      // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
-      // `date`,
-      ...timeZoneSteps,
-      ...chronySetUp(chronyConfPath),
-      ...keyboardSteps,
-    ]);
-
-    runSteps([
-      `useradd -m -s /bin/bash -G sudo root`,
-      `echo 'root:root' | chpasswd`,
-      `mkdir -p /home/root/.ssh`,
-      `echo '${fs.readFileSync(
-        `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
-        'utf8',
-      )}' > /home/root/.ssh/authorized_keys`,
-      `chown -R root /home/root/.ssh`,
-      `chmod 700 /home/root/.ssh`,
-      `chmod 600 /home/root/.ssh/authorized_keys`,
-    ]);
-  }
-
-  installUbuntuUnderpostTools();
+  shellExec(cmd);
 };
 
 const chronySetUp = (path) => {
@@ -332,7 +269,7 @@ logdir /var/log/chrony
   ];
 };
 
-const installUbuntuUnderpostTools = () => {
+const installUbuntuUnderpostTools = (nfsHostPath) => {
   fs.mkdirSync(`${nfsHostPath}/underpost`, { recursive: true });
 
   logger.info('Build', `${nfsHostPath}/underpost/date.sh`);
@@ -353,6 +290,7 @@ ${chronySetUp(chronyConfPath).join('\n')}
   );
 
   logger.info('Build', `${nfsHostPath}/underpost/dns.sh`);
+  // echo "nameserver ${process.env.MAAS_DNS}" | tee /etc/resolv.conf > /dev/null
   fs.writeFileSync(
     `${nfsHostPath}/underpost/dns.sh`,
     `rm /etc/resolv.conf
@@ -373,9 +311,9 @@ echo "sudo cloud-init modules --mode=final"`,
     'utf8',
   );
 
-  logger.info('Build', `${nfsHostPath}/underpost/test.js`);
+  logger.info('Build', `${nfsHostPath}/underpost/test.sh`);
   fs.writeFileSync(
-    `${nfsHostPath}/underpost/test.js`,
+    `${nfsHostPath}/underpost/test.sh`,
     `echo -e "\n=== Current date/time ==="
 date '+%Y-%m-%d %H:%M:%S'
 echo -e "\n=== Keyboard layout ==="
@@ -386,15 +324,83 @@ cut -d: -f1 /etc/passwd
     'utf8',
   );
 
-  logger.info('Run', `${nfsHostPath}/underpost/test.js`);
-  runSteps([
+  logger.info('Run', `${nfsHostPath}/underpost/test.sh`);
+  runSteps(nfsHostPath, [
     `chmod +x /underpost/date.sh`,
     `chmod +x /underpost/keyboard.sh`,
     `chmod +x /underpost/dns.sh`,
     `chmod +x /underpost/help.sh`,
-    `chmod +x /underpost/test.js`,
+    `chmod +x /underpost/test.sh`,
     `/underpost/test.sh`,
   ]);
+};
+
+const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip }) => {
+  // <consumer_key>:<consumer_token>:<secret>
+  let [consumer_key, consumer_token, secret] = process.argv.includes('reset')
+    ? shellExec(`maas apikey --username ${process.env.MAAS_ADMIN_USERNAME}`, {
+        stdout: true,
+      })
+        .trim()
+        .split(`\n`)[0]
+        .split(':')
+    : shellExec(`maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}`, {
+        stdout: true,
+      })
+        .trim()
+        .split(':');
+
+  if (process.argv.includes('reset')) secret = '&' + secret;
+
+  logger.info('Maas api token generated', { consumer_key, consumer_token, secret });
+
+  if (update) {
+    // --reboot
+    if (process.argv.includes('reset'))
+      shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
+sudo cloud-init clean --logs --seed --configs all --machine-id
+sudo rm -rf /var/lib/cloud/*
+EOF`);
+
+    if (fs.existsSync(`${nfsHostPath}/var/log/`)) {
+      fs.writeFileSync(`${nfsHostPath}/var/log/cloud-init.log`, '', 'utf8');
+      fs.writeFileSync(`${nfsHostPath}/var/log/cloud-init-output.log`, '', 'utf8');
+    }
+  } else {
+    runSteps(nfsHostPath, installSteps);
+    runSteps(nfsHostPath, [
+      `useradd -m -s /bin/bash -G sudo root`,
+      `echo 'root:root' | chpasswd`,
+      `mkdir -p /home/root/.ssh`,
+      `echo '${fs.readFileSync(
+        `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
+        'utf8',
+      )}' > /home/root/.ssh/authorized_keys`,
+      `chown -R root /home/root/.ssh`,
+      `chmod 700 /home/root/.ssh`,
+      `chmod 600 /home/root/.ssh/authorized_keys`,
+    ]);
+    runSteps(nfsHostPath, [
+      // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
+      // `date`,
+      ...timeZoneSteps,
+      ...chronySetUp(chronyConfPath),
+      ...keyboardSteps,
+    ]);
+  }
+
+  runSteps(
+    nfsHostPath,
+    cloudConfigFactory(
+      { IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip },
+      {
+        consumer_key,
+        consumer_token,
+        secret,
+      },
+    ),
+  );
+  installUbuntuUnderpostTools(nfsHostPath);
 };
 
 try {
