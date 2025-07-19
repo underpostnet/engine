@@ -53,10 +53,22 @@ const [exe, dir, operator] = process.argv;
 
 const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip }) => {
   // <consumer_key>:<consumer_token>:<secret>
-  const MAAS_API_TOKEN = shellExec(`maas apikey --username ${process.env.MAAS_ADMIN_USERNAME}`, {
-    stdout: true,
-  }).trim();
-  const [consumer_key, consumer_token, secret] = MAAS_API_TOKEN.split(`\n`)[0].split(':');
+  // const MAAS_API_TOKEN = shellExec(`maas apikey --username ${process.env.MAAS_ADMIN_USERNAME}`, {
+  //   stdout: true,
+  // }).trim();
+  // MAAS_API_TOKEN.split(`\n`)[0].split(':');
+
+  const [consumer_key, consumer_token, secret] = shellExec(
+    `maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}`,
+    {
+      stdout: true,
+    },
+  )
+    .trim()
+    .split(':');
+
+  logger.info('Maas api token generated', { consumer_key, consumer_token, secret });
+
   const chronyConfPath = `/etc/chrony/chrony.conf`;
   const timezone = 'America/New_York';
 
@@ -91,7 +103,7 @@ EOF`,
 
     `apt-get update`,
     `DEBIAN_FRONTEND=noninteractive apt-get install -y apt-utils`,
-    `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata kmod keyboard-configuration console-setup`,
+    `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata kmod keyboard-configuration console-setup iputils-ping`,
   ];
 
   let steps = [
@@ -161,13 +173,13 @@ packages:
 resize_rootfs: false
 growpart:
   mode: off
-network:
-  version: 2
-  ethernets:
-    ${process.env.RPI4_INTERFACE_NAME}:
-        dhcp4: true
-        addresses:
-          - ${ipaddr}/24
+# network:
+#   version: 2
+#   ethernets:
+#     ${process.env.RPI4_INTERFACE_NAME}:
+#         dhcp4: true
+#         addresses:
+#           - ${ipaddr}/24
 #         routes:
 #           - to: default
 #             via: ${gatewayip}
@@ -230,13 +242,6 @@ EOF`);
 echo "nameserver ${process.env.MAAS_DNS}" | tee /etc/resolv.conf > /dev/null
 apt update
 EOF`);
-    fs.writeFileSync(
-      `${nfsHostPath}/dns.sh`,
-      `rm /etc/resolv.conf
-echo 'nameserver 8.8.8.8' > /run/systemd/resolve/stub-resolv.conf
-ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
-      'utf8',
-    );
 
     runSteps([
       // `date -s "${shellExec(`date '+%Y-%m-%d %H:%M:%S'`, { stdout: true }).trim()}"`,
@@ -259,6 +264,21 @@ ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
       `chmod 600 /home/root/.ssh/authorized_keys`,
     ]);
   }
+
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost-setup.sh`,
+    `rm /etc/resolv.conf
+echo 'nameserver 8.8.8.8' > /run/systemd/resolve/stub-resolv.conf
+ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+${timeZoneSteps.join('\n')}
+${chronySetUp(chronyConfPath).join('\n')}
+# sudo cloud-init init --local
+# sudo cloud-init init
+# sudo cloud-init modules --mode=config
+# sudo cloud-init modules --mode=final
+`,
+    'utf8',
+  );
 
   logger.info('Check virtual root user config');
   {
