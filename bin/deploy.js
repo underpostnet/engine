@@ -430,6 +430,10 @@ cut -d: -f1 /etc/passwd
 const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip }) => {
   // <consumer_key>:<consumer_token>:<secret>
   // <consumer_key>:<consumer_secret>:<token_key>:<token_secret>
+  // maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}
+  // maas ${process.env.MAAS_ADMIN_USERNAME} account create-authorisation-token
+  // https://github.com/CanonicalLtd/maas-docs/issues/647
+
   const parts = shellExec(`maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}`, {
     stdout: true,
   })
