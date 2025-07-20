@@ -1685,8 +1685,9 @@ EOF`);
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const IP_ADDRESS = getLocalIPv4Address();
       const serverip = IP_ADDRESS;
-      // const tftpRoot = process.env.TFTP_ROOT;
-      const tftpRoot = `/var/snap/maas/common/maas/boot-resources/snapshot-20250720-162718`;
+      const tftpRoot = process.argv.includes('v3.0')
+        ? `/var/snap/maas/common/maas/boot-resources/snapshot-20250720-162718`
+        : process.env.TFTP_ROOT;
       const ipaddr = process.env.RPI4_IP;
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
