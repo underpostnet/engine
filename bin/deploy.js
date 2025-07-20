@@ -112,23 +112,24 @@ hostname: ${host}
 datasource_list: [ MAAS ]
 datasource:
   MAAS:
-    metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
+    metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata/
     ${
       process.argv.includes('reset')
         ? ''
         : `consumer_key: ${consumer_key}
-    consumer_secret: ${consumer_secret == '' ? `""` : ''}
+    consumer_secret: ${consumer_secret}
     token_key: ${token_key}
     token_secret: ${token_secret}`
     }
 
 
 users:
-- name: root
+- name: ${process.env.MAAS_ADMIN_USERNAME}
   sudo: ['ALL=(ALL) NOPASSWD:ALL']
   shell: /bin/bash
   lock_passwd: false
-  groups: users,admin,wheel,lxd
+  groups: sudo,users,admin,wheel,lxd
+  plain_text_passwd: '${process.env.MAAS_ADMIN_USERNAME}'
   ssh_authorized_keys:
     - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
 
@@ -143,11 +144,11 @@ users:
 # timezone: America/Santiago
 # timezone: ${timezone}
 
-# ntp:
-#   enabled: true
-#   servers:
-#     - ${IP_ADDRESS}
-#   ntp_client: chrony
+ntp:
+  enabled: true
+  servers:
+    - ${process.env.MAAS_NTP_SERVER}
+  ntp_client: chrony
 #   config:
 #     confpath: ${chronyConfPath}
 #     packages:
@@ -200,6 +201,72 @@ runcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init runcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+
+# If this is set, 'root' will not be able to ssh in and they
+# will get a message to login instead as the default $user
+disable_root: true
+
+# This will cause the set+update hostname module to not operate (if true)
+preserve_hostname: false
+
+# The modules that run in the 'init' stage
+cloud_init_modules:
+  - migrator
+  - seed_random
+  - bootcmd
+  - write-files
+  - growpart
+  - resizefs
+  - disk_setup
+  - mounts
+  - set_hostname
+  - update_hostname
+  - update_etc_hosts
+  - ca-certs
+  - rsyslog
+  - users-groups
+  - ssh
+
+# The modules that run in the 'config' stage
+cloud_config_modules:
+# Emit the cloud config ready event
+# this can be used by upstart jobs for 'start on cloud-config'.
+  - emit_upstart
+  - snap_config
+  - ssh-import-id
+  - locale
+  - set-passwords
+  - grub-dpkg
+  - apt-pipelining
+  - apt-configure
+  - ntp
+  - timezone
+  - disable-ec2-metadata
+  - runcmd
+  - byobu
+
+# The modules that run in the 'final' stage
+cloud_final_modules:
+  - snappy
+  - package-update-upgrade-install
+#  - fan
+#  - landscape
+#  - lxd
+#  - puppet
+  - chef
+  - salt-minion
+  - mcollective
+  - rightscale_userdata
+  - scripts-vendor
+  - scripts-per-once
+  - scripts-per-boot
+  - scripts-per-instance
+  - scripts-user
+  - ssh-authkey-fingerprints
+  - keys-to-console
+#  - phone-home
+  - final-message
+#  - power-state-change
 EOF_MAAS_CFG`,
 ];
 
@@ -361,6 +428,7 @@ cut -d: -f1 /etc/passwd
 };
 
 const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip }) => {
+  // <consumer_key>:<consumer_token>:<secret>
   // <consumer_key>:<consumer_secret>:<token_key>:<token_secret>
   const parts = shellExec(`maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}`, {
     stdout: true,
@@ -374,7 +442,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     [consumer_key, consumer_secret, token_key, token_secret] = parts;
   } else if (parts.length === 3) {
     [consumer_key, token_key, token_secret] = parts;
-    consumer_secret = '';
+    consumer_secret = '""';
   } else {
     throw new Error('Invalid token format');
   }
