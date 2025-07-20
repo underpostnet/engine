@@ -112,7 +112,7 @@ hostname: ${host}
 datasource_list: [ MAAS ]
 datasource:
   MAAS:
-    metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata/
+    metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata/
     ${
       process.argv.includes('reset')
         ? ''
@@ -381,6 +381,7 @@ ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
     `${nfsHostPath}/underpost/help.sh`,
     `echo "=== Cloud init utils ==="
 echo "sudo cloud-init --all-stages"
+echo "sudo cloud-init clean --logs --seed --configs all --machine-id --reboot"
 echo "sudo cloud-init init --local"
 echo "sudo cloud-init init"
 echo "sudo cloud-init modules --mode=config"
