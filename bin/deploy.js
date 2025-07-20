@@ -1685,7 +1685,8 @@ EOF`);
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const IP_ADDRESS = getLocalIPv4Address();
       const serverip = IP_ADDRESS;
-      const tftpRoot = process.env.TFTP_ROOT;
+      // const tftpRoot = process.env.TFTP_ROOT;
+      const tftpRoot = `/var/snap/maas/common/maas/boot-resources/snapshot-20250720-162718`;
       const ipaddr = process.env.RPI4_IP;
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
@@ -1935,7 +1936,9 @@ EOF`);
         zipFirmwareName,
         zipFirmwareUrl,
         interfaceName,
-        nfsHost;
+        nfsHost,
+        bootResourcesPath,
+        bootKernelPath;
 
       switch (process.argv[3]) {
         case 'rpi4mb':
@@ -1953,7 +1956,7 @@ EOF`);
           resource = resources.find((o) => o.architecture === 'arm64/ga-24.04' && o.name === 'ubuntu/noble');
           name = resource.name;
           architecture = resource.architecture;
-          resource = resources.find((o) => o.name === name && o.architecture === architecture);
+          // resource = resources.find((o) => o.name === name && o.architecture === architecture);
           nfsServerRootPath = `${process.env.NFS_EXPORT_PATH}/rpi4mb`;
           // ,anonuid=1001,anongid=100
           // etcExports = `${nfsServerRootPath} *(rw,all_squash,sync,no_root_squash,insecure)`;
@@ -1965,21 +1968,33 @@ EOF`);
             'no_subtree_check',
             'insecure',
           ]})`;
-          const resourceData = JSON.parse(
-            shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
-              stdout: true,
-              silent: true,
-              disableLog: true,
-            }),
-          );
-          const bootFiles = resourceData.sets[Object.keys(resourceData.sets)[0]].files;
-          const suffix = architecture.match('xgene') ? '.xgene' : '';
+          if (process.argv.includes('v3.0')) {
+            bootResourcesPath = `/var/snap/maas/common/maas/boot-resources/snapshot-20250720-162718`;
+            bootKernelPath = `/var/snap/maas/common/maas/boot-resources/snapshot-20250720-162718/ubuntu/arm64/hwe-24.04/noble/stable`;
+            kernelFilesPaths = {
+              'vmlinuz-efi': `${bootKernelPath}/boot-kernel`,
+              'initrd.img': `${bootKernelPath}/boot-initrd`,
+              squashfs: `${bootKernelPath}/squashfs`,
+            };
+          } else {
+            const resourceData = JSON.parse(
+              shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
+                stdout: true,
+                silent: true,
+                disableLog: true,
+              }),
+            );
+            const bootFiles = resourceData.sets[Object.keys(resourceData.sets)[0]].files;
+            const suffix = architecture.match('xgene') ? '.xgene' : '';
+            bootResourcesPath = `/var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64`;
+            bootKernelPath = `/var/snap/maas/common/maas/image-storage`;
+            kernelFilesPaths = {
+              'vmlinuz-efi': `${bootKernelPath}/${bootFiles['boot-kernel' + suffix].filename_on_disk}`,
+              'initrd.img': `${bootKernelPath}/${bootFiles['boot-initrd' + suffix].filename_on_disk}`,
+              squashfs: `${bootKernelPath}/${bootFiles['squashfs'].filename_on_disk}`,
+            };
+          }
 
-          kernelFilesPaths = {
-            'vmlinuz-efi': bootFiles['boot-kernel' + suffix].filename_on_disk,
-            'initrd.img': bootFiles['boot-initrd' + suffix].filename_on_disk,
-            squashfs: bootFiles['squashfs'].filename_on_disk,
-          };
           const protocol = 'tcp'; // v3 -> tcp, v4 -> udp
 
           const mountOptions = [
@@ -2103,52 +2118,18 @@ BOOT_ORDER=0x21`;
       switch (process.argv[3]) {
         case 'rpi4mb':
           {
-            // subnet DHCP snippets
-            // # UEFI ARM64
-            // if option arch = 00:0B {
-            //   filename "rpi4mb/pxe/grubaa64.efi";
-            // }
-            // elsif option arch = 00:13 {
-            //   filename "http://<IP_ADDRESS>:5248/images/bootloaders/uefi/arm64/grubaa64.efi";
-            //   option vendor-class-identifier "HTTPClient";
-            // }
             for (const file of ['bootaa64.efi', 'grubaa64.efi']) {
-              shellExec(
-                `sudo cp -a /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file} ${tftpRoot}${tftpSubDir}/pxe/${file}`,
-              );
+              shellExec(`sudo cp -a ${bootResourcesPath}/${file} ${tftpRoot}${tftpSubDir}/pxe/${file}`);
             }
-            // const file = 'bcm2711-rpi-4-b.dtb';
-            // shellExec(
-            //   `sudo cp -a  ${firmwarePath}/${file} /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file}`,
-            // );
-
-            // const ipxeSrc = fs
-            //   .readFileSync(`${tftpRoot}/ipxe.cfg`, 'utf8')
-            //   .replaceAll('amd64', 'arm64')
-            //   .replaceAll('${next-server}', IP_ADDRESS);
-            // fs.writeFileSync(`${tftpRoot}/ipxe.cfg`, ipxeSrc, 'utf8');
 
             {
               for (const file of Object.keys(kernelFilesPaths)) {
-                shellExec(
-                  `sudo cp -a /var/snap/maas/common/maas/image-storage/${kernelFilesPaths[file]} ${tftpRoot}${tftpSubDir}/pxe/${file}`,
-                );
+                shellExec(`sudo cp -a ${kernelFilesPaths[file]} ${tftpRoot}${tftpSubDir}/pxe/${file}`);
               }
-              // const configTxtSrc = fs.readFileSync(`${firmwarePath}/config.txt`, 'utf8');
-              // fs.writeFileSync(
-              //   `${tftpRoot}${tftpSubDir}/config.txt`,
-              //   configTxtSrc
-              //     .replace(`kernel=kernel8.img`, `kernel=vmlinuz`)
-              //     .replace(`# max_framebuffers=2`, `max_framebuffers=2`)
-              //     .replace(`initramfs initramfs8 followkernel`, `initramfs initrd.img followkernel`),
-              //   'utf8',
-              // );
 
-              // grub:
-              // set root=(pxe)
+              fs.mkdirSync(`${tftpRoot}/grub`, { recursive: true });
 
-              // UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)
-              const menuentryStr = 'underpost.net rpi4mb maas commissioning (ARM64)';
+              const menuentryStr = 'UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)';
               const grubCfgPath = `${tftpRoot}/grub/grub.cfg`;
               fs.writeFileSync(
                 grubCfgPath,
