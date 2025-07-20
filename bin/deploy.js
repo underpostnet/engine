@@ -432,12 +432,14 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
   // <consumer_key>:<consumer_secret>:<token_key>:<token_secret>
   // maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}
   // maas ${process.env.MAAS_ADMIN_USERNAME} account create-authorisation-token
+  // maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}
   // https://github.com/CanonicalLtd/maas-docs/issues/647
 
-  const parts = shellExec(`maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}`, {
+  const parts = shellExec(`maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}`, {
     stdout: true,
   })
     .trim()
+    .split(`\n`)[0]
     .split(':');
 
   let consumer_key, consumer_secret, token_key, token_secret;
@@ -446,7 +448,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     [consumer_key, consumer_secret, token_key, token_secret] = parts;
   } else if (parts.length === 3) {
     [consumer_key, token_key, token_secret] = parts;
-    consumer_secret = '""';
+    consumer_secret = '" "';
   } else {
     throw new Error('Invalid token format');
   }
