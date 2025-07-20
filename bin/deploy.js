@@ -91,7 +91,7 @@ EOF`,
 
 const cloudConfigFactory = (
   { IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip },
-  { consumer_key, consumer_token, secret },
+  { consumer_key, consumer_secret, token_key, token_secret },
 ) => [
   // Configure cloud-init for MAAS
   `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
@@ -113,9 +113,15 @@ datasource_list: [ MAAS ]
 datasource:
   MAAS:
     metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
-    consumer_key: ${consumer_key}
-    token_key: ${consumer_token}
-    token_secret: ${secret}
+    ${
+      process.argv.includes('reset')
+        ? ''
+        : `consumer_key: ${consumer_key}
+    consumer_secret: ${consumer_secret ?? `""`}
+    token_key: ${token_key}
+    token_secret: ${token_secret}`
+    }
+   
 
 users:
 - name: root
@@ -354,23 +360,25 @@ cut -d: -f1 /etc/passwd
 };
 
 const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip }) => {
-  // <consumer_key>:<consumer_token>:<secret>
-  let [consumer_key, consumer_token, secret] = process.argv.includes('reset')
-    ? shellExec(`maas apikey --username ${process.env.MAAS_ADMIN_USERNAME}`, {
-        stdout: true,
-      })
-        .trim()
-        .split(`\n`)[0]
-        .split(':')
-    : shellExec(`maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}`, {
-        stdout: true,
-      })
-        .trim()
-        .split(':');
+  // <consumer_key>:<consumer_secret>:<token_key>:<token_secret>
+  const parts = shellExec(`maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}`, {
+    stdout: true,
+  })
+    .trim()
+    .split(':');
 
-  if (process.argv.includes('reset')) secret = '&' + secret;
+  let consumer_key, consumer_secret, token_key, token_secret;
 
-  logger.info('Maas api token generated', { consumer_key, consumer_token, secret });
+  if (parts.length === 4) {
+    [consumer_key, consumer_secret, token_key, token_secret] = parts;
+  } else if (parts.length === 3) {
+    [consumer_key, token_key, token_secret] = parts;
+    consumer_secret = '';
+  } else {
+    throw new Error('Invalid token format');
+  }
+
+  logger.info('Maas api token generated', { consumer_key, consumer_secret, token_key, token_secret });
 
   if (update) {
     // --reboot
@@ -411,11 +419,7 @@ EOF`);
     nfsHostPath,
     cloudConfigFactory(
       { IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip },
-      {
-        consumer_key,
-        consumer_token,
-        secret,
-      },
+      { consumer_key, consumer_secret, token_key, token_secret },
     ),
   );
   installUbuntuUnderpostTools(nfsHostPath);
