@@ -448,7 +448,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     [consumer_key, consumer_secret, token_key, token_secret] = parts;
   } else if (parts.length === 3) {
     [consumer_key, token_key, token_secret] = parts;
-    consumer_secret = '" "';
+    consumer_secret = '""';
   } else {
     throw new Error('Invalid token format');
   }
