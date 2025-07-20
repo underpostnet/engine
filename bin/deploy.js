@@ -121,13 +121,14 @@ datasource:
     token_key: ${token_key}
     token_secret: ${token_secret}`
     }
-   
+
 
 users:
 - name: root
   sudo: ['ALL=(ALL) NOPASSWD:ALL']
   shell: /bin/bash
-  lock_passwd: true
+  lock_passwd: false
+  groups: users,admin,wheel,lxd
   ssh_authorized_keys:
     - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
 
@@ -168,13 +169,13 @@ packages:
 resize_rootfs: false
 growpart:
   mode: off
-# network:
-#   version: 2
-#   ethernets:
-#     ${process.env.RPI4_INTERFACE_NAME}:
-#         dhcp4: true
-#         addresses:
-#           - ${ipaddr}/24
+network:
+  version: 2
+  ethernets:
+    ${process.env.RPI4_INTERFACE_NAME}:
+      dhcp4: true
+      addresses:
+        - ${ipaddr}/24
 #         routes:
 #           - to: default
 #             via: ${gatewayip}
