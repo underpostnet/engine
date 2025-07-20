@@ -2252,29 +2252,30 @@ BOOT_ORDER=0x21`;
           };
           machine.hostname = machine.hostname.replaceAll(' ', '').replaceAll('.', '');
 
-          try {
-            let newMachine = shellExec(
-              `maas ${process.env.MAAS_ADMIN_USERNAME} machines create ${Object.keys(machine)
-                .map((k) => `${k}="${machine[k]}"`)
-                .join(' ')}`,
-              {
-                silent: true,
-                stdout: true,
-              },
-            );
-            newMachine = machineFactory(JSON.parse(newMachine));
-            machines.push(newMachine);
-            console.log(newMachine);
-            // commissioning_scripts=90-verify-user.sh
-            shellExec(
-              `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.system_id} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
-              {
-                silent: true,
-              },
-            );
-          } catch (error) {
-            logger.error(error, error.stack);
-          }
+          if (machine.hostname.match('generic-host'))
+            try {
+              let newMachine = shellExec(
+                `maas ${process.env.MAAS_ADMIN_USERNAME} machines create ${Object.keys(machine)
+                  .map((k) => `${k}="${machine[k]}"`)
+                  .join(' ')}`,
+                {
+                  silent: true,
+                  stdout: true,
+                },
+              );
+              newMachine = machineFactory(JSON.parse(newMachine));
+              machines.push(newMachine);
+              console.log(newMachine);
+              // commissioning_scripts=90-verify-user.sh
+              shellExec(
+                `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.system_id} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
+                {
+                  silent: true,
+                },
+              );
+            } catch (error) {
+              logger.error(error, error.stack);
+            }
         }
         // if (discoveries.length > 0) {
         //   shellExec(

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 sudo snap install jq
-sudo snap install maas
+sudo snap install --channel=3.0/stable maas
 
 # Get default interface and IP address
 INTERFACE=$(ip route | grep default | awk '{print $5}')
