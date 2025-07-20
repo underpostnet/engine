@@ -117,7 +117,7 @@ datasource:
       process.argv.includes('reset')
         ? ''
         : `consumer_key: ${consumer_key}
-    consumer_secret: ${consumer_secret ?? `""`}
+    consumer_secret: ${consumer_secret == '' ? `""` : ''}
     token_key: ${token_key}
     token_secret: ${token_secret}`
     }
