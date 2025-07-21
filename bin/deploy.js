@@ -89,12 +89,22 @@ EOF`,
   `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata kmod keyboard-configuration console-setup iputils-ping`,
 ];
 
+const bootCmdSteps = [`/underpost/date.sh`, `cp -a /underpost/90_maas.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg`];
+
+const cloudConfigCmdRunFactory = (steps = []) =>
+  steps
+    .map(
+      (step, i, a) => '  - echo "\\$(date) | ' + (i + 1) + '/' + a.length + ' - ' + step + '"' + `\n` + `  - ${step}`,
+    )
+    .join('\n');
+
 const cloudConfigFactory = (
-  { IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip },
+  { IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip, reset },
   { consumer_key, consumer_secret, token_key, token_secret },
+  path = '/etc/cloud/cloud.cfg.d/90_maas.cfg',
 ) => [
   // Configure cloud-init for MAAS
-  `cat <<EOF_MAAS_CFG > /etc/cloud/cloud.cfg.d/90_maas.cfg
+  `cat <<EOF_MAAS_CFG > ${path}
 #cloud-config
 
 hostname: ${host}
@@ -114,7 +124,7 @@ datasource:
   MAAS:
     metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata/
     ${
-      process.argv.includes('reset')
+      reset
         ? ''
         : `consumer_key: ${consumer_key}
     consumer_secret: ${consumer_secret}
@@ -197,6 +207,7 @@ bootcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init bootcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+${cloudConfigCmdRunFactory(bootCmdSteps)}
 runcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init runcmd"
@@ -495,10 +506,37 @@ EOF`);
   runSteps(
     nfsHostPath,
     cloudConfigFactory(
-      { IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip },
+      {
+        reset: process.argv.includes('reset') ? true : false,
+        IP_ADDRESS,
+        architecture,
+        host,
+        nfsHostPath,
+        ipaddr,
+        update,
+        gatewayip,
+      },
       { consumer_key, consumer_secret, token_key, token_secret },
     ),
   );
+
+  runSteps(
+    nfsHostPath,
+    cloudConfigFactory(
+      {
+        IP_ADDRESS,
+        architecture,
+        host,
+        nfsHostPath,
+        ipaddr,
+        update,
+        gatewayip,
+      },
+      { consumer_key, consumer_secret, token_key, token_secret },
+      '/underpost/90_maas.cfg',
+    ),
+  );
+
   installUbuntuUnderpostTools(nfsHostPath);
 };
 
