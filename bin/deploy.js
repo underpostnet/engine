@@ -174,11 +174,8 @@ ntp:
   servers:
     - ${process.env.MAAS_NTP_SERVER}
   ntp_client: chrony
-#   config:
-#     confpath: ${chronyConfPath}
-#     packages:
-#       - chrony
-#     service_name: chrony
+  config:
+    confpath: ${chronyConfPath}
 
 # ssh:
 #   allow-pw: false
@@ -333,15 +330,15 @@ logdir /var/log/chrony
 # Select which information is logged.
 #log measurements statistics tracking
 ' > ${path} `,
-    // `systemctl stop ${alias}`,
+    `systemctl stop ${alias}`,
+
+    `${alias}d -q 'server ntp.ubuntu.com iburst'`,
 
     // `chronyd -q 'server 0.europe.pool.ntp.org iburst'`,
 
     `sudo systemctl enable --now ${alias}`,
     `sudo systemctl restart ${alias}`,
     `sudo systemctl status ${alias}`,
-
-    `${alias} -q 'server ntp.ubuntu.com iburst'`,
 
     `chronyc sources`,
     `chronyc tracking`,
