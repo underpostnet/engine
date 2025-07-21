@@ -94,7 +94,8 @@ const bootCmdSteps = [`/underpost/date.sh`, `cp -a /underpost/90_maas.cfg /etc/c
 const cloudConfigCmdRunFactory = (steps = []) =>
   steps
     .map(
-      (step, i, a) => '  - echo "\\$(date) | ' + (i + 1) + '/' + a.length + ' - ' + step + '"' + `\n` + `  - ${step}`,
+      (step, i, a) =>
+        '  - echo "\\$(date) | ' + (i + 1) + '/' + a.length + ' - ' + step.split('\n')[0] + '"' + `\n` + `  - ${step}`,
     )
     .join('\n');
 
@@ -152,7 +153,7 @@ users:
 
 # check timedatectl on host
 # timezone: America/Santiago
-# timezone: ${timezone}
+timezone: ${timezone}
 
 ntp:
   enabled: true
@@ -177,6 +178,7 @@ packages:
   - git
   - htop
   - snapd
+  - chrony
 resize_rootfs: false
 growpart:
   mode: off
@@ -222,62 +224,25 @@ preserve_hostname: false
 
 # The modules that run in the 'init' stage
 cloud_init_modules:
-  - migrator
-  - seed_random
   - bootcmd
   - write-files
-  - growpart
-  - resizefs
-  - disk_setup
-  - mounts
   - set_hostname
-  - update_hostname
   - update_etc_hosts
-  - ca-certs
-  - rsyslog
   - users-groups
   - ssh
 
-# The modules that run in the 'config' stage
 cloud_config_modules:
-# Emit the cloud config ready event
-# this can be used by upstart jobs for 'start on cloud-config'.
-  - emit_upstart
-  - snap_config
   - ssh-import-id
   - locale
   - set-passwords
-  - grub-dpkg
-  - apt-pipelining
-  - apt-configure
   - ntp
   - timezone
-  - disable-ec2-metadata
   - runcmd
-  - byobu
 
-# The modules that run in the 'final' stage
 cloud_final_modules:
-  - snappy
   - package-update-upgrade-install
-#  - fan
-#  - landscape
-#  - lxd
-#  - puppet
-  - chef
-  - salt-minion
-  - mcollective
-  - rightscale_userdata
-  - scripts-vendor
-  - scripts-per-once
-  - scripts-per-boot
-  - scripts-per-instance
-  - scripts-user
-  - ssh-authkey-fingerprints
-  - keys-to-console
-#  - phone-home
   - final-message
-#  - power-state-change
+
 EOF_MAAS_CFG`,
 ];
 
@@ -296,7 +261,8 @@ EOF_OUTER`;
   shellExec(cmd);
 };
 
-const chronySetUp = (path) => {
+const chronySetUp = (path, alias = 'chrony') => {
+  // use alias = 'chronyd' for RHEL
   return [
     `echo '
 # Use public servers from the pool.ntp.org project.
@@ -339,14 +305,14 @@ logdir /var/log/chrony
 # Select which information is logged.
 #log measurements statistics tracking
 ' > ${path} `,
-    `sudo systemctl stop chronyd`,
+    `sudo systemctl stop ${alias}`,
 
     // `chronyd -q 'server 0.europe.pool.ntp.org iburst'`,
-    `chronyd -q 'server ntp.ubuntu.com iburst'`,
+    `${alias} -q 'server ntp.ubuntu.com iburst'`,
 
-    `sudo systemctl enable --now chronyd`,
-    `sudo systemctl restart chronyd`,
-    `sudo systemctl status chronyd`,
+    `sudo systemctl enable --now ${alias}`,
+    `sudo systemctl restart ${alias}`,
+    `sudo systemctl status ${alias}`,
 
     `chronyc sources`,
     `chronyc tracking`,
@@ -354,6 +320,7 @@ logdir /var/log/chrony
     // sudo firewall-cmd --reload
 
     `chronyc sourcestats -v`,
+    `timedatectl status`,
   ];
 };
 
@@ -361,13 +328,7 @@ const installUbuntuUnderpostTools = (nfsHostPath) => {
   fs.mkdirSync(`${nfsHostPath}/underpost`, { recursive: true });
 
   logger.info('Build', `${nfsHostPath}/underpost/date.sh`);
-  fs.writeFileSync(
-    `${nfsHostPath}/underpost/date.sh`,
-    `${timeZoneSteps.join('\n')}
-${chronySetUp(chronyConfPath).join('\n')}
-`,
-    'utf8',
-  );
+  fs.writeFileSync(`${nfsHostPath}/underpost/date.sh`, `${timeZoneSteps.join('\n')}`, 'utf8');
 
   logger.info('Build', `${nfsHostPath}/underpost/keyboard.sh`);
   fs.writeFileSync(
@@ -2083,6 +2044,12 @@ EOF`);
             // 'ip=dfcp',
             // 'autoinstall',
             // 'rd.break',
+
+            // Disable services that not apply over nfs
+            `systemd.mask=systemd-network-generator.service`,
+            `systemd.mask=systemd-networkd.service`,
+            `systemd.mask=systemd-fsck-root.service`,
+            `systemd.mask=systemd-udev-trigger.service`,
           ];
 
           // TODO: use autoinstall cloud-config-url=http://<MAAS_IP>:5240/MAAS/metadata/latest
