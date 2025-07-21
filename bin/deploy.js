@@ -85,7 +85,7 @@ EOF`,
   'apt install -y linux-image-generic',
   `apt install -y linux-modules-${kernelLibVersion} linux-modules-extra-${kernelLibVersion}`,
 
-  `depmod -a`,
+  `depmod -a ${kernelLibVersion}`,
   // `apt install -y cloud-init=25.1.2-0ubuntu0~24.04.1`,
   `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
   `ln -sf /lib/systemd/systemd /sbin/init`,
@@ -98,7 +98,7 @@ EOF`,
 const bootCmdSteps = [
   `/underpost/dns.sh`,
   `/underpost/host.sh`,
-  `/underpost/date.sh`,
+  // `/underpost/date.sh`,
   `cp -a /underpost/90_maas.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg`,
 ];
 
