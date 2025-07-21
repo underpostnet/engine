@@ -185,7 +185,7 @@ packages:
   - chrony
 resize_rootfs: false
 growpart:
-  mode: off
+  mode: false
 network:
   version: 2
   ethernets:
@@ -265,7 +265,7 @@ EOF_OUTER`;
   shellExec(cmd);
 };
 
-const chronySetUp = (path, alias = 'chronyd') => {
+const chronySetUp = (path, alias = 'chrony') => {
   // use alias = 'chronyd' for RHEL
   // use alias = 'chrony' for Ubuntu
   return [
@@ -310,14 +310,15 @@ logdir /var/log/chrony
 # Select which information is logged.
 #log measurements statistics tracking
 ' > ${path} `,
-    `systemctl stop ${alias}`,
+    // `systemctl stop ${alias}`,
 
     // `chronyd -q 'server 0.europe.pool.ntp.org iburst'`,
-    `${alias} -q 'server ntp.ubuntu.com iburst'`,
 
-    `systemctl enable --now ${alias}`,
-    `systemctl restart ${alias}`,
-    `systemctl status ${alias}`,
+    `sudo systemctl enable --now ${alias}`,
+    `sudo systemctl restart ${alias}`,
+    `sudo systemctl status ${alias}`,
+
+    `${alias} -q 'server ntp.ubuntu.com iburst'`,
 
     `chronyc sources`,
     `chronyc tracking`,
@@ -343,6 +344,13 @@ ${chronySetUp(chronyConfPath).join('\n')}
   fs.writeFileSync(
     `${nfsHostPath}/underpost/host.sh`,
     `echo -e "127.0.0.1   localhost\n127.0.1.1   ${host}" | tee -a /etc/hosts`,
+    'utf8',
+  );
+
+  logger.info('Build', `${nfsHostPath}/underpost/keys.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/keys.sh`,
+    `cat /etc/cloud/cloud.cfg.d/90_maas.cfg | grep -C 5 'metadata'`,
     'utf8',
   );
 
@@ -406,6 +414,7 @@ cut -d: -f1 /etc/passwd
     `chmod +x /underpost/help.sh`,
     `chmod +x /underpost/config-path.sh`,
     `chmod +x /underpost/host.sh`,
+    `chmod +x /underpost/keys.sh`,
     `chmod +x /underpost/test.sh`,
     `sudo chmod 700 ~/.ssh/`,
     `sudo chmod 600 ~/.ssh/authorized_keys`,
