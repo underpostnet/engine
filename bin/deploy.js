@@ -70,6 +70,8 @@ const keyboardSteps = [
   `sudo systemctl restart keyboard-setup.service`,
 ];
 
+const kernelLibVersion = `6.8.0-41-generic`;
+
 const installSteps = [
   `cat <<EOF | tee /etc/apt/sources.list
 deb http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
@@ -79,7 +81,11 @@ EOF`,
 
   `apt update -qq`,
   `apt -y full-upgrade`,
-  `apt install -y xinput x11-xkb-utils usbutils`,
+  `apt install -y build-essential xinput x11-xkb-utils usbutils`,
+  'apt install -y linux-image-generic',
+  `apt install -y linux-modules-${kernelLibVersion} linux-modules-extra-${kernelLibVersion}`,
+
+  `depmod -a`,
   // `apt install -y cloud-init=25.1.2-0ubuntu0~24.04.1`,
   `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
   `ln -sf /lib/systemd/systemd /sbin/init`,
@@ -91,7 +97,8 @@ EOF`,
 
 const bootCmdSteps = [
   `/underpost/dns.sh`,
-  // `/underpost/date.sh`,
+  `/underpost/host.sh`,
+  `/underpost/date.sh`,
   `cp -a /underpost/90_maas.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg`,
 ];
 
@@ -2046,8 +2053,8 @@ EOF`);
             // 'nosuid',
           ];
           const cmd = [
-            // `console=serial0,115200`,
-            `console=ttyAMA0,115200`,
+            `console=serial0,115200`,
+            // `console=ttyAMA0,115200`,
             `console=tty1`,
             // `initrd=-1`,
             // `net.ifnames=0`,
@@ -2424,7 +2431,6 @@ udp-port = 32766
       shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
 
       if (process.argv.includes('build')) {
-        // shellExec(`depmod -a`);
         shellExec(`mkdir -p ${nfsHostPath}`);
         let cmd;
         switch (host) {
