@@ -235,23 +235,34 @@ preserve_hostname: false
 
 # The modules that run in the 'init' stage
 cloud_init_modules:
+  - migrator
   - bootcmd
   - write-files
+  - growpart
+  - resizefs
   - set_hostname
   - update_etc_hosts
+  - rsyslog
   - users-groups
   - ssh
 
 cloud_config_modules:
-  - ssh-import-id
+  - mounts
   - locale
   - set-passwords
-  - ntp
+  - package-update-upgrade-install
   - timezone
   - runcmd
 
 cloud_final_modules:
-  - package-update-upgrade-install
+  - rightscale_userdata
+  - scripts-per-once
+  - scripts-per-boot
+  - scripts-per-instance
+  - scripts-user
+  - ssh-authkey-fingerprints
+  - keys-to-console
+  - phone-home
   - final-message
 
 EOF_MAAS_CFG`,
