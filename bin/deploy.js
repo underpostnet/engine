@@ -69,7 +69,7 @@ const keyboardSteps = [
   `sudo dpkg-reconfigure --frontend noninteractive keyboard-configuration`,
   `sudo systemctl restart keyboard-setup.service`,
 ];
-// #  - ${JSON.stringify([...timeZoneSteps, ...chronySetUp(chronyConfPath)])}
+
 const installSteps = [
   `cat <<EOF | tee /etc/apt/sources.list
 deb http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
@@ -202,7 +202,7 @@ network:
 #   users:
 #   - {name: root, password: changeme, type: text}
 
-final_message: "The system is up, after $UPTIME seconds"
+final_message: "====== Cloud init finished ======"
 
 # power_state:
 #   mode: reboot
@@ -265,8 +265,9 @@ EOF_OUTER`;
   shellExec(cmd);
 };
 
-const chronySetUp = (path, alias = 'chrony') => {
+const chronySetUp = (path, alias = 'chronyd') => {
   // use alias = 'chronyd' for RHEL
+  // use alias = 'chrony' for Ubuntu
   return [
     `echo '
 # Use public servers from the pool.ntp.org project.
@@ -326,7 +327,7 @@ logdir /var/log/chrony
   ];
 };
 
-const installUbuntuUnderpostTools = (nfsHostPath) => {
+const installUbuntuUnderpostTools = ({ nfsHostPath, host }) => {
   fs.mkdirSync(`${nfsHostPath}/underpost`, { recursive: true });
 
   logger.info('Build', `${nfsHostPath}/underpost/date.sh`);
@@ -335,6 +336,13 @@ const installUbuntuUnderpostTools = (nfsHostPath) => {
     `${timeZoneSteps.join('\n')}
 ${chronySetUp(chronyConfPath).join('\n')}
 `,
+    'utf8',
+  );
+
+  logger.info('Build', `${nfsHostPath}/underpost/host.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/host.sh`,
+    `echo -e "127.0.0.1   localhost\n127.0.1.1   ${host}" | tee -a /etc/hosts`,
     'utf8',
   );
 
@@ -397,6 +405,7 @@ cut -d: -f1 /etc/passwd
     `chmod +x /underpost/dns.sh`,
     `chmod +x /underpost/help.sh`,
     `chmod +x /underpost/config-path.sh`,
+    `chmod +x /underpost/host.sh`,
     `chmod +x /underpost/test.sh`,
     `sudo chmod 700 ~/.ssh/`,
     `sudo chmod 600 ~/.ssh/authorized_keys`,
@@ -506,7 +515,7 @@ EOF`);
     ),
   );
 
-  installUbuntuUnderpostTools(nfsHostPath);
+  installUbuntuUnderpostTools({ nfsHostPath, host });
 };
 
 try {
@@ -2028,7 +2037,8 @@ EOF`);
             // 'nosuid',
           ];
           const cmd = [
-            `console=serial0,115200`,
+            // `console=serial0,115200`,
+            `console=ttyAMA0,115200`,
             `console=tty1`,
             // `initrd=-1`,
             // `net.ifnames=0`,
