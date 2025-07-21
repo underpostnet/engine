@@ -456,6 +456,7 @@ cut -d: -f1 /etc/passwd
     `chmod +x /underpost/test.sh`,
     `chmod +x /underpost/start.sh`,
     `chmod +x /underpost/reset.sh`,
+    chronySetUp(chronyConfPath)[0],
     `sudo chmod 700 ~/.ssh/`,
     `sudo chmod 600 ~/.ssh/authorized_keys`,
     `sudo chmod 644 ~/.ssh/known_hosts`,
