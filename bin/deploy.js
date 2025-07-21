@@ -89,7 +89,11 @@ EOF`,
   `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata kmod keyboard-configuration console-setup iputils-ping`,
 ];
 
-const bootCmdSteps = [`/underpost/date.sh`, `cp -a /underpost/90_maas.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg`];
+const bootCmdSteps = [
+  `/underpost/dns.sh`,
+  // `/underpost/date.sh`,
+  `cp -a /underpost/90_maas.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg`,
+];
 
 const cloudConfigCmdRunFactory = (steps = []) =>
   steps
@@ -305,19 +309,17 @@ logdir /var/log/chrony
 # Select which information is logged.
 #log measurements statistics tracking
 ' > ${path} `,
-    `sudo systemctl stop ${alias}`,
+    `systemctl stop ${alias}`,
 
     // `chronyd -q 'server 0.europe.pool.ntp.org iburst'`,
     `${alias} -q 'server ntp.ubuntu.com iburst'`,
 
-    `sudo systemctl enable --now ${alias}`,
-    `sudo systemctl restart ${alias}`,
-    `sudo systemctl status ${alias}`,
+    `systemctl enable --now ${alias}`,
+    `systemctl restart ${alias}`,
+    `systemctl status ${alias}`,
 
     `chronyc sources`,
     `chronyc tracking`,
-    // sudo firewall-cmd --add-service=ntp --permanent
-    // sudo firewall-cmd --reload
 
     `chronyc sourcestats -v`,
     `timedatectl status`,
@@ -328,7 +330,13 @@ const installUbuntuUnderpostTools = (nfsHostPath) => {
   fs.mkdirSync(`${nfsHostPath}/underpost`, { recursive: true });
 
   logger.info('Build', `${nfsHostPath}/underpost/date.sh`);
-  fs.writeFileSync(`${nfsHostPath}/underpost/date.sh`, `${timeZoneSteps.join('\n')}`, 'utf8');
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/date.sh`,
+    `${timeZoneSteps.join('\n')}
+${chronySetUp(chronyConfPath).join('\n')}
+`,
+    'utf8',
+  );
 
   logger.info('Build', `${nfsHostPath}/underpost/keyboard.sh`);
   fs.writeFileSync(
