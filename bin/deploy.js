@@ -102,6 +102,9 @@ const bootCmdSteps = [
   `cp -a /underpost/90_maas.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg`,
 ];
 
+const cloudInitReset = `sudo cloud-init clean --logs --seed --configs all --machine-id
+sudo rm -rf /var/lib/cloud/*`;
+
 const cloudConfigCmdRunFactory = (steps = []) =>
   steps
     .map(
@@ -392,6 +395,24 @@ ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
     'utf8',
   );
 
+  logger.info('Build', `${nfsHostPath}/underpost/start.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/start.sh`,
+    `#!/bin/bash
+set -x
+sudo cloud-init --all-stages
+    `,
+    'utf8',
+  );
+
+  logger.info('Build', `${nfsHostPath}/underpost/reset.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/reset.sh`,
+    `${cloudInitReset}
+${bootCmdSteps.join('\n')}`,
+    'utf8',
+  );
+
   logger.info('Build', `${nfsHostPath}/underpost/help.sh`);
   fs.writeFileSync(
     `${nfsHostPath}/underpost/help.sh`,
@@ -436,6 +457,8 @@ cut -d: -f1 /etc/passwd
     `chmod +x /underpost/host.sh`,
     `chmod +x /underpost/keys.sh`,
     `chmod +x /underpost/test.sh`,
+    `chmod +x /underpost/start.sh`,
+    `chmod +x /underpost/reset.sh`,
     `sudo chmod 700 ~/.ssh/`,
     `sudo chmod 600 ~/.ssh/authorized_keys`,
     `sudo chmod 644 ~/.ssh/known_hosts`,
@@ -479,8 +502,7 @@ const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, 
     // --reboot
     if (process.argv.includes('reset'))
       shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-sudo cloud-init clean --logs --seed --configs all --machine-id
-sudo rm -rf /var/lib/cloud/*
+${cloudInitReset}
 EOF`);
 
     if (fs.existsSync(`${nfsHostPath}/var/log/`)) {
