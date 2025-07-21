@@ -253,6 +253,8 @@ cloud_config_modules:
   - package-update-upgrade-install
   - timezone
   - runcmd
+  - ssh-import-id
+  - ntp
 
 cloud_final_modules:
   - rightscale_userdata
