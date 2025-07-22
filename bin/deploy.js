@@ -197,9 +197,13 @@ network:
   version: 2
   ethernets:
     ${process.env.RPI4_INTERFACE_NAME}:
-      dhcp4: true
+      dhcp4: false
       addresses:
         - ${ipaddr}/24
+      gateway4: ${gatewayip}
+      nameservers:
+        addresses:
+          - ${process.env.MAAS_DNS}
 #         routes:
 #           - to: default
 #             via: ${gatewayip}
