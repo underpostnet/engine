@@ -2312,6 +2312,7 @@ BOOT_ORDER=0x21`;
 
           if (machine.hostname.match('generic-host'))
             try {
+              machine.hostname = nfsHost;
               let newMachine = shellExec(
                 `maas ${process.env.MAAS_ADMIN_USERNAME} machines create ${Object.keys(machine)
                   .map((k) => `${k}="${machine[k]}"`)
