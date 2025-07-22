@@ -1748,10 +1748,7 @@ EOF`);
     }
 
     case 'maas': {
-      shellExec(
-        `underpost secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
-      );
-      dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
+      dotenv.config({ path: `/home/dd/engine/engine-private/conf/dd-cron/.env.production`, override: true });
       const IP_ADDRESS = getLocalIPv4Address();
       const serverip = IP_ADDRESS;
       const tftpRoot = process.argv.includes('v3.0')
@@ -1761,28 +1758,33 @@ EOF`);
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
 
-      const machineFactory = (m) => ({
-        system_id: m.interface_set[0].system_id,
-        mac_address: m.interface_set[0].mac_address,
-        hostname: m.hostname,
-        status_name: m.status_name,
-      });
+      const removeMachines = () => {
+        for (const machine of machines) {
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
+        }
+        machines = [];
+      };
 
       let resources;
-      try {
-        resources = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
-            silent: true,
-            stdout: true,
-          }),
-        ).map((o) => ({
-          id: o.id,
-          name: o.name,
-          architecture: o.architecture,
-        }));
-      } catch (error) {
-        logger.error(error);
-      }
+      if (!process.argv.includes('machines'))
+        try {
+          resources = JSON.parse(
+            shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
+              silent: true,
+              stdout: true,
+            }),
+          ).map((o) => ({
+            id: o.id,
+            name: o.name,
+            architecture: o.architecture,
+          }));
+          if (process.argv.includes('images')) {
+            console.table(resources);
+            process.exit(0);
+          }
+        } catch (error) {
+          logger.error(error);
+        }
 
       let machines;
       try {
@@ -1791,23 +1793,21 @@ EOF`);
             stdout: true,
             silent: true,
           }),
-        ).map((m) => machineFactory(m));
+        ).map((m) => ({
+          system_id: m.interface_set[0].system_id,
+          mac_address: m.interface_set[0].mac_address,
+          hostname: m.hostname,
+          status_name: m.status_name,
+        }));
+        if (process.argv.includes('machines')) {
+          console.table(machines);
+          process.exit(0);
+        }
       } catch (error) {
         logger.error(error);
       }
 
-      if (process.argv.includes('ls')) {
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-sources read`);
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} commissioning-scripts read`);
-        // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 60`);
-        logger.info('Resources');
-        console.table(resources);
-        logger.info('Machines');
-        console.table(machines);
-        process.exit(0);
-      }
-
-      if (process.argv.includes('config')) {
+      if (process.argv.includes('journald')) {
         shellExec(`sudo sed -i 's/^#Storage=auto/Storage=volatile/' /etc/systemd/journald.conf`);
         shellExec(`sudo systemctl daemon-reload`);
         shellExec(`sudo systemctl restart systemd-journald`);
@@ -1844,10 +1844,7 @@ EOF`);
       //       - Disable DNSSEC validation to No (Disable DNSSEC; useful when upstream DNS is misconfigured)
 
       if (process.argv.includes('clear')) {
-        for (const machine of machines) {
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
-        }
-        // machines = [];
+        removeMachines();
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries clear all=true`);
         if (process.argv.includes('force')) {
           shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries scan force=true`);
@@ -1903,6 +1900,9 @@ EOF`);
       // shellExec(`MAAS_ADMIN_USERNAME=${process.env.MAAS_ADMIN_USERNAME}`);
       // shellExec(`MAAS_ADMIN_EMAIL=${process.env.MAAS_ADMIN_EMAIL}`);
       // shellExec(`maas createadmin --username $MAAS_ADMIN_USERNAME --email $MAAS_ADMIN_EMAIL`);
+      // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-sources read`);
+      // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} commissioning-scripts read`);
+      // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-source-selections read 60`);
 
       // MaaS admin CLI:
       // maas login <maas-admin-username> http://localhost:5240/MAAS
@@ -2249,20 +2249,8 @@ BOOT_ORDER=0x21`;
         nfsServerRootPath,
         nfsConnectStr,
       });
-      if (process.argv.includes('restart')) {
-        if (fs.existsSync(`node engine-private/r.js`)) shellExec(`node engine-private/r`);
-        shellExec(`node bin/deploy maas dhcp`);
-        shellExec(`sudo chown -R root:root ${tftpRoot}`);
-        shellExec(`sudo sudo chmod 755 ${tftpRoot}`);
-      }
-      // for (const machine of machines) {
-      //   // shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
-      //   shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${machine.system_id}`, {
-      //     silent: true,
-      //   });
-      // }
-      // machines = [];
-
+      shellExec(`sudo chown -R root:root ${tftpRoot}`);
+      shellExec(`sudo sudo chmod 755 ${tftpRoot}`);
       const monitor = async () => {
         // discoveries         Query observed discoveries.
         // discovery           Read or delete an observed discovery.
@@ -2272,8 +2260,6 @@ BOOT_ORDER=0x21`;
             silent: true,
             stdout: true,
           }),
-        ).filter(
-          (o) => o.ip !== IP_ADDRESS && o.ip !== gatewayip && !machines.find((_o) => _o.mac_address === o.mac_address),
         );
 
         //   {
@@ -2294,6 +2280,8 @@ BOOT_ORDER=0x21`;
         //     "resource_uri": "/MAAS/api/2.0/discovery/MTkyLjE2OC4xLjE4OSwwMDowMDowMDowMDowMDowMA==/"
         // },
 
+        console.log(discoveries.map((d) => d.ip));
+
         for (const discovery of discoveries) {
           const machine = {
             architecture: architecture.match('amd') ? 'amd64/generic' : 'arm64/generic',
@@ -2307,10 +2295,11 @@ BOOT_ORDER=0x21`;
             power_type: 'manual', // manual
             // power_parameters_power_address: discovery.ip,
             mac_addresses: discovery.mac_address,
+            ip: discovery.ip,
           };
           machine.hostname = machine.hostname.replaceAll(' ', '').replaceAll('.', '');
 
-          if (machine.hostname.match('generic-host'))
+          if (machine.ip === ipaddr)
             try {
               machine.hostname = nfsHost;
               let newMachine = shellExec(
@@ -2322,31 +2311,26 @@ BOOT_ORDER=0x21`;
                   stdout: true,
                 },
               );
-              newMachine = machineFactory(JSON.parse(newMachine));
+              newMachine = { discovery, machine: JSON.parse(newMachine) };
               machines.push(newMachine);
               console.log(newMachine);
               // commissioning_scripts=90-verify-user.sh
               shellExec(
-                `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.system_id} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
+                `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.machine.boot_interface.system_id} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
                 {
                   silent: true,
                 },
               );
             } catch (error) {
               logger.error(error, error.stack);
+            } finally {
+              process.exit(0);
             }
         }
-        // if (discoveries.length > 0) {
-        //   shellExec(
-        //     `maas ${process.env.MAAS_ADMIN_USERNAME} machines read | jq '.[] | {system_id: .interface_set[0].system_id, hostname, status_name, mac_address: .interface_set[0].mac_address}'`,
-        //   );
-        // }
         await timer(1000);
         monitor();
       };
-      // shellExec(`node bin/deploy open-virtual-root ${architecture.match('amd') ? 'amd64' : 'arm64'} ${nfsHost}`);
-      machines = [];
-      shellExec(`node bin/deploy maas clear`);
+      removeMachines();
       monitor();
       break;
     }
