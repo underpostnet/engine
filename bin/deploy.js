@@ -99,7 +99,7 @@ const bootCmdSteps = [
   `/underpost/dns.sh`,
   `/underpost/host.sh`,
   // `/underpost/date.sh`,
-  `cp -a /underpost/90_maas.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg`,
+  `cp -a /underpost/90_maas_keys.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg`,
 ];
 
 const cloudInitReset = `sudo cloud-init clean --logs --seed --configs all --machine-id
@@ -114,7 +114,7 @@ const cloudConfigCmdRunFactory = (steps = []) =>
     .join('\n');
 
 const cloudConfigFactory = (
-  { IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip, reset },
+  { controlServerIp, architecture, host, nfsHostPath, commissioningDeviceIp, update, gatewayip, reset },
   { consumer_key, consumer_secret, token_key, token_secret },
   path = '/etc/cloud/cloud.cfg.d/90_maas.cfg',
 ) => [
@@ -125,8 +125,8 @@ const cloudConfigFactory = (
 hostname: ${host}
 # fqdn: server01.midominio.cl
 # prefer_fqdn_over_hostname: true
-# metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata
-# metadata_url: http://${IP_ADDRESS}:5248/MAAS/metadata
+# metadata_url: http://${controlServerIp}:5240/MAAS/metadata
+# metadata_url: http://${controlServerIp}:5248/MAAS/metadata
 
 # Check:
 # /MAAS/metadata/latest/enlist-preseed/?op=get_enlist_preseed
@@ -137,7 +137,7 @@ hostname: ${host}
 datasource_list: [ MAAS ]
 datasource:
   MAAS:
-    metadata_url: http://${IP_ADDRESS}:5240/MAAS/metadata/
+    metadata_url: http://${controlServerIp}:5240/MAAS/metadata/
     ${
       reset
         ? ''
@@ -203,7 +203,7 @@ network:
       set-name: ${process.env.RPI4_INTERFACE_NAME}
       dhcp4: false
       addresses:
-        - ${ipaddr}/24
+        - ${commissioningDeviceIp}/24
       gateway4: ${gatewayip}
       nameservers:
         addresses:
@@ -438,6 +438,14 @@ cut -d: -f1 /etc/passwd
     'utf8',
   );
 
+  logger.info('Build', `${nfsHostPath}/underpost/shutdown.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/shutdown.sh`,
+    `cp -a /underpost/90_maas_no_keys.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg
+sudo shutdown -h now`,
+    'utf8',
+  );
+
   logger.info('Build', `${nfsHostPath}/underpost/config-path.sh`);
   fs.writeFileSync(`${nfsHostPath}/underpost/config-path.sh`, `echo "/etc/cloud/cloud.cfg.d/90_maas.cfg"`, 'utf8');
 
@@ -458,6 +466,7 @@ cut -d: -f1 /etc/passwd
     `chmod +x /underpost/test.sh`,
     `chmod +x /underpost/start.sh`,
     `chmod +x /underpost/reset.sh`,
+    `chmod +x /underpost/shutdown.sh`,
     chronySetUp(chronyConfPath)[0],
     `sudo chmod 700 ~/.ssh/`,
     `sudo chmod 600 ~/.ssh/authorized_keys`,
@@ -469,7 +478,15 @@ cut -d: -f1 /etc/passwd
   ]);
 };
 
-const updateVirtualRoot = async ({ IP_ADDRESS, architecture, host, nfsHostPath, ipaddr, update, gatewayip }) => {
+const updateVirtualRoot = async ({
+  controlServerIp,
+  architecture,
+  host,
+  nfsHostPath,
+  commissioningDeviceIp,
+  update,
+  gatewayip,
+}) => {
   // <consumer_key>:<consumer_token>:<secret>
   // <consumer_key>:<consumer_secret>:<token_key>:<token_secret>
   // maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}
@@ -537,11 +554,11 @@ EOF`);
     cloudConfigFactory(
       {
         reset: process.argv.includes('reset') ? true : false,
-        IP_ADDRESS,
+        controlServerIp,
         architecture,
         host,
         nfsHostPath,
-        ipaddr,
+        commissioningDeviceIp,
         update,
         gatewayip,
       },
@@ -553,16 +570,33 @@ EOF`);
     nfsHostPath,
     cloudConfigFactory(
       {
-        IP_ADDRESS,
+        controlServerIp,
         architecture,
         host,
         nfsHostPath,
-        ipaddr,
+        commissioningDeviceIp,
         update,
         gatewayip,
       },
       { consumer_key, consumer_secret, token_key, token_secret },
-      '/underpost/90_maas.cfg',
+      '/underpost/90_maas_keys.cfg',
+    ),
+  );
+
+  runSteps(
+    nfsHostPath,
+    cloudConfigFactory(
+      {
+        controlServerIp,
+        architecture,
+        host,
+        nfsHostPath,
+        commissioningDeviceIp,
+        update,
+        gatewayip,
+      },
+      { consumer_key, consumer_secret, token_key, token_secret },
+      '/underpost/90_maas_no_keys.cfg',
     ),
   );
 
@@ -1747,12 +1781,11 @@ EOF`);
 
     case 'maas': {
       dotenv.config({ path: `/home/dd/engine/engine-private/conf/dd-cron/.env.production`, override: true });
-      const IP_ADDRESS = getLocalIPv4Address();
-      const serverip = IP_ADDRESS;
+      const controlServerIp = getLocalIPv4Address();
       const tftpRoot = process.argv.includes('v3.0')
         ? `/var/snap/maas/common/maas/boot-resources/snapshot-20250720-162718`
         : process.env.TFTP_ROOT;
-      const ipaddr = process.env.RPI4_IP;
+      const commissioningDeviceIp = process.env.RPI4_IP;
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
 
@@ -2073,9 +2106,9 @@ EOF`);
             // `dwc_otg.lpm_enable=0`,
             // `elevator=deadline`,
             `root=/dev/nfs`,
-            `nfsroot=${serverip}:${process.env.NFS_EXPORT_PATH}/rpi4mb,${mountOptions}`,
-            // `nfsroot=${serverip}:${process.env.NFS_EXPORT_PATH}/rpi4mb`,
-            `ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${nfsHost}:${interfaceName}:static`,
+            `nfsroot=${controlServerIp}:${process.env.NFS_EXPORT_PATH}/rpi4mb,${mountOptions}`,
+            // `nfsroot=${controlServerIp}:${process.env.NFS_EXPORT_PATH}/rpi4mb`,
+            `ip=${commissioningDeviceIp}:${controlServerIp}:${gatewayip}:${netmask}:${nfsHost}:${interfaceName}:static`,
             `rootfstype=nfs`,
             `rw`,
             `rootwait`,
@@ -2158,7 +2191,7 @@ BOOT_ORDER=0x21
 # DHCP client GUID (Option 97); 0x34695052 is the FourCC for Raspberry Pi 4
 #DHCP_OPTION97=0x34695052
 
-TFTP_IP=${serverip}
+TFTP_IP=${controlServerIp}
 TFTP_PREFIX=1
 TFTP_PREFIX_STR=${tftpSubDir.slice(1)}/
 
@@ -2174,20 +2207,18 @@ MAC_ADDRESS=${process.env.RPI4_MAC_ADDRESS}
 # ─────────────────────────────────────────────────────────────
 # Static IP configuration (bypasses DHCP completely)
 # ─────────────────────────────────────────────────────────────
-CLIENT_IP=${ipaddr}
+CLIENT_IP=${commissioningDeviceIp}
 SUBNET=255.255.255.0
 GATEWAY=192.168.1.1
 
 `;
-          // CLIENT_IP=${ipaddr}
-          // SUBNET=255.255.255.0
           break;
 
         default:
           break;
       }
-      shellExec(`sudo chmod 755 ${process.env.NFS_EXPORT_PATH}/${nfsHost}`);
 
+      shellExec(`sudo chmod 755 ${process.env.NFS_EXPORT_PATH}/${nfsHost}`);
       shellExec(`sudo rm -rf ${tftpRoot}${tftpSubDir}`);
       shellExec(`sudo cp -a ${firmwarePath} ${tftpRoot}${tftpSubDir}`);
       shellExec(`mkdir -p ${tftpRoot}${tftpSubDir}/pxe`);
@@ -2223,7 +2254,7 @@ GATEWAY=192.168.1.1
     set default=0
     
     menuentry '${menuentryStr}' {
-      set root=(tftp,${serverip}) 
+      set root=(tftp,${controlServerIp})
       linux ${tftpSubDir}/pxe/vmlinuz-efi ${nfsConnectStr}
       initrd ${tftpSubDir}/pxe/initrd.img
       boot
@@ -2292,7 +2323,7 @@ GATEWAY=192.168.1.1
             architecture: architecture.match('amd') ? 'amd64/generic' : 'arm64/generic',
             mac_address: discovery.mac_address,
             hostname: discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? `generic-host-${s4()}`,
-            // discovery.ip.match(ipaddr)
+            // discovery.ip.match(commissioningDeviceIp)
             //   ? nfsHost
             //   : `unknown-${s4()}`,
             // description: '',
@@ -2304,7 +2335,7 @@ GATEWAY=192.168.1.1
           };
           machine.hostname = machine.hostname.replaceAll(' ', '').replaceAll('.', '');
 
-          if (machine.ip === ipaddr)
+          if (machine.ip === commissioningDeviceIp)
             try {
               machine.hostname = nfsHost;
               let newMachine = shellExec(
@@ -2418,18 +2449,18 @@ udp-port = 32766
     }
     case 'update-virtual-root': {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
-      const IP_ADDRESS = getLocalIPv4Address();
+      const controlServerIp = getLocalIPv4Address();
       const architecture = process.argv[3];
       const host = process.argv[4];
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${host}`;
-      const ipaddr = process.env.RPI4_IP;
+      const commissioningDeviceIp = process.env.RPI4_IP;
       const gatewayip = process.env.GATEWAY_IP;
       await updateVirtualRoot({
-        IP_ADDRESS,
+        controlServerIp,
         architecture,
         host,
         nfsHostPath,
-        ipaddr,
+        commissioningDeviceIp,
         update: true,
         gatewayip,
       });
@@ -2437,7 +2468,7 @@ udp-port = 32766
     }
     case 'open-virtual-root': {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
-      const IP_ADDRESS = getLocalIPv4Address();
+      const controlServerIp = getLocalIPv4Address();
       const architecture = process.argv[3];
       const host = process.argv[4];
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${host}`;
@@ -2511,14 +2542,14 @@ EOF`);
       if (process.argv.includes('build')) {
         switch (host) {
           case 'rpi4mb':
-            const ipaddr = process.env.RPI4_IP;
+            const commissioningDeviceIp = process.env.RPI4_IP;
 
             await updateVirtualRoot({
-              IP_ADDRESS,
+              controlServerIp,
               architecture,
               host,
               nfsHostPath,
-              ipaddr,
+              commissioningDeviceIp,
               gatewayip,
             });
 
@@ -2569,10 +2600,10 @@ EOF`);
 
     case 'create-ports': {
       const cmd = [];
-      const ipaddr = getLocalIPv4Address();
+      const commissioningDeviceIp = getLocalIPv4Address();
       for (const port of ['5240']) {
         const name = 'maas';
-        cmd.push(`${name}:${port}-${port}:${ipaddr}`);
+        cmd.push(`${name}:${port}-${port}:${commissioningDeviceIp}`);
       }
       pbcopy(`node engine-private/r create-port ${cmd}`);
       break;
