@@ -198,7 +198,7 @@ network:
   ethernets:
     ${process.env.RPI4_INTERFACE_NAME}:
       match:
-        macaddress: ${process.env.RPI4_MAC_ADDRESS}
+        macaddress: "${process.env.RPI4_MAC_ADDRESS}"
       mtu: 1500
       set-name: ${process.env.RPI4_INTERFACE_NAME}
       dhcp4: false
