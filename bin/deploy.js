@@ -1763,6 +1763,13 @@ EOF`);
         machines = [];
       };
 
+      const clearDiscoveries = () => {
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries clear all=true`);
+        if (process.argv.includes('force')) {
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries scan force=true`);
+        }
+      };
+
       let resources;
       if (!process.argv.includes('machines'))
         try {
@@ -1843,10 +1850,7 @@ EOF`);
 
       if (process.argv.includes('clear')) {
         removeMachines();
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries clear all=true`);
-        if (process.argv.includes('force')) {
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries scan force=true`);
-        }
+        clearDiscoveries();
         process.exit(0);
       }
       if (process.argv.includes('grub-arm64')) {
@@ -1865,33 +1869,6 @@ EOF`);
         shellExec(`maas status`);
         const cmd = `journalctl -f -t dhcpd -u snap.maas.pebble.service`;
         pbcopy(cmd);
-        process.exit(0);
-      }
-      if (process.argv.includes('reset')) {
-        // shellExec(
-        //   `maas init region+rack --database-uri "postgres://$DB_PG_MAAS_USER:$DB_PG_MAAS_PASS@$DB_PG_MAAS_HOST/$DB_PG_MAAS_NAME"` +
-        //     ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
-        // );
-        const cmd =
-          `maas init region+rack --database-uri "postgres://${process.env.DB_PG_MAAS_USER}:${process.env.DB_PG_MAAS_PASS}@${process.env.DB_PG_MAAS_HOST}/${process.env.DB_PG_MAAS_NAME}"` +
-          ` --maas-url http://${IP_ADDRESS}:5240/MAAS`;
-        pbcopy(cmd);
-        process.exit(0);
-      }
-
-      if (process.argv.includes('restart')) {
-        shellExec(`sudo snap restart maas.pebble`);
-        let secs = 0;
-        while (
-          !(
-            shellExec(`maas status`, { silent: true, disableLog: true, stdout: true })
-              .split(' ')
-              .filter((l) => l.match('inactive')).length === 1
-          )
-        ) {
-          await timer(1000);
-          console.log(`Waiting... (${++secs}s)`);
-        }
         process.exit(0);
       }
 
@@ -2308,7 +2285,7 @@ GATEWAY=192.168.1.1
         //     "resource_uri": "/MAAS/api/2.0/discovery/MTkyLjE2OC4xLjE4OSwwMDowMDowMDowMDowMDowMA==/"
         // },
 
-        console.log(discoveries.map((d) => d.ip));
+        console.log(discoveries.map((d) => d.ip).join(' | '));
 
         for (const discovery of discoveries) {
           const machine = {
@@ -2358,6 +2335,7 @@ GATEWAY=192.168.1.1
         await timer(1000);
         monitor();
       };
+      clearDiscoveries();
       removeMachines();
       monitor();
       break;
