@@ -197,6 +197,10 @@ network:
   version: 2
   ethernets:
     ${process.env.RPI4_INTERFACE_NAME}:
+      match:
+        macaddress: ${process.env.RPI4_MAC_ADDRESS}
+      mtu: 1500
+      set-name: ${process.env.RPI4_INTERFACE_NAME}
       dhcp4: false
       addresses:
         - ${ipaddr}/24
@@ -204,14 +208,7 @@ network:
       nameservers:
         addresses:
           - ${process.env.MAAS_DNS}
-#         routes:
-#           - to: default
-#             via: ${gatewayip}
 
-# chpasswd:
-#   expire: false
-#   users:
-#   - {name: root, password: changeme, type: text}
 
 final_message: "====== Cloud init finished ======"
 
@@ -220,6 +217,7 @@ final_message: "====== Cloud init finished ======"
 #   message: Rebooting after initial setup
 #   timeout: 30
 #   condition: True
+
 bootcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init bootcmd"
@@ -2159,21 +2157,51 @@ EOF`);
 
           nfsConnectStr = cmd.join(' ');
           bootConf = `[all]
-MAC_ADDRESS=00:00:00:00:00:00
-MAC_ADDRESS_OTP=0,1
 BOOT_UART=0
 WAKE_ON_GPIO=1
 POWER_OFF_ON_HALT=0
 ENABLE_SELF_UPDATE=1
 DISABLE_HDMI=0
-TFTP_IP=${serverip}
-TFTP_PREFIX=1
-TFTP_PREFIX_STR=${tftpSubDir.slice(1)}/
 NET_INSTALL_ENABLED=1
 DHCP_TIMEOUT=45000
 DHCP_REQ_TIMEOUT=4000
 TFTP_FILE_TIMEOUT=30000
-BOOT_ORDER=0x21`;
+BOOT_ORDER=0x21
+
+# ─────────────────────────────────────────────────────────────
+# TFTP configuration
+# ─────────────────────────────────────────────────────────────
+
+# Custom TFTP prefix string (e.g., based on MAC address, no colons)
+#TFTP_PREFIX_STR=AA-BB-CC-DD-EE-FF/
+
+# Optional PXE Option43 override (leave commented if unused)
+#PXE_OPTION43="Raspberry Pi Boot"
+
+# DHCP client GUID (Option 97); 0x34695052 is the FourCC for Raspberry Pi 4
+#DHCP_OPTION97=0x34695052
+
+TFTP_IP=${serverip}
+TFTP_PREFIX=1
+TFTP_PREFIX_STR=${tftpSubDir.slice(1)}/
+
+# ─────────────────────────────────────────────────────────────
+# Manually override Ethernet MAC address
+# ─────────────────────────────────────────────────────────────
+
+MAC_ADDRESS=${process.env.RPI4_MAC_ADDRESS}
+
+# OTP MAC address override
+#MAC_ADDRESS_OTP=0,1
+
+# ─────────────────────────────────────────────────────────────
+# Static IP configuration (bypasses DHCP completely)
+# ─────────────────────────────────────────────────────────────
+CLIENT_IP=${ipaddr}
+SUBNET=255.255.255.0
+GATEWAY=192.168.1.1
+
+`;
           // CLIENT_IP=${ipaddr}
           // SUBNET=255.255.255.0
           break;
