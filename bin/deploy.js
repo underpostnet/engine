@@ -128,7 +128,7 @@ const cloudConfigFactory = (
 #cloud-config
 
 hostname: ${host}
-# fqdn: server01.midominio.cl
+fqdn: ${host}.maas
 # prefer_fqdn_over_hostname: true
 # metadata_url: http://${controlServerIp}:5240/MAAS/metadata
 # metadata_url: http://${controlServerIp}:5248/MAAS/metadata
