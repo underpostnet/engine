@@ -1814,7 +1814,7 @@ EOF`);
         : process.env.TFTP_ROOT;
       const commissioningDeviceIp = process.env.RPI4_IP;
       const netmask = process.env.NETMASK;
-      const gatewayip = process.env.GATEWAY_IP;
+      const gatewayip = controlServerIp;
       let commissioningMac = '00:00:00:00:00:00';
 
       const removeMachines = () => {
@@ -2505,7 +2505,7 @@ udp-port = 32766
       const host = process.argv[4];
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${host}`;
       const commissioningDeviceIp = process.env.RPI4_IP;
-      const gatewayip = process.env.GATEWAY_IP;
+      const gatewayip = controlServerIp;
       await updateVirtualRoot({
         controlServerIp,
         architecture,
@@ -2523,7 +2523,7 @@ udp-port = 32766
       const architecture = process.argv[3];
       const host = process.argv[4];
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${host}`;
-      const gatewayip = process.env.GATEWAY_IP;
+      const gatewayip = controlServerIp;
       shellExec(`sudo dnf install -y iptables-legacy`);
       shellExec(`sudo dnf install -y debootstrap`);
       shellExec(`sudo dnf install kernel-modules-extra-$(uname -r)`);
