@@ -104,8 +104,11 @@ const bootCmdSteps = [
   `cat /underpost/mac`,
 ];
 
-const cloudInitReset = `sudo cloud-init clean --logs --seed --configs all --machine-id
-sudo rm -rf /var/lib/cloud/*`;
+const cloudInitReset = `sudo cloud-init clean --seed --configs all --machine-id # --logs
+sudo rm -rf /var/lib/cloud/*
+echo '' > /var/log/cloud-init.log
+echo '' > /var/log/cloud-init-output.log
+`;
 
 const cloudConfigCmdRunFactory = (steps = []) =>
   steps
@@ -2329,6 +2332,9 @@ GATEWAY=192.168.1.1
       shellExec(
         `node bin/deploy update-virtual-root ${architecture.match('arm64') ? 'arm64' : 'amd64'} ${nfsHost} reset`,
       );
+
+      removeMachines();
+
       logger.info('Waiting for MAC assignment...');
       fs.removeSync(`${nfsServerRootPath}/underpost/mac`);
       await macMonitor(nfsServerRootPath);
@@ -2418,7 +2424,6 @@ GATEWAY=192.168.1.1
         monitor();
       };
       // clearDiscoveries();
-      removeMachines();
       monitor();
       break;
     }
