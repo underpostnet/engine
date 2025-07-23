@@ -2326,6 +2326,9 @@ GATEWAY=192.168.1.1
       shellExec(`sudo chown -R root:root ${tftpRoot}`);
       shellExec(`sudo sudo chmod 755 ${tftpRoot}`);
 
+      shellExec(
+        `node bin/deploy update-virtual-root ${architecture.match('arm64') ? 'arm64' : 'amd64'} ${nfsHost} reset`,
+      );
       logger.info('Waiting for MAC assignment...');
       fs.removeSync(`${nfsServerRootPath}/underpost/mac`);
       await macMonitor(nfsServerRootPath);
@@ -2401,6 +2404,10 @@ GATEWAY=192.168.1.1
                   silent: true,
                 },
               );
+              shellExec(`gnome-terminal -- bash -c "node engine-private/r cloud; exec bash" & disown`, { async: true });
+              shellExec(`gnome-terminal -- bash -c "node engine-private/r machine; exec bash" & disown`, {
+                async: true,
+              });
             } catch (error) {
               logger.error(error, error.stack);
             } finally {
