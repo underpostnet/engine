@@ -95,7 +95,13 @@ EOF`,
   `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata kmod keyboard-configuration console-setup iputils-ping`,
 ];
 
-const bootCmdSteps = [`/underpost/dns.sh`, `/underpost/host.sh`, `/underpost/mac.sh`, `cat /underpost/mac`];
+const bootCmdSteps = [
+  `/underpost/dns.sh`,
+  `/underpost/host.sh`,
+  `/underpost/mac.sh`,
+  `cat /underpost/mac`,
+  // '/underpost/keys_import.sh',
+];
 
 const cloudInitReset = `sudo cloud-init clean --seed --configs all --machine-id # --logs
 sudo rm -rf /var/lib/cloud/*
@@ -190,7 +196,7 @@ packages:
   - chrony
 resize_rootfs: false
 growpart:
-  mode: false
+  mode: "off"
 network:
   version: 2
   ethernets:
@@ -224,11 +230,11 @@ bootcmd:
   - echo "Init bootcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 ${cloudConfigCmdRunFactory(bootCmdSteps)}
-runcmd:
-  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-  - echo "Init runcmd"
-  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-${cloudConfigCmdRunFactory(['/underpost/keys_import.sh'])}
+# runcmd:
+#   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+#   - echo "Init runcmd"
+#   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+# ${true ? '' : cloudConfigCmdRunFactory(['/underpost/keys_import.sh'])}
 
 # If this is set, 'root' will not be able to ssh in and they
 # will get a message to login instead as the default $user
