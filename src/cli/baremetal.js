@@ -66,6 +66,7 @@ maas login "$MAAS_ADMIN_USERNAME" "http://localhost:5240/MAAS/" "$APIKEY"`);
       if (options.controlServerInstall === true) {
         shellExec(`chmod +x ${underpostRoot}/manifests/maas/maas-setup.sh`);
         shellExec(`${underpostRoot}/manifests/maas/maas-setup.sh`);
+        shellExec(`${underpostRoot}/manifests/maas/nat-iptables.sh`);
       }
       if (options.controlServerInit === true) {
         shellExec(`node ${underpostRoot}/bin/deploy maas reset`);
