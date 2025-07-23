@@ -2403,6 +2403,33 @@ GATEWAY=192.168.1.1
               newMachine = { discovery, machine: JSON.parse(newMachine) };
               machines.push(newMachine);
               console.log(newMachine);
+
+              const discoverInterfaceName = 'eth0';
+
+              const interfaceData = JSON.parse(
+                shellExec(
+                  `maas ${process.env.MAAS_ADMIN_USERNAME} interface read ${newMachine.machine.boot_interface.system_id} ${discoverInterfaceName}`,
+                  {
+                    silent: true,
+                    stdout: true,
+                  },
+                ),
+              );
+
+              logger.info('Interface', interfaceData);
+
+              shellExec(
+                `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-broken ${newMachine.machine.boot_interface.system_id}`,
+              );
+
+              shellExec(
+                `maas ${process.env.MAAS_ADMIN_USERNAME} interface update ${newMachine.machine.boot_interface.system_id} ${interfaceData.id} name=${process.env.RPI4_INTERFACE_NAME}`,
+              );
+
+              shellExec(
+                `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-fixed ${newMachine.machine.boot_interface.system_id}`,
+              );
+
               // commissioning_scripts=90-verify-user.sh
               shellExec(
                 `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.machine.boot_interface.system_id} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
