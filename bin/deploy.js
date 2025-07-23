@@ -99,7 +99,9 @@ const bootCmdSteps = [
   `/underpost/dns.sh`,
   `/underpost/host.sh`,
   // `/underpost/date.sh`,
-  `cp -a /underpost/90_maas_keys.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg`,
+  `/underpost/keys_import.sh`,
+  `/underpost/mac.sh`,
+  `cat /underpost/mac`,
 ];
 
 const cloudInitReset = `sudo cloud-init clean --logs --seed --configs all --machine-id
@@ -462,6 +464,13 @@ sudo shutdown -h now`,
     'utf8',
   );
 
+  logger.info('Build', `${nfsHostPath}/underpost/mac.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/mac.sh`,
+    `echo "$(cat /sys/class/net/${process.env.RPI4_INTERFACE_NAME}/address)" > /underpost/mac`,
+    'utf8',
+  );
+
   logger.info('Build', `${nfsHostPath}/underpost/device_scan.sh`);
   fs.copySync(`./manifests/maas/device-scan.sh`, `${nfsHostPath}/underpost/device_scan.sh`);
 
@@ -489,6 +498,7 @@ sudo shutdown -h now`,
     `chmod +x /underpost/reset.sh`,
     `chmod +x /underpost/shutdown.sh`,
     `chmod +x /underpost/device_scan.sh`,
+    `chmod +x /underpost/mac.sh`,
     chronySetUp(chronyConfPath)[0],
     `sudo chmod 700 ~/.ssh/`,
     `sudo chmod 600 ~/.ssh/authorized_keys`,
@@ -1805,6 +1815,7 @@ EOF`);
       const commissioningDeviceIp = process.env.RPI4_IP;
       const netmask = process.env.NETMASK;
       const gatewayip = process.env.GATEWAY_IP;
+      let commissioningMac = '00:00:00:00:00:00';
 
       const removeMachines = () => {
         for (const machine of machines) {
@@ -1818,6 +1829,16 @@ EOF`);
         if (process.argv.includes('force')) {
           shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries scan force=true`);
         }
+      };
+
+      const macMonitor = async (nfsServerRootPath) => {
+        if (fs.existsSync(`${nfsServerRootPath}/underpost/mac`)) {
+          commissioningMac = fs.readFileSync(`${nfsServerRootPath}/underpost/mac`, 'utf8').trim();
+          logger.info('Commissioning MAC', commissioningMac);
+          return;
+        }
+        await timer(1000);
+        await macMonitor(nfsServerRootPath);
       };
 
       let resources;
@@ -2304,6 +2325,11 @@ GATEWAY=192.168.1.1
       });
       shellExec(`sudo chown -R root:root ${tftpRoot}`);
       shellExec(`sudo sudo chmod 755 ${tftpRoot}`);
+
+      logger.info('Waiting for MAC assignment...');
+      fs.removeSync(`${nfsServerRootPath}/underpost/mac`);
+      await macMonitor(nfsServerRootPath);
+
       const monitor = async () => {
         // discoveries         Query observed discoveries.
         // discovery           Read or delete an observed discovery.
@@ -2352,9 +2378,10 @@ GATEWAY=192.168.1.1
           };
           machine.hostname = machine.hostname.replaceAll(' ', '').replaceAll('.', '');
 
-          if (machine.ip === commissioningDeviceIp)
+          if (machine.mac_addresses === commissioningMac)
             try {
               machine.hostname = nfsHost;
+              machine.mac_address = commissioningMac;
               let newMachine = shellExec(
                 `maas ${process.env.MAAS_ADMIN_USERNAME} machines create ${Object.keys(machine)
                   .map((k) => `${k}="${machine[k]}"`)
@@ -2383,7 +2410,7 @@ GATEWAY=192.168.1.1
         await timer(1000);
         monitor();
       };
-      clearDiscoveries();
+      // clearDiscoveries();
       removeMachines();
       monitor();
       break;
