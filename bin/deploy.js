@@ -95,14 +95,7 @@ EOF`,
   `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata kmod keyboard-configuration console-setup iputils-ping`,
 ];
 
-const bootCmdSteps = [
-  `/underpost/dns.sh`,
-  `/underpost/host.sh`,
-  // `/underpost/date.sh`,
-  `/underpost/keys_import.sh`,
-  `/underpost/mac.sh`,
-  `cat /underpost/mac`,
-];
+const bootCmdSteps = [`/underpost/dns.sh`, `/underpost/host.sh`, `/underpost/mac.sh`, `cat /underpost/mac`];
 
 const cloudInitReset = `sudo cloud-init clean --seed --configs all --machine-id # --logs
 sudo rm -rf /var/lib/cloud/*
@@ -119,7 +112,7 @@ const cloudConfigCmdRunFactory = (steps = []) =>
     .join('\n');
 
 const cloudConfigFactory = (
-  { controlServerIp, architecture, host, nfsHostPath, commissioningDeviceIp, update, gatewayip, auth },
+  { controlServerIp, architecture, host, nfsHostPath, commissioningDeviceIp, update, gatewayip, auth, mac },
   { consumer_key, consumer_secret, token_key, token_secret },
   path = '/etc/cloud/cloud.cfg.d/90_maas.cfg',
 ) => [
@@ -203,7 +196,7 @@ network:
   ethernets:
     ${process.env.RPI4_INTERFACE_NAME}:
       match:
-        macaddress: "${process.env.RPI4_MAC_ADDRESS}"
+        macaddress: "${mac}"
       mtu: 1500
       set-name: ${process.env.RPI4_INTERFACE_NAME}
       dhcp4: false
@@ -521,6 +514,7 @@ const updateVirtualRoot = async ({
   commissioningDeviceIp,
   update,
   gatewayip,
+  mac,
 }) => {
   // <consumer_key>:<consumer_token>:<secret>
   // <consumer_key>:<consumer_secret>:<token_key>:<token_secret>
@@ -596,6 +590,7 @@ EOF`);
         commissioningDeviceIp,
         update,
         gatewayip,
+        mac,
       },
       { consumer_key, consumer_secret, token_key, token_secret },
       '/underpost/90_maas_keys.cfg',
@@ -614,6 +609,7 @@ EOF`);
         commissioningDeviceIp,
         update,
         gatewayip,
+        mac,
       },
       { consumer_key, consumer_secret, token_key, token_secret },
       '/underpost/90_maas_no_keys.cfg',
@@ -2404,6 +2400,12 @@ GATEWAY=192.168.1.1
               machines.push(newMachine);
               console.log(newMachine);
 
+              shellExec(
+                `node bin/deploy update-virtual-root ${
+                  architecture.match('arm64') ? 'arm64' : 'amd64'
+                } ${nfsHost} '' '' ${commissioningMac}`,
+              );
+
               const discoverInterfaceName = 'eth0';
 
               const interfaceData = JSON.parse(
@@ -2546,6 +2548,7 @@ udp-port = 32766
         commissioningDeviceIp,
         update: true,
         gatewayip,
+        mac: process.argv[7] ?? process.env.RPI4_MAC_ADDRESS,
       });
       break;
     }
@@ -2634,6 +2637,7 @@ EOF`);
               nfsHostPath,
               commissioningDeviceIp,
               gatewayip,
+              mac: process.env.RPI4_MAC_ADDRESS,
             });
 
             break;
