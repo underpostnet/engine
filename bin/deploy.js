@@ -114,7 +114,7 @@ const cloudConfigCmdRunFactory = (steps = []) =>
     .join('\n');
 
 const cloudConfigFactory = (
-  { controlServerIp, architecture, host, nfsHostPath, commissioningDeviceIp, update, gatewayip, reset },
+  { controlServerIp, architecture, host, nfsHostPath, commissioningDeviceIp, update, gatewayip, auth },
   { consumer_key, consumer_secret, token_key, token_secret },
   path = '/etc/cloud/cloud.cfg.d/90_maas.cfg',
 ) => [
@@ -139,7 +139,7 @@ datasource:
   MAAS:
     metadata_url: http://${controlServerIp}:5240/MAAS/metadata/
     ${
-      reset
+      !auth
         ? ''
         : `consumer_key: ${consumer_key}
     consumer_secret: ${consumer_secret}
@@ -369,10 +369,26 @@ ${chronySetUp(chronyConfPath).join('\n')}
     'utf8',
   );
 
-  logger.info('Build', `${nfsHostPath}/underpost/keys.sh`);
+  logger.info('Build', `${nfsHostPath}/underpost/keys_current.sh`);
   fs.writeFileSync(
-    `${nfsHostPath}/underpost/keys.sh`,
+    `${nfsHostPath}/underpost/keys_current.sh`,
     `cat /etc/cloud/cloud.cfg.d/90_maas.cfg | grep -C 5 'metadata'`,
+    'utf8',
+  );
+
+  logger.info('Build', `${nfsHostPath}/underpost/keys_remove.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/keys_remove.sh`,
+    `cp -a /underpost/90_maas_no_keys.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg
+/underpost/keys_current.sh`,
+    'utf8',
+  );
+
+  logger.info('Build', `${nfsHostPath}/underpost/keys_import.sh`);
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/keys_import.sh`,
+    `cp -a /underpost/90_maas_keys.cfg /etc/cloud/cloud.cfg.d/90_maas.cfg
+/underpost/keys_current.sh`,
     'utf8',
   );
 
@@ -462,7 +478,9 @@ sudo shutdown -h now`,
     `chmod +x /underpost/help.sh`,
     `chmod +x /underpost/config-path.sh`,
     `chmod +x /underpost/host.sh`,
-    `chmod +x /underpost/keys.sh`,
+    `chmod +x /underpost/keys_current.sh`,
+    `chmod +x /underpost/keys_import.sh`,
+    `chmod +x /underpost/keys_remove.sh`,
     `chmod +x /underpost/test.sh`,
     `chmod +x /underpost/start.sh`,
     `chmod +x /underpost/reset.sh`,
@@ -553,23 +571,7 @@ EOF`);
     nfsHostPath,
     cloudConfigFactory(
       {
-        reset: process.argv.includes('reset') ? true : false,
-        controlServerIp,
-        architecture,
-        host,
-        nfsHostPath,
-        commissioningDeviceIp,
-        update,
-        gatewayip,
-      },
-      { consumer_key, consumer_secret, token_key, token_secret },
-    ),
-  );
-
-  runSteps(
-    nfsHostPath,
-    cloudConfigFactory(
-      {
+        auth: true,
         controlServerIp,
         architecture,
         host,
@@ -587,6 +589,7 @@ EOF`);
     nfsHostPath,
     cloudConfigFactory(
       {
+        auth: false,
         controlServerIp,
         architecture,
         host,
@@ -600,7 +603,15 @@ EOF`);
     ),
   );
 
+  if (process.argv.includes('auth')) {
+    shellExec(`cp ${nfsHostPath}/underpost/90_maas_keys.cfg ${nfsHostPath}/etc/cloud/cloud.cfg.d/90_maas.cfg`);
+  } else {
+    shellExec(`cp ${nfsHostPath}/underpost/90_maas_no_keys.cfg ${nfsHostPath}/etc/cloud/cloud.cfg.d/90_maas.cfg`);
+  }
+
   installUbuntuUnderpostTools({ nfsHostPath, host });
+
+  shellExec(`cat ${nfsHostPath}/etc/cloud/cloud.cfg.d/90_maas.cfg`);
 };
 
 try {
