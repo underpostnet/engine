@@ -625,7 +625,7 @@ EOF`);
 
   installUbuntuUnderpostTools({ nfsHostPath, host });
 
-  shellExec(`./manifests/maas/nat-iptables.sh`, { silent: true });
+  shellExec(`./manifests/maas/nat-iptables.sh`);
 
   shellExec(`cat ${nfsHostPath}/etc/cloud/cloud.cfg.d/90_maas.cfg`);
 };
