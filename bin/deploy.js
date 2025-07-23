@@ -202,7 +202,10 @@ network:
       dhcp4: false
       addresses:
         - ${commissioningDeviceIp}/24
-      gateway4: ${gatewayip}
+      routes:
+        - to: default
+          via: ${gatewayip}
+#      gateway4: ${gatewayip}
       nameservers:
         addresses:
           - ${process.env.MAAS_DNS}
@@ -225,6 +228,7 @@ runcmd:
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
   - echo "Init runcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+${cloudConfigCmdRunFactory(['/underpost/keys_import.sh'])}
 
 # If this is set, 'root' will not be able to ssh in and they
 # will get a message to login instead as the default $user
@@ -2434,7 +2438,7 @@ GATEWAY=192.168.1.1
 
               // commissioning_scripts=90-verify-user.sh
               shellExec(
-                `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission ${newMachine.machine.boot_interface.system_id} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
+                `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission --debug --insecure ${newMachine.machine.boot_interface.system_id} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
                 {
                   silent: true,
                 },
