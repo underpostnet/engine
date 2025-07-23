@@ -462,6 +462,9 @@ sudo shutdown -h now`,
     'utf8',
   );
 
+  logger.info('Build', `${nfsHostPath}/underpost/device_scan.sh`);
+  fs.copySync(`./manifests/maas/device-scan.sh`, `${nfsHostPath}/underpost/device_scan.sh`);
+
   logger.info('Build', `${nfsHostPath}/underpost/config-path.sh`);
   fs.writeFileSync(`${nfsHostPath}/underpost/config-path.sh`, `echo "/etc/cloud/cloud.cfg.d/90_maas.cfg"`, 'utf8');
 
@@ -485,6 +488,7 @@ sudo shutdown -h now`,
     `chmod +x /underpost/start.sh`,
     `chmod +x /underpost/reset.sh`,
     `chmod +x /underpost/shutdown.sh`,
+    `chmod +x /underpost/device_scan.sh`,
     chronySetUp(chronyConfPath)[0],
     `sudo chmod 700 ~/.ssh/`,
     `sudo chmod 600 ~/.ssh/authorized_keys`,
