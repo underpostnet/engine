@@ -109,11 +109,22 @@ echo '' > /var/log/cloud-init.log
 echo '' > /var/log/cloud-init-output.log
 `;
 
-const cloudConfigCmdRunFactory = (steps = []) =>
+const cloudConfigCmdRunFactory = (steps = [], yaml = true) =>
   steps
     .map(
       (step, i, a) =>
-        '  - echo "\\$(date) | ' + (i + 1) + '/' + a.length + ' - ' + step.split('\n')[0] + '"' + `\n` + `  - ${step}`,
+        (yaml ? '  - ' : '') +
+        'echo "' +
+        (yaml ? '\\' : '') +
+        '$(date) | ' +
+        (i + 1) +
+        '/' +
+        a.length +
+        ' - ' +
+        step.split('\n')[0] +
+        '"' +
+        `\n` +
+        `${yaml ? '  - ' : ''}${step}`,
     )
     .join('\n');
 
@@ -285,14 +296,20 @@ cloud_config_modules:
   - ssh-import-id
   - ntp
 
+
+phone_home:
+  url: "http://${controlServerIp}:5240/MAAS/metadata/v1/?op=phone_home"
+  post: all
+  tries: 3
+
 # The modules that run in the 'final' stage
 cloud_final_modules:
   - rightscale_userdata
   - scripts-vendor
   - scripts-per-once
   - scripts-per-boot
-  - scripts-per-instance
-  - scripts-user
+#  - scripts-per-instance
+#  - scripts-user
   - ssh-authkey-fingerprints
   - keys-to-console
   - phone-home
@@ -445,7 +462,23 @@ ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
     `${nfsHostPath}/underpost/start.sh`,
     `#!/bin/bash
 set -x
-sudo cloud-init --all-stages
+# sudo cloud-init --all-stages
+${cloudConfigCmdRunFactory(
+  [
+    `/underpost/date.sh`,
+    `sleep 3`,
+    `/underpost/reset.sh`,
+    `sleep 3`,
+    `cloud-init init --local`,
+    `sleep 3`,
+    `cloud-init init`,
+    `sleep 3`,
+    `cloud-init modules --mode=config`,
+    `sleep 3`,
+    `cloud-init modules --mode=final`,
+  ].map((c) => 'sudo ' + c),
+  false,
+)}
     `,
     'utf8',
   );
@@ -659,6 +692,8 @@ EOF`);
   shellExec(`./manifests/maas/nat-iptables.sh`);
 
   shellExec(`cat ${nfsHostPath}/etc/cloud/cloud.cfg.d/90_maas.cfg`);
+
+  shellExec(`cat ${nfsHostPath}/underpost/start.sh`);
 };
 
 try {
