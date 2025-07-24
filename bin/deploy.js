@@ -709,7 +709,9 @@ set -x
 
 echo ">>> Starting MAAS machine commissioning for system_id: ${machineSystemId} …"
 
-curl --header "Authorization:\\
+curl -X POST \\
+ --fail --location --verbose --include --raw --trace-ascii /dev/stdout\\
+ --header "Authorization:\\
  OAuth oauth_version=1.0,\\
  oauth_signature_method=PLAINTEXT,\\
  oauth_consumer_key=${consumer_key},\\
