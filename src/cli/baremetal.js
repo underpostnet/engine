@@ -19,6 +19,7 @@ class UnderpostBaremetal {
         controlServerDbInstall: false,
         controlServerDbUninstall: false,
         commission: false,
+        nfsBuild: false,
       },
     ) {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
@@ -59,6 +60,46 @@ class UnderpostBaremetal {
       if (options.controlServerDbUninstall === true) {
         shellExec(`node ${underpostRoot}/bin/deploy ${dbProviderId} uninstall`);
       }
+
+      if (options.nfsBuild === true) {
+        if (UnderpostBaremetal.API.isHostMounted({ hostname, workflowId })) {
+          logger.warn('NFS root filesystem is mounted, skipping build.');
+          return;
+        }
+        logger.info('NFS root filesystem is not mounted, building...');
+      }
+
+      if (options.commission === true) {
+      }
+    },
+
+    isHostMounted({ hostname, workflowId }) {
+      let isMounted = false;
+      for (const mountCmd of Object.keys(UnderpostBaremetal.API.workflowsConfig[workflowId].nfs.mounts)) {
+        for (const mountPath of UnderpostBaremetal.API.workflowsConfig[workflowId].nfs.mounts[mountCmd]) {
+          const hostMountPath = `${process.env.NFS_EXPORT_PATH}/${hostname}${mountPath}`;
+          const isPathMounted = !shellExec(`mountpoint ${hostMountPath}`, { silent: true, stdout: true }).match(
+            'not a mountpoint',
+          );
+
+          if (isPathMounted) {
+            if (!isMounted) isMounted = true;
+            logger.warn('Nfs path already mounted', mountPath);
+          }
+        }
+      }
+      return isMounted;
+    },
+
+    workflowsConfig: {
+      rpi4mb: {
+        nfs: {
+          mounts: {
+            bind: ['/proc', '/sys', '/run'],
+            rbind: ['/dev', '/dev/pts'],
+          },
+        },
+      },
     },
   };
 }

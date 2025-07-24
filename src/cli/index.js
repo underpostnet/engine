@@ -355,6 +355,7 @@ program
   .option('--control-server-db-install', 'Installs up the database for the baremetal control server.')
   .option('--control-server-db-uninstall', 'Uninstalls the database for the baremetal control server.')
   .option('--commission', 'Init workflow for commissioning a physical machine.')
+  .option('--nfs-build', 'Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.')
   .option('--dev', 'Sets the development context environment for baremetal operations.')
   .description(
     'Manages baremetal server operations, including installation, database setup, commissioning, and user management.',
