@@ -481,7 +481,7 @@ ${cloudConfigCmdRunFactory(
     `sleep 3`,
     `cloud-init modules --mode=final`,
     `sleep 3`,
-    `/underpost/maas-enlistment.sh`,
+    `/underpost/enlistment.sh`,
   ].map((c) => 'sudo ' + c),
   false,
 )}
@@ -566,7 +566,7 @@ sudo shutdown -h now`,
     `chmod +x /underpost/shutdown.sh`,
     `chmod +x /underpost/device_scan.sh`,
     `chmod +x /underpost/mac.sh`,
-    `chmod +x /underpost/maas-enlistment.sh`,
+    `chmod +x /underpost/enlistment.sh`,
     chronySetUp(chronyConfPath)[0],
     `sudo chmod 700 ~/.ssh/`,
     `sudo chmod 600 ~/.ssh/authorized_keys`,
@@ -695,7 +695,7 @@ EOF`);
   }
 
   fs.writeFileSync(
-    `${nfsHostPath}/underpost/maas-enlistment.sh`,
+    `${nfsHostPath}/underpost/enlistment.sh`,
     `#!/bin/bash
 set -x
 
@@ -722,11 +722,10 @@ OAUTH_SIGNATURE="$CONSUMER_SECRET&$TOKEN_SECRET"
 AUTH_HEADER="OAuth realm=\"\",oauth_consumer_key=\"$CONSUMER_KEY\",oauth_token=\"$TOKEN_KEY\",oauth_signature_method=\"PLAINTEXT\",oauth_signature=\"$OAUTH_SIGNATURE\""
 
 # Now invoke curl with the same headers you saw in the log:
-curl -v --fail --location \
-  --request POST "$URL" \
+curl --fail --location -v -i --raw "$URL" \
   -H "Authorization: $AUTH_HEADER" \
   -H "User-Agent: Cloud-Init/25.1.2-0ubuntu0~24.04.1" \
-  || echo "ERROR: phone-home returned code $?"
+  2>&1 | tee /underpost/enlistment.log || echo "ERROR: phone-home returned code $?"
 
 
 # Final marker in the log
@@ -743,7 +742,7 @@ echo ">>> MAAS phone-home complete."
 
   shellExec(`cat ${nfsHostPath}/underpost/start.sh`);
 
-  shellExec(`cat ${nfsHostPath}/underpost/maas-enlistment.sh`);
+  shellExec(`cat ${nfsHostPath}/underpost/enlistment.sh`);
 };
 
 try {
