@@ -213,7 +213,11 @@ network:
   ethernets:
     ${process.env.RPI4_INTERFACE_NAME}:
       match:
-        macaddress: "${mac}"
+        macaddress: "${
+          fs.existsSync(`${nfsHostPath}/underpost/mac`)
+            ? fs.readFileSync(`${nfsHostPath}/underpost/mac`, 'utf8').trim()
+            : mac
+        }"
       mtu: 1500
       set-name: ${process.env.RPI4_INTERFACE_NAME}
       dhcp4: false
@@ -2464,12 +2468,6 @@ GATEWAY=192.168.1.1
               newMachine = { discovery, machine: JSON.parse(newMachine) };
               machines.push(newMachine);
               console.log(newMachine);
-
-              shellExec(
-                `node bin/deploy update-virtual-root ${
-                  architecture.match('arm64') ? 'arm64' : 'amd64'
-                } ${nfsHost} '' '' ${commissioningMac}`,
-              );
 
               const discoverInterfaceName = 'eth0';
 
