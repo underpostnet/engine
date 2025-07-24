@@ -694,50 +694,72 @@ EOF`);
     shellExec(`cp ${nfsHostPath}/underpost/90_maas_no_keys.cfg ${nfsHostPath}/etc/cloud/cloud.cfg.d/90_maas.cfg`);
   }
 
+  // First, read the system_id using Node.js's fs module
+  const machineSystemId = fs.readFileSync(`${nfsHostPath}/underpost/system_id`, 'utf8').trim();
+
+  // Now, write the enlistment.sh script, interpolating the machineSystemId
   fs.writeFileSync(
     `${nfsHostPath}/underpost/enlistment.sh`,
     `#!/bin/bash
 set -x
 
 # ------------------------------------------------------------
-# Step: Perform a “phone-home” to MAAS using OAuth1 authentication
+# Step: Commission a machine in MAAS using OAuth1 authentication
 # ------------------------------------------------------------
 
-# Replace these with your actual MAAS OAuth1 credentials:
 CONSUMER_KEY="${consumer_key}"
 CONSUMER_SECRET=${consumer_secret}
 TOKEN_KEY="${token_key}"
 TOKEN_SECRET="${token_secret}"
 
-# The MAAS “phone_home” endpoint URL
-URL="http://${controlServerIp}:5240/MAAS/metadata"
+MACHINE_SYSTEM_ID="${machineSystemId}" # This value is now correctly interpolated from JavaScript
 
-# Informational message to the console
-echo ">>> Starting MAAS phone-home …"
+URL="http://${controlServerIp}:5240/MAAS/api/2.0/machines/$MACHINE_SYSTEM_ID/"
+echo ">>> Starting MAAS machine commissioning for system_id: $MACHINE_SYSTEM_ID …"
 
-# Construct the OAuth1 PLAINTEXT signature
+# Generate dynamic OAuth parameters
+TIMESTAMP=$(date +%s)
+# Generate a random 32-character alphanumeric nonce
+NONCE=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)
+
+# Construct the OAuth1 PLAINTEXT signature.
+# For PLAINTEXT, the signature is simply the consumer secret followed by '&' and the token secret.
+# curl will handle the URL encoding of this value when it's part of the Authorization header.
 OAUTH_SIGNATURE="$CONSUMER_SECRET&$TOKEN_SECRET"
 
-# Generate the OAuth1 Authorization header
-AUTH_HEADER="OAuth realm=\"\",oauth_consumer_key=\"$CONSUMER_KEY\",oauth_token=\"$TOKEN_KEY\",oauth_signature_method=\"PLAINTEXT\",oauth_signature=\"$OAUTH_SIGNATURE\""
+# Generate the OAuth1 Authorization header based on the provided format.
+# Using escaped double quotes for parameter values as per standard OAuth header format.
+AUTH_HEADER="OAuth realm=\\"\\",oauth_consumer_key=\\"$CONSUMER_KEY\\",oauth_token=\\"$TOKEN_KEY\\",oauth_signature_method=\\"PLAINTEXT\\",oauth_timestamp=\\"$TIMESTAMP\\",oauth_nonce=\\"$NONCE\\",oauth_version=\\"1.0\\",oauth_signature=\\"$OAUTH_SIGNATURE\\""
 
-# Now invoke curl with the same headers you saw in the log:
-curl -X POST \
-  --fail --location \
-  --verbose --include --raw \
-  --trace-ascii /dev/stdout \
-  "$URL" \
-  -H "Authorization: $AUTH_HEADER" \
-  -H "User-Agent: Cloud-Init/25.1.2-0ubuntu0~24.04.1" \
-2>&1 | tee /underpost/enlistment.log || echo "ERROR: phone-home returned code $?"
-
+# Now invoke curl to send the POST request for commissioning.
+# -X POST: Specifies the HTTP POST method.
+# -F: Used to send multipart/form-data. Each -F represents a form field.
+# --fail: Fail silently (no output at all) on server errors.
+# --location: Follow HTTP 3xx redirects.
+# --verbose: Makes curl show more information during the operation.
+# --include: Include the HTTP-header in the output.
+# --raw: Disable all internal HTTP processing of the URL and headers.
+# --trace-ascii /dev/stdout: Dumps all incoming and outgoing data to stdout.
+curl -X POST \\
+     --fail --location --verbose --include --raw --trace-ascii /dev/stdout \\
+     "$URL" \\
+     -H "Authorization: $AUTH_HEADER" \\
+     -H "User-Agent: Cloud-Init/25.1.2-0ubuntu0~24.04.1" \\
+     -F "op=commission" \\
+     -F "enable_ssh=1" \\
+     -F "commissioning_scripts=default" \\
+     2>&1 | tee /underpost/enlistment.log || echo "ERROR: MAAS commissioning returned code $?"
 
 # Final marker in the log
-echo ">>> MAAS phone-home complete."
+echo ">>> MAAS machine commissioning complete."
+
+# The rest of your script (which might execute the embedded Python script for further actions) will follow.
+# For example, if you have a 'main' function call or similar at the end of the original script:
+# main # This line would be present if your original script calls a main function
+# exit 0 # Ensure the script exits cleanly on success
 `,
     'utf8',
   );
-
   installUbuntuUnderpostTools({ nfsHostPath, host });
 
   shellExec(`./manifests/maas/nat-iptables.sh`);
@@ -2551,6 +2573,14 @@ GATEWAY=192.168.1.1
                   silent: true,
                 },
               );
+
+              logger.info('system-id', newMachine.machine.boot_interface.system_id);
+              fs.writeFileSync(
+                `${nfsHostPath}/underpost/system_id`,
+                newMachine.machine.boot_interface.system_id,
+                'utf8',
+              );
+
               shellExec(`gnome-terminal -- bash -c "node engine-private/r cloud; exec bash" & disown`, { async: true });
               shellExec(`gnome-terminal -- bash -c "node engine-private/r machine; exec bash" & disown`, {
                 async: true,
