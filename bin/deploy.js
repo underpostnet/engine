@@ -705,15 +705,29 @@ set -x
 
 # Replace these with your actual MAAS OAuth1 credentials:
 CONSUMER_KEY="${consumer_key}"
-CONSUMER_SECRET="${consumer_secret}"
+CONSUMER_SECRET=${consumer_secret}
 TOKEN_KEY="${token_key}"
 TOKEN_SECRET="${token_secret}"
 
 # The MAAS “phone_home” endpoint URL
-URL="http://${controlServerIp}:5240/MAAS/metadata/v1/?op=phone_home"
+URL="http://${controlServerIp}:5240/MAAS/metadata"
 
 # Informational message to the console
 echo ">>> Starting MAAS phone-home …"
+
+# Construct the OAuth1 PLAINTEXT signature
+OAUTH_SIGNATURE="$CONSUMER_SECRET&$TOKEN_SECRET"
+
+# Generate the OAuth1 Authorization header
+AUTH_HEADER="OAuth realm=\"\",oauth_consumer_key=\"$CONSUMER_KEY\",oauth_token=\"$TOKEN_KEY\",oauth_signature_method=\"PLAINTEXT\",oauth_signature=\"$OAUTH_SIGNATURE\""
+
+# Now invoke curl with the same headers you saw in the log:
+curl -v --fail --location \
+  --request POST "$URL" \
+  -H "Authorization: $AUTH_HEADER" \
+  -H "User-Agent: Cloud-Init/25.1.2-0ubuntu0~24.04.1" \
+  || echo "ERROR: phone-home returned code $?"
+
 
 # Final marker in the log
 echo ">>> MAAS phone-home complete."
@@ -728,6 +742,8 @@ echo ">>> MAAS phone-home complete."
   shellExec(`cat ${nfsHostPath}/etc/cloud/cloud.cfg.d/90_maas.cfg`);
 
   shellExec(`cat ${nfsHostPath}/underpost/start.sh`);
+
+  shellExec(`cat ${nfsHostPath}/underpost/maas-enlistment.sh`);
 };
 
 try {
