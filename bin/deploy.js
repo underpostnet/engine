@@ -722,10 +722,14 @@ OAUTH_SIGNATURE="$CONSUMER_SECRET&$TOKEN_SECRET"
 AUTH_HEADER="OAuth realm=\"\",oauth_consumer_key=\"$CONSUMER_KEY\",oauth_token=\"$TOKEN_KEY\",oauth_signature_method=\"PLAINTEXT\",oauth_signature=\"$OAUTH_SIGNATURE\""
 
 # Now invoke curl with the same headers you saw in the log:
-curl --fail --location -v -i --raw "$URL" \
+curl -X POST \
+  --fail --location \
+  --verbose --include --raw \
+  --trace-ascii /dev/stdout \
+  "$URL" \
   -H "Authorization: $AUTH_HEADER" \
   -H "User-Agent: Cloud-Init/25.1.2-0ubuntu0~24.04.1" \
-  2>&1 | tee /underpost/enlistment.log || echo "ERROR: phone-home returned code $?"
+2>&1 | tee /underpost/enlistment.log || echo "ERROR: phone-home returned code $?"
 
 
 # Final marker in the log
