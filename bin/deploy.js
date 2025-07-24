@@ -301,10 +301,10 @@ cloud_config_modules:
   - ntp
 
 
-phone_home:
-  url: "http://${controlServerIp}:5240/MAAS/metadata/v1/?op=phone_home"
-  post: all
-  tries: 3
+# phone_home:
+#   url: "http://${controlServerIp}:5240/MAAS/metadata/v1/?op=phone_home"
+#   post: all
+#   tries: 3
 
 # The modules that run in the 'final' stage
 cloud_final_modules:
@@ -316,7 +316,7 @@ cloud_final_modules:
 #  - scripts-user
   - ssh-authkey-fingerprints
   - keys-to-console
-  - phone-home
+#  - phone-home
   - final-message
   - power-state-change
 
@@ -480,6 +480,8 @@ ${cloudConfigCmdRunFactory(
     `cloud-init modules --mode=config`,
     `sleep 3`,
     `cloud-init modules --mode=final`,
+    `sleep 3`,
+    `/underpost/maas-enlistment.sh`,
   ].map((c) => 'sudo ' + c),
   false,
 )}
@@ -564,6 +566,7 @@ sudo shutdown -h now`,
     `chmod +x /underpost/shutdown.sh`,
     `chmod +x /underpost/device_scan.sh`,
     `chmod +x /underpost/mac.sh`,
+    `chmod +x /underpost/maas-enlistment.sh`,
     chronySetUp(chronyConfPath)[0],
     `sudo chmod 700 ~/.ssh/`,
     `sudo chmod 600 ~/.ssh/authorized_keys`,
@@ -690,6 +693,33 @@ EOF`);
   } else {
     shellExec(`cp ${nfsHostPath}/underpost/90_maas_no_keys.cfg ${nfsHostPath}/etc/cloud/cloud.cfg.d/90_maas.cfg`);
   }
+
+  fs.writeFileSync(
+    `${nfsHostPath}/underpost/maas-enlistment.sh`,
+    `#!/bin/bash
+set -x
+
+# ------------------------------------------------------------
+# Step: Perform a “phone-home” to MAAS using OAuth1 authentication
+# ------------------------------------------------------------
+
+# Replace these with your actual MAAS OAuth1 credentials:
+CONSUMER_KEY="${consumer_key}"
+CONSUMER_SECRET="${consumer_secret}"
+TOKEN_KEY="${token_key}"
+TOKEN_SECRET="${token_secret}"
+
+# The MAAS “phone_home” endpoint URL
+URL="http://${controlServerIp}:5240/MAAS/metadata/v1/?op=phone_home"
+
+# Informational message to the console
+echo ">>> Starting MAAS phone-home …"
+
+# Final marker in the log
+echo ">>> MAAS phone-home complete."
+`,
+    'utf8',
+  );
 
   installUbuntuUnderpostTools({ nfsHostPath, host });
 
