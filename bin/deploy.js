@@ -246,28 +246,49 @@ preserve_hostname: false
 # The modules that run in the 'init' stage
 cloud_init_modules:
   - migrator
+  - seed_random
   - bootcmd
   - write-files
   - growpart
   - resizefs
   - set_hostname
+  - update_hostname
   - update_etc_hosts
+  - ca-certs
   - rsyslog
   - users-groups
   - ssh
 
+# The modules that run in the 'config' stage
 cloud_config_modules:
+# Emit the cloud config ready event
+# this can be used by upstart jobs for 'start on cloud-config'.
+  - emit_upstart
+  - disk_setup
   - mounts
+  - ssh-import-id
   - locale
   - set-passwords
+  - grub-dpkg
+  - apt-pipelining
+  - apt-configure
   - package-update-upgrade-install
+  - landscape
   - timezone
+  - puppet
+  - chef
+  - salt-minion
+  - mcollective
+  - disable-ec2-metadata
   - runcmd
+  - byobu
   - ssh-import-id
   - ntp
 
+# The modules that run in the 'final' stage
 cloud_final_modules:
   - rightscale_userdata
+  - scripts-vendor
   - scripts-per-once
   - scripts-per-boot
   - scripts-per-instance
@@ -276,6 +297,7 @@ cloud_final_modules:
   - keys-to-console
   - phone-home
   - final-message
+  - power-state-change
 
 EOF_MAAS_CFG`,
 ];
@@ -2050,7 +2072,6 @@ EOF`);
       let firmwarePath,
         tftpSubDir,
         kernelFilesPaths,
-        name,
         architecture,
         resource,
         nfsConnectStr,
@@ -2079,9 +2100,7 @@ EOF`);
             shellExec(`cd .. && mkdir ${zipFirmwareName} && cd ${zipFirmwareName} && unzip ../${zipFirmwareFileName}`);
           }
           resource = resources.find((o) => o.architecture === 'arm64/ga-24.04' && o.name === 'ubuntu/noble');
-          name = resource.name;
           architecture = resource.architecture;
-          // resource = resources.find((o) => o.name === name && o.architecture === architecture);
           nfsServerRootPath = `${process.env.NFS_EXPORT_PATH}/rpi4mb`;
           // ,anonuid=1001,anongid=100
           // etcExports = `${nfsServerRootPath} *(rw,all_squash,sync,no_root_squash,insecure)`;
@@ -2380,7 +2399,8 @@ GATEWAY=192.168.1.1
           const machine = {
             architecture: architecture.match('amd') ? 'amd64/generic' : 'arm64/generic',
             mac_address: discovery.mac_address,
-            hostname: discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? `generic-host-${s4()}`,
+            hostname:
+              discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? `generic-host-${s4()}${s4()}`,
             // discovery.ip.match(commissioningDeviceIp)
             //   ? nfsHost
             //   : `unknown-${s4()}`,
