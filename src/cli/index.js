@@ -351,15 +351,9 @@ program
 program
   .command('baremetal')
   .option('--control-server-install', 'Installs the baremetal control server.')
-  .option('--control-server-db-init', 'Sets up the database for the baremetal control server.')
-  .option('--control-server-db-uninstall', 'Uninstalls the database for the baremetal control server.')
-  .option('--control-server-init', 'Initializes the baremetal control server.')
-  .option('--control-server-login', 'Logs in as an administrator to the control server.')
   .option('--control-server-uninstall', 'Uninstalls the baremetal control server.')
-  .option('--control-server-stop', 'Stops the baremetal control server.')
-  .option('--control-server-start', 'Starts the baremetal control server.')
-  .option('--get-users', 'Retrieves a list of users from the control server.')
-  .option('--new-api-key', 'Generates a new API key for the control server.')
+  .option('--control-server-db-install', 'Installs up the database for the baremetal control server.')
+  .option('--control-server-db-uninstall', 'Uninstalls the database for the baremetal control server.')
   .option('--dev', 'Sets the development context environment for baremetal operations.')
   .description('Manages baremetal server operations, including installation, database setup, and user management.')
   .action(UnderpostBaremetal.API.callback);
