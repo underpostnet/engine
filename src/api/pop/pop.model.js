@@ -2,16 +2,12 @@ import { Schema, model, Types } from 'mongoose';
 
 const PhysicalNodeSchema = new Schema(
   {
-    id: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    name: {
+    hostname: {
       type: String,
       required: true,
       trim: true,
       maxlength: 100,
+      unique: true,
     },
     type: {
       type: String,
@@ -32,17 +28,15 @@ const PhysicalNodeSchema = new Schema(
       ],
       required: true,
     },
-    status: {
-      type: String,
-      enum: ['active', 'inactive', 'planned', 'maintenance', 'decommissioned'],
-      default: 'planned',
+    commissionWorkflowId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Workflow',
     },
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
+    operators: [OperatorSchema],
   },
-  { _id: false },
+  {
+    timestamps: true,
+  },
 );
 
 const OperatorSchema = new Schema(
