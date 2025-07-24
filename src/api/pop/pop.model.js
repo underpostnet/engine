@@ -29,8 +29,8 @@ const PhysicalNodeSchema = new Schema(
       required: true,
     },
     commissionWorkflowId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Workflow',
+      type: String,
+      enum: ['hp-envy', 'rpi4mb'],
     },
     operators: [OperatorSchema],
   },
