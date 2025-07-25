@@ -106,15 +106,4 @@ const sslRedirectMiddleware = (req, res, port, proxyRouter) => {
     return res.status(302).redirect(sslRedirectUrl);
 };
 
-const installCertbot = () => {
-  switch (process.platform) {
-    case 'win32':
-      break;
-    case 'linux':
-      break;
-    default:
-      break;
-  }
-};
-
-export { buildSSL, buildSecureContext, validateSecureContext, createSslServer, sslRedirectMiddleware, installCertbot };
+export { buildSSL, buildSecureContext, validateSecureContext, createSslServer, sslRedirectMiddleware };
