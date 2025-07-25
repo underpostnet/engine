@@ -3,6 +3,7 @@ import { pbcopy, shellExec } from '../server/process.js';
 import dotenv from 'dotenv';
 import { loggerFactory } from '../server/logger.js';
 import { getLocalIPv4Address } from '../server/dns.js';
+import fs from 'fs-extra';
 
 const logger = loggerFactory(import.meta);
 
@@ -270,11 +271,11 @@ EOF`);
     systemProvisioningFactory: {
       ubuntu: {
         base: ({ kernelLibVersion }) => [
-          `cat <<EOF | tee /etc/apt/sources.list
+          `cat <<SOURCES | tee /etc/apt/sources.list
 deb http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
 deb http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse
 deb http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse
-EOF`,
+SOURCES`,
 
           `apt update -qq`,
           `apt -y full-upgrade`,
