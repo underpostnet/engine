@@ -251,11 +251,6 @@ const buildRuntime = async () => {
             return next();
           });
 
-          // https://github.com/prometheus/prometheus/blob/main/documentation/examples/prometheus.yml
-          // https://github.com/grafana/grafana/tree/main/conf
-          // https://medium.com/@diego.coder/monitoreo-de-aplicaciones-con-node-js-grafana-y-prometheus-afd2b33e3f91
-          // for grafana prometheus server: host.docker.internal:9090
-
           app.use((req, res, next) => {
             requestCounter.inc({
               instance: `${host}:${port}${path}`,
