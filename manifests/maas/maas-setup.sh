@@ -90,3 +90,31 @@ echo "MAAS setup script completed with new configurations."
 # maas $MAAS_ADMIN_USERNAME maas set-config name=enable_analytics value=false
 # maas $MAAS_ADMIN_USERNAME maas set-config name=enable_third_party_drivers value=false
 # maas $MAAS_ADMIN_USERNAME maas set-config name=curtin_verbose value=true
+
+
+
+echo "Configuring DHCP for fabric-1 (untagged VLAN)..."
+
+# Get the FABRIC_ID for "fabric-1"
+SUBNET_CIDR="192.168.1.0/24"
+SUBNET_ID=$(maas "$MAAS_ADMIN_USERNAME" subnets read | jq -r '.[] | select(.cidr == "'"$SUBNET_CIDR"'") | .id')
+FABRIC_ID=$(maas "$MAAS_ADMIN_USERNAME" fabrics read | jq -r '.[] | select(.name == "fabric-1") | .id')
+RACK_CONTROLLER_ID=$(maas "$MAAS_ADMIN_USERNAME" rack-controllers read | jq -r '.[] | select(.ip_addresses[] == "'"$IP_ADDRESS"'") | .system_id')
+START_IP="192.168.1.191"
+END_IP="192.168.1.254"
+
+if [ -z "$FABRIC_ID" ]; then
+    echo "Error: Could not find FABRIC_ID for 'fabric-1'. Please ensure 'fabric-1' exists in MAAS."
+    exit 1
+fi
+
+# Enable DHCP on the untagged VLAN (VLAN tag 0)
+echo "Enabling DHCP on VLAN 0 for fabric-1 (ID: $FABRIC_ID)..."
+maas "$MAAS_ADMIN_USERNAME" vlan update "$FABRIC_ID" 0 dhcp_on=true primary_rack="$RACK_CONTROLLER_ID"
+
+# Create a Dynamic IP Range for enlistment, commissioning, and deployment
+echo "Creating dynamic IP range from $START_IP to $END_IP..."
+maas "$MAAS_ADMIN_USERNAME" ipranges create type=dynamic start_ip="$START_IP" end_ip="$END_IP"
+
+echo "Setting gateway IP for subnet $SUBNET_CIDR (ID: $SUBNET_ID) to $IP_ADDRESS..."
+maas "$MAAS_ADMIN_USERNAME" subnet update $SUBNET_ID gateway_ip=$IP_ADDRESS
