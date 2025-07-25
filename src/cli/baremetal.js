@@ -27,7 +27,14 @@ class UnderpostBaremetal {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
+      workflowId = workflowId ?? null;
+      hostname = hostname ?? workflowId;
+      ipAddress = ipAddress ?? getLocalIPv4Address();
+
       const dbProviderId = 'postgresql-17';
+
+      logger.info('Baremetal callback', { args: { hostname, ipAddress, workflowId }, options });
+
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${hostname}`;
 
       if (options.nfsSh === true) {
