@@ -27,7 +27,7 @@ class UnderpostBaremetal {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
-      workflowId = workflowId ?? null;
+      workflowId = workflowId ?? 'rpi4mb';
       hostname = hostname ?? workflowId;
       ipAddress = ipAddress ?? getLocalIPv4Address();
 
@@ -172,6 +172,8 @@ EOF`);
           } else {
             if (mount === true) {
               shellExec(`sudo mount --${mountCmd} ${mountPath} ${hostMountPath}`);
+            } else {
+              logger.warn('Nfs path not mounted', mountPath);
             }
           }
         }
