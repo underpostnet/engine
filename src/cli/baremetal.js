@@ -99,26 +99,20 @@ class UnderpostBaremetal {
         shellExec(`sudo chown -R root:root ${nfsHostPath}`);
 
         {
-          let cmd;
-          switch (workflowId) {
-            case 'rpi4mb':
-              cmd = [
-                `sudo debootstrap`,
-                `--arch=arm64`,
-                `--variant=minbase`,
-                `--foreign`, // arm64 on amd64
-                [`noble`, `jammy`][0],
-                nfsHostPath,
-                `http://ports.ubuntu.com/ubuntu-ports/`,
-              ];
-              break;
+          const { architecture, name } = UnderpostBaremetal.API.workflowsConfig[workflowId].debootstrap.image;
 
-            default:
-              break;
-          }
-          shellExec(cmd.join(' '));
+          shellExec(
+            [
+              `sudo debootstrap`,
+              `--arch=${architecture}`,
+              `--variant=minbase`,
+              `--foreign`,
+              name,
+              nfsHostPath,
+              `http://ports.ubuntu.com/ubuntu-ports/`,
+            ].join(' '),
+          );
         }
-
         shellExec(`sudo podman create --name extract multiarch/qemu-user-static`);
         shellExec(`podman ps -a`);
 
@@ -183,7 +177,18 @@ EOF`);
 
     workflowsConfig: {
       rpi4mb: {
-        architecture: 'arm64/ga-24.04',
+        debootstrap: {
+          image: {
+            architecture: 'arm64',
+            name: 'noble',
+          },
+        },
+        maas: {
+          image: {
+            architecture: 'arm64/ga-24.04',
+            name: 'ubuntu/noble',
+          },
+        },
         nfs: {
           mounts: {
             bind: ['/proc', '/sys', '/run'],
