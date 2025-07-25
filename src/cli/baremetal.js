@@ -127,40 +127,23 @@ class UnderpostBaremetal {
         shellExec(`sudo podman create --name extract multiarch/qemu-user-static`);
         shellExec(`podman ps -a`);
 
-        if (architecture !== callbackMetaData.runnerHost.architecture)
-          switch (debootstrapArch) {
-            case 'arm64':
-              shellExec(`sudo podman cp extract:/usr/bin/qemu-aarch64-static ${nfsHostPath}/usr/bin/`);
-              break;
-
-            case 'amd64':
-              shellExec(`sudo podman cp extract:/usr/bin/qemu-x86_64-static ${nfsHostPath}/usr/bin/`);
-              break;
-
-            default:
-              break;
-          }
+        if (debootstrapArch !== callbackMetaData.runnerHost.architecture)
+          UnderpostBaremetal.API.crossArchBinFactory({
+            nfsHostPath,
+            debootstrapArch,
+          });
 
         shellExec(`sudo podman rm extract`);
         shellExec(`podman ps -a`);
         shellExec(`file ${nfsHostPath}/bin/bash`); // expected: current arch executable identifier
 
-        if (architecture !== callbackMetaData.runnerHost.architecture)
-          switch (debootstrapArch) {
-            case 'arm64':
-              shellExec(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash <<'EOF'
-/debootstrap/debootstrap --second-stage
-EOF`);
-              break;
+        UnderpostBaremetal.API.crossArchRunner({
+          nfsHostPath,
+          debootstrapArch,
+          callbackMetaData,
+          steps: [`/debootstrap/debootstrap --second-stage`],
+        });
 
-            default:
-              break;
-          }
-        else {
-          shellExec(`sudo chroot ${nfsHostPath} /bin/bash <<'EOF'
-/debootstrap/debootstrap --second-stage
-EOF`);
-        }
         if (!isMounted) {
           UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
         }
@@ -168,6 +151,63 @@ EOF`);
 
       if (options.commission === true) {
       }
+    },
+
+    crossArchBinFactory({ nfsHostPath, debootstrapArch }) {
+      switch (debootstrapArch) {
+        case 'arm64':
+          shellExec(`sudo podman cp extract:/usr/bin/qemu-aarch64-static ${nfsHostPath}/usr/bin/`);
+          break;
+
+        case 'amd64':
+          shellExec(`sudo podman cp extract:/usr/bin/qemu-x86_64-static ${nfsHostPath}/usr/bin/`);
+          break;
+
+        default:
+          break;
+      }
+    },
+
+    crossArchRunner({ nfsHostPath, debootstrapArch, callbackMetaData, steps: [] }) {
+      steps = UnderpostBaremetal.API.stepsRender(steps, false);
+
+      let qemuCrossArchBash = '';
+      if (debootstrapArch !== callbackMetaData.runnerHost.architecture)
+        switch (debootstrapArch) {
+          case 'arm64':
+            qemuCrossArchBash = '/usr/bin/qemu-aarch64-static ';
+            break;
+
+          case 'amd64':
+            qemuCrossArchBash = '/usr/bin/qemu-x86_64-static ';
+            break;
+
+          default:
+            break;
+        }
+      shellExec(`sudo chroot ${nfsHostPath} ${qemuCrossArchBash}/bin/bash <<'EOF'
+${steps}
+EOF`);
+    },
+
+    stepsRender(steps = [], yaml = true) {
+      return steps
+        .map(
+          (step, i, a) =>
+            (yaml ? '  - ' : '') +
+            'echo "' +
+            (yaml ? '\\' : '') +
+            '$(date) | ' +
+            (i + 1) +
+            '/' +
+            a.length +
+            ' - ' +
+            step.split('\n')[0] +
+            '"' +
+            `\n` +
+            `${yaml ? '  - ' : ''}${step}`,
+        )
+        .join('\n');
     },
 
     nfsMountCallback({ hostname, workflowId, mount, unmount }) {
@@ -207,6 +247,11 @@ EOF`);
 
     workflowsConfig: {
       rpi4mb: {
+        kernelLibVersion: `6.8.0-41-generic`,
+        chronyc: {
+          timezone: 'America/New_York',
+          chronyConfPath: `/etc/chrony/chrony.conf`,
+        },
         debootstrap: {
           image: {
             architecture: 'arm64',
