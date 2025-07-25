@@ -46,7 +46,7 @@ After template installation, the server will be running on <a target="_top" href
 
 Package repo and usage info: <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/README.md">pwa-microservices-template</a>
 
-## underpost ci/cd cli v2.8.818
+## underpost ci/cd cli v2.8.819
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -77,7 +77,7 @@ Commands:
   test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
   monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
   lxd [options]                                              Manages LXD containers and virtual machines.
-  baremetal [options]                                        Manages baremetal server operations, including installation, database setup, and user management.
+  baremetal [options] [workflow-id] [hostname] [ip-address]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
   help [command]                                             display help for command
  
 ```

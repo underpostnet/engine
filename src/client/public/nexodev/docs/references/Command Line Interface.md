@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.818
+## underpost ci/cd cli v2.8.819
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -29,7 +29,7 @@ Commands:
   test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
   monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
   lxd [options]                                              Manages LXD containers and virtual machines.
-  baremetal [options]                                        Manages baremetal server operations, including installation, database setup, and user management.
+  baremetal [options] [workflow-id] [hostname] [ip-address]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
   help [command]                                             display help for command
  
 ```
@@ -592,27 +592,26 @@ Options:
 
 ### `baremetal` :
 ```
- Usage: underpost baremetal [options]
+ Usage: underpost baremetal [options] [workflow-id] [hostname] [ip-address]
 
 Manages baremetal server operations, including installation, database setup,
-and user management.
+commissioning, and user management.
 
 Options:
   --control-server-install       Installs the baremetal control server.
-  --control-server-db-init       Sets up the database for the baremetal control
-                                 server.
+  --control-server-uninstall     Uninstalls the baremetal control server.
+  --control-server-db-install    Installs up the database for the baremetal
+                                 control server.
   --control-server-db-uninstall  Uninstalls the database for the baremetal
                                  control server.
-  --control-server-init          Initializes the baremetal control server.
-  --control-server-login         Logs in as an administrator to the control
-                                 server.
-  --control-server-uninstall     Uninstalls the baremetal control server.
-  --control-server-stop          Stops the baremetal control server.
-  --control-server-start         Starts the baremetal control server.
-  --get-users                    Retrieves a list of users from the control
-                                 server.
-  --new-api-key                  Generates a new API key for the control
-                                 server.
+  --commission                   Init workflow for commissioning a physical
+                                 machine.
+  --nfs-build                    Builds an NFS root filesystem for a workflow
+                                 id config architecture using QEMU emulation.
+  --nfs-unmount                  Unmounts the NFS root filesystem for a
+                                 workflow id config architecture.
+  --nfs-sh                       Copies QEMU emulation root entrypoint shell
+                                 command to the clipboard.
   --dev                          Sets the development context environment for
                                  baremetal operations.
   -h, --help                     display help for command
