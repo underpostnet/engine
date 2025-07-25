@@ -1,5 +1,5 @@
 import { getNpmRootPath, getUnderpostRootPath } from '../server/conf.js';
-import { shellExec } from '../server/process.js';
+import { pbcopy, shellExec } from '../server/process.js';
 import dotenv from 'dotenv';
 import { loggerFactory } from '../server/logger.js';
 import { getLocalIPv4Address } from '../server/dns.js';
@@ -21,6 +21,7 @@ class UnderpostBaremetal {
         commission: false,
         nfsBuild: false,
         nfsUnmount: false,
+        nfsSh: false,
       },
     ) {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
@@ -28,6 +29,11 @@ class UnderpostBaremetal {
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       const dbProviderId = 'postgresql-17';
       const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${hostname}`;
+
+      if (options.nfsSh === true) {
+        pbcopy(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash`);
+        return;
+      }
 
       if (options.controlServerInstall === true) {
         shellExec(`chmod +x ${underpostRoot}/manifests/maas/maas-setup.sh`);
@@ -172,7 +178,7 @@ EOF`);
         nfs: {
           mounts: {
             bind: ['/proc', '/sys', '/run'],
-            rbind: ['/dev', '/dev/pts'],
+            rbind: ['/dev'],
           },
         },
       },
