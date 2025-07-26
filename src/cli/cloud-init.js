@@ -188,6 +188,211 @@ cut -d: -f1 /etc/passwd`,
           throw new Error('Invalid system provisioning: ' + systemProvisioning);
       }
     },
+    configFactory(
+      {
+        controlServerIp,
+        hostname,
+        nfsHostPath,
+        commissioningDeviceIp,
+        gatewayip,
+        auth,
+        mac,
+        timezone,
+        chronyConfPath,
+        networkInterfaceName,
+      },
+      { consumer_key, consumer_secret, token_key, token_secret },
+      path = '/etc/cloud/cloud.cfg.d/90_maas.cfg',
+    ) {
+      // Configure cloud-init for MAAS
+      return `cat <<EOF_MAAS_CFG > ${path}
+#cloud-config
+
+hostname: ${hostname}
+fqdn: ${hostname}.maas
+# prefer_fqdn_over_hostname: true
+# metadata_url: http://${controlServerIp}:5240/MAAS/metadata
+# metadata_url: http://${controlServerIp}:5248/MAAS/metadata
+
+# Check:
+# /MAAS/metadata/latest/enlist-preseed/?op=get_enlist_preseed
+
+# Debug:
+# https://maas.io/docs/how-to-use-logging
+
+datasource_list: [ MAAS ]
+datasource:
+  MAAS:
+    metadata_url: http://${controlServerIp}:5240/MAAS/metadata/
+    ${
+      !auth
+        ? ''
+        : `consumer_key: ${consumer_key}
+    consumer_secret: ${consumer_secret}
+    token_key: ${token_key}
+    token_secret: ${token_secret}`
+    }
+
+
+users:
+- name: ${process.env.MAAS_ADMIN_USERNAME}
+  sudo: ['ALL=(ALL) NOPASSWD:ALL']
+  shell: /bin/bash
+  lock_passwd: false
+  groups: sudo,users,admin,wheel,lxd
+  plain_text_passwd: '${process.env.MAAS_ADMIN_USERNAME}'
+  ssh_authorized_keys:
+    - ${fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')}
+
+# manage_resolv_conf: true
+# resolv_conf:
+#   nameservers: [8.8.8.8]
+
+# keyboard:
+#   layout: es
+
+# check timedatectl on hostname
+# timezone: America/Santiago
+timezone: ${timezone}
+
+ntp:
+  enabled: true
+  servers:
+    - ${process.env.MAAS_NTP_SERVER}
+  ntp_client: chrony
+  config:
+    confpath: ${chronyConfPath}
+
+# ssh:
+#   allow-pw: false
+#   install-server: true
+
+# ssh_pwauth: false
+
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - htop
+  - snapd
+  - chrony
+resize_rootfs: false
+growpart:
+  mode: "off"
+network:
+  version: 2
+  ethernets:
+    ${networkInterfaceName}:
+      match:
+        macaddress: "${
+          fs.existsSync(`${nfsHostPath}/underpost/mac`)
+            ? fs.readFileSync(`${nfsHostPath}/underpost/mac`, 'utf8').trim()
+            : mac
+        }"
+      mtu: 1500
+      set-name: ${networkInterfaceName}
+      dhcp4: false
+      addresses:
+        - ${commissioningDeviceIp}/24
+      routes:
+        - to: default
+          via: ${gatewayip}
+#      gateway4: ${gatewayip}
+      nameservers:
+        addresses:
+          - ${process.env.MAAS_DNS}
+
+final_message: "====== Cloud init finished ======"
+
+# power_state:
+#   mode: reboot
+#   message: Rebooting after initial setup
+#   timeout: 30
+#   condition: True
+
+bootcmd:
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+  - echo "Init bootcmd"
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+${UnderpostBaremetal.API.stepsRender(
+  [`/underpost/dns.sh`, `/underpost/host.sh`, `/underpost/mac.sh`, `cat /underpost/mac`],
+  true,
+)}
+runcmd:
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+  - echo "Init runcmd"
+  - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
+
+# If this is set, 'root' will not be able to ssh in and they
+# will get a message to login instead as the default $user
+disable_root: true
+
+# This will cause the set+update hostname module to not operate (if true)
+preserve_hostname: false
+
+# The modules that run in the 'init' stage
+cloud_init_modules:
+  - migrator
+  - seed_random
+  - bootcmd
+  - write-files
+  - growpart
+  - resizefs
+  - set_hostname
+  - update_hostname
+  - update_etc_hosts
+  - ca-certs
+  - rsyslog
+  - users-groups
+  - ssh
+
+# The modules that run in the 'config' stage
+cloud_config_modules:
+# Emit the cloud config ready event
+# this can be used by upstart jobs for 'start on cloud-config'.
+  - emit_upstart
+  - disk_setup
+  - mounts
+  - ssh-import-id
+  - locale
+  - set-passwords
+  - grub-dpkg
+  - apt-pipelining
+  - apt-configure
+  - package-update-upgrade-install
+  - landscape
+  - timezone
+  - puppet
+  - chef
+  - salt-minion
+  - mcollective
+  - disable-ec2-metadata
+  - runcmd
+  - byobu
+  - ssh-import-id
+  - ntp
+
+
+# phone_home:
+#   url: "http://${controlServerIp}:5240/MAAS/metadata/v1/?op=phone_home"
+#   post: all
+#   tries: 3
+
+# The modules that run in the 'final' stage
+cloud_final_modules:
+  - rightscale_userdata
+  - scripts-vendor
+  - scripts-per-once
+  - scripts-per-boot
+#  - scripts-per-instance
+#  - scripts-user
+  - ssh-authkey-fingerprints
+  - keys-to-console
+#  - phone-home
+  - final-message
+  - power-state-change
+EOF_MAAS_CFG`;
+    },
   };
 }
 
