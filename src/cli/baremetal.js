@@ -312,6 +312,10 @@ class UnderpostBaremetal {
             }
           }
         }
+
+        UnderpostBaremetal.API.rebuildNfsServer({
+          nfsHostPath,
+        });
       }
     },
 
@@ -615,6 +619,58 @@ logdir /var/log/chrony
           `sudo systemctl restart keyboard-setup.service`, // Restart keyboard setup service.
         ],
       },
+    },
+
+    rebuildNfsServer({ nfsHostPath, subnet }) {
+      if (!subnet) subnet = '192.168.1.0/24';
+      fs.writeFileSync(
+        `/etc/exports`,
+        `${nfsHostPath} ${subnet}(${[
+          'rw',
+          // 'all_squash',
+          'sync',
+          'no_root_squash',
+          'no_subtree_check',
+          'insecure',
+        ]})`,
+        'utf8',
+      );
+
+      logger.info('Writing NFS server configuration to /etc/nfs.conf...');
+      fs.writeFileSync(
+        `/etc/nfs.conf`,
+        `[mountd]
+port = 20048
+
+[statd]
+port = 32765
+outgoing-port = 32765
+
+[nfsd]
+# Enable RDMA support if desired and hardware supports it.
+rdma=y
+rdma-port=20049
+
+[lockd]
+port = 32766
+udp-port = 32766
+`,
+        'utf8',
+      );
+      logger.info('NFS configuration written.');
+
+      logger.info('Reloading NFS exports...');
+      shellExec(`sudo exportfs -rav`);
+
+      // Display the currently active NFS exports for verification.
+      logger.info('Displaying active NFS exports:');
+      shellExec(`sudo exportfs -s`);
+
+      // Restart the nfs-server service to apply all configuration changes,
+      // including port settings from /etc/nfs.conf and export changes.
+      logger.info('Restarting nfs-server service...');
+      shellExec(`sudo systemctl restart nfs-server`);
+      logger.info('NFS server restarted.');
     },
 
     bootConfFactory({ workflowId, tftpIp, tftpPrefixStr, macAddress, clientIp, subnet, gateway }) {
