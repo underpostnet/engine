@@ -5,6 +5,7 @@
  */
 
 import UnderpostBaremetal from './cli/baremetal.js';
+import UnderpostCloudInit from './cli/cloud-init.js';
 import UnderpostCluster from './cli/cluster.js';
 import UnderpostCron from './cli/cron.js';
 import UnderpostDB from './cli/db.js';
@@ -36,105 +37,114 @@ class Underpost {
   /**
    * Repository cli API
    * @static
-   * @type {UnderpostRepository.API}
+   * @type {UnderpostRepository}
    * @memberof Underpost
    */
   static repo = UnderpostRepository.API;
   /**
    * Root Env cli API
    * @static
-   * @type {UnderpostRootEnv.API}
+   * @type {UnderpostRootEnv}
    * @memberof Underpost
    */
   static env = UnderpostRootEnv.API;
   /**
    * Test cli API
    * @static
-   * @type {UnderpostTest.API}
+   * @type {UnderpostTest}
    * @memberof Underpost
    */
   static test = UnderpostTest.API;
   /**
    * Underpost Start Up cli API
    * @static
-   * @type {UnderpostStartUp.API}
+   * @type {UnderpostStartUp}
    * @memberof Underpost
    */
   static start = UnderpostStartUp.API;
   /**
    * Cluster cli API
    * @static
-   * @type {UnderpostCluster.API}
+   * @type {UnderpostCluster}
    * @memberof Underpost
    */
   static cluster = UnderpostCluster.API;
   /**
    * Image cli API
    * @static
-   * @type {UnderpostImage.API}
+   * @type {UnderpostImage}
    * @memberof Underpost
    */
   static image = UnderpostImage.API;
   /**
    * Secrets cli API
    * @static
-   * @type {UnderpostSecret.API}
+   * @type {UnderpostSecret}
    * @memberof Underpost
    */
   static secret = UnderpostSecret.API;
   /**
    * Scripts cli API
    * @static
-   * @type {UnderpostScript.API}
+   * @type {UnderpostScript}
    * @memberof Underpost
    */
   static script = UnderpostScript.API;
   /**
    * Database cli API
    * @static
-   * @type {UnderpostDB.API}
+   * @type {UnderpostDB}
    * @memberof Underpost
    */
   static db = UnderpostDB.API;
   /**
    * Deployment cli API
    * @static
-   * @type {UnderpostDeploy.API}
+   * @type {UnderpostDeploy}
    * @memberof Underpost
    */
   static deploy = UnderpostDeploy.API;
   /**
    * Cron cli API
    * @static
-   * @type {UnderpostCron.API}
+   * @type {UnderpostCron}
    * @memberof Underpost
    */
   static cron = UnderpostCron.API;
   /**
    * File Storage cli API
    * @static
-   * @type {UnderpostFileStorage.API}
+   * @type {UnderpostFileStorage}
    * @memberof Underpost
    */
   static fs = UnderpostFileStorage.API;
   /**
    * Monitor cli API
    * @static
-   * @type {UnderpostMonitor.API}
+   * @type {UnderpostMonitor}
    * @memberof Underpost
    */
   static monitor = UnderpostMonitor.API;
   /**
    * LXD cli API
    * @static
-   * @type {UnderpostLxd.API}
+   * @type {UnderpostLxd}
    * @memberof Underpost
    */
   static lxd = UnderpostLxd.API;
+
+  /**
+   * Cloud Init cli API
+   * @static
+   * @type {UnderpostCloudInit}
+   * @memberof Underpost
+   */
+  static cloudInit = UnderpostCloudInit.API;
+
   /**
    * Baremetal cli API
    * @static
-   * @type {UnderpostBaremetal.API}
+   * @type {UnderpostBaremetal}
    * @memberof Underpost
    */
   static baremetal = UnderpostBaremetal.API;
