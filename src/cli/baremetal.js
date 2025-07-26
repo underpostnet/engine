@@ -33,6 +33,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.controlServerDbUninstall=false] - Flag to uninstall the control server's database.
      * @param {boolean} [options.commission=false] - Flag to commission the baremetal machine.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
+     * @param {boolean} [options.nfsMount=false] - Flag to mount the NFS root filesystem.
      * @param {boolean} [options.nfsUnmount=false] - Flag to unmount the NFS root filesystem.
      * @param {boolean} [options.nfsSh=false] - Flag to chroot into the NFS environment for shell access.
      * @returns {void}
@@ -49,6 +50,7 @@ class UnderpostBaremetal {
         controlServerDbUninstall: false,
         commission: false,
         nfsBuild: false,
+        nfsMount: false,
         nfsUnmount: false,
         nfsSh: false,
       },
@@ -127,6 +129,10 @@ class UnderpostBaremetal {
       // Handle control server database uninstallation.
       if (options.controlServerDbUninstall === true) {
         shellExec(`node ${underpostRoot}/bin/deploy ${dbProviderId} uninstall`);
+      }
+
+      if (options.nfsMount === true) {
+        UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
       }
 
       // Handle NFS unmount operation.
