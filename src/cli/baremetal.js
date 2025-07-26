@@ -131,6 +131,7 @@ class UnderpostBaremetal {
         shellExec(`node ${underpostRoot}/bin/deploy ${dbProviderId} uninstall`);
       }
 
+      // Handle NFS mount operation.
       if (options.nfsMount === true) {
         UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
       }
