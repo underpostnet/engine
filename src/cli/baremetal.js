@@ -71,18 +71,23 @@ class UnderpostBaremetal {
       // Define the database provider ID.
       const dbProviderId = 'postgresql-17';
 
+      // Define the NFS host path based on the environment variable and hostname.
+      const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${hostname}`;
+
+      // Define the TFTP root path based on the environment variable and hostname.
+      const tftpRootPath = `${process.env.TFTP_ROOT}/${hostname}`;
+
       // Capture metadata for the callback execution, useful for logging and auditing.
       const callbackMetaData = {
         args: { hostname, ipAddress, workflowId },
         options,
         runnerHost: { architecture: UnderpostBaremetal.API.getHostArch() },
+        nfsHostPath,
+        tftpRootPath,
       };
 
       // Log the initiation of the baremetal callback with relevant metadata.
       logger.info('Baremetal callback', callbackMetaData);
-
-      // Define the NFS host path based on the environment variable and hostname.
-      const nfsHostPath = `${process.env.NFS_EXPORT_PATH}/${hostname}`;
 
       // Handle NFS shell access option.
       if (options.nfsSh === true) {
@@ -165,6 +170,7 @@ class UnderpostBaremetal {
         shellExec(`sudo rm -rf ${nfsHostPath}/*`);
         shellExec(`mkdir -p ${nfsHostPath}`);
         shellExec(`sudo chown -R root:root ${nfsHostPath}`);
+        shellExec(`sudo chmod 755 ${nfsHostPath}`);
 
         let debootstrapArch;
 
@@ -272,6 +278,9 @@ class UnderpostBaremetal {
 
       // Handle commissioning tasks (placeholder for future implementation).
       if (options.commission === true) {
+        shellExec(`sudo rm -rf ${tftpRootPath}`);
+        shellExec(`mkdir -p ${tftpRootPath}/pxe`);
+
         for (const firmware of UnderpostBaremetal.API.workflowsConfig[workflowId].firmwares) {
           const { url } = firmware;
           if (url.match('.zip')) {
@@ -281,6 +290,7 @@ class UnderpostBaremetal {
               await Downloader(url, `../${name}.zip`);
               shellExec(`cd .. && mkdir ${name} && cd ${name} && unzip ../${name}.zip`);
             }
+            shellExec(`sudo cp -a ${path}/* ${tftpRootPath}`);
           }
         }
       }
