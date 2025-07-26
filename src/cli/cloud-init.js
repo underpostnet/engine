@@ -192,7 +192,6 @@ cut -d: -f1 /etc/passwd`,
       {
         controlServerIp,
         hostname,
-        nfsHostPath,
         commissioningDeviceIp,
         gatewayip,
         auth,
@@ -285,11 +284,7 @@ network:
   ethernets:
     ${networkInterfaceName}:
       match:
-        macaddress: "${
-          fs.existsSync(`${nfsHostPath}/underpost/mac`)
-            ? fs.readFileSync(`${nfsHostPath}/underpost/mac`, 'utf8').trim()
-            : mac
-        }"
+        macaddress: "${mac}"
       mtu: 1500
       set-name: ${networkInterfaceName}
       dhcp4: false

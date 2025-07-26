@@ -6,7 +6,7 @@ import { getLocalIPv4Address } from '../server/dns.js';
 import fs from 'fs-extra';
 import { Downloader } from '../server/downloader.js';
 import UnderpostCloudInit from './cloud-init.js';
-import { timer } from '../client/components/core/CommonJs.js';
+import { s4, timer } from '../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -56,6 +56,7 @@ class UnderpostBaremetal {
         nfsMount: false,
         nfsUnmount: false,
         nfsSh: false,
+        logs: '',
       },
     ) {
       // Load environment variables from .env file, overriding existing ones if present.
@@ -93,6 +94,26 @@ class UnderpostBaremetal {
 
       // Log the initiation of the baremetal callback with relevant metadata.
       logger.info('Baremetal callback', callbackMetaData);
+
+      if (options.logs === 'dhcp') {
+        shellExec(`journalctl -f -t dhcpd -u snap.maas.pebble.service`);
+        return;
+      }
+
+      if (options.logs === 'cloud') {
+        shellExec(`tail -f -n 900 ${nfsHostPath}/var/log/cloud-init.log`);
+        return;
+      }
+
+      if (options.logs === 'machine') {
+        shellExec(`tail -f -n 900 ${nfsHostPath}/var/log/cloud-init-output.log`);
+        return;
+      }
+
+      if (options.logs === 'cloud-config') {
+        shellExec(`cat ${nfsHostPath}/etc/cloud/cloud.cfg.d/90_maas.cfg`);
+        return;
+      }
 
       // Handle NFS shell access option.
       if (options.nfsSh === true) {
@@ -457,7 +478,6 @@ menuentry '${menuentryStr}' {
             UnderpostCloudInit.API.configFactory({
               controlServerIp: callbackMetaData.runnerHost.ip,
               hostname,
-              nfsHostPath,
               commissioningDeviceIp: ipAddress,
               gatewayip: callbackMetaData.runnerHost.ip,
               mac: macAddress,
@@ -471,6 +491,148 @@ menuentry '${menuentryStr}' {
         logger.info('Waiting for MAC assignment...');
         fs.removeSync(`${nfsHostPath}/underpost/mac`);
         macAddress = await UnderpostBaremetal.API.macMonitor({ nfsHostPath });
+
+        UnderpostBaremetal.API.crossArchRunner({
+          nfsHostPath,
+          debootstrapArch: debootstrap.image.architecture,
+          callbackMetaData,
+          steps: [
+            UnderpostCloudInit.API.configFactory({
+              controlServerIp: callbackMetaData.runnerHost.ip,
+              hostname,
+              commissioningDeviceIp: ipAddress,
+              gatewayip: callbackMetaData.runnerHost.ip,
+              mac: macAddress,
+              timezone,
+              chronyConfPath,
+              networkInterfaceName,
+            }),
+          ],
+        });
+
+        const monitor = async () => {
+          // discoveries         Query observed discoveries.
+          // discovery           Read or delete an observed discovery.
+
+          const discoveries = JSON.parse(
+            shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries read`, {
+              silent: true,
+              stdout: true,
+            }),
+          );
+
+          //   {
+          //     "discovery_id": "",
+          //     "ip": "192.168.1.189",
+          //     "mac_address": "00:00:00:00:00:00",
+          //     "last_seen": "2025-05-05T14:17:37.354",
+          //     "hostname": null,
+          //     "fabric_name": "",
+          //     "vid": null,
+          //     "mac_organization": "",
+          //     "observer": {
+          //         "system_id": "",
+          //         "hostname": "",
+          //         "interface_id": 1,
+          //         "interface_name": ""
+          //     },
+          //     "resource_uri": "/MAAS/api/2.0/discovery/MTkyLjE2OC4xLjE4OSwwMDowMDowMDowMDowMDowMA==/"
+          // },
+
+          console.log(discoveries.map((d) => d.ip).join(' | '));
+
+          for (const discovery of discoveries) {
+            const machine = {
+              architecture: architecture.match('amd') ? 'amd64/generic' : 'arm64/generic',
+              mac_address: discovery.mac_address,
+              hostname:
+                discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? `generic-host-${s4()}${s4()}`,
+              power_type: 'manual',
+              mac_addresses: discovery.mac_address,
+              ip: discovery.ip,
+            };
+            machine.hostname = machine.hostname.replaceAll(' ', '').replaceAll('.', '');
+
+            if (machine.mac_addresses === macAddress)
+              try {
+                machine.hostname = hostname;
+                machine.mac_address = macAddress;
+                let newMachine = shellExec(
+                  `maas ${process.env.MAAS_ADMIN_USERNAME} machines create ${Object.keys(machine)
+                    .map((k) => `${k}="${machine[k]}"`)
+                    .join(' ')}`,
+                  {
+                    silent: true,
+                    stdout: true,
+                  },
+                );
+                newMachine = { discovery, machine: JSON.parse(newMachine) };
+                machines.push(newMachine);
+                console.log(newMachine);
+
+                const discoverInterfaceName = 'eth0';
+
+                const interfaceData = JSON.parse(
+                  shellExec(
+                    `maas ${process.env.MAAS_ADMIN_USERNAME} interface read ${newMachine.machine.boot_interface.system_id} ${discoverInterfaceName}`,
+                    {
+                      silent: true,
+                      stdout: true,
+                    },
+                  ),
+                );
+
+                logger.info('Interface', interfaceData);
+
+                shellExec(
+                  `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-broken ${newMachine.machine.boot_interface.system_id}`,
+                );
+
+                shellExec(
+                  `maas ${process.env.MAAS_ADMIN_USERNAME} interface update ${newMachine.machine.boot_interface.system_id} ${interfaceData.id} name=${networkInterfaceName}`,
+                );
+
+                shellExec(
+                  `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-fixed ${newMachine.machine.boot_interface.system_id}`,
+                );
+
+                // commissioning_scripts=90-verify-user.sh
+                // shellExec(
+                //   `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission --debug --insecure ${newMachine.machine.boot_interface.system_id} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
+                //   {
+                //     silent: true,
+                //   },
+                // );
+
+                logger.info('system-id', newMachine.machine.boot_interface.system_id);
+                fs.writeFileSync(
+                  `${nfsHostPath}/underpost/system_id`,
+                  newMachine.machine.boot_interface.system_id,
+                  'utf8',
+                );
+
+                shellExec(
+                  `gnome-terminal -- bash -c "node ${underpostRoot}/bin baremetal --logs cloud; exec bash" & disown`,
+                  {
+                    async: true,
+                  },
+                );
+                shellExec(
+                  `gnome-terminal -- bash -c "node ${underpostRoot}/bin baremetal --logs machine; exec bash" & disown`,
+                  {
+                    async: true,
+                  },
+                );
+              } catch (error) {
+                logger.error(error, error.stack);
+              } finally {
+                process.exit(0);
+              }
+          }
+          await timer(1000);
+          monitor();
+        };
+        monitor();
       }
     },
 
