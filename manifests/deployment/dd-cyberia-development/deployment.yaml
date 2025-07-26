@@ -23,7 +23,7 @@ spec:
 #              memory: "127539Ki"
 #              cpu: "100m"
 #            limits:
-#              memory: "2040628Ki"
+#              memory: "2040627Ki"
 #              cpu: "1600m"
           command:
             - /bin/sh
@@ -146,7 +146,7 @@ spec:
 #              memory: "127539Ki"
 #              cpu: "100m"
 #            limits:
-#              memory: "2040628Ki"
+#              memory: "2040627Ki"
 #              cpu: "1600m"
           command:
             - /bin/sh

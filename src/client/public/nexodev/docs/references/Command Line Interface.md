@@ -608,12 +608,15 @@ Options:
                                  machine.
   --nfs-build                    Builds an NFS root filesystem for a workflow
                                  id config architecture using QEMU emulation.
+  --nfs-mount                    Mounts the NFS root filesystem for a workflow
+                                 id config architecture.
   --nfs-unmount                  Unmounts the NFS root filesystem for a
                                  workflow id config architecture.
   --nfs-sh                       Copies QEMU emulation root entrypoint shell
                                  command to the clipboard.
   --dev                          Sets the development context environment for
                                  baremetal operations.
+  --ls                           Lists available boot resources and machines.
   -h, --help                     display help for command
  
 ```
