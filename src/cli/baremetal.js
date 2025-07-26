@@ -66,7 +66,10 @@ class UnderpostBaremetal {
       // Set default values if not provided.
       workflowId = workflowId ?? 'rpi4mb';
       hostname = hostname ?? workflowId;
-      ipAddress = ipAddress ?? getLocalIPv4Address();
+      ipAddress = ipAddress ?? '192.168.1.192';
+
+      // Set default MAC address
+      let macAddress = '00:00:00:00:00:00';
 
       // Define the database provider ID.
       const dbProviderId = 'postgresql-17';
@@ -81,7 +84,7 @@ class UnderpostBaremetal {
       const callbackMetaData = {
         args: { hostname, ipAddress, workflowId },
         options,
-        runnerHost: { architecture: UnderpostBaremetal.API.getHostArch() },
+        runnerHost: { architecture: UnderpostBaremetal.API.getHostArch(), ip: getLocalIPv4Address() },
         nfsHostPath,
         tftpRootPath,
       };
@@ -282,7 +285,7 @@ class UnderpostBaremetal {
         shellExec(`mkdir -p ${tftpRootPath}/pxe`);
 
         for (const firmware of UnderpostBaremetal.API.workflowsConfig[workflowId].firmwares) {
-          const { url } = firmware;
+          const { url, gateway, subnet } = firmware;
           if (url.match('.zip')) {
             const name = url.split('/').pop().replace('.zip', '');
             const path = `../${name}`;
@@ -291,6 +294,22 @@ class UnderpostBaremetal {
               shellExec(`cd .. && mkdir ${name} && cd ${name} && unzip ../${name}.zip`);
             }
             shellExec(`sudo cp -a ${path}/* ${tftpRootPath}`);
+
+            if (gateway && subnet) {
+              fs.writeFileSync(
+                `${tftpRootPath}/boot_${name}.conf`,
+                UnderpostBaremetal.API.bootConfFactory({
+                  workflowId,
+                  tftpIp: callbackMetaData.runnerHost.ip,
+                  tftpPrefixStr: hostname,
+                  macAddress,
+                  clientIp: ipAddress,
+                  subnet,
+                  gateway,
+                }),
+                'utf8',
+              );
+            }
           }
         }
       }
@@ -598,6 +617,59 @@ logdir /var/log/chrony
       },
     },
 
+    bootConfFactory({ workflowId, tftpIp, tftpPrefixStr, macAddress, clientIp, subnet, gateway }) {
+      switch (workflowId) {
+        case 'rpi4mb':
+          return `[all]
+BOOT_UART=0
+WAKE_ON_GPIO=1
+POWER_OFF_ON_HALT=0
+ENABLE_SELF_UPDATE=1
+DISABLE_HDMI=0
+NET_INSTALL_ENABLED=1
+DHCP_TIMEOUT=45000
+DHCP_REQ_TIMEOUT=4000
+TFTP_FILE_TIMEOUT=30000
+BOOT_ORDER=0x21
+
+# ─────────────────────────────────────────────────────────────
+# TFTP configuration
+# ─────────────────────────────────────────────────────────────
+
+# Custom TFTP prefix string (e.g., based on MAC address, no colons)
+#TFTP_PREFIX_STR=AA-BB-CC-DD-EE-FF/
+
+# Optional PXE Option43 override (leave commented if unused)
+#PXE_OPTION43="Raspberry Pi Boot"
+
+# DHCP client GUID (Option 97); 0x34695052 is the FourCC for Raspberry Pi 4
+#DHCP_OPTION97=0x34695052
+
+TFTP_IP=${tftpIp}
+TFTP_PREFIX=1
+TFTP_PREFIX_STR=${tftpPrefixStr}/
+
+# ─────────────────────────────────────────────────────────────
+# Manually override Ethernet MAC address
+# ─────────────────────────────────────────────────────────────
+
+MAC_ADDRESS=${macAddress}
+
+# OTP MAC address override
+#MAC_ADDRESS_OTP=0,1
+
+# ─────────────────────────────────────────────────────────────
+# Static IP configuration (bypasses DHCP completely)
+# ─────────────────────────────────────────────────────────────
+CLIENT_IP=${clientIp}
+SUBNET=${subnet}
+GATEWAY=${gateway}`;
+
+        default:
+          throw new Error('Boot conf factory invalid workflow ID:' + workflowId);
+      }
+    },
+
     /**
      * @property {object} workflowsConfig
      * @description Configuration for different baremetal provisioning workflows.
@@ -615,6 +687,8 @@ logdir /var/log/chrony
         firmwares: [
           {
             url: 'https://github.com/pftf/RPi4/releases/download/v1.41/RPi4_UEFI_Firmware_v1.41.zip',
+            gateway: '192.168.1.1',
+            subnet: '255.255.255.0',
           },
         ],
         chronyc: {
