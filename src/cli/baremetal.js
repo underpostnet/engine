@@ -5,6 +5,7 @@ import { loggerFactory } from '../server/logger.js';
 import { getLocalIPv4Address } from '../server/dns.js';
 import fs from 'fs-extra';
 import { Downloader } from '../server/downloader.js';
+import UnderpostCloudInit from './cloud-init.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -428,6 +429,16 @@ menuentry '${menuentryStr}' {
 
         shellExec(`sudo chown -R root:root ${process.env.TFTP_ROOT}`);
         shellExec(`sudo sudo chmod 755 ${process.env.TFTP_ROOT}`);
+      }
+
+      if (options.commission === true || options.cloudInitUpdate === true) {
+        UnderpostCloudInit.API.buildTools({
+          workflowId,
+          nfsHostPath,
+          hostname,
+          callbackMetaData,
+          dev: options.dev,
+        });
       }
     },
 
