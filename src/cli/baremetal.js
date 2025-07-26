@@ -443,16 +443,30 @@ menuentry '${menuentryStr}' {
       }
 
       if (options.commission === true) {
-        const { debootstrap } = UnderpostBaremetal.API.workflowsConfig[workflowId];
+        const { debootstrap, networkInterfaceName, chronyc } = UnderpostBaremetal.API.workflowsConfig[workflowId];
+        const { timezone, chronyConfPath } = chronyc;
+
+        machines = UnderpostBaremetal.API.removeMachines({ machines });
 
         UnderpostBaremetal.API.crossArchRunner({
           nfsHostPath,
           debootstrapArch: debootstrap.image.architecture,
           callbackMetaData,
-          steps: [`/underpost/reset.sh`],
+          steps: [
+            `/underpost/reset.sh`,
+            UnderpostCloudInit.API.configFactory({
+              controlServerIp: callbackMetaData.runnerHost.ip,
+              hostname,
+              nfsHostPath,
+              commissioningDeviceIp: ipAddress,
+              gatewayip: callbackMetaData.runnerHost.ip,
+              mac: macAddress,
+              timezone,
+              chronyConfPath,
+              networkInterfaceName,
+            }),
+          ],
         });
-
-        machines = UnderpostBaremetal.API.removeMachines({ machines });
 
         logger.info('Waiting for MAC assignment...');
         fs.removeSync(`${nfsHostPath}/underpost/mac`);

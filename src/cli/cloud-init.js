@@ -201,9 +201,10 @@ cut -d: -f1 /etc/passwd`,
         chronyConfPath,
         networkInterfaceName,
       },
-      { consumer_key, consumer_secret, token_key, token_secret },
+      authCredentials = { consumer_key: '', consumer_secret: '', token_key: '', token_secret: '' },
       path = '/etc/cloud/cloud.cfg.d/90_maas.cfg',
     ) {
+      const { consumer_key, consumer_secret, token_key, token_secret } = authCredentials;
       // Configure cloud-init for MAAS
       return `cat <<EOF_MAAS_CFG > ${path}
 #cloud-config
@@ -236,7 +237,7 @@ datasource:
 
 users:
 - name: ${process.env.MAAS_ADMIN_USERNAME}
-  sudo: ['ALL=(ALL) NOPASSWD:ALL']
+  sudo: ["ALL=(ALL) NOPASSWD:ALL"]
   shell: /bin/bash
   lock_passwd: false
   groups: sudo,users,admin,wheel,lxd
