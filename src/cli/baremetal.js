@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { loggerFactory } from '../server/logger.js';
 import { getLocalIPv4Address } from '../server/dns.js';
 import fs from 'fs-extra';
+import { Downloader } from '../server/downloader.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -271,9 +272,17 @@ class UnderpostBaremetal {
 
       // Handle commissioning tasks (placeholder for future implementation).
       if (options.commission === true) {
-        // TODO: Implement commissioning logic here. This might involve
-        // registering the machine with a control plane, running final
-        // configuration scripts, or performing validation checks.
+        for (const firmware of UnderpostBaremetal.API.workflowsConfig[workflowId].firmwares) {
+          const { url } = firmware;
+          if (url.match('.zip')) {
+            const name = url.split('/').pop().replace('.zip', '');
+            const path = `../${name}`;
+            if (!fs.existsSync(path)) {
+              await Downloader(url, `../${name}.zip`);
+              shellExec(`cd .. && mkdir ${name} && cd ${name} && unzip ../${name}.zip`);
+            }
+          }
+        }
       }
     },
 
