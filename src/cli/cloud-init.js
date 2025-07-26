@@ -145,7 +145,31 @@ cut -d: -f1 /etc/passwd`,
           fs.writeFileSync(`${nfsHostToolsPath}/config-path.sh`, `echo "/etc/cloud/cloud.cfg.d/90_maas.cfg"`, 'utf8');
 
           logger.info('Build', `${nfsHostToolsPath}/enlistment.sh`);
-          fs.writeFileSync(`${nfsHostToolsPath}/enlistment.sh`, ``, 'utf8');
+          fs.writeFileSync(
+            `${nfsHostToolsPath}/enlistment.sh`,
+            `#!/bin/bash
+set -x
+
+# ------------------------------------------------------------
+# Step: Commission a machine in MAAS using OAuth1 authentication
+# ------------------------------------------------------------
+
+echo ">>> Starting MAAS machine commissioning for system_id: ${machineSystemId} …"
+
+curl -X POST \\
+ --fail --location --verbose --include --raw --trace-ascii /dev/stdout\\
+ --header "Authorization:\\
+ OAuth oauth_version=1.0,\\
+ oauth_signature_method=PLAINTEXT,\\
+ oauth_consumer_key=${consumer_key},\\
+ oauth_token=${token_key},\\
+ oauth_signature=&${token_secret},\\
+ oauth_nonce=$(uuidgen),\\
+ oauth_timestamp=$(date +%s)"\\
+ http://${controlServerIp}:5240/MAAS/api/2.0/machines/${machineSystemId}/op-commission \\
+ 2>&1 | tee /underpost/enlistment.log || echo "ERROR: MAAS commissioning returned code $?"`,
+            'utf8',
+          );
 
           logger.info('Import ssh keys');
           shellExec(`sudo rm -rf ${nfsHostPath}/root/.ssh`);
@@ -388,6 +412,36 @@ cloud_final_modules:
   - final-message
   - power-state-change
 EOF_MAAS_CFG`;
+    },
+    authCredentialsFactory() {
+      // <consumer_key>:<consumer_token>:<secret>
+      // <consumer_key>:<consumer_secret>:<token_key>:<token_secret>
+      // maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}
+      // maas ${process.env.MAAS_ADMIN_USERNAME} account create-authorisation-token
+      // maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}
+      // https://github.com/CanonicalLtd/maas-docs/issues/647
+
+      const parts = shellExec(`maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}`, {
+        stdout: true,
+      })
+        .trim()
+        .split(`\n`)[0]
+        .split(':');
+
+      let consumer_key, consumer_secret, token_key, token_secret;
+
+      if (parts.length === 4) {
+        [consumer_key, consumer_secret, token_key, token_secret] = parts;
+      } else if (parts.length === 3) {
+        [consumer_key, token_key, token_secret] = parts;
+        consumer_secret = '""';
+        token_secret = token_secret.split(' MAAS consumer')[0].trim();
+      } else {
+        throw new Error('Invalid token format');
+      }
+
+      logger.info('Maas api token generated', { consumer_key, consumer_secret, token_key, token_secret });
+      return { consumer_key, consumer_secret, token_key, token_secret };
     },
   };
 }

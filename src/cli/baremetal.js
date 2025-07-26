@@ -611,6 +611,12 @@ menuentry '${menuentryStr}' {
                   'utf8',
                 );
 
+                const { consumer_key, token_key, token_secret } = UnderpostCloudInit.API.authCredentialsFactory();
+
+                fs.writeFileSync(`${nfsHostPath}/underpost/consumer-key`, consumer_key, 'utf8');
+                fs.writeFileSync(`${nfsHostPath}/underpost/token-key`, token_key, 'utf8');
+                fs.writeFileSync(`${nfsHostPath}/underpost/token-secret`, token_secret, 'utf8');
+
                 shellExec(
                   `gnome-terminal -- bash -c "node ${underpostRoot}/bin baremetal --logs cloud; exec bash" & disown`,
                   {
