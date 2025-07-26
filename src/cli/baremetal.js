@@ -6,6 +6,7 @@ import { getLocalIPv4Address } from '../server/dns.js';
 import fs from 'fs-extra';
 import { Downloader } from '../server/downloader.js';
 import UnderpostCloudInit from './cloud-init.js';
+import { timer } from '../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -440,6 +441,47 @@ menuentry '${menuentryStr}' {
           dev: options.dev,
         });
       }
+
+      if (options.commission === true) {
+        const { debootstrap } = UnderpostBaremetal.API.workflowsConfig[workflowId];
+
+        UnderpostBaremetal.API.crossArchRunner({
+          nfsHostPath,
+          debootstrapArch: debootstrap.image.architecture,
+          callbackMetaData,
+          steps: [`/underpost/reset.sh`],
+        });
+
+        machines = UnderpostBaremetal.API.removeMachines({ machines });
+
+        logger.info('Waiting for MAC assignment...');
+        fs.removeSync(`${nfsHostPath}/underpost/mac`);
+        macAddress = await UnderpostBaremetal.API.macMonitor({ nfsHostPath });
+      }
+    },
+
+    removeMachines({ machines }) {
+      for (const machine of machines) {
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
+      }
+      return [];
+    },
+
+    clearDiscoveries({ force }) {
+      shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries clear all=true`);
+      if (force === true) {
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries scan force=true`);
+      }
+    },
+
+    async macMonitor({ nfsHostPath }) {
+      if (fs.existsSync(`${nfsHostPath}/underpost/mac`)) {
+        const mac = fs.readFileSync(`${nfsHostPath}/underpost/mac`, 'utf8').trim();
+        logger.info('Commissioning MAC', mac);
+        return mac;
+      }
+      await timer(1000);
+      await UnderpostBaremetal.API.macMonitor({ nfsHostPath });
     },
 
     /**
