@@ -247,7 +247,7 @@ class UnderpostBaremetal {
         }
       }
 
-      let resources, machines;
+      let resources, resource, machines;
 
       if (options.commission === true || options.ls === true) {
         resources = JSON.parse(
@@ -281,10 +281,15 @@ class UnderpostBaremetal {
 
       // Handle commissioning tasks (placeholder for future implementation).
       if (options.commission === true) {
+        const { firmwares, networkInterfaceName, maas, netmask, menuentryStr } =
+          UnderpostBaremetal.API.workflowsConfig[workflowId];
+        resource = resources.find((o) => o.architecture === maas.image.architecture && o.name === maas.image.name);
+        logger.info('Commissioning resource', resource);
+
         shellExec(`sudo rm -rf ${tftpRootPath}`);
         shellExec(`mkdir -p ${tftpRootPath}/pxe`);
 
-        for (const firmware of UnderpostBaremetal.API.workflowsConfig[workflowId].firmwares) {
+        for (const firmware of firmwares) {
           const { url, gateway, subnet } = firmware;
           if (url.match('.zip')) {
             const name = url.split('/').pop().replace('.zip', '');
@@ -316,6 +321,113 @@ class UnderpostBaremetal {
         UnderpostBaremetal.API.rebuildNfsServer({
           nfsHostPath,
         });
+
+        {
+          const resourceData = JSON.parse(
+            shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
+              stdout: true,
+              silent: true,
+              disableLog: true,
+            }),
+          );
+          const bootFiles = resourceData.sets[Object.keys(resourceData.sets)[0]].files;
+          const suffix = resource.architecture.match('xgene') ? '.xgene' : '';
+          const resourcesPath = `/var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64`;
+          const kernelPath = `/var/snap/maas/common/maas/image-storage`;
+          const kernelFilesPaths = {
+            'vmlinuz-efi': `${kernelPath}/${bootFiles['boot-kernel' + suffix].filename_on_disk}`,
+            'initrd.img': `${kernelPath}/${bootFiles['boot-initrd' + suffix].filename_on_disk}`,
+            squashfs: `${kernelPath}/${bootFiles['squashfs'].filename_on_disk}`,
+          };
+          const cmd = [
+            `console=serial0,115200`,
+            // `console=ttyAMA0,115200`,
+            `console=tty1`,
+            // `initrd=-1`,
+            // `net.ifnames=0`,
+            // `dwc_otg.lpm_enable=0`,
+            // `elevator=deadline`,
+            `root=/dev/nfs`,
+            `nfsroot=${callbackMetaData.runnerHost.ip}:${process.env.NFS_EXPORT_PATH}/rpi4mb,${[
+              'tcp',
+              'vers=3',
+              'nfsvers=3',
+              'nolock',
+              // 'protocol=tcp',
+              // 'hard=true',
+              'port=2049',
+              // 'sec=none',
+              'rw',
+              'hard',
+              'intr',
+              'rsize=32768',
+              'wsize=32768',
+              'acregmin=0',
+              'acregmax=0',
+              'acdirmin=0',
+              'acdirmax=0',
+              'noac',
+              // 'nodev',
+              // 'nosuid',
+            ]}`,
+            `ip=${ipAddress}:${callbackMetaData.runnerHost.ip}:${callbackMetaData.runnerHost.ip}:${netmask}:${hostname}:${networkInterfaceName}:static`,
+            `rootfstype=nfs`,
+            `rw`,
+            `rootwait`,
+            `fixrtc`,
+            'initrd=initrd.img',
+            // 'boot=casper',
+            // 'ro',
+            'netboot=nfs',
+            `init=/sbin/init`,
+            // `cloud-config-url=/dev/null`,
+            // 'ip=dhcp',
+            // 'ip=dfcp',
+            // 'autoinstall',
+            // 'rd.break',
+
+            // Disable services that not apply over nfs
+            `systemd.mask=systemd-network-generator.service`,
+            `systemd.mask=systemd-networkd.service`,
+            `systemd.mask=systemd-fsck-root.service`,
+            `systemd.mask=systemd-udev-trigger.service`,
+          ];
+          const nfsConnectStr = cmd.join(' ');
+
+          for (const file of ['bootaa64.efi', 'grubaa64.efi']) {
+            shellExec(`sudo cp -a ${resourcesPath}/${file} ${tftpRootPath}/pxe/${file}`);
+          }
+          for (const file of Object.keys(kernelFilesPaths)) {
+            shellExec(`sudo cp -a ${kernelFilesPaths[file]} ${tftpRootPath}/pxe/${file}`);
+          }
+
+          fs.writeFileSync(
+            `${process.env.TFTP_ROOT}/grub/grub.cfg`,
+            `
+insmod gzio
+insmod http
+insmod nfs
+set timeout=5
+set default=0
+
+menuentry '${menuentryStr}' {
+  set root=(tftp,${callbackMetaData.runnerHost.ip})
+  linux /${hostname}/pxe/vmlinuz-efi ${nfsConnectStr}
+  initrd /${hostname}/pxe/initrd.img
+  boot
+}
+
+    `,
+            'utf8',
+          );
+        }
+
+        const arm64EfiPath = `${process.env.TFTP_ROOT}/grub/arm64-efi`;
+        if (fs.existsSync(arm64EfiPath)) shellExec(`sudo rm -rf ${arm64EfiPath}`);
+        shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${arm64EfiPath}`);
+
+        shellExec(`sudo chown -R root:root ${process.env.TFTP_ROOT}`);
+        shellExec(`sudo sudo chmod 755 ${process.env.TFTP_ROOT}`);
       }
     },
 
@@ -343,6 +455,8 @@ class UnderpostBaremetal {
           logger.warn(`Unsupported debootstrap architecture: ${debootstrapArch}`);
           break;
       }
+      shellExec(`sudo dnf install grub2-efi-aa64-modules`);
+      shellExec(`sudo dnf install grub2-efi-x64-modules`);
     },
 
     /**
@@ -738,8 +852,11 @@ GATEWAY=${gateway}`;
        * @description Configuration for the Raspberry Pi 4 Model B workflow.
        */
       rpi4mb: {
+        menuentryStr: 'UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)',
         systemProvisioning: 'ubuntu', // Specifies the system provisioning factory to use.
         kernelLibVersion: `6.8.0-41-generic`, // The kernel library version for this workflow.
+        networkInterfaceName: 'enabcm6e4ei0',
+        netmask: '255.255.255.0',
         firmwares: [
           {
             url: 'https://github.com/pftf/RPi4/releases/download/v1.41/RPi4_UEFI_Firmware_v1.41.zip',
