@@ -360,6 +360,7 @@ program
   .option('--nfs-unmount', 'Unmounts the NFS root filesystem for a workflow id config architecture.')
   .option('--nfs-sh', 'Copies QEMU emulation root entrypoint shell command to the clipboard.')
   .option('--dev', 'Sets the development context environment for baremetal operations.')
+  .option('--ls', 'Lists available boot resources and machines.')
   .description(
     'Manages baremetal server operations, including installation, database setup, commissioning, and user management.',
   )

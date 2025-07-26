@@ -38,7 +38,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.nfsSh=false] - Flag to chroot into the NFS environment for shell access.
      * @returns {void}
      */
-    callback(
+    async callback(
       workflowId,
       hostname,
       ipAddress,
@@ -234,6 +234,38 @@ class UnderpostBaremetal {
               ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(),
             ],
           });
+        }
+      }
+
+      let resources, machines;
+
+      if (options.commission === true || options.ls === true) {
+        resources = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
+            silent: true,
+            stdout: true,
+          }),
+        ).map((o) => ({
+          id: o.id,
+          name: o.name,
+          architecture: o.architecture,
+        }));
+        if (options.ls === true) {
+          console.table(resources);
+        }
+        machines = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
+            stdout: true,
+            silent: true,
+          }),
+        ).map((m) => ({
+          system_id: m.interface_set[0].system_id,
+          mac_address: m.interface_set[0].mac_address,
+          hostname: m.hostname,
+          status_name: m.status_name,
+        }));
+        if (options.ls === true) {
+          console.table(machines);
         }
       }
 
@@ -561,6 +593,11 @@ logdir /var/log/chrony
       rpi4mb: {
         systemProvisioning: 'ubuntu', // Specifies the system provisioning factory to use.
         kernelLibVersion: `6.8.0-41-generic`, // The kernel library version for this workflow.
+        firmwares: [
+          {
+            url: 'https://github.com/pftf/RPi4/releases/download/v1.41/RPi4_UEFI_Firmware_v1.41.zip',
+          },
+        ],
         chronyc: {
           timezone: 'America/New_York', // Timezone for Chrony configuration.
           chronyConfPath: `/etc/chrony/chrony.conf`, // Path to Chrony configuration file.
