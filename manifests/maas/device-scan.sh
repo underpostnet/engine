@@ -34,7 +34,7 @@ for iface_path in /sys/class/net/*; do
   echo "Interface: $name"
   echo "  MAC:          $mac"
   echo "  IPv4:         $ip"
-  echo "  Estado:       $operstate"
+  echo "  State:       $operstate"
   echo "  MTU:          $mtu"
   echo "  Driver:       $driver"
   echo "  PCI Vendor:Device ID: $pci"
