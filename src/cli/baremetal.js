@@ -75,6 +75,9 @@ class UnderpostBaremetal {
       // Set default MAC address
       let macAddress = '00:00:00:00:00:00';
 
+      // Define the debootstrap architecture.
+      let debootstrapArch;
+
       // Define the database provider ID.
       const dbProviderId = 'postgresql-17';
 
@@ -180,8 +183,16 @@ class UnderpostBaremetal {
         shellExec(`node ${underpostRoot}/bin/deploy ${dbProviderId} uninstall`);
       }
 
+      // Set debootstrap architecture.
+      {
+        const { architecture } = UnderpostBaremetal.API.workflowsConfig[workflowId].debootstrap.image;
+        debootstrapArch = architecture;
+      }
+
       // Handle NFS mount operation.
       if (options.nfsMount === true) {
+        // Mount binfmt_misc filesystem.
+        UnderpostBaremetal.API.mountBinfmtMisc({ nfsHostPath });
         UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
       }
 
@@ -200,27 +211,16 @@ class UnderpostBaremetal {
         }
         logger.info('NFS root filesystem is not mounted, building...');
 
-        // Install necessary packages for debootstrap and QEMU.
-        shellExec(`sudo dnf install -y iptables-legacy`);
-        shellExec(`sudo dnf install -y debootstrap`);
-        shellExec(`sudo dnf install kernel-modules-extra-$(uname -r)`);
-        // Reset QEMU user-static binfmt for proper cross-architecture execution.
-        shellExec(`sudo podman run --rm --privileged multiarch/qemu-user-static --reset -p yes`);
-        shellExec(`sudo modprobe binfmt_misc`);
-        shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
-
         // Clean and create the NFS host path.
         shellExec(`sudo rm -rf ${nfsHostPath}/*`);
         shellExec(`mkdir -p ${nfsHostPath}`);
-        shellExec(`sudo chown -R root:root ${nfsHostPath}`);
-        shellExec(`sudo chmod 755 ${nfsHostPath}`);
 
-        let debootstrapArch;
+        // Mount binfmt_misc filesystem.
+        UnderpostBaremetal.API.mountBinfmtMisc({ nfsHostPath });
 
         // Perform the first stage of debootstrap.
         {
           const { architecture, name } = UnderpostBaremetal.API.workflowsConfig[workflowId].debootstrap.image;
-          debootstrapArch = architecture;
           shellExec(
             [
               `sudo debootstrap`,
@@ -723,6 +723,29 @@ menuentry '${menuentryStr}' {
           networkInterfaceName,
         });
       }
+    },
+
+    /**
+     * @method mountBinfmtMisc
+     * @description Mounts the binfmt_misc filesystem to enable QEMU user-static binfmt support.
+     * This is necessary for cross-architecture execution within a chroot environment.
+     * @param {object} params - The parameters for the function.
+     * @param {string} params.nfsHostPath - The path to the NFS root filesystem on the host.
+     * @returns {void}
+     */
+    mountBinfmtMisc({ nfsHostPath }) {
+      // Install necessary packages for debootstrap and QEMU.
+      shellExec(`sudo dnf install -y iptables-legacy`);
+      shellExec(`sudo dnf install -y debootstrap`);
+      shellExec(`sudo dnf install kernel-modules-extra-$(uname -r)`);
+      // Reset QEMU user-static binfmt for proper cross-architecture execution.
+      shellExec(`sudo podman run --rm --privileged multiarch/qemu-user-static --reset -p yes`);
+      // Mount binfmt_misc filesystem.
+      shellExec(`sudo modprobe binfmt_misc`);
+      shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
+      // Set ownership and permissions for the NFS host path.
+      shellExec(`sudo chown -R root:root ${nfsHostPath}`);
+      shellExec(`sudo chmod 755 ${nfsHostPath}`);
     },
 
     /**
