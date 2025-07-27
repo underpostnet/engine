@@ -9,23 +9,48 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostCloudInit
+ * @description Manages the generation and deployment of cloud-init configuration files
+ * and associated scripts for baremetal provisioning. This class provides methods
+ * to build various shell scripts and a cloud-init configuration file tailored
+ * for MAAS (Metal as a Service) integration.
+ */
 class UnderpostCloudInit {
   static API = {
+    /**
+     * @method buildTools
+     * @description Builds and writes various shell scripts and configuration files
+     * to the NFS host path, which are then used by the target baremetal machine
+     * during the cloud-init process.
+     * @param {object} params - The parameters for building the tools.
+     * @param {string} params.workflowId - The identifier for the specific workflow configuration.
+     * @param {string} params.nfsHostPath - The base path on the NFS host where tools will be written.
+     * @param {string} params.hostname - The hostname of the target baremetal machine.
+     * @param {object} params.callbackMetaData - Metadata about the callback, used for dynamic configuration.
+     * @param {boolean} params.dev - Development mode flag.
+     * @returns {void}
+     */
     buildTools({ workflowId, nfsHostPath, hostname, callbackMetaData, dev }) {
+      // Destructure workflow configuration for easier access.
       const { systemProvisioning, chronyc, networkInterfaceName, debootstrap } =
         UnderpostBaremetal.API.workflowsConfig[workflowId];
       const { timezone, chronyConfPath } = chronyc;
+      // Define the specific directory for underpost tools within the NFS host path.
       const nfsHostToolsPath = `${nfsHostPath}/underpost`;
 
-      // Determine the root path for npm and underpost.
+      // Determine the root path for npm and underpost based on development mode.
       const npmRoot = getNpmRootPath();
       const underpostRoot = dev === true ? '.' : `${npmRoot}/underpost`;
 
+      // Use a switch statement to handle different system provisioning types.
       switch (systemProvisioning) {
         case 'ubuntu': {
+          // Ensure the target directory for tools is clean and exists.
           if (fs.existsSync(`${nfsHostToolsPath}`)) fs.removeSync(`${nfsHostToolsPath}`);
           fs.mkdirSync(`${nfsHostToolsPath}`, { recursive: true });
 
+          // Build and write the date configuration script.
           logger.info('Build', `${nfsHostToolsPath}/date.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/date.sh`,
@@ -39,6 +64,7 @@ class UnderpostCloudInit {
             'utf8',
           );
 
+          // Build and write the keyboard configuration script.
           logger.info('Build', `${nfsHostToolsPath}/keyboard.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/keyboard.sh`,
@@ -49,6 +75,7 @@ class UnderpostCloudInit {
             'utf8',
           );
 
+          // Build and write the hosts file configuration script.
           logger.info('Build', `${nfsHostToolsPath}/host.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/host.sh`,
@@ -56,8 +83,8 @@ class UnderpostCloudInit {
             'utf8',
           );
 
+          // Build and write the DNS configuration script.
           logger.info('Build', `${nfsHostToolsPath}/dns.sh`);
-          // echo "nameserver ${process.env.MAAS_DNS}" | tee /etc/resolv.conf > /dev/null
           fs.writeFileSync(
             `${nfsHostToolsPath}/dns.sh`,
             `rm /etc/resolv.conf
@@ -66,6 +93,7 @@ ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
             'utf8',
           );
 
+          // Build and write the main startup script for cloud-init.
           logger.info('Build', `${nfsHostToolsPath}/start.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/start.sh`,
@@ -93,6 +121,7 @@ ${UnderpostBaremetal.API.stepsRender(
             'utf8',
           );
 
+          // Build and write the cloud-init reset script.
           logger.info('Build', `${nfsHostToolsPath}/reset.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/reset.sh`,
@@ -103,6 +132,7 @@ echo '' > /var/log/cloud-init-output.log`,
             'utf8',
           );
 
+          // Build and write the cloud-init help script.
           logger.info('Build', `${nfsHostToolsPath}/help.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/help.sh`,
@@ -116,6 +146,7 @@ echo "sudo cloud-init modules --mode=final"`,
             'utf8',
           );
 
+          // Build and write the test script for verifying configuration.
           logger.info('Build', `${nfsHostToolsPath}/test.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/test.sh`,
@@ -128,9 +159,11 @@ cut -d: -f1 /etc/passwd`,
             'utf8',
           );
 
+          // Build and write the shutdown script.
           logger.info('Build', `${nfsHostToolsPath}/shutdown.sh`);
           fs.writeFileSync(`${nfsHostToolsPath}/shutdown.sh`, `sudo shutdown -h now`, 'utf8');
 
+          // Build and write the MAC address retrieval script.
           logger.info('Build', `${nfsHostToolsPath}/mac.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/mac.sh`,
@@ -138,12 +171,15 @@ cut -d: -f1 /etc/passwd`,
             'utf8',
           );
 
+          // Copy the device scan script from manifests.
           logger.info('Build', `${nfsHostToolsPath}/device_scan.sh`);
           fs.copySync(`${underpostRoot}/manifests/maas/device-scan.sh`, `${nfsHostToolsPath}/device_scan.sh`);
 
+          // Build and write the config path script.
           logger.info('Build', `${nfsHostToolsPath}/config-path.sh`);
           fs.writeFileSync(`${nfsHostToolsPath}/config-path.sh`, `echo "/etc/cloud/cloud.cfg.d/90_maas.cfg"`, 'utf8');
 
+          // Build and write the MAAS enlistment script.
           logger.info('Build', `${nfsHostToolsPath}/enlistment.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/enlistment.sh`,
@@ -176,12 +212,14 @@ curl -X POST \\
             'utf8',
           );
 
+          // Import SSH keys for root user.
           logger.info('Import ssh keys');
           shellExec(`sudo rm -rf ${nfsHostPath}/root/.ssh`);
-          shellExec(`sudo rm -rf ${nfsHostPath}/home/root/.ssh`);
+          shellExec(`sudo rm -rf ${nfsHostPath}/home/root/.ssh`); // Ensure home root .ssh is also clean.
           logger.info('Copy', `/root/.ssh -> ${nfsHostPath}/root/.ssh`);
           fs.copySync(`/root/.ssh`, `${nfsHostPath}/root/.ssh`);
 
+          // Enable execution permissions for all generated scripts and run a test.
           logger.info('Enable tools execution and test');
           UnderpostBaremetal.API.crossArchRunner({
             nfsHostPath,
@@ -201,22 +239,43 @@ curl -X POST \\
               `chmod +x /underpost/device_scan.sh`,
               `chmod +x /underpost/mac.sh`,
               `chmod +x /underpost/enlistment.sh`,
-              `sudo chmod 700 ~/.ssh/`,
-              `sudo chmod 600 ~/.ssh/authorized_keys`,
-              `sudo chmod 644 ~/.ssh/known_hosts`,
-              `sudo chmod 600 ~/.ssh/id_rsa`,
-              `sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`,
-              `chown -R root:root ~/.ssh`,
-              `/underpost/test.sh`,
+              `sudo chmod 700 ~/.ssh/`, // Set secure permissions for .ssh directory.
+              `sudo chmod 600 ~/.ssh/authorized_keys`, // Set secure permissions for authorized_keys.
+              `sudo chmod 644 ~/.ssh/known_hosts`, // Set permissions for known_hosts.
+              `sudo chmod 600 ~/.ssh/id_rsa`, // Set secure permissions for private key.
+              `sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`, // Set secure permissions for host key.
+              `chown -R root:root ~/.ssh`, // Ensure root owns the .ssh directory.
+              `/underpost/test.sh`, // Run the test script to verify setup.
             ],
           });
 
           break;
         }
         default:
+          // Throw an error if an unsupported system provisioning type is provided.
           throw new Error('Invalid system provisioning: ' + systemProvisioning);
       }
     },
+
+    /**
+     * @method configFactory
+     * @description Generates the cloud-init configuration file (`90_maas.cfg`)
+     * for MAAS integration. This configuration includes hostname, network settings,
+     * user accounts, SSH keys, timezone, NTP, and various cloud-init modules.
+     * @param {object} params - The parameters for generating the configuration.
+     * @param {string} params.controlServerIp - The IP address of the MAAS control server.
+     * @param {string} params.hostname - The hostname of the target baremetal machine.
+     * @param {string} params.commissioningDeviceIp - The IP address to assign to the commissioning device.
+     * @param {string} params.gatewayip - The gateway IP address for the network.
+     * @param {boolean} params.auth - Flag indicating whether to include MAAS authentication credentials.
+     * @param {string} params.mac - The MAC address of the network interface.
+     * @param {string} params.timezone - The timezone to set for the machine.
+     * @param {string} params.chronyConfPath - The path to the Chrony configuration file.
+     * @param {string} params.networkInterfaceName - The name of the primary network interface.
+     * @param {object} [authCredentials={}] - Optional MAAS authentication credentials.
+     * @param {string} [path='/etc/cloud/cloud.cfg.d/90_maas.cfg'] - The target path for the cloud-init configuration file.
+     * @returns {string} The generated cloud-init configuration content.
+     */
     configFactory(
       {
         controlServerIp,
@@ -233,7 +292,7 @@ curl -X POST \\
       path = '/etc/cloud/cloud.cfg.d/90_maas.cfg',
     ) {
       const { consumer_key, consumer_secret, token_key, token_secret } = authCredentials;
-      // Configure cloud-init for MAAS
+      // Configure cloud-init for MAAS using a heredoc string.
       return `cat <<EOF_MAAS_CFG > ${path}
 #cloud-config
 
@@ -254,6 +313,7 @@ datasource:
   MAAS:
     metadata_url: http://${controlServerIp}:5240/MAAS/metadata/
     ${
+      // Conditionally include authentication details if 'auth' flag is true.
       !auth
         ? ''
         : `consumer_key: ${consumer_key}
@@ -418,30 +478,44 @@ cloud_final_modules:
   - power-state-change
 EOF_MAAS_CFG`;
     },
+
+    /**
+     * @method authCredentialsFactory
+     * @description Retrieves MAAS API key credentials from the MAAS CLI.
+     * This method parses the output of `maas apikey` to extract the consumer key,
+     * consumer secret, token key, and token secret.
+     * @returns {object} An object containing the MAAS authentication credentials.
+     * @throws {Error} If the MAAS API key format is invalid.
+     */
     authCredentialsFactory() {
-      // <consumer_key>:<consumer_token>:<secret>
-      // <consumer_key>:<consumer_secret>:<token_key>:<token_secret>
+      // Expected formats:
+      // <consumer_key>:<consumer_token>:<secret> (older format)
+      // <consumer_key>:<consumer_secret>:<token_key>:<token_secret> (newer format)
+      // Commands used to generate API keys:
       // maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}
       // maas ${process.env.MAAS_ADMIN_USERNAME} account create-authorisation-token
       // maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}
-      // https://github.com/CanonicalLtd/maas-docs/issues/647
+      // Reference: https://github.com/CanonicalLtd/maas-docs/issues/647
 
       const parts = shellExec(`maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}`, {
         stdout: true,
       })
         .trim()
-        .split(`\n`)[0]
-        .split(':');
+        .split(`\n`)[0] // Take only the first line of output.
+        .split(':'); // Split by colon to get individual parts.
 
       let consumer_key, consumer_secret, token_key, token_secret;
 
+      // Determine the format of the API key and assign parts accordingly.
       if (parts.length === 4) {
         [consumer_key, consumer_secret, token_key, token_secret] = parts;
       } else if (parts.length === 3) {
+        // Handle older 3-part format, setting consumer_secret as empty.
         [consumer_key, token_key, token_secret] = parts;
         consumer_secret = '""';
-        token_secret = token_secret.split(' MAAS consumer')[0].trim();
+        token_secret = token_secret.split(' MAAS consumer')[0].trim(); // Clean up token secret.
       } else {
+        // Throw an error if the format is not recognized.
         throw new Error('Invalid token format');
       }
 
