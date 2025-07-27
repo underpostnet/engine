@@ -287,44 +287,43 @@ class UnderpostBaremetal {
         }
       }
 
-      let resources, resource, machines;
-
       // Fetch boot resources and machines if commissioning or listing.
-      if (options.commission === true || options.ls === true) {
-        resources = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
-            silent: true,
-            stdout: true,
-          }),
-        ).map((o) => ({
-          id: o.id,
-          name: o.name,
-          architecture: o.architecture,
-        }));
-        if (options.ls === true) {
-          console.table(resources);
-        }
-        machines = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
-            stdout: true,
-            silent: true,
-          }),
-        ).map((m) => ({
-          system_id: m.interface_set[0].system_id,
-          mac_address: m.interface_set[0].mac_address,
-          hostname: m.hostname,
-          status_name: m.status_name,
-        }));
-        if (options.ls === true) {
-          console.table(machines);
-        }
+
+      let resources = JSON.parse(
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
+          silent: true,
+          stdout: true,
+        }),
+      ).map((o) => ({
+        id: o.id,
+        name: o.name,
+        architecture: o.architecture,
+      }));
+      if (options.ls === true) {
+        console.table(resources);
+      }
+      let machines = JSON.parse(
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
+          stdout: true,
+          silent: true,
+        }),
+      ).map((m) => ({
+        system_id: m.interface_set[0].system_id,
+        mac_address: m.interface_set[0].mac_address,
+        hostname: m.hostname,
+        status_name: m.status_name,
+      }));
+      if (options.ls === true) {
+        console.table(machines);
       }
 
       // Handle commissioning tasks (placeholder for future implementation).
       if (options.commission === true) {
         const { firmwares, networkInterfaceName, maas, netmask, menuentryStr } =
           UnderpostBaremetal.API.workflowsConfig[workflowId];
-        resource = resources.find((o) => o.architecture === maas.image.architecture && o.name === maas.image.name);
+        const resource = resources.find(
+          (o) => o.architecture === maas.image.architecture && o.name === maas.image.name,
+        );
         logger.info('Commissioning resource', resource);
 
         // Clean and create TFTP root path.
@@ -481,8 +480,12 @@ menuentry '${menuentryStr}' {
         shellExec(`sudo sudo chmod 755 ${process.env.TFTP_ROOT}`);
       }
 
-      // Build cloud-init tools if commissioning or updating cloud-init.
+      // Final commissioning steps.
       if (options.commission === true || options.cloudInitUpdate === true) {
+        const { debootstrap, networkInterfaceName, chronyc, maas } = UnderpostBaremetal.API.workflowsConfig[workflowId];
+        const { timezone, chronyConfPath } = chronyc;
+
+        // Build cloud-init tools.
         UnderpostCloudInit.API.buildTools({
           workflowId,
           nfsHostPath,
@@ -490,15 +493,6 @@ menuentry '${menuentryStr}' {
           callbackMetaData,
           dev: options.dev,
         });
-      }
-
-      // Final commissioning steps.
-      if (options.commission === true) {
-        const { debootstrap, networkInterfaceName, chronyc, maas } = UnderpostBaremetal.API.workflowsConfig[workflowId];
-        const { timezone, chronyConfPath } = chronyc;
-
-        // Remove existing machines from MAAS.
-        machines = UnderpostBaremetal.API.removeMachines({ machines });
 
         // Run cloud-init reset and configure cloud-init.
         UnderpostBaremetal.API.crossArchRunner({
@@ -506,7 +500,7 @@ menuentry '${menuentryStr}' {
           debootstrapArch: debootstrap.image.architecture,
           callbackMetaData,
           steps: [
-            `/underpost/reset.sh`,
+            options.cloudInitUpdate === true ? '' : `/underpost/reset.sh`,
             `chown root:root /usr/bin/sudo && chmod 4755 /usr/bin/sudo`,
             UnderpostCloudInit.API.configFactory({
               controlServerIp: callbackMetaData.runnerHost.ip,
@@ -520,6 +514,8 @@ menuentry '${menuentryStr}' {
             }),
           ],
         });
+
+        if (options.cloudInitUpdate === true) return;
 
         // Apply NAT iptables rules.
         shellExec(`${underpostRoot}/manifests/maas/nat-iptables.sh`, { silent: true });
@@ -548,6 +544,9 @@ menuentry '${menuentryStr}' {
             }),
           ],
         });
+
+        // Remove existing machines from MAAS.
+        machines = UnderpostBaremetal.API.removeMachines({ machines });
 
         // Monitor commissioning process.
         UnderpostBaremetal.API.commissionMonitor({
