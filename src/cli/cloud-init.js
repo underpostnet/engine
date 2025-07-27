@@ -198,17 +198,23 @@ TOKEN_SECRET=$(cat /underpost/token-secret)
 echo ">>> Starting MAAS machine commissioning for system_id: $MACHINE_ID …"
 
 curl -X POST \\
- --fail --location --verbose --include --raw --trace-ascii /dev/stdout\\
- --header "Authorization:\\
- OAuth oauth_version=1.0,\\
- oauth_signature_method=PLAINTEXT,\\
- oauth_consumer_key=$CONSUMER_KEY,\\
- oauth_token=$TOKEN_KEY,\\
- oauth_signature=&$TOKEN_SECRET,\\
- oauth_nonce=$(uuidgen),\\
- oauth_timestamp=$(date +%s)"\\
- http://${callbackMetaData.runnerHost.ip}:5240/MAAS/api/2.0/machines/$MACHINE_ID/op-commission \\
- 2>&1 | tee /underpost/enlistment.log || echo "ERROR: MAAS commissioning returned code $?"`,
+  --fail --location --verbose --include --raw --trace-ascii /dev/stdout\\
+  --header "Authorization:\\
+  OAuth oauth_version=1.0,\\
+  oauth_signature_method=PLAINTEXT,\\
+  oauth_consumer_key=$CONSUMER_KEY,\\
+  oauth_token=$TOKEN_KEY,\\
+  oauth_signature=&$TOKEN_SECRET,\\
+  oauth_nonce=$(uuidgen),\\
+  oauth_timestamp=$(date +%s)"\\
+  -F "commissioning_scripts=20-maas-01-install-lldpd"\\
+  -F "enable_ssh=1"\\
+  -F "skip_bmc_config=1"\\
+  -F "skip_networking=1"\\
+  -F "skip_storage=1"\\
+  -F "testing_scripts=none"\\
+  http://${callbackMetaData.runnerHost.ip}:5240/MAAS/api/2.0/machines/$MACHINE_ID/op-commission \\
+  2>&1 | tee /underpost/enlistment.log || echo "ERROR: MAAS commissioning returned code $?"`,
             'utf8',
           );
 
@@ -365,6 +371,9 @@ packages:
   - htop
   - snapd
   - chrony
+  - lldpd
+  - lshw
+
 resize_rootfs: false
 growpart:
   mode: "off"
@@ -470,7 +479,7 @@ cloud_final_modules:
   - scripts-per-once
   - scripts-per-boot
 #  - scripts-per-instance
-#  - scripts-user
+  - scripts-user
   - ssh-authkey-fingerprints
   - keys-to-console
 #  - phone-home
