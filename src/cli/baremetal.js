@@ -507,6 +507,7 @@ menuentry '${menuentryStr}' {
           callbackMetaData,
           steps: [
             `/underpost/reset.sh`,
+            `chown root:root /usr/bin/sudo && chmod 4755 /usr/bin/sudo`,
             UnderpostCloudInit.API.configFactory({
               controlServerIp: callbackMetaData.runnerHost.ip,
               hostname,
