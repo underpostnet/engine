@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.819
+## underpost ci/cd cli v2.8.82
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -614,6 +614,12 @@ Options:
                                  workflow id config architecture.
   --nfs-sh                       Copies QEMU emulation root entrypoint shell
                                  command to the clipboard.
+  --cloud-init-update            Updates cloud init for a workflow id config
+                                 architecture.
+  --cloud-init-reset             Resets cloud init for a workflow id config
+                                 architecture.
+  --logs <log-id>                Displays logs for log id: dhcp, cloud,
+                                 machine, cloud-config.
   --dev                          Sets the development context environment for
                                  baremetal operations.
   --ls                           Lists available boot resources and machines.
