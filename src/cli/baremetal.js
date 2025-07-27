@@ -119,8 +119,23 @@ class UnderpostBaremetal {
 
       // Handle NFS shell access option.
       if (options.nfsSh === true) {
+        const { debootstrap } = UnderpostBaremetal.API.workflowsConfig[workflowId];
         // Copy the chroot command to the clipboard for easy execution.
-        pbcopy(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash`);
+        if (debootstrap.image.architecture !== callbackMetaData.runnerHost.architecture)
+          switch (debootstrap.image.architecture) {
+            case 'arm64':
+              pbcopy(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash`);
+              break;
+
+            case 'amd64':
+              pbcopy(`sudo chroot ${nfsHostPath} /usr/bin/qemu-x86_64-static /bin/bash`);
+              break;
+
+            default:
+              break;
+          }
+        else pbcopy(`sudo chroot ${nfsHostPath} /bin/bash`);
+
         return; // Exit early as this is a specific interactive operation.
       }
 
