@@ -1692,14 +1692,6 @@ nvidia/gpu-operator \
       // sudo yum install sbt
       break;
     }
-
-    case 'chrony': {
-      shellExec(`sudo dnf install chrony -y`);
-      // debian chroot: sudo apt install chrony
-      for (const cmd of chronySetUp(`/etc/chrony.conf`)) shellExec(cmd);
-
-      break;
-    }
   }
 } catch (error) {
   logger.error(error, error.stack);
