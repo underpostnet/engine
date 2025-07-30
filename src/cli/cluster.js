@@ -504,6 +504,22 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
     async reset() {
       logger.info('Starting comprehensive reset of Kubernetes and container environments...');
 
+      {
+        const cleanPath = `/var/log/`;
+        const largeLogsFiles = shellExec(
+          `sudo du -sh ${cleanPath}* | awk '{if ($1 ~ /G$/ && ($1+0) > 1) print}' | sort -rh`,
+          {
+            stdout: true,
+          },
+        );
+        for (const pathLog of largeLogsFiles
+          .split(`\n`)
+          .map((p) => p.split(cleanPath)[1])
+          .filter((p) => p)) {
+          shellExec(`sudo rm -rf ${cleanPath}${pathLog}`);
+        }
+      }
+
       try {
         // Phase 1: Pre-reset Kubernetes Cleanup (while API server is still up)
         logger.info('Phase 1/6: Cleaning up Kubernetes resources (PVCs, PVs) while API server is accessible...');
