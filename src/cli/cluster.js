@@ -1,6 +1,7 @@
 import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
+import UnderpostBaremetal from './baremetal.js';
 import UnderpostDeploy from './deploy.js';
 import UnderpostTest from './test.js';
 import os from 'os';
@@ -652,8 +653,10 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
      * If you are interested in having more server nodes, see the High Availability Embedded etcd and High Availability External DB pages for more information.
      */
     initHost() {
-      console.log(
+      const archData = UnderpostBaremetal.API.getHostArch();
+      logger.info(
         'Installing essential host-level prerequisites for Kubernetes (Docker, Podman, Kind, Kubeadm, Helm) and providing K3s Quick-Start Guide information...',
+        archData,
       );
       // Install docker
       shellExec(`sudo dnf -y install dnf-plugins-core`);
@@ -664,7 +667,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
       shellExec(`sudo dnf -y install podman`);
 
       // Install kind
-      shellExec(`[ $(uname -m) = aarch64 ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-arm64
+      shellExec(`[ $(uname -m) = ${archData.name} ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-${archData.alias}
 chmod +x ./kind
 sudo mv ./kind /bin/kind`);
       // Install kubeadm, kubelet, kubectl (these are also useful for K3s for kubectl command)
