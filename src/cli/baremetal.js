@@ -149,6 +149,7 @@ class UnderpostBaremetal {
         shellExec(`chmod +x ${underpostRoot}/manifests/maas/nat-iptables.sh`);
         shellExec(`${underpostRoot}/manifests/maas/maas-setup.sh`);
         shellExec(`${underpostRoot}/manifests/maas/nat-iptables.sh`);
+        return;
       }
 
       // Handle control server uninstallation.
@@ -166,6 +167,7 @@ class UnderpostBaremetal {
         shellExec(`sudo rm -rf /etc/maas`);
         shellExec(`sudo rm -rf /var/lib/maas`);
         shellExec(`sudo rm -rf /var/log/maas`);
+        return;
       }
 
       // Handle control server database installation.
@@ -176,11 +178,13 @@ class UnderpostBaremetal {
           `node ${underpostRoot}/bin/deploy pg-drop-db ${process.env.DB_PG_MAAS_NAME} ${process.env.DB_PG_MAAS_USER}`,
         );
         shellExec(`node ${underpostRoot}/bin/deploy maas db`);
+        return;
       }
 
       // Handle control server database uninstallation.
       if (options.controlServerDbUninstall === true) {
         shellExec(`node ${underpostRoot}/bin/deploy ${dbProviderId} uninstall`);
+        return;
       }
 
       // Set debootstrap architecture.
