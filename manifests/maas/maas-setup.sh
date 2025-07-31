@@ -58,14 +58,14 @@ maas "$MAAS_ADMIN_USERNAME" maas set-config name=upstream_dns value=8.8.8.8
 #     os="ubuntu" release="noble" arches="amd64" \
 #     subarches="ga-24.04" labels="*"
 
-echo "Downloading Ubuntu Noble arm64/ga-24.04 image..."
-maas $MAAS_ADMIN_USERNAME boot-source-selections create 1 \
-    os="ubuntu" release="noble" arches="arm64" \
-    subarches="ga-24.04" labels="*"
+# echo "Downloading Ubuntu Noble arm64/ga-24.04 image..."
+# maas $MAAS_ADMIN_USERNAME boot-source-selections create 1 \
+#     os="ubuntu" release="noble" arches="arm64" \
+#     subarches="ga-24.04" labels="*"
 
 # Import the newly selected boot images
-echo "Importing boot images (this may take some time)..."
-maas "$MAAS_ADMIN_USERNAME" boot-resources import
+# echo "Importing boot images (this may take some time)..."
+# maas "$MAAS_ADMIN_USERNAME" boot-resources import
 
 # Disable the MAAS HTTP proxy
 echo "Disabling MAAS HTTP proxy..."
@@ -108,13 +108,13 @@ if [ -z "$FABRIC_ID" ]; then
     exit 1
 fi
 
-# Enable DHCP on the untagged VLAN (VLAN tag 0)
-echo "Enabling DHCP on VLAN 0 for fabric-1 (ID: $FABRIC_ID)..."
-maas "$MAAS_ADMIN_USERNAME" vlan update "$FABRIC_ID" 0 dhcp_on=true primary_rack="$RACK_CONTROLLER_ID"
-
 # Create a Dynamic IP Range for enlistment, commissioning, and deployment
 echo "Creating dynamic IP range from $START_IP to $END_IP..."
 maas "$MAAS_ADMIN_USERNAME" ipranges create type=dynamic start_ip="$START_IP" end_ip="$END_IP"
+
+# Enable DHCP on the untagged VLAN (VLAN tag 0)
+echo "Enabling DHCP on VLAN 0 for fabric-1 (ID: $FABRIC_ID)..."
+maas "$MAAS_ADMIN_USERNAME" vlan update "$FABRIC_ID" 0 dhcp_on=true primary_rack="$RACK_CONTROLLER_ID"
 
 echo "Setting gateway IP for subnet $SUBNET_CIDR (ID: $SUBNET_ID) to $IP_ADDRESS..."
 maas "$MAAS_ADMIN_USERNAME" subnet update $SUBNET_ID gateway_ip=$IP_ADDRESS
