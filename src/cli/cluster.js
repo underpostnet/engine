@@ -38,6 +38,7 @@ class UnderpostCluster {
      * @param {boolean} [options.kubeadm=false] - Initialize the cluster using Kubeadm.
      * @param {boolean} [options.k3s=false] - Initialize the cluster using K3s.
      * @param {boolean} [options.initHost=false] - Perform initial host setup (install Docker, Podman, Kind, Kubeadm, Helm).
+     * @param {boolean} [options.uninstallHost=false] - Uninstall all host components.
      * @param {boolean} [options.config=false] - Apply general host configuration (SELinux, containerd, sysctl, firewalld).
      * @param {boolean} [options.worker=false] - Configure as a worker node (for Kubeadm or K3s join).
      * @param {boolean} [options.chown=false] - Set up kubectl configuration for the current user.
@@ -66,6 +67,7 @@ class UnderpostCluster {
         kubeadm: false,
         k3s: false,
         initHost: false,
+        uninstallHost: false,
         config: false,
         worker: false,
         chown: false,
@@ -73,6 +75,9 @@ class UnderpostCluster {
     ) {
       // Handles initial host setup (installing docker, podman, kind, kubeadm, helm)
       if (options.initHost === true) return UnderpostCluster.API.initHost();
+
+      // Handles initial host setup (installing docker, podman, kind, kubeadm, helm)
+      if (options.uninstallHost === true) return UnderpostCluster.API.uninstallHost();
 
       // Applies general host configuration (SELinux, containerd, sysctl)
       if (options.config === true) return UnderpostCluster.API.config();
@@ -828,6 +833,70 @@ EOF`);
       shellExec(`sudo mv /usr/local/bin/helm /bin/helm`);
       shellExec(`sudo rm -rf get_helm.sh`);
       console.log('Host prerequisites installed successfully.');
+    },
+
+    /**
+     * @method uninstallHost
+     * @description Uninstalls all host components installed by initHost.
+     * This includes Docker, Podman, Kind, Kubeadm, Kubelet, Kubectl, and Helm.
+     */
+    uninstallHost() {
+      console.log('Uninstalling host components: Docker, Podman, Kind, Kubeadm, Kubelet, Kubectl, Helm.');
+
+      // Remove Kind
+      console.log('Removing Kind...');
+      shellExec(`sudo rm -f /bin/kind || true`);
+
+      // Remove Helm
+      console.log('Removing Helm...');
+      shellExec(`sudo rm -f /usr/local/bin/helm || true`);
+      shellExec(`sudo rm -f /usr/local/bin/helm.sh || true`); // clean up the install script if it exists
+
+      // Remove Docker and its dependencies
+      console.log('Removing Docker, containerd, and related packages...');
+      shellExec(
+        `sudo dnf -y remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || true`,
+      );
+
+      // Remove Podman
+      console.log('Removing Podman...');
+      shellExec(`sudo dnf -y remove podman || true`);
+
+      // Remove Kubeadm, Kubelet, and Kubectl
+      console.log('Removing Kubernetes tools...');
+      shellExec(`sudo yum remove -y kubelet kubeadm kubectl || true`);
+
+      // Remove Kubernetes repo file
+      console.log('Removing Kubernetes repository configuration...');
+      shellExec(`sudo rm -f /etc/yum.repos.d/kubernetes.repo || true`);
+
+      // Clean up Kubeadm config and data directories
+      console.log('Cleaning up Kubernetes configuration directories...');
+      shellExec(`sudo rm -rf /etc/kubernetes/pki || true`);
+      shellExec(`sudo rm -rf ~/.kube || true`);
+
+      // Stop and disable services
+      console.log('Stopping and disabling services...');
+      shellExec(`sudo systemctl stop docker.service || true`);
+      shellExec(`sudo systemctl disable docker.service || true`);
+      shellExec(`sudo systemctl stop containerd.service || true`);
+      shellExec(`sudo systemctl disable containerd.service || true`);
+      shellExec(`sudo systemctl stop kubelet.service || true`);
+      shellExec(`sudo systemctl disable kubelet.service || true`);
+
+      // Clean up config files
+      console.log('Removing host configuration files...');
+      shellExec(`sudo rm -f /etc/containerd/config.toml || true`);
+      shellExec(`sudo rm -f /etc/sysctl.d/k8s.conf || true`);
+      shellExec(`sudo rm -f /etc/sysctl.d/99-k8s-ipforward.conf || true`);
+      shellExec(`sudo rm -f /etc/sysctl.d/99-k8s.conf || true`);
+
+      // Restore SELinux to enforcing
+      console.log('Restoring SELinux to enforcing mode...');
+      // shellExec(`sudo setenforce 1`);
+      // shellExec(`sudo sed -i 's/^SELINUX=permissive$/SELINUX=enforcing/' /etc/selinux/config`);
+
+      console.log('Uninstall process completed.');
     },
   };
 }

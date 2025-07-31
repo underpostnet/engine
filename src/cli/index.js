@@ -128,6 +128,7 @@ program
   .option('--info-capacity-pod', 'Displays the current machine capacity information per pod.')
   .option('--pull-image', 'Sets an optional associated image to pull during initialization.')
   .option('--init-host', 'Installs necessary Kubernetes node CLI tools (e.g., kind, kubeadm, docker, podman, helm).')
+  .option('--uninstall-host', 'Uninstalls all host components installed by init-host.')
   .option('--config', 'Sets the base Kubernetes node configuration.')
   .option('--worker', 'Sets the context for a worker node.')
   .option('--chown', 'Sets the appropriate ownership for Kubernetes kubeconfig files.')
