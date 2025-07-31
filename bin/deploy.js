@@ -1014,6 +1014,29 @@ EOF`);
       break;
     }
 
+    case 'maas-db': {
+      // DROP, ALTER, CREATE, WITH ENCRYPTED
+      // sudo -u <user> -h <host> psql <db-name>
+      shellExec(`DB_PG_MAAS_NAME=${process.env.DB_PG_MAAS_NAME}`);
+      shellExec(`DB_PG_MAAS_PASS=${process.env.DB_PG_MAAS_PASS}`);
+      shellExec(`DB_PG_MAAS_USER=${process.env.DB_PG_MAAS_USER}`);
+      shellExec(`DB_PG_MAAS_HOST=${process.env.DB_PG_MAAS_HOST}`);
+      shellExec(
+        `sudo -i -u postgres psql -c "CREATE USER \"$DB_PG_MAAS_USER\" WITH ENCRYPTED PASSWORD '$DB_PG_MAAS_PASS'"`,
+      );
+      shellExec(
+        `sudo -i -u postgres psql -c "ALTER USER \"$DB_PG_MAAS_USER\" WITH ENCRYPTED PASSWORD '$DB_PG_MAAS_PASS'"`,
+      );
+      const actions = ['LOGIN', 'SUPERUSER', 'INHERIT', 'CREATEDB', 'CREATEROLE', 'REPLICATION'];
+      shellExec(`sudo -i -u postgres psql -c "ALTER USER \"$DB_PG_MAAS_USER\" WITH ${actions.join(' ')}"`);
+      shellExec(`sudo -i -u postgres psql -c "\\du"`);
+
+      shellExec(`sudo -i -u postgres createdb -O "$DB_PG_MAAS_USER" "$DB_PG_MAAS_NAME"`);
+
+      shellExec(`sudo -i -u postgres psql -c "\\l"`);
+      break;
+    }
+
     case 'valkey': {
       if (!process.argv.includes('server')) {
         if (process.argv.includes('rocky')) {

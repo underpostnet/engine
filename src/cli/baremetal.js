@@ -177,7 +177,7 @@ class UnderpostBaremetal {
         shellExec(
           `node ${underpostRoot}/bin/deploy pg-drop-db ${process.env.DB_PG_MAAS_NAME} ${process.env.DB_PG_MAAS_USER}`,
         );
-        shellExec(`node ${underpostRoot}/bin/deploy maas db`);
+        shellExec(`node ${underpostRoot}/bin/deploy maas-db`);
         return;
       }
 
