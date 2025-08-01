@@ -71,9 +71,12 @@ class UnderpostRepository {
       );
       logger.info(
         'commit url',
-        `http://github.com/${gitUri}/commit/${shellExec(`cd ${repoPath} && git rev-parse --verify HEAD`, {
-          stdout: true,
-        }).trim()}`,
+        `http://github.com/${gitUri}${gExtension === '.g8' ? '.g8' : ''}/commit/${shellExec(
+          `cd ${repoPath} && git rev-parse --verify HEAD`,
+          {
+            stdout: true,
+          },
+        ).trim()}`,
       );
     },
 
