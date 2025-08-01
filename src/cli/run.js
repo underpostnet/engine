@@ -15,8 +15,10 @@ class UnderpostRun {
           shellExec(`sudo rm -rf ${path}`);
           shellCd('/home/dd');
 
-          pbcopy(`cd /home/dd && sbt new underpostnet/spark-template.g8`);
-          await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
+          // pbcopy(`cd /home/dd && sbt new underpostnet/spark-template.g8`);
+          // await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
+          shellExec(`cd /home/dd && sbt new underpostnet/spark-template.g8 '--name=spark-template'`);
+
           shellCd(path);
 
           shellExec(`git init && git add . && git commit -m "Base implementation"`);
