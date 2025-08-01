@@ -839,53 +839,24 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
     },
     /**
      * @method initHost
-     * @description Installs essential host-level prerequisites for Kubernetes,
-     * including Docker, Podman, Kind, Kubeadm, and Helm.
-     *
-     * Quick-Start Guide for K3s Installation:
-     * This guide will help you quickly launch a cluster with default options. Make sure your nodes meet the requirements before proceeding.
-     * Consult the Installation page for greater detail on installing and configuring K3s.
-     * For information on how K3s components work together, refer to the Architecture page.
-     * If you are new to Kubernetes, the official Kubernetes docs have great tutorials covering basics that all cluster administrators should be familiar with.
-     *
-     * Install Script:
-     * K3s provides an installation script that is a convenient way to install it as a service on systemd or openrc based systems. This script is available at https://get.k3s.io. To install K3s using this method, just run:
-     * curl -sfL https://get.k3s.io | sh -
-     *
-     * After running this installation:
-     * - The K3s service will be configured to automatically restart after node reboots or if the process crashes or is killed
-     * - Additional utilities will be installed, including kubectl, crictl, ctr, k3s-killall.sh, and k3s-uninstall.sh
-     * - A kubeconfig file will be written to /etc/rancher/k3s/k3s.yaml and the kubectl installed by K3s will automatically use it
-     *
-     * A single-node server installation is a fully-functional Kubernetes cluster, including all the datastore, control-plane, kubelet, and container runtime components necessary to host workload pods. It is not necessary to add additional server or agents nodes, but you may want to do so to add additional capacity or redundancy to your cluster.
-     *
-     * To install additional agent nodes and add them to the cluster, run the installation script with the K3S_URL and K3S_TOKEN environment variables. Here is an example showing how to join an agent:
-     * curl -sfL https://get.k3s.io | K3S_URL=https://myserver:6443 K3S_TOKEN=mynodetoken sh -
-     *
-     * Setting the K3S_URL parameter causes the installer to configure K3s as an agent, instead of a server. The K3s agent will register with the K3s server listening at the supplied URL. The value to use for K3S_TOKEN is stored at /var/lib/rancher/k3s/server/node-token on your server node.
-     *
-     * Note: Each machine must have a unique hostname. If your machines do not have unique hostnames, pass the K3S_NODE_NAME environment variable and provide a value with a valid and unique hostname for each node.
-     * If you are interested in having more server nodes, see the High Availability Embedded etcd and High Availability External DB pages for more information.
+     * @description Installs essential host-level prerequisites for Kubernetes (Docker, Podman, Kind, Kubeadm, Helm).
      */
     initHost() {
       const archData = UnderpostBaremetal.API.getHostArch();
-      logger.info(
-        'Installing essential host-level prerequisites for Kubernetes (Docker, Podman, Kind, Kubeadm, Helm) and providing K3s Quick-Start Guide information...',
-        archData,
-      );
-      // Install docker
+      logger.info('Installing essential host-level prerequisites for Kubernetes...', archData);
+      // Install Docker and its dependencies
       shellExec(`sudo dnf -y install dnf-plugins-core`);
       shellExec(`sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo`);
       shellExec(`sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`);
 
-      // Install podman
+      // Install Podman
       shellExec(`sudo dnf -y install podman`);
 
-      // Install kind
+      // Install Kind (Kubernetes in Docker)
       shellExec(`[ $(uname -m) = ${archData.name} ] && curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-${archData.alias}
 chmod +x ./kind
 sudo mv ./kind /bin/kind`);
-      // Install kubeadm, kubelet, kubectl (these are also useful for K3s for kubectl command)
+      // Install Kubernetes tools: Kubeadm, Kubelet, and Kubectl
       shellExec(`cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
@@ -897,7 +868,7 @@ exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
 EOF`);
       shellExec(`sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes`);
 
-      // Install helm
+      // Install Helm
       shellExec(`curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3`);
       shellExec(`chmod 700 get_helm.sh`);
       shellExec(`./get_helm.sh`);
@@ -906,7 +877,6 @@ EOF`);
       shellExec(`sudo rm -rf get_helm.sh`);
       console.log('Host prerequisites installed successfully.');
     },
-
     /**
      * @method uninstallHost
      * @description Uninstalls all host components installed by initHost.
