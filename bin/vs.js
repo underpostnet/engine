@@ -4,7 +4,11 @@ import { loggerFactory } from '../src/server/logger.js';
 
 const logger = loggerFactory(import.meta);
 
-const vsCodeRootPath = '/root/.vscode-root';
+// const vsCodeRootPath = '/root/.vscode-root';
+// const vsProgram = 'code';
+
+const vsCodeRootPath = '/root/.windsurf';
+const vsProgram = 'windsurf';
 
 switch (process.argv[2]) {
   case 'info': {
@@ -31,13 +35,17 @@ switch (process.argv[2]) {
       const extensions = JSON.parse(fs.readFileSync(`./.vscode/extensions.json`, 'utf8'));
       extensions.recommendations.map((extension) => {
         if (extension)
-          shellExec(`sudo code --user-data-dir="${vsCodeRootPath}" --no-sandbox --install-extension ${extension}`);
+          shellExec(
+            `sudo ${vsProgram} --user-data-dir="${vsCodeRootPath}" --no-sandbox --install-extension ${extension}`,
+          );
       });
     }
     break;
   case 'export':
     {
-      shellExec(`sudo code --user-data-dir="${vsCodeRootPath}" --no-sandbox --list-extensions > vs-extensions.txt`);
+      shellExec(
+        `sudo ${vsProgram} --user-data-dir="${vsCodeRootPath}" --no-sandbox --list-extensions > vs-extensions.txt`,
+      );
       fs.writeFileSync(
         `./.vscode/extensions.json`,
         JSON.stringify(
@@ -61,6 +69,6 @@ switch (process.argv[2]) {
     break;
   }
   default:
-    shellExec(`sudo code ${process.argv[2]} --user-data-dir="${vsCodeRootPath}" --no-sandbox`);
+    shellExec(`sudo ${vsProgram} ${process.argv[2]} --user-data-dir="${vsCodeRootPath}" --no-sandbox`);
     break;
 }
