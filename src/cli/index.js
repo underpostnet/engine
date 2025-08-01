@@ -315,6 +315,12 @@ program
   .description('Manages health server monitoring for specified deployments.')
   .action(Underpost.monitor.callback);
 
+program
+  .command('run')
+  .argument('[path]', 'The absolute or relative directory path where the script is located.')
+  .description('Runs a script.')
+  .action(Underpost.run.callback);
+
 // 'lxd' command: LXD management
 program
   .command('lxd')
