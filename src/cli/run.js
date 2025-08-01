@@ -36,6 +36,8 @@ class UnderpostRun {
           break;
         }
         case 'tf':
+          shellExec(`kubectl delete configmap tf-gpu-test-script`);
+          shellExec(`kubectl delete pod tf-gpu-test-pod`);
           shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/tensorflow/tf-gpu-test.yaml`);
           break;
       }
