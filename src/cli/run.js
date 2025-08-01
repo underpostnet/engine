@@ -1,13 +1,13 @@
-import dotenv from 'dotenv';
 import { pbcopy, shellCd, shellExec } from '../server/process.js';
-import fs from 'fs-extra';
-import UnderpostRootEnv from './env.js';
 import read from 'read';
+import { getNpmRootPath } from '../server/conf.js';
 
 class UnderpostRun {
   static API = {
-    async callback(path, options = {}) {
+    async callback(path, options = { dev: false }) {
       const fileName = path.split('/').pop();
+      const npmRoot = getNpmRootPath();
+      const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
 
       switch (fileName) {
         case 'spark-template': {
@@ -36,7 +36,7 @@ class UnderpostRun {
           break;
         }
         case 'tf':
-          shellExec(`kubectl apply -f manifests/deployment/tensorflow/tf-gpu-test.yaml`);
+          shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/tensorflow/tf-gpu-test.yaml`);
           break;
       }
     },

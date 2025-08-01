@@ -319,6 +319,7 @@ program
 program
   .command('run')
   .argument('[path]', 'The absolute or relative directory path where the script is located.')
+  .option('--dev', 'Sets the development context environment for the script.')
   .description('Runs a script from the specified path.')
   .action(Underpost.run.callback);
 
