@@ -132,7 +132,7 @@ class UnderpostCluster {
       }
 
       // Reset Kubernetes cluster components (Kind/Kubeadm/K3s) and container runtimes
-      if (options.reset === true) return await UnderpostCluster.API.reset({ underpostRoot });
+      if (options.reset === true) return await UnderpostCluster.API.safeReset({ underpostRoot });
 
       // Check if a cluster (Kind, Kubeadm, or K3s) is already initialized
       const alreadyKubeadmCluster = UnderpostDeploy.API.get('calico-kube-controllers')[0];
