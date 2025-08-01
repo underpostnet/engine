@@ -794,8 +794,8 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
 
         // Phase 5: Reload daemon and finalize
         logger.info('Phase 5/5: Reloading the system daemon and finalizing...');
-        shellExec('sudo systemctl daemon-reload');
-
+        // shellExec('sudo systemctl daemon-reload');
+        UnderpostCluster.API.config();
         logger.info('Safe and complete reset finished. The system is ready for a new cluster initialization.');
       } catch (error) {
         logger.error(`Error during reset: ${error.message}`);
