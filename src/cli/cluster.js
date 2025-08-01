@@ -732,6 +732,78 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
     },
 
     /**
+     * @method safeReset
+     * @description Performs a complete reset of the Kubernetes cluster and its container environments.
+     * This version focuses on correcting persistent permission errors (such as 'permission denied'
+     * in coredns) by restoring SELinux security contexts and safely cleaning up cluster artifacts.
+     * @param {object} [options] - Configuration options for the reset.
+     * @param {string} [options.underpostRoot] - The root path of the underpost project.
+     */
+    async safeReset(options = { underpostRoot: '.' }) {
+      logger.info('Starting a safe and comprehensive reset of Kubernetes and container environments...');
+
+      try {
+        // Phase 1: Restore SELinux and stop services
+        // This is critical for fixing the 'permission denied' error you experienced.
+        // Enable SELinux permissive mode and restore file contexts.
+        logger.info('Phase 1/5: Stopping services and fixing SELinux...');
+        logger.info('  -> Ensuring SELinux is in permissive mode...');
+        shellExec(`sudo setenforce 0 || true`);
+        shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config || true`);
+        logger.info('  -> Restoring SELinux contexts for container data directories...');
+        // The 'restorecon' command corrects file system security contexts.
+        shellExec(`sudo restorecon -Rv /var/lib/containerd || true`);
+        shellExec(`sudo restorecon -Rv /var/lib/kubelet || true`);
+
+        logger.info('  -> Stopping kubelet, docker, and podman services...');
+        shellExec('sudo systemctl stop kubelet || true');
+        shellExec('sudo systemctl stop docker || true');
+        shellExec('sudo systemctl stop podman || true');
+        // Safely unmount pod filesystems to avoid errors.
+        shellExec('sudo umount -f /var/lib/kubelet/pods/*/* || true');
+
+        // Phase 2: Execute official uninstallation commands
+        logger.info('Phase 2/5: Executing official reset and uninstallation commands...');
+        logger.info('  -> Executing kubeadm reset...');
+        shellExec('sudo kubeadm reset --force || true');
+        logger.info('  -> Executing K3s uninstallation script if it exists...');
+        shellExec('sudo /usr/local/bin/k3s-uninstall.sh || true');
+        logger.info('  -> Deleting Kind clusters...');
+        shellExec('kind get clusters | xargs -r -t -n1 kind delete cluster || true');
+
+        // Phase 3: File system cleanup
+        logger.info('Phase 3/5: Cleaning up remaining file system artifacts...');
+        // Remove any leftover configurations and data.
+        shellExec('sudo rm -rf /etc/kubernetes/* || true');
+        shellExec('sudo rm -rf /etc/cni/net.d/* || true');
+        shellExec('sudo rm -rf /var/lib/kubelet/* || true');
+        shellExec('sudo rm -rf /var/lib/cni/* || true');
+        shellExec('sudo rm -rf /var/lib/docker/* || true');
+        shellExec('sudo rm -rf /var/lib/containerd/* || true');
+        shellExec('sudo rm -rf /var/lib/containers/storage/* || true');
+        // Clean up the current user's kubeconfig.
+        shellExec('rm -rf $HOME/.kube || true');
+
+        // Phase 4: Host network cleanup
+        logger.info('Phase 4/5: Cleaning up host network configurations...');
+        // Remove iptables rules and CNI network interfaces.
+        shellExec('sudo iptables -F || true');
+        shellExec('sudo iptables -t nat -F || true');
+        shellExec('sudo ip link del cni0 || true');
+        shellExec('sudo ip link del flannel.1 || true');
+
+        // Phase 5: Reload daemon and finalize
+        logger.info('Phase 5/5: Reloading the system daemon and finalizing...');
+        shellExec('sudo systemctl daemon-reload');
+
+        logger.info('Safe and complete reset finished. The system is ready for a new cluster initialization.');
+      } catch (error) {
+        logger.error(`Error during reset: ${error.message}`);
+        console.error(error);
+      }
+    },
+
+    /**
      * @method getResourcesCapacity
      * @description Retrieves and returns the allocatable CPU and memory resources
      * of the Kubernetes node.
