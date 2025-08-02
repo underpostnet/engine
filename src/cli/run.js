@@ -56,10 +56,13 @@ class UnderpostRun {
       const { underpostRoot } = options;
       await UnderpostRun.RUNNERS['deploy-job']('', {
         args: [
-          `pip uninstall -y numpy && \
-pip install numpy==1.24.3 && \
-pip install --upgrade --force-reinstall tensorflow==2.15.0 && \
-pip install nbconvert tensorflow-probability==0.23.0 imageio git+https://github.com/tensorflow/docs matplotlib`,
+          `pip install --upgrade \
+               nbconvert \
+               tensorflow-probability==0.23.0 \
+               imageio \
+               git+https://github.com/tensorflow/docs \
+               matplotlib \
+               "numpy<1.25,>=1.21"`,
           'mkdir -p /home/dd',
           'cd /home/dd',
           'git clone https://github.com/tensorflow/docs.git',
