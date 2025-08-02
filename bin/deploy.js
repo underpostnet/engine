@@ -744,7 +744,7 @@ try {
         fs.readFileSync(`./src/index.js`, 'utf8').replaceAll(`${version}`, `${newVersion}`),
         'utf8',
       );
-      shellExec(`node bin/deploy cli-docs`);
+      shellExec(`node bin/deploy cli-docs ${version} ${newVersion}`);
       shellExec(`node bin/deploy update-dependencies`);
       shellExec(`auto-changelog`);
       shellExec(`node bin/build dd`);
@@ -1106,7 +1106,7 @@ EOF`);
     }
 
     case 'cli-docs': {
-      buildCliDoc(program);
+      buildCliDoc(program, process.argv[3], process.argv[4]);
       break;
     }
 
