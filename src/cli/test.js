@@ -94,7 +94,7 @@ class UnderpostTest {
         const _monitor = async () => {
           await timer(deltaMs);
           const pods = UnderpostDeploy.API.get(podName, kindType);
-          const result = pods.find((p) => p.STATUS === status);
+          let result = pods.find((p) => p.STATUS === status || (status === 'Running' && p.STATUS === 'Completed'));
           logger.info(
             `Testing pod ${podName}... ${result ? 1 : 0}/1 - elapsed time ${deltaMs * (index + 1)}s - attempt ${
               index + 1

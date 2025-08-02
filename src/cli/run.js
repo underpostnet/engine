@@ -61,8 +61,8 @@ spec:
     - name: tensorflow-gpu-tester
       image: nvcr.io/nvidia/tensorflow:24.04-tf2-py3
       imagePullPolicy: IfNotPresent
-      command: ['python']
-      args: ['${path}']
+      command: ${options.command ? JSON.stringify(options.command) : `["python"]`}
+      args: ${options.args ? JSON.stringify(options.args) : `["${path}"]`}
       resources:
         limits:
           nvidia.com/gpu: '1'
