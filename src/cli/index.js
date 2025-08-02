@@ -320,6 +320,8 @@ program
   .command('run')
   .argument('<runner-id>', `The runner ID to run. Options: ${Object.keys(UnderpostRun.RUNNERS).join(', ')}.`)
   .argument('[path]', 'The absolute or relative directory path where the script is located.')
+  .option('--command <command-array>', 'Array of commands to run.')
+  .option('--args <args-array>', 'Array of arguments to pass to the command.')
   .option('--dev', 'Sets the development context environment for the script.')
   .description('Runs a script from the specified path.')
   .action(UnderpostRun.API.callback);

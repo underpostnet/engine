@@ -47,8 +47,7 @@ class UnderpostRun {
     'tf-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const podName = 'tf-job';
       const volumeName = 'tf-job-volume';
-      shellExec(`kubectl delete pod ${podName}`);
-      shellExec(`kubectl apply -f - <<EOF
+      const cmd = `kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Pod
 metadata:
@@ -61,14 +60,19 @@ spec:
     - name: tensorflow-gpu-tester
       image: nvcr.io/nvidia/tensorflow:24.04-tf2-py3
       imagePullPolicy: IfNotPresent
-      command: ${options.command ? JSON.stringify(options.command) : `["python"]`}
-      args: ${options.args ? JSON.stringify(options.args) : `["${path}"]`}
+      tty: true
+      stdin: true
+      command: ${JSON.stringify(options.command ? options.command : ['/bin/bash', '-c'])}
+      args: ${JSON.stringify(options.args ? options.args : path ? [`python ${path}`] : [])}
       resources:
         limits:
           nvidia.com/gpu: '1'
       env:
         - name: NVIDIA_VISIBLE_DEVICES
           value: all
+${
+  path
+    ? `
       volumeMounts:
         - name: ${volumeName}
           mountPath: ${path}
@@ -76,8 +80,13 @@ spec:
     - name: ${volumeName}
       hostPath:
         path: ${path}
-        type: File
-EOF`);
+        type: File`
+    : ''
+}
+EOF`;
+      shellExec(`kubectl delete pod ${podName}`);
+      console.log(cmd);
+      shellExec(cmd, { disableLog: true });
       const successInstance = await UnderpostTest.API.statusMonitor(podName);
       if (successInstance) {
         shellExec(`kubectl logs -f ${podName}`);
@@ -88,6 +97,8 @@ EOF`);
     async callback(runner, path, options = UnderpostRun.DEFAULT_OPTION) {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
+      if (options.command) options.command = options.command.split(',');
+      if (options.args) options.args = options.args.split(',');
       options.underpostRoot = underpostRoot;
       options.npmRoot = npmRoot;
       logger.info('callback', { path, options });
