@@ -2,6 +2,7 @@ import { pbcopy, shellCd, shellExec } from '../server/process.js';
 import read from 'read';
 import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
+import UnderpostTest from './test.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -43,7 +44,7 @@ class UnderpostRun {
       const { underpostRoot } = options;
       shellExec(`node ${underpostRoot}/bin/vs ${path}`);
     },
-    'tf-job': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'tf-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const podName = 'tf-job';
       const volumeName = 'tf-job-volume';
       shellExec(`kubectl delete pod ${podName}`);
@@ -77,6 +78,10 @@ spec:
         path: ${path}
         type: File
 EOF`);
+      const successInstance = await UnderpostTest.API.statusMonitor(podName);
+      if (successInstance) {
+        shellExec(`kubectl logs -f ${podName}`);
+      }
     },
   };
   static API = {
