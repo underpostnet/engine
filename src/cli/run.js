@@ -3,6 +3,7 @@ import read from 'read';
 import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import UnderpostTest from './test.js';
+import fs from 'fs-extra';
 
 const logger = loggerFactory(import.meta);
 
@@ -47,7 +48,8 @@ class UnderpostRun {
     'tf-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const podName = 'tf-job';
       const volumeName = 'tf-job-volume';
-      const args = options.args ? options.args : path ? [`python ${path}`] : [];
+      const args = (options.args ? options.args : path ? [`python ${path}`] : []).filter((c) => c.trim());
+
       const cmd = `kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Pod
@@ -64,9 +66,13 @@ spec:
       tty: true
       stdin: true
       command: ${JSON.stringify(options.command ? options.command : ['/bin/bash', '-c'])}
-      args:
+${
+  args.length > 0
+    ? `      args:
         - |
-${args.map((arg) => `          ${arg}`).join('\n')}
+${args.map((arg) => `          ${arg}`).join('\n')}`
+    : ''
+}
       resources:
         limits:
           nvidia.com/gpu: '1'
@@ -83,7 +89,7 @@ ${
     - name: ${volumeName}
       hostPath:
         path: ${path}
-        type: File`
+        type: ${fs.statSync(path).isDirectory() ? 'Directory' : 'File'}`
     : ''
 }
 EOF`;
