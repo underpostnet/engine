@@ -47,6 +47,7 @@ class UnderpostRun {
     'tf-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const podName = 'tf-job';
       const volumeName = 'tf-job-volume';
+      const args = options.args ? options.args : path ? [`python ${path}`] : [];
       const cmd = `kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Pod
@@ -63,7 +64,9 @@ spec:
       tty: true
       stdin: true
       command: ${JSON.stringify(options.command ? options.command : ['/bin/bash', '-c'])}
-      args: ${JSON.stringify(options.args ? options.args : path ? [`python ${path}`] : [])}
+      args:
+        - |
+${args.map((arg) => `          ${arg}`).join('\n')}
       resources:
         limits:
           nvidia.com/gpu: '1'
