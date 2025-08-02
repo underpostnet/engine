@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.821
+## underpost ci/cd cli v2.8.832
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -28,6 +28,7 @@ Commands:
   fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
   test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
   monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
+  run [options] [path]                                       Runs a script from the specified path.
   lxd [options]                                              Manages LXD containers and virtual machines.
   baremetal [options] [workflow-id] [hostname] [ip-address]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
   help [command]                                             display help for command
@@ -240,6 +241,7 @@ Options:
                        initialization.
   --init-host          Installs necessary Kubernetes node CLI tools (e.g.,
                        kind, kubeadm, docker, podman, helm).
+  --uninstall-host     Uninstalls all host components installed by init-host.
   --config             Sets the base Kubernetes node configuration.
   --worker             Sets the context for a worker node.
   --chown              Sets the appropriate ownership for Kubernetes kubeconfig
@@ -541,6 +543,23 @@ Options:
   --sync                       Synchronizes with current proxy deployments and
                                traffic configurations.
   -h, --help                   display help for command
+ 
+```
+  
+
+### `run` :
+```
+ Usage: underpost run [options] [path]
+
+Runs a script from the specified path.
+
+Arguments:
+  path        The absolute or relative directory path where the script is
+              located.
+
+Options:
+  --dev       Sets the development context environment for the script.
+  -h, --help  display help for command
  
 ```
   
