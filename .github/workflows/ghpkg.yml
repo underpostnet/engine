@@ -58,8 +58,8 @@ jobs:
       - name: Set git global credentials
         run: |
           git config --global credential.helper ""
-          git config --global user.name 'underpost.net'
-          git config --global user.email 'admin@underpost.net'
+          git config --global user.name 'underpostnet'
+          git config --global user.email 'fcoverdugoa@underpost.net'
 
       - name: Clone and Push to github package repository
         run: |
@@ -70,8 +70,8 @@ jobs:
           git config --global --add safe.directory /__w/pwa-microservices-template/pwa-microservices-template
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template-ghpkg.git
           git init
-          git config user.name 'underpost.net'
-          git config user.email 'admin@underpost.net'
+          git config user.name 'underpostnet'
+          git config user.email 'fcoverdugoa@underpost.net'
           git add .
           git status
           underpost cmt . ci package-pwa-microservices-template-ghpkg 'Update github repo package'
