@@ -52,6 +52,23 @@ class UnderpostRun {
       const { underpostRoot } = options;
       shellExec(`node ${underpostRoot}/bin/vs ${path}`);
     },
+    'tf-vae-test': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const { underpostRoot } = options;
+      await UnderpostRun.RUNNERS['deploy-job']('', {
+        args: [
+          `pip uninstall -y numpy && \
+pip install numpy==1.24.3 && \
+pip install --upgrade --force-reinstall tensorflow==2.15.0 && \
+pip install nbconvert tensorflow-probability==0.23.0 imageio git+https://github.com/tensorflow/docs matplotlib`,
+          'mkdir -p /home/dd',
+          'cd /home/dd',
+          'git clone https://github.com/tensorflow/docs.git',
+          'cd docs',
+          'jupyter nbconvert --to python site/en/tutorials/generative/cvae.ipynb',
+          'ipython site/en/tutorials/generative/cvae.py',
+        ],
+      });
+    },
     'deploy-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const podName = options.podName || 'deploy-job';
       const volumeName = options.volumeName || `${podName}-volume`;
