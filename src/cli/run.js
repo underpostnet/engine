@@ -8,7 +8,14 @@ import fs from 'fs-extra';
 const logger = loggerFactory(import.meta);
 
 class UnderpostRun {
-  static DEFAULT_OPTION = { dev: false };
+  static DEFAULT_OPTION = {
+    dev: false,
+    podName: '',
+    volumeName: '',
+    imageName: '',
+    containerName: '',
+    namespace: '',
+  };
   static RUNNERS = {
     'spark-template': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const dir = '/home/dd/spark-template';
@@ -45,23 +52,28 @@ class UnderpostRun {
       const { underpostRoot } = options;
       shellExec(`node ${underpostRoot}/bin/vs ${path}`);
     },
-    'single-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const podName = 'single-job';
-      const volumeName = 'single-job-volume';
+    'deploy-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const podName = options.podName || 'deploy-job';
+      const volumeName = options.volumeName || `${podName}-volume`;
       const args = (options.args ? options.args : path ? [`python ${path}`] : []).filter((c) => c.trim());
+      const imageName = options.imageName || 'nvcr.io/nvidia/tensorflow:24.04-tf2-py3';
+      const containerName = options.containerName || `${podName}-container`;
+      const gpuEnable = imageName.match('nvidia');
+      const runtimeClassName = gpuEnable ? 'nvidia' : '';
+      const namespace = options.namespace || 'default';
 
       const cmd = `kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Pod
 metadata:
   name: ${podName}
-  namespace: default
+  namespace: ${namespace}
 spec:
   restartPolicy: Never
-  runtimeClassName: nvidia
+${runtimeClassName ? `  runtimeClassName: ${runtimeClassName}` : ''}
   containers:
-    - name: tensorflow-gpu-tester
-      image: nvcr.io/nvidia/tensorflow:24.04-tf2-py3
+    - name: ${containerName}
+      image: ${imageName}
       imagePullPolicy: IfNotPresent
       tty: true
       stdin: true
@@ -73,12 +85,16 @@ ${
 ${args.map((arg) => `          ${arg}`).join('\n')}`
     : ''
 }
-      resources:
+${
+  gpuEnable
+    ? `      resources:
         limits:
           nvidia.com/gpu: '1'
       env:
         - name: NVIDIA_VISIBLE_DEVICES
-          value: all
+          value: all`
+    : ''
+}
 ${
   path
     ? `

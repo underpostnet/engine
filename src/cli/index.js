@@ -323,6 +323,11 @@ program
   .option('--command <command-array>', 'Array of commands to run.')
   .option('--args <args-array>', 'Array of arguments to pass to the command.')
   .option('--dev', 'Sets the development context environment for the script.')
+  .option('--pod-name <pod-name>', 'Optional: Specifies the pod name for test execution.')
+  .option('--volume-name <volume-name>', 'Optional: Specifies the volume name for test execution.')
+  .option('--image-name <image-name>', 'Optional: Specifies the image name for test execution.')
+  .option('--container-name <container-name>', 'Optional: Specifies the container name for test execution.')
+  .option('--namespace <namespace>', 'Optional: Specifies the namespace for test execution.')
   .description('Runs a script from the specified path.')
   .action(UnderpostRun.API.callback);
 
