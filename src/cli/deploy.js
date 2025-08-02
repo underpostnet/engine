@@ -296,6 +296,11 @@ kind: StatefulSet
 metadata:
   name: ...
 EOF
+
+https://org.ngc.nvidia.com/setup/api-keys
+docker login nvcr.io
+Username: $oauthtoken
+Password: <Your Key>
 `);
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
