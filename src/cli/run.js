@@ -1,48 +1,65 @@
 import { pbcopy, shellCd, shellExec } from '../server/process.js';
 import read from 'read';
 import { getNpmRootPath } from '../server/conf.js';
+import { loggerFactory } from '../server/logger.js';
+
+const logger = loggerFactory(import.meta);
 
 class UnderpostRun {
+  static DEFAULT_OPTION = { dev: false };
+  static RUNNERS = {
+    'spark-template': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const dir = '/home/dd/spark-template';
+      shellExec(`sudo rm -rf ${dir}`);
+      shellCd('/home/dd');
+
+      // pbcopy(`cd /home/dd && sbt new underpostnet/spark-template.g8`);
+      // await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
+      shellExec(`cd /home/dd && sbt new underpostnet/spark-template.g8 '--name=spark-template'`);
+
+      shellCd(dir);
+
+      shellExec(`git init && git add . && git commit -m "Base implementation"`);
+      shellExec(`chmod +x ./replace_params.sh`);
+      shellExec(`chmod +x ./build.sh`);
+
+      shellExec(`./replace_params.sh`);
+      shellExec(`./build.sh`);
+
+      shellCd('/home/dd/engine');
+    },
+    'gpu-env': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(
+        `node bin cluster --dev --reset && node bin cluster --dev --dedicated-gpu --kubeadm && kubectl get pods --all-namespaces -o wide -w`,
+      );
+    },
+    'tf-gpu-test': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const { underpostRoot } = options;
+      shellExec(`kubectl delete configmap tf-gpu-test-script`);
+      shellExec(`kubectl delete pod tf-gpu-test-pod`);
+      shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/tensorflow/tf-gpu-test.yaml`);
+    },
+    ide: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const { underpostRoot } = options;
+      shellExec(`node ${underpostRoot}/bin/vs ${path}`);
+    },
+    'tf-job': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      // hostPath:
+      //   path: /home/aida/files
+      //   type: File
+      // shellExec(`kubectl apply -f - <<EOF
+      //         EOF`);
+    },
+  };
   static API = {
-    async callback(path, options = { dev: false }) {
-      const fileName = path.split('/').pop();
+    async callback(runner, path, options = UnderpostRun.DEFAULT_OPTION) {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
-
-      switch (fileName) {
-        case 'spark-template': {
-          const path = '/home/dd/spark-template';
-          shellExec(`sudo rm -rf ${path}`);
-          shellCd('/home/dd');
-
-          // pbcopy(`cd /home/dd && sbt new underpostnet/spark-template.g8`);
-          // await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
-          shellExec(`cd /home/dd && sbt new underpostnet/spark-template.g8 '--name=spark-template'`);
-
-          shellCd(path);
-
-          shellExec(`git init && git add . && git commit -m "Base implementation"`);
-          shellExec(`chmod +x ./replace_params.sh`);
-          shellExec(`chmod +x ./build.sh`);
-
-          shellExec(`./replace_params.sh`);
-          shellExec(`./build.sh`);
-
-          shellCd('/home/dd/engine');
-          break;
-        }
-        case 'gpu': {
-          shellExec(
-            `node bin cluster --dev --reset && node bin cluster --dev --dedicated-gpu --kubeadm && kubectl get pods --all-namespaces -o wide -w`,
-          );
-          break;
-        }
-        case 'tf':
-          shellExec(`kubectl delete configmap tf-gpu-test-script`);
-          shellExec(`kubectl delete pod tf-gpu-test-pod`);
-          shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/tensorflow/tf-gpu-test.yaml`);
-          break;
-      }
+      options.underpostRoot = underpostRoot;
+      options.npmRoot = npmRoot;
+      logger.info('callback', { path, options });
+      const result = await UnderpostRun.RUNNERS[runner](path, options);
+      return result;
     },
   };
 }

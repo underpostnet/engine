@@ -4,9 +4,9 @@ import Underpost from '../index.js';
 import { getNpmRootPath, getUnderpostRootPath, loadConf } from '../server/conf.js';
 import fs from 'fs-extra';
 import { commitData } from '../client/components/core/CommonJs.js';
-import { shellExec } from '../server/process.js';
 import UnderpostLxd from './lxd.js';
 import UnderpostBaremetal from './baremetal.js';
+import UnderpostRun from './run.js';
 
 // Load environment variables from .env file
 const underpostRootPath = getUnderpostRootPath();
@@ -318,10 +318,11 @@ program
 // 'run' command: Run a script
 program
   .command('run')
+  .argument('<runner-id>', `The runner ID to run. Options: ${Object.keys(UnderpostRun.RUNNERS).join(', ')}.`)
   .argument('[path]', 'The absolute or relative directory path where the script is located.')
   .option('--dev', 'Sets the development context environment for the script.')
   .description('Runs a script from the specified path.')
-  .action(Underpost.run.callback);
+  .action(UnderpostRun.API.callback);
 
 // 'lxd' command: LXD management
 program
