@@ -45,9 +45,9 @@ class UnderpostRun {
       const { underpostRoot } = options;
       shellExec(`node ${underpostRoot}/bin/vs ${path}`);
     },
-    'tf-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const podName = 'tf-job';
-      const volumeName = 'tf-job-volume';
+    'single-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const podName = 'single-job';
+      const volumeName = 'single-job-volume';
       const args = (options.args ? options.args : path ? [`python ${path}`] : []).filter((c) => c.trim());
 
       const cmd = `kubectl apply -f - <<EOF
