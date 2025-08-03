@@ -96,6 +96,7 @@ class UnderpostRun {
                 {
                   const checkPath = `/latent_space_plot.png`;
                   const outsPaths = [];
+                  logger.info('monitor', checkPath);
                   while (!UnderpostDeploy.API.existsContainerFile({ podName, path: `/home/dd/docs${checkPath}` }))
                     await timer(1000);
 
@@ -132,6 +133,8 @@ class UnderpostRun {
       const podName = 'tf-vae-test';
       await UnderpostRun.RUNNERS['deploy-job']('', {
         podName,
+        // volumeMountPath: '/custom_images',
+        // volumeHostPath: '/home/dd/engine/src/client/public/cyberia/assets/skin',
         on: {
           init: async () => {
             openTerminal(`node bin run --dev monitor ${podName}`);
@@ -169,6 +172,7 @@ class UnderpostRun {
       const namespace = options.namespace || 'default';
       const volumeMountPath = options.volumeMountPath || path;
       const volumeHostPath = options.volumeHostPath || path;
+      const enableVolumeMount = volumeHostPath && volumeMountPath;
 
       const cmd = `kubectl apply -f - <<EOF
 apiVersion: v1
@@ -204,7 +208,7 @@ ${
     : ''
 }
 ${
-  path
+  enableVolumeMount
     ? `
       volumeMounts:
         - name: ${volumeName}
@@ -213,7 +217,7 @@ ${
     - name: ${volumeName}
       hostPath:
         path: ${volumeHostPath}
-        type: ${fs.statSync(path).isDirectory() ? 'Directory' : 'File'}`
+        type: ${fs.statSync(volumeHostPath).isDirectory() ? 'Directory' : 'File'}`
     : ''
 }
 EOF`;
