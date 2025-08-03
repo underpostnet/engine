@@ -1,4 +1,4 @@
-import { openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
+import { getTerminalPid, openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
 import read from 'read';
 import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
@@ -54,6 +54,8 @@ class UnderpostRun {
       shellExec(`node ${underpostRoot}/bin/vs ${path}`);
     },
     monitor: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const pid = getTerminalPid();
+      logger.info('monitor pid', pid);
       const checkPath = '/await';
       const _monitor = async () => {
         const result = JSON.parse(
@@ -93,7 +95,8 @@ print('=== SCRIPT UPDATE TEST ===')`,
                     .pop()} ${nameSpace}/${podName}:${basePath}/docs${scriptPath}`,
                 );
                 // shellExec(`sudo kubectl exec -i ${podName} -- sh -c "ipython ${basePath}/docs${scriptPath}"`);
-                shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf ${checkPath}" && exit`);
+                shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf ${checkPath}"`);
+                shellExec(`sudo kill -9 ${pid}`);
               }
               break;
 

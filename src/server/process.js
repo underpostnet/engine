@@ -61,15 +61,19 @@ const shellCd = (cd, options = { disableLog: false }) => {
   return shell.cd(cd);
 };
 
-const openTerminal = (cmd) => {
+const openTerminal = (cmd) =>
   shellExec(`gnome-terminal -- bash -c "${cmd}; exec bash" & disown`, {
     async: true,
+    stdout: true,
   });
-};
+
+// list all terminals: pgrep gnome-terminal
+// list last terminal: pgrep -n gnome-terminal
+const getTerminalPid = () => JSON.parse(shellExec(`pgrep -n gnome-terminal`, { stdout: true, silent: true }));
 
 function pbcopy(data) {
   clipboard.writeSync(data || '🦄');
   logger.info(`copied to clipboard`, clipboard.readSync());
 }
 
-export { ProcessController, getRootDirectory, shellExec, shellCd, pbcopy, openTerminal };
+export { ProcessController, getRootDirectory, shellExec, shellCd, pbcopy, openTerminal, getTerminalPid };
