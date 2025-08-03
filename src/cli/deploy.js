@@ -519,6 +519,15 @@ node bin/deploy build-full-client ${deployId}
         logger.error(error, error.stack);
       }
     },
+    existsContainerFile({ podName, path }) {
+      return JSON.parse(
+        shellExec(`kubectl exec ${podName} -- test -f ${path} && echo "true" || echo "false"`, {
+          stdout: true,
+          disableLog: true,
+          silent: true,
+        }).trim(),
+      );
+    },
   };
 }
 
