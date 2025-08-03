@@ -58,7 +58,7 @@ services:
           cpus: '0.25'
           memory: 20M
     labels: # labels in Compose file instead of Dockerfile
-      engine.version: '2.8.837'
+      engine.version: '2.8.838'
     networks:
       - load-balancer
 

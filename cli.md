@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.837
+## underpost ci/cd cli v2.8.838
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -556,7 +556,7 @@ Runs a script from the specified path.
 Arguments:
   runner-id                          The runner ID to run. Options:
                                      spark-template, gpu-env, tf-gpu-test, ide,
-                                     tf-vae-test, deploy-job.
+                                     monitor, tf-vae-test, deploy-job.
   path                               The absolute or relative directory path
                                      where the script is located.
 
