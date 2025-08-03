@@ -1,4 +1,4 @@
-import { getTerminalPid, openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
+import { daemonProcess, getTerminalPid, openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
 import read from 'read';
 import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
@@ -152,7 +152,7 @@ class UnderpostRun {
           `echo '=== WAITING SCRIPT LAUNCH ==='`,
           `while [ -f /await ]; do sleep 1; done`,
           `echo '=== FINISHED ==='`,
-          `exec bash -c '${`ipython site/en/tutorials/generative/cvae.py`}; exec tail -f /dev/null'`,
+          daemonProcess(`ipython site/en/tutorials/generative/cvae.py`),
         ],
       });
     },

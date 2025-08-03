@@ -61,11 +61,18 @@ const shellCd = (cd, options = { disableLog: false }) => {
   return shell.cd(cd);
 };
 
-const openTerminal = (cmd) =>
+const openTerminal = (cmd, options = { single: false }) => {
+  if (options.single === true) {
+    shellExec(`setsid gnome-terminal -- bash -ic "${cmd}; exec bash" >/dev/null 2>&1 &`);
+    return;
+  }
   shellExec(`gnome-terminal -- bash -c "${cmd}; exec bash" & disown`, {
     async: true,
     stdout: true,
   });
+};
+
+const daemonProcess = (cmd) => `exec bash -c '${cmd}; exec tail -f /dev/null'`;
 
 // list all terminals: pgrep gnome-terminal
 // list last terminal: pgrep -n gnome-terminal
@@ -76,4 +83,4 @@ function pbcopy(data) {
   logger.info(`copied to clipboard`, clipboard.readSync());
 }
 
-export { ProcessController, getRootDirectory, shellExec, shellCd, pbcopy, openTerminal, getTerminalPid };
+export { ProcessController, getRootDirectory, shellExec, shellCd, pbcopy, openTerminal, getTerminalPid, daemonProcess };
