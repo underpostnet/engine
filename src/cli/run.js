@@ -64,6 +64,43 @@ class UnderpostRun {
           }).trim(),
         );
         logger.info('monitor', result);
+        if (result === true) {
+          switch (path) {
+            case 'tf-vae-test':
+              {
+                const nameSpace = 'default';
+                const podName = path;
+                const basePath = '/home/dd';
+                const scriptPath = '/site/en/tutorials/generative/cvae.py';
+                shellExec(
+                  `sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${scriptPath} ${basePath}/lab/src/${scriptPath
+                    .split('/')
+                    .pop()}`,
+                );
+                const file = fs.readFileSync(`${basePath}/lab/src/${scriptPath.split('/').pop()}`, 'utf8');
+                fs.writeFileSync(
+                  `${basePath}/lab/src/${scriptPath.split('/').pop()}`,
+                  file.replace(
+                    `import time`,
+                    `import time
+print('=== SCRIPT UPDATE TEST ===')`,
+                  ),
+                  'utf8',
+                );
+                shellExec(
+                  `sudo kubectl cp ${basePath}/lab/src/${scriptPath
+                    .split('/')
+                    .pop()} ${nameSpace}/${podName}:${basePath}/docs${scriptPath}`,
+                );
+                shellExec(`sudo kubectl exec -i ${podName} -- sh -c "ipython ${basePath}/docs${scriptPath}"`);
+              }
+              break;
+
+            default:
+              break;
+          }
+          return;
+        }
         await timer(1000);
         _monitor();
       };
