@@ -110,6 +110,7 @@ class UnderpostRun {
                     outsPaths.push(toPath);
                     shellExec(`sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${i} ${toPath}`);
                   }
+                  openTerminal(`firefox ${outsPaths.join(' ')}`, { single: true });
                 }
                 shellExec(`sudo kill -9 ${pid}`);
               }
