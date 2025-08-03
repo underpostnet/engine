@@ -1,9 +1,10 @@
-import { pbcopy, shellCd, shellExec } from '../server/process.js';
+import { openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
 import read from 'read';
 import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import UnderpostTest from './test.js';
 import fs from 'fs-extra';
+import { timer } from '../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -52,9 +53,32 @@ class UnderpostRun {
       const { underpostRoot } = options;
       shellExec(`node ${underpostRoot}/bin/vs ${path}`);
     },
+    monitor: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const checkPath = '/ready';
+      const _monitor = async () => {
+        const result = JSON.parse(
+          shellExec(`kubectl exec ${path} -- test -f ${checkPath} && echo "true" || echo "false"`, {
+            stdout: true,
+            disableLog: true,
+            silent: true,
+          }).trim(),
+        );
+        logger.info('monitor', result);
+        await timer(1000);
+        _monitor();
+      };
+      _monitor();
+    },
     'tf-vae-test': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
+      const podName = 'tf-vae-test';
       await UnderpostRun.RUNNERS['deploy-job']('', {
+        podName,
+        on: {
+          init: async () => {
+            openTerminal(`node bin run --dev monitor ${podName}`);
+          },
+        },
         args: [
           `pip install --upgrade \
                nbconvert \
@@ -68,7 +92,10 @@ class UnderpostRun {
           'git clone https://github.com/tensorflow/docs.git',
           'cd docs',
           'jupyter nbconvert --to python site/en/tutorials/generative/cvae.ipynb',
-          'ipython site/en/tutorials/generative/cvae.py',
+          `echo '' > /ready`,
+          `echo '=== FINISHED ==='`,
+          'sleep 999999',
+          //        'ipython site/en/tutorials/generative/cvae.py',
         ],
       });
     },
@@ -134,6 +161,7 @@ EOF`;
       shellExec(cmd, { disableLog: true });
       const successInstance = await UnderpostTest.API.statusMonitor(podName);
       if (successInstance) {
+        options.on?.init ? await options.on.init() : null;
         shellExec(`kubectl logs -f ${podName}`);
       }
     },
