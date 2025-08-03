@@ -4,7 +4,8 @@ import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import UnderpostTest from './test.js';
 import fs from 'fs-extra';
-import { timer } from '../client/components/core/CommonJs.js';
+import { range, setPad, timer } from '../client/components/core/CommonJs.js';
+import UnderpostDeploy from './deploy.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -58,13 +59,7 @@ class UnderpostRun {
       logger.info('monitor pid', pid);
       const checkPath = '/await';
       const _monitor = async () => {
-        const result = JSON.parse(
-          shellExec(`kubectl exec ${path} -- test -f ${checkPath} && echo "true" || echo "false"`, {
-            stdout: true,
-            disableLog: true,
-            silent: true,
-          }).trim(),
-        );
+        const result = UnderpostDeploy.API.existsContainerFile({ podName: path, path: checkPath });
         logger.info('monitor', result);
         if (result === true) {
           switch (path) {
@@ -74,21 +69,21 @@ class UnderpostRun {
                 const podName = path;
                 const basePath = '/home/dd';
                 const scriptPath = '/site/en/tutorials/generative/cvae.py';
-                shellExec(
-                  `sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${scriptPath} ${basePath}/lab/src/${scriptPath
-                    .split('/')
-                    .pop()}`,
-                );
-                const file = fs.readFileSync(`${basePath}/lab/src/${scriptPath.split('/').pop()}`, 'utf8');
-                fs.writeFileSync(
-                  `${basePath}/lab/src/${scriptPath.split('/').pop()}`,
-                  file.replace(
-                    `import time`,
-                    `import time
-print('=== SCRIPT UPDATE TEST ===')`,
-                  ),
-                  'utf8',
-                );
+                // shellExec(
+                //   `sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${scriptPath} ${basePath}/lab/src/${scriptPath
+                //     .split('/')
+                //     .pop()}`,
+                // );
+                // const file = fs.readFileSync(`${basePath}/lab/src/${scriptPath.split('/').pop()}`, 'utf8');
+                //                 fs.writeFileSync(
+                //                   `${basePath}/lab/src/${scriptPath.split('/').pop()}`,
+                //                   file.replace(
+                //                     `import time`,
+                //                     `import time
+                // print('=== SCRIPT UPDATE TEST ===')`,
+                //                   ),
+                //                   'utf8',
+                //                 );
                 shellExec(
                   `sudo kubectl cp ${basePath}/lab/src/${scriptPath
                     .split('/')
@@ -96,6 +91,26 @@ print('=== SCRIPT UPDATE TEST ===')`,
                 );
                 // shellExec(`sudo kubectl exec -i ${podName} -- sh -c "ipython ${basePath}/docs${scriptPath}"`);
                 shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf ${checkPath}"`);
+
+                {
+                  const checkPath = `/latent_space_plot.png`;
+                  const outsPaths = [];
+                  while (!UnderpostDeploy.API.existsContainerFile({ podName, path: `/home/dd/docs${checkPath}` }))
+                    await timer(1000);
+
+                  {
+                    const toPath = `${basePath}/lab${checkPath}`;
+                    outsPaths.push(toPath);
+                    shellExec(`sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${checkPath} ${toPath}`);
+                  }
+
+                  for (let i of range(1, 10)) {
+                    i = `/image_at_epoch_${setPad(i, '0', 4)}.png`;
+                    const toPath = `${basePath}/lab/${i}`;
+                    outsPaths.push(toPath);
+                    shellExec(`sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${i} ${toPath}`);
+                  }
+                }
                 shellExec(`sudo kill -9 ${pid}`);
               }
               break;
