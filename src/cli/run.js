@@ -54,7 +54,7 @@ class UnderpostRun {
       shellExec(`node ${underpostRoot}/bin/vs ${path}`);
     },
     monitor: (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const checkPath = '/ready';
+      const checkPath = '/await';
       const _monitor = async () => {
         const result = JSON.parse(
           shellExec(`kubectl exec ${path} -- test -f ${checkPath} && echo "true" || echo "false"`, {
@@ -92,7 +92,8 @@ print('=== SCRIPT UPDATE TEST ===')`,
                     .split('/')
                     .pop()} ${nameSpace}/${podName}:${basePath}/docs${scriptPath}`,
                 );
-                shellExec(`sudo kubectl exec -i ${podName} -- sh -c "ipython ${basePath}/docs${scriptPath}"`);
+                // shellExec(`sudo kubectl exec -i ${podName} -- sh -c "ipython ${basePath}/docs${scriptPath}"`);
+                shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf ${checkPath}" && exit`);
               }
               break;
 
@@ -129,10 +130,11 @@ print('=== SCRIPT UPDATE TEST ===')`,
           'git clone https://github.com/tensorflow/docs.git',
           'cd docs',
           'jupyter nbconvert --to python site/en/tutorials/generative/cvae.ipynb',
-          `echo '' > /ready`,
+          `echo '' > /await`,
+          `echo '=== WAITING SCRIPT LAUNCH ==='`,
+          `while [ -f /await ]; do sleep 1; done`,
+          `ipython site/en/tutorials/generative/cvae.py`,
           `echo '=== FINISHED ==='`,
-          'sleep 999999',
-          //        'ipython site/en/tutorials/generative/cvae.py',
         ],
       });
     },
