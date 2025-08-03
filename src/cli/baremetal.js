@@ -1,5 +1,5 @@
 import { getNpmRootPath, getUnderpostRootPath } from '../server/conf.js';
-import { pbcopy, shellExec } from '../server/process.js';
+import { openTerminal, pbcopy, shellExec } from '../server/process.js';
 import dotenv from 'dotenv';
 import { loggerFactory } from '../server/logger.js';
 import { getLocalIPv4Address } from '../server/dns.js';
@@ -699,18 +699,8 @@ menuentry '${menuentryStr}' {
               fs.writeFileSync(`${nfsHostPath}/underpost/token-secret`, token_secret, 'utf8');
 
               // Open new terminals for live cloud-init logs.
-              shellExec(
-                `gnome-terminal -- bash -c "node ${underpostRoot}/bin baremetal --logs cloud; exec bash" & disown`,
-                {
-                  async: true,
-                },
-              );
-              shellExec(
-                `gnome-terminal -- bash -c "node ${underpostRoot}/bin baremetal --logs machine; exec bash" & disown`,
-                {
-                  async: true,
-                },
-              );
+              openTerminal(`node ${underpostRoot}/bin baremetal --logs cloud`);
+              openTerminal(`node ${underpostRoot}/bin baremetal --logs machine`);
             } catch (error) {
               logger.error(error, error.stack);
             } finally {
