@@ -13,7 +13,8 @@ class UnderpostRun {
   static DEFAULT_OPTION = {
     dev: false,
     podName: '',
-    volumeName: '',
+    volumeHostPath: '',
+    volumeMountPath: '',
     imageName: '',
     containerName: '',
     namespace: '',
@@ -159,13 +160,15 @@ class UnderpostRun {
     },
     'deploy-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const podName = options.podName || 'deploy-job';
-      const volumeName = options.volumeName || `${podName}-volume`;
+      const volumeName = `${podName}-volume`;
       const args = (options.args ? options.args : path ? [`python ${path}`] : []).filter((c) => c.trim());
       const imageName = options.imageName || 'nvcr.io/nvidia/tensorflow:24.04-tf2-py3';
       const containerName = options.containerName || `${podName}-container`;
       const gpuEnable = imageName.match('nvidia');
       const runtimeClassName = gpuEnable ? 'nvidia' : '';
       const namespace = options.namespace || 'default';
+      const volumeMountPath = options.volumeMountPath || path;
+      const volumeHostPath = options.volumeHostPath || path;
 
       const cmd = `kubectl apply -f - <<EOF
 apiVersion: v1
@@ -205,11 +208,11 @@ ${
     ? `
       volumeMounts:
         - name: ${volumeName}
-          mountPath: ${path}
+          mountPath: ${volumeMountPath}
   volumes:
     - name: ${volumeName}
       hostPath:
-        path: ${path}
+        path: ${volumeHostPath}
         type: ${fs.statSync(path).isDirectory() ? 'Directory' : 'File'}`
     : ''
 }
