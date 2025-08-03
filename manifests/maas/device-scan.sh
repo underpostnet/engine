@@ -8,14 +8,14 @@ for iface_path in /sys/class/net/*; do
   operstate=$(< "$iface_path/operstate")
   mtu=$(< "$iface_path/mtu")
 
-  # Driver: módulo kernel que maneja esta interfaz
+  # Driver
   if [ -L "$iface_path/device/driver" ]; then
     driver=$(basename "$(readlink -f "$iface_path/device/driver")")
   else
     driver="—"
   fi
 
-  # Vendor:Device ID PCI
+  # Vendor device ID PCI
   pci_dev="$iface_path/device"
   if [ -f "$pci_dev/vendor" ] && [ -f "$pci_dev/device" ]; then
     vendor_id=$(< "$pci_dev/vendor")
@@ -28,7 +28,7 @@ for iface_path in /sys/class/net/*; do
     pci="—"
   fi
 
-  # Link Speed: lectura directa de /sys/class/net/<iface>/speed
+  # Link Speed
   speed=$(cat "$iface_path/speed" 2>/dev/null || echo "—")
 
   echo "Interface: $name"
