@@ -160,13 +160,19 @@ const getHexMatrix = (
   });
 
 const buildImgFromTile = async (
-  options = { tile: { color: [['#ffffff']] }, imagePath: '', cellPixelDim: 20, opacityFilter: (x, y, color) => 255 },
+  options = {
+    tile: { color: [['#ffffff']], map_color: null, frame_matrix: null },
+    imagePath: '',
+    cellPixelDim: 20,
+    opacityFilter: (x, y, color) => 255,
+  },
 ) => {
   const { tile, imagePath, cellPixelDim, opacityFilter } = options;
+  const mainMatrix = tile.frame_matrix ? tile.frame_matrix : tile.color;
   const sharpOptions = {
     create: {
-      width: cellPixelDim * tile.color.length,
-      height: cellPixelDim * tile.color.length,
+      width: cellPixelDim * mainMatrix.length,
+      height: cellPixelDim * mainMatrix.length,
       channels: 4,
       background: { r: 255, g: 255, b: 255, alpha: 1 }, // white
     },
@@ -179,13 +185,22 @@ const buildImgFromTile = async (
   image = await Jimp.read(imagePath);
 
   let y_paint = 0;
-  for (const y of range(0, tile.color.length - 1)) {
+  for (const y of range(0, mainMatrix.length - 1)) {
     let x_paint = 0;
-    for (const x of range(0, tile.color.length - 1)) {
+    for (const x of range(0, mainMatrix.length - 1)) {
       for (const _y of range(0, cellPixelDim - 1)) {
         for (const _x of range(0, cellPixelDim - 1)) {
+          if (options.tile.map_color) {
+            image.setPixelColor(
+              Jimp.rgbaToInt(...options.tile.map_color[mainMatrix[y][x]]),
+              x_paint + _y,
+              y_paint + _x,
+            );
+            continue;
+          }
+
           image.setPixelColor(
-            Jimp.rgbaToInt(...hexa2Rgba(tile.color[y][x], opacityFilter ? opacityFilter(x, y, tile.color[y][x]) : 255)),
+            Jimp.rgbaToInt(...hexa2Rgba(mainMatrix[y][x], opacityFilter ? opacityFilter(x, y, mainMatrix[y][x]) : 255)),
             x_paint + _y,
             y_paint + _x,
           );
