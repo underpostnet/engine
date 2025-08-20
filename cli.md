@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.838
+## underpost ci/cd cli v2.8.839
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -554,28 +554,20 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                          The runner ID to run. Options:
-                                     spark-template, gpu-env, tf-gpu-test, ide,
-                                     monitor, tf-vae-test, deploy-job.
-  path                               The absolute or relative directory path
-                                     where the script is located.
+  runner-id                                The runner ID to run. Options: spark-template, gpu-env, tf-gpu-test, ide, monitor, tf-vae-test, deploy-job.
+  path                                     The absolute or relative directory path where the script is located.
 
 Options:
-  --command <command-array>          Array of commands to run.
-  --args <args-array>                Array of arguments to pass to the command.
-  --dev                              Sets the development context environment
-                                     for the script.
-  --pod-name <pod-name>              Optional: Specifies the pod name for test
-                                     execution.
-  --volume-name <volume-name>        Optional: Specifies the volume name for
-                                     test execution.
-  --image-name <image-name>          Optional: Specifies the image name for
-                                     test execution.
-  --container-name <container-name>  Optional: Specifies the container name for
-                                     test execution.
-  --namespace <namespace>            Optional: Specifies the namespace for test
-                                     execution.
-  -h, --help                         display help for command
+  --command <command-array>                Array of commands to run.
+  --args <args-array>                      Array of arguments to pass to the command.
+  --dev                                    Sets the development context environment for the script.
+  --pod-name <pod-name>                    Optional: Specifies the pod name for test execution.
+  --volume-host-path <volume-host-path>    Optional: Specifies the volume host path for test execution.
+  --volume-mount-path <volume-mount-path>  Optional: Specifies the volume mount path for test execution.
+  --image-name <image-name>                Optional: Specifies the image name for test execution.
+  --container-name <container-name>        Optional: Specifies the container name for test execution.
+  --namespace <namespace>                  Optional: Specifies the namespace for test execution.
+  -h, --help                               display help for command
  
 ```
   
