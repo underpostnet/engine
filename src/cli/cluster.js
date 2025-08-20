@@ -606,6 +606,9 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
         // Remove iptables rules and CNI network interfaces.
         shellExec('sudo iptables -F || true');
         shellExec('sudo iptables -t nat -F || true');
+        // Restore iptables rules
+        shellExec(`chmod +x ${options.underpostRoot}/manifests/maas/nat-iptables.sh`);
+        shellExec(`${options.underpostRoot}/manifests/maas/nat-iptables.sh`, { silent: true });
         shellExec('sudo ip link del cni0 || true');
         shellExec('sudo ip link del flannel.1 || true');
 
