@@ -519,7 +519,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
 
       try {
         // Phase 0: Truncate large logs under /var/log to free up immediate space
-        logger.info('Phase 0/6: Truncating large log files under /var/log...');
+        logger.info('Phase 0/7: Truncating large log files under /var/log...');
         try {
           const cleanPath = `/var/log/`;
           const largeLogsFiles = shellExec(
@@ -540,7 +540,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
 
         // Phase 1: Clean up Persistent Volumes with hostPath
         // This targets data created by Kubernetes Persistent Volumes that use hostPath.
-        logger.info('Phase 1/6: Cleaning Kubernetes hostPath volumes...');
+        logger.info('Phase 1/7: Cleaning Kubernetes hostPath volumes...');
         try {
           const pvListJson = shellExec(`kubectl get pv -o json || echo '{"items":[]}'`, { stdout: true, silent: true });
           const pvList = JSON.parse(pvListJson);
@@ -563,7 +563,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
         // Phase 2: Restore SELinux and stop services
         // This is critical for fixing the 'permission denied' error you experienced.
         // Enable SELinux permissive mode and restore file contexts.
-        logger.info('Phase 2/6: Stopping services and fixing SELinux...');
+        logger.info('Phase 2/7: Stopping services and fixing SELinux...');
         logger.info('  -> Ensuring SELinux is in permissive mode...');
         shellExec(`sudo setenforce 0 || true`);
         shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config || true`);
@@ -580,7 +580,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
         shellExec('sudo umount -f /var/lib/kubelet/pods/*/* || true');
 
         // Phase 3: Execute official uninstallation commands
-        logger.info('Phase 3/6: Executing official reset and uninstallation commands...');
+        logger.info('Phase 3/7: Executing official reset and uninstallation commands...');
         logger.info('  -> Executing kubeadm reset...');
         shellExec('sudo kubeadm reset --force || true');
         logger.info('  -> Executing K3s uninstallation script if it exists...');
@@ -589,7 +589,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
         shellExec('kind get clusters | xargs -r -t -n1 kind delete cluster || true');
 
         // Phase 4: File system cleanup
-        logger.info('Phase 4/6: Cleaning up remaining file system artifacts...');
+        logger.info('Phase 4/7: Cleaning up remaining file system artifacts...');
         // Remove any leftover configurations and data.
         shellExec('sudo rm -rf /etc/kubernetes/* || true');
         shellExec('sudo rm -rf /etc/cni/net.d/* || true');
@@ -602,15 +602,18 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
         shellExec('rm -rf $HOME/.kube || true');
 
         // Phase 5: Host network cleanup
-        logger.info('Phase 5/6: Cleaning up host network configurations...');
+        logger.info('Phase 5/7: Cleaning up host network configurations...');
         // Remove iptables rules and CNI network interfaces.
         shellExec('sudo iptables -F || true');
         shellExec('sudo iptables -t nat -F || true');
         shellExec('sudo ip link del cni0 || true');
         shellExec('sudo ip link del flannel.1 || true');
 
+        logger.info('Phase 6/7: Clean up images');
+        shellExec(`podman rmi $(podman images -qa) --force`);
+
         // Phase 6: Reload daemon and finalize
-        logger.info('Phase 6/6: Reloading the system daemon and finalizing...');
+        logger.info('Phase 7/7: Reloading the system daemon and finalizing...');
         // shellExec('sudo systemctl daemon-reload');
         UnderpostCluster.API.config();
         logger.info('Safe and complete reset finished. The system is ready for a new cluster initialization.');
