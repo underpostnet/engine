@@ -6,6 +6,7 @@ import UnderpostTest from './test.js';
 import fs from 'fs-extra';
 import { range, setPad, timer } from '../client/components/core/CommonJs.js';
 import UnderpostDeploy from './deploy.js';
+import UnderpostRootEnv from './env.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -185,6 +186,9 @@ class UnderpostRun {
       const namespace = options.namespace || 'default';
       const volumeMountPath = options.volumeMountPath || path;
       const volumeHostPath = options.volumeHostPath || path;
+      if (options.volumeType === 'dev') options.volumeType = 'FileOrCreate';
+      const volumeType = options.volumeType || fs.statSync(volumeHostPath).isDirectory() ? 'Directory' : 'File';
+
       const enableVolumeMount = volumeHostPath && volumeMountPath;
 
       const cmd = `kubectl apply -f - <<EOF
@@ -210,16 +214,12 @@ ${
 ${args.map((arg) => `          ${arg}`).join('\n')}`
     : ''
 }
-${
-  gpuEnable
-    ? `      resources:
-        limits:
-          nvidia.com/gpu: '1'
-      env:
-        - name: NVIDIA_VISIBLE_DEVICES
-          value: all`
-    : ''
-}
+${UnderpostRootEnv.API.list()
+  .concat(gpuEnable ? [{ key: 'NVIDIA_VISIBLE_DEVICES', value: 'all' }] : [])
+  .map(
+    (env) => `      - name: ${env.key}\n        value: ${typeof env.value === 'number' ? env.value : `"${env.value}"`}`,
+  )
+  .join('\n')}
 ${
   enableVolumeMount
     ? `
@@ -230,7 +230,7 @@ ${
     - name: ${volumeName}
       hostPath:
         path: ${volumeHostPath}
-        type: ${fs.statSync(volumeHostPath).isDirectory() ? 'Directory' : 'File'}`
+        type: ${volumeType}`
     : ''
 }
 EOF`;
