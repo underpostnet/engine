@@ -40,6 +40,19 @@ class UnderpostRun {
 
       shellCd('/home/dd/engine');
     },
+    rmi: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(`podman rmi $(podman images -qa) --force`);
+    },
+    kill: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(`sudo kill -9 $(lsof -t -i:${path})`);
+    },
+    secret: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(
+        `underpost secret underpost --create-from-file ${
+          path ? path : `/home/dd/engine/engine-private/conf/dd-cron/.env.production`
+        }`,
+      );
+    },
     'gpu-env': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       shellExec(
         `node bin cluster --dev --reset && node bin cluster --dev --dedicated-gpu --kubeadm && kubectl get pods --all-namespaces -o wide -w`,
