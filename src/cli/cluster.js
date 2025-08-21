@@ -425,7 +425,7 @@ class UnderpostCluster {
      * @param {string} underpostRoot - The root directory of the underpost project.
      */
     config(options = { underpostRoot: '.' }) {
-      const underpostRoot = options;
+      const { underpostRoot } = options;
       console.log('Applying host configuration: SELinux, Docker, Containerd, and Sysctl settings.');
       // Disable SELinux (permissive mode)
       shellExec(`sudo setenforce 0`);
@@ -460,10 +460,13 @@ class UnderpostCluster {
         `/etc/sysctl.d/99-k8s-ipforward.conf`,
         `/etc/sysctl.d/99-k8s.conf`,
       ])
-        shellExec(`echo 'net.bridge.bridge-nf-call-iptables = 1
+        shellExec(
+          `echo 'net.bridge.bridge-nf-call-iptables = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.bridge.bridge-nf-call-arptables = 1
-net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`);
+net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
+          { silent: true },
+        );
       // shellExec(`sudo sysctl --system`); // Apply sysctl changes immediately
       // Apply NAT iptables rules.
       shellExec(`${underpostRoot}/manifests/maas/nat-iptables.sh`, { silent: true });
