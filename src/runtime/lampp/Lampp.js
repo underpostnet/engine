@@ -10,7 +10,16 @@ const Lampp = {
   initService: async function (options = { daemon: false }) {
     let cmd;
     // linux
-    fs.writeFileSync(`/opt/lampp/apache2/conf/httpd.conf`, this.router || '', 'utf8');
+    // /opt/lampp/apache2/conf/httpd.conf
+    fs.writeFileSync(`/opt/lampp/etc/extra/httpd-vhosts.conf`, this.router || '', 'utf8');
+    fs.writeFileSync(
+      `/opt/lampp/etc/httpd.conf`,
+      fs
+        .readFileSync(`/opt/lampp/etc/httpd.conf`, 'utf8')
+        .replace(`#Include etc/extra/httpd-vhosts.conf`, `Include etc/extra/httpd-vhosts.conf`),
+      'utf8',
+    );
+
     cmd = `sudo /opt/lampp/lampp stop`;
     if (!fs.readFileSync(`/opt/lampp/etc/httpd.conf`, 'utf8').match(`# Listen 80`))
       fs.writeFileSync(
@@ -42,7 +51,7 @@ const Lampp = {
     if (this.router) fs.writeFileSync(`./tmp/lampp-router.conf`, this.router, 'utf-8');
     shellExec(cmd);
   },
-  enabled: () => fs.existsSync(`/opt/lampp/apache2/conf/httpd.conf`),
+  enabled: () => fs.existsSync(`/opt/lampp/etc/httpd.conf`),
   appendRouter: function (render) {
     if (!this.router) {
       if (fs.existsSync(`./tmp/lampp-router.conf`))
