@@ -326,6 +326,7 @@ program
   .option('--pod-name <pod-name>', 'Optional: Specifies the pod name for test execution.')
   .option('--volume-host-path <volume-host-path>', 'Optional: Specifies the volume host path for test execution.')
   .option('--volume-mount-path <volume-mount-path>', 'Optional: Specifies the volume mount path for test execution.')
+  .option('--volume-type <volume-type>', 'Optional: Specifies the volume type for test execution.')
   .option('--image-name <image-name>', 'Optional: Specifies the image name for test execution.')
   .option('--container-name <container-name>', 'Optional: Specifies the container name for test execution.')
   .option('--namespace <namespace>', 'Optional: Specifies the namespace for test execution.')
