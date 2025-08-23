@@ -368,7 +368,7 @@ class UnderpostCluster {
           shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb`);
 
-        const successInstance = await UnderpostTest.API.statusMonitor('mongodb-1');
+        const successInstance = await UnderpostTest.API.statusMonitor('mongodb-1', 'Running', 'pods', 1000, 60 * 10);
 
         if (successInstance) {
           const mongoConfig = {

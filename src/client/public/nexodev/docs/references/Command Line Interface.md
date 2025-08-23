@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.8411
+## underpost ci/cd cli v2.8.842
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -564,6 +564,7 @@ Options:
   --pod-name <pod-name>                    Optional: Specifies the pod name for test execution.
   --volume-host-path <volume-host-path>    Optional: Specifies the volume host path for test execution.
   --volume-mount-path <volume-mount-path>  Optional: Specifies the volume mount path for test execution.
+  --volume-type <volume-type>              Optional: Specifies the volume type for test execution.
   --image-name <image-name>                Optional: Specifies the image name for test execution.
   --container-name <container-name>        Optional: Specifies the container name for test execution.
   --namespace <namespace>                  Optional: Specifies the namespace for test execution.
