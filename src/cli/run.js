@@ -186,10 +186,13 @@ class UnderpostRun {
       const namespace = options.namespace || 'default';
       const volumeMountPath = options.volumeMountPath || path;
       const volumeHostPath = options.volumeHostPath || path;
-      if (options.volumeType === 'dev') options.volumeType = 'FileOrCreate';
-      const volumeType = options.volumeType || fs.statSync(volumeHostPath).isDirectory() ? 'Directory' : 'File';
-
       const enableVolumeMount = volumeHostPath && volumeMountPath;
+
+      if (options.volumeType === 'dev') options.volumeType = 'FileOrCreate';
+      const volumeType =
+        options.volumeType || (enableVolumeMount && fs.statSync(volumeHostPath).isDirectory()) ? 'Directory' : 'File';
+
+      const envs = UnderpostRootEnv.API.list();
 
       const cmd = `kubectl apply -f - <<EOF
 apiVersion: v1
@@ -214,12 +217,19 @@ ${
 ${args.map((arg) => `          ${arg}`).join('\n')}`
     : ''
 }
-${UnderpostRootEnv.API.list()
+${`${
+  gpuEnable
+    ? `      resources:
+        limits:
+          nvidia.com/gpu: '1'
+`
+    : ''
+}      env:
+${Object.keys(envs)
+  .map((key) => ({ key, value: typeof envs[key] === 'number' ? envs[key] : `"${envs[key]}"` }))
   .concat(gpuEnable ? [{ key: 'NVIDIA_VISIBLE_DEVICES', value: 'all' }] : [])
-  .map(
-    (env) => `      - name: ${env.key}\n        value: ${typeof env.value === 'number' ? env.value : `"${env.value}"`}`,
-  )
-  .join('\n')}
+  .map((env) => `        - name: ${env.key}\n          value: ${env.value}`)
+  .join('\n')}`}
 ${
   enableVolumeMount
     ? `
