@@ -260,12 +260,12 @@ class UnderpostCluster {
 
       if (options.full === true || options.valkey === true) {
         if (options.pullImage === true) {
-          shellExec(`docker pull valkey/valkey:latest`);
-          shellExec(`sudo podman pull valkey/valkey:latest`);
-          if (!options.kubeadm && !options.k3s)
+          // shellExec(`sudo podman pull valkey/valkey:latest`);
+          if (!options.kubeadm && !options.k3s) {
             // Only load if not kubeadm/k3s (Kind needs it)
+            shellExec(`docker pull valkey/valkey:latest`);
             shellExec(`sudo kind load docker-image valkey/valkey:latest`);
-          else if (options.kubeadm || options.k3s)
+          } else if (options.kubeadm || options.k3s)
             // For kubeadm/k3s, ensure it's available for containerd
             shellExec(`sudo crictl pull valkey/valkey:latest`);
         }
@@ -279,12 +279,12 @@ class UnderpostCluster {
         shellExec(`kubectl delete statefulset mariadb-statefulset --ignore-not-found`);
 
         if (options.pullImage === true) {
-          shellExec(`docker pull mariadb:latest`);
-          shellExec(`sudo podman pull mariadb:latest`);
-          if (!options.kubeadm && !options.k3s)
+          // shellExec(`sudo podman pull mariadb:latest`);
+          if (!options.kubeadm && !options.k3s) {
             // Only load if not kubeadm/k3s (Kind needs it)
+            shellExec(`docker pull mariadb:latest`);
             shellExec(`sudo kind load docker-image mariadb:latest`);
-          else if (options.kubeadm || options.k3s)
+          } else if (options.kubeadm || options.k3s)
             // For kubeadm/k3s, ensure it's available for containerd
             shellExec(`sudo crictl pull mariadb:latest`);
         }
@@ -304,11 +304,11 @@ class UnderpostCluster {
       }
       if (options.full === true || options.postgresql === true) {
         if (options.pullImage === true) {
-          shellExec(`docker pull postgres:latest`);
-          if (!options.kubeadm && !options.k3s)
+          if (!options.kubeadm && !options.k3s) {
             // Only load if not kubeadm/k3s (Kind needs it)
+            shellExec(`docker pull postgres:latest`);
             shellExec(`sudo kind load docker-image postgres:latest`);
-          else if (options.kubeadm || options.k3s)
+          } else if (options.kubeadm || options.k3s)
             // For kubeadm/k3s, ensure it's available for containerd
             shellExec(`sudo crictl pull postgres:latest`);
         }
@@ -319,11 +319,11 @@ class UnderpostCluster {
       }
       if (options.mongodb4 === true) {
         if (options.pullImage === true) {
-          shellExec(`docker pull mongo:4.4`);
-          if (!options.kubeadm && !options.k3s)
+          if (!options.kubeadm && !options.k3s) {
             // Only load if not kubeadm/k3s (Kind needs it)
+            shellExec(`docker pull mongo:4.4`);
             shellExec(`sudo kind load docker-image mongo:4.4`);
-          else if (options.kubeadm || options.k3s)
+          } else if (options.kubeadm || options.k3s)
             // For kubeadm/k3s, ensure it's available for containerd
             shellExec(`sudo crictl pull mongo:4.4`);
         }
@@ -348,11 +348,11 @@ class UnderpostCluster {
         }
       } else if (options.full === true || options.mongodb === true) {
         if (options.pullImage === true) {
-          shellExec(`docker pull mongo:latest`);
-          if (!options.kubeadm && !options.k3s)
+          if (!options.kubeadm && !options.k3s) {
             // Only load if not kubeadm/k3s (Kind needs it)
+            shellExec(`docker pull mongo:latest`);
             shellExec(`sudo kind load docker-image mongo:latest`);
-          else if (options.kubeadm || options.k3s)
+          } else if (options.kubeadm || options.k3s)
             // For kubeadm/k3s, ensure it's available for containerd
             shellExec(`sudo crictl pull mongo:latest`);
         }

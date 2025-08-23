@@ -26,6 +26,11 @@ RUN curl -L -o /tmp/xampp-linux-installer.run "https://sourceforge.net/projects/
     bash -c "/tmp/xampp-linux-installer.run --mode unattended" && \
     ln -sf /opt/lampp/lampp /usr/bin/lampp
 
+# --- Create /xampp/htdocs (static root) and set permissions
+RUN mkdir -p /opt/lampp/htdocs && \
+    chown -R root:root /opt/lampp/htdocs && \
+    chmod -R a+rX /opt/lampp/htdocs
+
 # Install Node.js
 RUN curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
 RUN dnf install nodejs -y
