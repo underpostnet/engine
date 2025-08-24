@@ -173,19 +173,15 @@ class UnderpostMonitor {
                     monitorTrafficName = undefined;
                     monitorPodName = undefined;
                   }
-                  const cmd = `underpost config get container-status`;
                   const checkDeploymentReadyStatus = () => {
-                    const pods = UnderpostDeploy.API.get(`${deployId}-${env}-${traffic}`);
-                    if (pods && pods[0]) {
-                      const { NAME } = pods[0];
-                      if (
-                        shellExec(`sudo kubectl exec -i ${NAME} -- sh -c "${cmd}"`, { stdout: true }).match(
-                          `${deployId}-${env}-running-deployment`,
-                        )
-                      ) {
-                        monitorPodName = NAME;
-                        monitorTrafficName = `${traffic}`;
-                      }
+                    const { ready, notReadyPods, readyPods } = UnderpostDeploy.API.checkDeploymentReadyStatus(
+                      deployId,
+                      env,
+                      traffic,
+                    );
+                    if (ready) {
+                      monitorPodName = readyPods[0].NAME;
+                      monitorTrafficName = `${traffic}`;
                     }
                   };
                   if (!monitorPodName) {

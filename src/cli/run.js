@@ -142,6 +142,65 @@ class UnderpostRun {
       };
       _monitor();
     },
+    'db-client': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const { underpostRoot } = options;
+      shellExec(`kubectl apply -k ${underpostRoot}/manifests/deployment/adminer/.`);
+    },
+    cluster: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',');
+      const env = 'production';
+      shellCd(`/home/dd/engine`);
+      shellExec(`underpost cluster --reset`);
+      await timer(5000);
+      shellExec(`underpost cluster --kubeadm`);
+      await timer(5000);
+      shellExec(`underpost dockerfile-pull-base-images --path /home/dd/engine/src/runtime/lampp --kubeadm-load`);
+      await timer(5000);
+      shellExec(`underpost cluster --kubeadm --pull-image --mongodb`);
+      await timer(5000);
+      shellExec(`underpost cluster --kubeadm --pull-image --mariadb`);
+      await timer(5000);
+      for (const deployId of deployList) {
+        shellExec(`underpost db ${deployId} --import --git`);
+      }
+      await timer(5000);
+      shellExec(`underpost cluster --kubeadm --pull-image --valkey`);
+      await timer(5000);
+      shellExec(`underpost cluster --kubeadm --contour`);
+      await timer(5000);
+      shellExec(`underpost cluster --kubeadm --cert-manager`);
+      for (const deployId of deployList) {
+        shellExec(`underpost deploy ${deployId} ${env} --kubeadm --cert`);
+      }
+    },
+    deploy: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const deployId = path;
+      const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
+      const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
+      const env = 'production';
+      shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic}`);
+
+      let secondsElapsed = 0;
+      logger.info('Deployment init', { deployId, env, targetTraffic });
+
+      while (!UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic).ready) {
+        await timer(1000);
+        secondsElapsed++;
+        logger.info(`Deployment in progress, seconds elapsed: ${secondsElapsed}`);
+      }
+
+      logger.info(`Deployment ready, seconds elapsed: ${secondsElapsed}`);
+
+      UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, targetTraffic);
+
+      shellExec(
+        `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${
+          options.replicas ? options.replicas : 1
+        } ${deployId} ${env}`,
+      );
+      shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
+      shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${currentTraffic}`);
+    },
     'tf-vae-test': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       const podName = 'tf-vae-test';
