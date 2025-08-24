@@ -1110,18 +1110,6 @@ EOF`);
       break;
     }
 
-    case 'monitor': {
-      shellExec(
-        `node bin monitor ${process.argv[6] === 'sync' ? '--sync ' : ''}--type ${process.argv[3]} ${process.argv[4]} ${
-          process.argv[5]
-        }`,
-        {
-          async: true,
-        },
-      );
-      break;
-    }
-
     case 'postgresql': {
       if (process.argv.includes('install')) {
         shellExec(`sudo dnf install -y postgresql-server postgresql`);
