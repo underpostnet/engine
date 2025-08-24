@@ -6,11 +6,9 @@ permissions:
   id-token: write
 jobs:
   build:
-    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-engine)')
+    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh)')
     name: Remote SSH deployment
     runs-on: ubuntu-latest
-    container:
-      image: rockylinux/rockylinux:9
     steps:
       # - name: 🖊 Write SSH keys
       #   run: |
