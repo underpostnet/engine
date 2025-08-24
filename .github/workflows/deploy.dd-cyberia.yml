@@ -1,0 +1,31 @@
+name: Deploy to Server
+on: [push]
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  build:
+    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-engine-cyberia)')
+    name: Remote SSH deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run remote deploy via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          # Remote host (secret)
+          host: ${{ secrets.SSH_HOST }}
+          # Remote user (secret)
+          username: ${{ secrets.SSH_USERNAME }}
+          # Private key (secret) — the PEM contents (not a path)
+          key: ${{ secrets.SSH_PRIV_KEY }}
+          # Remote port (optional)
+          port: ${{ secrets.SSH_PORT }}
+          # Optional: if your private key has a passphrase, add:
+          # passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
+          # Commands to run on the remote VM
+          script: |
+            set -e
+            echo "Starting remote deploy: underpost run deploy dd-cyberia"
+            cd /home/dd/engine && underpost run deploy dd-cyberia

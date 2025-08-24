@@ -183,4 +183,5 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       fs.copyFileSync(`./manifests/deployment/${confName}-${env}/${file}`, `${basePath}/${file}`);
     }
   }
+  fs.copyFileSync(`./.github/workflows/deploy.${confName}.yml`, `${basePath}/.github/workflows/deploy.${confName}.yml`);
 }
