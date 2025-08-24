@@ -18,7 +18,7 @@ import { Recover } from '../core/Recover.js';
 
 const MenuDogmadual = {
   Data: {},
-  Render: async function () {
+  Render: async function (options = { htmlMainBody: () => html`` }) {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterDogmadual();
@@ -131,6 +131,7 @@ const MenuDogmadual = {
       RouterInstance,
       heightTopBar,
       heightBottomBar,
+      htmlMainBody: options.htmlMainBody,
     });
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {

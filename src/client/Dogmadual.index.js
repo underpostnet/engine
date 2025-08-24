@@ -16,6 +16,11 @@ import { SocketIoDogmadual } from './components/dogmadual/SocketIoDogmadual.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { ElementsDogmadual } from './components/dogmadual/ElementsDogmadual.js';
 import { Scroll } from './components/core/Scroll.js';
+import { getProxyPath } from './components/core/VanillaJs.js';
+
+const htmlMainBody = async () => {
+  return html`<img alt="Tech network" src="${getProxyPath()}assets/tech/tech-network.svg" />`;
+};
 
 window.onload = () =>
   Worker.instance({
@@ -24,7 +29,7 @@ window.onload = () =>
       await Css.loadThemes([CssDogmadualDark, CssDogmadualLight]);
       await TranslateCore.Init();
       await Responsive.Init();
-      await MenuDogmadual.Render();
+      await MenuDogmadual.Render({ htmlMainBody });
       await SocketIo.Init({ channels: ElementsDogmadual.Data });
       await SocketIoDogmadual.Init();
       await LogInDogmadual();
