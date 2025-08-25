@@ -5,7 +5,7 @@ sudo lspci -nnk | egrep -i 'vga|3d' -A3
 lsmod | egrep 'nvidia|nouveau|amdgpu' || true
 
 # if exists nvidia tool
-nvidia-smi 2>/dev/null || echo "nvidia-smi no disponible / driver no cargado"
+nvidia-smi 2>/dev/null || echo "nvidia-smi not found"
 
 # kernel related errors
 sudo dmesg | egrep -i 'nvidia|nouveau|amdgpu' --color=auto
