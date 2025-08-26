@@ -288,9 +288,7 @@ class UnderpostCluster {
             // For kubeadm/k3s, ensure it's available for containerd
             shellExec(`sudo crictl pull mariadb:latest`);
         }
-        if (options.kubeadm === true)
-          // This storage class is specific to kubeadm setup
-          shellExec(`kubectl apply -f ${underpostRoot}/manifests/mariadb/storage-class.yaml`);
+        shellExec(`kubectl apply -f ${underpostRoot}/manifests/mariadb/storage-class.yaml`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb`);
       }
       if (options.full === true || options.mysql === true) {
@@ -363,9 +361,7 @@ class UnderpostCluster {
           `sudo kubectl create secret generic mongodb-secret --from-file=username=/home/dd/engine/engine-private/mongodb-username --from-file=password=/home/dd/engine/engine-private/mongodb-password --dry-run=client -o yaml | kubectl apply -f -`,
         );
         shellExec(`kubectl delete statefulset mongodb --ignore-not-found`);
-        if (options.kubeadm === true)
-          // This storage class is specific to kubeadm setup
-          shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml`);
+        shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb`);
 
         const successInstance = await UnderpostTest.API.statusMonitor('mongodb-1', 'Running', 'pods', 1000, 60 * 10);
