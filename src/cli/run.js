@@ -65,14 +65,16 @@ class UnderpostRun {
       shellExec(`kubectl delete pod tf-gpu-test-pod`);
       shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/tensorflow/tf-gpu-test.yaml`);
     },
-    'mongo-dev-cluster': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'dev-cluster': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --reset`);
       shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''}`);
       shellExec(
         `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb --mongo-db-host ${'127.0.0.1'} --pull-image`,
       );
-      shellExec(`${baseCommand} deploy --expose mongo`);
+      shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --valkey --pull-image`);
+      shellExec(`${baseCommand} deploy --expose mongo`, { async: true });
+      shellExec(`${baseCommand} deploy --expose valkey`, { async: true });
     },
     'cyberia-ide': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
