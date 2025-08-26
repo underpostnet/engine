@@ -374,8 +374,16 @@ class UnderpostCluster {
           const mongoConfig = {
             _id: 'rs0',
             members: [
-              { _id: 0, host: `mongodb-0.${options.mongoDbHost}:27017`, priority: 1 },
-              { _id: 1, host: `mongodb-1.${options.mongoDbHost}:27017`, priority: 1 },
+              {
+                _id: 0,
+                host: `${options.mongoDbHost === 'mongodb-service' ? 'mongodb-0.' : ''}${options.mongoDbHost}:27017`,
+                priority: 1,
+              },
+              // {
+              //   _id: 1,
+              //   host: `${options.mongoDbHost === 'mongodb-service' ? 'mongodb-1.' : ''}${options.mongoDbHost}:27017`,
+              //   priority: 1,
+              // },
             ],
           };
 
