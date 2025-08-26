@@ -118,6 +118,7 @@ program
   .option('--mariadb', 'Initializes the cluster with a MariaDB statefulset.')
   .option('--mysql', 'Initializes the cluster with a MySQL statefulset.')
   .option('--mongodb', 'Initializes the cluster with a MongoDB statefulset.')
+  .option('--mongo-db-host <host>', 'Set custom mongo db host')
   .option('--postgresql', 'Initializes the cluster with a PostgreSQL statefulset.')
   .option('--mongodb4', 'Initializes the cluster with a MongoDB 4.4 service.')
   .option('--valkey', 'Initializes the cluster with a Valkey service.')

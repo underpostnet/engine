@@ -19,6 +19,7 @@ class UnderpostCluster {
      * @param {object} [options] - Configuration options for cluster initialization.
      * @param {boolean} [options.mongodb=false] - Deploy MongoDB.
      * @param {boolean} [options.mongodb4=false] - Deploy MongoDB 4.4.
+     * @param {String} [options.mongoDbHost=''] - Set custom mongo db host
      * @param {boolean} [options.mariadb=false] - Deploy MariaDB.
      * @param {boolean} [options.mysql=false] - Deploy MySQL.
      * @param {boolean} [options.postgresql=false] - Deploy PostgreSQL.
@@ -48,6 +49,7 @@ class UnderpostCluster {
       options = {
         mongodb: false,
         mongodb4: false,
+        mongoDbHost: '',
         mariadb: false,
         mysql: false,
         postgresql: false,
@@ -332,9 +334,10 @@ class UnderpostCluster {
         const successInstance = await UnderpostTest.API.statusMonitor(deploymentName);
 
         if (successInstance) {
+          if (!options.mongoDbHost) options.mongoDbHost = 'mongodb-service';
           const mongoConfig = {
             _id: 'rs0',
-            members: [{ _id: 0, host: 'mongodb-service:27017' }],
+            members: [{ _id: 0, host: `${options.mongoDbHost}:27017` }],
           };
 
           const [pod] = UnderpostDeploy.API.get(deploymentName);
@@ -367,11 +370,12 @@ class UnderpostCluster {
         const successInstance = await UnderpostTest.API.statusMonitor('mongodb-1', 'Running', 'pods', 1000, 60 * 10);
 
         if (successInstance) {
+          if (!options.mongoDbHost) options.mongoDbHost = 'mongodb-service';
           const mongoConfig = {
             _id: 'rs0',
             members: [
-              { _id: 0, host: 'mongodb-0.mongodb-service:27017', priority: 1 },
-              { _id: 1, host: 'mongodb-1.mongodb-service:27017', priority: 1 },
+              { _id: 0, host: `mongodb-0.${options.mongoDbHost}:27017`, priority: 1 },
+              { _id: 1, host: `mongodb-1.${options.mongoDbHost}:27017`, priority: 1 },
             ],
           };
 
