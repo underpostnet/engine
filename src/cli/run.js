@@ -70,7 +70,7 @@ class UnderpostRun {
       shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --reset`);
       shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''}`);
       shellExec(
-        `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb --mongo-db-host localhost --pull-image`,
+        `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb --mongo-db-host ${'127.0.0.1'} --pull-image`,
       );
       shellExec(`${baseCommand} deploy --expose mongo`);
     },
