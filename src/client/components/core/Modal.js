@@ -1504,42 +1504,114 @@ const Modal = {
       default:
         break;
     }
+    // Track drag position for consistency
+    let dragPosition = { x: 0, y: 0 };
+    
+    // Initialize drag options with proper bounds and smooth transitions
     let dragOptions = {
-      // disabled: true,
-      handle,
-      onDragStart: (data) => {
-        if (!s(`.${idModal}`)) return;
-        // logger.info('Dragging started', data);
-        s(`.${idModal}`).style.transition = null;
+      handle: handle,
+      bounds: 'parent',
+      preventDefault: true,
+      position: { x: 0, y: 0 },
+      onDragStart: () => {
+        const modal = s(`.${idModal}`);
+        if (!modal) return;
+        
+        // Store current position
+        const computedStyle = window.getComputedStyle(modal);
+        const matrix = new DOMMatrixReadOnly(computedStyle.transform);
+        dragPosition = {
+          x: matrix.m41 || 0,
+          y: matrix.m42 || 0
+        };
+        
+        modal.style.transition = 'none';
+        modal.style.willChange = 'transform';
       },
       onDrag: (data) => {
-        if (!s(`.${idModal}`)) return;
-        // logger.info('Dragging', data);
+        // Update position based on drag delta
+        dragPosition = { x: data.x, y: data.y };
       },
-      onDragEnd: (data) => {
-        if (!s(`.${idModal}`)) return;
-        // logger.info('Dragging stopped', data);
-        s(`.${idModal}`).style.transition = transition;
-        Object.keys(this.Data[idModal].onDragEndListener).map((keyListener) =>
-          this.Data[idModal].onDragEndListener[keyListener](),
-        );
+      onDragEnd: () => {
+        const modal = s(`.${idModal}`);
+        if (!modal) return;
+        
+        modal.style.willChange = '';
+        modal.style.transition = transition;
+        
+        // Update drag instance with current position
+        if (dragInstance) {
+          dragInstance.updateOptions({
+            position: dragPosition
+          });
+        }
+        
+        // Notify listeners
+        Object.keys(this.Data[idModal].onDragEndListener || {}).forEach(keyListener => {
+          this.Data[idModal].onDragEndListener[keyListener]?.();
+        });
       },
     };
-    let dragInstance;
-    // new Draggable(s(`.${idModal}`), { disabled: true });
-    const setDragInstance = () => (options?.dragDisabled ? null : new Draggable(s(`.${idModal}`), dragOptions));
+    
+    let dragInstance = null;
+    
+    // Initialize or update drag instance
+    const setDragInstance = () => {
+      if (options?.dragDisabled) {
+        if (dragInstance) {
+          dragInstance.destroy();
+          dragInstance = null;
+        }
+        return null;
+      }
+      
+      const modal = s(`.${idModal}`);
+      if (!modal) return null;
+      
+      // Clean up existing instance
+      if (dragInstance) {
+        dragInstance.destroy();
+      }
+      
+      // Create new instance with updated options
+      dragInstance = new Draggable(modal, dragOptions);
+      return dragInstance;
+    };
+    
+    // Expose method to update drag options
     this.Data[idModal].setDragInstance = (updateDragOptions) => {
-      dragOptions = {
-        ...dragOptions,
-        ...updateDragOptions,
-      };
+      if (updateDragOptions) {
+        dragOptions = { ...dragOptions, ...updateDragOptions };
+      }
       dragInstance = setDragInstance();
       this.Data[idModal].dragInstance = dragInstance;
       this.Data[idModal].dragOptions = dragOptions;
     };
-    s(`.${idModal}`).style.transition = '0.15s';
-    setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.opacity = '1') : null));
-    setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 150);
+    // Initialize modal with proper transitions
+    const modal = s(`.${idModal}`);
+    if (modal) {
+      // Initial state
+      modal.style.transition = 'opacity 0.15s ease, transform 0.3s ease';
+      modal.style.opacity = '0';
+      
+      // Trigger fade-in after a small delay to allow initial render
+      requestAnimationFrame(() => {
+        if (!modal) return;
+        modal.style.opacity = '1';
+        
+        // Set final transition after initial animation completes
+        setTimeout(() => {
+          if (modal) {
+            modal.style.transition = transition;
+            
+            // Initialize drag after transitions are set
+            if (!options.dragDisabled) {
+              setDragInstance();
+            }
+          }
+        }, 150);
+      });
+    }
 
     const btnCloseEvent = () => {
       Object.keys(this.Data[idModal].onCloseListener).map((keyListener) =>
@@ -1580,37 +1652,102 @@ const Modal = {
     };
     s(`.btn-close-${idModal}`).onclick = btnCloseEvent;
 
+    // Minimize button handler
     s(`.btn-minimize-${idModal}`).onclick = () => {
-      if (options.slideMenu) delete this.Data[idModal].slideMenu;
-      s(`.${idModal}`).style.transition = '0.3s';
+      const modal = s(`.${idModal}`);
+      if (!modal) return;
+      
+      if (options.slideMenu) {
+        delete this.Data[idModal].slideMenu;
+      }
+      
+      // Keep drag enabled when minimized
+      if (dragInstance) {
+        dragInstance.updateOptions({ disabled: false });
+      }
+      
+      // Set up transition
+      modal.style.transition = 'height 0.3s ease, transform 0.3s ease';
+      
+      // Update button states
       s(`.btn-minimize-${idModal}`).style.display = 'none';
       s(`.btn-maximize-${idModal}`).style.display = null;
       s(`.btn-restore-${idModal}`).style.display = null;
-      s(`.${idModal}`).style.height = `${s(`.bar-default-modal-${idModal}`).clientHeight}px`;
-      setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 300);
+      
+      // Collapse to header height
+      const header = s(`.bar-default-modal-${idModal}`);
+      if (header) {
+        modal.style.height = `${header.clientHeight}px`;
+        modal.style.overflow = 'hidden';
+      }
+      
+      // Restore transition after animation
+      setTimeout(() => {
+        if (modal) {
+          modal.style.transition = transition;
+        }
+      }, 300);
     };
+    // Restore button handler
     s(`.btn-restore-${idModal}`).onclick = () => {
-      if (options.slideMenu) delete this.Data[idModal].slideMenu;
-      s(`.${idModal}`).style.transition = '0.3s';
+      const modal = s(`.${idModal}`);
+      if (!modal) return;
+      
+      if (options.slideMenu) {
+        delete this.Data[idModal].slideMenu;
+      }
+      
+      // Re-enable dragging
+      if (dragInstance) {
+        dragInstance.updateOptions({ disabled: false });
+      }
+      
+      // Set up transition
+      modal.style.transition = 'all 0.3s ease';
+      
+      // Update button states
       s(`.btn-restore-${idModal}`).style.display = 'none';
       s(`.btn-minimize-${idModal}`).style.display = null;
       s(`.btn-maximize-${idModal}`).style.display = null;
-      s(`.${idModal}`).style.transform = null;
-      s(`.${idModal}`).style.height = null;
-      s(`.${idModal}`).style.width = null;
+      
+      // Restore original dimensions and position
+      modal.style.transform = '';
+      modal.style.height = '';
+      modal.style.width = '';
+      modal.style.overflow = '';
+      
+      // Reset drag position
+      dragPosition = { x: 0, y: 0 };
+      
+      // Set new position
+      modal.style.transform = `translate(0, 0)`;
       setCenterRestore();
-      s(`.${idModal}`).style.top = top;
-      s(`.${idModal}`).style.left = left;
-      dragInstance = setDragInstance();
+      
+      // Re-enable drag after restore
+      if (dragInstance) {
+        dragInstance.updateOptions({
+          position: { x: 0, y: 0 },
+          disabled: false  // Ensure drag is enabled after restore
+        });
+      }
       setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 300);
     };
     s(`.btn-maximize-${idModal}`).onclick = () => {
-      s(`.${idModal}`).style.transition = '0.3s';
-      setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 300);
+      const modal = s(`.${idModal}`);
+      if (!modal) return;
+      
+      // Disable drag when maximizing
+      if (dragInstance) {
+        dragInstance.updateOptions({ disabled: true });
+      }
+      
+      modal.style.transition = '0.3s';
+      setTimeout(() => (modal ? (modal.style.transition = transition) : null), 300);
+      
       s(`.btn-maximize-${idModal}`).style.display = 'none';
       s(`.btn-restore-${idModal}`).style.display = null;
       s(`.btn-minimize-${idModal}`).style.display = null;
-      s(`.${idModal}`).style.transform = null;
+      modal.style.transform = null;
 
       if (options.slideMenu) {
         const idSlide = this.Data[options.slideMenu]['slide-menu']
