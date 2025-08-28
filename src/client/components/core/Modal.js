@@ -436,11 +436,12 @@ const Modal = {
                 },
               ];
               // Reusable hover/focus controller for search history panel
+              let unbindDocSearch = null;
               const hoverFocusCtl = EventsUI.HoverFocusController({
                 inputSelector: `.top-bar-search-box-container`,
                 panelSelector: `.${id}`,
                 activeElementId: inputSearchBoxId,
-                onDismiss: () => Modal.removeModal(id),
+                onDismiss: () => dismissSearchBox(),
               });
               let currentKeyBoardSearchBoxIndex = 0;
               let results = [];
@@ -684,12 +685,13 @@ const Modal = {
 
                   // Bind hover/focus and click-outside to dismiss
                   hoverFocusCtl.bind();
-                  const unbindDoc = EventsUI.bindDismissOnDocumentClick({
+                  unbindDocSearch = EventsUI.bindDismissOnDocumentClick({
                     shouldStay: hoverFocusCtl.shouldStay,
-                    onDismiss: () => Modal.removeModal(id),
+                    onDismiss: () => dismissSearchBox(),
+                    anchors: [`.top-bar-search-box-container`, `.${id}`],
                   });
                   // Ensure cleanup when modal closes
-                  Modal.Data[id].onCloseListener[`unbind-doc-${id}`] = () => unbindDoc();
+                  Modal.Data[id].onCloseListener[`unbind-doc-${id}`] = () => unbindDocSearch && unbindDocSearch();
 
                   const titleNode = s(`.title-modal-${id}`).cloneNode(true);
                   s(`.title-modal-${id}`).remove();
@@ -708,6 +710,13 @@ const Modal = {
               s('.top-bar-search-box').onfocus = () => {
                 searchBoxHistoryOpen();
                 searchBoxCallBack(formDataInfoNode[0]);
+              };
+
+              const dismissSearchBox = () => {
+                if (unbindDocSearch) {
+                  try { unbindDocSearch(); } catch (e) {}
+                }
+                Modal.removeModal(searchBoxHistoryId);
               };
               s('.top-bar-search-box').onblur = () => {
                 hoverFocusCtl.checkDismiss();
@@ -1100,10 +1109,11 @@ const Modal = {
                     const unbindDoc = EventsUI.bindDismissOnDocumentClick({
                       shouldStay: hoverFocusCtl.shouldStay,
                       onDismiss: () => Modal.removeModal(id),
+                      anchors: [`.action-btn-lang`, `.${id}`],
                     });
                     Modal.Data[id].onCloseListener[`unbind-doc-${id}`] = () => unbindDoc();
                   },
-                  { context: 'modal' },
+                  { context: 'modal', noGate: true, noLoading: true },
                 );
               }
 
@@ -1513,8 +1523,8 @@ const Modal = {
       this.Data[idModal].dragOptions = dragOptions;
     };
     s(`.${idModal}`).style.transition = '0.15s';
-    setTimeout(() => (s(`.${idModal}`).style.opacity = '1'));
-    setTimeout(() => (s(`.${idModal}`).style.transition = transition), 150);
+    setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.opacity = '1') : null));
+    setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 150);
 
     const btnCloseEvent = () => {
       Object.keys(this.Data[idModal].onCloseListener).map((keyListener) =>
@@ -1562,7 +1572,7 @@ const Modal = {
       s(`.btn-maximize-${idModal}`).style.display = null;
       s(`.btn-restore-${idModal}`).style.display = null;
       s(`.${idModal}`).style.height = `${s(`.bar-default-modal-${idModal}`).clientHeight}px`;
-      setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
+      setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 300);
     };
     s(`.btn-restore-${idModal}`).onclick = () => {
       if (options.slideMenu) delete this.Data[idModal].slideMenu;
@@ -1577,11 +1587,11 @@ const Modal = {
       s(`.${idModal}`).style.top = top;
       s(`.${idModal}`).style.left = left;
       dragInstance = setDragInstance();
-      setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
+      setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 300);
     };
     s(`.btn-maximize-${idModal}`).onclick = () => {
       s(`.${idModal}`).style.transition = '0.3s';
-      setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
+      setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 300);
       s(`.btn-maximize-${idModal}`).style.display = 'none';
       s(`.btn-restore-${idModal}`).style.display = null;
       s(`.btn-minimize-${idModal}`).style.display = null;
