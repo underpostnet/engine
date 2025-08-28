@@ -39,6 +39,35 @@ const logger = loggerFactory(import.meta);
 
 const Modal = {
   Data: {},
+  HoverFocusController: function ({ inputSelector, panelSelector, activeElementId, onDismiss }) {
+    let hoverPanel = false;
+    let hoverInput = false;
+    const isActive = () => isActiveElement(activeElementId);
+    const shouldStay = () => isActive() || hoverPanel || hoverInput;
+    const bind = () => {
+      if (s(inputSelector)) {
+        s(inputSelector).onmouseover = () => {
+          hoverInput = true;
+        };
+        s(inputSelector).onmouseout = () => {
+          hoverInput = false;
+        };
+      }
+      if (s(panelSelector)) {
+        s(panelSelector).onmouseover = () => {
+          hoverPanel = true;
+        };
+        s(panelSelector).onmouseout = () => {
+          hoverPanel = false;
+          if (s(`.${activeElementId}`) && s(`.${activeElementId}`).focus) s(`.${activeElementId}`).focus();
+        };
+      }
+    };
+    const checkDismiss = () => {
+      if (!shouldStay()) onDismiss && onDismiss();
+    };
+    return { bind, shouldStay, checkDismiss };
+  },
   Render: async function (
     options = {
       id: '',
@@ -434,8 +463,13 @@ const Modal = {
                   rules: [] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/,
                 },
               ];
-              let hoverHistBox = false;
-              let hoverInputBox = false;
+              // Reusable hover/focus controller for search history panel
+              const hoverFocusCtl = Modal.HoverFocusController({
+                inputSelector: `.top-bar-search-box-container`,
+                panelSelector: `.${id}`,
+                activeElementId: inputSearchBoxId,
+                onDismiss: () => Modal.removeModal(id),
+              });
               let currentKeyBoardSearchBoxIndex = 0;
               let results = [];
               let historySearchBox = [];
@@ -592,7 +626,7 @@ const Modal = {
                 const isSearchBoxActiveElement = isActiveElement(inputSearchBoxId);
                 checkHistoryBoxTitleStatus();
                 checkShortcutContainerInfoEnabled();
-                if (!isSearchBoxActiveElement && !hoverHistBox && !hoverInputBox) {
+                if (!isSearchBoxActiveElement && !hoverFocusCtl.shouldStay()) {
                   Modal.removeModal(searchBoxHistoryId);
                   return;
                 }
@@ -684,19 +718,8 @@ const Modal = {
 
                   prepend(`.btn-bar-modal-container-${id}`, html`<div class="hide">${inputInfoNode.outerHTML}</div>`);
 
-                  s(`.top-bar-search-box-container`).onmouseover = () => {
-                    hoverInputBox = true;
-                  };
-                  s(`.top-bar-search-box-container`).onmouseout = () => {
-                    hoverInputBox = false;
-                  };
-                  s(`.${id}`).onmouseover = () => {
-                    hoverHistBox = true;
-                  };
-                  s(`.${id}`).onmouseout = () => {
-                    hoverHistBox = false;
-                    s(`.${inputSearchBoxId}`).focus();
-                  };
+                  // Bind hover/focus listeners via controller
+                  hoverFocusCtl.bind();
                 }
               };
 
@@ -709,13 +732,13 @@ const Modal = {
                 searchBoxCallBack(formDataInfoNode[0]);
               };
               s('.top-bar-search-box').onblur = () => {
-                if (!hoverHistBox && !hoverInputBox && !isActiveElement(inputSearchBoxId)) {
-                  Modal.removeModal(searchBoxHistoryId);
-                }
+                hoverFocusCtl.checkDismiss();
               };
               EventsUI.onClick(`.top-bar-search-box-container`, () => {
                 searchBoxHistoryOpen();
                 searchBoxCallBack(formDataInfoNode[0]);
+                const inputEl = s(`.${inputSearchBoxId}`);
+                if (inputEl && inputEl.focus) inputEl.focus();
               });
 
               const timePressDelay = 100;
