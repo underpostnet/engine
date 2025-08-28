@@ -1,4 +1,4 @@
-name: Deploy to Server
+name: CD | engine-cyberia | remote ssh
 on: [push]
 permissions:
   contents: write
