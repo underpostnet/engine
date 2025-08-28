@@ -693,11 +693,7 @@ const Modal = {
                   // Ensure cleanup when modal closes
                   Modal.Data[id].onCloseListener[`unbind-doc-${id}`] = () => unbindDocSearch && unbindDocSearch();
 
-                  const titleNode = s(`.title-modal-${id}`).cloneNode(true);
-                  s(`.title-modal-${id}`).remove();
-                  s(`.btn-bar-modal-container-render-${id}`).classList.add('in');
-                  s(`.btn-bar-modal-container-render-${id}`).classList.add('fll');
-                  s(`.btn-bar-modal-container-render-${id}`).appendChild(titleNode);
+                  Modal.MoveTitleToBar(id);
 
                   prepend(`.btn-bar-modal-container-${id}`, html`<div class="hide">${inputInfoNode.outerHTML}</div>`);
                 }
@@ -714,7 +710,9 @@ const Modal = {
 
               const dismissSearchBox = () => {
                 if (unbindDocSearch) {
-                  try { unbindDocSearch(); } catch (e) {}
+                  try {
+                    unbindDocSearch();
+                  } catch (e) {}
                 }
                 Modal.removeModal(searchBoxHistoryId);
               };
@@ -1083,7 +1081,10 @@ const Modal = {
                     await Modal.Render({
                       id,
                       barConfig,
-                      title: html`${Translate.Render('language')}`,
+                      title: html`${renderViewTitle({
+                        icon: html`<i class="fas fa-language mini-title"></i>`,
+                        text: Translate.Render('select lang'),
+                      })}`,
                       html: () => html``,
                       titleClass: 'mini-title',
                       style: {
@@ -1098,6 +1099,9 @@ const Modal = {
                       heightTopBar: originHeightTopBar,
                       barMode: options.barMode,
                     });
+
+                    // Move title inside the bar container to align with control buttons
+                    Modal.MoveTitleToBar(id);
 
                     // Hover/focus controller uses the button as input anchor
                     const hoverFocusCtl = EventsUI.HoverFocusController({
@@ -1829,6 +1833,21 @@ const Modal = {
         resolve({ status: 'confirm' });
       };
     });
+  },
+  // Move modal title element into the bar's render container so it aligns with control buttons
+  MoveTitleToBar: function (idModal) {
+    try {
+      const titleEl = s(`.title-modal-${idModal}`);
+      const container = s(`.btn-bar-modal-container-render-${idModal}`);
+      if (!titleEl || !container) return;
+      const titleNode = titleEl.cloneNode(true);
+      titleEl.remove();
+      container.classList.add('in');
+      container.classList.add('fll');
+      container.appendChild(titleNode);
+    } catch (e) {
+      // non-fatal: keep default placement if structure not present
+    }
   },
   headerTitleHeight: 40,
   actionBtnCenter: function () {
