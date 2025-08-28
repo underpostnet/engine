@@ -923,6 +923,35 @@ const MenuNexodev = {
         barMode,
       });
     });
+
+    setTimeout(async () => {
+      return;
+      const { barConfig } = await Themes[Css.currentTheme]();
+
+      // create simple modal arbritatry for test
+      Modal.Render({
+        id: 'modal-test',
+        barConfig,
+        title: 'Test',
+        html: () => html`<div>Test</div>`,
+        style: {
+          top: '100px',
+          left: '100px',
+          width: '200px',
+          height: '200px',
+          background: 'red',
+          border: '1px solid #000',
+          'z-index': 10,
+        },
+        slideMenu: 'modal-menu',
+        // RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        barMode,
+      });
+
+      Modal.Data['modal-menu'].homeModals.push('modal-test');
+    });
   },
 };
 

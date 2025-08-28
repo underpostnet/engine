@@ -87,6 +87,7 @@ const Modal = {
       onBarUiOpen: {},
       onBarUiClose: {},
       onHome: {},
+      homeModals: options.homeModals ? options.homeModals : [],
       query: options.query ? `${window.location.search}` : undefined,
     };
     const setCenterRestore = () => {
@@ -905,8 +906,10 @@ const Modal = {
                 barConfig.buttons.menu.disabled = true;
                 barConfig.buttons.close.disabled = true;
                 const id = 'bottom-bar';
-                if (options && options.homeModals && !options.homeModals.includes(id)) options.homeModals.push(id);
-                else options.homeModals = [id];
+                if (!this.Data[idModal].homeModals) this.Data[idModal].homeModals = [];
+                if (!this.Data[idModal].homeModals.includes(id)) {
+                  this.Data[idModal].homeModals.push(id);
+                }
                 const html = async () => html`
                   <style>
                     .top-bar-search-box-container {
@@ -1422,9 +1425,7 @@ const Modal = {
         this.onHomeRouterEvent = async () => {
           for (const keyModal of Object.keys(this.Data)) {
             if (
-              ![idModal, 'main-body-top', 'main-body']
-                .concat(options?.homeModals ? options.homeModals : [])
-                .includes(keyModal)
+              ![idModal, 'main-body-top', 'main-body'].concat(this.Data[idModal]?.homeModals || []).includes(keyModal)
             )
               s(`.btn-close-${keyModal}`).click();
             backMenuButtonEvent();
@@ -1891,7 +1892,7 @@ const Modal = {
       modal.style.position = 'fixed';
       modal.style.opacity = '0';
       modal.style.transition = 'opacity 150ms ease-out, transform 150ms ease-out';
-      
+
       // Position near the anchor but slightly offset
       modal.style.top = `${finalPlaceAbove ? arect.top - 40 : arect.bottom + 20}px`;
       modal.style.left = `${align === 'right' ? arect.right - 200 : arect.left}px`;
@@ -1902,10 +1903,10 @@ const Modal = {
 
       // Now calculate final position
       const mrect = modal.getBoundingClientRect();
-      
+
       // Calculate final top position
       const top = finalPlaceAbove ? arect.top - mrect.height - offset.y : arect.bottom + offset.y;
-      
+
       // Calculate final left position based on alignment
       let left;
       if (align === 'right') {
