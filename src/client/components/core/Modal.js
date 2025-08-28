@@ -1064,7 +1064,8 @@ const Modal = {
                 //     DropDown.Tokens['settings-lang'].onClickEvents[`dropdown-option-${lang}`]();
                 //   else Translate.renderLang(lang);
                 // });
-                // New: open lightweight empty modal on language button, with shared dismiss logic
+
+                // Open lightweight empty modal on language button, with shared dismiss logic
                 EventsUI.onClick(
                   `.action-btn-lang`,
                   async () => {
@@ -1102,6 +1103,15 @@ const Modal = {
 
                     // Move title inside the bar container to align with control buttons
                     Modal.MoveTitleToBar(id);
+
+                    // Position the language selection modal relative to the language button
+                    Modal.positionRelativeToAnchor({
+                      modalSelector: `.${id}`,
+                      anchorSelector: '.action-btn-lang',
+                      align: 'right',
+                      offset: { x: 0, y: 6 },
+                      autoVertical: true,
+                    });
 
                     // Hover/focus controller uses the button as input anchor
                     const hoverFocusCtl = EventsUI.HoverFocusController({
@@ -1835,7 +1845,91 @@ const Modal = {
     });
   },
   // Move modal title element into the bar's render container so it aligns with control buttons
-  MoveTitleToBar: function (idModal) {
+  /**
+   * Position a modal relative to an anchor element
+   * @param {Object} options - Positioning options
+   * @param {string} options.modalSelector - CSS selector for the modal element
+   * @param {string} options.anchorSelector - CSS selector for the anchor element
+   * @param {Object} [options.offset={x: 0, y: 6}] - Offset from anchor
+   * @param {string} [options.align='right'] - Horizontal alignment ('left' or 'right')
+   * @param {boolean} [options.autoVertical=true] - Whether to automatically determine vertical position
+   * @param {boolean} [options.placeAbove] - Force position above/below anchor (overrides autoVertical)
+   */
+  positionRelativeToAnchor({
+    modalSelector,
+    anchorSelector,
+    offset = { x: 0, y: 6 },
+    align = 'right',
+    autoVertical = true,
+    placeAbove,
+  }) {
+    try {
+      const modal = s(modalSelector);
+      const anchor = s(anchorSelector);
+
+      if (!modal || !anchor || !anchor.getBoundingClientRect) return;
+
+      // First, position the modal near its final position but off-screen
+      const arect = anchor.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+      const safeMargin = 6;
+
+      // Determine vertical position
+      let finalPlaceAbove = placeAbove;
+      if (autoVertical && placeAbove === undefined) {
+        const inBottomBar = anchor.closest && anchor.closest('.bottom-bar');
+        const inTopBar = anchor.closest && anchor.closest('.slide-menu-top-bar');
+
+        if (inBottomBar) finalPlaceAbove = true;
+        else if (inTopBar) finalPlaceAbove = false;
+        else finalPlaceAbove = arect.top > vh / 2; // heuristic fallback
+      }
+
+      // Set initial position (slightly offset from final position)
+      const initialOffset = finalPlaceAbove ? 20 : -20;
+      modal.style.position = 'fixed';
+      modal.style.opacity = '0';
+      modal.style.transition = 'opacity 150ms ease-out, transform 150ms ease-out';
+      
+      // Position near the anchor but slightly offset
+      modal.style.top = `${finalPlaceAbove ? arect.top - 40 : arect.bottom + 20}px`;
+      modal.style.left = `${align === 'right' ? arect.right - 200 : arect.left}px`;
+      modal.style.transform = 'translateY(0)';
+
+      // Force reflow to ensure initial styles are applied
+      modal.offsetHeight;
+
+      // Now calculate final position
+      const mrect = modal.getBoundingClientRect();
+      
+      // Calculate final top position
+      const top = finalPlaceAbove ? arect.top - mrect.height - offset.y : arect.bottom + offset.y;
+      
+      // Calculate final left position based on alignment
+      let left;
+      if (align === 'right') {
+        left = arect.right - mrect.width - offset.x; // align right edges
+      } else {
+        left = arect.left + offset.x; // align left edges
+      }
+
+      // Ensure modal stays within viewport bounds
+      left = Math.max(safeMargin, Math.min(left, vw - mrect.width - safeMargin));
+      const finalTop = Math.max(safeMargin, Math.min(top, vh - mrect.height - safeMargin));
+
+      // Apply final position with smooth transition
+      requestAnimationFrame(() => {
+        modal.style.top = `${Math.round(finalTop)}px`;
+        modal.style.left = `${Math.round(left)}px`;
+        modal.style.opacity = '1';
+      });
+    } catch (e) {
+      console.error('Error positioning modal:', e);
+    }
+  },
+
+  MoveTitleToBar(idModal) {
     try {
       const titleEl = s(`.title-modal-${idModal}`);
       const container = s(`.btn-bar-modal-container-render-${idModal}`);
