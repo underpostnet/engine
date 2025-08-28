@@ -14,8 +14,8 @@ const disableValkeyErrorMessage = 'valkey is not enabled';
 const isValkeyEnable = () => valkeyEnabled;
 
 const createValkeyConnection = async (
-  instance = { host: '', port: 0 },
-  valkeyServerConnectionOptions = { host: '', port: 0 },
+  instance = { host: '', path: '' },
+  valkeyServerConnectionOptions = { host: '', path: '' },
 ) => {
   ValkeyInstances[`${instance.host}${instance.path}`] = await ValkeyAPI.valkeyClientFactory(
     valkeyServerConnectionOptions,
@@ -60,33 +60,28 @@ const valkeyClientFactory = async (options) => {
   return valkey;
 };
 
-const getValkeyObject = async (options = { host: '', port: 0 }, key = '') => {
+const getValkeyObject = async (options = { host: '', path: '' }, key = '') => {
   if (!valkeyEnabled) {
     logger.warn(disableValkeyErrorMessage + ' get', key);
     return null;
   }
   const object = await ValkeyInstances[`${options.host}${options.path}`].get(key);
-  try {
-    return JSON.parse(object);
-  } catch (error) {
-    logger.error(error);
-    return object;
-  }
+  return JSON.parse(object);
 };
 
-const setValkeyObject = async (options = { host: '', port: 0 }, key = '', payload = {}) => {
+const setValkeyObject = async (options = { host: '', path: '' }, key = '', payload = {}) => {
   if (!valkeyEnabled) throw new Error(disableValkeyErrorMessage);
   return await ValkeyInstances[`${options.host}${options.path}`].set(key, JSON.stringify(payload));
 };
 
-const updateValkeyObject = async (options = { host: '', port: 0 }, key = '', payload = {}) => {
+const updateValkeyObject = async (options = { host: '', path: '' }, key = '', payload = {}) => {
   if (!valkeyEnabled) throw new Error(disableValkeyErrorMessage);
   const object = await getValkeyObject(key);
   object.updatedAt = new Date().toISOString();
   return await ValkeyInstances[`${options.host}${options.path}`].set(key, JSON.stringify({ ...object, ...payload }));
 };
 
-const valkeyObjectFactory = async (options = { host: 'localhost', object: {} }, module = '') => {
+const valkeyObjectFactory = async (options = { host: 'localhost', object: {} }, model = '') => {
   if (!valkeyEnabled) throw new Error(disableValkeyErrorMessage);
   const idoDate = new Date().toISOString();
   options.object = options.object || {};
@@ -95,7 +90,7 @@ const valkeyObjectFactory = async (options = { host: 'localhost', object: {} }, 
   object._id = _id;
   object.createdAt = idoDate;
   object.updatedAt = idoDate;
-  switch (module) {
+  switch (model) {
     case 'user': {
       const role = 'guest';
       object._id = `${role}${_id}`;
@@ -115,7 +110,7 @@ const valkeyObjectFactory = async (options = { host: 'localhost', object: {} }, 
       };
     }
     default:
-      throw new Error(`module schema not found: ${module}`);
+      throw new Error(`model schema not found: ${model}`);
   }
 };
 
