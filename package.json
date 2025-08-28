@@ -6,6 +6,7 @@
   "description": "underpost engine server",
   "scripts": {
     "start": "env-cmd -f .env.production node --max-old-space-size=8192 src/server",
+    "build": "node bin/deploy build-full-client",
     "test": "env-cmd -f .env.test c8 mocha",
     "pm2": "env-cmd -f .env.production pm2 start src/server.js --node-args=\"--max-old-space-size=8192\" --name engine",
     "dev": "env-cmd -f .env.development nodemon src/server",
