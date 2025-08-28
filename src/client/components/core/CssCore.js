@@ -137,10 +137,6 @@ const CssCommonCore = async () => {
       .title-view-modal .view-title-icon {
         font-size: 21px !important;
       }
-      .plantuml-svg {
-        width: 100%;
-        height: auto;
-      }
       .down-arrow-submenu {
         top: -20px;
         text-align: right;

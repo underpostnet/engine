@@ -577,9 +577,6 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
         fs.mkdirSync(coverageBuildPath, { recursive: true });
         fs.copySync(`./coverage`, coverageBuildPath);
 
-        // uml
-        // shellExec(`node bin/deploy uml ${host} ${path}`);
-
         // https://swagger-autogen.github.io/docs/
 
         const basePath = path === '/' ? `${process.env.BASE_API}` : `/${process.env.BASE_API}`;
@@ -666,10 +663,6 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
             },
           },
         };
-
-        // plantuml
-        logger.info('copy plantuml', `${rootClientPath}/docs/plantuml`);
-        fs.copySync(`./src/client/public/default/plantuml`, `${rootClientPath}/docs/plantuml`);
 
         logger.warn('build swagger api docs', doc.info);
 

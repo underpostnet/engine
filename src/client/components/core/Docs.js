@@ -11,8 +11,6 @@ import Sortable from 'sortablejs';
 
 // https://mintlify.com/docs/quickstart
 
-const umlTypes = ['server', 'cron', 'client', 'ssr'];
-
 const Docs = {
   RenderModal: async function (type, modalOptions) {
     const docData = this.Data.find((d) => d.type === type);
@@ -118,37 +116,7 @@ const Docs = {
           )}`;
       },
     },
-  ].concat(
-    umlTypes.map((umlType) => {
-      const umlId = `uml-${umlType}`;
-      return {
-        type: umlId,
-        icon: html`<i class="fas fa-sitemap"></i>`,
-        text: Translate.Render(`${umlType} config uml`),
-        url: function () {
-          return `/docs/?cid=${umlId}`;
-        },
-        renderHtml: function () {
-          return html` <div class="in section-mp">
-              <div class="in sub-title-modal"><i class="fas fa-project-diagram"></i> Schema</div>
-            </div>
-            <div class="in section-mp">
-              <a href="${getProxyPath()}docs/plantuml/${umlType}-schema.svg" target="_blank"
-                ><img class="in plantuml-svg" src="${getProxyPath()}docs/plantuml/${umlType}-schema.svg"
-              /></a>
-            </div>
-            <div class="in section-mp">
-              <div class="in sub-title-modal"><i class="fas fa-project-diagram"></i> Instance example</div>
-            </div>
-            <div class="in section-mp">
-              <a href="${getProxyPath()}docs/plantuml/${umlType}-conf.svg" target="_blank"
-                ><img class="in plantuml-svg" src="${getProxyPath()}docs/plantuml/${umlType}-conf.svg"
-              /></a>
-            </div>`;
-        },
-      };
-    }),
-  ),
+  ],
   Tokens: {},
   Init: async function (options) {
     const { idModal } = options;
@@ -158,10 +126,6 @@ const Docs = {
         s(`.btn-docs-src`).classList.remove('main-btn-menu-active');
         s(`.btn-docs-api`).classList.remove('main-btn-menu-active');
         s(`.btn-docs-coverage`).classList.remove('main-btn-menu-active');
-        for (const umlType of umlTypes) {
-          const umlId = `uml-${umlType}`;
-          s(`.btn-docs-${umlId}`).classList.remove('main-btn-menu-active');
-        }
       };
       s(`.btn-docs-src`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'src' });
@@ -194,16 +158,6 @@ const Docs = {
         const docData = this.Data.find((d) => d.type === 'demo');
         location.href = docData.url();
       };
-
-      for (const umlType of umlTypes) {
-        const umlId = `uml-${umlType}`;
-        s(`.btn-docs-${umlId}`).onclick = async () => {
-          cleanActive();
-          s(`.btn-docs-${umlId}`).classList.add('main-btn-menu-active');
-          setQueryPath({ path: 'docs', queryPath: umlId });
-          await this.RenderModal(umlId, { ...options.modalOptions, handleType: 'bar' });
-        };
-      }
 
       listenQueryPathInstance({
         id: options.idModal,
