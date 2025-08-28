@@ -39,35 +39,7 @@ const logger = loggerFactory(import.meta);
 
 const Modal = {
   Data: {},
-  HoverFocusController: function ({ inputSelector, panelSelector, activeElementId, onDismiss }) {
-    let hoverPanel = false;
-    let hoverInput = false;
-    const isActive = () => isActiveElement(activeElementId);
-    const shouldStay = () => isActive() || hoverPanel || hoverInput;
-    const bind = () => {
-      if (s(inputSelector)) {
-        s(inputSelector).onmouseover = () => {
-          hoverInput = true;
-        };
-        s(inputSelector).onmouseout = () => {
-          hoverInput = false;
-        };
-      }
-      if (s(panelSelector)) {
-        s(panelSelector).onmouseover = () => {
-          hoverPanel = true;
-        };
-        s(panelSelector).onmouseout = () => {
-          hoverPanel = false;
-          if (s(`.${activeElementId}`) && s(`.${activeElementId}`).focus) s(`.${activeElementId}`).focus();
-        };
-      }
-    };
-    const checkDismiss = () => {
-      if (!shouldStay()) onDismiss && onDismiss();
-    };
-    return { bind, shouldStay, checkDismiss };
-  },
+
   Render: async function (
     options = {
       id: '',
@@ -464,7 +436,7 @@ const Modal = {
                 },
               ];
               // Reusable hover/focus controller for search history panel
-              const hoverFocusCtl = Modal.HoverFocusController({
+              const hoverFocusCtl = EventsUI.HoverFocusController({
                 inputSelector: `.top-bar-search-box-container`,
                 panelSelector: `.${id}`,
                 activeElementId: inputSearchBoxId,
@@ -710,6 +682,15 @@ const Modal = {
                     barMode: options.barMode,
                   });
 
+                  // Bind hover/focus and click-outside to dismiss
+                  hoverFocusCtl.bind();
+                  const unbindDoc = EventsUI.bindDismissOnDocumentClick({
+                    shouldStay: hoverFocusCtl.shouldStay,
+                    onDismiss: () => Modal.removeModal(id),
+                  });
+                  // Ensure cleanup when modal closes
+                  Modal.Data[id].onCloseListener[`unbind-doc-${id}`] = () => unbindDoc();
+
                   const titleNode = s(`.title-modal-${id}`).cloneNode(true);
                   s(`.title-modal-${id}`).remove();
                   s(`.btn-bar-modal-container-render-${id}`).classList.add('in');
@@ -717,9 +698,6 @@ const Modal = {
                   s(`.btn-bar-modal-container-render-${id}`).appendChild(titleNode);
 
                   prepend(`.btn-bar-modal-container-${id}`, html`<div class="hide">${inputInfoNode.outerHTML}</div>`);
-
-                  // Bind hover/focus listeners via controller
-                  hoverFocusCtl.bind();
                 }
               };
 
@@ -1071,13 +1049,62 @@ const Modal = {
 
               {
                 htmls(`.action-btn-lang-render`, html` ${s('html').lang}`);
-                EventsUI.onClick(`.action-btn-lang`, () => {
-                  let lang = 'en';
-                  if (s('html').lang === 'en') lang = 'es';
-                  if (s(`.dropdown-option-${lang}`))
-                    DropDown.Tokens['settings-lang'].onClickEvents[`dropdown-option-${lang}`]();
-                  else Translate.renderLang(lang);
-                });
+                // old method
+                // EventsUI.onClick(`.action-btn-lang`, () => {
+                //   let lang = 'en';
+                //   if (s('html').lang === 'en') lang = 'es';
+                //   if (s(`.dropdown-option-${lang}`))
+                //     DropDown.Tokens['settings-lang'].onClickEvents[`dropdown-option-${lang}`]();
+                //   else Translate.renderLang(lang);
+                // });
+                // New: open lightweight empty modal on language button, with shared dismiss logic
+                EventsUI.onClick(
+                  `.action-btn-lang`,
+                  async () => {
+                    const id = 'action-btn-lang-modal';
+                    if (s(`.${id}`)) {
+                      return s(`.btn-close-${id}`).click();
+                    }
+                    const { barConfig } = await Themes[Css.currentTheme]();
+                    barConfig.buttons.maximize.disabled = true;
+                    barConfig.buttons.minimize.disabled = true;
+                    barConfig.buttons.restore.disabled = true;
+                    barConfig.buttons.menu.disabled = true;
+                    barConfig.buttons.close.disabled = false;
+                    await Modal.Render({
+                      id,
+                      barConfig,
+                      title: html`${Translate.Render('language')}`,
+                      html: () => html``,
+                      titleClass: 'mini-title',
+                      style: {
+                        resize: 'none',
+                        'max-width': '300px',
+                        height: '150px !important',
+                        'z-index': 7,
+                      },
+                      dragDisabled: true,
+                      maximize: true,
+                      heightBottomBar: 0,
+                      heightTopBar: originHeightTopBar,
+                      barMode: options.barMode,
+                    });
+
+                    // Hover/focus controller uses the button as input anchor
+                    const hoverFocusCtl = EventsUI.HoverFocusController({
+                      inputSelector: `.action-btn-lang`,
+                      panelSelector: `.${id}`,
+                      onDismiss: () => Modal.removeModal(id),
+                    });
+                    hoverFocusCtl.bind();
+                    const unbindDoc = EventsUI.bindDismissOnDocumentClick({
+                      shouldStay: hoverFocusCtl.shouldStay,
+                      onDismiss: () => Modal.removeModal(id),
+                    });
+                    Modal.Data[id].onCloseListener[`unbind-doc-${id}`] = () => unbindDoc();
+                  },
+                  { context: 'modal' },
+                );
               }
 
               {
