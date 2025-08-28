@@ -62,7 +62,7 @@ const Recover = {
 
     setTimeout(async () => {
       if (user && user.email) {
-        s(`.recover-email`).value = user.email;
+        s(`.recover-email`).value = user.role === 'guest' ? '' : user.email;
         if (user.emailConfirmed) s(`.recover-email`).setAttribute('disabled', '');
       }
 
