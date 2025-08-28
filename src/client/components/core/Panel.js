@@ -119,10 +119,11 @@ const Panel = {
         });
         s(`.a-${payload._id}`).onclick = async (e) => {
           e.preventDefault();
+          if (options.onClick) await options.onClick({ payload });
         };
         s(`.container-${idPanel}-${id}`).onclick = async (e) => {
           e.preventDefault();
-          if (options.onClick) await options.onClick({ payload });
+          // if (options.onClick) await options.onClick({ payload });
         };
       });
       if (s(`.${idPanel}-${id}`)) s(`.${idPanel}-${id}`).remove();
@@ -540,7 +541,6 @@ const Panel = {
           background: #f6f6f6;
           color: black;
           padding: 10px;
-          cursor: pointer;
           min-height: 400px;
         }
         .${idPanel}:hover {
