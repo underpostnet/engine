@@ -1,4 +1,4 @@
-name: Engine core Repo Builder
+name: CI | engine-lampp | github repository
 on:
   workflow_run:
     workflows: ['Update npm repo package']

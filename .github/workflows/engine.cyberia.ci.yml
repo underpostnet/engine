@@ -1,4 +1,4 @@
-name: Engine cyberia Repo Builder
+name: CI | engine-cyberia | github repository
 on:
   workflow_run:
     workflows: ['Update npm repo package']
