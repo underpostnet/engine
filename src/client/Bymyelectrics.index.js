@@ -135,7 +135,7 @@ const htmlMainBody = async () => {
         </div>
       </div>
     </div>
-    ${dynamicCol({ containerSelector: id0DynamicCol, id: id0DynamicCol, type: 'a-50-b-50' })}
+    ${true ? '' : dynamicCol({ containerSelector: id0DynamicCol, id: id0DynamicCol, type: 'a-50-b-50' })}
     <div class="in section-mp landing-container">
       <br />
       <div class="in sub-title-sec-1">Nuestros servicios</div>
