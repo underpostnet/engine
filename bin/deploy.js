@@ -614,6 +614,15 @@ try {
     }
 
     case 'version-build': {
+      shellCd(`/home/dd/engine`);
+      shellExec(`git reset`);
+      shellExec(`git checkout .`);
+      shellExec(`git clean -f -d`);
+      shellCd(`/home/dd/engine/engine-private`);
+      shellExec(`git reset`);
+      shellExec(`git checkout .`);
+      shellExec(`git clean -f -d`);
+      shellCd(`/home/dd/engine`);
       const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
       const newVersion = process.argv[3] ?? originPackageJson.version;
       const { version } = originPackageJson;
