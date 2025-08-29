@@ -1742,6 +1742,12 @@ const Modal = {
       modal.style.transform = `translate(0, 0)`;
       setCenterRestore();
 
+      // Adjust top position based on top bar visibility
+      const heightDefaultTopBar = 40; // Default top bar height if not specified
+      s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
+        ? `0px`
+        : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
+
       // Re-enable drag after restore
       if (dragInstance) {
         dragInstance.updateOptions({
