@@ -151,8 +151,8 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
 
   fs.copyFileSync(`./conf.${confName}.js`, `${basePath}/conf.js`);
   fs.copyFileSync(
-    `./.github/workflows/engine.${confName.split('dd-')[1]}.ci.yml`,
-    `${basePath}/.github/workflows/engine.${confName.split('dd-')[1]}.ci.yml`,
+    `./.github/workflows/engine-${confName.split('dd-')[1]}.ci.yml`,
+    `${basePath}/.github/workflows/engine-${confName.split('dd-')[1]}.ci.yml`,
   );
 
   switch (confName) {

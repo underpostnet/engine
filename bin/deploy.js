@@ -795,7 +795,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         // mongodb-0.mongodb-service
         DefaultConf.server[host][path].db.host = 'mongodb://mongodb-service:27017';
         confName = '';
-      } else if (confName) {
+      } else if (confName && fs.existsSync(`./engine-private/conf/${confName}`)) {
         DefaultConf.client = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.client.json`, 'utf8'));
         DefaultConf.server = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.server.json`, 'utf8'));
         DefaultConf.ssr = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.ssr.json`, 'utf8'));
