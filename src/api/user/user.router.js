@@ -21,7 +21,7 @@ const UserRouter = (options) => {
 
           const result = await models.User.create({
             username: 'admin',
-            email: process.env.DEFAULT_ADMIN_PASSWORD || 'admin@' + options.host,
+            email: process.env.DEFAULT_ADMIN_EMAIL || 'admin@' + options.host,
             password: hashedPassword,
             role: 'admin',
             emailConfirmed: true,
