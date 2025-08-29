@@ -91,8 +91,8 @@ try {
 
         fs.mkdirSync(`../pwa-microservices-template/.github`);
         for (const _path of [
+          `./.github/workflows/pwa-microservices-template-page.cd.yml`,
           `./.github/workflows/pwa-microservices-template-test.ci.yml`,
-          `./.github/workflows/pwa-microservices-template-test.cd.yml`,
         ])
           fs.copyFileSync(_path, `../pwa-microservices-template/${_path}`);
 
