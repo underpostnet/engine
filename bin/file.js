@@ -89,7 +89,9 @@ try {
           if (fs.existsSync(deletePath)) fs.removeSync('../pwa-microservices-template/' + deletePath);
         }
 
-        fs.mkdirSync(`../pwa-microservices-template/.github`);
+        fs.mkdirSync(`../pwa-microservices-template/.github/workflows`, {
+          recursive: true,
+        });
         for (const _path of [
           `./.github/workflows/pwa-microservices-template-page.cd.yml`,
           `./.github/workflows/pwa-microservices-template-test.ci.yml`,
