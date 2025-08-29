@@ -1,4 +1,4 @@
-name: Update npm repo package
+name: CI | Publish npm repository package
 on:
   push:
     branches: ['master']

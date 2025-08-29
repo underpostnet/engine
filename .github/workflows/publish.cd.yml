@@ -1,4 +1,4 @@
-name: publish to npmjs
+name: CD | Publish npm package
 on:
   release:
     types: [released]

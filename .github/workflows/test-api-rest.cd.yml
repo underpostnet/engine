@@ -1,4 +1,4 @@
-name: Deploy to Server
+name: CD | Test api rest deployment
 on: [push]
 permissions:
   contents: write

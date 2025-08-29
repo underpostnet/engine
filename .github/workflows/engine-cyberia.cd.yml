@@ -1,4 +1,4 @@
-name: CD | engine-cyberia | remote ssh
+name: CD | Engine cyberia | remote ssh
 on: [push]
 permissions:
   contents: write

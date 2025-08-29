@@ -1,4 +1,4 @@
-name: CD | engine-lampp | remote ssh
+name: CD | Engine lampp | remote ssh
 on: [push]
 permissions:
   contents: write

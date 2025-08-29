@@ -1,4 +1,4 @@
-name: Test
+name: CI | Gihub page | PWA Microservices Template Test
 
 on: [push]
 

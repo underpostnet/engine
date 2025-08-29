@@ -1,4 +1,4 @@
-name: CI | engine-lampp | github repository
+name: CI | Engine core | github repository
 on:
   workflow_run:
     workflows: ['Update npm repo package']
@@ -10,7 +10,7 @@ permissions:
   id-token: write
 jobs:
   pwa-microservices-template:
-    # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-lampp-repo-build)')
+    # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-core-repo-build)')
     name: Update github repo package Jobs
     runs-on: ubuntu-latest
     container:
@@ -46,15 +46,15 @@ jobs:
       - name: Build repository
         run: |
           cd .. && underpost clone underpostnet/pwa-microservices-template
-          underpost clone --bare underpostnet/engine-lampp
+          underpost clone --bare underpostnet/engine-core
           cd engine
-          node bin/build dd-lampp development
+          node bin/build dd-core development
           cd ../pwa-microservices-template
           rm -rf ./.git
-          mv ../engine-lampp.git ./.git
+          mv ../engine-core.git ./.git
           git init
           git config user.name 'underpostnet'
           git config user.email 'development@underpost.net'
           git add .
-          underpost cmt . ci engine-lampp-repo-build 'Update engine lampp repository'
-          underpost push . underpostnet/engine-lampp
+          underpost cmt . ci engine-core-repo-build 'Update engine core repository'
+          underpost push . underpostnet/engine-core
