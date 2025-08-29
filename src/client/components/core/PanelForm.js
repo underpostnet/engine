@@ -15,7 +15,7 @@ import { getSrcFromFileData } from './Input.js';
 import { imageShimmer, renderCssAttr } from './Css.js';
 import { Translate } from './Translate.js';
 import { Modal } from './Modal.js';
-import { listenQueryPathInstance, setQueryPath } from './Router.js';
+import { closeModalRouteChangeEvents, listenQueryPathInstance, setQueryPath } from './Router.js';
 
 const PanelForm = {
   Data: {},
@@ -425,9 +425,12 @@ const PanelForm = {
       });
     let firsUpdateEvent = false;
     let lastCid;
-    console.warn('------------->  updatePanel 1');
+    closeModalRouteChangeEvents[idPanel] = (newPath) => {
+      if (newPath.split('?')[0] === '/' && PanelForm.Data[idPanel].data && PanelForm.Data[idPanel].data.length === 0) {
+        this.Data[idPanel].updatePanel();
+      }
+    };
     this.Data[idPanel].updatePanel = async () => {
-      console.warn('------------->  updatePanel 2');
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
       if (lastCid === cid) return;
       lastCid = cid;
