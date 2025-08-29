@@ -90,12 +90,11 @@ const Modal = {
       homeModals: options.homeModals ? options.homeModals : [],
       query: options.query ? `${window.location.search}` : undefined,
     };
-    const setCenterRestore = () => {
-      const ResponsiveData = Responsive.getResponsiveData();
-      top = `${ResponsiveData.height / 2 - height / 2}px`;
-      left = `${ResponsiveData.width / 2 - width / 2}px`;
-    };
-    if (idModal !== 'main-body') setCenterRestore();
+
+    if (idModal !== 'main-body' && options.mode !== 'view') {
+      top = `${window.innerHeight / 2 - height / 2}px`;
+      left = `${window.innerWidth / 2 - width / 2}px`;
+    }
     if (options && 'mode' in options) {
       this.Data[idModal][options.mode] = {};
       switch (options.mode) {
@@ -106,6 +105,7 @@ const Modal = {
           options.style = {
             ...options.style,
             'min-width': `${minWidth}px`,
+            width: '100%',
           };
 
           if (this.mobileModal()) {
@@ -1626,6 +1626,12 @@ const Modal = {
             // Initialize drag after transitions are set
             if (!options.dragDisabled) {
               setDragInstance();
+              if (!options.mode) {
+                dragInstance.updateOptions({
+                  position: { x: 0, y: 0 },
+                  disabled: false, // Ensure drag is enabled after restore
+                });
+              }
             }
           }
         }, 150);
@@ -1732,7 +1738,10 @@ const Modal = {
       // Restore original dimensions and position
       modal.style.transform = '';
       modal.style.height = '';
-      modal.style.width = '';
+      left = 0;
+      width = 300;
+      modal.style.left = `${left}px`;
+      modal.style.width = `${width}px`;
       modal.style.overflow = '';
 
       // Reset drag position
@@ -1740,7 +1749,6 @@ const Modal = {
 
       // Set new position
       modal.style.transform = `translate(0, 0)`;
-      setCenterRestore();
 
       // Adjust top position based on top bar visibility
       const heightDefaultTopBar = 40; // Default top bar height if not specified
