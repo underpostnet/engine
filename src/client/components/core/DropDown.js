@@ -39,6 +39,94 @@ const DropDown = {
       else s(`.dropdown-option-${id}`).classList.add('hide');
     };
 
+    const _render = async (data) => {
+      let render = '';
+      let index = -1;
+      for (const optionData of data) {
+        index++;
+        const i = index;
+        const valueDisplay = optionData.value.trim().replaceAll(' ', '-');
+        setTimeout(() => {
+          const onclick = (e) => {
+            if (options && options.lastSelectClass && s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`)) {
+              s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`).classList.remove(options.lastSelectClass);
+            }
+            this.Tokens[id].lastSelectValue = valueDisplay;
+            if (options && options.lastSelectClass && s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`)) {
+              s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`).classList.add(options.lastSelectClass);
+            }
+
+            if (
+              !(options && options.disableClose) &&
+              (options.type !== 'checkbox' || optionData.value === 'close' || optionData.value === 'reset')
+            )
+              s(`.dropdown-option-${id}`).classList.add('hide');
+
+            if (options.type === 'checkbox' && ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`])
+              ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`].click();
+            if (optionData.value !== 'close') {
+              if (optionData.value !== 'reset')
+                htmls(
+                  `.dropdown-current-${id}`,
+                  options.type === 'checkbox'
+                    ? data
+                        .filter((d) => d.checked)
+                        .map((v, i, a) => `${v.display}${i < a.length - 1 ? ',' : ''}`)
+                        .join('')
+                    : optionData.display,
+                );
+              else htmls(`.dropdown-current-${id}`, '');
+
+              this.Tokens[id].value =
+                options.type === 'checkbox' ? data.filter((d) => d.checked).map((d) => d.data) : optionData.data;
+
+              console.warn('current value dropdown id:' + id, this.Tokens[id].value);
+
+              s(`.${id}`).value = this.Tokens[id].value;
+
+              optionData.onClick(e);
+            }
+          };
+
+          this.Tokens[id].onClickEvents[`dropdown-option-${id}-${i}`] = onclick;
+          this.Tokens[id].onClickEvents[`dropdown-option-${id}-${valueDisplay}`] = onclick;
+          this.Tokens[id].onClickEvents[`dropdown-option-${valueDisplay}`] = onclick;
+
+          s(`.dropdown-option-${id}-${i}`).onclick = onclick;
+        });
+        render += html`
+          <div
+            class="in dropdown-option dropdown-option-${id}-${i} dropdown-option-${id}-${valueDisplay} dropdown-option-${valueDisplay} ${valueDisplay ===
+              'reset' &&
+            options &&
+            !(options.resetOption === true)
+              ? 'hide'
+              : ''}"
+          >
+            ${options.type === 'checkbox' && optionData.value !== 'close' && optionData.value !== 'reset'
+              ? html`
+                  ${await ToggleSwitch.Render({
+                    id: `checkbox-role-${valueDisplay}`,
+                    type: 'checkbox',
+                    disabledOnClick: true,
+                    checked: optionData.checked,
+                    on: {
+                      unchecked: () => {
+                        optionData.checked = false;
+                      },
+                      checked: () => {
+                        optionData.checked = true;
+                      },
+                    },
+                  })}
+                `
+              : ''}${optionData.display}
+          </div>
+        `;
+      }
+      return { render, index };
+    };
+
     setTimeout(() => {
       if (options.type === 'checkbox')
         options.data.map((optionData) => {
@@ -53,92 +141,37 @@ const DropDown = {
       s(`.dropdown-label-${id}`).onclick = switchOptionsPanel;
       s(`.dropdown-current-${id}`).onclick = switchOptionsPanel;
       if (options && options.open) switchOptionsPanel();
+
+      let delayMsFilter = false;
+      const dropDownSearchHandle = async () => {
+        if (delayMsFilter) return;
+        delayMsFilter = true;
+        setTimeout(() => (delayMsFilter = false), 600);
+        const _data = [];
+        if (!s(`.search-box-${id}`)) return;
+
+        let _value = s(`.search-box-${id}`).value.toLowerCase();
+        for (const objData of options.data) {
+          if (
+            _value.match() ||
+            (Translate.Data[objData.value] &&
+              Translate.Data[objData.value][s('html').lang] &&
+              Translate.Data[objData.value][s('html').lang].match(_value).toLowerCase())
+          ) {
+            _data.push(objData);
+          }
+        }
+        const { render, index } = await _render(_data);
+        htmls(`.${id}-render-container`, render);
+      };
+
+      s(`.search-box-${id}`).oninput = dropDownSearchHandle;
+
+      s(`.search-box-${id}`).onblur = dropDownSearchHandle;
     });
 
-    let render = '';
-    let index = -1;
-    for (const optionData of options.data) {
-      index++;
-      const i = index;
-      const valueDisplay = optionData.value.trim().replaceAll(' ', '-');
-      setTimeout(() => {
-        const onclick = (e) => {
-          if (options && options.lastSelectClass && s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`)) {
-            s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`).classList.remove(options.lastSelectClass);
-          }
-          this.Tokens[id].lastSelectValue = valueDisplay;
-          if (options && options.lastSelectClass && s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`)) {
-            s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`).classList.add(options.lastSelectClass);
-          }
+    const { render, index } = await _render(options.data);
 
-          if (
-            !(options && options.disableClose) &&
-            (options.type !== 'checkbox' || optionData.value === 'close' || optionData.value === 'reset')
-          )
-            s(`.dropdown-option-${id}`).classList.add('hide');
-
-          if (options.type === 'checkbox' && ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`])
-            ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`].click();
-          if (optionData.value !== 'close') {
-            if (optionData.value !== 'reset')
-              htmls(
-                `.dropdown-current-${id}`,
-                options.type === 'checkbox'
-                  ? options.data
-                      .filter((d) => d.checked)
-                      .map((v, i, a) => `${v.display}${i < a.length - 1 ? ',' : ''}`)
-                      .join('')
-                  : optionData.display,
-              );
-            else htmls(`.dropdown-current-${id}`, '');
-
-            this.Tokens[id].value =
-              options.type === 'checkbox' ? options.data.filter((d) => d.checked).map((d) => d.data) : optionData.data;
-
-            console.warn('current value dropdown id:' + id, this.Tokens[id].value);
-
-            s(`.${id}`).value = this.Tokens[id].value;
-
-            optionData.onClick(e);
-          }
-        };
-
-        this.Tokens[id].onClickEvents[`dropdown-option-${id}-${i}`] = onclick;
-        this.Tokens[id].onClickEvents[`dropdown-option-${id}-${valueDisplay}`] = onclick;
-        this.Tokens[id].onClickEvents[`dropdown-option-${valueDisplay}`] = onclick;
-
-        s(`.dropdown-option-${id}-${i}`).onclick = onclick;
-      });
-      render += html`
-        <div
-          class="in dropdown-option dropdown-option-${id}-${i} dropdown-option-${id}-${valueDisplay} dropdown-option-${valueDisplay} ${valueDisplay ===
-            'reset' &&
-          options &&
-          !(options.resetOption === true)
-            ? 'hide'
-            : ''}"
-        >
-          ${options.type === 'checkbox' && optionData.value !== 'close' && optionData.value !== 'reset'
-            ? html`
-                ${await ToggleSwitch.Render({
-                  id: `checkbox-role-${valueDisplay}`,
-                  type: 'checkbox',
-                  disabledOnClick: true,
-                  checked: optionData.checked,
-                  on: {
-                    unchecked: () => {
-                      optionData.checked = false;
-                    },
-                    checked: () => {
-                      optionData.checked = true;
-                    },
-                  },
-                })}
-              `
-            : ''}${optionData.display}
-        </div>
-      `;
-    }
     return html`
       <div class="inl dropdown-container ${id} ${options?.containerClass ? options.containerClass : ''}">
         <div class="in dropdown-option dropdown-label-${id} ${options && options.disableSelectLabel ? 'hide' : ''}">
@@ -158,7 +191,7 @@ const DropDown = {
               placeholder: true,
             })}
           </div>
-          ${render}
+          <div class="${id}-render-container">${render}</div>
         </div>
       </div>
     `;
