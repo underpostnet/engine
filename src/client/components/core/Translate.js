@@ -60,10 +60,10 @@ const Translate = {
     this.Parse(language);
     if (s(`.action-btn-lang-render`)) htmls(`.action-btn-lang-render`, s('html').lang);
   },
-  RenderSetting: async function () {
+  RenderSetting: async function (id) {
     return html` <div class="in section-mp">
       ${await DropDown.Render({
-        id: 'settings-lang',
+        id: id ?? 'settings-lang',
         value: s('html').lang ? s('html').lang : 'en',
         label: html`${Translate.Render('lang')}`,
         data: ['en', 'es'].map((language) => {
