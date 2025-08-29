@@ -96,6 +96,7 @@ try {
           `./.github/workflows/pwa-microservices-template-page.cd.yml`,
           `./.github/workflows/pwa-microservices-template-test.ci.yml`,
           `./.github/workflows/npmpkg.ci.yml`,
+          `./.github/workflows/ghpkg.ci.yml`,
           `./.github/workflows/publish.ci.yml`,
         ])
           fs.copyFileSync(_path, `../pwa-microservices-template/${_path}`);
