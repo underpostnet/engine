@@ -142,27 +142,36 @@ const DropDown = {
       s(`.dropdown-current-${id}`).onclick = switchOptionsPanel;
       if (options && options.open) switchOptionsPanel();
 
-      let delayMsFilter = false;
       const dropDownSearchHandle = async () => {
-        if (delayMsFilter) return;
-        delayMsFilter = true;
-        setTimeout(() => (delayMsFilter = false), 600);
         const _data = [];
         if (!s(`.search-box-${id}`)) return;
 
         let _value = s(`.search-box-${id}`).value.toLowerCase();
+
         for (const objData of options.data) {
+          const objValue = objData.value.toLowerCase();
           if (
-            _value.match() ||
+            objValue.match(_value) ||
             (Translate.Data[objData.value] &&
               Translate.Data[objData.value][s('html').lang] &&
-              Translate.Data[objData.value][s('html').lang].match(_value).toLowerCase())
+              Translate.Data[objData.value][s('html').lang].toLowerCase().match(_value))
           ) {
             _data.push(objData);
           }
         }
-        const { render, index } = await _render(_data);
-        htmls(`.${id}-render-container`, render);
+
+        if (_data.length > 0) {
+          const { render, index } = await _render(_data);
+          htmls(`.${id}-render-container`, render);
+        } else {
+          // const { render, index } = await _render(options.data);
+          htmls(
+            `.${id}-render-container`,
+            html` <div class="inl" style="padding: 10px; color: red">
+              <i class="fas fa-exclamation-circle"></i> ${Translate.Render('no-result-found')}
+            </div>`,
+          );
+        }
       };
 
       s(`.search-box-${id}`).oninput = dropDownSearchHandle;
