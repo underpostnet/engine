@@ -1,4 +1,4 @@
-name: CD | engine-core | remote ssh
+name: CD | Engine core | remote ssh
 on: [push]
 permissions:
   contents: write
