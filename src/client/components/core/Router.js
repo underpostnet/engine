@@ -1,6 +1,7 @@
 import { titleFormatted } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
 import { getProxyPath, getQueryParams, htmls, s, setPath } from './VanillaJs.js';
+import { Modal } from './Modal.js';
 
 // Router
 
@@ -75,4 +76,52 @@ const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
     });
 };
 
-export { Router, setDocTitle, LoadRouter, RouterEvents, setQueryPath, listenQueryPathInstance };
+const handleModalRouteChange = (options = {}) => {
+  const { route, RouterInstance, homeCid } = options;
+  if (!route) return;
+
+  let path = window.location.pathname;
+  if (path[path.length - 1] !== '/') path = `${path}/`;
+  let newPath = `${getProxyPath()}`;
+  
+  if (path !== newPath) {
+    for (const subIdModal of Object.keys(Modal.Data).reverse()) {
+      if (Modal.Data[subIdModal]?.options?.route) {
+        newPath = `${newPath}${Modal.Data[subIdModal].options.route}`;
+        console.warn('------------> SET MODAL URI', newPath);
+        setPath(newPath);
+        Modal.setTopModalCallback(subIdModal);
+        return setDocTitle({ ...RouterInstance, route: Modal.Data[subIdModal].options.route });
+      }
+    }
+    console.warn('-------------> SET MODAL URI', newPath);
+    setPath(`${newPath}${homeCid ? `?cid=${homeCid}` : ''}`);
+    return setDocTitle({ ...RouterInstance, route: '' });
+  }
+};
+
+const handleModalViewRoute = (options = {}) => {
+  const { route, RouterInstance } = options;
+  if (!route) return;
+
+  let path = window.location.pathname;
+  if (path !== '/' && path[path.length - 1] === '/') path = path.slice(0, -1);
+  const proxyPath = getProxyPath();
+  const newPath = `${proxyPath}${route}`;
+  
+  if (path !== newPath) {
+    setPath(newPath);
+    setDocTitle({ ...RouterInstance, route });
+  }
+};
+
+export {
+  Router,
+  setDocTitle,
+  LoadRouter,
+  RouterEvents,
+  setQueryPath,
+  listenQueryPathInstance,
+  handleModalRouteChange,
+  handleModalViewRoute,
+};

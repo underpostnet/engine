@@ -24,7 +24,7 @@ import {
   renderStatus,
   renderCssAttr,
 } from './Css.js';
-import { setDocTitle } from './Router.js';
+import { setDocTitle, handleModalRouteChange, handleModalViewRoute } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
 import { Translate } from './Translate.js';
@@ -126,19 +126,13 @@ const Modal = {
           };
           Responsive.Event[`view-${idModal}`]();
 
-          // Router
-          if (options.route)
-            (() => {
-              let path = window.location.pathname;
-              if (path !== '/' && path[path.length - 1] === '/') path = path.slice(0, -1);
-              const proxyPath = getProxyPath();
-              const newPath = `${proxyPath}${options.route}`;
-              if (path !== newPath) {
-                // console.warn('SET MODAL URI', newPath);
-                setPath(`${newPath}`); // ${location.search}
-                setDocTitle({ ...options.RouterInstance, route: options.route });
-              }
-            })();
+          // Handle view mode modal route
+          if (options.route) {
+            handleModalViewRoute({
+              route: options.route,
+              RouterInstance: options.RouterInstance
+            });
+          }
 
           break;
         case 'slide-menu':
@@ -1652,27 +1646,14 @@ const Modal = {
       setTimeout(() => {
         if (!s(`.${idModal}`)) return;
         this.removeModal(idModal);
-        // Router
-        if (options.route)
-          (() => {
-            let path = window.location.pathname;
-            if (path[path.length - 1] !== '/') path = `${path}/`;
-            let newPath = `${getProxyPath()}`;
-            if (path !== newPath) {
-              for (const subIdModal of Object.keys(this.Data).reverse()) {
-                if (this.Data[subIdModal].options.route) {
-                  newPath = `${newPath}${this.Data[subIdModal].options.route}`;
-                  console.warn('------------> SET MODAL URI', newPath);
-                  setPath(newPath);
-                  this.setTopModalCallback(subIdModal);
-                  return setDocTitle({ ...options.RouterInstance, route: this.Data[subIdModal].options.route });
-                }
-              }
-              console.warn('-------------> SET MODAL URI', newPath);
-              setPath(`${newPath}${Modal.homeCid ? `?cid=${Modal.homeCid}` : ''}`);
-              return setDocTitle({ ...options.RouterInstance, route: '' });
-            }
-          })();
+        // Handle modal route change
+        if (options.route) {
+          handleModalRouteChange({
+            route: options.route,
+            RouterInstance: options.RouterInstance,
+            homeCid: Modal.homeCid
+          });
+        }
       }, 300);
     };
     s(`.btn-close-${idModal}`).onclick = btnCloseEvent;
