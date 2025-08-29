@@ -72,23 +72,14 @@ try {
 
       if (type === 'update-template') {
         fs.copySync(`./.vscode`, `../pwa-microservices-template/.vscode`);
-        fs.copySync(`./.github`, `../pwa-microservices-template/.github`);
+        // fs.copySync(`./.github`, `../pwa-microservices-template/.github`);
         fs.copySync(`./src/client/public/default`, `../pwa-microservices-template/src/client/public/default`);
 
         for (const checkoutPath of ['README.md', 'package-lock.json', 'package.json'])
           shellExec(`cd ../pwa-microservices-template && git checkout ${checkoutPath}`);
 
         for (const deletePath of [
-          '.github/workflows/coverall.yml',
-          '.github/workflows/docker-image.yml',
-          '.github/workflows/deploy.ssh.yml',
-          '.github/workflows/deploy.api-rest.yml',
-          '.github/workflows/engine.lampp.ci.yml',
-          '.github/workflows/engine.core.ci.yml',
-          '.github/workflows/engine.cyberia.ci.yml',
-          '.github/workflows/deploy.dd-core.yml',
-          '.github/workflows/deploy.dd-cyberia.yml',
-          '.github/workflows/deploy.dd-lampp.yml',
+          './.github',
           './manifests/deployment/dd-lampp-development',
           './manifests/deployment/dd-cyberia-development',
           './manifests/deployment/dd-core-development',
@@ -97,6 +88,14 @@ try {
         ]) {
           if (fs.existsSync(deletePath)) fs.removeSync('../pwa-microservices-template/' + deletePath);
         }
+
+        fs.mkdirSync(`../pwa-microservices-template/.github`);
+        for (const _path of [
+          `./.github/workflows/pwa-microservices-template-test.ci.yml`,
+          `./.github/workflows/pwa-microservices-template-test.cd.yml`,
+        ])
+          fs.copyFileSync(_path, `../pwa-microservices-template/${_path}`);
+
         const originPackageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
         const templatePackageJson = JSON.parse(fs.readFileSync('../pwa-microservices-template/package.json', 'utf8'));
 

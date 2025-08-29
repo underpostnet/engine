@@ -1,4 +1,4 @@
-name: CD | Publish npm package
+name: CI | Publish npm package
 on:
   release:
     types: [released]
