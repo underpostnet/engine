@@ -178,7 +178,8 @@ const DropDown = {
 
       s(`.search-box-${id}`).oninput = dropDownSearchHandle;
 
-      s(`.search-box-${id}`).onblur = dropDownSearchHandle;
+      // Not use onblur generate bug on input toggle
+      // s(`.search-box-${id}`).onblur = dropDownSearchHandle;
     });
 
     const { render, index } = await _render(options.data);
