@@ -15,10 +15,10 @@ const NotificationManager = {
             right: 5px !important;
             width: 300px !important;
             bottom: ${5 + (options?.heightBottomBar ? options.heightBottomBar : 0)}px !important;
-            z-index: 5 !important;
+            z-index: 11 !important;
           }
           .notification-board-title {
-            padding: 5px !important;
+            padding: 11px !important;
           }
           .notification-manager-date {
             font-size: 20px !important;
