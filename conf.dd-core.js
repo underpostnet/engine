@@ -966,6 +966,7 @@ const DefaultConf = /**/ {
         peer: true,
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        valkey: { port: 6379, host: '127.0.0.1' },
         mailer: {
           sender: { email: 'noreply@default.net', name: 'Default' },
           transport: {
@@ -1013,6 +1014,7 @@ const DefaultConf = /**/ {
         peer: true,
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        valkey: { port: 6379, host: '127.0.0.1' },
         mailer: {
           sender: { email: 'noreply@default.net', name: 'Default' },
           transport: {
@@ -1083,6 +1085,7 @@ const DefaultConf = /**/ {
         docsBuild: false,
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        valkey: { port: 6379, host: '127.0.0.1' },
         mailer: {
           sender: { email: 'noreply@default.net', name: 'Default' },
           transport: {
@@ -1145,6 +1148,7 @@ const DefaultConf = /**/ {
         peer: true,
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        valkey: { port: 6379, host: '127.0.0.1' },
         mailer: {
           sender: { email: 'noreply@default.net', name: 'Default' },
           transport: {
@@ -1170,6 +1174,7 @@ const DefaultConf = /**/ {
         peer: true,
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        valkey: { port: 6379, host: '127.0.0.1' },
         mailer: {
           sender: { email: 'noreply@default.net', name: 'Default' },
           transport: {
@@ -1195,6 +1200,7 @@ const DefaultConf = /**/ {
         peer: true,
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        valkey: { port: 6379, host: '127.0.0.1' },
         mailer: {
           sender: { email: 'noreply@default.net', name: 'Default' },
           transport: {
@@ -1243,6 +1249,7 @@ const DefaultConf = /**/ {
         peer: true,
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        valkey: { port: 6379, host: '127.0.0.1' },
         mailer: {
           sender: { email: 'noreply@default.net', name: 'Default' },
           transport: {
@@ -1291,6 +1298,7 @@ const DefaultConf = /**/ {
         peer: true,
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        valkey: { port: 6379, host: '127.0.0.1' },
         mailer: {
           sender: { email: 'noreply@default.net', name: 'Default' },
           transport: {

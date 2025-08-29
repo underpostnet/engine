@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.843
+## underpost ci/cd cli v2.8.844
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -206,49 +206,53 @@ Options:
 Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 
 Arguments:
-  pod-name             Optional: Filters information by a specific pod name.
+  pod-name                Optional: Filters information by a specific pod name.
 
 Options:
-  --reset              Deletes all clusters and prunes all related data and
-                       caches.
-  --mariadb            Initializes the cluster with a MariaDB statefulset.
-  --mysql              Initializes the cluster with a MySQL statefulset.
-  --mongodb            Initializes the cluster with a MongoDB statefulset.
-  --postgresql         Initializes the cluster with a PostgreSQL statefulset.
-  --mongodb4           Initializes the cluster with a MongoDB 4.4 service.
-  --valkey             Initializes the cluster with a Valkey service.
-  --contour            Initializes the cluster with Project Contour base
-                       HTTPProxy and Envoy.
-  --cert-manager       Initializes the cluster with a Let's Encrypt production
-                       ClusterIssuer.
-  --dedicated-gpu      Initializes the cluster with dedicated GPU base
-                       resources and environment settings.
-  --info               Retrieves information about all deployed Kubernetes
-                       objects.
-  --full               Initializes the cluster with all available statefulsets
-                       and services.
-  --ns-use <ns-name>   Switches the current Kubernetes context to the specified
-                       namespace.
-  --kubeadm            Initializes the cluster using kubeadm for control plane
-                       management.
-  --dev                Initializes a development-specific cluster
-                       configuration.
-  --list-pods          Displays detailed information about all pods.
-  --info-capacity      Displays the current total machine capacity information.
-  --info-capacity-pod  Displays the current machine capacity information per
-                       pod.
-  --pull-image         Sets an optional associated image to pull during
-                       initialization.
-  --init-host          Installs necessary Kubernetes node CLI tools (e.g.,
-                       kind, kubeadm, docker, podman, helm).
-  --uninstall-host     Uninstalls all host components installed by init-host.
-  --config             Sets the base Kubernetes node configuration.
-  --worker             Sets the context for a worker node.
-  --chown              Sets the appropriate ownership for Kubernetes kubeconfig
-                       files.
-  --k3s                Initializes the cluster using K3s (Lightweight
-                       Kubernetes).
-  -h, --help           display help for command
+  --reset                 Deletes all clusters and prunes all related data and
+                          caches.
+  --mariadb               Initializes the cluster with a MariaDB statefulset.
+  --mysql                 Initializes the cluster with a MySQL statefulset.
+  --mongodb               Initializes the cluster with a MongoDB statefulset.
+  --mongo-db-host <host>  Set custom mongo db host
+  --postgresql            Initializes the cluster with a PostgreSQL
+                          statefulset.
+  --mongodb4              Initializes the cluster with a MongoDB 4.4 service.
+  --valkey                Initializes the cluster with a Valkey service.
+  --contour               Initializes the cluster with Project Contour base
+                          HTTPProxy and Envoy.
+  --cert-manager          Initializes the cluster with a Let's Encrypt
+                          production ClusterIssuer.
+  --dedicated-gpu         Initializes the cluster with dedicated GPU base
+                          resources and environment settings.
+  --info                  Retrieves information about all deployed Kubernetes
+                          objects.
+  --full                  Initializes the cluster with all available
+                          statefulsets and services.
+  --ns-use <ns-name>      Switches the current Kubernetes context to the
+                          specified namespace.
+  --kubeadm               Initializes the cluster using kubeadm for control
+                          plane management.
+  --dev                   Initializes a development-specific cluster
+                          configuration.
+  --list-pods             Displays detailed information about all pods.
+  --info-capacity         Displays the current total machine capacity
+                          information.
+  --info-capacity-pod     Displays the current machine capacity information per
+                          pod.
+  --pull-image            Sets an optional associated image to pull during
+                          initialization.
+  --init-host             Installs necessary Kubernetes node CLI tools (e.g.,
+                          kind, kubeadm, docker, podman, helm).
+  --uninstall-host        Uninstalls all host components installed by
+                          init-host.
+  --config                Sets the base Kubernetes node configuration.
+  --worker                Sets the context for a worker node.
+  --chown                 Sets the appropriate ownership for Kubernetes
+                          kubeconfig files.
+  --k3s                   Initializes the cluster using K3s (Lightweight
+                          Kubernetes).
+  -h, --help              display help for command
  
 ```
   
@@ -554,7 +558,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, gpu-env, tf-gpu-test, ide, monitor, db-client, cluster, deploy, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, gpu-env, tf-gpu-test, dev-cluster, cyberia-ide, engine-ide, ide, monitor, db-client, cluster, deploy, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
