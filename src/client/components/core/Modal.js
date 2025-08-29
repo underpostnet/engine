@@ -1656,13 +1656,13 @@ const Modal = {
               for (const subIdModal of Object.keys(this.Data).reverse()) {
                 if (this.Data[subIdModal].options.route) {
                   newPath = `${newPath}${this.Data[subIdModal].options.route}`;
-                  // console.warn('SET MODAL URI', newPath);
+                  console.warn('------------> SET MODAL URI', newPath);
                   setPath(newPath);
                   this.setTopModalCallback(subIdModal);
                   return setDocTitle({ ...options.RouterInstance, route: this.Data[subIdModal].options.route });
                 }
               }
-              // console.warn('SET MODAL URI', newPath);
+              console.warn('-------------> SET MODAL URI', newPath);
               setPath(`${newPath}${Modal.homeCid ? `?cid=${Modal.homeCid}` : ''}`);
               return setDocTitle({ ...options.RouterInstance, route: '' });
             }

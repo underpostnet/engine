@@ -425,7 +425,9 @@ const PanelForm = {
       });
     let firsUpdateEvent = false;
     let lastCid;
+    console.warn('------------->  updatePanel 1');
     this.Data[idPanel].updatePanel = async () => {
+      console.warn('------------->  updatePanel 2');
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
       if (lastCid === cid) return;
       lastCid = cid;
