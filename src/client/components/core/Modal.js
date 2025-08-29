@@ -884,6 +884,9 @@ const Modal = {
                   ],
                   eventCallBack: () => {
                     if (s(`.top-bar-search-box`)) {
+                      if (s(`.main-body-btn-ui-close`).classList.contains('hide')) {
+                        s(`.main-body-btn-ui-open`).click();
+                      }
                       s(`.top-bar-search-box`).blur();
                       s(`.top-bar-search-box`).focus();
                       s(`.top-bar-search-box`).select();
