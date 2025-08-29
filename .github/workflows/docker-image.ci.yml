@@ -1,7 +1,7 @@
 name: CI | Dockerhub
 on:
   workflow_run:
-    workflows: ['Update github repo package']
+    workflows: ['CI | Publish npm repository package']
     types:
       - completed
 jobs:

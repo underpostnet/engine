@@ -1,7 +1,7 @@
 name: CI | Engine core | github repository
 on:
   workflow_run:
-    workflows: ['Update npm repo package']
+    workflows: ['CI | Publish npm repository package']
     types:
       - completed
 permissions:
