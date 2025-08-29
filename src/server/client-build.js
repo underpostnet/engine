@@ -17,11 +17,11 @@ import dotenv from 'dotenv';
 import AdmZip from 'adm-zip';
 import * as dir from 'path';
 import { shellExec } from './process.js';
-import swaggerAutoGen from 'swagger-autogen';
 import { SitemapStream, streamToPromise } from 'sitemap';
 import { Readable } from 'stream';
 import { buildIcons, buildTextImg, getBufferPngText } from './client-icons.js';
 import Underpost from '../index.js';
+import { buildDocs } from './client-build-docs.js';
 
 dotenv.config();
 
@@ -557,125 +557,16 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
       }
 
       if (!enableLiveRebuild && !process.argv.includes('l') && !process.argv.includes('deploy') && docsBuild) {
-        // https://www.pullrequest.com/blog/leveraging-jsdoc-for-better-code-documentation-in-javascript/
-        // https://jsdoc.app/about-configuring-jsdoc
-        // https://jsdoc.app/ Block tags
-
-        const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
-        jsDocsConfig.opts.destination = `./public/${host}${path === '/' ? path : `${path}/`}docs/`;
-        jsDocsConfig.opts.theme_opts.title = metadata && metadata.title ? metadata.title : undefined;
-        jsDocsConfig.opts.theme_opts.favicon = `./public/${host}${path === '/' ? path : `${path}/favicon.ico`}`;
-        fs.writeFileSync(`./jsdoc.json`, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
-        logger.warn('build jsdoc view', jsDocsConfig.opts.destination);
-        shellExec(`npm run docs`, { silent: true });
-
-        // coverage
-        if (!fs.existsSync(`./coverage`)) {
-          shellExec(`npm test`);
-        }
-        const coverageBuildPath = `${jsDocsConfig.opts.destination}/coverage`;
-        fs.mkdirSync(coverageBuildPath, { recursive: true });
-        fs.copySync(`./coverage`, coverageBuildPath);
-
-        // https://swagger-autogen.github.io/docs/
-
-        const basePath = path === '/' ? `${process.env.BASE_API}` : `/${process.env.BASE_API}`;
-
-        const doc = {
-          info: {
-            version: packageData.version, // by default: '1.0.0'
-            title: metadata?.title ? `${metadata.title}` : 'REST API', // by default: 'REST API'
-            description: metadata?.description ? metadata.description : '', // by default: ''
-          },
-          servers: [
-            {
-              url:
-                process.env.NODE_ENV === 'development'
-                  ? `http://localhost:${port}${path}${basePath}`
-                  : `https://${host}${path}${basePath}`, // by default: 'http://localhost:3000'
-              description: `${process.env.NODE_ENV} server`, // by default: ''
-            },
-          ],
-          tags: [
-            // by default: empty Array
-            {
-              name: 'user', // Tag name
-              description: 'User API operations', // Tag description
-            },
-          ],
-          components: {
-            schemas: {
-              userRequest: {
-                username: 'user123',
-                password: 'Password123',
-                email: 'user@example.com',
-              },
-              userResponse: {
-                status: 'success',
-                data: {
-                  token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7Il9pZCI6IjY2YzM3N2Y1N2Y5OWU1OTY5YjgxZG...',
-                  user: {
-                    _id: '66c377f57f99e5969b81de89',
-                    email: 'user@example.com',
-                    emailConfirmed: false,
-                    username: 'user123',
-                    role: 'user',
-                    profileImageId: '66c377f57f99e5969b81de87',
-                  },
-                },
-              },
-              userUpdateResponse: {
-                status: 'success',
-                data: {
-                  _id: '66c377f57f99e5969b81de89',
-                  email: 'user@example.com',
-                  emailConfirmed: false,
-                  username: 'user123222',
-                  role: 'user',
-                  profileImageId: '66c377f57f99e5969b81de87',
-                },
-              },
-              userGetResponse: {
-                status: 'success',
-                data: {
-                  _id: '66c377f57f99e5969b81de89',
-                  email: 'user@example.com',
-                  emailConfirmed: false,
-                  username: 'user123222',
-                  role: 'user',
-                  profileImageId: '66c377f57f99e5969b81de87',
-                },
-              },
-              userLogInRequest: {
-                email: 'user@example.com',
-                password: 'Password123',
-              },
-              userBadRequestResponse: {
-                status: 'error',
-                message: 'Bad request. Please check your inputs, and try again',
-              },
-            },
-            securitySchemes: {
-              bearerAuth: {
-                type: 'http',
-                scheme: 'bearer',
-              },
-            },
-          },
-        };
-
-        logger.warn('build swagger api docs', doc.info);
-
-        const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
-        const routes = [];
-        for (const api of apis) {
-          if (['user'].includes(api)) routes.push(`./src/api/${api}/${api}.router.js`);
-        }
-
-        /* NOTE: If you are using the express Router, you must pass in the 'routes' only the 
-root file where the route starts, such as index.js, app.js, routes.js, etc ... */
-
-        await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
+        await buildDocs({
+          host,
+          path,
+          port,
+          metadata,
+          apis,
+          publicClientId,
+          rootClientPath,
+          packageData,
+        });
       }
 
       if (client) {
