@@ -76,6 +76,12 @@ const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
     });
 };
 
+const closeModalRouteChangeEvents = {};
+const triggerCloseModalRouteChangeEvents = (newPath) => {
+  console.warn('[closeModalRouteChangeEvent]', newPath);
+  for (const event of Object.keys(closeModalRouteChangeEvents)) closeModalRouteChangeEvents[event](newPath);
+};
+
 const closeModalRouteChangeEvent = (options = {}) => {
   const { route, RouterInstance, homeCid } = options;
   if (!route) return;
@@ -88,14 +94,15 @@ const closeModalRouteChangeEvent = (options = {}) => {
     for (const subIdModal of Object.keys(Modal.Data).reverse()) {
       if (Modal.Data[subIdModal]?.options?.route) {
         newPath = `${newPath}${Modal.Data[subIdModal].options.route}`;
-        console.warn('------------> SET MODAL URI', newPath);
+        triggerCloseModalRouteChangeEvents(newPath);
         setPath(newPath);
         Modal.setTopModalCallback(subIdModal);
         return setDocTitle({ ...RouterInstance, route: Modal.Data[subIdModal].options.route });
       }
     }
-    console.warn('-------------> SET MODAL URI', newPath);
-    setPath(`${newPath}${homeCid ? `?cid=${homeCid}` : ''}`);
+    newPath = `${newPath}${homeCid ? `?cid=${homeCid}` : ''}`;
+    triggerCloseModalRouteChangeEvents(newPath);
+    setPath(newPath);
     return setDocTitle({ ...RouterInstance, route: '' });
   }
 };
@@ -124,4 +131,5 @@ export {
   listenQueryPathInstance,
   closeModalRouteChangeEvent,
   handleModalViewRoute,
+  closeModalRouteChangeEvents,
 };
