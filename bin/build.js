@@ -150,10 +150,6 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   shellExec(`node bin/deploy update-default-conf ${confName}`);
 
   fs.copyFileSync(`./conf.${confName}.js`, `${basePath}/conf.js`);
-  fs.copyFileSync(
-    `./.github/workflows/engine-${confName.split('dd-')[1]}.ci.yml`,
-    `${basePath}/.github/workflows/engine-${confName.split('dd-')[1]}.ci.yml`,
-  );
 
   switch (confName) {
     case 'dd-cyberia':
@@ -183,6 +179,12 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       fs.copyFileSync(`./manifests/deployment/${confName}-${env}/${file}`, `${basePath}/${file}`);
     }
   }
-  fs.copyFileSync(`./.github/workflows/${confName}.ci.yml`, `${basePath}/.github/workflows/${confName}.ci.yml`);
-  fs.copyFileSync(`./.github/workflows/${confName}.cd.yml`, `${basePath}/.github/workflows/${confName}.cd.yml`);
+
+  if (!fs.existsSync(`${basePath}/.github/workflows`))
+    fs.mkdirSync(`${basePath}/.github/workflows`, {
+      recursive: true,
+    });
+
+  fs.copyFileSync(`./.github/workflows/${repoName}.ci.yml`, `${basePath}/.github/workflows/${repoName}.ci.yml`);
+  fs.copyFileSync(`./.github/workflows/${repoName}.cd.yml`, `${basePath}/.github/workflows/${repoName}.cd.yml`);
 }
