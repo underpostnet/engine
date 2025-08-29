@@ -76,14 +76,14 @@ const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
     });
 };
 
-const handleModalRouteChange = (options = {}) => {
+const closeModalRouteChangeEvent = (options = {}) => {
   const { route, RouterInstance, homeCid } = options;
   if (!route) return;
 
   let path = window.location.pathname;
   if (path[path.length - 1] !== '/') path = `${path}/`;
   let newPath = `${getProxyPath()}`;
-  
+
   if (path !== newPath) {
     for (const subIdModal of Object.keys(Modal.Data).reverse()) {
       if (Modal.Data[subIdModal]?.options?.route) {
@@ -108,7 +108,7 @@ const handleModalViewRoute = (options = {}) => {
   if (path !== '/' && path[path.length - 1] === '/') path = path.slice(0, -1);
   const proxyPath = getProxyPath();
   const newPath = `${proxyPath}${route}`;
-  
+
   if (path !== newPath) {
     setPath(newPath);
     setDocTitle({ ...RouterInstance, route });
@@ -122,6 +122,6 @@ export {
   RouterEvents,
   setQueryPath,
   listenQueryPathInstance,
-  handleModalRouteChange,
+  closeModalRouteChangeEvent,
   handleModalViewRoute,
 };

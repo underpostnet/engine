@@ -24,7 +24,7 @@ import {
   renderStatus,
   renderCssAttr,
 } from './Css.js';
-import { setDocTitle, handleModalRouteChange, handleModalViewRoute } from './Router.js';
+import { setDocTitle, closeModalRouteChangeEvent, handleModalViewRoute } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
 import { Translate } from './Translate.js';
@@ -130,7 +130,7 @@ const Modal = {
           if (options.route) {
             handleModalViewRoute({
               route: options.route,
-              RouterInstance: options.RouterInstance
+              RouterInstance: options.RouterInstance,
             });
           }
 
@@ -1648,10 +1648,10 @@ const Modal = {
         this.removeModal(idModal);
         // Handle modal route change
         if (options.route) {
-          handleModalRouteChange({
+          closeModalRouteChangeEvent({
             route: options.route,
             RouterInstance: options.RouterInstance,
-            homeCid: Modal.homeCid
+            homeCid: Modal.homeCid,
           });
         }
       }, 300);
