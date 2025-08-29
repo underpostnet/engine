@@ -1,8 +1,9 @@
-import { authMiddleware } from '../../server/auth.js';
+import { authMiddleware, hashPassword } from '../../server/auth.js';
 import fs from 'fs-extra';
 import { loggerFactory } from '../../server/logger.js';
 import { UserController } from './user.controller.js';
 import express from 'express';
+import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -10,6 +11,28 @@ const UserRouter = (options) => {
   const router = express.Router();
 
   (async () => {
+    const models = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models;
+    if (models.User) {
+      try {
+        const adminUser = await models.User.findOne({ role: 'admin' });
+        if (!adminUser) {
+          const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'changethis';
+          const hashedPassword = hashPassword(defaultPassword);
+
+          const result = await models.User.create({
+            username: 'admin',
+            email: 'admin@' + options.host,
+            password: hashedPassword,
+            role: 'admin',
+            emailConfirmed: true,
+            publicKey: [],
+          });
+          logger.warn('Default admin user created. Please change the default password immediately!', result._doc);
+        }
+      } catch (error) {
+        logger.error('Error checking/creating admin user:', error);
+      }
+    }
     options.png = {
       buffer: {
         'invalid-token': fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-invalid-token.png`),
