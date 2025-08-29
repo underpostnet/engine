@@ -24,7 +24,7 @@ core server
 
 <!-- badges -->
 
-[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/2.8.843)](https://socket.dev/npm/package/underpost/overview/2.8.843) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
+[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/2.8.843)](https://socket.dev/npm/package/underpost/overview/2.8.843) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
 
 <!-- end-badges -->
 
@@ -53,39 +53,39 @@ Package repo and usage info: <a target="_top" href="https://github.com/underpost
 ## underpost ci/cd cli v2.8.843
 
 ### Usage: `underpost [options] [command]`
-  ```
- Options:
-  -V, --version                                              output the version number
-  -h, --help                                                 display help for command
+
+```
+Options:
+-V, --version                                              output the version number
+-h, --help                                                 display help for command
 
 Commands:
-  new <app-name>                                             Initializes a new Underpost project with a predefined structure.
-  start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
-  clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
-  pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
-  cmt [options] <path> <commit-type> [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
-  push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
-  env <deploy-id> [env]                                      Sets environment variables and configurations related to a specific deployment ID.
-  config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
-  root                                                       Displays the root path of the npm installation.
-  cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
-  deploy [options] [deploy-list] [env]                       Manages application deployments, defaulting to deploying development pods.
-  secret [options] <platform>                                Manages secrets for various platforms.
-  dockerfile-image-build [options]                           Builds a Docker image from a specified Dockerfile with various options for naming, saving, and loading.
-  dockerfile-pull-base-images [options]                      Pulls required Underpost Dockerfile base images and optionally loads them into clusters.
-  install                                                    Quickly imports Underpost npm dependencies by copying them.
-  db [options] <deploy-list>                                 Manages database operations, including import, export, and collection management.
-  script [options] <operator> <script-name> [script-value]   Supports a variety of built-in Underpost global scripts, their preset lifecycle events, and arbitrary custom scripts.
-  cron [options] [deploy-list] [job-list]                    Manages cron jobs, including initialization, execution, and configuration updates.
-  fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
-  test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
-  monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
-  run [options] <runner-id> [path]                           Runs a script from the specified path.
-  lxd [options]                                              Manages LXD containers and virtual machines.
-  baremetal [options] [workflow-id] [hostname] [ip-address]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
-  help [command]                                             display help for command
- 
+new <app-name>                                             Initializes a new Underpost project with a predefined structure.
+start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
+clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
+pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
+cmt [options] <path> <commit-type> [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
+push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
+env <deploy-id> [env]                                      Sets environment variables and configurations related to a specific deployment ID.
+config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
+root                                                       Displays the root path of the npm installation.
+cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
+deploy [options] [deploy-list] [env]                       Manages application deployments, defaulting to deploying development pods.
+secret [options] <platform>                                Manages secrets for various platforms.
+dockerfile-image-build [options]                           Builds a Docker image from a specified Dockerfile with various options for naming, saving, and loading.
+dockerfile-pull-base-images [options]                      Pulls required Underpost Dockerfile base images and optionally loads them into clusters.
+install                                                    Quickly imports Underpost npm dependencies by copying them.
+db [options] <deploy-list>                                 Manages database operations, including import, export, and collection management.
+script [options] <operator> <script-name> [script-value]   Supports a variety of built-in Underpost global scripts, their preset lifecycle events, and arbitrary custom scripts.
+cron [options] [deploy-list] [job-list]                    Manages cron jobs, including initialization, execution, and configuration updates.
+fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
+test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
+monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
+run [options] <runner-id> [path]                           Runs a script from the specified path.
+lxd [options]                                              Manages LXD containers and virtual machines.
+baremetal [options] [workflow-id] [hostname] [ip-address]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
+help [command]                                             display help for command
+
 ```
-      
+
 <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/cli.md">See complete CLI Docs here.</a>
-      

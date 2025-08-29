@@ -1,4 +1,4 @@
-name: CI | Publish image to dockerhub
+name: CI | Dockerhub
 on:
   workflow_run:
     workflows: ['Update github repo package']
