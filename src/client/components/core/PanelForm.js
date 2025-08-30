@@ -15,7 +15,7 @@ import { getSrcFromFileData } from './Input.js';
 import { imageShimmer, renderCssAttr } from './Css.js';
 import { Translate } from './Translate.js';
 import { Modal } from './Modal.js';
-import { closeModalRouteChangeEvents, listenQueryPathInstance, setQueryPath } from './Router.js';
+import { closeModalRouteChangeEvents, listenQueryPathInstance, renderTitle, setQueryPath } from './Router.js';
 
 const PanelForm = {
   Data: {},
@@ -440,6 +440,7 @@ const PanelForm = {
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
       htmls(`.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`, await renderSrrPanelData());
       await getPanelData();
+      if (this.Data[idPanel].data.length === 1) renderTitle(this.Data[idPanel].data[0].title);
       htmls(
         `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`,
         await panelRender({ data: this.Data[idPanel].data }),

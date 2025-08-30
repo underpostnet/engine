@@ -2,16 +2,19 @@ import { titleFormatted } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
 import { getProxyPath, getQueryParams, htmls, s, setPath } from './VanillaJs.js';
 import { Modal } from './Modal.js';
+import { Worker } from './Worker.js';
 
 // Router
 
 const logger = loggerFactory(import.meta);
 
+const renderTitle = (title, nameApp) => htmls('title', html`${title} | ${nameApp ?? Worker.RouterInstance.NameApp}`);
+
 const setDocTitle = (options = { Routes: () => {}, route: '', NameApp: '' }) => {
   const { Routes, route, NameApp } = options;
   let title = titleFormatted(Routes()[`/${route}`].title);
   if (Routes()[`/${route}`].upperCase) title = title.toUpperCase();
-  htmls('title', html`${title} | ${NameApp}`);
+  renderTitle(title, NameApp);
   {
     const routeId = route === '' ? 'home' : route;
     if (s(`.main-btn-${routeId}`)) {
@@ -132,4 +135,5 @@ export {
   closeModalRouteChangeEvent,
   handleModalViewRoute,
   closeModalRouteChangeEvents,
+  renderTitle,
 };

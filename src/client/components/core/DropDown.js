@@ -155,8 +155,9 @@ const DropDown = {
           if (
             objValue.match(_value) ||
             (Translate.Data[objData.value] &&
-              Translate.Data[objData.value][s('html').lang] &&
-              Translate.Data[objData.value][s('html').lang].toLowerCase().match(_value))
+              Object.keys(Translate.Data[objData.value]).find((t) =>
+                Translate.Data[objData.value][t].toLowerCase().match(_value),
+              ))
           ) {
             _data.push(objData);
           }
