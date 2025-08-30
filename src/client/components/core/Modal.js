@@ -285,12 +285,17 @@ const Modal = {
               };
 
               s(`.main-body-btn-bar-custom`).onclick = () => {
+                if (s(`.main-body-btn-ui-close`).classList.contains('hide')) {
+                  s(`.main-body-btn-ui`).click();
+                }
                 if (s(`.main-body-btn-ui-bar-custom-open`).classList.contains('hide')) {
                   s(`.main-body-btn-ui-bar-custom-open`).classList.remove('hide');
                   s(`.main-body-btn-ui-bar-custom-close`).classList.add('hide');
+                  s(`.slide-menu-top-bar-fix`).style.top = '0px';
                 } else {
                   s(`.main-body-btn-ui-bar-custom-open`).classList.add('hide');
                   s(`.main-body-btn-ui-bar-custom-close`).classList.remove('hide');
+                  s(`.slide-menu-top-bar-fix`).style.top = '-100px';
                 }
               };
 
@@ -424,7 +429,10 @@ const Modal = {
                   </div>
                 </div>
                 ${options?.slideMenuTopBarFix
-                  ? html`<div class="abs modal slide-menu-top-bar-fix" style="height: ${options.heightTopBar}px">
+                  ? html`<div
+                      class="abs modal slide-menu-top-bar-fix"
+                      style="height: ${options.heightTopBar}px; top: 0px"
+                    >
                       ${await options.slideMenuTopBarFix()}
                     </div>`
                   : ''}
