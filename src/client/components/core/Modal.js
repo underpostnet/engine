@@ -296,6 +296,7 @@ const Modal = {
                   s(`.main-body-btn-ui-bar-custom-open`).classList.add('hide');
                   s(`.main-body-btn-ui-bar-custom-close`).classList.remove('hide');
                   s(`.slide-menu-top-bar-fix`).style.top = '-100px';
+                  s(`.top-bar-search-box-container`).click();
                 }
               };
 
