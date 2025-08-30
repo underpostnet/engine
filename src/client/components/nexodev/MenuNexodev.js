@@ -782,7 +782,7 @@ const MenuNexodev = {
         });
       });
       s(`.btn-menu-${'modal-menu'}`).click();
-      return;
+
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
         id: 'modal-docs',
@@ -792,10 +792,10 @@ const MenuNexodev = {
           icon: html`<i class="fas fa-book"></i>`,
           text: Translate.Render('docs'),
         }),
-        html: async () =>
-          await Docs.Init({
-            idModal: 'modal-docs',
-          }),
+        html: async () => html`test`,
+        // await Docs.Init({
+        //   idModal: 'modal-docs',
+        // }),
         handleType: 'bar',
         observer: true,
         maximize: true,
