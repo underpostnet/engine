@@ -42,6 +42,11 @@ const TranslateHealthcare = {
       en: `Don't forget this space, I promise you will feel much better after doing it`,
     };
 
+    Translate.Data['healthcare-appointment-management'] = {
+      es: 'Gestionar citas',
+      en: 'Manage appointments',
+    };
+
     Object.keys(MenuHomeHealthcare).map((id) => {
       Translate.Data[id] = MenuHomeHealthcare[id].displayName;
     });

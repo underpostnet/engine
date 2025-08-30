@@ -1,9 +1,9 @@
-import { getId, newInstance, range, s4, splitEveryXChar } from './CommonJs.js';
+import { getId, newInstance, range, rgbToHex, s4, splitEveryXChar } from './CommonJs.js';
 import { CssCoreDark, CssCoreLight } from './CssCore.js';
 import { DropDown } from './DropDown.js';
 import { Modal } from './Modal.js';
 import { Translate } from './Translate.js';
-import { append, getProxyPath, htmls, s } from './VanillaJs.js';
+import { append, getProxyPath, htmls, s, sa } from './VanillaJs.js';
 
 let ThemesScope = [];
 
@@ -12,6 +12,39 @@ let ThemesScope = [];
 // https://www.1001fonts.com/
 
 const Css = {
+  // Menu button container transition styles
+  menuButtonContainer: () => css`
+    .main-btn-menu {
+      transition: all 0.2s ease-in-out;
+      position: relative;
+    }
+
+    .main-btn-menu::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 0;
+      height: 2px;
+      background: currentColor;
+      transition: all 0.2s ease-in-out;
+      transform: translateX(-50%);
+    }
+
+    .main-btn-menu:hover::after {
+      width: 60%;
+    }
+
+    .main-btn-menu.active {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .main-btn-menu.active::after {
+      width: 80%;
+      background: currentColor;
+    }
+  `,
+
   loadThemes: async function (themes = []) {
     ThemesScope = [];
     for (const themeOptions of themes) addTheme(themeOptions);
@@ -31,6 +64,16 @@ const Css = {
   Init: async function (options) {
     if (!options) options = ThemesScope[0];
     const { theme } = options;
+
+    // Inject menu button container styles
+    const styleId = 'menu-btn-container-styles';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = this.menuButtonContainer();
+      document.head.appendChild(style);
+    }
+
     return await Themes[theme](options);
   },
   RenderSetting: async function () {
@@ -811,6 +854,12 @@ const imageShimmer = () => html`<div
   </div>
 </div>`;
 
+const simpleIconsRender = (selector) => {
+  sa(selector).forEach((el) => {
+    el.src = `https://cdn.simpleicons.org/coveralls/${rgbToHex(window.getComputedStyle(s('html')).color)}`;
+  });
+};
+
 export {
   Css,
   Themes,
@@ -843,4 +892,5 @@ export {
   renderWave,
   cssEffect,
   imageShimmer,
+  simpleIconsRender,
 };

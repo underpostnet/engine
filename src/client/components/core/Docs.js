@@ -1,12 +1,12 @@
 import { Badge } from './Badge.js';
 import { BtnIcon } from './BtnIcon.js';
 import { rgbToHex } from './CommonJs.js';
-import { Css, darkTheme, dynamicCol, renderCssAttr, ThemeEvents, Themes } from './Css.js';
+import { Css, darkTheme, dynamicCol, renderCssAttr, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
 import { DropDown } from './DropDown.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from './Modal.js';
 import { listenQueryPathInstance, setQueryPath } from './Router.js';
 import { Translate } from './Translate.js';
-import { getProxyPath, getQueryParams, htmls, s } from './VanillaJs.js';
+import { getProxyPath, getQueryParams, htmls, s, sa } from './VanillaJs.js';
 import Sortable from 'sortablejs';
 
 // https://mintlify.com/docs/quickstart
@@ -46,6 +46,11 @@ const Docs = {
     Modal.Data[ModalId].onObserverListener[ModalId] = () => {
       if (s(`.iframe-${ModalId}`))
         s(`.iframe-${ModalId}`).style.height = `${s(`.${ModalId}`).offsetHeight - Modal.headerTitleHeight}px`;
+
+      if (type.match('coverage')) {
+        simpleIconsRender(`.doc-icon-coverage`);
+        simpleIconsRender(`.doc-icon-coverage-link`);
+      }
     };
     Modal.Data[ModalId].onObserverListener[ModalId]();
   },
@@ -96,10 +101,7 @@ const Docs = {
         return `${getProxyPath()}docs/coverage`;
       },
       themeEvent: () => {
-        if (s(`.doc-icon-coverage`))
-          s(`.doc-icon-coverage`).src = `https://cdn.simpleicons.org/coveralls/${rgbToHex(
-            window.getComputedStyle(s('html')).color,
-          )}`;
+        if (s(`.doc-icon-coverage`)) setTimeout(() => simpleIconsRender(`.doc-icon-coverage`));
       },
     },
     {
@@ -110,10 +112,7 @@ const Docs = {
         return `https://coveralls.io/github/underpostnet/engine`;
       },
       themeEvent: () => {
-        if (s(`.doc-icon-coverage-link`))
-          s(`.doc-icon-coverage-link`).src = `https://cdn.simpleicons.org/coveralls/${rgbToHex(
-            window.getComputedStyle(s('html')).color,
-          )}`;
+        if (s(`.doc-icon-coverage-link`)) setTimeout(() => simpleIconsRender(`.doc-icon-coverage-link`));
       },
     },
   ],
