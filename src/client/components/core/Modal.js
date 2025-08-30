@@ -626,7 +626,16 @@ const Modal = {
                   Modal.removeModal(searchBoxHistoryId);
                   return;
                 }
-                setTimeout(() => getResultSearchBox(validatorData));
+                setTimeout(() => {
+                  getResultSearchBox(validatorData);
+
+                  if (
+                    s(`.slide-menu-top-bar-fix`) &&
+                    !s(`.main-body-btn-ui-bar-custom-open`).classList.contains('hide')
+                  ) {
+                    s(`.main-body-btn-bar-custom`).click();
+                  }
+                });
               };
 
               const getDefaultSearchBoxSelector = () => `.search-result-btn-${currentKeyBoardSearchBoxIndex}`;
