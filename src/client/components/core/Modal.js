@@ -1470,7 +1470,8 @@ const Modal = {
           setDocTitle({ ...options.RouterInstance, route: '' });
         };
         s(`.main-btn-home`).onclick = async () => {
-          await this.onHomeRouterEvent();
+          // await this.onHomeRouterEvent();
+          s(`.action-btn-home`).click();
         };
         EventsUI.onClick(`.btn-icon-menu-back`, backMenuButtonEvent);
         EventsUI.onClick(`.btn-icon-menu-mode`, () => {
