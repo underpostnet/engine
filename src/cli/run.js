@@ -86,6 +86,13 @@ class UnderpostRun {
       shellExec(`${baseCommand} run ide /home/dd/engine`);
       shellExec(`${baseCommand} run ide /home/dd/engine/engine-private`);
     },
+    'ssh-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const baseCommand = options.dev || true ? 'node bin' : 'underpost';
+      shellCd('/home/dd/engine');
+      shellExec(`git reset`);
+      shellExec(`${baseCommand} cmt . --empty cd ssh-${path}`);
+      shellExec(`${baseCommand} push . underpostnet/engine`);
+    },
     ide: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       shellExec(`node ${underpostRoot}/bin/vs ${path}`);
