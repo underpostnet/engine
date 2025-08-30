@@ -266,14 +266,14 @@ const Modal = {
                       </div>
                     </div>
                     <div
-                      class="abs main-body-btn main-body-btn-bar-custom"
+                      class="abs main-body-btn main-body-btn-bar-custom ${options?.slideMenuTopBarFix ? '' : 'hide'}"
                       style="top: 100px; ${true || (options.mode && options.mode.match('right'))
                         ? 'right'
                         : 'left'}: 0px"
                     >
                       <div class="abs center">
-                        <i class="fa-solid fa-magnifying-glass hide main-body-btn-ui-bar-custom-open"></i>
-                        <i class="fa-solid fa-home main-body-btn-ui-bar-custom-close"></i>
+                        <i class="fa-solid fa-magnifying-glass main-body-btn-ui-bar-custom-open"></i>
+                        <i class="fa-solid fa-home hide main-body-btn-ui-bar-custom-close"></i>
                       </div>
                     </div>
                   </div>
