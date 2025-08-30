@@ -792,7 +792,191 @@ const MenuNexodev = {
           icon: html`<i class="fas fa-book"></i>`,
           text: Translate.Render('docs'),
         }),
-        html: async () => html`test`,
+        html: async () => {
+          const docsData = [
+            {
+              id: 'getting-started',
+              icon: 'rocket',
+              title: 'Getting Started',
+              description: 'Learn the basics and get started with our platform',
+            },
+            {
+              id: 'api-docs',
+              icon: 'code',
+              title: 'API Reference',
+              description: 'Detailed documentation of our API endpoints',
+            },
+            {
+              id: 'guides',
+              icon: 'book',
+              title: 'Guides',
+              description: 'Step-by-step tutorials and how-to guides',
+            },
+            {
+              id: 'examples',
+              icon: 'laptop-code',
+              title: 'Examples',
+              description: 'Practical examples and code snippets',
+            },
+            {
+              id: 'faq',
+              icon: 'question-circle',
+              title: 'FAQ',
+              description: 'Frequently asked questions',
+            },
+            {
+              id: 'community',
+              icon: 'users',
+              title: 'Community',
+              description: 'Join our developer community',
+            },
+          ];
+
+          return html`
+            <style>
+              .docs-landing {
+                padding: 2rem;
+                max-width: 1200px;
+                margin: 0 auto;
+                height: 100%;
+                box-sizing: border-box;
+              }
+              .docs-header {
+                text-align: center;
+                margin-bottom: 3rem;
+              }
+              .docs-header h1 {
+                font-size: 2.5rem;
+                margin: 0 0 1rem;
+                color: var(--text-primary);
+                line-height: 1.2;
+              }
+              .docs-header p {
+                font-size: 1.2rem;
+                color: var(--text-secondary);
+                max-width: 700px;
+                margin: 0 auto 2rem;
+                line-height: 1.6;
+              }
+              .docs-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 1.5rem;
+                margin: 0;
+                padding: 0;
+                list-style: none;
+              }
+              .docs-card {
+                background: var(--card-bg);
+                border-radius: 8px;
+                padding: 1.5rem;
+                border: 1px solid var(--border-color);
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                position: relative;
+                overflow: hidden;
+                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                will-change: transform, box-shadow;
+              }
+              .docs-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: currentColor;
+                opacity: 0.1;
+                transition: opacity 0.2s ease;
+              }
+              .docs-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+              }
+              .docs-card:hover::before {
+                opacity: 0.2;
+              }
+              .card-icon {
+                font-size: 1.75rem;
+                width: 56px;
+                height: 56px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 0 1.25rem;
+                transition: transform 0.2s ease;
+              }
+              .docs-card:hover .card-icon {
+                transform: scale(1.1);
+              }
+              .card-content {
+                flex: 1;
+              }
+              .card-content h3 {
+                margin: 0 0 0.5rem;
+                color: var(--text-primary);
+                font-size: 1.25rem;
+                font-weight: 600;
+              }
+              .card-content p {
+                margin: 0;
+                color: var(--text-secondary);
+                line-height: 1.6;
+                font-size: 0.95rem;
+              }
+              .docs-card-container {
+                cursor: pointer;
+                margin-bottom: 50px;
+              }
+            </style>
+
+            <div class="docs-landing">
+              <div class="docs-header">
+                <h1>Documentation</h1>
+                <p>
+                  Find everything you need to build amazing applications with our platform. Get started with our guides,
+                  API reference, and examples.
+                </p>
+                <!--
+                <div class="search-bar">
+                  <i class="fas fa-search"></i>
+                  <input type="text" placeholder="Search documentation..." id="docs-search">
+                </div>
+                -->
+              </div>
+
+              <ul class="docs-grid">
+                ${docsData
+                  .map((item) => {
+                    setTimeout(() => {
+                      if (s(`.docs-card-container-${item.id}`)) {
+                        s(`.docs-card-container-${item.id}`).onclick = () => {
+                          if (s(`.btn-docs-src`)) s(`.btn-docs-src`).click();
+                        };
+                      }
+                    });
+                    return html`
+                      <div class="in docs-card-container docs-card-container-${item.id}">
+                        <li class="docs-card">
+                          <div class="card-icon">
+                            <i class="fas fa-${item.icon}"></i>
+                          </div>
+                          <div class="card-content">
+                            <h3>${item.title}</h3>
+                            <p>${item.description}</p>
+                          </div>
+                        </li>
+                      </div>
+                    `;
+                  })
+                  .join('')}
+              </ul>
+            </div>
+          `;
+        },
+
         // await Docs.Init({
         //   idModal: 'modal-docs',
         // }),
