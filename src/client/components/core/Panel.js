@@ -3,6 +3,7 @@ import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Validator } from '../core/Validator.js';
 import { Input } from '../core/Input.js';
 import { Responsive } from '../core/Responsive.js';
+import { darkTheme, ThemeEvents } from './Css.js';
 import { append, getDataFromInputFile, getQueryParams, htmls, prepend, s } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Translate } from './Translate.js';
@@ -515,37 +516,24 @@ const Panel = {
       }
     }
 
+    // Add theme change handler
+    const themeChangeHandler = () => {
+      const styleElement = s(`.${idPanel}-styles`);
+      if (styleElement) {
+        styleElement.textContent = darkTheme
+          ? getDarkStyles(idPanel, scrollClassContainer)
+          : getLightStyles(idPanel, scrollClassContainer);
+      }
+    };
+
+    // Add theme change listener
+    ThemeEvents[`${idPanel}-theme`] = themeChangeHandler;
+
+    // Initial styles
+    setTimeout(ThemeEvents[`${idPanel}-theme`]);
+
     return html`
       <style>
-        .${scrollClassContainer} {
-          scroll-behavior: smooth;
-        }
-        .${idPanel}-form-container {
-          padding-bottom: 20px;
-          top: 0px;
-          z-index: 1;
-          overflow: auto;
-        }
-        .${idPanel}-form {
-          max-width: 900px;
-        }
-        .${idPanel}-cell {
-          min-height: 200px;
-        }
-        .${idPanel}-container {
-        }
-        .${idPanel} {
-          margin: 10px;
-          transition: 0.3s;
-          border-radius: 10px;
-          background: #f6f6f6;
-          color: black;
-          padding: 10px;
-          min-height: 400px;
-        }
-        .${idPanel}:hover {
-          background: #ffffff;
-        }
         .${idPanel}-head {
           /* background: white; */
           margin-bottom: 10px;
@@ -610,6 +598,7 @@ const Panel = {
           font-size: 17px !important;
         }
       </style>
+      <style class="${idPanel}-styles"></style>
       <div class="${idPanel}-container">
         <div class="in modal ${idPanel}-form-container ${options.formContainerClass ? options.formContainerClass : ''}">
           <div class="in ${idPanel}-form-header">
@@ -642,5 +631,142 @@ const Panel = {
     `;
   },
 };
+
+// Function to generate base styles
+function getBaseStyles(idPanel, scrollClassContainer) {
+  return css`
+    .${scrollClassContainer} {
+      scroll-behavior: smooth;
+    }
+    .${idPanel}-form-container {
+      padding-bottom: 20px;
+      top: 0px;
+      z-index: 1;
+      overflow: auto;
+    }
+    .${idPanel}-form {
+      max-width: 900px;
+    }
+    .${idPanel}-cell {
+      min-height: 200px;
+    }
+    .${idPanel}-container {
+    }
+    .${idPanel} {
+      margin: 10px;
+      transition: 0.3s;
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 400px;
+    }
+    .${idPanel}-head {
+      margin-bottom: 10px;
+    }
+    .img-${idPanel} {
+      width: 100%;
+    }
+    .${idPanel}-row {
+      padding: 5px;
+      margin: 5px;
+      font-size: 16px;
+    }
+    .${idPanel}-subtitle {
+      font-size: 17px;
+      margin-left: 20px;
+      top: -7px;
+    }
+    .${idPanel}-tags {
+      font-size: 17px;
+      margin-left: 10px;
+      top: -7px;
+    }
+    .${idPanel}-form-body {
+      transition: 0.3s;
+    }
+    .btn-${idPanel}-add {
+      padding: 10px;
+      font-size: 20px;
+    }
+    .${idPanel}-dropdown {
+      min-height: 100px;
+    }
+  `;
+}
+
+// Function to generate light theme styles
+function getLightStyles(idPanel, scrollClassContainer) {
+  return css`
+    ${getBaseStyles(idPanel, scrollClassContainer)}
+
+    .${idPanel} {
+      background: #f6f6f6;
+      color: black;
+    }
+    .${idPanel}:hover {
+      background: #ffffff;
+    }
+    .${idPanel}-title {
+      color: rgba(109, 104, 255, 1);
+      font-size: 24px;
+      padding: 5px;
+    }
+    .a-title-${idPanel} {
+      color: rgba(109, 104, 255, 1);
+    }
+    .a-title-${idPanel}:hover {
+      color: #e89f4c;
+    }
+    .${idPanel}-row-pin-value {
+      font-size: 20px;
+      color: rgb(19 190 84);
+    }
+    .${idPanel}-btn-tool {
+      background: none !important;
+      color: #c4c4c4 !important;
+    }
+    .${idPanel}-btn-tool:hover {
+      color: #000000 !important;
+      font-size: 17px !important;
+    }
+  `;
+}
+
+// Function to generate dark theme styles
+function getDarkStyles(idPanel, scrollClassContainer) {
+  return css`
+    ${getBaseStyles(idPanel, scrollClassContainer)}
+
+    .${idPanel} {
+      background: #2d2d2d;
+      color: #e0e0e0;
+    }
+    .${idPanel}:hover {
+      background: #3a3a3a;
+    }
+    .${idPanel}-title {
+      color: #8a85ff;
+      font-size: 24px;
+      padding: 5px;
+    }
+    .a-title-${idPanel} {
+      color: #8a85ff;
+    }
+    .a-title-${idPanel}:hover {
+      color: #ffb74d;
+    }
+    .${idPanel}-row-pin-value {
+      font-size: 20px;
+      color: #4caf50;
+    }
+    .${idPanel}-btn-tool {
+      background: none !important;
+      color: #666666 !important;
+    }
+    .${idPanel}-btn-tool:hover {
+      color: #ffffff !important;
+      font-size: 17px !important;
+    }
+  `;
+}
 
 export { Panel };
