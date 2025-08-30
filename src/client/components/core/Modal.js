@@ -272,8 +272,8 @@ const Modal = {
                         : 'left'}: 0px"
                     >
                       <div class="abs center">
-                        <i class="fa-solid fa-xmark hide main-body-btn-ui-bar-custom-open"></i>
-                        <i class="fa-solid fa-bars main-body-btn-ui-bar-custom-close"></i>
+                        <i class="fa-solid fa-magnifying-glass hide main-body-btn-ui-bar-custom-open"></i>
+                        <i class="fa-solid fa-home main-body-btn-ui-bar-custom-close"></i>
                       </div>
                     </div>
                   </div>

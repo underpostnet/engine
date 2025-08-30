@@ -17,6 +17,12 @@ const CssBymyelectricsDark = {
         .slide-menu-top-bar-fix {
           background-color: black;
         }
+        footer {
+          background: #22211a;
+        }
+        .sub-title-sec-1 {
+          color: #fff688;
+        }
       </style>
     `;
   },
@@ -34,6 +40,12 @@ const CssBymyelectricsLight = {
     return html`<style>
       .landing-container {
         color: black;
+      }
+      .sub-title-sec-1 {
+        color: #2f5596;
+      }
+      footer {
+        background: #2f5596;
       }
     </style>`;
   },
