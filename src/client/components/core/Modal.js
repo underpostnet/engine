@@ -691,6 +691,7 @@ const Modal = {
                   Modal.MoveTitleToBar(id);
 
                   prepend(`.btn-bar-modal-container-${id}`, html`<div class="hide">${inputInfoNode.outerHTML}</div>`);
+                  if (s(`.slide-menu-top-bar-fix`)) s(`.slide-menu-top-bar-fix`).classList.add('hide');
                 }
               };
 
@@ -710,6 +711,7 @@ const Modal = {
                   } catch (e) {}
                 }
                 Modal.removeModal(searchBoxHistoryId);
+                if (s(`.slide-menu-top-bar-fix`)) s(`.slide-menu-top-bar-fix`).classList.remove('hide');
               };
               s('.top-bar-search-box').onblur = () => {
                 hoverFocusCtl.checkDismiss();
