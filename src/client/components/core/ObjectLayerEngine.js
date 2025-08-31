@@ -33,37 +33,9 @@ const templateHTML = html`
       top: 0;
       pointer-events: none;
     }
-    .toolbar {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-top: 8px;
-    }
-    .toolbar > * {
-      font-size: 13px;
-    }
-    input[type='number'] {
-      width: 64px;
-      padding: 4px;
-    }
-    button {
-      padding: 6px 8px;
-      cursor: pointer;
-    }
-    label.switch {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-    }
   </style>
 
   <div class="wrap">
-    <div class="canvas-frame" style="${renderChessPattern()}">
-      <canvas part="canvas" class="canvas-layer"></canvas>
-      <canvas part="grid" class="grid-layer"></canvas>
-    </div>
-
     <div class="toolbar">
       <input type="color" part="color" title="Brush color" value="#000000" />
       <select part="tool">
@@ -81,6 +53,10 @@ const templateHTML = html`
       <button part="export">Export PNG</button>
       <button part="export-json">Export JSON</button>
       <button part="import-json">Import JSON</button>
+    </div>
+    <div class="canvas-frame" style="${renderChessPattern()}">
+      <canvas part="canvas" class="canvas-layer"></canvas>
+      <canvas part="grid" class="grid-layer"></canvas>
     </div>
   </div>
 `;
