@@ -158,9 +158,9 @@ const MenuCyberiaPortal = {
         //   },
         // });
         await import(`${getProxyPath()}components/core/ObjectLayerEngine.js`);
-        await import(`${getProxyPath()}components/core/WebComponent.js`);
+        // await import(`${getProxyPath()}components/core/WebComponent.js`);
 
-        return html`<my-element>test</my-element>`;
+        return html`<object-layer-engine id="ole" width="20" height="10" pixel-size="20"></object-layer-engine>`;
       },
       barConfig: newInstance(barConfig),
       title: NameApp,
