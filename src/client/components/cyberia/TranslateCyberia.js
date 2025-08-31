@@ -85,6 +85,11 @@ const TranslateCyberia = {
       en: 'Insufficient coin cash balance',
       es: 'Saldo de monedas insuficiente',
     };
+
+    Translate.Data['object-layer-engine'] = {
+      en: 'Object Layer Engine',
+      es: 'Engine de capas de objetos',
+    };
   },
 };
 

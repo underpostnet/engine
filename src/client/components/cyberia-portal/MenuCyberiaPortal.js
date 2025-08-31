@@ -160,7 +160,15 @@ const MenuCyberiaPortal = {
         await import(`${getProxyPath()}components/core/ObjectLayerEngine.js`);
         // await import(`${getProxyPath()}components/core/WebComponent.js`);
 
-        return html`<object-layer-engine id="ole" width="20" height="10" pixel-size="20"></object-layer-engine>`;
+        const cells = 16;
+        const pixelSize = parseInt(320 / cells);
+
+        return html`<object-layer-engine
+          id="ole"
+          width="${cells}"
+          height="${cells}"
+          pixel-size="${pixelSize}"
+        ></object-layer-engine>`;
       },
       barConfig: newInstance(barConfig),
       title: NameApp,

@@ -512,6 +512,10 @@ const TranslateCore = {
       en: 'Your session has expired. Please log in again.',
       es: 'Su sesión ha expirado. Por favor, inicie sesión de nuevo.',
     };
+    Translate.Data['cron-management'] = {
+      en: 'Cron Management',
+      es: 'Gestion de cron jobs',
+    };
   },
 };
 
