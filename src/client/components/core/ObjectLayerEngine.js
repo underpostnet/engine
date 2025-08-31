@@ -1,3 +1,5 @@
+import { darkTheme, renderChessPattern } from './Css.js';
+
 const templateHTML = html`
   <style>
     :host {
@@ -57,7 +59,7 @@ const templateHTML = html`
   </style>
 
   <div class="wrap">
-    <div class="canvas-frame">
+    <div class="canvas-frame" style="${renderChessPattern()}">
       <canvas part="canvas" class="canvas-layer"></canvas>
       <canvas part="grid" class="grid-layer"></canvas>
     </div>
@@ -365,8 +367,8 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (!this._showGrid) return;
     const ps = this._pixelSize;
     ctx.save();
-    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = darkTheme ? '#e1e1e1' : '#272727';
+    ctx.lineWidth = 2;
     ctx.beginPath();
     for (let x = 0; x <= this._width; x++) {
       const xx = x * ps + 0.5;
