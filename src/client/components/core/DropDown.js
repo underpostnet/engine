@@ -8,7 +8,12 @@ const DropDown = {
   Tokens: {},
   Render: async function (options) {
     const id = options.id ? options.id : getId(this.Tokens, 'dropdown-');
-    this.Tokens[id] = { onClickEvents: {}, lastSelectValue: undefined, oncheckvalues: {} };
+    this.Tokens[id] = {
+      onClickEvents: {},
+      lastSelectValue: undefined,
+      oncheckvalues: {},
+      originData: options.data ? newInstance(options.data) : [],
+    };
 
     options.data.push({
       value: 'reset',
@@ -65,17 +70,21 @@ const DropDown = {
             if (options.type === 'checkbox' && ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`])
               ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`].click();
             if (optionData.value !== 'close') {
-              if (optionData.value !== 'reset')
-                htmls(
-                  `.dropdown-current-${id}`,
-                  options.type === 'checkbox'
-                    ? data
-                        .filter((d) => d.checked)
-                        .map((v, i, a) => `${v.display}${i < a.length - 1 ? ',' : ''}`)
-                        .join('')
-                    : optionData.display,
-                );
-              else htmls(`.dropdown-current-${id}`, '');
+              if (optionData.value !== 'reset') {
+                if (options.type === 'checkbox') {
+                  // const _instanValue = data
+                  //   .filter((d) => d.checked)
+                  //   .map((v, i, a) => `${v.display}${i < a.length - 1 ? ',' : ''}`)
+                  //   .join('');
+                  const value = Object.keys(DropDown.Tokens[id].oncheckvalues);
+                  htmls(
+                    `.dropdown-current-${id}`,
+                    value.map((v) => DropDown.Tokens[id].originData.find((_v) => _v.value === v).display),
+                  );
+                } else {
+                  htmls(`.dropdown-current-${id}`, optionData.display);
+                }
+              } else htmls(`.dropdown-current-${id}`, '');
 
               this.Tokens[id].value =
                 options.type === 'checkbox' ? data.filter((d) => d.checked).map((d) => d.data) : optionData.data;
