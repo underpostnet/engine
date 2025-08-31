@@ -86,13 +86,7 @@ program
   .argument('<deploy-id>', `The deployment configuration ID. Use 'clean' to restore default environment settings.`)
   .argument('[env]', 'Optional: The environment to set (e.g., "production", "development"). Defaults to "production".')
   .description('Sets environment variables and configurations related to a specific deployment ID.')
-  .action((...args) => {
-    if (args[0] === 'current') {
-      console.log(process.env.DEPLOY_ID);
-      return;
-    }
-    loadConf(...args);
-  });
+  .action(loadConf);
 
 // 'config' command: Manage Underpost configurations
 program

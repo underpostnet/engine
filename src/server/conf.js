@@ -89,12 +89,19 @@ const Config = {
 };
 
 const loadConf = (deployId, envInput, subConf) => {
+  if (deployId === 'current') {
+    console.log(process.env.DEPLOY_ID);
+    return;
+  }
   if (deployId === 'clean') {
-    shellExec(`git checkout package.json`);
-    shellExec(`git checkout .env.production`);
-    shellExec(`git checkout .env.development`);
-    shellExec(`git checkout .env.test`);
-    shellExec(`git checkout jsdoc.json`);
+    const path = envInput ?? '.';
+    fs.removeSync(`${path}/.env`);
+    shellExec(`git checkout ${path}/.env.production`);
+    shellExec(`git checkout ${path}/.env.development`);
+    shellExec(`git checkout ${path}/.env.test`);
+    if (fs.existsSync(`${path}/jsdoc.json`)) shellExec(`git checkout ${path}/jsdoc.json`);
+    shellExec(`git checkout ${path}/package.json`);
+    shellExec(`git checkout ${path}/package-lock.json`);
     return;
   }
   const folder = fs.existsSync(`./engine-private/replica/${deployId}`)
