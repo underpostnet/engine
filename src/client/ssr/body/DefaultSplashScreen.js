@@ -1,12 +1,12 @@
 SrrComponent = ({ backgroundImage, metadata }) => html`
   ${backgroundImage
-    ? html`<style>
+    ? html`<style class="style-ssr-background-image">
         .ssr-background-image {
           background-image: url('${backgroundImage}');
         }
       </style>`
     : metadata?.themeColor
-    ? html`<style>
+    ? html`<style class="style-ssr-background-image">
         .ssr-background-image {
           background: ${metadata.themeColor};
         }

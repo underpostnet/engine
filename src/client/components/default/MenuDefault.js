@@ -1,7 +1,7 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, Themes } from '../core/Css.js';
+import { Css, darkTheme, extractBackgroundImageUrl, ThemeEvents, Themes } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -177,6 +177,32 @@ const MenuDefault = {
       heightBottomBar,
       htmlMainBody: options?.htmlMainBody ? options.htmlMainBody : undefined,
     });
+
+    ThemeEvents['ssr-background-image'] = () => {
+      if (darkTheme) {
+        const backgroundImage = `${getProxyPath()}assets/background/dark.jpg`;
+        htmls(
+          `.style-ssr-background-image`,
+          css`
+            .ssr-background-image {
+              background-image: url('${backgroundImage}');
+            }
+          `,
+        );
+      } else {
+        const backgroundImage = `${getProxyPath()}assets/background/white0-min.jpg`;
+        htmls(
+          `.style-ssr-background-image`,
+          css`
+            .ssr-background-image {
+              background-image: url('${backgroundImage}');
+            }
+          `,
+        );
+      }
+    };
+
+    setTimeout(ThemeEvents['ssr-background-image']);
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,

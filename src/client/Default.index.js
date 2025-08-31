@@ -18,7 +18,7 @@ import { ElementsDefault } from './components/default/ElementsDefault.js';
 import { Scroll } from './components/core/Scroll.js';
 
 const htmlMainBody = async () => {
-  return html`<span style="color: black; padding: 5px">Hello World!!</span>`;
+  return html`<span>Hello World!!</span>`;
 };
 
 window.onload = () =>
