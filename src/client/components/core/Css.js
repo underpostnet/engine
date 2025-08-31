@@ -854,6 +854,8 @@ const imageShimmer = () => html`<div
   </div>
 </div>`;
 
+const renderChessPattern = () => `background: repeating-conic-gradient(#808080 0 25%, #0000 0 50%) 50% / 20px 20px`;
+
 const extractBackgroundImageUrl = (element) => {
   const style = window.getComputedStyle(element);
   const imageString = style.backgroundImage;
@@ -904,4 +906,5 @@ export {
   imageShimmer,
   simpleIconsRender,
   extractBackgroundImageUrl,
+  renderChessPattern,
 };
