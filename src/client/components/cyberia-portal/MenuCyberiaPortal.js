@@ -145,30 +145,29 @@ const MenuCyberiaPortal = {
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
           })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-object-layer-engine',
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-cog"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('object-layer-engine')}</span>`,
+            }),
+            attrs: `data-id="object-layer-engine"`,
+            tabHref: `${getProxyPath()}object-layer-engine`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('object-layer-engine')),
+          })}
         </div>
       `,
       htmlMainBody: async () => {
-        // return await ServerCyberiaPortal.Render({
-        //   idModal: 'modal-server-body',
-        //   events: {
-        //     'change-server-body': async ({ name }) => {
-        //       const { protocol, hostname } = window.location;
-        //       return (location.href = `${protocol}//${hostname}/${name}`);
-        //     },
-        //   },
-        // });
-        await import(`${getProxyPath()}components/core/ObjectLayerEngine.js`);
-        // await import(`${getProxyPath()}components/core/WebComponent.js`);
-
-        const cells = 16;
-        const pixelSize = parseInt(320 / cells);
-
-        return html`<object-layer-engine
-          id="ole"
-          width="${cells}"
-          height="${cells}"
-          pixel-size="${pixelSize}"
-        ></object-layer-engine>`;
+        return await ServerCyberiaPortal.Render({
+          idModal: 'modal-server-body',
+          events: {
+            'change-server-body': async ({ name }) => {
+              const { protocol, hostname } = window.location;
+              return (location.href = `${protocol}//${hostname}/${name}`);
+            },
+          },
+        });
       },
       barConfig: newInstance(barConfig),
       title: NameApp,
@@ -413,6 +412,40 @@ const MenuCyberiaPortal = {
         }),
         html: async () =>
           await Recover.Render({ idModal: 'modal-recover', user: ElementsCyberiaPortal.Data.user.main.model.user }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-object-layer-engine`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-object-layer-engine',
+        route: 'object-layer-engine',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-cog"></i>`,
+          text: Translate.Render('object-layer-engine'),
+        }),
+        html: async () => {
+          await import(`${getProxyPath()}components/core/ObjectLayerEngine.js`);
+          // await import(`${getProxyPath()}components/core/WebComponent.js`);
+
+          const cells = 16;
+          const pixelSize = parseInt(320 / cells);
+
+          return html`<object-layer-engine
+            id="ole"
+            width="${cells}"
+            height="${cells}"
+            pixel-size="${pixelSize}"
+          ></object-layer-engine>`;
+        },
         handleType: 'bar',
         maximize: true,
         mode: 'view',

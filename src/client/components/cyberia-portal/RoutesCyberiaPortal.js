@@ -32,6 +32,11 @@ const RoutesCyberiaPortal = () => {
       translateTitle: true,
     },
     '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
+    '/object-layer-engine': {
+      title: 'object-layer-engine',
+      render: () => s(`.main-btn-object-layer-engine`).click(),
+      translateTitle: true,
+    },
   };
 };
 
