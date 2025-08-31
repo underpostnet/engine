@@ -822,70 +822,72 @@ const generateRandomPasswordSelection = (length) => {
 
 const commitData = {
   feat: {
-    description: 'A new feature',
+    description: 'New feature or enhancement (frontend, backend, API, or UX)',
     title: 'Features',
     emoji: '✨',
   },
   fix: {
-    description: 'A bug fix',
+    description: 'Fix a bug',
     title: 'Bug Fixes',
     emoji: '🐛',
   },
   docs: {
-    description: 'Documentation only changes',
+    description: 'Documentation changes',
     title: 'Documentation',
     emoji: '📚',
   },
   style: {
-    description:
-      'Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)',
+    description: 'Formatting, whitespace, semicolons, code style',
     title: 'Styles',
     emoji: '💎',
   },
   refactor: {
-    description: 'A code change that neither fixes a bug nor adds a feature',
+    description: 'Code refactor.',
     title: 'Code Refactoring',
     emoji: '📦',
   },
   perf: {
-    description: 'A code change that improves performance',
+    description: 'Performance improvements across the stack.',
     title: 'Performance Improvements',
     emoji: '⚡️',
   },
+  ci: {
+    description: 'CI pipeline changes (GitHub Actions, runners, caching)',
+    title: 'Continuous Integration',
+    emoji: '⚙️',
+  },
   cd: {
-    description:
-      'Changes to our Continuous Delivery configuration files and scripts (example scopes: Jenkins, Spinnaker, ArgoCD)',
+    description: 'CD / deployment changes (Remote ssh deployment scripts)',
     title: 'Continuous Delivery',
     emoji: '🚀',
   },
-  test: {
-    description: 'Adding missing tests or correcting existing tests',
-    title: 'Tests',
-    emoji: '🚨',
+  infra: {
+    description: 'Infrastructure changes (MAAS, LXD, cloud infra, networking, provisioning).',
+    title: 'Infrastructure',
+    emoji: '🏗️',
   },
   build: {
-    description: 'Changes that affect the build system or external dependencies (example scopes: gulp, broccoli, npm)',
+    description: 'Build system or dependency changes (tooling, bundler, build scripts).',
     title: 'Builds',
     emoji: '🛠',
   },
-  ci: {
-    description:
-      'Changes to our CI configuration files and scripts (example scopes: Travis, Circle, BrowserStack, SauceLabs)',
-    title: 'Continuous Integrations',
-    emoji: '⚙️',
+  test: {
+    description: 'Unit or integration tests added/updated, test helpers, flake fixes.',
+    title: 'Tests',
+    emoji: '🚨',
   },
   chore: {
-    description: "Other changes that don't modify src or test files",
+    description: "Other changes that don't modify src or tests (automation, housekeeping).",
     title: 'Chores',
     emoji: '♻️',
   },
   revert: {
-    description: 'Reverts a previous commit',
+    description: 'Revert a previous commit or change.',
     title: 'Reverts',
     emoji: '🗑',
   },
   backup: {
-    description: 'Changes related to backups, including creation, restoration, and maintenance.',
+    description: 'Backups, snapshotting, restore scripts, or backup docs.',
     title: 'Backups',
     emoji: '💾',
   },
