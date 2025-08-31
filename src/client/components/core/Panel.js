@@ -366,9 +366,7 @@ const Panel = {
                         data: await getDataFromInputFile(file),
                       },
                     },
-                    aHrefOptions: {
-                      disable: true,
-                    },
+
                     raw: true,
                   })}
                   <div class="in" style="overflow: hidden">${file.name}</div>`;

@@ -1061,7 +1061,7 @@ const Modal = {
                   await Modal.onHomeRouterEvent();
                   Object.keys(this.Data[idModal].onHome).map((keyListener) => this.Data[idModal].onHome[keyListener]());
                 });
-                EventsUI.onClick(`.action-btn-app-icon`, () => Modal.onHomeRouterEvent());
+                EventsUI.onClick(`.action-btn-app-icon`, () => s(`.action-btn-home`).click());
                 Keyboard.instanceMultiPressKey({
                   id: 'input-shortcut-global-escape',
                   keys: ['Escape'],

@@ -105,7 +105,6 @@ const Content = {
       class: '',
       container: '',
       url: '',
-      aHrefOptions: { disable: false },
       raw: false,
     },
   ) {
@@ -143,10 +142,7 @@ const Content = {
           ? getApiBaseUrl({ id: file._id, endpoint: 'file/blob' })
           : URL.createObjectURL(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
         const imgRender = html`<img class="in ${options.class}" ${options.style} src="${url}" />`;
-        render += html`${options.aHrefOptions?.disable
-          ? imgRender
-          : html`<a href="${url}" target="_top">${imgRender}</a>`}`;
-
+        render += imgRender;
         break;
       }
       case 'pdf': {
