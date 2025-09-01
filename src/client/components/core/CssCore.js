@@ -51,7 +51,6 @@ const CssCommonCore = async () => {
         cursor: grabbing !important;
       }
       .btn-label-content {
-        height: 100%;
         top: 15px;
       }
       .badge {
