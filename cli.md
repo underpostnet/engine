@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.845
+## underpost ci/cd cli v2.8.846
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -118,7 +118,8 @@ options.
 Arguments:
   path         The absolute or relative directory path of the repository.
   commit-type  The type of commit to perform. Options: feat, fix, docs, style,
-               refactor, perf, cd, test, build, ci, chore, revert, backup.
+               refactor, perf, ci, cd, infra, build, test, chore, revert,
+               backup.
   module-tag   Optional: Sets a specific module tag for the commit.
   message      Optional: Provides an additional custom message for the commit.
 
@@ -558,7 +559,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, gpu-env, tf-gpu-test, dev-cluster, cyberia-ide, engine-ide, ide, monitor, db-client, cluster, deploy, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, gpu-env, tf-gpu-test, dev-cluster, cyberia-ide, engine-ide, ssh-deploy, ide, monitor, db-client, cluster, deploy, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:

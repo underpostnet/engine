@@ -13,7 +13,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4013
+          port: 4007
           weight: 100
     
     - conditions:
@@ -21,7 +21,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4014
+          port: 4008
           weight: 100
     
 ---
@@ -38,7 +38,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4015
+          port: 4009
           weight: 100
     
 ---
@@ -55,7 +55,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4016
+          port: 4010
           weight: 100
     
     - conditions:
@@ -63,7 +63,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4017
+          port: 4011
           weight: 100
     
 ---
@@ -80,7 +80,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4018
+          port: 4012
           weight: 100
     
 ---
@@ -97,7 +97,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4019
+          port: 4013
           weight: 100
     
 ---
@@ -114,7 +114,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4020
+          port: 4014
           weight: 100
     
     - conditions:
@@ -122,7 +122,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4021
+          port: 4015
           weight: 100
     
 ---
@@ -139,7 +139,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4022
+          port: 4016
           weight: 100
     
 ---
@@ -156,7 +156,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4023
+          port: 4017
           weight: 100
     
     - conditions:
@@ -164,7 +164,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4024
+          port: 4018
           weight: 100
     
 ---
@@ -181,7 +181,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4025
+          port: 4019
           weight: 100
     
     - conditions:
@@ -189,7 +189,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4026
+          port: 4020
           weight: 100
     
 ---
@@ -206,7 +206,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4027
+          port: 4021
           weight: 100
     
     - conditions:
@@ -214,7 +214,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4028
+          port: 4022
           weight: 100
     
 ---
@@ -231,7 +231,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4029
+          port: 4023
           weight: 100
     
 ---
@@ -248,7 +248,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4030
+          port: 4024
           weight: 100
     
     - conditions:
@@ -256,7 +256,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4031
+          port: 4025
           weight: 100
     
 ---
@@ -273,7 +273,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4032
+          port: 4026
           weight: 100
     
 ---
@@ -290,7 +290,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4033
+          port: 4027
           weight: 100
     
     - conditions:
@@ -298,6 +298,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4034
+          port: 4028
           weight: 100
     
