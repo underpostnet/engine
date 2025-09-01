@@ -19,6 +19,7 @@ import UnderpostRepository from './cli/repository.js';
 import UnderpostRun from './cli/run.js';
 import UnderpostScript from './cli/script.js';
 import UnderpostSecret from './cli/secrets.js';
+import UnderpostSSH from './cli/ssh.js';
 import UnderpostTest from './cli/test.js';
 import UnderpostStartUp from './server/start.js';
 
@@ -126,6 +127,13 @@ class Underpost {
    * @memberof Underpost
    */
   static monitor = UnderpostMonitor.API;
+  /**
+   * SSH cli API
+   * @static
+   * @type {UnderpostSSH.API}
+   * @memberof Underpost
+   */
+  static ssh = UnderpostSSH.API;
   /**
    * LXD cli API
    * @static

@@ -835,6 +835,12 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     }
 
     case 'ssh': {
+      // only import
+      // node bin/deploy ssh root@<host> <password> import
+
+      // install + import
+      // node bin/deploy ssh root@<host> <password>
+
       const host = process.argv[3] ?? `root@${await ip.public.ipv4()}`;
       const domain = host.split('@')[1];
       const user = 'root'; // host.split('@')[0];
