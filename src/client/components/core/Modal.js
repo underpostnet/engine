@@ -178,24 +178,23 @@ const Modal = {
                   </style>`;
                 }
                 setTimeout(() => {
-                  if (s(`.top-bar-app-icon`).src) {
+                  if (s(`.top-bar-app-icon`) && s(`.top-bar-app-icon`).src) {
                     s(`.default-slide-menu-top-bar-fix-logo`).src = s(`.top-bar-app-icon`).src;
                     if (s(`.top-bar-app-icon`).classList.contains('negative-color'))
                       s(`.default-slide-menu-top-bar-fix-logo`).classList.add('negative-color');
+                    htmls(
+                      `.default-slide-menu-top-bar-fix-title-container`,
+                      html`
+                        <div class="inl default-slide-menu-top-bar-fix-title-container-text">
+                          ${options.RouterInstance.NameApp}
+                        </div>
+                      `,
+                    );
                   } else
                     htmls(
                       `.default-slide-menu-top-bar-fix-logo-container`,
                       html`<div class="abs center">${s(`.action-btn-app-icon-render`).innerHTML}</div>`,
                     );
-
-                  htmls(
-                    `.default-slide-menu-top-bar-fix-title-container`,
-                    html`
-                      <div class="inl default-slide-menu-top-bar-fix-title-container-text">
-                        ${options.RouterInstance.NameApp}
-                      </div>
-                    `,
-                  );
                 });
 
                 return html`${style}
