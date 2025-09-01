@@ -953,7 +953,11 @@ const MenuNexodev = {
                     setTimeout(() => {
                       if (s(`.docs-card-container-${item.id}`)) {
                         s(`.docs-card-container-${item.id}`).onclick = () => {
-                          if (s(`.btn-docs-src`)) s(`.btn-docs-src`).click();
+                          if (item.id.match('api')) {
+                            if (s(`.btn-docs-api`)) s(`.btn-docs-api`).click();
+                          } else {
+                            if (s(`.btn-docs-src`)) s(`.btn-docs-src`).click();
+                          }
                         };
                       }
                     });
