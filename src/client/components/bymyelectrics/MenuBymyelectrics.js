@@ -174,7 +174,7 @@ const MenuBymyelectrics = {
         </div>
       `,
       barConfig: newInstance(barConfig),
-      slideMenuTopBarFix: async () => {
+      slideMenuTopBarBannerFix: async () => {
         return html` <style>
             .bme-bar-logo {
               height: 150px;
@@ -186,7 +186,12 @@ const MenuBymyelectrics = {
             }
           </style>
 
-          <div class="fl"><img class="in fll bme-bar-logo" src="${getProxyPath()}assets/social.png" /></div>`;
+          <div class="fl">
+            <img
+              class="in fll bme-bar-logo ${!darkTheme ? '' : 'negative-color'}"
+              src="${getProxyPath()}assets/social.png"
+            />
+          </div>`;
       },
       title: NameApp,
       // titleClass: 'hide',

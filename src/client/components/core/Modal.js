@@ -139,9 +139,9 @@ const Modal = {
         case 'slide-menu-right':
         case 'slide-menu-left':
           (async () => {
-            if (!options.slideMenuTopBarFix) {
-              let style = html``;
-              options.slideMenuTopBarFix = async () => {
+            if (!options.slideMenuTopBarBannerFix) {
+              options.slideMenuTopBarBannerFix = async () => {
+                let style = html``;
                 if (options.barMode === 'top-bottom-bar') {
                   style = html`<style>
                     .default-slide-menu-top-bar-fix-logo-container {
@@ -167,11 +167,12 @@ const Modal = {
                     }
                   </style>`;
                 }
-
                 setTimeout(() => {
-                  if (s(`.default-slide-menu-top-bar-fix-logo`).src)
+                  if (s(`.top-bar-app-icon`).src) {
                     s(`.default-slide-menu-top-bar-fix-logo`).src = s(`.top-bar-app-icon`).src;
-                  else
+                    if (s(`.top-bar-app-icon`).classList.contains('negative-color'))
+                      s(`.default-slide-menu-top-bar-fix-logo`).classList.add('negative-color');
+                  } else
                     htmls(
                       `.default-slide-menu-top-bar-fix-logo-container`,
                       html`<div class="abs center">${s(`.action-btn-app-icon-render`).innerHTML}</div>`,
@@ -311,7 +312,9 @@ const Modal = {
                       </div>
                     </div>
                     <div
-                      class="abs main-body-btn main-body-btn-bar-custom ${options?.slideMenuTopBarFix ? '' : 'hide'}"
+                      class="abs main-body-btn main-body-btn-bar-custom ${options?.slideMenuTopBarBannerFix
+                        ? ''
+                        : 'hide'}"
                       style="top: 100px; ${true || (options.mode && options.mode.match('right'))
                         ? 'right'
                         : 'left'}: 0px"
@@ -474,12 +477,12 @@ const Modal = {
                     })}
                   </div>
                 </div>
-                ${options?.slideMenuTopBarFix
+                ${options?.slideMenuTopBarBannerFix
                   ? html`<div
                       class="abs modal slide-menu-top-bar-fix"
                       style="height: ${options.heightTopBar}px; top: 0px"
                     >
-                      ${await options.slideMenuTopBarFix()}
+                      ${await options.slideMenuTopBarBannerFix()}
                     </div>`
                   : ''}
               </div>`,
@@ -1117,11 +1120,13 @@ const Modal = {
               }
 
               {
-                ThemeEvents['action-btn-theme'] = () => {
+                ThemeEvents['action-btn-theme'] = async () => {
                   htmls(
                     `.action-btn-theme-render`,
                     html` ${darkTheme ? html` <i class="fas fa-moon"></i>` : html`<i class="far fa-sun"></i>`}`,
                   );
+                  if (s(`.slide-menu-top-bar-fix`))
+                    htmls(`.slide-menu-top-bar-fix`, await options.slideMenuTopBarBannerFix());
                 };
                 ThemeEvents['action-btn-theme']();
 

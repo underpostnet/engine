@@ -5,10 +5,6 @@ const CssBymyelectricsDark = {
   themePair: 'bymyelectrics-light',
   dark: true,
   render: async () => {
-    setTimeout(() => {
-      if (s('.bme-bar-logo')) s('.bme-bar-logo').classList.add('negative-color');
-    });
-
     return html`
       <style>
         .landing-container {
@@ -33,10 +29,6 @@ const CssBymyelectricsLight = {
   themePair: 'bymyelectrics-dark',
   dark: false,
   render: async () => {
-    setTimeout(() => {
-      if (s('.bme-bar-logo')) s('.bme-bar-logo').classList.remove('negative-color');
-    });
-
     return html`<style>
       .landing-container {
         color: black;

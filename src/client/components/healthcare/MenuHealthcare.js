@@ -203,7 +203,7 @@ const MenuHealthcare = {
         setTimeout(ThemeEvents['titleRender']);
         return '';
       },
-      slideMenuTopBarFix: async () => {
+      slideMenuTopBarBannerFix: async () => {
         return html` <style>
             .healthcare-bar-logo {
               height: 200px;
