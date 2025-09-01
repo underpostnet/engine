@@ -4,12 +4,7 @@ import { LoadingAnimation } from '../core/LoadingAnimation.js';
 const CssCommonNexodev = async () => {
   LoadingAnimation.setLightColor(`#800080`);
   CalendarCore.RenderStyle();
-  return html`<style>
-    .top-bar-app-icon {
-      width: 50px;
-      height: 40px;
-    }
-  </style>`;
+  return html``;
 };
 
 const CssNexodevDark = {

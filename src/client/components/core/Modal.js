@@ -139,6 +139,51 @@ const Modal = {
         case 'slide-menu-right':
         case 'slide-menu-left':
           (async () => {
+            if (!options.slideMenuTopBarFix) {
+              let style = html``;
+              options.slideMenuTopBarFix = async () => {
+                if (options.barMode === 'top-bottom-bar') {
+                  style = html`<style>
+                    .default-slide-menu-top-bar-fix-logo-container {
+                      width: 50px;
+                      height: 50px;
+                    }
+                    .default-slide-menu-top-bar-fix-logo {
+                      width: 40px;
+                      height: 40px;
+                      padding: 5px;
+                    }
+                  </style>`;
+                } else {
+                  style = html`<style>
+                    .default-slide-menu-top-bar-fix-logo-container {
+                      width: 100px;
+                      height: 100px;
+                    }
+                    .default-slide-menu-top-bar-fix-logo {
+                      width: 80px;
+                      height: 80px;
+                      padding: 10px;
+                    }
+                  </style>`;
+                }
+
+                setTimeout(() => {
+                  if (s(`.default-slide-menu-top-bar-fix-logo`).src)
+                    s(`.default-slide-menu-top-bar-fix-logo`).src = s(`.top-bar-app-icon`).src;
+                  else
+                    htmls(
+                      `.default-slide-menu-top-bar-fix-logo-container`,
+                      html`<div class="abs center">${s(`.action-btn-app-icon-render`).innerHTML}</div>`,
+                    );
+                });
+
+                return html`${style}
+                  <div class="in fll default-slide-menu-top-bar-fix-logo-container">
+                    <img class="default-slide-menu-top-bar-fix-logo in fll" />
+                  </div> `;
+              };
+            }
             const { barConfig } = options;
             options.style = {
               position: 'absolute',
