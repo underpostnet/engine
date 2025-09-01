@@ -1,6 +1,26 @@
-const CssUnderpostDark = {
-  theme: 'underpost-dark',
-  render: async () => html` <style></style> `,
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
+
+const CssCommonUnderpost = async () => {
+  LoadingAnimation.setDarkColor('#f70808');
+  LoadingAnimation.setLightColor('#aa0000');
+
+  return html``;
 };
 
-export { CssUnderpostDark };
+const CssUnderpostDark = {
+  theme: 'underpost-dark',
+  dark: true,
+  render: async () => {
+    return (await CssCommonUnderpost()) + html``;
+  },
+};
+
+const CssUnderpostLight = {
+  theme: 'underpost-light',
+  dark: false,
+  render: async () => {
+    return (await CssCommonUnderpost()) + html``;
+  },
+};
+
+export { CssUnderpostDark, CssCommonUnderpost, CssUnderpostLight };

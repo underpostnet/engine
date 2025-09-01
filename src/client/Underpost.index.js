@@ -16,12 +16,13 @@ import { SocketIoUnderpost } from './components/underpost/SocketIoUnderpost.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { ElementsUnderpost } from './components/underpost/ElementsUnderpost.js';
 import { Scroll } from './components/core/Scroll.js';
+import { CssUnderpostDark, CssUnderpostLight } from './components/underpost/CssUnderpost.js';
 
 window.onload = () =>
   Worker.instance({
     router: RouterUnderpost,
     render: async () => {
-      await Css.loadThemes();
+      await Css.loadThemes([CssUnderpostDark, CssUnderpostLight]);
       await TranslateCore.Init();
       await TranslateUnderpost.Init();
       await Responsive.Init();

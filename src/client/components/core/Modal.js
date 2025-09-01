@@ -177,12 +177,15 @@ const Modal = {
                       `.default-slide-menu-top-bar-fix-logo-container`,
                       html`<div class="abs center">${s(`.action-btn-app-icon-render`).innerHTML}</div>`,
                     );
+
+                  htmls(`.default-slide-menu-top-bar-fix-title-container`, html`${options.RouterInstance.NameApp}`);
                 });
 
                 return html`${style}
                   <div class="in fll default-slide-menu-top-bar-fix-logo-container">
                     <img class="default-slide-menu-top-bar-fix-logo in fll" />
-                  </div> `;
+                  </div>
+                  <div class="in fll default-slide-menu-top-bar-fix-title-container"></div>`;
               };
             }
             const { barConfig } = options;
