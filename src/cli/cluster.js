@@ -476,6 +476,12 @@ net.bridge.bridge-nf-call-arptables = 1
 net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
           { silent: true },
         );
+
+      // Increase inotify limits
+      shellExec(`sudo sysctl -w fs.inotify.max_user_watches=2099999999`);
+      shellExec(`sudo sysctl -w fs.inotify.max_user_instances=2099999999`);
+      shellExec(`sudo sysctl -w fs.inotify.max_queued_events=2099999999`);
+
       // shellExec(`sudo sysctl --system`); // Apply sysctl changes immediately
       // Apply NAT iptables rules.
       shellExec(`${underpostRoot}/manifests/maas/nat-iptables.sh`, { silent: true });
