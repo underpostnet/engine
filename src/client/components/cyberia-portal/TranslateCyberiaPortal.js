@@ -4,7 +4,7 @@ const TranslateCyberiaPortal = {
   Init: async function () {
     Translate.Data['object-layer-engine'] = {
       en: 'Object Layer Engine',
-      es: 'Engine de capas de objetos',
+      es: 'Object Layer Engine',
     };
   },
 };

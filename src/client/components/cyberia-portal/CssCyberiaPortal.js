@@ -25,7 +25,6 @@ const CssCommonCyberia = async () => {
   return html`<style>
       /* Core variables: override in each theme */
       :root {
-        --cy-accent: #ffcc00; /* brand accent */
         --cy-font-retro: 'retro-font';
         --cy-font-retro-title: 'retro-font-title';
         --cy-font-retro-sensitive: 'retro-font-sensitive';
@@ -50,7 +49,6 @@ const CssCommonCyberia = async () => {
       .title-view-modal,
       .section-mp {
         font-family: var(--cy-font-retro);
-        color: var(--cy-accent);
       }
 
       input,
@@ -62,11 +60,15 @@ const CssCommonCyberia = async () => {
         width: 35px;
         height: 35px;
       }
-
-      button:hover {
-        color: var(--cy-accent);
+      button:hover,
+      .a-btn:hover {
+        color: #ffcc00;
+      }
+      .handle-btn-container {
+        text-shadow: none;
       }
     </style>
+
     <div class="ag-grid-style"></div>`;
 };
 
@@ -75,7 +77,20 @@ const CssCyberiaDark = {
   dark: true,
   barButtonsIconTheme: 'img',
   render: async () => {
-    return (await CssCommonCyberia()) + html``;
+    return (
+      (await CssCommonCyberia()) +
+      html`
+        <style>
+          button:hover,
+          .a-btn:hover {
+            background: #212020;
+          }
+          .action-bar-box {
+            color: white;
+          }
+        </style>
+      `
+    );
   },
 };
 
@@ -84,7 +99,20 @@ const CssCyberiaLight = {
   dark: false,
   barButtonsIconTheme: 'img',
   render: async () => {
-    return (await CssCommonCyberia()) + html``;
+    return (
+      (await CssCommonCyberia()) +
+      html` <style>
+          button:hover,
+          .a-btn:hover {
+            background: #d8d8d8;
+          }
+
+          .action-bar-box {
+            color: black;
+          }
+        </style>
+        ${borderChar(1, `#010101`, ['button', '.a-btn'], true)}`
+    );
   },
 };
 

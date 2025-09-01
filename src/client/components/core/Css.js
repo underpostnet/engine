@@ -212,13 +212,13 @@ const addTheme = (options) => {
   };
 };
 
-const borderChar = (px, color, selectors) => {
+const borderChar = (px, color, selectors, hover = false) => {
   if (selectors) {
     return selectors
       .map(
         (selector) => html`
           <style>
-            ${selector} {
+            ${selector}${hover ? ':hover' : ''} {
               text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color},
                 -${px}px -${px}px ${px}px ${color}, ${px}px ${px}px ${px}px ${color};
             }
