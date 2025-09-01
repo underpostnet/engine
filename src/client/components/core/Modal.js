@@ -393,6 +393,7 @@ const Modal = {
                   );
                 }
               };
+              Modal.setTopBannerLink();
             });
 
             const inputSearchBoxId = `top-bar-search-box`;
@@ -482,7 +483,7 @@ const Modal = {
                       class="abs modal slide-menu-top-bar-fix"
                       style="height: ${options.heightTopBar}px; top: 0px"
                     >
-                      ${await options.slideMenuTopBarBannerFix()}
+                      <a class="a-link-top-banner"> ${await options.slideMenuTopBarBannerFix()}</a>
                     </div>`
                   : ''}
               </div>`,
@@ -1125,8 +1126,13 @@ const Modal = {
                     `.action-btn-theme-render`,
                     html` ${darkTheme ? html` <i class="fas fa-moon"></i>` : html`<i class="far fa-sun"></i>`}`,
                   );
-                  if (s(`.slide-menu-top-bar-fix`))
-                    htmls(`.slide-menu-top-bar-fix`, await options.slideMenuTopBarBannerFix());
+                  if (s(`.slide-menu-top-bar-fix`)) {
+                    htmls(
+                      `.slide-menu-top-bar-fix`,
+                      html`<a class="a-link-top-banner">${await options.slideMenuTopBarBannerFix()}</a>`,
+                    );
+                    Modal.setTopBannerLink();
+                  }
                 };
                 ThemeEvents['action-btn-theme']();
 
@@ -2186,6 +2192,16 @@ const Modal = {
       container.appendChild(titleNode);
     } catch (e) {
       // non-fatal: keep default placement if structure not present
+    }
+  },
+  setTopBannerLink: function () {
+    if (s(`.a-link-top-banner`)) {
+      s(`.a-link-top-banner`).setAttribute('href', `${location.origin}${getProxyPath()}`);
+      EventsUI.onClick(`.a-link-top-banner`, (e) => {
+        if (location.pathname === '/') return location.reload();
+        e.preventDefault();
+        s(`.action-btn-home`).click();
+      });
     }
   },
   headerTitleHeight: 40,
