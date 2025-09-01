@@ -102,7 +102,7 @@ const MenuCyberiaPortal = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-server',
+            class: 'in wfa main-btn-menu main-btn-server hide',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-server"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('server')}</span>`,
@@ -159,6 +159,7 @@ const MenuCyberiaPortal = {
         </div>
       `,
       htmlMainBody: async () => {
+        return '';
         return await ServerCyberiaPortal.Render({
           idModal: 'modal-server-body',
           events: {

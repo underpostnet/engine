@@ -10,7 +10,7 @@ import { MenuCyberiaPortal } from './components/cyberia-portal/MenuCyberiaPortal
 import { RouterCyberiaPortal } from './components/cyberia-portal/RoutesCyberiaPortal.js';
 import { TranslateCyberiaPortal } from './components/cyberia-portal/TranslateCyberiaPortal.js';
 import { Worker } from './components/core/Worker.js';
-import { CssCyberiaPortalDark, CssCyberiaPortalLight } from './components/cyberia-portal/CssCyberiaPortal.js';
+import { CssCyberiaDark, CssCyberiaLight } from './components/cyberia-portal/CssCyberiaPortal.js';
 import { SocketIoCyberiaPortal } from './components/cyberia-portal/SocketIoCyberiaPortal.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { ElementsCyberiaPortal } from './components/cyberia-portal/ElementsCyberiaPortal.js';
@@ -22,7 +22,7 @@ window.onload = () =>
   Worker.instance({
     router: RouterCyberiaPortal,
     render: async () => {
-      await Css.loadThemes([CssCyberiaPortalDark, CssCyberiaPortalLight]);
+      await Css.loadThemes([CssCyberiaDark, CssCyberiaLight]);
       await TranslateCore.Init();
       await TranslateCyberiaPortal.Init();
       await Responsive.Init();

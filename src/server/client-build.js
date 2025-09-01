@@ -441,27 +441,13 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                   case 'CyberiaDefaultSplashScreen':
                   case 'NexodevSplashScreen':
                   case 'DefaultSplashScreen':
-                    if (backgroundImage) {
+                    if (backgroundImage)
                       ssrHeadComponents += SrrComponent({
+                        ...metadata,
                         backgroundImage: (path === '/' ? path : `${path}/`) + backgroundImage,
                       });
-                      // `data:image/${backgroundImage.split('.').pop()};base64,${fs
-                      //     .readFileSync()
-                      //     .toString('base64')}`,
-                      break;
-                    } else {
-                      ssrHeadComponents += SrrComponent({ metadata });
-                      break;
-                      const bufferBackgroundImage = await getBufferPngText({
-                        text: ' ',
-                        textColor: metadata?.themeColor ? metadata.themeColor : '#ececec',
-                        size: '100x100',
-                        bgColor: metadata?.themeColor ? metadata.themeColor : '#ececec',
-                      });
-                      ssrHeadComponents += SrrComponent({
-                        backgroundImage: `data:image/png;base64,${bufferBackgroundImage.toString('base64')}`,
-                      });
-                    }
+                    else ssrHeadComponents += SrrComponent({ metadata });
+                    break;
 
                   case 'CyberiaSplashScreenLore': {
                     ssrBodyComponents += SrrComponent({

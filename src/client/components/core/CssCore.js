@@ -608,6 +608,10 @@ const CssCoreLight = {
           background: gray;
           transition: 0.3s;
         }
+        .bar-default-modal-icon {
+          width: 15px;
+          height: 15px;
+        }
         .slide-menu-top-bar {
           width: 100%;
           top: 0;
