@@ -45,12 +45,16 @@ const CssCommonCyberia = async () => {
       }
 
       /* Base typography and smoothing */
-      body,
-      input,
-      textarea,
+
       button,
-      select {
+      .title-view-modal,
+      .section-mp {
         font-family: var(--cy-font-retro);
+      }
+
+      input,
+      .chat-message-body {
+        font-family: var(--cy-font-retro-sensitive);
       }
 
       .btn-modal-default {

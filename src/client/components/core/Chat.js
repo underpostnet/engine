@@ -53,7 +53,7 @@ const Chat = {
       html`
         <div class="in">
           <span class="chat-message-header">${getIsoDate(new Date())} | ${id}:</span><br />
-          ${message}
+          <span class="chat-message-body"> ${message}</span>
         </div>
       `,
     );
