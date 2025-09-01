@@ -535,7 +535,7 @@ node bin/deploy build-full-client ${deployId}
       const notReadyPods = [];
       for (const pod of pods) {
         const { NAME } = pod;
-        if (ignoresNames && ignoresNames.find((t) => NAME.match(t))) continue;
+        if (ignoresNames && ignoresNames.find((t) => NAME.trim().toLowerCase().match(t.trim().toLowerCase()))) continue;
         if (
           shellExec(`sudo kubectl exec -i ${NAME} -- sh -c "${cmd}"`, { stdout: true }).match(
             `${deployId}-${env}-running-deployment`,
