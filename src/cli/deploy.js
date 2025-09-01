@@ -528,13 +528,14 @@ node bin/deploy build-full-client ${deployId}
         }).trim(),
       );
     },
-    checkDeploymentReadyStatus(deployId, env, traffic) {
+    checkDeploymentReadyStatus(deployId, env, traffic, ignoresNames = []) {
       const cmd = `underpost config get container-status`;
       const pods = UnderpostDeploy.API.get(`${deployId}-${env}-${traffic}`);
       const readyPods = [];
       const notReadyPods = [];
       for (const pod of pods) {
         const { NAME } = pod;
+        if (ignoresNames && ignoresNames.find((t) => NAME.match(t))) continue;
         if (
           shellExec(`sudo kubectl exec -i ${NAME} -- sh -c "${cmd}"`, { stdout: true }).match(
             `${deployId}-${env}-running-deployment`,
