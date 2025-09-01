@@ -47,8 +47,13 @@ const CssCommonCyberia = async () => {
 
       button,
       .title-view-modal,
-      .section-mp {
+      .section-mp,
+      .default-slide-menu-top-bar-fix-title-container-text {
         font-family: var(--cy-font-retro);
+      }
+
+      .default-slide-menu-top-bar-fix-title-container-text {
+        font-size: 40px !important;
       }
 
       input,
@@ -88,7 +93,12 @@ const CssCyberiaDark = {
           .action-bar-box {
             color: white;
           }
+          .default-slide-menu-top-bar-fix-title-container-text {
+            font-size: 40px !important;
+            color: black !important;
+          }
         </style>
+        ${borderChar(2, `#ffcc00`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
       `
     );
   },
@@ -101,7 +111,8 @@ const CssCyberiaLight = {
   render: async () => {
     return (
       (await CssCommonCyberia()) +
-      html` <style>
+      html`
+        <style>
           button:hover,
           .a-btn:hover {
             background: #d8d8d8;
@@ -110,8 +121,14 @@ const CssCyberiaLight = {
           .action-bar-box {
             color: black;
           }
+          .default-slide-menu-top-bar-fix-title-container-text {
+            font-size: 40px !important;
+            color: #ffcc00 !important;
+          }
         </style>
-        ${borderChar(1, `#010101`, ['button', '.a-btn'], true)}`
+        ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
+        ${borderChar(1, `#010101`, ['button', '.a-btn'], true)}
+      `
     );
   },
 };
