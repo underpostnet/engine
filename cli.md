@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.846
+## underpost ci/cd cli v2.8.847
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -28,6 +28,7 @@ Commands:
   fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
   test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
   monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
+  ssh [options]                                              Import and start ssh server and client based on current default deployment ID.
   run [options] <runner-id> [path]                           Runs a script from the specified path.
   lxd [options]                                              Manages LXD containers and virtual machines.
   baremetal [options] [workflow-id] [hostname] [ip-address]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
@@ -548,6 +549,20 @@ Options:
   --sync                       Synchronizes with current proxy deployments and
                                traffic configurations.
   -h, --help                   display help for command
+ 
+```
+  
+
+### `ssh` :
+```
+ Usage: underpost ssh [options]
+
+Import and start ssh server and client based on current default deployment ID.
+
+Options:
+  --generate  Generates new ssh credential and stores it in current private
+              keys file storage.
+  -h, --help  display help for command
  
 ```
   
