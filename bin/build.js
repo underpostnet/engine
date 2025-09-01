@@ -189,4 +189,8 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
 
   fs.copyFileSync(`./.github/workflows/${repoName}.ci.yml`, `${basePath}/.github/workflows/${repoName}.ci.yml`);
   fs.copyFileSync(`./.github/workflows/${repoName}.cd.yml`, `${basePath}/.github/workflows/${repoName}.cd.yml`);
+
+  if (fs.existsSync(`./src/ws/${confName.split('-')[1]}`)) {
+    fs.copySync(`./src/ws/${confName.split('-')[1]}`, `${basePath}/src/ws/${confName.split('-')[1]}`);
+  }
 }
