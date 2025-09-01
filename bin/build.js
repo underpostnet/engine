@@ -53,7 +53,9 @@ if (process.argv.includes('conf')) {
     fs.removeSync(toPath);
     fs.mkdirSync(toPath, { recursive: true });
     fs.copySync(`./engine-private/conf/${_confName}`, toPath);
-    if (fs.existsSync(`./engine-private/replica`)) {
+    if (process.argv.includes('remove-replica') && fs.existsSync(`../${privateRepoName}/replica`)) {
+      fs.removeSync(`../${privateRepoName}/replica`);
+    } else if (fs.existsSync(`./engine-private/replica`)) {
       const replicas = await fs.readdir(`./engine-private/replica`);
       for (const replica of replicas)
         if (replica.match(_confName))
