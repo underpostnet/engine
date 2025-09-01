@@ -50,6 +50,7 @@ const CssCommonCyberia = async () => {
       .title-view-modal,
       .section-mp {
         font-family: var(--cy-font-retro);
+        color: var(--cy-accent);
       }
 
       input,
@@ -60,6 +61,10 @@ const CssCommonCyberia = async () => {
       .btn-modal-default {
         width: 35px;
         height: 35px;
+      }
+
+      button:hover {
+        color: var(--cy-accent);
       }
     </style>
     <div class="ag-grid-style"></div>`;
