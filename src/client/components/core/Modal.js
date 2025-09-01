@@ -153,6 +153,11 @@ const Modal = {
                       height: 40px;
                       padding: 5px;
                     }
+                    .default-slide-menu-top-bar-fix-title-container-text {
+                      font-size: 26px;
+                      top: 8px;
+                      color: ${darkTheme ? '#ffffff' : '#000000'};
+                    }
                   </style>`;
                 } else {
                   style = html`<style>
@@ -164,6 +169,11 @@ const Modal = {
                       width: 80px;
                       height: 80px;
                       padding: 10px;
+                    }
+                    .default-slide-menu-top-bar-fix-title-container-text {
+                      font-size: 30px;
+                      top: 30px;
+                      color: ${darkTheme ? '#ffffff' : '#000000'};
                     }
                   </style>`;
                 }
@@ -178,7 +188,14 @@ const Modal = {
                       html`<div class="abs center">${s(`.action-btn-app-icon-render`).innerHTML}</div>`,
                     );
 
-                  htmls(`.default-slide-menu-top-bar-fix-title-container`, html`${options.RouterInstance.NameApp}`);
+                  htmls(
+                    `.default-slide-menu-top-bar-fix-title-container`,
+                    html`
+                      <div class="inl default-slide-menu-top-bar-fix-title-container-text">
+                        ${options.RouterInstance.NameApp}
+                      </div>
+                    `,
+                  );
                 });
 
                 return html`${style}

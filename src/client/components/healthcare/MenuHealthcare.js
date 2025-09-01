@@ -259,13 +259,15 @@ const MenuHealthcare = {
             s(`.main-btn-${'record-mood'}`).click();
           });
           ThemeEvents['banner'] = () => {
-            if (darkTheme) {
-              s(`.healthcare-banner`).classList.add('negative-color');
-              s(`.healthcare-bar-logo`).classList.add('negative-color');
-            } else {
-              s(`.healthcare-banner`).classList.remove('negative-color');
-              s(`.healthcare-bar-logo`).classList.remove('negative-color');
-            }
+            setTimeout(() => {
+              if (darkTheme) {
+                s(`.healthcare-banner`).classList.add('negative-color');
+                s(`.healthcare-bar-logo`).classList.add('negative-color');
+              } else {
+                s(`.healthcare-banner`).classList.remove('negative-color');
+                s(`.healthcare-bar-logo`).classList.remove('negative-color');
+              }
+            });
           };
           ThemeEvents['banner']();
         });
