@@ -316,6 +316,13 @@ program
   .description('Manages health server monitoring for specified deployments.')
   .action(Underpost.monitor.callback);
 
+// 'ssh' command: SSH management
+program
+  .command('ssh')
+  .option('--generate', 'Generates new ssh credential and stores it in current private keys file storage.')
+  .description('Import and start ssh server and client based on current default deployment ID.')
+  .action(Underpost.ssh.callback);
+
 // 'run' command: Run a script
 program
   .command('run')
