@@ -14,42 +14,42 @@ const RoutesHealthcare = () => {
       render: () => Modal.onHomeRouterEvent(),
       upperCase: false,
     },
-    '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click(), translateTitle: true },
-    '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(), translateTitle: true },
-    '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(), translateTitle: true },
+    '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click(),  },
+    '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(),  },
+    '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(),  },
     '/log-out': {
       title: 'log-out',
       render: () => s(`.main-btn-log-out`).click(),
-      hideDisplay: true,
-      translateTitle: true,
+    
+      ,
     },
     '/account': {
       title: 'account',
       render: () => s(`.main-btn-account`).click(),
-      hideDisplay: true,
-      translateTitle: true,
+    
+      ,
     },
-    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
+    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(),  },
     '/nutrition-tips': {
       title: 'nutrition-tips',
       render: () => s(`.main-btn-nutrition-tips`).click(),
-      translateTitle: true,
+      ,
     },
     '/record-mood': {
       title: 'record-mood',
       render: () => s(`.main-btn-record-mood`).click(),
-      translateTitle: true,
+      ,
     },
 
     '/healthcare-appointment-management': {
       title: 'healthcare-appointment-management',
       render: () => s(`.main-btn-healthcare-appointment-management`).click(),
     },
-    '/calendar': { title: 'calendar', render: () => s(`.main-btn-calendar`).click(), translateTitle: true },
+    '/calendar': { title: 'calendar', render: () => s(`.main-btn-calendar`).click(),  },
     '/healthcare-appointment': {
       title: 'healthcare-appointment',
       render: () => s(`.main-btn-healthcare-appointment`).click(),
-      translateTitle: true,
+      ,
     },
   };
 };

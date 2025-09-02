@@ -14,23 +14,23 @@ const RoutesCryptokoyn = () => {
       render: () => Modal.onHomeRouterEvent(),
       upperCase: false,
     },
-    '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(), translateTitle: true },
-    '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(), translateTitle: true },
+    '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(),  },
+    '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(),  },
     '/log-out': {
       title: 'log-out',
       render: () => s(`.main-btn-log-out`).click(),
-      hideDisplay: true,
-      translateTitle: true,
+    
+      ,
     },
     '/account': {
       title: 'account',
       render: () => s(`.main-btn-account`).click(),
-      hideDisplay: true,
-      translateTitle: true,
+    
+      ,
     },
-    '/wallet': { title: 'wallet', render: () => s(`.main-btn-wallet`).click(), translateTitle: true },
-    '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click(), translateTitle: true },
-    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
+    '/wallet': { title: 'wallet', render: () => s(`.main-btn-wallet`).click(),  },
+    '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click(),  },
+    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(),  },
   };
 };
 
