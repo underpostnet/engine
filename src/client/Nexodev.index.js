@@ -16,6 +16,7 @@ import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev
 import { Keyboard } from './components/core/Keyboard.js';
 import { NexodevParams } from './components/nexodev/CommonNexodev.js';
 import { Scroll } from './components/core/Scroll.js';
+import { getProxyPath } from './components/core/VanillaJs.js';
 
 // Initialize theme variables
 let currentTheme = darkTheme ? 'dark' : 'light';
@@ -91,7 +92,12 @@ const htmlMainBody = async () => {
           </div>
         </div>
         <div class="hero-image">
-          <img src="/assets/images/hero-illustration.svg" alt="App Illustration" class="img-fluid" />
+          <img
+            class="img-fluid in"
+            style=" top: 50px; margin: auto; width: 80%; max-width: 400px"
+            src="${getProxyPath()}assets/generic/apps2.png"
+            alt="App Illustration"
+          />
         </div>
       </header>
 
@@ -540,7 +546,7 @@ window.onload = () =>
       await Css.loadThemes([CssNexodevLight, CssNexodevDark]);
       await TranslateCore.Init();
       await Responsive.Init();
-      await MenuNexodev.Render();
+      await MenuNexodev.Render({ htmlMainBody });
       await SocketIo.Init({ channels: ElementsNexodev.Data });
       await SocketIoNexodev.Init();
       await LogInNexodev();
