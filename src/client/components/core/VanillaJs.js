@@ -31,8 +31,6 @@ VS Marketplace Link: https://marketplace.visualstudio.com/items?itemName=bierner
 
 */
 
-// Docs by https://mintlify.com
-
 /**
  * Query selector.
  *
@@ -355,7 +353,6 @@ const getBlobFromUint8ArrayFile = (data = [[]], mimetype = 'application/octet-st
  * @memberof VanillaJS
  */
 const getProxyPath = () => {
-  // warning: evaluates headers html source
   let path = location.pathname.split('/')[1] ? `/${location.pathname.split('/')[1]}/` : '/';
   if (window.Routes && path !== '/' && path.slice(0, -1) in window.Routes()) path = '/';
   return path;

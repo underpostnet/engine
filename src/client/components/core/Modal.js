@@ -502,7 +502,9 @@ const Modal = {
                       class="abs modal slide-menu-top-bar-fix"
                       style="height: ${options.heightTopBar}px; top: 0px"
                     >
-                      <a class="a-link-top-banner"> ${await options.slideMenuTopBarBannerFix()}</a>
+                      <a class="a-link-top-banner">
+                        <div class="inl">${await options.slideMenuTopBarBannerFix()}</div></a
+                      >
                     </div>`
                   : ''}
               </div>`,
@@ -2217,7 +2219,6 @@ const Modal = {
     if (s(`.a-link-top-banner`)) {
       s(`.a-link-top-banner`).setAttribute('href', `${location.origin}${getProxyPath()}`);
       EventsUI.onClick(`.a-link-top-banner`, (e) => {
-        if (location.pathname === '/') return location.reload();
         e.preventDefault();
         s(`.action-btn-home`).click();
       });
