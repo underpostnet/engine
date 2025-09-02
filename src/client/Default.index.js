@@ -26,7 +26,7 @@ window.onload = () =>
   Worker.instance({
     router: RouterDefault,
     render: async () => {
-      await Css.loadThemes([CssDefaultDark, CssDefaultLight]);
+      await Css.loadThemes([CssDefaultLight, CssDefaultDark]);
       await TranslateCore.Init();
       await TranslateDefault.Init();
       await Responsive.Init();
