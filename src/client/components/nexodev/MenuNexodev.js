@@ -300,17 +300,21 @@ const MenuNexodev = {
       heightTopBar,
       heightBottomBar,
       htmlMainBody: options.htmlMainBody,
-      titleRender: () => {
-        ThemeEvents['titleRender'] = () => {
-          const srcLogo = darkTheme
-            ? `${getProxyPath()}assets/logo/nexodev-white-t.png`
-            : `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
-          htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
-        };
-        setTimeout(ThemeEvents['titleRender']);
-        return '';
-      },
     });
+
+    ThemeEvents['main-theme-handler'] = () => {
+      const srcLogo = darkTheme
+        ? `${getProxyPath()}assets/logo/nexodev-white-t.png`
+        : `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
+      htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+      if (darkTheme) {
+        s(`.ssr-background-image`).classList.remove('negative-color');
+      } else {
+        s(`.ssr-background-image`).classList.add('negative-color');
+      }
+    };
+
+    setTimeout(ThemeEvents['main-theme-handler']);
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container-main`), {
       animation: 150,
