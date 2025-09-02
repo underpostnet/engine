@@ -90,7 +90,7 @@ class UnderpostRun {
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
-      shellExec(`${baseCommand} cmt . --empty ci pwa-microservices-template`);
+      shellExec(`${baseCommand} cmt . --empty ci package-pwa-microservices-template`);
       shellExec(`${baseCommand} push . underpostnet/engine`);
     },
     'ssh-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
