@@ -18,56 +18,6 @@ import { NexodevParams } from './components/nexodev/CommonNexodev.js';
 import { Scroll } from './components/core/Scroll.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 
-// Initialize theme variables
-let currentTheme = darkTheme ? 'dark' : 'light';
-
-// Theme toggle function
-const toggleTheme = () => {
-  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', currentTheme);
-  localStorage.setItem('theme', currentTheme);
-  // Trigger theme change event
-  ThemeEvents['lading-handle-theme-event']?.();
-};
-
-// Initialize theme on load
-document.addEventListener('DOMContentLoaded', () => {
-  const savedTheme = localStorage.getItem('theme') || (darkTheme ? 'dark' : 'light');
-  currentTheme = savedTheme;
-  document.documentElement.setAttribute('data-theme', currentTheme);
-
-  // Set initial theme toggle state
-  const themeToggle = document.getElementById('theme-toggle');
-  if (themeToggle) {
-    themeToggle.checked = currentTheme === 'dark';
-  }
-});
-
-// Listen for theme changes from other components
-ThemeEvents['lading-handle-theme-event'] = () => {
-  const root = document.documentElement;
-  const isDark = currentTheme === 'dark';
-
-  // Update CSS variables based on theme
-  if (isDark) {
-    root.style.setProperty('--primary-color', '#5d7ff3');
-    root.style.setProperty('--secondary-color', '#1a1a2e');
-    root.style.setProperty('--text-color', '#f0f0f0');
-    root.style.setProperty('--light-text', '#a0a0a0');
-    root.style.setProperty('--bg-color', '#0f0f1a');
-    root.style.setProperty('--card-bg', '#1a1a2e');
-    root.style.setProperty('--footer-bg', '#0d0d1a');
-  } else {
-    root.style.setProperty('--primary-color', '#4a6ee0');
-    root.style.setProperty('--secondary-color', '#f8f9fa');
-    root.style.setProperty('--text-color', '#333333');
-    root.style.setProperty('--light-text', '#6c757d');
-    root.style.setProperty('--bg-color', '#ffffff');
-    root.style.setProperty('--card-bg', '#ffffff');
-    root.style.setProperty('--footer-bg', '#f8f9fa');
-  }
-};
-
 const htmlMainBody = async () => {
   return html`
     <div class="landing-page">
@@ -284,7 +234,6 @@ const htmlMainBody = async () => {
       .feature-card {
         padding: 2rem;
         border-radius: 10px;
-        background: var(--card-bg);
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         transition: transform 0.3s ease;
       }
