@@ -406,7 +406,7 @@ const MenuUnderpost = {
     });
 
     EventsUI.onClick(`.main-btn-github`, async () => {
-      location.href = `https://github.com/underpostnet`;
+      location.href = `https://github.com/underpostnet/pwa-microservices-template/`;
     });
   },
 };
