@@ -801,12 +801,17 @@ function darkenHex(hex, percentOr01 = 0.1, options = {}) {
 
 const subThemeManager = {
   render: async function () {
+    if (darkTheme && this.renderDark) {
+      return await this.renderDark();
+    } else if (!darkTheme && this.renderLight) {
+      return await this.renderLight();
+    }
     return html``;
   },
   lightColor: null,
   setLightTheme: function (color) {
     this.lightColor = color;
-    this.render = async function () {
+    this.renderLight = async function () {
       return html`<style>
         button:hover,
         .a-btn:hover {
@@ -819,11 +824,12 @@ const subThemeManager = {
   darkColor: null,
   setDarkTheme: function (color) {
     this.darkColor = color;
-    this.render = async function () {
+    this.renderDark = async function () {
       return html`<style>
         button:hover,
         .a-btn:hover {
-          color: ${this.darkColor};
+          color: ${lightenHex(this.darkColor, 0.5)};
+          background-color: ${darkenHex(this.darkColor, 0.75)};
         }
       </style>`;
     };

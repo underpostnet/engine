@@ -2,7 +2,7 @@ import { subThemeManager } from '../core/Css.js';
 
 const CssCommonDefault = async () => {
   // use  #4f46e5, #7c3aed);
-  subThemeManager.setDarkTheme('#4f46e5');
+  subThemeManager.setDarkTheme('#7d7d7d');
   subThemeManager.setLightTheme('#7c3aed');
 
   return html``;
