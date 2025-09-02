@@ -1,8 +1,8 @@
-import { LoadingAnimation } from '../core/LoadingAnimation.js';
+import { subThemeManager } from '../core/Css.js';
 
 const CssCommonUnderpost = async () => {
-  LoadingAnimation.setDarkColor('#f70808');
-  LoadingAnimation.setLightColor('#aa0000');
+  subThemeManager.setDarkTheme('#f70808');
+  subThemeManager.setLightTheme('#aa0000');
 
   return html``;
 };

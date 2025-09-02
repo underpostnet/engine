@@ -5,6 +5,8 @@ import { getProxyPath } from '../core/VanillaJs.js';
 
 const CssCommonHealthcare = async () => {
   CalendarCore.RenderStyle();
+  subThemeManager.setLightTheme(`#ea2475`);
+  subThemeManager.setDarkTheme(`#00d243`);
   return html`<style>
       @font-face {
         font-family: 'cursive';
@@ -87,7 +89,6 @@ const CssHealthcareDark = {
   theme: 'healthcare-dark',
   dark: true,
   render: async () => {
-    LoadingAnimation.setDarkColor(`#00d243`);
     return (
       (await CssCommonHealthcare()) +
       html`
@@ -144,7 +145,6 @@ const CssHealthcareLight = {
   theme: 'healthcare-light',
   dark: false,
   render: async () => {
-    LoadingAnimation.setLightColor(`#ea2475`);
     return (
       (await CssCommonHealthcare()) +
       html`

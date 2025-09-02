@@ -1,8 +1,9 @@
 import { CalendarCore } from '../core/CalendarCore.js';
-import { LoadingAnimation } from '../core/LoadingAnimation.js';
+import { subThemeManager } from '../core/Css.js';
 
 const CssCommonNexodev = async () => {
-  LoadingAnimation.setLightColor(`#800080`);
+  subThemeManager.setLightTheme(`#800080`);
+  subThemeManager.setDarkTheme(`#800080`);
   CalendarCore.RenderStyle();
   return html``;
 };

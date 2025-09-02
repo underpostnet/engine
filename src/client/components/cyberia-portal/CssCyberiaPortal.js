@@ -1,5 +1,5 @@
 import { AgGrid } from '../core/AgGrid.js';
-import { borderChar } from '../core/Css.js';
+import { borderChar, subThemeManager } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { getProxyPath } from '../core/VanillaJs.js';
 
@@ -10,8 +10,8 @@ const CssCommonCyberia = async () => {
     classes: 'inl',
     style: 'width: 100px; height: 100px',
   });
-  LoadingAnimation.setDarkColor('#ffcc00');
-  LoadingAnimation.setLightColor('#ffcc00');
+  subThemeManager.setDarkTheme('#ffcc00');
+  subThemeManager.setLightTheme('#ffcc00');
   await AgGrid.RenderStyle({
     eventThemeId: 'CssCommonCyberia',
     style: {
