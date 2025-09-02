@@ -713,6 +713,9 @@ const Modal = {
 
               const updateSearchBoxValue = (selector) => {
                 if (!selector) selector = getDefaultSearchBoxSelector();
+                // check exist childNodes
+                if (!s(selector) || !s(selector).hasChildNodes()) return;
+
                 if (s(selector).childNodes) {
                   if (
                     s(selector).childNodes[s(selector).childNodes.length - 1] &&
@@ -736,6 +739,10 @@ const Modal = {
 
               const setSearchValue = (selector) => {
                 if (!selector) selector = getDefaultSearchBoxSelector();
+
+                // check exist childNodes
+                if (!s(selector) || !s(selector).hasChildNodes()) return;
+
                 historySearchBox = historySearchBox.filter(
                   (h) => h.routerId !== results[currentKeyBoardSearchBoxIndex].routerId,
                 );
