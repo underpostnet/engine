@@ -16,10 +16,7 @@ const Docs = {
     const docData = this.Data.find((d) => d.type === type);
     const ModalId = `modal-docs-${docData.type}`;
     const { barConfig } = await Themes[Css.currentTheme]();
-    barConfig.buttons.close.onClick = () => {
-      setQueryPath({ path: 'docs' });
-      Modal.removeModal(ModalId);
-    };
+
     await Modal.Render({
       barConfig,
       title: renderViewTitle(docData),
@@ -53,6 +50,9 @@ const Docs = {
       }
     };
     Modal.Data[ModalId].onObserverListener[ModalId]();
+    Modal.Data[ModalId].onCloseListener[ModalId] = () => {
+      setQueryPath({ path: 'docs', queryPath: '' });
+    };
   },
   Data: [
     {

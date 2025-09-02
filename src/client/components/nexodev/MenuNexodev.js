@@ -752,9 +752,9 @@ const MenuNexodev = {
               description: 'Step-by-step tutorials and how-to guides',
             },
             {
-              id: 'examples',
+              id: 'demo',
               icon: 'laptop-code',
-              title: 'Examples',
+              title: 'Demo',
               description: 'Practical examples and code snippets',
             },
             {
@@ -892,7 +892,9 @@ const MenuNexodev = {
                     setTimeout(() => {
                       if (s(`.docs-card-container-${item.id}`)) {
                         s(`.docs-card-container-${item.id}`).onclick = () => {
-                          if (item.id.match('api')) {
+                          if (item.id.match('demo')) {
+                            location.href = 'https://underpostnet.github.io/pwa-microservices-template-ghpkg/';
+                          } else if (item.id.match('api')) {
                             if (s(`.btn-docs-api`)) s(`.btn-docs-api`).click();
                           } else {
                             if (s(`.btn-docs-src`)) s(`.btn-docs-src`).click();
