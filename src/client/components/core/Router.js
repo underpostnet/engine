@@ -6,20 +6,19 @@ import { Worker } from './Worker.js';
 
 // Router
 
+const RouterEvents = {};
+const closeModalRouteChangeEvents = {};
+
 const logger = loggerFactory(import.meta);
 
 const setDocTitle = (title) => {
-  htmls('title', html`${title ? `${title} | ` : ''}${Worker.title}`);
-  {
-    const routeId = route === '' ? 'home' : route;
-    if (s(`.main-btn-${routeId}`)) {
-      if (s(`.main-btn-menu-active`)) s(`.main-btn-menu-active`).classList.remove(`main-btn-menu-active`);
-      if (s(`.main-btn-${routeId}`)) s(`.main-btn-${routeId}`).classList.add(`main-btn-menu-active`);
-    }
+  const subTitle = title ? title : Worker.viewTitle;
+  htmls('title', html`${subTitle} | ${Worker.appTitle}`);
+  if (s(`.main-btn-${subTitle}`)) {
+    if (s(`.main-btn-menu-active`)) s(`.main-btn-menu-active`).classList.remove(`main-btn-menu-active`);
+    if (s(`.main-btn-${subTitle}`)) s(`.main-btn-${subTitle}`).classList.add(`main-btn-menu-active`);
   }
 };
-
-const RouterEvents = {};
 
 const Router = function (options = { Routes: () => {}, e: new PopStateEvent(), NameApp: '' }) {
   const { e, Routes, NameApp } = options;
@@ -74,7 +73,6 @@ const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
     });
 };
 
-const closeModalRouteChangeEvents = {};
 const triggerCloseModalRouteChangeEvents = (newPath) => {
   console.warn('[closeModalRouteChangeEvent]', newPath);
   for (const event of Object.keys(closeModalRouteChangeEvents)) closeModalRouteChangeEvents[event](newPath);
@@ -130,5 +128,4 @@ export {
   closeModalRouteChangeEvent,
   handleModalViewRoute,
   closeModalRouteChangeEvents,
-  renderTitle,
 };

@@ -15,7 +15,7 @@ import { getSrcFromFileData } from './Input.js';
 import { imageShimmer, renderCssAttr } from './Css.js';
 import { Translate } from './Translate.js';
 import { Modal } from './Modal.js';
-import { closeModalRouteChangeEvents, listenQueryPathInstance, renderTitle, setQueryPath } from './Router.js';
+import { closeModalRouteChangeEvents, listenQueryPathInstance, setQueryPath } from './Router.js';
 
 const PanelForm = {
   Data: {},
