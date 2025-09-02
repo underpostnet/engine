@@ -828,7 +828,7 @@ const subThemeManager = {
       return html`<style>
         button:hover,
         .a-btn:hover {
-          color: ${lightenHex(this.darkColor, 0.5)};
+          color: ${lightenHex(this.darkColor, 0.8)};
           background-color: ${darkenHex(this.darkColor, 0.75)};
         }
       </style>`;
