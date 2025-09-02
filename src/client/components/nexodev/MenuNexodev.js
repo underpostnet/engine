@@ -33,7 +33,7 @@ import { Scroll } from '../core/Scroll.js';
 
 const MenuNexodev = {
   Data: {},
-  Render: async function () {
+  Render: async function (options = { htmlMainBody: () => '' }) {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterNexodev();
@@ -299,63 +299,7 @@ const MenuNexodev = {
       barMode,
       heightTopBar,
       heightBottomBar,
-      htmlMainBody: async () => {
-        setTimeout(() => {
-          s(`.landing-sig-up-btn`).onclick = (e) => {
-            s(`.main-btn-sign-up`).click();
-          };
-        });
-        return html` <style>
-            .landing-sig-up-btn {
-              margin: auto;
-              cursor: pointer;
-              padding: 10px 20px;
-              background: rgba(245, 245, 245, 1);
-              border-radius: 5px;
-              font-size: 16px;
-              font-weight: bold;
-              line-height: 1.5;
-              transition: 0.3s;
-              color: #2f2f2f;
-              border: none;
-            }
-            .landing-sig-up-btn:hover {
-              background: rgba(255, 255, 255, 1);
-              color: #444444;
-            }
-          </style>
-          ${boxShadow({ selector: '.landing-sig-up-btn' })}
-
-          <div class="in section-mp" style="color: #e3e3e3">
-            <div
-              class="in"
-              style="${renderCssAttr({
-                style: { 'text-align': 'center' },
-              })} ${borderChar(2, 'black')}"
-            >
-              <br /><br /><br />
-              <img
-                class="inl"
-                style="${renderCssAttr({
-                  style: {
-                    width: '120px',
-                    height: '100px',
-                  },
-                })}"
-                src="${getProxyPath()}assets/logo/nexodev-white-t.png"
-              /><br /><b>nexodev</b><br /><br /><br />
-              ERP, CRM Development &<br />
-              Cloud DevOps Services
-            </div>
-
-            <br /><br />
-            ${await BtnIcon.Render({
-              class: 'in landing-sig-up-btn',
-              label: html`<span style="font-size: 10px; color: #ececec; ${borderChar(1, 'black')}">PRE RELEASE</span
-                ><br />${Translate.Render('sign-up')}`,
-            })}
-          </div>`;
-      },
+      htmlMainBody: options.htmlMainBody,
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {
           const srcLogo = darkTheme

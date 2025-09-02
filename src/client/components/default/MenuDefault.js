@@ -1,7 +1,16 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, darkTheme, extractBackgroundImageUrl, ThemeEvents, Themes } from '../core/Css.js';
+import {
+  borderChar,
+  boxShadow,
+  Css,
+  darkTheme,
+  extractBackgroundImageUrl,
+  renderCssAttr,
+  ThemeEvents,
+  Themes,
+} from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -181,7 +190,63 @@ const MenuDefault = {
       RouterInstance,
       heightTopBar,
       heightBottomBar,
-      htmlMainBody: options?.htmlMainBody ? options.htmlMainBody : undefined,
+      htmlMainBody: async () => {
+        setTimeout(() => {
+          s(`.landing-sig-up-btn`).onclick = (e) => {
+            s(`.main-btn-sign-up`).click();
+          };
+        });
+        return html` <style>
+            .landing-sig-up-btn {
+              margin: auto;
+              cursor: pointer;
+              padding: 10px 20px;
+              background: rgba(245, 245, 245, 1);
+              border-radius: 5px;
+              font-size: 16px;
+              font-weight: bold;
+              line-height: 1.5;
+              transition: 0.3s;
+              color: #2f2f2f;
+              border: none;
+            }
+            .landing-sig-up-btn:hover {
+              background: rgba(255, 255, 255, 1);
+              color: #444444;
+            }
+          </style>
+          ${boxShadow({ selector: '.landing-sig-up-btn' })}
+
+          <div class="in section-mp" style="color: #e3e3e3">
+            <div
+              class="in"
+              style="${renderCssAttr({
+                style: { 'text-align': 'center' },
+              })} ${borderChar(2, 'black')}"
+            >
+              <br /><br /><br />
+              <img
+                class="inl"
+                style="${renderCssAttr({
+                  style: {
+                    width: '120px',
+                    height: '100px',
+                  },
+                })}"
+                src="${getProxyPath()}assets/logo/nexodev-white-t.png"
+              /><br /><b>nexodev</b><br /><br /><br />
+              ERP, CRM Development &<br />
+              Cloud DevOps Services
+            </div>
+
+            <br /><br />
+            ${await BtnIcon.Render({
+              class: 'in landing-sig-up-btn',
+              label: html`<span style="font-size: 10px; color: #ececec; ${borderChar(1, 'black')}">PRE RELEASE</span
+                ><br />${Translate.Render('sign-up')}`,
+            })}
+          </div>`;
+      },
     });
 
     ThemeEvents['ssr-background-image'] = () => {
