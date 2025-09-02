@@ -44,7 +44,7 @@ const Account = {
         { model: 'email', id: `account-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
         {
           model: 'password',
-          defaultValue: '*******',
+          defaultValue: '#Changethis123',
           id: `account-password`,
           rules: [{ type: 'isStrongPassword' }],
         },

@@ -371,6 +371,8 @@ const MenuDefault = {
           .cta-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+            background: linear-gradient(90deg, #3e38b4, #602bbc);
+            color: white;
           }
 
           .cta-button:active {

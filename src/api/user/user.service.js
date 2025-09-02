@@ -444,7 +444,7 @@ const UserService = {
           _id: user._id,
         }).select(UserDto.select.get());
       } else throw new Error('invalid token');
-    }
+    } else delete req.body.password;
 
     switch (req.params.id) {
       default: {
@@ -453,9 +453,6 @@ const UserService = {
         });
         switch (user.role) {
           case 'admin': {
-            if (req.body.password !== undefined && req.body.password !== user.password)
-              req.body.password = await hashPassword(req.body.password);
-            else delete req.body.password;
             return await User.findByIdAndUpdate(req.params.id, req.body, {
               runValidators: true,
             });
