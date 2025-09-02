@@ -715,6 +715,13 @@ const MenuNexodev = {
     });
 
     EventsUI.onClick(`.main-btn-docs`, async () => {
+      setTimeout(async () => {
+        htmls(`.nav-title-display-modal-menu`, html`<i class="fas fa-book"></i> ${Translate.Render('docs')}`);
+        await Docs.Init({
+          idModal: 'modal-docs',
+        });
+      });
+
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
         id: 'modal-docs',
