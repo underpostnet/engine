@@ -166,9 +166,15 @@ const MenuDefault = {
       title: NameApp,
       // titleClass: 'hide',
       titleRender: () => {
-        setTimeout(() => {
-          htmls(`.action-btn-app-icon-render`, html`APP`);
-        });
+        ThemeEvents['titleRender'] = () => {
+          const srcLogo = `${getProxyPath()}apple-touch-icon-114x114-precomposed.png`;
+
+          htmls(
+            '.action-btn-app-icon-render',
+            html`<img class="inl top-bar-app-icon ${darkTheme ? 'negative-color' : ''}" src="${srcLogo}" />`,
+          );
+        };
+        setTimeout(ThemeEvents['titleRender']);
         return '';
       },
       mode: 'slide-menu',

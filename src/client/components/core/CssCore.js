@@ -33,7 +33,7 @@ const CssCommonCore = async () => {
         top: 0;
         left: 0;
         transition: 0.3s;
-        height: 5px;
+        height: 10px;
         width: 100%;
         z-index: 11;
       }

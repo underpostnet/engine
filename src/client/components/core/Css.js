@@ -51,8 +51,8 @@ const Css = {
     // if (!ThemesScope.find((t) => t.dark)) addTheme(CssCoreDark);
     // if (!ThemesScope.find((t) => !t.dark)) addTheme(CssCoreLight);
     if (ThemesScope.length === 0) {
-      addTheme(CssCoreDark);
       addTheme(CssCoreLight);
+      addTheme(CssCoreDark);
     }
     const localStorageTheme = localStorage.getItem('_theme');
     if (localStorageTheme && Themes[localStorageTheme]) {

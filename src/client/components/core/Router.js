@@ -8,13 +8,13 @@ import { Worker } from './Worker.js';
 
 const logger = loggerFactory(import.meta);
 
-const renderTitle = (title, nameApp) => htmls('title', html`${title} | ${nameApp ?? Worker.RouterInstance.NameApp}`);
+const renderTitle = (title) => htmls('title', html`${title ? `${title} | ` : ''}${Worker.title}`);
 
-const setDocTitle = (options = { Routes: () => {}, route: '', NameApp: '' }) => {
+const setDocTitle = (options = { Routes: () => {}, route: '', NameApp: async () => '' }) => {
   const { Routes, route, NameApp } = options;
   let title = titleFormatted(Routes()[`/${route}`].title);
   if (Routes()[`/${route}`].upperCase) title = title.toUpperCase();
-  renderTitle(title, NameApp);
+  renderTitle(title);
   {
     const routeId = route === '' ? 'home' : route;
     if (s(`.main-btn-${routeId}`)) {

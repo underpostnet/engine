@@ -4,7 +4,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`Default`;
+const NameApp = html`<strong class="inl" style="font-family: system-ui;">PWA</strong>`;
 
 // Router
 const RoutesDefault = () => {

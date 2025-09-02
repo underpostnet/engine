@@ -166,9 +166,9 @@ const Modal = {
                       height: 100px;
                     }
                     .default-slide-menu-top-bar-fix-logo {
-                      width: 80px;
-                      height: 80px;
-                      padding: 10px;
+                      width: 50px;
+                      height: 50px;
+                      padding: 24px;
                     }
                     .default-slide-menu-top-bar-fix-title-container-text {
                       font-size: 30px;
