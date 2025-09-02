@@ -192,6 +192,12 @@ const MenuDefault = {
       heightTopBar,
       heightBottomBar,
       htmlMainBody: async () => {
+        setTimeout(() => {
+          EventsUI.onClick('.get-started-button', (e) => {
+            e.preventDefault();
+            location.href = `https://www.nexodev.org/docs/?cid=src`;
+          });
+        });
         return html`
           <div class="landing-container">
             <div class="content-wrapper">
@@ -218,7 +224,7 @@ const MenuDefault = {
                 </div>
               </div>
 
-              <button class="cta-button" @click=${() => console.log('Get Started clicked')}>
+              <button class="cta-button get-started-button">
                 Get Started
                 <span class="button-icon">→</span>
               </button>
@@ -256,7 +262,7 @@ const MenuDefault = {
           .landing-container {
             min-height: calc(100vh - ${heightTopBar + heightBottomBar}px);
             display: flex;
-            align-items: center;
+            /*    align-items: center; */
             justify-content: center;
 
             padding: 2rem;

@@ -678,6 +678,127 @@ const scrollBarLightRender = () => {
     .join('');
 };
 
+/**
+ * Adjust hex color brightness toward white/black ("mix") or by modifying HSL lightness ("hsl").
+ *
+ * @param {string} hex - Color as '#rrggbb', 'rrggbb', '#rgb', or 'rgb'.
+ * @param {number} factor - -1..1 or -100..100 (percent). Positive = lighten, negative = darken.
+ * @param {{mode?: 'mix'|'hsl'}} [options]
+ * @returns {string} - Adjusted color as '#rrggbb' (lowercase).
+ */
+function adjustHex(hex, factor = 0.1, options = {}) {
+  if (typeof hex !== 'string') throw new TypeError('hex must be a string');
+  if (typeof factor !== 'number') throw new TypeError('factor must be a number');
+
+  // normalize factor: allow -100..100 or -1..1
+  if (factor > 1 && factor <= 100) factor = factor / 100;
+  if (factor < -1 && factor >= -100) factor = factor / 100;
+  factor = Math.max(-1, Math.min(1, factor));
+
+  const mode = options.mode === 'hsl' ? 'hsl' : 'mix';
+
+  // normalize hex
+  let h = hex.replace(/^#/, '').trim();
+  if (!(h.length === 3 || h.length === 6)) throw new Error('Invalid hex format');
+  if (h.length === 3)
+    h = h
+      .split('')
+      .map((c) => c + c)
+      .join('');
+
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+
+  const clamp = (v, a = 0, z = 255) => Math.max(a, Math.min(z, v));
+
+  const rgbToHex = (rr, gg, bb) =>
+    '#' +
+    [rr, gg, bb]
+      .map((v) => Math.round(v).toString(16).padStart(2, '0'))
+      .join('')
+      .toLowerCase();
+
+  if (mode === 'mix') {
+    // positive: mix toward white (255); negative: mix toward black (0)
+    const mixChannel = (c) => {
+      if (factor >= 0) {
+        return clamp(Math.round(c + (255 - c) * factor));
+      } else {
+        const a = Math.abs(factor);
+        return clamp(Math.round(c * (1 - a)));
+      }
+    };
+    return rgbToHex(mixChannel(r), mixChannel(g), mixChannel(b));
+  } else {
+    // HSL mode: convert rgb to hsl, adjust L by factor, convert back
+    const rgbToHsl = (r, g, b) => {
+      r /= 255;
+      g /= 255;
+      b /= 255;
+      const max = Math.max(r, g, b),
+        min = Math.min(r, g, b);
+      let h = 0,
+        s = 0,
+        l = (max + min) / 2;
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r:
+            h = (g - b) / d + (g < b ? 6 : 0);
+            break;
+          case g:
+            h = (b - r) / d + 2;
+            break;
+          case b:
+            h = (r - g) / d + 4;
+            break;
+        }
+        h /= 6;
+      }
+      return { h, s, l };
+    };
+
+    const hslToRgb = (h, s, l) => {
+      let r, g, b;
+      if (s === 0) {
+        r = g = b = l;
+      } else {
+        const hue2rgb = (p, q, t) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1 / 6) return p + (q - p) * 6 * t;
+          if (t < 1 / 2) return q;
+          if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+          return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1 / 3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1 / 3);
+      }
+      return { r: r * 255, g: g * 255, b: b * 255 };
+    };
+
+    const { h: hh, s: ss, l: ll } = rgbToHsl(r, g, b);
+    // add factor to lightness (factor already normalized -1..1)
+    let newL = ll + factor;
+    newL = Math.max(0, Math.min(1, newL));
+    const { r: r2, g: g2, b: b2 } = hslToRgb(hh, ss, newL);
+    return rgbToHex(r2, g2, b2);
+  }
+}
+
+// Convenience helpers:
+function lightenHex(hex, percentOr01 = 0.1, options = {}) {
+  return adjustHex(hex, Math.abs(percentOr01), options);
+}
+function darkenHex(hex, percentOr01 = 0.1, options = {}) {
+  return adjustHex(hex, -Math.abs(percentOr01), options);
+}
+
 const subThemeManager = {
   render: async function () {
     return html``;
@@ -690,6 +811,7 @@ const subThemeManager = {
         button:hover,
         .a-btn:hover {
           color: ${this.lightColor};
+          background-color: ${lightenHex(this.lightColor, 0.8)};
         }
       </style>`;
     };
@@ -939,4 +1061,7 @@ export {
   extractBackgroundImageUrl,
   renderChessPattern,
   subThemeManager,
+  lightenHex,
+  darkenHex,
+  adjustHex,
 };
