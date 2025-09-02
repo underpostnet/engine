@@ -808,12 +808,10 @@ const MenuNexodev = {
               .docs-header h1 {
                 font-size: 2.5rem;
                 margin: 0 0 1rem;
-                color: var(--text-primary);
                 line-height: 1.2;
               }
               .docs-header p {
                 font-size: 1.2rem;
-                color: var(--text-secondary);
                 max-width: 700px;
                 margin: 0 auto 2rem;
                 line-height: 1.6;
@@ -827,10 +825,8 @@ const MenuNexodev = {
                 list-style: none;
               }
               .docs-card {
-                background: var(--card-bg);
                 border-radius: 8px;
                 padding: 1.5rem;
-                border: 1px solid var(--border-color);
                 display: flex;
                 flex-direction: column;
                 height: 100%;
@@ -846,7 +842,6 @@ const MenuNexodev = {
                 left: 0;
                 right: 0;
                 height: 4px;
-                background: currentColor;
                 opacity: 0.1;
                 transition: opacity 0.2s ease;
               }
@@ -876,13 +871,11 @@ const MenuNexodev = {
               }
               .card-content h3 {
                 margin: 0 0 0.5rem;
-                color: var(--text-primary);
                 font-size: 1.25rem;
                 font-weight: 600;
               }
               .card-content p {
                 margin: 0;
-                color: var(--text-secondary);
                 line-height: 1.6;
                 font-size: 0.95rem;
               }

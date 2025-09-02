@@ -71,16 +71,6 @@ ThemeEvents['lading-handle-theme-event'] = () => {
 const htmlMainBody = async () => {
   return html`
     <div class="landing-page">
-      <!-- Theme Toggle -->
-      <div class="theme-toggle-container">
-        <label class="theme-toggle" title="Toggle theme">
-          <input type="checkbox" id="theme-toggle" onchange="toggleTheme()" />
-          <span class="slider">
-            <span class="sun">☀️</span>
-            <span class="moon">🌙</span>
-          </span>
-        </label>
-      </div>
       <!-- Hero Section -->
       <header class="hero">
         <div class="hero-content">
@@ -169,55 +159,6 @@ const htmlMainBody = async () => {
 
     <style>
       /* Theme variables */
-      :root[data-theme='light'] {
-        --primary-color: #4a6ee0;
-        --secondary-color: #f8f9fa;
-        --text-color: #333333;
-        --light-text: #6c757d;
-        --bg-color: #ffffff;
-        --card-bg: #ffffff;
-        --footer-bg: #f8f9fa;
-        --border-color: #e0e0e0;
-      }
-
-      :root[data-theme='dark'] {
-        --primary-color: #5d7ff3;
-        --secondary-color: #1a1a2e;
-        --text-color: #f0f0f0;
-        --light-text: #a0a0a0;
-        --bg-color: #0f0f1a;
-        --card-bg: #1a1a2e;
-        --footer-bg: #0d0d1a;
-        --border-color: #2a2a3a;
-      }
-
-      :host {
-        --primary-color: #4a6ee0;
-        --secondary-color: #f8f9fa;
-        --text-color: #333;
-        --light-text: #6c757d;
-      }
-
-      /* Theme Toggle Styles */
-      .theme-toggle-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 1000;
-      }
-
-      .theme-toggle {
-        position: relative;
-        display: inline-block;
-        width: 60px;
-        height: 30px;
-      }
-
-      .theme-toggle input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-      }
 
       .slider {
         position: absolute;
@@ -226,10 +167,8 @@ const htmlMainBody = async () => {
         left: 0;
         right: 0;
         bottom: 0;
-        background-color: var(--card-bg);
         transition: 0.4s;
         border-radius: 34px;
-        border: 1px solid var(--border-color);
       }
 
       .slider:before {
@@ -239,7 +178,6 @@ const htmlMainBody = async () => {
         width: 22px;
         left: 4px;
         bottom: 3px;
-        background-color: var(--primary-color);
         transition: 0.4s;
         border-radius: 50%;
         z-index: 2;
@@ -278,7 +216,6 @@ const htmlMainBody = async () => {
 
       .landing-page {
         font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-        color: var(--text-color);
         line-height: 1.6;
         max-width: 1200px;
         margin: 0 auto;
@@ -301,12 +238,10 @@ const htmlMainBody = async () => {
       .hero h1 {
         font-size: 2.5rem;
         margin-bottom: 1rem;
-        color: var(--primary-color);
       }
 
       .lead {
         font-size: 1.25rem;
-        color: var(--light-text);
         margin-bottom: 2rem;
       }
 
@@ -321,20 +256,7 @@ const htmlMainBody = async () => {
         padding: 0.75rem 1.5rem;
         border-radius: 5px;
         font-weight: 600;
-        cursor: pointer;
         transition: all 0.3s ease;
-        border: 2px solid transparent;
-      }
-
-      .btn-primary {
-        background-color: var(--primary-color);
-        color: white;
-      }
-
-      .btn-outline {
-        background-color: transparent;
-        border-color: var(--primary-color);
-        color: var(--primary-color);
       }
 
       .btn:hover {
@@ -364,7 +286,6 @@ const htmlMainBody = async () => {
         border-radius: 10px;
         background: var(--card-bg);
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        border: 1px solid var(--border-color);
         transition: transform 0.3s ease;
       }
 
@@ -379,16 +300,12 @@ const htmlMainBody = async () => {
 
       .feature-card h3 {
         margin: 1rem 0;
-        color: var(--primary-color);
       }
 
       /* Footer Styles */
       .footer {
-        background-color: var(--footer-bg);
-        color: var(--text-color);
         padding: 3rem 1rem;
         margin-top: 4rem;
-        border-top: 1px solid var(--border-color);
       }
 
       .footer-content {
@@ -401,20 +318,17 @@ const htmlMainBody = async () => {
       }
 
       .footer-section h3 {
-        color: var(--primary-color);
         margin-bottom: 1.5rem;
         font-size: 1.2rem;
       }
 
       .footer-section p,
       .footer-section a {
-        color: var(--light-text);
         line-height: 1.8;
         transition: color 0.3s ease;
       }
 
       .footer-section a:hover {
-        color: var(--primary-color);
         text-decoration: none;
       }
 
@@ -440,14 +354,11 @@ const htmlMainBody = async () => {
         width: 36px;
         height: 36px;
         border-radius: 50%;
-        background-color: var(--card-bg);
-        color: var(--primary-color);
         transition: all 0.3s ease;
       }
 
       .social-links a:hover {
         background-color: var(--primary-color);
-        color: white;
         transform: translateY(-3px);
       }
 
@@ -455,12 +366,10 @@ const htmlMainBody = async () => {
         max-width: 1200px;
         margin: 2rem auto 0;
         padding-top: 2rem;
-        border-top: 1px solid var(--border-color);
         display: flex;
         flex-wrap: wrap;
         justify-content: space-between;
         align-items: center;
-        color: var(--light-text);
         font-size: 0.9rem;
       }
 
@@ -471,12 +380,10 @@ const htmlMainBody = async () => {
       }
 
       .footer-links a {
-        color: var(--light-text);
         transition: color 0.3s ease;
       }
 
       .footer-links a:hover {
-        color: var(--primary-color);
         text-decoration: none;
       }
 
@@ -495,7 +402,6 @@ const htmlMainBody = async () => {
       .cta-section {
         text-align: center;
         padding: 5rem 1rem;
-        background: linear-gradient(135deg, var(--secondary-color) 0%, var(--card-bg) 100%);
         border-radius: 15px;
         margin: 4rem 0;
       }
