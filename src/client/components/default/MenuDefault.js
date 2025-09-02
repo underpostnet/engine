@@ -251,7 +251,7 @@ const MenuDefault = {
 
     ThemeEvents['ssr-background-image'] = () => {
       if (darkTheme) {
-        const backgroundImage = `${getProxyPath()}assets/background/dark.jpg`;
+        const backgroundImage = `${getProxyPath()}assets/background/dark.svg`;
         htmls(
           `.style-ssr-background-image`,
           css`
