@@ -333,14 +333,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
               'utf8',
             );
-
-            // const title = `${metadata && metadata.title ? metadata.title : cap(client)}${
-            //   view.title ? ` | ${view.title}` : view.path !== '/' ? ` | ${titleFormatted(view.path)}` : ''
-            // }`;
-
-            const title = `${
-              view.title ? `${view.title} | ` : view.path !== '/' ? `${titleFormatted(view.path)} | ` : ''
-            }${metadata && metadata.title ? metadata.title : cap(client)}`;
+            const title = metadata.title ? metadata.title : title;
 
             const canonicalURL = `https://${host}${path}${
               view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
