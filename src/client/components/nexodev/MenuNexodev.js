@@ -318,13 +318,12 @@ const MenuNexodev = {
           `,
         );
       } else {
-        const backgroundImage = `${getProxyPath()}assets/background/white-purple.jpg`;
+        const backgroundImage = `${getProxyPath()}assets/background/white-purple-2.jpg`;
         htmls(
           `.style-ssr-background-image`,
           css`
             .ssr-background-image {
               background-image: url('${backgroundImage}');
-              transform: rotate(180deg);
             }
           `,
         );
