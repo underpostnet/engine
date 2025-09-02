@@ -116,17 +116,6 @@ const MenuDefault = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-docs hide',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-book"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('docs')}</span>`,
-            }),
-            attrs: `data-id="docs"`,
-            tabHref: `${getProxyPath()}docs`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs')),
-          })}
-          ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-recover hide',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
@@ -593,35 +582,6 @@ const MenuDefault = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-docs`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-docs',
-        route: 'docs',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-book"></i>`,
-          text: Translate.Render('docs'),
-        }),
-        html: async () =>
-          await Docs.Init({
-            idModal: 'modal-docs',
-            modalOptions: {
-              barMode: undefined,
-            },
-          }),
-        handleType: 'bar',
-        observer: true,
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-        barMode,
       });
     });
 

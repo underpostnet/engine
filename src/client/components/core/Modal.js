@@ -1540,10 +1540,10 @@ const Modal = {
             if (
               ![idModal, 'main-body-top', 'main-body'].concat(this.Data[idModal]?.homeModals || []).includes(keyModal)
             )
-              s(`.btn-close-${keyModal}`).click();
+              if (s(`.btn-close-${keyModal}`)) s(`.btn-close-${keyModal}`).click();
             backMenuButtonEvent();
           }
-          s(`.btn-close-modal-menu`).click();
+          if (s(`.btn-close-modal-menu`)) s(`.btn-close-modal-menu`).click();
           setPath(getProxyPath());
           setDocTitle({ ...options.RouterInstance, route: '' });
         };
