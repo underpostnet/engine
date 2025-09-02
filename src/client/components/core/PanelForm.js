@@ -92,7 +92,7 @@ const PanelForm = {
       },
     ];
 
-    const titleIcon = html`<i class="fa-solid fa-quote-left"></i>`;
+    const titleIcon = html`<i class="fa-solid fa-quote-left title-icon-${idPanel}"></i>`;
     const panelRender = async ({ data }) =>
       await Panel.Render({
         idPanel,

@@ -199,6 +199,7 @@ const addTheme = (options) => {
       if (!['core', 'css-core'].includes(options.theme))
         render += darkTheme ? await CssCoreDark.render() : await CssCoreLight.render();
       render += await options.render();
+      render += await subThemeManager.render();
       htmls('.theme', render);
       TriggerThemeEvents();
     }
@@ -677,6 +678,36 @@ const scrollBarLightRender = () => {
     .join('');
 };
 
+const subThemeManager = {
+  render: async function () {
+    return html``;
+  },
+  lightColor: null,
+  setLightTheme: function (color) {
+    this.lightColor = color;
+    this.render = async function () {
+      return html`<style>
+        button:hover,
+        .a-btn:hover {
+          color: ${this.lightColor};
+        }
+      </style>`;
+    };
+  },
+  darkColor: null,
+  setDarkTheme: function (color) {
+    this.darkColor = color;
+    this.render = async function () {
+      return html`<style>
+        button:hover,
+        .a-btn:hover {
+          color: ${this.darkColor};
+        }
+      </style>`;
+    };
+  },
+};
+
 const scrollBarDarkRender = () => {
   return cssBrowserCodes
     .map(
@@ -685,8 +716,8 @@ const scrollBarDarkRender = () => {
     ::-` +
         b +
         `-scrollbar {
-      width: 5px;
-      height: 5px; 
+      width: 8px;
+      height: 8px; 
       /* line-height: 1em; */
     }
 
@@ -702,7 +733,7 @@ const scrollBarDarkRender = () => {
         b +
         `-scrollbar-thumb {
       background: #74747457;
-      border-radius: 3px;
+      border-radius: 4px;
     }
 
     /* Handle on hover */
@@ -907,4 +938,5 @@ export {
   simpleIconsRender,
   extractBackgroundImageUrl,
   renderChessPattern,
+  subThemeManager,
 };

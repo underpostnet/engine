@@ -65,10 +65,6 @@ const CssCommonCyberia = async () => {
         width: 35px;
         height: 35px;
       }
-      button:hover,
-      .a-btn:hover {
-        color: #ffcc00;
-      }
       .handle-btn-container {
         text-shadow: none;
       }

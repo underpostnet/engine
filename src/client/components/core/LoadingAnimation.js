@@ -1,7 +1,7 @@
 import { CoreService } from '../../services/core/core.service.js';
 import { BtnIcon } from './BtnIcon.js';
 import { s4 } from './CommonJs.js';
-import { darkTheme, renderCssAttr } from './Css.js';
+import { darkTheme, renderCssAttr, subThemeManager } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { append, getAllChildNodes, getProxyPath, htmls, s, sa } from './VanillaJs.js';
 
@@ -23,12 +23,12 @@ const LoadingAnimation = {
           <div
             class="fix progress-bar box-shadow ${id}"
             style="left: -100%; background: ${darkTheme
-              ? LoadingAnimation.darkColor
-                ? LoadingAnimation.darkColor
-                : `#c9c9c9`
-              : LoadingAnimation.lightColor
-              ? LoadingAnimation.lightColor
-              : `#515151`};"
+              ? subThemeManager.darkColor
+                ? subThemeManager.darkColor
+                : `#66e400`
+              : subThemeManager.lightColor
+              ? subThemeManager.lightColor
+              : `#157e00`};"
           ></div>
         `,
       );
@@ -140,14 +140,7 @@ const LoadingAnimation = {
         }, 300);
       });
   },
-  lightColor: null,
-  setLightColor: function (color) {
-    this.lightColor = color;
-  },
-  darkColor: null,
-  setDarkColor: function (color) {
-    this.darkColor = color;
-  },
+
   RenderCurrentSrcLoad: function (event) {
     if (s(`.ssr-loading-info`)) {
       let nameSrcLoad = event.data.path;

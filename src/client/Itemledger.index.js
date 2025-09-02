@@ -18,7 +18,7 @@ import { ElementsItemledger } from './components/itemledger/ElementsItemledger.j
 import { Scroll } from './components/core/Scroll.js';
 
 const htmlMainBody = async () => {
-  return html`<span style="color: black; padding: 5px">Hello World!!</span>`;
+  return html``;
 };
 
 window.onload = () =>
