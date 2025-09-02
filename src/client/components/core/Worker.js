@@ -10,8 +10,6 @@ import { getProxyPath, htmls, s } from './VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 const Worker = {
-  appTitle: '',
-  viewTitle: '',
   devMode: () => location.origin.match('localhost') || location.origin.match('127.0.0.1'),
   instance: async function ({ router, render }) {
     this.setAppTitle();
@@ -83,22 +81,7 @@ const Worker = {
     }
     window.serviceWorkerReady = true;
   },
-  // Set app title
-  setAppTitle: function () {
-    const [p1, p2] = s('title')
-      .innerHTML.split('|')
-      .map((p) => p.trim())
-      .filter((p) => p);
 
-    if (p2) {
-      this.appTitle = p2;
-      this.viewTitle = 'home';
-    } else {
-      this.appTitle = p2;
-      this.viewTitle = p1;
-    }
-    logger.info({ appTitle: this.appTitle, viewTitle: this.viewTitle });
-  },
   // Get the current service worker registration.
   getRegistration: async function () {
     return await navigator.serviceWorker.getRegistration();

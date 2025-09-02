@@ -6,7 +6,7 @@ const DefaultConf = /**/ {
   client: {
     default: {
       metadata: {
-        title: 'Demo App',
+        title: 'PWA Demo App',
         backgroundImage: 'assets/background/white0-min.jpg',
         description: 'Web application',
         keywords: ['web', 'app', 'spa', 'demo', 'github-pages'],
