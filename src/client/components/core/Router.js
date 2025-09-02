@@ -11,17 +11,24 @@ const closeModalRouteChangeEvents = {};
 
 const logger = loggerFactory(import.meta);
 
-const setDocTitle = (title) => {
-  const subTitle = title ? title : Worker.viewTitle;
-  htmls('title', html`${subTitle} | ${Worker.appTitle}`);
-  if (s(`.main-btn-${subTitle}`)) {
+const sanitizeRoute = (route) =>
+  !route || route === '/' || route === `\\`
+    ? 'home'
+    : route.toLowerCase().replaceAll('/', '').replaceAll(`\\`, '').replaceAll(' ', '-');
+
+const setDocTitle = (route) => {
+  const _route = sanitizeRoute(route);
+  // logger.warn('setDocTitle', _route);
+  const title = titleFormatted(_route);
+  htmls('title', html`${title}${title.match(Worker.title.toLowerCase()) ? '' : ` | ${Worker.title}`}`);
+  if (s(`.main-btn-${_route}`)) {
     if (s(`.main-btn-menu-active`)) s(`.main-btn-menu-active`).classList.remove(`main-btn-menu-active`);
-    if (s(`.main-btn-${subTitle}`)) s(`.main-btn-${subTitle}`).classList.add(`main-btn-menu-active`);
+    if (s(`.main-btn-${_route}`)) s(`.main-btn-${_route}`).classList.add(`main-btn-menu-active`);
   }
 };
 
-const Router = function (options = { Routes: () => {}, e: new PopStateEvent(), NameApp: '' }) {
-  const { e, Routes, NameApp } = options;
+const Router = function (options = { Routes: () => {}, e: new PopStateEvent() }) {
+  const { e, Routes } = options;
   const proxyPath = getProxyPath();
   let path = window.location.pathname;
   logger.info(options);
@@ -37,7 +44,7 @@ const Router = function (options = { Routes: () => {}, e: new PopStateEvent(), N
 
     if (path === pushPath) {
       for (const event of Object.keys(RouterEvents)) RouterEvents[event](routerEvent);
-      setDocTitle();
+      setDocTitle(route);
       return Routes()[`/${route}`].render();
     }
   }
@@ -92,14 +99,14 @@ const closeModalRouteChangeEvent = (options = {}) => {
         newPath = `${newPath}${Modal.Data[subIdModal].options.route}`;
         triggerCloseModalRouteChangeEvents(newPath);
         setPath(newPath);
+        setDocTitle(newPath);
         Modal.setTopModalCallback(subIdModal);
-        setDocTitle();
       }
     }
     newPath = `${newPath}${homeCid ? `?cid=${homeCid}` : ''}`;
     triggerCloseModalRouteChangeEvents(newPath);
     setPath(newPath);
-    setDocTitle();
+    setDocTitle(newPath);
   }
 };
 
@@ -114,7 +121,7 @@ const handleModalViewRoute = (options = {}) => {
 
   if (path !== newPath) {
     setPath(newPath);
-    setDocTitle();
+    setDocTitle(newPath);
   }
 };
 

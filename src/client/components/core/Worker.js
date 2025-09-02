@@ -12,7 +12,8 @@ const logger = loggerFactory(import.meta);
 const Worker = {
   devMode: () => location.origin.match('localhost') || location.origin.match('127.0.0.1'),
   instance: async function ({ router, render }) {
-    this.setAppTitle();
+    Worker.title = `${s('title').textContent}`;
+    // logger.warn('Init worker', Worker.title);
     window.ononline = async () => {
       logger.warn('ononline');
     };
