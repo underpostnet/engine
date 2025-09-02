@@ -308,9 +308,26 @@ const MenuNexodev = {
         : `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
       htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
       if (darkTheme) {
-        s(`.ssr-background-image`).classList.remove('negative-color');
+        const backgroundImage = `${getProxyPath()}assets/background/dark-purple.jpg`;
+        htmls(
+          `.style-ssr-background-image`,
+          css`
+            .ssr-background-image {
+              background-image: url('${backgroundImage}');
+            }
+          `,
+        );
       } else {
-        s(`.ssr-background-image`).classList.add('negative-color');
+        const backgroundImage = `${getProxyPath()}assets/background/white-purple.jpg`;
+        htmls(
+          `.style-ssr-background-image`,
+          css`
+            .ssr-background-image {
+              background-image: url('${backgroundImage}');
+              transform: rotate(180deg);
+            }
+          `,
+        );
       }
     };
 

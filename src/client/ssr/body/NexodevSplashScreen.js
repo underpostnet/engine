@@ -1,8 +1,19 @@
 SrrComponent = ({ backgroundImage }) => html`
+  ${backgroundImage
+    ? html`<style class="style-ssr-background-image">
+        .ssr-background-image {
+          background-image: url('${backgroundImage}');
+        }
+      </style>`
+    : metadata?.themeColor
+    ? html`<style class="style-ssr-background-image">
+        .ssr-background-image {
+          background: ${metadata.themeColor};
+        }
+      </style>`
+    : ''}
+
   <style>
-    .ssr-background-image {
-      background-image: url('${backgroundImage}');
-    }
     .ssr-top-bar {
       background: #ffffff;
       width: 100%;
