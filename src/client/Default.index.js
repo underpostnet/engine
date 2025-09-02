@@ -16,6 +16,7 @@ import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoDefault } from './components/default/SocketIoDefault.js';
 import { ElementsDefault } from './components/default/ElementsDefault.js';
 import { Scroll } from './components/core/Scroll.js';
+import { CssDefaultDark, CssDefaultLight } from './components/default/CssDefault.js';
 
 const htmlMainBody = async () => {
   return html`<span>Hello World!!</span>`;
@@ -25,7 +26,7 @@ window.onload = () =>
   Worker.instance({
     router: RouterDefault,
     render: async () => {
-      await Css.loadThemes();
+      await Css.loadThemes([CssDefaultDark, CssDefaultLight]);
       await TranslateCore.Init();
       await TranslateDefault.Init();
       await Responsive.Init();
