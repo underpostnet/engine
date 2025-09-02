@@ -8,13 +8,8 @@ import { Worker } from './Worker.js';
 
 const logger = loggerFactory(import.meta);
 
-const renderTitle = (title) => htmls('title', html`${title ? `${title} | ` : ''}${Worker.title}`);
-
-const setDocTitle = (options = { Routes: () => {}, route: '', NameApp: async () => '' }) => {
-  const { Routes, route, NameApp } = options;
-  let title = titleFormatted(Routes()[`/${route}`].title);
-  if (Routes()[`/${route}`].upperCase) title = title.toUpperCase();
-  renderTitle(title);
+const setDocTitle = (title) => {
+  htmls('title', html`${title ? `${title} | ` : ''}${Worker.title}`);
   {
     const routeId = route === '' ? 'home' : route;
     if (s(`.main-btn-${routeId}`)) {
@@ -43,7 +38,7 @@ const Router = function (options = { Routes: () => {}, e: new PopStateEvent(), N
 
     if (path === pushPath) {
       for (const event of Object.keys(RouterEvents)) RouterEvents[event](routerEvent);
-      setDocTitle({ Routes, route, NameApp });
+      setDocTitle();
       return Routes()[`/${route}`].render();
     }
   }
@@ -100,13 +95,13 @@ const closeModalRouteChangeEvent = (options = {}) => {
         triggerCloseModalRouteChangeEvents(newPath);
         setPath(newPath);
         Modal.setTopModalCallback(subIdModal);
-        return setDocTitle({ ...RouterInstance, route: Modal.Data[subIdModal].options.route });
+        setDocTitle();
       }
     }
     newPath = `${newPath}${homeCid ? `?cid=${homeCid}` : ''}`;
     triggerCloseModalRouteChangeEvents(newPath);
     setPath(newPath);
-    return setDocTitle({ ...RouterInstance, route: '' });
+    setDocTitle();
   }
 };
 
@@ -121,7 +116,7 @@ const handleModalViewRoute = (options = {}) => {
 
   if (path !== newPath) {
     setPath(newPath);
-    setDocTitle({ ...RouterInstance, route });
+    setDocTitle();
   }
 };
 

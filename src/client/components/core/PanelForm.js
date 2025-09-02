@@ -440,7 +440,6 @@ const PanelForm = {
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
       htmls(`.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`, await renderSrrPanelData());
       await getPanelData();
-      if (this.Data[idPanel].data.length === 1) renderTitle(this.Data[idPanel].data[0].title);
       htmls(
         `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`,
         await panelRender({ data: this.Data[idPanel].data }),

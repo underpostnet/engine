@@ -1552,7 +1552,7 @@ const Modal = {
           }
           if (s(`.btn-close-modal-menu`)) s(`.btn-close-modal-menu`).click();
           setPath(getProxyPath());
-          setDocTitle({ ...options.RouterInstance, route: '' });
+          setDocTitle();
         };
         s(`.main-btn-home`).onclick = async () => {
           // await this.onHomeRouterEvent();

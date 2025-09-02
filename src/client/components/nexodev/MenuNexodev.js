@@ -715,18 +715,6 @@ const MenuNexodev = {
     });
 
     EventsUI.onClick(`.main-btn-docs`, async () => {
-      setTimeout(async () => {
-        setPath(`${getProxyPath()}docs`);
-        setDocTitle({ ...RouterInstance, route: 'docs' });
-        if (s(`.btn-icon-menu-mode-right`).classList.contains('hide')) s(`.btn-icon-menu-mode`).click();
-        s(`.btn-icon-menu-back`).classList.remove('hide');
-        htmls(`.nav-title-display-${'modal-menu'}`, html`<i class="fas fa-book"></i> ${Translate.Render('docs')}`);
-        await Docs.Init({
-          idModal: 'modal-docs',
-        });
-      });
-      s(`.btn-menu-${'modal-menu'}`).click();
-
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
         id: 'modal-docs',
