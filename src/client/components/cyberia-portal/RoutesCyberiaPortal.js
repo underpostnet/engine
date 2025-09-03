@@ -4,7 +4,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const BannerAppTemplate = html`CYBERIA`;
+const BannerAppTemplate = html`C Y B E R I A`;
 
 // Router
 const RoutesCyberiaPortal = () => {
