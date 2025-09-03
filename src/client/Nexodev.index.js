@@ -16,7 +16,8 @@ import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev
 import { Keyboard } from './components/core/Keyboard.js';
 import { NexodevParams } from './components/nexodev/CommonNexodev.js';
 import { Scroll } from './components/core/Scroll.js';
-import { getProxyPath } from './components/core/VanillaJs.js';
+import { getProxyPath, s } from './components/core/VanillaJs.js';
+import { EventsUI } from './components/core/EventsUI.js';
 
 const htmlMainBody = async () => {
   // Add global styles with animations
@@ -132,6 +133,16 @@ const htmlMainBody = async () => {
   `;
   document.head.appendChild(style);
 
+  setTimeout(() => {
+    EventsUI.onClick('.btn-landing-sign-up', () => {
+      s(`.main-btn-sign-up`).click();
+    });
+
+    EventsUI.onClick('.btn-start-project', () => {
+      s(`.main-btn-sign-up`).click();
+    });
+  });
+
   return html`
     <div class="landing-page">
       <!-- Hero Section -->
@@ -143,15 +154,15 @@ const htmlMainBody = async () => {
             drive growth.
           </p>
           <div class="cta-buttons">
-            <button class="btn btn-primary" id="getStartedBtn">Get Free Consultation</button>
-            <button class="btn btn-outline" id="learnMoreBtn">Our Services</button>
+            <button class="btn btn-primary btn-landing-sign-up" id="getStartedBtn">Sign Up</button>
+            <!--  <button class="btn btn-outline" id="learnMoreBtn">Our Services</button> -->
           </div>
         </div>
         <div class="hero-image">
           <img
             class="img-fluid in"
             style="top: 50px; margin: auto; width: 80%; max-width: 400px; border-radius: 12px;"
-            src="${getProxyPath()}assets/generic/apps2.png"
+            src="${getProxyPath()}assets/generic/apps3.png"
             alt="Business Process Automation"
           />
         </div>
@@ -185,7 +196,7 @@ const htmlMainBody = async () => {
       <section class="cta-section" style="opacity: 0; animation: fadeInUp 0.6s ease-out 1.5s forwards;">
         <h2>Ready to Transform Your Business?</h2>
         <p>Join businesses that trust Nexodev for their digital transformation journey.</p>
-        <button class="btn btn-primary btn-lg">Start Your Project</button>
+        <button class="btn btn-primary btn-lg  btn-start-project">Start Your Project</button>
       </section>
 
       <!-- Footer -->

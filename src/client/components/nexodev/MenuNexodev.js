@@ -315,6 +315,10 @@ const MenuNexodev = {
             .ssr-background-image {
               background-image: url('${backgroundImage}');
             }
+            .docs-card:hover {
+              color: ${lightenHex(subThemeManager.darkColor, 0.8)};
+              background-color: ${darkenHex(subThemeManager.darkColor, 0.75)};
+            }
           `,
         );
       } else {
@@ -324,6 +328,10 @@ const MenuNexodev = {
           css`
             .ssr-background-image {
               background-image: url('${backgroundImage}');
+            }
+            .docs-card:hover {
+              color: ${subThemeManager.lightColor};
+              background-color: ${lightenHex(subThemeManager.lightColor, 0.8)};
             }
           `,
         );
