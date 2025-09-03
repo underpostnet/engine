@@ -69,19 +69,19 @@ const MailerProvider = {
               </span>
               `,
             },
-            recoverEmail: {
-              H1: {
-                en: 'Recover your account',
-                es: 'Recupera tu cuenta',
-              },
-              P1: {
-                en: 'To recover your account, please click the button below:',
-                es: 'Para recuperar tu cuenta, haz click en el botón de abajo:',
-              },
-              BTN_LABEL: {
-                en: 'Recover Password',
-                es: 'Recuperar Contraseña',
-              },
+          },
+          recoverEmail: {
+            H1: {
+              en: 'Recover your account',
+              es: 'Recupera tu cuenta',
+            },
+            P1: {
+              en: 'To recover your account, please click the button below:',
+              es: 'Para recuperar tu cuenta, haz click en el botón de abajo:',
+            },
+            BTN_LABEL: {
+              en: 'Recover Password',
+              es: 'Recuperar Contraseña',
             },
           },
         },

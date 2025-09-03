@@ -32,7 +32,7 @@ const UserService = {
       const payloadToken = hashJWT({ email: req.body.email }, '15m');
       const id = `${options.host}${options.path}`;
       const translate = MailerProvider.instance[id].translateTemplates.recoverEmail;
-      const recoverUrl = `${process.env === 'development' ? 'http://' : 'https://'}${req.hostname}${
+      const recoverUrl = `${process.env.NODE_ENV === 'development' ? 'http://' : 'https://'}${req.hostname}${
         req.body.proxyPath
       }recover?payload=${payloadToken}`;
       const sendResult = await MailerProvider.send({
