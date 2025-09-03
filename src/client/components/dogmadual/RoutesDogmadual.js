@@ -4,7 +4,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`DOGMADUAL.com`;
+const BannerAppTemplate = html`DOGMADUAL.com`;
 
 // Router
 const RoutesDogmadual = () => {
@@ -31,7 +31,7 @@ const RoutesDogmadual = () => {
 window.Routes = RoutesDogmadual;
 
 const RouterDogmadual = () => {
-  return { Routes: RoutesDogmadual, NameApp };
+  return { Routes: RoutesDogmadual, BannerAppTemplate };
 };
 
-export { RoutesDogmadual, RouterDogmadual, NameApp };
+export { RoutesDogmadual, RouterDogmadual, BannerAppTemplate };

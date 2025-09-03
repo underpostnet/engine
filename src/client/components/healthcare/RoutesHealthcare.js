@@ -4,7 +4,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`Healthcare - ERP CRM Nexodev`;
+const BannerAppTemplate = html`Healthcare - ERP CRM Nexodev`;
 
 // Router
 const RoutesHealthcare = () => {
@@ -49,7 +49,7 @@ const RoutesHealthcare = () => {
 window.Routes = RoutesHealthcare;
 
 const RouterHealthcare = () => {
-  return { Routes: RoutesHealthcare, NameApp };
+  return { Routes: RoutesHealthcare, BannerAppTemplate };
 };
 
-export { RoutesHealthcare, RouterHealthcare, NameApp };
+export { RoutesHealthcare, RouterHealthcare, BannerAppTemplate };

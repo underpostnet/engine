@@ -4,7 +4,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`Cryptokoyn`;
+const BannerAppTemplate = html`Cryptokoyn`;
 
 // Router
 const RoutesCryptokoyn = () => {
@@ -32,7 +32,7 @@ const RoutesCryptokoyn = () => {
 window.Routes = RoutesCryptokoyn;
 
 const RouterCryptokoyn = () => {
-  return { Routes: RoutesCryptokoyn, NameApp };
+  return { Routes: RoutesCryptokoyn, BannerAppTemplate };
 };
 
-export { RoutesCryptokoyn, RouterCryptokoyn, NameApp };
+export { RoutesCryptokoyn, RouterCryptokoyn, BannerAppTemplate };

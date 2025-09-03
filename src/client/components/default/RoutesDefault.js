@@ -4,7 +4,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`<strong class="inl" style="font-family: system-ui">PWA</strong>`;
+const BannerAppTemplate = html`<strong class="inl" style="font-family: system-ui">PWA</strong>`;
 
 // Router
 const RoutesDefault = () => {
@@ -39,7 +39,7 @@ const RoutesDefault = () => {
 window.Routes = RoutesDefault;
 
 const RouterDefault = () => {
-  return { Routes: RoutesDefault, NameApp };
+  return { Routes: RoutesDefault, BannerAppTemplate };
 };
 
-export { RoutesDefault, RouterDefault, NameApp };
+export { RoutesDefault, RouterDefault, BannerAppTemplate };

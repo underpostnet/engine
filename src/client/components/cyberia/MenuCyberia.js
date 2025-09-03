@@ -31,7 +31,7 @@ const MenuCyberia = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterCyberia();
-    const { NameApp } = RouterInstance;
+    const { BannerAppTemplate } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;
@@ -208,7 +208,7 @@ const MenuCyberia = {
       heightTopBar,
       heightBottomBar,
       barConfig: newInstance(barConfig),
-      title: NameApp,
+      title: BannerAppTemplate,
       // titleClass: 'hide',
       mode: 'slide-menu',
       RouterInstance,

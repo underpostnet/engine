@@ -4,7 +4,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`underpost.net`;
+const BannerAppTemplate = html`underpost.net`;
 
 // Router
 const RoutesUnderpost = () => {
@@ -36,7 +36,7 @@ const RoutesUnderpost = () => {
 window.Routes = RoutesUnderpost;
 
 const RouterUnderpost = () => {
-  return { Routes: RoutesUnderpost, NameApp };
+  return { Routes: RoutesUnderpost, BannerAppTemplate };
 };
 
-export { RoutesUnderpost, RouterUnderpost, NameApp };
+export { RoutesUnderpost, RouterUnderpost, BannerAppTemplate };

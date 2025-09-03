@@ -4,7 +4,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`C Y B E R I A`;
+const BannerAppTemplate = html`C Y B E R I A`;
 
 // Router
 const RoutesCyberia = () => {
@@ -40,7 +40,7 @@ const RoutesCyberia = () => {
 window.Routes = RoutesCyberia;
 
 const RouterCyberia = () => {
-  return { Routes: RoutesCyberia, NameApp };
+  return { Routes: RoutesCyberia, BannerAppTemplate };
 };
 
-export { RoutesCyberia, RouterCyberia, NameApp };
+export { RoutesCyberia, RouterCyberia, BannerAppTemplate };

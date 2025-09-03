@@ -24,7 +24,7 @@ const MenuItemledger = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterItemledger();
-    const { NameApp } = RouterInstance;
+    const { BannerAppTemplate } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;
@@ -128,7 +128,7 @@ const MenuItemledger = {
         </div>
       `,
       barConfig: newInstance(barConfig),
-      title: NameApp,
+      title: BannerAppTemplate,
       // titleClass: 'hide',
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {

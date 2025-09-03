@@ -4,7 +4,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`nexodev.org`;
+const BannerAppTemplate = html`nexodev.org`;
 
 // Router
 const RoutesNexodev = () => {
@@ -56,7 +56,7 @@ const RoutesNexodev = () => {
 window.Routes = RoutesNexodev;
 
 const RouterNexodev = () => {
-  return { Routes: RoutesNexodev, NameApp };
+  return { Routes: RoutesNexodev, BannerAppTemplate };
 };
 
-export { RoutesNexodev, RouterNexodev, NameApp };
+export { RoutesNexodev, RouterNexodev, BannerAppTemplate };

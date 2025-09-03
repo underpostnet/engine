@@ -186,7 +186,7 @@ const Modal = {
                       `.default-slide-menu-top-bar-fix-title-container`,
                       html`
                         <div class="inl default-slide-menu-top-bar-fix-title-container-text">
-                          ${options.RouterInstance.NameApp}
+                          ${options.RouterInstance.BannerAppTemplate}
                         </div>
                       `,
                     );
