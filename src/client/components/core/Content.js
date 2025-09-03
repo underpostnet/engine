@@ -7,7 +7,7 @@ import { Modal, renderViewTitle } from './Modal.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { CoreService, getApiBaseUrl } from '../../services/core/core.service.js';
 import { loggerFactory } from './Logger.js';
-import { imageShimmer, renderCssAttr } from './Css.js';
+import { imageShimmer, renderCssAttr, styleFactory } from './Css.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -114,7 +114,6 @@ const Content = {
         width: '100%',
         border: 'none',
       };
-    options.style = `style="${renderCssAttr(options)}"`;
     if (!options.class) options.class = ``;
     const { container, file } = options;
     const ext = file.name.split('.')[file.name.split('.').length - 1];
@@ -126,7 +125,7 @@ const Content = {
           const content = options.url
             ? await CoreService.getRaw({ url: options.url })
             : await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
-          render += html`<div class="${options.class}" ${options.style}>${marked.parse(content)}</div>`;
+          render += html`<div class="${options.class}" ${styleFactory(options.style)}>${marked.parse(content)}</div>`;
         }
 
         break;
@@ -141,7 +140,7 @@ const Content = {
           : file._id
           ? getApiBaseUrl({ id: file._id, endpoint: 'file/blob' })
           : URL.createObjectURL(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
-        const imgRender = html`<img class="in ${options.class}" ${options.style} src="${url}" />`;
+        const imgRender = html`<img class="in ${options.class}" ${styleFactory(options.style)} src="${url}" />`;
         render += imgRender;
         break;
       }
@@ -153,14 +152,14 @@ const Content = {
           : URL.createObjectURL(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
         render += html`<iframe
           class="in ${options.class} iframe-${options.idModal}"
-          ${options.style}
+          ${styleFactory(options.style)}
           src="${url}"
         ></iframe>`;
         break;
       }
 
       case 'json':
-        render += html`<pre class="in ${options.class}" ${options.style}>
+        render += html`<pre class="in ${options.class}" ${styleFactory(options.style)}>
         ${JSON.stringify(
             JSON.parse(
               options.url
@@ -174,7 +173,7 @@ const Content = {
         break;
 
       default:
-        render += html`<div class="in ${options.class}" ${options.style}>
+        render += html`<div class="in ${options.class}" ${styleFactory(options.style)}>
           ${options.url
             ? await CoreService.getRaw({ url: options.url })
             : await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype))}

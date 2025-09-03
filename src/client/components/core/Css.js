@@ -1044,6 +1044,8 @@ const simpleIconsRender = (selector) => {
   });
 };
 
+const styleFactory = (payload, plain = '') => `style="${renderCssAttr(payload)} ${plain}"`;
+
 export {
   Css,
   Themes,
@@ -1083,4 +1085,5 @@ export {
   lightenHex,
   darkenHex,
   adjustHex,
+  styleFactory,
 };
