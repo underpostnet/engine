@@ -608,6 +608,7 @@ const Modal = {
                     }),
                   );
                   s(`.search-result-btn-${result.routerId}`).onclick = () => {
+                    if (!s(`.html-${searchBoxHistoryId}`) || !s(`.html-${searchBoxHistoryId}`).hasChildNodes()) return;
                     s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
                       `main-btn-menu-active`,
                     );
@@ -621,6 +622,7 @@ const Modal = {
               };
 
               const getResultSearchBox = (validatorData) => {
+                if (!s(`.html-${searchBoxHistoryId}`) || !s(`.html-${searchBoxHistoryId}`).hasChildNodes()) return;
                 const { model, id } = validatorData;
                 switch (model) {
                   case 'search-box':
