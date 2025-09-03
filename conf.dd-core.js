@@ -353,7 +353,7 @@ const DefaultConf = /**/ {
         author: 'https://github.com/underpostnet',
         thumbnail: 'assets/banner/nexodev.jpg',
         themeColor: '#69055F',
-        backgroundImage: 'assets/background/earth-min.jpg',
+        backgroundImage: 'assets/background/white-purple-2.jpg',
       },
       components: {
         core: [
