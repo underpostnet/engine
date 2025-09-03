@@ -1,6 +1,5 @@
 import { CalendarCore } from '../core/CalendarCore.js';
-import { borderChar, boxShadow } from '../core/Css.js';
-import { LoadingAnimation } from '../core/LoadingAnimation.js';
+import { borderChar, boxShadow, subThemeManager } from '../core/Css.js';
 import { getProxyPath } from '../core/VanillaJs.js';
 
 const CssCommonHealthcare = async () => {
