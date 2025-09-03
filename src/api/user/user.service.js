@@ -98,18 +98,7 @@ const UserService = {
           },
         );
       }
-      const translate = {
-        H1: {
-          en: 'Confirm Your Email',
-          zh: '请确认您的电子邮箱',
-          es: 'Confirma tu correo electrónico',
-        },
-        P1: {
-          en: 'Email confirmed! Thanks.',
-          zh: '电子邮箱已确认！感谢。',
-          es: 'Correo electrónico confirmado! Gracias.',
-        },
-      };
+      const translate = MailerProvider.instance[id].translateTemplates.default;
       const sendResult = await MailerProvider.send({
         id,
         sendOptions: {
