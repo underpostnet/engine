@@ -7,7 +7,7 @@ import { LogIn } from './LogIn.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
-import { getQueryParams, s } from './VanillaJs.js';
+import { getProxyPath, getQueryParams, s } from './VanillaJs.js';
 
 const Recover = {
   Event: {},
@@ -80,6 +80,7 @@ const Recover = {
         }
         switch (mode) {
           case 'recover-verify-email': {
+            body.proxyPath = getProxyPath();
             const result = await UserService.post({ id: 'recover-verify-email', body });
             NotificationManager.Push({
               html:

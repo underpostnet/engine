@@ -42,11 +42,10 @@ const UserService = {
             .replace('{{H1}}', translate.H1[req.lang])
             .replace('{{P1}}', translate.P1[req.lang])
             .replace('{{TOKEN}}', token)
-            .replace(`{{COMPANY}}`, options.host) // html body
+            .replace(`{{COMPANY}}`, req.hostname) // html body
             .replace(
               '{{RECOVER_WEB_URL}}',
-              `${process.env === 'development' ? 'http://' : 'https://'}${options.host}${options.path}${
-                options.path === '/' ? 'recover' : `/recover`
+              `${process.env === 'development' ? 'http://' : 'https://'}${req.hostname}${req.body.proxyPath}recover
               }?payload=${payloadToken}`,
             )
             .replace('{{RECOVER_BTN_LABEL}}', translate.BTN_LABEL[req.lang]),
@@ -96,7 +95,7 @@ const UserService = {
             .replace('{{H1}}', translate.H1[req.lang])
             .replace('{{P1}}', translate.P1[req.lang])
             .replace('{{TOKEN}}', token)
-            .replace(`{{COMPANY}}`, options.host), // html body
+            .replace(`{{COMPANY}}`, req.hostname), // html body
           attachments: [
             // {
             //   filename: 'logo.png',
