@@ -49,7 +49,7 @@ const MailerProvider = {
         transporter,
         templates: await EmailRender.getTemplates(options),
         translateTemplates: {
-          default: {
+          confirmEmail: {
             H1: {
               en: 'Confirm Your Email',
               es: 'Confirma tu correo electrónico',
@@ -68,6 +68,20 @@ const MailerProvider = {
                Si no se verifica automáticamente, por favor permita que se vea la imagen, gracias.
               </span>
               `,
+            },
+            recoverEmail: {
+              H1: {
+                en: 'Recover your account',
+                es: 'Recupera tu cuenta',
+              },
+              P1: {
+                en: 'To recover your account, please click the button below:',
+                es: 'Para recuperar tu cuenta, haz click en el botón de abajo:',
+              },
+              BTN_LABEL: {
+                en: 'Recover Password',
+                es: 'Recuperar Contraseña',
+              },
             },
           },
         },

@@ -31,20 +31,7 @@ const UserService = {
       const token = hashJWT({ email: req.body.email }, '15m');
       const payloadToken = hashJWT({ email: req.body.email }, '15m');
       const id = `${options.host}${options.path}`;
-      const translate = {
-        H1: {
-          en: 'Recover your account',
-          es: 'Recupera tu cuenta',
-        },
-        P1: {
-          en: 'To recover your account, please click the button below:',
-          es: 'Para recuperar tu cuenta, haz click en el botón de abajo:',
-        },
-        BTN_LABEL: {
-          en: 'Recover Password',
-          es: 'Recuperar Contraseña',
-        },
-      };
+      const translate = MailerProvider.instance[id].translateTemplates.recoverEmail;
       const sendResult = await MailerProvider.send({
         id,
         sendOptions: {
@@ -98,7 +85,7 @@ const UserService = {
           },
         );
       }
-      const translate = MailerProvider.instance[id].translateTemplates.default;
+      const translate = MailerProvider.instance[id].translateTemplates.confirmEmail;
       const sendResult = await MailerProvider.send({
         id,
         sendOptions: {
