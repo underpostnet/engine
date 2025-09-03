@@ -133,22 +133,56 @@ const copyData = (data) =>
 const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().then((clipText) => resolve(clipText)));
 
 /**
- * The setPath function in JavaScript updates the browser's history with a new path, state, and title.
- * @param path - The `path` parameter is a string that represents the URL path where you want to
- * navigate or update in the browser history. It is the first parameter in the `setPath` function and
- * has a default value of `'/'`.
- * @param stateStorage - The `stateStorage` parameter in the `setPath` function is an object that
- * represents the state object associated with the new history entry. It is used to store data related
- * to the state of the application when navigating to a new path using `history.pushState()`. This data
- * can be accessed later
- * @param title - The `title` parameter in the `setPath` function is a string that represents the
- * title of the new history entry. It is used as the title of the new history entry in the browser's
- * history.
- * @memberof VanillaJS
+ * Normalize a path/URL (ensure leading slash, collapse duplicate slashes,
+ * keep query + hash, remove trailing slash except for root).
+ * Examples:
+ *  - 'a/b' -> '/a/b'
+ *  - '/a//b/' -> '/a/b'
+ *  - 'https://example.com/a/b?q=1#top' -> '/a/b?q=1#top' (origin ignored)
+ *  - '#section' -> '/current/path#section' (resolved relative by new URL)
+ */
+function normalizePath(input) {
+  // ensure string and trim
+  if (typeof input !== 'string') input = String(input ?? '');
+  input = input.trim();
+
+  // empty -> root
+  if (input === '') return '/';
+
+  // Use URL to parse relative or absolute paths relative to current origin
+  let url;
+  try {
+    url = new URL(input, window.location.origin);
+  } catch (e) {
+    // fallback (very rare)
+    input = input.replace(/\s+/g, ''); // remove problematic spaces
+    input = input.replace(/\/+/g, '/'); // collapse multiple '/'
+    if (!input.startsWith('/')) input = '/' + input;
+    if (input.length > 1 && input.endsWith('/')) input = input.slice(0, -1);
+    return input;
+  }
+
+  // Normalize pathname: collapse slashes, ensure leading slash, remove trailing except root
+  let pathname = url.pathname.replace(/\/+/g, '/');
+  if (!pathname.startsWith('/')) pathname = '/' + pathname;
+  if (pathname.length > 1 && pathname.endsWith('/')) pathname = pathname.slice(0, -1);
+
+  // Rebuild: pathname + search + hash
+  return pathname + url.search + url.hash;
+}
+
+/**
+ * Improved setPath: normalizes path and avoids pushState if nothing changes.
  */
 const setPath = (path = '/', stateStorage = {}, title = '') => {
-  if (window.location.pathname === path || window.location.pathname === `${path}/`) return;
-  return history.pushState(stateStorage, title, path);
+  const normalized = normalizePath(path);
+
+  // Compare the full form (pathname + search + hash) with current
+  const currentFull = window.location.pathname + window.location.search + window.location.hash;
+  if (currentFull === normalized) return; // nothing to do
+
+  // pushState: third arg should be a path relative to same origin (we pass normalized)
+  return history.pushState(stateStorage, title, normalized);
 };
 
 /**
