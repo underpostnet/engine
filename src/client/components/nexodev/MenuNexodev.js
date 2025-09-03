@@ -736,6 +736,8 @@ const MenuNexodev = {
 
     EventsUI.onClick(`.main-btn-docs`, async () => {
       setTimeout(async () => {
+        s(`.btn-icon-menu-back`).classList.remove('hide');
+
         htmls(`.nav-title-display-modal-menu`, html`<i class="fas fa-book"></i> ${Translate.Render('docs')}`);
         await Docs.Init({
           idModal: 'modal-docs',

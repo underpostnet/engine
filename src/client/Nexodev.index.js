@@ -19,90 +19,206 @@ import { Scroll } from './components/core/Scroll.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 
 const htmlMainBody = async () => {
+  // Add global styles with animations
+  const style = document.createElement('style');
+  style.textContent = css`
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .landing-page {
+      opacity: 0;
+      animation: fadeIn 0.6s ease-out forwards;
+    }
+
+    .hero h1 {
+      animation: fadeInUp 0.8s ease-out 0.2s forwards;
+      opacity: 0;
+    }
+
+    .hero .lead {
+      animation: fadeInUp 0.8s ease-out 0.4s forwards;
+      opacity: 0;
+    }
+
+    .cta-buttons {
+      animation: fadeInUp 0.8s ease-out 0.6s forwards;
+      opacity: 0;
+    }
+
+    .hero-image {
+      animation: slideIn 0.8s ease-out 0.8s forwards;
+      opacity: 0;
+      transform: translateX(30px);
+    }
+
+    .feature-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      opacity: 0;
+      animation: fadeInUp 0.6s ease-out forwards;
+      animation-delay: calc(var(--index) * 0.15s);
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+    }
+
+    .feature-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      transition: transform 0.3s ease;
+    }
+
+    .feature-card:hover .feature-icon {
+      transform: scale(1.1);
+    }
+
+    .btn {
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.6s ease, height 0.6s ease;
+    }
+
+    .btn:hover:after {
+      width: 300px;
+      height: 300px;
+      opacity: 0;
+    }
+  `;
+  document.head.appendChild(style);
+
   return html`
     <div class="landing-page">
       <!-- Hero Section -->
       <header class="hero">
         <div class="hero-content">
-          <h1>Welcome to Our Platform</h1>
-          <p class="lead">Experience the next generation of web applications with our powerful PWA solution.</p>
+          <h1>Transform Your Business</h1>
+          <p class="lead">
+            Specializing in custom ERP & CRM development and cloud DevOps services to streamline your operations and
+            drive growth.
+          </p>
           <div class="cta-buttons">
-            <button class="btn btn-primary" id="getStartedBtn">Get Started</button>
-            <button class="btn btn-outline" id="learnMoreBtn">Learn More</button>
+            <button class="btn btn-primary" id="getStartedBtn">Get Free Consultation</button>
+            <button class="btn btn-outline" id="learnMoreBtn">Our Services</button>
           </div>
         </div>
         <div class="hero-image">
           <img
             class="img-fluid in"
-            style=" top: 50px; margin: auto; width: 80%; max-width: 400px"
+            style="top: 50px; margin: auto; width: 80%; max-width: 400px; border-radius: 12px;"
             src="${getProxyPath()}assets/generic/apps2.png"
-            alt="App Illustration"
+            alt="Business Process Automation"
           />
         </div>
       </header>
 
       <!-- Features Section -->
       <section class="features">
-        <h2>Why Choose Us</h2>
+        <h2 style="opacity: 0; animation: fadeInUp 0.6s ease-out 1s forwards;">Our Core Services</h2>
         <div class="feature-grid">
-          <div class="feature-card">
-            <div class="feature-icon">🚀</div>
-            <h3>Lightning Fast</h3>
-            <p>Optimized for performance and speed.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">📱</div>
-            <h3>Fully Responsive</h3>
-            <p>Works on all devices and screen sizes.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">🔒</div>
-            <h3>Secure</h3>
-            <p>Your data is always protected.</p>
-          </div>
+          ${['ERP Development', 'CRM Solutions', 'Cloud DevOps']
+            .map(
+              (title, index) => html`
+                <div class="feature-card" style="--index: ${index + 1};">
+                  <div class="feature-icon">${['📊 ', '👥', '☁️'][index]}</div>
+                  <h3>${title}</h3>
+                  <p>
+                    ${[
+                      'Custom enterprise resource planning systems tailored to your business needs and workflows.',
+                      'Comprehensive customer relationship management solutions to enhance engagement and sales.',
+                      'End-to-end cloud infrastructure and DevOps services for seamless deployment and scaling.',
+                    ][index]}
+                  </p>
+                </div>
+              `,
+            )
+            .join('')}
         </div>
       </section>
 
       <!-- CTA Section -->
-      <section class="cta-section">
-        <h2>Ready to Get Started?</h2>
-        <p>Join thousands of satisfied users today.</p>
-        <button class="btn btn-primary btn-lg">Sign Up Now</button>
+      <section class="cta-section" style="opacity: 0; animation: fadeInUp 0.6s ease-out 1.5s forwards;">
+        <h2>Ready to Transform Your Business?</h2>
+        <p>Join businesses that trust Nexodev for their digital transformation journey.</p>
+        <button class="btn btn-primary btn-lg">Start Your Project</button>
       </section>
 
       <!-- Footer -->
       <footer class="footer">
         <div class="footer-content">
           <div class="footer-section">
-            <h3>About Us</h3>
-            <p>Building the future of web applications with cutting-edge technology and user-centric design.</p>
+            <h3>About Nexodev</h3>
+            <p>
+              Empowering businesses with cutting-edge ERP, CRM, and cloud DevOps solutions to achieve operational
+              excellence.
+            </p>
           </div>
           <div class="footer-section">
             <h3>Quick Links</h3>
             <ul>
-              <li><a href="#features">Features</a></li>
-              <li><a href="#pricing">Pricing</a></li>
-              <li><a href="#contact">Contact</a></li>
-              <li><a href="#blog">Blog</a></li>
+              <li><a href="#services">Our Services</a></li>
+              <li><a href="#solutions">Solutions</a></li>
+              <li><a href="#case-studies">Case Studies</a></li>
+              <li><a href="#contact">Contact Us</a></li>
             </ul>
           </div>
           <div class="footer-section">
             <h3>Connect With Us</h3>
             <div class="social-links">
-              <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
-              <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
               <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+              <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+              <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
               <a href="#" aria-label="Discord"><i class="fab fa-discord"></i></a>
             </div>
           </div>
         </div>
         <div class="footer-bottom">
-          <p>&copy; ${new Date().getFullYear()} Your Company. All rights reserved.</p>
-          <div class="footer-links">
-            <a href="#privacy">Privacy Policy</a>
-            <span>•</span>
-            <a href="#terms">Terms of Service</a>
-          </div>
+          <p>&copy; ${new Date().getFullYear()} Nexodev. All rights reserved.</p>
         </div>
       </footer>
     </div>
