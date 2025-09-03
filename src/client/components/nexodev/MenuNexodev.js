@@ -318,7 +318,10 @@ const MenuNexodev = {
       const srcLogo = darkTheme
         ? `${getProxyPath()}assets/logo/nexodev-white-t.png`
         : `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
-      htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+      htmls(
+        '.action-btn-app-icon-render',
+        html`<img class="inl top-bar-app-icon" src="${srcLogo}" /> ${boxShadow({ selector: '.docs-card' })}`,
+      );
       if (darkTheme) {
         const backgroundImage = `${getProxyPath()}assets/background/dark-purple.jpg`;
         htmls(
@@ -328,7 +331,7 @@ const MenuNexodev = {
               background-image: url('${backgroundImage}');
             }
             .docs-card:hover {
-              color: ${lightenHex(subThemeManager.darkColor, 0.8)};
+              color: #d4d4d4;
               background-color: ${darkenHex(subThemeManager.darkColor, 0.75)};
             }
           `,
@@ -860,25 +863,9 @@ const MenuNexodev = {
                 flex-direction: column;
                 height: 100%;
                 position: relative;
-                overflow: hidden;
-                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                will-change: transform, box-shadow;
+                transition: all 0.3s ease-in-out;
               }
-              .docs-card::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 4px;
-                transition: all 0.3s ease;
-              }
-              .docs-card:hover {
-                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-              }
-              .docs-card:hover::before {
-                opacity: 0.2;
-              }
+
               .card-icon {
                 font-size: 1.75rem;
                 width: 56px;
@@ -890,9 +877,7 @@ const MenuNexodev = {
                 margin: 0 0 1.25rem;
                 transition: transform 0.2s ease;
               }
-              .docs-card:hover .card-icon {
-                transform: scale(1.1);
-              }
+
               .card-content {
                 flex: 1;
               }

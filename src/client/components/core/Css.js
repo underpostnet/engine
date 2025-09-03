@@ -233,18 +233,29 @@ const borderChar = (px, color, selectors, hover = false) => {
     ${color}, ${px}px ${px}px ${px}px ${color};
   `;
 };
-
 const boxShadow = ({ selector }) => html`
-  <style>
-    ${selector} {
-      box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-    }
-    ${selector}:hover {
-      box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
-    }
-  </style>
+  ${darkTheme
+    ? html`
+        <style>
+          ${selector} {
+            box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.1), 0 6px 20px 0 rgba(255, 255, 255, 0.08);
+          }
+          ${selector}:hover {
+            box-shadow: 0 8px 16px 0 rgba(255, 255, 255, 0.15), 0 10px 30px 0 rgba(255, 255, 255, 0.1);
+          }
+        </style>
+      `
+    : html`
+        <style>
+          ${selector} {
+            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+          }
+          ${selector}:hover {
+            box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+          }
+        </style>
+      `}
 `;
-
 const renderMediaQuery = (mediaData) => {
   //  first limit should be '0'
   return html`
