@@ -1,7 +1,19 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, ThemeEvents, Themes, borderChar, boxShadow, cssEffect, darkTheme, renderCssAttr } from '../core/Css.js';
+import {
+  Css,
+  ThemeEvents,
+  Themes,
+  borderChar,
+  boxShadow,
+  cssEffect,
+  darkTheme,
+  renderCssAttr,
+  subThemeManager,
+  darkenHex,
+  lightenHex,
+} from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -813,6 +825,8 @@ const MenuNexodev = {
               .docs-header {
                 text-align: center;
                 margin-bottom: 3rem;
+                opacity: 0;
+                animation: fadeInUp 0.6s ease-out forwards;
               }
               .docs-header h1 {
                 font-size: 2.5rem;
@@ -833,6 +847,12 @@ const MenuNexodev = {
                 padding: 0;
                 list-style: none;
               }
+              .docs-card-container {
+                cursor: pointer;
+                opacity: 0;
+                margin-bottom: 3rem;
+                animation: fadeInUp 0.6s ease-out forwards;
+              }
               .docs-card {
                 border-radius: 8px;
                 padding: 1.5rem;
@@ -851,12 +871,10 @@ const MenuNexodev = {
                 left: 0;
                 right: 0;
                 height: 4px;
-                opacity: 0.1;
-                transition: opacity 0.2s ease;
+                transition: all 0.3s ease;
               }
               .docs-card:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
               }
               .docs-card:hover::before {
                 opacity: 0.2;
@@ -885,13 +903,21 @@ const MenuNexodev = {
               }
               .card-content p {
                 margin: 0;
-                line-height: 1.6;
                 font-size: 0.95rem;
+                transition: color 0.3s ease;
               }
-              .docs-card-container {
-                cursor: pointer;
-                margin-bottom: 50px;
-              }
+            </style>
+
+            <style>
+              ${docsData
+                .map(
+                  (_, index) => css`
+                    .docs-card-container:nth-child(${index + 1}) {
+                      animation-delay: ${0.1 * (index + 1)}s;
+                    }
+                  `,
+                )
+                .join('')}
             </style>
 
             <div class="docs-landing">

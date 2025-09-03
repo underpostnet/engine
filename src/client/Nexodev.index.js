@@ -81,7 +81,6 @@ const htmlMainBody = async () => {
     }
 
     .feature-card {
-      background: var(--card-bg);
       border-radius: 12px;
       padding: 2rem;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
