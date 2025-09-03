@@ -32,6 +32,9 @@ const UserService = {
       const payloadToken = hashJWT({ email: req.body.email }, '15m');
       const id = `${options.host}${options.path}`;
       const translate = MailerProvider.instance[id].translateTemplates.recoverEmail;
+      const recoverUrl = `${process.env === 'development' ? 'http://' : 'https://'}${req.hostname}${
+        req.body.proxyPath
+      }recover?payload=${payloadToken}`;
       const sendResult = await MailerProvider.send({
         id,
         sendOptions: {
@@ -43,11 +46,7 @@ const UserService = {
             .replace('{{P1}}', translate.P1[req.lang])
             .replace('{{TOKEN}}', token)
             .replace(`{{COMPANY}}`, req.hostname) // html body
-            .replace(
-              '{{RECOVER_WEB_URL}}',
-              `${process.env === 'development' ? 'http://' : 'https://'}${req.hostname}${req.body.proxyPath}recover
-              }?payload=${payloadToken}`,
-            )
+            .replace('{{RECOVER_WEB_URL}}', recoverUrl)
             .replace('{{RECOVER_BTN_LABEL}}', translate.BTN_LABEL[req.lang]),
 
           attachments: [
