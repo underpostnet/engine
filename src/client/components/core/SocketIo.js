@@ -21,7 +21,7 @@ const SocketIo = {
   },
   Init: async function (options) {
     if (this.socket) this.socket.disconnect();
-    this.host = getWsBaseUrl({ wsBasePath: '' });
+    this.host = options.host ?? getWsBaseUrl({ wsBasePath: '' });
     logger.info(`ws host:`, this.host);
     const path = getWsBasePath();
     const connectOptions = {

@@ -31,7 +31,10 @@ window.onload = () =>
       await TranslateDefault.Init();
       await Responsive.Init();
       await MenuDefault.Render({ htmlMainBody });
-      await SocketIo.Init({ channels: ElementsDefault.Data });
+      await SocketIo.Init({
+        channels: ElementsDefault.Data,
+        host: `${Worker.devMode() ? undefined : 'wss://www.nexodev.org'}`,
+      });
       await SocketIoDefault.Init();
       await LogInDefault();
       await LogOutDefault();
