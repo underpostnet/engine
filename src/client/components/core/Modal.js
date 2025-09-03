@@ -28,7 +28,7 @@ import { setDocTitle, closeModalRouteChangeEvent, handleModalViewRoute } from '.
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
 import { Translate } from './Translate.js';
-import { Input } from './Input.js';
+import { Input, isTextInputFocused } from './Input.js';
 import { Validator } from './Validator.js';
 import { DropDown } from './DropDown.js';
 import { Keyboard } from './Keyboard.js';
@@ -1000,6 +1000,7 @@ const Modal = {
                     ['Alt', 'k'],
                   ],
                   eventCallBack: () => {
+                    if (isTextInputFocused()) return;
                     if (s(`.top-bar-search-box`)) {
                       if (s(`.main-body-btn-ui-close`).classList.contains('hide')) {
                         s(`.main-body-btn-ui-open`).click();

@@ -359,4 +359,9 @@ const InputFile = {
   },
 };
 
-export { Input, InputFile, fileFormDataFactory, getSrcFromFileData, getFileFromFileData };
+function isTextInputFocused() {
+  const active = document.activeElement;
+  return active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+}
+
+export { Input, InputFile, fileFormDataFactory, getSrcFromFileData, getFileFromFileData, isTextInputFocused };
