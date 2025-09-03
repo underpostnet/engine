@@ -12,26 +12,21 @@ const RoutesItemledger = () => {
     '/': {
       title: 'Home',
       render: () => Modal.onHomeRouterEvent(),
-      upperCase: false,
     },
     '/home': { title: 'home', render: () => Modal.onHomeRouterEvent() },
-    '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click(),  },
-    '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(),  },
-    '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(),  },
+    '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click() },
+    '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click() },
+    '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click() },
     '/log-out': {
       title: 'log-out',
       render: () => s(`.main-btn-log-out`).click(),
-    
-      ,
     },
     '/account': {
       title: 'account',
       render: () => s(`.main-btn-account`).click(),
-    
-      ,
     },
-    '/docs': { title: 'docs', render: () => s(`.main-btn-docs`).click(),  },
-    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(),  },
+    '/docs': { title: 'docs', render: () => s(`.main-btn-docs`).click() },
+    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click() },
   };
 };
 

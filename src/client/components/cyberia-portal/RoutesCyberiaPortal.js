@@ -14,28 +14,23 @@ const RoutesCyberiaPortal = () => {
       render: () => Modal.onHomeRouterEvent(),
       upperCase: true,
     },
-    '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click(),  },
-    '/server': { title: 'server', render: () => s(`.main-btn-server`).click(),  },
-    '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(),  },
-    '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(),  },
-    '/chat': { title: 'chat', render: () => s(`.main-btn-chat`).click(),  },
+    '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click() },
+    '/server': { title: 'server', render: () => s(`.main-btn-server`).click() },
+    '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click() },
+    '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click() },
+    '/chat': { title: 'chat', render: () => s(`.main-btn-chat`).click() },
     '/log-out': {
       title: 'log-out',
       render: () => s(`.main-btn-log-out`).click(),
-    
-      ,
     },
     '/account': {
       title: 'account',
       render: () => s(`.main-btn-account`).click(),
-    
-      ,
     },
-    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(),  },
+    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click() },
     '/object-layer-engine': {
       title: 'object-layer-engine',
       render: () => s(`.main-btn-object-layer-engine`).click(),
-      ,
     },
   };
 };

@@ -12,7 +12,6 @@ const RoutesDefault = () => {
     '/': {
       title: 'Home',
       render: () => Modal.onHomeRouterEvent(),
-      upperCase: false,
     },
     '/home': { title: 'home', render: () => Modal.onHomeRouterEvent() },
     '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click() },

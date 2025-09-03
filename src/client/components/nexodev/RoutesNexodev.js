@@ -12,7 +12,6 @@ const RoutesNexodev = () => {
     '/': {
       title: 'Home',
       render: () => Modal.onHomeRouterEvent(),
-      upperCase: false,
     },
     '/blog': { title: 'blog', render: () => s(`.main-btn-blog`).click() },
     '/dashboard': { title: 'dashboard', render: () => s(`.main-btn-dashboard`).click() },

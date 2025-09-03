@@ -12,7 +12,6 @@ const RoutesUnderpost = () => {
     '/': {
       title: 'Home',
       render: () => Modal.onHomeRouterEvent(),
-      upperCase: false,
     },
     '/contracultura-cyberpunk': {
       title: 'contracultura-cyberpunk',
