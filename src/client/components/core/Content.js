@@ -7,7 +7,7 @@ import { Modal, renderViewTitle } from './Modal.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { CoreService, getApiBaseUrl } from '../../services/core/core.service.js';
 import { loggerFactory } from './Logger.js';
-import { imageShimmer, renderCssAttr, styleFactory } from './Css.js';
+import { imageShimmer, renderChessPattern, renderCssAttr, styleFactory } from './Css.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -134,13 +134,18 @@ const Content = {
       case 'jpeg':
       case 'webp':
       case 'svg':
+      case 'gif':
       case 'png': {
         const url = options.url
           ? options.url
           : file._id
           ? getApiBaseUrl({ id: file._id, endpoint: 'file/blob' })
           : URL.createObjectURL(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
-        const imgRender = html`<img class="in ${options.class}" ${styleFactory(options.style)} src="${url}" />`;
+        const imgRender = html`<img
+          class="in ${options.class}"
+          ${styleFactory(options.style, `${renderChessPattern(50)}`)}
+          src="${url}"
+        />`;
         render += imgRender;
         break;
       }
