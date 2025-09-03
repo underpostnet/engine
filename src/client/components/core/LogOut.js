@@ -8,7 +8,7 @@ import { Webhook } from './Webhook.js';
 const LogOut = {
   Event: {},
   Trigger: async function (options) {
-    LogIn.Scope.user.main.model.user = {};
+    LogIn.cleanMainUser();
     await Webhook.unregister();
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
     if (s(`.session`))

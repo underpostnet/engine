@@ -189,6 +189,9 @@ const LogIn = {
       </form>
     `;
   },
+  cleanMainUser: () => {
+    LogIn.Scope.user.main.model.user = {};
+  },
 };
 
 export { LogIn };
