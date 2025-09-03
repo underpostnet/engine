@@ -33,7 +33,7 @@ window.onload = () =>
       await MenuDefault.Render({ htmlMainBody });
       await SocketIo.Init({
         channels: ElementsDefault.Data,
-        host: `${Worker.devMode() ? undefined : 'wss://www.nexodev.org'}`,
+        path: `/`,
       });
       await SocketIoDefault.Init();
       await LogInDefault();

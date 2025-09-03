@@ -23,9 +23,9 @@ const SocketIo = {
     if (this.socket) this.socket.disconnect();
     this.host = options.host ?? getWsBaseUrl({ wsBasePath: '' });
     logger.info(`ws host:`, this.host);
-    const path = getWsBasePath();
+    const path = typeof options.path === 'string' ? options.path : getWsBasePath();
     const connectOptions = {
-      path,
+      path: path === '/' ? undefined : path,
       // auth: {
       //   token: '',
       // },
