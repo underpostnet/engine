@@ -3,7 +3,7 @@ import { subThemeManager } from '../core/Css.js';
 
 const CssCommonNexodev = async () => {
   subThemeManager.setLightTheme(`#800080`);
-  subThemeManager.setDarkTheme(`#800080`);
+  subThemeManager.setDarkTheme(`#e600e6`);
   CalendarCore.RenderStyle();
   return html``;
 };

@@ -814,7 +814,8 @@ const subThemeManager = {
     this.renderLight = async function () {
       return html`<style>
         button:hover,
-        .a-btn:hover {
+        .a-btn:hover,
+        .main-btn-menu-active {
           color: ${this.lightColor};
           background-color: ${lightenHex(this.lightColor, 0.8)};
         }
@@ -827,7 +828,8 @@ const subThemeManager = {
     this.renderDark = async function () {
       return html`<style>
         button:hover,
-        .a-btn:hover {
+        .a-btn:hover,
+        .main-btn-menu-active {
           color: ${lightenHex(this.darkColor, 0.8)};
           background-color: ${darkenHex(this.darkColor, 0.75)};
         }
