@@ -3,6 +3,7 @@ import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import UnderpostDeploy from './deploy.js';
+import UnderpostCron from './cron.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -216,11 +217,16 @@ class UnderpostDB {
         }
       }
     },
-    async updateDashboardData() {
+    async updateDashboardData(
+      deployId = process.env.DEFAULT_DEPLOY_ID,
+      host = process.env.DEFAULT_DEPLOY_HOST,
+      path = process.env.DEFAULT_DEPLOY_PATH,
+    ) {
       try {
-        const deployId = process.env.DEFAULT_DEPLOY_ID;
-        const host = process.env.DEFAULT_DEPLOY_HOST;
-        const path = process.env.DEFAULT_DEPLOY_PATH;
+        deployId = deployId ?? process.env.DEFAULT_DEPLOY_ID;
+        host = host ?? process.env.DEFAULT_DEPLOY_HOST;
+        path = path ?? process.env.DEFAULT_DEPLOY_PATH;
+
         const { db } = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'))[host][
           path
         ];
@@ -263,6 +269,28 @@ class UnderpostDB {
               await new Instance(body).save();
             }
           }
+        }
+
+        await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+      } catch (error) {
+        logger.error(error, error.stack);
+      }
+
+      try {
+        const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+        const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
+        const { db } = confServer[host][path];
+
+        await DataBaseProvider.load({ apis: ['cron'], host, path, db });
+
+        /** @type {import('../api/cron/cron.model.js').CronModel} */
+        const Cron = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Cron;
+
+        await Cron.deleteMany();
+
+        for (const cronInstance of UnderpostCron.NETWORK) {
+          logger.info('save', cronInstance);
+          await new Cron(cronInstance).save();
         }
 
         await DataBaseProvider.instance[`${host}${path}`].mongoose.close();

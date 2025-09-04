@@ -87,32 +87,6 @@ class UnderpostCron {
         if (UnderpostCron.JOB[jobId]) await UnderpostCron.JOB[jobId].callback(deployList, options);
       }
     },
-    async updateDashboardData() {
-      try {
-        const deployId = process.env.DEFAULT_DEPLOY_ID;
-        const host = process.env.DEFAULT_DEPLOY_HOST;
-        const path = process.env.DEFAULT_DEPLOY_PATH;
-        const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-        const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
-        const { db } = confServer[host][path];
-
-        await DataBaseProvider.load({ apis: ['cron'], host, path, db });
-
-        /** @type {import('../api/cron/cron.model.js').CronModel} */
-        const Cron = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Cron;
-
-        await Cron.deleteMany();
-
-        for (const cronInstance of UnderpostCron.NETWORK) {
-          logger.info('save', cronInstance);
-          await new Cron(cronInstance).save();
-        }
-
-        await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
-      } catch (error) {
-        logger.error(error, error.stack);
-      }
-    },
   };
 }
 
