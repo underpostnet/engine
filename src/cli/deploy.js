@@ -446,60 +446,6 @@ Password: <Your Key>
         totalPods: UnderpostRootEnv.API.get('total-pods'),
       };
     },
-    async updateDashboardData() {
-      try {
-        const deployId = process.env.DEFAULT_DEPLOY_ID;
-        const host = process.env.DEFAULT_DEPLOY_HOST;
-        const path = process.env.DEFAULT_DEPLOY_PATH;
-        const { db } = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'))[host][
-          path
-        ];
-
-        await DataBaseProvider.load({ apis: ['instance'], host, path, db });
-
-        /** @type {import('../api/instance/instance.model.js').InstanceModel} */
-        const Instance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Instance;
-
-        await Instance.deleteMany();
-
-        for (const _deployId of deployList.split(',')) {
-          const deployId = _deployId.trim();
-          if (!deployId) continue;
-          const confServer = loadReplicas(
-            JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
-            'proxy',
-          );
-          const router = await UnderpostDeploy.API.routerFactory(deployId, env);
-          const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
-
-          for (const host of Object.keys(confServer)) {
-            for (const { path, port } of pathPortAssignmentData[host]) {
-              if (!confServer[host][path]) continue;
-
-              const { client, runtime, apis } = confServer[host][path];
-
-              const body = {
-                deployId,
-                host,
-                path,
-                port,
-                client,
-                runtime,
-                apis,
-              };
-
-              logger.info('save', body);
-
-              await new Instance(body).save();
-            }
-          }
-        }
-
-        await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
-      } catch (error) {
-        logger.error(error, error.stack);
-      }
-    },
     existsContainerFile({ podName, path }) {
       return JSON.parse(
         shellExec(`kubectl exec ${podName} -- test -f ${path} && echo "true" || echo "false"`, {

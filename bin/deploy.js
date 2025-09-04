@@ -1015,43 +1015,6 @@ EOF`);
       break;
     }
 
-    case 'update-instances': {
-      shellExec(`node bin deploy dd production --sync --build-manifest --info-router --dashboard-update`);
-      shellExec(`node bin cron --dashboard-update --init`);
-      const deployId = 'dd-core';
-      const host = 'www.nexodev.org';
-      const path = '/';
-
-      {
-        const outputPath = './engine-private/instances';
-        if (fs.existsSync(outputPath)) fs.mkdirSync(outputPath, { recursive: true });
-        const collection = 'instances';
-        if (process.argv.includes('export'))
-          shellExec(
-            `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
-          );
-        if (process.argv.includes('import'))
-          shellExec(
-            `node bin db --import --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
-          );
-      }
-      {
-        const outputPath = './engine-private/crons';
-        if (fs.existsSync(outputPath)) fs.mkdirSync(outputPath, { recursive: true });
-        const collection = 'crons';
-        if (process.argv.includes('export'))
-          shellExec(
-            `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
-          );
-        if (process.argv.includes('import'))
-          shellExec(
-            `node bin db --import --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
-          );
-      }
-
-      break;
-    }
-
     case 'cli-docs': {
       buildCliDoc(program, process.argv[3], process.argv[4]);
       break;
