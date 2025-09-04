@@ -235,6 +235,18 @@ program
   .description('Manages database operations, including import, export, and collection management.')
   .action(Underpost.db.callback);
 
+program
+  .command('metadata')
+  .argument('[deploy-id]', 'The deployment ID to manage metadata.')
+  .argument('[host]', 'The host to manage metadata.')
+  .argument('[path]', 'The path to manage metadata.')
+  .option('--import', 'Imports from local storage.')
+  .option('--export', 'Exports to local storage.')
+  .option('--crons', 'Apply to cron data collection')
+  .option('--instances', 'Apply to instance data collection')
+  .description('Manages cluster metadata operations, including import and export.')
+  .action(Underpost.db.clusterMetadataBackupCallback);
+
 // 'script' command: Execute scripts
 program
   .command('script')

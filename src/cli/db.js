@@ -270,33 +270,43 @@ class UnderpostDB {
         logger.error(error, error.stack);
       }
     },
-    instanceDataManageCallback() {
-      const deployId = 'dd-core';
-      const host = 'www.nexodev.org';
-      const path = '/';
+    clusterMetadataBackupCallback(
+      deployId = process.env.DEFAULT_DEPLOY_ID,
+      host = process.env.DEFAULT_DEPLOY_HOST,
+      path = process.env.DEFAULT_DEPLOY_PATH,
+      options = {
+        import: false,
+        export: false,
+        instances: false,
+        crons: false,
+      },
+    ) {
+      deployId = deployId ?? process.env.DEFAULT_DEPLOY_ID;
+      host = host ?? process.env.DEFAULT_DEPLOY_HOST;
+      path = path ?? process.env.DEFAULT_DEPLOY_PATH;
 
-      {
+      if (options.instances === true) {
         const outputPath = './engine-private/instances';
         if (fs.existsSync(outputPath)) fs.mkdirSync(outputPath, { recursive: true });
         const collection = 'instances';
-        if (process.argv.includes('export'))
+        if (options.export === true)
           shellExec(
             `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
           );
-        if (process.argv.includes('import'))
+        if (options.import === true)
           shellExec(
             `node bin db --import --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
           );
       }
-      {
+      if (options.crons === true) {
         const outputPath = './engine-private/crons';
         if (fs.existsSync(outputPath)) fs.mkdirSync(outputPath, { recursive: true });
         const collection = 'crons';
-        if (process.argv.includes('export'))
+        if (options.export === true)
           shellExec(
             `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
           );
-        if (process.argv.includes('import'))
+        if (options.import === true)
           shellExec(
             `node bin db --import --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
           );
