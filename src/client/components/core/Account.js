@@ -103,7 +103,11 @@ const Account = {
             e.preventDefault();
             const result = await UserService.post({
               id: 'mailer/verify-email',
-              body: { email: s(`.account-email`).value },
+              body: {
+                email: s(`.account-email`).value,
+                hostname: `${location.hostname}`,
+                proxyPath: getProxyPath(),
+              },
             });
             NotificationManager.Push({
               html: result.status === 'error' ? result.message : Translate.Render(`email send`),

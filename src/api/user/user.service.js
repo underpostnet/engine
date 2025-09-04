@@ -32,7 +32,7 @@ const UserService = {
       const payloadToken = hashJWT({ email: req.body.email }, '15m');
       const id = `${options.host}${options.path}`;
       const translate = MailerProvider.instance[id].translateTemplates.recoverEmail;
-      const recoverUrl = `${process.env.NODE_ENV === 'development' ? 'http://' : 'https://'}${req.hostname}${
+      const recoverUrl = `${process.env.NODE_ENV === 'development' ? 'http://' : 'https://'}${req.body.hostname}${
         req.body.proxyPath
       }recover?payload=${payloadToken}`;
       const sendResult = await MailerProvider.send({
@@ -45,7 +45,7 @@ const UserService = {
             .replace('{{H1}}', translate.H1[req.lang])
             .replace('{{P1}}', translate.P1[req.lang])
             .replace('{{TOKEN}}', token)
-            .replace(`{{COMPANY}}`, req.hostname) // html body
+            .replace(`{{COMPANY}}`, req.body.hostname) // html body
             .replace('{{RECOVER_WEB_URL}}', recoverUrl)
             .replace('{{RECOVER_BTN_LABEL}}', translate.BTN_LABEL[req.lang]),
 
@@ -94,7 +94,7 @@ const UserService = {
             .replace('{{H1}}', translate.H1[req.lang])
             .replace('{{P1}}', translate.P1[req.lang])
             .replace('{{TOKEN}}', token)
-            .replace(`{{COMPANY}}`, req.hostname), // html body
+            .replace(`{{COMPANY}}`, req.body.hostname), // html body
           attachments: [
             // {
             //   filename: 'logo.png',

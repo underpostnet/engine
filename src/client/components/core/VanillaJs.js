@@ -147,21 +147,40 @@ const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().
  * @memberof VanillaJS
  */
 const setPath = (path = '/', stateStorage = {}, title = '') => {
-  const originPath = `${path}`;
-  let _path = (!path ? '/' : path[0] !== '/' ? `/${path}` : path).trim().replaceAll('//', '/').replaceAll(`\\`, '/');
-  if (_path.length > 1 && _path[_path.length - 1] === '/') _path = _path.slice(0, -1);
-  if (
-    window.location.pathname === _path &&
-    (!location.search || location.search.split('?')[1] === originPath.split('?')[1])
-  ) {
-    console.warn('prevent overwriting same path', {
-      originPath: originPath,
-      currentPath: _path,
-      search: location.search,
+  if (!path) path = '/';
+
+  const [inputPath, inputSearch] = `${path}`.split('?');
+
+  let sanitizedPath = (inputPath[0] !== '/' ? `/${inputPath}` : inputPath)
+    .trim()
+    .replaceAll('//', '/')
+    .replaceAll(`\\`, '/');
+
+  if (sanitizedPath.length > 1 && sanitizedPath[sanitizedPath.length - 1] === '/')
+    sanitizedPath = sanitizedPath.slice(0, -1);
+
+  if (window.location.pathname === sanitizedPath && (!inputSearch || inputSearch === location.search)) {
+    console.warn('Prevent overwriting same path', {
+      inputPath: inputPath,
+      inputSearch: inputSearch,
+      sanitizedPath: sanitizedPath,
+      currentLocationSearch: location.search,
+      currentLocationHash: location.hash,
     });
     return;
   }
-  return history.pushState(stateStorage, title, _path);
+  console.warn('Set path', {
+    inputPath: inputPath,
+    inputSearch: inputSearch,
+    sanitizedPath: sanitizedPath,
+    currentLocationSearch: location.search,
+    currentLocationHash: location.hash,
+  });
+  return history.pushState(
+    stateStorage,
+    title,
+    `${sanitizedPath}${inputSearch ? `?${inputSearch}` : ''}${location.hash ?? ''}`,
+  );
 };
 
 /**

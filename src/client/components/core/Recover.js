@@ -81,6 +81,7 @@ const Recover = {
         switch (mode) {
           case 'recover-verify-email': {
             body.proxyPath = getProxyPath();
+            body.hostname = `${location.hostname}`;
             const result = await UserService.post({ id: 'recover-verify-email', body });
             NotificationManager.Push({
               html:
