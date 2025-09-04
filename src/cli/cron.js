@@ -50,7 +50,7 @@ class UnderpostCron {
     callback: async function (
       deployList = 'default',
       jobList = Object.keys(UnderpostCron.JOB),
-      options = { itc: false, init: false, git: false, dashboardUpdate: false },
+      options = { itc: false, init: false, git: false },
     ) {
       if (options.init === true) {
         UnderpostCron.NETWORK = [];
@@ -61,7 +61,7 @@ class UnderpostCron {
           for (const job of Object.keys(confCronConfig.jobs)) {
             const name = `${jobDeployId}-${job}`;
             let deployId;
-            if (!options.dashboardUpdate) shellExec(Cmd.delete(name));
+            shellExec(Cmd.delete(name));
             switch (job) {
               case 'dns':
                 deployId = jobDeployId;
@@ -71,8 +71,7 @@ class UnderpostCron {
                 deployId = deployList;
                 break;
             }
-            if (!options.dashboardUpdate)
-              shellExec(Cmd.cron(deployId, job, name, confCronConfig.jobs[job].expression, options));
+            shellExec(Cmd.cron(deployId, job, name, confCronConfig.jobs[job].expression, options));
             UnderpostCron.NETWORK.push({
               deployId,
               jobId: job,

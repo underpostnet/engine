@@ -242,7 +242,6 @@ spec:
         cert: false,
         versions: '',
         traffic: '',
-        dashboardUpdate: false,
         replicas: '',
         restoreHosts: false,
         disableUpdateDeployment: false,
