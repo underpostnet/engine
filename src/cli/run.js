@@ -76,6 +76,11 @@ class UnderpostRun {
       shellExec(`${baseCommand} deploy --expose mongo`, { async: true });
       shellExec(`${baseCommand} deploy --expose valkey`, { async: true });
     },
+    'ssh-cluster-info': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const { underpostRoot } = options;
+      shellExec(`chmod +x ${underpostRoot}/manifests/maas/ssh-cluster-info.sh`);
+      shellExec(`${underpostRoot}/manifests/maas/ssh-cluster-info.sh`);
+    },
     'cyberia-ide': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} run ide /home/dd/cyberia-server`);
