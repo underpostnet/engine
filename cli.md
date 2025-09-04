@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.852
+## underpost ci/cd cli v2.8.853
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -23,6 +23,7 @@ Commands:
   dockerfile-pull-base-images [options]                      Pulls required Underpost Dockerfile base images and optionally loads them into clusters.
   install                                                    Quickly imports Underpost npm dependencies by copying them.
   db [options] <deploy-list>                                 Manages database operations, including import, export, and collection management.
+  metadata [options] [deploy-id] [host] [path]               Manages cluster metadata operations, including import and export.
   script [options] <operator> <script-name> [script-value]   Supports a variety of built-in Underpost global scripts, their preset lifecycle events, and arbitrary custom scripts.
   cron [options] [deploy-list] [job-list]                    Manages cron jobs, including initialization, execution, and configuration updates.
   fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
@@ -288,8 +289,6 @@ Options:
   --build-manifest                  Builds Kubernetes YAML manifests, including
                                     deployments, services, proxies, and
                                     secrets.
-  --dashboard-update                Updates dashboard instance data with the
-                                    current router configuration.
   --replicas <replicas>             Sets a custom number of replicas for
                                     deployments.
   --versions <deployment-versions>  A comma-separated list of custom deployment
@@ -302,9 +301,6 @@ Options:
   --kubeadm                         Enables the kubeadm context for deployment
                                     operations.
   --restore-hosts                   Restores default `/etc/hosts` entries.
-  --rebuild-clients-bundle          Inside the container, rebuilds client
-                                    bundles (only static public or storage
-                                    client files).
   -h, --help                        display help for command
  
 ```
@@ -427,6 +423,27 @@ Options:
 ```
   
 
+### `metadata` :
+```
+ Usage: underpost metadata [options] [deploy-id] [host] [path]
+
+Manages cluster metadata operations, including import and export.
+
+Arguments:
+  deploy-id    The deployment ID to manage metadata.
+  host         The host to manage metadata.
+  path         The path to manage metadata.
+
+Options:
+  --import     Imports from local storage.
+  --export     Exports to local storage.
+  --crons      Apply to cron data collection
+  --instances  Apply to instance data collection
+  -h, --help   display help for command
+ 
+```
+  
+
 ### `script` :
 ```
  Usage: underpost script [options] <operator> <script-name> [script-value]
@@ -461,19 +478,16 @@ Manages cron jobs, including initialization, execution, and configuration
 updates.
 
 Arguments:
-  deploy-list         A comma-separated list of deployment IDs (e.g.,
-                      "default-a,default-b").
-  job-list            A comma-separated list of job IDs. Options: callback,
-                      updateDashboardData. Defaults to all available jobs.
+  deploy-list  A comma-separated list of deployment IDs (e.g.,
+               "default-a,default-b").
+  job-list     A comma-separated list of job IDs. Options: callback. Defaults
+               to all available jobs.
 
 Options:
-  --itc               Executes cron jobs within the container execution
-                      context.
-  --init              Initializes cron jobs for the default deployment ID.
-  --git               Uploads cron job configurations to GitHub.
-  --dashboard-update  Updates dashboard cron data with the current job
-                      configurations.
-  -h, --help          display help for command
+  --itc        Executes cron jobs within the container execution context.
+  --init       Initializes cron jobs for the default deployment ID.
+  --git        Uploads cron job configurations to GitHub.
+  -h, --help   display help for command
  
 ```
   
@@ -574,7 +588,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, gpu-env, tf-gpu-test, dev-cluster, cyberia-ide, engine-ide, template-deploy, ssh-deploy, ide, monitor, db-client, cluster, deploy, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, cyberia-ide, engine-ide, template-deploy, ssh-deploy, ide, monitor, db-client, cluster, deploy, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
