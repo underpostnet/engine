@@ -247,7 +247,6 @@ spec:
         restoreHosts: false,
         disableUpdateDeployment: false,
         infoTraffic: false,
-        rebuildClientsBundle: false,
       },
     ) {
       if (options.infoUtil === true)
@@ -315,14 +314,14 @@ Password: <Your Key>
         }
         return;
       }
-      if (options.rebuildClientsBundle === true) await UnderpostDeploy.API.rebuildClientsBundle(deployList);
       if (!(options.versions && typeof options.versions === 'string')) options.versions = 'blue,green';
       if (!options.replicas) options.replicas = 1;
       if (options.sync) UnderpostDeploy.API.sync(deployList, options);
       if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env, options);
-      if (options.infoRouter === true) logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
-      if (options.dashboardUpdate === true) await UnderpostDeploy.API.updateDashboardData(deployList, env, options);
-      if (options.infoRouter === true) return;
+      if (options.infoRouter === true) {
+        logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
+        return;
+      }
       shellExec(`kubectl delete configmap underpost-config`);
       shellExec(
         `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env}`,
@@ -435,23 +434,6 @@ Password: <Your Key>
 
       return result;
     },
-    rebuildClientsBundle(deployList) {
-      for (const _deployId of deployList.split(',')) {
-        const deployId = _deployId.trim();
-        const repoName = `engine-${deployId.split('-')[1]}`;
-
-        shellExec(`underpost script set ${deployId}-client-build '
-cd /home/dd/engine &&
-git checkout . &&
-underpost pull . underpostnet/${repoName} &&
-underpost pull ./engine-private underpostnet/${repoName}-private &&
-underpost env ${deployId} production &&
-node bin/deploy build-full-client ${deployId}
-'`);
-
-        shellExec(`node bin script run ${deployId}-client-build --itc --pod-name ${deployId}`);
-      }
-    },
     resourcesFactory() {
       return {
         requests: {
@@ -465,7 +447,7 @@ node bin/deploy build-full-client ${deployId}
         totalPods: UnderpostRootEnv.API.get('total-pods'),
       };
     },
-    async updateDashboardData(deployList, env, options) {
+    async updateDashboardData() {
       try {
         const deployId = process.env.DEFAULT_DEPLOY_ID;
         const host = process.env.DEFAULT_DEPLOY_HOST;

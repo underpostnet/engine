@@ -80,7 +80,6 @@ class UnderpostCron {
             });
           }
         }
-        if (options.dashboardUpdate === true) await UnderpostCron.API.updateDashboardData();
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         return;
       }
