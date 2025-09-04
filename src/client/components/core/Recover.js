@@ -80,9 +80,10 @@ const Recover = {
         }
         switch (mode) {
           case 'recover-verify-email': {
-            body.proxyPath = getProxyPath();
-            body.hostname = `${location.hostname}`;
-            const result = await UserService.post({ id: 'recover-verify-email', body });
+            const result = await UserService.post({
+              id: 'recover-verify-email',
+              body: { ...body, proxyPath: getProxyPath(), hostname: `${location.hostname}` },
+            });
             NotificationManager.Push({
               html:
                 result.status === 'error' ? result.message : Translate.Render(`${result.status}-recover-verify-email`),
