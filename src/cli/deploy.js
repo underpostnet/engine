@@ -309,6 +309,8 @@ Password: <Your Key>
             deployId,
             env,
             traffic: UnderpostDeploy.API.getCurrentTraffic(deployId),
+            router: await UnderpostDeploy.API.routerFactory(deployId, env),
+            pods: await UnderpostDeploy.API.getCurrentPods(deployId),
           });
         }
         return;
