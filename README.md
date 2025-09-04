@@ -2,9 +2,9 @@
   <img src="https://underpost.net/assets/splash/apple-touch-icon-precomposed.png" alt="underpost engine core server"/>
 </p>
 
-<div align="center" style="font-size: 30px; font-weight: bold;">
+<div align="center">
 
-underpost
+<h1>underpost</h1>
 
 </div>
 
