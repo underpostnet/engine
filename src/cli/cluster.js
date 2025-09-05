@@ -268,9 +268,17 @@ class UnderpostCluster {
       }
 
       if (options.prom && typeof options.prom === 'string') {
-        shellExec(
-          `kubectl create -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/master/bundle.yaml`,
-        );
+        // https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/config-other-methods/prometheus/prometheus-operator/
+        // shellExec(
+        //   `kubectl create -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/master/bundle.yaml`,
+        // );
+        // shellExec(`kubectl apply -f ${underpostRoot}/manifests/prometheus/prometheus-cr.yaml`);
+        // shellExec(`kubectl rollout status sts prometheus-prometheus -n default`);
+        // shellExec(`kubectl apply -f ${underpostRoot}/manifests/prometheus/prometheus-server.yaml`);
+        // shellExec(`helm repo add prometheus-community https://prometheus-community.github.io/helm-charts`);
+        // shellExec(`helm repo update`);
+        // shellExec(`helm install prometheus prometheus-community/prometheus`);
+        // shellExec(`kubectl rollout status deployment prometheus-server -n default`);
       }
 
       if (options.full === true || options.valkey === true) {
