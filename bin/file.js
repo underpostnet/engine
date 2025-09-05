@@ -83,6 +83,7 @@ try {
           './manifests/deployment/dd-lampp-development',
           './manifests/deployment/dd-cyberia-development',
           './manifests/deployment/dd-core-development',
+          './manifests/deployment/dd-template-development',
           'bin/web3.js',
           'bin/cyberia.js',
         ]) {
