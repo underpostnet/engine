@@ -2,21 +2,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dd-template-development-blue
+  name: dd-default-development-blue
   labels:
-    app: dd-template-development-blue
+    app: dd-default-development-blue
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: dd-template-development-blue
+      app: dd-default-development-blue
   template:
     metadata:
       labels:
-        app: dd-template-development-blue
+        app: dd-default-development-blue
     spec:
       containers:
-        - name: dd-template-development-blue
+        - name: dd-default-development-blue
           image: localhost/rockylinux9-underpost:v2.8.853
           #          resources:
           #            requests:
@@ -40,10 +40,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: dd-template-development-blue-service
+  name: dd-default-development-blue-service
 spec:
   selector:
-    app: dd-template-development-blue
+    app: dd-default-development-blue
   ports:
     - name: 'tcp-4001'
       protocol: TCP
@@ -85,21 +85,21 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dd-template-development-green
+  name: dd-default-development-green
   labels:
-    app: dd-template-development-green
+    app: dd-default-development-green
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: dd-template-development-green
+      app: dd-default-development-green
   template:
     metadata:
       labels:
-        app: dd-template-development-green
+        app: dd-default-development-green
     spec:
       containers:
-        - name: dd-template-development-green
+        - name: dd-default-development-green
           image: localhost/rockylinux9-underpost:v2.8.853
           #          resources:
           #            requests:
@@ -124,10 +124,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: dd-template-development-green-service
+  name: dd-default-development-green-service
 spec:
   selector:
-    app: dd-template-development-green
+    app: dd-default-development-green
   ports:
     - name: 'tcp-4001'
       protocol: TCP

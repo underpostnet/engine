@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { createSslServer, sslRedirectMiddleware } from './ssl.js';
-import { buildPortProxyRouter, buildProxyRouter, maintenanceMiddleware } from './conf.js';
+import { buildPortProxyRouter, buildProxyRouter } from './conf.js';
 import UnderpostStartUp from './start.js';
 
 dotenv.config();
@@ -48,7 +48,6 @@ const buildProxy = async () => {
       onProxyReq: (proxyReq, req, res, options) => {
         // https://wtools.io/check-http-status-code
         // http://nexodev.org
-        maintenanceMiddleware(req, res, port, proxyRouter);
         sslRedirectMiddleware(req, res, port, proxyRouter);
       },
       pathRewrite: {

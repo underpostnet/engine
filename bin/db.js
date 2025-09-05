@@ -4,7 +4,7 @@ import { loggerFactory } from '../src/server/logger.js';
 import { MariaDB } from '../src/db/mariadb/MariaDB.js';
 import { Xampp } from '../src/runtime/xampp/Xampp.js';
 import { Lampp } from '../src/runtime/lampp/Lampp.js';
-import { getCapVariableName, getRestoreCronCmd, loadConf, splitFileFactory } from '../src/server/conf.js';
+import { getCapVariableName, loadConf, splitFileFactory } from '../src/server/conf.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { hashPassword } from '../src/server/auth.js';
 
@@ -104,7 +104,6 @@ try {
           }
           break;
         case 'import':
-          shellExec(await getRestoreCronCmd({ host, path, conf: confServer, deployId }));
           break;
         case 'init-xampp-service':
           await Xampp.initService();
@@ -182,7 +181,6 @@ try {
           break;
         case 'import':
           // mongorestore -d <database_name> <directory_backup>
-          shellExec(await getRestoreCronCmd({ host, path, conf: confServer, deployId }));
           break;
         case 'init-service':
           break;

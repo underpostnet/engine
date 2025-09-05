@@ -17,31 +17,17 @@ import {
   addWsConf,
   buildWsSrc,
   cloneSrcComponents,
-  getDeployGroupId,
-  deployRun,
   getDataDeploy,
   buildReplicaId,
   Cmd,
-  restoreMacroDb,
-  fixDependencies,
-  setUpProxyMaintenanceServer,
   writeEnv,
-  getUnderpostRootPath,
   buildCliDoc,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
-import { range, s4, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
-import { MongooseDB } from '../src/db/mongo/MongooseDB.js';
-import { Lampp } from '../src/runtime/lampp/Lampp.js';
 import { DefaultConf } from '../conf.js';
-import { JSONweb } from '../src/server/client-formatted.js';
-
-import { Xampp } from '../src/runtime/xampp/Xampp.js';
-import { ejs } from '../src/server/json-schema.js';
-import { getLocalIPv4Address, ip } from '../src/server/dns.js';
-import { Downloader } from '../src/server/downloader.js';
 import colors from 'colors';
 import { program } from '../src/cli/index.js';
+import { getLocalIPv4Address, ip } from '../src/server/dns.js';
 
 colors.enable();
 
@@ -55,7 +41,8 @@ try {
   switch (operator) {
     case 'save':
       {
-        const deployId = process.argv[3];
+        let deployId = process.argv[3] ?? 'dd-default';
+        if (!deployId.startsWith('dd-')) deployId = 'dd-' + deployId;
         const folder = `./engine-private/conf/${deployId}`;
         if (fs.existsSync(folder)) fs.removeSync(folder);
         await Config.build({ folder });
@@ -258,176 +245,6 @@ try {
       }
       break;
 
-    case 'xampp': {
-      const directory = 'c:/xampp/htdocs';
-      const host = 'localhost';
-      const port = 80;
-      Xampp.removeRouter();
-      Xampp.appendRouter(`  Listen ${port} 
-               <VirtualHost *:${port}>
-                DocumentRoot "${directory}"
-                ServerName ${host}:${port}
-      
-                <Directory "${directory}">
-                  Options Indexes FollowSymLinks MultiViews
-                  AllowOverride All
-                  Require all granted
-                </Directory>
-      
-              </VirtualHost>
-              `);
-      if (Xampp.enabled() && Xampp.router) Xampp.initService({ daemon: true });
-      break;
-    }
-
-    case 'adminer': {
-      const directory = '/home/dd/engine/public/adminer';
-      // const host = '127.0.0.1';
-      const host = 'localhost';
-      const port = 80;
-      if (!process.argv.includes('server')) {
-        if (fs.existsSync(directory)) fs.removeSync(directory);
-        fs.mkdirSync(directory, { recursive: true });
-        shellExec(`cd ${directory} && wget https://www.adminer.org/latest.php -O adminer.php`);
-      }
-      Lampp.removeRouter();
-      Lampp.appendRouter(`  Listen ${port} 
-         <VirtualHost *:${port}>
-          DocumentRoot "${directory}"
-          ServerName ${host}:${port}
-
-          <Directory "${directory}">
-            Options Indexes FollowSymLinks MultiViews
-            AllowOverride All
-            Require all granted
-          </Directory>
-
-        </VirtualHost>
-        `);
-      if (Lampp.enabled() && Lampp.router) Lampp.initService({ daemon: true });
-      shellExec(`open /opt/lampp/apache2/conf/httpd.conf`);
-      break;
-    }
-
-    case 'pma':
-      {
-        const directory = '/home/dd/engine/public/phpmyadmin';
-        // const host = '127.0.0.1';
-        const host = 'localhost';
-        const port = 80;
-        // data config path: /etc/phpmyadmin
-
-        // The config.inc.php file is not required, and only needed for custom configurations
-
-        // phpmyadmin will first refer to ./libraries/config.default.php to retrieve the default values.
-
-        // If for some reason you need to modify the default values, and the ./config.inc.php
-        // file doesn't exist, you will need to create one as per the Installation documentation.
-
-        // You will also need to configure pmadb for some of phpmyadmin's special features such as bookmarks.
-
-        // CREATE USER 'pma'@'localhost' IDENTIFIED VIA mysql_native_password USING 'pmapass';
-        // GRANT SELECT, INSERT, UPDATE, DELETE ON `<pma_db>`.* TO 'pma'@'localhost';
-
-        if (!process.argv.includes('server')) {
-          // if (fs.existsSync(directory)) fs.removeSync(directory);
-          shellExec(`sudo apt install phpmyadmin php-mbstring php-zip php-gd php-json php-curl`);
-          shellExec(`sudo phpenmod mbstring`);
-          shellExec(
-            `cd /usr/share/phpmyadmin && git init && git add . && git commit -m "Base phpMyAdmin implementation"`,
-          );
-        }
-
-        // if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true });
-        // if (!fs.existsSync('./public/phpmyadmin/phpmyadmin'))
-        //   fs.copySync('/usr/share/phpmyadmin', './public/phpmyadmin/phpmyadmin');
-
-        Lampp.removeRouter();
-        Lampp.appendRouter(`  Listen ${port} `);
-        if (Lampp.enabled() && Lampp.router) Lampp.initService({ daemon: true });
-        // shellExec(`open /opt/lampp/apache2/conf/httpd.conf`);
-
-        // Create a link in /var/www like this:
-
-        // sudo ln -s /usr/share/phpmyadmin /var/www/
-
-        // Note: since 14.04 you may want to use /var/www/html/ instead of /var/www/
-
-        // If that's not working for you, you need to include PHPMyAdmin inside apache configuration.
-
-        // Open apache.conf using your favorite editor, mine is vim :)
-
-        // sudo vim /etc/apache2/apache2.conf
-
-        // Then add the following line:
-
-        // Include /etc/phpmyadmin/apache.conf
-
-        // For Ubuntu 15.04 and 16.04
-
-        // sudo ln -s /etc/phpmyadmin/apache.conf /etc/apache2/conf-available/phpmyadmin.conf
-        // sudo a2enconf phpmyadmin.conf
-        // sudo service apache2 reload
-        break;
-        Lampp.appendRouter(`   Listen ${port}
-
-        <VirtualHost *:${port}>
-            DocumentRoot "${directory}"
-            ServerName ${host}:${port}
-
-            <Directory "${directory}">
-              Options Indexes FollowSymLinks MultiViews
-              AllowOverride All
-              Require all granted
-            </Directory>
-
-          </VirtualHost>`);
-        // phpMyAdmin default Apache configuration:
-        Lampp.appendRouter(`
-
-          Listen ${port}
-
-          Alias /phpmyadmin /usr/share/phpmyadmin
-
-<Directory /usr/share/phpmyadmin>
-    Options Indexes FollowSymLinks
-    DirectoryIndex index.php
-
-    <IfModule mod_php5.c>
-        AddType application/x-httpd-php .php
-
-        php_flag magic_quotes_gpc Off
-        php_flag track_vars On
-        php_flag register_globals Off
-        php_value include_path .
-    </IfModule>
-
-</Directory>
-
-# Authorize for setup
-<Directory /usr/share/phpmyadmin/setup>
-    <IfModule mod_authn_file.c>
-    AuthType Basic
-    AuthName "phpMyAdmin Setup"
-    AuthUserFile /etc/phpmyadmin/htpasswd.setup
-    </IfModule>
-    Require valid-user
-</Directory>
-
-# Disallow web access to directories that don't need it
-<Directory /usr/share/phpmyadmin/libraries>
-    Order Deny,Allow
-    Deny from All
-</Directory>
-<Directory /usr/share/phpmyadmin/setup/lib>
-    Order Deny,Allow
-    Deny from All
-</Directory>
-
-          `);
-      }
-      break;
-
     case 'update-dependencies':
       const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
       const originPackage = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
@@ -439,64 +256,6 @@ try {
           deployPackage.devDependencies = originPackage.devDependencies;
           fs.writeFileSync(filePah, JSON.stringify(deployPackage, null, 4), 'utf8');
         }
-      }
-      break;
-
-    case 'run-macro':
-      {
-        if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
-        const dataDeploy = getDataDeploy({
-          deployGroupId: process.argv[3],
-          buildSingleReplica: true,
-          deployIdConcat: ['dd-proxy', 'dd-cron'],
-        });
-        if (!process.argv[4]) await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
-        await deployRun(process.argv[4] ? dataDeploy.filter((d) => d.deployId.match(process.argv[4])) : dataDeploy);
-      }
-      break;
-
-    case 'build-macro':
-      {
-        const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
-        for (const deploy of dataDeploy) {
-          if (!process.argv[4] || (process.argv[4] && process.argv[4] === deploy.deployId)) {
-            shellExec(Cmd.conf(deploy.deployId));
-            shellExec(Cmd.build(deploy.deployId));
-          }
-        }
-      }
-      break;
-    case 'macro': {
-      shellExec(`git checkout .`);
-      shellExec(`node bin/deploy build-macro ${process.argv.slice(3).join(' ')}`);
-      shellExec(`git checkout .`);
-      shellExec(`node bin/deploy run-macro ${process.argv.slice(3).join(' ')}`);
-      break;
-    }
-
-    case 'keep-server': {
-      await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
-      break;
-    }
-    case 'prometheus':
-    case 'prom':
-      {
-        const rangePort = [1, 20];
-        const promConfigPath = `./engine-private/prometheus/prometheus-service-config.yml`;
-        const rawConfig = fs
-          .readFileSync(promConfigPath, 'utf8')
-          .replaceAll(
-            `['']`,
-            JSON.stringify(range(...rangePort).map((i) => `host.docker.internal:30${setPad(i, '0', 2)}`)).replaceAll(
-              `"`,
-              `'`,
-            ),
-          );
-        console.log(rawConfig);
-
-        fs.writeFileSync(promConfigPath, rawConfig, 'utf8');
-
-        shellExec(`docker-compose -f engine-private/prometheus/prometheus-service.yml up -d`);
       }
       break;
 
@@ -584,9 +343,6 @@ try {
       }
       break;
     }
-    case 'build-macro-replica':
-      getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
-      break;
 
     case 'rename-package': {
       const name = process.argv[3];
@@ -663,16 +419,9 @@ try {
       }
 
       fs.writeFileSync(
-        `./docker-compose.yml`,
+        `./manifests/deployment/dd-default-development/deployment.yaml`,
         fs
-          .readFileSync(`./docker-compose.yml`, 'utf8')
-          .replaceAll(`engine.version: '${version}'`, `engine.version: '${newVersion}'`),
-        'utf8',
-      );
-      fs.writeFileSync(
-        `./manifests/deployment/dd-template-development/deployment.yaml`,
-        fs
-          .readFileSync(`./manifests/deployment/dd-template-development/deployment.yaml`, 'utf8')
+          .readFileSync(`./manifests/deployment/dd-default-development/deployment.yaml`, 'utf8')
           .replaceAll(`underpost:v${version}`, `underpost:v${newVersion}`),
         'utf8',
       );
@@ -729,25 +478,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       break;
     }
 
-    case 'restore-macro-db':
-      {
-        const deployGroupId = process.argv[3];
-        const deployId = process.argv[4];
-        await restoreMacroDb(deployGroupId, deployId);
-      }
-
-      break;
-
-    case 'mongo': {
-      await MongooseDB.server();
-      break;
-    }
-
-    case 'lampp': {
-      await Lampp.install();
-      break;
-    }
-
     case 'heb': {
       // https://besu.hyperledger.org/
       // https://github.com/hyperledger/besu/archive/refs/tags/24.9.1.tar.gz
@@ -780,11 +510,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           break;
       }
 
-      break;
-    }
-
-    case 'fix-deps': {
-      await fixDependencies();
       break;
     }
 
@@ -987,37 +712,6 @@ EOF`);
       shellExec(`sudo -i -u postgres createdb -O "$DB_PG_MAAS_USER" "$DB_PG_MAAS_NAME"`);
 
       shellExec(`sudo -i -u postgres psql -c "\\l"`);
-      break;
-    }
-
-    case 'valkey': {
-      if (!process.argv.includes('server')) {
-        if (process.argv.includes('rocky')) {
-          // shellExec(`yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm`);
-          // shellExec(`sudo percona-release enable valkey experimental`);
-          shellExec(`sudo dnf install valkey`);
-          shellExec(`chown -R valkey:valkey /etc/valkey`);
-          shellExec(`chown -R valkey:valkey /var/lib/valkey`);
-          shellExec(`chown -R valkey:valkey /var/log/valkey`);
-          shellExec(`sudo systemctl enable valkey.service`);
-          shellExec(`sudo systemctl start valkey`);
-          shellExec(`valkey-cli ping`);
-        } else {
-          shellExec(`cd /home/dd && git clone https://github.com/valkey-io/valkey.git`);
-          shellExec(`cd /home/dd/valkey && make`);
-          shellExec(`apt install valkey-tools`); // valkey-cli
-        }
-      }
-      if (process.argv.includes('rocky')) {
-        shellExec(`sudo systemctl stop valkey`);
-        shellExec(`sudo systemctl start valkey`);
-      } else shellExec(`cd /home/dd/valkey && ./src/valkey-server`);
-
-      break;
-    }
-
-    case 'valkey-service': {
-      shellExec(`pm2 start bin/deploy.js --node-args=\"--max-old-space-size=8192\" --name valkey -- valkey server`);
       break;
     }
 

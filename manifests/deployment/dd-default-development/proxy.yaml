@@ -16,7 +16,7 @@ spec:
         - prefix: /
       enableWebsockets: true
       services:
-        - name: dd-template-development-blue-service
+        - name: dd-default-development-blue-service
           port: 4001
           weight: 100
 
@@ -24,7 +24,7 @@ spec:
         - prefix: /peer
       enableWebsockets: true
       services:
-        - name: dd-template-development-blue-service
+        - name: dd-default-development-blue-service
           port: 4002
           weight: 100
 
@@ -41,6 +41,6 @@ spec:
         - prefix: /
       enableWebsockets: true
       services:
-        - name: dd-template-development-blue-service
+        - name: dd-default-development-blue-service
           port: 4003
           weight: 100

@@ -770,150 +770,20 @@ const validateTemplatePath = (absolutePath = '') => {
   return true;
 };
 
-const deployTest = async (dataDeploy = [{ deployId: 'default' }]) => {
-  const failed = [];
-  for (const deploy of dataDeploy) {
-    const deployServerConfPath = fs.existsSync(`./engine-private/replica/${deploy.deployId}/conf.server.json`)
-      ? `./engine-private/replica/${deploy.deployId}/conf.server.json`
-      : `./engine-private/conf/${deploy.deployId}/conf.server.json`;
-    const serverConf = loadReplicas(JSON.parse(fs.readFileSync(deployServerConfPath, 'utf8')));
-    let fail = false;
-    for (const host of Object.keys(serverConf))
-      for (const path of Object.keys(serverConf[host])) {
-        const { singleReplica } = serverConf[host][path];
-        if (singleReplica) continue;
-        const urlTest = `https://${host}${path}`;
-        try {
-          const result = await axios.get(urlTest, { timeout: 10000 });
-          const test = result.data.split('<title>');
-          if (test[1])
-            logger.info('Success deploy', {
-              ...deploy,
-              result: test[1].split('</title>')[0],
-              urlTest,
-            });
-          else {
-            logger.error('Error deploy', {
-              ...deploy,
-              result: result.data,
-              urlTest,
-            });
-            fail = true;
-          }
-        } catch (error) {
-          logger.error('Error deploy', {
-            ...deploy,
-            message: error.message,
-            urlTest,
-          });
-          fail = true;
-        }
-      }
-    if (fail) failed.push(deploy);
-  }
-  return { failed };
-};
-
 const awaitDeployMonitor = async (init = false, deltaMs = 1000) => {
   if (init) fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
   await timer(deltaMs);
   if (fs.existsSync(`./tmp/await-deploy`)) return await awaitDeployMonitor();
 };
 
-const getDeployGroupId = () => {
-  const deployGroupIndexArg = process.argv.findIndex((a) => a.match(`deploy-group:`));
-  if (deployGroupIndexArg > -1) return process.argv[deployGroupIndexArg].split(':')[1].trim();
-  return 'dd';
-};
-
 const getDeployId = () => {
   const deployIndexArg = process.argv.findIndex((a) => a.match(`deploy-id:`));
   if (deployIndexArg > -1) return process.argv[deployIndexArg].split(':')[1].trim();
-  for (const deployId of process.argv) {
-    if (fs.existsSync(`./engine-private/conf/${deployId}`)) return deployId;
-    else if (fs.existsSync(`./engine-private/replica/${deployId}`)) return deployId;
-  }
-  return 'default';
+  return 'dd-default';
 };
 
 const getCronBackUpFolder = (host = '', path = '') => {
   return `${host}${path.replace(/\\/g, '/').replace(`/`, '-')}`;
-};
-
-const execDeploy = async (options = { deployId: 'default' }, currentAttempt = 1) => {
-  const { deployId } = options;
-  shellExec(Cmd.delete(deployId));
-  shellExec(Cmd.conf(deployId));
-  shellExec(Cmd.run(deployId));
-  const maxTime = 1000 * 60;
-  const minTime = 20 * 1000;
-  const intervalTime = 1000;
-  return await new Promise(async (resolve) => {
-    let currentTime = 0;
-    const attempt = () => {
-      if (currentTime >= minTime && !fs.existsSync(`./tmp/await-deploy`)) {
-        clearInterval(processMonitor);
-        return resolve(true);
-      }
-      cliSpinner(
-        intervalTime,
-        `[deploy.js] `,
-        ` Load instance | attempt:${currentAttempt} | elapsed time ${currentTime / 1000}s / ${maxTime / 1000}s`,
-        'yellow',
-        'material',
-      );
-      currentTime += intervalTime;
-      if (currentTime >= maxTime) {
-        clearInterval(processMonitor);
-        return resolve(false);
-      }
-    };
-    const processMonitor = setInterval(attempt, intervalTime);
-  });
-};
-
-const deployRun = async (dataDeploy, currentAttempt = 1) => {
-  if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
-  await fixDependencies();
-  const maxAttempts = 3;
-  for (const deploy of dataDeploy) {
-    let currentAttempt = 1;
-    const attempt = async () => {
-      const success = await execDeploy(deploy, currentAttempt);
-      currentAttempt++;
-      if (!success && currentAttempt <= maxAttempts) await attempt();
-    };
-    await attempt();
-  }
-  const { failed } = await deployTest(dataDeploy);
-  if (failed.length > 0) {
-    for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy.deployId));
-    if (currentAttempt === maxAttempts) return logger.error(`max deploy attempts exceeded`);
-    await read({ prompt: 'Press enter to retry failed processes\n' });
-    currentAttempt++;
-    await deployRun(failed, currentAttempt);
-  } else logger.info(`Deploy process successfully`);
-};
-
-const restoreMacroDb = async (deployGroupId = '', deployId = null) => {
-  const dataDeploy = await getDataDeploy({ deployGroupId, buildSingleReplica: false });
-  for (const deployGroup of dataDeploy) {
-    if (deployId && deployGroup.deployId !== deployId) continue;
-    if (!deployGroup.replicaHost) {
-      const deployServerConfPath = `./engine-private/conf/${deployGroup.deployId}/conf.server.json`;
-      const serverConf = JSON.parse(fs.readFileSync(deployServerConfPath, 'utf8'));
-
-      for (const host of Object.keys(serverConf)) {
-        for (const path of Object.keys(serverConf[host])) {
-          const { db, singleReplica } = serverConf[host][path];
-          if (db && !singleReplica) {
-            const cmd = `node bin/db ${host}${path} import ${deployGroup.deployId} cron`;
-            shellExec(cmd);
-          }
-        }
-      }
-    }
-  }
 };
 
 const mergeFile = async (parts = [], outputFilePath) => {
@@ -977,99 +847,6 @@ const rebuildConfFactory = ({ deployId, valkey, mongo }) => {
   return { hosts };
 };
 
-const getRestoreCronCmd = async (options = { host: '', path: '', conf: {}, deployId: '' }) => {
-  const { host, path, conf, deployId } = options;
-  const { runtime, db, git, directory } = conf[host][path];
-  const { provider, name, user, password = '', backupPath = '' } = db;
-
-  if (['xampp', 'lampp'].includes(runtime)) {
-    logger.info('Create database', `node bin/db ${host}${path} create ${deployId}`);
-    shellExec(`node bin/db ${host}${path} create ${deployId}`);
-  }
-
-  if (git) {
-    if (directory && !fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true });
-
-    shellExec(`git clone ${git}`);
-
-    // fs.mkdirSync(`./public/${host}${path}`, { recursive: true });
-
-    if (fs.existsSync(`./${git.split('/').pop()}`))
-      fs.moveSync(`./${git.split('/').pop()}`, directory ? directory : `./public/${host}${path}`, {
-        overwrite: true,
-      });
-  }
-
-  let cmd, currentBackupTimestamp, baseBackUpPath;
-
-  if (process.argv.includes('cron')) {
-    baseBackUpPath = `${process.cwd()}/engine-private/cron-backups/${getCronBackUpFolder(host, path)}`;
-
-    const files = await fs.readdir(baseBackUpPath, { withFileTypes: true });
-
-    currentBackupTimestamp = files
-      .map((fileObj) => parseInt(fileObj.name))
-      .sort((a, b) => a - b)
-      .reverse()[0];
-  }
-
-  switch (provider) {
-    case 'mariadb':
-      {
-        if (process.argv.includes('cron')) {
-          cmd = `mysql -u ${user} -p${password} ${name} < ${baseBackUpPath}/${currentBackupTimestamp}/${name}.sql`;
-          if (fs.existsSync(`${baseBackUpPath}/${currentBackupTimestamp}/${name}-parths.json`)) {
-            const names = JSON.parse(
-              fs.readFileSync(`${baseBackUpPath}/${currentBackupTimestamp}/${name}-parths.json`, 'utf8'),
-            ).map((p) => p.replaceAll(`\\`, '/').replaceAll('C:/', '/').replaceAll('c:/', '/'));
-
-            await mergeFile(names, `${baseBackUpPath}/${currentBackupTimestamp}/${name}.sql`);
-          }
-        } else {
-          cmd = `mysql -u ${user} -p${password} ${name} < ${
-            backupPath ? backupPath : `./engine-private/sql-backups/${name}.sql`
-          }`;
-          if (
-            fs.existsSync(
-              `${
-                backupPath ? backupPath.split('/').slice(0, -1).join('/') : `./engine-private/sql-backups`
-              }/${name}-parths.json`,
-            )
-          ) {
-            const names = JSON.parse(
-              fs.readFileSync(
-                `${
-                  backupPath ? backupPath.split('/').slice(0, -1).join('/') : `./engine-private/sql-backups`
-                }/${name}-parths.json`,
-                'utf8',
-              ),
-            ).map((p) => p.replaceAll(`\\`, '/').replaceAll('C:/', '/').replaceAll('c:/', '/'));
-
-            await mergeFile(
-              names,
-              `${
-                backupPath ? backupPath.split('/').slice(0, -1).join('/') : `./engine-private/sql-backups`
-              }/${name}.sql`,
-            );
-          }
-        }
-      }
-      break;
-
-    case 'mongoose':
-      {
-        if (process.argv.includes('cron')) {
-          cmd = `mongorestore -d ${name} ${baseBackUpPath}/${currentBackupTimestamp}/${name}`;
-        } else cmd = `mongorestore -d ${name} ${backupPath ? backupPath : `./engine-private/mongodb-backup/${name}`}`;
-      }
-      break;
-  }
-
-  // logger.info('Restore', cmd);
-
-  return cmd;
-};
-
 const getPathsSSR = (conf) => {
   const paths = ['src/client/ssr/Render.js'];
   for (const o of conf.head) paths.push(`src/client/ssr/head/${o}.js`);
@@ -1091,37 +868,6 @@ const Cmd = {
     `pm2 start ./bin/index.js --no-autorestart --instances 1 --cron "${expression}" --name ${name} -- cron ${
       options?.itc ? `--itc ` : ''
     }${options?.git ? `--git ` : ''}${deployList} ${jobList}`,
-};
-
-const fixDependencies = async () => {
-  return;
-  // sed -i "$line_number s,.*,$new_text," "$file"
-  // sed -i "$line_number c \\$new_text" "$file"
-  const dep = fs.readFileSync(`./node_modules/peer/dist/module.mjs`, 'utf8');
-  const errorLine = `import {WebSocketServer as $hSjDC$WebSocketServer} from "ws";`;
-
-  fs.writeFileSync(
-    `./node_modules/peer/dist/module.mjs`,
-    dep.replaceAll(
-      errorLine,
-      `import WebSocketServer from "ws";
-    let $hSjDC$WebSocketServer = WebSocketServer.Server;`,
-    ),
-    'utf8',
-  );
-};
-
-const maintenanceMiddleware = (req, res, port, proxyRouter) => {
-  if (process.argv.includes('maintenance') && globalThis.defaultHtmlSrcMaintenance) {
-    if (req.method.toUpperCase() === 'GET') {
-      res.set('Content-Type', 'text/html');
-      return res.status(503).send(globalThis.defaultHtmlSrcMaintenance);
-    }
-    return res.status(503).json({
-      status: 'error',
-      message: 'Server is under maintenance',
-    });
-  }
 };
 
 const splitFileFactory = async (name, _path) => {
@@ -1150,14 +896,6 @@ const splitFileFactory = async (name, _path) => {
     });
   }
   return false;
-};
-
-const setUpProxyMaintenanceServer = ({ deployGroupId }) => {
-  shellExec(`pm2 kill`);
-  shellExec(`node bin/deploy valkey-service`);
-  const proxyDeployId = fs.readFileSync(`./engine-private/deploy/${deployGroupId}.proxy`, 'utf8').trim();
-  shellExec(`node bin/deploy conf ${proxyDeployId} production`);
-  shellExec(`npm start ${proxyDeployId} maintenance`);
 };
 
 const getNpmRootPath = () =>
@@ -1258,17 +996,9 @@ export {
   getDataDeploy,
   validateTemplatePath,
   buildReplicaId,
-  restoreMacroDb,
-  getDeployGroupId,
-  execDeploy,
-  deployRun,
   getCronBackUpFolder,
-  getRestoreCronCmd,
   mergeFile,
-  fixDependencies,
   getDeployId,
-  maintenanceMiddleware,
-  setUpProxyMaintenanceServer,
   getPathsSSR,
   buildKindPorts,
   buildPortProxyRouter,
@@ -1276,7 +1006,6 @@ export {
   getNpmRootPath,
   getUnderpostRootPath,
   writeEnv,
-  deployTest,
   pathPortAssignmentFactory,
   deployRangePortFactory,
   awaitDeployMonitor,
