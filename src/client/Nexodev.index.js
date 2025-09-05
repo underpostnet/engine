@@ -15,7 +15,6 @@ import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { NexodevParams } from './components/nexodev/CommonNexodev.js';
-import { Scroll } from './components/core/Scroll.js';
 import { getProxyPath, s } from './components/core/VanillaJs.js';
 import { EventsUI } from './components/core/EventsUI.js';
 
@@ -531,7 +530,6 @@ window.onload = () =>
       await LogInNexodev();
       await LogOutNexodev();
       await SignUpNexodev();
-      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: NexodevParams.EVENT_CALLBACK_TIME });
     },
   });

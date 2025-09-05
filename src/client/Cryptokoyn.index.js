@@ -14,7 +14,6 @@ import { CryptokoynParams } from './components/cryptokoyn/CommonCryptokoyn.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoCryptokoyn } from './components/cryptokoyn/SocketIoCryptokoyn.js';
 import { ElementsCryptokoyn } from './components/cryptokoyn/ElementsCryptokoyn.js';
-import { Scroll } from './components/core/Scroll.js';
 
 window.onload = () =>
   Worker.instance({
@@ -29,7 +28,6 @@ window.onload = () =>
       await LogInCryptokoyn();
       await LogOutCryptokoyn();
       await SignUpCryptokoyn();
-      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: CryptokoynParams.EVENT_CALLBACK_TIME });
     },
   });

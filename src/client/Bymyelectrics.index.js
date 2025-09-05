@@ -15,7 +15,6 @@ import { BymyelectricsParams } from './components/bymyelectrics/CommonBymyelectr
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoBymyelectrics } from './components/bymyelectrics/SocketIoBymyelectrics.js';
 import { ElementsBymyelectrics } from './components/bymyelectrics/ElementsBymyelectrics.js';
-import { Scroll } from './components/core/Scroll.js';
 import { getProxyPath, s } from './components/core/VanillaJs.js';
 import { CssBymyelectricsDark, CssBymyelectricsLight } from './components/bymyelectrics/CssBymyelectrics.js';
 
@@ -218,7 +217,6 @@ window.onload = () =>
       await LogInBymyelectrics();
       await LogOutBymyelectrics();
       await SignUpBymyelectrics();
-      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: BymyelectricsParams.EVENT_CALLBACK_TIME });
     },
   });

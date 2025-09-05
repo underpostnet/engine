@@ -15,7 +15,6 @@ import { DogmadualParams } from './components/dogmadual/CommonDogmadual.js';
 import { SocketIoDogmadual } from './components/dogmadual/SocketIoDogmadual.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { ElementsDogmadual } from './components/dogmadual/ElementsDogmadual.js';
-import { Scroll } from './components/core/Scroll.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 
 const htmlMainBody = async () => {
@@ -35,7 +34,6 @@ window.onload = () =>
       await LogInDogmadual();
       await LogOutDogmadual();
       await SignUpDogmadual();
-      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: DogmadualParams.EVENT_CALLBACK_TIME });
     },
   });

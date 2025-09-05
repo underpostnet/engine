@@ -15,7 +15,6 @@ import { Keyboard } from './components/core/Keyboard.js';
 import { SocketIoUnderpost } from './components/underpost/SocketIoUnderpost.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { ElementsUnderpost } from './components/underpost/ElementsUnderpost.js';
-import { Scroll } from './components/core/Scroll.js';
 import { CssUnderpostDark, CssUnderpostLight } from './components/underpost/CssUnderpost.js';
 
 window.onload = () =>
@@ -32,7 +31,6 @@ window.onload = () =>
       await LogInUnderpost();
       await LogOutUnderpost();
       await SignUpUnderpost();
-      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: UnderpostParams.EVENT_CALLBACK_TIME });
     },
   });

@@ -16,7 +16,6 @@ import { Keyboard } from './components/core/Keyboard.js';
 import { HealthcareParams } from './components/healthcare/CommonHealthcare.js';
 import { CssHealthcareDark, CssHealthcareLight } from './components/healthcare/CssHealthcare.js';
 import { TranslateHealthcare } from './components/healthcare/TranslateHealthcare.js';
-import { Scroll } from './components/core/Scroll.js';
 
 window.onload = () =>
   Worker.instance({
@@ -32,7 +31,6 @@ window.onload = () =>
       await LogInHealthcare();
       await LogOutHealthcare();
       await SignUpHealthcare();
-      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: HealthcareParams.EVENT_CALLBACK_TIME });
     },
   });

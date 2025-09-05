@@ -14,7 +14,6 @@ import { SocketIoCyberiaAdmin } from './components/cyberia-admin/SocketIoCyberia
 import { ElementsCyberiaAdmin } from './components/cyberia-admin/ElementsCyberiaAdmin.js';
 import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 import { Keyboard } from './components/core/Keyboard.js';
-import { Scroll } from './components/core/Scroll.js';
 
 window.onload = () =>
   Worker.instance({
@@ -30,7 +29,6 @@ window.onload = () =>
       await LogInCyberiaAdmin();
       await SignUpCyberiaAdmin();
       await LogOutCyberiaAdmin();
-      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
     },
   });

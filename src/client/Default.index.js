@@ -15,7 +15,6 @@ import { DefaultParams } from './components/default/CommonDefault.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoDefault } from './components/default/SocketIoDefault.js';
 import { ElementsDefault } from './components/default/ElementsDefault.js';
-import { Scroll } from './components/core/Scroll.js';
 import { CssDefaultDark, CssDefaultLight } from './components/default/CssDefault.js';
 
 const htmlMainBody = async () => {
@@ -39,7 +38,6 @@ window.onload = () =>
       await LogInDefault();
       await LogOutDefault();
       await SignUpDefault();
-      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: DefaultParams.EVENT_CALLBACK_TIME });
     },
   });

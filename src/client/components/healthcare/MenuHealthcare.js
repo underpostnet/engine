@@ -18,7 +18,6 @@ import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { MenuHomeHealthcare, NutritionalTips } from './CommonHealthcare.js';
 import { CalendarCore } from '../core/CalendarCore.js';
-import { Scroll } from '../core/Scroll.js';
 import { AppointmentFormHealthcare } from './AppointmentFormHealthCare.js';
 import { HealthcareAppointmentService } from '../../services/healthcare-appointment/healthcare-appointment.service.js';
 import { HealthcareAppointmentManagement } from '../../services/healthcare-appointment/healthcare-appointment.management.js';
@@ -550,17 +549,7 @@ const MenuHealthcare = {
         }),
         html: async () => {
           setTimeout(() => {
-            Scroll.addTopRefreshEvent({
-              id: 'modal-calendar',
-              callback: () => {
-                location.reload();
-              },
-              condition: () => {
-                return s('.main-body-calendar-modal-calendar').scrollTop === 0;
-              },
-            });
             Modal.Data['modal-calendar'].onCloseListener['TopRefreshEvent'] = () => {
-              Scroll.removeTopRefreshEvent('.main-body-calendar-modal-calendar');
               delete LogIn.Event['model-appointment-calendar'];
               delete LogOut.Event['model-appointment-calendar'];
             };

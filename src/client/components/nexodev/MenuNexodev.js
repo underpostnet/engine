@@ -41,7 +41,6 @@ import { UserManagement } from '../../services/user/user.management.js';
 import { PanelForm } from '../core/PanelForm.js';
 import { RouterEvents, setDocTitle } from '../core/Router.js';
 import { CronManagement } from '../../services/cron/cron.management.js';
-import { Scroll } from '../core/Scroll.js';
 
 const MenuNexodev = {
   Data: {},
@@ -620,20 +619,6 @@ const MenuNexodev = {
           text: Translate.Render('calendar'),
         }),
         html: async () => {
-          setTimeout(() => {
-            Scroll.addTopRefreshEvent({
-              id: 'modal-calendar',
-              callback: () => {
-                location.reload();
-              },
-              condition: () => {
-                return s('.main-body-calendar-modal-calendar').scrollTop === 0;
-              },
-            });
-            Modal.Data['modal-calendar'].onCloseListener['TopRefreshEvent'] = () => {
-              Scroll.removeTopRefreshEvent('.main-body-calendar-modal-calendar');
-            };
-          });
           return await CalendarNexodev.Render({
             idModal: 'modal-calendar',
             Elements: ElementsNexodev,

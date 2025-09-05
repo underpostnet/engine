@@ -15,7 +15,6 @@ import { ItemledgerParams } from './components/itemledger/CommonItemledger.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoItemledger } from './components/itemledger/SocketIoItemledger.js';
 import { ElementsItemledger } from './components/itemledger/ElementsItemledger.js';
-import { Scroll } from './components/core/Scroll.js';
 
 const htmlMainBody = async () => {
   return html``;
@@ -35,7 +34,6 @@ window.onload = () =>
       await LogInItemledger();
       await LogOutItemledger();
       await SignUpItemledger();
-      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: ItemledgerParams.EVENT_CALLBACK_TIME });
     },
   });
