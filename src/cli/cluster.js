@@ -39,6 +39,7 @@ class UnderpostCluster {
      * @param {boolean} [options.k3s=false] - Initialize the cluster using K3s.
      * @param {boolean} [options.initHost=false] - Perform initial host setup (install Docker, Podman, Kind, Kubeadm, Helm).
      * @param {boolean} [options.grafana=false] - Initialize the cluster with a Grafana deployment.
+     * @param {string} [options.prom=''] - Initialize the cluster with a Prometheus Operator deployment and monitor scrap for specified hosts.
      * @param {boolean} [options.uninstallHost=false] - Uninstall all host components.
      * @param {boolean} [options.config=false] - Apply general host configuration (SELinux, containerd, sysctl, firewalld).
      * @param {boolean} [options.worker=false] - Configure as a worker node (for Kubeadm or K3s join).
@@ -69,6 +70,7 @@ class UnderpostCluster {
         k3s: false,
         initHost: false,
         grafana: false,
+        prom: '',
         uninstallHost: false,
         config: false,
         worker: false,
@@ -263,6 +265,12 @@ class UnderpostCluster {
       if (options.grafana === true) {
         shellExec(`kubectl delete deployment grafana --ignore-not-found`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/grafana`);
+      }
+
+      if (options.prom && typeof options.prom === 'string') {
+        shellExec(
+          `kubectl create -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/master/bundle.yaml`,
+        );
       }
 
       if (options.full === true || options.valkey === true) {
