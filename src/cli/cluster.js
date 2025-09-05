@@ -272,6 +272,7 @@ class UnderpostCluster {
         shellExec(`kubectl delete deployment prometheus --ignore-not-found`);
         shellExec(`kubectl delete configmap prometheus-config --ignore-not-found`);
         shellExec(`kubectl delete service prometheus --ignore-not-found`);
+        // Prometheus server host: http://<prometheus-cluster-ip>:9090
         const yaml = `${fs.readFileSync(`${underpostRoot}/manifests/prometheus/deployment.yaml`, 'utf8').replace(
           '- targets: []',
           `- targets: [${options.prom
