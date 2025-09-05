@@ -502,7 +502,7 @@ const Modal = {
                       class="abs modal slide-menu-top-bar-fix"
                       style="height: ${options.heightTopBar}px; top: 0px"
                     >
-                      <a class="a-link-top-banner">
+                      <a class="a-link-top-banner fl">
                         <div class="inl">${await options.slideMenuTopBarBannerFix()}</div></a
                       >
                     </div>`
@@ -1160,7 +1160,7 @@ const Modal = {
                   if (s(`.slide-menu-top-bar-fix`)) {
                     htmls(
                       `.slide-menu-top-bar-fix`,
-                      html`<a class="a-link-top-banner">${await options.slideMenuTopBarBannerFix()}</a>`,
+                      html`<a class="a-link-top-banner fl">${await options.slideMenuTopBarBannerFix()}</a>`,
                     );
                     Modal.setTopBannerLink();
                   }
