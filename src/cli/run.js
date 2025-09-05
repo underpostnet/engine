@@ -98,6 +98,10 @@ class UnderpostRun {
       shellExec(`${baseCommand} cmt . --empty ci package-pwa-microservices-template`);
       shellExec(`${baseCommand} push . underpostnet/engine`);
     },
+    clean: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellCd(path ?? `/home/dd/engine`);
+      shellExec(`node bin/deploy clean-core-repo`);
+    },
     upgrade: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       shellExec(`npm install -g underpost`);
