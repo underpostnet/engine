@@ -15,17 +15,8 @@ const CyberpunkBloggerUnderpost = {
         }
         .modal-contracultura-cyberpunk {
           background: black;
-          top: 0px !important;
-          height: 100% !important;
-        }
-        .modal {
-          border: none;
         }
       </style>`;
-      setTimeout(() => {
-        s(`.bar-default-modal-modal-contracultura-cyberpunk`).classList.add('hide');
-        s(`.slide-menu-top-bar`).classList.add('hide');
-      });
     }
     let render = html`${renderBlog} `;
 
