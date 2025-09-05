@@ -613,7 +613,7 @@ try {
       break;
     }
 
-    case 'version-build': {
+    case 'clean-core-repo': {
       shellCd(`/home/dd/engine`);
       shellExec(`git reset`);
       shellExec(`git checkout .`);
@@ -622,6 +622,12 @@ try {
       shellExec(`git reset`);
       shellExec(`git checkout .`);
       shellExec(`git clean -f -d`);
+      shellCd(`/home/dd/engine`);
+      break;
+    }
+
+    case 'version-build': {
+      shellExec(`node bin clean-core-repo`);
       shellCd(`/home/dd/engine`);
       const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
       const newVersion = process.argv[3] ?? originPackageJson.version;
