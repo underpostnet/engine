@@ -123,6 +123,7 @@ program
   .option('--full', 'Initializes the cluster with all available statefulsets and services.')
   .option('--ns-use <ns-name>', 'Switches the current Kubernetes context to the specified namespace.')
   .option('--kubeadm', 'Initializes the cluster using kubeadm for control plane management.')
+  .option('--grafana', 'Initializes the cluster with a Grafana deployment.')
   .option('--dev', 'Initializes a development-specific cluster configuration.')
   .option('--list-pods', 'Displays detailed information about all pods.')
   .option('--info-capacity', 'Displays the current total machine capacity information.')

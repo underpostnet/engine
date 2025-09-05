@@ -39,6 +39,7 @@ class UnderpostCluster {
      * @param {boolean} [options.kubeadm=false] - Initialize the cluster using Kubeadm.
      * @param {boolean} [options.k3s=false] - Initialize the cluster using K3s.
      * @param {boolean} [options.initHost=false] - Perform initial host setup (install Docker, Podman, Kind, Kubeadm, Helm).
+     * @param {boolean} [options.grafana=false] - Initialize the cluster with a Grafana deployment.
      * @param {boolean} [options.uninstallHost=false] - Uninstall all host components.
      * @param {boolean} [options.config=false] - Apply general host configuration (SELinux, containerd, sysctl, firewalld).
      * @param {boolean} [options.worker=false] - Configure as a worker node (for Kubeadm or K3s join).
@@ -258,6 +259,11 @@ class UnderpostCluster {
         shellExec(
           `node ${underpostRoot}/bin/deploy kubeflow-spark-operator${options.kubeadm === true ? ' kubeadm' : ''}`,
         );
+      }
+
+      if (options.grafana === true) {
+        shellExec(`kubectl delete deployment grafana --ignore-not-found`);
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/grafana`);
       }
 
       if (options.full === true || options.valkey === true) {
