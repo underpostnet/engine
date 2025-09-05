@@ -33,7 +33,6 @@ class UnderpostCluster {
      * @param {string} [options.nsUse=''] - Set the current kubectl namespace.
      * @param {boolean} [options.infoCapacity=false] - Display resource capacity information for the cluster.
      * @param {boolean} [options.infoCapacityPod=false] - Display resource capacity information for pods.
-     * @param {boolean} [options.istio=false] - Deploy Istio service mesh.
      * @param {boolean} [options.pullImage=false] - Pull necessary Docker images before deployment.
      * @param {boolean} [options.dedicatedGpu=false] - Configure for dedicated GPU usage (e.g., NVIDIA GPU Operator).
      * @param {boolean} [options.kubeadm=false] - Initialize the cluster using Kubeadm.
@@ -64,12 +63,12 @@ class UnderpostCluster {
         nsUse: '',
         infoCapacity: false,
         infoCapacityPod: false,
-        istio: false,
         pullImage: false,
         dedicatedGpu: false,
         kubeadm: false,
         k3s: false,
         initHost: false,
+        grafana: false,
         uninstallHost: false,
         config: false,
         worker: false,
