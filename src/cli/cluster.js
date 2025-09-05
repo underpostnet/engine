@@ -5,6 +5,7 @@ import UnderpostBaremetal from './baremetal.js';
 import UnderpostDeploy from './deploy.js';
 import UnderpostTest from './test.js';
 import os from 'os';
+import fs from 'fs-extra';
 
 const logger = loggerFactory(import.meta);
 
@@ -268,6 +269,22 @@ class UnderpostCluster {
       }
 
       if (options.prom && typeof options.prom === 'string') {
+        shellExec(`kubectl delete deployment prometheus --ignore-not-found`);
+        shellExec(`kubectl delete configmap prometheus-config --ignore-not-found`);
+        shellExec(`kubectl delete service prometheus --ignore-not-found`);
+        const yaml = `${fs.readFileSync(`${underpostRoot}/manifests/prometheus/deployment.yaml`, 'utf8').replace(
+          '- targets: []',
+          `- targets: [${options.prom
+            .split(',')
+            .map((host) => `'${host}'`)
+            .join(',')}]`,
+        )}`;
+        console.log(yaml);
+        shellExec(`kubectl apply -f - <<EOF
+${yaml}
+EOF
+`);
+
         // https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/config-other-methods/prometheus/prometheus-operator/
         // shellExec(
         //   `kubectl create -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/master/bundle.yaml`,
