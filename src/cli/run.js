@@ -98,6 +98,15 @@ class UnderpostRun {
       shellExec(`${baseCommand} cmt . --empty ci package-pwa-microservices-template`);
       shellExec(`${baseCommand} push . underpostnet/engine`);
     },
+    upgrade: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const { underpostRoot } = options;
+      shellExec(`npm install -g underpost`);
+      shellExec(`underpost run secret`);
+      shellCd(`/home/dd/engine`);
+      shellExec(`node bin/deploy clean-core-repo`);
+      shellExec(`underpost pull . underpostnet/engine`);
+      shellExec(`underpost pull engine-private underpostnet/engine-private`);
+    },
     'ssh-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
       shellCd('/home/dd/engine');
