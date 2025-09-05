@@ -41,6 +41,7 @@ import { UserManagement } from '../../services/user/user.management.js';
 import { PanelForm } from '../core/PanelForm.js';
 import { RouterEvents, setDocTitle } from '../core/Router.js';
 import { CronManagement } from '../../services/cron/cron.management.js';
+import { Scroll } from '../core/Scroll.js';
 
 const MenuNexodev = {
   Data: {},
@@ -1100,6 +1101,16 @@ const MenuNexodev = {
 
       Modal.Data['modal-menu'].homeModals.push('modal-test');
     });
+
+    setTimeout(() => {
+      const { removeEvent } = Scroll.setEvent('.main-body', async (payload) => {
+        console.warn('scroll', payload);
+        if (payload.scrollTop > 100) {
+          removeEvent();
+          console.warn('scroll fist event over 100');
+        }
+      });
+    }, 1);
   },
 };
 
