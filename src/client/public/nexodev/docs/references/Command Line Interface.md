@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.857
+## underpost ci/cd cli v2.8.858
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -442,6 +442,8 @@ Options:
   --export     Exports to local storage.
   --crons      Apply to cron data collection
   --instances  Apply to instance data collection
+  --generate   Generate cluster metadata
+  --itc        Apply under container execution context
   -h, --help   display help for command
  
 ```
@@ -483,8 +485,8 @@ updates.
 Arguments:
   deploy-list  A comma-separated list of deployment IDs (e.g.,
                "default-a,default-b").
-  job-list     A comma-separated list of job IDs. Options: callback. Defaults
-               to all available jobs.
+  job-list     A comma-separated list of job IDs. Options: callback,
+               getRelatedDeployId. Defaults to all available jobs.
 
 Options:
   --itc        Executes cron jobs within the container execution context.
@@ -591,7 +593,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, cyberia-ide, engine-ide, template-deploy, clean, pull, release-deploy, ssh-deploy, ide, monitor, db-client, cluster, deploy, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, cyberia-ide, engine-ide, template-deploy, clean, pull, release-deploy, ssh-deploy, ide, dev-client, dev-api, monitor, db-client, cluster, deploy, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:

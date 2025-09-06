@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dd-lampp-development-blue
-          image: localhost/rockylinux9-underpost:v2.8.857
+          image: localhost/rockylinux9-underpost:v2.8.858
 #          resources:
 #            requests:
 #              memory: "127539Ki"
@@ -104,7 +104,7 @@ spec:
     spec:
       containers:
         - name: dd-lampp-development-green
-          image: localhost/rockylinux9-underpost:v2.8.857
+          image: localhost/rockylinux9-underpost:v2.8.858
 #          resources:
 #            requests:
 #              memory: "127539Ki"
