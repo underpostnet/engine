@@ -1,7 +1,7 @@
 import { daemonProcess, getTerminalPid, openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
 import read from 'read';
 import { getNpmRootPath } from '../server/conf.js';
-import { loggerFactory } from '../server/logger.js';
+import { actionInitLog, loggerFactory } from '../server/logger.js';
 import UnderpostTest from './test.js';
 import fs from 'fs-extra';
 import { range, setPad, timer } from '../client/components/core/CommonJs.js';
@@ -109,6 +109,8 @@ class UnderpostRun {
       shellExec(`underpost pull engine-private underpostnet/engine-private`, { silent: true });
     },
     'release-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      actionInitLog();
+      shellExec(`underpost --version`);
       shellCd(`/home/dd/engine`);
       for (const _deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
         const deployId = _deployId.trim();
@@ -239,15 +241,19 @@ class UnderpostRun {
       shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic}`);
 
       let checkStatusIteration = 0;
-      logger.info('Deployment init', { deployId, env, targetTraffic });
+      const checkStatusIterationMsDelay = 1000;
+      const iteratorTag = `[${deployId}-${env}-${targetTraffic}]`;
+      logger.info('Deployment init', { deployId, env, targetTraffic, checkStatusIterationMsDelay });
 
       while (!UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods).ready) {
-        await timer(1000);
+        await timer(checkStatusIterationMsDelay);
         checkStatusIteration++;
-        logger.info(`Deployment in progress, numbers of second time delay status iteration: ${checkStatusIteration}`);
+        logger.info(
+          `${iteratorTag} | Deployment in progress... | Delay number check iterations: ${checkStatusIteration}`,
+        );
       }
 
-      logger.info(`Deployment ready, numbers of second time delay status iteration: ${checkStatusIteration}`);
+      logger.info(`${iteratorTag} | Deployment ready. | Total delay number check iterations: ${checkStatusIteration}`);
 
       UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, targetTraffic);
 
