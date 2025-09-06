@@ -4,6 +4,8 @@ import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import UnderpostDeploy from './deploy.js';
 import UnderpostCron from './cron.js';
+import { DataBaseProvider } from '../db/DataBaseProvider.js';
+import { loadReplicas, pathPortAssignmentFactory } from '../server/conf.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -225,20 +227,21 @@ class UnderpostDB {
       deployId = deployId ?? process.env.DEFAULT_DEPLOY_ID;
       host = host ?? process.env.DEFAULT_DEPLOY_HOST;
       path = path ?? process.env.DEFAULT_DEPLOY_PATH;
+      const env = 'production';
       const deployList = fs.readFileSync('./engine-private/deploy/dd.router', 'utf8').split(',');
 
       const { db } = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'))[host][
         path
       ];
       try {
-        await DataBaseProvider.load({ apis: ['instance'], host, path, db });
+        await DataBaseProvider.load({ apis: ['instance', 'cron'], host, path, db });
 
         /** @type {import('../api/instance/instance.model.js').InstanceModel} */
         const Instance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Instance;
 
         await Instance.deleteMany();
 
-        for (const _deployId of deployList.split(',')) {
+        for (const _deployId of deployList) {
           const deployId = _deployId.trim();
           if (!deployId) continue;
           const confServer = loadReplicas(
@@ -319,7 +322,7 @@ class UnderpostDB {
       path = path ?? process.env.DEFAULT_DEPLOY_PATH;
 
       if (options.generate === true) {
-        Underpost.db.clusterMetadataFactory(deployId, host, path);
+        UnderpostDB.API.clusterMetadataFactory(deployId, host, path);
       }
 
       if (options.instances === true) {
