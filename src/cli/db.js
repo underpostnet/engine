@@ -255,21 +255,34 @@ class UnderpostDB {
             for (const { path, port } of pathPortAssignmentData[host]) {
               if (!confServer[host][path]) continue;
 
-              const { client, runtime, apis } = confServer[host][path];
+              const { client, runtime, apis, peer } = confServer[host][path];
+              {
+                const body = {
+                  deployId,
+                  host,
+                  path,
+                  port,
+                  client,
+                  runtime,
+                  apis,
+                };
 
-              const body = {
-                deployId,
-                host,
-                path,
-                port,
-                client,
-                runtime,
-                apis,
-              };
+                logger.info('Instance save', body);
+                await new Instance(body).save();
+              }
 
-              logger.info('Instance save', body);
+              if (peer) {
+                const body = {
+                  deployId,
+                  host,
+                  path: path === '/' ? '/peer' : `${path}/peer`,
+                  port: port + 1,
+                  runtime: 'nodejs',
+                };
 
-              await new Instance(body).save();
+                logger.info('Instance save', body);
+                await new Instance(body).save();
+              }
             }
           }
         }
