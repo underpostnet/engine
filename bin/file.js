@@ -56,7 +56,7 @@ try {
       console.log('copy paths', result);
 
       if (type === 'update-template') {
-        if (!fs.existsSync(toPath)) shellExec(`cd /home/dd && underpost clone underpostnet/pwa-microservices-template`);
+        if (!fs.existsSync(toPath)) shellExec(`cd .. && underpost clone underpostnet/pwa-microservices-template`);
         else {
           shellExec(`cd ${toPath} && git reset && git checkout . && git clean -f -d`);
           shellExec(`underpost pull ${toPath} underpostnet/pwa-microservices-template`);
