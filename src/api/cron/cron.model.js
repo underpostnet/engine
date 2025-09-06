@@ -6,6 +6,7 @@ const CronSchema = new Schema({
   expression: { type: String },
   jobId: { type: String },
   deployId: { type: String },
+  enabled: { type: Boolean },
 });
 
 const CronModel = model('Cron', CronSchema);

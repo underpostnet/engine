@@ -10,6 +10,7 @@ const CronManagement = {
       { field: 'deployId', headerName: 'deployId', editable: role === 'admin' },
       { field: 'jobId', headerName: 'jobId', editable: role === 'admin' },
       { field: 'expression', headerName: 'expression', editable: role === 'admin' },
+      { field: 'enabled', headerName: 'enabled', editable: role === 'admin' },
     ];
     switch (role) {
       case 'admin':

@@ -21,7 +21,6 @@ const logger = loggerFactory(import.meta);
  * @memberof UnderpostCron
  */
 class UnderpostCron {
-  static NETWORK = [];
   static JOB = {
     /**
      * DNS cli API
@@ -53,7 +52,6 @@ class UnderpostCron {
       options = { itc: false, init: false, git: false },
     ) {
       if (options.init === true) {
-        UnderpostCron.NETWORK = [];
         const jobDeployId = fs.readFileSync('./engine-private/deploy/dd.cron', 'utf8').trim();
         deployList = fs.readFileSync('./engine-private/deploy/dd.router', 'utf8').trim();
         const confCronConfig = JSON.parse(fs.readFileSync(`./engine-private/conf/${jobDeployId}/conf.cron.json`));
@@ -62,21 +60,8 @@ class UnderpostCron {
             const name = `${jobDeployId}-${job}`;
             let deployId;
             shellExec(Cmd.delete(name));
-            switch (job) {
-              case 'dns':
-                deployId = jobDeployId;
-                break;
-
-              default:
-                deployId = deployList;
-                break;
-            }
+            deployId = UnderpostCron.API.getRelatedDeployId(job);
             shellExec(Cmd.cron(deployId, job, name, confCronConfig.jobs[job].expression, options));
-            UnderpostCron.NETWORK.push({
-              deployId,
-              jobId: job,
-              expression: confCronConfig.jobs[job].expression,
-            });
           }
         }
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
@@ -85,6 +70,16 @@ class UnderpostCron {
       for (const _jobId of jobList.split(',')) {
         const jobId = _jobId.trim();
         if (UnderpostCron.JOB[jobId]) await UnderpostCron.JOB[jobId].callback(deployList, options);
+      }
+    },
+    getRelatedDeployId(jobId) {
+      switch (jobId) {
+        case 'dns':
+          return fs.readFileSync('./engine-private/deploy/dd.cron', 'utf8').trim();
+        case 'backup':
+          return fs.readFileSync('./engine-private/deploy/dd.router', 'utf8').trim();
+        default:
+          return fs.readFileSync('./engine-private/deploy/dd.cron', 'utf8').trim();
       }
     },
   };

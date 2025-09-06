@@ -249,6 +249,8 @@ program
   .option('--export', 'Exports to local storage.')
   .option('--crons', 'Apply to cron data collection')
   .option('--instances', 'Apply to instance data collection')
+  .option('--generate', 'Generate cluster metadata')
+  .option('--itc', 'Apply under container execution context')
   .description('Manages cluster metadata operations, including import and export.')
   .action(Underpost.db.clusterMetadataBackupCallback);
 
