@@ -480,6 +480,15 @@ Password: <Your Key>
         `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env}`,
       );
     },
+    switchTraffic(deployId, env, targetTraffic) {
+      UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, targetTraffic);
+      shellExec(
+        `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${
+          options.replicas ? options.replicas : 1
+        } ${deployId} ${env}`,
+      );
+      shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
+    },
   };
 }
 

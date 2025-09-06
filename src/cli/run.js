@@ -218,6 +218,21 @@ class UnderpostRun {
       const { underpostRoot } = options;
       shellExec(`kubectl apply -k ${underpostRoot}/manifests/deployment/adminer/.`);
     },
+    promote: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      let [inputDeployId, inputEnv] = path.split(',');
+      if (!inputEnv) inputEnv = 'production';
+      if (inputDeployId === 'dd') {
+        for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
+          const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
+          const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
+          UnderpostDeploy.API.switchTraffic(deployId, inputEnv, targetTraffic);
+        }
+      } else {
+        const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(inputDeployId);
+        const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
+        UnderpostDeploy.API.switchTraffic(inputDeployId, inputEnv, targetTraffic);
+      }
+    },
     cluster: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',');
       const env = 'production';
@@ -268,14 +283,8 @@ class UnderpostRun {
 
       logger.info(`${iteratorTag} | Deployment ready. | Total delay number check iterations: ${checkStatusIteration}`);
 
-      UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, targetTraffic);
+      UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
 
-      shellExec(
-        `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${
-          options.replicas ? options.replicas : 1
-        } ${deployId} ${env}`,
-      );
-      shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
       shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${currentTraffic}`);
     },
     'tf-vae-test': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
