@@ -132,10 +132,10 @@ class UnderpostRun {
       shellExec(`node ${underpostRoot}/bin/vs ${path}`);
     },
     'dev-client': (_path, options = UnderpostRun.DEFAULT_OPTION) => {
-      let [deployId, hostpath, subConf] = _path.split(',');
+      let [deployId, hostpath, subConf, lite] = _path.split(',');
       let [host, path] = hostpath.split('/');
       if (!path) path = '/';
-      shellExec(`npm run dev-client ${deployId} ${host} ${path} ${subConf} static`);
+      shellExec(`npm run dev-client ${deployId} ${host} ${path} ${subConf} static${lite === 'l' ? ' l' : ''}`);
     },
     'dev-api': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       let [deployId, subConf] = path.split(',');

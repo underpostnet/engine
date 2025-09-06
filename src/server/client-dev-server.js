@@ -7,7 +7,7 @@ const logger = loggerFactory(import.meta);
 
 const createClientDevServer = () => {
   // process.argv.slice(2).join(' ')
-  shellExec(`env-cmd -f .env.development node bin/deploy build-full-client ${process.argv.slice(2).join(' ')} l`);
+  shellExec(`env-cmd -f .env.development node bin/deploy build-full-client ${process.argv.slice(2).join(' ')}`);
   shellExec(
     `env-cmd -f .env.development node src/api ${process.argv[2]}${process.argv[5] ? ` ${process.argv[5]}` : ''}${
       process.argv.includes('static') ? ' static' : ''
