@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.853
+## underpost ci/cd cli v2.8.854
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -236,6 +236,9 @@ Options:
                           specified namespace.
   --kubeadm               Initializes the cluster using kubeadm for control
                           plane management.
+  --grafana               Initializes the cluster with a Grafana deployment.
+  --prom [hosts]          Initializes the cluster with a Prometheus Operator
+                          deployment and monitor scrap for specified hosts.
   --dev                   Initializes a development-specific cluster
                           configuration.
   --list-pods             Displays detailed information about all pods.
@@ -588,7 +591,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, cyberia-ide, engine-ide, template-deploy, ssh-deploy, ide, monitor, db-client, cluster, deploy, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, cyberia-ide, engine-ide, template-deploy, clean, upgrade, ssh-deploy, ide, monitor, db-client, cluster, deploy, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
