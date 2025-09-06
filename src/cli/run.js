@@ -131,6 +131,16 @@ class UnderpostRun {
       const { underpostRoot } = options;
       shellExec(`node ${underpostRoot}/bin/vs ${path}`);
     },
+    'dev-client': (_path, options = UnderpostRun.DEFAULT_OPTION) => {
+      let [deployId, hostpath, subConf] = _path.split(',');
+      let [host, path] = hostpath.split('/');
+      if (!path) path = '/';
+      shellExec(`npm run dev-client ${deployId} ${host} ${path} ${subConf} static`);
+    },
+    'dev-api': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      let [deployId, subConf] = path.split(',');
+      shellExec(`npm run dev-api ${deployId} ${subConf}`);
+    },
     monitor: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const pid = getTerminalPid();
       logger.info('monitor pid', pid);
