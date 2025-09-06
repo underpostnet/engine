@@ -29,7 +29,8 @@ jobs:
             set -e
             echo "Starting remote release deploy"
             cd /home/dd/engine
-            node bin run --dev upgrade
-            underpost run deploy dd-core
-            underpost run deploy dd-cyberia
-            underpost run deploy dd-lampp
+            npm install -g underpost
+            underpost set GITHUB_TOKEN ${{ secrets.GITHUB_TOKEN }}
+            node bin run --dev pull
+            underpost run secret
+            underpost run release-deploy
