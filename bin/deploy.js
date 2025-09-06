@@ -383,7 +383,7 @@ try {
     }
 
     case 'version-build': {
-      shellExec(`node bin clean-core-repo`);
+      shellExec(`node bin/deploy clean-core-repo`);
       shellCd(`/home/dd/engine`);
       const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
       const newVersion = process.argv[3] ?? originPackageJson.version;
