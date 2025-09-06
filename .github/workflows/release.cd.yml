@@ -30,7 +30,7 @@ jobs:
             echo "Starting remote release deploy"
             cd /home/dd/engine
             npm install -g underpost
-            underpost set GITHUB_TOKEN ${{ secrets.GITHUB_TOKEN }}
+            underpost config set GITHUB_TOKEN ${{ secrets.GITHUB_TOKEN }}
             node bin run --dev pull
             underpost run secret
             underpost run release-deploy
