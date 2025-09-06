@@ -109,7 +109,7 @@ class UnderpostRun {
       shellCd(`/home/dd/engine`);
       shellExec(`node bin/deploy clean-core-repo`);
       shellExec(`underpost pull . underpostnet/engine`);
-      shellExec(`underpost pull engine-private underpostnet/engine-private`);
+      shellExec(`underpost pull engine-private underpostnet/engine-private`, { silent: true });
     },
     'ssh-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';

@@ -12,7 +12,7 @@ data:
       evaluation_interval: 30s
 
     scrape_configs:
-      - job_name: 'nexodev'
+      - job_name: 'scraper'
         metrics_path: /metrics
         scheme: https
         static_configs:
