@@ -8,7 +8,7 @@ on:
 
 jobs:
   after-publish:
-    if: github.repository == 'underpostnet/pwa-microservices-template'
+    if: github.repository == 'underpostnet/pwa-microservices-template' || startsWith(github.event.head_commit.message, 'cd(ssh-release)')
     runs-on: ubuntu-latest
     steps:
       - name: Run remote deploy via SSH
@@ -33,4 +33,5 @@ jobs:
             underpost config set GITHUB_TOKEN ${{ secrets.GITHUB_TOKEN }}
             node bin run --dev pull
             underpost run secret
+            underpost run underpost-config
             underpost run release-deploy

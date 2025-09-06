@@ -54,6 +54,9 @@ class UnderpostRun {
         }`,
       );
     },
+    'underpost-config': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      UnderpostDeploy.API.configMap(path ?? 'production');
+    },
     'gpu-env': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       shellExec(
         `node bin cluster --dev --reset && node bin cluster --dev --dedicated-gpu --kubeadm && kubectl get pods --all-namespaces -o wide -w`,

@@ -323,10 +323,7 @@ Password: <Your Key>
         logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
         return;
       }
-      shellExec(`kubectl delete configmap underpost-config`);
-      shellExec(
-        `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env}`,
-      );
+      UnderpostDeploy.API.configMap(env);
       let renderHosts = '';
       let concatHots = '';
       const etcHost = (
@@ -476,6 +473,12 @@ Password: <Your Key>
         }
       }
       return { ready: notReadyPods.length === 0, notReadyPods, readyPods };
+    },
+    configMap(env) {
+      shellExec(`kubectl delete configmap underpost-config`);
+      shellExec(
+        `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env}`,
+      );
     },
   };
 }
