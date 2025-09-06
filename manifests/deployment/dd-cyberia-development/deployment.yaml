@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-blue
-          image: localhost/rockylinux9-underpost:v2.8.855
+          image: localhost/rockylinux9-underpost:v2.8.856
 #          resources:
 #            requests:
 #              memory: "127539Ki"
@@ -86,7 +86,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-green
-          image: localhost/rockylinux9-underpost:v2.8.855
+          image: localhost/rockylinux9-underpost:v2.8.856
 #          resources:
 #            requests:
 #              memory: "127539Ki"
