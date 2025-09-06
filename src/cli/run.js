@@ -219,18 +219,19 @@ class UnderpostRun {
       shellExec(`kubectl apply -k ${underpostRoot}/manifests/deployment/adminer/.`);
     },
     promote: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      let [inputDeployId, inputEnv] = path.split(',');
+      let [inputDeployId, inputEnv, inputReplicas] = path.split(',');
       if (!inputEnv) inputEnv = 'production';
+      if (!inputReplicas) inputReplicas = 1;
       if (inputDeployId === 'dd') {
         for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
           const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
           const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
-          UnderpostDeploy.API.switchTraffic(deployId, inputEnv, targetTraffic);
+          UnderpostDeploy.API.switchTraffic(deployId, inputEnv, targetTraffic, inputReplicas);
         }
       } else {
         const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(inputDeployId);
         const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
-        UnderpostDeploy.API.switchTraffic(inputDeployId, inputEnv, targetTraffic);
+        UnderpostDeploy.API.switchTraffic(inputDeployId, inputEnv, targetTraffic, inputReplicas);
       }
     },
     cluster: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
