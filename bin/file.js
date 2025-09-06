@@ -99,6 +99,7 @@ try {
           `./.github/workflows/npmpkg.ci.yml`,
           `./.github/workflows/ghpkg.ci.yml`,
           `./.github/workflows/publish.ci.yml`,
+          `./.github/workflows/release.cd.yml`,
         ])
           fs.copyFileSync(_path, `../pwa-microservices-template/${_path}`);
 
