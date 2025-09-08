@@ -234,6 +234,18 @@ class UnderpostRun {
         UnderpostDeploy.API.switchTraffic(inputDeployId, inputEnv, targetTraffic, inputReplicas);
       }
     },
+
+    metrics: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',');
+      let hosts = [];
+      for (const deployId of deployList) {
+        const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
+        hosts = hosts.concat(Object.keys(confServer));
+      }
+      shellExec(`node bin cluster --prom ${hosts.join(',')}`);
+      shellExec(`node bin cluster --grafana`);
+    },
+
     cluster: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',');
       const env = 'production';
