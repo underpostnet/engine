@@ -8,7 +8,7 @@ import { LogOut } from '../core/LogOut.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath, hexToRgbA, htmls, s } from '../core/VanillaJs.js';
 import { ElementsCyberiaPortal } from './ElementsCyberiaPortal.js';
 import Sortable from 'sortablejs';
 import { RouterCyberiaPortal } from './RoutesCyberiaPortal.js';
@@ -17,6 +17,7 @@ import { ServerCyberiaPortal } from './ServerCyberiaPortal.js';
 import { Chat } from '../core/Chat.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
+import { CoreService } from '../../services/core/core.service.js';
 
 const MenuCyberiaPortal = {
   Data: {},
@@ -458,7 +459,19 @@ const MenuCyberiaPortal = {
           await import(`${getProxyPath()}components/core/ObjectLayerEngine.js`);
           // await import(`${getProxyPath()}components/core/WebComponent.js`);
 
-          const cells = 16;
+          setTimeout(async () => {
+            JSON.parse(
+              await CoreService.getRaw({
+                url: `${getProxyPath()}assets/templates/item-skin-08.json`,
+              }),
+            ).color.forEach((y, indexY) => {
+              y.forEach((x, indexX) => {
+                s('object-layer-engine')._applyBrush(indexX, indexY, [...hexToRgbA(x), 255], true);
+              });
+            });
+          });
+
+          const cells = 26;
           const pixelSize = parseInt(320 / cells);
 
           return html`<object-layer-engine
