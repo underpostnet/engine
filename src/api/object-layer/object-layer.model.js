@@ -164,6 +164,8 @@ ObjectLayerSchema.pre('save', function (next) {
 });
 
 // Create and export the model
-const ObjectLayer = model('ObjectLayer', ObjectLayerSchema);
+const ObjectLayerModel = model('ObjectLayer', ObjectLayerSchema);
 
-export default ObjectLayer;
+const ProviderSchema = ObjectLayerSchema;
+
+export { ObjectLayerSchema, ObjectLayerModel, ProviderSchema };
