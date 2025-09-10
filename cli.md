@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.858
+## underpost ci/cd cli v2.8.86
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -7,7 +7,7 @@
   -h, --help                                                 display help for command
 
 Commands:
-  new <app-name>                                             Initializes a new Underpost project with a predefined structure.
+  new [options] <app-name>                                   Initializes a new Underpost project with a predefined structure.
   start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
   clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
   pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
@@ -50,6 +50,7 @@ Arguments:
   app-name    The name of the application to create.
 
 Options:
+  --dev       Sets the development cli context
   -h, --help  display help for command
  
 ```
@@ -593,7 +594,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, cyberia-ide, engine-ide, template-deploy, clean, pull, release-deploy, ssh-deploy, ide, dev-client, dev-api, monitor, db-client, cluster, deploy, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, cyberia-ide, engine-ide, template-deploy, clean, pull, release-deploy, ssh-deploy, ide, dev-client, dev-api, monitor, db-client, promote, metrics, cluster, deploy, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
