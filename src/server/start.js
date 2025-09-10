@@ -79,11 +79,11 @@ class UnderpostStartUp {
         }
       }),
 
-    async callback(deployId = 'default', env = 'development', options = { build: false, run: false }) {
+    async callback(deployId = 'dd-default', env = 'development', options = { build: false, run: false }) {
       if (options.build === true) await UnderpostStartUp.API.build(deployId, env);
       if (options.run === true) await UnderpostStartUp.API.run(deployId, env);
     },
-    async build(deployId = 'default', env = 'development') {
+    async build(deployId = 'dd-default', env = 'development') {
       const buildBasePath = `/home/dd`;
       const repoName = `engine-${deployId.split('-')[1]}`;
       shellExec(`cd ${buildBasePath} && underpost clone underpostnet/${repoName}`);
@@ -100,7 +100,7 @@ class UnderpostStartUp {
       }
       shellExec(`node bin/deploy build-full-client ${deployId}`);
     },
-    async run(deployId = 'default', env = 'development') {
+    async run(deployId = 'dd-default', env = 'development') {
       const runCmd = env === 'production' ? 'run prod-img' : 'run dev-img';
       if (fs.existsSync(`./engine-private/replica`)) {
         const replicas = await fs.readdir(`./engine-private/replica`);

@@ -80,7 +80,7 @@ class UnderpostRepository {
       );
     },
 
-    new(repositoryName) {
+    new(repositoryName, options = { dev: false }) {
       return new Promise(async (resolve, reject) => {
         try {
           await logger.setUpInfo();
@@ -89,14 +89,19 @@ class UnderpostRepository {
               await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), ':'),
             );
           else actionInitLog();
-          const exeRootPath = `${getNpmRootPath()}/underpost`;
+          const npmRoot = getNpmRootPath();
+          const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
           const destFolder = `./${repositoryName}`;
           logger.info('Note: This process may take several minutes to complete');
           logger.info('build app', { destFolder });
           if (fs.existsSync(destFolder)) fs.removeSync(destFolder);
           fs.mkdirSync(destFolder, { recursive: true });
-          fs.copySync(exeRootPath, destFolder);
-          fs.writeFileSync(`${destFolder}/.gitignore`, fs.readFileSync(`${exeRootPath}/.dockerignore`, 'utf8'), 'utf8');
+          fs.copySync(underpostRoot, destFolder);
+          fs.writeFileSync(
+            `${destFolder}/.gitignore`,
+            fs.readFileSync(`${underpostRoot}/.dockerignore`, 'utf8'),
+            'utf8',
+          );
           shellExec(`cd ${destFolder} && git init && git add . && git commit -m "Base template implementation"`);
           shellExec(`cd ${destFolder} && npm run build`);
           shellExec(`cd ${destFolder} && npm run dev`);

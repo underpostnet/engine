@@ -205,7 +205,7 @@ try {
     case 'build-full-client':
       {
         dotenv.config({ override: true });
-        if (!process.argv[3]) process.argv[3] = 'default';
+        if (!process.argv[3]) process.argv[3] = 'dd-default';
         const { deployId, folder } = loadConf(process.argv[3]);
 
         let argHost = process.argv[4] ? process.argv[4].split(',') : [];
