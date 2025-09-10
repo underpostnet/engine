@@ -41,24 +41,35 @@ const program = new Command();
 
 program.name('cyberia').description(`content generator cli ${Underpost.version}`).version(Underpost.version);
 
+const pngDirectoryIteratorByObjectLayerType = async (
+  objectLayerType = 'skin',
+  callback = ({ path, objectLayerType, objectLayerId, direction, frame }) => {},
+) => {
+  for (const objectLayerId of await fs.readdir(`./src/client/public/cyberia/assets/${objectLayerType}`)) {
+    for (const direction of await fs.readdir(
+      `./src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}`,
+    )) {
+      const dirFolder = `./src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/${direction}`;
+      if (!fs.statSync(dirFolder).isDirectory()) continue;
+      for (const frame of await fs.readdir(dirFolder)) {
+        const imageFilePath = `./src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/${direction}/${frame}`;
+        await callback({ path: imageFilePath, objectLayerType, objectLayerId, direction, frame });
+      }
+    }
+  }
+};
+
 program
   .command('ol')
   .option('--import [object-layer-type]', 'Import object layer from type storage png image')
   .action(async (options = { import: false }) => {
     if (options.import) {
-      const ObjectLayerType = options.import;
-      for (const objectLayerId of await fs.readdir(`./src/client/public/cyberia/assets/${ObjectLayerType}`)) {
-        for (const direction of await fs.readdir(
-          `./src/client/public/cyberia/assets/${ObjectLayerType}/${objectLayerId}`,
-        )) {
-          const dirFolder = `./src/client/public/cyberia/assets/${ObjectLayerType}/${objectLayerId}/${direction}`;
-          if (!fs.statSync(dirFolder).isDirectory()) continue;
-          for (const frame of await fs.readdir(dirFolder)) {
-            const imageFilePath = `./src/client/public/cyberia/assets/${ObjectLayerType}/${objectLayerId}/${direction}/${frame}`;
-            console.log(imageFilePath, fs.existsSync(imageFilePath));
-          }
-        }
-      }
+      await pngDirectoryIteratorByObjectLayerType(
+        options.import,
+        async ({ path, objectLayerType, objectLayerId, direction, frame }) => {
+          console.log(path, { objectLayerType, objectLayerId, direction, frame });
+        },
+      );
     }
     await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
   })
