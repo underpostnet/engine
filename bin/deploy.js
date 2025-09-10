@@ -42,7 +42,7 @@ try {
     case 'save':
       {
         let deployId = process.argv[3] ?? 'dd-default';
-        if (!deployId.startsWith('dd-')) deployId = 'dd-' + deployId;
+        if (!deployId.startsWith('dd-')) deployId = 'dd-default';
         const folder = `./engine-private/conf/${deployId}`;
         if (fs.existsSync(folder)) fs.removeSync(folder);
         await Config.build({ folder });

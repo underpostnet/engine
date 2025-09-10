@@ -96,13 +96,15 @@ class UnderpostRepository {
           logger.info('build app', { destFolder });
           if (fs.existsSync(destFolder)) fs.removeSync(destFolder);
           fs.mkdirSync(destFolder, { recursive: true });
-          fs.copySync(underpostRoot, destFolder);
-          fs.writeFileSync(
-            `${destFolder}/.gitignore`,
-            fs.readFileSync(`${underpostRoot}/.dockerignore`, 'utf8'),
-            'utf8',
-          );
-          shellExec(`cd ${destFolder} && git init && git add . && git commit -m "Base template implementation"`);
+          if (!options.dev) {
+            fs.copySync(underpostRoot, destFolder);
+            fs.writeFileSync(
+              `${destFolder}/.gitignore`,
+              fs.readFileSync(`${underpostRoot}/.dockerignore`, 'utf8'),
+              'utf8',
+            );
+            shellExec(`cd ${destFolder} && git init && git add . && git commit -m "Base template implementation"`);
+          }
           shellExec(`cd ${destFolder} && npm run build`);
           shellExec(`cd ${destFolder} && npm run dev`);
           return resolve();

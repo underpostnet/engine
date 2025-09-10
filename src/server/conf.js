@@ -104,7 +104,7 @@ const loadConf = (deployId, envInput, subConf) => {
     shellExec(`git checkout ${path}/package-lock.json`);
     return;
   }
-  if (!deployId.startsWith('dd-')) deployId = 'dd-' + deployId;
+  if (!deployId.startsWith('dd-')) deployId = 'dd-default';
   const folder = fs.existsSync(`./engine-private/replica/${deployId}`)
     ? `./engine-private/replica/${deployId}`
     : `./engine-private/conf/${deployId}`;
