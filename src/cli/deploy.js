@@ -49,7 +49,7 @@ class UnderpostDeploy {
       const initEnvObj = dotenv.parse(fs.readFileSync(initEnvPath, 'utf8'));
       process.env.PORT = initEnvObj.PORT;
       process.env.NODE_ENV = env;
-      await Config.build(undefined, 'proxy', deployList);
+      await Config.build('proxy', deployList);
       return buildPortProxyRouter(env === 'development' ? 80 : 443, buildProxyRouter());
     },
     deploymentYamlServiceFactory({ deployId, env, port, deploymentVersions }) {

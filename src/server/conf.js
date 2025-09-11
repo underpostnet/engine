@@ -27,62 +27,44 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
-// monitoring: https://app.pm2.io/
-
 const Config = {
   default: DefaultConf,
-  build: async function (options = { folder: '' }, deployContext, deployList, subConf) {
-    if (!deployContext) deployContext = process.argv[2];
+  build: async function (deployContext = 'dd-default', deployList, subConf) {
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
     if (fs.existsSync(`./engine-private/replica/${deployContext}`))
       return loadConf(deployContext, process.env.NODE_ENV, subConf);
     else if (deployContext.startsWith('dd-')) return loadConf(deployContext, process.env.NODE_ENV, subConf);
+    if (deployContext === 'proxy') Config.buildProxy(deployContext, deployList, subConf);
+  },
+  buildProxy: function (deployContext = 'dd-default', deployList, subConf) {
+    if (!deployList) deployList = process.argv[3];
+    if (!subConf) subConf = process.argv[4];
+    this.default.server = {};
+    for (const deployId of deployList.split(',')) {
+      let confPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      const privateConfDevPath = fs.existsSync(`./engine-private/replica/${deployId}/conf.server.json`)
+        ? `./engine-private/replica/${deployId}/conf.server.json`
+        : `./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`;
+      const confDevPath = fs.existsSync(privateConfDevPath)
+        ? privateConfDevPath
+        : `./engine-private/conf/${deployId}/conf.server.dev.json`;
 
-    if (deployContext === 'deploy') return;
+      if (process.env.NODE_ENV === 'development' && fs.existsSync(confDevPath)) confPath = confDevPath;
+      const serverConf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
 
-    if (deployContext === 'proxy') {
-      if (!deployList) deployList = process.argv[3];
-      if (!subConf) subConf = process.argv[4];
-      this.default.server = {};
-      for (const deployId of deployList.split(',')) {
-        let confPath = `./engine-private/conf/${deployId}/conf.server.json`;
-        const privateConfDevPath = fs.existsSync(`./engine-private/replica/${deployId}/conf.server.json`)
-          ? `./engine-private/replica/${deployId}/conf.server.json`
-          : `./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`;
-        const confDevPath = fs.existsSync(privateConfDevPath)
-          ? privateConfDevPath
-          : `./engine-private/conf/${deployId}/conf.server.dev.json`;
-
-        if (process.env.NODE_ENV === 'development' && fs.existsSync(confDevPath)) confPath = confDevPath;
-        const serverConf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
-
-        for (const host of Object.keys(loadReplicas(serverConf, deployContext, subConf))) {
-          if (serverConf[host]['/'])
-            this.default.server[host] = {
-              ...this.default.server[host],
-              ...serverConf[host],
-            };
-          else
-            this.default.server[host] = {
-              ...serverConf[host],
-              ...this.default.server[host],
-            };
-        }
+      for (const host of Object.keys(loadReplicas(serverConf, deployContext, subConf))) {
+        if (serverConf[host]['/'])
+          this.default.server[host] = {
+            ...this.default.server[host],
+            ...serverConf[host],
+          };
+        else
+          this.default.server[host] = {
+            ...serverConf[host],
+            ...this.default.server[host],
+          };
       }
-    }
-    if (!options || !options.folder)
-      options = {
-        ...options,
-        folder: `./conf`,
-      };
-    if (!fs.existsSync(options.folder)) fs.mkdirSync(options.folder, { recursive: true });
-    for (const confType of Object.keys(this.default)) {
-      fs.writeFileSync(
-        `${options.folder}/conf.${confType}.json`,
-        JSON.stringify(this.default[confType], null, 4),
-        'utf8',
-      );
     }
   },
 };
@@ -103,7 +85,6 @@ const loadConf = (deployId, envInput, subConf) => {
     shellExec(`git checkout ${path}/package-lock.json`);
     return;
   }
-  if (!deployId.startsWith('dd-')) deployId = 'dd-default';
   const folder = fs.existsSync(`./engine-private/replica/${deployId}`)
     ? `./engine-private/replica/${deployId}`
     : `./engine-private/conf/${deployId}`;
