@@ -46,9 +46,21 @@ try {
         const folder = `./engine-private/conf/${deployId}`;
         if (fs.existsSync(folder)) fs.removeSync(folder);
         await Config.build({ folder });
-        fs.writeFileSync(`${folder}/.env.production`, fs.readFileSync('./.env.production', 'utf8'), 'utf8');
-        fs.writeFileSync(`${folder}/.env.development`, fs.readFileSync('./.env.development', 'utf8'), 'utf8');
-        fs.writeFileSync(`${folder}/.env.test`, fs.readFileSync('./.env.test', 'utf8'), 'utf8');
+        fs.writeFileSync(
+          `${folder}/.env.production`,
+          fs.readFileSync('./.env.production', 'utf8').replace('dd-default', deployId),
+          'utf8',
+        );
+        fs.writeFileSync(
+          `${folder}/.env.development`,
+          fs.readFileSync('./.env.development', 'utf8').replace('dd-default', deployId),
+          'utf8',
+        );
+        fs.writeFileSync(
+          `${folder}/.env.test`,
+          fs.readFileSync('./.env.test', 'utf8').replace('dd-default', deployId),
+          'utf8',
+        );
         fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
       }
       break;
