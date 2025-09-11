@@ -11,9 +11,9 @@ const UserRouter = (options) => {
   const router = express.Router();
 
   (async () => {
-    const models = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models;
-    if (models.User) {
-      try {
+    try {
+      const models = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models;
+      if (models.User) {
         const adminUser = await models.User.findOne({ role: 'admin' });
         if (!adminUser) {
           const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'changethis';
@@ -29,10 +29,12 @@ const UserRouter = (options) => {
           });
           logger.warn('Default admin user created. Please change the default password immediately!', result._doc);
         }
-      } catch (error) {
-        logger.error('Error checking/creating admin user:', error);
       }
+    } catch (error) {
+      logger.error('Error checking/creating admin user');
+      console.log(error);
     }
+
     options.png = {
       buffer: {
         'invalid-token': fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-invalid-token.png`),
