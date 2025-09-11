@@ -18,7 +18,6 @@ import { DataBaseProvider } from '../db/DataBaseProvider.js';
 // import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createPeerServer } from './peer.js';
 import { Lampp } from '../runtime/lampp/Lampp.js';
-import { getDeployId } from './conf.js';
 import { JSONweb, ssrFactory } from './client-formatted.js';
 import Underpost from '../index.js';
 import { createValkeyConnection } from './valkey.js';
@@ -28,7 +27,7 @@ dotenv.config();
 const logger = loggerFactory(import.meta);
 
 const buildRuntime = async () => {
-  const deployId = getDeployId();
+  const deployId = process.env.DEPLOY_ID;
 
   const collectDefaultMetrics = promClient.collectDefaultMetrics;
   collectDefaultMetrics();

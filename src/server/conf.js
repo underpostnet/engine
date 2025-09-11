@@ -757,12 +757,6 @@ const awaitDeployMonitor = async (init = false, deltaMs = 1000) => {
   if (fs.existsSync(`./tmp/await-deploy`)) return await awaitDeployMonitor();
 };
 
-const getDeployId = () => {
-  const deployIndexArg = process.argv.findIndex((a) => a.match(`deploy-id:`));
-  if (deployIndexArg > -1) return process.argv[deployIndexArg].split(':')[1].trim();
-  return 'dd-default';
-};
-
 const getCronBackUpFolder = (host = '', path = '') => {
   return `${host}${path.replace(/\\/g, '/').replace(`/`, '-')}`;
 };
@@ -979,7 +973,6 @@ export {
   buildReplicaId,
   getCronBackUpFolder,
   mergeFile,
-  getDeployId,
   getPathsSSR,
   buildKindPorts,
   buildPortProxyRouter,

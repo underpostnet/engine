@@ -107,12 +107,12 @@ class UnderpostStartUp {
         for (const replica of replicas) {
           if (!replica.match(deployId)) continue;
           shellExec(`node bin/deploy conf ${replica} ${env}`);
-          shellExec(`npm ${runCmd} deploy deploy-id:${replica}`, { async: true });
+          shellExec(`npm ${runCmd} ${replica}`, { async: true });
           await awaitDeployMonitor(true);
         }
       }
       shellExec(`node bin/deploy conf ${deployId} ${env}`);
-      shellExec(`npm ${runCmd} deploy deploy-id:${deployId}`, { async: true });
+      shellExec(`npm ${runCmd} ${deployId}`, { async: true });
       await awaitDeployMonitor(true);
       UnderpostRootEnv.API.set('container-status', `${deployId}-${env}-running-deployment`);
     },
