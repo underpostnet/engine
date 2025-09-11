@@ -125,8 +125,8 @@ try {
         templatePackageJson.scripts = originPackageJson.scripts;
         templatePackageJson.name = name;
         templatePackageJson.description = description;
-        templatePackageJson.scripts.dev = dev;
-        templatePackageJson.scripts.build = build;
+        // templatePackageJson.scripts.dev = dev;
+        // templatePackageJson.scripts.build = build;
         templatePackageJson.keywords = uniqueArray(
           ['pwa', 'microservices', 'template', 'builder'].concat(templatePackageJson.keywords),
         );

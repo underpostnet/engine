@@ -535,7 +535,13 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
         );
       }
 
-      if (!enableLiveRebuild && !process.argv.includes('l') && !process.argv.includes('deploy') && docsBuild) {
+      if (
+        fullBuildEnabled &&
+        !enableLiveRebuild &&
+        !process.argv.includes('l') &&
+        !process.argv.includes('deploy') &&
+        docsBuild
+      ) {
         await buildDocs({
           host,
           path,

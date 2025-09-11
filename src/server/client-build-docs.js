@@ -159,7 +159,7 @@ const buildCoverage = async ({ host, path }) => {
     shellExec(`npm test`);
   }
 
-  const coverageBuildPath = `${jsDocsConfig.opts.destination}/coverage`;
+  const coverageBuildPath = `${jsDocsConfig.opts.destination}coverage`;
   fs.mkdirSync(coverageBuildPath, { recursive: true });
   fs.copySync(`./coverage`, coverageBuildPath);
 

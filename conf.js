@@ -148,7 +148,7 @@ const DefaultConf = /**/ {
         origins: [],
         minifyBuild: false,
         iconsBuild: true,
-        liteBuild: false,
+        liteBuild: true,
         docsBuild: false,
         offlineBuild: false,
         ws: 'core',

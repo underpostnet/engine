@@ -35,10 +35,9 @@ const Config = {
     if (!deployContext) deployContext = process.argv[2];
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
-    if (fs.existsSync(`./engine-private/conf/${deployContext}`))
-      return loadConf(deployContext, process.env.NODE_ENV, subConf);
     if (fs.existsSync(`./engine-private/replica/${deployContext}`))
       return loadConf(deployContext, process.env.NODE_ENV, subConf);
+    else if (deployContext.startsWith('dd-')) return loadConf(deployContext, process.env.NODE_ENV, subConf);
 
     if (deployContext === 'deploy') return;
 
