@@ -30,12 +30,43 @@ const logger = loggerFactory(import.meta);
 const Config = {
   default: DefaultConf,
   build: async function (deployContext = 'dd-default', deployList, subConf) {
+    if (typeof process.argv[2] === 'string' && process.argv[2].startsWith('dd-')) deployContext = process.argv[2];
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
     if (fs.existsSync(`./engine-private/replica/${deployContext}`))
       return loadConf(deployContext, process.env.NODE_ENV, subConf);
     else if (deployContext.startsWith('dd-')) return loadConf(deployContext, process.env.NODE_ENV, subConf);
     if (deployContext === 'proxy') Config.buildProxy(deployContext, deployList, subConf);
+  },
+  deployIdFactory: function (deployId = 'dd-default') {
+    if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
+
+    logger.info('Build deployId', deployId);
+
+    const folder = `./engine-private/conf/${deployId}`;
+
+    if (!fs.existsSync(folder)) fs.mkdirSync(folder);
+    fs.writeFileSync(
+      `${folder}/.env.production`,
+      fs.readFileSync('./.env.production', 'utf8').replace('dd-default', deployId),
+      'utf8',
+    );
+    fs.writeFileSync(
+      `${folder}/.env.development`,
+      fs.readFileSync('./.env.development', 'utf8').replace('dd-default', deployId),
+      'utf8',
+    );
+    fs.writeFileSync(
+      `${folder}/.env.test`,
+      fs.readFileSync('./.env.test', 'utf8').replace('dd-default', deployId),
+      'utf8',
+    );
+    fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
+
+    for (const confType of Object.keys(this.default))
+      fs.writeFileSync(`${folder}/conf.${confType}.json`, JSON.stringify(this.default[confType], null, 4), 'utf8');
+
+    return { deployIdFolder: folder, deployId };
   },
   buildProxy: function (deployContext = 'dd-default', deployList, subConf) {
     if (!deployList) deployList = process.argv[3];
@@ -69,7 +100,7 @@ const Config = {
   },
 };
 
-const loadConf = (deployId, envInput, subConf) => {
+const loadConf = (deployId = 'dd-default', envInput, subConf) => {
   if (deployId === 'current') {
     console.log(process.env.DEPLOY_ID);
     return;
@@ -88,18 +119,12 @@ const loadConf = (deployId, envInput, subConf) => {
   const folder = fs.existsSync(`./engine-private/replica/${deployId}`)
     ? `./engine-private/replica/${deployId}`
     : `./engine-private/conf/${deployId}`;
+  if (!fs.existsSync(folder)) Config.deployIdFactory(deployId);
   if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
-  if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
-  const isValidDeployId = fs.existsSync(`${folder}`);
-  if (!isValidDeployId) {
-    logger.info(`Save new deploy conf: '${deployId}'`);
-    shellExec(`node bin/deploy save ${deployId}`);
-    return loadConf(deployId);
-  }
+  if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`);
+
   for (const typeConf of Object.keys(Config.default)) {
-    let srcConf = isValidDeployId
-      ? fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8')
-      : JSON.stringify(Config.default[typeConf]);
+    let srcConf = fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8');
     if (process.env.NODE_ENV === 'development' && typeConf === 'server') {
       if (!subConf) subConf = process.argv[3];
       const devConfPath = `${folder}/conf.${typeConf}.dev${subConf ? `.${subConf}` : ''}.json`;

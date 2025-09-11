@@ -22,7 +22,8 @@ program.name('underpost').description(`underpost ci/cd cli ${Underpost.version}`
 // 'new' command: Create a new project
 program
   .command('new')
-  .argument('<app-name>', 'The name of the application to create.')
+  .argument('<app-name>', 'The name or deploy-id of the application to create.')
+  .option('--deploy-id', 'Crete deploy ID conf env files')
   .option('--dev', 'Sets the development cli context')
   .description('Initializes a new Underpost project with a predefined structure.')
   .action(Underpost.repo.new);
