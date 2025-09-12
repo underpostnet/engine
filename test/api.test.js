@@ -21,12 +21,13 @@ const BASE_URL =
 
 describe(`GET 'Test' API Request `, async () => {
   {
-    const url = `${BASE_URL}/test/youtube-id/?url=https://www.youtube.com/watch?v=o4f42SbyDMk`;
+    const youtubeId = '2aib-pmgUdQ';
+    const url = `${BASE_URL}/test/youtube-id/?url=https://www.youtube.com/watch?v=${youtubeId}`;
     it(`youtube id from raw youtube url`, async () => {
       logger.info('request info', { url });
       const res = await axios.get(url);
       logger.info('response', res.data);
-      return expect(res.data.data).equal('o4f42SbyDMk');
+      return expect(res.data.data).equal(youtubeId);
     });
   }
   {
