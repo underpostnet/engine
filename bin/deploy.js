@@ -28,6 +28,7 @@ import { DefaultConf } from '../conf.js';
 import colors from 'colors';
 import { program } from '../src/cli/index.js';
 import { getLocalIPv4Address, ip } from '../src/server/dns.js';
+import { timer } from '../src/client/components/core/CommonJs.js';
 
 colors.enable();
 
@@ -367,6 +368,17 @@ try {
     }
 
     case 'version-build': {
+      shellExec(`node bin run kill 4001`);
+      shellExec(`node bin run kill 4002`);
+      shellExec(`node bin run kill 4003`);
+      shellExec(`npm run update-template`);
+      shellExec(`cd ../pwa-microservices-template && npm run build && timeout 5s npm run dev`, {
+        async: true,
+      });
+      await timer(5500);
+      const templateRunnerResult = fs.readFileSync(`../pwa-microservices-template/logs/start.js/all.log`, 'utf8');
+      logger.info('Test template runner result');
+      console.log(templateRunnerResult);
       shellExec(`node bin/deploy clean-core-repo`);
       shellCd(`/home/dd/engine`);
       const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
