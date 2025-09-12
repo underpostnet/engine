@@ -441,10 +441,23 @@ try {
       shellExec(`node bin/deploy update-dependencies`);
       shellExec(`auto-changelog`);
       shellExec(`node bin/build dd`);
-      shellExec(`node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 --node ${node} dd`);
       shellExec(
         `node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 --node ${node} dd production`,
       );
+      for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(`,`)) {
+        fs.copySync(
+          `./engine-private/conf/${deployId}/build/development/deployment.yaml`,
+          `./manifests/deployment/${deployId}-development/deployment.yaml`,
+        );
+        fs.copySync(
+          `./engine-private/conf/${deployId}/build/development/proxy.yaml`,
+          `./manifests/deployment/${deployId}-development/proxy.yaml`,
+        );
+      }
+      shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
+      shellExec(`node bin new --deploy-id dd-default`);
+      console.log(fs.existsSync(`./engine-private/conf/dd-default`));
+      shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
       break;
     }
 
