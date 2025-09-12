@@ -63,7 +63,7 @@ const Config = {
     );
     fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
 
-    this.buildTmpConf(`${folder}/conf`);
+    this.buildTmpConf(folder);
 
     return { deployIdFolder: folder, deployId };
   },
