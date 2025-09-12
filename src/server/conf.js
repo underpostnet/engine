@@ -641,7 +641,6 @@ const getDataDeploy = (
     deployGroupId: '',
     deployId: '',
     disableSyncEnvPort: false,
-    deployIdConcat: [],
   },
 ) => {
   let dataDeploy =
@@ -653,8 +652,6 @@ const getDataDeploy = (
     .split(',')
     .map((deployId) => deployId.trim())
     .filter((deployId) => deployId);
-
-  if (options.deployIdConcat) dataDeploy = dataDeploy.concat(options.deployIdConcat);
 
   if (options.deployId) dataDeploy = dataDeploy.filter((d) => d === options.deployId);
 

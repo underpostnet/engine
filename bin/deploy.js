@@ -258,23 +258,20 @@ try {
       for (const deployIdObj of dataDeploy) {
         const { deployId, replicaHost } = deployIdObj;
         if (replicaHost && !singleReplicaHosts.includes(replicaHost)) singleReplicaHosts.push(replicaHost);
-        const proxyInstance = deployId.match('proxy') || deployId.match('cron');
         const baseConfPath = fs.existsSync(`./engine-private/replica/${deployId}`)
           ? `./engine-private/replica`
           : `./engine-private/conf`;
         for (const envInstanceObj of dataEnv) {
           const envPath = `${baseConfPath}/${deployId}/.env.${envInstanceObj.env}`;
           const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-          envObj.PORT = proxyInstance
-            ? envInstanceObj.port
-            : envInstanceObj.port + port - singleReplicaHosts.length - (replicaHost ? 1 : 0);
+          envObj.PORT = envInstanceObj.port + port - singleReplicaHosts.length - (replicaHost ? 1 : 0);
 
           writeEnv(envPath, envObj);
         }
         const serverConf = loadReplicas(
           JSON.parse(fs.readFileSync(`${baseConfPath}/${deployId}/conf.server.json`, 'utf8')),
         );
-        if (!proxyInstance) for (const host of Object.keys(serverConf)) port += Object.keys(serverConf[host]).length;
+        for (const host of Object.keys(serverConf)) port += Object.keys(serverConf[host]).length;
       }
       break;
 
