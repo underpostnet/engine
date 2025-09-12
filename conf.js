@@ -130,7 +130,7 @@ const DefaultConf = /**/ {
   ssr: {
     Default: {
       head: ['Seo', 'Pwa', 'Css', 'DefaultScripts', 'Production'],
-      body: ['CacheControl', 'DefaultSplashScreen', '404', '500'],
+      body: ['CacheControl', 'DefaultSplashScreen'],
       mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
       offline: [
         { path: '/offline', title: 'No Network Connection', client: 'NoNetworkConnection', head: [], body: [] },
