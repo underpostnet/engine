@@ -51,6 +51,7 @@ const Modal = {
       RouterInstance: {},
       disableTools: [],
       observer: false,
+      disableBoxShadow: false,
     },
   ) {
     if (options.heightBottomBar === undefined) options.heightBottomBar = 50;
@@ -959,6 +960,7 @@ const Modal = {
                   heightBottomBar: originHeightBottomBar,
                   barMode: options.barMode,
                   observer: true,
+                  disableBoxShadow: true,
                 });
                 const maxWidthInputSearchBox = 450;
                 const paddingInputSearchBox = 5;
@@ -1389,7 +1391,11 @@ const Modal = {
         }
       </style>
       ${renderStyleTag(`style-${idModal}`, `.${idModal}`, options)}
-      <div class="fix ${options && options.class ? options.class : ''} modal box-shadow ${idModal}">
+      <div
+        class="fix ${options && options.class ? options.class : ''} modal ${options.disableBoxShadow
+          ? ''
+          : 'box-shadow'} ${idModal}"
+      >
         <div class="abs modal-handle-${idModal}"></div>
         <div class="in modal-html-${idModal}">
           <div class="stq bar-default-modal bar-default-modal-${idModal}">
