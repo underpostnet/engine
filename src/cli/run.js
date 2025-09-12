@@ -141,6 +141,14 @@ class UnderpostRun {
       let [deployId, subConf] = path.split(',');
       shellExec(`npm run dev-api ${deployId} ${subConf}`);
     },
+    'router-sync': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const baseCommand = options.dev || true ? 'node bin' : 'underpost';
+      const defaultPaht = ['dd', 'kind-control-plane'];
+      let [deployId, node] = path ? path.split(',') : defaultPaht;
+      deployId = deployId ?? defaultPaht[0];
+      node = node ?? defaultPaht[1];
+      shellExec(`${baseCommand} deploy --sync --node ${node} --build-manifest --info-router ${deployId} production`);
+    },
     monitor: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const pid = getTerminalPid();
       logger.info('monitor pid', pid);
