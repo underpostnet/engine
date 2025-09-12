@@ -371,6 +371,7 @@ try {
       shellCd(`/home/dd/engine`);
       const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
       const newVersion = process.argv[3] ?? originPackageJson.version;
+      const node = process.argv[4] ?? 'kind-control-plane';
       const { version } = originPackageJson;
       originPackageJson.version = newVersion;
       fs.writeFileSync(`package.json`, JSON.stringify(originPackageJson, null, 4), 'utf8');
@@ -428,8 +429,10 @@ try {
       shellExec(`node bin/deploy update-dependencies`);
       shellExec(`auto-changelog`);
       shellExec(`node bin/build dd`);
-      shellExec(`node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 dd`);
-      shellExec(`node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 dd production`);
+      shellExec(`node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 --node ${node} dd`);
+      shellExec(
+        `node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 --node ${node} dd production`,
+      );
       break;
     }
 
