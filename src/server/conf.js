@@ -503,15 +503,6 @@ const buildProxyRouter = () => {
       }
     }
   }
-  if (process.argv.includes('maintenance'))
-    (async () => {
-      globalThis.defaultHtmlSrcMaintenance = (await ssrFactory())({
-        title: 'Site in maintenance',
-        ssrPath: '/',
-        ssrHeadComponents: '',
-        ssrBodyComponents: (await ssrFactory(`./src/client/ssr/offline/Maintenance.js`))(),
-      });
-    })();
 
   return proxyRouter;
 };

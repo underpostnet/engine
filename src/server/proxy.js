@@ -55,7 +55,7 @@ const buildProxy = async () => {
         // '^/target-path': '/',
       },
     };
-    if (!process.argv.includes('maintenance')) options.router = buildPortProxyRouter(port, proxyRouter);
+    options.router = buildPortProxyRouter(port, proxyRouter);
 
     const filter = false
       ? (pathname, req) => {
