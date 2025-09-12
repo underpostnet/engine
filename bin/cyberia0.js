@@ -8,8 +8,10 @@ import Jimp from 'jimp';
 import Underpost from '../src/index.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
+import { range } from '../src/client/components/core/CommonJs.js';
+import sharp from 'sharp';
 
-dotenv.config();
+dotenv.config({ path: `./engine-private/conf/dd-cyberia/.env.production`, override: true });
 
 const logger = loggerFactory(import.meta);
 
@@ -59,17 +61,164 @@ const pngDirectoryIteratorByObjectLayerType = async (
   }
 };
 
+const frameFactory = async (path, colors = []) => {
+  const frame = [];
+  await new Promise((resolve) => {
+    Jimp.read(path).then(async (image) => {
+      const mazeFactor = parseInt(image.bitmap.height / 24);
+      let _y = -1;
+      for (const y of range(0, image.bitmap.height - 1)) {
+        if (y % mazeFactor === 0) {
+          _y++;
+          if (!frame[_y]) frame[_y] = [];
+        }
+        let _x = -1;
+        for (const x of range(0, image.bitmap.width - 1)) {
+          const rgba = Object.values(Jimp.intToRGBA(image.getPixelColor(x, y)));
+          if (y % mazeFactor === 0 && x % mazeFactor === 0) {
+            _x++;
+            const indexColor = colors.findIndex(
+              (c) => c[0] === rgba[0] && c[1] === rgba[1] && c[2] === rgba[2] && c[3] === rgba[3],
+            );
+            if (indexColor === -1) {
+              colors.push(rgba);
+              frame[_y][_x] = colors.length - 1;
+            } else {
+              frame[_y][_x] = indexColor;
+            }
+          }
+        }
+      }
+      resolve();
+    });
+  });
+  return { frame, colors };
+};
+
+const getKeyFramesDirectionsFromNumberFolderDirection = (direction) => {
+  let objectLayerFrameDirections = [];
+
+  switch (direction) {
+    case '08':
+      objectLayerFrameDirections = ['down_idle', 'none_idle', 'default_idle'];
+      break;
+    case '18':
+      objectLayerFrameDirections = ['down_walking'];
+      break;
+    case '02':
+      objectLayerFrameDirections = ['up_idle'];
+      break;
+    case '12':
+      objectLayerFrameDirections = ['up_walking'];
+      break;
+    case '04':
+      objectLayerFrameDirections = ['left_idle', 'up_left_idle', 'down_left_idle'];
+      break;
+    case '14':
+      objectLayerFrameDirections = ['left_walking', 'up_left_walking', 'down_left_walking'];
+      break;
+    case '06':
+      objectLayerFrameDirections = ['right_idle', 'up_right_idle', 'down_right_idle'];
+      break;
+    case '16':
+      objectLayerFrameDirections = ['right_walking', 'up_right_walking', 'down_right_walking'];
+      break;
+  }
+
+  return objectLayerFrameDirections;
+};
+
+const buildImgFromTile = async (
+  options = {
+    tile: { map_color: null, frame_matrix: null },
+    imagePath: '',
+    cellPixelDim: 20,
+    opacityFilter: (x, y, color) => 255,
+  },
+) => {
+  const { tile, imagePath, cellPixelDim, opacityFilter } = options;
+  const mainMatrix = tile.frame_matrix;
+  const sharpOptions = {
+    create: {
+      width: cellPixelDim * mainMatrix[0].length,
+      height: cellPixelDim * mainMatrix.length,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 }, // transparent background
+    },
+  };
+
+  let image = await sharp(sharpOptions).png().toBuffer();
+  fs.writeFileSync(imagePath, image);
+  image = await Jimp.read(imagePath);
+
+  for (let y = 0; y < mainMatrix.length; y++) {
+    for (let x = 0; x < mainMatrix[y].length; x++) {
+      const colorIndex = mainMatrix[y][x];
+      if (colorIndex === null || colorIndex === undefined) continue;
+
+      const color = tile.map_color[colorIndex];
+      if (!color) continue;
+
+      const rgbaColor = color.length === 4 ? color : [...color, 255]; // Ensure alpha channel
+
+      for (let dy = 0; dy < cellPixelDim; dy++) {
+        for (let dx = 0; dx < cellPixelDim; dx++) {
+          const pixelX = x * cellPixelDim + dx;
+          const pixelY = y * cellPixelDim + dy;
+          image.setPixelColor(Jimp.rgbaToInt(...rgbaColor), pixelX, pixelY);
+        }
+      }
+    }
+  }
+
+  await image.writeAsync(imagePath);
+};
+
 program
   .command('ol')
   .option('--import [object-layer-type]', 'Import object layer from type storage png image')
-  .action(async (options = { import: false }) => {
-    if (options.import) {
+  .option('--show-frame <show-frame-input>', 'View object layer frame e.g. anon_08_0')
+  .action(async (options = { import: false, showFrame: '' }) => {
+    const objectLayers = {};
+
+    if (options.import || options.showFrame) {
       await pngDirectoryIteratorByObjectLayerType(
         options.import,
         async ({ path, objectLayerType, objectLayerId, direction, frame }) => {
+          if (options.showFrame && !`${objectLayerId}_${direction}_${frame}`.match(options.showFrame)) return;
           console.log(path, { objectLayerType, objectLayerId, direction, frame });
+          if (!objectLayers[objectLayerId])
+            objectLayers[objectLayerId] = {
+              render: {
+                colors: [],
+                frames: {},
+              },
+            };
+          const frameFactoryResult = await frameFactory(path, objectLayers[objectLayerId].render.colors);
+          objectLayers[objectLayerId].render.colors = frameFactoryResult.colors;
+          for (const objectLayerFrameDirection of getKeyFramesDirectionsFromNumberFolderDirection(direction)) {
+            if (!objectLayers[objectLayerId].render.frames[objectLayerFrameDirection])
+              objectLayers[objectLayerId].render.frames[objectLayerFrameDirection] = [];
+            objectLayers[objectLayerId].render.frames[objectLayerFrameDirection].push(frameFactoryResult.frame);
+          }
         },
       );
+    }
+    if (options.showFrame) {
+      const [objectLayerId, direction, frame] = options.showFrame.split('_');
+      const objectLayerFrameDirection = getKeyFramesDirectionsFromNumberFolderDirection(direction)[0];
+
+      await buildImgFromTile({
+        tile: {
+          map_color: objectLayers[objectLayerId].render.colors,
+          frame_matrix: objectLayers[objectLayerId].render.frames[objectLayerFrameDirection][0],
+        },
+        cellPixelDim: 20,
+        opacityFilter: (x, y, color) => 255,
+        imagePath: `./${options.showFrame}.png`,
+      });
+
+      shellExec(`firefox ./${options.showFrame}.png`);
     }
     await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
   })
