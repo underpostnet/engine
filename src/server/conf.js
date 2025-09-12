@@ -45,7 +45,7 @@ const Config = {
 
     const folder = `./engine-private/conf/${deployId}`;
 
-    if (!fs.existsSync(folder)) fs.mkdirSync(folder);
+    if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
     fs.writeFileSync(
       `${folder}/.env.production`,
       fs.readFileSync('./.env.production', 'utf8').replace('dd-default', deployId),
