@@ -89,6 +89,11 @@ const Modal = {
       onHome: {},
       homeModals: options.homeModals ? options.homeModals : [],
       query: options.query ? `${window.location.search}` : undefined,
+      getTop: () => window.innerHeight - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar),
+      getHeight: () =>
+        window.innerHeight -
+        (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
+        (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar),
     };
 
     if (idModal !== 'main-body' && options.mode !== 'view') {
@@ -117,12 +122,7 @@ const Modal = {
 
           Responsive.Event[`view-${idModal}`] = () => {
             if (!this.Data[idModal]) return delete Responsive.Event[`view-${idModal}`];
-            if (this.Data[idModal].slideMenu)
-              s(`.${idModal}`).style.height = `${
-                window.innerHeight -
-                (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
-                (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-              }px`;
+            if (this.Data[idModal].slideMenu) s(`.${idModal}`).style.height = `${this.Data[idModal].getHeight()}px`;
           };
           Responsive.Event[`view-${idModal}`]();
 
@@ -207,11 +207,7 @@ const Modal = {
             const { barConfig } = options;
             options.style = {
               position: 'absolute',
-              height: `${
-                window.innerHeight -
-                (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
-                (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-              }px`,
+              height: `${Modal.Data[idModal].getHeight()}px`,
               width: `${slideMenuWidth}px`,
               // 'overflow-x': 'hidden',
               // overflow: 'visible', // required for tooltip
@@ -239,11 +235,7 @@ const Modal = {
                 if (this.Data[_idModal].slideMenu && this.Data[_idModal].slideMenu.id === idModal)
                   this.Data[_idModal].slideMenu.callBack();
               }
-              s(`.${idModal}`).style.height = `${
-                window.innerHeight -
-                (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
-                (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-              }px`;
+              s(`.${idModal}`).style.height = `${Modal.Data[idModal].getHeight()}px`;
               if (s(`.main-body-top`)) {
                 if (Modal.mobileModal()) {
                   if (s(`.btn-menu-${idModal}`).classList.contains('hide') && collapseSlideMenuWidth !== slideMenuWidth)
@@ -985,12 +977,7 @@ const Modal = {
                   s(`.top-bar-search-box`).style.top = `${
                     (originHeightTopBar - s(`.top-bar-search-box`).clientHeight) / 2
                   }px`;
-                  if (this.Data[id].slideMenu)
-                    s(`.${id}`).style.height = `${
-                      window.innerHeight -
-                      (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
-                      (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-                    }px`;
+                  if (this.Data[id].slideMenu) s(`.${id}`).style.height = `${Modal.Data[id].getHeight()}px`;
                 };
                 Responsive.Event[`view-${id}`]();
                 Keyboard.instanceMultiPressKey({
@@ -1119,9 +1106,7 @@ const Modal = {
                     if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
                     //  <div class="in fll right-offset-menu-bottom-bar" style="height: 100%"></div>
                     // s(`.right-offset-menu-bottom-bar`).style.width = `${window.innerWidth - slideMenuWidth}px`;
-                    s(`.${id}`).style.top = `${
-                      window.innerHeight - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-                    }px`;
+                    s(`.${id}`).style.top = `${Modal.Data[id].getTop()}px`;
                   };
                   Responsive.Event[`view-${id}`]();
                 }
@@ -1293,11 +1278,7 @@ const Modal = {
                     s(`.main-body-btn-ui-close`).classList.contains('hide') &&
                     s(`.btn-restore-${id}`).style.display !== 'none'
                       ? `${window.innerHeight}px`
-                      : `${
-                          window.innerHeight -
-                          (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
-                          (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-                        }px`;
+                      : `${Modal.Data[id].getHeight()}px`;
 
                   if (
                     s(`.main-body-btn-ui-close`).classList.contains('hide') &&
@@ -1918,11 +1899,7 @@ const Modal = {
             if (s(`.btn-restore-${idModal}`) && s(`.btn-restore-${idModal}`).style.display !== 'none') {
               s(`.${idModal}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
                 ? `${window.innerHeight}px`
-                : `${
-                    window.innerHeight -
-                    (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
-                    (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-                  }px`;
+                : `${Modal.Data[idModal].getHeight()}px`;
             }
             s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
               ? `0px`
