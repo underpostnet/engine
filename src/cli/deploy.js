@@ -22,13 +22,13 @@ const logger = loggerFactory(import.meta);
 class UnderpostDeploy {
   static NETWORK = {};
   static API = {
-    sync(deployList, { versions, replicas, kubeadm = false }) {
+    sync(deployList, { versions, replicas, node }) {
       const deployGroupId = 'dd.router';
       fs.writeFileSync(`./engine-private/deploy/${deployGroupId}`, deployList, 'utf8');
       const totalPods = deployList.split(',').length * versions.split(',').length * parseInt(replicas);
       const limitFactor = 0.8;
       const reserveFactor = 0.05;
-      const resources = UnderpostCluster.API.getResourcesCapacity(kubeadm);
+      const resources = UnderpostCluster.API.getResourcesCapacity(node);
       const memory = parseInt(resources.memory.value / totalPods);
       const cpu = parseInt(resources.cpu.value / totalPods);
       UnderpostRootEnv.API.set(
@@ -243,6 +243,7 @@ spec:
         versions: '',
         traffic: '',
         replicas: '',
+        node: '',
         restoreHosts: false,
         disableUpdateDeployment: false,
         infoTraffic: false,

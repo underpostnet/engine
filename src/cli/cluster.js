@@ -683,17 +683,9 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
       }
     },
 
-    /**
-     * @method getResourcesCapacity
-     * @description Retrieves and returns the allocatable CPU and memory resources
-     * of the Kubernetes node.
-     * @param {boolean} [isKubeadmOrK3s=false] - If true, assumes a kubeadm or k3s-managed node;
-     * otherwise, assumes a Kind worker node.
-     * @returns {object} An object containing CPU and memory resources with values and units.
-     */
-    getResourcesCapacity(isKubeadmOrK3s = false) {
+    getResourcesCapacity(node) {
       const resources = {};
-      const nodeName = isKubeadmOrK3s ? os.hostname() : 'kind-worker';
+      const nodeName = node ?? os.hostname();
       const info = shellExec(`kubectl describe node ${nodeName} | grep -E '(Allocatable:|Capacity:)' -A 6`, {
         stdout: true,
         silent: true,
