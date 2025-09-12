@@ -745,9 +745,12 @@ const Modal = {
                 s(`.main-btn-${results[currentKeyBoardSearchBoxIndex].routerId}`).click();
                 Modal.removeModal(searchBoxHistoryId);
               };
-
+              let boxHistoryDelayRender = 0;
               const searchBoxHistoryOpen = async () => {
-                if (!s(`.${id}`)) {
+                if (boxHistoryDelayRender) return;
+                boxHistoryDelayRender = 1000;
+                setTimeout(() => (boxHistoryDelayRender = 0));
+                if (!s(`.${searchBoxHistoryId}`)) {
                   const { barConfig } = await Themes[Css.currentTheme]();
                   barConfig.buttons.maximize.disabled = true;
                   barConfig.buttons.minimize.disabled = true;
@@ -755,7 +758,7 @@ const Modal = {
                   barConfig.buttons.menu.disabled = true;
                   barConfig.buttons.close.disabled = false;
                   await Modal.Render({
-                    id,
+                    id: searchBoxHistoryId,
                     barConfig,
                     title: html`<div class="search-box-recent-title">
                         ${renderViewTitle({
