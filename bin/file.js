@@ -94,6 +94,7 @@ try {
           './manifests/deployment/dd-template-development',
           'bin/web3.js',
           'bin/cyberia.js',
+          'bin/cyberia0.js',
         ]) {
           if (fs.existsSync(deletePath)) fs.removeSync('../pwa-microservices-template/' + deletePath);
         }
