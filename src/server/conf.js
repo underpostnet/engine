@@ -63,10 +63,13 @@ const Config = {
     );
     fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
 
-    for (const confType of Object.keys(this.default))
-      fs.writeFileSync(`${folder}/conf.${confType}.json`, JSON.stringify(this.default[confType], null, 4), 'utf8');
+    this.buildTmpConf();
 
     return { deployIdFolder: folder, deployId };
+  },
+  buildTmpConf: function (folder = './conf') {
+    for (const confType of Object.keys(this.default))
+      fs.writeFileSync(`${folder}/conf.${confType}.json`, JSON.stringify(this.default[confType], null, 4), 'utf8');
   },
   buildProxy: function (deployContext = 'dd-default', deployList, subConf) {
     if (!deployList) deployList = process.argv[3];
@@ -97,6 +100,7 @@ const Config = {
           };
       }
     }
+    this.buildTmpConf();
   },
 };
 
