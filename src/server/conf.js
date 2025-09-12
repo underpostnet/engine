@@ -48,17 +48,17 @@ const Config = {
     if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
     fs.writeFileSync(
       `${folder}/.env.production`,
-      fs.readFileSync('./.env.production', 'utf8').replace('dd-default', deployId),
+      fs.readFileSync('./.env.production', 'utf8').replaceAll('dd-default', deployId),
       'utf8',
     );
     fs.writeFileSync(
       `${folder}/.env.development`,
-      fs.readFileSync('./.env.development', 'utf8').replace('dd-default', deployId),
+      fs.readFileSync('./.env.development', 'utf8').replaceAll('dd-default', deployId),
       'utf8',
     );
     fs.writeFileSync(
       `${folder}/.env.test`,
-      fs.readFileSync('./.env.test', 'utf8').replace('dd-default', deployId),
+      fs.readFileSync('./.env.test', 'utf8').replaceAll('dd-default', deployId),
       'utf8',
     );
     fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
