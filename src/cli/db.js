@@ -177,25 +177,6 @@ class UnderpostDB {
                         }`,
                       );
                     }
-                    if (false) {
-                      const containerBaseBackupPath = '/backup';
-                      let timeFolder = shellExec(
-                        `sudo kubectl exec -i ${podName} -- sh -c "cd ${containerBaseBackupPath} && ls -a"`,
-                        {
-                          stdout: true,
-                          disableLog: false,
-                          silent: true,
-                        },
-                      ).split(`\n`);
-                      timeFolder = timeFolder[timeFolder.length - 2];
-                      if (timeFolder === '..') {
-                        logger.warn(`Cannot backup available`, { timeFolder });
-                      } else {
-                        shellExec(
-                          `sudo kubectl cp ${nameSpace}/${podName}:${containerBaseBackupPath}/${timeFolder}/${dbName} ${_toNewBsonPath}`,
-                        );
-                      }
-                    }
                   }
                   break;
                 }
