@@ -10,6 +10,8 @@ import { loggerFactory } from '../src/server/logger.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { range } from '../src/client/components/core/CommonJs.js';
 import sharp from 'sharp';
+import { random } from '../src/client/components/core/CommonJs.js';
+import crypto from 'crypto';
 
 dotenv.config({ path: `./engine-private/conf/dd-cyberia/.env.production`, override: true });
 
@@ -176,6 +178,17 @@ const buildImgFromTile = async (
   await image.writeAsync(imagePath);
 };
 
+const generateRandomStats = () => {
+  return {
+    effect: random(0, 10),
+    resistance: random(0, 10),
+    agility: random(0, 10),
+    range: random(0, 10),
+    intelligence: random(0, 10),
+    utility: random(0, 10),
+  };
+};
+
 program
   .command('ol')
   .option('--import [object-layer-type]', 'Import object layer from type storage png image')
@@ -195,7 +208,16 @@ program
                 render: {
                   colors: [],
                   frames: {},
+                  frame_duration: 250,
+                  is_stateless: false,
                 },
+                item: {
+                  id: objectLayerId,
+                  type: objectLayerType,
+                  description: '',
+                  activable: true,
+                },
+                stats: generateRandomStats(),
               },
             };
           const frameFactoryResult = await frameFactory(path, objectLayers[objectLayerId].data.render.colors);
@@ -207,6 +229,13 @@ program
           }
         },
       );
+      for (const objectLayerId of Object.keys(objectLayers)) {
+        objectLayers[objectLayerId].sha256 = crypto
+          .createHash('sha256')
+          .update(JSON.stringify(objectLayers[objectLayerId].data))
+          .digest('hex');
+        console.log(await ObjectLayer.create(objectLayers[objectLayerId]));
+      }
     }
     if (options.showFrame) {
       const [objectLayerId, direction, frame] = options.showFrame.split('_');
