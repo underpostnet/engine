@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1) Install required dependencies (requires sudo)
-sudo dnf install -y neovim git curl
+sudo dnf install -y neovim
 
-# 2) Create directories
+
+sudo rm -rf ~/.config/nvim
+sudo rm -rf ~/.local/share/nvim
+
 mkdir -p ~/.config/nvim
 mkdir -p ~/.local/share/nvim/site/autoload
 
-# 3) Install vim-plug for Neovim
+# Install vim-plug for Neovim
 curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
   https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 
-# 4) Create an init.vim with nvim-tree.lua + web-devicons + gruvbox (theme)
+# Create an init.vim with nvim-tree.lua + web-devicons + gruvbox (theme)
 cat > ~/.config/nvim/init.vim <<'EOF'
 " Minimal init.vim to use nvim-tree.lua + gruvbox theme via vim-plug
 
@@ -77,10 +79,10 @@ autocmd StdinReadPre * let s:std_in=1
 autocmd VimEnter * if argc() == 0 && !exists('s:std_in') | NvimTreeToggle | wincmd p | endif
 EOF
 
-# 5) Fix permissions in case something was left owned by root (happens if you used sudo on these paths before)
+# Fix permissions in case something was left owned by root (happens if you used sudo on these paths before)
 sudo chown -R "$USER":"$USER" ~/.config/nvim ~/.local/share/nvim 2>/dev/null || true
 
-# 6) Install plugins automatically (non-interactive)
+# Install plugins automatically (non-interactive)
 nvim +PlugInstall +qall
 
 echo
