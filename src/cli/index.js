@@ -169,6 +169,7 @@ program
   .option('--disable-update-deployment', 'Disables updates to deployments.')
   .option('--info-traffic', 'Retrieves traffic configuration from current resource deployments.')
   .option('--kubeadm', 'Enables the kubeadm context for deployment operations.')
+  .option('--etc-hosts', 'Enables the etc-hosts context for deployment operations.')
   .option('--restore-hosts', 'Restores default `/etc/hosts` entries.')
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);

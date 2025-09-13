@@ -25,6 +25,8 @@ const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
 const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
 const { db } = confServer[host][path];
 
+db.host = db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
 logger.info('env', {
   deployId,
   host,

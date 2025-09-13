@@ -247,6 +247,7 @@ spec:
         restoreHosts: false,
         disableUpdateDeployment: false,
         infoTraffic: false,
+        etcHosts: false,
       },
     ) {
       if (options.infoUtil === true)
@@ -373,26 +374,9 @@ Password: <Your Key>
             shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml`);
         }
       }
-      switch (process.platform) {
-        case 'linux':
-          {
-            switch (env) {
-              case 'development':
-                {
-                  const factoryResult = UnderpostDeploy.API.etcHostFactory(etcHosts);
-                  renderHosts = factoryResult.renderHosts;
-                }
-
-                break;
-
-              default:
-                break;
-            }
-          }
-          break;
-
-        default:
-          break;
+      if (options.etcHosts === true) {
+        const factoryResult = UnderpostDeploy.API.etcHostFactory(etcHosts);
+        renderHosts = factoryResult.renderHosts;
       }
       if (renderHosts)
         logger.info(
