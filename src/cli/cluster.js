@@ -410,21 +410,10 @@ EOF
         const successInstance = await UnderpostTest.API.statusMonitor('mongodb-0', 'Running', 'pods', 1000, 60 * 10);
 
         if (successInstance) {
-          if (!options.mongoDbHost) options.mongoDbHost = 'mongodb-service';
+          if (!options.mongoDbHost) options.mongoDbHost = 'mongodb-0.mongodb-service';
           const mongoConfig = {
             _id: 'rs0',
-            members: [
-              {
-                _id: 0,
-                host: `${options.mongoDbHost === 'mongodb-service' ? 'mongodb-0.' : ''}${options.mongoDbHost}:27017`,
-                priority: 1,
-              },
-              // {
-              //   _id: 1,
-              //   host: `${options.mongoDbHost === 'mongodb-service' ? 'mongodb-1.' : ''}${options.mongoDbHost}:27017`,
-              //   priority: 1,
-              // },
-            ],
+            members: options.mongoDbHost.split(',').map((host, index) => ({ _id: index, host: `${host}:27017` })),
           };
 
           shellExec(

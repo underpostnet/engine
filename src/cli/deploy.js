@@ -326,14 +326,10 @@ Password: <Your Key>
       }
       UnderpostDeploy.API.configMap(env);
       let renderHosts = '';
-      let concatHots = '';
-      const etcHost = (
-        concat,
-      ) => `127.0.0.1  ${concat} localhost localhost.localdomain localhost4 localhost4.localdomain4
-::1         localhost localhost.localdomain localhost6 localhost6.localdomain6`;
+      let etcHosts = [];
       if (options.restoreHosts === true) {
-        renderHosts = etcHost(concatHots);
-        fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
+        const factoryResult = UnderpostDeploy.API.etcHostFactory(etcHosts);
+        renderHosts = factoryResult.renderHosts;
         logger.info(renderHosts);
         return;
       }
@@ -362,7 +358,7 @@ Password: <Your Key>
         for (const host of Object.keys(confServer)) {
           shellExec(`sudo kubectl delete HTTPProxy ${host}`);
           if (env === 'production' && options.cert === true) shellExec(`sudo kubectl delete Certificate ${host}`);
-          if (!options.remove === true && env === 'development') concatHots += ` ${host}`;
+          if (!options.remove === true && env === 'development') etcHosts.push(host);
         }
 
         const manifestsPath =
@@ -382,8 +378,10 @@ Password: <Your Key>
           {
             switch (env) {
               case 'development':
-                renderHosts = etcHost(concatHots);
-                fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
+                {
+                  const factoryResult = UnderpostDeploy.API.etcHostFactory(etcHosts);
+                  renderHosts = factoryResult.renderHosts;
+                }
 
                 break;
 
@@ -487,6 +485,15 @@ Password: <Your Key>
         `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${replicas} ${deployId} ${env}`,
       );
       shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
+    },
+    etcHostFactory(hosts = []) {
+      const renderHosts = `127.0.0.1         ${hosts.join(
+        ' ',
+      )} localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6`;
+
+      fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
+      return { renderHosts };
     },
   };
 }

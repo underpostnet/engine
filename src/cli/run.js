@@ -72,8 +72,11 @@ class UnderpostRun {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --reset`);
       shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''}`);
+      const mongoHosts = ['mongodb-0.mongodb-service'];
       shellExec(
-        `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb --mongo-db-host ${'127.0.0.1'} --pull-image`,
+        `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb --mongo-db-host ${mongoHosts.join(
+          ',',
+        )} --pull-image`,
       );
       shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --valkey --pull-image`);
       shellExec(`${baseCommand} deploy --expose mongo`, { async: true });
