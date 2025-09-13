@@ -106,19 +106,22 @@ const ItemSchema = new Schema(
 
 /**
  * @typedef {Object} ObjectLayer
- * @property {Stats} stats - Statistical attributes of the object layer
- * @property {Render} render - Rendering information and animations
- * @property {Item} item - Item information this layer represents
- * @property {string} sha256 - SHA-256 hash of the object layer content
+ * @property {Object} data - Object layer data
+ * @property {Data.Stats} data.stats - Statistical attributes of the object layer
+ * @property {Data.Render} data.render - Rendering information and animations
+ * @property {Data.Item} data.item - Item information this layer represents
+ * @property {string} sha256 - SHA-256 hash of the object layer data
  * @property {Date} createdAt - When the document was created
  * @property {Date} updatedAt - When the document was last updated
  */
 
 const ObjectLayerSchema = new Schema(
   {
-    stats: { type: StatsSchema, required: true },
-    render: { type: RenderSchema, required: true },
-    item: { type: ItemSchema, required: true },
+    data: {
+      stats: { type: StatsSchema, required: true },
+      render: { type: RenderSchema, required: true },
+      item: { type: ItemSchema, required: true },
+    },
     sha256: {
       type: String,
       required: true,
@@ -134,22 +137,22 @@ const ObjectLayerSchema = new Schema(
 );
 
 // Index for faster querying
-ObjectLayerSchema.index({ 'item.id': 1 });
-ObjectLayerSchema.index({ 'item.type': 1 });
+ObjectLayerSchema.index({ 'data.item.id': 1 });
+ObjectLayerSchema.index({ 'data.item.type': 1 });
 ObjectLayerSchema.index({ sha256: 1 }, { unique: true });
 
 // Add text index for searchable fields
 ObjectLayerSchema.index(
   {
-    'item.id': 'text',
-    'item.type': 'text',
-    'item.description': 'text',
+    'data.item.id': 'text',
+    'data.item.type': 'text',
+    'data.item.description': 'text',
   },
   {
     weights: {
-      'item.id': 10,
-      'item.type': 5,
-      'item.description': 1,
+      'data.item.id': 10,
+      'data.item.type': 5,
+      'data.item.description': 1,
     },
   },
 );
@@ -157,7 +160,7 @@ ObjectLayerSchema.index(
 // Pre-save hook to ensure data consistency
 ObjectLayerSchema.pre('save', function (next) {
   // Ensure all required fields are present
-  if (!this.stats || !this.render || !this.item || !this.sha256) {
+  if (!this.data.stats || !this.data.render || !this.data.item || !this.sha256) {
     throw new Error('Missing required fields');
   }
   next();

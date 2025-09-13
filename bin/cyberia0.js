@@ -39,6 +39,8 @@ await DataBaseProvider.load({
 
 const ObjectLayer = DataBaseProvider.instance[`${host}${path}`].mongoose.models.ObjectLayer;
 
+await ObjectLayer.deleteMany();
+
 const program = new Command();
 
 program.name('cyberia').description(`content generator cli ${Underpost.version}`).version(Underpost.version);
@@ -189,17 +191,19 @@ program
           console.log(path, { objectLayerType, objectLayerId, direction, frame });
           if (!objectLayers[objectLayerId])
             objectLayers[objectLayerId] = {
-              render: {
-                colors: [],
-                frames: {},
+              data: {
+                render: {
+                  colors: [],
+                  frames: {},
+                },
               },
             };
-          const frameFactoryResult = await frameFactory(path, objectLayers[objectLayerId].render.colors);
-          objectLayers[objectLayerId].render.colors = frameFactoryResult.colors;
+          const frameFactoryResult = await frameFactory(path, objectLayers[objectLayerId].data.render.colors);
+          objectLayers[objectLayerId].data.render.colors = frameFactoryResult.colors;
           for (const objectLayerFrameDirection of getKeyFramesDirectionsFromNumberFolderDirection(direction)) {
-            if (!objectLayers[objectLayerId].render.frames[objectLayerFrameDirection])
-              objectLayers[objectLayerId].render.frames[objectLayerFrameDirection] = [];
-            objectLayers[objectLayerId].render.frames[objectLayerFrameDirection].push(frameFactoryResult.frame);
+            if (!objectLayers[objectLayerId].data.render.frames[objectLayerFrameDirection])
+              objectLayers[objectLayerId].data.render.frames[objectLayerFrameDirection] = [];
+            objectLayers[objectLayerId].data.render.frames[objectLayerFrameDirection].push(frameFactoryResult.frame);
           }
         },
       );
@@ -210,8 +214,8 @@ program
 
       await buildImgFromTile({
         tile: {
-          map_color: objectLayers[objectLayerId].render.colors,
-          frame_matrix: objectLayers[objectLayerId].render.frames[objectLayerFrameDirection][0],
+          map_color: objectLayers[objectLayerId].data.render.colors,
+          frame_matrix: objectLayers[objectLayerId].data.render.frames[objectLayerFrameDirection][0],
         },
         cellPixelDim: 20,
         opacityFilter: (x, y, color) => 255,
