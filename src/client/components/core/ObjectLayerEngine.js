@@ -33,6 +33,22 @@ const templateHTML = html`
       top: 0;
       pointer-events: none;
     }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .toolbar label {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .group {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+    }
   </style>
 
   <div class="wrap">
@@ -48,7 +64,21 @@ const templateHTML = html`
       <label>brush <input type="number" part="brush-size" min="1" value="1" /></label>
       <label>pixel-size <input type="number" part="pixel-size" min="1" value="16" /></label>
 
+      <!-- New: cell dimensions (width x height) -->
+      <label
+        >cells <input type="number" part="cell-width" min="1" value="16" style="width:6ch" /> x
+        <input type="number" part="cell-height" min="1" value="16" style="width:6ch"
+      /></label>
+
       <label class="switch"> <input type="checkbox" part="toggle-grid" /> grid </label>
+
+      <!-- New: transform tools -->
+      <div class="group">
+        <button part="flip-h" title="Flip horizontally">Flip H</button>
+        <button part="flip-v" title="Flip vertically">Flip V</button>
+        <button part="rot-ccw" title="Rotate -90°">⟲</button>
+        <button part="rot-cw" title="Rotate +90°">⟳</button>
+      </div>
 
       <button part="export">Export PNG</button>
       <button part="export-json">Export JSON</button>
@@ -79,6 +109,14 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._importJsonBtn = this.shadowRoot.querySelector('button[part="import-json"]');
     this._toggleGrid = this.shadowRoot.querySelector('input[part="toggle-grid"]');
 
+    // new controls
+    this._widthInput = this.shadowRoot.querySelector('input[part="cell-width"]');
+    this._heightInput = this.shadowRoot.querySelector('input[part="cell-height"]');
+    this._flipHBtn = this.shadowRoot.querySelector('button[part="flip-h"]');
+    this._flipVBtn = this.shadowRoot.querySelector('button[part="flip-v"]');
+    this._rotCCWBtn = this.shadowRoot.querySelector('button[part="rot-ccw"]');
+    this._rotCWBtn = this.shadowRoot.querySelector('button[part="rot-cw"]');
+
     // internal state
     this._width = 16;
     this._height = 16;
@@ -98,6 +136,12 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._onPointerDown = this._onPointerDown.bind(this);
     this._onPointerMove = this._onPointerMove.bind(this);
     this._onPointerUp = this._onPointerUp.bind(this);
+
+    // transform methods bound (useful if passing as callbacks)
+    this.flipHorizontal = this.flipHorizontal.bind(this);
+    this.flipVertical = this.flipVertical.bind(this);
+    this.rotateCW = this.rotateCW.bind(this);
+    this.rotateCCW = this.rotateCCW.bind(this);
   }
 
   static get observedAttributes() {
@@ -111,11 +155,18 @@ class ObjectLayerEngineElement extends HTMLElement {
   }
 
   connectedCallback() {
+    // respect attributes if present
     if (this.hasAttribute('width')) this._width = Math.max(1, parseInt(this.getAttribute('width'), 10));
     if (this.hasAttribute('height')) this._height = Math.max(1, parseInt(this.getAttribute('height'), 10));
     if (this.hasAttribute('pixel-size')) this._pixelSize = Math.max(1, parseInt(this.getAttribute('pixel-size'), 10));
 
     this._setupContextsAndSize();
+
+    // set initial UI control values (keeps in sync with attributes)
+    if (this._widthInput) this._widthInput.value = String(this._width);
+    if (this._heightInput) this._heightInput.value = String(this._height);
+    if (this._pixelSizeInput) this._pixelSizeInput.value = String(this._pixelSize);
+    if (this._brushSizeInput) this._brushSizeInput.value = String(this._brushSize);
 
     // UI events
     this._colorInput.addEventListener('input', (e) => {
@@ -131,6 +182,25 @@ class ObjectLayerEngineElement extends HTMLElement {
       this._showGrid = !!e.target.checked;
       this._renderGrid();
     });
+
+    // width/height change -> resize (preserve existing content)
+    if (this._widthInput)
+      this._widthInput.addEventListener('change', (e) => {
+        const val = Math.max(1, parseInt(e.target.value, 10) || 1);
+        // keep value synced (will update input again in resize)
+        this.resize(val, this._height, { preserve: true });
+      });
+    if (this._heightInput)
+      this._heightInput.addEventListener('change', (e) => {
+        const val = Math.max(1, parseInt(e.target.value, 10) || 1);
+        this.resize(this._width, val, { preserve: true });
+      });
+
+    // transform buttons
+    if (this._flipHBtn) this._flipHBtn.addEventListener('click', this.flipHorizontal);
+    if (this._flipVBtn) this._flipVBtn.addEventListener('click', this.flipVertical);
+    if (this._rotCWBtn) this._rotCWBtn.addEventListener('click', this.rotateCW);
+    if (this._rotCCWBtn) this._rotCCWBtn.addEventListener('click', this.rotateCCW);
 
     // Export/Import
     this._exportBtn.addEventListener('click', () => this.exportPNG());
@@ -169,6 +239,11 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._pixelCanvas.removeEventListener('pointerdown', this._onPointerDown);
     window.removeEventListener('pointermove', this._onPointerMove);
     window.removeEventListener('pointerup', this._onPointerUp);
+
+    if (this._flipHBtn) this._flipHBtn.removeEventListener('click', this.flipHorizontal);
+    if (this._flipVBtn) this._flipVBtn.removeEventListener('click', this.flipVertical);
+    if (this._rotCWBtn) this._rotCWBtn.removeEventListener('click', this.rotateCW);
+    if (this._rotCCWBtn) this._rotCCWBtn.removeEventListener('click', this.rotateCCW);
   }
 
   // ---------------- Matrix helpers ----------------
@@ -227,6 +302,13 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._width = nw;
     this._height = nh;
     this._matrix = newMat;
+
+    // keep inputs and attributes in sync
+    if (this._widthInput) this._widthInput.value = String(this._width);
+    if (this._heightInput) this._heightInput.value = String(this._height);
+    this.setAttribute('width', String(this._width));
+    this.setAttribute('height', String(this._height));
+
     this._setupContextsAndSize();
     this.render();
     this.dispatchEvent(new CustomEvent('resize', { detail: { width: nw, height: nh } }));
@@ -582,6 +664,84 @@ class ObjectLayerEngineElement extends HTMLElement {
     return `#${((1 << 24) + (this._clampInt(r) << 16) + (this._clampInt(g) << 8) + this._clampInt(b))
       .toString(16)
       .slice(1)}`;
+  }
+
+  // ---------------- Transform helpers (flip/rotate) ----------------
+  flipHorizontal() {
+    // reverse each row (mirror horizontally)
+    for (let y = 0; y < this._height; y++) {
+      this._matrix[y].reverse();
+    }
+    this.render();
+    this.dispatchEvent(new CustomEvent('transform', { detail: { type: 'flip-horizontal' } }));
+  }
+
+  flipVertical() {
+    // reverse the order of rows (mirror vertically)
+    this._matrix.reverse();
+    this.render();
+    this.dispatchEvent(new CustomEvent('transform', { detail: { type: 'flip-vertical' } }));
+  }
+
+  rotateCW() {
+    // rotate +90 degrees (clockwise)
+    const oldH = this._height;
+    const oldW = this._width;
+    const newW = oldH;
+    const newH = oldW;
+    const newMat = this._createEmptyMatrix(newW, newH);
+    for (let y = 0; y < oldH; y++) {
+      for (let x = 0; x < oldW; x++) {
+        const px = this._matrix[y][x] ? this._matrix[y][x].slice() : [0, 0, 0, 0];
+        const newX = oldH - 1 - y; // column in new matrix
+        const newY = x; // row in new matrix
+        newMat[newY][newX] = px;
+      }
+    }
+    this._width = newW;
+    this._height = newH;
+    this._matrix = newMat;
+    // keep inputs/attributes in sync
+    if (this._widthInput) this._widthInput.value = String(this._width);
+    if (this._heightInput) this._heightInput.value = String(this._height);
+    this.setAttribute('width', String(this._width));
+    this.setAttribute('height', String(this._height));
+
+    this._setupContextsAndSize();
+    this.render();
+    this.dispatchEvent(
+      new CustomEvent('transform', { detail: { type: 'rotate-cw', width: this._width, height: this._height } }),
+    );
+  }
+
+  rotateCCW() {
+    // rotate -90 degrees (counter-clockwise)
+    const oldH = this._height;
+    const oldW = this._width;
+    const newW = oldH;
+    const newH = oldW;
+    const newMat = this._createEmptyMatrix(newW, newH);
+    for (let y = 0; y < oldH; y++) {
+      for (let x = 0; x < oldW; x++) {
+        const px = this._matrix[y][x] ? this._matrix[y][x].slice() : [0, 0, 0, 0];
+        const newX = y; // column in new matrix
+        const newY = oldW - 1 - x; // row in new matrix
+        newMat[newY][newX] = px;
+      }
+    }
+    this._width = newW;
+    this._height = newH;
+    this._matrix = newMat;
+    if (this._widthInput) this._widthInput.value = String(this._width);
+    if (this._heightInput) this._heightInput.value = String(this._height);
+    this.setAttribute('width', String(this._width));
+    this.setAttribute('height', String(this._height));
+
+    this._setupContextsAndSize();
+    this.render();
+    this.dispatchEvent(
+      new CustomEvent('transform', { detail: { type: 'rotate-ccw', width: this._width, height: this._height } }),
+    );
   }
 
   // ---------------- Properties ----------------
