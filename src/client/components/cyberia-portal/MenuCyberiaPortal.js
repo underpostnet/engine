@@ -17,7 +17,7 @@ import { ServerCyberiaPortal } from './ServerCyberiaPortal.js';
 import { Chat } from '../core/Chat.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
-import { CoreService } from '../../services/core/core.service.js';
+import { ObjectLayerEngineModal } from '../core/ObjectLayerEngineModal.js';
 
 const MenuCyberiaPortal = {
   Data: {},
@@ -455,32 +455,7 @@ const MenuCyberiaPortal = {
           icon: html`<i class="fa-solid fa-cog"></i>`,
           text: Translate.Render('object-layer-engine'),
         }),
-        html: async () => {
-          await import(`${getProxyPath()}components/core/ObjectLayerEngine.js`);
-          // await import(`${getProxyPath()}components/core/WebComponent.js`);
-
-          setTimeout(async () => {
-            JSON.parse(
-              await CoreService.getRaw({
-                url: `${getProxyPath()}assets/templates/item-skin-08.json`,
-              }),
-            ).color.forEach((y, indexY) => {
-              y.forEach((x, indexX) => {
-                s('object-layer-engine')._applyBrush(indexX, indexY, [...hexToRgbA(x), 255], true);
-              });
-            });
-          });
-
-          const cells = 26;
-          const pixelSize = parseInt(320 / cells);
-
-          return html`<object-layer-engine
-            id="ole"
-            width="${cells}"
-            height="${cells}"
-            pixel-size="${pixelSize}"
-          ></object-layer-engine>`;
-        },
+        html: ObjectLayerEngineModal.Render,
         handleType: 'bar',
         maximize: true,
         mode: 'view',
