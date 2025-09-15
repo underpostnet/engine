@@ -455,7 +455,7 @@ const MenuCyberiaPortal = {
           icon: html`<i class="fa-solid fa-cog"></i>`,
           text: Translate.Render('object-layer-engine'),
         }),
-        html: ObjectLayerEngineModal.Render,
+        html: async () => await ObjectLayerEngineModal.Render({ idModal: 'modal-object-layer-engine' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
