@@ -82,9 +82,9 @@ const ToggleSwitch = {
       <input type="checkbox" class="${id}-checkbox" style="display: none" />
     `;
     if (options.wrapper) {
-      setTimeout(() => (s(`.toggle-form-container-${id}`).onclick = () => ToggleSwitch.Tokens[`${id}-toggle`].click()));
+      setTimeout(() => (s(`.toggle-form-container-${id}`).onclick = () => ToggleSwitch.Tokens[`${id}`].click()));
       return html`
-        <div class="in section-mp toggle-form-container toggle-form-container-${id} hover">
+        <div class="in toggle-form-container toggle-form-container-${id} hover">
           <div class="fl ">
             <div class="in fll" style="width: 70%">
               <div class="in">${options.wrapperLabel}</div>

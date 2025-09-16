@@ -9,14 +9,13 @@ const FullScreen = {
     Responsive.Event['full-screen-settings'] = () => {
       let fullScreenMode = checkFullScreen();
       if ((fullScreenSwitch && !fullScreenMode) || (!fullScreenSwitch && fullScreenMode))
-        if (s('.fullscreen-toggle')) ToggleSwitch.Tokens[`fullscreen-toggle`].click();
+        if (s('.fullscreen')) ToggleSwitch.Tokens[`fullscreen`].click();
     };
-    return html`
+    return html`<div class="in section-mp">
       ${await ToggleSwitch.Render({
         wrapper: true,
         wrapperLabel: html`<i class="fa-solid fa-expand"></i> ${Translate.Render('fullscreen')}`,
         id: 'fullscreen',
-        containerClass: 'inl',
         disabledOnClick: true,
         checked: fullScreenSwitch,
         on: {
@@ -30,7 +29,7 @@ const FullScreen = {
           },
         },
       })}
-    `;
+    </div>`;
   },
 };
 

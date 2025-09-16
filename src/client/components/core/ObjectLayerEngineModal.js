@@ -7,6 +7,7 @@ import { Translate } from './Translate.js';
 import { getProxyPath, s, append, hexToRgbA } from './VanillaJs.js';
 import { s4 } from './CommonJs.js';
 import { Input } from './Input.js';
+import { ToggleSwitch } from './ToggleSwitch.js';
 
 const ObjectLayerEngineModal = {
   templates: [
@@ -38,6 +39,8 @@ const ObjectLayerEngineModal = {
     const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
 
     const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor'];
+
+    let itemActivable = false;
 
     for (const url of [
       `${getProxyPath()}assets/templates/item-skin-08.json`,
@@ -176,6 +179,23 @@ const ObjectLayerEngineModal = {
                     },
                   };
                 }),
+              })}
+              ${await ToggleSwitch.Render({
+                id: 'ol-toggle-item-activable',
+                wrapper: true,
+                wrapperLabel: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('item-activable')}`,
+                disabledOnClick: true,
+                checked: itemActivable,
+                on: {
+                  unchecked: () => {
+                    itemActivable = false;
+                    console.warn('itemActivable', itemActivable);
+                  },
+                  checked: () => {
+                    itemActivable = true;
+                    console.warn('itemActivable', itemActivable);
+                  },
+                },
               })}
             </div>
           </div>
