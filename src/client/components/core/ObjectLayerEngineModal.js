@@ -39,6 +39,8 @@ const ObjectLayerEngineModal = {
     const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor'];
     const statTypes = ['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility'];
     let itemActivable = false;
+    let renderIsStateless = false;
+    let renderFrameDuration = 100;
 
     for (const url of [
       `${getProxyPath()}assets/templates/item-skin-08.json`,
@@ -89,6 +91,26 @@ const ObjectLayerEngineModal = {
               directionCode
             ].filter((frame) => frame.id !== id);
           });
+        });
+
+        EventsUI.onClick(`.ol-btn-save`, async () => {
+          const objectLayer = {
+            data: {
+              render: {
+                frames: {},
+                color: [],
+                frame_duration: 0,
+                is_stateless: false,
+              },
+              stats: {},
+              item: {},
+            },
+          };
+          for (const directionCode of Object.keys(ObjectLayerEngineModal.ObjectLayerData)) {
+            const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(directionCode);
+            for (const direction of directions) {
+            }
+          }
         });
       });
       directionsCodeBarRender += html`
@@ -150,6 +172,12 @@ const ObjectLayerEngineModal = {
           font-size: 30px;
           font-weight: bold;
         }
+        .ol-number-label {
+          width: 120px;
+          font-size: 16px;
+          overflow: hidden;
+          font-family: 'retro-font';
+        }
       </style>
       ${dynamicCol({ containerSelector: options.idModal, id: idSectionA })}
       <div class="fl">
@@ -167,6 +195,39 @@ const ObjectLayerEngineModal = {
                   },
                 };
               }),
+            })}
+          </div>
+          <div class="in section-mp-border" style="width: 135px;">
+            ${await Input.Render({
+              id: `ol-input-render-frame-duration`,
+              label: html`<div class="inl ol-number-label">
+                <i class="fa-solid fa-chart-simple"></i> Frame duration
+              </div>`,
+              containerClass: 'inl',
+              type: 'number',
+              min: 100,
+              max: 1000,
+              placeholder: true,
+              value: renderFrameDuration,
+            })}
+          </div>
+          <div class="in section-mp">
+            ${await ToggleSwitch.Render({
+              id: 'ol-toggle-render-is-stateless',
+              wrapper: true,
+              wrapperLabel: html`${Translate.Render('is-stateless')}`,
+              disabledOnClick: true,
+              checked: renderIsStateless,
+              on: {
+                unchecked: () => {
+                  renderIsStateless = false;
+                  console.warn('renderIsStateless', renderIsStateless);
+                },
+                checked: () => {
+                  renderIsStateless = true;
+                  console.warn('renderIsStateless', renderIsStateless);
+                },
+              },
             })}
           </div>
         </div>
@@ -245,6 +306,38 @@ const ObjectLayerEngineModal = {
         })}
       </div>
     `;
+  },
+  getDirectionsFromDirectionCode(directionCode = '08') {
+    let objectLayerFrameDirections = [];
+
+    switch (directionCode) {
+      case '08':
+        objectLayerFrameDirections = ['down_idle', 'none_idle', 'default_idle'];
+        break;
+      case '18':
+        objectLayerFrameDirections = ['down_walking'];
+        break;
+      case '02':
+        objectLayerFrameDirections = ['up_idle'];
+        break;
+      case '12':
+        objectLayerFrameDirections = ['up_walking'];
+        break;
+      case '04':
+        objectLayerFrameDirections = ['left_idle', 'up_left_idle', 'down_left_idle'];
+        break;
+      case '14':
+        objectLayerFrameDirections = ['left_walking', 'up_left_walking', 'down_left_walking'];
+        break;
+      case '06':
+        objectLayerFrameDirections = ['right_idle', 'up_right_idle', 'down_right_idle'];
+        break;
+      case '16':
+        objectLayerFrameDirections = ['right_walking', 'up_right_walking', 'down_right_walking'];
+        break;
+    }
+
+    return objectLayerFrameDirections;
   },
 };
 
