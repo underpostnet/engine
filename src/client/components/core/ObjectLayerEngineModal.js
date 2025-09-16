@@ -6,6 +6,7 @@ import { EventsUI } from './EventsUI.js';
 import { Translate } from './Translate.js';
 import { getProxyPath, s, append, hexToRgbA } from './VanillaJs.js';
 import { s4 } from './CommonJs.js';
+import { Input } from './Input.js';
 
 const ObjectLayerEngineModal = {
   templates: [
@@ -35,6 +36,8 @@ const ObjectLayerEngineModal = {
     // await import(`${getProxyPath()}components/core/WebComponent.js`);
 
     const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
+
+    const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor'];
 
     for (const url of [
       `${getProxyPath()}assets/templates/item-skin-08.json`,
@@ -145,6 +148,36 @@ const ObjectLayerEngineModal = {
                 };
               }),
             })}
+          </div>
+          <div class="in section-mp section-mp-border">
+            <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Item data</div>
+            ${await Input.Render({
+              id: `ol-input-item-id`,
+              label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('item-id')}`,
+              containerClass: '',
+              placeholder: true,
+            })}
+            ${await Input.Render({
+              id: `ol-input-item-description`,
+              label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('item-description')}`,
+              containerClass: '',
+              placeholder: true,
+            })}
+            <div class="in section-mp">
+              ${await DropDown.Render({
+                value: itemTypes[0],
+                label: html`${Translate.Render('select-item-type')}`,
+                data: itemTypes.map((itemType) => {
+                  return {
+                    value: itemType,
+                    display: html`${itemType}`,
+                    onClick: async () => {
+                      console.warn('itemType click', itemType);
+                    },
+                  };
+                }),
+              })}
+            </div>
           </div>
         </div>
         <div class="in fll ${idSectionA}-col-b">
