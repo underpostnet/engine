@@ -180,10 +180,12 @@ const ObjectLayerEngineModal = {
                   };
                 }),
               })}
+            </div>
+            <div class="in section-mp">
               ${await ToggleSwitch.Render({
                 id: 'ol-toggle-item-activable',
                 wrapper: true,
-                wrapperLabel: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('item-activable')}`,
+                wrapperLabel: html`${Translate.Render('item-activable')}`,
                 disabledOnClick: true,
                 checked: itemActivable,
                 on: {
