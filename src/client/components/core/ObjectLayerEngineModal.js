@@ -1,6 +1,6 @@
 import { CoreService } from '../../services/core/core.service.js';
 import { BtnIcon } from './BtnIcon.js';
-import { dynamicCol } from './Css.js';
+import { borderChar, dynamicCol } from './Css.js';
 import { DropDown } from './DropDown.js';
 import { EventsUI } from './EventsUI.js';
 import { Translate } from './Translate.js';
@@ -229,65 +229,79 @@ const ObjectLayerEngineModal = {
           overflow: hidden;
           font-family: 'retro-font';
         }
+        .sub-title-modal {
+          color: #ffcc00;
+        }
       </style>
-      ${dynamicCol({ containerSelector: options.idModal, id: idSectionA })}
-      <div class="fl">
-        <div class="in fll ${idSectionA}-col-a">
-          <div class="in section-mp">
-            ${await DropDown.Render({
-              value: ObjectLayerEngineModal.templates[0].id,
-              label: html`${Translate.Render('select-template')}`,
-              data: ObjectLayerEngineModal.templates.map((template) => {
-                return {
-                  value: template.id,
-                  display: html`<i class="fa-solid fa-paint-roller"></i> ${template.label}`,
-                  onClick: async () => {
-                    ObjectLayerEngineModal.RenderTemplate(template.data);
-                  },
-                };
-              }),
-            })}
-          </div>
-          <div class="in section-mp-border" style="width: 135px;">
-            ${await Input.Render({
-              id: `ol-input-render-frame-duration`,
-              label: html`<div class="inl ol-number-label">
-                <i class="fa-solid fa-chart-simple"></i> Frame duration
-              </div>`,
-              containerClass: 'inl',
-              type: 'number',
-              min: 100,
-              max: 1000,
-              placeholder: true,
-              value: renderFrameDuration,
-            })}
-          </div>
-          <div class="in section-mp">
-            ${await ToggleSwitch.Render({
-              id: 'ol-toggle-render-is-stateless',
-              wrapper: true,
-              wrapperLabel: html`${Translate.Render('is-stateless')}`,
-              disabledOnClick: true,
-              checked: renderIsStateless,
-              on: {
-                unchecked: () => {
-                  renderIsStateless = false;
-                  console.warn('renderIsStateless', renderIsStateless);
-                },
-                checked: () => {
-                  renderIsStateless = true;
-                  console.warn('renderIsStateless', renderIsStateless);
-                },
-              },
-            })}
-          </div>
-        </div>
-        <div class="in fll ${idSectionA}-col-b">
-          <object-layer-engine id="ole" width="${cells}" height="${cells}" pixel-size="${pixelSize}">
-          </object-layer-engine>
-        </div>
+      ${borderChar(2, 'black', ['.sub-title-modal'])}
+
+      <div class="in section-mp section-mp-border">
+        <div class="in sub-title-modal"><i class="fa-solid fa-table-cells-large"></i> Frame editor</div>
+
+        <object-layer-engine id="ole" width="${cells}" height="${cells}" pixel-size="${pixelSize}">
+        </object-layer-engine>
       </div>
-      ${directionsCodeBarRender}
+
+      <div class="in section-mp section-mp-border">
+        <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Render data</div>
+        ${dynamicCol({ containerSelector: options.idModal, id: idSectionA })}
+
+        <div class="fl">
+          <div class="in fll ${idSectionA}-col-a">
+            <div class="in section-mp">
+              ${await DropDown.Render({
+                value: ObjectLayerEngineModal.templates[0].id,
+                label: html`${Translate.Render('select-template')}`,
+                data: ObjectLayerEngineModal.templates.map((template) => {
+                  return {
+                    value: template.id,
+                    display: html`<i class="fa-solid fa-paint-roller"></i> ${template.label}`,
+                    onClick: async () => {
+                      ObjectLayerEngineModal.RenderTemplate(template.data);
+                    },
+                  };
+                }),
+              })}
+            </div>
+          </div>
+          <div class="in fll ${idSectionA}-col-b">
+            <div class="in section-mp-border" style="width: 135px;">
+              ${await Input.Render({
+                id: `ol-input-render-frame-duration`,
+                label: html`<div class="inl ol-number-label">
+                  <i class="fa-solid fa-chart-simple"></i> Frame duration
+                </div>`,
+                containerClass: 'inl',
+                type: 'number',
+                min: 100,
+                max: 1000,
+                placeholder: true,
+                value: renderFrameDuration,
+              })}
+            </div>
+            <div class="in section-mp">
+              ${await ToggleSwitch.Render({
+                id: 'ol-toggle-render-is-stateless',
+                wrapper: true,
+                wrapperLabel: html`${Translate.Render('is-stateless')}`,
+                disabledOnClick: true,
+                checked: renderIsStateless,
+                on: {
+                  unchecked: () => {
+                    renderIsStateless = false;
+                    console.warn('renderIsStateless', renderIsStateless);
+                  },
+                  checked: () => {
+                    renderIsStateless = true;
+                    console.warn('renderIsStateless', renderIsStateless);
+                  },
+                },
+              })}
+            </div>
+          </div>
+        </div>
+        ${directionsCodeBarRender}
+      </div>
       ${dynamicCol({ containerSelector: options.idModal, id: idSectionB, type: 'a-50-b-50' })}
 
       <div class="fl">
@@ -354,7 +368,7 @@ const ObjectLayerEngineModal = {
       <div class="in section-mp">
         ${await BtnIcon.Render({
           label: html`<i class="fa-solid fa-save"></i> ${Translate.Render('save')}`,
-          class: `in ol-btn-save`,
+          class: `in flr ol-btn-save`,
         })}
       </div>
     `;
