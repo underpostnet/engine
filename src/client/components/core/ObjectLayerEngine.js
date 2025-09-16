@@ -80,6 +80,16 @@ const templateHTML = html`
         <button part="rot-cw" title="Rotate +90°">⟳</button>
       </div>
 
+      <label
+        >opacity <input type="range" part="opacity" min="0" max="255" value="255" style="width:10rem" /><input
+          type="number"
+          part="opacity-num"
+          min="0"
+          max="255"
+          value="255"
+          style="width:5ch;margin-left:4px"
+      /></label>
+
       <button part="clear" title="Clear (make fully transparent)">Clear</button>
 
       <button part="export">Export PNG</button>
@@ -119,12 +129,16 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._rotCCWBtn = this.shadowRoot.querySelector('button[part="rot-ccw"]');
     this._rotCWBtn = this.shadowRoot.querySelector('button[part="rot-cw"]');
     this._clearBtn = this.shadowRoot.querySelector('button[part="clear"]');
+    this._opacityRange = this.shadowRoot.querySelector('input[part="opacity"]');
+    this._opacityNumber = this.shadowRoot.querySelector('input[part="opacity-num"]');
 
     // internal state
     this._width = 16;
     this._height = 16;
     this._pixelSize = 16;
     this._brushSize = 1;
+    // brush color stored as [r,g,b,a]
+    this._brushColor = [0, 0, 0, 255];
     this._matrix = this._createEmptyMatrix(this._width, this._height);
 
     this._pixelCtx = null;
@@ -132,7 +146,6 @@ class ObjectLayerEngineElement extends HTMLElement {
 
     this._isPointerDown = false;
     this._tool = 'pencil';
-    this._brushColor = [0, 0, 0, 255];
     this._showGrid = false;
 
     // binds
@@ -171,10 +184,16 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (this._pixelSizeInput) this._pixelSizeInput.value = String(this._pixelSize);
     if (this._brushSizeInput) this._brushSizeInput.value = String(this._brushSize);
 
+    // initialize color & opacity UI
+    if (this._colorInput) this._colorInput.value = this._rgbaToHex(this._brushColor);
+    if (this._opacityRange) this._opacityRange.value = String(this._brushColor[3]);
+    if (this._opacityNumber) this._opacityNumber.value = String(this._brushColor[3]);
+
     // UI events
     this._colorInput.addEventListener('input', (e) => {
-      const rgba = this._hexToRgba(e.target.value);
-      this.setBrushColor([rgba[0], rgba[1], rgba[2], 255]);
+      const rgb = this._hexToRgba(e.target.value);
+      // keep current alpha
+      this.setBrushColor([rgb[0], rgb[1], rgb[2], this._brushColor[3]]);
     });
     this._toolSelect.addEventListener('change', (e) => this.setTool(e.target.value));
     this._brushSizeInput.addEventListener('change', (e) => this.setBrushSize(parseInt(e.target.value, 10) || 1));
@@ -185,6 +204,20 @@ class ObjectLayerEngineElement extends HTMLElement {
       this._showGrid = !!e.target.checked;
       this._renderGrid();
     });
+
+    // opacity controls - keep range and number in sync
+    if (this._opacityRange) {
+      this._opacityRange.addEventListener('input', (e) => {
+        const v = Math.max(0, Math.min(255, parseInt(e.target.value, 10) || 0));
+        this.setBrushAlpha(v);
+      });
+    }
+    if (this._opacityNumber) {
+      this._opacityNumber.addEventListener('change', (e) => {
+        const v = Math.max(0, Math.min(255, parseInt(e.target.value, 10) || 0));
+        this.setBrushAlpha(v);
+      });
+    }
 
     // width/height change -> resize (preserve existing content)
     if (this._widthInput)
@@ -251,6 +284,8 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (this._rotCWBtn) this._rotCWBtn.removeEventListener('click', this.rotateCW);
     if (this._rotCCWBtn) this._rotCCWBtn.removeEventListener('click', this.rotateCCW);
     if (this._clearBtn) this._clearBtn.removeEventListener('click', () => this.clear([0, 0, 0, 0]));
+    if (this._opacityRange) this._opacityRange.removeEventListener('input', () => {});
+    if (this._opacityNumber) this._opacityNumber.removeEventListener('change', () => {});
   }
 
   // ---------------- Matrix helpers ----------------
@@ -454,10 +489,33 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._tool = name;
     if (this._toolSelect) this._toolSelect.value = name;
   }
+
+  // set full RGBA brush color (alpha optional)
   setBrushColor(rgba) {
-    this._brushColor = rgba.map((n) => this._clampInt(n));
+    if (!Array.isArray(rgba) || rgba.length < 3) return;
+    const r = this._clampInt(rgba[0]);
+    const g = this._clampInt(rgba[1]);
+    const b = this._clampInt(rgba[2]);
+    const a = typeof rgba[3] === 'number' ? this._clampInt(rgba[3]) : this._brushColor[3];
+    this._brushColor = [r, g, b, a];
+    if (this._colorInput) this._colorInput.value = this._rgbaToHex(this._brushColor);
+    if (this._opacityRange) this._opacityRange.value = String(this._brushColor[3]);
+    if (this._opacityNumber) this._opacityNumber.value = String(this._brushColor[3]);
+  }
+
+  // set brush alpha (0-255)
+  setBrushAlpha(a) {
+    const v = Math.max(0, Math.min(255, Math.floor(Number(a) || 0)));
+    this._brushColor[3] = v;
+    if (this._opacityRange) this._opacityRange.value = String(v);
+    if (this._opacityNumber) this._opacityNumber.value = String(v);
+    // keep color input (hex) representing rgb only
     if (this._colorInput) this._colorInput.value = this._rgbaToHex(this._brushColor);
   }
+  getBrushAlpha() {
+    return this._brushColor[3];
+  }
+
   setBrushSize(n) {
     this._brushSize = Math.max(1, Math.floor(n));
     if (this._brushSizeInput) this._brushSizeInput.value = this._brushSize;
