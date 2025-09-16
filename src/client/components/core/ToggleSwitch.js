@@ -67,7 +67,7 @@ const ToggleSwitch = {
 
     if (options.type === 'checkbox') {
     }
-    return html`
+    const htmlRender = html`
       ${options?.displayMode === 'checkbox'
         ? html`<div class="${options?.containerClass ? options.containerClass : 'inl box-content-border'} ${id}">
             <div class="in ${id}-content toggle-switch-content-checkbox">
@@ -81,6 +81,20 @@ const ToggleSwitch = {
           </div>`}
       <input type="checkbox" class="${id}-checkbox" style="display: none" />
     `;
+    if (options.wrapper) {
+      setTimeout(() => (s(`.toggle-form-container-${id}`).onclick = () => ToggleSwitch.Tokens[`${id}-toggle`].click()));
+      return html`
+        <div class="in section-mp toggle-form-container toggle-form-container-${id} hover">
+          <div class="fl ">
+            <div class="in fll" style="width: 70%">
+              <div class="in">${options.wrapperLabel}</div>
+            </div>
+            <div class="in fll" style="width: 30%">${htmlRender}</div>
+          </div>
+        </div>
+      `;
+    }
+    return htmlRender;
   },
 };
 
