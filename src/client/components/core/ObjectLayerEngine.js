@@ -80,6 +80,8 @@ const templateHTML = html`
         <button part="rot-cw" title="Rotate +90°">⟳</button>
       </div>
 
+      <button part="clear" title="Clear (make fully transparent)">Clear</button>
+
       <button part="export">Export PNG</button>
       <button part="export-json">Export JSON</button>
       <button part="import-json">Import JSON</button>
@@ -116,6 +118,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._flipVBtn = this.shadowRoot.querySelector('button[part="flip-v"]');
     this._rotCCWBtn = this.shadowRoot.querySelector('button[part="rot-ccw"]');
     this._rotCWBtn = this.shadowRoot.querySelector('button[part="rot-cw"]');
+    this._clearBtn = this.shadowRoot.querySelector('button[part="clear"]');
 
     // internal state
     this._width = 16;
@@ -202,6 +205,9 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (this._rotCWBtn) this._rotCWBtn.addEventListener('click', this.rotateCW);
     if (this._rotCCWBtn) this._rotCCWBtn.addEventListener('click', this.rotateCCW);
 
+    // clear button (makes canvas fully transparent)
+    if (this._clearBtn) this._clearBtn.addEventListener('click', () => this.clear([0, 0, 0, 0]));
+
     // Export/Import
     this._exportBtn.addEventListener('click', () => this.exportPNG());
     this._exportJsonBtn.addEventListener('click', () => {
@@ -244,6 +250,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (this._flipVBtn) this._flipVBtn.removeEventListener('click', this.flipVertical);
     if (this._rotCWBtn) this._rotCWBtn.removeEventListener('click', this.rotateCW);
     if (this._rotCCWBtn) this._rotCCWBtn.removeEventListener('click', this.rotateCCW);
+    if (this._clearBtn) this._clearBtn.removeEventListener('click', () => this.clear([0, 0, 0, 0]));
   }
 
   // ---------------- Matrix helpers ----------------

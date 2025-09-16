@@ -1,29 +1,46 @@
 import { CoreService } from '../../services/core/core.service.js';
+import { BtnIcon } from './BtnIcon.js';
 import { dynamicCol } from './Css.js';
 import { DropDown } from './DropDown.js';
 import { Translate } from './Translate.js';
 import { getProxyPath, s, hexToRgbA } from './VanillaJs.js';
 
 const ObjectLayerEngineModal = {
-  templates: [],
+  templates: [
+    {
+      label: 'empty',
+      id: 'empty',
+      data: [],
+    },
+  ],
   RenderTemplate: (colorTemplate) => {
-    colorTemplate.forEach((y, indexY) => {
-      y.forEach((x, indexX) => {
-        s('object-layer-engine')._applyBrush(indexX, indexY, [...hexToRgbA(x), 255], true);
-      });
-    });
+    const ole = s('object-layer-engine');
+    if (!ole) {
+      return;
+    }
+
+    if (colorTemplate.length === 0) {
+      ole.clear();
+      return;
+    }
+
+    const matrix = colorTemplate.map((row) => row.map((hex) => [...hexToRgbA(hex), 255]));
+    ole.loadMatrix(matrix);
   },
   Render: async (options = { idModal: '' }) => {
     await import(`${getProxyPath()}components/core/ObjectLayerEngine.js`);
     // await import(`${getProxyPath()}components/core/WebComponent.js`);
 
+    const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
+
     for (const url of [
       `${getProxyPath()}assets/templates/item-skin-08.json`,
       `${getProxyPath()}assets/templates/item-skin-06.json`,
     ]) {
+      const id = url.split('/').pop().replace('.json', '');
       ObjectLayerEngineModal.templates.push({
-        label: url.split('/').pop(),
-        id: url.split('/').pop(),
+        label: id,
+        id,
         data: JSON.parse(await CoreService.getRaw({ url })).color,
       });
     }
@@ -32,7 +49,40 @@ const ObjectLayerEngineModal = {
     const pixelSize = parseInt(320 / cells);
     const idSectionA = 'template-section-a';
 
+    let directionsCodeBarRender = '';
+
+    for (const directionCode of directionCodes) {
+      directionsCodeBarRender += html`
+        <div class="in direction-code-bar-frames">
+          <div class="fl">
+            <div class="in fll">
+              <div class="in direction-code-bar-frames-title">${directionCode}</div>
+              <div class="in direction-code-bar-frames-btn">
+                ${await BtnIcon.Render({
+                  label: html`<i class="fa-solid fa-plus"></i>`,
+                  onClick: async () => {},
+                })}
+              </div>
+            </div>
+            <div class="in fll">...</div>
+          </div>
+        </div>
+      `;
+    }
+
     return html`
+      <style>
+        .direction-code-bar-frames {
+          border: 1px solid #ccc;
+          padding: 0.5rem;
+          margin: 0.5rem;
+        }
+        .direction-code-bar-frames-title {
+          font-weight: bold;
+          font-size: 1.2rem;
+          padding: 0.5rem;
+        }
+      </style>
       ${dynamicCol({ containerSelector: options.idModal, id: idSectionA })}
       <div class="fl">
         <div class="in fll ${idSectionA}-col-a">
@@ -57,6 +107,7 @@ const ObjectLayerEngineModal = {
           </object-layer-engine>
         </div>
       </div>
+      ${directionsCodeBarRender}
     `;
   },
 };
