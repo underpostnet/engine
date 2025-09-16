@@ -92,7 +92,7 @@ const ObjectLayerEngineModal = {
         });
       });
       directionsCodeBarRender += html`
-        <div class="in direction-code-bar-frames">
+        <div class="in section-mp-border">
           <div class="fl">
             <div class="in fll">
               <div class="in direction-code-bar-frames-title">${directionCode}</div>
@@ -129,11 +129,6 @@ const ObjectLayerEngineModal = {
 
     return html`
       <style>
-        .direction-code-bar-frames {
-          border: 1px solid #ccc;
-          padding: 0.5rem;
-          margin: 0.5rem;
-        }
         .direction-code-bar-frames-title {
           font-weight: bold;
           font-size: 1.2rem;
@@ -149,6 +144,11 @@ const ObjectLayerEngineModal = {
           left: 3px;
           background: red;
           color: white;
+        }
+        .ol-btn-save {
+          padding: 0.5rem;
+          font-size: 30px;
+          font-weight: bold;
         }
       </style>
       ${dynamicCol({ containerSelector: options.idModal, id: idSectionA })}
@@ -180,12 +180,6 @@ const ObjectLayerEngineModal = {
 
       <div class="fl">
         <div class="in fll ${idSectionB}-col-a">
-          <div class="in section-mp section-mp-border">
-            <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
-            ${statsInputsRender}
-          </div>
-        </div>
-        <div class="in fll ${idSectionB}-col-b">
           <div class="in section-mp section-mp-border">
             <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Item data</div>
             ${await Input.Render({
@@ -236,6 +230,19 @@ const ObjectLayerEngineModal = {
             </div>
           </div>
         </div>
+        <div class="in fll ${idSectionB}-col-b">
+          <div class="in section-mp section-mp-border">
+            <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
+            ${statsInputsRender}
+          </div>
+        </div>
+      </div>
+
+      <div class="in section-mp">
+        ${await BtnIcon.Render({
+          label: html`<i class="fa-solid fa-save"></i> ${Translate.Render('save')}`,
+          class: `in ol-btn-save`,
+        })}
       </div>
     `;
   },
