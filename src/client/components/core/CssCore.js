@@ -524,6 +524,12 @@ const CssCoreDark = {
         }
         .btn-input-extension:hover {
         }
+        .section-mp-border {
+          border: 2px solid #313131;
+          border-radius: 5px;
+          padding: 5px;
+          margin: 5px;
+        }
       </style>
       ${scrollBarDarkRender()} ${borderChar(1, 'black', ['.main-body-btn-container'])}
     `,
@@ -847,6 +853,12 @@ const CssCoreLight = {
           min-height: 40px;
         }
         .btn-input-extension:hover {
+        }
+        .section-mp-border {
+          border: 2px solid #bbb;
+          border-radius: 5px;
+          padding: 5px;
+          margin: 5px;
         }
       </style>
       ${scrollBarLightRender()} ${borderChar(1, 'white', ['.main-body-btn-container'])}
