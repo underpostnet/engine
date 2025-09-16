@@ -107,37 +107,40 @@ const ObjectLayerEngineModal = {
               item: {},
             },
           };
-          for (const directionCode of Object.keys(ObjectLayerEngineModal.ObjectLayerData)) {
-            const directionCodeBarFrameData = ObjectLayerEngineModal.ObjectLayerData[directionCode];
-
-            if (!directionCodeBarFrameData.json || !directionCodeBarFrameData.json.matrix) {
-              console.warn('No set directionCodeBarFrameData for directionCode', directionCode);
-              continue;
-            }
-
+          for (const directionCode of directionCodes) {
             const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(directionCode);
             for (const direction of directions) {
               if (!objectLayer.data.render.frames[direction]) objectLayer.data.render.frames[direction] = [];
 
-              const frameIndexColorMatrix = [];
-              let indexRow = -1;
-              for (const row of matrix) {
-                indexRow++;
-                frameIndexColorMatrix[indexRow] = [];
-                let indexCol = -1;
-                for (const value of row) {
-                  indexCol++;
-                  const colorIndex = objectLayer.data.render.color.findIndex(
-                    (color) =>
-                      color[0] === value[0] && color[1] === value[1] && color[2] === value[2] && color[3] === value[3],
-                  );
-                  if (colorIndex === -1) {
-                    objectLayer.data.render.color.push(value);
-                    colorIndex = objectLayer.data.render.color.length - 1;
-                  }
-                  frameIndexColorMatrix[indexRow][indexCol] = colorIndex;
-                }
+              if (!(directionCode in ObjectLayerEngineModal.ObjectLayerData)) {
+                console.warn('No set directionCodeBarFrameData for directionCode', directionCode);
+                continue;
+              }
 
+              for (const frameData of ObjectLayerEngineModal.ObjectLayerData[directionCode]) {
+                const { matrix } = JSON.parse(frameData.json);
+                const frameIndexColorMatrix = [];
+                let indexRow = -1;
+                for (const row of matrix) {
+                  indexRow++;
+                  frameIndexColorMatrix[indexRow] = [];
+                  let indexCol = -1;
+                  for (const value of row) {
+                    indexCol++;
+                    let colorIndex = objectLayer.data.render.color.findIndex(
+                      (color) =>
+                        color[0] === value[0] &&
+                        color[1] === value[1] &&
+                        color[2] === value[2] &&
+                        color[3] === value[3],
+                    );
+                    if (colorIndex === -1) {
+                      objectLayer.data.render.color.push(value);
+                      colorIndex = objectLayer.data.render.color.length - 1;
+                    }
+                    frameIndexColorMatrix[indexRow][indexCol] = colorIndex;
+                  }
+                }
                 objectLayer.data.render.frames[direction].push(frameIndexColorMatrix);
               }
             }
