@@ -38,6 +38,7 @@ const ObjectLayerEngineModal = {
     const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
     const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor'];
     const statTypes = ['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility'];
+    let selectItemType = itemTypes[0];
     let itemActivable = false;
     let renderIsStateless = false;
     let renderFrameDuration = 100;
@@ -107,10 +108,57 @@ const ObjectLayerEngineModal = {
             },
           };
           for (const directionCode of Object.keys(ObjectLayerEngineModal.ObjectLayerData)) {
+            const directionCodeBarFrameData = ObjectLayerEngineModal.ObjectLayerData[directionCode];
+
+            if (!directionCodeBarFrameData.json || !directionCodeBarFrameData.json.matrix) {
+              console.warn('No set directionCodeBarFrameData for directionCode', directionCode);
+              continue;
+            }
+
             const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(directionCode);
             for (const direction of directions) {
+              if (!objectLayer.data.render.frames[direction]) objectLayer.data.render.frames[direction] = [];
+
+              const frameIndexColorMatrix = [];
+              let indexRow = -1;
+              for (const row of matrix) {
+                indexRow++;
+                frameIndexColorMatrix[indexRow] = [];
+                let indexCol = -1;
+                for (const value of row) {
+                  indexCol++;
+                  const colorIndex = objectLayer.data.render.color.findIndex(
+                    (color) =>
+                      color[0] === value[0] && color[1] === value[1] && color[2] === value[2] && color[3] === value[3],
+                  );
+                  if (colorIndex === -1) {
+                    objectLayer.data.render.color.push(value);
+                    colorIndex = objectLayer.data.render.color.length - 1;
+                  }
+                  frameIndexColorMatrix[indexRow][indexCol] = colorIndex;
+                }
+
+                objectLayer.data.render.frames[direction].push(frameIndexColorMatrix);
+              }
             }
           }
+          objectLayer.data.render.frame_duration = parseInt(s(`.ol-input-render-frame-duration`).value);
+          objectLayer.data.render.is_stateless = renderIsStateless;
+          objectLayer.data.stats = {
+            effect: parseInt(s(`.ol-input-item-stats-effect`).value),
+            resistance: parseInt(s(`.ol-input-item-stats-resistance`).value),
+            agility: parseInt(s(`.ol-input-item-stats-agility`).value),
+            range: parseInt(s(`.ol-input-item-stats-range`).value),
+            intelligence: parseInt(s(`.ol-input-item-stats-intelligence`).value),
+            utility: parseInt(s(`.ol-input-item-stats-utility`).value),
+          };
+          objectLayer.data.item = {
+            type: selectItemType,
+            activable: itemActivable,
+            id: s(`.ol-input-item-id`).value,
+            description: s(`.ol-input-item-description`).value,
+          };
+          console.warn('objectLayer', objectLayer);
         });
       });
       directionsCodeBarRender += html`
@@ -265,6 +313,7 @@ const ObjectLayerEngineModal = {
                     display: html`${itemType}`,
                     onClick: async () => {
                       console.warn('itemType click', itemType);
+                      selectItemType = itemType;
                     },
                   };
                 }),
