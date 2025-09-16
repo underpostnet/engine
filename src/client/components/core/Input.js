@@ -65,6 +65,7 @@ const Input = {
         type="${options?.type ? options.type : 'text'}"
         class="${options.inputClass ? options.inputClass : 'in wfa'} ${id}"
         ${options?.min !== undefined ? `min="${options.min}"` : ''}
+        ${options?.max !== undefined ? `max="${options.max}"` : ''}
         placeholder${options?.placeholder ? `="${options.placeholder}"` : ''}
         ${options?.value !== undefined ? `value="${options.value}"` : ''}
         ${options?.autocomplete ? `autocomplete="${options.autocomplete}"` : ''}

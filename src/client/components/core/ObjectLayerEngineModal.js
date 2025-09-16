@@ -35,11 +35,9 @@ const ObjectLayerEngineModal = {
   Render: async (options = { idModal: '' }) => {
     await import(`${getProxyPath()}components/core/ObjectLayerEngine.js`);
     // await import(`${getProxyPath()}components/core/WebComponent.js`);
-
     const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
-
     const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor'];
-
+    const statTypes = ['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility'];
     let itemActivable = false;
 
     for (const url of [
@@ -110,6 +108,24 @@ const ObjectLayerEngineModal = {
       `;
     }
 
+    let statsInputsRender = '';
+    for (const statType of statTypes) {
+      statsInputsRender += html`
+        ${await Input.Render({
+          id: `ol-input-item-stats-${statType}`,
+          label: html`<div class="inl" style="width: 120px; font-size: 16px; overflow: hidden">
+            <i class="fa-solid fa-chart-simple"></i> ${statType}
+          </div>`,
+          containerClass: 'inl',
+          type: 'number',
+          min: 0,
+          max: 10,
+          placeholder: true,
+          value: 0,
+        })}
+      `;
+    }
+
     return html`
       <style>
         .direction-code-bar-frames {
@@ -159,56 +175,59 @@ const ObjectLayerEngineModal = {
         </div>
       </div>
       ${directionsCodeBarRender}
-      <div class="in fl">
-        <div class="in section-mp section-mp-border">
-          <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Item data</div>
-          ${await Input.Render({
-            id: `ol-input-item-id`,
-            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('item-id')}`,
-            containerClass: '',
-            placeholder: true,
-          })}
-          ${await Input.Render({
-            id: `ol-input-item-description`,
-            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('item-description')}`,
-            containerClass: '',
-            placeholder: true,
-          })}
-          <div class="in section-mp">
-            ${await DropDown.Render({
-              value: itemTypes[0],
-              label: html`${Translate.Render('select-item-type')}`,
-              data: itemTypes.map((itemType) => {
-                return {
-                  value: itemType,
-                  display: html`${itemType}`,
-                  onClick: async () => {
-                    console.warn('itemType click', itemType);
-                  },
-                };
-              }),
-            })}
-          </div>
-          <div class="in section-mp">
-            ${await ToggleSwitch.Render({
-              id: 'ol-toggle-item-activable',
-              wrapper: true,
-              wrapperLabel: html`${Translate.Render('item-activable')}`,
-              disabledOnClick: true,
-              checked: itemActivable,
-              on: {
-                unchecked: () => {
-                  itemActivable = false;
-                  console.warn('itemActivable', itemActivable);
+
+      <div class="in section-mp section-mp-border">
+        <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Item data</div>
+        ${await Input.Render({
+          id: `ol-input-item-id`,
+          label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('item-id')}`,
+          containerClass: '',
+          placeholder: true,
+        })}
+        ${await Input.Render({
+          id: `ol-input-item-description`,
+          label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('item-description')}`,
+          containerClass: '',
+          placeholder: true,
+        })}
+        <div class="in section-mp">
+          ${await DropDown.Render({
+            value: itemTypes[0],
+            label: html`${Translate.Render('select-item-type')}`,
+            data: itemTypes.map((itemType) => {
+              return {
+                value: itemType,
+                display: html`${itemType}`,
+                onClick: async () => {
+                  console.warn('itemType click', itemType);
                 },
-                checked: () => {
-                  itemActivable = true;
-                  console.warn('itemActivable', itemActivable);
-                },
-              },
-            })}
-          </div>
+              };
+            }),
+          })}
         </div>
+        <div class="in section-mp">
+          ${await ToggleSwitch.Render({
+            id: 'ol-toggle-item-activable',
+            wrapper: true,
+            wrapperLabel: html`${Translate.Render('item-activable')}`,
+            disabledOnClick: true,
+            checked: itemActivable,
+            on: {
+              unchecked: () => {
+                itemActivable = false;
+                console.warn('itemActivable', itemActivable);
+              },
+              checked: () => {
+                itemActivable = true;
+                console.warn('itemActivable', itemActivable);
+              },
+            },
+          })}
+        </div>
+      </div>
+      <div class="in section-mp section-mp-border">
+        <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
+        ${statsInputsRender}
       </div>
     `;
   },
