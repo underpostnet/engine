@@ -5,14 +5,18 @@ import crypto from 'crypto';
 const logger = loggerFactory(import.meta);
 
 const FileFactory = {
-  upload: async function (req, File) {
-    const results = [];
-    if (!req.files) throw { message: 'not file found' };
-    if (Array.isArray(req.files.file)) for (const file of req.files.file) results.push(await new File(file).save());
+  filesExtract: (req) => {
+    const files = [];
+    if (Array.isArray(req.files.file)) for (const file of req.files.file) files.push(file);
     else if (Object.keys(req.files).length > 0)
-      for (const keyFile of Object.keys(req.files)) results.push(await new File(req.files[keyFile]).save());
+      for (const keyFile of Object.keys(req.files)) files.push(req.files[keyFile]);
+    return files;
+  },
+  upload: async function (req, File) {
+    const results = FileFactory.filesExtract(req);
     let index = -1;
-    for (const file of results) {
+    for (let file of results) {
+      file = await new File(file).save();
       index++;
       const [result] = await File.find({
         _id: file._id,

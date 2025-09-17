@@ -1,5 +1,6 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
+import { FileFactory } from '../file/file.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -8,7 +9,9 @@ const ObjectLayerService = {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
 
     if (req.path.startsWith('/frame-image')) {
-      console.log(req.params.itemId, req.params.directionCode, req.file.files);
+      console.log(req.params.itemId, req.params.directionCode);
+      const files = FileFactory.filesExtract(req);
+      console.log(files);
       return;
     }
 
