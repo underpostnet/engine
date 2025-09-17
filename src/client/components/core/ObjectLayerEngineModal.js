@@ -96,27 +96,6 @@ const ObjectLayerEngineModal = {
         });
 
         EventsUI.onClick(`.ol-btn-save`, async () => {
-          // Firs upload images
-          {
-            for (const directionCode of Object.keys(ObjectLayerEngineModal.ObjectLayerData)) {
-              let frameIndex = -1;
-              for (const frame of ObjectLayerEngineModal.ObjectLayerData[directionCode]) {
-                frameIndex++;
-                const pngBlob = frame.image;
-
-                const form = new FormData();
-                form.append(directionCode, pngBlob, `${frameIndex}.png`);
-
-                const { status, data } = await ObjectLayerService.post({
-                  id: `frame-image/${s(`.ol-input-item-id`).value}/${directionCode}`,
-                  body: form,
-                  headerId: 'file',
-                });
-              }
-            }
-          }
-          return;
-
           const objectLayer = {
             data: {
               render: {
@@ -184,6 +163,26 @@ const ObjectLayerEngineModal = {
             description: s(`.ol-input-item-description`).value,
           };
           console.warn('objectLayer', objectLayer);
+
+          // Upload images
+          {
+            for (const directionCode of Object.keys(ObjectLayerEngineModal.ObjectLayerData)) {
+              let frameIndex = -1;
+              for (const frame of ObjectLayerEngineModal.ObjectLayerData[directionCode]) {
+                frameIndex++;
+                const pngBlob = frame.image;
+
+                const form = new FormData();
+                form.append(directionCode, pngBlob, `${frameIndex}.png`);
+
+                const { status, data } = await ObjectLayerService.post({
+                  id: `frame-image/${objectLayer.data.item.type}/${objectLayer.data.item.id}/${directionCode}`,
+                  body: form,
+                  headerId: 'file',
+                });
+              }
+            }
+          }
         });
       });
       directionsCodeBarRender += html`

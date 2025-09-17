@@ -1,7 +1,7 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { FileFactory } from '../file/file.service.js';
-
+import fs from 'fs-extra';
 const logger = loggerFactory(import.meta);
 
 const ObjectLayerService = {
@@ -9,9 +9,12 @@ const ObjectLayerService = {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
 
     if (req.path.startsWith('/frame-image')) {
-      console.log(req.params.itemId, req.params.directionCode);
+      const folder = `./src/client/public/cyberia/assets/${req.params.itemType}/${req.params.itemId}/${req.params.directionCode}`;
+      if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
       const files = FileFactory.filesExtract(req);
-      console.log(files);
+      for (const file of files) {
+        fs.writeFileSync(`${folder}/${file.name}`, file.data);
+      }
       return;
     }
 
