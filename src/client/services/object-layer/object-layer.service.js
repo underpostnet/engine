@@ -9,11 +9,11 @@ logger.info('Load service');
 const endpoint = 'object-layer';
 
 const ObjectLayerService = {
-  post: (options = { id: '', body: {} }) =>
+  post: (options = { id: '', body: {}, headerId: undefined }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
-        headers: headersFactory(),
+        headers: headersFactory(options.headerId),
         body: payloadFactory(options.body),
       })
         .then(async (res) => {

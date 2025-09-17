@@ -6,7 +6,12 @@ const logger = loggerFactory(import.meta);
 const ObjectLayerService = {
   post: async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
-    const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+
+    if (req.path.startsWith('/frame-image')) {
+      console.log(req.params.itemId, req.params.directionCode, req.file.files);
+      return;
+    }
+
     return await new ObjectLayer(req.body).save();
   },
   get: async (req, res, options) => {

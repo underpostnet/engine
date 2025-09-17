@@ -7,6 +7,10 @@ const logger = loggerFactory(import.meta);
 
 const ObjectLayerRouter = (options) => {
   const router = express.Router();
+  router.post(
+    `/frame-image/:itemId/:directionCode`,
+    async (req, res) => await ObjectLayerController.post(req, res, options),
+  );
   router.post(`/:id`, async (req, res) => await ObjectLayerController.post(req, res, options));
   router.post(`/`, async (req, res) => await ObjectLayerController.post(req, res, options));
   router.get(`/:id`, async (req, res) => await ObjectLayerController.get(req, res, options));
