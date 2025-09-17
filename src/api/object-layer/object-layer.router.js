@@ -11,6 +11,8 @@ const ObjectLayerRouter = (options) => {
     `/frame-image/:itemType/:itemId/:directionCode`,
     async (req, res) => await ObjectLayerController.post(req, res, options),
   );
+  router.post(`/metadata/:itemType/:itemId`, async (req, res) => await ObjectLayerController.post(req, res, options));
+
   router.post(`/:id`, async (req, res) => await ObjectLayerController.post(req, res, options));
   router.post(`/`, async (req, res) => await ObjectLayerController.post(req, res, options));
   router.get(`/:id`, async (req, res) => await ObjectLayerController.get(req, res, options));

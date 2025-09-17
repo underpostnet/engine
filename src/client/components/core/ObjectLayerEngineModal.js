@@ -183,6 +183,16 @@ const ObjectLayerEngineModal = {
               }
             }
           }
+
+          // Upload metadata
+          {
+            delete objectLayer.data.render.frames;
+            delete objectLayer.data.render.color;
+            const { status, data } = await ObjectLayerService.post({
+              id: `metadata/${objectLayer.data.item.type}/${objectLayer.data.item.id}`,
+              body: objectLayer,
+            });
+          }
         });
       });
       directionsCodeBarRender += html`

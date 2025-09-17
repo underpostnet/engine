@@ -18,6 +18,13 @@ const ObjectLayerService = {
       return;
     }
 
+    if (req.path.startsWith('/metadata')) {
+      const folder = `./src/client/public/cyberia/assets/${req.params.itemType}/${req.params.itemId}`;
+      if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+      fs.writeFileSync(`${folder}/metadata.json`, JSON.stringify(req.body));
+      return;
+    }
+
     return await new ObjectLayer(req.body).save();
   },
   get: async (req, res, options) => {
