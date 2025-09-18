@@ -204,24 +204,29 @@ program
         async ({ path, objectLayerType, objectLayerId, direction, frame }) => {
           if (options.showFrame && !`${objectLayerId}_${direction}_${frame}`.match(options.showFrame)) return;
           console.log(path, { objectLayerType, objectLayerId, direction, frame });
-          if (!objectLayers[objectLayerId])
-            objectLayers[objectLayerId] = {
-              data: {
-                render: {
-                  colors: [],
-                  frames: {},
-                  frame_duration: 250,
-                  is_stateless: false,
-                },
-                item: {
-                  id: objectLayerId,
-                  type: objectLayerType,
-                  description: '',
-                  activable: true,
-                },
-                stats: generateRandomStats(),
-              },
-            };
+          if (!objectLayers[objectLayerId]) {
+            const metadataPath = `./src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/metadata.json`;
+            const metadata = fs.existsSync(metadataPath) ? JSON.parse(fs.readFileSync(metadataPath, 'utf8')) : null;
+            objectLayers[objectLayerId] = metadata
+              ? metadata
+              : {
+                  data: {
+                    render: {
+                      frame_duration: 250,
+                      is_stateless: false,
+                    },
+                    item: {
+                      id: objectLayerId,
+                      type: objectLayerType,
+                      description: '',
+                      activable: true,
+                    },
+                    stats: generateRandomStats(),
+                  },
+                };
+            objectLayers[objectLayerId].data.render.colors = [];
+            objectLayers[objectLayerId].data.render.frames = {};
+          }
           const frameFactoryResult = await frameFactory(path, objectLayers[objectLayerId].data.render.colors);
           objectLayers[objectLayerId].data.render.colors = frameFactoryResult.colors;
           for (const objectLayerFrameDirection of getKeyFramesDirectionsFromNumberFolderDirection(direction)) {
