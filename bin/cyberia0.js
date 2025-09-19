@@ -9,6 +9,7 @@ import Underpost from '../src/index.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { range } from '../src/client/components/core/CommonJs.js';
+import { PNG } from 'pngjs';
 import sharp from 'sharp';
 import { random } from '../src/client/components/core/CommonJs.js';
 import crypto from 'crypto';
@@ -67,37 +68,63 @@ const pngDirectoryIteratorByObjectLayerType = async (
   }
 };
 
+const readPngAsync = (filePath) => {
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(filePath)
+      .pipe(new PNG())
+      .on('parsed', function () {
+        resolve({
+          width: this.width,
+          height: this.height,
+          data: Buffer.from(this.data),
+        });
+      })
+      .on('error', (err) => {
+        reject(err);
+      });
+  });
+};
+
 const frameFactory = async (path, colors = []) => {
   const frame = [];
-  await new Promise((resolve) => {
-    Jimp.read(path).then(async (image) => {
-      const mazeFactor = parseInt(image.bitmap.height / 24);
-      let _y = -1;
-      for (const y of range(0, image.bitmap.height - 1)) {
-        if (y % mazeFactor === 0) {
-          _y++;
-          if (!frame[_y]) frame[_y] = [];
-        }
-        let _x = -1;
-        for (const x of range(0, image.bitmap.width - 1)) {
-          const rgba = Object.values(Jimp.intToRGBA(image.getPixelColor(x, y)));
-          if (y % mazeFactor === 0 && x % mazeFactor === 0) {
-            _x++;
-            const indexColor = colors.findIndex(
-              (c) => c[0] === rgba[0] && c[1] === rgba[1] && c[2] === rgba[2] && c[3] === rgba[3],
-            );
-            if (indexColor === -1) {
-              colors.push(rgba);
-              frame[_y][_x] = colors.length - 1;
-            } else {
-              frame[_y][_x] = indexColor;
-            }
+  try {
+    let image;
+
+    if (path.endsWith('.gif')) {
+      image = await Jimp.read(path);
+    } else {
+      const png = await readPngAsync(path);
+      image = new Jimp(png.width, png.height);
+      image.bitmap = png;
+    }
+
+    const mazeFactor = parseInt(image.bitmap.height / 24);
+    let _y = -1;
+    for (const y of range(0, image.bitmap.height - 1)) {
+      if (y % mazeFactor === 0) {
+        _y++;
+        if (!frame[_y]) frame[_y] = [];
+      }
+      let _x = -1;
+      for (const x of range(0, image.bitmap.width - 1)) {
+        const rgba = Object.values(Jimp.intToRGBA(image.getPixelColor(x, y)));
+        if (y % mazeFactor === 0 && x % mazeFactor === 0) {
+          _x++;
+          const indexColor = colors.findIndex(
+            (c) => c[0] === rgba[0] && c[1] === rgba[1] && c[2] === rgba[2] && c[3] === rgba[3],
+          );
+          if (indexColor === -1) {
+            colors.push(rgba);
+            frame[_y][_x] = colors.length - 1;
+          } else {
+            frame[_y][_x] = indexColor;
           }
         }
       }
-      resolve();
-    });
-  });
+    }
+  } catch (error) {
+    logger.error(`Failed to process image ${path}:`, error);
+  }
   return { frame, colors };
 };
 
