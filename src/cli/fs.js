@@ -61,7 +61,7 @@ class UnderpostFileStorage {
             await UnderpostFileStorage.API.pull(_path, options);
           } else logger.warn(`Pull path already exists`, _path);
         }
-        shellExec(`cd ${path} && git add . && git commit -m "Base pull state"`);
+        shellExec(`cd ${path} && git init && git add . && git commit -m "Base pull state"`);
       } else {
         const files =
           options.git === true
