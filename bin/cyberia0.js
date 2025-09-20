@@ -92,6 +92,11 @@ const frameFactory = async (path, colors = []) => {
 
     if (path.endsWith('.gif')) {
       image = await Jimp.read(path);
+      // remove gif file
+      fs.removeSync(path);
+      // save image replacing gif for png
+      const pngPath = path.replace('.gif', '.png');
+      await image.writeAsync(pngPath);
     } else {
       const png = await readPngAsync(path);
       image = new Jimp(png.width, png.height);
