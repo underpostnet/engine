@@ -117,12 +117,6 @@ const DefaultConf = /**/ {
           import_name_build: '/dist/@neodrag-vanilla/index.js',
         },
         {
-          folder: './node_modules/pixi.js/dist',
-          public_folder: '/dist/pixi.js',
-          import_name: 'pixi.js',
-          import_name_build: '/dist/pixi.js/pixi.min.mjs',
-        },
-        {
           folder: './node_modules/socket.io/client-dist',
           public_folder: '/dist/socket.io',
           import_name: 'socket.io/client-dist/socket.io.esm.min.js',
@@ -134,12 +128,6 @@ const DefaultConf = /**/ {
           public_folder: '/dist/sortablejs',
           import_name: 'sortablejs',
           import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
-        },
-        {
-          folder: './node_modules/joystick-controller/dist/es',
-          public_folder: '/dist/joystick-controller',
-          import_name: 'joystick-controller',
-          import_name_build: '/dist/joystick-controller/joystick-controller.js',
         },
         {
           folder: './node_modules/pathfinding/visual/lib',
@@ -247,6 +235,7 @@ const DefaultConf = /**/ {
           'Content',
           'WebComponent',
           'ObjectLayerEngine',
+          'ObjectLayerEngineModal',
         ],
         cyberia: [
           'PixiCyberia',
@@ -312,12 +301,6 @@ const DefaultConf = /**/ {
           import_name_build: '/dist/@neodrag-vanilla/index.js',
         },
         {
-          folder: './node_modules/pixi.js/dist',
-          public_folder: '/dist/pixi.js',
-          import_name: 'pixi.js',
-          import_name_build: '/dist/pixi.js/pixi.min.mjs',
-        },
-        {
           folder: './node_modules/socket.io/client-dist',
           public_folder: '/dist/socket.io',
           import_name: 'socket.io/client-dist/socket.io.esm.min.js',
@@ -329,12 +312,6 @@ const DefaultConf = /**/ {
           public_folder: '/dist/sortablejs',
           import_name: 'sortablejs',
           import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
-        },
-        {
-          folder: './node_modules/joystick-controller/dist/es',
-          public_folder: '/dist/joystick-controller',
-          import_name: 'joystick-controller',
-          import_name_build: '/dist/joystick-controller/joystick-controller.js',
         },
         {
           folder: './node_modules/pathfinding/visual/lib',
@@ -377,6 +354,7 @@ const DefaultConf = /**/ {
         'cyberia-bot',
         'cyberia-item',
         'cyberia-instance',
+        'object-layer',
       ],
     },
     'cyberia-admin': {
@@ -520,12 +498,6 @@ const DefaultConf = /**/ {
           import_name_build: '/dist/@neodrag-vanilla/index.js',
         },
         {
-          folder: './node_modules/pixi.js/dist',
-          public_folder: '/dist/pixi.js',
-          import_name: 'pixi.js',
-          import_name_build: '/dist/pixi.js/pixi.min.mjs',
-        },
-        {
           folder: './node_modules/socket.io/client-dist',
           public_folder: '/dist/socket.io',
           import_name: 'socket.io/client-dist/socket.io.esm.min.js',
@@ -537,12 +509,6 @@ const DefaultConf = /**/ {
           public_folder: '/dist/sortablejs',
           import_name: 'sortablejs',
           import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
-        },
-        {
-          folder: './node_modules/joystick-controller/dist/es',
-          public_folder: '/dist/joystick-controller',
-          import_name: 'joystick-controller',
-          import_name_build: '/dist/joystick-controller/joystick-controller.js',
         },
         {
           folder: './node_modules/pathfinding/visual/lib',
@@ -649,6 +615,7 @@ const DefaultConf = /**/ {
           'cyberia-bot',
           'cyberia-item',
           'cyberia-instance',
+          'object-layer',
         ],
         ws: 'core',
         origins: [],

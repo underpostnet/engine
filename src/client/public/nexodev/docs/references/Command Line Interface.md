@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.867
+## underpost ci/cd cli v2.8.87
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -307,6 +307,8 @@ Options:
                                     current resource deployments.
   --kubeadm                         Enables the kubeadm context for deployment
                                     operations.
+  --etc-hosts                       Enables the etc-hosts context for
+                                    deployment operations.
   --restore-hosts                   Restores default `/etc/hosts` entries.
   -h, --help                        display help for command
  
