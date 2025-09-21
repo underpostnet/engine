@@ -19,7 +19,7 @@ import * as dir from 'path';
 import { shellExec } from './process.js';
 import { SitemapStream, streamToPromise } from 'sitemap';
 import { Readable } from 'stream';
-import { buildIcons, buildTextImg, getBufferPngText } from './client-icons.js';
+import { buildIcons } from './client-icons.js';
 import Underpost from '../index.js';
 import { buildDocs } from './client-build-docs.js';
 
@@ -66,12 +66,6 @@ const fullBuild = async ({
 
   if (fs.existsSync(`./src/client/public/${publicClientId}`)) {
     if (iconsBuild) {
-      const defaultBaseIconFolderPath = `src/client/public/${publicClientId}/assets/logo`;
-      if (!fs.existsSync(defaultBaseIconFolderPath)) fs.mkdirSync(defaultBaseIconFolderPath, { recursive: true });
-      const defaultBaseIconPath = `${defaultBaseIconFolderPath}/base-icon.png`;
-      if (!fs.existsSync(defaultBaseIconPath))
-        await buildTextImg(metadata.title, { debugFilename: defaultBaseIconPath });
-
       if (!fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`))
         await buildIcons({ publicClientId, metadata });
     }

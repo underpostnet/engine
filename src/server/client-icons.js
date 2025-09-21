@@ -1,74 +1,9 @@
 import { favicons } from 'favicons';
-// TODO: search alternatives
-// import textToImage from 'text-to-image';
 import { loggerFactory } from './logger.js';
 import fs from 'fs-extra';
-import { getCapVariableName, s4 } from '../client/components/core/CommonJs.js';
-import { FileFactory } from '../api/file/file.service.js';
-import { svg, png, png3x } from 'font-awesome-assets';
+import { getCapVariableName } from '../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
-
-const faBase64Png = (faId = 'check', width = 100, height = 100, color = '#209e00') => {
-  const b64Src = png3x(faId, color, width, height);
-  return b64Src.split('src="data:image/png;base64,')[1].split('"')[0];
-};
-
-const defaultBaseTextImgOptions = {
-  debug: true,
-  fontFamily: 'Arial',
-  fontWeight: 'bold',
-  bgColor: 'black',
-  textColor: 'white',
-  debugFilename: 'src/client/public/text-image.png',
-  verticalAlign: 'center',
-  textAlign: 'center',
-};
-
-const defaultBaseTextImgOptionsSizes = {
-  '70x70': {
-    maxWidth: 70,
-    customHeight: 70,
-    fontSize: 25,
-    margin: 10,
-  },
-  '100x100': {
-    maxWidth: 100,
-    customHeight: 100,
-    fontSize: 30,
-    margin: 12,
-  },
-  '100x300': {
-    maxWidth: 300,
-    customHeight: 100,
-    fontSize: 30,
-    margin: 12,
-  },
-  '1200x1200': {
-    maxWidth: 1200,
-    customHeight: 1200,
-    fontSize: 500,
-    margin: 50,
-  },
-};
-
-const buildTextImg = async (text = 'APP', options, size = '1200x1200') => {
-  options = { ...defaultBaseTextImgOptions, ...defaultBaseTextImgOptionsSizes[size], ...options };
-  // await textToImage.generate(text, options);
-};
-
-const getBufferPngText = async ({ text, textColor, bgColor, size, debugFilename }) => {
-  if (!text) text = 'Hello World!';
-  if (!textColor) textColor = '#000000';
-  if (!bgColor) bgColor = '#ffffff';
-  if (!size) size = '100x300';
-  if (!debugFilename) debugFilename = `./${s4()}${s4()}${s4()}.png`;
-  await buildTextImg(text, { textColor, bgColor, size, debugFilename }, size);
-  if (!fs.existsSync(debugFilename)) return Buffer.alloc(0); // Return empty buffer if file not found
-  const bufferImage = fs.readFileSync(debugFilename);
-  fs.removeSync(debugFilename);
-  return bufferImage;
-};
 
 const buildIcons = async ({
   publicClientId,
@@ -149,13 +84,4 @@ const buildIcons = async ({
   }
 };
 
-const getDefaultProfileImageId = async (File) => {
-  const faId = 'user';
-  const tmpFilePath = `./tmp/${faId}-${s4() + s4()}.svg`;
-  fs.writeFileSync(tmpFilePath, svg(faId, '#f5f5f5d1'), 'utf8');
-  const file = await new File(FileFactory.svg(fs.readFileSync(tmpFilePath), `${faId}.svg`)).save();
-  fs.removeSync(tmpFilePath);
-  return file._id;
-};
-
-export { buildIcons, buildTextImg, defaultBaseTextImgOptions, faBase64Png, getBufferPngText, getDefaultProfileImageId };
+export { buildIcons };

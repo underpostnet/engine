@@ -9,7 +9,6 @@ import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { FileFactory } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
 import { selectDtoFactory, ValkeyAPI } from '../../server/valkey.js';
-import { getDefaultProfileImageId } from '../../server/client-icons.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -129,7 +128,7 @@ const UserService = {
             if (!user.profileImageId)
               await User.findByIdAndUpdate(
                 user._id,
-                { profileImageId: await getDefaultProfileImageId(File) },
+                { profileImageId: await options.getDefaultProfileImageId(File) },
                 {
                   runValidators: true,
                 },
@@ -212,7 +211,7 @@ const UserService = {
         if (validatePassword.status === 'error') throw new Error(validatePassword.message);
         req.body.password = await hashPassword(req.body.password);
         req.body.role = req.body.role === 'guest' ? 'guest' : 'user';
-        req.body.profileImageId = await getDefaultProfileImageId(File);
+        req.body.profileImageId = await options.getDefaultProfileImageId(File);
         const { _id } = await new User(req.body).save();
         if (_id) {
           const user = await User.findOne({ _id }).select(UserDto.select.get());
@@ -313,7 +312,7 @@ const UserService = {
         if (!file && !(await ValkeyAPI.getValkeyObject(options, req.auth.user.email))) {
           await User.findByIdAndUpdate(
             user._id,
-            { profileImageId: await getDefaultProfileImageId(File) },
+            { profileImageId: await options.getDefaultProfileImageId(File) },
             {
               runValidators: true,
             },

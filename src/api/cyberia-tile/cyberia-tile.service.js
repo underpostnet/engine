@@ -1,6 +1,5 @@
 import fs from 'fs-extra';
 import Jimp from 'jimp';
-import Color from 'color';
 import dotenv from 'dotenv';
 import sharp from 'sharp';
 
@@ -14,10 +13,80 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
-const rgba2Hexa = (rgba) => {
-  const a = rgba.a;
-  delete rgba.a;
-  return Color(rgba).alpha(a).hexa();
+/**
+ * Convert an RGBA-like input to a hex string.
+ * - Returns "#RRGGBB" when alpha is 1 (or absent).
+ * - Returns "#RRGGBBAA" when alpha < 1.
+ * Supported input types:
+ * - Array: [r, g, b] or [r, g, b, a]
+ * - Object: { r, g, b, a } or { 0: ..., 1: ..., 2: ..., 3: ... }
+ * - String: "rgb(r,g,b)" or "rgba(r,g,b,a)" (numbers or percentages)
+ */
+const rgba2Hexa = (input) => {
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const toHex = (n) => Math.round(n).toString(16).padStart(2, '0').toUpperCase();
+
+  let r = 0,
+    g = 0,
+    b = 0,
+    a = 1;
+
+  // parse helpers
+  const parseChannel = (val, isAlpha = false) => {
+    if (val == null) return isAlpha ? 1 : 0;
+    const s = String(val).trim();
+    if (s.endsWith('%')) {
+      const pct = parseFloat(s.slice(0, -1)) || 0;
+      return isAlpha ? clamp(pct / 100, 0, 1) : clamp((pct / 100) * 255, 0, 255);
+    }
+    const num = Number(s);
+    if (isNaN(num)) return isAlpha ? 1 : 0;
+    return num;
+  };
+
+  // Input parsing
+  if (Array.isArray(input)) {
+    [r, g, b, a] = input;
+  } else if (typeof input === 'object' && input !== null) {
+    // accept either named keys or numeric indices
+    r = input.r ?? input[0];
+    g = input.g ?? input[1];
+    b = input.b ?? input[2];
+    a = input.a ?? input.alpha ?? input[3] ?? 1;
+  } else if (typeof input === 'string') {
+    const m = input.match(/rgba?\s*\(\s*([^)]+)\s*\)/i);
+    if (!m) {
+      throw new Error(`rgba2Hexa: unrecognized string format "${input}"`);
+    }
+    const parts = m[1].split(',').map((p) => p.trim());
+    r = parts[0];
+    g = parts[1];
+    b = parts[2];
+    a = parts.length > 3 ? parts[3] : 1;
+  } else {
+    throw new Error('rgba2Hexa: input must be array, object, or "rgb/rgba(...)" string');
+  }
+
+  // Normalize channels
+  // parseChannel returns 0..255 for r/g/b and 0..1 for alpha when isAlpha=true
+  r = clamp(parseChannel(r), 0, 255);
+  g = clamp(parseChannel(g), 0, 255);
+  b = clamp(parseChannel(b), 0, 255);
+
+  // Alpha normalization:
+  // - support values in 0..1, 0..100, or "50%"
+  // parseChannel with isAlpha -> returns number as-is (if passed numeric) or 0..1 for percentages
+  a = parseChannel(a, true);
+  if (a > 1 && a <= 100) a = a / 100; // allow 50 -> 0.5
+
+  a = clamp(a, 0, 1);
+
+  const rgbHex = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  if (a < 1) {
+    const aHex = toHex(Math.round(a * 255));
+    return `${rgbHex}${aHex}`;
+  }
+  return rgbHex;
 };
 
 const hexa2Rgba = (hexCode, opacity = 1) => {

@@ -29,7 +29,23 @@ const FileFactory = {
     return Buffer.from(raw, 'utf8').toString('hex');
     // reverse hexValue.toString()
   },
-  svg: (data = new Buffer(), name = '') => {
+  getMymeTypeFromPath: (path) => {
+    switch (path.split('.').pop()) {
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+        return 'image/jpeg';
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'gif':
+        return 'image/gif';
+      case 'svg':
+        return 'image/svg+xml';
+      default:
+        return 'application/octet-stream';
+    }
+  },
+  create: (data = Buffer.from([]), name = '') => {
     return {
       name: name,
       data: data,
@@ -37,7 +53,7 @@ const FileFactory = {
       encoding: '7bit',
       tempFilePath: '',
       truncated: false,
-      mimetype: 'image/svg+xml',
+      mimetype: FileFactory.getMymeTypeFromPath(name),
       md5: crypto.createHash('md5').update(data).digest('hex'),
       cid: undefined,
     };

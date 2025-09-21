@@ -4,6 +4,7 @@ import { loggerFactory } from '../../server/logger.js';
 import { UserController } from './user.controller.js';
 import express from 'express';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { FileFactory } from '../file/file.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -45,6 +46,25 @@ const UserRouter = (options) => {
         res.set('Content-Type', 'image/png');
       },
     };
+    try {
+      const name = 'api-user-default-avatar.png';
+      const imageFile = await models.File.findOne({ name });
+      let _id;
+      if (imageFile) {
+        _id = imageFile._id;
+      } else {
+        const file = await new models.File(
+          FileFactory.create(fs.readFileSync(`./src/client/public/default/assets/mailer/${name}`), name),
+        ).save();
+        _id = file._id;
+      }
+      options.getDefaultProfileImageId = async () => {
+        return _id;
+      };
+    } catch (error) {
+      logger.error('Error checking/creating default profile image');
+      console.log(error);
+    }
   })();
 
   router.post(`/mailer/:id`, authMiddleware, async (req, res) => {
