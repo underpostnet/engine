@@ -147,7 +147,7 @@ const DefaultConf = /**/ {
         apis: ['default', 'core', 'user', 'test', 'file'],
         origins: [],
         minifyBuild: false,
-        iconsBuild: true,
+        iconsBuild: false,
         liteBuild: true,
         docsBuild: false,
         offlineBuild: false,

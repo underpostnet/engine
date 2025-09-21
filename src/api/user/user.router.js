@@ -12,6 +12,7 @@ const UserRouter = (options) => {
   const router = express.Router();
 
   (async () => {
+    // admin user seed
     try {
       const models = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models;
       if (models.User) {
@@ -36,6 +37,7 @@ const UserRouter = (options) => {
       console.log(error);
     }
 
+    // default user avatar seed
     options.png = {
       buffer: {
         'invalid-token': fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-invalid-token.png`),
@@ -46,7 +48,9 @@ const UserRouter = (options) => {
         res.set('Content-Type', 'image/png');
       },
     };
+
     try {
+      const models = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models;
       const name = 'api-user-default-avatar.png';
       const imageFile = await models.File.findOne({ name });
       let _id;
