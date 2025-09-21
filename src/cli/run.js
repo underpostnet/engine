@@ -313,7 +313,7 @@ class UnderpostRun {
 
       UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
 
-      shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${currentTraffic}`);
+      // shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${currentTraffic}`);
     },
     'tf-vae-test': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
