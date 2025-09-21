@@ -223,6 +223,8 @@ const generateRandomStats = () => {
   };
 };
 
+const zIndexPriority = { floor: 0, skin: 1, weapon: 2, skill: 3, coin: 4 };
+
 program
   .command('ol')
   .option('--import [object-layer-type]', 'Commas separated object layer types e.g. skin,floors')
@@ -231,7 +233,8 @@ program
     const objectLayers = {};
 
     if (options.import || options.showFrame) {
-      for (const argItemType of options.import.split(',')) {
+      const argItemTypes = options.import === 'all' ? Object.keys(zIndexPriority) : options.import.split(',');
+      for (const argItemType of argItemTypes) {
         await pngDirectoryIteratorByObjectLayerType(
           argItemType,
           async ({ path, objectLayerType, objectLayerId, direction, frame }) => {

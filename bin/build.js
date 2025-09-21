@@ -156,6 +156,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   switch (confName) {
     case 'dd-cyberia':
       fs.copyFileSync(`./bin/cyberia.js`, `${basePath}/bin/cyberia.js`);
+      fs.copyFileSync(`./bin/cyberia.js`, `${basePath}/bin/cyberia0.js`);
       break;
 
     default:
