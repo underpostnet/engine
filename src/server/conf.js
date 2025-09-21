@@ -9,17 +9,11 @@ import {
   timer,
 } from '../client/components/core/CommonJs.js';
 import * as dir from 'path';
-import cliProgress from 'cli-progress';
-import cliSpinners from 'cli-spinners';
-import logUpdate from 'log-update';
 import colors from 'colors';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import { DefaultConf } from '../../conf.js';
-import read from 'read';
 import splitFile from 'split-file';
-import axios from 'axios';
-import { ssrFactory } from './client-formatted.js';
 
 colors.enable();
 
@@ -591,51 +585,6 @@ const buildPortProxyRouter = (port, proxyRouter) => {
   return reOrderRouter;
 };
 
-const cliBar = async (time = 5000) => {
-  // create new progress bar
-  const b = new cliProgress.SingleBar({
-    format: 'Delay | {bar} | {percentage}% || {value}/{total} Chunks || Speed: {speed}',
-    barCompleteChar: '\u2588',
-    barIncompleteChar: '\u2591',
-    hideCursor: true,
-  });
-
-  const maxValueDisplay = 200;
-  const minValueDisplay = 0;
-  const steps = 10;
-  const incrementValue = 200 / steps;
-  const delayTime = time / steps;
-  // initialize the bar - defining payload token "speed" with the default value "N/A"
-  b.start(maxValueDisplay, minValueDisplay, {
-    speed: 'N/A',
-  });
-
-  // update values
-  // b1.increment();
-  // b1.update(20);
-
-  for (const step of range(1, steps)) {
-    b.increment(incrementValue);
-    await timer(delayTime);
-  }
-
-  // stop the bar
-  b.stop();
-};
-
-const cliSpinner = async (time = 5000, message0, message1, color, type = 'dots') => {
-  const { frames, interval } = cliSpinners[type];
-  const steps = parseInt(time / interval);
-  let index = 0;
-  for (const step of range(1, steps)) {
-    const msg = `${message0 ? message0 : ''}${frames[index]}${message1 ? message1 : ''}`;
-    logUpdate(color ? msg[color] : msg);
-    await timer(interval);
-    index++;
-    if (index === frames.length) index = 0;
-  }
-};
-
 const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1)}`;
 
 const getDataDeploy = (
@@ -991,8 +940,6 @@ export {
   buildWsSrc,
   cloneSrcComponents,
   buildProxyRouter,
-  cliBar,
-  cliSpinner,
   getDataDeploy,
   validateTemplatePath,
   buildReplicaId,
