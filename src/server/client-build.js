@@ -65,10 +65,8 @@ const fullBuild = async ({
   fs.removeSync(rootClientPath);
 
   if (fs.existsSync(`./src/client/public/${publicClientId}`)) {
-    if (iconsBuild) {
-      if (!fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`))
-        await buildIcons({ publicClientId, metadata });
-    }
+    if (iconsBuild === true) await buildIcons({ publicClientId, metadata });
+
     fs.copySync(
       `./src/client/public/${publicClientId}`,
       rootClientPath /* {
