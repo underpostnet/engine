@@ -7,9 +7,11 @@ const logger = loggerFactory(import.meta);
 
 const buildIcons = async ({
   publicClientId,
-  metadata: { title, description, keywords, author, thumbnail, themeColor },
+  metadata: { title, description, keywords, author, thumbnail, themeColor, baseBuildIconReference },
 }) => {
-  const source = `src/client/public/${publicClientId}/assets/logo/base-icon.png`; // Source image(s). `string`, `buffer` or array of `string`
+  const source = baseBuildIconReference
+    ? baseBuildIconReference
+    : `src/client/public/${publicClientId}/assets/logo/base-icon.png`; // Source image(s). `string`, `buffer` or array of `string`
 
   const configuration = {
     path: '/', // Path for overriding default icons path. `string`
