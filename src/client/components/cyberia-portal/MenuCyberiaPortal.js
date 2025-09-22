@@ -1,6 +1,6 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { getId, newInstance, random, range } from '../core/CommonJs.js';
+import { getId, newInstance, random } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
@@ -8,12 +8,11 @@ import { LogOut } from '../core/LogOut.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, hexToRgbA, htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { ElementsCyberiaPortal } from './ElementsCyberiaPortal.js';
 import Sortable from 'sortablejs';
 import { RouterCyberiaPortal } from './RoutesCyberiaPortal.js';
 import { SettingsCyberiaPortal } from './SettingsCyberiaPortal.js';
-import { ServerCyberiaPortal } from './ServerCyberiaPortal.js';
 import { Chat } from '../core/Chat.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
@@ -159,18 +158,18 @@ const MenuCyberiaPortal = {
           })}
         </div>
       `,
-      htmlMainBody: async () => {
-        return '';
-        return await ServerCyberiaPortal.Render({
-          idModal: 'modal-server-body',
-          events: {
-            'change-server-body': async ({ name }) => {
-              const { protocol, hostname } = window.location;
-              return (location.href = `${protocol}//${hostname}/${name}`);
-            },
-          },
-        });
-      },
+      // htmlMainBody: async () => {
+      //   return '';
+      //   return await ServerCyberiaPortal.Render({
+      //     idModal: 'modal-server-body',
+      //     events: {
+      //       'change-server-body': async ({ name }) => {
+      //         const { protocol, hostname } = window.location;
+      //         return (location.href = `${protocol}//${hostname}/${name}`);
+      //       },
+      //     },
+      //   });
+      // },
       barConfig: newInstance(barConfig),
       title: BannerAppTemplate,
       // titleClass: 'hide',
@@ -403,16 +402,16 @@ const MenuCyberiaPortal = {
           icon: html` <i class="fas fa-server"></i>`,
           text: Translate.Render('server'),
         }),
-        html: async () =>
-          await ServerCyberiaPortal.Render({
-            idModal: 'modal-server',
-            events: {
-              'change-server': async ({ name }) => {
-                const { protocol, hostname } = window.location;
-                return (location.href = `${protocol}//${hostname}/${name}`);
-              },
-            },
-          }),
+        html: async () => '',
+        // await ServerCyberiaPortal.Render({
+        //   idModal: 'modal-server',
+        //   events: {
+        //     'change-server': async ({ name }) => {
+        //       const { protocol, hostname } = window.location;
+        //       return (location.href = `${protocol}//${hostname}/${name}`);
+        //     },
+        //   },
+        // }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
