@@ -379,6 +379,10 @@ try {
       const templateRunnerResult = fs.readFileSync(`../pwa-microservices-template/logs/start.js/all.log`, 'utf8');
       logger.info('Test template runner result');
       console.log(templateRunnerResult);
+      if (!templateRunnerResult || templateRunnerResult.toLowerCase().match('error')) {
+        logger.error('Test template runner result failed');
+        break;
+      }
       shellExec(`node bin/deploy clean-core-repo`);
       shellCd(`/home/dd/engine`);
       const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
