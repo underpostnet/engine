@@ -1,46 +1,47 @@
-## underpost ci/cd cli v2.8.87
+## underpost ci/cd cli v2.8.871
 
 ### Usage: `underpost [options] [command]`
-  ```
- Options:
-  -V, --version                                              output the version number
-  -h, --help                                                 display help for command
+
+```
+Options:
+-V, --version                                              output the version number
+-h, --help                                                 display help for command
 
 Commands:
-  new [options] <app-name>                                   Initializes a new Underpost project with a predefined structure.
-  start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
-  clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
-  pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
-  cmt [options] <path> <commit-type> [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
-  push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
-  env <deploy-id> [env]                                      Sets environment variables and configurations related to a specific deployment ID.
-  config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
-  root                                                       Displays the root path of the npm installation.
-  cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
-  deploy [options] [deploy-list] [env]                       Manages application deployments, defaulting to deploying development pods.
-  secret [options] <platform>                                Manages secrets for various platforms.
-  dockerfile-image-build [options]                           Builds a Docker image from a specified Dockerfile with various options for naming, saving, and loading.
-  dockerfile-pull-base-images [options]                      Pulls required Underpost Dockerfile base images and optionally loads them into clusters.
-  install                                                    Quickly imports Underpost npm dependencies by copying them.
-  db [options] <deploy-list>                                 Manages database operations, including import, export, and collection management.
-  metadata [options] [deploy-id] [host] [path]               Manages cluster metadata operations, including import and export.
-  script [options] <operator> <script-name> [script-value]   Supports a variety of built-in Underpost global scripts, their preset lifecycle events, and arbitrary custom scripts.
-  cron [options] [deploy-list] [job-list]                    Manages cron jobs, including initialization, execution, and configuration updates.
-  fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
-  test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
-  monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
-  ssh [options]                                              Import and start ssh server and client based on current default deployment ID.
-  run [options] <runner-id> [path]                           Runs a script from the specified path.
-  lxd [options]                                              Manages LXD containers and virtual machines.
-  baremetal [options] [workflow-id] [hostname] [ip-address]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
-  help [command]                                             display help for command
- 
+new [options] <app-name>                                   Initializes a new Underpost project with a predefined structure.
+start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
+clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
+pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
+cmt [options] <path> <commit-type> [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
+push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
+env <deploy-id> [env]                                      Sets environment variables and configurations related to a specific deployment ID.
+config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
+root                                                       Displays the root path of the npm installation.
+cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
+deploy [options] [deploy-list] [env]                       Manages application deployments, defaulting to deploying development pods.
+secret [options] <platform>                                Manages secrets for various platforms.
+dockerfile-image-build [options]                           Builds a Docker image from a specified Dockerfile with various options for naming, saving, and loading.
+dockerfile-pull-base-images [options]                      Pulls required Underpost Dockerfile base images and optionally loads them into clusters.
+install                                                    Quickly imports Underpost npm dependencies by copying them.
+db [options] <deploy-list>                                 Manages database operations, including import, export, and collection management.
+metadata [options] [deploy-id] [host] [path]               Manages cluster metadata operations, including import and export.
+script [options] <operator> <script-name> [script-value]   Supports a variety of built-in Underpost global scripts, their preset lifecycle events, and arbitrary custom scripts.
+cron [options] [deploy-list] [job-list]                    Manages cron jobs, including initialization, execution, and configuration updates.
+fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
+test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
+monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
+ssh [options]                                              Import and start ssh server and client based on current default deployment ID.
+run [options] <runner-id> [path]                           Runs a script from the specified path.
+lxd [options]                                              Manages LXD containers and virtual machines.
+baremetal [options] [workflow-id] [hostname] [ip-address]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
+help [command]                                             display help for command
+
 ```
 
 ## Commands:
-    
 
 ### `new` :
+
 ```
  Usage: underpost new [options] <app-name>
 
@@ -53,11 +54,11 @@ Options:
   --deploy-id  Crete deploy ID conf env files
   --dev        Sets the development cli context
   -h, --help   display help for command
- 
+
 ```
-  
 
 ### `start` :
+
 ```
  Usage: underpost start [options] <deploy-id> [env]
 
@@ -73,11 +74,11 @@ Options:
   --run       Starts application servers and monitors their health.
   --build     Triggers the client-side application build process.
   -h, --help  display help for command
- 
+
 ```
-  
 
 ### `clone` :
+
 ```
  Usage: underpost clone [options] <uri>
 
@@ -90,11 +91,11 @@ Options:
   --bare      Performs a bare clone, downloading only the .git files.
   -g8         Uses the g8 repository extension for cloning.
   -h, --help  display help for command
- 
+
 ```
-  
 
 ### `pull` :
+
 ```
  Usage: underpost pull [options] <path> <uri>
 
@@ -108,11 +109,11 @@ Arguments:
 Options:
   -g8         Uses the g8 repository extension for pulling.
   -h, --help  display help for command
- 
+
 ```
-  
 
 ### `cmt` :
+
 ```
  Usage: underpost cmt [options] <path> <commit-type> [module-tag] [message]
 
@@ -132,11 +133,11 @@ Options:
   --copy       Copies the generated commit message to the clipboard.
   --info       Displays information about available commit types.
   -h, --help   display help for command
- 
+
 ```
-  
 
 ### `push` :
+
 ```
  Usage: underpost push [options] <path> <uri>
 
@@ -150,11 +151,11 @@ Options:
   -f          Forces the push, overwriting the remote repository history.
   -g8         Uses the g8 repository extension for pushing.
   -h, --help  display help for command
- 
+
 ```
-  
 
 ### `env` :
+
 ```
  Usage: underpost env [options] <deploy-id> [env]
 
@@ -169,11 +170,11 @@ Arguments:
 
 Options:
   -h, --help  display help for command
- 
+
 ```
-  
 
 ### `config` :
+
 ```
  Usage: underpost config [options] <operator> [key] [value]
 
@@ -188,11 +189,11 @@ Arguments:
 Options:
   --plain     Prints the configuration value in plain text.
   -h, --help  display help for command
- 
+
 ```
-  
 
 ### `root` :
+
 ```
  Usage: underpost root [options]
 
@@ -200,11 +201,11 @@ Displays the root path of the npm installation.
 
 Options:
   -h, --help  display help for command
- 
+
 ```
-  
 
 ### `cluster` :
+
 ```
  Usage: underpost cluster [options] [pod-name]
 
@@ -261,11 +262,11 @@ Options:
   --k3s                   Initializes the cluster using K3s (Lightweight
                           Kubernetes).
   -h, --help              display help for command
- 
+
 ```
-  
 
 ### `deploy` :
+
 ```
  Usage: underpost deploy [options] [deploy-list] [env]
 
@@ -311,11 +312,11 @@ Options:
                                     deployment operations.
   --restore-hosts                   Restores default `/etc/hosts` entries.
   -h, --help                        display help for command
- 
+
 ```
-  
 
 ### `secret` :
+
 ```
  Usage: underpost secret [options] <platform>
 
@@ -333,11 +334,11 @@ Options:
   --list                              Lists all available secrets for the
                                       platform.
   -h, --help                          display help for command
- 
+
 ```
-  
 
 ### `dockerfile-image-build` :
+
 ```
  Usage: underpost dockerfile-image-build [options]
 
@@ -364,11 +365,11 @@ Options:
                                        cache.
   --k3s-load                           Loads the image into a K3s cluster.
   -h, --help                           display help for command
- 
+
 ```
-  
 
 ### `dockerfile-pull-base-images` :
+
 ```
  Usage: underpost dockerfile-pull-base-images [options]
 
@@ -382,11 +383,11 @@ Options:
   --version       Sets a custom version for the base images.
   --k3s-load      Loads the image into a K3s cluster.
   -h, --help      display help for command
- 
+
 ```
-  
 
 ### `install` :
+
 ```
  Usage: underpost install [options]
 
@@ -394,11 +395,11 @@ Quickly imports Underpost npm dependencies by copying them.
 
 Options:
   -h, --help  display help for command
- 
+
 ```
-  
 
 ### `db` :
+
 ```
  Usage: underpost db [options] <deploy-list>
 
@@ -428,11 +429,11 @@ Options:
   --ns <ns-name>               Optional: Specifies the namespace context for
                                database operations.
   -h, --help                   display help for command
- 
+
 ```
-  
 
 ### `metadata` :
+
 ```
  Usage: underpost metadata [options] [deploy-id] [host] [path]
 
@@ -451,11 +452,11 @@ Options:
   --generate   Generate cluster metadata
   --itc        Apply under container execution context
   -h, --help   display help for command
- 
+
 ```
-  
 
 ### `script` :
+
 ```
  Usage: underpost script [options] <operator> <script-name> [script-value]
 
@@ -477,11 +478,11 @@ Options:
                          execution.
   --pod-name <pod-name>  Optional: Specifies the pod name for script execution.
   -h, --help             display help for command
- 
+
 ```
-  
 
 ### `cron` :
+
 ```
  Usage: underpost cron [options] [deploy-list] [job-list]
 
@@ -499,11 +500,11 @@ Options:
   --init       Initializes cron jobs for the default deployment ID.
   --git        Uploads cron job configurations to GitHub.
   -h, --help   display help for command
- 
+
 ```
-  
 
 ### `fs` :
+
 ```
  Usage: underpost fs [options] [path]
 
@@ -521,11 +522,11 @@ Options:
   --force                                  Forces the action, overriding any warnings or conflicts.
   --storage-file-path <storage-file-path>  Specifies a custom file storage path.
   -h, --help                               display help for command
- 
+
 ```
-  
 
 ### `test` :
+
 ```
  Usage: underpost test [options] [deploy-list]
 
@@ -547,11 +548,11 @@ Options:
   --kind-type <kind-type>    Optional: Specifies the Kind cluster type for
                              tests.
   -h, --help                 display help for command
- 
+
 ```
-  
 
 ### `monitor` :
+
 ```
  Usage: underpost monitor [options] <deploy-id> [env]
 
@@ -574,11 +575,11 @@ Options:
   --sync                       Synchronizes with current proxy deployments and
                                traffic configurations.
   -h, --help                   display help for command
- 
+
 ```
-  
 
 ### `ssh` :
+
 ```
  Usage: underpost ssh [options]
 
@@ -588,11 +589,11 @@ Options:
   --generate  Generates new ssh credential and stores it in current private
               keys file storage.
   -h, --help  display help for command
- 
+
 ```
-  
 
 ### `run` :
+
 ```
  Usage: underpost run [options] <runner-id> [path]
 
@@ -614,11 +615,11 @@ Options:
   --container-name <container-name>        Optional: Specifies the container name for test execution.
   --namespace <namespace>                  Optional: Specifies the namespace for test execution.
   -h, --help                               display help for command
- 
+
 ```
-  
 
 ### `lxd` :
+
 ```
  Usage: underpost lxd [options]
 
@@ -659,11 +660,11 @@ Options:
   --auto-expose-k8s-ports <vm-id>  Automatically exposes common Kubernetes
                                    ports for the specified VM.
   -h, --help                       display help for command
- 
+
 ```
-  
 
 ### `baremetal` :
+
 ```
  Usage: underpost baremetal [options] [workflow-id] [hostname] [ip-address]
 
@@ -697,6 +698,5 @@ Options:
                                  baremetal operations.
   --ls                           Lists available boot resources and machines.
   -h, --help                     display help for command
- 
+
 ```
-  
