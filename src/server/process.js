@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import { loggerFactory } from './logger.js';
 import clipboard from 'clipboardy';
+import UnderpostRootEnv from '../cli/env.js';
 
 dotenv.config();
 
@@ -47,7 +48,7 @@ const ProcessController = {
       this.logger.info(`process on exit`, args);
     });
     this.onSigListen();
-    if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
+    UnderpostRootEnv.API.delete('await-deploy');
   },
 };
 

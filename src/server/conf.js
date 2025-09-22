@@ -14,6 +14,7 @@ import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import { DefaultConf } from '../../conf.js';
 import splitFile from 'split-file';
+import UnderpostRootEnv from '../cli/env.js';
 
 colors.enable();
 
@@ -26,7 +27,7 @@ const Config = {
   build: async function (deployContext = 'dd-default', deployList, subConf) {
     if (typeof process.argv[2] === 'string' && process.argv[2].startsWith('dd-')) deployContext = process.argv[2];
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
-    fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
+    UnderpostRootEnv.API.set('await-deploy', new Date().toISOString());
     if (fs.existsSync(`./engine-private/replica/${deployContext}`))
       return loadConf(deployContext, process.env.NODE_ENV, subConf);
     else if (deployContext.startsWith('dd-')) return loadConf(deployContext, process.env.NODE_ENV, subConf);
@@ -726,9 +727,9 @@ const validateTemplatePath = (absolutePath = '') => {
 };
 
 const awaitDeployMonitor = async (init = false, deltaMs = 1000) => {
-  if (init) fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
+  if (init) UnderpostRootEnv.API.set('await-deploy', new Date().toISOString());
   await timer(deltaMs);
-  if (fs.existsSync(`./tmp/await-deploy`)) return await awaitDeployMonitor();
+  if (UnderpostRootEnv.API.get('await-deploy')) return await awaitDeployMonitor();
 };
 
 const getCronBackUpFolder = (host = '', path = '') => {

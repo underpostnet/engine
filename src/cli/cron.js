@@ -64,7 +64,6 @@ class UnderpostCron {
             shellExec(Cmd.cron(deployId, job, name, confCronConfig.jobs[job].expression, options));
           }
         }
-        if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         return;
       }
       for (const _jobId of jobList.split(',')) {
