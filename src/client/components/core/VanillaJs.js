@@ -161,7 +161,7 @@ const setPath = (path = '/', stateStorage = {}, title = '', options = {}) => {
   if (sanitizedPath.length > 1 && sanitizedPath[sanitizedPath.length - 1] === '/')
     sanitizedPath = sanitizedPath.slice(0, -1);
 
-  const newFullPath = `${sanitizedPath}${inputSearch ? `?${inputSearch}` : ''}${location.hash ?? ''}`;
+  const newFullPath = `${sanitizedPath}${inputSearch ? `?${inputSearch}` : location.search}${location.hash ?? ''}`;
   const currentFullPath = `${window.location.pathname}${location.search}${location.hash}`;
 
   if (currentFullPath === newFullPath) {

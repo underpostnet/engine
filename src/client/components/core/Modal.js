@@ -1957,8 +1957,8 @@ const Modal = {
       const modal = Modal.Data[idModal];
       if (!modal) return false;
       // Don't close the core UI elements
-      const coreUI = ['modal-menu', 'main-body', 'main-body-top', 'bottom-bar'];
-      if (coreUI.includes(idModal)) {
+      const coreUI = ['modal-menu', 'main-body', 'main-body-top', 'bottom-bar', 'board-notification'];
+      if (coreUI.find((id) => idModal.startsWith(id))) {
         return false;
       }
       // Don't close modals that are part of the "home" screen itself
