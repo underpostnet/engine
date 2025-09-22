@@ -1535,18 +1535,6 @@ const Modal = {
           s(`.btn-icon-menu-back`).classList.add('hide');
           if (s(`.menu-btn-container-main`)) s(`.menu-btn-container-main`).classList.remove('hide');
         };
-        this.onHomeRouterEvent = async () => {
-          for (const keyModal of Object.keys(this.Data)) {
-            if (
-              ![idModal, 'main-body-top', 'main-body'].concat(this.Data[idModal]?.homeModals || []).includes(keyModal)
-            )
-              if (s(`.btn-close-${keyModal}`)) s(`.btn-close-${keyModal}`).click();
-            backMenuButtonEvent();
-          }
-          if (s(`.btn-close-modal-menu`)) s(`.btn-close-modal-menu`).click();
-          setPath(getProxyPath());
-          setDocTitle();
-        };
         s(`.main-btn-home`).onclick = async () => {
           // await this.onHomeRouterEvent();
           s(`.action-btn-home`).click();
@@ -1767,12 +1755,8 @@ const Modal = {
         if (!s(`.${idModal}`)) return;
         this.removeModal(idModal);
         // Handle modal route change
-        if (options.route) {
-          closeModalRouteChangeEvent({
-            route: options.route,
-            RouterInstance: options.RouterInstance,
-            homeCid: Modal.homeCid,
-          });
+        if (options.route || options.query) {
+          closeModalRouteChangeEvent({ closedId: idModal, homeCid: Modal.homeCid });
         }
       }, 300);
     };
@@ -1967,7 +1951,45 @@ const Modal = {
       ...this.Data[idModal],
     };
   },
-  onHomeRouterEvent: () => {},
+  onHomeRouterEvent: async () => {
+    // 1. Get list of modals to close.
+    const modalsToClose = Object.keys(Modal.Data).filter((idModal) => {
+      const modal = Modal.Data[idModal];
+      if (!modal) return false;
+      // Don't close the core UI elements
+      const coreUI = ['modal-menu', 'main-body', 'main-body-top', 'bottom-bar'];
+      if (coreUI.includes(idModal)) {
+        return false;
+      }
+      // Don't close modals that are part of the "home" screen itself
+      const homeModals = Modal.Data['modal-menu']?.homeModals || [];
+      if (homeModals.includes(idModal)) {
+        return false;
+      }
+      return true;
+    });
+
+    // 2. Navigate to home first, creating a new history entry.
+    setPath(getProxyPath());
+    setDocTitle();
+
+    // 3. Close the modals without them affecting the URL.
+    for (const id of modalsToClose) {
+      Modal.removeModal(id);
+    }
+
+    // 4. Finally, handle UI cleanup for the slide-menu.
+    if (s(`.menu-btn-container-children`)) htmls(`.menu-btn-container-children`, '');
+    if (s(`.nav-title-display-modal-menu`)) htmls(`.nav-title-display-modal-menu`, '');
+    if (s(`.nav-path-display-modal-menu`)) htmls(`.nav-path-display-modal-menu`, '');
+    if (s(`.btn-icon-menu-back`)) s(`.btn-icon-menu-back`).classList.add('hide');
+    if (s(`.menu-btn-container-main`)) s(`.menu-btn-container-main`).classList.remove('hide');
+
+    // And close the slide menu if it's open
+    if (s(`.btn-close-modal-menu`) && !s(`.btn-close-modal-menu`).classList.contains('hide')) {
+      s(`.btn-close-modal-menu`).click();
+    }
+  },
   currentTopModalId: '',
   zIndexSync: function ({ idModal }) {
     setTimeout(() => {
@@ -1996,11 +2018,6 @@ const Modal = {
   setTopModalCallback: function (idModal) {
     s(`.${idModal}`).style.zIndex = '4';
     this.currentTopModalId = `${idModal}`;
-    if (
-      this.Data[idModal].query &&
-      `${location.pathname}${window.location.search}` !== `${location.pathname}${this.Data[idModal].query}`
-    )
-      setPath(`${location.pathname}${this.Data[idModal].query}`);
   },
   mobileModal: () => window.innerWidth < 600 || window.innerHeight < 600,
   writeHTML: ({ idModal, html }) => htmls(`.html-${idModal}`, html),

@@ -4,7 +4,7 @@ import { rgbToHex } from './CommonJs.js';
 import { Css, darkTheme, dynamicCol, renderCssAttr, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
 import { DropDown } from './DropDown.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from './Modal.js';
-import { listenQueryPathInstance, setQueryPath } from './Router.js';
+import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent } from './Router.js';
 import { Translate } from './Translate.js';
 import { getProxyPath, getQueryParams, htmls, s, sa } from './VanillaJs.js';
 import Sortable from 'sortablejs';
@@ -51,7 +51,7 @@ const Docs = {
     };
     Modal.Data[ModalId].onObserverListener[ModalId]();
     Modal.Data[ModalId].onCloseListener[ModalId] = () => {
-      setQueryPath({ path: 'docs', queryPath: '' });
+      closeModalRouteChangeEvent({ closedId: ModalId });
     };
   },
   Data: [

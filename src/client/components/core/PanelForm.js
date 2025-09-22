@@ -170,7 +170,7 @@ const PanelForm = {
                 status,
               });
               if (getQueryParams().cid === data.id) {
-                setQueryPath({ path: options.route, queryPath: '' });
+                setQueryPath({ path: options.route, queryPath: '', replace: true });
                 if (PanelForm.Data[idPanel].updatePanel) await PanelForm.Data[idPanel].updatePanel();
               }
 

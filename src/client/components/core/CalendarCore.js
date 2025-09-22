@@ -346,7 +346,7 @@ const CalendarCore = {
                   status,
                 });
 
-                setQueryPath({ path: options.route, queryPath: '' });
+                setQueryPath({ path: options.route, queryPath: '', replace: true });
                 await CalendarCore.Data[options.idModal].updatePanel();
 
                 return { status };

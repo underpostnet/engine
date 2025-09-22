@@ -55,13 +55,13 @@ const LoadRouter = function (RouterInstance) {
   window.onpopstate = (e) => Router({ ...RouterInstance, e });
 };
 
-const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid') => {
-  const { queryPath, path } = options;
+const setQueryPath = (options = { path: '', queryPath: '', replace: false }, queryKey = 'cid') => {
+  const { queryPath, path, replace } = options;
   const newUri = `${getProxyPath()}${path === 'home' ? '' : `${path}/`}${
-    typeof queryPath === 'string' ? `?${queryKey}=${queryPath}` : ''
+    typeof queryPath === 'string' && queryPath ? `?${queryKey}=${queryPath}` : ''
   }`;
   const currentUri = `${window.location.pathname}${location.search}`;
-  if (currentUri !== newUri && currentUri !== `${newUri}/`) setPath(newUri);
+  if (currentUri !== newUri && currentUri !== `${newUri}/`) setPath(newUri, {}, '', { replace });
 };
 
 const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
@@ -86,27 +86,31 @@ const triggerCloseModalRouteChangeEvents = (newPath) => {
 };
 
 const closeModalRouteChangeEvent = (options = {}) => {
-  const { route, RouterInstance, homeCid } = options;
-  if (!route) return;
+  const { closedId, homeCid } = options;
+  if (!closedId) return;
 
-  let path = window.location.pathname;
-  if (path[path.length - 1] !== '/') path = `${path}/`;
-  let newPath = `${getProxyPath()}`;
+  const remainingModals = Object.keys(Modal.Data).filter(
+    (id) => id !== closedId && (Modal.Data[id]?.options?.route || Modal.Data[id]?.options?.query),
+  );
 
-  if (path !== newPath) {
-    for (const subIdModal of Object.keys(Modal.Data).reverse()) {
-      if (Modal.Data[subIdModal]?.options?.route) {
-        newPath = `${newPath}${Modal.Data[subIdModal].options.route}`;
-        triggerCloseModalRouteChangeEvents(newPath);
-        setPath(newPath);
-        setDocTitle(newPath);
-        Modal.setTopModalCallback(subIdModal);
-      }
-    }
-    newPath = `${newPath}${homeCid ? `?cid=${homeCid}` : ''}`;
-    triggerCloseModalRouteChangeEvents(newPath);
-    setPath(newPath);
-    setDocTitle(newPath);
+  const topModalId = remainingModals.reverse().find((id) => Modal.Data[id]);
+
+  if (topModalId) {
+    const topModal = Modal.Data[topModalId];
+    const route = topModal.options.route;
+    const query = topModal.query;
+    const path = route ? `${getProxyPath()}${route}` : location.pathname;
+    const newUrl = `${path}${query || ''}`;
+
+    triggerCloseModalRouteChangeEvents(newUrl);
+    setPath(newUrl, {}, '', { replace: true });
+    setDocTitle(route || path);
+    Modal.setTopModalCallback(topModalId);
+  } else {
+    const homeUrl = `${getProxyPath()}${homeCid ? `?cid=${homeCid}` : ''}`;
+    triggerCloseModalRouteChangeEvents(homeUrl);
+    setPath(homeUrl, {}, '', { replace: true });
+    setDocTitle('home');
   }
 };
 

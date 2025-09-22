@@ -144,9 +144,11 @@ const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().
  * @param title - The `title` parameter in the `setPath` function is a string that represents the
  * title of the new history entry. It is used as the title of the new history entry in the browser's
  * history.
+ * @param {object} [options={}] - Additional options.
+ * @param {boolean} [options.replace=false] - If true, use `history.replaceState` instead of `history.pushState`.
  * @memberof VanillaJS
  */
-const setPath = (path = '/', stateStorage = {}, title = '') => {
+const setPath = (path = '/', stateStorage = {}, title = '', options = {}) => {
   if (!path) path = '/';
 
   const [inputPath, inputSearch] = `${path}`.split('?');
@@ -159,28 +161,25 @@ const setPath = (path = '/', stateStorage = {}, title = '') => {
   if (sanitizedPath.length > 1 && sanitizedPath[sanitizedPath.length - 1] === '/')
     sanitizedPath = sanitizedPath.slice(0, -1);
 
-  if (window.location.pathname === sanitizedPath && (!inputSearch || inputSearch === location.search)) {
+  const newFullPath = `${sanitizedPath}${inputSearch ? `?${inputSearch}` : ''}${location.hash ?? ''}`;
+  const currentFullPath = `${window.location.pathname}${location.search}${location.hash}`;
+
+  if (currentFullPath === newFullPath) {
     console.warn('Prevent overwriting same path', {
-      inputPath: inputPath,
-      inputSearch: inputSearch,
-      sanitizedPath: sanitizedPath,
-      currentLocationSearch: location.search,
-      currentLocationHash: location.hash,
+      newFullPath,
+      currentFullPath,
     });
     return;
   }
-  console.warn('Set path', {
+  const historyMethod = options.replace ? history.replaceState : history.pushState;
+  console.warn(`Set path (${options.replace ? 'replace' : 'push'})`, {
     inputPath: inputPath,
     inputSearch: inputSearch,
     sanitizedPath: sanitizedPath,
     currentLocationSearch: location.search,
     currentLocationHash: location.hash,
   });
-  return history.pushState(
-    stateStorage,
-    title,
-    `${sanitizedPath}${inputSearch ? `?${inputSearch}` : ''}${location.hash ?? ''}`,
-  );
+  return historyMethod.call(history, stateStorage, title, newFullPath);
 };
 
 /**

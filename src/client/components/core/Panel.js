@@ -12,7 +12,7 @@ import { dynamicCol, renderCssAttr } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { Modal } from './Modal.js';
-import { RouterEvents } from './Router.js';
+import { RouterEvents, setQueryPath } from './Router.js';
 import { RichText } from './RichText.js';
 import { loggerFactory } from './Logger.js';
 import { Badge } from './Badge.js';
@@ -473,6 +473,9 @@ const Panel = {
         setTimeout(() => {
           s(`.${idPanel}-form-body`).classList.add('hide');
         });
+        if (options.route && getQueryParams().cid) {
+          setQueryPath({ path: options.route, queryPath: '', replace: true });
+        }
       };
       s(`.btn-${idPanel}-add`).onclick = (e) => {
         e.preventDefault();
