@@ -105,7 +105,7 @@ const DefaultConf = /**/ {
         { folder: './node_modules/@loadingio/css-spinner/entries', public_folder: '/dist/loadingio' },
         {
           import_name: 'ag-grid-community',
-          import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+          import_name_build: '/dist/ag-grid-community/ag-grid-community.min.js',
           folder: './node_modules/ag-grid-community/dist',
           public_folder: '/dist/ag-grid-community',
           styles: './node_modules/ag-grid-community/styles',
@@ -215,7 +215,7 @@ const DefaultConf = /**/ {
         { folder: './node_modules/@loadingio/css-spinner/entries', public_folder: '/dist/loadingio' },
         {
           import_name: 'ag-grid-community',
-          import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+          import_name_build: '/dist/ag-grid-community/ag-grid-community.min.js',
           folder: './node_modules/ag-grid-community/dist',
           public_folder: '/dist/ag-grid-community',
           styles: './node_modules/ag-grid-community/styles',
@@ -317,7 +317,7 @@ const DefaultConf = /**/ {
         { folder: './node_modules/@loadingio/css-spinner/entries', public_folder: '/dist/loadingio' },
         {
           import_name: 'ag-grid-community',
-          import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+          import_name_build: '/dist/ag-grid-community/ag-grid-community.min.js',
           folder: './node_modules/ag-grid-community/dist',
           public_folder: '/dist/ag-grid-community',
           styles: './node_modules/ag-grid-community/styles',
@@ -461,7 +461,7 @@ const DefaultConf = /**/ {
         { folder: './node_modules/easymde/dist', public_folder: '/dist/easymde' },
         {
           import_name: 'ag-grid-community',
-          import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+          import_name_build: '/dist/ag-grid-community/ag-grid-community.min.js',
           folder: './node_modules/ag-grid-community/dist',
           public_folder: '/dist/ag-grid-community',
           styles: './node_modules/ag-grid-community/styles',
@@ -615,7 +615,7 @@ const DefaultConf = /**/ {
         { folder: './node_modules/easymde/dist', public_folder: '/dist/easymde' },
         {
           import_name: 'ag-grid-community',
-          import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+          import_name_build: '/dist/ag-grid-community/ag-grid-community.min.js',
           folder: './node_modules/ag-grid-community/dist',
           public_folder: '/dist/ag-grid-community',
           styles: './node_modules/ag-grid-community/styles',
@@ -728,7 +728,7 @@ const DefaultConf = /**/ {
         { folder: './node_modules/@loadingio/css-spinner/entries', public_folder: '/dist/loadingio' },
         {
           import_name: 'ag-grid-community',
-          import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+          import_name_build: '/dist/ag-grid-community/ag-grid-community.min.js',
           folder: './node_modules/ag-grid-community/dist',
           public_folder: '/dist/ag-grid-community',
           styles: './node_modules/ag-grid-community/styles',
@@ -860,7 +860,7 @@ const DefaultConf = /**/ {
         { folder: './node_modules/@loadingio/css-spinner/entries', public_folder: '/dist/loadingio' },
         {
           import_name: 'ag-grid-community',
-          import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+          import_name_build: '/dist/ag-grid-community/ag-grid-community.min.js',
           folder: './node_modules/ag-grid-community/dist',
           public_folder: '/dist/ag-grid-community',
           styles: './node_modules/ag-grid-community/styles',

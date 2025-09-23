@@ -3,7 +3,6 @@
 
 import { ThemeEvents, darkTheme } from './Css.js';
 import { append, getProxyPath, htmls, s } from './VanillaJs.js';
-import * as agGrid from 'ag-grid-community';
 
 const AgGrid = {
   grids: {},
