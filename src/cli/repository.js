@@ -49,6 +49,7 @@ class UnderpostRepository {
       },
     ) {
       if (commitType === 'reset') {
+        pbcopy(shellExec(`git --no-pager log -1 --pretty=%B`, { stdout: true }));
         shellExec(`cd ${repoPath} && git reset --soft HEAD~${isNaN(parseInt(subModule)) ? 1 : parseInt(subModule)}`);
         return;
       }
