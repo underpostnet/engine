@@ -1,6 +1,6 @@
 import { marked } from 'marked';
 import { FileService } from '../../services/file/file.service.js';
-import { append, getBlobFromUint8ArrayFile, getQueryParams, getRawContentFile, htmls, s } from './VanillaJs.js';
+import { append, getBlobFromUint8ArrayFile, getRawContentFile, htmls, s } from './VanillaJs.js';
 import { titleFormatted } from './CommonJs.js';
 import { Translate } from './Translate.js';
 import { Modal, renderViewTitle } from './Modal.js';
@@ -8,6 +8,7 @@ import { DocumentService } from '../../services/document/document.service.js';
 import { CoreService, getApiBaseUrl } from '../../services/core/core.service.js';
 import { loggerFactory } from './Logger.js';
 import { imageShimmer, renderChessPattern, renderCssAttr, styleFactory } from './Css.js';
+import { getQueryParams } from './Router.js';
 
 const logger = loggerFactory(import.meta);
 

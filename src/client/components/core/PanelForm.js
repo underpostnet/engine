@@ -1,12 +1,6 @@
 import { getCapVariableName, newInstance, random, range, uniqueArray } from './CommonJs.js';
 import { marked } from 'marked';
-import {
-  getBlobFromUint8ArrayFile,
-  getDataFromInputFile,
-  getQueryParams,
-  getRawContentFile,
-  htmls,
-} from './VanillaJs.js';
+import { getBlobFromUint8ArrayFile, getDataFromInputFile, getRawContentFile, htmls } from './VanillaJs.js';
 import { Panel } from './Panel.js';
 import { NotificationManager } from './NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
@@ -15,7 +9,7 @@ import { getSrcFromFileData } from './Input.js';
 import { imageShimmer, renderCssAttr } from './Css.js';
 import { Translate } from './Translate.js';
 import { Modal } from './Modal.js';
-import { closeModalRouteChangeEvents, listenQueryPathInstance, setQueryPath } from './Router.js';
+import { closeModalRouteChangeEvents, listenQueryPathInstance, setQueryPath, getQueryParams } from './Router.js';
 
 const PanelForm = {
   Data: {},

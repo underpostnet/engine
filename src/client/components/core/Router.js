@@ -1,6 +1,6 @@
 import { titleFormatted } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
-import { getProxyPath, getQueryParams, htmls, s, setPath } from './VanillaJs.js';
+import { htmls, s } from './VanillaJs.js';
 import { Modal } from './Modal.js';
 import { Worker } from './Worker.js';
 

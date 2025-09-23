@@ -7,9 +7,9 @@ import { Modal } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Panel } from './Panel.js';
 import { Responsive } from './Responsive.js';
-import { listenQueryPathInstance, RouterEvents, setQueryPath } from './Router.js';
+import { listenQueryPathInstance, RouterEvents, setQueryPath, getQueryParams } from './Router.js';
 import { Translate } from './Translate.js';
-import { append, getQueryParams, getTimeZone, htmls, s, sa } from './VanillaJs.js';
+import { append, getTimeZone, htmls, s, sa } from './VanillaJs.js';
 
 // https://fullcalendar.io/docs/event-object
 
