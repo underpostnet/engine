@@ -63,6 +63,7 @@ const DefaultConf = /**/ {
           'Alert',
           '404',
           '500',
+          'Pagination',
         ],
         default: [
           'MenuDefault',
