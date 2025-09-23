@@ -14,7 +14,14 @@ import {
   renderStatus,
   renderCssAttr,
 } from './Css.js';
-import { setDocTitle, closeModalRouteChangeEvent, handleModalViewRoute, getProxyPath, setPath } from './Router.js';
+import {
+  setDocTitle,
+  closeModalRouteChangeEvent,
+  handleModalViewRoute,
+  getProxyPath,
+  setPath,
+  setQueryPath,
+} from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
 import { Translate } from './Translate.js';
@@ -263,6 +270,7 @@ const Modal = {
               s(`.btn-menu-${idModal}`).classList.remove('hide');
               s(`.${idModal}`).style.width = `${this.Data[idModal][options.mode].width}px`;
               s(`.html-${idModal}`).style.display = 'none';
+              // s(`.title-modal-${idModal}`).style.display = 'none';
               setTimeout(() => {
                 s(`.main-body-btn-ui-menu-close`).classList.add('hide');
                 s(`.main-body-btn-ui-menu-menu`).classList.remove('hide');
@@ -270,9 +278,6 @@ const Modal = {
                   s(`.btn-bar-center-icon-menu`).classList.remove('hide');
                   s(`.btn-bar-center-icon-close`).classList.add('hide');
                 }
-              });
-              // s(`.title-modal-${idModal}`).style.display = 'none';
-              setTimeout(() => {
                 s(`.main-body-btn-container`).style[
                   true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
                 ] = `${0}px`;
@@ -1744,7 +1749,11 @@ const Modal = {
         if (!s(`.${idModal}`)) return;
         this.removeModal(idModal);
         // Handle modal route change
-        if (options.route || options.query) {
+
+        if (options.route && options.query) {
+          setQueryPath({ path: options.route, queryPath: '', replace: true });
+          history.back();
+        } else {
           closeModalRouteChangeEvent({ closedId: idModal, homeCid: Modal.homeCid });
         }
       }, 300);

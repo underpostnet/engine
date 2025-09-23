@@ -33,6 +33,7 @@ const Docs = {
       },
       maximize: true,
       mode: 'view',
+      route: 'docs',
       slideMenu: 'modal-menu',
       observer: true,
       barMode: 'top-bottom-bar',

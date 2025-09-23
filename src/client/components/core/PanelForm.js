@@ -455,7 +455,7 @@ const PanelForm = {
         Modal.Data['modal-menu'].onHome[idPanel] = async () => {
           lastCid = undefined;
           lastUserId = undefined;
-          setQueryPath({ path: options.route, queryPath: '' });
+          setQueryPath({ path: options.route, queryPath: options.route === 'home' ? '?' : '' });
           await this.Data[idPanel].updatePanel();
         };
     }
