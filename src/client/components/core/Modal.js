@@ -182,9 +182,7 @@ const Modal = {
                     htmls(
                       `.default-slide-menu-top-bar-fix-title-container`,
                       html`
-                        <div class="inl default-slide-menu-top-bar-fix-title-container-text">
-                          ${options.RouterInstance.BannerAppTemplate}
-                        </div>
+                        <div class="inl default-slide-menu-top-bar-fix-title-container-text">${options.title}</div>
                       `,
                     );
                   } else
