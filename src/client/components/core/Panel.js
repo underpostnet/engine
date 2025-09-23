@@ -474,7 +474,7 @@ const Panel = {
           s(`.${idPanel}-form-body`).classList.add('hide');
         });
         if (options.route && getQueryParams().cid) {
-          setQueryPath({ path: options.route, queryPath: '', replace: true });
+          setQueryPath({ path: options.route, queryPath: '' });
         }
       };
       s(`.btn-${idPanel}-add`).onclick = (e) => {

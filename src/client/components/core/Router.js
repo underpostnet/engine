@@ -37,11 +37,10 @@ const getProxyPath = () => {
  * @param title - The `title` parameter in the `setPath` function is a string that represents the
  * title of the new history entry. It is used as the title of the new history entry in the browser's
  * history.
- * @param {object} [options={}] - Additional options.
- * @param {boolean} [options.replace=false] - If true, use `history.replaceState` instead of `history.pushState`.
  * @memberof VanillaJS
  */
-const setPath = (path = '/', stateStorage = {}, title = '', options = {}) => {
+const setPath = (path = '/', stateStorage = {}, title = '') => {
+  logger.warn(`Set path input`, `${path}`);
   if (!path) path = '/';
 
   const [inputPath, inputSearch] = `${path}`.split('?');
@@ -56,23 +55,21 @@ const setPath = (path = '/', stateStorage = {}, title = '', options = {}) => {
 
   const newFullPath = `${sanitizedPath}${inputSearch ? `?${inputSearch}` : location.search}${location.hash ?? ''}`;
   const currentFullPath = `${window.location.pathname}${location.search}${location.hash}`;
-
-  if (currentFullPath === newFullPath) {
-    console.warn('Prevent overwriting same path', {
-      newFullPath,
-      currentFullPath,
-    });
-    return;
-  }
-  const historyMethod = options.replace ? history.replaceState : history.pushState;
-  console.warn(`Set path (${options.replace ? 'replace' : 'push'})`, {
+  logger.warn(`Set path output`, {
     inputPath: inputPath,
     inputSearch: inputSearch,
     sanitizedPath: sanitizedPath,
     currentLocationSearch: location.search,
     currentLocationHash: location.hash,
   });
-  return historyMethod.call(history, stateStorage, title, newFullPath);
+  if (currentFullPath === newFullPath) {
+    logger.warn('Prevent overwriting same path', {
+      newFullPath,
+      currentFullPath,
+    });
+    return;
+  }
+  return history.pushState.call(history, stateStorage, title, newFullPath);
 };
 
 /**
@@ -133,13 +130,13 @@ const LoadRouter = function (RouterInstance) {
   window.onpopstate = (e) => Router({ ...RouterInstance, e });
 };
 
-const setQueryPath = (options = { path: '', queryPath: '', replace: false }, queryKey = 'cid') => {
-  const { queryPath, path, replace } = options;
+const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid') => {
+  const { queryPath, path } = options;
   const newUri = `${getProxyPath()}${path === 'home' ? '' : `${path}/`}${
     typeof queryPath === 'string' && queryPath ? `?${queryKey}=${queryPath}` : ''
   }`;
   const currentUri = `${window.location.pathname}${location.search}`;
-  if (currentUri !== newUri && currentUri !== `${newUri}/`) setPath(newUri, {}, '', { replace });
+  if (currentUri !== newUri && currentUri !== `${newUri}/`) setPath(newUri, {}, '');
 };
 
 const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {

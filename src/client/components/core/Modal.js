@@ -1751,7 +1751,7 @@ const Modal = {
         // Handle modal route change
 
         if (options.route && options.query) {
-          setQueryPath({ path: options.route, queryPath: '', replace: true });
+          setQueryPath({ path: options.route, queryPath: '' });
           history.back();
         } else {
           closeModalRouteChangeEvent({ closedId: idModal, homeCid: Modal.homeCid });
