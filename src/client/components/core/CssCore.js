@@ -1,7 +1,8 @@
 import { AgGrid } from './AgGrid.js';
 import { borderChar, boxShadow, scrollBarDarkRender, scrollBarLightRender } from './Css.js';
 import { LoadingAnimation } from './LoadingAnimation.js';
-import { append, getProxyPath, s } from './VanillaJs.js';
+import { append, s } from './VanillaJs.js';
+import { getProxyPath } from './Router.js';
 
 const CssCommonCore = async () => {
   if (!s(`.fa-link`))

@@ -1,5 +1,5 @@
 import { borderChar } from '../core/Css.js';
-import { getProxyPath } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 
 const WikiCyberia = {
   Render: async function () {

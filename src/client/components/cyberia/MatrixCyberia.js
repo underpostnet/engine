@@ -2,10 +2,10 @@ import { CoreService } from '../../services/core/core.service.js';
 import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
 import { range } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
-import { append, getProxyPath, s } from '../core/VanillaJs.js';
+import { append, s } from '../core/VanillaJs.js';
 import { loadDefaultResources, QuestComponent } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
-
+import { getProxyPath } from '../core/Router.js';
 const MatrixCyberia = {
   Data: {},
   loadData: async function () {

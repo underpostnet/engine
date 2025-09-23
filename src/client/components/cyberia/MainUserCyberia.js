@@ -16,7 +16,7 @@ import {
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Account } from '../core/Account.js';
-import { append, getProxyPath, s, htmls } from '../core/VanillaJs.js';
+import { append, s, htmls } from '../core/VanillaJs.js';
 import { JoyStick } from '../core/JoyStick.js';
 import { CyberiaParams, isElementCollision, updateMovementDirection } from './CommonCyberia.js';
 import { Application, Container, Sprite, Texture } from 'pixi.js';
@@ -30,7 +30,7 @@ import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js'
 import { Modal } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-
+import { getProxyPath } from '../core/Router.js';
 const logger = loggerFactory(import.meta);
 
 const MainUserCyberia = {

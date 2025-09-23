@@ -1,6 +1,7 @@
 import Sortable from 'sortablejs';
 import { getId, range, uniqueArray } from '../core/CommonJs.js';
-import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';

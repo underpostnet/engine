@@ -1,4 +1,4 @@
-import { getProxyPath, getQueryParams, s } from '../core/VanillaJs.js';
+import { getProxyPath, getQueryParams } from '../core/Router.js';
 
 const CyberpunkBloggerUnderpost = {
   Render: async function () {

@@ -1,12 +1,11 @@
 import { Badge } from './Badge.js';
 import { BtnIcon } from './BtnIcon.js';
-import { rgbToHex } from './CommonJs.js';
-import { Css, darkTheme, dynamicCol, renderCssAttr, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
+import { Css, renderCssAttr, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
 import { DropDown } from './DropDown.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from './Modal.js';
-import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent } from './Router.js';
+import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent, getProxyPath } from './Router.js';
 import { Translate } from './Translate.js';
-import { getProxyPath, getQueryParams, htmls, s, sa } from './VanillaJs.js';
+import { htmls, s } from './VanillaJs.js';
 import Sortable from 'sortablejs';
 
 // https://mintlify.com/docs/quickstart

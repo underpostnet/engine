@@ -10,7 +10,8 @@ import { Modal } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
-import { append, getProxyPath, htmls, s } from './VanillaJs.js';
+import { append, htmls, s } from './VanillaJs.js';
+import { getProxyPath } from './Router.js';
 
 const Account = {
   UpdateEvent: {},

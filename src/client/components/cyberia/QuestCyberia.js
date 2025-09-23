@@ -18,7 +18,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
-import { append, getLang, getProxyPath, htmls, s, sa } from '../core/VanillaJs.js';
+import { append, getLang, htmls, s, sa } from '../core/VanillaJs.js';
 import { BagCyberia, Slot } from './BagCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
 import { CyberiaShopStorage, QuestComponent, isElementCollision } from './CommonCyberia.js';
@@ -30,6 +30,7 @@ import { PixiCyberia } from './PixiCyberia.js';
 import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
+import { getProxyPath } from '../core/Router.js';
 
 const logger = loggerFactory(import.meta);
 

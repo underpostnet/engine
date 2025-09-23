@@ -4,7 +4,7 @@ import { s4 } from '../core/CommonJs.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { getProxyPath, htmls, s, setPath } from '../core/VanillaJs.js';
+import { htmls, s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { Slot } from './BagCyberia.js';
 import { DisplayComponent, Stat } from './CommonCyberia.js';
@@ -16,6 +16,7 @@ import { SkillCyberia } from './SkillCyberia.js';
 import { QuestManagementCyberia } from './QuestCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
+import { getProxyPath, setPath } from '../core/Router.js';
 
 const logger = loggerFactory(import.meta);
 

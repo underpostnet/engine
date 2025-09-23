@@ -1,4 +1,4 @@
-import { getProxyPath } from '../../components/core/VanillaJs.js';
+import { getProxyPath } from '../../components/core/Router.js';
 import { DefaultManagement } from '../default/default.management.js';
 import { CyberiaTileService } from './cyberia-tile.service.js';
 

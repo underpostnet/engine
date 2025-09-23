@@ -1,7 +1,7 @@
 import JoystickController from 'joystick-controller';
 import { getDirection, getId } from './CommonJs.js';
-import { loggerFactory } from './Logger.js';
-import { append, getProxyPath, s } from './VanillaJs.js';
+import { append, s } from './VanillaJs.js';
+import { getProxyPath } from './Router.js';
 
 const logger = loggerFactory(import.meta);
 

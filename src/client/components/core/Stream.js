@@ -1,5 +1,5 @@
 import { loggerFactory } from './Logger.js';
-import { getProxyPath } from './VanillaJs.js';
+import { getProxyPath } from './Router.js';
 
 // https://peerjs.com/docs/
 

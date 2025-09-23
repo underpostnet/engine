@@ -1,6 +1,6 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
-import { getProxyPath } from '../../components/core/VanillaJs.js';
+import { getProxyPath } from '../../components/core/Router.js';
 
 const logger = loggerFactory(import.meta);
 

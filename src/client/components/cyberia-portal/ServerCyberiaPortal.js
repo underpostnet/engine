@@ -4,7 +4,8 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { getId } from '../core/CommonJs.js';
 import { darkTheme } from '../core/Css.js';
 import { NotificationManager } from '../core/NotificationManager.js';
-import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 import { MainUserCyberia } from '../cyberia/MainUserCyberia.js';
 import { SocketIoCyberia } from '../cyberia/SocketIoCyberia.js';
 

@@ -1,6 +1,7 @@
 import { loggerFactory } from '../core/Logger.js';
 import { Modal } from '../core/Modal.js';
-import { getProxyPath, s } from '../core/VanillaJs.js';
+import { s } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 
 const logger = loggerFactory(import.meta);
 

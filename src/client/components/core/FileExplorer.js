@@ -4,8 +4,7 @@ import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from './AgGrid.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
-import { getSubpaths, timer, uniqueArray } from './CommonJs.js';
-import { Content } from './Content.js';
+import { getSubpaths, uniqueArray } from './CommonJs.js';
 import { darkTheme, renderCssAttr } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { fileFormDataFactory, Input, InputFile } from './Input.js';
@@ -15,7 +14,8 @@ import { NotificationManager } from './NotificationManager.js';
 import { RouterEvents } from './Router.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
-import { copyData, downloadFile, getProxyPath, getQueryParams, s, setPath } from './VanillaJs.js';
+import { copyData, downloadFile, s, setPath } from './VanillaJs.js';
+import { getProxyPath, getQueryParams } from './Router.js';
 
 const logger = loggerFactory(import.meta);
 

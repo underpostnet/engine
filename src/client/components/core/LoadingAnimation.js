@@ -1,9 +1,9 @@
-import { CoreService } from '../../services/core/core.service.js';
 import { BtnIcon } from './BtnIcon.js';
 import { s4 } from './CommonJs.js';
 import { darkTheme, renderCssAttr, subThemeManager } from './Css.js';
 import { loggerFactory } from './Logger.js';
-import { append, getAllChildNodes, getProxyPath, htmls, s, sa } from './VanillaJs.js';
+import { append, htmls, s } from './VanillaJs.js';
+import { getProxyPath } from './Router.js';
 
 const logger = loggerFactory(import.meta);
 

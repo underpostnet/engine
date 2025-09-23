@@ -11,7 +11,8 @@ import { loggerFactory } from '../core/Logger.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
-import { copyData, getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { copyData, htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 

@@ -1,6 +1,7 @@
 import { getId, newInstance, range } from '../core/CommonJs.js';
 import { AnimatedSprite, Application, Container, Sprite, Texture } from 'pixi.js';
-import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { CyberiaParams, DisplayComponent } from './CommonCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';

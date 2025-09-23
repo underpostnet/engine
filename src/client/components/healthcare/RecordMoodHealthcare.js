@@ -6,7 +6,8 @@ import { Modal } from '../core/Modal.js';
 import { PanelForm } from '../core/PanelForm.js';
 import { RouterEvents } from '../core/Router.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 import { ElementsHealthcare } from './ElementsHealthcare.js';
 
 const RecordMoodHealthcare = {

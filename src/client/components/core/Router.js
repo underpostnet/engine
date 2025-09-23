@@ -11,6 +11,84 @@ const closeModalRouteChangeEvents = {};
 
 const logger = loggerFactory(import.meta);
 
+// Router
+/**
+ * The function `getProxyPath` returns a proxy path based on the current location pathname.
+ * @returns The `getProxyPath` function returns the path based on the current location. If the first
+ * segment of the pathname is not empty, it returns `/<first-segment>/`, otherwise it returns `/`. If
+ * the `window.Routes` object exists and the path is not `/` and the path without the trailing slash is
+ * a key in the `window.Routes` object, it returns `/`.
+ */
+const getProxyPath = () => {
+  let path = location.pathname.split('/')[1] ? `/${location.pathname.split('/')[1]}/` : '/';
+  if (window.Routes && path !== '/' && path.slice(0, -1) in window.Routes()) path = '/';
+  return path;
+};
+
+/**
+ * The setPath function in JavaScript updates the browser's history with a new path, state, and title.
+ * @param path - The `path` parameter is a string that represents the URL path where you want to
+ * navigate or update in the browser history. It is the first parameter in the `setPath` function and
+ * has a default value of `'/'`.
+ * @param stateStorage - The `stateStorage` parameter in the `setPath` function is an object that
+ * represents the state object associated with the new history entry. It is used to store data related
+ * to the state of the application when navigating to a new path using `history.pushState()`. This data
+ * can be accessed later
+ * @param title - The `title` parameter in the `setPath` function is a string that represents the
+ * title of the new history entry. It is used as the title of the new history entry in the browser's
+ * history.
+ * @param {object} [options={}] - Additional options.
+ * @param {boolean} [options.replace=false] - If true, use `history.replaceState` instead of `history.pushState`.
+ * @memberof VanillaJS
+ */
+const setPath = (path = '/', stateStorage = {}, title = '', options = {}) => {
+  if (!path) path = '/';
+
+  const [inputPath, inputSearch] = `${path}`.split('?');
+
+  let sanitizedPath = (inputPath[0] !== '/' ? `/${inputPath}` : inputPath)
+    .trim()
+    .replaceAll('//', '/')
+    .replaceAll(`\\`, '/');
+
+  if (sanitizedPath.length > 1 && sanitizedPath[sanitizedPath.length - 1] === '/')
+    sanitizedPath = sanitizedPath.slice(0, -1);
+
+  const newFullPath = `${sanitizedPath}${inputSearch ? `?${inputSearch}` : location.search}${location.hash ?? ''}`;
+  const currentFullPath = `${window.location.pathname}${location.search}${location.hash}`;
+
+  if (currentFullPath === newFullPath) {
+    console.warn('Prevent overwriting same path', {
+      newFullPath,
+      currentFullPath,
+    });
+    return;
+  }
+  const historyMethod = options.replace ? history.replaceState : history.pushState;
+  console.warn(`Set path (${options.replace ? 'replace' : 'push'})`, {
+    inputPath: inputPath,
+    inputSearch: inputSearch,
+    sanitizedPath: sanitizedPath,
+    currentLocationSearch: location.search,
+    currentLocationHash: location.hash,
+  });
+  return historyMethod.call(history, stateStorage, title, newFullPath);
+};
+
+/**
+ * The function `getQueryParams` extracts query parameters from the current URL and returns them as an
+ * object.
+ * @returns An object containing the query parameters from the current URL is being returned.
+ */
+const getQueryParams = () => {
+  const params = new URLSearchParams(window.location.search);
+  let queries = {};
+  for (const param of params) {
+    queries[param[0]] = param[1];
+  }
+  return queries;
+};
+
 const sanitizeRoute = (route) =>
   !route || route === '/' || route === `\\`
     ? 'home'
@@ -139,4 +217,7 @@ export {
   closeModalRouteChangeEvent,
   handleModalViewRoute,
   closeModalRouteChangeEvents,
+  getQueryParams,
+  getProxyPath,
+  setPath,
 };

@@ -2,7 +2,8 @@ import { BiomeCyberiaEngine, cut } from '../cyberia-admin/BiomeCyberiaAdmin.js';
 import { CoreService } from '../../services/core/core.service.js';
 import { CyberiaTileService } from '../../services/cyberia-tile/cyberia-tile.service.js';
 import { amplifyMatrix, getMostFrequentValue, mergeMatrices, newInstance, range } from '../core/CommonJs.js';
-import { getProxyPath, s } from '../core/VanillaJs.js';
+import { s } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 
 const SeedCityCyberiaBiome = {
   id: 'seed-city',

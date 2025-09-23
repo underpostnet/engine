@@ -8,7 +8,7 @@ import { LogOut } from '../core/LogOut.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { append, getProxyPath, getQueryParams, htmls, prepend, s } from '../core/VanillaJs.js';
+import { append, getQueryParams, htmls, prepend, s } from '../core/VanillaJs.js';
 import { ElementsHealthcare } from './ElementsHealthcare.js';
 import Sortable from 'sortablejs';
 import { RouterHealthcare } from './RoutesHealthcare.js';
@@ -22,6 +22,7 @@ import { AppointmentFormHealthcare } from './AppointmentFormHealthCare.js';
 import { HealthcareAppointmentService } from '../../services/healthcare-appointment/healthcare-appointment.service.js';
 import { HealthcareAppointmentManagement } from '../../services/healthcare-appointment/healthcare-appointment.management.js';
 import { RecordMoodHealthcare } from './RecordMoodHealthcare.js';
+import { getProxyPath } from '../core/Router.js';
 
 const logger = loggerFactory(import.meta);
 

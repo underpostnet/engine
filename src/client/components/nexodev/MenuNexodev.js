@@ -20,7 +20,7 @@ import { LogOut } from '../core/LogOut.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, getQueryParams, htmls, s, setPath } from '../core/VanillaJs.js';
+import { htmls, s } from '../core/VanillaJs.js';
 import { ElementsNexodev } from './ElementsNexodev.js';
 import Sortable from 'sortablejs';
 import { RouterNexodev } from './RoutesNexodev.js';
@@ -39,7 +39,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { InstanceManagement } from '../../services/instance/instance.management.js';
 import { UserManagement } from '../../services/user/user.management.js';
 import { PanelForm } from '../core/PanelForm.js';
-import { RouterEvents, setDocTitle } from '../core/Router.js';
+import { RouterEvents, setDocTitle, getProxyPath, getQueryParams } from '../core/Router.js';
 import { CronManagement } from '../../services/cron/cron.management.js';
 import { Scroll } from '../core/Scroll.js';
 

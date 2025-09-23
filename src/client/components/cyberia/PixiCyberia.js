@@ -1,4 +1,5 @@
-import { s, append, getProxyPath, htmls } from '../core/VanillaJs.js';
+import { s, append, htmls } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 import {
   getDistance,
   getId,

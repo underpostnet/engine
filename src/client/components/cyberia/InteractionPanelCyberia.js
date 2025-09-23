@@ -14,7 +14,7 @@ import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { Responsive } from '../core/Responsive.js';
 import { Translate } from '../core/Translate.js';
-import { append, getProxyPath, htmls, prepend, s } from '../core/VanillaJs.js';
+import { append, htmls, prepend, s } from '../core/VanillaJs.js';
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
 import { QuestComponent, WorldCyberiaType, isElementCollision } from './CommonCyberia.js';
@@ -24,6 +24,7 @@ import { PixiCyberia } from './PixiCyberia.js';
 import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
 import { QuestManagementCyberia } from './QuestCyberia.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
+import { getProxyPath } from '../core/Router.js';
 
 const InteractionPanelCyberia = {
   Data: {},

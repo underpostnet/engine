@@ -1,5 +1,5 @@
 import { borderChar, renderCssAttr } from '../core/Css.js';
-import { getProxyPath } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 
 const MapCyberia = {
   Render: async function () {

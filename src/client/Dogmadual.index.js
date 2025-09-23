@@ -15,7 +15,7 @@ import { DogmadualParams } from './components/dogmadual/CommonDogmadual.js';
 import { SocketIoDogmadual } from './components/dogmadual/SocketIoDogmadual.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { ElementsDogmadual } from './components/dogmadual/ElementsDogmadual.js';
-import { getProxyPath } from './components/core/VanillaJs.js';
+import { getProxyPath } from './components/core/Router.js';
 
 const htmlMainBody = async () => {
   return html`<img alt="Tech network" src="${getProxyPath()}assets/tech/tech-network.svg" />`;

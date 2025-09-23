@@ -15,7 +15,8 @@ import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { NexodevParams } from './components/nexodev/CommonNexodev.js';
-import { getProxyPath, s } from './components/core/VanillaJs.js';
+import { s } from './components/core/VanillaJs.js';
+import { getProxyPath } from './components/core/Router.js';
 import { EventsUI } from './components/core/EventsUI.js';
 
 const htmlMainBody = async () => {

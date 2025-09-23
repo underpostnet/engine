@@ -4,7 +4,8 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { getId } from '../core/CommonJs.js';
 import { darkTheme } from '../core/Css.js';
 import { NotificationManager } from '../core/NotificationManager.js';
-import { getProxyPath, s } from '../core/VanillaJs.js';
+import { s } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 
 const ServerCyberiaAdmin = {
   Tokens: {},

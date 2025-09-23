@@ -3,11 +3,11 @@ import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { EventsUI } from './EventsUI.js';
 import { Input } from './Input.js';
-import { LogIn } from './LogIn.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
-import { getProxyPath, getQueryParams, s } from './VanillaJs.js';
+import { s } from './VanillaJs.js';
+import { getProxyPath, getQueryParams } from './Router.js';
 
 const Recover = {
   Event: {},

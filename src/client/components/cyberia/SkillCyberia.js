@@ -5,9 +5,10 @@ import { Keyboard } from '../core/Keyboard.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Modal } from '../core/Modal.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { append, getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { append, htmls, s } from '../core/VanillaJs.js';
 import { SkillCyberiaData, SkillCyberiaType, Stat } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
+import { getProxyPath } from '../core/Router.js';
 
 const logger = loggerFactory(import.meta);
 

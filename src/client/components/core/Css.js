@@ -3,7 +3,8 @@ import { CssCoreDark, CssCoreLight } from './CssCore.js';
 import { DropDown } from './DropDown.js';
 import { Modal } from './Modal.js';
 import { Translate } from './Translate.js';
-import { append, getProxyPath, htmls, s, sa } from './VanillaJs.js';
+import { append, htmls, s } from './VanillaJs.js';
+import { getProxyPath } from './Router.js';
 
 let ThemesScope = [];
 

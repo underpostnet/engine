@@ -5,8 +5,8 @@ import { LoadingAnimation } from './LoadingAnimation.js';
 import { loggerFactory } from './Logger.js';
 import { LoadRouter } from './Router.js';
 import { Translate } from './Translate.js';
-import { getProxyPath, htmls, s } from './VanillaJs.js';
-
+import { s } from './VanillaJs.js';
+import { getProxyPath } from './Router.js';
 const logger = loggerFactory(import.meta);
 
 const Worker = {

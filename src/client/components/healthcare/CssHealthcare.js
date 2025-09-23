@@ -1,6 +1,6 @@
 import { CalendarCore } from '../core/CalendarCore.js';
 import { borderChar, boxShadow, subThemeManager } from '../core/Css.js';
-import { getProxyPath } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 
 const CssCommonHealthcare = async () => {
   CalendarCore.RenderStyle();

@@ -1,7 +1,7 @@
 import { AgGrid } from '../core/AgGrid.js';
 import { borderChar, subThemeManager } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
-import { getProxyPath } from '../core/VanillaJs.js';
+import { getProxyPath } from '../core/Router.js';
 
 const CssCommonCyberia = async () => {
   LoadingAnimation.img.load({

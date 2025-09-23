@@ -3,7 +3,7 @@ import { Css, Themes, darkTheme, dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { WorldCyberiaType } from '../cyberia/CommonCyberia.js';
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
-import { copyData, downloadFile, getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { copyData, downloadFile, htmls, s } from '../core/VanillaJs.js';
 import { Validator } from '../core/Validator.js';
 import { Input } from '../core/Input.js';
 import { Modal } from '../core/Modal.js';
@@ -26,6 +26,7 @@ import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.
 import { loggerFactory } from '../core/Logger.js';
 import { FileService } from '../../services/file/file.service.js';
 import { createJSONEditor } from 'vanilla-jsoneditor';
+import { getProxyPath } from '../core/Router.js';
 
 const logger = loggerFactory(import.meta);
 
