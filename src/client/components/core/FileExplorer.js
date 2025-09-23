@@ -14,8 +14,8 @@ import { NotificationManager } from './NotificationManager.js';
 import { RouterEvents } from './Router.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
-import { copyData, downloadFile, s, setPath } from './VanillaJs.js';
-import { getProxyPath, getQueryParams } from './Router.js';
+import { copyData, downloadFile, s } from './VanillaJs.js';
+import { getProxyPath, getQueryParams, setPath } from './Router.js';
 
 const logger = loggerFactory(import.meta);
 

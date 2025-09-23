@@ -4,13 +4,14 @@ import { newInstance } from '../core/CommonJs.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { LogIn } from '../core/LogIn.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { s, setPath } from '../core/VanillaJs.js';
+import { s } from '../core/VanillaJs.js';
 import { WebhookCyberia } from './WebhookCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { MainUserCyberia } from './MainUserCyberia.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
+import { setPath } from '../core/Router.js';
 
 const initAnonSession = async () => {
   LoadingAnimation.barLevel.append();

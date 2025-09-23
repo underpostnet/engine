@@ -1,6 +1,6 @@
 import { getId, newInstance } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
-import { append, s, prepend, setPath, htmls, sa, getAllChildNodes, isActiveElement } from './VanillaJs.js';
+import { append, s, prepend, htmls, sa, getAllChildNodes, isActiveElement } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
@@ -14,7 +14,7 @@ import {
   renderStatus,
   renderCssAttr,
 } from './Css.js';
-import { setDocTitle, closeModalRouteChangeEvent, handleModalViewRoute, getProxyPath } from './Router.js';
+import { setDocTitle, closeModalRouteChangeEvent, handleModalViewRoute, getProxyPath, setPath } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
 import { Translate } from './Translate.js';
