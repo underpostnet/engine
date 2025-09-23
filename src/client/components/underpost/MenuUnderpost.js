@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { ElementsUnderpost } from './ElementsUnderpost.js';
 import Sortable from 'sortablejs';
-import { RouterUnderpost } from './RoutesUnderpost.js';
+import { RouterUnderpost, BannerAppTemplate } from './RoutesUnderpost.js';
 import { LabGalleryUnderpost } from './LabGalleryUnderpost.js';
 import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
 import { Badge } from '../core/Badge.js';
@@ -26,7 +26,7 @@ const MenuUnderpost = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterUnderpost();
-    const { BannerAppTemplate } = RouterInstance;
+
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;

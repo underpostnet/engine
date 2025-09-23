@@ -17,7 +17,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { BiomeCyberiaEngine } from './BiomeCyberiaAdmin.js';
 import { ElementsCyberiaAdmin } from './ElementsCyberiaAdmin.js';
-import { RouterCyberiaAdmin } from './RoutesCyberiaAdmin.js';
+import { RouterCyberiaAdmin, BannerAppTemplate } from './RoutesCyberiaAdmin.js';
 import { ServerCyberiaAdmin } from './ServerCyberiaAdmin.js';
 import { SettingsCyberiaAdmin } from './SettingsCyberiaAdmin.js';
 import { TileCyberia } from '../cyberia/TileCyberia.js';
@@ -33,7 +33,7 @@ const MenuCyberiaAdmin = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterCyberiaAdmin();
-    const { BannerAppTemplate } = RouterInstance;
+
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;

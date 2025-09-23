@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { ElementsDogmadual } from './ElementsDogmadual.js';
 import Sortable from 'sortablejs';
-import { RouterDogmadual } from './RoutesDogmadual.js';
+import { RouterDogmadual, BannerAppTemplate } from './RoutesDogmadual.js';
 import { Badge } from '../core/Badge.js';
 import { SettingsDogmadual } from './SettingsDogmadual.js';
 import { Recover } from '../core/Recover.js';
@@ -23,7 +23,7 @@ const MenuDogmadual = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterDogmadual();
-    const { BannerAppTemplate } = RouterInstance;
+
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;

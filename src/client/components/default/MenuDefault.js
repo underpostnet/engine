@@ -21,7 +21,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { ElementsDefault } from './ElementsDefault.js';
 import Sortable from 'sortablejs';
-import { RouterDefault } from './RoutesDefault.js';
+import { RouterDefault, BannerAppTemplate } from './RoutesDefault.js';
 import { SettingsDefault } from './SettingsDefault.js';
 import { Badge } from '../core/Badge.js';
 import { Docs } from '../core/Docs.js';
@@ -36,7 +36,7 @@ const MenuDefault = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterDefault();
-    const { BannerAppTemplate } = RouterInstance;
+
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;

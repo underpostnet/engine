@@ -40,7 +40,7 @@ const RoutesBymyelectrics = () => {
 window.Routes = RoutesBymyelectrics;
 
 const RouterBymyelectrics = () => {
-  return { Routes: RoutesBymyelectrics, BannerAppTemplate };
+  return { Routes: RoutesBymyelectrics };
 };
 
 export { RoutesBymyelectrics, RouterBymyelectrics, BannerAppTemplate };

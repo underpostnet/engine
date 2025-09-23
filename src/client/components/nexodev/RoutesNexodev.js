@@ -57,7 +57,7 @@ const RoutesNexodev = () => {
 window.Routes = RoutesNexodev;
 
 const RouterNexodev = () => {
-  return { Routes: RoutesNexodev, BannerAppTemplate };
+  return { Routes: RoutesNexodev };
 };
 
 export { RoutesNexodev, RouterNexodev, BannerAppTemplate };

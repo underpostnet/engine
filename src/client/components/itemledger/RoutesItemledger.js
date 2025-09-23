@@ -34,7 +34,7 @@ const RoutesItemledger = () => {
 window.Routes = RoutesItemledger;
 
 const RouterItemledger = () => {
-  return { Routes: RoutesItemledger, BannerAppTemplate };
+  return { Routes: RoutesItemledger };
 };
 
 export { RoutesItemledger, RouterItemledger, BannerAppTemplate };

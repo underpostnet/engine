@@ -37,7 +37,7 @@ const RoutesUnderpost = () => {
 window.Routes = RoutesUnderpost;
 
 const RouterUnderpost = () => {
-  return { Routes: RoutesUnderpost, BannerAppTemplate };
+  return { Routes: RoutesUnderpost };
 };
 
 export { RoutesUnderpost, RouterUnderpost, BannerAppTemplate };

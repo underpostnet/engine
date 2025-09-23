@@ -50,7 +50,7 @@ const RoutesHealthcare = () => {
 window.Routes = RoutesHealthcare;
 
 const RouterHealthcare = () => {
-  return { Routes: RoutesHealthcare, BannerAppTemplate };
+  return { Routes: RoutesHealthcare };
 };
 
 export { RoutesHealthcare, RouterHealthcare, BannerAppTemplate };

@@ -51,7 +51,7 @@ const RoutesCyberiaAdmin = () => {
 window.Routes = RoutesCyberiaAdmin;
 
 const RouterCyberiaAdmin = () => {
-  return { Routes: RoutesCyberiaAdmin, BannerAppTemplate };
+  return { Routes: RoutesCyberiaAdmin };
 };
 
 export { RoutesCyberiaAdmin, RouterCyberiaAdmin, BannerAppTemplate };

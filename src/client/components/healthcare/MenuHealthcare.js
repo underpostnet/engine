@@ -11,7 +11,7 @@ import { Translate } from '../core/Translate.js';
 import { append, htmls, prepend, s } from '../core/VanillaJs.js';
 import { ElementsHealthcare } from './ElementsHealthcare.js';
 import Sortable from 'sortablejs';
-import { RouterHealthcare } from './RoutesHealthcare.js';
+import { RouterHealthcare, BannerAppTemplate } from './RoutesHealthcare.js';
 import { SettingsHealthcare } from './SettingsHealthcare.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Badge } from '../core/Badge.js';
@@ -32,7 +32,7 @@ const MenuHealthcare = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterHealthcare();
-    const { BannerAppTemplate } = RouterInstance;
+
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;

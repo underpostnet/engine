@@ -41,7 +41,7 @@ const RoutesCyberia = () => {
 window.Routes = RoutesCyberia;
 
 const RouterCyberia = () => {
-  return { Routes: RoutesCyberia, BannerAppTemplate };
+  return { Routes: RoutesCyberia };
 };
 
 export { RoutesCyberia, RouterCyberia, BannerAppTemplate };

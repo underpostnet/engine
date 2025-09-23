@@ -23,7 +23,7 @@ import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { ElementsNexodev } from './ElementsNexodev.js';
 import Sortable from 'sortablejs';
-import { RouterNexodev } from './RoutesNexodev.js';
+import { RouterNexodev, BannerAppTemplate } from './RoutesNexodev.js';
 import { CalendarNexodev } from './CalendarNexodev.js';
 import { DashboardNexodev } from './DashboardNexodev.js';
 import { StreamNexodev } from './StreamNexodev.js';
@@ -49,7 +49,7 @@ const MenuNexodev = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterNexodev();
-    const { BannerAppTemplate } = RouterInstance;
+
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;

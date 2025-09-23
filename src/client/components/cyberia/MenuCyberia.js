@@ -16,7 +16,7 @@ import { BagCyberia } from './BagCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { QuestCyberia } from './QuestCyberia.js';
-import { RouterCyberia } from './RoutesCyberia.js';
+import { RouterCyberia, BannerAppTemplate } from './RoutesCyberia.js';
 import { SettingsCyberia } from './SettingsCyberia.js';
 import Sortable from 'sortablejs';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
@@ -32,7 +32,7 @@ const MenuCyberia = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterCyberia();
-    const { BannerAppTemplate } = RouterInstance;
+
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;

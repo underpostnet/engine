@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { ElementsBymyelectrics } from './ElementsBymyelectrics.js';
 import Sortable from 'sortablejs';
-import { RouterBymyelectrics } from './RoutesBymyelectrics.js';
+import { RouterBymyelectrics, BannerAppTemplate } from './RoutesBymyelectrics.js';
 import { SettingsBymyelectrics } from './SettingsBymyelectrics.js';
 import { Badge } from '../core/Badge.js';
 import { Docs } from '../core/Docs.js';
@@ -27,7 +27,7 @@ const MenuBymyelectrics = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterBymyelectrics();
-    const { BannerAppTemplate } = RouterInstance;
+
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;

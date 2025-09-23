@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { ElementsCryptokoyn } from './ElementsCryptokoyn.js';
 import Sortable from 'sortablejs';
-import { RouterCryptokoyn } from './RoutesCryptokoyn.js';
+import { RouterCryptokoyn, BannerAppTemplate } from './RoutesCryptokoyn.js';
 import { Wallet } from '../core/Wallet.js';
 import { Badge } from '../core/Badge.js';
 import { SettingsCryptokoyn } from './SettingsCryptokoyn.js';
@@ -24,7 +24,7 @@ const MenuCryptokoyn = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterCryptokoyn();
-    const { BannerAppTemplate } = RouterInstance;
+
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;

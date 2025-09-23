@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { ElementsCyberiaPortal } from './ElementsCyberiaPortal.js';
 import Sortable from 'sortablejs';
-import { RouterCyberiaPortal } from './RoutesCyberiaPortal.js';
+import { RouterCyberiaPortal, BannerAppTemplate } from './RoutesCyberiaPortal.js';
 import { SettingsCyberiaPortal } from './SettingsCyberiaPortal.js';
 import { Chat } from '../core/Chat.js';
 import { Badge } from '../core/Badge.js';
@@ -25,7 +25,7 @@ const MenuCyberiaPortal = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterCyberiaPortal();
-    const { BannerAppTemplate } = RouterInstance;
+
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;

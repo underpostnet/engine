@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { ElementsItemledger } from './ElementsItemledger.js';
 import Sortable from 'sortablejs';
-import { RouterItemledger } from './RoutesItemledger.js';
+import { RouterItemledger, BannerAppTemplate } from './RoutesItemledger.js';
 import { SettingsItemledger } from './SettingsItemledger.js';
 import { Badge } from '../core/Badge.js';
 import { Docs } from '../core/Docs.js';
@@ -25,7 +25,7 @@ const MenuItemledger = {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterItemledger();
-    const { BannerAppTemplate } = RouterInstance;
+
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;

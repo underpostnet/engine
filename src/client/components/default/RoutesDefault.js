@@ -40,7 +40,7 @@ const RoutesDefault = () => {
 window.Routes = RoutesDefault;
 
 const RouterDefault = () => {
-  return { Routes: RoutesDefault, BannerAppTemplate };
+  return { Routes: RoutesDefault };
 };
 
 export { RoutesDefault, RouterDefault, BannerAppTemplate };

@@ -32,7 +32,7 @@ const RoutesDogmadual = () => {
 window.Routes = RoutesDogmadual;
 
 const RouterDogmadual = () => {
-  return { Routes: RoutesDogmadual, BannerAppTemplate };
+  return { Routes: RoutesDogmadual };
 };
 
 export { RoutesDogmadual, RouterDogmadual, BannerAppTemplate };
