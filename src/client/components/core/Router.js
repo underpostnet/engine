@@ -270,6 +270,31 @@ const handleModalViewRoute = (options = { route: 'home' }) => {
   }
 };
 
+/**
+ * Sets or updates query parameters in the URL.
+ * It preserves the existing path, hash, and other query parameters.
+ *
+ * @param {Object.<string, string|number>} newParams - An object of query parameters to set or update.
+ *        If a value is `null` or `undefined`, the parameter will be removed.
+ * @param {object} [options={ replace: true }] - Options for history manipulation.
+ * @param {boolean} [options.replace=true] - If true, uses `history.replaceState` instead of `history.pushState`.
+ * @memberof PwaRouter
+ */
+const setQueryParams = (newParams, options = { replace: true }) => {
+  const url = new URL(window.location.href);
+  Object.entries(newParams).forEach(([key, value]) => {
+    if (value === null || value === undefined) {
+      url.searchParams.delete(key);
+    } else {
+      url.searchParams.set(key, value);
+    }
+  });
+
+  const newPath = url.pathname + url.search + url.hash;
+
+  history.pushState(history.state, '', newPath);
+};
+
 export {
   RouterEvents,
   closeModalRouteChangeEvents,
@@ -284,4 +309,5 @@ export {
   getQueryParams,
   getProxyPath,
   setPath,
+  setQueryParams,
 };
