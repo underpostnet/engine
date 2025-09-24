@@ -34,4 +34,6 @@ jobs:
             node bin run --dev pull
             underpost run secret
             underpost run underpost-config
-            underpost run release-deploy
+            underpost run ssh-deploy engine-core
+            underpost run ssh-deploy engine-lampp
+            underpost run ssh-deploy engine-cyberia

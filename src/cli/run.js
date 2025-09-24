@@ -128,6 +128,7 @@ class UnderpostRun {
       }
     },
     'ssh-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      actionInitLog();
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
