@@ -27,6 +27,12 @@ const AgGrid = {
           filter: true,
           autoHeight: true,
         },
+        rowClassRules: {
+          'row-new-highlight': (params) => {
+            // a temporary flag we can set on new rows to highlight them
+            return params.data && params.data._new;
+          },
+        },
         // domLayout: 'autoHeight', || 'normal'
         // Column Definitions: Defines & controls grid columns.
         columnDefs: options?.gridOptions?.rowData?.[0]

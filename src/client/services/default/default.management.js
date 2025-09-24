@@ -361,11 +361,31 @@ const DefaultManagement = {
                   status: result.status,
                 });
                 if (result.status === 'success') {
-                  const newItemId = result.data?.[entity]?._id || result.data?._id;
-                  // The new item is usually on the first page when sorted by creation date descending.
-                  // DefaultManagement.Tokens[id].page = 1;
-                  // loadTable will fetch the first page and update the grid and pagination state.
-                  await DefaultManagement.loadTable(id, { reload: false });
+                  this.Tokens[id].page = 1;
+                  await DefaultManagement.loadTable(id);
+                  // const newItemId = result.data?.[entity]?._id || result.data?._id;
+                  // The `event.node.id` is the temporary ID assigned by AG Grid.
+                  // const rowNode = AgGrid.grids[gridId].getRowNode(event.node.id);
+
+                  let rowNode;
+                  AgGrid.grids[gridId].forEachLeafNode((_rowNode) => {
+                    if (_rowNode.data._id === result.data._id) {
+                      rowNode = _rowNode;
+                    }
+                  });
+                  if (rowNode) {
+                    const newRow = columnDefFormatter(result.data, columnDefs, options.customFormat);
+                    // Add a temporary flag to the new row data.
+                    newRow._new = true;
+                    // Update the row data with the data from the server, which includes the new permanent `_id`.
+                    rowNode.setData(newRow);
+                    // The `rowClassRules` will automatically apply the 'row-new-highlight' class.
+                    // Now, remove the flag after a delay to remove the highlight.
+                    // setTimeout(() => {
+                    //   delete newRow._new;
+                    //   rowNode.setData(newRow);
+                    // }, 2000);
+                  }
                 }
               } else {
                 const body = event.data ? event.data : {};
