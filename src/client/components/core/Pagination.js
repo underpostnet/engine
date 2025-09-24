@@ -60,7 +60,9 @@ class AgPagination extends HTMLElement {
     this.shadowRoot.querySelector('#next-page').disabled = isLastPage;
     this.shadowRoot.querySelector('#last-page').disabled = isLastPage;
 
-    this.shadowRoot.querySelector('#page-info').textContent = `Page ${this._currentPage} of ${this._totalPages}`;
+    this.shadowRoot.querySelector(
+      '#page-info',
+    ).textContent = `Page ${this._currentPage} of ${this._totalPages} (${this._totalItems} items)`;
 
     this.renderPageButtons();
   }
