@@ -18,6 +18,13 @@ const logger = loggerFactory(import.meta, { trace: true });
  * @memberof PwaRouter
  */
 const RouterEvents = {};
+
+/**
+ * @type {string[]}
+ * @description Array of core UI component IDs that should not trigger modal close route changes.
+ * @memberof PwaRouter
+ */
+const coreUI = ['modal-menu', 'main-body', 'main-body-top', 'bottom-bar', 'board-notification'];
 /**
  * @type {Object.<string, function>}
  * @description Holds event listeners for route changes that should close a modal.
@@ -25,13 +32,12 @@ const RouterEvents = {};
  */
 const closeModalRouteChangeEvents = {};
 
-const coreUI = ['modal-menu', 'main-body', 'main-body-top', 'bottom-bar', 'board-notification'];
-
 /**
- * @returns The `getProxyPath` function returns the path based on the current location. If the first
- * segment of the pathname is not empty, it returns `/<first-segment>/`, otherwise it returns `/`. If
- * the `window.Routes` object exists and the path is not `/` and the path without the trailing slash is
- * a key in the `window.Routes` object, it returns `/`.
+ * Determines the base path for the application, often used for routing within a sub-directory.
+ * It checks the current URL's pathname and `window.Routes` to return the appropriate proxy path.
+ *
+ * @returns {string} The calculated proxy path. Returns `/<first-segment>/` if a segment exists,
+ *          otherwise `/`. If `window.Routes` indicates the path is a root route, it returns `/`.
  * @memberof PwaRouter
  */
 const getProxyPath = () => {
@@ -46,10 +52,11 @@ const getProxyPath = () => {
  * @param {string} [path='/'] - The new path to set. Can include query strings and hashes.
  * @param {object} [options={ removeSearch: false, removeHash: false }] - Options for path manipulation.
  * @param {boolean} [options.removeSearch=false] - If true, removes the search part of the URL.
- * @param {boolean} [options.removeHash=false] - If true, removes the hash part of the URL.
+ * @param {boolean} [options.removeHash=false] - If true, removes the hash part of the URL. Defaults to `false`.
  * @param {object} [stateStorage={}] - State object to associate with the history entry.
  * @param {string} [title=''] - The title for the new history entry.
  * @memberof PwaRouter
+ * @returns {void | undefined} Returns `undefined` if the new path is the same as the current path, otherwise `void` (result of `history.pushState`).
  */
 const setPath = (path = '/', options = { removeSearch: false, removeHash: false }, stateStorage = {}, title = '') => {
   logger.warn(`Set path input`, `${path}`);
@@ -88,7 +95,7 @@ const setPath = (path = '/', options = { removeSearch: false, removeHash: false 
 };
 
 /**
- * Extracts query parameters from the current URL and returns them as an object.
+ * Extracts query parameters from the current URL's search string and returns them as an object.
  * @returns An object containing the query parameters from the current URL is being returned.
  * @memberof PwaRouter
  */
@@ -115,7 +122,7 @@ const sanitizeRoute = (route) =>
 
 /**
  * Sets the document title and updates the active state of the main menu button corresponding to the route.
- * The title is formatted and appended with the main application title from `Worker.title`.
+ * The title is formatted and appended with the main application title from `Worker.title` if it's not already present.
  * @param {string} route - The current route string.
  * @memberof PwaRouter
  */
@@ -131,7 +138,7 @@ const setDocTitle = (route) => {
 };
 
 /**
- * Main router function. It matches the current URL path against the provided routes
+ * Main router function. It matches the current URL path against the provided routes configuration
  * and renders the corresponding component. It also fires registered router events.
  * @param {object} [options={ Routes: () => {}, e: new PopStateEvent() }] - The router options.
  * @param {function} options.Routes - A function that returns the routes object.
@@ -174,8 +181,9 @@ const LoadRouter = function (RouterInstance) {
 
 /**
  * Sets the URL path with a specific query parameter, commonly used for content IDs.
+ * This function constructs a new URI based on the proxy path, a given path, and an optional query parameter.
  * @param {object} [options={ path: '', queryPath: '' }] - The path options.
- * @param {string} [queryKey='cid'] - The key for the query parameter.
+ * @param {string} [options.path=''] - The base path segment.
  * @memberof PwaRouter
  */
 const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid') => {
@@ -188,12 +196,12 @@ const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid') =
 };
 
 /**
- * Listens for route changes and executes a callback when the route matches `routeId`.
- * It's used to react to query parameter changes on a specific route.
+ * Registers a listener for route changes that specifically watches for a `queryKey` parameter
+ * on a matching `routeId`. The provided event callback is triggered with the query parameter's value.
  * @param {object} options - The listener options.
  * @param {string} options.id - A unique ID for the listener.
  * @param {string} options.routeId - The route ID to listen for.
- * @param {function} options.event - The callback function to execute with the query path value.
+ * @param {function(string): void} options.event - The callback function to execute with the query path value (or an empty string if not found).
  * @param {string} [queryKey='cid'] - The query parameter key to look for.
  * @memberof PwaRouter
  */
@@ -216,7 +224,7 @@ const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
 /**
  * Handles the logic for changing the route when a modal is closed. It determines the next URL
  * based on the remaining open modals or falls back to a home URL.
- * @param {object} [options={}] - The options for the event.
+ * @param {object} [options={}] - Options for the modal close event.
  * @param {string} options.closedId - The ID of the modal that was just closed.
  * @memberof PwaRouter
  */
@@ -243,7 +251,7 @@ const closeModalRouteChangeEvent = (options = {}) => {
 /**
  * Handles routing for modals that are meant to be displayed as a "view" (e.g., a full-page modal).
  * It updates the URL to reflect the modal's route.
- * @param {object} [options={}] - The options for handling the modal view route.
+ * @param {object} [options={ route: 'home' }] - The options for handling the modal view route.
  * @param {string} options.route - The route associated with the modal view.
  * @memberof PwaRouter
  */
