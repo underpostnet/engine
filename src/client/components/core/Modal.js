@@ -1961,7 +1961,7 @@ const Modal = {
     });
 
     // 2. Navigate to home first, creating a new history entry.
-    setPath(getProxyPath());
+    setPath(`${getProxyPath()}${location.search ?? ''}${location.hash ?? ''}`);
     setDocTitle();
 
     // 3. Close the modals without them affecting the URL.
