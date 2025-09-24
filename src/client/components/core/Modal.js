@@ -1747,13 +1747,8 @@ const Modal = {
         if (!s(`.${idModal}`)) return;
         this.removeModal(idModal);
         // Handle modal route change
-
-        if (options.route && options.query) {
-          setQueryPath({ path: options.route, queryPath: '' });
-          history.back();
-        } else {
-          closeModalRouteChangeEvent({ closedId: idModal, homeCid: Modal.homeCid });
-        }
+        closeModalRouteChangeEvent({ closedId: idModal, homeCid: Modal.homeCid });
+        // history.back();
       }, 300);
     };
     s(`.btn-close-${idModal}`).onclick = btnCloseEvent;

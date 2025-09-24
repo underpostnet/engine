@@ -2,17 +2,14 @@ import { getId, isValidDate, newInstance } from './CommonJs.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Validator } from '../core/Validator.js';
 import { Input } from '../core/Input.js';
-import { Responsive } from '../core/Responsive.js';
 import { darkTheme, ThemeEvents } from './Css.js';
-import { append, getDataFromInputFile, htmls, prepend, s } from './VanillaJs.js';
+import { append, getDataFromInputFile, htmls, s } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Translate } from './Translate.js';
 import { DropDown } from './DropDown.js';
-import { dynamicCol, renderCssAttr } from './Css.js';
+import { dynamicCol } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
-import { Modal } from './Modal.js';
-import { RouterEvents, setQueryPath, getQueryParams } from './Router.js';
 import { RichText } from './RichText.js';
 import { loggerFactory } from './Logger.js';
 import { Badge } from './Badge.js';
@@ -470,12 +467,7 @@ const Panel = {
             s(`.${btnSelector}`).classList.remove('hide');
           }
         }
-        setTimeout(() => {
-          s(`.${idPanel}-form-body`).classList.add('hide');
-        });
-        if (options.route && getQueryParams().cid) {
-          setQueryPath({ path: options.route, queryPath: '' });
-        }
+        s(`.${idPanel}-form-body`).classList.add('hide');
       };
       s(`.btn-${idPanel}-add`).onclick = (e) => {
         e.preventDefault();
