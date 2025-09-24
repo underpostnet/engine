@@ -47,9 +47,13 @@ const DefaultService = {
           return reject(error);
         }),
     ),
-  get: (options = { id: '', body: {} }) =>
-    new Promise((resolve, reject) =>
-      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
+  get: (options = { id: '', body: {}, page: 1, limit: 10 }) => {
+    const { id, page, limit } = options;
+    const url = new URL(getApiBaseUrl({ id, endpoint }));
+    url.searchParams.append('page', page);
+    url.searchParams.append('limit', limit);
+    return new Promise((resolve, reject) =>
+      fetch(url.toString(), {
         method: 'GET',
         headers: headersFactory(),
       })
@@ -64,7 +68,8 @@ const DefaultService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
+    );
+  },
   delete: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {

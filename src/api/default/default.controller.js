@@ -21,7 +21,12 @@ const DefaultController = {
   },
   get: async (req, res, options) => {
     try {
-      const result = await DefaultService.get(req, res, options);
+      const { page, limit } = req.query;
+      const result = await DefaultService.get(
+        { ...req, query: { ...req.query, page: parseInt(page), limit: parseInt(limit) } },
+        res,
+        options,
+      );
       return res.status(200).json({
         status: 'success',
         data: result,

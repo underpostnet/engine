@@ -4,6 +4,7 @@
 import { ThemeEvents, darkTheme } from './Css.js';
 import { append, htmls, s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
+import './Pagination.js';
 
 const AgGrid = {
   grids: {},
@@ -14,6 +15,9 @@ const AgGrid = {
       // Grid Options: Contains all of the grid configurations
       const gridOptions = {
         // Row Data: The data to be displayed.
+        pagination: false, // Disabled by default, will be handled by the management view
+        // paginationPageSize: 100,
+        // suppressPaginationPanel: true, // We are using our own custom pagination component
         // rowHeight: 60,
         enableCellChangeFlash: true,
         defaultColDef: {
@@ -48,13 +52,17 @@ const AgGrid = {
         }
       };
     });
+    const usePagination = options?.usePagination;
     return html`
-      <div
-        class="${id} ${this.theme}${options?.darkTheme ? `-dark` : ''}"
-        style="${options?.style
-          ? Object.keys(options.style).map((styleKey) => `${styleKey}: ${options.style[styleKey]}; `)
-          : 'height: 500px'}"
-      ></div>
+      <div>
+        <div
+          class="${id} ${this.theme}${options?.darkTheme ? `-dark` : ''}"
+          style="${options?.style
+            ? Object.keys(options.style).map((styleKey) => `${styleKey}: ${options.style[styleKey]}; `)
+            : 'height: 500px'}"
+        ></div>
+        ${usePagination ? `<ag-pagination id="ag-pagination-${id}"></ag-pagination>` : ''}
+      </div>
     `;
   },
   RenderStyle: async function (

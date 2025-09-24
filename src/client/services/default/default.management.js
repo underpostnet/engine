@@ -47,13 +47,37 @@ const columnDefFormatter = (obj, columnDefs, customFormat) => {
 
 const DefaultManagement = {
   Tokens: {},
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 1,
+  gridId: null,
+  options: null,
+  loadTable: async function () {
+    const { serviceId, columnDefs, customFormat } = this.options;
+    const result = await DefaultService.get({ page: this.page, limit: this.limit });
+    if (result.status === 'success') {
+      const { data, total, page, totalPages } = result.data;
+      this.total = total;
+      this.page = page;
+      this.totalPages = totalPages;
+      const rowDataScope = data.map((row) => columnDefFormatter(row, columnDefs, customFormat));
+      AgGrid.grids[this.gridId].setGridOption('rowData', rowDataScope);
+      const paginationComp = s(`#ag-pagination-${this.gridId}`);
+      paginationComp.setAttribute('current-page', this.page);
+      paginationComp.setAttribute('total-pages', this.totalPages);
+      paginationComp.setAttribute('total-items', this.total);
+    }
+  },
   RenderTable: async function (options = DefaultOptions) {
     if (!options) options = DefaultOptions;
     const { serviceId, columnDefs, entity, defaultColKeyFocus, ServiceProvider, permissions } = options;
     logger.info('DefaultManagement RenderTable', options);
     const id = options?.idModal ? options.idModal : getId(this.Tokens, `${serviceId}-`);
     const gridId = `${serviceId}-grid-${id}`;
-    this.Tokens[id] = { gridId };
+    this.Tokens[id] = { gridId, page: 1, limit: 10, total: 0, totalPages: 1 };
+    this.gridId = gridId;
+    this.options = options;
 
     setTimeout(async () => {
       // https://www.ag-grid.com/javascript-data-grid/data-update-transactions/
@@ -142,13 +166,7 @@ const DefaultManagement = {
             : [],
         ),
       );
-      {
-        const result = await ServiceProvider.get();
-        if (result.status === 'success') {
-          rowDataScope = result.data.map((row) => columnDefFormatter(row, columnDefs, options.customFormat));
-          AgGrid.grids[gridId].setGridOption('rowData', rowDataScope);
-        }
-      }
+      this.loadTable();
       s(`.management-table-btn-save-${id}`).onclick = () => {
         AgGrid.grids[gridId].stopEditing();
       };
@@ -244,8 +262,12 @@ const DefaultManagement = {
           status: result.status,
         });
         if (result.status === 'success') {
-          AgGrid.grids[gridId].setGridOption('rowData', []);
+          this.loadTable();
         }
+      });
+      s(`#ag-pagination-${gridId}`).addEventListener('page-change', async (event) => {
+        this.page = event.detail.page;
+        await this.loadTable();
       });
     }, 1);
     return html`<div class="fl">
@@ -274,6 +296,7 @@ const DefaultManagement = {
       <div class="in section-mp">
         ${await AgGrid.Render({
           id: gridId,
+          usePagination: true,
           darkTheme,
           gridOptions: {
             defaultColDef: {
