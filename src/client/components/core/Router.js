@@ -71,15 +71,15 @@ const setPath = (path = '/', options = { removeSearch: false, removeHash: false 
   logger.warn(`Set path output`, {
     inputPath: inputPath,
     inputSearch: inputSearch,
+    inputHash: inputHash,
     sanitizedPath: sanitizedPath,
     currentLocationSearch: location.search,
     currentLocationHash: location.hash,
+    currentFullPath,
+    newFullPath,
   });
   if (currentFullPath === newFullPath) {
-    logger.warn('Prevent overwriting same path', {
-      newFullPath,
-      currentFullPath,
-    });
+    logger.warn('Prevent overwriting same path', { currentFullPath, newFullPath });
     return;
   }
   return history.pushState.call(history, stateStorage, title, newFullPath);
