@@ -221,10 +221,10 @@ const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
  * @memberof PwaRouter
  */
 const closeModalRouteChangeEvent = (options = {}) => {
-  logger.error('closeModalRouteChangeEvent', options);
+  logger.warn('closeModalRouteChangeEvent', options);
   const { closedId } = options;
   if (!closedId) return;
-  if (coreUI.find((id) => id.startsWith(closedId))) {
+  if (coreUI.find((id) => closedId.startsWith(id))) {
     logger.warn('prevent core ui component close');
     return;
   }
