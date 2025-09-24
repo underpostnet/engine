@@ -171,6 +171,28 @@ const up = Underpost;
 
 const underpost = Underpost;
 
-export { underpost, up, Underpost };
+export {
+  underpost,
+  up,
+  Underpost,
+  UnderpostBaremetal,
+  UnderpostCloudInit,
+  UnderpostCluster,
+  UnderpostCron,
+  UnderpostDB,
+  UnderpostDeploy,
+  UnderpostRootEnv,
+  UnderpostFileStorage,
+  UnderpostImage,
+  UnderpostLxd,
+  UnderpostMonitor,
+  UnderpostRepository,
+  UnderpostRun,
+  UnderpostScript,
+  UnderpostSecret,
+  UnderpostSSH,
+  UnderpostTest,
+  UnderpostStartUp,
+};
 
 export default Underpost;
