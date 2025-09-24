@@ -1,4 +1,6 @@
-const loggerFactory = (meta) => {
+import { getCurrentTrace } from './CommonJs.js';
+
+const loggerFactory = (meta, options = { trace: false }) => {
   meta = meta.url.split('/').pop();
   const types = ['error', 'warn', 'info', 'debug'];
   const logger = {
@@ -9,6 +11,7 @@ const loggerFactory = (meta) => {
         console.info = () => null;
         console.warn = () => null;
       }
+      if (options.trace === true) args.push(getCurrentTrace().split('Logger.js:23')[1]);
       return location.hostname === 'localhost'
         ? console[type](`[${meta}] ${new Date().toISOString()} ${type}:`, ...args)
         : null;

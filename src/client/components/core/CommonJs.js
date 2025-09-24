@@ -577,8 +577,7 @@ const getCurrentTrace = () => {
   try {
     _stack;
   } catch (error) {
-    console.error(error);
-    return error;
+    return error.stack;
   }
 };
 

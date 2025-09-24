@@ -10,7 +10,7 @@ import { htmls, s } from './VanillaJs.js';
 import { Modal } from './Modal.js';
 import { Worker } from './Worker.js';
 
-const logger = loggerFactory(import.meta);
+const logger = loggerFactory(import.meta, { trace: true });
 
 /**
  * @type {Object.<string, function>}
@@ -217,7 +217,7 @@ const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
  * @memberof PwaRouter
  */
 const triggerCloseModalRouteChangeEvents = (newPath) => {
-  console.warn('[closeModalRouteChangeEvent]', newPath);
+  logger.warn('closeModalRouteChangeEvent', newPath);
   for (const event of Object.keys(closeModalRouteChangeEvents)) closeModalRouteChangeEvents[event](newPath);
 };
 
