@@ -1747,7 +1747,7 @@ const Modal = {
         if (!s(`.${idModal}`)) return;
         this.removeModal(idModal);
         // Handle modal route change
-        closeModalRouteChangeEvent({ closedId: idModal, homeCid: Modal.homeCid });
+        closeModalRouteChangeEvent({ closedId: idModal });
         // history.back();
       }, 300);
     };

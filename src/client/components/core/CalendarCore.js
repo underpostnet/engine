@@ -363,7 +363,6 @@ const CalendarCore = {
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
       if (lastCid === cid) return;
       lastCid = cid;
-      if (options.route === 'home') Modal.homeCid = newInstance(cid);
       if (s(`.main-body-calendar-${options.idModal}`)) {
         // if (Auth.getToken())
         // else getSrrData();
