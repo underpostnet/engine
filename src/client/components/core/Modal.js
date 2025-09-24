@@ -779,8 +779,7 @@ const Modal = {
                     dragDisabled: true,
                     maximize: true,
                     heightBottomBar: 0,
-                    heightTopBar: originHeightTopBar,
-                    barMode: options.barMode,
+                    heightTopBar: options.heightTopBar,
                   });
 
                   // Bind hover/focus and click-outside to dismiss
