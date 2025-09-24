@@ -7,7 +7,7 @@ jobs:
     name: Template Test
     runs-on: ubuntu-latest
     container:
-      image: rockylinux/rockylinux:9
+      image: quay.io/rockylinux/rockylinux:9
       options: --entrypoint /bin/bash
     steps:
       - name: Clone repository
