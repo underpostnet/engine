@@ -404,6 +404,13 @@ const buildRuntime = async () => {
           const path404 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/404/index.html`;
           const page404 = fs.existsSync(path404) ? `${path === '/' ? '' : path}/404` : undefined;
           app.use(function (req, res, next) {
+            // if /<path>/home redirect to /<path>
+            const homeRedirectPath = `${path === '/' ? '' : path}/home`;
+            if (req.url.startsWith(homeRedirectPath)) {
+              const redirectUrl = req.url.replace('/home', '');
+              return res.redirect(redirectUrl.startsWith('/') ? redirectUrl : `/${redirectUrl}`);
+            }
+
             if (page404) return res.status(404).redirect(page404);
             else {
               res.set('Content-Type', 'text/html');
