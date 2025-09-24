@@ -7,6 +7,7 @@ import { loggerFactory } from '../../components/core/Logger.js';
 import { Modal } from '../../components/core/Modal.js';
 import { NotificationManager } from '../../components/core/NotificationManager.js';
 import { Translate } from '../../components/core/Translate.js';
+import { getQueryParams, RouterEvents } from '../../components/core/Router.js';
 import { s } from '../../components/core/VanillaJs.js';
 import { DefaultService } from './default.service.js';
 
@@ -69,7 +70,17 @@ const DefaultManagement = {
     logger.info('DefaultManagement RenderTable', options);
     const id = options?.idModal ? options.idModal : getId(this.Tokens, `${serviceId}-`);
     const gridId = `${serviceId}-grid-${id}`;
-    this.Tokens[id] = { ...options, gridId, page: 1, limit: 10, total: 0, totalPages: 1 };
+    const queryParams = getQueryParams();
+    const page = parseInt(queryParams.page) || 1;
+    const limit = parseInt(queryParams.limit) || 10;
+    this.Tokens[id] = {
+      ...options,
+      gridId,
+      page,
+      limit,
+      total: 0,
+      totalPages: 1,
+    };
 
     setTimeout(async () => {
       // https://www.ag-grid.com/javascript-data-grid/data-update-transactions/
@@ -277,9 +288,30 @@ const DefaultManagement = {
         }
       });
       s(`#ag-pagination-${gridId}`).addEventListener('page-change', async (event) => {
-        this.Tokens[id].page = event.detail.page;
+        const token = DefaultManagement.Tokens[id];
+        token.page = event.detail.page;
         await DefaultManagement.loadTable(id);
       });
+      s(`#ag-pagination-${gridId}`).addEventListener('limit-change', async (event) => {
+        const token = DefaultManagement.Tokens[id];
+        token.limit = event.detail.limit;
+        token.page = 1; // Reset to first page
+        await DefaultManagement.loadTable(id);
+      });
+      RouterEvents[id] = async (...args) => {
+        const queryParams = getQueryParams();
+        const page = parseInt(queryParams.page) || 1;
+        const limit = parseInt(queryParams.limit) || 10;
+        const token = DefaultManagement.Tokens[id];
+
+        // Check if the pagination state in the URL is different from the current state
+        if (token.page !== page || token.limit !== limit) {
+          token.page = page;
+          token.limit = limit;
+          // Reload the table with the new pagination state from the URL
+          await DefaultManagement.loadTable(id);
+        }
+      };
     }, 1);
     return html`<div class="fl">
         ${await BtnIcon.Render({
