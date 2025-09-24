@@ -20,7 +20,7 @@ import {
   handleModalViewRoute,
   getProxyPath,
   setPath,
-  setQueryPath,
+  coreUI,
 } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
@@ -1948,7 +1948,7 @@ const Modal = {
       const modal = Modal.Data[idModal];
       if (!modal) return false;
       // Don't close the core UI elements
-      const coreUI = ['modal-menu', 'main-body', 'main-body-top', 'bottom-bar', 'board-notification'];
+
       if (coreUI.find((id) => idModal.startsWith(id))) {
         return false;
       }

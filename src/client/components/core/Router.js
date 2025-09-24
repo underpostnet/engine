@@ -25,6 +25,8 @@ const RouterEvents = {};
  */
 const closeModalRouteChangeEvents = {};
 
+const coreUI = ['modal-menu', 'main-body', 'main-body-top', 'bottom-bar', 'board-notification'];
+
 /**
  * @returns The `getProxyPath` function returns the path based on the current location. If the first
  * segment of the pathname is not empty, it returns `/<first-segment>/`, otherwise it returns `/`. If
@@ -212,26 +214,20 @@ const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
 };
 
 /**
- * Triggers all registered events for when a modal is closed and the route changes.
- * @param {string} newPath - The new path that the router will navigate to.
- * @memberof PwaRouter
- */
-const triggerCloseModalRouteChangeEvents = (newPath) => {
-  logger.warn('closeModalRouteChangeEvent', newPath);
-  for (const event of Object.keys(closeModalRouteChangeEvents)) closeModalRouteChangeEvents[event](newPath);
-};
-
-/**
  * Handles the logic for changing the route when a modal is closed. It determines the next URL
  * based on the remaining open modals or falls back to a home URL.
  * @param {object} [options={}] - The options for the event.
  * @param {string} options.closedId - The ID of the modal that was just closed.
- * @param {string} [options.homeCid] - An optional content ID for the home URL.
  * @memberof PwaRouter
  */
 const closeModalRouteChangeEvent = (options = {}) => {
-  const { closedId, homeCid } = options;
+  logger.error('closeModalRouteChangeEvent', options);
+  const { closedId } = options;
   if (!closedId) return;
+  if (coreUI.find((id) => id.startsWith(closedId))) {
+    logger.warn('prevent core ui component close');
+    return;
+  }
 
   const remainingModals = Object.keys(Modal.Data).filter(
     (id) => id !== closedId && (Modal.Data[id]?.options?.route || Modal.Data[id]?.options?.query),
@@ -239,23 +235,9 @@ const closeModalRouteChangeEvent = (options = {}) => {
 
   const topModalId = remainingModals.reverse().find((id) => Modal.Data[id]);
 
-  if (topModalId) {
-    const topModal = Modal.Data[topModalId];
-    const route = topModal.options.route;
-    const query = topModal.query;
-    const path = route ? `${getProxyPath()}${route}` : location.pathname;
-    const newUrl = `${path}${query || ''}`;
-
-    triggerCloseModalRouteChangeEvents(newUrl);
-    setPath(newUrl);
-    setDocTitle(route || path);
-    Modal.setTopModalCallback(topModalId);
-  } else {
-    const homeUrl = `${getProxyPath()}${homeCid ? `?cid=${homeCid}` : ''}`;
-    triggerCloseModalRouteChangeEvents(homeUrl);
-    setPath(homeUrl);
-    setDocTitle('home');
-  }
+  for (const event of Object.keys(closeModalRouteChangeEvents)) closeModalRouteChangeEvents[event]();
+  if (topModalId) Modal.setTopModalCallback(topModalId);
+  setPath(Modal.Data[topModalId]?.options?.route || 'home');
 };
 
 /**
@@ -281,15 +263,16 @@ const handleModalViewRoute = (options = { route: 'home' }) => {
 };
 
 export {
+  RouterEvents,
+  closeModalRouteChangeEvents,
+  coreUI,
   Router,
   setDocTitle,
   LoadRouter,
-  RouterEvents,
   setQueryPath,
   listenQueryPathInstance,
   closeModalRouteChangeEvent,
   handleModalViewRoute,
-  closeModalRouteChangeEvents,
   getQueryParams,
   getProxyPath,
   setPath,

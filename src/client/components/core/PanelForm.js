@@ -420,10 +420,8 @@ const PanelForm = {
     let firsUpdateEvent = false;
     let lastCid;
     let lastUserId;
-    closeModalRouteChangeEvents[idPanel] = (newPath) => {
-      if (newPath.split('?')[0] === '/' && PanelForm.Data[idPanel].data && PanelForm.Data[idPanel].data.length === 0) {
+    closeModalRouteChangeEvents[idPanel] = () => {
         this.Data[idPanel].updatePanel();
-      }
     };
     this.Data[idPanel].updatePanel = async () => {
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
