@@ -144,6 +144,10 @@ const AgGrid = {
           ${darkTheme
             ? html`
                 <style>
+                  .ag-row.row-new-highlight {
+                    background-color: #6d68ff !important;
+                    transition: background-color 1s ease-out;
+                  }
                   .ag-cell-data-changed,
                   .ag-cell-data-changed-animation {
                     background-color: #6d68ff !important;
@@ -153,6 +157,10 @@ const AgGrid = {
                 </style>
               `
             : html`<style>
+                .ag-row.row-new-highlight {
+                  background-color: #d0eaf8 !important;
+                  transition: background-color 1s ease-out;
+                }
                 .ag-cell-data-changed,
                 .ag-cell-data-changed-animation {
                   background-color: #d1d1d1 !important;

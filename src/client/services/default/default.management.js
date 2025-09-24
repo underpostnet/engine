@@ -47,7 +47,7 @@ const columnDefFormatter = (obj, columnDefs, customFormat) => {
 
 const DefaultManagement = {
   Tokens: {},
-  loadTable: async function (id) {
+  loadTable: async function (id, options = { reload: true }) {
     const { serviceId, columnDefs, customFormat } = this.Tokens[id];
     const result = await DefaultService.get({ page: this.Tokens[id].page, limit: this.Tokens[id].limit });
     if (result.status === 'success') {
@@ -56,7 +56,7 @@ const DefaultManagement = {
       this.Tokens[id].page = page;
       this.Tokens[id].totalPages = totalPages;
       const rowDataScope = data.map((row) => columnDefFormatter(row, columnDefs, customFormat));
-      AgGrid.grids[this.Tokens[id].gridId].setGridOption('rowData', rowDataScope);
+      if (options.reload) AgGrid.grids[this.Tokens[id].gridId].setGridOption('rowData', rowDataScope);
       const paginationComp = s(`#ag-pagination-${this.Tokens[id].gridId}`);
       paginationComp.setAttribute('current-page', this.Tokens[id].page);
       paginationComp.setAttribute('total-pages', this.Tokens[id].totalPages);
@@ -123,8 +123,17 @@ const DefaultManagement = {
                   status: result.status,
                 });
                 if (result.status === 'success') {
-                  //  AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
-                  DefaultManagement.loadTable(id);
+                  AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
+                  const token = DefaultManagement.Tokens[id];
+                  // if we are on the last page and we delete the last item, go to the previous page
+                  const newTotal = token.total - 1;
+                  const newTotalPages = Math.ceil(newTotal / token.limit);
+                  if (token.page > newTotalPages && newTotalPages > 0) {
+                    token.page = newTotalPages;
+                  }
+
+                  // reload the current page
+                  await DefaultManagement.loadTable(id, { reload: false });
                 }
               },
               { context: 'modal' },
@@ -158,6 +167,13 @@ const DefaultManagement = {
         ),
       );
       DefaultManagement.loadTable(id);
+      // {
+      //   const result = await ServiceProvider.get();
+      //   if (result.status === 'success') {
+      //     rowDataScope = result.data.map((row) => columnDefFormatter(row, columnDefs, options.customFormat));
+      //     AgGrid.grids[gridId].setGridOption('rowData', rowDataScope);
+      //   }
+      // }
       s(`.management-table-btn-save-${id}`).onclick = () => {
         AgGrid.grids[gridId].stopEditing();
       };
@@ -177,9 +193,13 @@ const DefaultManagement = {
         // });
         if (result.status === 'success') {
           AgGrid.grids[gridId].applyTransaction({
-            add: [columnDefFormatter(result.data, columnDefs, options.customFormat)],
+            add: [columnDefFormatter(rowObj, columnDefs, options.customFormat)],
             addIndex: 0,
           });
+          // AgGrid.grids[gridId].applyTransaction({
+          //   add: [columnDefFormatter(result.data, columnDefs, options.customFormat)],
+          //   addIndex: 0,
+          // });
           // AgGrid.grids[gridId].applyColumnState({
           //   state: [
           //     // { colId: 'country', sort: 'asc', sortIndex: 1 },
@@ -341,8 +361,11 @@ const DefaultManagement = {
                   status: result.status,
                 });
                 if (result.status === 'success') {
-                  // event.data._id = result.data[entity] ? result.data[entity]._id : result.data._id;
-                  DefaultManagement.loadTable(id);
+                  const newItemId = result.data?.[entity]?._id || result.data?._id;
+                  // The new item is usually on the first page when sorted by creation date descending.
+                  // DefaultManagement.Tokens[id].page = 1;
+                  // loadTable will fetch the first page and update the grid and pagination state.
+                  await DefaultManagement.loadTable(id, { reload: false });
                 }
               } else {
                 const body = event.data ? event.data : {};
@@ -351,12 +374,12 @@ const DefaultManagement = {
                   html: result.status === 'error' ? result.message : `${Translate.Render('success-update-item')}`,
                   status: result.status,
                 });
-              }
-              if (result.status === 'success') {
-                // AgGrid.grids[gridId].applyTransaction({
-                //   update: [event.data],
-                // });
-                DefaultManagement.loadTable(id);
+                if (result.status === 'success') {
+                  AgGrid.grids[gridId].applyTransaction({
+                    update: [event.data],
+                  });
+                  DefaultManagement.loadTable(id, { reload: false });
+                }
               }
             },
           },
