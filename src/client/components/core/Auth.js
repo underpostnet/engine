@@ -8,7 +8,7 @@ import { SignUp } from './SignUp.js';
 import { Translate } from './Translate.js';
 import { s } from './VanillaJs.js';
 
-const logger = loggerFactory(import.meta);
+const logger = loggerFactory(import.meta, { trace: true });
 
 const token = Symbol('token');
 
@@ -81,6 +81,7 @@ const Auth = {
                   } else throw new Error(refreshResult.message || 'Failed to refresh token');
                 } catch (refreshError) {
                   logger.error('Failed to refresh token:', refreshError);
+                  return await Auth.sessionOut();
                 }
               }
 
@@ -103,40 +104,40 @@ const Auth = {
           });
         return await Auth.sessionOut();
       }
-
-      // anon guest session
       Auth.deleteToken();
       localStorage.removeItem('jwt');
+
+      // Anon guest session
       let guestToken = localStorage.getItem('jwt.g');
-
-      if (!guestToken) {
-        const result = await UserService.post({ id: 'guest' });
-        localStorage.setItem('jwt.g', result.data.token);
-        guestToken = result.data.token;
+      if (guestToken) {
+        Auth.setGuestToken(guestToken);
+        let { data, status, message } = await UserService.get({ id: 'auth' });
+        if (status === 'success') {
+          await Account.updateForm(data);
+          return { user: data };
+        } else logger.error(message);
       }
-
-      Auth.setGuestToken(guestToken);
-      let { data, status, message } = await UserService.get({ id: 'auth' });
-      if (status === 'error') {
-        if (message && message.match('expired')) {
-          localStorage.removeItem('jwt.g');
-          return await Auth.sessionOut();
-        } else throw new Error(message);
-      }
-      await Account.updateForm(data);
-      return { user: data };
+      return await Auth.sessionOut();
     } catch (error) {
       logger.error(error);
       return { user: UserMock.default };
     }
   },
   sessionOut: async function () {
-    await UserService.delete({ id: 'logout' });
-    Auth.deleteToken();
-    localStorage.removeItem('jwt');
-    const result = await Auth.sessionIn();
-    await LogOut.Trigger(result);
-    return result;
+    {
+      const result = await UserService.delete({ id: 'logout' });
+      localStorage.removeItem('jwt');
+      Auth.deleteToken();
+      await LogOut.Trigger(result);
+    }
+    {
+      localStorage.removeItem('jwt.g');
+      Auth.deleteGuestToken();
+      const result = await UserService.post({ id: 'guest' });
+      localStorage.setItem('jwt.g', result.data.token);
+      Auth.setGuestToken(result.data.token);
+      return await Auth.sessionIn();
+    }
   },
 };
 

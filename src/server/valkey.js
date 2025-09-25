@@ -148,7 +148,7 @@ const updateValkeyObject = async (options = { host: '', path: '' }, key = '', pa
   return await setValkeyObject(options, key, { ...base, ...payload });
 };
 
-const valkeyObjectFactory = async (options = { host: 'localhost', object: {} }, model = '') => {
+const valkeyObjectFactory = async (options = { host: 'localhost', path: '', object: {} }, model = '') => {
   const idoDate = new Date().toISOString();
   options.object = options.object || {};
   const { object } = options;
@@ -173,6 +173,7 @@ const valkeyObjectFactory = async (options = { host: 'localhost', object: {} }, 
         emailConfirmed: false,
         recoverTimeOut: null,
         lastLoginDate: null,
+        activeSessions: [],
       };
     }
     default:
