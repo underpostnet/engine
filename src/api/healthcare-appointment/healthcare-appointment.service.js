@@ -93,14 +93,33 @@ const HealthcareAppointmentService = {
     const HealthcareAppointment =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.HealthcareAppointment;
 
+    // Handle request for a single appointment by ID
+    if (req.params.id) {
+      return await HealthcareAppointment.findById(req.params.id)
+        .populate(HealthcareAppointmentDto.populate.getUser())
+        .populate(HealthcareAppointmentDto.populate.getEventScheduler());
+    }
+
+    // Handle special path for fetching only appointment dates
     if (req.path.startsWith('/appointment-dates')) {
       return await HealthcareAppointment.find().select(HealthcareAppointmentDto.select['appointment-dates']());
     }
-    return await HealthcareAppointment.find()
-      // .select(.select.get())
-      .populate(HealthcareAppointmentDto.populate.getUser())
-      .populate(HealthcareAppointmentDto.populate.getEventScheduler());
-    return await HealthcareAppointment.findById(req.params.id);
+
+    // Handle paginated list requests
+    const { page = 1, limit = 10, sort = { date: -1 } } = req.query;
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      HealthcareAppointment.find({})
+        .sort(sort)
+        .limit(limit)
+        .skip(skip)
+        .populate(HealthcareAppointmentDto.populate.getUser())
+        .populate(HealthcareAppointmentDto.populate.getEventScheduler()),
+      HealthcareAppointment.countDocuments({}),
+    ]);
+
+    return { data, total, page, totalPages: Math.ceil(total / limit) };
   },
   put: async (req, res, options) => {
     /** @type {import('./healthcare-appointment.model.js').HealthcareAppointmentModel} */
