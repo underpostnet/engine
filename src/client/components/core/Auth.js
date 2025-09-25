@@ -37,7 +37,7 @@ const Auth = {
   },
   // jwt
   getJWT: function () {
-    return `Bearer ${this.getToken() ? this.getToken() : this.getGuestToken()}`;
+    return `Bearer ${Auth.getToken() ? Auth.getToken() : Auth.getGuestToken()}`;
   },
   signUpToken: async function (
     result = {
@@ -61,7 +61,7 @@ const Auth = {
       const token = userServicePayload?.data?.token ? userServicePayload.data.token : localStorage.getItem('jwt');
 
       if (token) {
-        this.setToken(token);
+        Auth.setToken(token);
         const result = userServicePayload
           ? userServicePayload // From login/signup
           : await (async () => {
@@ -74,7 +74,7 @@ const Auth = {
                 try {
                   const refreshResult = await UserService.refreshToken();
                   if (refreshResult.status === 'success' && refreshResult.data.token) {
-                    this.setToken(refreshResult.data.token);
+                    Auth.setToken(refreshResult.data.token);
                     localStorage.setItem('jwt', refreshResult.data.token);
                     logger.info('Token refreshed successfully. Retrying auth request...');
                     _result = await UserService.get({ id: 'auth' }); // Retry getting user
@@ -105,7 +105,7 @@ const Auth = {
       }
 
       // anon guest session
-      this.deleteToken();
+      Auth.deleteToken();
       localStorage.removeItem('jwt');
       let guestToken = localStorage.getItem('jwt.g');
 
@@ -115,7 +115,7 @@ const Auth = {
         guestToken = result.data.token;
       }
 
-      this.setGuestToken(guestToken);
+      Auth.setGuestToken(guestToken);
       let { data, status, message } = await UserService.get({ id: 'auth' });
       if (status === 'error') {
         if (message && message.match('expired')) {
@@ -131,10 +131,10 @@ const Auth = {
     }
   },
   sessionOut: async function () {
-    this.deleteToken();
+    Auth.deleteToken();
     localStorage.removeItem('jwt');
     await UserService.delete({ id: 'logout' });
-    const result = await this.sessionIn();
+    const result = await Auth.sessionIn();
     await LogOut.Trigger(result);
     return result;
   },
