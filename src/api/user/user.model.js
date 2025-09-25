@@ -67,10 +67,6 @@ const UserDto = {
     },
   },
   auth: {
-    // TODO: -> set login device, location, ip, fingerprint
-    //          and validate on authorization middleware
-    //       -> dynamic refresh 100 tokens per session with 12h interval
-    //       -> back secret per user, registrarion user model -> secret: { type: String }
     payload: (user) => ({ _id: user._id.toString(), role: user.role, email: user.email }),
   },
 };
