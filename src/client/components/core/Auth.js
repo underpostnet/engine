@@ -35,9 +35,10 @@ const Auth = {
   getGuestToken: function () {
     return this[guestToken];
   },
-  // jwt
   getJWT: function () {
-    return `Bearer ${Auth.getToken() ? Auth.getToken() : Auth.getGuestToken()}`;
+    if (Auth.getToken()) return `Bearer ${Auth.getToken()}`;
+    if (Auth.getGuestToken()) return `Bearer ${Auth.getGuestToken()}`;
+    return '';
   },
   signUpToken: async function (
     result = {
