@@ -7,7 +7,7 @@ import { loggerFactory } from '../../components/core/Logger.js';
 import { Modal } from '../../components/core/Modal.js';
 import { NotificationManager } from '../../components/core/NotificationManager.js';
 import { Translate } from '../../components/core/Translate.js';
-import { getQueryParams, RouterEvents } from '../../components/core/Router.js';
+import { getQueryParams, RouterEvents, setQueryParams } from '../../components/core/Router.js';
 import { s } from '../../components/core/VanillaJs.js';
 import { DefaultService } from './default.service.js';
 
@@ -82,6 +82,7 @@ const DefaultManagement = {
       totalPages: 1,
     };
 
+    setQueryParams({ page, limit });
     setTimeout(async () => {
       // https://www.ag-grid.com/javascript-data-grid/data-update-transactions/
 
