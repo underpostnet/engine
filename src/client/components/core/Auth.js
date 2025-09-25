@@ -63,16 +63,28 @@ const Auth = {
       if (token) {
         this.setToken(token);
         const result = userServicePayload
-          ? userServicePayload
+          ? userServicePayload // From login/signup
           : await (async () => {
-              const _result = await UserService.get({ id: 'auth' });
-              return {
-                status: _result.status,
-                message: _result.message,
-                data: {
-                  user: _result.data,
-                },
-              };
+              // From session restoration
+              let _result = await UserService.get({ id: 'auth' });
+
+              // If token is expired, try to refresh it
+              if (_result.status === 'error' && _result.message?.match(/expired|invalid/i)) {
+                logger.info('Access token expired, attempting to refresh...');
+                try {
+                  const refreshResult = await UserService.refreshToken();
+                  if (refreshResult.status === 'success' && refreshResult.data.token) {
+                    this.setToken(refreshResult.data.token);
+                    localStorage.setItem('jwt', refreshResult.data.token);
+                    logger.info('Token refreshed successfully. Retrying auth request...');
+                    _result = await UserService.get({ id: 'auth' }); // Retry getting user
+                  }
+                } catch (refreshError) {
+                  logger.error('Failed to refresh token:', refreshError);
+                }
+              }
+
+              return { status: _result.status, message: _result.message, data: { user: _result.data } };
             })();
         const { status, data, message } = result;
         if (status === 'success') {
@@ -121,6 +133,7 @@ const Auth = {
   sessionOut: async function () {
     this.deleteToken();
     localStorage.removeItem('jwt');
+    await UserService.delete({ id: 'logout' });
     const result = await this.sessionIn();
     await LogOut.Trigger(result);
     return result;

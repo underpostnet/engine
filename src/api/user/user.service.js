@@ -1,5 +1,12 @@
 import { loggerFactory } from '../../server/logger.js';
-import { hashPassword, verifyPassword, hashJWT, verifyJWT, validatePasswordMiddleware } from '../../server/auth.js';
+import {
+  hashPassword,
+  verifyPassword,
+  hashJWT,
+  verifyJWT,
+  validatePasswordMiddleware,
+  hashToken,
+} from '../../server/auth.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { CoreWsMailerManagement } from '../../ws/core/management/core.ws.mailer.js';
 import { CoreWsEmit } from '../../ws/core/core.ws.emit.js';
@@ -9,6 +16,7 @@ import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { FileFactory } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
 import { selectDtoFactory, ValkeyAPI } from '../../server/valkey.js';
+import crypto from 'crypto';
 
 const logger = loggerFactory(import.meta);
 
@@ -145,8 +153,30 @@ const UserService = {
                     runValidators: true,
                   },
                 );
+
+                // Create session
+                const refreshToken = crypto.randomBytes(48).toString('hex');
+                const newSession = {
+                  tokenHash: hashToken(refreshToken),
+                  ip: req.ip,
+                  userAgent: req.headers['user-agent'],
+                  expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+                };
+
+                user.activeSessions.push(newSession);
+                await user.save({ validateBeforeSave: false }); // Avoid re-running all validators
+
+                const sessionId = user.activeSessions[user.activeSessions.length - 1]._id.toString();
+
+                res.cookie('refreshToken', refreshToken, {
+                  httpOnly: true,
+                  secure: process.env.NODE_ENV !== 'development',
+                  sameSite: 'lax',
+                  maxAge: 30 * 24 * 3600 * 1000, // 30 days
+                });
+
                 return {
-                  token: hashJWT({ user: UserDto.auth.payload(user) }),
+                  token: hashJWT(UserDto.auth.payload(user, sessionId, req.ip, req.headers['user-agent']), '15m'),
                   user,
                 };
               } else throw new Error(accountLocketMessage());
@@ -201,7 +231,7 @@ const UserService = {
         const user = await ValkeyAPI.valkeyObjectFactory(options, 'user');
         await ValkeyAPI.setValkeyObject(options, user.email, user);
         return {
-          token: hashJWT({ user: UserDto.auth.payload(user) }),
+          token: hashJWT(UserDto.auth.payload(user, null, req.ip, req.headers['user-agent'])),
           user: selectDtoFactory(user, UserDto.select.get()),
         };
       }
@@ -216,7 +246,7 @@ const UserService = {
         if (_id) {
           const user = await User.findOne({ _id }).select(UserDto.select.get());
           return {
-            token: hashJWT({ user: UserDto.auth.payload(user) }),
+            token: hashJWT(UserDto.auth.payload(user, null, req.ip, req.headers['user-agent'])),
             user,
           };
         } else throw new Error('failed to create user');
@@ -362,6 +392,21 @@ const UserService = {
   delete: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
+
+    if (req.params.id === 'logout') {
+      const refreshToken = req.cookies?.refreshToken;
+      if (refreshToken) {
+        const hashedToken = hashToken(refreshToken);
+        await User.updateOne(
+          { 'activeSessions.tokenHash': hashedToken },
+          { $pull: { activeSessions: { tokenHash: hashedToken } } },
+        );
+      }
+      res.clearCookie('refreshToken');
+      res.clearCookie('jwt'); // If you use it
+      return { message: 'Logged out successfully' };
+    }
+
     switch (req.params.id) {
       default: {
         const user = await User.findOne({
@@ -465,6 +510,53 @@ const UserService = {
         }
       }
     }
+  },
+  refreshToken: async (req, res, options) => {
+    /** @type {import('./user.model.js').UserModel} */
+    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
+
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) throw new Error('Refresh token missing');
+
+    const hashedToken = hashToken(refreshToken);
+
+    const user = await User.findOne({ 'activeSessions.tokenHash': hashedToken });
+
+    if (!user) {
+      throw new Error('Invalid refresh token');
+    }
+
+    const session = user.activeSessions.find((s) => s.tokenHash === hashedToken);
+
+    if (!session || session.expiresAt < new Date()) {
+      if (session) {
+        user.activeSessions.pull({ _id: session._id });
+        await user.save({ validateBeforeSave: false });
+      }
+      throw new Error('Refresh token expired or invalid');
+    }
+
+    // Rotate token
+    const newRefreshToken = crypto.randomBytes(48).toString('hex');
+    session.tokenHash = hashToken(newRefreshToken);
+    session.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    session.ip = req.ip;
+    session.userAgent = req.headers['user-agent'];
+
+    await user.save({ validateBeforeSave: false });
+
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== 'development',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 3600 * 1000, // 30 days
+    });
+
+    const accessToken = hashJWT(
+      UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent']),
+      '15m',
+    );
+    return { token: accessToken };
   },
 };
 

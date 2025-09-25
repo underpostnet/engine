@@ -49,6 +49,16 @@ function verifyPassword(password, combined) {
   return hash === originalHash;
 }
 
+/**
+ * @param {String} token - token to hash
+ * @returns {String} the sha256 hash of the token
+ * @memberof Auth
+ */
+function hashToken(token) {
+  if (!token) return null;
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
 // jwt middleware
 
 /**
@@ -62,7 +72,10 @@ function verifyPassword(password, combined) {
  * @memberof Auth
  */
 const hashJWT = (payload, expire) =>
-  jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: expire !== undefined ? expire : `${process.env.EXPIRE}h` });
+  jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: expire !== undefined ? expire : `${process.env.EXPIRE}h`,
+    ...(payload.jti && { jwtid: payload.jti }),
+  });
 
 /**
  * The function `verifyJWT` is used to verify a JSON Web Token (JWT) using a secret key stored in the
@@ -125,6 +138,20 @@ const authMiddleware = (req, res, next) => {
     const token = getBearerToken(req);
     if (token) {
       const payload = verifyJWT(token);
+      const { user } = payload;
+
+      // Security enhancement: Validate IP and User-Agent
+      if (user.role !== 'guest' && (user.ip !== req.ip || user.userAgent !== req.headers['user-agent'])) {
+        logger.warn(
+          `JWT validation failed for user ${user._id}: IP or User-Agent mismatch. ` +
+            `JWT IP: ${user.ip}, Request IP: ${req.ip}. ` +
+            `JWT UA: ${user.userAgent}, Request UA: ${req.headers['user-agent']}`,
+        );
+        return res.status(401).json({
+          status: 'error',
+          message: 'unauthorized: invalid token credentials',
+        });
+      }
       req.auth = payload;
       return next();
     } else
@@ -225,6 +252,7 @@ export {
   authMiddleware,
   hashPassword,
   verifyPassword,
+  hashToken,
   hashJWT,
   adminGuard,
   moderatorGuard,
