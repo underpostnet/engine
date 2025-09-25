@@ -131,9 +131,9 @@ const Auth = {
     }
   },
   sessionOut: async function () {
+    await UserService.delete({ id: 'logout' });
     Auth.deleteToken();
     localStorage.removeItem('jwt');
-    await UserService.delete({ id: 'logout' });
     const result = await Auth.sessionIn();
     await LogOut.Trigger(result);
     return result;

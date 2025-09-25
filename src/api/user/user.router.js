@@ -95,6 +95,13 @@ const UserRouter = (options) => {
     return await UserController.get(req, res, options);
   });
 
+  router.post('/refresh-token', async (req, res) => {
+    /*  
+      #swagger.ignore = true
+    */
+    return await UserController.refreshToken(req, res, options);
+  });
+
   router.post(`/:id`, async (req, res) => {
     /*  
       #swagger.ignore = true
@@ -151,13 +158,6 @@ const UserRouter = (options) => {
   */
 
   // #swagger.end
-
-  router.post('/refresh-token', async (req, res) => {
-    /*  
-      #swagger.ignore = true
-    */
-    return await UserController.refreshToken(req, res, options);
-  });
 
   router.post(`/`, async (req, res) => {
     /*
