@@ -43,7 +43,7 @@ class UnderpostCloudInit {
      * @param {object} params.callbackMetaData - Metadata about the callback, used for dynamic configuration.
      * @param {boolean} params.dev - Development mode flag.
      * @returns {void}
-     * @memberof UnderpostCloudInit.API
+     * @memberof UnderpostCloudInit
      */
     buildTools({ workflowId, nfsHostPath, hostname, callbackMetaData, dev }) {
       // Destructure workflow configuration for easier access.
@@ -295,7 +295,7 @@ curl -X POST \\
      * @param {object} [authCredentials={}] - Optional MAAS authentication credentials.
      * @param {string} [path='/etc/cloud/cloud.cfg.d/90_maas.cfg'] - The target path for the cloud-init configuration file.
      * @returns {string} The generated cloud-init configuration content.
-     * @memberof UnderpostCloudInit.API
+     * @memberof UnderpostCloudInit
      */
     configFactory(
       {
@@ -509,7 +509,7 @@ EOF_MAAS_CFG`;
      * This method parses the output of `maas apikey` to extract the consumer key,
      * consumer secret, token key, and token secret.
      * @returns {object} An object containing the MAAS authentication credentials.
-     * @memberof UnderpostCloudInit.API
+     * @memberof UnderpostCloudInit
      * @throws {Error} If the MAAS API key format is invalid.
      */
     authCredentialsFactory() {

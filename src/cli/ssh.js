@@ -12,11 +12,6 @@ import { shellExec } from '../server/process.js';
  * @memberof UnderpostSSH
  */
 class UnderpostSSH {
-  /**
-   * @static
-   * @memberof UnderpostSSH
-   * @namespace UnderpostSSH.API
-   */
   static API = {
     /**
      * @method callback
@@ -25,7 +20,7 @@ class UnderpostSSH {
      * then initiate the SSH connection process.
      * @param {object} [options={ generate: false }] - Options for the SSH callback.
      * @param {boolean} [options.generate=false] - If true, generates a new SSH key pair. Otherwise, it imports the existing one.
-     * @memberof UnderpostSSH.API
+     * @memberof UnderpostSSH
      * @returns {Promise<void>}
      */
     callback: async (

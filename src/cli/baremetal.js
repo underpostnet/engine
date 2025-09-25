@@ -25,11 +25,6 @@ const logger = loggerFactory(import.meta);
  * and system provisioning for different architectures.
  */
 class UnderpostBaremetal {
-  /**
-   * @static
-   * @memberof UnderpostBaremetal
-   * @namespace UnderpostBaremetal.API
-   */
   static API = {
     /**
      * @method callback
@@ -52,7 +47,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.nfsUnmount=false] - Flag to unmount the NFS root filesystem.
      * @param {boolean} [options.nfsSh=false] - Flag to chroot into the NFS environment for shell access.
      * @param {string} [options.logs=''] - Specifies which logs to display ('dhcp', 'cloud', 'machine', 'cloud-config').
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @returns {void}
      */
     async callback(
@@ -589,7 +584,7 @@ menuentry '${menuentryStr}' {
      * @param {object} params.maas - MAAS configuration details.
      * @param {string} params.networkInterfaceName - The name of the network interface.
      * @returns {Promise<void>} A promise that resolves when commissioning is initiated or after a delay.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      */
     async commissionMonitor({ macAddress, nfsHostPath, underpostRoot, hostname, maas, networkInterfaceName }) {
       {
@@ -739,7 +734,7 @@ menuentry '${menuentryStr}' {
      * This is necessary for cross-architecture execution within a chroot environment.
      * @param {object} params - The parameters for the function.
      * @param {string} params.nfsHostPath - The path to the NFS root filesystem on the host.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @returns {void}
      */
     mountBinfmtMisc({ nfsHostPath }) {
@@ -762,7 +757,7 @@ menuentry '${menuentryStr}' {
      * @description Deletes all specified machines from MAAS.
      * @param {object} params - The parameters for the function.
      * @param {Array<object>} params.machines - An array of machine objects, each with a `system_id`.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @returns {Array<object>} An empty array after machines are removed.
      */
     removeMachines({ machines }) {
@@ -777,7 +772,7 @@ menuentry '${menuentryStr}' {
      * @description Clears all observed discoveries in MAAS and optionally forces a new scan.
      * @param {object} params - The parameters for the function.
      * @param {boolean} params.force - If true, forces a new discovery scan after clearing.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @returns {void}
      */
     clearDiscoveries({ force }) {
@@ -793,7 +788,7 @@ menuentry '${menuentryStr}' {
      * This is used to wait for the target machine to report its MAC address.
      * @param {object} params - The parameters for the function.
      * @param {string} params.nfsHostPath - The NFS host path where the MAC file is expected.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @returns {Promise<void>} A promise that resolves when the MAC file is found or after a delay.
      */
     async macMonitor({ nfsHostPath }) {
@@ -812,7 +807,7 @@ menuentry '${menuentryStr}' {
      * for cross-architecture execution within a chroot environment.
      * @param {object} params - The parameters for the function.
      * @param {string} params.nfsHostPath - The path to the NFS root filesystem on the host.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @param {'arm64'|'amd64'} params.debootstrapArch - The target architecture of the debootstrap environment.
      * @returns {void}
      */
@@ -844,7 +839,7 @@ menuentry '${menuentryStr}' {
      * @param {string} params.nfsHostPath - The path to the NFS root filesystem on the host.
      * @param {'arm64'|'amd64'} params.debootstrapArch - The target architecture of the debootstrap environment.
      * @param {object} params.callbackMetaData - Metadata about the callback, including runner host architecture.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @param {string[]} params.steps - An array of shell commands to execute.
      * @returns {void}
      */
@@ -880,7 +875,7 @@ EOF`);
      * This helps in visualizing and debugging the execution flow of provisioning steps.
      * @param {string[]} [steps=[]] - An array of shell commands.
      * @param {boolean} [yaml=true] - If true, formats the output as YAML list items.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @returns {string} The formatted string of commands.
      */
     stepsRender(steps = [], yaml = true) {
@@ -913,7 +908,7 @@ EOF`);
      * @param {string} params.workflowId - The identifier for the workflow configuration.
      * @param {boolean} [params.mount] - If true, attempts to mount the NFS paths.
      * @param {boolean} [params.unmount] - If true, attempts to unmount the NFS paths.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @returns {{isMounted: boolean}} An object indicating whether any NFS path is currently mounted.
      */
     nfsMountCallback({ hostname, workflowId, mount, unmount }) {
@@ -951,7 +946,7 @@ EOF`);
      * @method getHostArch
      * @description Determines the architecture of the host machine.
      * This is crucial for cross-compilation and selecting the correct QEMU binaries.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @returns {{alias: 'amd64'|'arm64', name: 'x86_64'|'aarch64'}} The host architecture.
      * @throws {Error} If the host architecture is unsupported.
      */
@@ -968,13 +963,13 @@ EOF`);
      * @description A factory object containing functions for system provisioning based on OS type.
      * Each OS type (e.g., 'ubuntu') provides methods for base system setup, user creation,
      * timezone configuration, and keyboard layout settings.     *
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      */
     systemProvisioningFactory: {
       /**
        * @property {object} ubuntu
        * @description Provisioning steps for Ubuntu-based systems.
-       * @memberof UnderpostBaremetal.API.systemProvisioningFactory
+       * @memberof UnderpostBaremetal.systemProvisioningFactory
        */
       ubuntu: {
         /**
@@ -984,7 +979,7 @@ EOF`);
          * kernel modules, cloud-init, SSH server, and other core utilities.
          * @param {object} params - The parameters for the function.
          * @param {string} params.kernelLibVersion - The specific kernel library version to install.
-         * @memberof UnderpostBaremetal.API.systemProvisioningFactory.ubuntu
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.ubuntu
          * @returns {string[]} An array of shell commands.
          */
         base: ({ kernelLibVersion }) => [
@@ -1017,7 +1012,7 @@ SOURCES`,
          * @method user
          * @description Generates shell commands for creating a root user and configuring SSH access.
          * This is a critical security step for initial access to the provisioned system.
-         * @memberof UnderpostBaremetal.API.systemProvisioningFactory.ubuntu
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.ubuntu
          * @returns {string[]} An array of shell commands.
          */
         user: () => [
@@ -1041,7 +1036,7 @@ SOURCES`,
          * @param {string} params.timezone - The timezone string (e.g., 'America/New_York').
          * @param {string} params.chronyConfPath - The path to the Chrony configuration file.
          * @param {string} [alias='chrony'] - The alias for the chrony service.
-         * @memberof UnderpostBaremetal.API.systemProvisioningFactory.ubuntu
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.ubuntu
          * @returns {string[]} An array of shell commands.
          */
         timezone: ({ timezone, chronyConfPath }, alias = 'chrony') => [
@@ -1109,7 +1104,7 @@ logdir /var/log/chrony
          * @method keyboard
          * @description Generates shell commands for configuring the keyboard layout.
          * This ensures correct input behavior on the provisioned system.
-         * @memberof UnderpostBaremetal.API.systemProvisioningFactory.ubuntu
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.ubuntu
          * @returns {string[]} An array of shell commands.
          */
         keyboard: () => [
@@ -1128,7 +1123,7 @@ logdir /var/log/chrony
      * This is crucial for allowing baremetal machines to boot via NFS.
      * @param {object} params - The parameters for the function.
      * @param {string} params.nfsHostPath - The path to be exported by the NFS server.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @param {string} [params.subnet='192.168.1.0/24'] - The subnet allowed to access the NFS export.
      * @returns {void}
      */
@@ -1199,7 +1194,7 @@ udp-port = 32766
      * @param {string} params.clientIp - The static IP address for the client device.
      * @param {string} params.subnet - The subnet mask for the client device.
      * @param {string} params.gateway - The gateway IP address for the client device.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      * @returns {string} The generated boot configuration content.
      * @throws {Error} If an invalid workflow ID is provided.
      */
@@ -1261,13 +1256,13 @@ GATEWAY=${gateway}`;
      * @description Configuration for different baremetal provisioning workflows.
      * Each workflow defines specific parameters like system provisioning type,
      * kernel version, Chrony settings, debootstrap image details, and NFS mounts.     *
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      */
     workflowsConfig: {
       /**
        * @property {object} rpi4mb
        * @description Configuration for the Raspberry Pi 4 Model B workflow.
-       * @memberof UnderpostBaremetal.API.workflowsConfig
+       * @memberof UnderpostBaremetal.workflowsConfig
        */
       rpi4mb: {
         menuentryStr: 'UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)',
