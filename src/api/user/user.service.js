@@ -35,8 +35,8 @@ const UserService = {
 
       if (!user) throw new Error('Email address does not exist');
 
-      const token = hashJWT({ email: req.body.email }, '15m');
-      const payloadToken = hashJWT({ email: req.body.email }, '15m');
+      const token = hashJWT({ email: req.body.email });
+      const payloadToken = hashJWT({ email: req.body.email });
       const id = `${options.host}${options.path}`;
       const translate = MailerProvider.instance[id].translateTemplates.recoverEmail;
       const recoverUrl = `${process.env.NODE_ENV === 'development' ? 'http://' : 'https://'}${req.body.hostname}${
@@ -176,7 +176,7 @@ const UserService = {
                 });
 
                 return {
-                  token: hashJWT(UserDto.auth.payload(user, sessionId, req.ip, req.headers['user-agent']), '15m'),
+                  token: hashJWT(UserDto.auth.payload(user, sessionId, req.ip, req.headers['user-agent'])),
                   user,
                 };
               } else throw new Error(accountLocketMessage());
@@ -284,7 +284,7 @@ const UserService = {
           _id,
           { recoverTimeOut: new Date(+new Date() + 1000 * 60 * 15) },
           { runValidators: true },
-        ); // 15m
+        );
         options.png.header(res);
         return options.png.buffer['recover'];
       } else {
@@ -552,10 +552,7 @@ const UserService = {
       maxAge: 30 * 24 * 3600 * 1000, // 30 days
     });
 
-    const accessToken = hashJWT(
-      UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent']),
-      '15m',
-    );
+    const accessToken = hashJWT(UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent']));
     return { token: accessToken };
   },
 };
