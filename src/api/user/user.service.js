@@ -372,7 +372,6 @@ const UserService = {
         );
       }
       res.clearCookie('refreshToken');
-      res.clearCookie('jwt'); // If you use it
       return { message: 'Logged out successfully' };
     }
 

@@ -99,6 +99,25 @@ const UserService = {
           return reject(error);
         }),
     ),
+  refreshToken: (options = { body: {} }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: 'refresh-token', endpoint }), {
+        method: 'POST',
+        headers: headersFactory(),
+        body: payloadFactory(options.body),
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    ),
 };
 
 export { UserService, UserMock };

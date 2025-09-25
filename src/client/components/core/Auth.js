@@ -72,13 +72,13 @@ const Auth = {
               if (_result.status === 'error' && _result.message?.match(/expired|invalid/i)) {
                 logger.info('Access token expired, attempting to refresh...');
                 try {
-                  const refreshResult = await UserService.refreshToken();
+                  const refreshResult = await UserService.refreshToken({});
                   if (refreshResult.status === 'success' && refreshResult.data.token) {
                     Auth.setToken(refreshResult.data.token);
                     localStorage.setItem('jwt', refreshResult.data.token);
                     logger.info('Token refreshed successfully. Retrying auth request...');
                     _result = await UserService.get({ id: 'auth' }); // Retry getting user
-                  }
+                  } else throw new Error(refreshResult.message || 'Failed to refresh token');
                 } catch (refreshError) {
                   logger.error('Failed to refresh token:', refreshError);
                 }
