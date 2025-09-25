@@ -393,11 +393,21 @@ export function applySecurity(app, opts = {}) {
   app.use(
     helmet({
       // We'll customize CSP below because many apps need tailored directives
-      contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: true,
       crossOriginOpenerPolicy: { policy: 'same-origin' },
       crossOriginResourcePolicy: { policy: 'same-origin' },
       originAgentCluster: false,
+      // Permissions-Policy (formerly Feature-Policy) — limit powerful features
+      permissionsPolicy: {
+        // example: disable geolocation, camera, microphone, payment
+        features: {
+          fullscreen: ["'self'"],
+          geolocation: [],
+          camera: [],
+          microphone: [],
+          payment: [],
+        },
+      },
     }),
   );
 
@@ -413,38 +423,24 @@ export function applySecurity(app, opts = {}) {
     );
   }
 
-  // CSP: adjust the directives to fit your resource needs. Start strict, relax as necessary.
-  //    Consider using nonces for inline scripts and styles where applicable.
-  const cspDirectives = {
-    defaultSrc: ["'self'"],
-    baseUri: ["'self'"],
-    blockAllMixedContent: [],
-    fontSrc: ["'self'", 'https:', 'data:'],
-    frameAncestors: ["'none'"],
-    imgSrc: ["'self'", 'data:', 'https:'],
-    objectSrc: ["'none'"],
-    scriptSrc: ["'self'"],
-    scriptSrcElem: ["'self'"],
-    styleSrc: ["'self'", 'https:', "'unsafe-inline'"], // try to remove 'unsafe-inline' by using hashes/nonces
-  };
-
-  app.use(helmet.contentSecurityPolicy({ directives: cspDirectives }));
-
   // Other helpful Helmet policies
   app.use(helmet.noSniff()); // X-Content-Type-Options: nosniff
   app.use(helmet.frameguard({ action: 'deny' })); // X-Frame-Options: DENY
   app.use(helmet.referrerPolicy({ policy: 'no-referrer-when-downgrade' }));
 
-  // Permissions-Policy (formerly Feature-Policy) — limit powerful features
   app.use(
-    helmet.permissionsPolicy({
-      // example: disable geolocation, camera, microphone, payment
-      features: {
-        fullscreen: ["'self'"],
-        geolocation: [],
-        camera: [],
-        microphone: [],
-        payment: [],
+    helmet.contentSecurityPolicy({
+      directives: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        blockAllMixedContent: [],
+        fontSrc: ["'self'", 'https:', 'data:'],
+        frameAncestors: ["'none'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        objectSrc: ["'none'"],
+        scriptSrc: ["'self'"],
+        scriptSrcElem: ["'self'"],
+        styleSrc: ["'self'", 'https:', "'unsafe-inline'"], // try to remove 'unsafe-inline' by using hashes/nonces
       },
     }),
   );
@@ -473,7 +469,7 @@ export function applySecurity(app, opts = {}) {
   const speedLimiter = slowDown({
     windowMs: slowdown.windowMs,
     delayAfter: slowdown.delayAfter,
-    delayMs: slowdown.delayMs,
+    delayMs: () => slowdown.delayMs,
   });
   app.use(speedLimiter);
 
