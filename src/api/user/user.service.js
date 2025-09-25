@@ -295,20 +295,22 @@ const UserService = {
 
     switch (req.params.id) {
       case 'all': {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
+        if (req.auth.user.role === 'admin') {
+          const page = parseInt(req.query.page) || 1;
+          const limit = parseInt(req.query.limit) || 10;
+          const skip = (page - 1) * limit;
 
-        const data = await User.find().select(UserDto.select.get()).skip(skip).limit(limit);
-        const total = await User.countDocuments();
+          const data = await User.find().select(UserDto.select.get()).skip(skip).limit(limit);
+          const total = await User.countDocuments();
 
-        return {
-          data,
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        };
+          return {
+            data,
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          };
+        } else throw new Error(`Invalid token user id`);
       }
 
       case 'auth': {
