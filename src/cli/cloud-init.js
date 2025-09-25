@@ -1,3 +1,10 @@
+/**
+ * Cloud-init module for managing the generation and deployment of cloud-init configuration files
+ * and associated scripts for baremetal provisioning.
+ * @module src/cli/cloud-init.js
+ * @namespace UnderpostCloudInit
+ */
+
 import dotenv from 'dotenv';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
@@ -15,8 +22,14 @@ const logger = loggerFactory(import.meta);
  * and associated scripts for baremetal provisioning. This class provides methods
  * to build various shell scripts and a cloud-init configuration file tailored
  * for MAAS (Metal as a Service) integration.
+ * @memberof UnderpostCloudInit
  */
 class UnderpostCloudInit {
+  /**
+   * @static
+   * @memberof UnderpostCloudInit
+   * @namespace UnderpostCloudInit.API
+   */
   static API = {
     /**
      * @method buildTools
@@ -30,6 +43,7 @@ class UnderpostCloudInit {
      * @param {object} params.callbackMetaData - Metadata about the callback, used for dynamic configuration.
      * @param {boolean} params.dev - Development mode flag.
      * @returns {void}
+     * @memberof UnderpostCloudInit.API
      */
     buildTools({ workflowId, nfsHostPath, hostname, callbackMetaData, dev }) {
       // Destructure workflow configuration for easier access.
@@ -281,6 +295,7 @@ curl -X POST \\
      * @param {object} [authCredentials={}] - Optional MAAS authentication credentials.
      * @param {string} [path='/etc/cloud/cloud.cfg.d/90_maas.cfg'] - The target path for the cloud-init configuration file.
      * @returns {string} The generated cloud-init configuration content.
+     * @memberof UnderpostCloudInit.API
      */
     configFactory(
       {
@@ -494,6 +509,7 @@ EOF_MAAS_CFG`;
      * This method parses the output of `maas apikey` to extract the consumer key,
      * consumer secret, token key, and token secret.
      * @returns {object} An object containing the MAAS authentication credentials.
+     * @memberof UnderpostCloudInit.API
      * @throws {Error} If the MAAS API key format is invalid.
      */
     authCredentialsFactory() {
