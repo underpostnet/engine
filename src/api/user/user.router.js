@@ -5,6 +5,7 @@ import { UserController } from './user.controller.js';
 import express from 'express';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { FileFactory } from '../file/file.service.js';
+import { s4 } from '../../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -15,8 +16,9 @@ const UserRouter = (options) => {
     // admin user seed
     try {
       const models = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models;
+      let adminUser;
       if (models.User) {
-        const adminUser = await models.User.findOne({ role: 'admin' });
+        adminUser = await models.User.findOne({ role: 'admin' });
         if (!adminUser) {
           const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'changethis';
           const hashedPassword = hashPassword(defaultPassword);

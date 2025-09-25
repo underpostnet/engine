@@ -21,14 +21,36 @@ const InstanceService = {
       _id: req.auth.user._id,
     });
     switch (req.params.id) {
+      case 'count': {
+        switch (user.role) {
+          case 'admin':
+            return { total: await Instance.countDocuments() };
+          default:
+            return { total: await Instance.countDocuments({ userId: req.auth.user._id }) };
+        }
+      }
       default:
+        const { page = 1, limit = 10, sort = { updatedAt: -1 } } = req.query;
+        const skip = (page - 1) * limit;
+
         switch (user.role) {
           case 'admin':
             if (req.params.id) return await Instance.findById(req.params.id);
-            return await Instance.find().populate(InstanceDto.populate.get());
-
+            const [dataAdmin, totalAdmin] = await Promise.all([
+              Instance.find({}).sort(sort).limit(limit).skip(skip).populate(InstanceDto.populate.get()),
+              Instance.countDocuments({}),
+            ]);
+            return { data: dataAdmin, total: totalAdmin, page, totalPages: Math.ceil(totalAdmin / limit) };
           default:
-            return await Instance.find({ userId: req.auth.user._id }).populate(InstanceDto.populate.get());
+            const [dataUser, totalUser] = await Promise.all([
+              Instance.find({ userId: req.auth.user._id })
+                .sort(sort)
+                .limit(limit)
+                .skip(skip)
+                .populate(InstanceDto.populate.get()),
+              Instance.countDocuments({ userId: req.auth.user._id }),
+            ]);
+            return { data: dataUser, total: totalUser, page, totalPages: Math.ceil(totalUser / limit) };
         }
     }
   },

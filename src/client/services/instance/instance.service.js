@@ -47,9 +47,12 @@ const InstanceService = {
           return reject(error);
         }),
     ),
-  get: (options = { id: '', body: {} }) =>
-    new Promise((resolve, reject) =>
-      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
+  get: (options = { id: '', body: {}, page: 1, limit: 10 }) => {
+    const url = new URL(getApiBaseUrl({ id: options.id, endpoint }));
+    if (options.page) url.searchParams.set('page', options.page);
+    if (options.limit) url.searchParams.set('limit', options.limit);
+    return new Promise((resolve, reject) =>
+      fetch(url.toString(), {
         method: 'GET',
         headers: headersFactory(),
       })
@@ -64,7 +67,8 @@ const InstanceService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
+    );
+  },
   delete: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
