@@ -204,9 +204,9 @@ const UserService = {
             } catch (error) {
               logger.error(error, { params: req.params, body: req.body });
             }
-            throw new Error(`invalid email or password, remaining attempts: ${5 - user.failedLoginAttempts}`);
+            throw new Error(`Invalid credentials. Remaining attempts: ${5 - user.failedLoginAttempts}`);
           }
-        } else throw new Error('invalid email or password');
+        } else throw new Error('Invalid credentials');
 
       case 'guest': {
         const user = await ValkeyAPI.valkeyObjectFactory(options, 'user');

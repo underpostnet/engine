@@ -138,18 +138,14 @@ const getPayloadJWT = (req) => verifyJWT(getBearerToken(req));
  * @returns {Object} The `req.auth` included JWT payload in request authorization
  * @memberof Auth
  */
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   try {
     const token = getBearerToken(req);
     if (token) {
       const payload = verifyJWT(token);
 
       // Security enhancement: Validate IP and User-Agent
-      if (
-        payload &&
-        payload.role !== 'guest' &&
-        (payload.ip !== req.ip || payload.userAgent !== req.headers['user-agent'])
-      ) {
+      if (payload.ip !== req.ip || payload.userAgent !== req.headers['user-agent']) {
         logger.warn(
           `JWT validation failed for user ${payload._id}: IP or User-Agent mismatch. ` +
             `JWT IP: ${payload.ip}, Request IP: ${req.ip}. ` +
@@ -160,6 +156,26 @@ const authMiddleware = (req, res, next) => {
           message: 'unauthorized: invalid token credentials',
         });
       }
+
+      // Security enhancement: Verify session is still active for non-guest users
+      if (payload.sessionId && payload.role !== 'guest') {
+        const User = req.db.mongoose.models.User;
+        const user = await User.findOne({
+          _id: payload._id,
+          'activeSessions._id': payload.sessionId,
+        });
+
+        if (!user) {
+          logger.warn(
+            `JWT validation failed for user ${payload._id}: Session ID ${payload.sessionId} not found or invalid.`,
+          );
+          return res.status(401).json({
+            status: 'error',
+            message: 'unauthorized: session invalid',
+          });
+        }
+      }
+
       req.auth = { user: payload };
       return next();
     } else
@@ -169,7 +185,7 @@ const authMiddleware = (req, res, next) => {
       });
   } catch (error) {
     logger.error(error, error.stack);
-    return res.status(400).json({
+    return res.status(401).json({
       status: 'error',
       message: error.message,
     });
