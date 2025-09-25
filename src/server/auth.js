@@ -159,7 +159,8 @@ const authMiddleware = async (req, res, next) => {
 
       // Security enhancement: Verify session is still active for non-guest users
       if (payload.sessionId && payload.role !== 'guest') {
-        const User = req.db.mongoose.models.User;
+        /** @type {import('../api/user/user.model.js').UserModel} */
+        const User = DataBaseProvider.instance[`${payload.host}${payload.path}`].mongoose.models.User;
         const user = await User.findOne({
           _id: payload._id,
           'activeSessions._id': payload.sessionId,
@@ -346,7 +347,7 @@ async function createUserAndSession(req, res, User, File, options) {
  * @returns {Promise<{token: string}>} A new access token.
  * @memberof Auth
  */
-async function refreshSessionAndToken(req, res, User) {
+async function refreshSessionAndToken(req, res, User, host, path) {
   const refreshToken = req.cookies?.refreshToken;
   if (!refreshToken) throw new Error('Refresh token missing');
 
@@ -384,7 +385,9 @@ async function refreshSessionAndToken(req, res, User) {
     maxAge: process.env.REFRESH_EXPIRE * 60 * 60 * 1000,
   });
 
-  const accessToken = hashJWT(UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent']));
+  const accessToken = hashJWT(
+    UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent'], host, path),
+  );
   return { token: accessToken };
 }
 

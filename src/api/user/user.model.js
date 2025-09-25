@@ -79,13 +79,15 @@ const UserDto = {
     },
   },
   auth: {
-    payload: (user, sessionId, ip, userAgent) => ({
+    payload: (user, sessionId, ip, userAgent, host, path) => ({
       _id: user._id.toString(),
       role: user.role,
       email: user.email,
       jti: sessionId, // JWT ID
       ip,
       userAgent,
+      host,
+      path,
     }),
   },
 };
