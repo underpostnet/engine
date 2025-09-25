@@ -1,23 +1,42 @@
-import { getNpmRootPath } from '../server/conf.js';
+/**
+ * SSH module for managing SSH key generation and connection setup.
+ * @module src/cli/ssh.js
+ * @namespace UnderpostSSH
+ */
+
 import { shellExec } from '../server/process.js';
 
+/**
+ * @class UnderpostSSH
+ * @description Manages SSH key generation and connection setup.
+ * @memberof UnderpostSSH
+ */
 class UnderpostSSH {
+  /**
+   * @static
+   * @memberof UnderpostSSH
+   * @namespace UnderpostSSH.API
+   */
   static API = {
     /**
      * @method callback
-     * @param {object} options
-     * @param {boolean} options.generate - Generates new ssh credential and stores it in current private keys file storage.
-     * @description Import and start ssh server and client based on current default deployment ID.
+     * @description Manages SSH key generation and connection setup based on the default deployment ID.
+     * This function will either generate a new SSH key pair or import an existing one,
+     * then initiate the SSH connection process.
+     * @param {object} [options={ generate: false }] - Options for the SSH callback.
+     * @param {boolean} [options.generate=false] - If true, generates a new SSH key pair. Otherwise, it imports the existing one.
+     * @memberof UnderpostSSH.API
+     * @returns {Promise<void>}
      */
     callback: async (
       options = {
         generate: false,
       },
     ) => {
-      // only import + start
+      // Example usage for importing an existing key:
       // node bin/deploy ssh root@<host> <password> import
 
-      // generate + import + start
+      // Example usage for generating a new key:
       // node bin/deploy ssh root@<host> <password>
 
       shellExec(
