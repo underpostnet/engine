@@ -50,7 +50,11 @@ const DefaultManagement = {
   Tokens: {},
   loadTable: async function (id, options = { reload: true }) {
     const { serviceId, columnDefs, customFormat } = this.Tokens[id];
-    const result = await DefaultService.get({ page: this.Tokens[id].page, limit: this.Tokens[id].limit });
+    const result = await this.Tokens[id].ServiceProvider.get({
+      page: this.Tokens[id].page,
+      limit: this.Tokens[id].limit,
+      id: this.Tokens[id].restParams?.get?.id ?? undefined,
+    });
     if (result.status === 'success') {
       const { data, total, page, totalPages } = result.data;
       this.Tokens[id].total = total;
@@ -399,6 +403,7 @@ const DefaultManagement = {
                   // const newItemId = result.data?.[entity]?._id || result.data?._id;
                   // The `event.node.id` is the temporary ID assigned by AG Grid.
                   // const rowNode = AgGrid.grids[gridId].getRowNode(event.node.id);
+                  setQueryParams({ page: 1, limit: this.Tokens[id].limit });
 
                   let rowNode;
                   AgGrid.grids[gridId].forEachLeafNode((_rowNode) => {

@@ -255,7 +255,7 @@ const closeModalRouteChangeEvent = (options = {}) => {
  * @param {string} options.route - The route associated with the modal view.
  * @memberof PwaRouter
  */
-const handleModalViewRoute = (options = { route: 'home' }) => {
+const handleModalViewRoute = (options = { route: '' }) => {
   const { route } = options;
   if (!route) return;
 
