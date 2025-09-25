@@ -53,7 +53,7 @@ const DefaultManagement = {
     const result = await this.Tokens[id].ServiceProvider.get({
       page: this.Tokens[id].page,
       limit: this.Tokens[id].limit,
-      id: this.Tokens[id].restParams?.get?.id ?? undefined,
+      id: this.Tokens[id].serviceOptions?.get?.id ?? undefined,
     });
     if (result.status === 'success') {
       const { data, total, page, totalPages } = result.data;

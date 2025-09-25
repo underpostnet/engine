@@ -299,7 +299,7 @@ const UserService = {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
 
-        const data = await User.find().select(UserDto.select.getAll()).skip(skip).limit(limit);
+        const data = await User.find().select(UserDto.select.get()).skip(skip).limit(limit);
         const total = await User.countDocuments();
 
         return {

@@ -45,7 +45,7 @@ const UserManagement = {
       ],
       defaultColKeyFocus: 'username',
       ServiceProvider: UserService,
-      restParams: {
+      serviceOptions: {
         get: {
           id: 'all',
         },
