@@ -144,12 +144,9 @@ const UserService = {
               );
             {
               if (getMinutesRemaining() <= 0 || user.failedLoginAttempts >= 0) {
-                const user = await User.findOne(
-                  {
-                    _id,
-                  },
-                  { $setOnInsert: { activeSessions: [] } },
-                ).select(UserDto.select.get());
+                const user = await User.findOne({
+                  _id,
+                }).select(UserDto.select.get());
                 await User.findByIdAndUpdate(
                   _id,
                   { lastLoginDate: new Date(), failedLoginAttempts: 0 },

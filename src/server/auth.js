@@ -273,7 +273,10 @@ async function createSessionAndUserToken(user, req, res) {
     userAgent: req.headers['user-agent'],
     expiresAt: new Date(Date.now() + process.env.REFRESH_EXPIRE * 60 * 60 * 1000),
   };
-
+  if (!user.activeSessions) {
+    user.activeSessions = [];
+    user._doc.activeSessions = [];
+  }
   user.activeSessions.push(newSession);
   await user.save({ validateBeforeSave: false }); // Avoid re-running all validators
 
