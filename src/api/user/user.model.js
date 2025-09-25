@@ -23,14 +23,17 @@ const UserSchema = new Schema(
     username: { type: String, trim: true, unique: true, required: 'Username is required' },
     secret: { type: String, default: () => s4() + s4() + s4() + s4() },
     role: { type: String, enum: userRoleEnum, default: 'guest' },
-    activeSessions: [
-      {
-        tokenHash: { type: String, required: true },
-        ip: { type: String },
-        userAgent: { type: String },
-        expiresAt: { type: Date, required: true },
-      },
-    ],
+    activeSessions: {
+      type: [
+        {
+          tokenHash: { type: String, required: true },
+          ip: { type: String },
+          userAgent: { type: String },
+          expiresAt: { type: Date, required: true },
+        },
+      ],
+      default: [],
+    },
     profileImageId: { type: Schema.Types.ObjectId, ref: 'File' },
     phoneNumbers: [
       {

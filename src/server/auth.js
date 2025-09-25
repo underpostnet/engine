@@ -15,7 +15,6 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import cors from 'cors';
-import csurfFork from '@dr.pogodin/csurf';
 import cookieParser from 'cookie-parser';
 
 dotenv.config();
@@ -145,21 +144,24 @@ const authMiddleware = (req, res, next) => {
     const token = getBearerToken(req);
     if (token) {
       const payload = verifyJWT(token);
-      const { user } = payload;
 
       // Security enhancement: Validate IP and User-Agent
-      if (user.role !== 'guest' && (user.ip !== req.ip || user.userAgent !== req.headers['user-agent'])) {
+      if (
+        payload &&
+        payload.role !== 'guest' &&
+        (payload.ip !== req.ip || payload.userAgent !== req.headers['user-agent'])
+      ) {
         logger.warn(
-          `JWT validation failed for user ${user._id}: IP or User-Agent mismatch. ` +
-            `JWT IP: ${user.ip}, Request IP: ${req.ip}. ` +
-            `JWT UA: ${user.userAgent}, Request UA: ${req.headers['user-agent']}`,
+          `JWT validation failed for user ${payload._id}: IP or User-Agent mismatch. ` +
+            `JWT IP: ${payload.ip}, Request IP: ${req.ip}. ` +
+            `JWT UA: ${payload.userAgent}, Request UA: ${req.headers['user-agent']}`,
         );
         return res.status(401).json({
           status: 'error',
           message: 'unauthorized: invalid token credentials',
         });
       }
-      req.auth = payload;
+      req.auth = { user: payload };
       return next();
     } else
       return res.status(401).json({
@@ -475,32 +477,6 @@ export function applySecurity(app, opts = {}) {
 
   // Cookie parsing and CSRF protection
   app.use(cookieParser(process.env.JWT_SECRET));
-
-  // If your app uses cookie-based sessions or forms, enable CSRF protection.
-  // Note: for JSON-only APIs that use tokens in Authorization header, CSRF is less relevant.
-  try {
-    app.use(
-      csurfFork({
-        cookie: {
-          httpOnly: true,
-          sameSite: cookie.sameSite || 'Strict',
-          secure: cookie.secure === true,
-        },
-      }),
-    );
-
-    // Expose CSRF token to views or SPA (for example purposes)
-    app.use((req, res, next) => {
-      if (req.csrfToken) {
-        res.locals.csrfToken = req.csrfToken();
-      }
-      next();
-    });
-  } catch (e) {
-    // csurf may throw if request body parsers aren't registered first — ensure you register JSON/urlencoded parsers before applySecurity
-    // We'll ignore here but in production ensure proper ordering
-    logger.warn('csurf initialization warning:', e && e.message);
-  }
 }
 
 export {
