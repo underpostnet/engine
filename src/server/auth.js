@@ -107,9 +107,10 @@ function jwtSign(payload, expireHours = ACCESS_EXPIRE_HOURS, options = {}) {
     expiresIn: `${expireHours}h`,
     issuer: process.env.JWT_ISSUER || 'myapp',
     audience: process.env.JWT_AUDIENCE || 'myapp-users',
-    jwtid: crypto.randomBytes(8).toString('hex'),
     ...options,
   };
+
+  if (!payload.jti) signOptions.jwtid = crypto.randomBytes(8).toString('hex');
 
   const key = config.jwtAlgorithm.startsWith('RS') ? process.env.JWT_PRIVATE_KEY : process.env.JWT_SECRET;
   if (!key) throw new Error('JWT key not configured');
