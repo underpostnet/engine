@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { loggerFactory } from './logger.js';
 import crypto from 'crypto';
-import { userRoleEnum } from '../api/user/user.model.js';
+import { UserDto, userRoleEnum } from '../api/user/user.model.js';
 import { commonAdminGuard, commonModeratorGuard, validatePassword } from '../client/components/core/CommonJs.js';
 
 dotenv.config();
@@ -248,6 +248,119 @@ const validatePasswordMiddleware = (req, password) => {
     };
 };
 
+/**
+ * Creates a new user session, saves it, and sets the refresh token cookie.
+ * @param {import('../api/user/user.model.js').UserModel} user - The user mongoose model instance.
+ * @param {import('express').Request} req - The Express request object.
+ * @param {import('express').Response} res - The Express response object.
+ * @returns {Promise<{sessionId: string}>} The session ID.
+ * @memberof Auth
+ */
+async function createSessionAndUserToken(user, req, res) {
+  const refreshToken = crypto.randomBytes(48).toString('hex');
+  const newSession = {
+    tokenHash: hashToken(refreshToken),
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+    expiresAt: new Date(Date.now() + process.env.REFRESH_EXPIRE * 60 * 60 * 1000),
+  };
+
+  user.activeSessions.push(newSession);
+  await user.save({ validateBeforeSave: false }); // Avoid re-running all validators
+
+  const sessionId = user.activeSessions[user.activeSessions.length - 1]._id.toString();
+
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV !== 'development',
+    sameSite: 'lax',
+    maxAge: process.env.REFRESH_EXPIRE * 60 * 60 * 1000,
+  });
+
+  return { sessionId };
+}
+
+/**
+ * Creates a new user, saves it, and returns a JWT and user data.
+ * @param {import('express').Request} req - The Express request object.
+ * @param {import('../api/user/user.model.js').UserModel} User - The Mongoose User model.
+ * @param {import('../api/file/file.model.js').FileModel} File - The Mongoose File model.
+ * @param {Object} options - Service options.
+ * @returns {Promise<{token: string, user: object}>} The JWT and user object.
+ * @memberof Auth
+ */
+async function createUserAndSession(req, res, User, File, options) {
+  const validatePassword = validatePasswordMiddleware(req);
+  if (validatePassword.status === 'error') throw new Error(validatePassword.message);
+
+  req.body.password = await hashPassword(req.body.password);
+  req.body.role = req.body.role === 'guest' ? 'guest' : 'user';
+  req.body.profileImageId = await options.getDefaultProfileImageId(File);
+
+  const { _id } = await new User(req.body).save();
+
+  if (_id) {
+    const user = await User.findOne({ _id }).select(UserDto.select.get());
+    const { sessionId } = await createSessionAndUserToken(user, req, res);
+    return {
+      token: hashJWT(UserDto.auth.payload(user, sessionId, req.ip, req.headers['user-agent'])),
+      user,
+    };
+  }
+
+  throw new Error('failed to create user');
+}
+
+/**
+ * Refreshes a user session using a refresh token, rotates the token, and issues a new access token.
+ * @param {import('express').Request} req - The Express request object.
+ * @param {import('express').Response} res - The Express response object.
+ * @param {import('../api/user/user.model.js').UserModel} User - The Mongoose User model.
+ * @returns {Promise<{token: string}>} A new access token.
+ * @memberof Auth
+ */
+async function refreshSessionAndToken(req, res, User) {
+  const refreshToken = req.cookies?.refreshToken;
+  if (!refreshToken) throw new Error('Refresh token missing');
+
+  const hashedToken = hashToken(refreshToken);
+
+  const user = await User.findOne({ 'activeSessions.tokenHash': hashedToken });
+
+  if (!user) {
+    throw new Error('Invalid refresh token');
+  }
+
+  const session = user.activeSessions.find((s) => s.tokenHash === hashedToken);
+
+  if (!session || session.expiresAt < new Date()) {
+    if (session) {
+      user.activeSessions.pull({ _id: session._id });
+      await user.save({ validateBeforeSave: false });
+    }
+    throw new Error('Refresh token expired or invalid');
+  }
+
+  // Rotate token
+  const newRefreshToken = crypto.randomBytes(48).toString('hex');
+  session.tokenHash = hashToken(newRefreshToken);
+  session.expiresAt = new Date(Date.now() + process.env.REFRESH_EXPIRE * 60 * 60 * 1000);
+  session.ip = req.ip;
+  session.userAgent = req.headers['user-agent'];
+
+  await user.save({ validateBeforeSave: false });
+
+  res.cookie('refreshToken', newRefreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV !== 'development',
+    sameSite: 'lax',
+    maxAge: process.env.REFRESH_EXPIRE * 60 * 60 * 1000,
+  });
+
+  const accessToken = hashJWT(UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent']));
+  return { token: accessToken };
+}
+
 export {
   authMiddleware,
   hashPassword,
@@ -260,4 +373,7 @@ export {
   validatePasswordMiddleware,
   getBearerToken,
   getPayloadJWT,
+  createSessionAndUserToken,
+  createUserAndSession,
+  refreshSessionAndToken,
 };

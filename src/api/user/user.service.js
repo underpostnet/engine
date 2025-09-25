@@ -4,7 +4,9 @@ import {
   verifyPassword,
   hashJWT,
   verifyJWT,
-  validatePasswordMiddleware,
+  createSessionAndUserToken,
+  createUserAndSession,
+  refreshSessionAndToken,
   hashToken,
 } from '../../server/auth.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
@@ -16,7 +18,6 @@ import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { FileFactory } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
 import { selectDtoFactory, ValkeyAPI } from '../../server/valkey.js';
-import crypto from 'crypto';
 
 const logger = loggerFactory(import.meta);
 
@@ -154,27 +155,7 @@ const UserService = {
                   },
                 );
 
-                // Create session
-                const refreshToken = crypto.randomBytes(48).toString('hex');
-                const newSession = {
-                  tokenHash: hashToken(refreshToken),
-                  ip: req.ip,
-                  userAgent: req.headers['user-agent'],
-                  expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-                };
-
-                user.activeSessions.push(newSession);
-                await user.save({ validateBeforeSave: false }); // Avoid re-running all validators
-
-                const sessionId = user.activeSessions[user.activeSessions.length - 1]._id.toString();
-
-                res.cookie('refreshToken', refreshToken, {
-                  httpOnly: true,
-                  secure: process.env.NODE_ENV !== 'development',
-                  sameSite: 'lax',
-                  maxAge: 30 * 24 * 3600 * 1000, // 30 days
-                });
-
+                const { sessionId } = await createSessionAndUserToken(user, req, res);
                 return {
                   token: hashJWT(UserDto.auth.payload(user, sessionId, req.ip, req.headers['user-agent'])),
                   user,
@@ -237,19 +218,7 @@ const UserService = {
       }
 
       default: {
-        const validatePassword = validatePasswordMiddleware(req.body.password);
-        if (validatePassword.status === 'error') throw new Error(validatePassword.message);
-        req.body.password = await hashPassword(req.body.password);
-        req.body.role = req.body.role === 'guest' ? 'guest' : 'user';
-        req.body.profileImageId = await options.getDefaultProfileImageId(File);
-        const { _id } = await new User(req.body).save();
-        if (_id) {
-          const user = await User.findOne({ _id }).select(UserDto.select.get());
-          return {
-            token: hashJWT(UserDto.auth.payload(user, null, req.ip, req.headers['user-agent'])),
-            user,
-          };
-        } else throw new Error('failed to create user');
+        return await createUserAndSession(req, res, User, File, options);
       }
     }
   },
@@ -514,46 +483,7 @@ const UserService = {
   refreshToken: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
-
-    const refreshToken = req.cookies?.refreshToken;
-    if (!refreshToken) throw new Error('Refresh token missing');
-
-    const hashedToken = hashToken(refreshToken);
-
-    const user = await User.findOne({ 'activeSessions.tokenHash': hashedToken });
-
-    if (!user) {
-      throw new Error('Invalid refresh token');
-    }
-
-    const session = user.activeSessions.find((s) => s.tokenHash === hashedToken);
-
-    if (!session || session.expiresAt < new Date()) {
-      if (session) {
-        user.activeSessions.pull({ _id: session._id });
-        await user.save({ validateBeforeSave: false });
-      }
-      throw new Error('Refresh token expired or invalid');
-    }
-
-    // Rotate token
-    const newRefreshToken = crypto.randomBytes(48).toString('hex');
-    session.tokenHash = hashToken(newRefreshToken);
-    session.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-    session.ip = req.ip;
-    session.userAgent = req.headers['user-agent'];
-
-    await user.save({ validateBeforeSave: false });
-
-    res.cookie('refreshToken', newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV !== 'development',
-      sameSite: 'lax',
-      maxAge: 30 * 24 * 3600 * 1000, // 30 days
-    });
-
-    const accessToken = hashJWT(UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent']));
-    return { token: accessToken };
+    return await refreshSessionAndToken(req, res, User);
   },
 };
 
