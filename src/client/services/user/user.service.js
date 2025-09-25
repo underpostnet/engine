@@ -36,9 +36,15 @@ const UserService = {
           return reject(error);
         }),
     ),
-  get: (options = { id: '' }) =>
-    new Promise((resolve, reject) =>
-      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
+  get: (options = { id: '', page: 1, limit: 10 }) => {
+    const { id = '', page, limit } = options;
+    const query = new URLSearchParams();
+    if (page) query.set('page', page);
+    if (limit) query.set('limit', limit);
+    const queryString = query.toString();
+    const url = `${getApiBaseUrl({ id, endpoint })}${queryString ? (id.includes('?') ? '&' : '?') + queryString : ''}`;
+    return new Promise((resolve, reject) =>
+      fetch(url, {
         method: 'GET',
         headers: headersFactory(),
       })
@@ -53,7 +59,8 @@ const UserService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
+    );
+  },
   delete: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {

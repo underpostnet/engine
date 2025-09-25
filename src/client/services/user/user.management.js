@@ -13,6 +13,7 @@ const UserManagement = {
         add: role === 'admin',
         remove: role === 'admin',
       },
+      usePagination: true,
       columnDefs: [
         { field: 'username', headerName: 'username', editable: role === 'admin' },
         { field: 'email', headerName: 'email', editable: role === 'admin' },
