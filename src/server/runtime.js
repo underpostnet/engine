@@ -21,6 +21,7 @@ import { Lampp } from '../runtime/lampp/Lampp.js';
 import { JSONweb, ssrFactory } from './client-formatted.js';
 import Underpost from '../index.js';
 import { createValkeyConnection } from './valkey.js';
+import { applySecurity } from './auth.js';
 
 dotenv.config();
 
@@ -315,14 +316,12 @@ const buildRuntime = async () => {
             return next();
           });
 
-          // cors
-          const originPayload = {
+          // security
+          applySecurity(app, {
             origin: origins.concat(
               apis && process.env.NODE_ENV === 'development' ? [`http://localhost:${currentPort + 2}`] : [],
             ),
-          };
-          // logger.info('originPayload', originPayload);
-          app.use(cors(originPayload));
+          });
 
           if (redirect) {
             app.use(function (req = express.Request, res = express.Response, next = express.NextFunction) {

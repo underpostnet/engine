@@ -11,6 +11,13 @@ import crypto from 'crypto';
 import { UserDto, userRoleEnum } from '../api/user/user.model.js';
 import { commonAdminGuard, commonModeratorGuard, validatePassword } from '../client/components/core/CommonJs.js';
 
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import slowDown from 'express-slow-down';
+import cors from 'cors';
+import csurfFork from '@dr.pogodin/csurf';
+import cookieParser from 'cookie-parser';
+
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
@@ -359,6 +366,145 @@ async function refreshSessionAndToken(req, res, User) {
 
   const accessToken = hashJWT(UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent']));
   return { token: accessToken };
+}
+
+/**
+ * applySecurity(app, opts)
+ * - app: express() instance
+ * - opts: {
+ *     origin: string|array,  // allowed CORS origin(s)
+ *     rate: { windowMs, max },
+ *     slowDown: { windowMs, delayAfter, delayMs },
+ *     cookie: { secret, secure, sameSite }
+ *   }
+ */
+export function applySecurity(app, opts = {}) {
+  const {
+    origin,
+    rate = { windowMs: 15 * 60 * 1000, max: 100 }, // 100 requests per 15min by default
+    slowdown = { windowMs: 15 * 60 * 1000, delayAfter: 50, delayMs: 500 },
+    cookie = { secure: process.env.NODE_ENV === 'production', sameSite: 'Strict' },
+  } = opts;
+
+  // Remove/disable identifying headers
+  app.disable('x-powered-by'); // don't reveal Express
+
+  // Basic header hardening with Helmet
+  app.use(
+    helmet({
+      // We'll customize CSP below because many apps need tailored directives
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: true,
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
+      crossOriginResourcePolicy: { policy: 'same-origin' },
+      originAgentCluster: false,
+    }),
+  );
+
+  // Strict HSTS (only enable in production over TLS)
+  // maxAge in seconds (e.g. 31536000 = 1 year). Use includeSubDomains and preload carefully.
+  if (process.env.NODE_ENV === 'production') {
+    app.use(
+      helmet.hsts({
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+      }),
+    );
+  }
+
+  // CSP: adjust the directives to fit your resource needs. Start strict, relax as necessary.
+  //    Consider using nonces for inline scripts and styles where applicable.
+  const cspDirectives = {
+    defaultSrc: ["'self'"],
+    baseUri: ["'self'"],
+    blockAllMixedContent: [],
+    fontSrc: ["'self'", 'https:', 'data:'],
+    frameAncestors: ["'none'"],
+    imgSrc: ["'self'", 'data:', 'https:'],
+    objectSrc: ["'none'"],
+    scriptSrc: ["'self'"],
+    scriptSrcElem: ["'self'"],
+    styleSrc: ["'self'", 'https:', "'unsafe-inline'"], // try to remove 'unsafe-inline' by using hashes/nonces
+  };
+
+  app.use(helmet.contentSecurityPolicy({ directives: cspDirectives }));
+
+  // Other helpful Helmet policies
+  app.use(helmet.noSniff()); // X-Content-Type-Options: nosniff
+  app.use(helmet.frameguard({ action: 'deny' })); // X-Frame-Options: DENY
+  app.use(helmet.referrerPolicy({ policy: 'no-referrer-when-downgrade' }));
+
+  // Permissions-Policy (formerly Feature-Policy) — limit powerful features
+  app.use(
+    helmet.permissionsPolicy({
+      // example: disable geolocation, camera, microphone, payment
+      features: {
+        fullscreen: ["'self'"],
+        geolocation: [],
+        camera: [],
+        microphone: [],
+        payment: [],
+      },
+    }),
+  );
+
+  // CORS - be explicit. Avoid open wildcard in production for credentials.
+  app.use(
+    cors({
+      origin,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+      maxAge: 600,
+    }),
+  );
+
+  // Rate limiting + slow down to mitigate brute force and DoS
+  const limiter = rateLimit({
+    windowMs: rate.windowMs,
+    max: rate.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+  });
+  app.use(limiter);
+
+  const speedLimiter = slowDown({
+    windowMs: slowdown.windowMs,
+    delayAfter: slowdown.delayAfter,
+    delayMs: slowdown.delayMs,
+  });
+  app.use(speedLimiter);
+
+  // Cookie parsing and CSRF protection
+  app.use(cookieParser(process.env.JWT_SECRET));
+
+  // If your app uses cookie-based sessions or forms, enable CSRF protection.
+  // Note: for JSON-only APIs that use tokens in Authorization header, CSRF is less relevant.
+  try {
+    app.use(
+      csurfFork({
+        cookie: {
+          httpOnly: true,
+          sameSite: cookie.sameSite || 'Strict',
+          secure: cookie.secure === true,
+        },
+      }),
+    );
+
+    // Expose CSRF token to views or SPA (for example purposes)
+    app.use((req, res, next) => {
+      if (req.csrfToken) {
+        res.locals.csrfToken = req.csrfToken();
+      }
+      next();
+    });
+  } catch (e) {
+    // csurf may throw if request body parsers aren't registered first — ensure you register JSON/urlencoded parsers before applySecurity
+    // We'll ignore here but in production ensure proper ordering
+    logger.warn('csurf initialization warning:', e && e.message);
+  }
 }
 
 export {

@@ -46,6 +46,7 @@
     },
     "homepage": "https://github.com/underpostnet/engine#readme",
     "dependencies": {
+        "@dr.pogodin/csurf": "^1.16.5",
         "@fortawesome/fontawesome-free": "^6.4.2",
         "@fullcalendar/rrule": "^6.1.15",
         "@loadingio/css-spinner": "^2.0.2",
@@ -60,6 +61,7 @@
         "colors": "^1.4.0",
         "commander": "^12.1.0",
         "compression": "^1.7.4",
+        "cookie-parser": "^1.4.7",
         "cors": "^2.8.5",
         "d3": "^7.9.0",
         "dotenv": "^16.3.1",
@@ -67,9 +69,12 @@
         "env-cmd": "^10.1.0",
         "express": "^4.18.2",
         "express-fileupload": "^1.4.3",
+        "express-rate-limit": "^8.1.0",
+        "express-slow-down": "^3.0.0",
         "favicons": "^7.2.0",
         "fs-extra": "^11.1.1",
         "fullcalendar": "^6.1.15",
+        "helmet": "^8.1.0",
         "html-minifier-terser": "^7.2.0",
         "http-proxy-middleware": "^2.0.6",
         "ignore-walk": "^6.0.4",
@@ -102,7 +107,8 @@
         "uglify-js": "^3.17.4",
         "validator": "^13.11.0",
         "vanilla-jsoneditor": "^2.3.2",
-        "winston": "^3.11.0"
+        "winston": "^3.11.0",
+        "xss": "^1.0.15"
     },
     "publishConfig": {
         "provenance": true,
