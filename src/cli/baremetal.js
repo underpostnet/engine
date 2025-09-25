@@ -964,12 +964,14 @@ EOF`);
      * Each OS type (e.g., 'ubuntu') provides methods for base system setup, user creation,
      * timezone configuration, and keyboard layout settings.     *
      * @memberof UnderpostBaremetal
+     * @namespace UnderpostBaremetal.systemProvisioningFactory
      */
     systemProvisioningFactory: {
       /**
        * @property {object} ubuntu
        * @description Provisioning steps for Ubuntu-based systems.
        * @memberof UnderpostBaremetal.systemProvisioningFactory
+       * @namespace UnderpostBaremetal.systemProvisioningFactory.ubuntu
        */
       ubuntu: {
         /**

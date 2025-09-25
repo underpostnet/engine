@@ -25,11 +25,6 @@ const logger = loggerFactory(import.meta);
  * @memberof UnderpostCloudInit
  */
 class UnderpostCloudInit {
-  /**
-   * @static
-   * @memberof UnderpostCloudInit
-   * @namespace UnderpostCloudInit.API
-   */
   static API = {
     /**
      * @method buildTools
