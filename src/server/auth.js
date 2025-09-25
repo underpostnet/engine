@@ -414,28 +414,92 @@ function applySecurity(app, opts = {}) {
 
   app.disable('x-powered-by');
 
-  app.use(helmet());
+  // Basic header hardening with Helmet
+  app.use(
+    helmet({
+      // We'll customize CSP below because many apps need tailored directives
+      crossOriginEmbedderPolicy: true,
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
+      crossOriginResourcePolicy: { policy: 'same-origin' },
+      originAgentCluster: false,
+      // Permissions-Policy (formerly Feature-Policy) — limit powerful features
+      permissionsPolicy: {
+        // example: disable geolocation, camera, microphone, payment
+        features: {
+          fullscreen: ["'self'"],
+          geolocation: [],
+          camera: [],
+          microphone: [],
+          payment: [],
+        },
+      },
+    }),
+  );
+
+  // Strict HSTS (only enable in production over TLS)
+  // maxAge in seconds (e.g. 31536000 = 1 year). Use includeSubDomains and preload carefully.
   if (process.env.NODE_ENV === 'production') {
-    app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true, preload: true }));
+    app.use(
+      helmet.hsts({
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+      }),
+    );
   }
+
+  // Other helpful Helmet policies
+  app.use(helmet.noSniff()); // X-Content-Type-Options: nosniff
+  app.use(helmet.frameguard({ action: 'deny' })); // X-Frame-Options: DENY
+  app.use(helmet.referrerPolicy({ policy: 'no-referrer-when-downgrade' }));
 
   app.use(
     helmet.contentSecurityPolicy({
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:'],
+        baseUri: ["'self'"],
+        blockAllMixedContent: [],
+        fontSrc: ["'self'", 'https:', 'data:'],
         frameAncestors: frameAncestors,
+        imgSrc: ["'self'", 'data:', 'https:'],
+        objectSrc: ["'none'"],
+        scriptSrc: ["'self'"],
+        scriptSrcElem: ["'self'"],
+        styleSrc: ["'self'", 'https:', "'unsafe-inline'"], // try to remove 'unsafe-inline' by using hashes/nonces
       },
     }),
   );
 
-  app.use(cors({ origin, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], credentials: true }));
+  // CORS - be explicit. Avoid open wildcard in production for credentials.
+  app.use(
+    cors({
+      origin,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+      maxAge: 600,
+    }),
+  );
 
-  app.use(rateLimit({ windowMs: rate.windowMs, max: rate.max, standardHeaders: true, legacyHeaders: false }));
-  app.use(slowDown({ windowMs: slowdown.windowMs, delayAfter: slowdown.delayAfter, delayMs: slowdown.delayMs }));
-  app.use(cookieParser(process.env.COOKIE_SECRET || process.env.JWT_SECRET));
+  // Rate limiting + slow down to mitigate brute force and DoS
+  const limiter = rateLimit({
+    windowMs: rate.windowMs,
+    max: rate.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+  });
+  app.use(limiter);
+
+  const speedLimiter = slowDown({
+    windowMs: slowdown.windowMs,
+    delayAfter: slowdown.delayAfter,
+    delayMs: () => slowdown.delayMs,
+  });
+  app.use(speedLimiter);
+
+  // Cookie parsing and CSRF protection
+  app.use(cookieParser(process.env.JWT_SECRET));
 }
 
 export {
