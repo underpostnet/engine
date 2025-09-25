@@ -155,7 +155,7 @@ const UserService = {
                   },
                 );
 
-                const { sessionId } = await createSessionAndUserToken(user, req, res);
+                const { sessionId } = await createSessionAndUserToken(user, User, req, res);
                 return {
                   token: hashJWT(UserDto.auth.payload(user, sessionId, req.ip, req.headers['user-agent'])),
                   user,

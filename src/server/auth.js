@@ -80,7 +80,6 @@ function hashToken(token) {
 const hashJWT = (payload, expire) =>
   jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: expire !== undefined ? expire : `${process.env.EXPIRE}h`,
-    ...(payload.jti && { jwtid: payload.jti }),
   });
 
 /**
@@ -259,13 +258,14 @@ const validatePasswordMiddleware = (req, password) => {
 
 /**
  * Creates a new user session, saves it, and sets the refresh token cookie.
- * @param {import('../api/user/user.model.js').UserModel} user - The user mongoose model instance.
+ * @param {import('../api/user/user.model.js').UserModel} user - The user mongoose instance.
+ * @param {import('../api/user/user.model.js').UserModel} User - The user mongoose model.
  * @param {import('express').Request} req - The Express request object.
  * @param {import('express').Response} res - The Express response object.
  * @returns {Promise<{sessionId: string}>} The session ID.
  * @memberof Auth
  */
-async function createSessionAndUserToken(user, req, res) {
+async function createSessionAndUserToken(user, User, req, res) {
   const refreshToken = crypto.randomBytes(48).toString('hex');
   const newSession = {
     tokenHash: hashToken(refreshToken),
@@ -277,10 +277,9 @@ async function createSessionAndUserToken(user, req, res) {
     user.activeSessions = [];
     user._doc.activeSessions = [];
   }
-  user.activeSessions.push(newSession);
-  await user.save({ validateBeforeSave: false }); // Avoid re-running all validators
+  const updatedUser = await User.findByIdAndUpdate(user._id, { $push: { activeSessions: newSession } }, { new: true });
 
-  const sessionId = user.activeSessions[user.activeSessions.length - 1]._id.toString();
+  const sessionId = updatedUser.activeSessions[updatedUser.activeSessions.length - 1]._id.toString();
 
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
@@ -313,7 +312,7 @@ async function createUserAndSession(req, res, User, File, options) {
 
   if (_id) {
     const user = await User.findOne({ _id }).select(UserDto.select.get());
-    const { sessionId } = await createSessionAndUserToken(user, req, res);
+    const { sessionId } = await createSessionAndUserToken(user, User, req, res);
     return {
       token: hashJWT(UserDto.auth.payload(user, sessionId, req.ip, req.headers['user-agent'])),
       user,
@@ -389,6 +388,7 @@ export function applySecurity(app, opts = {}) {
     rate = { windowMs: 15 * 60 * 1000, max: 100 }, // 100 requests per 15min by default
     slowdown = { windowMs: 15 * 60 * 1000, delayAfter: 50, delayMs: 500 },
     cookie = { secure: process.env.NODE_ENV === 'production', sameSite: 'Strict' },
+    frameAncestors = ["'self'"],
   } = opts;
 
   // Remove/disable identifying headers
@@ -440,7 +440,7 @@ export function applySecurity(app, opts = {}) {
         baseUri: ["'self'"],
         blockAllMixedContent: [],
         fontSrc: ["'self'", 'https:', 'data:'],
-        frameAncestors: ["'none'"],
+        frameAncestors: frameAncestors,
         imgSrc: ["'self'", 'data:', 'https:'],
         objectSrc: ["'none'"],
         scriptSrc: ["'self'"],
