@@ -245,7 +245,7 @@ const closeModalRouteChangeEvent = (options = {}) => {
 
   for (const event of Object.keys(closeModalRouteChangeEvents)) closeModalRouteChangeEvents[event]();
   if (topModalId) Modal.setTopModalCallback(topModalId);
-  setPath(`${getProxyPath()}${Modal.Data[topModalId]?.options?.route || 'home'}`);
+  setPath(`${getProxyPath()}${Modal.Data[topModalId]?.options?.route ?? ''}`);
 };
 
 /**
