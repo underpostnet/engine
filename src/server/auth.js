@@ -318,7 +318,7 @@ async function createUserAndSession(req, res, User, File, options = {}) {
 
   const { sessionId } = await createSessionAndUserToken(user, User, req, res);
   const token = jwtSign(
-    UserDto.auth.payload(user, sessionId, req.ip, req.headers['user-agent'], req.hostname, req.path),
+    UserDto.auth.payload(user, sessionId, req.ip, req.headers['user-agent'], options.host, options.path),
   );
   return { token, user };
 }
@@ -386,7 +386,7 @@ async function refreshSessionAndToken(req, res, User) {
   });
 
   const accessToken = jwtSign(
-    UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent'], req.hostname, req.path),
+    UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent'], options.host, options.path),
   );
   return { token: accessToken };
 }
