@@ -131,6 +131,7 @@ class UnderpostRun {
       actionInitLog();
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
       shellCd('/home/dd/engine');
+      shellExec(`node bin/build dd-${path.split('engine-')[1]} conf`);
       shellExec(`git reset`);
       shellExec(`${baseCommand} cmt . --empty cd ssh-${path}`);
       shellExec(`${baseCommand} push . underpostnet/engine`);
