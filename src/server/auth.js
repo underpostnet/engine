@@ -88,6 +88,20 @@ function generateRandomHex(bytes = config.refreshTokenBytes) {
   return crypto.randomBytes(bytes).toString('hex');
 }
 
+/**
+ * Generates a JWT issuer and audience based on the host and path.
+ * @param {object} options The options object.
+ * @param {string} options.host The host name.
+ * @param {string} options.path The path name.
+ * @returns {object} The issuer and audience.
+ * @memberof Auth
+ */
+function jwtIssuerAudienceFactory(options = { host: '', path: '' }) {
+  const audience = `${options.host}${options.path === '/' ? '' : options.path}`;
+  const issuer = `${audience}/api`;
+  return { issuer, audience };
+}
+
 // ---------- JWT helpers ----------
 /**
  * Signs a JWT payload.
@@ -101,21 +115,19 @@ function generateRandomHex(bytes = config.refreshTokenBytes) {
  * @memberof Auth
  */
 function jwtSign(payload, options = { host: '', path: '' }, expireMinutes = process.env.ACCESS_EXPIRE_MINUTES) {
-  const issuer = `${options.host}${options.path}/api`;
-  const audience = `${options.host}${options.path}`;
+  const { issuer, audience } = jwtIssuerAudienceFactory(options);
   const signOptions = {
     algorithm: config.jwtAlgorithm,
     expiresIn: `${expireMinutes}m`,
     issuer,
     audience,
-    ...options,
   };
 
   if (!payload.jwtid) signOptions.jwtid = generateRandomHex();
 
   if (!process.env.JWT_SECRET) throw new Error('JWT key not configured');
 
-  logger.info('JWT signed', { payload, options, expireMinutes });
+  logger.info('JWT signed', { payload, signOptions, expireMinutes });
 
   return jwt.sign(payload, process.env.JWT_SECRET, signOptions);
 }
@@ -123,18 +135,22 @@ function jwtSign(payload, options = { host: '', path: '' }, expireMinutes = proc
 /**
  * Verifies a JWT.
  * @param {string} token The JWT to verify.
+ * @param {object} [options={}] Additional JWT verify options.
+ * @param {string} options.host The host name.
+ * @param {string} options.path The path name.
  * @returns {object} The decoded payload.
  * @throws {jwt.JsonWebTokenError} If the token is invalid or expired.
  * @memberof Auth
  */
-function jwtVerify(token) {
+function jwtVerify(token, options = { host: '', path: '' }) {
   try {
-    const key = config.jwtAlgorithm.startsWith('RS') ? process.env.JWT_PUBLIC_KEY : process.env.JWT_SECRET;
-    return jwt.verify(token, key, {
+    const { issuer, audience } = jwtIssuerAudienceFactory(options);
+    const verifyOptions = {
       algorithms: [config.jwtAlgorithm],
-      issuer: process.env.JWT_ISSUER || 'myapp',
-      audience: process.env.JWT_AUDIENCE || 'myapp-users',
-    });
+      issuer,
+      audience,
+    };
+    return jwt.verify(token, process.env.JWT_SECRET, verifyOptions);
   } catch (err) {
     throw err;
   }
@@ -151,17 +167,6 @@ const getBearerToken = (req) => {
   const header = String(req.headers['authorization'] || req.headers['Authorization'] || '');
   if (header.startsWith('Bearer ')) return header.slice(7).trim();
   return '';
-};
-
-/**
- * Verifies and returns the JWT payload from the request.
- * @param {import('express').Request} req The Express request object.
- * @returns {object|null} The decoded JWT payload, or null if no token is present.
- * @memberof Auth
- */
-const getPayloadJWT = (req) => {
-  const token = getBearerToken(req);
-  return token ? jwtVerify(token) : null;
 };
 
 // ---------- Middleware ----------
@@ -570,7 +575,6 @@ export {
   moderatorGuard,
   validatePasswordMiddleware,
   getBearerToken,
-  getPayloadJWT,
   createSessionAndUserToken,
   createUserAndSession,
   refreshSessionAndToken,
