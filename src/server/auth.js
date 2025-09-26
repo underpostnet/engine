@@ -171,83 +171,94 @@ const getBearerToken = (req) => {
 
 // ---------- Middleware ----------
 /**
- * Express middleware to authenticate requests using a JWT Bearer token.
- * @param {import('express').Request} req The Express request object.
- * @param {import('express').Response} res The Express response object.
- * @param {import('express').NextFunction} next The next middleware function.
+ * Creates a middleware to authenticate requests using a JWT Bearer token.
+ * @param {object} options The options object.
+ * @param {string} options.host The host name.
+ * @param {string} options.path The path name.
+ * @returns {function} The middleware function.
  * @memberof Auth
  */
-const authMiddleware = async (req, res, next) => {
-  try {
-    const token = getBearerToken(req);
-    if (!token) return res.status(401).json({ status: 'error', message: 'unauthorized: token missing' });
+const authMiddlewareFactory = (options = { host: '', path: '' }) => {
+  /**
+   * Express middleware to authenticate requests using a JWT Bearer token.
+   * @param {import('express').Request} req The Express request object.
+   * @param {import('express').Response} res The Express response object.
+   * @param {import('express').NextFunction} next The next middleware function.
+   * @memberof Auth
+   */
+  const authMiddleware = async (req, res, next) => {
+    try {
+      const token = getBearerToken(req);
+      if (!token) return res.status(401).json({ status: 'error', message: 'unauthorized: token missing' });
 
-    const payload = jwtVerify(token);
+      const payload = jwtVerify(token, options);
 
-    // Validate IP and User-Agent to mitigate token theft
-    if (payload.ip && payload.ip !== req.ip) {
-      logger.warn(`IP mismatch for ${payload._id}: jwt(${payload.ip}) !== req(${req.ip})`);
-      return res.status(401).json({ status: 'error', message: 'unauthorized: ip mismatch' });
-    }
-
-    if (payload.userAgent && payload.userAgent !== req.headers['user-agent']) {
-      logger.warn(`UA mismatch for ${payload._id}`);
-      return res.status(401).json({ status: 'error', message: 'unauthorized: user-agent mismatch' });
-    }
-
-    // Non-guest verify session exists
-    if (payload.jwtid && payload.role !== 'guest') {
-      const User = DataBaseProvider.instance[`${payload.host}${payload.path}`].mongoose.models.User;
-      const user = await User.findOne({ _id: payload._id, 'activeSessions._id': payload.jwtid }).lean();
-
-      if (!user) {
-        return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
-      }
-      const session = user.activeSessions.find((s) => s._id.toString() === payload.jwtid);
-
-      if (!session) {
-        return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
-      }
-
-      // check refresh token
-      const refreshToken = req.cookies.refreshToken;
-
-      if (!refreshToken)
-        return res.status(401).json({ status: 'error', message: 'unauthorized: refresh token missing' });
-
-      if (session.tokenHash !== refreshToken)
-        return res.status(401).json({ status: 'error', message: 'unauthorized: refresh token invalid' });
-
-      // check session expiresAt
-      if (session.expiresAt < new Date()) {
-        return res.status(401).json({ status: 'error', message: 'unauthorized: session expired' });
-      }
-
-      // check session ip
-      if (session.ip !== req.ip) {
-        logger.warn(`IP mismatch for ${payload._id}: jwt(${session.ip}) !== req(${req.ip})`);
+      // Validate IP and User-Agent to mitigate token theft
+      if (payload.ip && payload.ip !== req.ip) {
+        logger.warn(`IP mismatch for ${payload._id}: jwt(${payload.ip}) !== req(${req.ip})`);
         return res.status(401).json({ status: 'error', message: 'unauthorized: ip mismatch' });
       }
 
-      // check session userAgent
-      if (session.userAgent !== req.headers['user-agent']) {
+      if (payload.userAgent && payload.userAgent !== req.headers['user-agent']) {
         logger.warn(`UA mismatch for ${payload._id}`);
         return res.status(401).json({ status: 'error', message: 'unauthorized: user-agent mismatch' });
       }
 
-      // compare payload host and path with session host and path
-      if (payload.host !== session.host || payload.path !== session.path) {
-        logger.warn(`Host or path mismatch for ${payload._id}`);
-        return res.status(401).json({ status: 'error', message: 'unauthorized: host or path mismatch' });
-      }
-    }
+      // Non-guest verify session exists
+      if (payload.jwtid && payload.role !== 'guest') {
+        const User = DataBaseProvider.instance[`${payload.host}${payload.path}`].mongoose.models.User;
+        const user = await User.findOne({ _id: payload._id, 'activeSessions._id': payload.jwtid }).lean();
 
-    req.auth = { user: payload };
-    return next();
-  } catch (err) {
-    logger.warn('authMiddleware error', err && err.message);
-    return res.status(401).json({ status: 'error', message: 'unauthorized' });
-  }
+        if (!user) {
+          return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
+        }
+        const session = user.activeSessions.find((s) => s._id.toString() === payload.jwtid);
+
+        if (!session) {
+          return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
+        }
+
+        // check refresh token
+        const refreshToken = req.cookies.refreshToken;
+
+        if (!refreshToken)
+          return res.status(401).json({ status: 'error', message: 'unauthorized: refresh token missing' });
+
+        if (session.tokenHash !== refreshToken)
+          return res.status(401).json({ status: 'error', message: 'unauthorized: refresh token invalid' });
+
+        // check session expiresAt
+        if (session.expiresAt < new Date()) {
+          return res.status(401).json({ status: 'error', message: 'unauthorized: session expired' });
+        }
+
+        // check session ip
+        if (session.ip !== req.ip) {
+          logger.warn(`IP mismatch for ${payload._id}: jwt(${session.ip}) !== req(${req.ip})`);
+          return res.status(401).json({ status: 'error', message: 'unauthorized: ip mismatch' });
+        }
+
+        // check session userAgent
+        if (session.userAgent !== req.headers['user-agent']) {
+          logger.warn(`UA mismatch for ${payload._id}`);
+          return res.status(401).json({ status: 'error', message: 'unauthorized: user-agent mismatch' });
+        }
+
+        // compare payload host and path with session host and path
+        if (payload.host !== session.host || payload.path !== session.path) {
+          logger.warn(`Host or path mismatch for ${payload._id}`);
+          return res.status(401).json({ status: 'error', message: 'unauthorized: host or path mismatch' });
+        }
+      }
+
+      req.auth = { user: payload };
+      return next();
+    } catch (err) {
+      logger.warn('authMiddleware error', err && err.message);
+      return res.status(401).json({ status: 'error', message: 'unauthorized' });
+    }
+  };
+  return authMiddleware;
 };
 
 /**
@@ -563,7 +574,7 @@ function applySecurity(app, opts = {}) {
 }
 
 export {
-  authMiddleware,
+  authMiddlewareFactory,
   hashPassword,
   verifyPassword,
   hashToken,

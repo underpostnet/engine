@@ -29,7 +29,7 @@ const DocumentService = {
 
       const token = getBearerToken(req);
       let user;
-      if (token) user = verifyJWT(token).user;
+      if (token) user = verifyJWT(token, options);
 
       const queryPayload = {
         userId: {

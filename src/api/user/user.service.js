@@ -244,7 +244,7 @@ const UserService = {
     if (req.path.startsWith('/recover')) {
       let payload;
       try {
-        payload = verifyJWT(req.params.id);
+        payload = verifyJWT(req.params.id, options);
       } catch (error) {
         logger.error(error, { 'req.params.id': req.params.id });
         options.png.header(res);
@@ -271,7 +271,7 @@ const UserService = {
     if (req.path.startsWith('/mailer')) {
       let payload;
       try {
-        payload = verifyJWT(req.params.id);
+        payload = verifyJWT(req.params.id, options);
       } catch (error) {
         logger.error(error, { 'req.params.id': req.params.id });
         options.png.header(res);
@@ -438,7 +438,7 @@ const UserService = {
     }
 
     if (req.path.startsWith('/recover')) {
-      const payload = verifyJWT(req.params.id);
+      const payload = verifyJWT(req.params.id, options);
       const user = await User.findOne({
         email: payload.email,
       });
