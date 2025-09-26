@@ -58,9 +58,9 @@ const Auth = {
     if (!currentToken) return;
 
     const payload = Auth.decodeJwt(currentToken);
-    if (!payload || !payload.exp) return;
+    if (!payload || !payload.refreshExpiresAt) return;
 
-    const expiresIn = payload.exp * 1000 - Date.now();
+    const expiresIn = payload.refreshExpiresAt - Date.now();
     const refreshBuffer = 2 * 60 * 1000; // 2 minutes
     const refreshIn = expiresIn - refreshBuffer;
 

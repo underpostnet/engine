@@ -90,6 +90,7 @@ const UserDto = {
         host,
         path,
         jwtid: jwtid ?? crypto.randomBytes(8).toString('hex'),
+        refreshExpiresAt: Date.now() + parseInt(process.env.REFRESH_EXPIRE_MINUTES) * 60 * 1000,
       };
       return tokenPayload;
     },
