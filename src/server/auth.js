@@ -33,8 +33,8 @@ const config = {
   jwtAlgorithm: process.env.JWT_ALGORITHM || 'HS512', // consider RS256 with keys
 };
 
-const REFRESH_EXPIRE_HOURS = process.env.REFRESH_EXPIRE;
-const ACCESS_EXPIRE_HOURS = process.env.EXPIRE;
+const REFRESH_EXPIRE_MINUTES = Number(process.env.REFRESH_EXPIRE_MINUTES) || 5;
+const ACCESS_EXPIRE_MINUTES = Number(process.env.ACCESS_EXPIRE_MINUTES) || 1440;
 
 // ---------- Password hashing (async) ----------
 /**
@@ -95,13 +95,13 @@ function generateRandomHex(bytes = config.refreshTokenBytes) {
 /**
  * Signs a JWT payload.
  * @param {object} payload The payload to sign.
- * @param {number} [expireHours=ACCESS_EXPIRE_HOURS] The token expiration in hours.
+ * @param {number} [expireHours=ACCESS_EXPIRE_MINUTES] The token expiration in hours.
  * @param {object} [options={}] Additional JWT sign options.
  * @returns {string} The signed JWT.
  * @throws {Error} If JWT key is not configured.
  * @memberof Auth
  */
-function jwtSign(payload, expireHours = ACCESS_EXPIRE_HOURS, options = {}) {
+function jwtSign(payload, expireHours = ACCESS_EXPIRE_MINUTES, options = {}) {
   const signOptions = {
     algorithm: config.jwtAlgorithm,
     expiresIn: `${expireHours}h`,
@@ -266,7 +266,7 @@ async function createSessionAndUserToken(user, User, req, res) {
   const refreshToken = generateRandomHex();
   const tokenHash = hashToken(refreshToken);
   const now = Date.now();
-  const expiresAt = new Date(now + REFRESH_EXPIRE_HOURS * 60 * 60 * 1000);
+  const expiresAt = new Date(now + REFRESH_EXPIRE_MINUTES * 60 * 1000);
 
   const newSession = {
     tokenHash,
@@ -286,7 +286,7 @@ async function createSessionAndUserToken(user, User, req, res) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'Lax',
-    maxAge: REFRESH_EXPIRE_HOURS * 60 * 60 * 1000,
+    maxAge: REFRESH_EXPIRE_MINUTES * 60 * 1000,
     path: '/',
   });
 
@@ -372,7 +372,7 @@ async function refreshSessionAndToken(req, res, User) {
   const newRaw = generateRandomHex();
   const newHash = hashToken(newRaw);
   session.tokenHash = newHash;
-  session.expiresAt = new Date(Date.now() + REFRESH_EXPIRE_HOURS * 60 * 60 * 1000);
+  session.expiresAt = new Date(Date.now() + REFRESH_EXPIRE_MINUTES * 60 * 1000);
   session.ip = req.ip;
   session.userAgent = req.headers['user-agent'];
   await user.save({ validateBeforeSave: false });
@@ -381,7 +381,7 @@ async function refreshSessionAndToken(req, res, User) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'Lax',
-    maxAge: REFRESH_EXPIRE_HOURS * 60 * 60 * 1000,
+    maxAge: REFRESH_EXPIRE_MINUTES * 60 * 1000,
     path: '/',
   });
 
