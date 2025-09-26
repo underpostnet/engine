@@ -102,15 +102,17 @@ function generateRandomHex(bytes = config.refreshTokenBytes) {
  * @memberof Auth
  */
 function jwtSign(payload, expireMinutes = ACCESS_EXPIRE_MINUTES, options = {}) {
+  const issuer = `${options.host}${options.path}/api`;
+  const audience = `${options.host}${options.path}`;
   const signOptions = {
     algorithm: config.jwtAlgorithm,
     expiresIn: `${expireMinutes}m`,
-    issuer: process.env.JWT_ISSUER || 'myapp',
-    audience: process.env.JWT_AUDIENCE || 'myapp-users',
+    issuer,
+    audience,
     ...options,
   };
 
-  if (!payload.jti) signOptions.jwtid = crypto.randomBytes(8).toString('hex');
+  if (!payload.jwtid) signOptions.jwtid = crypto.randomBytes(8).toString('hex');
 
   const key = config.jwtAlgorithm.startsWith('RS') ? process.env.JWT_PRIVATE_KEY : process.env.JWT_SECRET;
   if (!key) throw new Error('JWT key not configured');
@@ -187,15 +189,15 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ status: 'error', message: 'unauthorized: user-agent mismatch' });
     }
 
-    // Optional: verify session exists for non-guest
-    if (payload.sessionId && payload.role !== 'guest') {
+    // Non-guest verify session exists
+    if (payload.jwtid && payload.role !== 'guest') {
       const User = DataBaseProvider.instance[`${payload.host}${payload.path}`].mongoose.models.User;
-      const user = await User.findOne({ _id: payload._id, 'activeSessions._id': payload.sessionId }).lean();
+      const user = await User.findOne({ _id: payload._id, 'activeSessions._id': payload.jwtid }).lean();
 
       if (!user) {
         return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
       }
-      const session = user.activeSessions.find((s) => s._id.toString() === payload.sessionId);
+      const session = user.activeSessions.find((s) => s._id.toString() === payload.jwtid);
 
       if (!session) {
         return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
@@ -293,7 +295,7 @@ const validatePasswordMiddleware = (req) => {
  * @param {object} options Additional options.
  * @param {string} options.host The host name.
  * @param {string} options.path The path name.
- * @returns {Promise<{sessionId: string}>} The session ID.
+ * @returns {Promise<{jwtid: string}>} The session ID.
  * @memberof Auth
  */
 async function createSessionAndUserToken(user, User, req, res, options = { host: '', path: '' }) {
@@ -315,7 +317,7 @@ async function createSessionAndUserToken(user, User, req, res, options = { host:
   // push session
   const updatedUser = await User.findByIdAndUpdate(user._id, { $push: { activeSessions: newSession } }, { new: true });
   const session = updatedUser.activeSessions[updatedUser.activeSessions.length - 1];
-  const sessionId = session._id.toString();
+  const jwtid = session._id.toString();
 
   // Secure cookie settings
   res.cookie('refreshToken', refreshToken, {
@@ -326,7 +328,7 @@ async function createSessionAndUserToken(user, User, req, res, options = { host:
     path: '/',
   });
 
-  return { sessionId };
+  return { jwtid };
 }
 
 /**
@@ -354,9 +356,9 @@ async function createUserAndSession(req, res, User, File, options = { host: '', 
   const saved = await new User(req.body).save();
   const user = await User.findOne({ _id: saved._id }).select(UserDto.select.get());
 
-  const { sessionId } = await createSessionAndUserToken(user, User, req, res, options);
+  const { jwtid } = await createSessionAndUserToken(user, User, req, res, options);
   const token = jwtSign(
-    UserDto.auth.payload(user, sessionId, req.ip, req.headers['user-agent'], options.host, options.path),
+    UserDto.auth.payload(user, jwtid, req.ip, req.headers['user-agent'], options.host, options.path),
   );
   return { token, user };
 }

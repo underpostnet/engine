@@ -80,7 +80,7 @@ const UserDto = {
     },
   },
   auth: {
-    payload: (user, sessionId, ip, userAgent, host, path) => {
+    payload: (user, jwtid, ip, userAgent, host, path) => {
       const tokenPayload = {
         _id: user._id.toString(),
         role: user.role,
@@ -89,8 +89,8 @@ const UserDto = {
         userAgent,
         host,
         path,
+        jwtid: jwtid ?? crypto.randomBytes(8).toString('hex'),
       };
-      if (sessionId) tokenPayload.jti = sessionId; // JWT ID
       return tokenPayload;
     },
   },

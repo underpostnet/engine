@@ -155,17 +155,10 @@ const UserService = {
                   },
                 );
 
-                const { sessionId } = await createSessionAndUserToken(user, User, req, res, options);
+                const { jwtid } = await createSessionAndUserToken(user, User, req, res, options);
                 return {
                   token: jwtSign(
-                    UserDto.auth.payload(
-                      user,
-                      sessionId,
-                      req.ip,
-                      req.headers['user-agent'],
-                      options.host,
-                      options.path,
-                    ),
+                    UserDto.auth.payload(user, jwtid, req.ip, req.headers['user-agent'], options.host, options.path),
                   ),
                   user,
                 };
