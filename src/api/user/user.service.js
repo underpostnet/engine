@@ -333,6 +333,8 @@ const UserService = {
             _id: req.auth.user._id,
           });
 
+        if (!user) throw new Error('user not found');
+
         const file = await File.findOne({ _id: user.profileImageId });
 
         if (!file && !(await ValkeyAPI.getValkeyObject(options, req.auth.user.email))) {
