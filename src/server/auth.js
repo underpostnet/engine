@@ -95,16 +95,16 @@ function generateRandomHex(bytes = config.refreshTokenBytes) {
 /**
  * Signs a JWT payload.
  * @param {object} payload The payload to sign.
- * @param {number} [expireHours=ACCESS_EXPIRE_MINUTES] The token expiration in hours.
+ * @param {number} [expireMinutes=ACCESS_EXPIRE_MINUTES] The token expiration in minutes.
  * @param {object} [options={}] Additional JWT sign options.
  * @returns {string} The signed JWT.
  * @throws {Error} If JWT key is not configured.
  * @memberof Auth
  */
-function jwtSign(payload, expireHours = ACCESS_EXPIRE_MINUTES, options = {}) {
+function jwtSign(payload, expireMinutes = ACCESS_EXPIRE_MINUTES, options = {}) {
   const signOptions = {
     algorithm: config.jwtAlgorithm,
-    expiresIn: `${expireHours}h`,
+    expiresIn: `${expireMinutes}m`,
     issuer: process.env.JWT_ISSUER || 'myapp',
     audience: process.env.JWT_AUDIENCE || 'myapp-users',
     ...options,
