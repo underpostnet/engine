@@ -7,6 +7,7 @@ const logger = loggerFactory(import.meta);
 
 const PopRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
   router.post(`/:id`, async (req, res) => await PopController.post(req, res, options));
   router.post(`/`, async (req, res) => await PopController.post(req, res, options));
   router.get(`/:id`, async (req, res) => await PopController.get(req, res, options));

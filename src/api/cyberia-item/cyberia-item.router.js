@@ -7,6 +7,7 @@ const logger = loggerFactory(import.meta);
 
 const CyberiaItemRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
   router.post(
     `/buy/:providerId/:itemType/:id`,
     authMiddleware,

@@ -7,6 +7,7 @@ const logger = loggerFactory(import.meta);
 
 const CoreRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
   router.post(`/:id`, authMiddleware, adminGuard, async (req, res) => await CoreController.post(req, res, options));
   router.post(`/`, authMiddleware, adminGuard, async (req, res) => await CoreController.post(req, res, options));
   router.get(`/:id`, authMiddleware, adminGuard, async (req, res) => await CoreController.get(req, res, options));

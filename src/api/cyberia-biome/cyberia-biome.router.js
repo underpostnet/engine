@@ -6,6 +6,7 @@ const logger = loggerFactory(import.meta);
 
 const CyberiaBiomeRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
   router.post(
     `/:id`,
     authMiddleware,

@@ -11,6 +11,7 @@ const logger = loggerFactory(import.meta);
 
 const CyberiaUserRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
 
   if (!options.cyberia)
     (async () => {

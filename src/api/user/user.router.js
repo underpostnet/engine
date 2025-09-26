@@ -11,6 +11,7 @@ const logger = loggerFactory(import.meta);
 
 const UserRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
 
   (async () => {
     // admin user seed

@@ -6,6 +6,7 @@ const logger = loggerFactory(import.meta);
 
 const FileRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
   router.post(`/:id`, authMiddleware, async (req, res) => await FileController.post(req, res, options));
   router.post(`/`, authMiddleware, async (req, res) => await FileController.post(req, res, options));
   router.get(`/blob/:id`, async (req, res) => await FileController.get(req, res, options));

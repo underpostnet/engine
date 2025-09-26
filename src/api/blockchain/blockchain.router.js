@@ -7,6 +7,7 @@ const logger = loggerFactory(import.meta);
 
 const BlockChainRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
   router.post(`/:id`, async (req, res) => await BlockChainController.post(req, res, options));
   router.post(`/`, authMiddleware, async (req, res) => await BlockChainController.post(req, res, options));
   router.get(`/:id`, async (req, res) => await BlockChainController.get(req, res, options));

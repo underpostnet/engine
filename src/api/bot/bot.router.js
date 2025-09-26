@@ -7,6 +7,7 @@ const logger = loggerFactory(import.meta);
 
 const BotRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
   router.post(`/:id`, async (req, res) => await BotController.post(req, res, options));
   router.post(`/`, async (req, res) => await BotController.post(req, res, options));
   router.get(`/:id`, async (req, res) => await BotController.get(req, res, options));

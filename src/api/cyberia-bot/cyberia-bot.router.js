@@ -7,6 +7,7 @@ const logger = loggerFactory(import.meta);
 
 const CyberiaBotRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
   router.post(`/:id`, async (req, res) => await CyberiaBotController.post(req, res, options));
   router.post(`/`, async (req, res) => await CyberiaBotController.post(req, res, options));
   router.get(`/display-id/:id`, async (req, res) => await CyberiaBotController.get(req, res, options));

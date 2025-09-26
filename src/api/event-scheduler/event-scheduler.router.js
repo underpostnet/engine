@@ -7,6 +7,7 @@ const logger = loggerFactory(import.meta);
 
 const EventSchedulerRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
   router.post(
     `/:id`,
     authMiddleware,

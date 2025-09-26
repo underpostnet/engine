@@ -6,6 +6,7 @@ const logger = loggerFactory(import.meta);
 
 const IPFSRouter = (options) => {
   const router = express.Router();
+  const authMiddleware = options.authMiddleware;
   router.post(`/:id`, async (req, res) => await IPFSController.post(req, res, options));
   router.post(`/`, authMiddleware, async (req, res) => await IPFSController.post(req, res, options));
   router.get(`/:id`, async (req, res) => await IPFSController.get(req, res, options));
