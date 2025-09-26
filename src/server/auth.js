@@ -219,15 +219,6 @@ const authMiddlewareFactory = (options = { host: '', path: '' }) => {
           return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
         }
 
-        // check refresh token
-        const refreshToken = req.cookies.refreshToken;
-
-        if (!refreshToken)
-          return res.status(401).json({ status: 'error', message: 'unauthorized: refresh token missing' });
-
-        if (session.tokenHash !== refreshToken)
-          return res.status(401).json({ status: 'error', message: 'unauthorized: refresh token invalid' });
-
         // check session expiresAt
         if (session.expiresAt < new Date()) {
           return res.status(401).json({ status: 'error', message: 'unauthorized: session expired' });
@@ -405,13 +396,11 @@ async function createUserAndSession(req, res, User, File, options = { host: '', 
  * @memberof Auth
  */
 async function refreshSessionAndToken(req, res, User, options = { host: '', path: '' }) {
-  const raw = req.cookies && req.cookies.refreshToken;
-  if (!raw) throw new Error('Refresh token missing');
-
-  const hashed = hashToken(raw);
+  const currentRefreshToken = req.cookies.refreshToken;
+  if (!currentRefreshToken) throw new Error('Refresh token missing');
 
   // Find user owning that token
-  const user = await User.findOne({ 'activeSessions.tokenHash': hashed });
+  const user = await User.findOne({ 'activeSessions.tokenHash': currentRefreshToken });
 
   if (!user) {
     // Possible token reuse: look up user by some other signals? If not possible, log and throw.
@@ -422,7 +411,7 @@ async function refreshSessionAndToken(req, res, User, options = { host: '', path
   }
 
   // Locate session
-  const session = user.activeSessions.find((s) => s.tokenHash === hashed);
+  const session = user.activeSessions.find((s) => s.tokenHash === currentRefreshToken);
   if (!session) {
     // Shouldn't happen, but safe-guard
     res.clearCookie('refreshToken', { path: '/' });

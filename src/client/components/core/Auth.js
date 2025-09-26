@@ -14,6 +14,8 @@ const token = Symbol('token');
 
 const guestToken = Symbol('guestToken');
 
+const refreshTimeout = Symbol('refreshTimeout');
+
 const Auth = {
   [token]: '',
   [guestToken]: '',
@@ -40,6 +42,32 @@ const Auth = {
     if (Auth.getGuestToken()) return `Bearer ${Auth.getGuestToken()}`;
     return '';
   },
+  decodeJwt: function (token) {
+    try {
+      return JSON.parse(atob(token.split('.')[1]));
+    } catch (e) {
+      return null;
+    }
+  },
+  scheduleTokenRefresh: function () {
+    if (this[refreshTimeout]) {
+      clearTimeout(this[refreshTimeout]);
+    }
+
+    const currentToken = Auth.getToken();
+    if (!currentToken) return;
+
+    const payload = Auth.decodeJwt(currentToken);
+    if (!payload || !payload.exp) return;
+
+    const expiresIn = payload.exp * 1000 - Date.now();
+    const refreshBuffer = 2 * 60 * 1000; // 2 minutes
+    const refreshIn = expiresIn - refreshBuffer;
+
+    if (refreshIn <= 0) return; // Already expired or close to it
+
+    this[refreshTimeout] = setTimeout(Auth.sessionIn, refreshIn);
+  },
   signUpToken: async function (
     result = {
       data: {
@@ -51,6 +79,7 @@ const Auth = {
     try {
       localStorage.setItem('jwt', result.data.token);
       await SignUp.Trigger(result.data);
+      Auth.setToken(result.data.token);
       await Auth.sessionIn();
     } catch (error) {
       logger.error(error);
@@ -77,6 +106,7 @@ const Auth = {
                   if (refreshResult.status === 'success' && refreshResult.data.token) {
                     Auth.setToken(refreshResult.data.token);
                     localStorage.setItem('jwt', refreshResult.data.token);
+                    Auth.scheduleTokenRefresh();
                     logger.info('Token refreshed successfully. Retrying auth request...');
                     _result = await UserService.get({ id: 'auth' }); // Retry getting user
                   } else throw new Error(refreshResult.message || 'Failed to refresh token');
@@ -98,6 +128,7 @@ const Auth = {
           Auth.renderSessionUI();
           await LogIn.Trigger({ user: data.user });
           await Account.updateForm(data.user);
+          Auth.scheduleTokenRefresh();
           return { user: data.user };
         }
         if (message && message.match('expired'))
@@ -108,7 +139,6 @@ const Auth = {
               status: 'warning',
             });
           });
-        return await Auth.sessionOut();
       }
       Auth.deleteToken();
       localStorage.removeItem('jwt');
@@ -135,6 +165,9 @@ const Auth = {
       const result = await UserService.delete({ id: 'logout' });
       localStorage.removeItem('jwt');
       Auth.deleteToken();
+      if (this[refreshTimeout]) {
+        clearTimeout(this[refreshTimeout]);
+      }
       Auth.renderGuestUi();
       LogIn.Scope.user.main.model.user = {};
       await LogOut.Trigger(result);
