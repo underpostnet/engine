@@ -21,7 +21,7 @@ import { Lampp } from '../runtime/lampp/Lampp.js';
 import { JSONweb, ssrFactory } from './client-formatted.js';
 import Underpost from '../index.js';
 import { createValkeyConnection } from './valkey.js';
-import { applySecurity } from './auth.js';
+import { applySecurity, authMiddlewareFactory } from './auth.js';
 
 dotenv.config();
 
@@ -373,11 +373,13 @@ const buildRuntime = async () => {
             });
           }
           if (apis) {
+            const authMiddleware = authMiddlewareFactory({ host, path });
+
             const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
             for (const api of apis)
               await (async () => {
                 const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
-                const router = ApiRouter({ host, path, apiPath, mailer, db });
+                const router = ApiRouter({ host, path, apiPath, mailer, db, authMiddleware });
                 // router.use(cors({ origin: origins }));
                 // logger.info('Load api router', { host, path: apiPath, api });
                 app.use(`${apiPath}/${api}`, router);
