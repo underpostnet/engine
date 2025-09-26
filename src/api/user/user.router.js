@@ -21,7 +21,7 @@ const UserRouter = (options) => {
         adminUser = await models.User.findOne({ role: 'admin' });
         if (!adminUser) {
           const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'changethis';
-          const hashedPassword = hashPassword(defaultPassword);
+          const hashedPassword = await hashPassword(defaultPassword);
 
           const result = await models.User.create({
             username: 'admin',
@@ -29,7 +29,6 @@ const UserRouter = (options) => {
             password: hashedPassword,
             role: 'admin',
             emailConfirmed: true,
-            secret: s4() + s4() + s4() + s4(),
             publicKey: [],
           });
           logger.warn('Default admin user created. Please change the default password immediately!', result._doc);
