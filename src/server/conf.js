@@ -926,6 +926,23 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
   );
 };
 
+const getInstanceContext = async (options = { singleReplica, replicas, redirect: '' }) => {
+  const { singleReplica, replicas, redirect } = options;
+
+  if (singleReplica && replicas && replicas.length > 0)
+    return {
+      singleReplicaHost: true,
+    };
+
+  const redirectTarget = redirect
+    ? redirect[redirect.length - 1] === '/'
+      ? redirect.slice(0, -1)
+      : redirect
+    : undefined;
+
+  return { redirectTarget };
+};
+
 export {
   Cmd,
   Config,
@@ -958,4 +975,5 @@ export {
   awaitDeployMonitor,
   rebuildConfFactory,
   buildCliDoc,
+  getInstanceContext,
 };
