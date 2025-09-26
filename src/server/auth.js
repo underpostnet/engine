@@ -16,6 +16,7 @@ import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import { DataBaseProvider } from '../db/DataBaseProvider.js';
 
 dotenv.config();
 const logger = loggerFactory(import.meta);
