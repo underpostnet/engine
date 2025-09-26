@@ -33,9 +33,6 @@ const config = {
   jwtAlgorithm: process.env.JWT_ALGORITHM || 'HS512', // consider RS256 with keys
 };
 
-const REFRESH_EXPIRE_MINUTES = Number(process.env.REFRESH_EXPIRE_MINUTES) || 5;
-const ACCESS_EXPIRE_MINUTES = Number(process.env.ACCESS_EXPIRE_MINUTES) || 1440;
-
 // ---------- Password hashing (async) ----------
 /**
  * Hash password asynchronously using PBKDF2.
@@ -95,13 +92,15 @@ function generateRandomHex(bytes = config.refreshTokenBytes) {
 /**
  * Signs a JWT payload.
  * @param {object} payload The payload to sign.
- * @param {number} [expireMinutes=ACCESS_EXPIRE_MINUTES] The token expiration in minutes.
  * @param {object} [options={}] Additional JWT sign options.
+ * @param {string} options.host The host name.
+ * @param {string} options.path The path name.
+ * @param {number} expireMinutes The token expiration in minutes.
  * @returns {string} The signed JWT.
  * @throws {Error} If JWT key is not configured.
  * @memberof Auth
  */
-function jwtSign(payload, expireMinutes = ACCESS_EXPIRE_MINUTES, options = {}) {
+function jwtSign(payload, options = { host: '', path: '' }, expireMinutes = process.env.ACCESS_EXPIRE_MINUTES) {
   const issuer = `${options.host}${options.path}/api`;
   const audience = `${options.host}${options.path}`;
   const signOptions = {
@@ -112,11 +111,13 @@ function jwtSign(payload, expireMinutes = ACCESS_EXPIRE_MINUTES, options = {}) {
     ...options,
   };
 
-  if (!payload.jwtid) signOptions.jwtid = crypto.randomBytes(8).toString('hex');
+  if (!payload.jwtid) signOptions.jwtid = generateRandomHex();
 
-  const key = config.jwtAlgorithm.startsWith('RS') ? process.env.JWT_PRIVATE_KEY : process.env.JWT_SECRET;
-  if (!key) throw new Error('JWT key not configured');
-  return jwt.sign(payload, key, signOptions);
+  if (!process.env.JWT_SECRET) throw new Error('JWT key not configured');
+
+  logger.info('JWT signed', { payload, options, expireMinutes });
+
+  return jwt.sign(payload, process.env.JWT_SECRET, signOptions);
 }
 
 /**
@@ -308,13 +309,12 @@ const validatePasswordMiddleware = (req) => {
  * @memberof Auth
  */
 async function createSessionAndUserToken(user, User, req, res, options = { host: '', path: '' }) {
-  const refreshToken = generateRandomHex();
-  const tokenHash = hashToken(refreshToken);
+  const refreshToken = hashToken(generateRandomHex());
   const now = Date.now();
-  const expiresAt = new Date(now + REFRESH_EXPIRE_MINUTES * 60 * 1000);
+  const expiresAt = new Date(now + parseInt(process.env.REFRESH_EXPIRE_MINUTES) * 60 * 1000);
 
   const newSession = {
-    tokenHash,
+    tokenHash: refreshToken,
     ip: req.ip,
     userAgent: req.headers['user-agent'],
     host: options.host,
@@ -333,7 +333,7 @@ async function createSessionAndUserToken(user, User, req, res, options = { host:
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'Lax',
-    maxAge: REFRESH_EXPIRE_MINUTES * 60 * 1000,
+    maxAge: parseInt(process.env.REFRESH_EXPIRE_MINUTES) * 60 * 1000,
     path: '/',
   });
 
@@ -368,6 +368,7 @@ async function createUserAndSession(req, res, User, File, options = { host: '', 
   const { jwtid } = await createSessionAndUserToken(user, User, req, res, options);
   const token = jwtSign(
     UserDto.auth.payload(user, jwtid, req.ip, req.headers['user-agent'], options.host, options.path),
+    options,
   );
   return { token, user };
 }
@@ -421,26 +422,26 @@ async function refreshSessionAndToken(req, res, User, options = { host: '', path
   }
 
   // Rotate: generate new token, update stored hash and metadata
-  const newRaw = generateRandomHex();
-  const newHash = hashToken(newRaw);
-  session.tokenHash = newHash;
-  session.expiresAt = new Date(Date.now() + REFRESH_EXPIRE_MINUTES * 60 * 1000);
+  const refreshToken = hashToken(generateRandomHex());
+  session.tokenHash = refreshToken;
+  session.expiresAt = new Date(Date.now() + parseInt(process.env.REFRESH_EXPIRE_MINUTES) * 60 * 1000);
   session.ip = req.ip;
   session.userAgent = req.headers['user-agent'];
   await user.save({ validateBeforeSave: false });
 
   logger.warn('Refreshed session for user ' + user.email);
 
-  res.cookie('refreshToken', newRaw, {
+  res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'Lax',
-    maxAge: REFRESH_EXPIRE_MINUTES * 60 * 1000,
+    maxAge: parseInt(process.env.REFRESH_EXPIRE_MINUTES) * 60 * 1000,
     path: '/',
   });
 
   const accessToken = jwtSign(
     UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent'], options.host, options.path),
+    options,
   );
   return { token: accessToken };
 }
