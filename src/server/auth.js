@@ -203,6 +203,15 @@ const authMiddleware = async (req, res, next) => {
         return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
       }
 
+      // check refresh token
+      const refreshToken = req.cookies.refreshToken;
+
+      if (!refreshToken)
+        return res.status(401).json({ status: 'error', message: 'unauthorized: refresh token missing' });
+
+      if (session.tokenHash !== refreshToken)
+        return res.status(401).json({ status: 'error', message: 'unauthorized: refresh token invalid' });
+
       // check session expiresAt
       if (session.expiresAt < new Date()) {
         return res.status(401).json({ status: 'error', message: 'unauthorized: session expired' });

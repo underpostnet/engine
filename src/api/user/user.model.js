@@ -1,7 +1,7 @@
 import { Schema, model } from 'mongoose';
 import validator from 'validator';
-import { s4, userRoleEnum } from '../../client/components/core/CommonJs.js';
-
+import { userRoleEnum } from '../../client/components/core/CommonJs.js';
+import crypto from 'crypto';
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
 const UserSchema = new Schema(
