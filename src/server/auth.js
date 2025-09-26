@@ -191,7 +191,38 @@ const authMiddleware = async (req, res, next) => {
     if (payload.sessionId && payload.role !== 'guest') {
       const User = DataBaseProvider.instance[`${payload.host}${payload.path}`].mongoose.models.User;
       const user = await User.findOne({ _id: payload._id, 'activeSessions._id': payload.sessionId }).lean();
-      if (!user) return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
+
+      if (!user) {
+        return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
+      }
+      const session = user.activeSessions.find((s) => s._id.toString() === payload.sessionId);
+
+      if (!session) {
+        return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
+      }
+
+      // check session expiresAt
+      if (session.expiresAt < new Date()) {
+        return res.status(401).json({ status: 'error', message: 'unauthorized: session expired' });
+      }
+
+      // check session ip
+      if (session.ip !== req.ip) {
+        logger.warn(`IP mismatch for ${payload._id}: jwt(${session.ip}) !== req(${req.ip})`);
+        return res.status(401).json({ status: 'error', message: 'unauthorized: ip mismatch' });
+      }
+
+      // check session userAgent
+      if (session.userAgent !== req.headers['user-agent']) {
+        logger.warn(`UA mismatch for ${payload._id}`);
+        return res.status(401).json({ status: 'error', message: 'unauthorized: user-agent mismatch' });
+      }
+
+      // compare payload host and path with session host and path
+      if (payload.host !== session.host || payload.path !== session.path) {
+        logger.warn(`Host or path mismatch for ${payload._id}`);
+        return res.status(401).json({ status: 'error', message: 'unauthorized: host or path mismatch' });
+      }
     }
 
     req.auth = { user: payload };
@@ -259,10 +290,13 @@ const validatePasswordMiddleware = (req) => {
  * @param {import('mongoose').Model} User The Mongoose User model.
  * @param {import('express').Request} req The Express request object.
  * @param {import('express').Response} res The Express response object.
+ * @param {object} options Additional options.
+ * @param {string} options.host The host name.
+ * @param {string} options.path The path name.
  * @returns {Promise<{sessionId: string}>} The session ID.
  * @memberof Auth
  */
-async function createSessionAndUserToken(user, User, req, res) {
+async function createSessionAndUserToken(user, User, req, res, options = { host: '', path: '' }) {
   const refreshToken = generateRandomHex();
   const tokenHash = hashToken(refreshToken);
   const now = Date.now();
@@ -272,6 +306,8 @@ async function createSessionAndUserToken(user, User, req, res) {
     tokenHash,
     ip: req.ip,
     userAgent: req.headers['user-agent'],
+    host: options.host,
+    path: options.path,
     createdAt: new Date(now),
     expiresAt,
   };
@@ -301,11 +337,13 @@ async function createSessionAndUserToken(user, User, req, res) {
  * @param {import('mongoose').Model} File The Mongoose File model.
  * @param {object} [options={}] Additional options.
  * @param {Function} options.getDefaultProfileImageId Function to get the default profile image ID.
+ * @param {string} options.host The host name.
+ * @param {string} options.path The path name.
  * @returns {Promise<{token: string, user: object}>} The access token and user object.
  * @throws {Error} If password validation fails.
  * @memberof Auth
  */
-async function createUserAndSession(req, res, User, File, options = {}) {
+async function createUserAndSession(req, res, User, File, options = { host: '', path: '' }) {
   const pwdCheck = validatePasswordMiddleware(req);
   if (pwdCheck.status === 'error') throw new Error(pwdCheck.message);
 
@@ -316,7 +354,7 @@ async function createUserAndSession(req, res, User, File, options = {}) {
   const saved = await new User(req.body).save();
   const user = await User.findOne({ _id: saved._id }).select(UserDto.select.get());
 
-  const { sessionId } = await createSessionAndUserToken(user, User, req, res);
+  const { sessionId } = await createSessionAndUserToken(user, User, req, res, options);
   const token = jwtSign(
     UserDto.auth.payload(user, sessionId, req.ip, req.headers['user-agent'], options.host, options.path),
   );
@@ -330,11 +368,14 @@ async function createUserAndSession(req, res, User, File, options = {}) {
  * @param {import('express').Request} req The Express request object.
  * @param {import('express').Response} res The Express response object.
  * @param {import('mongoose').Model} User The Mongoose User model.
+ * @param {object} options Additional options.
+ * @param {string} options.host The host name.
+ * @param {string} options.path The path name.
  * @returns {Promise<{token: string}>} The new access token.
  * @throws {Error} If the refresh token is missing, invalid, or expired.
  * @memberof Auth
  */
-async function refreshSessionAndToken(req, res, User) {
+async function refreshSessionAndToken(req, res, User, options = { host: '', path: '' }) {
   const raw = req.cookies && req.cookies.refreshToken;
   if (!raw) throw new Error('Refresh token missing');
 
@@ -376,6 +417,8 @@ async function refreshSessionAndToken(req, res, User) {
   session.ip = req.ip;
   session.userAgent = req.headers['user-agent'];
   await user.save({ validateBeforeSave: false });
+
+  logger.warn('Refreshed session for user ' + user.email);
 
   res.cookie('refreshToken', newRaw, {
     httpOnly: true,

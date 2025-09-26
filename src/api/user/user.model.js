@@ -29,6 +29,8 @@ const UserSchema = new Schema(
           ip: { type: String },
           userAgent: { type: String },
           expiresAt: { type: Date, required: true },
+          host: { type: String },
+          path: { type: String },
         },
       ],
       default: [],
