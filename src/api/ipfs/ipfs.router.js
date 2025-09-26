@@ -1,4 +1,3 @@
-import { authMiddleware } from '../../server/auth.js';
 import { loggerFactory } from '../../server/logger.js';
 import { IPFSController } from './ipfs.controller.js';
 import express from 'express';

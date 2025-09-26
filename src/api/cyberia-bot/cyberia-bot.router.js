@@ -1,4 +1,3 @@
-import { authMiddleware } from '../../server/auth.js';
 import { loggerFactory } from '../../server/logger.js';
 import { CyberiaBotController } from './cyberia-bot.controller.js';
 import express from 'express';

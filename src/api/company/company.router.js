@@ -1,4 +1,3 @@
-import { authMiddleware } from '../../server/auth.js';
 import { loggerFactory } from '../../server/logger.js';
 import { CompanyController } from './company.controller.js';
 import express from 'express';

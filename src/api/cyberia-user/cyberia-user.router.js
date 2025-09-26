@@ -1,5 +1,5 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-import { authMiddleware } from '../../server/auth.js';
+
 import { loggerFactory } from '../../server/logger.js';
 import { CyberiaUserController } from './cyberia-user.controller.js';
 import express from 'express';

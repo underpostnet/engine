@@ -1,4 +1,4 @@
-import { adminGuard, authMiddleware } from '../../server/auth.js';
+import { adminGuard } from '../../server/auth.js';
 import { loggerFactory } from '../../server/logger.js';
 import { CronController } from './cron.controller.js';
 import express from 'express';
