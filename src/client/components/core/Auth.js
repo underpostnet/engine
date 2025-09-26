@@ -95,6 +95,7 @@ const Auth = {
             html: status === 'success' ? Translate.Render(`${status}-user-log-in`) : message,
             status: status,
           });
+          Auth.renderSessionUI();
           await LogIn.Trigger({ user: data.user });
           await Account.updateForm(data.user);
           return { user: data.user };
@@ -118,7 +119,6 @@ const Auth = {
         Auth.setGuestToken(guestToken);
         let { data, status, message } = await UserService.get({ id: 'auth' });
         if (status === 'success') {
-          Auth.renderSessionUI();
           await LogIn.Trigger({ user: data });
           await Account.updateForm(data);
           return { user: data };
@@ -136,6 +136,7 @@ const Auth = {
       localStorage.removeItem('jwt');
       Auth.deleteToken();
       Auth.renderGuestUi();
+      LogIn.Scope.user.main.model.user = {};
       await LogOut.Trigger(result);
       NotificationManager.Push({
         html: Translate.Render(`success-logout`),

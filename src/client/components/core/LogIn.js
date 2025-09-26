@@ -24,8 +24,9 @@ const LogIn = {
   Event: {},
   Trigger: async function (options) {
     const { user } = options;
-    await Webhook.register({ user });
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
+    if (!user || user.role === 'guest') return;
+    await Webhook.register({ user });
     if (s(`.session`))
       htmls(
         `.session`,
@@ -72,19 +73,18 @@ const LogIn = {
           imageSrc,
         };
       }
+      htmls(
+        `.action-btn-profile-log-in-render`,
+        html`<div class="abs center top-box-profile-img-container">
+          <img
+            class="abs center top-box-profile-img"
+            ${this.Scope.user.main.model.user.profileImage
+              ? `src="${this.Scope.user.main.model.user.profileImage.imageSrc}"`
+              : ``}
+          />
+        </div>`,
+      );
     }
-
-    htmls(
-      `.action-btn-profile-log-in-render`,
-      html`<div class="abs center top-box-profile-img-container">
-        <img
-          class="abs center top-box-profile-img"
-          ${this.Scope.user.main.model.user.profileImage
-            ? `src="${this.Scope.user.main.model.user.profileImage.imageSrc}"`
-            : ``}
-        />
-      </div>`,
-    );
   },
   Render: async function () {
     setTimeout(async () => {
@@ -180,9 +180,6 @@ const LogIn = {
         </div>
       </form>
     `;
-  },
-  cleanMainUser: () => {
-    LogIn.Scope.user.main.model.user = {};
   },
 };
 
