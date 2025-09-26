@@ -1,4 +1,4 @@
-import { moderatorGuard, authMiddleware, adminGuard } from '../../server/auth.js';
+import { moderatorGuard, adminGuard } from '../../server/auth.js';
 import { loggerFactory } from '../../server/logger.js';
 import { CyberiaBiomeController } from './cyberia-biome.controller.js';
 import express from 'express';

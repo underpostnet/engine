@@ -3,7 +3,7 @@ import { loggerFactory } from '../../server/logger.js';
 import { CyberiaWorldController } from './cyberia-world.controller.js';
 import express from 'express';
 import dotenv from 'dotenv';
-import { moderatorGuard, authMiddleware, adminGuard } from '../../server/auth.js';
+import { moderatorGuard, adminGuard } from '../../server/auth.js';
 
 dotenv.config();
 

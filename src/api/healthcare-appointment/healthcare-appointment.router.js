@@ -1,4 +1,4 @@
-import { authMiddleware, moderatorGuard } from '../../server/auth.js';
+import { moderatorGuard } from '../../server/auth.js';
 import { loggerFactory } from '../../server/logger.js';
 import { HealthcareAppointmentController } from './healthcare-appointment.controller.js';
 import express from 'express';
