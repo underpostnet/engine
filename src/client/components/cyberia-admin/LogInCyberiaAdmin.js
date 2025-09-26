@@ -9,11 +9,6 @@ const LogInCyberiaAdmin = async function () {
 
     ElementsCyberiaAdmin.Data.user.main.model.user = user;
 
-    s(`.main-btn-log-in`).style.display = 'none';
-    s(`.main-btn-sign-up`).style.display = 'none';
-    s(`.main-btn-log-out`).style.display = null;
-    s(`.main-btn-account`).style.display = null;
-
     if (['admin', 'moderator'].includes(user.role)) {
       s(`.main-btn-colors`).classList.remove('hide');
       s(`.main-btn-chat`).classList.remove('hide');

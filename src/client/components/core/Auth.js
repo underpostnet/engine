@@ -91,6 +91,10 @@ const Auth = {
         const { status, data, message } = result;
         if (status === 'success') {
           localStorage.setItem('jwt', token);
+          NotificationManager.Push({
+            html: status === 'success' ? Translate.Render(`${status}-user-log-in`) : message,
+            status: status,
+          });
           await LogIn.Trigger({ user: data.user });
           await Account.updateForm(data.user);
           return { user: data.user };
@@ -114,6 +118,8 @@ const Auth = {
         Auth.setGuestToken(guestToken);
         let { data, status, message } = await UserService.get({ id: 'auth' });
         if (status === 'success') {
+          Auth.renderSessionUI();
+          await LogIn.Trigger({ user: data });
           await Account.updateForm(data);
           return { user: data };
         } else logger.error(message);
@@ -129,7 +135,12 @@ const Auth = {
       const result = await UserService.delete({ id: 'logout' });
       localStorage.removeItem('jwt');
       Auth.deleteToken();
+      Auth.renderGuestUi();
       await LogOut.Trigger(result);
+      NotificationManager.Push({
+        html: Translate.Render(`success-logout`),
+        status: 'success',
+      });
     }
     {
       localStorage.removeItem('jwt.g');
@@ -139,6 +150,26 @@ const Auth = {
       Auth.setGuestToken(result.data.token);
       return await Auth.sessionIn();
     }
+  },
+  renderSessionUI: function () {
+    s(`.main-btn-log-in`).style.display = 'none';
+    s(`.main-btn-sign-up`).style.display = 'none';
+    s(`.main-btn-log-out`).style.display = null;
+    s(`.main-btn-account`).style.display = null;
+    setTimeout(() => {
+      if (s(`.modal-log-in`)) s(`.btn-close-modal-log-in`).click();
+      if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
+    });
+  },
+  renderGuestUi: function () {
+    s(`.main-btn-log-in`).style.display = null;
+    s(`.main-btn-sign-up`).style.display = null;
+    s(`.main-btn-log-out`).style.display = 'none';
+    s(`.main-btn-account`).style.display = 'none';
+    setTimeout(() => {
+      if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
+      if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
+    });
   },
 };
 

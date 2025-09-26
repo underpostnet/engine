@@ -28,11 +28,6 @@ const LogInCyberia = async function () {
   LogIn.Event['LogInCyberia'] = async (options) => {
     const { token, user } = options;
 
-    s(`.main-btn-log-in`).style.display = 'none';
-    s(`.main-btn-sign-up`).style.display = 'none';
-    s(`.main-btn-log-out`).style.display = null;
-    s(`.main-btn-account`).style.display = null;
-
     const oldElement = newInstance(ElementsCyberia.Data[type][id]);
     // ElementsCyberia.Data[type][id] = BaseElement()[type][id];
     const resultUserCyberia = await CyberiaUserService.get({ id: 'auth' });
