@@ -47,9 +47,12 @@ const main = () => {
         a {
           color: black;
         }
+        .main-body-ssr-404 {
+          top: 45%;
+        }
       </style>
 
-      <div class="abs center" style="top: 45%">
+      <div class="abs center main-body-ssr-404">
         ${icon}
         <br />
         <br />

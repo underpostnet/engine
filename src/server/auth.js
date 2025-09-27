@@ -476,7 +476,7 @@ function applySecurity(app, opts = {}) {
 
   // Generate nonce per request and attach to res.locals for templates
   app.use((req, res, next) => {
-    res.locals.nonce = crypto.randomBytes(16).toString('hex');
+    res.locals.nonce = crypto.randomBytes(16).toString('base64');
     next();
   });
 

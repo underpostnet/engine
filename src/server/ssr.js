@@ -48,13 +48,21 @@ const ssrMiddlewareFactory = async ({ app, directory, rootHostPath, path }) => {
   const path500 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/500/index.html`;
   const page500 = fs.existsSync(path500) ? `${path === '/' ? '' : path}/500` : undefined;
 
+  const sanitizeHtml = (res, req, html) => {
+    const nonce = res.locals.nonce;
+
+    return html
+      .replace(/<script(?=\s|>)/gi, `<script nonce="${nonce}"`)
+      .replace(/<style(?=\s|>)/gi, `<style nonce="${nonce}"`);
+  };
+
   return {
     error500: function (err, req, res, next) {
       logger.error(err, err.stack);
       if (page500) return res.status(500).redirect(page500);
       else {
         res.set('Content-Type', 'text/html');
-        return res.status(500).send(defaultHtmlSrc500);
+        return res.status(500).send(sanitizeHtml(res, req, defaultHtmlSrc500));
       }
     },
     error400: function (req, res, next) {
@@ -68,7 +76,7 @@ const ssrMiddlewareFactory = async ({ app, directory, rootHostPath, path }) => {
       if (page404) return res.status(404).redirect(page404);
       else {
         res.set('Content-Type', 'text/html');
-        return res.status(404).send(defaultHtmlSrc404);
+        return res.status(404).send(sanitizeHtml(res, req, defaultHtmlSrc404));
       }
     },
   };
