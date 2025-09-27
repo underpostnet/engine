@@ -95,155 +95,7 @@ const buildRuntime = async () => {
         apis,
       };
 
-      // if (redirect) logger.info('redirect', new URL(redirect));
-
       switch (runtime) {
-        case 'lampp':
-          if (!Lampp.enabled()) continue;
-          if (!Lampp.ports.includes(port)) Lampp.ports.push(port);
-          if (currentPort === initPort) Lampp.removeRouter();
-          Lampp.appendRouter(`
-            
-        Listen ${port}
-
-        <VirtualHost *:${port}>    
-            DocumentRoot "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}"
-            ServerName ${host}:${port}
-
-            <Directory "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}">
-              Options Indexes FollowSymLinks MultiViews
-              AllowOverride All
-              Require all granted
-            </Directory>
-
-              ${
-                redirect
-                  ? `
-                  RewriteEngine on
-                  
-                  RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge
-                  RewriteRule ^(.*)$ ${redirectTarget}%{REQUEST_URI} [R=302,L]
-              `
-                  : ''
-              }
-
-            ErrorDocument 400 ${path === '/' ? '' : path}/400.html
-            ErrorDocument 404 ${path === '/' ? '' : path}/400.html
-            ErrorDocument 500 ${path === '/' ? '' : path}/500.html
-            ErrorDocument 502 ${path === '/' ? '' : path}/500.html
-            ErrorDocument 503 ${path === '/' ? '' : path}/500.html
-            ErrorDocument 504 ${path === '/' ? '' : path}/500.html
-
-          </VirtualHost>
-            
-                          `);
-          // ERR too many redirects:
-          // Check: SELECT * FROM database.wp_options where option_name = 'siteurl' or option_name = 'home';
-          // Check: wp-config.php
-          // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-          //   $_SERVER['HTTPS'] = 'on';
-          // }
-          // For plugins:
-          // define( 'FS_METHOD', 'direct' );
-
-          // ErrorDocument 404 /custom_404.html
-          // ErrorDocument 500 /custom_50x.html
-          // ErrorDocument 502 /custom_50x.html
-          // ErrorDocument 503 /custom_50x.html
-          // ErrorDocument 504 /custom_50x.html
-
-          // Respond When Error Pages are Directly Requested
-
-          // <Files "custom_404.html">
-          //     <If "-z %{ENV:REDIRECT_STATUS}">
-          //         RedirectMatch 404 ^/custom_404.html$
-          //     </If>
-          // </Files>
-
-          // <Files "custom_50x.html">
-          //     <If "-z %{ENV:REDIRECT_STATUS}">
-          //         RedirectMatch 404 ^/custom_50x.html$
-          //     </If>
-          // </Files>
-
-          // Add www or https with htaccess rewrite
-
-          // Options +FollowSymLinks
-          // RewriteEngine On
-          // RewriteCond %{HTTP_HOST} ^ejemplo.com [NC]
-          // RewriteRule ^(.*)$ http://ejemplo.com/$1 [R=301,L]
-
-          // Redirect http to https with htaccess rewrite
-
-          // RewriteEngine On
-          // RewriteCond %{SERVER_PORT} 80
-          // RewriteRule ^(.*)$ https://www.ejemplo.com/$1 [R,L]
-
-          // Redirect to HTTPS with www subdomain
-
-          // RewriteEngine On
-          // RewriteCond %{HTTPS} off [OR]
-          // RewriteCond %{HTTP_HOST} ^www\. [NC]
-          // RewriteCond %{HTTP_HOST} ^(?:www\.)?(.+)$ [NC]
-          // RewriteRule ^ https://%1%{REQUEST_URI} [L,NE,R=301]
-
-          await UnderpostStartUp.API.listenPortController(
-            UnderpostStartUp.API.listenServerFactory(),
-            port,
-            runningData,
-          );
-          break;
-        case 'xampp':
-          if (!Xampp.enabled()) continue;
-          if (!Xampp.ports.includes(port)) Xampp.ports.push(port);
-          if (currentPort === initPort) Xampp.removeRouter();
-          Xampp.appendRouter(`
-            
-        Listen ${port}
-
-        <VirtualHost *:${port}>    
-            DocumentRoot "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}"
-            ServerName ${host}:${port}
-
-            <Directory "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}">
-              Options Indexes FollowSymLinks MultiViews
-              AllowOverride All
-              Require all granted
-            </Directory>
-
-            ${
-              redirect
-                ? `
-                RewriteEngine on
-                
-                RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge
-                RewriteRule ^(.*)$ ${redirectTarget}%{REQUEST_URI} [R=302,L]
-            `
-                : ''
-            }
-
-            ErrorDocument 400 ${path === '/' ? '' : path}/400.html
-            ErrorDocument 404 ${path === '/' ? '' : path}/400.html
-            ErrorDocument 500 ${path === '/' ? '' : path}/500.html
-            ErrorDocument 502 ${path === '/' ? '' : path}/500.html
-            ErrorDocument 503 ${path === '/' ? '' : path}/500.html
-            ErrorDocument 504 ${path === '/' ? '' : path}/500.html
-
-          </VirtualHost>
-            
-                          `);
-          // ERR too many redirects:
-          // Check: SELECT * FROM database.wp_options where option_name = 'siteurl' or option_name = 'home';
-          // Check: wp-config.php
-          // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-          //   $_SERVER['HTTPS'] = 'on';
-          // }
-          await UnderpostStartUp.API.listenPortController(
-            UnderpostStartUp.API.listenServerFactory(),
-            port,
-            runningData,
-          );
-          break;
         case 'nodejs':
           const app = express();
 
@@ -490,6 +342,45 @@ const buildRuntime = async () => {
 
           await UnderpostStartUp.API.listenPortController(server, port, runningData);
 
+          break;
+
+        case 'lampp':
+          {
+            const { disabled } = await Lampp.createApp({
+              port,
+              host,
+              path,
+              directory,
+              rootHostPath,
+              redirect,
+              redirectTarget,
+            });
+            if (disabled) continue;
+            await UnderpostStartUp.API.listenPortController(
+              UnderpostStartUp.API.listenServerFactory(),
+              port,
+              runningData,
+            );
+          }
+          break;
+        case 'xampp':
+          {
+            const { disabled } = await Xampp.createApp({
+              port,
+              host,
+              path,
+              directory,
+              rootHostPath,
+              redirect,
+              redirectTarget,
+            });
+            if (disabled) continue;
+            await UnderpostStartUp.API.listenPortController(
+              UnderpostStartUp.API.listenServerFactory(),
+              port,
+              runningData,
+            );
+          }
           break;
         default:
           break;

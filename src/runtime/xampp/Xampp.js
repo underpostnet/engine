@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { shellExec } from '../../server/process.js';
+import { shellExec, getRootDirectory } from '../../server/process.js';
 
 const Xampp = {
   ports: [],
@@ -30,6 +30,53 @@ const Xampp = {
   removeRouter: function () {
     this.router = undefined;
     if (fs.existsSync(`./tmp/xampp-router.conf`)) fs.rmSync(`./tmp/xampp-router.conf`);
+  },
+  createApp: async ({ port, host, path, directory, rootHostPath, redirect, redirectTarget }) => {
+    if (!Xampp.enabled()) {
+      return { disabled: true };
+    }
+    if (!Xampp.ports.includes(port)) Xampp.ports.push(port);
+    if (currentPort === initPort) Xampp.removeRouter();
+    Xampp.appendRouter(`
+Listen ${port}
+
+<VirtualHost *:${port}>    
+  DocumentRoot "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}"
+  ServerName ${host}:${port}
+
+  <Directory "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}">
+    Options Indexes FollowSymLinks MultiViews
+    AllowOverride All
+    Require all granted
+  </Directory>
+
+  ${
+    redirect
+      ? `
+    RewriteEngine on
+    
+    RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge
+    RewriteRule ^(.*)$ ${redirectTarget}%{REQUEST_URI} [R=302,L]
+  `
+      : ''
+  }
+
+  ErrorDocument 400 ${path === '/' ? '' : path}/400.html
+  ErrorDocument 404 ${path === '/' ? '' : path}/400.html
+  ErrorDocument 500 ${path === '/' ? '' : path}/500.html
+  ErrorDocument 502 ${path === '/' ? '' : path}/500.html
+  ErrorDocument 503 ${path === '/' ? '' : path}/500.html
+  ErrorDocument 504 ${path === '/' ? '' : path}/500.html
+
+</VirtualHost>
+
+`);
+    // ERR too many redirects:
+    // Check: SELECT * FROM database.wp_options where option_name = 'siteurl' or option_name = 'home';
+    // Check: wp-config.php
+    // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+    //   $_SERVER['HTTPS'] = 'on';
+    // }
   },
 };
 
