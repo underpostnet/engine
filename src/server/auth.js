@@ -219,11 +219,6 @@ const authMiddlewareFactory = (options = { host: '', path: '' }) => {
           return res.status(401).json({ status: 'error', message: 'unauthorized: invalid session' });
         }
 
-        // check session expiresAt
-        if (session.expiresAt < new Date()) {
-          return res.status(401).json({ status: 'error', message: 'unauthorized: session expired' });
-        }
-
         // check session ip
         if (session.ip !== req.ip) {
           logger.warn(`IP mismatch for ${payload._id}: jwt(${session.ip}) !== req(${req.ip})`);
@@ -240,6 +235,13 @@ const authMiddlewareFactory = (options = { host: '', path: '' }) => {
         if (payload.host !== session.host || payload.path !== session.path) {
           logger.warn(`Host or path mismatch for ${payload._id}`);
           return res.status(401).json({ status: 'error', message: 'unauthorized: host or path mismatch' });
+        }
+
+        // check session expiresAt
+        const isRefreshTokenReq = req.method === 'GET' && req.params.id === 'auth';
+
+        if (!isRefreshTokenReq && session.expiresAt < new Date()) {
+          return res.status(401).json({ status: 'error', message: 'unauthorized: session expired' });
         }
       }
 
