@@ -115,6 +115,10 @@ const LogIn = {
         } else s(`.login-attempt-warn-container0`).classList.add('hide');
 
         if (result.status === 'success') await Auth.sessionIn(result);
+        NotificationManager.Push({
+          html: result.status === 'success' ? Translate.Render(`${result.status}-user-log-in`) : result.message,
+          status: result.status,
+        });
       });
       s(`.btn-log-in-forgot-password`).onclick = () => {
         s(`.main-btn-recover`).click();

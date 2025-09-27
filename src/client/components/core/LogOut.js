@@ -4,6 +4,7 @@ import { LogIn } from './LogIn.js';
 import { Translate } from './Translate.js';
 import { htmls, s } from './VanillaJs.js';
 import { Webhook } from './Webhook.js';
+import { NotificationManager } from './NotificationManager.js';
 
 const LogOut = {
   Event: {},
@@ -40,6 +41,10 @@ const LogOut = {
       s('.btn-log-out').onclick = async (e) => {
         e.preventDefault();
         await Auth.sessionOut();
+        NotificationManager.Push({
+          html: Translate.Render(`success-logout`),
+          status: 'success',
+        });
       };
     });
     // Translate.Render('confirm-logout')
