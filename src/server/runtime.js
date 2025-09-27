@@ -235,7 +235,7 @@ const buildRuntime = async () => {
 
           // load ssr
           const ssr = await ssrMiddlewareFactory({ app, directory, rootHostPath, path });
-          for (const [key, value] of Object.entries(ssr)) app.use(key, value);
+          for (const [_, ssrMiddleware] of Object.entries(ssr)) app.use(ssrMiddleware);
 
           // instance server
           const server = createServer({}, app);
