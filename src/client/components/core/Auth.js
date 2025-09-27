@@ -69,7 +69,7 @@ const Auth = {
     if (refreshIn <= 0) return; // Already expired or close to it
 
     this[refreshTimeout] = setTimeout(async () => {
-      const { data, status } = await UserService.refreshToken({});
+      const { data, status } = await UserService.get({ id: 'auth' });
       if (status === 'success') {
         logger.info('Refreshed access token.');
         Auth.setToken(data.token);

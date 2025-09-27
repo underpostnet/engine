@@ -1,28 +1,24 @@
 import fs from 'fs-extra';
 import express from 'express';
-import cors from 'cors';
 import dotenv from 'dotenv';
 import fileUpload from 'express-fileupload';
 import swaggerUi from 'swagger-ui-express';
 import * as promClient from 'prom-client';
 import compression from 'compression';
 
-import { createServer } from 'http';
-import { getRootDirectory } from './process.js';
 import UnderpostStartUp from './start.js';
+import { createServer } from 'http';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { getCapVariableName, newInstance } from '../client/components/core/CommonJs.js';
-import { Xampp } from '../runtime/xampp/Xampp.js';
 import { MailerProvider } from '../mailer/MailerProvider.js';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
-// import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createPeerServer } from './peer.js';
 import { Lampp } from '../runtime/lampp/Lampp.js';
-import { JSONweb, ssrFactory } from './client-formatted.js';
-import Underpost from '../index.js';
+import { Xampp } from '../runtime/xampp/Xampp.js';
 import { createValkeyConnection } from './valkey.js';
 import { applySecurity, authMiddlewareFactory } from './auth.js';
 import { getInstanceContext } from './conf.js';
+import { ssrMiddlewareFactory } from './ssr.js';
 
 dotenv.config();
 
@@ -39,8 +35,6 @@ const buildRuntime = async () => {
     help: 'Total number of HTTP requests',
     labelNames: ['instance', 'method', 'status_code'],
   };
-
-  // logger.info('promCounterOption', promCounterOption);
 
   const requestCounter = new promClient.Counter(promCounterOption);
   const initPort = parseInt(process.env.PORT) + 1;
@@ -239,62 +233,9 @@ const buildRuntime = async () => {
               })();
           }
 
-          const Render = await ssrFactory();
-          const ssrPath = path === '/' ? path : `${path}/`;
-
-          const defaultHtmlSrc404 = Render({
-            title: '404 Not Found',
-            ssrPath,
-            ssrHeadComponents: '',
-            ssrBodyComponents: (await ssrFactory(`./src/client/ssr/body/404.js`))(),
-            renderPayload: {
-              apiBasePath: process.env.BASE_API,
-              version: Underpost.version,
-            },
-            renderApi: {
-              JSONweb,
-            },
-          });
-          const path404 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/404/index.html`;
-          const page404 = fs.existsSync(path404) ? `${path === '/' ? '' : path}/404` : undefined;
-          app.use(function (req, res, next) {
-            // if /<path>/home redirect to /<path>
-            const homeRedirectPath = `${path === '/' ? '' : path}/home`;
-            if (req.url.startsWith(homeRedirectPath)) {
-              const redirectUrl = req.url.replace('/home', '');
-              return res.redirect(redirectUrl.startsWith('/') ? redirectUrl : `/${redirectUrl}`);
-            }
-
-            if (page404) return res.status(404).redirect(page404);
-            else {
-              res.set('Content-Type', 'text/html');
-              return res.status(404).send(defaultHtmlSrc404);
-            }
-          });
-
-          const defaultHtmlSrc500 = Render({
-            title: '500 Server Error',
-            ssrPath,
-            ssrHeadComponents: '',
-            ssrBodyComponents: (await ssrFactory(`./src/client/ssr/body/500.js`))(),
-            renderPayload: {
-              apiBasePath: process.env.BASE_API,
-              version: Underpost.version,
-            },
-            renderApi: {
-              JSONweb,
-            },
-          });
-          const path500 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/500/index.html`;
-          const page500 = fs.existsSync(path500) ? `${path === '/' ? '' : path}/500` : undefined;
-          app.use(function (err, req, res, next) {
-            logger.error(err, err.stack);
-            if (page500) return res.status(500).redirect(page500);
-            else {
-              res.set('Content-Type', 'text/html');
-              return res.status(500).send(defaultHtmlSrc500);
-            }
-          });
+          // load ssr
+          const ssr = await ssrMiddlewareFactory({ app, directory, rootHostPath, path });
+          for (const [key, value] of Object.entries(ssr)) app.use(key, value);
 
           // instance server
           const server = createServer({}, app);

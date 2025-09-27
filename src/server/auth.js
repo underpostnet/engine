@@ -468,7 +468,7 @@ async function refreshSessionAndToken(req, res, User, options = { host: '', path
 function applySecurity(app, opts = {}) {
   const {
     origin,
-    rate = { windowMs: 15 * 60 * 1000, max: 100 },
+    rate = { windowMs: 15 * 60 * 1000, max: 500 },
     slowdown = { windowMs: 15 * 60 * 1000, delayAfter: 50, delayMs: () => 500 },
     cookie = { secure: process.env.NODE_ENV === 'production', sameSite: 'Strict' },
     frameAncestors = ["'self'"],
