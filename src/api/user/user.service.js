@@ -496,11 +496,6 @@ const UserService = {
       }
     }
   },
-  refreshToken: async (req, res, options) => {
-    /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
-    return await refreshSessionAndToken(req, res, User, options);
-  },
 };
 
 export { UserService };

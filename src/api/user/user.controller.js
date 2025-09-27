@@ -30,7 +30,6 @@ const UserController = {
   get: handleRequest(UserService.get),
   delete: handleRequest(UserService.delete),
   put: handleRequest(UserService.put),
-  refreshToken: handleRequest(UserService.refreshToken),
 };
 
 export { UserController };
