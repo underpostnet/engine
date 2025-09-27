@@ -474,6 +474,12 @@ function applySecurity(app, opts = {}) {
 
   app.disable('x-powered-by');
 
+  // Generate nonce per request and attach to res.locals for templates
+  app.use((req, res, next) => {
+    res.locals.nonce = crypto.randomBytes(16).toString('hex');
+    next();
+  });
+
   // Basic header hardening with Helmet
   app.use(
     helmet({
@@ -513,8 +519,11 @@ function applySecurity(app, opts = {}) {
   app.use(helmet.frameguard({ action: 'deny' })); // X-Frame-Options: DENY
   app.use(helmet.referrerPolicy({ policy: 'no-referrer-when-downgrade' }));
 
+  // Content-Security-Policy: include nonce from res.locals
+  // Note: We avoid 'unsafe-inline' on script/style. Use nonces or hashes.
   app.use(
     helmet.contentSecurityPolicy({
+      useDefaults: true,
       directives: {
         defaultSrc: ["'self'"],
         baseUri: ["'self'"],
@@ -523,17 +532,22 @@ function applySecurity(app, opts = {}) {
         frameAncestors: frameAncestors,
         imgSrc: ["'self'", 'data:', 'https:'],
         objectSrc: ["'none'"],
-        scriptSrc: ["'self'"],
-        scriptSrcElem: ["'self'"],
-        styleSrc: ["'self'", 'https:', "'unsafe-inline'"], // try to remove 'unsafe-inline' by using hashes/nonces
+        // script-src and script-src-elem include dynamic nonce
+        scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
+        scriptSrcElem: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
+        // style-src: avoid 'unsafe-inline' when possible; if you must inline styles,
+        // use a nonce for them too (or hash).
+        styleSrc: ["'self'", 'https:', (req, res) => `'nonce-${res.locals.nonce}'`],
+        // deny plugins
+        objectSrc: ["'none'"],
       },
     }),
   );
 
-  // CORS - be explicit. Avoid open wildcard in production for credentials.
+  // CORS - be explicit. In production, pass allowed origin(s) as opts.origin
   app.use(
     cors({
-      origin,
+      origin: origin || false,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
@@ -541,7 +555,7 @@ function applySecurity(app, opts = {}) {
     }),
   );
 
-  // Rate limiting + slow down to mitigate brute force and DoS
+  // Rate limiting + slow down
   const limiter = rateLimit({
     windowMs: rate.windowMs,
     max: rate.max,
@@ -558,7 +572,7 @@ function applySecurity(app, opts = {}) {
   });
   app.use(speedLimiter);
 
-  // Cookie parsing and CSRF protection
+  // Cookie parsing
   app.use(cookieParser(process.env.JWT_SECRET));
 }
 
