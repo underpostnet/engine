@@ -36,8 +36,8 @@ const UserService = {
 
       if (!user) throw new Error('Email address does not exist');
 
-      const token = jwtSign({ email: req.body.email }, options, '15m');
-      const payloadToken = jwtSign({ email: req.body.email }, options, '15m');
+      const token = jwtSign({ email: req.body.email }, options, 15);
+      const payloadToken = jwtSign({ email: req.body.email }, options, 15);
       const id = `${options.host}${options.path}`;
       const translate = MailerProvider.instance[id].translateTemplates.recoverEmail;
       const recoverUrl = `${process.env.NODE_ENV === 'development' ? 'http://' : 'https://'}${req.body.hostname}${
@@ -74,7 +74,7 @@ const UserService = {
     if (req.path.startsWith('/mailer') && req.params.id === 'verify-email') {
       if (!validator.isEmail(req.body.email)) throw { message: 'invalid email' };
 
-      const token = jwtSign({ email: req.body.email }, options, '15m');
+      const token = jwtSign({ email: req.body.email }, options, 15);
       const id = `${options.host}${options.path}`;
       const user = await User.findById(req.auth.user._id);
 
@@ -341,11 +341,20 @@ const UserService = {
             },
           );
         }
-        return (await ValkeyAPI.getValkeyObject(options, req.auth.user.email))
-          ? selectDtoFactory(await ValkeyAPI.getValkeyObject(options, req.auth.user.email), UserDto.select.get())
-          : await User.findOne({
-              _id: req.auth.user._id,
-            }).select(UserDto.select.get());
+
+        const guestUser = await ValkeyAPI.getValkeyObject(options, req.auth.user.email);
+        if (guestUser)
+          return {
+            user: selectDtoFactory(guestUser, UserDto.select.get()),
+            token: getBearerToken(req),
+          };
+
+        return {
+          token: await refreshSessionAndToken(req, res, User, options),
+          user: await User.findOne({
+            _id: req.auth.user._id,
+          }).select(UserDto.select.get()),
+        };
       }
 
       default: {

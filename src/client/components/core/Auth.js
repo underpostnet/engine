@@ -99,21 +99,13 @@ const Auth = {
   sessionIn: async function (userServicePayload) {
     try {
       const token = userServicePayload?.data?.token ? userServicePayload.data.token : localStorage.getItem('jwt');
-
       if (token) {
         Auth.setToken(token);
+
         const result = userServicePayload
           ? userServicePayload // From login/signup
-          : await (async () => {
-              const _result = await UserService.get({ id: 'auth' });
-              return {
-                status: _result.status,
-                message: _result.message,
-                data: {
-                  user: _result.data,
-                },
-              };
-            })();
+          : await UserService.get({ id: 'auth' });
+
         const { status, data, message } = result;
         if (status === 'success') {
           localStorage.setItem('jwt', token);
@@ -145,9 +137,9 @@ const Auth = {
         Auth.setGuestToken(guestToken);
         let { data, status, message } = await UserService.get({ id: 'auth' });
         if (status === 'success') {
-          await LogIn.Trigger({ user: data });
-          await Account.updateForm(data);
-          return { user: data };
+          await LogIn.Trigger(data);
+          await Account.updateForm(data.user);
+          return data;
         } else logger.error(message);
       }
       return await Auth.sessionOut();

@@ -1,6 +1,10 @@
-import { ssrFactory } from './client-formatted.js';
 import fs from 'fs-extra';
+import dotenv from 'dotenv';
+
+import { ssrFactory } from './client-formatted.js';
 import { loggerFactory } from './logger.js';
+
+dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
