@@ -64,9 +64,19 @@ const Auth = {
     const refreshBuffer = 2 * 60 * 1000; // 2 minutes
     const refreshIn = expiresIn - refreshBuffer;
 
+    logger.info(`Token refresh in ${refreshIn / (1000 * 60)} minutes`);
+
     if (refreshIn <= 0) return; // Already expired or close to it
 
-    this[refreshTimeout] = setTimeout(Auth.sessionIn, refreshIn);
+    this[refreshTimeout] = setTimeout(async () => {
+      const { data, status } = await UserService.refreshToken({});
+      if (status === 'success') {
+        logger.info('Refreshed access token.');
+        Auth.setToken(data.token);
+        localStorage.setItem('jwt', data.token);
+        Auth.scheduleTokenRefresh();
+      } else Auth.sessionOut();
+    }, refreshIn);
   },
   signUpToken: async function (
     result = {
@@ -95,28 +105,14 @@ const Auth = {
         const result = userServicePayload
           ? userServicePayload // From login/signup
           : await (async () => {
-              // From session restoration
-              let _result = await UserService.get({ id: 'auth' });
-
-              // If token is expired, try to refresh it
-              if (_result.status === 'error' && _result.message?.match(/expired|invalid/i)) {
-                logger.info('Access token expired, attempting to refresh...');
-                try {
-                  const refreshResult = await UserService.refreshToken({});
-                  if (refreshResult.status === 'success' && refreshResult.data.token) {
-                    Auth.setToken(refreshResult.data.token);
-                    localStorage.setItem('jwt', refreshResult.data.token);
-                    Auth.scheduleTokenRefresh();
-                    logger.info('Token refreshed successfully. Retrying auth request...');
-                    _result = await UserService.get({ id: 'auth' }); // Retry getting user
-                  } else throw new Error(refreshResult.message || 'Failed to refresh token');
-                } catch (refreshError) {
-                  logger.error('Failed to refresh token:', refreshError);
-                  return await Auth.sessionOut();
-                }
-              }
-
-              return { status: _result.status, message: _result.message, data: { user: _result.data } };
+              const _result = await UserService.get({ id: 'auth' });
+              return {
+                status: _result.status,
+                message: _result.message,
+                data: {
+                  user: _result.data,
+                },
+              };
             })();
         const { status, data, message } = result;
         if (status === 'success') {

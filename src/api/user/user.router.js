@@ -95,7 +95,7 @@ const UserRouter = (options) => {
     return await UserController.get(req, res, options);
   });
 
-  router.post('/refresh-token', async (req, res) => {
+  router.post('/refresh-token', authMiddleware, async (req, res) => {
     /*  
       #swagger.ignore = true
     */

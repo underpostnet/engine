@@ -445,11 +445,12 @@ async function refreshSessionAndToken(req, res, User, options = { host: '', path
     path: '/',
   });
 
-  const accessToken = jwtSign(
-    UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent'], options.host, options.path),
-    options,
-  );
-  return { token: accessToken };
+  return {
+    token: jwtSign(
+      UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent'], options.host, options.path),
+      options,
+    ),
+  };
 }
 
 // ---------- Security middleware composition ----------
