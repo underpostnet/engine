@@ -372,6 +372,7 @@ try {
       shellExec(`node bin run kill 4002`);
       shellExec(`node bin run kill 4003`);
       shellExec(`npm run update-template`);
+      shellExec(`cd ../pwa-microservices-template && npm install`);
       shellExec(`cd ../pwa-microservices-template && npm run build && timeout 5s npm run dev`, {
         async: true,
       });
