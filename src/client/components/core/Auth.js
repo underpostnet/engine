@@ -108,6 +108,7 @@ const Auth = {
 
         const { status, data, message } = result;
         if (status === 'success') {
+          Auth.setToken(data.token);
           localStorage.setItem('jwt', token);
           NotificationManager.Push({
             html: status === 'success' ? Translate.Render(`${status}-user-log-in`) : message,
