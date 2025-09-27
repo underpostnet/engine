@@ -1,0 +1,60 @@
+name: CI | Engine test | github repository
+on:
+  workflow_run:
+    workflows: ["CI | Publish npm repository package"]
+    types:
+      - completed
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+jobs:
+  pwa-microservices-template:
+    # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-test-repo-build)')
+    name: Update github repo package Jobs
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/rockylinux/rockylinux:9
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install required packages
+        run: |
+          dnf install -y sudo tar gzip bzip2 git
+          dnf install -y curl --allowerasing
+
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://rpm.nodesource.com/setup_23.x | bash -
+          dnf install nodejs -y
+
+      - name: Install dependencies
+        run: |
+          npm install -g underpost
+          npm install
+          underpost config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
+
+      - name: Set git global credentials
+        run: |
+          git config --global user.name 'underpostnet'
+          git config --global user.email 'development@underpost.net'
+
+      - name: Build repository
+        run: |
+          cd .. && underpost clone underpostnet/pwa-microservices-template
+          underpost clone --bare underpostnet/engine-test
+          cd engine
+          node bin/build dd-test development
+          cd ../pwa-microservices-template
+          rm -rf ./.git
+          mv ../engine-test.git ./.git
+          git init
+          git config user.name 'underpostnet'
+          git config user.email 'development@underpost.net'
+          git add .
+          underpost cmt . ci engine-test-repo-build 'Update engine test repository'
+          underpost push . underpostnet/engine-test
