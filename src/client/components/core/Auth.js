@@ -110,10 +110,6 @@ const Auth = {
         if (status === 'success') {
           Auth.setToken(data.token);
           localStorage.setItem('jwt', token);
-          NotificationManager.Push({
-            html: status === 'success' ? Translate.Render(`${status}-user-log-in`) : message,
-            status: status,
-          });
           Auth.renderSessionUI();
           await LogIn.Trigger({ user: data.user });
           await Account.updateForm(data.user);
@@ -160,10 +156,6 @@ const Auth = {
       Auth.renderGuestUi();
       LogIn.Scope.user.main.model.user = {};
       await LogOut.Trigger(result);
-      NotificationManager.Push({
-        html: Translate.Render(`success-logout`),
-        status: 'success',
-      });
     }
     {
       localStorage.removeItem('jwt.g');
