@@ -164,6 +164,7 @@ program
     'Builds Kubernetes YAML manifests, including deployments, services, proxies, and secrets.',
   )
   .option('--replicas <replicas>', 'Sets a custom number of replicas for deployments.')
+  .option('--image <image>', 'Sets a custom image for deployments.')
   .option('--versions <deployment-versions>', 'A comma-separated list of custom deployment versions.')
   .option('--traffic <traffic-versions>', 'A comma-separated list of custom deployment traffic weights.')
   .option('--disable-update-deployment', 'Disables updates to deployments.')

@@ -62,7 +62,7 @@ class UnderpostDeploy {
         )
         .join('');
     },
-    deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas }) {
+    deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image }) {
       return `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -81,7 +81,7 @@ spec:
     spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
-          image: localhost/rockylinux9-underpost:${Underpost.version}
+          image: ${image ?? `localhost/rockylinux9-underpost:${Underpost.version}`}
 #          resources:
 #            requests:
 #              memory: "${resources.requests.memory}"
@@ -118,6 +118,7 @@ spec:
     async buildManifest(deployList, env, options) {
       const resources = UnderpostDeploy.API.resourcesFactory();
       const replicas = options.replicas;
+      const image = options.image;
 
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
@@ -144,6 +145,7 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   suffix: deploymentVersion,
   resources,
   replicas,
+  image,
 }).replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;
         }
@@ -241,6 +243,7 @@ spec:
         expose: false,
         cert: false,
         versions: '',
+        image: '',
         traffic: '',
         replicas: '',
         node: '',

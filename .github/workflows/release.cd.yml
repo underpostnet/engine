@@ -2,7 +2,7 @@ name: CD | Release deployment | remote ssh
 
 on:
   workflow_run:
-    workflows: ['CI | Publish npm package']
+    workflows: ["CI | Publish npm package"]
     types:
       - completed
 
@@ -34,6 +34,4 @@ jobs:
             node bin run --dev pull
             underpost run secret
             underpost run underpost-config
-            underpost run ssh-deploy engine-core
-            underpost run ssh-deploy engine-lampp
-            underpost run ssh-deploy engine-cyberia
+            underpost run ssh-deploy engine-test

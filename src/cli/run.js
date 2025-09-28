@@ -150,13 +150,24 @@ class UnderpostRun {
       let [deployId, subConf] = path.split(',');
       shellExec(`npm run dev-api ${deployId} ${subConf}`);
     },
-    'router-sync': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    sync: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
-      const defaultPaht = ['dd', 'kind-control-plane'];
-      let [deployId, node] = path ? path.split(',') : defaultPaht;
+      shellExec(`${baseCommand} run clean`);
+      const defaultPaht = ['dd', 1, ``, 'kind-control-plane'];
+      let [deployId, replicas, image, node] = path ? path.split(',') : defaultPaht;
       deployId = deployId ?? defaultPaht[0];
-      node = node ?? defaultPaht[1];
-      shellExec(`${baseCommand} deploy --sync --node ${node} --build-manifest --info-router ${deployId} production`);
+      replicas = replicas ?? defaultPaht[1];
+      image = image ?? defaultPaht[2];
+      node = node ?? defaultPaht[3];
+      shellExec(
+        `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
+          replicas ?? 1
+        } --node ${node}${image ? ` --image ${image}` : ''} ${deployId} ${env}`,
+      );
+    },
+    'ls-deployments': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      console.table(await UnderpostDeploy.API.get(path, 'deployments'));
     },
     monitor: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const pid = getTerminalPid();
