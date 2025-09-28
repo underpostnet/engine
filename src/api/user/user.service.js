@@ -9,6 +9,7 @@ import {
   hashToken,
   jwtSign,
   getBearerToken,
+  validatePasswordMiddleware,
 } from '../../server/auth.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { CoreWsMailerManagement } from '../../ws/core/management/core.ws.mailer.js';
