@@ -295,6 +295,7 @@ const buildRuntime = async () => {
               rootHostPath,
               redirect,
               redirectTarget,
+              resetRouter: currentPort === initPort,
             });
             if (disabled) continue;
             await UnderpostStartUp.API.listenPortController(
@@ -314,6 +315,7 @@ const buildRuntime = async () => {
               rootHostPath,
               redirect,
               redirectTarget,
+              resetRouter: currentPort === initPort,
             });
             if (disabled) continue;
             await UnderpostStartUp.API.listenPortController(

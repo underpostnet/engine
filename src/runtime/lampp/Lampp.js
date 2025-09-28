@@ -106,10 +106,10 @@ const Lampp = {
         break;
     }
   },
-  createApp: async ({ port, host, path, directory, rootHostPath, redirect, redirectTarget }) => {
+  createApp: async ({ port, host, path, directory, rootHostPath, redirect, redirectTarget, resetRouter }) => {
     if (!Lampp.enabled()) return { disabled: true };
     if (!Lampp.ports.includes(port)) Lampp.ports.push(port);
-    if (currentPort === initPort) Lampp.removeRouter();
+    if (resetRouter) Lampp.removeRouter();
     Lampp.appendRouter(`
 Listen ${port}
 

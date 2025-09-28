@@ -31,12 +31,12 @@ const Xampp = {
     this.router = undefined;
     if (fs.existsSync(`./tmp/xampp-router.conf`)) fs.rmSync(`./tmp/xampp-router.conf`);
   },
-  createApp: async ({ port, host, path, directory, rootHostPath, redirect, redirectTarget }) => {
+  createApp: async ({ port, host, path, directory, rootHostPath, redirect, redirectTarget, resetRouter }) => {
     if (!Xampp.enabled()) {
       return { disabled: true };
     }
     if (!Xampp.ports.includes(port)) Xampp.ports.push(port);
-    if (currentPort === initPort) Xampp.removeRouter();
+    if (resetRouter) Xampp.removeRouter();
     Xampp.appendRouter(`
 Listen ${port}
 
