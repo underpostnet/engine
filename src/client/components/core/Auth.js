@@ -78,24 +78,6 @@ const Auth = {
       } else Auth.sessionOut();
     }, refreshIn);
   },
-  signUpToken: async function (
-    result = {
-      data: {
-        token: '',
-        user: null,
-      },
-    },
-  ) {
-    try {
-      localStorage.setItem('jwt', result.data.token);
-      await SignUp.Trigger(result.data);
-      Auth.setToken(result.data.token);
-      await Auth.sessionIn();
-    } catch (error) {
-      logger.error(error);
-      localStorage.removeItem('jwt');
-    }
-  },
   sessionIn: async function (userServicePayload) {
     try {
       const token = userServicePayload?.data?.token ? userServicePayload.data.token : localStorage.getItem('jwt');

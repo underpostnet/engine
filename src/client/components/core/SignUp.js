@@ -53,8 +53,7 @@ const SignUp = {
           status: result.status,
         });
         if (result.status === 'success') {
-          await Auth.sessionOut();
-          await Auth.signUpToken(result);
+          await Auth.sessionIn(result);
           s(`.btn-close-${options.idModal}`).click();
         }
       });
