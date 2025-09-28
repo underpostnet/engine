@@ -1,0 +1,26 @@
+
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: test.nexodev.org
+spec:
+  virtualhost:
+    fqdn: test.nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-test-development-blue-service
+          port: 4021
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-test-development-blue-service
+          port: 4022
+          weight: 100
+    

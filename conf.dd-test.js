@@ -165,10 +165,7 @@ const DefaultConf = /**/ {
             auth: { user: 'noreply@default.net', pass: '' },
           },
         },
-        valkey: {
-          port: 6379,
-          host: '127.0.0.1',
-        },
+        valkey: { port: 6379, host: '127.0.0.1' },
       },
     },
   },

@@ -20,11 +20,11 @@ spec:
           image: localhost/rockylinux9-underpost:v2.8.872
 #          resources:
 #            requests:
-#              memory: "128392Ki"
-#              cpu: "100m"
+#              memory: "94Ki"
+#              cpu: "75m"
 #            limits:
-#              memory: "2054280Ki"
-#              cpu: "1600m"
+#              memory: "1504Ki"
+#              cpu: "1200m"
           command:
             - /bin/sh
             - -c
@@ -269,11 +269,11 @@ spec:
           image: localhost/rockylinux9-underpost:v2.8.872
 #          resources:
 #            requests:
-#              memory: "128392Ki"
-#              cpu: "100m"
+#              memory: "94Ki"
+#              cpu: "75m"
 #            limits:
-#              memory: "2054280Ki"
-#              cpu: "1600m"
+#              memory: "1504Ki"
+#              cpu: "1200m"
           command:
             - /bin/sh
             - -c
