@@ -557,7 +557,7 @@ const buildPortProxyRouter = (port, proxyRouter) => {
   // build router
   Object.keys(hosts).map((hostKey) => {
     let { host, path, target, proxy, peer } = hosts[hostKey];
-    if (process.env.NODE_ENV === 'development') host = `localhost`;
+    if (process.env.NODE_ENV === 'development' && process.argv.includes('localhost')) host = `localhost`;
 
     if (!proxy.includes(port)) {
       logger.warn('Proxy port not set on conf', { port, host, path, proxy, target });

@@ -449,6 +449,9 @@ try {
       shellExec(
         `node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 --node ${node} dd production`,
       );
+      shellExec(
+        `node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 --node ${node} dd development `,
+      );
       for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(`,`)) {
         fs.copySync(
           `./engine-private/conf/${deployId}/build/development/deployment.yaml`,
