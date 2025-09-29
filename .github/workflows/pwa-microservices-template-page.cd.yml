@@ -54,6 +54,7 @@ jobs:
           npm install -g underpost
           npm install
           node bin/deploy update-default-conf dd-github-pages
+          underpost env dd-github-pages production
           env-cmd -f .env.production node bin/deploy build-full-client dd-github-pages underpostnet.github.io /pwa-microservices-template-ghpkg
       # git lfs install
       # git lfs track
