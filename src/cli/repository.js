@@ -153,7 +153,17 @@ class UnderpostRepository {
       if (fs.existsSync(privateRepoPath)) fs.removeSync(privateRepoPath);
       shellExec(`cd .. && underpost clone ${process.env.GITHUB_USERNAME}/${privateRepoName}`);
       shellExec(`cd ${privateRepoPath} && underpost pull . ${process.env.GITHUB_USERNAME}/${privateRepoName}`);
+      const packageJsonDeploy = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/package.json`, 'utf8'));
+      const packageJsonEngine = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
+      if (packageJsonDeploy.version !== packageJsonEngine.version) {
+        logger.warn(
+          `Version mismatch: deploy-version:${packageJsonDeploy.version} !== engine-version:${packageJsonEngine.version},
+Prevent build private config repo.`,
+        );
+        return { validVersion: false };
+      }
       shellExec(`node bin/build ${deployId} conf`);
+      return { validVersion: true };
     },
   };
 }

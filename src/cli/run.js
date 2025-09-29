@@ -117,7 +117,7 @@ class UnderpostRun {
       shellCd(`/home/dd/engine`);
       shellExec(`node bin/deploy clean-core-repo`);
       shellExec(`underpost pull . ${process.env.GITHUB_USERNAME}/engine`);
-      shellExec(`underpost pull engine-private ${process.env.GITHUB_USERNAME}/engine-private`, { silent: true });
+      shellExec(`underpost pull ./engine-private ${process.env.GITHUB_USERNAME}/engine-private`);
     },
     'release-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       actionInitLog();
@@ -303,6 +303,8 @@ class UnderpostRun {
     },
     deploy: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const deployId = path;
+      const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
+      if (!validVersion) throw new Error('Version mismatch');
       const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
       const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
       const env = 'production';

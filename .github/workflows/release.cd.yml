@@ -34,4 +34,5 @@ jobs:
             node bin run --dev pull
             underpost run secret
             underpost run underpost-config
+            node bin run --dev pull
             underpost run ssh-deploy engine-test
