@@ -20,6 +20,7 @@ class UnderpostRun {
     imageName: '',
     containerName: '',
     namespace: '',
+    build: false,
   };
   static RUNNERS = {
     'spark-template': (path, options = UnderpostRun.DEFAULT_OPTION) => {
@@ -154,20 +155,21 @@ class UnderpostRun {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} run clean`);
-      const defaultPaht = ['dd', 1, ``, ``, 'kind-control-plane'];
-      let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPaht;
-      deployId = deployId ?? defaultPaht[0];
-      replicas = replicas ?? defaultPaht[1];
-      versions = versions ?? defaultPaht[2];
-      image = image ?? defaultPaht[3];
-      node = node ?? defaultPaht[4];
+      const defaultPath = ['dd-default', 1, ``, ``, 'kind-control-plane'];
+      let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPath;
+      deployId = deployId ?? defaultPath[0];
+      replicas = replicas ?? defaultPath[1];
+      versions = versions ?? defaultPath[2];
+      image = image ?? defaultPath[3];
+      node = node ?? defaultPath[4];
       shellExec(
         `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
           replicas ?? 1
         } --node ${node}${image ? ` --image ${image}` : ''}${
           versions ? ` --versions ${versions.replaceAll('+', ',')}` : ''
-        } ${deployId} ${env}`,
+        } dd ${env}`,
       );
+      if (!options.build) shellExec(`${baseCommand} deploy --kubeadm ${deployId} ${env}`);
     },
     'ls-deployments': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       console.table(await UnderpostDeploy.API.get(path, 'deployments'));
