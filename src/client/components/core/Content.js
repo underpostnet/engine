@@ -139,9 +139,11 @@ const Content = {
       case 'png': {
         const url = options.url
           ? options.url
+          : file?.data?.data
+          ? URL.createObjectURL(getBlobFromUint8ArrayFile(file.data.data, file.mimetype))
           : file._id
           ? getApiBaseUrl({ id: file._id, endpoint: 'file/blob' })
-          : URL.createObjectURL(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+          : null;
         const imgRender = html`<img
           class="in ${options.class}"
           ${styleFactory(options.style, `${renderChessPattern(50)}`)}

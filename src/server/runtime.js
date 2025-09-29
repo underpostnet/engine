@@ -117,9 +117,6 @@ const buildRuntime = async () => {
           // set logger
           app.use(loggerMiddleware(import.meta));
 
-          // instance public static
-          app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
-
           // js src compression
           app.use(compression({ filter: shouldCompress }));
           function shouldCompress(req, res) {
@@ -193,6 +190,13 @@ const buildRuntime = async () => {
           const server = createServer({}, app);
           if (peer) currentPort++;
 
+          // instance public static
+          app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
+
+          // load ssr
+          const ssr = await ssrMiddlewareFactory({ app, directory, rootHostPath, path });
+          for (const [_, ssrMiddleware] of Object.entries(ssr)) app.use(ssrMiddleware);
+
           if (!apiBaseHost) {
             const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
             if (fs.existsSync(swaggerJsonPath)) {
@@ -241,10 +245,6 @@ const buildRuntime = async () => {
                   app.use(`${apiPath}/${api}`, router);
                 })();
             }
-
-            // load ssr
-            const ssr = await ssrMiddlewareFactory({ app, directory, rootHostPath, path });
-            for (const [_, ssrMiddleware] of Object.entries(ssr)) app.use(ssrMiddleware);
 
             if (ws)
               await (async () => {

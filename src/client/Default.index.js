@@ -17,10 +17,6 @@ import { SocketIoDefault } from './components/default/SocketIoDefault.js';
 import { ElementsDefault } from './components/default/ElementsDefault.js';
 import { CssDefaultDark, CssDefaultLight } from './components/default/CssDefault.js';
 
-const htmlMainBody = async () => {
-  return html`<span>Hello World!!</span>`;
-};
-
 window.onload = () =>
   Worker.instance({
     router: RouterDefault,
@@ -29,7 +25,7 @@ window.onload = () =>
       await TranslateCore.Init();
       await TranslateDefault.Init();
       await Responsive.Init();
-      await MenuDefault.Render({ htmlMainBody });
+      await MenuDefault.Render();
       await SocketIo.Init({
         channels: ElementsDefault.Data,
         path: `/`,
