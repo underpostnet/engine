@@ -48,7 +48,9 @@ const UserRouter = (options) => {
         check: fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-check.png`),
       },
       header: (res) => {
-        res.set('Content-Type', 'image/png');
+        res.header('Access-Control-Allow-Origin', '*');
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+        res.header('Content-Type', 'image/png');
       },
     };
 

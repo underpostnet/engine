@@ -453,6 +453,10 @@ const UserService = {
       const user = await User.findOne({
         email: payload.email,
       });
+      if (process.env.NODE_ENV === 'development') {
+        logger.warn('Only production check image token request on mailer GET /user/recover, set fallback timeout');
+        user.recoverTimeOut = new Date(+new Date() + 1000 * 60 * 15);
+      }
       if (user && new Date().getTime() < new Date(user.recoverTimeOut).getTime()) {
         const validatePassword = validatePasswordMiddleware(req.body.password);
         if (validatePassword.status === 'error') throw new Error(validatePassword.message);
