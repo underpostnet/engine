@@ -63,6 +63,7 @@ const buildRuntime = async () => {
         singleReplica,
         replicas,
         valkey,
+        apiBaseHost,
       } = confServer[host][path];
 
       const { redirectTarget, singleReplicaHost } = await getInstanceContext({
@@ -188,97 +189,102 @@ const buildRuntime = async () => {
             await UnderpostStartUp.API.listenPortController(app, port, runningData);
             break;
           }
-
-          const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
-          if (fs.existsSync(swaggerJsonPath)) {
-            // logger.info('Build swagger serve', swaggerJsonPath);
-
-            const swaggerInstance =
-              (swaggerDoc) =>
-              (...args) =>
-                swaggerUi.setup(swaggerDoc)(...args);
-
-            const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
-
-            app.use(`${path === '/' ? `/api-docs` : `${path}/api-docs`}`, swaggerUi.serve, swaggerInstance(swaggerDoc));
-          }
-
-          if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
-
-          // valkey server
-          if (valkey) await createValkeyConnection({ host, path }, valkey);
-
-          if (mailer) {
-            const mailerSsrConf = confSSR[getCapVariableName(client)];
-            await MailerProvider.load({
-              id: `${host}${path}`,
-              meta: `mailer-${host}${path}`,
-              host,
-              path,
-              ...mailer,
-              templates: mailerSsrConf ? mailerSsrConf.mailer : {},
-            });
-          }
-          if (apis) {
-            const authMiddleware = authMiddlewareFactory({ host, path });
-
-            const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
-            for (const api of apis)
-              await (async () => {
-                const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
-                const router = ApiRouter({ host, path, apiPath, mailer, db, authMiddleware });
-                // router.use(cors({ origin: origins }));
-                // logger.info('Load api router', { host, path: apiPath, api });
-                app.use(`${apiPath}/${api}`, router);
-              })();
-          }
-
-          // load ssr
-          const ssr = await ssrMiddlewareFactory({ app, directory, rootHostPath, path });
-          for (const [_, ssrMiddleware] of Object.entries(ssr)) app.use(ssrMiddleware);
-
           // instance server
           const server = createServer({}, app);
+          if (peer) currentPort++;
 
-          if (ws)
-            await (async () => {
-              const { createIoServer } = await import(`../ws/${ws}/${ws}.ws.server.js`);
-              // logger.info('Load socket.io ws router', { host, ws });
-              // start socket.io
-              const { options, meta } = await createIoServer(server, {
+          if (!apiBaseHost) {
+            const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
+            if (fs.existsSync(swaggerJsonPath)) {
+              // logger.info('Build swagger serve', swaggerJsonPath);
+
+              const swaggerInstance =
+                (swaggerDoc) =>
+                (...args) =>
+                  swaggerUi.setup(swaggerDoc)(...args);
+
+              const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
+
+              app.use(
+                `${path === '/' ? `/api-docs` : `${path}/api-docs`}`,
+                swaggerUi.serve,
+                swaggerInstance(swaggerDoc),
+              );
+            }
+
+            if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
+
+            // valkey server
+            if (valkey) await createValkeyConnection({ host, path }, valkey);
+
+            if (mailer) {
+              const mailerSsrConf = confSSR[getCapVariableName(client)];
+              await MailerProvider.load({
+                id: `${host}${path}`,
+                meta: `mailer-${host}${path}`,
                 host,
                 path,
-                db,
-                port,
-                origins,
+                ...mailer,
+                templates: mailerSsrConf ? mailerSsrConf.mailer : {},
               });
-              await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), port, {
+            }
+            if (apis) {
+              const authMiddleware = authMiddlewareFactory({ host, path });
+
+              const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
+              for (const api of apis)
+                await (async () => {
+                  const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
+                  const router = ApiRouter({ host, path, apiPath, mailer, db, authMiddleware });
+                  // router.use(cors({ origin: origins }));
+                  // logger.info('Load api router', { host, path: apiPath, api });
+                  app.use(`${apiPath}/${api}`, router);
+                })();
+            }
+
+            // load ssr
+            const ssr = await ssrMiddlewareFactory({ app, directory, rootHostPath, path });
+            for (const [_, ssrMiddleware] of Object.entries(ssr)) app.use(ssrMiddleware);
+
+            if (ws)
+              await (async () => {
+                const { createIoServer } = await import(`../ws/${ws}/${ws}.ws.server.js`);
+                // logger.info('Load socket.io ws router', { host, ws });
+                // start socket.io
+                const { options, meta } = await createIoServer(server, {
+                  host,
+                  path,
+                  db,
+                  port,
+                  origins,
+                });
+                await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), port, {
+                  runtime: 'nodejs',
+                  client: null,
+                  host,
+                  path: options.path,
+                  meta,
+                });
+              })();
+
+            if (peer) {
+              const peerPort = newInstance(currentPort);
+              const { options, meta, peerServer } = await createPeerServer({
+                port: peerPort,
+                devPort: port,
+                origins,
+                host,
+                path,
+              });
+
+              await UnderpostStartUp.API.listenPortController(peerServer, peerPort, {
                 runtime: 'nodejs',
                 client: null,
                 host,
                 path: options.path,
                 meta,
               });
-            })();
-
-          if (peer) {
-            currentPort++;
-            const peerPort = newInstance(currentPort);
-            const { options, meta, peerServer } = await createPeerServer({
-              port: peerPort,
-              devPort: port,
-              origins,
-              host,
-              path,
-            });
-
-            await UnderpostStartUp.API.listenPortController(peerServer, peerPort, {
-              runtime: 'nodejs',
-              client: null,
-              host,
-              path: options.path,
-              meta,
-            });
+            }
           }
 
           await UnderpostStartUp.API.listenPortController(server, port, runningData);
