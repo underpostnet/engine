@@ -14,6 +14,7 @@ const DocumentService = {
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
         headers: headersFactory(),
+        credentials: 'include',
         body: payloadFactory(options.body),
       })
         .then(async (res) => {
@@ -33,6 +34,7 @@ const DocumentService = {
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'GET',
         headers: headersFactory(),
+        credentials: 'include',
       })
         .then(async (res) => {
           return await res.json();
@@ -51,6 +53,7 @@ const DocumentService = {
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
         headers: headersFactory(),
+        credentials: 'include',
         body: payloadFactory(options.body),
       })
         .then(async (res) => {
@@ -70,6 +73,7 @@ const DocumentService = {
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
         headers: headersFactory(),
+        credentials: 'include',
         body: payloadFactory(options.body),
       })
         .then(async (res) => {

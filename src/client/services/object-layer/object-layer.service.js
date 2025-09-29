@@ -33,6 +33,7 @@ const ObjectLayerService = {
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
         headers: headersFactory(),
+        credentials: 'include',
         body: payloadFactory(options.body),
       })
         .then(async (res) => {
@@ -52,6 +53,7 @@ const ObjectLayerService = {
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'GET',
         headers: headersFactory(),
+        credentials: 'include',
       })
         .then(async (res) => {
           return await res.json();
@@ -70,6 +72,7 @@ const ObjectLayerService = {
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
         headers: headersFactory(),
+        credentials: 'include',
         body: payloadFactory(options.body),
       })
         .then(async (res) => {
