@@ -384,7 +384,8 @@ EOF`);
         if (!options.remove === true) {
           if (!options.disableUpdateDeployment) shellExec(`sudo kubectl apply -f ./${manifestsPath}/deployment.yaml`);
           shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml`);
-          if (UnderpostDeploy.API.isValidTLSContext({ host, env, options }))
+
+          if (UnderpostDeploy.API.isValidTLSContext({ host: Object.keys(confServer)[0], env, options }))
             shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml`);
         }
       }

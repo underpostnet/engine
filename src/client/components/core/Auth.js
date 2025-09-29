@@ -4,7 +4,6 @@ import { loggerFactory } from './Logger.js';
 import { LogIn } from './LogIn.js';
 import { LogOut } from './LogOut.js';
 import { NotificationManager } from './NotificationManager.js';
-import { SignUp } from './SignUp.js';
 import { Translate } from './Translate.js';
 import { s } from './VanillaJs.js';
 
