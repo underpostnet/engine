@@ -35,7 +35,7 @@ class Underpost {
    * @type {String}
    * @memberof Underpost
    */
-  static version = 'v2.8.874';
+  static version = 'v2.8.875';
   /**
    * Repository cli API
    * @static
