@@ -8,6 +8,7 @@ import { range, setPad, timer } from '../client/components/core/CommonJs.js';
 import UnderpostDeploy from './deploy.js';
 import UnderpostRootEnv from './env.js';
 import UnderpostRepository from './repository.js';
+import os from 'os';
 
 const logger = loggerFactory(import.meta);
 
@@ -21,6 +22,7 @@ class UnderpostRun {
     containerName: '',
     namespace: '',
     build: false,
+    replicas: 1,
   };
   static RUNNERS = {
     'spark-template': (path, options = UnderpostRun.DEFAULT_OPTION) => {
@@ -308,20 +310,27 @@ class UnderpostRun {
     },
     deploy: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const deployId = path;
-      const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
+      const { validVersion, deployVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
       if (!validVersion) throw new Error('Version mismatch');
       const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
       const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
       const env = 'production';
       const ignorePods = UnderpostDeploy.API.get(`${deployId}-${env}-${targetTraffic}`).map((p) => p.NAME);
-      shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic}`);
+
+      if (options.build === true) {
+        // deployId, replicas, versions, image, node
+        shellExec(
+          `node bin run sync ${deployId},${options.replicas ?? 1},${targetTraffic},${
+            options.imageName ?? `localhost/rockylinux9-underpost:${deployVersion}`
+          },${os.hostname()}`,
+        );
+      } else shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic}`);
 
       let checkStatusIteration = 0;
       const checkStatusIterationMsDelay = 1000;
       const iteratorTag = `[${deployId}-${env}-${targetTraffic}]`;
       logger.info('Deployment init', { deployId, env, targetTraffic, checkStatusIterationMsDelay });
 
-      // no funca
       while (!UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods).ready) {
         await timer(checkStatusIterationMsDelay);
         checkStatusIteration++;

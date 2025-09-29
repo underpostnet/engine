@@ -160,10 +160,18 @@ class UnderpostRepository {
           `Version mismatch: deploy-version:${packageJsonDeploy.version} !== engine-version:${packageJsonEngine.version},
 Prevent build private config repo.`,
         );
-        return { validVersion: false };
+        return {
+          validVersion: false,
+          engineVersion: packageJsonEngine.version,
+          deployVersion: packageJsonDeploy.version,
+        };
       }
       shellExec(`node bin/build ${deployId} conf`);
-      return { validVersion: true };
+      return {
+        validVersion: true,
+        engineVersion: packageJsonEngine.version,
+        deployVersion: packageJsonDeploy.version,
+      };
     },
   };
 }

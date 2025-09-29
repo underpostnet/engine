@@ -351,6 +351,7 @@ program
   .option('--args <args-array>', 'Array of arguments to pass to the command.')
   .option('--dev', 'Sets the development context environment for the script.')
   .option('--build', 'Set builder context runner')
+  .option('--replicas <replicas>', 'Sets a custom number of replicas for deployment.')
   .option('--pod-name <pod-name>', 'Optional: Specifies the pod name for test execution.')
   .option('--volume-host-path <volume-host-path>', 'Optional: Specifies the volume host path for test execution.')
   .option('--volume-mount-path <volume-mount-path>', 'Optional: Specifies the volume mount path for test execution.')
