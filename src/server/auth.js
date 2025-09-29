@@ -552,7 +552,7 @@ function applySecurity(app, opts = {}) {
       origin: origin || false,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'withcredentials'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'withcredentials', 'credentials'],
       maxAge: 600,
     }),
   );
