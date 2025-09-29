@@ -241,6 +241,7 @@ spec:
         infoUtil: false,
         expose: false,
         cert: false,
+        certHosts: '',
         versions: '',
         image: '',
         traffic: '',
@@ -360,7 +361,8 @@ Password: <Your Key>
         const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
         for (const host of Object.keys(confServer)) {
           shellExec(`sudo kubectl delete HTTPProxy ${host}`);
-          if (env === 'production' && options.cert === true) shellExec(`sudo kubectl delete Certificate ${host}`);
+          if (UnderpostDeploy.API.isValidTLSContext({ host, env, options }))
+            shellExec(`sudo kubectl delete Certificate ${host}`);
           if (!options.remove === true && env === 'development') etcHosts.push(host);
         }
 
@@ -372,7 +374,7 @@ Password: <Your Key>
         if (!options.remove === true) {
           if (!options.disableUpdateDeployment) shellExec(`sudo kubectl apply -f ./${manifestsPath}/deployment.yaml`);
           shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml`);
-          if (env === 'production' && options.cert === true)
+          if (UnderpostDeploy.API.isValidTLSContext({ host, env, options }))
             shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml`);
         }
       }
@@ -481,6 +483,10 @@ Password: <Your Key>
       fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
       return { renderHosts };
     },
+    isValidTLSContext: ({ host, env, options }) =>
+      env === 'production' &&
+      options.cert === true &&
+      (!options.certHosts || options.certHosts.split(',').includes(host)),
   };
 }
 

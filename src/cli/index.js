@@ -158,6 +158,7 @@ program
   .option('--expose', 'Exposes services matching the provided deployment ID list.')
   .option('--info-util', 'Displays useful `kubectl` utility management commands.')
   .option('--cert', 'Resets TLS/SSL certificate secrets for deployments.')
+  .option('--cert-hosts <hosts>', 'Resets TLS/SSL certificate secrets for specified hosts.')
   .option('--node <node>', 'Sets optional node for deployment operations.')
   .option(
     '--build-manifest',
