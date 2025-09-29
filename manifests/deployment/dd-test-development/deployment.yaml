@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dd-test-development-blue
-          image: localhost/rockylinux9-underpost:v2.8.873
+          image: localhost/rockylinux9-underpost:v2.8.874
 #          resources:
 #            requests:
 #              memory: "96294Ki"
@@ -66,6 +66,24 @@ spec:
       protocol: UDP
       port: 4022
       targetPort: 4022
+
+    - name: 'tcp-4023'
+      protocol: TCP
+      port: 4023
+      targetPort: 4023
+    - name: 'udp-4023'
+      protocol: UDP
+      port: 4023
+      targetPort: 4023
+
+    - name: 'tcp-4024'
+      protocol: TCP
+      port: 4024
+      targetPort: 4024
+    - name: 'udp-4024'
+      protocol: UDP
+      port: 4024
+      targetPort: 4024
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -86,7 +104,7 @@ spec:
     spec:
       containers:
         - name: dd-test-development-green
-          image: localhost/rockylinux9-underpost:v2.8.873
+          image: localhost/rockylinux9-underpost:v2.8.874
 #          resources:
 #            requests:
 #              memory: "96294Ki"
@@ -135,4 +153,22 @@ spec:
       protocol: UDP
       port: 4022
       targetPort: 4022
+
+    - name: 'tcp-4023'
+      protocol: TCP
+      port: 4023
+      targetPort: 4023
+    - name: 'udp-4023'
+      protocol: UDP
+      port: 4023
+      targetPort: 4023
+
+    - name: 'tcp-4024'
+      protocol: TCP
+      port: 4024
+      targetPort: 4024
+    - name: 'udp-4024'
+      protocol: UDP
+      port: 4024
+      targetPort: 4024
   type: LoadBalancer

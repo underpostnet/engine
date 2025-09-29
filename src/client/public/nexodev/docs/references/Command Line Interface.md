@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.873
+## underpost ci/cd cli v2.8.874
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -291,6 +291,8 @@ Options:
                                     management commands.
   --cert                            Resets TLS/SSL certificate secrets for
                                     deployments.
+  --cert-hosts <hosts>              Resets TLS/SSL certificate secrets for
+                                    specified hosts.
   --node <node>                     Sets optional node for deployment
                                     operations.
   --build-manifest                  Builds Kubernetes YAML manifests, including

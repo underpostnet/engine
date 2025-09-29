@@ -24,3 +24,28 @@ spec:
           port: 4022
           weight: 100
     
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: stagging.nexodev.org
+spec:
+  virtualhost:
+    fqdn: stagging.nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-test-development-blue-service
+          port: 4023
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-test-development-blue-service
+          port: 4024
+          weight: 100
+    
