@@ -7,6 +7,7 @@ import fs from 'fs-extra';
 import { range, setPad, timer } from '../client/components/core/CommonJs.js';
 import UnderpostDeploy from './deploy.js';
 import UnderpostRootEnv from './env.js';
+import UnderpostRepository from './repository.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -131,7 +132,6 @@ class UnderpostRun {
       actionInitLog();
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
       shellCd('/home/dd/engine');
-      shellExec(`node bin/build dd-${path.split('engine-')[1]} conf`);
       shellExec(`git reset`);
       shellExec(`${baseCommand} cmt . --empty cd ssh-${path}`);
       shellExec(`${baseCommand} push . underpostnet/engine`);
@@ -303,6 +303,7 @@ class UnderpostRun {
     },
     deploy: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const deployId = path;
+      UnderpostRepository.API.privateConfUpdate(deployId);
       const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
       const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
       const env = 'production';

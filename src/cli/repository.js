@@ -1,6 +1,6 @@
 import { commitData } from '../client/components/core/CommonJs.js';
 import dotenv from 'dotenv';
-import { pbcopy, shellExec } from '../server/process.js';
+import { pbcopy, shellCd, shellExec } from '../server/process.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import fs from 'fs-extra';
 import { getNpmRootPath } from '../server/conf.js';
@@ -49,7 +49,7 @@ class UnderpostRepository {
       },
     ) {
       if (commitType === 'reset') {
-        pbcopy(shellExec(`git --no-pager log -1 --pretty=%B`, { stdout: true }));
+        if (options.copy) pbcopy(shellExec(`git --no-pager log -1 --pretty=%B`, { stdout: true }));
         shellExec(`cd ${repoPath} && git reset --soft HEAD~${isNaN(parseInt(subModule)) ? 1 : parseInt(subModule)}`);
         return;
       }
@@ -137,6 +137,15 @@ class UnderpostRepository {
         .filter(Boolean)
         .concat(diffUntrackOutput.toString().split('\n').filter(Boolean))
         .filter((f) => !deleteFiles.includes(f));
+    },
+    privateConfUpdate(deployId) {
+      shellCd(`/home/dd/engine`);
+      const privateRepoName = `engine-${deployId.split('dd-')[1]}-private`;
+      const privateRepoPath = `../${privateRepoName}`;
+      if (fs.existsSync(privateRepoPath)) fs.removeSync(privateRepoPath);
+      shellExec(`cd .. && underpost clone ${process.env.GITHUB_USERNAME}/${privateRepoName}`);
+      shellExec(`cd ${privateRepoPath} && underpost pull . ${process.env.GITHUB_USERNAME}/${privateRepoName}`);
+      shellExec(`node bin/build ${deployId} conf`);
     },
   };
 }
