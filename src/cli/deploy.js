@@ -233,7 +233,7 @@ spec:
       return info.match('blue') ? 'blue' : info.match('green') ? 'green' : null;
     },
     async callback(
-      deployList = 'default',
+      deployList = '',
       env = 'development',
       options = {
         remove: false,
@@ -307,6 +307,14 @@ docker login nvcr.io
 Username: $oauthtoken
 Password: <Your Key>
 `);
+      if (!deployList && options.certHosts) {
+        for (const host of options.certHosts.split(',')) {
+          shellExec(`sudo kubectl apply -f - <<EOF
+${UnderpostDeploy.API.buildCertManagerCertificate({ host })}
+EOF`);
+        }
+        return;
+      } else if (!deployList) deployList = 'dd-default';
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
       if (options.infoTraffic === true) {
