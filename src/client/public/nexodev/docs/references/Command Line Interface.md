@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.876
+## underpost ci/cd cli v2.8.877
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -609,6 +609,8 @@ Options:
   --command <command-array>                Array of commands to run.
   --args <args-array>                      Array of arguments to pass to the command.
   --dev                                    Sets the development context environment for the script.
+  --build                                  Set builder context runner
+  --replicas <replicas>                    Sets a custom number of replicas for deployment.
   --pod-name <pod-name>                    Optional: Specifies the pod name for test execution.
   --volume-host-path <volume-host-path>    Optional: Specifies the volume host path for test execution.
   --volume-mount-path <volume-mount-path>  Optional: Specifies the volume mount path for test execution.
