@@ -12,7 +12,6 @@ import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import UnderpostRootEnv from './env.js';
 import UnderpostCluster from './cluster.js';
 import Underpost from '../index.js';

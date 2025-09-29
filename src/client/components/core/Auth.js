@@ -107,6 +107,7 @@ const Auth = {
             });
           });
       }
+      // Important delete session token if guest token already exists
       Auth.deleteToken();
       localStorage.removeItem('jwt');
 
