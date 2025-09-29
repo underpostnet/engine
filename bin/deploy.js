@@ -370,6 +370,7 @@ try {
     case 'version-build': {
       shellCd(`/home/dd/engine`);
       shellExec(`node bin/deploy clean-core-repo`);
+      shellExec(`node bin pull . ${process.env.GITHUB_USERNAME}/engine`);
       shellExec(`node bin run kill 4001`);
       shellExec(`node bin run kill 4002`);
       shellExec(`node bin run kill 4003`);
@@ -479,8 +480,8 @@ try {
       shellExec(`git add . && cd ./engine-private && git add .`);
       shellExec(`node bin cmt . ci package-pwa-microservices-template`);
       shellExec(`node bin cmt ./engine-private ci package-pwa-microservices-template`);
-      shellExec(`node bin push . underpostnet/engine`);
-      shellExec(`cd ./engine-private && node ../bin push . underpostnet/engine-private`);
+      shellExec(`node bin push . ${process.env.GITHUB_USERNAME}/engine`);
+      shellExec(`cd ./engine-private && node ../bin push . ${process.env.GITHUB_USERNAME}/engine-private`);
       break;
     }
 
@@ -540,7 +541,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       let confName = process.argv[3];
       if (confName === 'ghpkg') {
         confName = undefined;
-        const host = 'underpostnet.github.io';
+        const host = `${process.env.GITHUB_USERNAME}.github.io`;
         const path = '/pwa-microservices-template-ghpkg';
         DefaultConf.server = {
           [host]: { [path]: defaultServer },

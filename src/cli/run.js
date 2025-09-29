@@ -27,9 +27,9 @@ class UnderpostRun {
       shellExec(`sudo rm -rf ${dir}`);
       shellCd('/home/dd');
 
-      // pbcopy(`cd /home/dd && sbt new underpostnet/spark-template.g8`);
+      // pbcopy(`cd /home/dd && sbt new ${process.env.GITHUB_USERNAME}/spark-template.g8`);
       // await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
-      shellExec(`cd /home/dd && sbt new underpostnet/spark-template.g8 '--name=spark-template'`);
+      shellExec(`cd /home/dd && sbt new ${process.env.GITHUB_USERNAME}/spark-template.g8 '--name=spark-template'`);
 
       shellCd(dir);
 
@@ -107,7 +107,7 @@ class UnderpostRun {
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
       shellExec(`${baseCommand} cmt . --empty ci package-pwa-microservices-template`);
-      shellExec(`${baseCommand} push . underpostnet/engine`);
+      shellExec(`${baseCommand} push . ${process.env.GITHUB_USERNAME}/engine`);
     },
     clean: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       shellCd(path ?? `/home/dd/engine`);
@@ -116,8 +116,8 @@ class UnderpostRun {
     pull: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       shellCd(`/home/dd/engine`);
       shellExec(`node bin/deploy clean-core-repo`);
-      shellExec(`underpost pull . underpostnet/engine`);
-      shellExec(`underpost pull engine-private underpostnet/engine-private`, { silent: true });
+      shellExec(`underpost pull . ${process.env.GITHUB_USERNAME}/engine`);
+      shellExec(`underpost pull engine-private ${process.env.GITHUB_USERNAME}/engine-private`, { silent: true });
     },
     'release-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       actionInitLog();
@@ -134,7 +134,7 @@ class UnderpostRun {
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
       shellExec(`${baseCommand} cmt . --empty cd ssh-${path}`);
-      shellExec(`${baseCommand} push . underpostnet/engine`);
+      shellExec(`${baseCommand} push . ${process.env.GITHUB_USERNAME}/engine`);
     },
     ide: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
@@ -303,7 +303,6 @@ class UnderpostRun {
     },
     deploy: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const deployId = path;
-      UnderpostRepository.API.privateConfUpdate(deployId);
       const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
       const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
       const env = 'production';

@@ -61,10 +61,10 @@ class BackUp {
         }
       shellExec(
         `cd ./engine-private/cron-backups` +
-          ` && underpost pull . underpostnet/cron-backups` +
+          ` && underpost pull . ${process.env.GITHUB_USERNAME}/cron-backups` +
           ` && git add .` +
           ` && underpost cmt . backup cron-job '${new Date().toLocaleDateString()}'` +
-          ` && underpost push . underpostnet/cron-backups`,
+          ` && underpost push . ${process.env.GITHUB_USERNAME}/cron-backups`,
         {
           disableLog: true,
         },

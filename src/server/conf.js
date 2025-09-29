@@ -918,7 +918,7 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
       baseOptions +
       `
       
-<a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/cli.md">See complete CLI Docs here.</a>
+<a target="_top" href="https://github.com/${process.env.GITHUB_USERNAME}/pwa-microservices-template/blob/master/cli.md">See complete CLI Docs here.</a>
       
 `
     ).replaceAll(oldVersion, newVersion),

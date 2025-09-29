@@ -13,7 +13,7 @@ const logger = loggerFactory(import.meta);
 
 class UnderpostRepository {
   static API = {
-    clone(gitUri = 'underpostnet/pwa-microservices-template', options = { bare: false, g8: false }) {
+    clone(gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`, options = { bare: false, g8: false }) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
       const repoName = gitUri.split('/').pop();
       if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
@@ -26,7 +26,11 @@ class UnderpostRepository {
         },
       );
     },
-    pull(repoPath = './', gitUri = 'underpostnet/pwa-microservices-template', options = { g8: false }) {
+    pull(
+      repoPath = './',
+      gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`,
+      options = { g8: false },
+    ) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
       shellExec(
         `cd ${repoPath} && git pull https://${
@@ -61,7 +65,11 @@ class UnderpostRepository {
       shellExec(`cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}-m "${_message}"`);
     },
 
-    push(repoPath = './', gitUri = 'underpostnet/pwa-microservices-template', options = { f: false, g8: false }) {
+    push(
+      repoPath = './',
+      gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template}`,
+      options = { f: false, g8: false },
+    ) {
       const gExtension = options.g8 === true || options.G8 === true ? '.g8' : '.git';
       shellExec(
         `cd ${repoPath} && git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}${gExtension}${
