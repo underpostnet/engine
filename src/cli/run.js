@@ -154,16 +154,19 @@ class UnderpostRun {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} run clean`);
-      const defaultPaht = ['dd', 1, ``, 'kind-control-plane'];
-      let [deployId, replicas, image, node] = path ? path.split(',') : defaultPaht;
+      const defaultPaht = ['dd', 1, ``, ``, 'kind-control-plane'];
+      let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPaht;
       deployId = deployId ?? defaultPaht[0];
       replicas = replicas ?? defaultPaht[1];
-      image = image ?? defaultPaht[2];
-      node = node ?? defaultPaht[3];
+      versions = versions ?? defaultPaht[2];
+      image = image ?? defaultPaht[3];
+      node = node ?? defaultPaht[4];
       shellExec(
         `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
           replicas ?? 1
-        } --node ${node}${image ? ` --image ${image}` : ''} ${deployId} ${env}`,
+        } --node ${node}${image ? ` --image ${image}` : ''}${
+          versions ? ` --versions ${versions.replaceAll('+', ',')}` : ''
+        } ${deployId} ${env}`,
       );
     },
     'ls-deployments': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
@@ -316,6 +319,7 @@ class UnderpostRun {
       const iteratorTag = `[${deployId}-${env}-${targetTraffic}]`;
       logger.info('Deployment init', { deployId, env, targetTraffic, checkStatusIterationMsDelay });
 
+      // no funca
       while (!UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods).ready) {
         await timer(checkStatusIterationMsDelay);
         checkStatusIteration++;
