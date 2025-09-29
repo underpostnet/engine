@@ -539,15 +539,16 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     case 'update-default-conf': {
       const defaultServer = DefaultConf.server['default.net']['/'];
       let confName = process.argv[3];
-      if (confName === 'ghpkg') {
-        confName = undefined;
-        const host = `${process.env.GITHUB_USERNAME}.github.io`;
+      let defaultConf = false;
+      if (confName === 'dd-github-pages') {
+        const host = `${process.env.GITHUB_USERNAME ?? 'underpostnet'}.github.io`;
         const path = '/pwa-microservices-template-ghpkg';
         DefaultConf.server = {
           [host]: { [path]: defaultServer },
         };
         DefaultConf.server[host][path].apiBaseProxyPath = '/';
         DefaultConf.server[host][path].apiBaseHost = 'www.nexodev.org';
+        defaultConf = true;
       } else if (confName === 'template') {
         const host = 'default.net';
         const path = '/';
@@ -557,7 +558,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         };
         // mongodb-0.mongodb-service
         DefaultConf.server[host][path].db.host = 'mongodb://mongodb-service:27017';
-        confName = '';
+        defaultConf = true;
       } else if (confName && fs.existsSync(`./engine-private/conf/${confName}`)) {
         DefaultConf.client = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.client.json`, 'utf8'));
         DefaultConf.server = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.server.json`, 'utf8'));
@@ -581,9 +582,21 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       const sepRender = '/**/';
       const confRawPaths = fs.readFileSync('./conf.js', 'utf8').split(sepRender);
       confRawPaths[1] = `${JSON.stringify(DefaultConf)};`;
-      const targetConfPath = `./conf${confName ? `.${confName}` : ''}.js`;
+      const targetConfPath = `./conf${defaultConf ? '' : `.${confName}`}.js`;
       fs.writeFileSync(targetConfPath, confRawPaths.join(sepRender), 'utf8');
       shellExec(`prettier --write ${targetConfPath}`);
+
+      switch (confName) {
+        case 'dd-github-pages':
+          {
+            if (fs.exists(`./engine-private/conf/${confName}`)) fs.removeSync(`./engine-private/conf/${confName}`);
+            shellExec(`node bin new --deploy-id ${confName}`);
+          }
+          break;
+
+        default:
+          break;
+      }
 
       break;
     }
