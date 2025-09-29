@@ -28,4 +28,4 @@ jobs:
           script: |
             set -e
             echo "Starting remote deploy: underpost run deploy dd-test"
-            cd /home/dd/engine && underpost run deploy dd-test
+            cd /home/dd/engine && underpost run pull && underpost run deploy dd-test
