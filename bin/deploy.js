@@ -368,6 +368,8 @@ try {
     }
 
     case 'version-build': {
+      shellCd(`/home/dd/engine`);
+      shellExec(`node bin/deploy clean-core-repo`);
       shellExec(`node bin run kill 4001`);
       shellExec(`node bin run kill 4002`);
       shellExec(`node bin run kill 4003`);
@@ -384,8 +386,8 @@ try {
         logger.error('Test template runner result failed');
         break;
       }
-      shellExec(`node bin/deploy clean-core-repo`);
       shellCd(`/home/dd/engine`);
+      shellExec(`node bin/deploy clean-core-repo`);
       const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
       const newVersion = process.argv[3] ?? originPackageJson.version;
       const node = process.argv[4] ?? 'kind-control-plane';
