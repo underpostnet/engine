@@ -154,21 +154,7 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
         let secretYaml = '';
 
         for (const host of Object.keys(confServer)) {
-          if (env === 'production')
-            secretYaml += `
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: ${host}
-spec:
-  commonName: ${host}
-  dnsNames:
-    - ${host}
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-  secretName: ${host}`;
+          if (env === 'production') secretYaml += UnderpostDeploy.API.buildCertManagerCertificate({ host });
 
           const pathPortAssignment = pathPortAssignmentData[host];
           // logger.info('', { host, pathPortAssignment });
@@ -221,6 +207,22 @@ spec:
           }
         }
       }
+    },
+    buildCertManagerCertificate({ host }) {
+      return `
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ${host}
+spec:
+  commonName: ${host}
+  dnsNames:
+    - ${host}
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  secretName: ${host}`;
     },
     getCurrentTraffic(deployId) {
       // kubectl get deploy,sts,svc,configmap,secret -n default -o yaml --export > default.yaml
