@@ -161,6 +161,9 @@ const buildRuntime = async () => {
             return next();
           });
 
+          // instance public static
+          app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
+
           // security
           applySecurity(app, {
             origin: origins.concat(
@@ -189,13 +192,6 @@ const buildRuntime = async () => {
           // instance server
           const server = createServer({}, app);
           if (peer) currentPort++;
-
-          // instance public static
-          app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
-
-          // load ssr
-          const ssr = await ssrMiddlewareFactory({ app, directory, rootHostPath, path });
-          for (const [_, ssrMiddleware] of Object.entries(ssr)) app.use(ssrMiddleware);
 
           if (!apiBaseHost) {
             const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
@@ -286,6 +282,10 @@ const buildRuntime = async () => {
               });
             }
           }
+
+          // load ssr
+          const ssr = await ssrMiddlewareFactory({ app, directory, rootHostPath, path });
+          for (const [_, ssrMiddleware] of Object.entries(ssr)) app.use(ssrMiddleware);
 
           await UnderpostStartUp.API.listenPortController(server, port, runningData);
 

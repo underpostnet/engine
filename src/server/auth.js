@@ -523,6 +523,7 @@ function applySecurity(app, opts = {}) {
 
   // Content-Security-Policy: include nonce from res.locals
   // Note: We avoid 'unsafe-inline' on script/style. Use nonces or hashes.
+  const httpDirective = process.env.NODE_ENV === 'production' ? 'https:' : 'http:';
   app.use(
     helmet.contentSecurityPolicy({
       useDefaults: true,
@@ -530,16 +531,16 @@ function applySecurity(app, opts = {}) {
         defaultSrc: ["'self'"],
         baseUri: ["'self'"],
         blockAllMixedContent: [],
-        fontSrc: ["'self'", 'https:', 'data:'],
+        fontSrc: ["'self'", httpDirective, 'data:'],
         frameAncestors: frameAncestors,
-        imgSrc: ["'self'", 'data:', 'https:'],
+        imgSrc: ["'self'", 'data:', httpDirective],
         objectSrc: ["'none'"],
         // script-src and script-src-elem include dynamic nonce
         scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
         scriptSrcElem: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
         // style-src: avoid 'unsafe-inline' when possible; if you must inline styles,
         // use a nonce for them too (or hash).
-        styleSrc: ["'self'", 'https:', (req, res) => `'nonce-${res.locals.nonce}'`],
+        styleSrc: ["'self'", httpDirective, (req, res) => `'nonce-${res.locals.nonce}'`],
         // deny plugins
         objectSrc: ["'none'"],
       },

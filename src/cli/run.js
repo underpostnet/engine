@@ -107,6 +107,8 @@ class UnderpostRun {
     },
     'template-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
+      shellExec(`${baseCommand} run clean`);
+      shellExec(`${baseCommand} push ./engine-private ${process.env.GITHUB_USERNAME}/engine-private`);
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
       shellExec(`${baseCommand} cmt . --empty ci package-pwa-microservices-template`);
