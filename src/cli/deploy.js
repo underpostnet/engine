@@ -469,7 +469,11 @@ EOF`);
           notReadyPods.push(pod);
         }
       }
-      return { ready: notReadyPods.length === 0, notReadyPods, readyPods };
+      return {
+        ready: pods.length > 0 && notReadyPods.length === 0,
+        notReadyPods,
+        readyPods,
+      };
     },
     configMap(env) {
       shellExec(`kubectl delete configmap underpost-config`);
