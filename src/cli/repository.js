@@ -90,7 +90,7 @@ class UnderpostRepository {
       );
     },
 
-    new(repositoryName, options = { dev: false, deployId: false }) {
+    new(repositoryName, options = { dev: false, deployId: false, cluster: false }) {
       return new Promise(async (resolve, reject) => {
         try {
           await logger.setUpInfo();
@@ -99,7 +99,7 @@ class UnderpostRepository {
             return resolve(
               await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), ':'),
             );
-          if (options.deployId === true) return Config.deployIdFactory(repositoryName);
+          if (options.deployId === true) return Config.deployIdFactory(repositoryName, options);
           const npmRoot = getNpmRootPath();
           const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
           const destFolder = `./${repositoryName}`;

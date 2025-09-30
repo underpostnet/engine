@@ -24,6 +24,7 @@ program
   .command('new')
   .argument('<app-name>', 'The name or deploy-id of the application to create.')
   .option('--deploy-id', 'Crete deploy ID conf env files')
+  .option('--cluster', 'Create deploy ID cluster files and sync to current cluster')
   .option('--dev', 'Sets the development cli context')
   .description('Initializes a new Underpost project with a predefined structure.')
   .action(Underpost.repo.new);

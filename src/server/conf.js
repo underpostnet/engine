@@ -33,12 +33,13 @@ const Config = {
     else if (deployContext.startsWith('dd-')) return loadConf(deployContext, process.env.NODE_ENV, subConf);
     if (deployContext === 'proxy') Config.buildProxy(deployContext, deployList, subConf);
   },
-  deployIdFactory: function (deployId = 'dd-default') {
+  deployIdFactory: function (deployId = 'dd-default', options = { cluster: false }) {
     if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
 
     logger.info('Build deployId', deployId);
 
     const folder = `./engine-private/conf/${deployId}`;
+    const repoName = `engine-${deployId.split('dd-')[1]}`;
 
     if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
     fs.writeFileSync(
@@ -56,9 +57,32 @@ const Config = {
       fs.readFileSync('./.env.test', 'utf8').replaceAll('dd-default', deployId),
       'utf8',
     );
-    fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
+    fs.writeFileSync(
+      `${folder}/package.json`,
+      fs.readFileSync('./package.json', 'utf8').replaceAll('dd-default', deployId),
+      'utf8',
+    );
 
     this.buildTmpConf(folder);
+
+    if (options.cluster === true) {
+      fs.writeFileSync(
+        `./.github/workflows/${repoName}.cd.yml`,
+        fs.readFileSync(`./.github/workflows/engine-test.cd.yml`, 'utf8').replaceAll('test', deployId.split('dd-')[1]),
+        'utf8',
+      );
+      fs.writeFileSync(
+        `./.github/workflows/${repoName}.ci.yml`,
+        fs.readFileSync(`./.github/workflows/engine-test.ci.yml`, 'utf8').replaceAll('test', deployId.split('dd-')[1]),
+        'utf8',
+      );
+      shellExec(`node bin/deploy update-default-conf ${deployId}`);
+      fs.writeFileSync(
+        `./engine-private/deploy/dd.router`,
+        fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').trim() + `,${deployId}`,
+        'utf8',
+      );
+    }
 
     return { deployIdFolder: folder, deployId };
   },
