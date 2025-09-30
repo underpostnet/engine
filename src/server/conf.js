@@ -82,6 +82,17 @@ const Config = {
         fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').trim() + `,${deployId}`,
         'utf8',
       );
+      const updateRepo = (stage = 1) => {
+        shellExec(`git add . && git commit -m "Add base deployId ${deployId} cluster files stage:${stage}"`);
+        shellExec(
+          `cd engine-private && git add . && git commit -m "Add base deployId ${deployId} cluster files stage:${stage}"`,
+        );
+      };
+      updateRepo(1);
+      shellExec(`node bin run --build --dev sync`);
+      updateRepo(2);
+      shellExec(`node bin run --build sync`);
+      updateRepo(3);
     }
 
     return { deployIdFolder: folder, deployId };
