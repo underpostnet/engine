@@ -137,13 +137,7 @@ const Content = {
       case 'svg':
       case 'gif':
       case 'png': {
-        const url = options.url
-          ? options.url
-          : file?.data?.data
-          ? URL.createObjectURL(getBlobFromUint8ArrayFile(file.data.data, file.mimetype))
-          : file._id
-          ? getApiBaseUrl({ id: file._id, endpoint: 'file/blob' })
-          : null;
+        const url = Content.urlFactory(options);
         const imgRender = html`<img
           class="in ${options.class}"
           ${styleFactory(options.style, `${renderChessPattern(50)}`)}
@@ -153,11 +147,7 @@ const Content = {
         break;
       }
       case 'pdf': {
-        const url = options.url
-          ? options.url
-          : file._id
-          ? getApiBaseUrl({ id: file._id, endpoint: 'file/blob' })
-          : URL.createObjectURL(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+        const url = Content.urlFactory(options);
         render += html`<iframe
           class="in ${options.class} iframe-${options.idModal}"
           ${styleFactory(options.style)}
@@ -190,6 +180,15 @@ const Content = {
     }
     if (options.raw) return render;
     append(container, render);
+  },
+  urlFactory: function (options) {
+    return options.url
+      ? options.url
+      : options.file?.data?.data
+      ? URL.createObjectURL(getBlobFromUint8ArrayFile(options.file.data.data, options.file.mimetype))
+      : options.file._id
+      ? getApiBaseUrl({ id: options.file._id, endpoint: 'file/blob' })
+      : null;
   },
 };
 
