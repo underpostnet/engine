@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.877
+## underpost ci/cd cli v2.8.878
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -51,6 +51,7 @@ Arguments:
 
 Options:
   --deploy-id  Crete deploy ID conf env files
+  --cluster    Create deploy ID cluster files and sync to current cluster
   --dev        Sets the development cli context
   -h, --help   display help for command
  
