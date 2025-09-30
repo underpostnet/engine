@@ -20,7 +20,21 @@ const FileController = {
   get: async (req, res, options) => {
     try {
       const result = await FileService.get(req, res, options);
-      if (result instanceof Buffer) return res.status(200).end(result);
+      if (result instanceof Buffer) {
+        if (
+          process.env.NODE_ENV === 'development' ||
+          req.hostname === options.host ||
+          (options.origins && options.origins.find((o) => o.match(req.hostname)))
+        ) {
+          res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+          return res.status(200).end(result);
+        }
+        return res.status(403).json({
+          status: 'error',
+          message: 'Forbidden',
+        });
+      }
+
       return res.status(200).json({
         status: 'success',
         data: result,

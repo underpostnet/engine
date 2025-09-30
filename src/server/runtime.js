@@ -235,7 +235,7 @@ const buildRuntime = async () => {
               for (const api of apis)
                 await (async () => {
                   const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
-                  const router = ApiRouter({ host, path, apiPath, mailer, db, authMiddleware });
+                  const router = ApiRouter({ host, path, apiPath, mailer, db, authMiddleware, origins });
                   // router.use(cors({ origin: origins }));
                   // logger.info('Load api router', { host, path: apiPath, api });
                   app.use(`${apiPath}/${api}`, router);
