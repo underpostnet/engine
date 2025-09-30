@@ -88,6 +88,7 @@ const UserService = {
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
         headers: headersFactory(options.headerId),
+        credentials: 'include',
         body: payloadFactory(options.body),
       })
         .then(async (res) => {
