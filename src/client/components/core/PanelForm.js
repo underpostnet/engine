@@ -178,6 +178,12 @@ const PanelForm = {
             }
             return { status: 'error' };
           },
+          initAdd: async function () {
+            s(`.modal-${options.route}`).scrollTo({ top: 0, behavior: 'smooth' });
+          },
+          initEdit: async function ({ data }) {
+            s(`.modal-${options.route}`).scrollTo({ top: 0, behavior: 'smooth' });
+          },
           add: async function ({ data, editId }) {
             let mdFileId;
             const mdFileName = `${getCapVariableName(data.title)}.md`;
@@ -396,7 +402,7 @@ const PanelForm = {
 
         panelData.skip += result.data.length;
         panelData.hasMore = result.data.length === panelData.limit;
-        if (result.data.length === 0) {
+        if (result.data.length < panelData.limit) {
           LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
         }
       } else {
@@ -458,7 +464,9 @@ const PanelForm = {
     let lastCid;
     let lastUserId;
     closeModalRouteChangeEvents[idPanel] = () => {
-      this.Data[idPanel].updatePanel();
+      setTimeout(() => {
+        this.Data[idPanel].updatePanel();
+      });
     };
     this.Data[idPanel].updatePanel = async () => {
       const cid = getQueryParams().cid ? getQueryParams().cid : '';

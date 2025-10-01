@@ -114,6 +114,7 @@ const Panel = {
             options.originData().find((d) => d._id === obj._id || d.id === obj.id),
             options.filesData().find((d) => d._id === obj._id || d.id === obj.id),
           );
+          if (options.on.initEdit) await options.on.initEdit({ data: obj });
         });
         s(`.a-${payload._id}`).onclick = async (e) => {
           e.preventDefault();
@@ -469,7 +470,7 @@ const Panel = {
         }
         s(`.${idPanel}-form-body`).classList.add('hide');
       };
-      s(`.btn-${idPanel}-add`).onclick = (e) => {
+      s(`.btn-${idPanel}-add`).onclick = async (e) => {
         e.preventDefault();
         // s(`.btn-${idPanel}-clean`).click();
         Panel.Tokens[idPanel].editId = undefined;
@@ -478,6 +479,7 @@ const Panel = {
         s(`.${scrollClassContainer}`).scrollTop = 0;
 
         openPanelForm();
+        if (options.on.initAdd) await options.on.initAdd();
       };
       if (s(`.${scrollClassContainer}`)) s(`.${scrollClassContainer}`).style.overflow = 'auto';
     });
