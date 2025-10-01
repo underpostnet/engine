@@ -7,6 +7,7 @@ SrrComponent = ({ title, author, keywords, description, themeColor, ssrPath, can
   <meta name="theme-color" content="${themeColor}" />
 
   <meta property="og:title" content="${title}" />
+  <meta property="og:type" content="website" />
   <meta property="og:description" content="${description}" />
   <meta property="og:image" content="${thumbnail}" />
   <meta property="og:url" content="${canonicalURL}" />

@@ -1,7 +1,7 @@
 import { marked } from 'marked';
 import { FileService } from '../../services/file/file.service.js';
 import { append, getBlobFromUint8ArrayFile, getRawContentFile, htmls, s } from './VanillaJs.js';
-import { titleFormatted } from './CommonJs.js';
+import { s4 } from './CommonJs.js';
 import { Translate } from './Translate.js';
 import { Modal, renderViewTitle } from './Modal.js';
 import { DocumentService } from '../../services/document/document.service.js';
@@ -139,6 +139,7 @@ const Content = {
       case 'png': {
         const url = Content.urlFactory(options);
         const imgRender = html`<img
+          alt="${file.name ? file.name : `file ${s4()}`}"
           class="in ${options.class}"
           ${styleFactory(options.style, `${renderChessPattern(50)}`)}
           src="${url}"

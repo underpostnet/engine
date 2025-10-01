@@ -5,7 +5,7 @@ SrrComponent = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents,
       <title>${title}</title>
       <link rel="icon" type="image/x-icon" href="${ssrPath}favicon.ico" />
       <meta charset="UTF-8" />
-      <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <script>
         window.renderPayload = ${renderApi.JSONweb(renderPayload)};
       </script>
