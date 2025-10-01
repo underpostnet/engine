@@ -184,6 +184,9 @@ const PanelForm = {
           initEdit: async function ({ data }) {
             s(`.modal-${options.route}`).scrollTo({ top: 0, behavior: 'smooth' });
           },
+          noResultFound: async function () {
+            LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
+          },
           add: async function ({ data, editId }) {
             let mdFileId;
             const mdFileName = `${getCapVariableName(data.title)}.md`;

@@ -485,10 +485,13 @@ const Panel = {
     });
 
     if (data.length > 0) for (const obj of data) render += await renderPanel(obj);
-    else
+    else {
       render += html`<div class="in" style="min-height: 200px">
         <div class="abs center"><i class="fas fa-exclamation-circle"></i> ${Translate.Render(`no-result-found`)}</div>
       </div>`;
+
+      if (options.on.noResultFound) setTimeout(options.on.noResultFound);
+    }
 
     this.Tokens[idPanel] = { idPanel, scrollClassContainer, formData, data, titleKey, subTitleKey, renderPanel };
 
