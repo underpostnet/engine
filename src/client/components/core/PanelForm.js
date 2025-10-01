@@ -504,12 +504,13 @@ const PanelForm = {
       LoadingAnimation.spinner.play(`.panel-placeholder-bottom-${idPanel}`, 'dual-ring-mini');
 
       const scrollContainerSelector = `.modal-${options.route}`;
-      if (this.Data[idPanel].removeScrollEvent) {
-        this.Data[idPanel].removeScrollEvent();
-      }
+
       if (cid) {
         LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
         return;
+      }
+      if (this.Data[idPanel].removeScrollEvent) {
+        this.Data[idPanel].removeScrollEvent();
       }
       const { removeEvent } = Scroll.setEvent(scrollContainerSelector, async (payload) => {
         const panelData = PanelForm.Data[idPanel];
@@ -542,7 +543,7 @@ const PanelForm = {
             originData: [],
             data: [],
             filesData: [],
-            skip: 0,
+            // skip: 0,
             limit: 3, // Load 5 items per page
             hasMore: true,
             loading: false,

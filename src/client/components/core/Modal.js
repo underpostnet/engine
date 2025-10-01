@@ -1385,7 +1385,7 @@ const Modal = {
       <div
         class="fix ${options && options.class ? options.class : ''} modal ${options.disableBoxShadow
           ? ''
-          : 'box-shadow'} ${idModal}"
+          : 'box-shadow'} ${idModal === 'main-body' ? `${idModal} modal-home` : idModal}"
       >
         <div class="abs modal-handle-${idModal}"></div>
         <div class="in modal-html-${idModal}">
