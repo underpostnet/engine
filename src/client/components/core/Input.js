@@ -61,7 +61,8 @@ const Input = {
         };
     });
 
-    const inputElement = html` <input
+    const inputElement = html` <label for="${id}-name" style="display: none">${options.label}</label>
+      <input
         type="${options?.type ? options.type : 'text'}"
         class="${options.inputClass ? options.inputClass : 'in wfa'} ${id}"
         ${options?.min !== undefined ? `min="${options.min}"` : ''}
@@ -70,7 +71,7 @@ const Input = {
         ${options?.value !== undefined ? `value="${options.value}"` : ''}
         ${options?.autocomplete ? `autocomplete="${options.autocomplete}"` : ''}
         ${options?.disabled ? `disabled` : ''}
-        ${options?.name !== undefined ? `name="${options.name}"` : ''}
+        ${options?.name !== undefined ? `name="${options.name}"` : `name='${id}-name'`}
         ${options?.pattern !== undefined ? `pattern="${options.pattern}"` : ''}
         ${options?.pattern === undefined && options.type === 'tel' ? `pattern="[0-9]{3}-[0-9]{3}-[0-9]{4}"` : ''}
         ${options?.required ? ` required ` : ''}

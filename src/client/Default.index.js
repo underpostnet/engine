@@ -17,6 +17,7 @@ import { SocketIoDefault } from './components/default/SocketIoDefault.js';
 import { ElementsDefault } from './components/default/ElementsDefault.js';
 import { CssDefaultDark, CssDefaultLight } from './components/default/CssDefault.js';
 import { EventsUI } from './components/core/EventsUI.js';
+import { Modal } from './components/core/Modal.js';
 
 const htmlMainBody = async () => {
   setTimeout(() => {
@@ -78,5 +79,6 @@ window.onload = () =>
       await LogOutDefault();
       await SignUpDefault();
       await Keyboard.Init({ callBackTime: DefaultParams.EVENT_CALLBACK_TIME });
+      await Modal.RenderSeoSanitizer();
     },
   });

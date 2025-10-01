@@ -2263,6 +2263,21 @@ const Modal = {
     s(`.bottom-bar`).classList.remove('hide');
     s(`.modal-menu`).classList.remove('hide');
   },
+  RenderSeoSanitizer: async () => {
+    sa('img').forEach((img) => {
+      // check alt attribute
+      if (!img.getAttribute('alt')) img.setAttribute('alt', 'image ' + Worker.title);
+      // if (!img.getAttribute('type')) img.setAttribute('type', 'button');
+    });
+    // sa('button').forEach((img) => {
+    //   // check alt attribute
+    //   if (!img.getAttribute('type')) img.setAttribute('type', 'button');
+    // });
+    // sa('a').forEach((img) => {
+    //   // check alt attribute
+    //   if (!img.getAttribute('type')) img.setAttribute('type', 'button');
+    // });
+  },
 };
 
 const renderMenuLabel = ({ img, text, icon }) => {

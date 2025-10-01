@@ -32,7 +32,7 @@ const BtnIcon = {
       : ''}`;
     let render = html`<button
       ${options?.class ? `class="${options.class} ${tokenId}"` : ''}
-      ${options?.type ? `type="${options.type}"` : ''}
+      ${options?.type ? `type="${options.type}"` : `type="button"`}
       ${options?.style ? `style="${options.style}"` : ''}
       ${options?.attrs ? `${options.attrs}` : ''}
     >
