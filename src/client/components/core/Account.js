@@ -195,13 +195,14 @@ const Account = {
       await this.instanceModalUiEvents({ user });
     });
     return html`
-      <label for="account-profile-image-input-label" class="hide">Profile Image</label>
-      <input
-        type="file"
-        accept="${profileFileAccept.join(', ')}"
-        class="account-profile-image-input hide"
-        id="account-profile-image-input-label"
-      />
+      <label for="account-profile-image-input-label"
+        ><span class="hide">Profile Image</span>
+        <input
+          type="file"
+          accept="${profileFileAccept.join(', ')}"
+          class="account-profile-image-input hide"
+          id="account-profile-image-input-label"
+      /></label>
       ${renderWave({ id: waveAnimationId })}
 
       <form class="in">
