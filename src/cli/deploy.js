@@ -334,7 +334,7 @@ EOF`);
       if (!options.replicas) options.replicas = 1;
       if (options.sync) UnderpostDeploy.API.sync(deployList, options);
       if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env, options);
-      if (options.infoRouter === true) {
+      if (options.infoRouter === true || options.buildManifest === true) {
         logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
         return;
       }
