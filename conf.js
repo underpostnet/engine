@@ -108,7 +108,7 @@ const DefaultConf = /**/ {
           import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
         },
         { folder: './node_modules/validator', public_folder: '/dist/validator' },
-        { folder: './node_modules/@loadingio/css-spinner/entries', public_folder: '/dist/loadingio' },
+
         {
           import_name: 'ag-grid-community',
           import_name_build: '/dist/ag-grid-community/ag-grid-community.min.js',
