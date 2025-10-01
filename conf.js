@@ -92,6 +92,16 @@ const DefaultConf = /**/ {
         { path: '/default-management', client: 'Default', ssr: 'Default' },
         { client: 'Default', ssr: 'Default', path: '/404', title: '404 Not Found' },
         { client: 'Default', ssr: 'Default', path: '/500', title: '500 Server Error' },
+        {
+          path: '/blog',
+          client: 'Default',
+          ssr: 'Default',
+        },
+        {
+          path: '/chat',
+          client: 'Default',
+          ssr: 'Default',
+        },
       ],
       dists: [
         {
@@ -108,7 +118,22 @@ const DefaultConf = /**/ {
           import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
         },
         { folder: './node_modules/validator', public_folder: '/dist/validator' },
-
+        {
+          folder: './node_modules/easymde/dist',
+          public_folder: '/dist/easymde',
+        },
+        {
+          folder: './node_modules/marked/lib',
+          public_folder: '/dist/marked',
+          import_name: 'marked',
+          import_name_build: '/dist/marked/marked.esm.js',
+        },
+        {
+          folder: './node_modules/vanilla-jsoneditor/standalone.js',
+          public_folder: '/dist/vanilla-jsoneditor/standalone.js',
+          import_name: 'vanilla-jsoneditor',
+          import_name_build: '/dist/vanilla-jsoneditor/standalone.js',
+        },
         {
           import_name: 'ag-grid-community',
           import_name_build: '/dist/ag-grid-community/ag-grid-community.min.js',
@@ -125,7 +150,7 @@ const DefaultConf = /**/ {
         },
         { folder: './node_modules/peerjs/dist', public_folder: '/dist/peerjs' },
       ],
-      services: ['default', 'core', 'user', 'test', 'file'],
+      services: ['default', 'core', 'user', 'test', 'file', 'document'],
     },
   },
   ssr: {
@@ -145,7 +170,7 @@ const DefaultConf = /**/ {
       '/': {
         client: 'default',
         runtime: 'nodejs',
-        apis: ['default', 'core', 'user', 'test', 'file'],
+        apis: ['default', 'core', 'user', 'test', 'file', 'document'],
         origins: [],
         minifyBuild: false,
         iconsBuild: false,
