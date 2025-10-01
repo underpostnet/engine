@@ -696,7 +696,7 @@ const validateTemplatePath = (absolutePath = '') => {
   const confServer = DefaultConf.server[host][path];
   const confClient = DefaultConf.client[client];
   const confSsr = DefaultConf.ssr[ssr];
-  const clients = Object.keys(confClient).concat(['core', 'test', 'default', 'user']);
+  const clients = DefaultConf.client.default.services;
 
   if (absolutePath.match('src/api') && !confServer.apis.find((p) => absolutePath.match(`src/api/${p}/`))) {
     return false;
