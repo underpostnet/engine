@@ -30,8 +30,9 @@ import { DropDown } from './DropDown.js';
 import { Keyboard } from './Keyboard.js';
 import { Badge } from './Badge.js';
 import { Worker } from './Worker.js';
+import { Scroll } from './Scroll.js';
 
-const logger = loggerFactory(import.meta);
+const logger = loggerFactory(import.meta, { trace: true });
 
 const Modal = {
   Data: {},
@@ -87,10 +88,15 @@ const Modal = {
       homeModals: options.homeModals ? options.homeModals : [],
       query: options.query ? `${window.location.search}` : undefined,
       getTop: () => window.innerHeight - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar),
-      getHeight: () =>
-        window.innerHeight -
-        (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
-        (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar),
+      getHeight: () => {
+        return (
+          window.innerHeight -
+          (s(`.main-body-btn-ui-close`) && !s(`.main-body-btn-ui-close`).classList.contains('hide')
+            ? (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
+              (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
+            : 0)
+        );
+      },
     };
 
     if (idModal !== 'main-body' && options.mode !== 'view') {
@@ -367,6 +373,7 @@ const Modal = {
                   s(`.modal-menu`).style.top = '0px';
                   s(`.main-body-btn-container`).style.top = '50px';
                   s(`.main-body`).style.top = '0px';
+                  s(`.main-body`).style.height = `${window.innerHeight}px`;
                   for (const event of Object.keys(Modal.Data[idModal].onBarUiClose))
                     Modal.Data[idModal].onBarUiClose[event]();
                 } else {
@@ -379,6 +386,7 @@ const Modal = {
                   s(`.slide-menu-top-bar`).classList.remove('hide');
                   s(`.bottom-bar`).classList.remove('hide');
                   s(`.main-body`).style.top = `${options.heightTopBar}px`;
+                  s(`.main-body`).style.height = `${window.innerHeight - options.heightTopBar}px`;
                   for (const event of Object.keys(Modal.Data[idModal].onBarUiOpen))
                     Modal.Data[idModal].onBarUiOpen[event]();
                 }
@@ -1291,6 +1299,15 @@ const Modal = {
               }
 
               await NotificationManager.RenderBoard(options);
+
+              const { removeEvent } = Scroll.setEvent('.main-body', async (payload) => {
+                console.warn('scroll', payload);
+                if (payload.scrollTop > 100) {
+                  if (!s(`.main-body-btn-ui-close`).classList.contains('hide')) s(`.main-body-btn-ui-close`).click();
+
+                  removeEvent();
+                }
+              });
             });
           })();
           break;

@@ -1101,16 +1101,6 @@ const MenuNexodev = {
 
       Modal.Data['modal-menu'].homeModals.push('modal-test');
     });
-
-    setTimeout(() => {
-      const { removeEvent } = Scroll.setEvent('.main-body', async (payload) => {
-        console.warn('scroll', payload);
-        if (payload.scrollTop > 100) {
-          removeEvent();
-          console.warn('scroll fist event over 100');
-        }
-      });
-    }, 1);
   },
 };
 

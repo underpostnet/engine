@@ -77,6 +77,10 @@ const Config = {
         'utf8',
       );
       shellExec(`node bin/deploy update-default-conf ${deployId}`);
+
+      if (!fs.existsSync(`./engine-private/deploy/dd.router`))
+        fs.writeFileSync(`./engine-private/deploy/dd.router`, '', 'utf8');
+
       fs.writeFileSync(
         `./engine-private/deploy/dd.router`,
         fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').trim() + `,${deployId}`,
