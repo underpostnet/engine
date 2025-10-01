@@ -7,7 +7,7 @@ import { loggerFactory } from './Logger.js';
 import { RichText } from './RichText.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { Translate } from './Translate.js';
-import { htmls, s } from './VanillaJs.js';
+import { htmls, htmlStrSanitize, s } from './VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 const fileFormDataFactory = (e, extensions) => {
@@ -61,7 +61,9 @@ const Input = {
         };
     });
 
-    const inputElement = html` <label for="${id}-name" style="display: none">${options.label}</label>
+    const labelValue = htmlStrSanitize(options.label) ? htmlStrSanitize(options.label) : id;
+
+    const inputElement = html` <label for="${id}-name" class="hide">${labelValue}</label>
       <input
         type="${options?.type ? options.type : 'text'}"
         class="${options.inputClass ? options.inputClass : 'in wfa'} ${id}"
@@ -77,6 +79,7 @@ const Input = {
         ${options?.required ? ` required ` : ''}
         ${options?.accept ? `accept="${options.accept}"` : ''}
         ${options?.multiple ? `multiple="multiple"` : ''}
+        id="${id}-name"
       />
       <div class="${id}-input-extension input-info input-extension ${options?.extension ? '' : 'hide'}">
         ${options?.extension ? await options.extension() : ''}

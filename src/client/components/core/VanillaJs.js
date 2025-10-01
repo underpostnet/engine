@@ -389,6 +389,8 @@ function hexToRgbA(hex) {
   throw new Error('Invalid Hex');
 }
 
+const htmlStrSanitize = (str) => (str ? str.replace(/<\/?[^>]+(>|$)/g, '').trim() : '');
+
 export {
   s,
   htmls,
@@ -416,4 +418,5 @@ export {
   getDataFromInputFile,
   getLang,
   hexToRgbA,
+  htmlStrSanitize,
 };
