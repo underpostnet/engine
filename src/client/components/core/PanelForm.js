@@ -1,4 +1,4 @@
-import { getCapVariableName, newInstance, random, range, uniqueArray } from './CommonJs.js';
+import { getCapVariableName, newInstance, random, range, timer, uniqueArray } from './CommonJs.js';
 import { marked } from 'marked';
 import { append, getBlobFromUint8ArrayFile, getDataFromInputFile, getRawContentFile, htmls, s } from './VanillaJs.js';
 import { Panel } from './Panel.js';
@@ -396,6 +396,9 @@ const PanelForm = {
 
         panelData.skip += result.data.length;
         panelData.hasMore = result.data.length === panelData.limit;
+        if (result.data.length === 0) {
+          LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
+        }
       } else {
         NotificationManager.Push({
           html: result.message,
@@ -403,6 +406,8 @@ const PanelForm = {
         });
         panelData.hasMore = false;
       }
+
+      await timer(250);
 
       panelData.loading = false;
     };
@@ -462,6 +467,19 @@ const PanelForm = {
       lastUserId = newInstance(Elements.Data.user.main.model.user._id);
       lastCid = cid;
 
+      if (cid) {
+        this.Data[idPanel] = {
+          ...this.Data[idPanel],
+          originData: [],
+          data: [],
+          filesData: [],
+          skip: 0,
+          limit: 3, // Load 5 items per page
+          hasMore: true,
+          loading: false,
+        };
+      }
+
       const containerSelector = `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`;
       htmls(containerSelector, await renderSrrPanelData());
 
@@ -480,6 +498,10 @@ const PanelForm = {
       const scrollContainerSelector = `.modal-${options.route}`;
       if (this.Data[idPanel].removeScrollEvent) {
         this.Data[idPanel].removeScrollEvent();
+      }
+      if (cid) {
+        LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
+        return;
       }
       const { removeEvent } = Scroll.setEvent(scrollContainerSelector, async (payload) => {
         const panelData = PanelForm.Data[idPanel];
@@ -507,7 +529,17 @@ const PanelForm = {
         id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
         routeId: options.route,
         event: async (path) => {
-          await this.Data[idPanel].updatePanel();
+          PanelForm.Data[idPanel] = {
+            ...PanelForm.Data[idPanel],
+            originData: [],
+            data: [],
+            filesData: [],
+            skip: 0,
+            limit: 3, // Load 5 items per page
+            hasMore: true,
+            loading: false,
+          };
+          await PanelForm.Data[idPanel].updatePanel();
         },
       });
       if (!options.parentIdModal)
@@ -515,7 +547,7 @@ const PanelForm = {
           lastCid = undefined;
           lastUserId = undefined;
           setQueryPath({ path: options.route, queryPath: options.route === 'home' ? '?' : '' });
-          await this.Data[idPanel].updatePanel();
+          await PanelForm.Data[idPanel].updatePanel();
         };
     }
 
