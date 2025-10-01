@@ -1,6 +1,6 @@
 import { getCapVariableName, newInstance, random, range, uniqueArray } from './CommonJs.js';
 import { marked } from 'marked';
-import { getBlobFromUint8ArrayFile, getDataFromInputFile, getRawContentFile, htmls } from './VanillaJs.js';
+import { append, getBlobFromUint8ArrayFile, getDataFromInputFile, getRawContentFile, htmls, s } from './VanillaJs.js';
 import { Panel } from './Panel.js';
 import { NotificationManager } from './NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
@@ -10,6 +10,8 @@ import { imageShimmer, renderCssAttr } from './Css.js';
 import { Translate } from './Translate.js';
 import { Modal } from './Modal.js';
 import { closeModalRouteChangeEvents, listenQueryPathInstance, setQueryPath, getQueryParams } from './Router.js';
+import { Scroll } from './Scroll.js';
+import { LoadingAnimation } from './LoadingAnimation.js';
 
 const PanelForm = {
   Data: {},
@@ -33,6 +35,10 @@ const PanelForm = {
       originData: [],
       data: [],
       filesData: [],
+      skip: 0,
+      limit: 3, // Load 5 items per page
+      hasMore: true,
+      loading: false,
     };
 
     const formData = [
@@ -132,7 +138,7 @@ const PanelForm = {
               `,
             });
           return await options.fileRender({
-            file: PanelForm.Data[idPanel].filesData.find((f) => f._id === options.data._id).fileId.fileBlob,
+            file: PanelForm.Data[idPanel].filesData.find((f) => f._id === options.data._id)?.fileId?.fileBlob,
             style: {
               overflow: 'auto',
               width: '100%',
@@ -312,19 +318,36 @@ const PanelForm = {
         },
       });
 
-    const getPanelData = async () => {
+    const getPanelData = async (isLoadMore = false) => {
+      const panelData = PanelForm.Data[idPanel];
+      if (panelData.loading || !panelData.hasMore) return;
+      panelData.loading = true;
+
+      if (!isLoadMore) {
+        // Reset for a fresh load
+        panelData.skip = 0;
+        panelData.hasMore = true;
+      }
+
       const result = await DocumentService.get({
-        id: `public/?tags=${prefixTags.join(',')}${getQueryParams().cid ? `&cid=${getQueryParams().cid}` : ''}`,
+        params: {
+          tags: prefixTags.join(','),
+          ...(getQueryParams().cid && { cid: getQueryParams().cid }),
+          skip: panelData.skip,
+          limit: panelData.limit,
+        },
+        id: 'public/',
       });
 
-      NotificationManager.Push({
-        html: result.status === 'success' ? Translate.Render('success-get-posts') : result.message,
-        status: result.status,
-      });
       if (result.status === 'success') {
-        PanelForm.Data[idPanel].originData = newInstance(result.data);
-        PanelForm.Data[idPanel].filesData = [];
-        PanelForm.Data[idPanel].data = [];
+        if (!isLoadMore) {
+          panelData.originData = [];
+          panelData.filesData = [];
+          panelData.data = [];
+        }
+
+        panelData.originData.push(...newInstance(result.data));
+
         for (const documentObject of result.data) {
           let mdFileId, fileId;
           let mdBlob, fileBlob;
@@ -333,7 +356,6 @@ const PanelForm = {
           {
             const {
               data: [file],
-              status,
             } = await FileService.get({ id: documentObject.mdFileId });
 
             // const ext = file.name.split('.')[file.name.split('.').length - 1];
@@ -344,7 +366,6 @@ const PanelForm = {
           if (documentObject.fileId) {
             const {
               data: [file],
-              status,
             } = await FileService.get({ id: documentObject.fileId._id });
 
             // const ext = file.name.split('.')[file.name.split('.').length - 1];
@@ -353,14 +374,14 @@ const PanelForm = {
             fileId = getSrcFromFileData(file);
           }
 
-          PanelForm.Data[idPanel].filesData.push({
+          panelData.filesData.push({
             id: documentObject._id,
             _id: documentObject._id,
             mdFileId: { mdBlob, mdPlain },
             fileId: { fileBlob, filePlain },
           });
 
-          PanelForm.Data[idPanel].data.push({
+          panelData.data.push({
             id: documentObject._id,
             title: documentObject.title,
             createdAt: documentObject.createdAt,
@@ -372,7 +393,18 @@ const PanelForm = {
             _id: documentObject._id,
           });
         }
+
+        panelData.skip += result.data.length;
+        panelData.hasMore = result.data.length === panelData.limit;
+      } else {
+        NotificationManager.Push({
+          html: result.message,
+          status: result.status,
+        });
+        panelData.hasMore = false;
       }
+
+      panelData.loading = false;
     };
     const renderSrrPanelData = async () =>
       await panelRender({
@@ -429,12 +461,42 @@ const PanelForm = {
       if (lastCid === cid && !forceUpdate) return;
       lastUserId = newInstance(Elements.Data.user.main.model.user._id);
       lastCid = cid;
-      htmls(`.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`, await renderSrrPanelData());
+
+      const containerSelector = `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`;
+      htmls(containerSelector, await renderSrrPanelData());
+
       await getPanelData();
+
       htmls(
-        `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`,
-        await panelRender({ data: this.Data[idPanel].data }),
+        containerSelector,
+        html`
+          <div class="in">${await panelRender({ data: this.Data[idPanel].data })}</div>
+          <div class="in panel-placeholder-bottom panel-placeholder-bottom-${idPanel}"></div>
+        `,
       );
+
+      LoadingAnimation.spinner.play(`.panel-placeholder-bottom-${idPanel}`, 'dual-ring-mini');
+
+      const scrollContainerSelector = `.modal-${options.route}`;
+      if (this.Data[idPanel].removeScrollEvent) {
+        this.Data[idPanel].removeScrollEvent();
+      }
+      const { removeEvent } = Scroll.setEvent(scrollContainerSelector, async (payload) => {
+        const panelData = PanelForm.Data[idPanel];
+        if (!panelData) return;
+
+        // Infinite scroll: load more items at bottom
+        if (payload.atBottom && panelData.hasMore && !panelData.loading) {
+          const oldDataCount = panelData.data.length;
+          await getPanelData(true); // isLoadMore = true
+          const newItems = panelData.data.slice(oldDataCount);
+          if (newItems.length > 0) {
+            for (const item of newItems) append(`.${idPanel}-render`, await Panel.Tokens[idPanel].renderPanel(item));
+          }
+        }
+      });
+      this.Data[idPanel].removeScrollEvent = removeEvent;
+
       if (!firsUpdateEvent && options.firsUpdateEvent) {
         firsUpdateEvent = true;
         await options.firsUpdateEvent();

@@ -215,6 +215,10 @@ const CssCommonCore = async () => {
       .bar-default-modal {
         overflow: hidden;
       }
+      .panel-placeholder-bottom {
+        height: 100px;
+        color: gray;
+      }
     </style>
     ${boxShadow({ selector: '.account-profile-image' })}
     <div class="ag-grid-style"></div>`;

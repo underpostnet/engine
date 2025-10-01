@@ -50,8 +50,8 @@ const DocumentService = {
       logger.info('queryPayload', queryPayload);
       // sort in descending (-1) order by length
       const sort = { createdAt: -1 };
-      const limit = 3;
-      const skip = 0;
+      const limit = req.query.limit ? parseInt(req.query.limit, 10) : 6;
+      const skip = req.query.skip ? parseInt(req.query.skip, 10) : 0;
 
       return await Document.find(queryPayload)
         .sort(sort)
