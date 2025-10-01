@@ -469,6 +469,7 @@ try {
       shellExec(`node bin new --deploy-id dd-default`);
       console.log(fs.existsSync(`./engine-private/conf/dd-default`));
       shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
+      shellExec(`node bin/deploy build-env`);
       break;
     }
 
@@ -533,6 +534,35 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           break;
       }
 
+      break;
+    }
+    case 'build-env': {
+      for (let envPath of ['.env.development', '.env.production', '.env.test']) {
+        const privateEnvPath = `./engine-private/conf/dd-cron/${envPath}`;
+        const privateEnv = dotenv.parse(fs.readFileSync(privateEnvPath, 'utf8'));
+        let env = {};
+        for (const key of Object.keys(privateEnv)) {
+          const originEnv = dotenv.parse(fs.readFileSync(`./${envPath}`, 'utf8'));
+          if (key in originEnv) {
+            env[key] = originEnv[key];
+            continue;
+          }
+          env[key] =
+            `${key}`.toUpperCase().match('API') ||
+            `${key}`.toUpperCase().match('KEY') ||
+            `${key}`.toUpperCase().match('SECRET') ||
+            `${key}`.toUpperCase().match('TOKEN') ||
+            `${key}`.toUpperCase().match('PASSWORD') ||
+            `${key}`.toUpperCase().match('MAC')
+              ? 'changethis'
+              : isNaN(parseFloat(privateEnv[key]))
+              ? `${privateEnv[key]}`.match(`@`)
+                ? 'admin@default.net'
+                : 'changethis'
+              : privateEnv[key];
+        }
+        writeEnv(envPath, env);
+      }
       break;
     }
 
