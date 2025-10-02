@@ -249,7 +249,12 @@ const Input = {
 };
 
 const InputFile = {
-  Render: async function ({ id, multiple }, on = { change: () => {}, clear: () => {} }) {
+  Render: async function (
+    options = { id: '', multiple: false, extensionsAccept: [] },
+    on = { change: () => {}, clear: () => {} },
+  ) {
+    let { id, multiple, extensionsAccept } = options;
+    if (!extensionsAccept) extensionsAccept = [];
     // drag drop multi file
     const gridId = `ag-grid-input-file-${id}`;
     setTimeout(() => {
@@ -327,7 +332,12 @@ const InputFile = {
     return html` <div class="fl">
       <div class="in fll input-file-col">
         <div class="in section-mp input-file-sub-col">
-          <input class="wfa ${id}" type="file" ${multiple ? `multiple="multiple"` : ''} />
+          <input
+            class="wfa ${id}"
+            type="file"
+            ${multiple ? `multiple="multiple"` : ''}
+            ${extensionsAccept.length > 0 ? `accept="${extensionsAccept.join(', ')}"` : ''}
+          />
           <div class="in">
             ${await BtnIcon.Render({
               class: `wfa btn-clear-input-file-${id}`,
