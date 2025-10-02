@@ -272,6 +272,7 @@ const ObjectLayerEngineModal = {
 
         <object-layer-engine id="ole" width="${cells}" height="${cells}" pixel-size="${pixelSize}">
         </object-layer-engine>
+        <object-layer-png-loader id="loader" editor-selector="#ole"></object-layer-png-loader>
       </div>
 
       <div class="in section-mp section-mp-border">

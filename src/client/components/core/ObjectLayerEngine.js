@@ -861,3 +861,373 @@ customElements.define('object-layer-engine', ObjectLayerEngineElement);
 Example usage:
 <object-layer-engine id="ole" width="20" height="12" pixel-size="20"></object-layer-engine>
 */
+
+const template = document.createElement('template');
+template.innerHTML = html`
+  <style>
+    :host {
+      display: block;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+    }
+    .wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .drop-area {
+      border: 2px dashed #999;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      color: #555;
+      user-select: none;
+    }
+    .drop-area.dragover {
+      border-color: #4a90e2;
+      color: #1a73e8;
+      background: rgba(74, 144, 226, 0.04);
+    }
+    input[type='file'] {
+      display: inline-block;
+    }
+    .hint {
+      font-size: 0.9rem;
+      color: #666;
+    }
+  </style>
+
+  <div class="wrap">
+    <div class="controls">
+      <label title="Load PNG file">
+        <input type="file" accept="image/png" part="file-input" />
+        <span class="btn">Choose PNG</span>
+      </label>
+      <div class="hint">Only PNG images accepted. Drop PNG onto the box below.</div>
+    </div>
+
+    <div class="drop-area" part="drop-area">Drop PNG here or click "Choose PNG"</div>
+  </div>
+`;
+
+class ObjectLayerPngLoader extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+    this.shadowRoot.appendChild(template.content.cloneNode(true));
+
+    this._fileInput = this.shadowRoot.querySelector('input[type="file"]');
+    this._dropArea = this.shadowRoot.querySelector('.drop-area');
+
+    this._editor = null; // will hold external editor instance
+    this._options = { fitMode: 'contain' };
+
+    // Bind handlers
+    this._onFileChange = this._onFileChange.bind(this);
+    this._onDrop = this._onDrop.bind(this);
+    this._onDragOver = this._onDragOver.bind(this);
+    this._onDragLeave = this._onDragLeave.bind(this);
+  }
+
+  static get observedAttributes() {
+    return ['editor-selector', 'fit-mode', 'target-cells-x', 'target-cells-y'];
+  }
+
+  attributeChangedCallback(name, oldVal, newVal) {
+    if (name === 'editor-selector' && newVal) {
+      const el = document.querySelector(newVal);
+      if (el) this.setEditor(el);
+    }
+    if (name === 'fit-mode') {
+      this._options.fitMode = newVal || 'contain';
+    }
+  }
+
+  connectedCallback() {
+    this._fileInput.addEventListener('change', this._onFileChange);
+    this._dropArea.addEventListener('dragover', this._onDragOver);
+    this._dropArea.addEventListener('dragleave', this._onDragLeave);
+    this._dropArea.addEventListener('drop', this._onDrop);
+    this.addEventListener('dragover', this._onDragOver);
+    this.addEventListener('dragleave', this._onDragLeave);
+    this.addEventListener('drop', this._onDrop);
+
+    // If editor-selector attribute was present at creation, try to resolve
+    const sel = this.getAttribute('editor-selector');
+    if (sel) {
+      const target = document.querySelector(sel);
+      if (target) this.setEditor(target);
+    }
+
+    // read fit-mode
+    const fit = this.getAttribute('fit-mode');
+    if (fit) this._options.fitMode = fit;
+  }
+
+  disconnectedCallback() {
+    this._fileInput.removeEventListener('change', this._onFileChange);
+    this._dropArea.removeEventListener('dragover', this._onDragOver);
+    this._dropArea.removeEventListener('dragleave', this._onDragLeave);
+    this._dropArea.removeEventListener('drop', this._onDrop);
+    this.removeEventListener('dragover', this._onDragOver);
+    this.removeEventListener('dragleave', this._onDragLeave);
+    this.removeEventListener('drop', this._onDrop);
+  }
+
+  // ----------------- Public API -----------------
+  setEditor(editor) {
+    if (!editor) throw new Error('Editor cannot be null/undefined');
+    if (typeof editor.loadMatrix !== 'function') {
+      throw new Error('Provided editor does not expose loadMatrix(matrix)');
+    }
+    this._editor = editor;
+    this.dispatchEvent(new CustomEvent('editorconnected', { detail: { editor } }));
+  }
+
+  setOptions(options = {}) {
+    if (options.fitMode) this._options.fitMode = options.fitMode;
+    if (options.targetCellsX) this.setAttribute('target-cells-x', String(options.targetCellsX));
+    if (options.targetCellsY) this.setAttribute('target-cells-y', String(options.targetCellsY));
+  }
+
+  get editor() {
+    return this._editor;
+  }
+
+  // ----------------- Events -----------------
+  _onFileChange(e) {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    if (!file) return;
+    this._handleFile(file);
+    this._fileInput.value = '';
+  }
+
+  _onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    this._dropArea.classList.add('dragover');
+  }
+  _onDragLeave(e) {
+    e.preventDefault();
+    this._dropArea.classList.remove('dragover');
+  }
+
+  _onDrop(e) {
+    e.preventDefault();
+    this._dropArea.classList.remove('dragover');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0] ? e.dataTransfer.files[0] : null;
+    if (!file) return;
+    this._handleFile(file);
+  }
+
+  // ----------------- File handling -----------------
+  async _handleFile(file) {
+    const isPngByType = file.type === 'image/png';
+    const isPngByName = file.name && file.name.toLowerCase().endsWith('.png');
+    if (!isPngByType && !isPngByName) {
+      this._showError('Only PNG files are supported.');
+      return;
+    }
+
+    if (!this._editor) {
+      this._showError('No editor connected. Use setEditor(editor) or provide editor-selector attribute.');
+      return;
+    }
+
+    try {
+      await this._loadPngToEditorAdaptive(file);
+      this._dispatchLoadedEvent(file.name);
+    } catch (err) {
+      console.error('Failed to load PNG', err);
+      this._showError('Failed to load PNG (see console).');
+    }
+  }
+
+  _showError(msg) {
+    alert(msg);
+  }
+  _dispatchLoadedEvent(filename) {
+    this.dispatchEvent(new CustomEvent('pngloaded', { detail: { filename } }));
+  }
+
+  // ----------------- Adaptive load -----------------
+  _readEditorConfig() {
+    const ed = this._editor;
+    const cfg = { pixelSize: null, cellsX: null, cellsY: null };
+
+    if (!ed) return cfg;
+
+    // pixel size detection (try multiple forms)
+    cfg.pixelSize = ed.pixelSize || ed.pixel_size || null;
+    if (!cfg.pixelSize) {
+      const attr = ed.getAttribute && (ed.getAttribute('pixel-size') || ed.getAttribute('pixelSize'));
+      if (attr) cfg.pixelSize = parseInt(attr, 10);
+    }
+    if (typeof cfg.pixelSize === 'string') cfg.pixelSize = parseInt(cfg.pixelSize, 10);
+
+    // cells detection (common attribute names: width/height on engine represent cells)
+    const widthAttr = ed.getAttribute && ed.getAttribute('width');
+    const heightAttr = ed.getAttribute && ed.getAttribute('height');
+    if (widthAttr && heightAttr) {
+      cfg.cellsX = parseInt(widthAttr, 10);
+      cfg.cellsY = parseInt(heightAttr, 10);
+    }
+
+    // alternative property names
+    cfg.cellsX = cfg.cellsX || ed.cellsX || ed.cellCountX || (ed.cells && ed.cells.x) || null;
+    cfg.cellsY = cfg.cellsY || ed.cellsY || ed.cellCountY || (ed.cells && ed.cells.y) || null;
+
+    // if editor exposes getCells() prefer that
+    try {
+      if ((!cfg.cellsX || !cfg.cellsY) && typeof ed.getCells === 'function') {
+        const c = ed.getCells();
+        if (c && c.x && c.y) {
+          cfg.cellsX = cfg.cellsX || c.x;
+          cfg.cellsY = cfg.cellsY || c.y;
+        }
+      }
+    } catch (e) {
+      /* ignore */
+    }
+
+    return cfg;
+  }
+
+  // core adaptive loader: scales image to editor cells (or computes fallback)
+  async _loadPngToEditorAdaptive(blobOrFile) {
+    const imgBitmap = await createImageBitmap(blobOrFile);
+    const srcW = imgBitmap.width;
+    const srcH = imgBitmap.height;
+
+    // read editor config and loader explicit overrides
+    const editorCfg = this._readEditorConfig();
+    const overrideX = this.getAttribute('target-cells-x');
+    const overrideY = this.getAttribute('target-cells-y');
+
+    let targetCellsX = overrideX ? parseInt(overrideX, 10) : editorCfg.cellsX || null;
+    let targetCellsY = overrideY ? parseInt(overrideY, 10) : editorCfg.cellsY || null;
+
+    // if cells unknown but pixelSize known, compute approximate cells from image dimensions
+    if ((!targetCellsX || !targetCellsY) && editorCfg.pixelSize) {
+      const px = parseInt(editorCfg.pixelSize, 10);
+      if (px > 0) {
+        if (!targetCellsX) targetCellsX = Math.max(1, Math.round(srcW / px));
+        if (!targetCellsY) targetCellsY = Math.max(1, Math.round(srcH / px));
+      }
+    }
+
+    // if still missing, fallback to native image pixels
+    if (!targetCellsX) targetCellsX = srcW;
+    if (!targetCellsY) targetCellsY = srcH;
+
+    // Decide fit mode
+    const fitMode = this._options.fitMode || this.getAttribute('fit-mode') || 'contain';
+
+    // Create a small canvas sized to the target cells (we will render the image into this canvas
+    // with smoothing disabled to preserve blocky/pixel look). Then read each pixel as a cell.
+    const small = document.createElement('canvas');
+    small.width = targetCellsX;
+    small.height = targetCellsY;
+    const sctx = small.getContext('2d');
+
+    // nearest-neighbour / crisp scaling
+    sctx.imageSmoothingEnabled = false;
+    sctx.clearRect(0, 0, small.width, small.height);
+
+    if (fitMode === 'stretch') {
+      // non-uniform scale to fill exactly
+      sctx.drawImage(imgBitmap, 0, 0, srcW, srcH, 0, 0, small.width, small.height);
+    } else {
+      // compute uniform scale to contain or cover
+      let scaleX = small.width / srcW;
+      let scaleY = small.height / srcH;
+      let scale = fitMode === 'cover' ? Math.max(scaleX, scaleY) : Math.min(scaleX, scaleY);
+      // compute destination size in small-canvas pixels
+      const destW = Math.max(1, Math.round(srcW * scale));
+      const destH = Math.max(1, Math.round(srcH * scale));
+      const dx = Math.floor((small.width - destW) / 2);
+      const dy = Math.floor((small.height - destH) / 2);
+      sctx.drawImage(imgBitmap, 0, 0, srcW, srcH, dx, dy, destW, destH);
+    }
+
+    // read pixel data from the small canvas
+    const imageData = sctx.getImageData(0, 0, small.width, small.height).data;
+
+    // build matrix[y][x] = [r,g,b,a]
+    const matrix = new Array(small.height);
+    let p = 0;
+    for (let y = 0; y < small.height; y++) {
+      const row = new Array(small.width);
+      for (let x = 0; x < small.width; x++) {
+        const r = imageData[p++];
+        const g = imageData[p++];
+        const b = imageData[p++];
+        const a = imageData[p++];
+        row[x] = [r, g, b, a];
+      }
+      matrix[y] = row;
+    }
+
+    // attempt to optionally align editor settings (best-effort)
+    try {
+      // if editor has setCells(x,y) or setCellCount, call it
+      if (typeof this._editor.setCells === 'function') {
+        this._editor.setCells(small.width, small.height);
+      } else if (typeof this._editor.setCellCount === 'function') {
+        this._editor.setCellCount(small.width, small.height);
+      } else {
+        // try common attribute setter
+        if (this._editor.setAttribute) {
+          this._editor.setAttribute('width', String(small.width));
+          this._editor.setAttribute('height', String(small.height));
+        }
+      }
+
+      // if editor has setPixelSize and editorCfg.pixelSize exists, keep it
+      if (editorCfg.pixelSize && typeof this._editor.setPixelSize === 'function') {
+        this._editor.setPixelSize(parseInt(editorCfg.pixelSize, 10));
+      }
+    } catch (e) {
+      // non-critical; continue
+      console.warn('Failed to align editor config:', e);
+    }
+
+    // finally, hand matrix to editor
+    if (!this._editor || typeof this._editor.loadMatrix !== 'function') {
+      throw new Error('Editor disconnected or does not expose loadMatrix');
+    }
+
+    this._editor.loadMatrix(matrix);
+  }
+
+  // Public helpers
+  async loadPngBlob(blob) {
+    return this._handleFile(blob);
+  }
+  async loadPngUrl(url) {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    return this._handleFile(blob);
+  }
+}
+
+customElements.define('object-layer-png-loader', ObjectLayerPngLoader);
+
+/* Example wiring (NOT code repeated in canvas):
+
+// HTML
+<object-layer-engine id="editor"></object-layer-engine>
+<object-layer-png-loader id="loader" editor-selector="#editor"></object-layer-png-loader>
+
+// JS (programmatic)
+const editor = document.getElementById('editor');
+const loader = document.getElementById('loader');
+// Alternatively: loader.setEditor(editor);
+loader.addEventListener('pngloaded', (e) => console.log('Loaded', e.detail.filename));
+
+*/
