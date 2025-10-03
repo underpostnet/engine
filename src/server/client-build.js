@@ -1,14 +1,12 @@
 'use strict';
 
 import fs from 'fs-extra';
-import { srcFormatted, componentFormatted, viewFormatted, ssrFactory, JSONweb } from './client-formatted.js';
+import { srcFormatted, componentFormatted, viewFormatted, JSONweb } from './client-formatted.js';
 import { loggerFactory } from './logger.js';
 import {
-  cap,
   getCapVariableName,
   newInstance,
   orderArrayFromAttrInt,
-  titleFormatted,
   uniqueArray,
 } from '../client/components/core/CommonJs.js';
 import UglifyJS from 'uglify-js';
@@ -22,6 +20,7 @@ import { Readable } from 'stream';
 import { buildIcons } from './client-icons.js';
 import Underpost from '../index.js';
 import { buildDocs } from './client-build-docs.js';
+import { ssrFactory } from './ssr.js';
 
 dotenv.config();
 

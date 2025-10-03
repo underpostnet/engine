@@ -19,6 +19,14 @@ const ssrFactory = async (componentPath = `./src/client/ssr/Render.js`) => {
   return context.SrrComponent;
 };
 
+const sanitizeHtml = (res, req, html) => {
+  const nonce = res.locals.nonce;
+
+  return html
+    .replace(/<script(?=\s|>)/gi, `<script nonce="${nonce}"`)
+    .replace(/<style(?=\s|>)/gi, `<style nonce="${nonce}"`);
+};
+
 const ssrMiddlewareFactory = async ({ app, directory, rootHostPath, path }) => {
   const Render = await ssrFactory();
   const ssrPath = path === '/' ? path : `${path}/`;
@@ -57,14 +65,6 @@ const ssrMiddlewareFactory = async ({ app, directory, rootHostPath, path }) => {
   const path500 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/500/index.html`;
   const page500 = fs.existsSync(path500) ? `${path === '/' ? '' : path}/500` : undefined;
 
-  const sanitizeHtml = (res, req, html) => {
-    const nonce = res.locals.nonce;
-
-    return html
-      .replace(/<script(?=\s|>)/gi, `<script nonce="${nonce}"`)
-      .replace(/<style(?=\s|>)/gi, `<style nonce="${nonce}"`);
-  };
-
   return {
     error500: function (err, req, res, next) {
       logger.error(err, err.stack);
@@ -91,4 +91,4 @@ const ssrMiddlewareFactory = async ({ app, directory, rootHostPath, path }) => {
   };
 };
 
-export { ssrMiddlewareFactory };
+export { ssrMiddlewareFactory, ssrFactory, sanitizeHtml };

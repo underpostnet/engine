@@ -1,4 +1,4 @@
-import { ssrFactory } from '../server/client-formatted.js';
+import { ssrFactory } from '../server/ssr.js';
 
 const EmailRender = {
   style: {
