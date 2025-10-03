@@ -23,6 +23,8 @@ class UnderpostRun {
     namespace: '',
     build: false,
     replicas: 1,
+    k3s: false,
+    kubeadm: false,
   };
   static RUNNERS = {
     'spark-template': (path, options = UnderpostRun.DEFAULT_OPTION) => {
@@ -253,7 +255,24 @@ class UnderpostRun {
     },
     'db-client': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
+
+      const image = 'adminer:4.7.6-standalone';
+
+      if (!options.kubeadm && !options.k3s) {
+        // Only load if not kubeadm/k3s (Kind needs it)
+        shellExec(`docker pull ${image}`);
+        shellExec(`sudo kind load docker-image ${image}`);
+      } else if (options.kubeadm || options.k3s)
+        // For kubeadm/k3s, ensure it's available for containerd
+        shellExec(`sudo crictl pull ${image}`);
+
+      shellExec(`kubectl delete deployment adminer`);
       shellExec(`kubectl apply -k ${underpostRoot}/manifests/deployment/adminer/.`);
+      const successInstance = await UnderpostTest.API.statusMonitor('adminer', 'Running', 'pods', 1000, 60 * 10);
+
+      if (successInstance) {
+        shellExec(`underpost deploy --expose adminer`);
+      }
     },
     promote: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       let [inputDeployId, inputEnv, inputReplicas] = path.split(',');

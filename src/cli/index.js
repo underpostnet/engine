@@ -360,6 +360,8 @@ program
   .option('--image-name <image-name>', 'Optional: Specifies the image name for test execution.')
   .option('--container-name <container-name>', 'Optional: Specifies the container name for test execution.')
   .option('--namespace <namespace>', 'Optional: Specifies the namespace for test execution.')
+  .option('--kubeadm', 'Flag to indicate Kubeadm cluster type context')
+  .option('--k3s', 'Flag to indicate K3s cluster type context')
   .description('Runs a script from the specified path.')
   .action(UnderpostRun.API.callback);
 
