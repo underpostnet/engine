@@ -31,7 +31,7 @@ jobs:
             cd /home/dd/engine
             npm install -g underpost
             underpost run secret
-            node bin run --dev pull
+            underpost run pull
             underpost run secret
             underpost run underpost-config
             underpost run ssh-deploy engine-test

@@ -537,13 +537,15 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       break;
     }
     case 'build-env': {
-      for (let envPath of ['.env.development', '.env.production', '.env.test']) {
-        const privateEnvPath = `./engine-private/conf/dd-cron/${envPath}`;
+      const buildEnv = (privateEnvPath, originEnv, env) => {
         const privateEnv = dotenv.parse(fs.readFileSync(privateEnvPath, 'utf8'));
-        let env = {};
         for (const key of Object.keys(privateEnv)) {
-          const originEnv = dotenv.parse(fs.readFileSync(`./${envPath}`, 'utf8'));
+          if (key in env) {
+            console.warn(`Key ${key} already exists in origin env`);
+            continue;
+          }
           if (key in originEnv) {
+            console.warn(`Key ${key} already exists in origin env`);
             env[key] = originEnv[key];
             continue;
           }
@@ -561,6 +563,14 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
                 : 'changethis'
               : privateEnv[key];
         }
+        return env;
+      };
+      for (let envPath of ['.env.development', '.env.production', '.env.test']) {
+        const originEnv = dotenv.parse(fs.readFileSync(`./${envPath}`, 'utf8'));
+
+        let env = {};
+        env = buildEnv(`./engine-private/conf/dd-cron/${envPath}`, originEnv, env);
+        env = buildEnv(`./engine-private/conf/dd-core/${envPath}`, originEnv, env);
         writeEnv(envPath, env);
       }
       break;

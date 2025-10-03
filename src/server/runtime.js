@@ -129,17 +129,6 @@ const buildRuntime = async () => {
             return compression.filter(req, res);
           }
 
-          if (process.argv.includes('static')) {
-            logger.info('Build static server runtime', `${host}${path}`);
-            currentPort += 2;
-            const staticPort = newInstance(currentPort);
-
-            await UnderpostStartUp.API.listenPortController(app, staticPort, runningData);
-            currentPort++;
-            continue;
-          }
-          logger.info('Build api server runtime', `${host}${path}`);
-
           // parse requests of content-type - application/json
           app.use(express.json({ limit: '100MB' }));
 
@@ -163,6 +152,14 @@ const buildRuntime = async () => {
 
           // instance public static
           app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
+          if (process.argv.includes('static')) {
+            logger.info('Build static server runtime', `${host}${path}`);
+            currentPort += 2;
+            const staticPort = newInstance(currentPort);
+            await UnderpostStartUp.API.listenPortController(app, staticPort, runningData);
+            currentPort++;
+            continue;
+          }
 
           // security
           applySecurity(app, {
@@ -228,12 +225,12 @@ const buildRuntime = async () => {
                 templates: mailerSsrConf ? mailerSsrConf.mailer : {},
               });
             }
-            if (apis) {
+            if (apis && apis.length > 0) {
               const authMiddleware = authMiddlewareFactory({ host, path });
-
               const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
               for (const api of apis)
                 await (async () => {
+                  logger.info(`Build api server`, `${host}${apiPath}/${api}`);
                   const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
                   const router = ApiRouter({ host, path, apiPath, mailer, db, authMiddleware, origins });
                   // router.use(cors({ origin: origins }));
