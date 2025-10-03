@@ -1,9 +1,5 @@
 'use strict';
 
-import fs from 'fs-extra';
-import vm from 'node:vm';
-import Underpost from '../index.js';
-
 const srcFormatted = (src) =>
   src
     .replaceAll(' html`', '`')
@@ -49,11 +45,4 @@ const viewFormatted = (src, dists, proxyPath, baseHost = '') => {
   return src.replaceAll(`from './`, componentFromFormatted).replaceAll(`from '../`, componentFromFormatted);
 };
 
-const ssrFactory = async (componentPath = `./src/client/ssr/Render.js`) => {
-  const context = { SrrComponent: () => {}, npm_package_version: Underpost.version };
-  vm.createContext(context);
-  vm.runInContext(await srcFormatted(fs.readFileSync(componentPath, 'utf8')), context);
-  return context.SrrComponent;
-};
-
-export { srcFormatted, JSONweb, componentFormatted, viewFormatted, ssrFactory };
+export { srcFormatted, JSONweb, componentFormatted, viewFormatted };

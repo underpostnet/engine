@@ -1,14 +1,23 @@
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
+import vm from 'node:vm';
+
 import Underpost from '../index.js';
 
-import { ssrFactory, JSONweb } from './client-formatted.js';
+import { srcFormatted, JSONweb } from './client-formatted.js';
 import { loggerFactory } from './logger.js';
 import { getRootDirectory } from './process.js';
 
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
+
+const ssrFactory = async (componentPath = `./src/client/ssr/Render.js`) => {
+  const context = { SrrComponent: () => {}, npm_package_version: Underpost.version };
+  vm.createContext(context);
+  vm.runInContext(await srcFormatted(fs.readFileSync(componentPath, 'utf8')), context);
+  return context.SrrComponent;
+};
 
 const ssrMiddlewareFactory = async ({ app, directory, rootHostPath, path }) => {
   const Render = await ssrFactory();
