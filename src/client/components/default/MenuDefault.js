@@ -616,6 +616,7 @@ const MenuDefault = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        observer: true,
       });
     });
 

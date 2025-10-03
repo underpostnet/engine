@@ -344,6 +344,7 @@ const DefaultManagement = {
       <div class="in section-mp">
         ${await AgGrid.Render({
           id: gridId,
+          parentModal: options.idModal,
           usePagination: true,
           darkTheme,
           gridOptions: {

@@ -442,6 +442,7 @@ const MenuBymyelectrics = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        observer: true,
       });
     });
 

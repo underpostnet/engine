@@ -5,6 +5,7 @@ import { ThemeEvents, darkTheme } from './Css.js';
 import { append, htmls, s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
 import './Pagination.js';
+import { Modal } from './Modal.js';
 
 const AgGrid = {
   grids: {},
@@ -57,18 +58,26 @@ const AgGrid = {
           delete ThemeEvents[id];
         }
       };
+
+      if (!options.style || !options.style.height) {
+        if (options.parentModal && Modal.Data[options.parentModal].options.observer) {
+          Modal.Data[options.parentModal].onObserverListener[id + '-observer'] = ({ width, height }) => {
+            if (s(`.${id}`)) s(`.${id}`).style.height = `${height - 180}px`;
+            else delete Modal.Data[options.parentModal].onObserverListener[id + '-observer'];
+          };
+          s(`.${id}`).style.height = `${s(`.${options.parentModal}`).offsetHeight - 180}px`;
+        } else s(`.${id}`).style.height = '500px';
+      }
     });
     const usePagination = options?.usePagination;
     return html`
-      <div>
-        <div
-          class="${id} ${this.theme}${options?.darkTheme ? `-dark` : ''}"
-          style="${options?.style
-            ? Object.keys(options.style).map((styleKey) => `${styleKey}: ${options.style[styleKey]}; `)
-            : 'height: 500px'}"
-        ></div>
-        ${usePagination ? `<ag-pagination id="ag-pagination-${id}"></ag-pagination>` : ''}
-      </div>
+      <div
+        class="${id} ${this.theme}${options?.darkTheme ? `-dark` : ''}"
+        style="${options?.style
+          ? Object.keys(options.style).map((styleKey) => `${styleKey}: ${options.style[styleKey]}; `)
+          : ''}"
+      ></div>
+      ${usePagination ? `<ag-pagination id="ag-pagination-${id}"></ag-pagination>` : ''}
     `;
   },
   RenderStyle: async function (

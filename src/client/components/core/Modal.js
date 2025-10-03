@@ -92,7 +92,7 @@ const Modal = {
         return (
           window.innerHeight -
           (s(`.main-body-btn-ui-close`) && !s(`.main-body-btn-ui-close`).classList.contains('hide')
-            ? (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
+            ? (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) +
               (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
             : 0)
         );
