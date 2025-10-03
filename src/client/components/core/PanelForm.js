@@ -12,6 +12,9 @@ import { Modal } from './Modal.js';
 import { closeModalRouteChangeEvents, listenQueryPathInstance, setQueryPath, getQueryParams } from './Router.js';
 import { Scroll } from './Scroll.js';
 import { LoadingAnimation } from './LoadingAnimation.js';
+import { loggerFactory } from './Logger.js';
+
+const logger = loggerFactory(import.meta, { trace: true });
 
 const PanelForm = {
   Data: {},
@@ -329,96 +332,101 @@ const PanelForm = {
 
     const getPanelData = async (isLoadMore = false) => {
       const panelData = PanelForm.Data[idPanel];
-      if (panelData.loading || !panelData.hasMore) return;
-      panelData.loading = true;
+      try {
+        if (panelData.loading || !panelData.hasMore) return;
+        panelData.loading = true;
 
-      if (!isLoadMore) {
-        // Reset for a fresh load
-        panelData.skip = 0;
-        panelData.hasMore = true;
-      }
-
-      const result = await DocumentService.get({
-        params: {
-          tags: prefixTags.join(','),
-          ...(getQueryParams().cid && { cid: getQueryParams().cid }),
-          skip: panelData.skip,
-          limit: panelData.limit,
-        },
-        id: 'public/',
-      });
-
-      if (result.status === 'success') {
         if (!isLoadMore) {
-          panelData.originData = [];
-          panelData.filesData = [];
-          panelData.data = [];
+          // Reset for a fresh load
+          panelData.skip = 0;
+          panelData.hasMore = true;
         }
 
-        panelData.originData.push(...newInstance(result.data));
-
-        for (const documentObject of result.data) {
-          let mdFileId, fileId;
-          let mdBlob, fileBlob;
-          let mdPlain, filePlain;
-
-          {
-            const {
-              data: [file],
-            } = await FileService.get({ id: documentObject.mdFileId });
-
-            // const ext = file.name.split('.')[file.name.split('.').length - 1];
-            mdBlob = file;
-            mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
-            mdFileId = newInstance(mdPlain);
-          }
-          if (documentObject.fileId) {
-            const {
-              data: [file],
-            } = await FileService.get({ id: documentObject.fileId._id });
-
-            // const ext = file.name.split('.')[file.name.split('.').length - 1];
-            fileBlob = file;
-            filePlain = undefined;
-            fileId = getSrcFromFileData(file);
-          }
-
-          panelData.filesData.push({
-            id: documentObject._id,
-            _id: documentObject._id,
-            mdFileId: { mdBlob, mdPlain },
-            fileId: { fileBlob, filePlain },
-          });
-
-          panelData.data.push({
-            id: documentObject._id,
-            title: documentObject.title,
-            createdAt: documentObject.createdAt,
-            tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
-            mdFileId: marked.parse(mdFileId),
-            userId: documentObject.userId._id,
-            fileId,
-            tools: Elements.Data.user.main.model.user._id === documentObject.userId._id,
-            _id: documentObject._id,
-          });
-        }
-
-        panelData.skip += result.data.length;
-        panelData.hasMore = result.data.length === panelData.limit;
-        if (result.data.length < panelData.limit) {
-          LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
-        }
-      } else {
-        NotificationManager.Push({
-          html: result.message,
-          status: result.status,
+        const result = await DocumentService.get({
+          params: {
+            tags: prefixTags.join(','),
+            ...(getQueryParams().cid && { cid: getQueryParams().cid }),
+            skip: panelData.skip,
+            limit: panelData.limit,
+          },
+          id: 'public/',
         });
-        panelData.hasMore = false;
+
+        if (result.status === 'success') {
+          if (!isLoadMore) {
+            panelData.originData = [];
+            panelData.filesData = [];
+            panelData.data = [];
+          }
+
+          panelData.originData.push(...newInstance(result.data));
+
+          for (const documentObject of result.data) {
+            let mdFileId, fileId;
+            let mdBlob, fileBlob;
+            let mdPlain, filePlain;
+
+            {
+              const {
+                data: [file],
+              } = await FileService.get({ id: documentObject.mdFileId });
+
+              // const ext = file.name.split('.')[file.name.split('.').length - 1];
+              mdBlob = file;
+              mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+              mdFileId = newInstance(mdPlain);
+            }
+            if (documentObject.fileId) {
+              const {
+                data: [file],
+              } = await FileService.get({ id: documentObject.fileId._id });
+
+              // const ext = file.name.split('.')[file.name.split('.').length - 1];
+              fileBlob = file;
+              filePlain = undefined;
+              fileId = getSrcFromFileData(file);
+            }
+
+            panelData.filesData.push({
+              id: documentObject._id,
+              _id: documentObject._id,
+              mdFileId: { mdBlob, mdPlain },
+              fileId: { fileBlob, filePlain },
+            });
+
+            panelData.data.push({
+              id: documentObject._id,
+              title: documentObject.title,
+              createdAt: documentObject.createdAt,
+              tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
+              mdFileId: marked.parse(mdFileId),
+              userId: documentObject.userId._id,
+              fileId,
+              tools: Elements.Data.user.main.model.user._id === documentObject.userId._id,
+              _id: documentObject._id,
+            });
+          }
+
+          panelData.skip += result.data.length;
+          panelData.hasMore = result.data.length === panelData.limit;
+          if (result.data.length < panelData.limit) {
+            LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
+            panelData.hasMore = false;
+          }
+        } else {
+          NotificationManager.Push({
+            html: result.message,
+            status: result.status,
+          });
+          panelData.hasMore = false;
+        }
+      } catch (error) {
+        logger.error(error);
       }
 
       await timer(250);
-
       panelData.loading = false;
+      LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
     };
     const renderSrrPanelData = async () =>
       await panelRender({
@@ -558,6 +566,16 @@ const PanelForm = {
         Modal.Data['modal-menu'].onHome[idPanel] = async () => {
           lastCid = undefined;
           lastUserId = undefined;
+          PanelForm.Data[idPanel] = {
+            ...PanelForm.Data[idPanel],
+            originData: [],
+            data: [],
+            filesData: [],
+            skip: 0,
+            limit: 3, // Load 5 items per page
+            hasMore: true,
+            loading: false,
+          };
           setQueryPath({ path: options.route, queryPath: options.route === 'home' ? '?' : '' });
           await PanelForm.Data[idPanel].updatePanel();
         };
