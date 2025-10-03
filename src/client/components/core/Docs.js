@@ -129,19 +129,16 @@ const Docs = {
       s(`.btn-docs-src`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'src' });
         cleanActive();
-        s(`.btn-docs-src`).classList.add('main-btn-menu-active');
         await this.RenderModal('src', options.modalOptions);
       };
       s(`.btn-docs-api`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'api' });
         cleanActive();
-        s(`.btn-docs-api`).classList.add('main-btn-menu-active');
         await this.RenderModal('api', options.modalOptions);
       };
       s(`.btn-docs-coverage`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'coverage' });
         cleanActive();
-        s(`.btn-docs-coverage`).classList.add('main-btn-menu-active');
         await this.RenderModal('coverage', options.modalOptions);
       };
 
