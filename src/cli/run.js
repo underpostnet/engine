@@ -351,8 +351,15 @@ class UnderpostRun {
       const checkStatusIterationMsDelay = 1000;
       const iteratorTag = `[${deployId}-${env}-${targetTraffic}]`;
       logger.info('Deployment init', { deployId, env, targetTraffic, checkStatusIterationMsDelay });
+      const minReadyOk = 3;
+      let readyOk = 0;
 
-      while (!UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods).ready) {
+      while (readyOk < minReadyOk) {
+        const ready = UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods).ready;
+        if (ready === true) {
+          readyOk++;
+          logger.info(`${iteratorTag} | Deployment ready. Verification number: ${readyOk}`);
+        }
         await timer(checkStatusIterationMsDelay);
         checkStatusIteration++;
         logger.info(
