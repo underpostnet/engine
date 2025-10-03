@@ -1,3 +1,9 @@
+/**
+ * Module for managing Valkey
+ * @module src/server/valkey.js
+ * @namespace Valkey
+ */
+
 import Valkey from 'iovalkey';
 import mongoose from 'mongoose';
 import { hashPassword } from './auth.js';
@@ -10,11 +16,35 @@ const ValkeyInstances = {};
 const DummyStores = {}; // in-memory Maps per instance
 const ValkeyStatus = {}; // 'connected' | 'dummy' | 'error' | undefined
 
-// Backward-compatible overall flag: true if any instance is connected
+/**
+ * Checks if any Valkey instance is connected.
+ * This is a backward-compatible overall flag.
+ * @returns {boolean} True if any instance has a 'connected' status.
+ * @memberof Valkey
+ */
 const isValkeyEnable = () => Object.values(ValkeyStatus).some((s) => s === 'connected');
 
+/**
+ * Generates a unique key for a Valkey instance based on its host and path.
+ * @param {object} [opts={ host: '', path: '' }] - The instance options.
+ * @param {string} [opts.host=''] - The host of the instance.
+ * @param {string} [opts.path=''] - The path of the instance.
+ * @returns {string} The instance key.
+ * @private
+ * @memberof Valkey
+ */
 const _instanceKey = (opts = { host: '', path: '' }) => `${opts.host || ''}${opts.path || ''}`;
 
+/**
+ * Creates and manages a connection to a Valkey server for a given instance.
+ * It sets up a client, attaches event listeners for connection status, and implements a fallback to an in-memory dummy store if the connection fails.
+ * @param {object} [instance={ host: '', path: '' }] - The instance identifier.
+ * @param {string} [instance.host=''] - The host of the instance.
+ * @param {string} [instance.path=''] - The path of the instance.
+ * @param {object} [valkeyServerConnectionOptions={ host: '', path: '' }] - Connection options for the iovalkey client.
+ * @returns {Promise<Valkey|undefined>} A promise that resolves to the Valkey client instance, or undefined if creation fails.
+ * @memberof Valkey
+ */
 const createValkeyConnection = async (
   instance = { host: '', path: '' },
   valkeyServerConnectionOptions = { host: '', path: '' },
@@ -72,6 +102,14 @@ const createValkeyConnection = async (
   return ValkeyInstances[key];
 };
 
+/**
+ * Factory function to create a Data Transfer Object (DTO) from a payload.
+ * It filters the payload to include only the keys specified in the `select` object.
+ * @param {object} payload - The source object.
+ * @param {object} select - An object where keys are field names and values are 1 to include them.
+ * @returns {object} A new object containing only the selected fields from the payload.
+ * @memberof Valkey
+ */
 const selectDtoFactory = (payload, select) => {
   const result = {};
   for (const key of Object.keys(select)) {
@@ -80,6 +118,12 @@ const selectDtoFactory = (payload, select) => {
   return result;
 };
 
+/**
+ * Factory function to create a new Valkey client instance.
+ * @param {object} options - Connection options for the iovalkey client.
+ * @returns {Promise<Valkey>} A promise that resolves to a new Valkey client.
+ * @memberof Valkey
+ */
 const valkeyClientFactory = async (options) => {
   const valkey = new Valkey({
     port: options?.port ? options.port : undefined,
@@ -103,6 +147,15 @@ const valkeyClientFactory = async (options) => {
   return valkey;
 };
 
+/**
+ * Retrieves an object from Valkey by key for a specific instance.
+ * If the Valkey client is not connected or an error occurs, it falls back to the dummy in-memory store.
+ * It automatically parses JSON strings.
+ * @param {object} [options={ host: '', path: '' }] - The instance identifier.
+ * @param {string} [key=''] - The key of the object to retrieve.
+ * @returns {Promise<object|string|null>} A promise that resolves to the retrieved object, string, or null if not found.
+ * @memberof Valkey
+ */
 const getValkeyObject = async (options = { host: '', path: '' }, key = '') => {
   const k = _instanceKey(options);
   const status = ValkeyStatus[k];
@@ -124,6 +177,16 @@ const getValkeyObject = async (options = { host: '', path: '' }, key = '') => {
   return DummyStores[k]?.get(key) ?? null;
 };
 
+/**
+ * Sets an object or string in Valkey for a specific instance.
+ * If the Valkey client is not connected, it writes to the in-memory dummy store instead.
+ * Objects are automatically stringified.
+ * @param {object} [options={ host: '', path: '' }] - The instance identifier.
+ * @param {string} [key=''] - The key under which to store the payload.
+ * @param {object|string} [payload={}] - The data to store.
+ * @returns {Promise<string>} A promise that resolves to 'OK' on success.
+ * @memberof Valkey
+ */
 const setValkeyObject = async (options = { host: '', path: '' }, key = '', payload = {}) => {
   const k = _instanceKey(options);
   const isString = typeof payload === 'string';
@@ -141,6 +204,16 @@ const setValkeyObject = async (options = { host: '', path: '' }, key = '', paylo
   return 'OK';
 };
 
+/**
+ * Updates an existing object in Valkey by merging it with a new payload.
+ * It retrieves the current object, merges it with the new payload, and sets the updated object back.
+ * It also updates the `updatedAt` timestamp.
+ * @param {object} [options={ host: '', path: '' }] - The instance identifier.
+ * @param {string} [key=''] - The key of the object to update.
+ * @param {object} [payload={}] - The new data to merge into the object.
+ * @returns {Promise<string>} A promise that resolves to the result of the set operation.
+ * @memberof Valkey
+ */
 const updateValkeyObject = async (options = { host: '', path: '' }, key = '', payload = {}) => {
   let base = await getValkeyObject(options, key);
   if (typeof base !== 'object' || base === null) base = {};
@@ -148,6 +221,17 @@ const updateValkeyObject = async (options = { host: '', path: '' }, key = '', pa
   return await setValkeyObject(options, key, { ...base, ...payload });
 };
 
+/**
+ * Factory function to create a new object based on a model schema.
+ * It generates a new object with default properties like `_id`, `createdAt`, and `updatedAt`,
+ * and model-specific properties.
+ * @param {object} [options={ host: 'localhost', path: '', object: {} }] - Options for object creation.
+ * @param {string} [options.host='localhost'] - The host context for the object.
+ * @param {object} [options.object={}] - An initial object to extend.
+ * @param {string} [model=''] - The name of the model schema to use (e.g., 'user').
+ * @returns {Promise<object>} A promise that resolves to the newly created object.
+ * @memberof Valkey
+ */
 const valkeyObjectFactory = async (options = { host: 'localhost', path: '', object: {} }, model = '') => {
   const idoDate = new Date().toISOString();
   options.object = options.object || {};
@@ -181,6 +265,10 @@ const valkeyObjectFactory = async (options = { host: 'localhost', path: '', obje
   }
 };
 
+/**
+ * A collection of Valkey-related API functions.
+ * @type {object}
+ */
 const ValkeyAPI = {
   valkeyClientFactory,
   selectDtoFactory,
