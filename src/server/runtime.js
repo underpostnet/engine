@@ -99,6 +99,8 @@ const buildRuntime = async () => {
             return next();
           });
 
+          app.set('trust proxy', true);
+
           app.use((req, res, next) => {
             requestCounter.inc({
               instance: `${host}:${port}${path}`,

@@ -306,6 +306,61 @@ const validatePasswordMiddleware = (req) => {
 };
 
 // ---------- Session & Refresh token management ----------
+
+/**
+ * Creates cookie options for the refresh token.
+ * @param {import('express').Request} req The Express request object.
+ * @returns {object} Cookie options.
+ * @memberof Auth
+ */
+const cookieOptionsFactory = (req) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // Determine hostname safely:
+  // Prefer origin header if present (it contains protocol + host)
+  let candidateHost = undefined;
+  try {
+    if (req.headers && req.headers.origin) {
+      candidateHost = new URL(req.headers.origin).hostname;
+    }
+  } catch (e) {
+    /* ignore parse error */
+    logger.error(e);
+  }
+
+  // fallback to req.hostname (Express sets this; ensure trust proxy if behind proxy)
+  if (!candidateHost) candidateHost = (req.hostname || '').split(':')[0];
+
+  candidateHost = (candidateHost || '').trim().replace(/^www\./i, '');
+
+  // Do not set domain for localhost, 127.x.x.x, or plain IPs
+  const isIpOrLocal = /^(localhost|127(?:\.\d+){0,2}\.\d+|\[::1\]|\d+\.\d+\.\d+\.\d+)$/i.test(candidateHost);
+  const domain = isProduction && candidateHost && !isIpOrLocal ? `.${candidateHost}` : undefined;
+
+  // Determine if request is secure: respect X-Forwarded-Proto when behind proxy
+  const forwardedProto = (req.headers && req.headers['x-forwarded-proto']) || '';
+  const reqIsSecure = Boolean(req.secure || forwardedProto.split(',')[0] === 'https');
+
+  // secure must be true for SameSite=None to work across sites
+  const secure = isProduction ? reqIsSecure : false;
+  const sameSite = secure ? 'None' : 'Lax';
+
+  // Safe parse of maxAge minutes
+  const minutes = Number.parseInt(process.env.REFRESH_EXPIRE_MINUTES, 10);
+  const maxAge = Number.isFinite(minutes) && minutes > 0 ? minutes * 60 * 1000 : undefined;
+
+  const opts = {
+    httpOnly: true,
+    secure,
+    sameSite,
+    path: '/',
+  };
+  if (typeof maxAge !== 'undefined') opts.maxAge = maxAge;
+  if (domain) opts.domain = domain;
+
+  return opts;
+};
+
 /**
  * Create session and set refresh cookie. Rotating and hashed stored token.
  * @param {object} user The user object.
@@ -339,13 +394,7 @@ async function createSessionAndUserToken(user, User, req, res, options = { host:
   const jwtid = session._id.toString();
 
   // Secure cookie settings
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Lax',
-    maxAge: parseInt(process.env.REFRESH_EXPIRE_MINUTES) * 60 * 1000,
-    path: '/',
-  });
+  res.cookie('refreshToken', refreshToken, cookieOptionsFactory(req));
 
   return { jwtid };
 }
@@ -439,13 +488,7 @@ async function refreshSessionAndToken(req, res, User, options = { host: '', path
 
   logger.warn('Refreshed session for user ' + user.email);
 
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'Lax',
-    maxAge: parseInt(process.env.REFRESH_EXPIRE_MINUTES) * 60 * 1000,
-    path: '/',
-  });
+  res.cookie('refreshToken', refreshToken, cookieOptionsFactory(req));
 
   return jwtSign(
     UserDto.auth.payload(user, session._id.toString(), req.ip, req.headers['user-agent'], options.host, options.path),
