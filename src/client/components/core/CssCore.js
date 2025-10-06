@@ -219,6 +219,10 @@ const CssCommonCore = async () => {
         height: 100px;
         color: gray;
       }
+      .menu-label-text {
+        transition: 0.3s;
+        position: relative;
+      }
     </style>
     ${boxShadow({ selector: '.account-profile-image' })}
     <div class="ag-grid-style"></div>`;

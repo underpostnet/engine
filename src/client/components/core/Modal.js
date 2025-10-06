@@ -1589,7 +1589,8 @@ const Modal = {
             }, 1);
 
             sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
-            sa(`.menu-label-text`).forEach((el) => el.classList.remove('hide'));
+
+            Modal.menuTextLabelAnimation();
             if (!Modal.mobileModal()) {
               sa(`.tooltip-menu`).forEach((el) => el.classList.add('hide'));
               s(`.${idModal}`).style.overflow = null;
@@ -1918,6 +1919,7 @@ const Modal = {
     };
 
     const btnMenuEvent = () => {
+      Modal.menuTextLabelAnimation();
       Object.keys(this.Data[idModal].onMenuListener).map((keyListener) =>
         this.Data[idModal].onMenuListener[keyListener](),
       );
@@ -2135,6 +2137,31 @@ const Modal = {
         resolve({ status: 'confirm' });
       };
     });
+  },
+  menuTextLabelAnimation: () => {
+    if (!s(`.btn-icon-menu-mode-right`).classList.contains('hide')) {
+      return;
+    }
+    sa(`.menu-label-text`).forEach((el) => {
+      el.classList.add('hide');
+    });
+    sa(`.main-btn-menu`).forEach((el) => {
+      el.classList.overflow = 'hidden';
+    });
+    setTimeout(() => {
+      sa(`.menu-label-text`).forEach((el) => {
+        el.style.top = '-40px';
+        el.classList.remove('hide');
+      });
+    }, 300);
+    setTimeout(() => {
+      sa(`.menu-label-text`).forEach((el) => {
+        el.style.top = '0px';
+      });
+      sa(`.main-btn-menu`).forEach((el) => {
+        el.classList.overflow = null;
+      });
+    }, 400);
   },
   // Move modal title element into the bar's render container so it aligns with control buttons
   /**
