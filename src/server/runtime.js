@@ -99,7 +99,7 @@ const buildRuntime = async () => {
             return next();
           });
 
-          app.set('trust proxy', true);
+          if (process.env.NODE_ENV === 'production') app.set('trust proxy', true);
 
           app.use((req, res, next) => {
             requestCounter.inc({
