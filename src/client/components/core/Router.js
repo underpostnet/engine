@@ -59,7 +59,7 @@ const getProxyPath = () => {
  * @returns {void | undefined} Returns `undefined` if the new path is the same as the current path, otherwise `void` (result of `history.pushState`).
  */
 const setPath = (path = '/', options = { removeSearch: false, removeHash: false }, stateStorage = {}, title = '') => {
-  logger.warn(`Set path input`, `${path}`);
+  // logger.warn(`Set path input`, `${path}`);
   if (!path) path = '/';
 
   let [inputPath, inputSearchHash] = `${path}`.split('?');
@@ -77,18 +77,18 @@ const setPath = (path = '/', options = { removeSearch: false, removeHash: false 
     inputHash && !options.removeHash ? `#${inputHash}` : ''
   }`;
   const currentFullPath = `${window.location.pathname}${location.search}${location.hash}`;
-  logger.warn(`Set path output`, {
-    inputPath: inputPath,
-    inputSearch: inputSearch,
-    inputHash: inputHash,
-    sanitizedPath: sanitizedPath,
-    currentLocationSearch: location.search,
-    currentLocationHash: location.hash,
-    currentFullPath,
-    newFullPath,
-  });
+  // logger.warn(`Set path output`, {
+  //   inputPath: inputPath,
+  //   inputSearch: inputSearch,
+  //   inputHash: inputHash,
+  //   sanitizedPath: sanitizedPath,
+  //   currentLocationSearch: location.search,
+  //   currentLocationHash: location.hash,
+  //   currentFullPath,
+  //   newFullPath,
+  // });
   if (currentFullPath === newFullPath) {
-    logger.warn('Prevent overwriting same path', { currentFullPath, newFullPath });
+    // logger.warn('Prevent overwriting same path', { currentFullPath, newFullPath });
     return;
   }
   return history.pushState.call(history, stateStorage, title, newFullPath);
@@ -149,7 +149,7 @@ const Router = function (options = { Routes: () => {}, e: new PopStateEvent() })
   const { e, Routes } = options;
   const proxyPath = getProxyPath();
   let path = window.location.pathname;
-  logger.info(options);
+  // logger.info(options);
 
   for (let route of Object.keys(Routes())) {
     route = route.slice(1);
@@ -229,11 +229,11 @@ const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
  * @memberof PwaRouter
  */
 const closeModalRouteChangeEvent = (options = {}) => {
-  logger.warn('closeModalRouteChangeEvent', options);
+  // logger.warn('closeModalRouteChangeEvent', options);
   const { closedId } = options;
   if (!closedId) return;
   if (coreUI.find((id) => closedId.startsWith(id))) {
-    logger.warn('prevent core ui component close');
+    // logger.warn('prevent core ui component close');
     return;
   }
 

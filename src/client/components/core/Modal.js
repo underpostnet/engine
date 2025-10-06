@@ -1301,7 +1301,7 @@ const Modal = {
               await NotificationManager.RenderBoard(options);
 
               const { removeEvent } = Scroll.setEvent('.main-body', async (payload) => {
-                console.warn('scroll', payload);
+                // console.warn('scroll', payload);
                 if (payload.scrollTop > 100) {
                   if (!s(`.main-body-btn-ui-close`).classList.contains('hide')) s(`.main-body-btn-ui-close`).click();
 

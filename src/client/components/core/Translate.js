@@ -34,7 +34,7 @@ const Translate = {
   Render: function (keyLang, placeholder, options = { disableTextFormat: false }) {
     if (!(keyLang in this.Data)) {
       // TODO: add translate package or library for this case
-      logger.warn('translate key lang does not exist: ', keyLang);
+      // logger.warn('translate key lang does not exist: ', keyLang);
       return options.disableTextFormat ? keyLang : textFormatted(keyLang);
     }
     if (placeholder) this.Data[keyLang].placeholder = placeholder;

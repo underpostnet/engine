@@ -1,113 +1,112 @@
 import { darkTheme, renderChessPattern } from './Css.js';
-
-const templateHTML = html`
-  <style>
-    :host {
-      --border: 1px solid #bbb;
-      --gap: 8px;
-      display: inline-block;
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-    }
-    .wrap {
-      display: flex;
-      flex-direction: column;
-      gap: var(--gap);
-      align-items: flex-start;
-    }
-    .canvas-frame {
-      border: var(--border);
-      display: inline-block;
-      line-height: 0;
-      position: relative;
-      background: transparent;
-    }
-    canvas.canvas-layer {
-      display: block;
-      image-rendering: pixelated;
-      touch-action: none;
-      cursor: crosshair;
-    }
-    canvas.grid-layer {
-      position: absolute;
-      left: 0;
-      top: 0;
-      pointer-events: none;
-    }
-    .toolbar {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .toolbar label {
-      display: inline-flex;
-      gap: 6px;
-      align-items: center;
-    }
-    .group {
-      display: inline-flex;
-      gap: 6px;
-      align-items: center;
-    }
-  </style>
-
-  <div class="wrap">
-    <div class="toolbar">
-      <input type="color" part="color" title="Brush color" value="#000000" />
-      <select part="tool">
-        <option value="pencil">pencil</option>
-        <option value="eraser">eraser</option>
-        <option value="fill">fill</option>
-        <option value="eyedropper">eyedropper</option>
-      </select>
-
-      <label>brush <input type="number" part="brush-size" min="1" value="1" /></label>
-      <label>pixel-size <input type="number" part="pixel-size" min="1" value="16" /></label>
-
-      <!-- New: cell dimensions (width x height) -->
-      <label
-        >cells <input type="number" part="cell-width" min="1" value="16" style="width:6ch" /> x
-        <input type="number" part="cell-height" min="1" value="16" style="width:6ch"
-      /></label>
-
-      <label class="switch"> <input type="checkbox" part="toggle-grid" /> grid </label>
-
-      <!-- New: transform tools -->
-      <div class="group">
-        <button part="flip-h" title="Flip horizontally">Flip H</button>
-        <button part="flip-v" title="Flip vertically">Flip V</button>
-        <button part="rot-ccw" title="Rotate -90°">⟲</button>
-        <button part="rot-cw" title="Rotate +90°">⟳</button>
-      </div>
-
-      <label
-        >opacity <input type="range" part="opacity" min="0" max="255" value="255" style="width:10rem" /><input
-          type="number"
-          part="opacity-num"
-          min="0"
-          max="255"
-          value="255"
-          style="width:5ch;margin-left:4px"
-      /></label>
-
-      <button part="clear" title="Clear (make fully transparent)">Clear</button>
-
-      <button part="export">Export PNG</button>
-      <button part="export-json">Export JSON</button>
-      <button part="import-json">Import JSON</button>
-    </div>
-    <div class="canvas-frame" style="${renderChessPattern()}">
-      <canvas part="canvas" class="canvas-layer"></canvas>
-      <canvas part="grid" class="grid-layer"></canvas>
-    </div>
-  </div>
-`;
+import { append, htmls } from './VanillaJs.js';
 
 class ObjectLayerEngineElement extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this.shadowRoot.innerHTML = templateHTML;
+    this.shadowRoot.innerHTML = html`
+      <style>
+        :host {
+          --border: 1px solid #bbb;
+          --gap: 8px;
+          display: inline-block;
+          font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+        }
+        .wrap {
+          display: flex;
+          flex-direction: column;
+          gap: var(--gap);
+          align-items: flex-start;
+        }
+        .canvas-frame {
+          border: var(--border);
+          display: inline-block;
+          line-height: 0;
+          position: relative;
+          background: transparent;
+        }
+        canvas.canvas-layer {
+          display: block;
+          image-rendering: pixelated;
+          touch-action: none;
+          cursor: crosshair;
+        }
+        canvas.grid-layer {
+          position: absolute;
+          left: 0;
+          top: 0;
+          pointer-events: none;
+        }
+        .toolbar {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          align-items: center;
+        }
+        .toolbar label {
+          display: inline-flex;
+          gap: 6px;
+          align-items: center;
+        }
+        .group {
+          display: inline-flex;
+          gap: 6px;
+          align-items: center;
+        }
+      </style>
+
+      <div class="wrap">
+        <div class="toolbar">
+          <input type="color" part="color" title="Brush color" value="#000000" />
+          <select part="tool">
+            <option value="pencil">pencil</option>
+            <option value="eraser">eraser</option>
+            <option value="fill">fill</option>
+            <option value="eyedropper">eyedropper</option>
+          </select>
+
+          <label>brush <input type="number" part="brush-size" min="1" value="1" /></label>
+          <label>pixel-size <input type="number" part="pixel-size" min="1" value="16" /></label>
+
+          <!-- New: cell dimensions (width x height) -->
+          <label
+            >cells <input type="number" part="cell-width" min="1" value="16" style="width:6ch" /> x
+            <input type="number" part="cell-height" min="1" value="16" style="width:6ch"
+          /></label>
+
+          <label class="switch"> <input type="checkbox" part="toggle-grid" /> grid </label>
+
+          <!-- New: transform tools -->
+          <div class="group">
+            <button part="flip-h" title="Flip horizontally">Flip H</button>
+            <button part="flip-v" title="Flip vertically">Flip V</button>
+            <button part="rot-ccw" title="Rotate -90°">⟲</button>
+            <button part="rot-cw" title="Rotate +90°">⟳</button>
+          </div>
+
+          <label
+            >opacity <input type="range" part="opacity" min="0" max="255" value="255" style="width:10rem" /><input
+              type="number"
+              part="opacity-num"
+              min="0"
+              max="255"
+              value="255"
+              style="width:5ch;margin-left:4px"
+          /></label>
+
+          <button part="clear" title="Clear (make fully transparent)">Clear</button>
+
+          <button part="export">Export PNG</button>
+          <button part="export-json">Export JSON</button>
+          <button part="import-json">Import JSON</button>
+        </div>
+        <div class="canvas-frame" style="${renderChessPattern()}">
+          <canvas part="canvas" class="canvas-layer"></canvas>
+          <canvas part="grid" class="grid-layer"></canvas>
+        </div>
+      </div>
+    `;
 
     // DOM
     this._pixelCanvas = this.shadowRoot.querySelector('canvas[part="canvas"]');
@@ -862,64 +861,61 @@ Example usage:
 <object-layer-engine id="ole" width="20" height="12" pixel-size="20"></object-layer-engine>
 */
 
-const template = document.createElement('template');
-template.innerHTML = html`
-  <style>
-    :host {
-      display: block;
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
-    }
-    .wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .controls {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .drop-area {
-      border: 2px dashed #999;
-      padding: 12px;
-      border-radius: 8px;
-      text-align: center;
-      color: #555;
-      user-select: none;
-    }
-    .drop-area.dragover {
-      border-color: #4a90e2;
-      color: #1a73e8;
-      background: rgba(74, 144, 226, 0.04);
-    }
-    input[type='file'] {
-      display: inline-block;
-    }
-    .hint {
-      font-size: 0.9rem;
-      color: #666;
-    }
-  </style>
-
-  <div class="wrap">
-    <div class="controls">
-      <label title="Load PNG file">
-        <input type="file" accept="image/png" part="file-input" />
-        <span class="btn">Choose PNG</span>
-      </label>
-      <div class="hint">Only PNG images accepted. Drop PNG onto the box below.</div>
-    </div>
-
-    <div class="drop-area" part="drop-area">Drop PNG here or click "Choose PNG"</div>
-  </div>
-`;
-
 class ObjectLayerPngLoader extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this.shadowRoot.appendChild(template.content.cloneNode(true));
+    this.shadowRoot.innerHTML = html`
+      <style>
+        :host {
+          display: block;
+          font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+        }
+        .wrap {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .controls {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .drop-area {
+          border: 2px dashed #999;
+          padding: 12px;
+          border-radius: 8px;
+          text-align: center;
+          color: #555;
+          user-select: none;
+        }
+        .drop-area.dragover {
+          border-color: #4a90e2;
+          color: #1a73e8;
+          background: rgba(74, 144, 226, 0.04);
+        }
+        input[type='file'] {
+          display: inline-block;
+        }
+        .hint {
+          font-size: 0.9rem;
+          color: #666;
+        }
+      </style>
+
+      <div class="wrap">
+        <div class="controls">
+          <label title="Load PNG file">
+            <input type="file" accept="image/png" part="file-input" />
+            <span class="btn">Choose PNG</span>
+          </label>
+          <div class="hint">Only PNG images accepted. Drop PNG onto the box below.</div>
+        </div>
+
+        <div class="drop-area" part="drop-area">Drop PNG here or click "Choose PNG"</div>
+      </div>
+    `;
 
     this._fileInput = this.shadowRoot.querySelector('input[type="file"]');
     this._dropArea = this.shadowRoot.querySelector('.drop-area');
