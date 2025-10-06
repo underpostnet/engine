@@ -1590,7 +1590,7 @@ const Modal = {
 
             sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
 
-            Modal.menuTextLabelAnimation();
+            Modal.menuTextLabelAnimation(idModal);
             if (!Modal.mobileModal()) {
               sa(`.tooltip-menu`).forEach((el) => el.classList.add('hide'));
               s(`.${idModal}`).style.overflow = null;
@@ -1919,7 +1919,7 @@ const Modal = {
     };
 
     const btnMenuEvent = () => {
-      Modal.menuTextLabelAnimation();
+      Modal.menuTextLabelAnimation(idModal);
       Object.keys(this.Data[idModal].onMenuListener).map((keyListener) =>
         this.Data[idModal].onMenuListener[keyListener](),
       );
@@ -2138,8 +2138,12 @@ const Modal = {
       };
     });
   },
-  menuTextLabelAnimation: () => {
-    if (!s(`.btn-icon-menu-mode-right`).classList.contains('hide')) {
+  menuTextLabelAnimation: (idModal) => {
+    if (
+      !s(
+        `.btn-icon-menu-mode-${Modal.Data[idModal].options.barMode === 'top-bottom-bar' ? 'left' : 'right'}`,
+      ).classList.contains('hide')
+    ) {
       return;
     }
     sa(`.menu-label-text`).forEach((el) => {
