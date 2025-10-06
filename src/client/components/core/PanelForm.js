@@ -474,75 +474,102 @@ const PanelForm = {
     let firsUpdateEvent = false;
     let lastCid;
     let lastUserId;
+    let loadingGetData = false;
     closeModalRouteChangeEvents[idPanel] = () => {
       setTimeout(() => {
         this.Data[idPanel].updatePanel();
       });
     };
-    this.Data[idPanel].updatePanel = async () => {
-      const cid = getQueryParams().cid ? getQueryParams().cid : '';
-      const forceUpdate = lastUserId !== Elements.Data.user.main.model.user._id;
-      if (lastCid === cid && !forceUpdate) return;
-      lastUserId = newInstance(Elements.Data.user.main.model.user._id);
-      lastCid = cid;
+    this.Data[idPanel].updatePanel = async (...args) => {
+      const _updatePanel = async (...args) => {
+        try {
+          const cid = getQueryParams().cid ? getQueryParams().cid : '';
+          const forceUpdate =
+            Elements.Data.user.main.model &&
+            Elements.Data.user.main.model.user &&
+            Elements.Data.user.main.model.user._id &&
+            lastUserId !== Elements.Data.user.main.model.user._id;
 
-      if (cid) {
-        this.Data[idPanel] = {
-          ...this.Data[idPanel],
-          originData: [],
-          data: [],
-          filesData: [],
-          skip: 0,
-          limit: 3, // Load 5 items per page
-          hasMore: true,
-          loading: false,
-        };
-      }
+          logger.warn(
+            {
+              idPanel,
+              cid,
+              forceUpdate,
+            },
+            JSON.stringify(Elements.Data.user.main.model.user, null, 4),
+          );
 
-      const containerSelector = `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`;
-      htmls(containerSelector, await renderSrrPanelData());
+          if (loadingGetData || (lastCid === cid && !forceUpdate)) return;
+          loadingGetData = true;
+          lastUserId = newInstance(Elements.Data.user.main.model.user._id);
+          lastCid = cid;
 
-      await getPanelData();
+          logger.warn('Init render panel data');
 
-      htmls(
-        containerSelector,
-        html`
-          <div class="in">${await panelRender({ data: this.Data[idPanel].data })}</div>
-          <div class="in panel-placeholder-bottom panel-placeholder-bottom-${idPanel}"></div>
-        `,
-      );
+          this.Data[idPanel] = {
+            ...this.Data[idPanel],
+            originData: [],
+            data: [],
+            filesData: [],
+            limit: 3, // Load 5 items per page
+            hasMore: true,
+            loading: false,
+          };
 
-      LoadingAnimation.spinner.play(`.panel-placeholder-bottom-${idPanel}`, 'dual-ring-mini');
+          if (cid) this.Data[idPanel].skip = 0;
 
-      const scrollContainerSelector = `.modal-${options.route}`;
+          const containerSelector = `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`;
+          htmls(containerSelector, await renderSrrPanelData());
 
-      if (cid) {
-        LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
-        return;
-      }
-      if (this.Data[idPanel].removeScrollEvent) {
-        this.Data[idPanel].removeScrollEvent();
-      }
-      const { removeEvent } = Scroll.setEvent(scrollContainerSelector, async (payload) => {
-        const panelData = PanelForm.Data[idPanel];
-        if (!panelData) return;
+          await getPanelData();
 
-        // Infinite scroll: load more items at bottom
-        if (payload.atBottom && panelData.hasMore && !panelData.loading) {
-          const oldDataCount = panelData.data.length;
-          await getPanelData(true); // isLoadMore = true
-          const newItems = panelData.data.slice(oldDataCount);
-          if (newItems.length > 0) {
-            for (const item of newItems) append(`.${idPanel}-render`, await Panel.Tokens[idPanel].renderPanel(item));
+          htmls(
+            containerSelector,
+            html`
+              <div class="in">${await panelRender({ data: this.Data[idPanel].data })}</div>
+              <div class="in panel-placeholder-bottom panel-placeholder-bottom-${idPanel}"></div>
+            `,
+          );
+
+          LoadingAnimation.spinner.play(`.panel-placeholder-bottom-${idPanel}`, 'dual-ring-mini');
+
+          const scrollContainerSelector = `.modal-${options.route}`;
+
+          if (cid) {
+            LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
+            return;
           }
-        }
-      });
-      this.Data[idPanel].removeScrollEvent = removeEvent;
+          if (this.Data[idPanel].removeScrollEvent) {
+            this.Data[idPanel].removeScrollEvent();
+          }
+          const { removeEvent } = Scroll.setEvent(scrollContainerSelector, async (payload) => {
+            const panelData = PanelForm.Data[idPanel];
+            if (!panelData) return;
 
-      if (!firsUpdateEvent && options.firsUpdateEvent) {
-        firsUpdateEvent = true;
-        await options.firsUpdateEvent();
-      }
+            // Infinite scroll: load more items at bottom
+            if (payload.atBottom && panelData.hasMore && !panelData.loading) {
+              const oldDataCount = panelData.data.length;
+              await getPanelData(true); // isLoadMore = true
+              const newItems = panelData.data.slice(oldDataCount);
+              if (newItems.length > 0) {
+                for (const item of newItems)
+                  append(`.${idPanel}-render`, await Panel.Tokens[idPanel].renderPanel(item));
+              }
+            }
+          });
+          this.Data[idPanel].removeScrollEvent = removeEvent;
+
+          if (!firsUpdateEvent && options.firsUpdateEvent) {
+            firsUpdateEvent = true;
+            await options.firsUpdateEvent();
+          }
+        } catch (error) {
+          logger.error(error);
+        }
+      };
+
+      await _updatePanel(...args);
+      loadingGetData = false;
     };
     if (options.route) {
       listenQueryPathInstance({
