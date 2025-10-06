@@ -110,11 +110,7 @@ const Modal = {
           if (options && options.slideMenu) s(`.btn-close-${options.slideMenu}`).click();
           options.zIndexSync = true;
 
-          options.style = {
-            ...options.style,
-            'min-width': `${minWidth}px`,
-            width: '100%',
-          };
+          options.style = { width: '100%', ...options.style, 'min-width': `${minWidth}px` };
 
           if (this.mobileModal()) {
             options.barConfig.buttons.restore.disabled = true;
@@ -1541,7 +1537,9 @@ const Modal = {
           htmls(`.nav-title-display-${'modal-menu'}`, html``);
           htmls(`.nav-path-display-${idModal}`, '');
           s(`.btn-icon-menu-back`).classList.add('hide');
-          if (s(`.menu-btn-container-main`)) s(`.menu-btn-container-main`).classList.remove('hide');
+          // sa(`.main-btn-menu`).forEach((el) => {
+          //   el.classList.remove('hide');
+          // });
         };
         s(`.main-btn-home`).onclick = async () => {
           // await this.onHomeRouterEvent();
@@ -1571,7 +1569,7 @@ const Modal = {
                 sa(`.tooltip-menu`).forEach((el) => el.classList.remove('hide'));
                 s(`.${idModal}`).style.overflow = 'visible';
               }
-              if (s(`.menu-btn-container-main`) && s(`.menu-btn-container-main`).classList.contains('hide'))
+              if (s(`.menu-btn-container-children`) && s(`.menu-btn-container-children`).classList.contains('hide'))
                 s(`.btn-icon-menu-back`).classList.add('hide');
             }
             if (options.onCollapseMenu) options.onCollapseMenu();
@@ -1595,7 +1593,7 @@ const Modal = {
               sa(`.tooltip-menu`).forEach((el) => el.classList.add('hide'));
               s(`.${idModal}`).style.overflow = null;
             }
-            if (s(`.menu-btn-container-main`) && s(`.menu-btn-container-main`).classList.contains('hide'))
+            if (s(`.menu-btn-container-children`) && s(`.menu-btn-container-children`).classList.contains('hide'))
               s(`.btn-icon-menu-back`).classList.remove('hide');
 
             if (options.onExtendMenu) options.onExtendMenu();
@@ -1992,7 +1990,9 @@ const Modal = {
     if (s(`.nav-title-display-modal-menu`)) htmls(`.nav-title-display-modal-menu`, '');
     if (s(`.nav-path-display-modal-menu`)) htmls(`.nav-path-display-modal-menu`, '');
     if (s(`.btn-icon-menu-back`)) s(`.btn-icon-menu-back`).classList.add('hide');
-    if (s(`.menu-btn-container-main`)) s(`.menu-btn-container-main`).classList.remove('hide');
+    // sa(`.main-btn-menu`).forEach((el) => {
+    //   el.classList.remove('hide');
+    // });
 
     // And close the slide menu if it's open
     if (s(`.btn-close-modal-menu`) && !s(`.btn-close-modal-menu`).classList.contains('hide')) {

@@ -5,7 +5,7 @@ import { DropDown } from './DropDown.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from './Modal.js';
 import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent, getProxyPath } from './Router.js';
 import { Translate } from './Translate.js';
-import { htmls, s } from './VanillaJs.js';
+import { htmls, s, sa } from './VanillaJs.js';
 import Sortable from 'sortablejs';
 
 // https://mintlify.com/docs/quickstart
@@ -183,7 +183,7 @@ const Docs = {
       tabHref = docData.url();
       docMenuRender += html`
         ${await BtnIcon.Render({
-          class: `in wfa main-btn-menu btn-docs-${docData.type}`,
+          class: `in wfa main-btn-menu btn-docs btn-docs-${docData.type}`,
           label: html`<span class="menu-btn-icon">${docData.icon}</span
             ><span class="menu-label-text"> ${docData.text} </span>`,
           tabHref,
@@ -194,9 +194,11 @@ const Docs = {
         })}
       `;
     }
-
-    htmls('.menu-btn-container-children', html` <div class="fl menu-btn-container-docs">${docMenuRender}</div>`);
-    if (s(`.menu-btn-container-main`)) s(`.menu-btn-container-main`).classList.add('hide');
+    s(`.menu-btn-container-children`).classList.remove('hide');
+    htmls('.menu-btn-container-children-docs', html` <div class="fl menu-btn-container-docs">${docMenuRender}</div>`);
+    sa(`.main-btn-menu`).forEach((el) => {
+      //  if (!el.classList.contains('btn-docs')) el.classList.add('hide');
+    });
     htmls(`.nav-path-display-${'modal-menu'}`, location.pathname);
 
     this.Tokens[idModal] = new Sortable(s(`.menu-btn-container-docs`), {

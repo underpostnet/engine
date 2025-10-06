@@ -59,7 +59,6 @@ const MenuNexodev = {
       id: 'modal-menu',
       html: html`
         <div class="fl menu-btn-container">
-          <div class="fl menu-btn-container-children"></div>
           <div class="fl menu-btn-container-main">
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-blog',
@@ -118,6 +117,7 @@ const MenuNexodev = {
               handleContainerClass: 'handle-btn-container',
               tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs', 'right')),
             })}
+            <div class="fl menu-btn-container-children menu-btn-container-children-docs hide"></div>
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-content',
               label: renderMenuLabel({
@@ -954,7 +954,11 @@ const MenuNexodev = {
         heightTopBar,
         heightBottomBar,
         barMode,
+        style: {
+          width: '400px',
+        },
       });
+      s(`.action-btn-center`).click();
     });
 
     EventsUI.onClick(`.main-btn-recover`, async () => {

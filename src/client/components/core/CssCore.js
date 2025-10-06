@@ -223,6 +223,9 @@ const CssCommonCore = async () => {
         transition: 0.3s;
         position: relative;
       }
+      .menu-btn-container-children {
+        transition: 0.3s;
+      }
     </style>
     ${boxShadow({ selector: '.account-profile-image' })}
     <div class="ag-grid-style"></div>`;
