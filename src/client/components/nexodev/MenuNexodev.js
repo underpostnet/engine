@@ -20,7 +20,7 @@ import { LogOut } from '../core/LogOut.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { htmls, s, sa } from '../core/VanillaJs.js';
 import { ElementsNexodev } from './ElementsNexodev.js';
 import Sortable from 'sortablejs';
 import { RouterNexodev, BannerAppTemplate } from './RoutesNexodev.js';
@@ -106,18 +106,24 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-docs',
-              label: renderMenuLabel({
-                icon: html`<i class="fas fa-book"></i>`,
-                text: html`<span class="menu-label-text"
-                  >${Translate.Render('docs')} <i class="fas fa-caret-down in down-arrow-submenu"></i
-                ></span>`,
-              }),
+              label: html`<div class="in">
+                ${renderMenuLabel({
+                  icon: html`<i class="fas fa-book"></i>`,
+                  text: html`<span class="menu-label-text"
+                    >${Translate.Render('docs')}
+                    <i
+                      class="fas fa-caret-down inl down-arrow-submenu down-arrow-submenu-docs"
+                      style="rotate: 0deg; transition: 0.4s;"
+                    ></i
+                  ></span>`,
+                })}
+              </div> `,
               attrs: `data-id="docs"`,
               tabHref: `${getProxyPath()}docs`,
               handleContainerClass: 'handle-btn-container',
               tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs', 'right')),
             })}
-            <div class="fl menu-btn-container-children menu-btn-container-children-docs hide"></div>
+            <div class="abs menu-btn-container-children-docs"></div>
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-content',
               label: renderMenuLabel({
@@ -743,16 +749,39 @@ const MenuNexodev = {
       });
     });
 
+    let firstOpenMenuDocs = location.pathname.match('/docs') ? true : false;
     EventsUI.onClick(`.main-btn-docs`, async () => {
-      setTimeout(async () => {
-        s(`.btn-icon-menu-back`).classList.remove('hide');
-
-        htmls(`.nav-title-display-modal-menu`, html`<i class="fas fa-book"></i> ${Translate.Render('docs')}`);
-        await Docs.Init({
-          idModal: 'modal-docs',
+      s(`.menu-btn-container-children-docs`).style.top = s(`.main-btn-docs`).offsetTop + 50 + 'px';
+      s(`.menu-btn-container-children-docs`).style.width = '320px';
+      s(`.menu-btn-container-children-docs`).style.height = '0px';
+      const _hBtn = 51;
+      s(`.main-btn-docs`).style.marginBottom = `${0}px`;
+      s(`.main-btn-docs`).style.transition = '.3s';
+      setTimeout(() => {
+        s(`.main-btn-docs`).style.marginBottom = `${_hBtn * 6}px`;
+        s(`.menu-btn-container-children-docs`).style.height = `${_hBtn * 6}px`;
+        s(`.down-arrow-submenu-docs`).style.rotate = '180deg';
+        sa(`.btn-docs`).forEach((el) => {
+          el.classList.remove('hide');
         });
-      });
+      }, 250);
+      setTimeout(() => {
+        s(`.main-btn-docs`).style.transition = null;
+      }, 500);
 
+      setTimeout(async () => {
+        // s(`.btn-icon-menu-back`).classList.remove('hide');
+        // htmls(`.nav-title-display-modal-menu`, html`<i class="fas fa-book"></i> ${Translate.Render('docs')}`);
+        // await Docs.Init({
+        //   idModal: 'modal-docs',
+        // });
+      });
+      // if (getQueryParams().cid) return;
+      if (!Modal.subMenuBtnClass['docs'])
+        Modal.subMenuBtnClass['docs'] = {
+          btnSelector: `.btn-docs`,
+          labelSelector: `.menu-label-text-docs`,
+        };
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
         id: 'modal-docs',
@@ -954,11 +983,22 @@ const MenuNexodev = {
         heightTopBar,
         heightBottomBar,
         barMode,
-        style: {
-          width: '400px',
-        },
+        // style: {
+        //   width: `${window.innerWidth - 300}px`,
+        // },
       });
-      s(`.action-btn-center`).click();
+      if (!firstOpenMenuDocs) {
+        s(`.action-btn-center`).click();
+      }
+      // else delete Modal.subMenuBtnClass['docs'];
+      firstOpenMenuDocs = false;
+      // Modal.Data['modal-docs'].onCloseListener['btn-docs-src'] = () => {
+      //   delete Modal.subMenuBtnClass['docs'];
+      //   console.error('close');
+      // };
+      await Docs.Init({
+        idModal: 'modal-docs',
+      });
     });
 
     EventsUI.onClick(`.main-btn-recover`, async () => {

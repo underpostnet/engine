@@ -1532,7 +1532,6 @@ const Modal = {
       case 'slide-menu-right':
       case 'slide-menu-left':
         const backMenuButtonEvent = async () => {
-          if (s(`.menu-btn-container-children`)) htmls(`.menu-btn-container-children`, '');
           // htmls(`.nav-title-display-${'modal-menu'}`, html`<i class="fas fa-home"></i> ${Translate.Render('home')}`);
           htmls(`.nav-title-display-${'modal-menu'}`, html``);
           htmls(`.nav-path-display-${idModal}`, '');
@@ -1555,6 +1554,7 @@ const Modal = {
             s(`.btn-icon-menu-mode-right`).classList.add('hide');
           }
           if (slideMenuWidth === originSlideMenuWidth) {
+            Modal.subMenuBtnClass = {};
             slideMenuWidth = collapseSlideMenuWidth;
             setTimeout(() => {
               s(`.main-body-btn-container`).style[
@@ -1569,8 +1569,6 @@ const Modal = {
                 sa(`.tooltip-menu`).forEach((el) => el.classList.remove('hide'));
                 s(`.${idModal}`).style.overflow = 'visible';
               }
-              if (s(`.menu-btn-container-children`) && s(`.menu-btn-container-children`).classList.contains('hide'))
-                s(`.btn-icon-menu-back`).classList.add('hide');
             }
             if (options.onCollapseMenu) options.onCollapseMenu();
             s(`.sub-menu-title-container-${'modal-menu'}`).classList.add('hide');
@@ -1593,8 +1591,6 @@ const Modal = {
               sa(`.tooltip-menu`).forEach((el) => el.classList.add('hide'));
               s(`.${idModal}`).style.overflow = null;
             }
-            if (s(`.menu-btn-container-children`) && s(`.menu-btn-container-children`).classList.contains('hide'))
-              s(`.btn-icon-menu-back`).classList.remove('hide');
 
             if (options.onExtendMenu) options.onExtendMenu();
             s(`.sub-menu-title-container-${'modal-menu'}`).classList.remove('hide');
@@ -1958,6 +1954,8 @@ const Modal = {
       ...this.Data[idModal],
     };
   },
+  subMenuBtnClass: {},
+
   onHomeRouterEvent: async () => {
     // 1. Get list of modals to close.
     const modalsToClose = Object.keys(Modal.Data).filter((idModal) => {
@@ -1986,7 +1984,7 @@ const Modal = {
     }
 
     // 4. Finally, handle UI cleanup for the slide-menu.
-    if (s(`.menu-btn-container-children`)) htmls(`.menu-btn-container-children`, '');
+
     if (s(`.nav-title-display-modal-menu`)) htmls(`.nav-title-display-modal-menu`, '');
     if (s(`.nav-path-display-modal-menu`)) htmls(`.nav-path-display-modal-menu`, '');
     if (s(`.btn-icon-menu-back`)) s(`.btn-icon-menu-back`).classList.add('hide');
@@ -2146,26 +2144,37 @@ const Modal = {
     ) {
       return;
     }
-    sa(`.menu-label-text`).forEach((el) => {
-      el.classList.add('hide');
-    });
-    sa(`.main-btn-menu`).forEach((el) => {
-      el.classList.overflow = 'hidden';
-    });
-    setTimeout(() => {
-      sa(`.menu-label-text`).forEach((el) => {
-        el.style.top = '-40px';
-        el.classList.remove('hide');
+    const btnSelector = `.menu-label-text`;
+    const labelSelector = `.menu-label-text`;
+
+    const _data =
+      Object.keys(Modal.subMenuBtnClass).length > 0 ? Modal.subMenuBtnClass : { _: { btnSelector, labelSelector } };
+
+    for (const keyDataBtn of Object.keys(_data)) {
+      const { btnSelector, labelSelector, open } = _data[keyDataBtn];
+      if (open) continue;
+      if (Modal.subMenuBtnClass[keyDataBtn]) Modal.subMenuBtnClass[keyDataBtn].open = true;
+      sa(labelSelector).forEach((el) => {
+        el.classList.add('hide');
       });
-    }, 300);
-    setTimeout(() => {
-      sa(`.menu-label-text`).forEach((el) => {
-        el.style.top = '0px';
+      sa(btnSelector).forEach((el) => {
+        el.classList.overflow = 'hidden';
       });
-      sa(`.main-btn-menu`).forEach((el) => {
-        el.classList.overflow = null;
-      });
-    }, 400);
+      setTimeout(() => {
+        sa(labelSelector).forEach((el) => {
+          el.style.top = '-40px';
+          el.classList.remove('hide');
+        });
+      }, 300);
+      setTimeout(() => {
+        sa(labelSelector).forEach((el) => {
+          el.style.top = '-3px';
+        });
+        sa(btnSelector).forEach((el) => {
+          el.classList.overflow = null;
+        });
+      }, 400);
+    }
   },
   // Move modal title element into the bar's render container so it aligns with control buttons
   /**

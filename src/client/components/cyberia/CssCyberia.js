@@ -174,12 +174,6 @@ const CssCommonCyberia = async () => {
         top: 14px;
         left: -6px;
       }
-      .down-arrow-submenu {
-        top: -20px;
-        text-align: right;
-        padding-right: 42px;
-        color: #5f5f5f;
-      }
       .main-body-btn {
         width: 50px;
         height: 50px;
@@ -598,9 +592,6 @@ const CssCyberiaDark = {
           .img-btn-square-menu {
             width: 80%;
             height: 80%;
-          }
-          .main-btn-menu {
-            text-align: left;
           }
           .main-btn-menu-text {
             font-size: 14px;

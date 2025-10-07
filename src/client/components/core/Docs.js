@@ -159,7 +159,9 @@ const Docs = {
         id: options.idModal,
         routeId: 'docs',
         event: (path) => {
-          if (s(`.btn-docs-${path}`)) s(`.btn-docs-${path}`).click();
+          console.error('btn doc click', path);
+          // Modal.subMenuBtnClass['docs'].disabled = true;
+          // if (s(`.btn-docs-${path}`)) s(`.btn-docs-${path}`).click();
         },
       });
     });
@@ -183,100 +185,20 @@ const Docs = {
       tabHref = docData.url();
       docMenuRender += html`
         ${await BtnIcon.Render({
-          class: `in wfa main-btn-menu btn-docs btn-docs-${docData.type}`,
+          class: `in wfa main-btn-menu btn-docs btn-docs-${docData.type} hide`,
           label: html`<span class="menu-btn-icon">${docData.icon}</span
-            ><span class="menu-label-text"> ${docData.text} </span>`,
+            ><span class="menu-label-text menu-label-text-docs"> ${docData.text} </span>`,
           tabHref,
-          handleContainerClass: 'handle-btn-container',
           tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption(docData.text, 'right')),
-          attrs: `data-id="${docData.type}"`,
-          handleContainerClass: 'handle-btn-container',
         })}
       `;
     }
-    s(`.menu-btn-container-children`).classList.remove('hide');
-    htmls('.menu-btn-container-children-docs', html` <div class="fl menu-btn-container-docs">${docMenuRender}</div>`);
-    sa(`.main-btn-menu`).forEach((el) => {
-      //  if (!el.classList.contains('btn-docs')) el.classList.add('hide');
-    });
-    htmls(`.nav-path-display-${'modal-menu'}`, location.pathname);
+    // s(`.menu-btn-container-children`).classList.remove('hide');
+    // htmls(`.nav-path-display-${'modal-menu'}`, location.pathname);
 
-    this.Tokens[idModal] = new Sortable(s(`.menu-btn-container-docs`), {
-      animation: 150,
-      group: `docs-sortable`,
-      forceFallback: true,
-      fallbackOnBody: true,
-      handle: '.handle-btn-container',
-      store: {
-        /**
-         * Get the order of elements. Called once during initialization.
-         * @param   {Sortable}  sortable
-         * @returns {Array}
-         */
-        get: function (sortable) {
-          const order = localStorage.getItem(sortable.options.group.name);
-          return order ? order.split('|') : [];
-        },
+    htmls('.menu-btn-container-children-docs', docMenuRender);
 
-        /**
-         * Save the order of elements. Called onEnd (when the item is dropped).
-         * @param {Sortable}  sortable
-         */
-        set: function (sortable) {
-          const order = sortable.toArray();
-          localStorage.setItem(sortable.options.group.name, order.join('|'));
-        },
-      },
-      // chosenClass: 'css-class',
-      // ghostClass: 'css-class',
-      // Element dragging ended
-      onEnd: function (/**Event*/ evt) {
-        // console.log('Sortable onEnd', evt);
-        // console.log('evt.oldIndex', evt.oldIndex);
-        // console.log('evt.newIndex', evt.newIndex);
-        const slotId = Array.from(evt.item.classList).pop();
-        // console.log('slotId', slotId);
-        if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
-
-        // var itemEl = evt.item; // dragged HTMLElement
-        // evt.to; // target list
-        // evt.from; // previous list
-        // evt.oldIndex; // element's old index within old parent
-        // evt.newIndex; // element's new index within new parent
-        // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-        // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-        // evt.clone; // the clone element
-        // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
-      },
-    });
-
-    return '';
-    return html` <div class="in section-mp">${docMenuRender}</div>`;
-    return html` <div class="in section-mp">
-      ${await DropDown.Render({
-        id: 'dropdown-docs',
-        disableClose: true,
-        disableSelectLabel: true,
-        disableSelectOptionsLabel: true,
-        disableSearchBox: true,
-        open: true,
-        lastSelectClass: 'hover-active',
-        label: renderMenuLabel({
-          icon: html`<i class="fas fa-book"></i>`,
-          text: html`${Translate.Render('docs')}`,
-        }),
-        containerClass: '',
-        data: this.Data.map((docTypeData) => {
-          return {
-            display: docTypeData.label,
-            value: docTypeData.type,
-            onClick: async () => {
-              console.warn(this.viewUrl[docTypeData.type]());
-            },
-          };
-        }),
-      })}
-    </div>`;
+    return html`test`;
   },
 };
 
