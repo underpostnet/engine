@@ -339,6 +339,7 @@ const CssCoreDark = {
           margin: 0;
           border: 0;
           height: 52px;
+          background: #121212;
         }
         .main-btn-menu-active {
           background: #212020;
@@ -540,6 +541,10 @@ const CssCoreDark = {
           padding: 5px;
           margin: 5px;
         }
+        .submenu-btn {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 0;
+        }
       </style>
       ${scrollBarDarkRender()} ${borderChar(1, 'black', ['.main-body-btn-container'])}
     `,
@@ -659,6 +664,7 @@ const CssCoreLight = {
           margin: 0;
           border: 0;
           height: 52px;
+          background: #fff;
         }
         .main-btn-menu-active {
           background: #d8d8d8;
@@ -869,6 +875,10 @@ const CssCoreLight = {
           border-radius: 5px;
           padding: 5px;
           margin: 5px;
+        }
+        .submenu-btn {
+          background: rgba(0, 0, 0, 0.1);
+          border-radius: 0;
         }
       </style>
       ${scrollBarLightRender()} ${borderChar(1, 'white', ['.main-body-btn-container'])}
