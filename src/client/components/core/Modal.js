@@ -213,7 +213,7 @@ const Modal = {
             const { barConfig } = options;
             options.style = {
               position: 'absolute',
-              height: `${Modal.Data[idModal].getHeight()}px`,
+              height: `${window.innerHeight - options.heightTopBar - options.heightBottomBar}px`,
               width: `${slideMenuWidth}px`,
               // 'overflow-x': 'hidden',
               // overflow: 'visible', // required for tooltip
@@ -1107,7 +1107,7 @@ const Modal = {
                       'min-width': `${minWidth}px`,
                       'z-index': 7,
                       // bottom: '0px !important',
-                      width: `100%`,
+                      width: `${window.innerWidth}px`,
                       top: `${Modal.Data['modal-menu'].getTop()}px`,
                     },
                     dragDisabled: true,
