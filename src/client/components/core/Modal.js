@@ -2166,7 +2166,11 @@ const Modal = {
       Object.keys(Modal.subMenuBtnClass).length > 0 ? Modal.subMenuBtnClass : { _: { btnSelector, labelSelector } };
 
     for (const keyDataBtn of Object.keys(_data)) {
-      const { btnSelector, labelSelector, open } = _data[keyDataBtn];
+      const { btnSelector, labelSelector, open, top } = _data[keyDataBtn];
+      if (top)
+        setTimeout(() => {
+          top();
+        });
       if (open) continue;
       if (Modal.subMenuBtnClass[keyDataBtn]) Modal.subMenuBtnClass[keyDataBtn].open = true;
       sa(labelSelector).forEach((el) => {

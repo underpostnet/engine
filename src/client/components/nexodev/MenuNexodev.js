@@ -751,7 +751,9 @@ const MenuNexodev = {
 
     let firstOpenMenuDocs = location.pathname.match('/docs') ? true : false;
     EventsUI.onClick(`.main-btn-docs`, async () => {
-      s(`.menu-btn-container-children-docs`).style.top = s(`.main-btn-docs`).offsetTop + 50 + 'px';
+      const top = () =>
+        (s(`.menu-btn-container-children-docs`).style.top = s(`.main-btn-docs`).offsetTop + heightTopBar + 'px');
+      top();
       s(`.menu-btn-container-children-docs`).style.width = '320px';
       s(`.menu-btn-container-children-docs`).style.height = '0px';
       const _hBtn = 51;
@@ -778,6 +780,7 @@ const MenuNexodev = {
         Modal.subMenuBtnClass['docs'] = {
           btnSelector: `.btn-docs`,
           labelSelector: `.menu-label-text-docs`,
+          top,
         };
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
