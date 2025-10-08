@@ -116,7 +116,7 @@ const Modal = {
       this.Data[idModal][options.mode] = {};
       switch (options.mode) {
         case 'view':
-          if (options && options.slideMenu) s(`.btn-close-${options.slideMenu}`).click();
+          // if (options && options.slideMenu) s(`.btn-close-${options.slideMenu}`).click();
           options.zIndexSync = true;
 
           options.style = { width: '100%', ...options.style, 'min-width': `${minWidth}px` };
@@ -1582,7 +1582,7 @@ const Modal = {
               sa(`.menu-label-text`).forEach((el) => el.classList.add('hide'));
               if (!Modal.mobileModal()) {
                 sa(`.tooltip-menu`).forEach((el) => el.classList.remove('hide'));
-                s(`.${idModal}`).style.overflow = 'visible';
+                // s(`.${idModal}`).style.overflow = 'visible';
               }
             }
             if (options.onCollapseMenu) options.onCollapseMenu();

@@ -749,11 +749,15 @@ const MenuNexodev = {
       });
     });
 
-    let firstOpenMenuDocs = location.pathname.match('/docs') ? true : false;
     EventsUI.onClick(`.main-btn-docs`, async () => {
-      const top = () =>
-        (s(`.menu-btn-container-children-docs`).style.top = s(`.main-btn-docs`).offsetTop + heightTopBar + 'px');
-      top();
+      const top = () => {
+        s(`.menu-btn-container-children-docs`).style.top = s(`.main-btn-docs`).offsetTop + heightTopBar + 'px';
+        // s(`.modal-menu`).scrollTo({
+        //   top: s(`.main-btn-docs`).offsetTop + heightTopBar,
+        //   behavior: 'smooth',
+        // });
+      };
+      setTimeout(top, 360);
       s(`.menu-btn-container-children-docs`).style.width = '320px';
       s(`.menu-btn-container-children-docs`).style.height = '0px';
       const _hBtn = 51;
@@ -763,6 +767,7 @@ const MenuNexodev = {
         s(`.main-btn-docs`).style.marginBottom = `${_hBtn * 6 + 4}px`;
         s(`.menu-btn-container-children-docs`).style.height = `${_hBtn * 6}px`;
         s(`.down-arrow-submenu-docs`).style.rotate = '180deg';
+        Modal.menuTextLabelAnimation('modal-menu');
       }, 250);
       setTimeout(() => {
         s(`.main-btn-docs`).style.transition = null;
@@ -987,11 +992,8 @@ const MenuNexodev = {
         //   width: `${window.innerWidth - 300}px`,
         // },
       });
-      if (!firstOpenMenuDocs) {
-        s(`.action-btn-center`).click();
-      }
+      // s(`.action-btn-center`).click();
       // else delete Modal.subMenuBtnClass['docs'];
-      firstOpenMenuDocs = false;
       // Modal.Data['modal-docs'].onCloseListener['btn-docs-src'] = () => {
       //   delete Modal.subMenuBtnClass['docs'];
       //   console.error('close');
