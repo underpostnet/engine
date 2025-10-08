@@ -25,6 +25,7 @@ import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js'
 import { QuestManagementCyberia } from './QuestCyberia.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { getProxyPath } from '../core/Router.js';
+import { windowGetW } from '../core/windowGetDimensions.js';
 
 const InteractionPanelCyberia = {
   Data: {},
@@ -369,7 +370,7 @@ const InteractionPanelCyberia = {
           // style.background = 'none';
           // style['z-index'] = 7;
           Responsive.Event[id] = () => {
-            s(`.${id}`).style.width = `${window.innerWidth}px`;
+            s(`.${id}`).style.width = `${windowGetW()}px`;
           };
           setTimeout(Responsive.Event[id]);
           render = async () => {
@@ -634,9 +635,9 @@ const InteractionPanelCyberia = {
           style.height = `${100}px`;
           if (Modal.mobileModal()) {
             style.left = `10px`;
-            style.width = `${window.innerWidth - 20}px`;
+            style.width = `${windowGetW() - 20}px`;
           } else {
-            style.left = `${window.innerWidth - 210}px`;
+            style.left = `${windowGetW() - 210}px`;
             style.width = `${200}px`;
           }
           return style;
@@ -650,10 +651,10 @@ const InteractionPanelCyberia = {
           style.height = `${300}px`;
           if (Modal.mobileModal()) {
             style.left = `10px`;
-            style.width = `${window.innerWidth - 20}px`;
+            style.width = `${windowGetW() - 20}px`;
             style.top = `${110}px`;
           } else {
-            style.left = `${window.innerWidth - 210}px`;
+            style.left = `${windowGetW() - 210}px`;
             style.width = `${200}px`;
             style.top = `${220}px`;
           }
@@ -676,7 +677,7 @@ const InteractionPanelCyberia = {
           style.height = `${300}px`;
           if (Modal.mobileModal()) {
             style.left = `10px`;
-            style.width = `${window.innerWidth - 20}px`;
+            style.width = `${windowGetW() - 20}px`;
           } else {
             style.left = `${10}px`;
             style.width = `${200}px`;

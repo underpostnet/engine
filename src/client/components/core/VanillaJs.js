@@ -5,6 +5,7 @@
  */
 
 import { s4 } from './CommonJs.js';
+import { windowGetH, windowGetW } from './windowGetDimensions.js';
 
 /*
 
@@ -232,10 +233,10 @@ const fullScreenIn = () => {
  * @memberof VanillaJS
  */
 const getResponsiveData = () => {
-  const inner = { width: window.innerWidth, height: window.innerHeight };
+  const inner = { width: windowGetW(), height: windowGetH() };
   return inner.width > inner.height
-    ? { ...inner, minValue: window.innerHeight, maxValue: window.innerWidth, minType: 'height', maxType: 'width' }
-    : { ...inner, minValue: window.innerWidth, maxValue: window.innerHeight, minType: 'width', maxType: 'height' };
+    ? { ...inner, minValue: windowGetH(), maxValue: windowGetW(), minType: 'height', maxType: 'width' }
+    : { ...inner, minValue: windowGetW(), maxValue: windowGetH(), minType: 'width', maxType: 'height' };
 };
 
 /**

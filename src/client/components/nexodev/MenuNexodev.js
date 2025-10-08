@@ -988,9 +988,6 @@ const MenuNexodev = {
         heightTopBar,
         heightBottomBar,
         barMode,
-        // style: {
-        //   width: `${window.innerWidth - 300}px`,
-        // },
       });
       // s(`.action-btn-center`).click();
       // else delete Modal.subMenuBtnClass['docs'];

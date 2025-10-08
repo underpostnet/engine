@@ -18,6 +18,7 @@ import { ElementsBymyelectrics } from './components/bymyelectrics/ElementsBymyel
 import { s } from './components/core/VanillaJs.js';
 import { getProxyPath } from './components/core/Router.js';
 import { CssBymyelectricsDark, CssBymyelectricsLight } from './components/bymyelectrics/CssBymyelectrics.js';
+import { windowGetH } from './components/core/windowGetDimensions.js';
 
 const htmlMainBody = async () => {
   const id0DynamicCol = `dynamicCol-0`;
@@ -25,7 +26,7 @@ const htmlMainBody = async () => {
 
   setTimeout(() => {
     Responsive.Event[`landing`] = () => {
-      s(`.home-first-screen`).style.height = ` ${window.innerHeight - 100}px`;
+      s(`.home-first-screen`).style.height = ` ${windowGetH() - 100}px`;
     };
   });
   return html`
@@ -91,7 +92,7 @@ const htmlMainBody = async () => {
       }
     </style>
     ${borderChar(2, 'black', ['.home-first-screen'])}
-    <div class="in home-first-screen" style="height: ${window.innerHeight - 100}px">
+    <div class="in home-first-screen" style="height: ${windowGetH() - 100}px">
       <div class="abs center proyectistas-p">
         ${Translate.Render('electrical-designers', undefined, { disableTextFormat: true })}
       </div>

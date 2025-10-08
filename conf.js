@@ -64,6 +64,7 @@ const DefaultConf = /**/ {
           '404',
           '500',
           'Pagination',
+          'windowGetDimensions',
         ],
         default: [
           'MenuDefault',

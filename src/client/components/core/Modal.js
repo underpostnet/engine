@@ -31,6 +31,7 @@ import { Keyboard } from './Keyboard.js';
 import { Badge } from './Badge.js';
 import { Worker } from './Worker.js';
 import { Scroll } from './Scroll.js';
+import { windowGetH, windowGetW } from './windowGetDimensions.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
 
@@ -88,8 +89,7 @@ const Modal = {
       homeModals: options.homeModals ? options.homeModals : [],
       query: options.query ? `${window.location.search}` : undefined,
       getTop: () => {
-        const result =
-          window.innerHeight - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar);
+        const result = windowGetH() - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar);
         // TODO: mobile padding gap on init size top height, Iphone SE responsive case
         logger.warn('getTop', {
           top: result,
@@ -99,7 +99,7 @@ const Modal = {
       },
       getHeight: () => {
         return (
-          window.innerHeight -
+          windowGetH() -
           (s(`.main-body-btn-ui-close`) && !s(`.main-body-btn-ui-close`).classList.contains('hide')
             ? (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) +
               (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
@@ -109,8 +109,8 @@ const Modal = {
     };
 
     if (idModal !== 'main-body' && options.mode !== 'view' && !options.disableCenter) {
-      top = `${window.innerHeight / 2 - height / 2}px`;
-      left = `${window.innerWidth / 2 - width / 2}px`;
+      top = `${windowGetH() / 2 - height / 2}px`;
+      left = `${windowGetW() / 2 - width / 2}px`;
     }
     if (options && 'mode' in options) {
       this.Data[idModal][options.mode] = {};
@@ -213,7 +213,7 @@ const Modal = {
             const { barConfig } = options;
             options.style = {
               position: 'absolute',
-              height: `${window.innerHeight - options.heightTopBar - options.heightBottomBar}px`,
+              height: `${windowGetH() - options.heightTopBar - options.heightBottomBar}px`,
               width: `${slideMenuWidth}px`,
               // 'overflow-x': 'hidden',
               // overflow: 'visible', // required for tooltip
@@ -378,7 +378,7 @@ const Modal = {
                   s(`.modal-menu`).style.top = '0px';
                   s(`.main-body-btn-container`).style.top = '50px';
                   s(`.main-body`).style.top = '0px';
-                  s(`.main-body`).style.height = `${window.innerHeight}px`;
+                  s(`.main-body`).style.height = `${windowGetH()}px`;
                   for (const event of Object.keys(Modal.Data[idModal].onBarUiClose))
                     Modal.Data[idModal].onBarUiClose[event]();
                 } else {
@@ -391,7 +391,7 @@ const Modal = {
                   s(`.slide-menu-top-bar`).classList.remove('hide');
                   s(`.bottom-bar`).classList.remove('hide');
                   s(`.main-body`).style.top = `${options.heightTopBar}px`;
-                  s(`.main-body`).style.height = `${window.innerHeight - options.heightTopBar}px`;
+                  s(`.main-body`).style.height = `${windowGetH() - options.heightTopBar}px`;
                   for (const event of Object.keys(Modal.Data[idModal].onBarUiOpen))
                     Modal.Data[idModal].onBarUiOpen[event]();
                 }
@@ -784,8 +784,8 @@ const Modal = {
                       resize: 'none',
                       'max-width': '450px',
                       height:
-                        this.mobileModal() && window.innerWidth < 445
-                          ? `${window.innerHeight - originHeightTopBar}px !important`
+                        this.mobileModal() && windowGetW() < 445
+                          ? `${windowGetH() - originHeightTopBar}px !important`
                           : '300px !important',
                       'z-index': 7,
                     },
@@ -972,7 +972,7 @@ const Modal = {
                 Responsive.Event[`view-${id}`] = () => {
                   if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
                   const widthInputSearchBox =
-                    window.innerWidth > maxWidthInputSearchBox ? maxWidthInputSearchBox : window.innerWidth;
+                    windowGetW() > maxWidthInputSearchBox ? maxWidthInputSearchBox : windowGetW();
                   s(`.top-bar-search-box-container`).style.width = `${
                     widthInputSearchBox - originHeightTopBar - paddingRightSearchBox - 1
                   }px`;
@@ -1107,7 +1107,7 @@ const Modal = {
                       'min-width': `${minWidth}px`,
                       'z-index': 7,
                       // bottom: '0px !important',
-                      width: `${window.innerWidth}px`,
+                      width: `${windowGetW()}px`,
                       top: `${Modal.Data['modal-menu'].getTop()}px`,
                     },
                     dragDisabled: true,
@@ -1118,7 +1118,7 @@ const Modal = {
                   Responsive.Event[`view-${id}`] = () => {
                     if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
                     //  <div class="in fll right-offset-menu-bottom-bar" style="height: 100%"></div>
-                    // s(`.right-offset-menu-bottom-bar`).style.width = `${window.innerWidth - slideMenuWidth}px`;
+                    // s(`.right-offset-menu-bottom-bar`).style.width = `${windowGetW() - slideMenuWidth}px`;
                     s(`.${id}`).style.top = `${Modal.Data['modal-menu'].getTop()}px`;
                   };
                   // Responsive.Event[`view-${id}`]();
@@ -1290,7 +1290,7 @@ const Modal = {
                   s(`.${id}`).style.height =
                     s(`.main-body-btn-ui-close`).classList.contains('hide') &&
                     s(`.btn-restore-${id}`).style.display !== 'none'
-                      ? `${window.innerHeight}px`
+                      ? `${windowGetH()}px`
                       : `${Modal.Data[id].getHeight()}px`;
 
                   if (
@@ -1892,7 +1892,7 @@ const Modal = {
           : 'slide-menu-left';
         const callBack = () => {
           s(`.${idModal}`).style.transition = '0.3s';
-          s(`.${idModal}`).style.width = `${window.innerWidth - this.Data[options.slideMenu][idSlide].width}px`;
+          s(`.${idModal}`).style.width = `${windowGetW() - this.Data[options.slideMenu][idSlide].width}px`;
           s(`.${idModal}`).style.left =
             idSlide === 'slide-menu-right' ? `0px` : `${this.Data[options.slideMenu][idSlide].width}px`;
           setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 300);
@@ -1908,7 +1908,7 @@ const Modal = {
             if (!s(`.${idModal}`) || !s(`.main-body-btn-ui-close`)) return;
             if (s(`.btn-restore-${idModal}`) && s(`.btn-restore-${idModal}`).style.display !== 'none') {
               s(`.${idModal}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
-                ? `${window.innerHeight}px`
+                ? `${windowGetH()}px`
                 : `${Modal.Data[idModal].getHeight()}px`;
             }
             s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
@@ -2041,7 +2041,7 @@ const Modal = {
     s(`.${idModal}`).style.zIndex = '4';
     this.currentTopModalId = `${idModal}`;
   },
-  mobileModal: () => window.innerWidth < 600 || window.innerHeight < 600,
+  mobileModal: () => windowGetW() < 600 || windowGetH() < 600,
   writeHTML: ({ idModal, html }) => htmls(`.html-${idModal}`, html),
   viewModalOpen: function () {
     return Object.keys(this.Data).find((idModal) => s(`.${idModal}`) && this.Data[idModal].options.mode === 'view');
@@ -2226,8 +2226,8 @@ const Modal = {
 
       // First, position the modal near its final position but off-screen
       const arect = anchor.getBoundingClientRect();
-      const vh = window.innerHeight;
-      const vw = window.innerWidth;
+      const vh = windowGetH();
+      const vw = windowGetW();
       const safeMargin = 6;
 
       // Determine vertical position
