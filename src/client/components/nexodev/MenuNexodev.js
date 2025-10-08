@@ -758,12 +758,9 @@ const MenuNexodev = {
       s(`.main-btn-docs`).style.marginBottom = `${0}px`;
       s(`.main-btn-docs`).style.transition = '.3s';
       setTimeout(() => {
-        s(`.main-btn-docs`).style.marginBottom = `${_hBtn * 6}px`;
+        s(`.main-btn-docs`).style.marginBottom = `${_hBtn * 6 + 4}px`;
         s(`.menu-btn-container-children-docs`).style.height = `${_hBtn * 6}px`;
         s(`.down-arrow-submenu-docs`).style.rotate = '180deg';
-        sa(`.btn-docs`).forEach((el) => {
-          el.classList.remove('hide');
-        });
       }, 250);
       setTimeout(() => {
         s(`.main-btn-docs`).style.transition = null;

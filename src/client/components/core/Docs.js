@@ -185,7 +185,7 @@ const Docs = {
       tabHref = docData.url();
       docMenuRender += html`
         ${await BtnIcon.Render({
-          class: `in wfa main-btn-menu submenu-btn btn-docs btn-docs-${docData.type} hide`,
+          class: `in wfa main-btn-menu submenu-btn btn-docs btn-docs-${docData.type}`,
           label: html`<span class="menu-btn-icon">${docData.icon}</span
             ><span class="menu-label-text menu-label-text-docs"> ${docData.text} </span>`,
           tabHref,

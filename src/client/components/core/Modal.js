@@ -57,8 +57,8 @@ const Modal = {
     let originHeightTopBar = options.heightTopBar ? newInstance(options.heightTopBar) : 0;
     let width = 300;
     let height = 400;
-    let top = 0;
-    let left = 0;
+    let top = options.style?.top ? options.style.top : 0;
+    let left = options.style?.left ? options.style.left : 0;
     const topBottomBarEnable = options && options.barMode && options.barMode === 'top-bottom-bar';
     if (!topBottomBarEnable) {
       options.heightTopBar = options.heightTopBar + options.heightBottomBar;
@@ -69,7 +69,7 @@ const Modal = {
     const collapseSlideMenuWidth = 50;
     let slideMenuWidth = originSlideMenuWidth;
     const minWidth = width;
-    const heightDefaultTopBar = 0;
+    const heightDefaultTopBar = 50;
     const heightDefaultBottomBar = 0;
     const idModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
     this.Data[idModal] = {
@@ -87,7 +87,16 @@ const Modal = {
       onHome: {},
       homeModals: options.homeModals ? options.homeModals : [],
       query: options.query ? `${window.location.search}` : undefined,
-      getTop: () => window.innerHeight - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar),
+      getTop: () => {
+        const result =
+          window.innerHeight - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar);
+        // TODO: mobile padding gap on init size top height, Iphone SE responsive case
+        logger.warn('getTop', {
+          top: result,
+          height: Modal.Data[idModal].getHeight(),
+        });
+        return result;
+      },
       getHeight: () => {
         return (
           window.innerHeight -
@@ -99,7 +108,7 @@ const Modal = {
       },
     };
 
-    if (idModal !== 'main-body' && options.mode !== 'view') {
+    if (idModal !== 'main-body' && options.mode !== 'view' && !options.disableCenter) {
       top = `${window.innerHeight / 2 - height / 2}px`;
       left = `${window.innerWidth / 2 - width / 2}px`;
     }
@@ -1097,18 +1106,22 @@ const Modal = {
                       height: `${options.heightBottomBar}px`,
                       'min-width': `${minWidth}px`,
                       'z-index': 7,
+                      // bottom: '0px !important',
+                      width: `100%`,
+                      top: `${Modal.Data['modal-menu'].getTop()}px`,
                     },
                     dragDisabled: true,
-                    maximize: true,
-                    barMode: options.barMode,
+                    disableCenter: true,
+                    // maximize: true,
+                    // barMode: options.barMode,
                   });
                   Responsive.Event[`view-${id}`] = () => {
                     if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
                     //  <div class="in fll right-offset-menu-bottom-bar" style="height: 100%"></div>
                     // s(`.right-offset-menu-bottom-bar`).style.width = `${window.innerWidth - slideMenuWidth}px`;
-                    s(`.${id}`).style.top = `${Modal.Data[id].getTop()}px`;
+                    s(`.${id}`).style.top = `${Modal.Data['modal-menu'].getTop()}px`;
                   };
-                  Responsive.Event[`view-${id}`]();
+                  // Responsive.Event[`view-${id}`]();
                 }
                 EventsUI.onClick(`.action-btn-left`, (e) => {
                   e.preventDefault();
@@ -1304,6 +1317,8 @@ const Modal = {
                   removeEvent();
                 }
               });
+              // TODO: mobile padding gap on init size top height, Iphone SE responsive case
+              setTimeout(window.onresize);
             });
           })();
           break;
@@ -2156,14 +2171,18 @@ const Modal = {
       if (Modal.subMenuBtnClass[keyDataBtn]) Modal.subMenuBtnClass[keyDataBtn].open = true;
       sa(labelSelector).forEach((el) => {
         el.classList.add('hide');
+        el.style.transition = null;
       });
       sa(btnSelector).forEach((el) => {
         el.classList.overflow = 'hidden';
       });
       setTimeout(() => {
         sa(labelSelector).forEach((el) => {
-          el.style.top = '-40px';
           el.classList.remove('hide');
+          el.style.transition = null;
+        });
+        sa(labelSelector).forEach((el) => {
+          el.style.top = '-40px';
         });
       }, 300);
       setTimeout(() => {
