@@ -311,6 +311,7 @@ const Modal = {
             transition += `, width 0.3s`;
 
             setTimeout(() => {
+              setTimeout(btnCloseEvent);
               append(
                 'body',
                 html`

@@ -159,9 +159,8 @@ const Docs = {
         id: options.idModal,
         routeId: 'docs',
         event: (path) => {
-          console.error('btn doc click', path);
           // Modal.subMenuBtnClass['docs'].disabled = true;
-          // if (s(`.btn-docs-${path}`)) s(`.btn-docs-${path}`).click();
+          if (s(`.btn-docs-${path}`)) s(`.btn-docs-${path}`).click();
         },
       });
     });
