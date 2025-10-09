@@ -1,3 +1,4 @@
+import { renderCssAttr } from './Css.js';
 import { append, s } from './VanillaJs.js';
 
 const ToolTip = {
@@ -23,8 +24,23 @@ const ToolTip = {
           <div class="tooltip ${options?.classList ? `${options.classList} ` : ' '}${tooltipId}">${htmlRender}</div>
         `,
       );
-      return '';
-    } else return 'test';
+      return;
+    }
+    append(
+      'body',
+      html`<div
+        class="fix box-shadow fix-tooltip"
+        style="${renderCssAttr({
+          style: {
+            top: 200 + 'px',
+            left: 200 + 'px',
+            'z-index': '8',
+          },
+        })}"
+      >
+        ${htmlRender}
+      </div>`,
+    );
   },
 };
 

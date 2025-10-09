@@ -2386,7 +2386,7 @@ const buildBadgeToolTipMenuOption = (id, sideKey = 'left') => {
   const option = {
     id: `tooltip-content-main-btn-${id}`,
     text: `${Translate.Render(`${id}`)}`,
-    classList: 'tooltip-menu hide',
+    classList: 'tooltip-menu',
     style: { top: `0px` },
   };
   switch (sideKey) {
