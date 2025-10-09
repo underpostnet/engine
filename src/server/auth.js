@@ -576,14 +576,22 @@ function applySecurity(app, opts = {}) {
         blockAllMixedContent: [],
         fontSrc: ["'self'", httpDirective, 'data:'],
         frameAncestors: frameAncestors,
-        imgSrc: ["'self'", 'data:', httpDirective],
+        imgSrc: ["'self'", 'data:', httpDirective, 'https:', 'blob:'],
         objectSrc: ["'none'"],
         // script-src and script-src-elem include dynamic nonce
-        scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
+        scriptSrc: [
+          "'self'",
+          (req, res) => `'nonce-${res.locals.nonce}'`,
+          (req, res) => (res.locals.isSwagger ? "'unsafe-inline'" : ''),
+        ],
         scriptSrcElem: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
         // style-src: avoid 'unsafe-inline' when possible; if you must inline styles,
         // use a nonce for them too (or hash).
-        styleSrc: ["'self'", httpDirective, (req, res) => `'nonce-${res.locals.nonce}'`],
+        styleSrc: [
+          "'self'",
+          httpDirective,
+          (req, res) => (res.locals.isSwagger ? "'unsafe-inline'" : `'nonce-${res.locals.nonce}'`),
+        ],
         // deny plugins
         objectSrc: ["'none'"],
       },

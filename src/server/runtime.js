@@ -163,6 +163,15 @@ const buildRuntime = async () => {
             continue;
           }
 
+          // Flag swagger requests before security middleware is applied
+          const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
+          const swaggerPath = `${path === '/' ? `/api-docs` : `${path}/api-docs`}`;
+          if (fs.existsSync(swaggerJsonPath))
+            app.use(swaggerPath, (req, res, next) => {
+              res.locals.isSwagger = true;
+              next();
+            });
+
           // security
           applySecurity(app, {
             origin: origins.concat(
@@ -193,22 +202,14 @@ const buildRuntime = async () => {
           if (peer) currentPort++;
 
           if (!apiBaseHost) {
-            const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
             if (fs.existsSync(swaggerJsonPath)) {
-              // logger.info('Build swagger serve', swaggerJsonPath);
-
               const swaggerInstance =
                 (swaggerDoc) =>
                 (...args) =>
                   swaggerUi.setup(swaggerDoc)(...args);
-
               const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
-
-              app.use(
-                `${path === '/' ? `/api-docs` : `${path}/api-docs`}`,
-                swaggerUi.serve,
-                swaggerInstance(swaggerDoc),
-              );
+              const swaggerPath = `${path === '/' ? `/api-docs` : `${path}/api-docs`}`;
+              app.use(swaggerPath, swaggerUi.serve, swaggerInstance(swaggerDoc));
             }
 
             if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
