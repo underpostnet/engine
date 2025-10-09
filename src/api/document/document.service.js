@@ -53,12 +53,20 @@ const DocumentService = {
       const limit = req.query.limit ? parseInt(req.query.limit, 10) : 6;
       const skip = req.query.skip ? parseInt(req.query.skip, 10) : 0;
 
-      return await Document.find(queryPayload)
+      const data = await Document.find(queryPayload)
         .sort(sort)
         .limit(limit)
         .skip(skip)
         .populate(DocumentDto.populate.file())
         .populate(user && user.role !== 'guest' ? DocumentDto.populate.user() : null);
+
+      const lastDoc = await Document.findOne(queryPayload, '_id').sort({ createdAt: 1 });
+      const lastId = lastDoc ? lastDoc._id : null;
+
+      return {
+        data,
+        lastId,
+      };
     }
 
     switch (req.params.id) {
