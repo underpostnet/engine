@@ -1602,13 +1602,6 @@ const Modal = {
               true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
             ] = options.mode && options.mode.match('right') ? `${slideMenuWidth}px` : '0px';
             sa(`.handle-btn-container`).forEach((el) => el.classList.add('hide'));
-            // TODO: tooltip refactor visible
-            if (!s(`.btn-bar-center-icon-close`).classList.contains('hide')) {
-              if (!Modal.mobileModal()) {
-                sa(`.tooltip-menu`).forEach((el) => el.classList.remove('hide'));
-                // s(`.${idModal}`).style.overflow = 'visible';
-              }
-            }
             if (options.onCollapseMenu) options.onCollapseMenu();
             s(`.sub-menu-title-container-${'modal-menu'}`).classList.add('hide');
             s(`.nav-path-container-${'modal-menu'}`).classList.add('hide');
@@ -1625,10 +1618,6 @@ const Modal = {
             sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
 
             Modal.menuTextLabelAnimation(idModal);
-            if (!Modal.mobileModal()) {
-              sa(`.tooltip-menu`).forEach((el) => el.classList.add('hide'));
-              s(`.${idModal}`).style.overflow = null;
-            }
 
             if (options.onExtendMenu) options.onExtendMenu();
             s(`.sub-menu-title-container-${'modal-menu'}`).classList.remove('hide');
