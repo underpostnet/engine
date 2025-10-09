@@ -15,6 +15,7 @@ const BtnIcon = {
       labelStyle: '',
       tabHref: '',
       tooltipHtml: '',
+      useVisibilityHover: false,
     },
   ) {
     const tokenId = getId(this.Tokens, 'btn-token-');
@@ -54,7 +55,12 @@ const BtnIcon = {
     if (options.tooltipHtml)
       setTimeout(() => {
         if (s(`.${tokenId}`))
-          ToolTip.Render({ container: `.${tokenId}`, id: tokenId, htmlRender: options.tooltipHtml });
+          ToolTip.Render({
+            container: `.${tokenId}`,
+            id: tokenId,
+            htmlRender: options.tooltipHtml,
+            useVisibilityHover: options.useVisibilityHover,
+          });
       });
     return render;
   },

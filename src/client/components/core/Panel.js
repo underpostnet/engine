@@ -131,6 +131,7 @@ const Panel = {
           ${await BtnIcon.Render({
             class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-edit-${id}`,
             label: html`<div class="abs center"><i class="fas fa-edit"></i></div>`,
+            useVisibilityHover: true,
             tooltipHtml: await Badge.Render({
               id: `tooltip-${idPanel}-${id}`,
               text: `${Translate.Render(`edit`)}`,
@@ -141,6 +142,7 @@ const Panel = {
           ${await BtnIcon.Render({
             class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-delete-${id}`,
             label: html`<div class="abs center"><i class="fas fa-trash"></i></div>`,
+            useVisibilityHover: true,
             tooltipHtml: await Badge.Render({
               id: `tooltip-${idPanel}-${id}`,
               text: `${Translate.Render(`delete`)}`,
