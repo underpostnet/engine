@@ -2405,33 +2405,59 @@ const buildBadgeToolTipMenuOption = (id, sideKey = 'left') => {
   return option;
 };
 
-const subMenuRender = async (subMenuId, open = true) => {
-  const top = () => {
-    s(`.menu-btn-container-children-${subMenuId}`).style.top =
-      s(`.main-btn-${subMenuId}`).offsetTop + Modal.Data['modal-menu'].options.heightTopBar + 'px';
-  };
-  setTimeout(top, 360);
-  s(`.menu-btn-container-children-${subMenuId}`).style.width = '320px';
-  s(`.menu-btn-container-children-${subMenuId}`).style.height = '0px';
+const subMenuRender = async (subMenuId) => {
   const _hBtn = 51;
-  s(`.main-btn-${subMenuId}`).style.marginBottom = `${0}px`;
-  s(`.main-btn-${subMenuId}`).style.transition = '.3s';
-  setTimeout(() => {
-    s(`.main-btn-${subMenuId}`).style.marginBottom = `${_hBtn * 6 + 4}px`;
-    s(`.menu-btn-container-children-${subMenuId}`).style.height = `${_hBtn * 6}px`;
-    s(`.down-arrow-submenu-${subMenuId}`).style.rotate = '180deg';
-    Modal.menuTextLabelAnimation('modal-menu');
-  }, 250);
-  setTimeout(() => {
-    s(`.main-btn-${subMenuId}`).style.transition = null;
-  }, 500);
+  const menuBtn = s(`.main-btn-${subMenuId}`);
+  const menuContainer = s(`.menu-btn-container-children-${subMenuId}`);
+  const arrow = s(`.down-arrow-submenu-${subMenuId}`);
+
+  if (!menuBtn || !menuContainer || !arrow) return;
+
+  const top = () => {
+    menuContainer.style.top = menuBtn.offsetTop + Modal.Data['modal-menu'].options.heightTopBar + 'px';
+  };
 
   if (!Modal.subMenuBtnClass[subMenuId])
     Modal.subMenuBtnClass[subMenuId] = {
       btnSelector: `.btn-${subMenuId}`,
       labelSelector: `.menu-label-text-${subMenuId}`,
       top,
+      open: false,
     };
+
+  menuBtn.style.transition = '.3s';
+  arrow.style.transition = '.3s';
+
+  if (Modal.subMenuBtnClass[subMenuId].open) {
+    // Close animation
+    menuContainer.style.overflow = 'hidden';
+    menuContainer.style.height = '0px';
+    arrow.style.rotate = '180deg';
+    setTimeout(() => {
+      menuBtn.style.marginBottom = '0px';
+      arrow.style.rotate = '0deg';
+      Modal.subMenuBtnClass[subMenuId].open = false;
+    });
+  } else {
+    Modal.menuTextLabelAnimation('modal-menu');
+    // Open animation
+    setTimeout(top, 360);
+    menuContainer.style.width = '320px';
+    menuContainer.style.overflow = null;
+    menuContainer.style.height = '0px';
+    menuContainer.style.height = `${_hBtn * 6}px`;
+    arrow.style.rotate = '0deg';
+    setTimeout(() => {
+      menuBtn.style.marginBottom = `${_hBtn * 6 + 4}px`;
+      arrow.style.rotate = '180deg';
+
+      Modal.subMenuBtnClass[subMenuId].open = true;
+    });
+  }
+
+  setTimeout(() => {
+    menuBtn.style.transition = null;
+  }, 500);
 };
 
 export { Modal, renderMenuLabel, renderViewTitle, buildBadgeToolTipMenuOption, subMenuRender };
