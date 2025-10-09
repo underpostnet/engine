@@ -154,6 +154,9 @@ const CssCommonCore = async () => {
       .main-body-btn:hover {
         font-size: 21px;
       }
+      .main-menu-btn-selector {
+        overflow: hidden;
+      }
     </style>
     <style>
       .lds-dual-ring,

@@ -20,6 +20,7 @@ const BtnIcon = {
     },
   ) {
     const tokenId = getId(this.Tokens, 'btn-token-');
+    if (options.useMenuBtn) options.class += ' main-menu-btn-selector';
     this.Tokens[tokenId] = { ...options };
     setTimeout(() => {
       if (s(`.a-${tokenId}`)) s(`.a-${tokenId}`).onclick = (e) => e.preventDefault();
