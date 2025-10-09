@@ -17,7 +17,7 @@ import {
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle, subMenuRender } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s, sa } from '../core/VanillaJs.js';
@@ -769,43 +769,8 @@ const MenuNexodev = {
     });
 
     EventsUI.onClick(`.main-btn-docs`, async () => {
-      const top = () => {
-        s(`.menu-btn-container-children-docs`).style.top = s(`.main-btn-docs`).offsetTop + heightTopBar + 'px';
-        // s(`.modal-menu`).scrollTo({
-        //   top: s(`.main-btn-docs`).offsetTop + heightTopBar,
-        //   behavior: 'smooth',
-        // });
-      };
-      setTimeout(top, 360);
-      s(`.menu-btn-container-children-docs`).style.width = '320px';
-      s(`.menu-btn-container-children-docs`).style.height = '0px';
-      const _hBtn = 51;
-      s(`.main-btn-docs`).style.marginBottom = `${0}px`;
-      s(`.main-btn-docs`).style.transition = '.3s';
-      setTimeout(() => {
-        s(`.main-btn-docs`).style.marginBottom = `${_hBtn * 6 + 4}px`;
-        s(`.menu-btn-container-children-docs`).style.height = `${_hBtn * 6}px`;
-        s(`.down-arrow-submenu-docs`).style.rotate = '180deg';
-        Modal.menuTextLabelAnimation('modal-menu');
-      }, 250);
-      setTimeout(() => {
-        s(`.main-btn-docs`).style.transition = null;
-      }, 500);
+      await subMenuRender('docs');
 
-      setTimeout(async () => {
-        // s(`.btn-icon-menu-back`).classList.remove('hide');
-        // htmls(`.nav-title-display-modal-menu`, html`<i class="fas fa-book"></i> ${Translate.Render('docs')}`);
-        // await Docs.Init({
-        //   idModal: 'modal-docs',
-        // });
-      });
-      // if (getQueryParams().cid) return;
-      if (!Modal.subMenuBtnClass['docs'])
-        Modal.subMenuBtnClass['docs'] = {
-          btnSelector: `.btn-docs`,
-          labelSelector: `.menu-label-text-docs`,
-          top,
-        };
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
         id: 'modal-docs',
@@ -815,189 +780,10 @@ const MenuNexodev = {
           icon: html`<i class="fas fa-book"></i>`,
           text: Translate.Render('docs'),
         }),
-        html: async () => {
-          const docsData = [
-            {
-              id: 'getting-started',
-              icon: 'rocket',
-              title: 'Getting Started',
-              description: 'Learn the basics and get started with our platform',
-            },
-            {
-              id: 'api-docs',
-              icon: 'code',
-              title: 'API Reference',
-              description: 'Detailed documentation of our API endpoints',
-            },
-            {
-              id: 'guides',
-              icon: 'book',
-              title: 'Guides',
-              description: 'Step-by-step tutorials and how-to guides',
-            },
-            {
-              id: 'demo',
-              icon: 'laptop-code',
-              title: 'Demo',
-              description: 'Practical examples and code snippets',
-            },
-            {
-              id: 'faq',
-              icon: 'question-circle',
-              title: 'FAQ',
-              description: 'Frequently asked questions',
-            },
-            {
-              id: 'community',
-              icon: 'users',
-              title: 'Community',
-              description: 'Join our developer community',
-            },
-          ];
-
-          return html`
-            <style>
-              .docs-landing {
-                padding: 2rem;
-                max-width: 1200px;
-                margin: 0 auto;
-                height: 100%;
-                box-sizing: border-box;
-              }
-              .docs-header {
-                text-align: center;
-                margin-bottom: 3rem;
-                opacity: 0;
-                animation: fadeInUp 0.6s ease-out forwards;
-              }
-              .docs-header h1 {
-                font-size: 2.5rem;
-                margin: 0 0 1rem;
-                line-height: 1.2;
-              }
-              .docs-header p {
-                font-size: 1.2rem;
-                max-width: 700px;
-                margin: 0 auto 2rem;
-                line-height: 1.6;
-              }
-              .docs-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-                gap: 1.5rem;
-                margin: 0;
-                padding: 0;
-                list-style: none;
-              }
-              .docs-card-container {
-                cursor: pointer;
-                opacity: 0;
-                margin-bottom: 3rem;
-                animation: fadeInUp 0.6s ease-out forwards;
-              }
-              .docs-card {
-                border-radius: 8px;
-                padding: 1.5rem;
-                display: flex;
-                flex-direction: column;
-                height: 100%;
-                position: relative;
-                transition: all 0.3s ease-in-out;
-              }
-
-              .card-icon {
-                font-size: 1.75rem;
-                width: 56px;
-                height: 56px;
-                border-radius: 12px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin: 0 0 1.25rem;
-                transition: transform 0.2s ease;
-              }
-
-              .card-content {
-                flex: 1;
-              }
-              .card-content h3 {
-                margin: 0 0 0.5rem;
-                font-size: 1.25rem;
-                font-weight: 600;
-              }
-              .card-content p {
-                margin: 0;
-                font-size: 0.95rem;
-                transition: color 0.3s ease;
-              }
-            </style>
-
-            <style>
-              ${docsData
-                .map(
-                  (_, index) => css`
-                    .docs-card-container:nth-child(${index + 1}) {
-                      animation-delay: ${0.1 * (index + 1)}s;
-                    }
-                  `,
-                )
-                .join('')}
-            </style>
-
-            <div class="docs-landing">
-              <div class="docs-header">
-                <h1>Documentation</h1>
-                <p>
-                  Find everything you need to build amazing applications with our platform. Get started with our guides,
-                  API reference, and examples.
-                </p>
-                <!--
-                <div class="search-bar">
-                  <i class="fas fa-search"></i>
-                  <input type="text" placeholder="Search documentation..." id="docs-search">
-                </div>
-                -->
-              </div>
-
-              <ul class="docs-grid">
-                ${docsData
-                  .map((item) => {
-                    setTimeout(() => {
-                      if (s(`.docs-card-container-${item.id}`)) {
-                        s(`.docs-card-container-${item.id}`).onclick = () => {
-                          if (item.id.match('demo')) {
-                            location.href = 'https://underpostnet.github.io/pwa-microservices-template-ghpkg/';
-                          } else if (item.id.match('api')) {
-                            if (s(`.btn-docs-api`)) s(`.btn-docs-api`).click();
-                          } else {
-                            if (s(`.btn-docs-src`)) s(`.btn-docs-src`).click();
-                          }
-                        };
-                      }
-                    });
-                    return html`
-                      <div class="in docs-card-container docs-card-container-${item.id}">
-                        <li class="docs-card">
-                          <div class="card-icon">
-                            <i class="fas fa-${item.icon}"></i>
-                          </div>
-                          <div class="card-content">
-                            <h3>${item.title}</h3>
-                            <p>${item.description}</p>
-                          </div>
-                        </li>
-                      </div>
-                    `;
-                  })
-                  .join('')}
-              </ul>
-            </div>
-          `;
-        },
-
-        // await Docs.Init({
-        //   idModal: 'modal-docs',
-        // }),
+        html: async () =>
+          await Docs.Init({
+            idModal: 'modal-docs',
+          }),
         handleType: 'bar',
         observer: true,
         maximize: true,
@@ -1007,15 +793,6 @@ const MenuNexodev = {
         heightTopBar,
         heightBottomBar,
         barMode,
-      });
-      // s(`.action-btn-center`).click();
-      // else delete Modal.subMenuBtnClass['docs'];
-      // Modal.Data['modal-docs'].onCloseListener['btn-docs-src'] = () => {
-      //   delete Modal.subMenuBtnClass['docs'];
-      //   console.error('close');
-      // };
-      await Docs.Init({
-        idModal: 'modal-docs',
       });
     });
 

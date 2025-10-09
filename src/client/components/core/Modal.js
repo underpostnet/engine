@@ -2405,4 +2405,33 @@ const buildBadgeToolTipMenuOption = (id, sideKey = 'left') => {
   return option;
 };
 
-export { Modal, renderMenuLabel, renderViewTitle, buildBadgeToolTipMenuOption };
+const subMenuRender = async (subMenuId, open = true) => {
+  const top = () => {
+    s(`.menu-btn-container-children-${subMenuId}`).style.top =
+      s(`.main-btn-${subMenuId}`).offsetTop + Modal.Data['modal-menu'].options.heightTopBar + 'px';
+  };
+  setTimeout(top, 360);
+  s(`.menu-btn-container-children-${subMenuId}`).style.width = '320px';
+  s(`.menu-btn-container-children-${subMenuId}`).style.height = '0px';
+  const _hBtn = 51;
+  s(`.main-btn-${subMenuId}`).style.marginBottom = `${0}px`;
+  s(`.main-btn-${subMenuId}`).style.transition = '.3s';
+  setTimeout(() => {
+    s(`.main-btn-${subMenuId}`).style.marginBottom = `${_hBtn * 6 + 4}px`;
+    s(`.menu-btn-container-children-${subMenuId}`).style.height = `${_hBtn * 6}px`;
+    s(`.down-arrow-submenu-${subMenuId}`).style.rotate = '180deg';
+    Modal.menuTextLabelAnimation('modal-menu');
+  }, 250);
+  setTimeout(() => {
+    s(`.main-btn-${subMenuId}`).style.transition = null;
+  }, 500);
+
+  if (!Modal.subMenuBtnClass[subMenuId])
+    Modal.subMenuBtnClass[subMenuId] = {
+      btnSelector: `.btn-${subMenuId}`,
+      labelSelector: `.menu-label-text-${subMenuId}`,
+      top,
+    };
+};
+
+export { Modal, renderMenuLabel, renderViewTitle, buildBadgeToolTipMenuOption, subMenuRender };
