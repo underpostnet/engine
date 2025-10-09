@@ -1,12 +1,9 @@
 import { Badge } from './Badge.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Css, renderCssAttr, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
-import { DropDown } from './DropDown.js';
-import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from './Modal.js';
+import { buildBadgeToolTipMenuOption, Modal, renderViewTitle } from './Modal.js';
 import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent, getProxyPath } from './Router.js';
-import { Translate } from './Translate.js';
-import { htmls, s, sa } from './VanillaJs.js';
-import Sortable from 'sortablejs';
+import { htmls, s } from './VanillaJs.js';
 
 // https://mintlify.com/docs/quickstart
 
@@ -161,6 +158,11 @@ const Docs = {
         event: (path) => {
           // Modal.subMenuBtnClass['docs'].disabled = true;
           if (s(`.btn-docs-${path}`)) s(`.btn-docs-${path}`).click();
+          if (Modal.mobileModal()) {
+            setTimeout(() => {
+              s(`.btn-close-modal-menu`).click();
+            });
+          }
         },
       });
     });

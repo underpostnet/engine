@@ -131,11 +131,14 @@ const Modal = {
 
           options.style = { width: '100%', ...options.style, 'min-width': `${minWidth}px` };
 
-          if (this.mobileModal()) {
+          if (Modal.mobileModal()) {
             options.barConfig.buttons.restore.disabled = true;
             options.barConfig.buttons.minimize.disabled = true;
             options.dragDisabled = true;
             options.style.resize = 'none';
+            setTimeout(() => {
+              s(`.btn-close-modal-menu`).click();
+            });
           }
 
           Responsive.Event[`view-${idModal}`] = () => {
