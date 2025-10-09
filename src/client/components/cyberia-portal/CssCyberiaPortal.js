@@ -46,7 +46,7 @@ const CssCommonCyberia = async () => {
       /* Base typography and smoothing */
 
       button,
-      .title-view-modal,
+      .title-main-modal,
       .section-mp,
       .default-slide-menu-top-bar-fix-title-container-text {
         font-family: var(--cy-font-retro);

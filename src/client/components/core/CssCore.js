@@ -130,13 +130,13 @@ const CssCommonCore = async () => {
           opacity: 0;
         }
       }
-      .title-view-modal {
+      .title-main-modal {
         top: 8px;
-        font-size: 21px !important;
-        position: absolute !important;
+        font-size: 21px;
+        position: absolute;
       }
-      .title-view-modal .view-title-icon {
-        font-size: 21px !important;
+      .title-main-modal .view-title-icon {
+        font-size: 21px;
       }
       .down-arrow-submenu {
         top: 0px;
@@ -593,12 +593,7 @@ const CssCoreLight = {
         .hover-active {
           background: #bbbbbb;
         }
-        .title-modal {
-          cursor: default;
-          font-size: 20px;
-          padding: 5px;
-          margin: 5px;
-        }
+
         .box-shadow {
           box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
         }
@@ -742,9 +737,7 @@ const CssCoreLight = {
           color: #333;
           background: 0 0;
         }
-        .title-modal {
-          color: #000;
-        }
+
         input {
           cursor: pointer;
           color: #272727;

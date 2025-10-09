@@ -129,16 +129,11 @@ const LoadingAnimation = {
   removeSplashScreen: function (backgroundContainer, callBack) {
     if (s(`.clean-cache-container`)) s(`.clean-cache-container`).style.display = 'none';
     if (!backgroundContainer) backgroundContainer = '.ssr-background';
-    if (s(backgroundContainer))
-      setTimeout(() => {
-        s(backgroundContainer).style.opacity = 0;
-        setTimeout(async () => {
-          s(backgroundContainer).style.display = 'none';
-          if (s(`.modal-menu`)) s(`.modal-menu`).classList.remove('hide');
-          if (s(`.main-body-btn-container`)) s(`.main-body-btn-container`).classList.remove('hide');
-          if (callBack) callBack();
-        }, 300);
-      });
+    if (s(backgroundContainer)) {
+      s(backgroundContainer).style.display = 'none';
+      if (s(`.main-body-btn-container`)) s(`.main-body-btn-container`).classList.remove('hide');
+      if (callBack) callBack();
+    }
   },
 
   RenderCurrentSrcLoad: function (event) {
