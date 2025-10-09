@@ -62,6 +62,7 @@ const MenuNexodev = {
           <div class="fl menu-btn-container-main">
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-blog',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fa-solid fa-file-invoice"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('blog')}</span>`,
@@ -73,6 +74,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-calendar',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-calendar-alt"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('calendar')}</span>`,
@@ -84,6 +86,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-dashboard',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fa-solid fa-chart-line"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('dashboard')}</span>`,
@@ -95,6 +98,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-stream',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fa-solid fa-video"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('stream')}</span>`,
@@ -106,6 +110,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-docs',
+              useMenuBtn: true,
               label: html`<div class="in">
                 ${renderMenuLabel({
                   icon: html`<i class="fas fa-book"></i>`,
@@ -126,6 +131,7 @@ const MenuNexodev = {
             <div class="abs menu-btn-container-children-docs"></div>
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-content',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="far fa-file"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('content')}</span>`,
@@ -137,6 +143,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-cloud',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-cloud"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('cloud')}</span>`,
@@ -165,6 +172,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-settings',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-sliders-h"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
@@ -176,6 +184,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-home"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
@@ -188,6 +197,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-log-in',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-sign-in-alt"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
@@ -199,6 +209,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-sign-up',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-user-plus"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
@@ -210,6 +221,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-log-out',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-sign-out-alt"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
@@ -222,6 +234,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-account',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-user-circle"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
@@ -234,6 +247,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-wallet',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html` <i class="fas fa-wallet"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('wallet')}</span>`,
@@ -245,6 +259,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-recover hide',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
@@ -256,6 +271,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-default-management',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('default-management')}</span>`,
@@ -267,6 +283,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-user-management',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-users-cog"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('user-management')}</span>`,
@@ -278,6 +295,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-instance-management',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-layer-group"></i>`,
                 text: html`<span class="menu-label-text">${Translate.Render('instance-management')}</span>`,
@@ -289,6 +307,7 @@ const MenuNexodev = {
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-cron-management',
+              useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24">
                   <path

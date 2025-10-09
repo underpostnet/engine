@@ -108,12 +108,12 @@ const Modal = {
       },
       getMenuLeftStyle: (ops = { open: false }) =>
         `${
-          options.barMode === 'top-bottom-bar'
+          options.mode === 'slide-menu-right'
             ? `${
                 windowGetW() +
                 (ops?.open
                   ? -1 * originSlideMenuWidth +
-                    (options.barMode === 'top-bottom-bar' && s(`.btn-icon-menu-mode-right`).classList.contains('hide')
+                    (options.mode === 'slide-menu-right' && s(`.btn-icon-menu-mode-right`).classList.contains('hide')
                       ? originSlideMenuWidth - collapseSlideMenuWidth
                       : 0)
                   : originSlideMenuWidth)
@@ -281,7 +281,7 @@ const Modal = {
               s(`.main-body-btn-container`).style[
                 true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
               ] = options.mode && options.mode.match('right') ? `${slideMenuWidth}px` : '0px';
-              if (options.barMode === 'top-bottom-bar') {
+              if (options.mode === 'slide-menu-right') {
                 s(`.${idModal}`).style.left = `${windowGetW() - originSlideMenuWidth}px`;
               } else {
                 s(`.${idModal}`).style.left = `0px`;
@@ -304,7 +304,7 @@ const Modal = {
               s(`.main-body-btn-container`).style[
                 true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
               ] = `${0}px`;
-              if (options.barMode === 'top-bottom-bar') {
+              if (options.mode === 'slide-menu-right') {
                 s(`.${idModal}`).style.left = `${windowGetW() + originSlideMenuWidth}px`;
               } else {
                 s(`.${idModal}`).style.left = `-${originSlideMenuWidth}px`;
@@ -2165,7 +2165,7 @@ const Modal = {
   menuTextLabelAnimation: (idModal) => {
     if (
       !s(
-        `.btn-icon-menu-mode-${Modal.Data[idModal].options.barMode === 'top-bottom-bar' ? 'left' : 'right'}`,
+        `.btn-icon-menu-mode-${Modal.Data[idModal].options.mode === 'slide-menu-right' ? 'left' : 'right'}`,
       ).classList.contains('hide')
     ) {
       return;
@@ -2387,16 +2387,16 @@ const buildBadgeToolTipMenuOption = (id, sideKey = 'left') => {
     id: `tooltip-content-main-btn-${id}`,
     text: `${Translate.Render(`${id}`)}`,
     classList: 'tooltip-menu',
-    style: { top: `0px` },
+    style: { top: `-40px` },
   };
   switch (sideKey) {
     case 'left':
-      option.style.left = '40px';
+      option.style.left = '60px';
 
       break;
 
     case 'right':
-      option.style.right = '80px';
+      option.style.right = '60px';
       break;
 
     default:

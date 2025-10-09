@@ -16,6 +16,7 @@ const BtnIcon = {
       tabHref: '',
       tooltipHtml: '',
       useVisibilityHover: false,
+      useMenuBtn: false,
     },
   ) {
     const tokenId = getId(this.Tokens, 'btn-token-');
@@ -59,7 +60,8 @@ const BtnIcon = {
             container: `.${tokenId}`,
             id: tokenId,
             htmlRender: options.tooltipHtml,
-            useVisibilityHover: options.useVisibilityHover,
+            useVisibilityHover: !!options.useVisibilityHover,
+            useMenuBtn: !!options.useMenuBtn,
           });
       });
     return render;

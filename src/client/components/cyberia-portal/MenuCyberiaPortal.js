@@ -35,6 +35,7 @@ const MenuCyberiaPortal = {
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-home"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
@@ -47,6 +48,7 @@ const MenuCyberiaPortal = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-in',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
@@ -58,6 +60,7 @@ const MenuCyberiaPortal = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-sign-up',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
@@ -69,6 +72,7 @@ const MenuCyberiaPortal = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-out',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-out-alt"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
@@ -81,6 +85,7 @@ const MenuCyberiaPortal = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-account',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-circle"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
@@ -93,6 +98,7 @@ const MenuCyberiaPortal = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-settings',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sliders-h"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
@@ -104,6 +110,7 @@ const MenuCyberiaPortal = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-server hide',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-server"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('server')}</span>`,
@@ -115,6 +122,7 @@ const MenuCyberiaPortal = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-chat',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="far fa-comments"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('chat')}</span>`,
@@ -126,6 +134,7 @@ const MenuCyberiaPortal = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-admin hide',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-user-tie"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('admin')}</span>`,
@@ -137,6 +146,7 @@ const MenuCyberiaPortal = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-recover hide',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
@@ -148,6 +158,7 @@ const MenuCyberiaPortal = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-object-layer-engine',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-cog"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('object-layer-engine')}</span>`,

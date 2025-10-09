@@ -191,6 +191,7 @@ const Docs = {
             ><span class="menu-label-text menu-label-text-docs"> ${docData.text} </span>`,
           tabHref,
           tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption(docData.text, 'right')),
+          useMenuBtn: true,
         })}
       `;
     }

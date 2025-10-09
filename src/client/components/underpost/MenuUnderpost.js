@@ -38,6 +38,7 @@ const MenuUnderpost = {
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-contracultura-cyberpunk',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-brands fa-blogger"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('contracultura-cyberpunk')}</span>`,
@@ -50,6 +51,7 @@ const MenuUnderpost = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-lab-gallery hide',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-photo-film"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('lab-gallery')}</span>`,
@@ -62,6 +64,7 @@ const MenuUnderpost = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-home"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
@@ -74,6 +77,7 @@ const MenuUnderpost = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-in',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
@@ -85,6 +89,7 @@ const MenuUnderpost = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-sign-up',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
@@ -96,6 +101,7 @@ const MenuUnderpost = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-out',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-out-alt"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
@@ -108,6 +114,7 @@ const MenuUnderpost = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-account',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-circle"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
@@ -120,6 +127,7 @@ const MenuUnderpost = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-settings',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sliders-h"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
@@ -131,6 +139,7 @@ const MenuUnderpost = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-recover hide',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
@@ -142,6 +151,7 @@ const MenuUnderpost = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-github',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fab fa-github"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('github')}</span>`,

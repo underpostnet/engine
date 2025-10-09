@@ -51,6 +51,7 @@ const MenuDefault = {
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-home"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
@@ -63,6 +64,7 @@ const MenuDefault = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-in',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
@@ -74,6 +76,7 @@ const MenuDefault = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-sign-up',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
@@ -85,6 +88,7 @@ const MenuDefault = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-out',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-out-alt"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
@@ -97,6 +101,7 @@ const MenuDefault = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-account',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-circle"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
@@ -109,6 +114,7 @@ const MenuDefault = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-settings',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sliders-h"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
@@ -120,6 +126,7 @@ const MenuDefault = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-recover hide',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
@@ -131,6 +138,7 @@ const MenuDefault = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-default-management',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('default-management')}</span>`,
@@ -142,6 +150,7 @@ const MenuDefault = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-404 hide',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-triangle-exclamation"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('404')}</span>`,
@@ -153,6 +162,7 @@ const MenuDefault = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-500 hide',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-circle-exclamation"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('500')}</span>`,
@@ -164,6 +174,7 @@ const MenuDefault = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-blog',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-file-invoice"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('blog')}</span>`,

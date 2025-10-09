@@ -37,6 +37,7 @@ const MenuItemledger = {
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-home"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
@@ -49,6 +50,7 @@ const MenuItemledger = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-in',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
@@ -60,6 +62,7 @@ const MenuItemledger = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-sign-up',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
@@ -71,6 +74,7 @@ const MenuItemledger = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-out',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-out-alt"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
@@ -83,6 +87,7 @@ const MenuItemledger = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-account',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-circle"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
@@ -95,6 +100,7 @@ const MenuItemledger = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-settings',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sliders-h"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
@@ -106,6 +112,7 @@ const MenuItemledger = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-docs hide',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-book"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('docs')}</span>`,
@@ -117,6 +124,7 @@ const MenuItemledger = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-recover hide',
+            useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
