@@ -1,8 +1,8 @@
 /**
- * @namespace LamppService
- * @description Exported singleton instance of the LamppService class.
+ * Exported singleton instance of the LamppService class.
  * This object is used to interact with the Lampp configuration and service.
  * @module src/runtime/lampp/Lampp.js
+ * @namespace LamppService
  */
 
 import fs from 'fs-extra';
