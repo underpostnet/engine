@@ -2444,7 +2444,7 @@ const subMenuRender = async (subMenuId) => {
     menuContainer.style.height = `${_hBtn * 6}px`;
     arrow.style.rotate = '0deg';
     setTimeout(() => {
-      menuBtn.style.marginBottom = `${_hBtn * 6 + 4}px`;
+      menuBtn.style.marginBottom = `${_hBtn * sa(`.menu-label-text-${subMenuId}`).length + 4}px`;
       arrow.style.rotate = '180deg';
     });
   }
