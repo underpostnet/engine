@@ -430,7 +430,8 @@ const MenuNexodev = {
           // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
         },
         onStart: async function (/**Event*/ evt) {
-          if (Modal.subMenuBtnClass['docs'] && Modal.subMenuBtnClass['docs'].open) {
+          if (Modal.subMenuBtnClass['docs']) {
+            Modal.subMenuBtnClass['docs'].open = true;
             await subMenuRender('docs');
             MenuNexodev.Data[id].sortable = sortableFactor();
           }
