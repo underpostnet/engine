@@ -20,7 +20,7 @@ for iface_path in /sys/class/net/*; do
   if [ -f "$pci_dev/vendor" ] && [ -f "$pci_dev/device" ]; then
     vendor_id=$(< "$pci_dev/vendor")
     device_id=$(< "$pci_dev/device")
-    # pasamos de 0x8086 a 8086, etc.
+    # parse 0x8086 to 8086, etc.
     vendor_id=${vendor_id#0x}
     device_id=${device_id#0x}
     pci="${vendor_id}:${device_id}"

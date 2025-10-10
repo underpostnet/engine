@@ -707,7 +707,7 @@ const QuestComponent = {
                       image: 'user-main',
                       dialog: {
                         en: 'I see. In that case, can you tell us anything about yourself, such as how were you built and how do you function?',
-                        es: 'Ya veo. En ese caso, ¿puede decirnos algo sobre usted, por ejemplo, cómo se formó y cómo funciona?',
+                        es: 'Ya veo. En ese caso, ¿puede decirnos algo sobre usted, por example, cómo se formó y cómo funciona?',
                       },
                     },
                     {
