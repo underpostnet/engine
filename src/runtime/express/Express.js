@@ -145,19 +145,7 @@ class ExpressService {
 
     // Security and CORS
     applySecurity(app, {
-      origin: (origin, callback) => {
-        // Use devApiPort if provided to calculate the allowed development CORS origin
-        const devOrigin =
-          apis && process.env.NODE_ENV === 'development' && devApiPort ? [`http://localhost:${devApiPort}`] : [];
-
-        const allowedOrigins = origins.concat(devOrigin);
-
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
+      origin: origins,
     });
 
     // Handle redirection-only instances
