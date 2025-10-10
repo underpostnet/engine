@@ -152,7 +152,7 @@ class LamppService {
   /**
    * Resets the internal router configuration and removes the temporary configuration file.
    *
-   * @memberof LamppService.prototype
+   * @memberof LamppService
    * @returns {void}
    */
   removeRouter() {

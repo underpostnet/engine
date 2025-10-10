@@ -1,7 +1,8 @@
 /**
- * @namespace ExpressService
- * @description A service dedicated to creating and configuring an Express.js application
+ * A service dedicated to creating and configuring an Express.js application
  * instance based on server configuration data.
+ * @module src/runtime/express/Express.js
+ * @namespace ExpressService
  */
 
 import fs from 'fs-extra';
@@ -23,12 +24,18 @@ import { ssrMiddlewareFactory } from '../../server/ssr.js';
 
 const logger = loggerFactory(import.meta);
 
-const ExpressService = {
+/**
+ * @class ExpressService
+ * @description A service dedicated to creating and configuring an Express.js application
+ * instance based on server configuration data.
+ * @memberof ExpressService
+ */
+class ExpressService {
   /**
    * Creates and configures a complete Express application instance for a specific host/path configuration.
    *
+   * @method createApp
    * @memberof ExpressService
-   * @param {object} config - The configuration object for the Express instance.
    * @param {string} config.host - The host name for the instance (e.g., 'www.example.com').
    * @param {string} config.path - The URL path for the instance (e.g., '/', '/api/v1').
    * @param {number} config.port - The primary listening port for the instance.
@@ -249,7 +256,7 @@ const ExpressService = {
     await UnderpostStartUp.API.listenPortController(server, port, runningData);
 
     return { portsUsed };
-  },
-};
+  }
+}
 
-export default ExpressService;
+export default new ExpressService();
