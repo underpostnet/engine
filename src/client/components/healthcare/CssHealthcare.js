@@ -93,6 +93,7 @@ const CssHealthcareDark = {
       html`
         <style>
           .modal,
+          .main-btn-menu,
           .input-extension {
             background: #38003c;
           }
@@ -149,6 +150,7 @@ const CssHealthcareLight = {
       html`
         <style>
           .modal,
+          .main-btn-menu,
           .input-extension {
             background: #ffce95;
           }
