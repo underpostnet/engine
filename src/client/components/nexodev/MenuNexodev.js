@@ -17,7 +17,14 @@ import {
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle, subMenuRender } from '../core/Modal.js';
+import {
+  buildBadgeToolTipMenuOption,
+  isSubMenuOpen,
+  Modal,
+  renderMenuLabel,
+  renderViewTitle,
+  subMenuRender,
+} from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s, sa } from '../core/VanillaJs.js';
@@ -431,7 +438,7 @@ const MenuNexodev = {
         },
         onStart: async function (/**Event*/ evt) {
           if (Modal.subMenuBtnClass['docs']) {
-            if (!Modal.subMenuBtnClass['docs'].open) await subMenuRender('docs');
+            if (isSubMenuOpen('docs')) await subMenuRender('docs');
             MenuNexodev.Data[id].sortable = sortableFactor();
           }
         },
@@ -777,8 +784,8 @@ const MenuNexodev = {
       });
     });
 
-    EventsUI.onClick(`.main-btn-docs`, async () => {
-      await subMenuRender('docs');
+    EventsUI.onClick(`.main-btn-docs`, async (e) => {
+      if (!isSubMenuOpen('docs') || e.isTrusted) await subMenuRender('docs');
 
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
