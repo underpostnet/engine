@@ -6,7 +6,7 @@ import {
   createSessionAndUserToken,
   createUserAndSession,
   refreshSessionAndToken,
-  hashToken,
+  logoutSession,
   jwtSign,
   getBearerToken,
   validatePasswordMiddleware,
@@ -382,15 +382,8 @@ const UserService = {
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
     if (req.params.id === 'logout') {
-      const refreshToken = req.cookies?.refreshToken;
-      if (refreshToken) {
-        const hashedToken = hashToken(refreshToken);
-        await User.updateOne(
-          { 'activeSessions.tokenHash': hashedToken },
-          { $pull: { activeSessions: { tokenHash: hashedToken } } },
-        );
-      }
-      res.clearCookie('refreshToken');
+      const result = await logoutSession(User, req, res);
+      if (!result) throw new Error('Logout failed');
       return { message: 'Logged out successfully' };
     }
 

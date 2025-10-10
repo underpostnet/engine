@@ -415,6 +415,48 @@ async function createSessionAndUserToken(user, User, req, res, options = { host:
 }
 
 /**
+ * Removes a session by its ID for a given user.
+ * @param {import('mongoose').Model} User The Mongoose User model.
+ * @param {string} userId The ID of the user.
+ * @param {string} sessionId The ID of the session to remove.
+ * @returns {Promise<void>}
+ * @memberof Auth
+ */
+async function removeSession(User, userId, sessionId) {
+  return await User.updateOne({ _id: userId }, { $pull: { activeSessions: { _id: sessionId } } });
+}
+
+/**
+ * Logs out a user session by removing it from the database and clearing the refresh token cookie.
+ * @param {import('mongoose').Model} User The Mongoose User model.
+ * @param {import('express').Request} req The Express request object.
+ * @param {import('express').Response} res The Express response object.
+ * @returns {Promise<boolean>} True if a session was found and removed, false otherwise.
+ * @memberof Auth
+ */
+async function logoutSession(User, req, res) {
+  const refreshToken = req.cookies?.refreshToken;
+
+  if (!refreshToken) {
+    return false;
+  }
+
+  const user = await User.findOne({ 'activeSessions.tokenHash': refreshToken });
+
+  if (!user) {
+    return false;
+  }
+
+  const session = user.activeSessions.find((s) => s.tokenHash === refreshToken);
+
+  const result = await removeSession(User, user._id, session._id);
+
+  res.clearCookie('refreshToken', { path: '/' });
+
+  return result.modifiedCount > 0;
+}
+
+/**
  * Create user and immediate session + access token
  * @param {import('express').Request} req The Express request object.
  * @param {import('express').Response} res The Express response object.
@@ -485,12 +527,10 @@ async function refreshSessionAndToken(req, res, User, options = { host: '', path
   }
 
   // Check expiry
-  if (session.expiresAt && session.expiresAt < new Date()) {
-    // remove expired session
-    user.activeSessions.pull(session._id);
-    await user.save({ validateBeforeSave: false });
-    res.clearCookie('refreshToken', { path: '/' });
-    throw new Error('Refresh token expired');
+  if (!isRefreshTokenReq(req) && session.expiresAt && session.expiresAt < new Date()) {
+    const result = await removeSession(User, user._id, session._id);
+    if (result) throw new Error('Refresh token expired');
+    else throw new Error('Session not found');
   }
 
   // Rotate: generate new token, update stored hash and metadata
@@ -661,6 +701,8 @@ export {
   createSessionAndUserToken,
   createUserAndSession,
   refreshSessionAndToken,
+  logoutSession,
+  removeSession,
   applySecurity,
   isRefreshTokenReq,
 };
