@@ -227,6 +227,12 @@ const CssCommonCore = async () => {
         transition: 0.3s;
         position: relative;
       }
+      .menu-btn-icon {
+        font-size: 20px;
+        width: 40px;
+        overflow: hidden;
+        text-align: center;
+      }
     </style>
     ${boxShadow({ selector: '.account-profile-image' })}
     <div class="ag-grid-style"></div>`;
@@ -443,10 +449,6 @@ const CssCoreDark = {
         .section-mp {
           margin: 15px 5px 5px;
           text-align: left;
-        }
-        .menu-btn-icon {
-          font-size: 20px;
-          margin: 12px;
         }
         .view-title-icon {
           font-size: 35px;
@@ -758,10 +760,6 @@ const CssCoreLight = {
         .section-mp {
           margin: 15px 5px 5px;
           text-align: left;
-        }
-        .menu-btn-icon {
-          font-size: 20px;
-          margin: 12px;
         }
         .view-title-icon {
           font-size: 35px;

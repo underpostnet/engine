@@ -2341,7 +2341,7 @@ const Modal = {
 };
 
 const renderMenuLabel = ({ img, text, icon }) => {
-  if (!img) return html`<span class="menu-btn-icon">${icon}</span> ${text}`;
+  if (!img) return html`<span class="inl menu-btn-icon">${icon}</span> ${text}`;
   return html`<img class="abs center img-btn-square-menu" src="${getProxyPath()}assets/ui-icons/${img}" />
     <div class="abs center main-btn-menu-text">${text}</div>`;
 };
