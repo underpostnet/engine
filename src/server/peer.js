@@ -48,7 +48,7 @@ const logger = loggerFactory(import.meta);
  */
 const createPeerServer = async ({ port, devPort, origins, host, path }) => {
   if (process.env.NODE_ENV === 'development' && devPort) {
-    logger(`Adding development origin: http://localhost:${devPort}`);
+    logger.warn(`Adding development origin: http://localhost:${devPort}`);
     origins.push(`http://localhost:${devPort}`);
   }
 

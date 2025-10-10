@@ -1,7 +1,7 @@
 /**
  * Module for creating and managing WebSocket servers.
  * @module src/ws/IoServer.js
- * @namespace SocketIo
+ * @namespace SocketIoServer
  */
 
 'use strict';
@@ -25,7 +25,7 @@ const logger = loggerFactory(import.meta);
  * @returns {import('socket.io').ServerOptions} return.options - The final options object used to create the WebSocket server.
  * @returns {import('socket.io').Server} return.ioServer - The created and listening WebSocket server instance (wrapped by the listening server factory).
  * @returns {object} return.meta - The module's import meta object (`import.meta`).
- * @memberof SocketIo
+ * @memberof SocketIoServer
  */
 const IoServer = (httpServer, options = {}, Connection = () => {}) => {
   const wsOptions = {

@@ -1,7 +1,7 @@
 /**
  * Module for creating and managing WebSocket channels.
  * @module src/ws/IoInterface.js
- * @namespace SocketIo
+ * @namespace SocketIoInterface
  */
 
 import { loggerFactory } from '../server/logger.js';
@@ -18,7 +18,7 @@ const logger = loggerFactory(import.meta);
  * @param {function} IoInterface.disconnect - The disconnect handler function.
  * @param {boolean} IoInterface.stream - Whether the channel supports streaming.
  * @returns {Object} An object containing the channel name, client map, connection, controller, and disconnect functions.
- * @memberof SocketIo
+ * @memberof SocketIoInterface
  */
 const IoCreateChannel = (
   IoInterface = {
