@@ -2,7 +2,6 @@ import fs from 'fs-extra';
 import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { MariaDB } from '../src/db/mariadb/MariaDB.js';
-import { Xampp } from '../src/runtime/xampp/Xampp.js';
 import { Lampp } from '../src/runtime/lampp/Lampp.js';
 import { getCapVariableName, loadConf, splitFileFactory } from '../src/server/conf.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
@@ -105,9 +104,7 @@ try {
           break;
         case 'import':
           break;
-        case 'init-xampp-service':
-          await Xampp.initService();
-          break;
+
         case 'init-lampp-service':
           await Lampp.initService();
           break;

@@ -14,7 +14,6 @@ import { MailerProvider } from '../mailer/MailerProvider.js';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { createPeerServer } from './peer.js';
 import { Lampp } from '../runtime/lampp/Lampp.js';
-import { Xampp } from '../runtime/xampp/Xampp.js';
 import { createValkeyConnection } from './valkey.js';
 import { applySecurity, authMiddlewareFactory } from './auth.js';
 import { getInstanceContext } from './conf.js';
@@ -311,26 +310,6 @@ const buildRuntime = async () => {
             );
           }
           break;
-        case 'xampp':
-          {
-            const { disabled } = await Xampp.createApp({
-              port,
-              host,
-              path,
-              directory,
-              rootHostPath,
-              redirect,
-              redirectTarget,
-              resetRouter: currentPort === initPort,
-            });
-            if (disabled) continue;
-            await UnderpostStartUp.API.listenPortController(
-              UnderpostStartUp.API.listenServerFactory(),
-              port,
-              runningData,
-            );
-          }
-          break;
         default:
           break;
       }
@@ -338,7 +317,6 @@ const buildRuntime = async () => {
     }
   }
 
-  if (Xampp.enabled() && Xampp.router) Xampp.initService();
   if (Lampp.enabled() && Lampp.router) Lampp.initService();
 
   UnderpostStartUp.API.logRuntimeRouter();
