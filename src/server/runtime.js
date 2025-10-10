@@ -1,31 +1,37 @@
+/**
+ * @namespace Runtime
+ * @description The main runtime orchestrator responsible for reading configuration,
+ * initializing services (Prometheus, Ports, DB, Mailer), and building the
+ * specific server runtime for each host/path (e.g., nodejs, lampp).
+ */
+
 import fs from 'fs-extra';
-import express from 'express';
 import dotenv from 'dotenv';
-import fileUpload from 'express-fileupload';
-import swaggerUi from 'swagger-ui-express';
 import * as promClient from 'prom-client';
-import compression from 'compression';
 
 import UnderpostStartUp from './start.js';
-import { createServer } from 'http';
-import { loggerFactory, loggerMiddleware } from './logger.js';
-import { getCapVariableName, newInstance } from '../client/components/core/CommonJs.js';
-import { MailerProvider } from '../mailer/MailerProvider.js';
-import { DataBaseProvider } from '../db/DataBaseProvider.js';
-import { createPeerServer } from './peer.js';
+import { loggerFactory } from './logger.js';
+import { newInstance } from '../client/components/core/CommonJs.js';
 import { Lampp } from '../runtime/lampp/Lampp.js';
-import { createValkeyConnection } from './valkey.js';
-import { applySecurity, authMiddlewareFactory } from './auth.js';
 import { getInstanceContext } from './conf.js';
-import { ssrMiddlewareFactory } from './ssr.js';
+
+import ExpressService from '../runtime/express/Express.js';
 
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * Reads server configurations, sets up Prometheus metrics, and iterates through
+ * all defined hosts and paths to build and start the corresponding runtime instances.
+ *
+ * @memberof Runtime
+ * @returns {Promise<void>}
+ */
 const buildRuntime = async () => {
   const deployId = process.env.DEPLOY_ID;
 
+  // 1. Initialize Prometheus Metrics
   const collectDefaultMetrics = promClient.collectDefaultMetrics;
   collectDefaultMetrics();
 
@@ -38,12 +44,17 @@ const buildRuntime = async () => {
   const requestCounter = new promClient.Counter(promCounterOption);
   const initPort = parseInt(process.env.PORT) + 1;
   let currentPort = initPort;
+
+  // 2. Load Configuration
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const confSSR = JSON.parse(fs.readFileSync(`./conf/conf.ssr.json`, 'utf8'));
   const singleReplicaHosts = [];
+
+  // 3. Iterate through hosts and paths
   for (const host of Object.keys(confServer)) {
     if (singleReplicaHosts.length > 0)
       currentPort += singleReplicaHosts.reduce((accumulator, currentValue) => accumulator + currentValue.replicas, 0);
+
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
@@ -65,6 +76,7 @@ const buildRuntime = async () => {
         apiBaseHost,
       } = confServer[host][path];
 
+      // Calculate context data
       const { redirectTarget, singleReplicaHost } = await getInstanceContext({
         redirect,
         singleReplicaHosts,
@@ -91,210 +103,37 @@ const buildRuntime = async () => {
 
       switch (runtime) {
         case 'nodejs':
-          const app = express();
+          // The devApiPort is used for development CORS origin calculation
+          // It needs to account for the current port and potential peer server increment
+          const devApiPort = currentPort + (peer ? 2 : 1);
 
-          app.use((req, res, next) => {
-            // const info = `${req.headers.host}${req.url}`;
-            return next();
+          logger.info('Build nodejs server runtime', `${host}${path}:${port}`);
+
+          const { portsUsed } = await ExpressService.createApp({
+            host,
+            path,
+            port,
+            client,
+            apis,
+            origins,
+            directory,
+            ws,
+            mailer,
+            db,
+            redirect,
+            peer,
+            valkey,
+            apiBaseHost,
+            devApiPort, // Pass the dynamically calculated dev API port
+            redirectTarget,
+            rootHostPath,
+            confSSR,
+            promRequestCounter: requestCounter,
+            promRegister: promClient.register,
           });
 
-          if (process.env.NODE_ENV === 'production') app.set('trust proxy', true);
-
-          app.use((req, res, next) => {
-            requestCounter.inc({
-              instance: `${host}:${port}${path}`,
-              method: req.method,
-              status_code: res.statusCode,
-            });
-            // decodeURIComponent(req.url)
-            return next();
-          });
-
-          app.get(`${path === '/' ? '' : path}/metrics`, async (req, res) => {
-            res.set('Content-Type', promClient.register.contentType);
-            return res.end(await promClient.register.metrics());
-          });
-
-          // set logger
-          app.use(loggerMiddleware(import.meta));
-
-          // js src compression
-          app.use(compression({ filter: shouldCompress }));
-          function shouldCompress(req, res) {
-            if (req.headers['x-no-compression']) {
-              // don't compress responses with this request header
-              return false;
-            }
-
-            // fallback to standard filter function
-            return compression.filter(req, res);
-          }
-
-          // parse requests of content-type - application/json
-          app.use(express.json({ limit: '100MB' }));
-
-          // parse requests of content-type - application/x-www-form-urlencoded
-          app.use(express.urlencoded({ extended: true, limit: '20MB' }));
-
-          // file upload middleware
-          app.use(fileUpload());
-
-          // json formatted response
-          if (process.env.NODE_ENV === 'development') app.set('json spaces', 2);
-
-          // lang handling middleware
-          app.use(function (req, res, next) {
-            const lang = req.headers['accept-language'] || 'en';
-            if (typeof lang === 'string' && lang.toLowerCase().match('es')) {
-              req.lang = 'es';
-            } else req.lang = 'en';
-            return next();
-          });
-
-          // instance public static
-          app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
-          if (process.argv.includes('static')) {
-            logger.info('Build static server runtime', `${host}${path}`);
-            currentPort += 2;
-            const staticPort = newInstance(currentPort);
-            await UnderpostStartUp.API.listenPortController(app, staticPort, runningData);
-            currentPort++;
-            continue;
-          }
-
-          // Flag swagger requests before security middleware is applied
-          const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
-          const swaggerPath = `${path === '/' ? `/api-docs` : `${path}/api-docs`}`;
-          if (fs.existsSync(swaggerJsonPath))
-            app.use(swaggerPath, (req, res, next) => {
-              res.locals.isSwagger = true;
-              next();
-            });
-
-          // security
-          applySecurity(app, {
-            origin: (origin, callback) => {
-              const allowedOrigins = origins.concat(
-                apis && process.env.NODE_ENV === 'development' ? [`http://localhost:${currentPort + 2}`] : [],
-              );
-              if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-                callback(null, true);
-              } else {
-                callback(new Error('Not allowed by CORS'));
-              }
-            },
-          });
-
-          if (redirect) {
-            app.use(function (req = express.Request, res = express.Response, next = express.NextFunction) {
-              if (process.env.NODE_ENV === 'production' && !req.url.startsWith(`/.well-known/acme-challenge`))
-                return res.status(302).redirect(redirectTarget + req.url);
-              // if (!req.url.startsWith(`/.well-known/acme-challenge`)) return res.status(302).redirect(redirect);
-              return next();
-            });
-            // app.use(
-            //   '*',
-            //   createProxyMiddleware({
-            //     target: redirect,
-            //     changeOrigin: true,
-            //   }),
-            // );
-
-            await UnderpostStartUp.API.listenPortController(app, port, runningData);
-            break;
-          }
-          // instance server
-          const server = createServer({}, app);
-          if (peer) currentPort++;
-
-          if (!apiBaseHost) {
-            if (fs.existsSync(swaggerJsonPath)) {
-              const swaggerInstance =
-                (swaggerDoc) =>
-                (...args) =>
-                  swaggerUi.setup(swaggerDoc)(...args);
-              const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
-              const swaggerPath = `${path === '/' ? `/api-docs` : `${path}/api-docs`}`;
-              app.use(swaggerPath, swaggerUi.serve, swaggerInstance(swaggerDoc));
-            }
-
-            if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
-
-            // valkey server
-            if (valkey) await createValkeyConnection({ host, path }, valkey);
-
-            if (mailer) {
-              const mailerSsrConf = confSSR[getCapVariableName(client)];
-              await MailerProvider.load({
-                id: `${host}${path}`,
-                meta: `mailer-${host}${path}`,
-                host,
-                path,
-                ...mailer,
-                templates: mailerSsrConf ? mailerSsrConf.mailer : {},
-              });
-            }
-            if (apis && apis.length > 0) {
-              const authMiddleware = authMiddlewareFactory({ host, path });
-              const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
-              for (const api of apis)
-                await (async () => {
-                  logger.info(`Build api server`, `${host}${apiPath}/${api}`);
-                  const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
-                  const router = ApiRouter({ host, path, apiPath, mailer, db, authMiddleware, origins });
-                  // router.use(cors({ origin: origins }));
-                  // logger.info('Load api router', { host, path: apiPath, api });
-                  app.use(`${apiPath}/${api}`, router);
-                })();
-            }
-
-            if (ws)
-              await (async () => {
-                const { createIoServer } = await import(`../ws/${ws}/${ws}.ws.server.js`);
-                // logger.info('Load socket.io ws router', { host, ws });
-                // start socket.io
-                const { options, meta } = await createIoServer(server, {
-                  host,
-                  path,
-                  db,
-                  port,
-                  origins,
-                });
-                await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), port, {
-                  runtime: 'nodejs',
-                  client: null,
-                  host,
-                  path: options.path,
-                  meta,
-                });
-              })();
-
-            if (peer) {
-              const peerPort = newInstance(currentPort);
-              const { options, meta, peerServer } = await createPeerServer({
-                port: peerPort,
-                devPort: port,
-                origins,
-                host,
-                path,
-              });
-
-              await UnderpostStartUp.API.listenPortController(peerServer, peerPort, {
-                runtime: 'nodejs',
-                client: null,
-                host,
-                path: options.path,
-                meta,
-              });
-            }
-          }
-
-          // load ssr
-          const ssr = await ssrMiddlewareFactory({ app, directory, rootHostPath, path });
-          for (const [_, ssrMiddleware] of Object.entries(ssr)) app.use(ssrMiddleware);
-
-          await UnderpostStartUp.API.listenPortController(server, port, runningData);
-
+          // Increment currentPort by any additional ports used by the service (e.g., PeerServer port)
+          currentPort += portsUsed;
           break;
 
         case 'lampp':
