@@ -173,9 +173,16 @@ const buildRuntime = async () => {
 
           // security
           applySecurity(app, {
-            origin: origins.concat(
-              apis && process.env.NODE_ENV === 'development' ? [`http://localhost:${currentPort + 2}`] : [],
-            ),
+            origin: (origin, callback) => {
+              const allowedOrigins = origins.concat(
+                apis && process.env.NODE_ENV === 'development' ? [`http://localhost:${currentPort + 2}`] : [],
+              );
+              if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+                callback(null, true);
+              } else {
+                callback(new Error('Not allowed by CORS'));
+              }
+            },
           });
 
           if (redirect) {

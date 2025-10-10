@@ -2191,14 +2191,13 @@ const Modal = {
       : { ...Modal.subMenuBtnClass, _: { btnSelector, labelSelector } };
 
     for (const keyDataBtn of Object.keys(_data)) {
-      const { btnSelector, labelSelector, open, top } = _data[keyDataBtn];
+      const { labelSelector, top } = _data[keyDataBtn];
       if (top)
         setTimeout(() => {
           top();
         });
-      if (open) continue;
       sa(labelSelector).forEach((el) => {
-        el.classList.add('hide');
+        if (!el.classList.contains('hide')) el.classList.add('hide');
         el.style.transition = null;
       });
 
@@ -2425,9 +2424,6 @@ const subMenuRender = async (subMenuId) => {
 
   if (!menuBtn || !menuContainer || !arrow) return;
 
-  // if (Modal.subMenuBtnClass[subMenuId] && !(isSubMenuOpen(subMenuId) && Modal.subMenuBtnClass[subMenuId].open === true))
-  //   Modal.subMenuBtnClass[subMenuId].open = false;
-
   const top = () => {
     menuContainer.style.top = menuBtn.offsetTop + Modal.Data['modal-menu'].options.heightTopBar + 'px';
   };
@@ -2442,8 +2438,7 @@ const subMenuRender = async (subMenuId) => {
   menuBtn.style.transition = '.3s';
   arrow.style.transition = '.3s';
 
-  if (Modal.subMenuBtnClass[subMenuId].open) {
-    Modal.subMenuBtnClass[subMenuId].open = false;
+  if (isSubMenuOpen(subMenuId)) {
     // Close animation
     menuContainer.style.overflow = 'hidden';
     menuContainer.style.height = '0px';
@@ -2453,8 +2448,12 @@ const subMenuRender = async (subMenuId) => {
       arrow.style.rotate = '0deg';
     });
   } else {
-    Modal.menuTextLabelAnimation('modal-menu', subMenuId);
-    Modal.subMenuBtnClass[subMenuId].open = true;
+    sa(`.menu-label-text-${subMenuId}`).forEach((el) => {
+      if (!el.classList.contains('hide')) el.classList.add('hide');
+    });
+    setTimeout(() => {
+      Modal.menuTextLabelAnimation('modal-menu', subMenuId);
+    });
     // Open animation
     setTimeout(top, 360);
     menuContainer.style.width = '320px';

@@ -1,3 +1,10 @@
+/**
+ * @namespace LamppService
+ * @description Exported singleton instance of the LamppService class.
+ * This object is used to interact with the Lampp configuration and service.
+ * @module src/runtime/lampp/Lampp.js
+ */
+
 import fs from 'fs-extra';
 import { getRootDirectory, shellCd, shellExec } from '../../server/process.js';
 import { loggerFactory } from '../../server/logger.js';
@@ -9,12 +16,14 @@ const logger = loggerFactory(import.meta);
  * @description Provides utilities for managing the XAMPP (Lampp) service on Linux,
  * including initialization, router configuration, and virtual host creation.
  * It manages the server's configuration files and controls the service process.
+ * @memberof LamppService
  */
 class LamppService {
   /**
    * @private
    * @type {string | undefined}
    * @description Stores the accumulated Apache virtual host configuration (router definition).
+   * @memberof LamppService
    */
   router;
 
@@ -22,12 +31,15 @@ class LamppService {
    * @public
    * @type {number[]}
    * @description A list of ports currently configured and listened to by the Lampp service.
+   * @memberof LamppService
    */
   ports;
 
   /**
    * Creates an instance of LamppService.
    * Initializes the router configuration and ports list.
+   * @method constructor
+   * @memberof LamppService
    */
   constructor() {
     this.router = undefined;
@@ -37,8 +49,11 @@ class LamppService {
   /**
    * Checks if the XAMPP (Lampp) service appears to be installed based on the presence of its main configuration file.
    *
+   * @method enabled
    * @memberof LamppService
    * @returns {boolean} True if the configuration file exists, indicating Lampp is likely installed.
+   * @throws {Error} If the configuration file does not exist.
+   * @memberof LamppService
    */
   enabled() {
     return fs.existsSync('/opt/lampp/etc/httpd.conf');
@@ -49,10 +64,11 @@ class LamppService {
    * This method configures virtual hosts, disables default ports (80/443) in the main config
    * to avoid conflicts, and starts or stops the service using shell commands.
    *
-   * @memberof LamppService.prototype
+   * @method initService
    * @param {object} [options={daemon: false}] - Options for service initialization.
    * @param {boolean} [options.daemon=false] - Flag to indicate if the service should be run as a daemon (currently unused in logic).
    * @returns {Promise<void>}
+   * @memberof LamppService
    */
   async initService(options = { daemon: false }) {
     let cmd;
@@ -117,9 +133,10 @@ class LamppService {
    * Appends new Apache VirtualHost configuration content to the internal router string.
    * If a router config file exists from a previous run, it loads it first.
    *
-   * @memberof LamppService.prototype
+   * @method appendRouter
    * @param {string} render - The new VirtualHost configuration string to append.
    * @returns {string} The complete, updated router configuration string.
+   * @memberof LamppService
    */
   appendRouter(render) {
     if (!this.router) {
@@ -148,8 +165,9 @@ class LamppService {
    * This includes downloading the installer, running it, and setting up initial configurations.
    * Only runs on the 'linux' platform.
    *
-   * @memberof LamppService.prototype
+   * @method install
    * @returns {Promise<void>}
+   * @memberof LamppService
    */
   async install() {
     if (process.platform === 'linux') {
@@ -199,7 +217,7 @@ class LamppService {
    * Creates and appends a new Apache VirtualHost entry to the router configuration for a web application.
    * The router is then applied by calling {@link LamppService#initService}.
    *
-   * @memberof LamppService.prototype
+   * @method createApp
    * @param {object} options - Configuration options for the new web application.
    * @param {number} options.port - The port the VirtualHost should listen on.
    * @param {string} options.host - The ServerName/host for the VirtualHost.
@@ -210,6 +228,7 @@ class LamppService {
    * @param {string} [options.redirectTarget] - The target URL for redirection.
    * @param {boolean} [options.resetRouter] - If true, clears the existing router configuration before appending the new one.
    * @returns {{disabled: boolean}} An object indicating if the service is disabled.
+   * @memberof LamppService
    */
   createApp({ port, host, path, directory, rootHostPath, redirect, redirectTarget, resetRouter }) {
     if (!this.enabled()) return { disabled: true };
@@ -262,12 +281,14 @@ Listen ${port}
 }
 
 /**
- * @namespace LamppService
  * @description Exported singleton instance of the LamppService class.
  * This object is used to interact with the Lampp configuration and service.
+ * @memberof LamppService
  * @type {LamppService}
  */
 const Lampp = new LamppService();
+
+export { Lampp };
 
 // -- helper info --
 
@@ -320,5 +341,3 @@ const Lampp = new LamppService();
 // RewriteCond %{HTTP_HOST} ^www\. [NC]
 // RewriteCond %{HTTP_HOST} ^(?:www\.)?(.+)$ [NC]
 // RewriteRule ^ https://%1%{REQUEST_URI} [L,NE,R=301]
-
-export { Lampp };
