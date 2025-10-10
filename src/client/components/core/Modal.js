@@ -2419,6 +2419,9 @@ const subMenuRender = async (subMenuId) => {
   const menuContainer = s(`.menu-btn-container-children-${subMenuId}`);
   const arrow = s(`.down-arrow-submenu-${subMenuId}`);
 
+  if (arrow.style.rotate === '180deg' && !Modal.subMenuBtnClass[subMenuId].open)
+    Modal.subMenuBtnClass[subMenuId].open = true;
+
   if (!menuBtn || !menuContainer || !arrow) return;
 
   const top = () => {

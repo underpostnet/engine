@@ -431,8 +431,7 @@ const MenuNexodev = {
         },
         onStart: async function (/**Event*/ evt) {
           if (Modal.subMenuBtnClass['docs']) {
-            Modal.subMenuBtnClass['docs'].open = true;
-            await subMenuRender('docs');
+            if (!Modal.subMenuBtnClass['docs'].open) await subMenuRender('docs');
             MenuNexodev.Data[id].sortable = sortableFactor();
           }
         },

@@ -156,7 +156,6 @@ const Docs = {
         id: options.idModal,
         routeId: 'docs',
         event: (path) => {
-          Modal.subMenuBtnClass['docs'].open = !Modal.subMenuBtnClass['docs'].open;
           if (s(`.btn-docs-${path}`)) s(`.btn-docs-${path}`).click();
           if (Modal.mobileModal()) {
             setTimeout(() => {
