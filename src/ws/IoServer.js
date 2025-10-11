@@ -52,7 +52,7 @@ const IoServer = (httpServer, options = {}, Connection = () => {}) => {
   return {
     options: wsOptions,
     meta: import.meta,
-    ioServer: new Server(httpServer, wsOptions).on('connection', Connection),
+    ioServer: async () => new Server(httpServer, wsOptions).on('connection', Connection),
   };
 };
 

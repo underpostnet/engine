@@ -209,16 +209,10 @@ try {
             } else {
               serverConf[host][path].liteBuild = process.argv.includes('l') ? true : false;
               serverConf[host][path].minifyBuild = process.env.NODE_ENV === 'production' ? true : false;
-              if (process.env.NODE_ENV === 'development' && process.argv.includes('static')) {
-                serverConf[host][path].apiBaseProxyPath = '/';
-                serverConf[host][path].apiBaseHost = `localhost:${parseInt(process.env.PORT) + 1}`;
-              }
               if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
                 deployIdSingleReplicas = deployIdSingleReplicas.concat(
                   serverConf[host][path].replicas.map((replica) => buildReplicaId({ deployId, replica })),
                 );
-
-                // shellExec(Cmd.replica(deployId, host, path));
               }
             }
           }

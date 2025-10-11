@@ -5,15 +5,14 @@ import { loggerFactory } from './logger.js';
 
 const logger = loggerFactory(import.meta);
 
-const createClientDevServer = () => {
-  // process.argv.slice(2).join(' ')
-  shellExec(`env-cmd -f .env.development node bin/deploy build-full-client ${process.argv.slice(2).join(' ')}`);
-  shellExec(
-    `env-cmd -f .env.development node src/api ${process.argv[2]}${process.argv[5] ? ` ${process.argv[5]}` : ''}${
-      process.argv.includes('static') ? ' static' : ''
-    }`,
-    { async: true },
-  );
+const createClientDevServer = (
+  deployId = process.argv[2] || 'dd-default',
+  subConf = process.argv[3] || '',
+  host = '',
+  path = '',
+) => {
+  shellExec(`env-cmd -f .env.development node bin/deploy build-full-client ${deployId} ${host} ${path}`.trim());
+  shellExec(`env-cmd -f .env.development node src/static ${deployId} ${subConf}`.trim(), { async: true });
 
   // https://github.com/remy/nodemon/blob/main/doc/events.md
 

@@ -103,10 +103,6 @@ const buildRuntime = async () => {
 
       switch (runtime) {
         case 'nodejs':
-          // The devApiPort is used for development CORS origin calculation
-          // It needs to account for the current port and potential peer server increment
-          const devApiPort = currentPort + (peer ? 2 : 1);
-
           logger.info('Build nodejs server runtime', `${host}${path}:${port}`);
 
           const { portsUsed } = await ExpressService.createApp({
@@ -124,7 +120,6 @@ const buildRuntime = async () => {
             peer,
             valkey,
             apiBaseHost,
-            devApiPort, // Pass the dynamically calculated dev API port
             redirectTarget,
             rootHostPath,
             confSSR,

@@ -50,7 +50,6 @@ class ExpressService {
    * @param {boolean} [config.peer] - Whether to enable the peer server.
    * @param {object} [config.valkey] - Valkey connection configuration.
    * @param {string} [config.apiBaseHost] - Base host for the API (if running separate API).
-   * @param {number} [config.devApiPort] - The dynamically calculated development API port used for CORS in dev mode.
    * @param {string} config.redirectTarget - The full target URL for redirection (used if `redirect` is true).
    * @param {string} config.rootHostPath - The root path for public host assets (e.g., `/public/hostname`).
    * @param {object} config.confSSR - The SSR configuration object, used to look up Mailer templates.
@@ -73,7 +72,6 @@ class ExpressService {
     peer,
     valkey,
     apiBaseHost,
-    devApiPort, // New parameter for dev environment CORS
     redirectTarget,
     rootHostPath,
     confSSR,
@@ -131,23 +129,6 @@ class ExpressService {
     // Static file serving
     app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
 
-    // Swagger path definition
-    const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
-    const swaggerPath = `${path === '/' ? `/api-docs` : `${path}/api-docs`}`;
-
-    // Flag swagger requests before security middleware
-    if (fs.existsSync(swaggerJsonPath)) {
-      app.use(swaggerPath, (req, res, next) => {
-        res.locals.isSwagger = true;
-        next();
-      });
-    }
-
-    // Security and CORS
-    applySecurity(app, {
-      origin: origins,
-    });
-
     // Handle redirection-only instances
     if (redirect) {
       app.use((req, res, next) => {
@@ -162,9 +143,25 @@ class ExpressService {
 
     // Create HTTP server for regular instances (required for WebSockets)
     const server = createServer({}, app);
-    if (peer) portsUsed++; // Peer server uses one additional port
 
     if (!apiBaseHost) {
+      // Security and CORS
+      applySecurity(app, {
+        origin: origins,
+      });
+
+      // Swagger path definition
+      const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
+      const swaggerPath = `${path === '/' ? `/api-docs` : `${path}/api-docs`}`;
+
+      // Flag swagger requests before security middleware
+      if (fs.existsSync(swaggerJsonPath)) {
+        app.use(swaggerPath, (req, res, next) => {
+          res.locals.isSwagger = true;
+          next();
+        });
+      }
+
       // Swagger UI setup
       if (fs.existsSync(swaggerJsonPath)) {
         const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
@@ -204,10 +201,10 @@ class ExpressService {
       // WebSocket server setup
       if (ws) {
         const { createIoServer } = await import(`../../ws/${ws}/${ws}.ws.server.js`);
-        const { options, meta } = await createIoServer(server, { host, path, db, port, origins });
+        const { options, meta, ioServer } = await createIoServer(server, { host, path, db, port, origins });
 
         // Listen on the main port for the WS server
-        await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), port, {
+        await UnderpostStartUp.API.listenPortController(ioServer, port, {
           runtime: 'nodejs',
           client: null,
           host,
@@ -218,6 +215,7 @@ class ExpressService {
 
       // Peer server setup
       if (peer) {
+        portsUsed++; // Peer server uses one additional port
         const peerPort = newInstance(port + portsUsed); // portsUsed is 1 here
         const { options, meta, peerServer } = await createPeerServer({
           port: peerPort,
