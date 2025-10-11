@@ -48,7 +48,7 @@ const logger = loggerFactory(import.meta);
  */
 const createPeerServer = async ({ port, devPort, origins, host, path }) => {
   if (process.env.NODE_ENV === 'development' && devPort) {
-    logger.warn(`Adding development origin: http://localhost:${devPort}`);
+    // logger.warn(`Adding development origin: http://localhost:${devPort}`);
     origins.push(`http://localhost:${devPort}`);
   }
 
@@ -67,7 +67,7 @@ const createPeerServer = async ({ port, devPort, origins, host, path }) => {
   };
 
   // Use the framework's factory to listen on the server, ensuring graceful startup/shutdown
-  const peerServer = UnderpostStartUp.API.listenServerFactory(() => PeerServer(options));
+  const peerServer = UnderpostStartUp.API.listenServerFactory(async () => PeerServer(options));
 
   return { options, peerServer, meta: import.meta };
 };

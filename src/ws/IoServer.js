@@ -8,6 +8,7 @@
 
 import { Server } from 'socket.io';
 import { loggerFactory } from '../server/logger.js';
+import UnderpostStartUp from '../server/start.js';
 
 // https://socket.io/docs/v3/
 
@@ -52,7 +53,9 @@ const IoServer = (httpServer, options = {}, Connection = () => {}) => {
   return {
     options: wsOptions,
     meta: import.meta,
-    ioServer: async () => new Server(httpServer, wsOptions).on('connection', Connection),
+    ioServer: UnderpostStartUp.API.listenServerFactory(() =>
+      new Server(httpServer, wsOptions).on('connection', Connection),
+    ),
   };
 };
 
