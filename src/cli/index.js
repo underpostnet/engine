@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import { Command } from 'commander';
-import Underpost from '../index.js';
+import Underpost, { UnderpostRootEnv } from '../index.js';
 import { getNpmRootPath, getUnderpostRootPath, loadConf } from '../server/conf.js';
 import fs from 'fs-extra';
 import { commitData } from '../client/components/core/CommonJs.js';
@@ -86,10 +86,19 @@ program
 // 'env' command: Manage environment variables
 program
   .command('env')
-  .argument('<deploy-id>', `The deployment configuration ID. Use 'clean' to restore default environment settings.`)
+  .argument('[deploy-id]', `The deployment configuration ID. Use 'clean' to restore default environment settings.`)
   .argument('[env]', 'Optional: The environment to set (e.g., "production", "development"). Defaults to "production".')
+  .argument('[subConf]', 'Optional: The sub configuration to set.')
   .description('Sets environment variables and configurations related to a specific deployment ID.')
-  .action(loadConf);
+  .action((deployId, env, subConf) => {
+    if (fs.existsSync(`./engine-private/conf/${deployId}/.env.${env}`))
+      dotenv.config({ path: `./engine-private/conf/${deployId}/.env.${env}`, override: true });
+    else if (deployId === 'root') {
+      deployId = UnderpostRootEnv.API.get('DEPLOY_ID');
+    } else dotenv.config({ path: `./.env`, override: true });
+
+    loadConf(deployId, subConf);
+  });
 
 // 'config' command: Manage Underpost configurations
 program
