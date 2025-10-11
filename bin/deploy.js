@@ -122,7 +122,12 @@ try {
       }
       break;
     case 'conf': {
-      loadConf(process.argv[3], process.argv[4]);
+      let subConf = process.argv[5] ?? '';
+
+      if (!['current', 'clean'].includes(process.argv[3]))
+        dotenv.config({ path: `./engine-private/conf/${process.argv[3]}/.env.${process.argv[4]}`, override: true });
+
+      loadConf(process.argv[3], subConf);
       break;
     }
 
@@ -194,10 +199,10 @@ try {
       {
         dotenv.config({ override: true });
         if (!process.argv[3]) process.argv[3] = 'dd-default';
-        const { deployId, folder } = loadConf(process.argv[3]);
+        const { deployId } = loadConf(process.argv[3], process.argv[4] ?? '');
 
-        let argHost = process.argv[4] ? process.argv[4].split(',') : [];
-        let argPath = process.argv[5] ? process.argv[5].split(',') : [];
+        let argHost = process.argv[5] ? process.argv[5].split(',') : [];
+        let argPath = process.argv[6] ? process.argv[6].split(',') : [];
         let deployIdSingleReplicas = [];
         const serverConf = deployId
           ? JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'))

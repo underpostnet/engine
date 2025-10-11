@@ -34,7 +34,6 @@ class UnderpostMonitor {
 
       const confServer = loadReplicas(
         JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
-        'proxy',
       );
 
       const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);

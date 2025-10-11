@@ -5,8 +5,7 @@
 
 import dotenv from 'dotenv';
 import { loggerFactory } from './server/logger.js';
-import { buildClient } from './server/client-build.js';
-import { buildRuntime } from './server/runtime.js';
+import { buildRuntime, buildApiConf } from './server/runtime.js';
 import { ProcessController } from './server/process.js';
 import { Config } from './server/conf.js';
 
@@ -17,6 +16,8 @@ await Config.build();
 const logger = loggerFactory(import.meta);
 
 await logger.setUpInfo();
+
+await buildApiConf();
 
 await buildRuntime();
 

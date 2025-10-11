@@ -227,7 +227,6 @@ class UnderpostDB {
           if (!deployId) continue;
           const confServer = loadReplicas(
             JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
-            'proxy',
           );
           const router = await UnderpostDeploy.API.routerFactory(deployId, env);
           const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);

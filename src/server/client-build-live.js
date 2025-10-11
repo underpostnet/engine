@@ -40,8 +40,8 @@ const clientLiveBuild = async () => {
           'utf8',
         ),
       );
-      host = process.argv[3];
-      path = process.argv[4];
+      host = process.argv[4];
+      path = process.argv[5];
       clientId = confServer[host][path].client;
       views = confClient[clientId].views;
       baseHost = `${host}${path === '/' ? '' : path}`;

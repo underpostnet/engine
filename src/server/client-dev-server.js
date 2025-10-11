@@ -2,17 +2,43 @@ import fs from 'fs-extra';
 import nodemon from 'nodemon';
 import { shellExec } from './process.js';
 import { loggerFactory } from './logger.js';
+import { writeEnv } from './conf.js';
 
 const logger = loggerFactory(import.meta);
 
 const createClientDevServer = (
   deployId = process.argv[2] || 'dd-default',
   subConf = process.argv[3] || '',
-  host = '',
-  path = '',
+  host = process.argv[4] || 'default.net',
+  path = process.argv[5] || '/',
 ) => {
-  shellExec(`env-cmd -f .env.development node bin/deploy build-full-client ${deployId} ${host} ${path}`.trim());
-  shellExec(`env-cmd -f .env.development node src/static ${deployId} ${subConf}`.trim(), { async: true });
+  shellExec(
+    `env-cmd -f .env.development node bin/deploy build-full-client ${deployId} ${subConf} ${host} ${path}`.trim(),
+  );
+  const envPath = './.env';
+  const envServer = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+
+  fs.writeFileSync(
+    `./conf/conf.server.json`,
+    JSON.stringify(
+      {
+        [host]: {
+          [path]: confServer[host][path],
+        },
+      },
+      null,
+      4,
+    ),
+    'utf8',
+  );
+
+  envServer.PORT =
+    parseInt(confServer[host][path].origins.find((origin) => origin.match('localhost')).split(':')[1]) - 1;
+
+  writeEnv(envPath, envServer);
+
+  shellExec(`env-cmd -f .env.development node src/server ${deployId} ${subConf}`.trim(), { async: true });
 
   // https://github.com/remy/nodemon/blob/main/doc/events.md
 
