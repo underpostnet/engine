@@ -25,7 +25,9 @@ const logger = loggerFactory(import.meta);
 const Config = {
   default: DefaultConf,
   build: async function (deployContext = 'dd-default', deployList, subConf) {
-    if (typeof process.argv[2] === 'string' && process.argv[2].startsWith('dd-')) deployContext = process.argv[2];
+    if (process.argv[2] && typeof process.argv[2] === 'string' && process.argv[2].startsWith('dd-'))
+      deployContext = process.argv[2];
+    if (process.argv[3] && typeof process.argv[3] === 'string') subConf = process.argv[3];
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     UnderpostRootEnv.API.set('await-deploy', new Date().toISOString());
     if (fs.existsSync(`./engine-private/replica/${deployContext}`)) return loadConf(deployContext, subConf);
