@@ -112,6 +112,8 @@ try {
           `./.github/workflows/ghpkg.ci.yml`,
           `./.github/workflows/publish.ci.yml`,
           `./.github/workflows/release.cd.yml`,
+          './src/ws/ioInterface.js',
+          './src/ws/ioServer.js',
         ])
           fs.copyFileSync(_path, `../pwa-microservices-template/${_path}`);
 
@@ -165,13 +167,9 @@ try {
 
         originMd =
           originMd.split(`<!-- badges -->`)[0] +
-          `
-<!-- badges -->
-` +
+          `<!-- badges -->` +
           badges +
-          `
-<!-- end-badges -->
-` +
+          `<!-- end-badges -->` +
           originMd.split(`<!-- end-badges -->`)[1];
 
         const splitKeyword = '## underpost ci/cd cli';
