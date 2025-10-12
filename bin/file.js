@@ -112,8 +112,8 @@ try {
           `./.github/workflows/ghpkg.ci.yml`,
           `./.github/workflows/publish.ci.yml`,
           `./.github/workflows/release.cd.yml`,
-          './src/ws/ioInterface.js',
-          './src/ws/ioServer.js',
+          './src/ws/IoInterface.js',
+          './src/ws/IoServer.js',
         ])
           fs.copyFileSync(_path, `../pwa-microservices-template/${_path}`);
 
