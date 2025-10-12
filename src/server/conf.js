@@ -976,9 +976,14 @@ const getInstanceContext = async (options = { singleReplica, replicas, redirect:
   return { redirectTarget };
 };
 
-const buildApiConf = (options = { host: '', path: '', origins: [] }) => {
+const buildApiConf = async (options = { host: '', path: '', origins: [] }) => {
   let { host, path, origins } = options;
-  if (!origins) origins = process.argv[5].split(',').map((o) => o.trim()) ?? ['*'];
+  if (process.argv[5])
+    origins = process.argv[5]
+      .split(',')
+      .map((o) => `${process.env.NODE_ENV === 'production' ? 'https' : 'http'}://${o.trim()}`)
+      .filter((o) => o !== '');
+  if (!origins || origins.length === 0) return;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   if (host && path) {
     confServer[host][path].origins = origins;
@@ -989,6 +994,19 @@ const buildApiConf = (options = { host: '', path: '', origins: [] }) => {
         confServer[host][path].origins = origins;
         logger.info('Build api conf', { host, path, origins });
       }
+    }
+  }
+  fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
+};
+
+const buildClientStaticConf = async (options = { apiBaseHost: '' }) => {
+  const apiBaseHost = process.argv[5] || options.apiBaseHost;
+  if (!apiBaseHost) return;
+  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+  for (const host of Object.keys(confServer)) {
+    for (const path of Object.keys(confServer[host])) {
+      confServer[host][path].apiBaseHost = apiBaseHost;
+      logger.info('Build client static conf', { host, path, apiBaseHost });
     }
   }
   fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
@@ -1028,4 +1046,5 @@ export {
   buildCliDoc,
   getInstanceContext,
   buildApiConf,
+  buildClientStaticConf,
 };

@@ -33,8 +33,7 @@ const createClientDevServer = (
     'utf8',
   );
 
-  envServer.PORT =
-    parseInt(confServer[host][path].origins.find((origin) => origin.match('localhost')).split(':')[1]) - 1;
+  envServer.PORT = parseInt(confServer[host][path].apiBaseHost.split(':')[1]) + 2;
 
   writeEnv(envPath, envServer);
 
