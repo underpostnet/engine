@@ -1022,6 +1022,7 @@ const buildClientStaticConf = async (options = { deployId: '', subConf: '', apiB
   envObj.PORT = parseInt(envObj.PORT);
   const apiBaseHost = options?.apiBaseHost ? options.apiBaseHost : `localhost:${envObj.PORT + 1}`;
   confServer[host][path].apiBaseHost = apiBaseHost;
+  confServer[host][path].apiBaseProxyPath = path;
   logger.info('Build client static conf', { host, path, apiBaseHost });
   envObj.PORT = parseInt(confServer[host][path].origins[0].split(':')[2]) - 1;
   writeEnv(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-client`, envObj);

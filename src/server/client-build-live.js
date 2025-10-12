@@ -8,18 +8,20 @@ const logger = loggerFactory(import.meta);
 const clientLiveBuild = async () => {
   if (fs.existsSync(`./tmp/client.build.json`)) {
     const deployId = process.argv[2];
-
+    const subConf = process.argv[3];
     let clientId = 'default';
     let host = 'default.net';
     let path = '/';
     let baseHost = `${host}${path === '/' ? '' : path}`;
     let views = Config.default.client[clientId].views;
+    let apiBaseHost;
+    let apiBaseProxyPath;
 
     if (
       deployId &&
       (fs.existsSync(`./engine-private/conf/${deployId}`) || fs.existsSync(`./engine-private/replica/${deployId}`))
     ) {
-      loadConf(deployId);
+      loadConf(deployId, subConf);
       const confClient = JSON.parse(
         fs.readFileSync(
           fs.existsSync(`./engine-private/replica/${deployId}`)
@@ -32,7 +34,9 @@ const clientLiveBuild = async () => {
       );
       const confServer = JSON.parse(
         fs.readFileSync(
-          fs.existsSync(`./engine-private/replica/${deployId}`)
+          fs.existsSync(`./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`)
+            ? `./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`
+            : fs.existsSync(`./engine-private/replica/${deployId}`)
             ? `./engine-private/replica/${deployId}/conf.server.json`
             : fs.existsSync(`./engine-private/conf/${deployId}/conf.server.json`)
             ? `./engine-private/conf/${deployId}/conf.server.json`
@@ -45,15 +49,20 @@ const clientLiveBuild = async () => {
       clientId = confServer[host][path].client;
       views = confClient[clientId].views;
       baseHost = `${host}${path === '/' ? '' : path}`;
+      apiBaseHost = confServer[host][path].apiBaseHost;
+      apiBaseProxyPath = confServer[host][path].apiBaseProxyPath;
     }
 
     logger.info('Live build config', {
       deployId,
+      subConf,
       host,
       path,
       clientId,
       baseHost,
       views: views.length,
+      apiBaseHost,
+      apiBaseProxyPath,
     });
 
     const updates = JSON.parse(fs.readFileSync(`./tmp/client.build.json`, 'utf8'));
