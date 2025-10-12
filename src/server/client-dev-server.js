@@ -14,28 +14,11 @@ const createClientDevServer = (
   path = process.argv[5] || '/',
 ) => {
   shellExec(
-    `env-cmd -f .env.development node bin/deploy build-full-client ${deployId} ${subConf} ${host} ${path}`.trim(),
-  );
-  const envPath = `./.env.${process.env.NODE_ENV}`;
-  const envServer = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
-
-  fs.writeFileSync(
-    `./conf/conf.server.json`,
-    JSON.stringify(
-      {
-        [host]: {
-          [path]: confServer[host][path],
-        },
-      },
-      null,
-      4,
-    ),
-    'utf8',
+    `env-cmd -f ./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-client node bin/deploy build-full-client ${deployId} ${subConf}-dev-client ${host} ${path}`.trim(),
   );
 
   shellExec(
-    `env-cmd -f ./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.dev-client node src/server ${deployId} ${subConf}-dev-client`.trim(),
+    `env-cmd -f ./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-client node src/server ${deployId} ${subConf}-dev-client`.trim(),
     {
       async: true,
     },
@@ -54,7 +37,11 @@ const createClientDevServer = (
 
   let buildPathScope = [];
 
-  const nodemonOptions = { script: './src/client.build', args: process.argv.slice(2), watch: 'src/client' };
+  const nodemonOptions = {
+    script: './src/client.build',
+    args: [`${deployId}`, `${subConf}-dev-client`, `${host}`, `${path}`],
+    watch: 'src/client',
+  };
   logger.info('nodemon option', { nodemonOptions });
   nodemon(nodemonOptions)
     .on('start', function (...args) {

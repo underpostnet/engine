@@ -999,7 +999,7 @@ const buildApiConf = async (options = { deployId: '', subConf: '', host: '', pat
     confServer[host][path].origins = [origin];
     logger.info('Build api conf', { host, path, origin });
   } else return;
-  writeEnv(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.dev-api`, envObj);
+  writeEnv(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-api`, envObj);
   fs.writeFileSync(
     `./engine-private/conf/${deployId}/conf.server.dev.${subConf}-dev-api.json`,
     JSON.stringify(confServer, null, 4),
@@ -1017,14 +1017,14 @@ const buildClientStaticConf = async (options = { deployId: '', subConf: '', apiB
     fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.dev.${subConf}-dev-api.json`, 'utf8'),
   );
   const envObj = dotenv.parse(
-    fs.readFileSync(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.dev-api`, 'utf8'),
+    fs.readFileSync(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-api`, 'utf8'),
   );
   envObj.PORT = parseInt(envObj.PORT);
-  const apiBaseHost = options?.apiBaseHost ? options.apiBaseHost : `http://localhost:${envObj.PORT + 1}`;
+  const apiBaseHost = options?.apiBaseHost ? options.apiBaseHost : `localhost:${envObj.PORT + 1}`;
   confServer[host][path].apiBaseHost = apiBaseHost;
   logger.info('Build client static conf', { host, path, apiBaseHost });
   envObj.PORT = parseInt(confServer[host][path].origins[0].split(':')[2]) - 1;
-  writeEnv(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.dev-client`, envObj);
+  writeEnv(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-client`, envObj);
   fs.writeFileSync(
     `./engine-private/conf/${deployId}/conf.server.dev.${subConf}-dev-client.json`,
     JSON.stringify(confServer, null, 4),
