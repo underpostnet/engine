@@ -976,9 +976,21 @@ const getInstanceContext = async (options = { singleReplica, replicas, redirect:
   return { redirectTarget };
 };
 
-const buildApiConf = ({ host, path, origins }) => {
+const buildApiConf = (options = { host: '', path: '', origins: [] }) => {
+  let { host, path, origins } = options;
+  if (!origins) origins = process.argv[5].split(',').map((o) => o.trim()) ?? ['*'];
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
-  confServer[host][path].origins = origins;
+  if (host && path) {
+    confServer[host][path].origins = origins;
+    logger.info('Build api conf', { host, path, origins });
+  } else {
+    for (const host of Object.keys(confServer)) {
+      for (const path of Object.keys(confServer[host])) {
+        confServer[host][path].origins = origins;
+        logger.info('Build api conf', { host, path, origins });
+      }
+    }
+  }
   fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
 };
 

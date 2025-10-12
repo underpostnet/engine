@@ -5,9 +5,9 @@
 
 import dotenv from 'dotenv';
 import { loggerFactory } from './server/logger.js';
-import { buildRuntime, buildApiConf } from './server/runtime.js';
+import { buildRuntime } from './server/runtime.js';
 import { ProcessController } from './server/process.js';
-import { Config } from './server/conf.js';
+import { Config, buildApiConf } from './server/conf.js';
 
 dotenv.config();
 

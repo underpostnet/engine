@@ -90,11 +90,6 @@ const Modal = {
       query: options.query ? `${window.location.search}` : undefined,
       getTop: () => {
         const result = windowGetH() - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar);
-        // TODO: mobile padding gap on init size top height, Iphone SE responsive case
-        // logger.warn('getTop', {
-        //   top: result,
-        //   height: Modal.Data[idModal].getHeight(),
-        // });
         return result;
       },
       getHeight: () => {
@@ -120,6 +115,10 @@ const Modal = {
               }px`
             : `-${ops?.open ? '0px' : originSlideMenuWidth}px`
         }`,
+      center: () => {
+        top = `${windowGetH() / 2 - height / 2}px`;
+        left = `${windowGetW() / 2 - width / 2}px`;
+      },
     };
 
     if (options && 'mode' in options) {
@@ -1387,10 +1386,7 @@ const Modal = {
       return;
     }
 
-    if (idModal !== 'main-body' && options.mode !== 'view' && !options.disableCenter) {
-      top = `${windowGetH() / 2 - height / 2}px`;
-      left = `${windowGetW() / 2 - width / 2}px`;
-    }
+    if (idModal !== 'main-body' && options.mode !== 'view' && !options.disableCenter) Modal.Data[idModal].center();
 
     const render = html` <style class="style-${idModal}">
         .${idModal} {
@@ -1860,25 +1856,13 @@ const Modal = {
       s(`.btn-maximize-${idModal}`).style.display = null;
 
       // Restore original dimensions and position
+      this.Data[idModal].center();
       modal.style.transform = '';
-      modal.style.height = '';
-      left = 0;
-      width = 300;
-      modal.style.left = `${left}px`;
+      modal.style.height = `${height}px`;
+      modal.style.left = left;
+      modal.style.top = top;
       modal.style.width = `${width}px`;
       modal.style.overflow = '';
-
-      // Reset drag position
-      dragPosition = { x: 0, y: 0 };
-
-      // Set new position
-      modal.style.transform = `translate(0, 0)`;
-
-      // Adjust top position based on top bar visibility
-      const heightDefaultTopBar = 40; // Default top bar height if not specified
-      s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
-        ? `0px`
-        : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
 
       // Re-enable drag after restore
       if (dragInstance) {
