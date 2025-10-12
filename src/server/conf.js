@@ -27,7 +27,7 @@ const Config = {
   build: async function (deployContext = 'dd-default', deployList, subConf) {
     if (process.argv[2] && typeof process.argv[2] === 'string' && process.argv[2].startsWith('dd-'))
       deployContext = process.argv[2];
-    if (process.argv[3] && typeof process.argv[3] === 'string') subConf = process.argv[3];
+    if (!subConf && process.argv[3] && typeof process.argv[3] === 'string') subConf = process.argv[3];
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     UnderpostRootEnv.API.set('await-deploy', new Date().toISOString());
     if (fs.existsSync(`./engine-private/replica/${deployContext}`)) return loadConf(deployContext, subConf);
@@ -176,8 +176,11 @@ const loadConf = (deployId = 'dd-default', subConf) => {
   fs.writeFileSync(`./.env.test`, fs.readFileSync(`${folder}/.env.test`, 'utf8'), 'utf8');
   const NODE_ENV = process.env.NODE_ENV;
   if (NODE_ENV) {
-    fs.writeFileSync(`./.env`, fs.readFileSync(`${folder}/.env.${NODE_ENV}`, 'utf8'), 'utf8');
-    const env = dotenv.parse(fs.readFileSync(`${folder}/.env.${NODE_ENV}`, 'utf8'));
+    const subPathEnv = fs.existsSync(`${folder}/.env.${NODE_ENV}.${subConf}`)
+      ? `${folder}/.env.${NODE_ENV}.${subConf}`
+      : `${folder}/.env.${NODE_ENV}`;
+    fs.writeFileSync(`./.env`, fs.readFileSync(subPathEnv, 'utf8'), 'utf8');
+    const env = dotenv.parse(fs.readFileSync(subPathEnv, 'utf8'));
     process.env = {
       ...process.env,
       ...env,
@@ -976,21 +979,32 @@ const getInstanceContext = async (options = { singleReplica, replicas, redirect:
   return { redirectTarget };
 };
 
-const buildApiConf = async (options = { host: '', path: '', origin: '' }) => {
-  let { host, path, origin } = options;
-
+const buildApiConf = async (options = { deployId: '', subConf: '', host: '', path: '', origin: '' }) => {
+  let { deployId, subConf, host, path, origin } = options;
+  if (!deployId) deployId = process.argv[2].trim();
+  if (!subConf) subConf = process.argv[3].trim();
   if (process.argv[4]) host = process.argv[4].trim();
   if (process.argv[5]) path = process.argv[5].trim();
   if (process.argv[6])
     origin = `${process.env.NODE_ENV === 'production' ? 'https' : 'http'}://${process.argv[6].trim()}`;
 
   if (!origin) return;
-  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+  const confServer = JSON.parse(
+    fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`, 'utf8'),
+  );
+  const envObj = dotenv.parse(
+    fs.readFileSync(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}`, 'utf8'),
+  );
   if (host && path) {
     confServer[host][path].origins = [origin];
     logger.info('Build api conf', { host, path, origin });
   } else return;
-  fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
+  writeEnv(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.dev-api`, envObj);
+  fs.writeFileSync(
+    `./engine-private/conf/${deployId}/conf.server.dev.${subConf}-dev-api.json`,
+    JSON.stringify(confServer, null, 4),
+    'utf8',
+  );
 };
 
 const buildClientStaticConf = async (options = { deployId: '', subConf: '', apiBaseHost: '', host: '', path: '' }) => {
@@ -999,16 +1013,19 @@ const buildClientStaticConf = async (options = { deployId: '', subConf: '', apiB
   if (!subConf) subConf = process.argv[3].trim();
   if (!host) host = process.argv[4].trim();
   if (!path) path = process.argv[5].trim();
-  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
-  const apiBaseHost = options?.apiBaseHost ? options.apiBaseHost : confServer[host][path].origins[0].split('://')[1];
-  for (const host of Object.keys(confServer)) {
-    for (const path of Object.keys(confServer[host])) {
-      confServer[host][path].apiBaseHost = apiBaseHost;
-      logger.info('Build client static conf', { host, path, apiBaseHost });
-    }
-  }
+  const confServer = JSON.parse(
+    fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`, 'utf8'),
+  );
+  const envObj = dotenv.parse(
+    fs.readFileSync(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}`, 'utf8'),
+  );
+  const apiBaseHost = options?.apiBaseHost ? options.apiBaseHost : `http://localhost:${envObj.PORT + 1}`;
+  confServer[host][path].apiBaseHost = apiBaseHost;
+  logger.info('Build client static conf', { host, path, apiBaseHost });
+  envObj.PORT = parseInt(confServer[host][path].origins[0].split(':')[1]) - 1;
+  writeEnv(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.dev-client`, envObj);
   fs.writeFileSync(
-    `./engine-private/conf/conf.server.dev.${subConf}-dev-client.json`,
+    `./engine-private/conf/${deployId}/conf.server.dev.${subConf}-dev-client.json`,
     JSON.stringify(confServer, null, 4),
     'utf8',
   );

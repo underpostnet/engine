@@ -34,13 +34,12 @@ const createClientDevServer = (
     'utf8',
   );
 
-  envServer.PORT = parseInt(confServer[host][path].apiBaseHost.split(':')[1]) + 2;
-
-  writeEnv(envPath, envServer);
-
-  shellExec(`env-cmd -f .env.${process.env.NODE_ENV} node src/server ${deployId} ${subConf}-dev-client`.trim(), {
-    async: true,
-  });
+  shellExec(
+    `env-cmd -f ./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.dev-client node src/server ${deployId} ${subConf}-dev-client`.trim(),
+    {
+      async: true,
+    },
+  );
 
   // https://github.com/remy/nodemon/blob/main/doc/events.md
 

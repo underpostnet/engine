@@ -13,7 +13,7 @@ dotenv.config();
 
 await buildApiConf();
 
-await Config.build();
+await Config.build(undefined, undefined, process.argv[3] + '-dev-api');
 
 const logger = loggerFactory(import.meta);
 

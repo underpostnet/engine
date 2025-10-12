@@ -664,6 +664,7 @@ function applySecurity(app, opts = {}) {
       maxAge: 600,
     }),
   );
+  logger.info('Cors origin', origin);
 
   // Rate limiting + slow down
   const limiter = rateLimit({
