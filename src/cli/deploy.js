@@ -80,7 +80,7 @@ spec:
     spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
-          image: ${image ?? `localhost/rockylinux9-underpost:${packageJson.version}`}
+          image: ${image ?? `localhost/rockylinux9-underpost:v${packageJson.version}`}
 #          resources:
 #            requests:
 #              memory: "${resources.requests.memory}"
