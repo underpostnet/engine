@@ -11,13 +11,13 @@ import { Config, buildApiConf } from './server/conf.js';
 
 dotenv.config();
 
+await buildApiConf();
+
 await Config.build();
 
 const logger = loggerFactory(import.meta);
 
 await logger.setUpInfo();
-
-await buildApiConf();
 
 await buildRuntime();
 

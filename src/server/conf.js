@@ -32,7 +32,7 @@ const Config = {
     UnderpostRootEnv.API.set('await-deploy', new Date().toISOString());
     if (fs.existsSync(`./engine-private/replica/${deployContext}`)) return loadConf(deployContext, subConf);
     else if (deployContext.startsWith('dd-')) return loadConf(deployContext, subConf);
-    if (deployContext === 'proxy') Config.buildProxy(deployContext, deployList, subConf);
+    if (deployContext === 'proxy') Config.buildProxy(deployList, subConf);
   },
   deployIdFactory: function (deployId = 'dd-default', options = { cluster: false }) {
     if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
@@ -106,7 +106,7 @@ const Config = {
     for (const confType of Object.keys(this.default))
       fs.writeFileSync(`${folder}/conf.${confType}.json`, JSON.stringify(this.default[confType], null, 4), 'utf8');
   },
-  buildProxy: function (deployContext = 'dd-default', deployList, subConf) {
+  buildProxy: function (deployList = 'dd-default', subConf = '') {
     if (!deployList) deployList = process.argv[3];
     if (!subConf) subConf = process.argv[4];
     this.default.server = {};
@@ -976,40 +976,42 @@ const getInstanceContext = async (options = { singleReplica, replicas, redirect:
   return { redirectTarget };
 };
 
-const buildApiConf = async (options = { host: '', path: '', origins: [] }) => {
-  let { host, path, origins } = options;
-  if (process.argv[5])
-    origins = process.argv[5]
-      .split(',')
-      .map((o) => `${process.env.NODE_ENV === 'production' ? 'https' : 'http'}://${o.trim()}`)
-      .filter((o) => o !== '');
-  if (!origins || origins.length === 0) return;
+const buildApiConf = async (options = { host: '', path: '', origin: '' }) => {
+  let { host, path, origin } = options;
+
+  if (process.argv[4]) host = process.argv[4].trim();
+  if (process.argv[5]) path = process.argv[5].trim();
+  if (process.argv[6])
+    origin = `${process.env.NODE_ENV === 'production' ? 'https' : 'http'}://${process.argv[6].trim()}`;
+
+  if (!origin) return;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   if (host && path) {
-    confServer[host][path].origins = origins;
-    logger.info('Build api conf', { host, path, origins });
-  } else {
-    for (const host of Object.keys(confServer)) {
-      for (const path of Object.keys(confServer[host])) {
-        confServer[host][path].origins = origins;
-        logger.info('Build api conf', { host, path, origins });
-      }
-    }
-  }
+    confServer[host][path].origins = [origin];
+    logger.info('Build api conf', { host, path, origin });
+  } else return;
   fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
 };
 
-const buildClientStaticConf = async (options = { apiBaseHost: '' }) => {
-  const apiBaseHost = process.argv[5] || options.apiBaseHost;
-  if (!apiBaseHost) return;
+const buildClientStaticConf = async (options = { deployId: '', subConf: '', apiBaseHost: '', host: '', path: '' }) => {
+  let { deployId, subConf, host, path } = options;
+  if (!deployId) deployId = process.argv[2].trim();
+  if (!subConf) subConf = process.argv[3].trim();
+  if (!host) host = process.argv[4].trim();
+  if (!path) path = process.argv[5].trim();
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+  const apiBaseHost = options?.apiBaseHost ? options.apiBaseHost : confServer[host][path].origins[0].split('://')[1];
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].apiBaseHost = apiBaseHost;
       logger.info('Build client static conf', { host, path, apiBaseHost });
     }
   }
-  fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
+  fs.writeFileSync(
+    `./engine-private/conf/conf.server.dev.${subConf}-dev-client.json`,
+    JSON.stringify(confServer, null, 4),
+    'utf8',
+  );
 };
 
 export {

@@ -3,6 +3,7 @@ import nodemon from 'nodemon';
 import { shellExec } from './process.js';
 import { loggerFactory } from './logger.js';
 import { writeEnv } from './conf.js';
+import dotenv from 'dotenv';
 
 const logger = loggerFactory(import.meta);
 
@@ -15,7 +16,7 @@ const createClientDevServer = (
   shellExec(
     `env-cmd -f .env.development node bin/deploy build-full-client ${deployId} ${subConf} ${host} ${path}`.trim(),
   );
-  const envPath = './.env';
+  const envPath = `./.env.${process.env.NODE_ENV}`;
   const envServer = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
 
@@ -37,7 +38,9 @@ const createClientDevServer = (
 
   writeEnv(envPath, envServer);
 
-  shellExec(`env-cmd -f .env.development node src/server ${deployId} ${subConf}`.trim(), { async: true });
+  shellExec(`env-cmd -f .env.${process.env.NODE_ENV} node src/server ${deployId} ${subConf}-dev-client`.trim(), {
+    async: true,
+  });
 
   // https://github.com/remy/nodemon/blob/main/doc/events.md
 
