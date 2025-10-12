@@ -145,11 +145,6 @@ class ExpressService {
     const server = createServer({}, app);
 
     if (!apiBaseHost) {
-      // Security and CORS
-      applySecurity(app, {
-        origin: origins,
-      });
-
       // Swagger path definition
       const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
       const swaggerPath = `${path === '/' ? `/api-docs` : `${path}/api-docs`}`;
@@ -168,6 +163,11 @@ class ExpressService {
         // Reusing swaggerPath defined outside, removing unnecessary redeclaration
         app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDoc));
       }
+
+      // Security and CORS
+      applySecurity(app, {
+        origin: origins,
+      });
 
       // Database and Valkey connections
       if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
