@@ -1,3 +1,9 @@
+/**
+ * Deploy module for managing the deployment of applications and services.
+ * @module src/cli/deploy.js
+ * @namespace UnderpostDeploy
+ */
+
 import {
   buildKindPorts,
   buildPortProxyRouter,

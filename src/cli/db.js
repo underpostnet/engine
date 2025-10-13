@@ -1,3 +1,9 @@
+/**
+ * UnderpostDB CLI index module
+ * @module src/cli/db.js
+ * @namespace UnderpostDB
+ */
+
 import { mergeFile, splitFileFactory } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
@@ -9,8 +15,36 @@ import { loadReplicas, pathPortAssignmentFactory } from '../server/conf.js';
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostDB
+ * @description Manages database operations and backups.
+ * This class provides a set of static methods to handle database operations,
+ * including importing and exporting data, managing database backups, and
+ * handling database connections for different providers (e.g., MariaDB, MongoDB).
+ * @memberof UnderpostDB
+ */
 class UnderpostDB {
   static API = {
+    /**
+     * @method callback
+     * @description Initiates a database backup workflow based on the provided options.
+     * This method orchestrates the backup process for multiple deployments, handling
+     * database connections, backup storage, and optional Git integration for version control.
+     * @param {string} [deployList='default'] - List of deployment IDs to include in the backup.
+     * @param {object} [options] - An object containing boolean flags for various operations.
+     * @param {boolean} [options.import=false] - Flag to import data from a backup.
+     * @param {boolean} [options.export=false] - Flag to export data to a backup.
+     * @param {string} [options.podName=false] - The name of the Kubernetes pod to use for database operations.
+     * @param {string} [options.ns=false] - The namespace to use for database operations.
+     * @param {string} [options.collections=''] - Comma-separated list of collections to include in the backup.
+     * @param {string} [options.outPath=''] - Output path for the backup file.
+     * @param {boolean} [options.drop=false] - Flag to drop the database before importing.
+     * @param {boolean} [options.preserveUUID=false] - Flag to preserve UUIDs during import.
+     * @param {boolean} [options.git=false] - Flag to enable Git integration for version control.
+     * @param {string} [options.hosts=''] - Comma-separated list of hosts to include in the backup.
+     * @param {string} [options.paths=''] - Comma-separated list of paths to include in the backup.
+     * @memberof UnderpostDB
+     */
     async callback(
       deployList = 'default',
       options = {
@@ -200,6 +234,17 @@ class UnderpostDB {
         }
       }
     },
+
+    /**
+     * @method clusterMetadataFactory
+     * @description Creates a cluster metadata object for the specified deployment.
+     * This method loads database configuration and initializes a cluster metadata object
+     * using the provided deployment ID, host, and path.
+     * @param {string} [deployId=process.env.DEFAULT_DEPLOY_ID] - The deployment ID to use.
+     * @param {string} [host=process.env.DEFAULT_DEPLOY_HOST] - The host to use.
+     * @param {string} [path=process.env.DEFAULT_DEPLOY_PATH] - The path to use.
+     * @memberof UnderpostDB
+     */
     async clusterMetadataFactory(
       deployId = process.env.DEFAULT_DEPLOY_ID,
       host = process.env.DEFAULT_DEPLOY_HOST,
@@ -297,6 +342,24 @@ class UnderpostDB {
       }
       await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
     },
+
+    /**
+     * @method clusterMetadataBackupCallback
+     * @description Handles the backup of cluster metadata for the specified deployment.
+     * This method orchestrates the backup process for cluster metadata, including
+     * instances and crons, and handles optional Git integration for version control.
+     * @param {string} [deployId=process.env.DEFAULT_DEPLOY_ID] - The deployment ID to use.
+     * @param {string} [host=process.env.DEFAULT_DEPLOY_HOST] - The host to use.
+     * @param {string} [path=process.env.DEFAULT_DEPLOY_PATH] - The path to use.
+     * @param {object} [options] - An object containing boolean flags for various operations.
+     * @param {boolean} [options.generate=false] - Flag to generate cluster metadata.
+     * @param {boolean} [options.itc=false] - Flag to enable Git integration for version control.
+     * @param {boolean} [options.import=false] - Flag to import data from a backup.
+     * @param {boolean} [options.export=false] - Flag to export data to a backup.
+     * @param {boolean} [options.instances=false] - Flag to backup instances.
+     * @param {boolean} [options.crons=false] - Flag to backup crons.
+     * @memberof UnderpostDB
+     */
     clusterMetadataBackupCallback(
       deployId = process.env.DEFAULT_DEPLOY_ID,
       host = process.env.DEFAULT_DEPLOY_HOST,

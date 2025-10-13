@@ -1,3 +1,9 @@
+/**
+ * Cluster module for managing Kubernetes cluster initialization, configuration, and component deployment.
+ * @module src/cli/cluster.js
+ * @namespace UnderpostCluster
+ */
+
 import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
@@ -45,6 +51,7 @@ class UnderpostCluster {
      * @param {boolean} [options.config=false] - Apply general host configuration (SELinux, containerd, sysctl, firewalld).
      * @param {boolean} [options.worker=false] - Configure as a worker node (for Kubeadm or K3s join).
      * @param {boolean} [options.chown=false] - Set up kubectl configuration for the current user.
+     * @memberof UnderpostCluster
      */
     async init(
       podName,
@@ -460,6 +467,7 @@ EOF
      * are applied for a healthy Kubernetes environment. It explicitly avoids
      * iptables flushing commands to prevent conflicts with Kubernetes' own network management.
      * @param {string} underpostRoot - The root directory of the underpost project.
+     * @memberof UnderpostCluster
      */
     config(options = { underpostRoot: '.' }) {
       const { underpostRoot } = options;
@@ -523,6 +531,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
      * @method chown
      * @description Sets up kubectl configuration for the current user based on the cluster type.
      * @param {string} clusterType - The type of Kubernetes cluster ('kubeadm', 'k3s', or 'kind').
+     * @memberof UnderpostCluster
      */
     chown(clusterType) {
       console.log(`Setting up kubectl configuration for ${clusterType} cluster...`);
@@ -559,6 +568,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
      * in coredns) by restoring SELinux security contexts and safely cleaning up cluster artifacts.
      * @param {object} [options] - Configuration options for the reset.
      * @param {string} [options.underpostRoot] - The root path of the underpost project.
+     * @memberof UnderpostCluster
      */
     async safeReset(options = { underpostRoot: '.' }) {
       logger.info('Starting a safe and comprehensive reset of Kubernetes and container environments...');
@@ -672,6 +682,13 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
       }
     },
 
+    /**
+     * @method getResourcesCapacity
+     * @description Retrieves the capacity of resources (CPU and memory) for a specific node in the cluster.
+     * @param {string} [node=os.hostname()] - The node to query. Defaults to the current host.
+     * @returns {object} An object containing the CPU and memory capacity of the node.
+     * @memberof UnderpostCluster
+     */
     getResourcesCapacity(node) {
       const resources = {};
       const nodeName = node ?? os.hostname();
@@ -698,9 +715,11 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
 
       return resources;
     },
+
     /**
      * @method initHost
      * @description Installs essential host-level prerequisites for Kubernetes (Docker, Podman, Kind, Kubeadm, Helm).
+     * @memberof UnderpostCluster
      */
     initHost() {
       const archData = UnderpostBaremetal.API.getHostArch();
@@ -738,10 +757,12 @@ EOF`);
       shellExec(`sudo rm -rf get_helm.sh`);
       console.log('Host prerequisites installed successfully.');
     },
+
     /**
      * @method uninstallHost
      * @description Uninstalls all host components installed by initHost.
      * This includes Docker, Podman, Kind, Kubeadm, Kubelet, Kubectl, and Helm.
+     * @memberof UnderpostCluster
      */
     uninstallHost() {
       console.log('Uninstalling host components: Docker, Podman, Kind, Kubeadm, Kubelet, Kubectl, Helm.');

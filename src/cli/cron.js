@@ -71,6 +71,14 @@ class UnderpostCron {
         if (UnderpostCron.JOB[jobId]) await UnderpostCron.JOB[jobId].callback(deployList, options);
       }
     },
+
+    /**
+     * Get the related deploy id for the given job id
+     * @static
+     * @param {String} jobId - The job id
+     * @return {String} The related deploy id
+     * @memberof UnderpostCron
+     */
     getRelatedDeployId(jobId) {
       switch (jobId) {
         case 'dns':
