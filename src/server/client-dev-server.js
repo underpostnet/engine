@@ -1,12 +1,26 @@
+/**
+ * Module for creating a client-side development server
+ * @module src/server/client-dev-server.js
+ * @namespace clientDevServer
+ */
 import fs from 'fs-extra';
 import nodemon from 'nodemon';
 import { shellExec } from './process.js';
 import { loggerFactory } from './logger.js';
-import { writeEnv } from './conf.js';
-import dotenv from 'dotenv';
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @function createClientDevServer
+ * @description Creates a client-side development server.
+ * @memberof clientDevServer
+ * @param {string} deployId - The deployment ID.
+ * @param {string} subConf - The sub-configuration.
+ * @param {string} host - The host.
+ * @param {string} path - The path.
+ * @returns {void}
+ * @memberof clientDevServer
+ */
 const createClientDevServer = (
   deployId = process.argv[2] || 'dd-default',
   subConf = process.argv[3] || '',

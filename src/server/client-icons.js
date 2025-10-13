@@ -1,3 +1,8 @@
+/**
+ * Module for building client-side icons
+ * @module src/server/client-icons.js
+ * @namespace clientIcons
+ */
 import { favicons } from 'favicons';
 import { loggerFactory } from './logger.js';
 import fs from 'fs-extra';
@@ -5,6 +10,20 @@ import { getCapVariableName } from '../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @function buildIcons
+ * @description Builds icons for a client-side application.
+ * @memberof clientIcons
+ * @param {Object} metadata - The metadata for the client-side application.
+ * @param {string} metadata.title - The title of the client-side application.
+ * @param {string} metadata.description - The description of the client-side application.
+ * @param {string} metadata.keywords - The keywords for the client-side application.
+ * @param {string} metadata.author - The author of the client-side application.
+ * @param {string} metadata.thumbnail - The thumbnail of the client-side application.
+ * @param {string} metadata.themeColor - The theme color of the client-side application.
+ * @param {string} metadata.baseBuildIconReference - The base build icon reference for the client-side application.
+ * @returns {Promise<void>}
+ */
 const buildIcons = async ({
   publicClientId,
   metadata: { title, description, keywords, author, thumbnail, themeColor, baseBuildIconReference },

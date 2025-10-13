@@ -1,3 +1,9 @@
+/**
+ * Module for live building client-side code
+ * @module src/server/client-build-live.js
+ * @namespace clientLiveBuild
+ */
+
 import fs from 'fs-extra';
 import { Config, loadConf } from './conf.js';
 import { loggerFactory } from './logger.js';
@@ -5,6 +11,11 @@ import { buildClient } from './client-build.js';
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @function clientLiveBuild
+ * @description Initiates a live build of client-side code.
+ * @memberof clientLiveBuild
+ */
 const clientLiveBuild = async () => {
   if (fs.existsSync(`./tmp/client.build.json`)) {
     const deployId = process.argv[2];
@@ -33,16 +44,7 @@ const clientLiveBuild = async () => {
         ),
       );
       const confServer = JSON.parse(
-        fs.readFileSync(
-          fs.existsSync(`./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`)
-            ? `./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`
-            : fs.existsSync(`./engine-private/replica/${deployId}`)
-            ? `./engine-private/replica/${deployId}/conf.server.json`
-            : fs.existsSync(`./engine-private/conf/${deployId}/conf.server.json`)
-            ? `./engine-private/conf/${deployId}/conf.server.json`
-            : `./conf/conf.server.json`,
-          'utf8',
-        ),
+        fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`, 'utf8'),
       );
       host = process.argv[4];
       path = process.argv[5];
