@@ -265,9 +265,9 @@ const handleModalViewRoute = (options = { RouterInstance: { Routes: () => {} }, 
   if (path !== '/' && path[path.length - 1] === '/') path = path.slice(0, -1);
   const proxyPath = getProxyPath();
   const newPath = `${proxyPath}${route}`;
+  if (RouterInstance && RouterInstance.Routes) subMenuHandler(Object.keys(RouterInstance.Routes()), route);
 
   if (path !== newPath) {
-    subMenuHandler(Object.keys(RouterInstance.Routes()), route);
     setPath(newPath);
     setDocTitle(newPath);
   }

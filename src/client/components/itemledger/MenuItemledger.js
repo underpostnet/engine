@@ -329,9 +329,6 @@ const MenuItemledger = {
         html: async () =>
           await Docs.Init({
             idModal: 'modal-docs',
-            modalOptions: {
-              barMode: undefined,
-            },
           }),
         handleType: 'bar',
         observer: true,

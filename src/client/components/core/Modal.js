@@ -22,6 +22,7 @@ import {
   setPath,
   coreUI,
   sanitizeRoute,
+  getQueryParams,
 } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
@@ -2466,12 +2467,20 @@ const subMenuRender = async (subMenuId) => {
 };
 
 const subMenuHandler = (routes, route) => {
+  route = sanitizeRoute(route);
   for (let _route of routes) {
     _route = sanitizeRoute(_route);
     if (_route !== route) {
       if (isSubMenuOpen(_route)) subMenuRender(_route);
     }
   }
+  setTimeout(() => {
+    let cid = getQueryParams().cid;
+    if (cid && s(`.btn-${route}-${cid}`)) {
+      if (s(`.main-sub-btn-active`)) s(`.main-sub-btn-active`).classList.remove('main-sub-btn-active');
+      s(`.btn-${route}-${cid}`).classList.add('main-sub-btn-active');
+    }
+  });
 };
 
 export {

@@ -831,6 +831,14 @@ const subThemeManager = {
           color: ${this.lightColor};
           background-color: ${lightenHex(this.lightColor, 0.8)};
         }
+        .main-sub-btn-active {
+          color: ${this.lightColor};
+          background-color: rgba(0, 0, 0, 0.3);
+        }
+        .main-sub-btn-active:hover {
+          color: ${this.lightColor};
+          background-color: rgba(0, 0, 0, 0.2);
+        }
       </style>`;
     };
   },
@@ -844,6 +852,14 @@ const subThemeManager = {
         .main-btn-menu-active {
           color: ${lightenHex(this.darkColor, 0.8)};
           background-color: ${darkenHex(this.darkColor, 0.75)};
+        }
+        .main-sub-btn-active {
+          color: ${lightenHex(this.darkColor, 0.8)};
+          background-color: rgba(255, 255, 255, 0.3);
+        }
+        .main-sub-btn-active:hover {
+          color: ${lightenHex(this.darkColor, 0.8)};
+          background-color: rgba(255, 255, 255, 0.2);
         }
       </style>`;
     };

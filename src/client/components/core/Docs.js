@@ -8,7 +8,7 @@ import { htmls, s } from './VanillaJs.js';
 // https://mintlify.com/docs/quickstart
 
 const Docs = {
-  RenderModal: async function (type, modalOptions) {
+  RenderModal: async function (type) {
     const docData = this.Data.find((d) => d.type === type);
     const ModalId = `modal-docs-${docData.type}`;
     const { barConfig } = await Themes[Css.currentTheme]();
@@ -35,7 +35,7 @@ const Docs = {
       observer: true,
       barMode: 'top-bottom-bar',
       query: true,
-      ...modalOptions,
+      RouterInstance: Modal.Data['modal-docs'].options.RouterInstance,
     });
     Modal.Data[ModalId].onObserverListener[ModalId] = () => {
       if (s(`.iframe-${ModalId}`))
@@ -118,25 +118,17 @@ const Docs = {
     const { idModal } = options;
     this.Tokens[idModal] = options;
     setTimeout(() => {
-      const cleanActive = () => {
-        s(`.btn-docs-src`).classList.remove('main-btn-menu-active');
-        s(`.btn-docs-api`).classList.remove('main-btn-menu-active');
-        s(`.btn-docs-coverage`).classList.remove('main-btn-menu-active');
-      };
       s(`.btn-docs-src`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'src' });
-        cleanActive();
-        await this.RenderModal('src', options.modalOptions);
+        await this.RenderModal('src');
       };
       s(`.btn-docs-api`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'api' });
-        cleanActive();
-        await this.RenderModal('api', options.modalOptions);
+        await this.RenderModal('api');
       };
       s(`.btn-docs-coverage`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'coverage' });
-        cleanActive();
-        await this.RenderModal('coverage', options.modalOptions);
+        await this.RenderModal('coverage');
       };
 
       s(`.btn-docs-coverage-link`).onclick = () => {
