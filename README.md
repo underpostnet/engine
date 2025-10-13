@@ -18,7 +18,7 @@
 
 <!-- badges -->
 
-[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/2.8.884)](https://socket.dev/npm/package/underpost/overview/2.8.884) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
+[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/2.8.885)](https://socket.dev/npm/package/underpost/overview/2.8.885) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
 
 <!-- end-badges -->
 
@@ -44,7 +44,7 @@ After template installation, the server will be running on <a target="_top" href
 
 Package repo and usage info: <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/README.md">pwa-microservices-template</a>
 
-## underpost ci/cd cli v2.8.884
+## underpost ci/cd cli v2.8.885
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -53,13 +53,13 @@ Package repo and usage info: <a target="_top" href="https://github.com/underpost
   -h, --help                                                 display help for command
 
 Commands:
-  new [options] <app-name>                                   Initializes a new Underpost project with a predefined structure.
+  new [options] <app-name>                                   Initializes a new Underpost project, service, or configuration.
   start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
   clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
   pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
   cmt [options] <path> <commit-type> [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
   push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
-  env <deploy-id> [env]                                      Sets environment variables and configurations related to a specific deployment ID.
+  env [deploy-id] [env] [subConf]                            Sets environment variables and configurations related to a specific deployment ID.
   config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
   root                                                       Displays the root path of the npm installation.
   cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.

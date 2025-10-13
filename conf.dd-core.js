@@ -962,7 +962,7 @@ const DefaultConf = /**/ {
         client: 'underpost',
         runtime: 'nodejs',
         apis: ['user', 'file', 'test', 'document'],
-        apiBaseProxyPath: '/',
+        apiBaseProxyPath: null,
         apiBaseHost: null,
         origins: [],
         minifyBuild: false,

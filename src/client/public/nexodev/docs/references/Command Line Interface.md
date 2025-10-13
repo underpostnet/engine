@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.884
+## underpost ci/cd cli v2.8.885
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -7,13 +7,13 @@
   -h, --help                                                 display help for command
 
 Commands:
-  new [options] <app-name>                                   Initializes a new Underpost project with a predefined structure.
+  new [options] <app-name>                                   Initializes a new Underpost project, service, or configuration.
   start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
   clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
   pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
   cmt [options] <path> <commit-type> [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
   push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
-  env <deploy-id> [env]                                      Sets environment variables and configurations related to a specific deployment ID.
+  env [deploy-id] [env] [subConf]                            Sets environment variables and configurations related to a specific deployment ID.
   config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
   root                                                       Displays the root path of the npm installation.
   cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
@@ -44,16 +44,18 @@ Commands:
 ```
  Usage: underpost new [options] <app-name>
 
-Initializes a new Underpost project with a predefined structure.
+Initializes a new Underpost project, service, or configuration.
 
 Arguments:
-  app-name     The name or deploy-id of the application to create.
+  app-name               The name or deploy-id of the application to create.
 
 Options:
-  --deploy-id  Crete deploy ID conf env files
-  --cluster    Create deploy ID cluster files and sync to current cluster
-  --dev        Sets the development cli context
-  -h, --help   display help for command
+  --deploy-id            Crete deploy ID conf env files
+  --cluster              Create deploy ID cluster files and sync to current
+                         cluster
+  --dev                  Sets the development cli context
+  --sub-conf <sub-conf>  Create sub conf env files
+  -h, --help             display help for command
  
 ```
   
@@ -157,16 +159,18 @@ Options:
 
 ### `env` :
 ```
- Usage: underpost env [options] <deploy-id> [env]
+ Usage: underpost env [options] [deploy-id] [env] [subConf]
 
 Sets environment variables and configurations related to a specific deployment
 ID.
 
 Arguments:
   deploy-id   The deployment configuration ID. Use 'clean' to restore default
-              environment settings.
+              environment settings. User 'root' to load root env. User
+              'current' to get plain current deploy Id.
   env         Optional: The environment to set (e.g., "production",
               "development"). Defaults to "production".
+  subConf     Optional: The sub configuration to set.
 
 Options:
   -h, --help  display help for command
