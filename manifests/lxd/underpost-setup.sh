@@ -39,15 +39,15 @@ sudo dnf install -y tar bzip2 git epel-release
 sudo dnf -y update
 
 # --- NVM and Node.js Installation ---
-echo "Installing NVM and Node.js v23.8.0..."
+echo "Installing NVM and Node.js v24.10.0..."
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 
 # Load nvm for the current session
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
-nvm install 23.8.0
-nvm use 23.8.0
+nvm install 24.10.0
+nvm use 24.10.0
 
 echo "
 ██╗░░░██╗███╗░░██╗██████╗░███████╗██████╗░██████╗░░█████╗░░██████╗████████╗
@@ -65,9 +65,9 @@ npm install -g underpost
 
 # Ensure underpost executable is in PATH and has execute permissions
 # Adjusting this for global npm install which usually handles permissions
-# If you still face issues, ensure /root/.nvm/versions/node/v23.8.0/bin is in your PATH
+# If you still face issues, ensure /root/.nvm/versions/node/v24.10.0/bin is in your PATH
 # For global installs, it's usually handled automatically.
-# chmod +x /root/.nvm/versions/node/v23.8.0/bin/underpost # This might not be necessary for global npm installs
+# chmod +x /root/.nvm/versions/node/v24.10.0/bin/underpost # This might not be necessary for global npm installs
 
 # --- Kernel Module for Bridge Filtering ---
 # This is crucial for Kubernetes networking (CNI)
