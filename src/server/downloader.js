@@ -65,4 +65,6 @@ class Downloader {
 /** @type {function(string, string, object): Promise<string>} */
 const downloadFile = Downloader.downloadFile;
 
-export { Downloader, downloadFile as Downloader };
+export default Downloader;
+
+export { Downloader, downloadFile };

@@ -1,3 +1,9 @@
+/**
+ * @description Manages the client-side build process, including full builds and incremental builds.
+ * @namespace clientBuild
+ * @module server/client-build.js
+ */
+
 'use strict';
 
 import fs from 'fs-extra';
@@ -26,97 +32,17 @@ dotenv.config();
 
 // Static Site Generation (SSG)
 
-const buildAcmeChallengePath = (acmeChallengeFullPath = '') => {
-  fs.mkdirSync(acmeChallengeFullPath, {
-    recursive: true,
-  });
-  fs.writeFileSync(`${acmeChallengeFullPath}/.gitkeep`, '', 'utf8');
-};
-
-const fullBuild = async ({
-  path,
-  logger,
-  client,
-  db,
-  dists,
-  rootClientPath,
-  acmeChallengeFullPath,
-  publicClientId,
-  iconsBuild,
-  metadata,
-}) => {
-  logger.warn('Full build', rootClientPath);
-
-  buildAcmeChallengePath(acmeChallengeFullPath);
-
-  if (publicClientId && publicClientId.startsWith('html-website-templates')) {
-    if (!fs.existsSync(`/home/dd/html-website-templates/`))
-      shellExec(`cd /home/dd && git clone https://github.com/designmodo/html-website-templates.git`);
-    if (!fs.existsSync(`${rootClientPath}/index.php`)) {
-      fs.copySync(`/home/dd/html-website-templates/${publicClientId.split('-publicClientId-')[1]}`, rootClientPath);
-      shellExec(`cd ${rootClientPath} && git init && git add . && git commit -m "Base template implementation"`);
-      // git remote add origin git@github.com:<username>/<repo>.git
-      fs.writeFileSync(`${rootClientPath}/.git/.htaccess`, `Deny from all`, 'utf8');
-    }
-    return;
-  }
-
-  fs.removeSync(rootClientPath);
-
-  if (fs.existsSync(`./src/client/public/${publicClientId}`)) {
-    if (iconsBuild === true) await buildIcons({ publicClientId, metadata });
-
-    fs.copySync(
-      `./src/client/public/${publicClientId}`,
-      rootClientPath /* {
-          filter: function (name) {
-            console.log(name);
-            return true;
-          },
-        } */,
-    );
-  } else if (fs.existsSync(`./engine-private/src/client/public/${publicClientId}`)) {
-    switch (publicClientId) {
-      case 'mysql_test':
-        if (db) {
-          fs.copySync(`./engine-private/src/client/public/${publicClientId}`, rootClientPath);
-          fs.writeFileSync(
-            `${rootClientPath}/index.php`,
-            fs
-              .readFileSync(`${rootClientPath}/index.php`, 'utf8')
-              .replace('test_servername', 'localhost')
-              .replace('test_username', db.user)
-              .replace('test_password', db.password)
-              .replace('test_dbname', db.name),
-            'utf8',
-          );
-        } else logger.error('not provided db config');
-        break;
-
-      default:
-        break;
-    }
-  }
-  if (dists)
-    for (const dist of dists) {
-      if ('folder' in dist) {
-        if (fs.statSync(dist.folder).isDirectory()) {
-          fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
-          fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
-        } else {
-          const folder = dist.public_folder.split('/');
-          folder.pop();
-          fs.mkdirSync(`${rootClientPath}${folder.join('/')}`, { recursive: true });
-          fs.copyFileSync(dist.folder, `${rootClientPath}${dist.public_folder}`);
-        }
-      }
-      if ('styles' in dist) {
-        fs.mkdirSync(`${rootClientPath}${dist.public_styles_folder}`, { recursive: true });
-        fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
-      }
-    }
-};
-
+/**
+ * @async
+ * @function buildClient
+ * @memberof clientBuild
+ * @param {Object} options - Options for the build process.
+ * @param {Array} options.liveClientBuildPaths - List of paths to build incrementally.
+ * @param {Array} options.instances - List of instances to build.
+ * @returns {Promise<void>} - Promise that resolves when the build is complete.
+ * @throws {Error} - If the build fails.
+ * @memberof clientBuild
+ */
 const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }) => {
   const logger = loggerFactory(import.meta);
   const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
@@ -125,6 +51,125 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
   const packageData = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
   const acmeChallengePath = `/.well-known/acme-challenge`;
   const publicPath = `./public`;
+
+  /**
+   * @async
+   * @function buildAcmeChallengePath
+   * @memberof clientBuild
+   * @param {string} acmeChallengeFullPath - Full path to the acme-challenge directory.
+   * @returns {void}
+   * @throws {Error} - If the directory cannot be created.
+   * @memberof clientBuild
+   */
+  const buildAcmeChallengePath = (acmeChallengeFullPath = '') => {
+    fs.mkdirSync(acmeChallengeFullPath, {
+      recursive: true,
+    });
+    fs.writeFileSync(`${acmeChallengeFullPath}/.gitkeep`, '', 'utf8');
+  };
+
+  /**
+   * @async
+   * @function fullBuild
+   * @memberof clientBuild
+   * @param {Object} options - Options for the full build process.
+   * @param {string} options.path - Path to the client directory.
+   * @param {Object} options.logger - Logger instance.
+   * @param {string} options.client - Client name.
+   * @param {Object} options.db - Database configuration.
+   * @param {Array} options.dists - List of distributions to build.
+   * @param {string} options.rootClientPath - Full path to the client directory.
+   * @param {string} options.acmeChallengeFullPath - Full path to the acme-challenge directory.
+   * @param {string} options.publicClientId - Public client ID.
+   * @param {boolean} options.iconsBuild - Whether to build icons.
+   * @param {Object} options.metadata - Metadata for the client.
+   * @returns {Promise<void>} - Promise that resolves when the full build is complete.
+   * @throws {Error} - If the full build fails.
+   * @memberof clientBuild
+   */
+  const fullBuild = async ({
+    path,
+    logger,
+    client,
+    db,
+    dists,
+    rootClientPath,
+    acmeChallengeFullPath,
+    publicClientId,
+    iconsBuild,
+    metadata,
+  }) => {
+    logger.warn('Full build', rootClientPath);
+
+    buildAcmeChallengePath(acmeChallengeFullPath);
+
+    if (publicClientId && publicClientId.startsWith('html-website-templates')) {
+      if (!fs.existsSync(`/home/dd/html-website-templates/`))
+        shellExec(`cd /home/dd && git clone https://github.com/designmodo/html-website-templates.git`);
+      if (!fs.existsSync(`${rootClientPath}/index.php`)) {
+        fs.copySync(`/home/dd/html-website-templates/${publicClientId.split('-publicClientId-')[1]}`, rootClientPath);
+        shellExec(`cd ${rootClientPath} && git init && git add . && git commit -m "Base template implementation"`);
+        // git remote add origin git@github.com:<username>/<repo>.git
+        fs.writeFileSync(`${rootClientPath}/.git/.htaccess`, `Deny from all`, 'utf8');
+      }
+      return;
+    }
+
+    fs.removeSync(rootClientPath);
+
+    if (fs.existsSync(`./src/client/public/${publicClientId}`)) {
+      if (iconsBuild === true) await buildIcons({ publicClientId, metadata });
+
+      fs.copySync(
+        `./src/client/public/${publicClientId}`,
+        rootClientPath /* {
+            filter: function (name) {
+              console.log(name);
+              return true;
+            },
+          } */,
+      );
+    } else if (fs.existsSync(`./engine-private/src/client/public/${publicClientId}`)) {
+      switch (publicClientId) {
+        case 'mysql_test':
+          if (db) {
+            fs.copySync(`./engine-private/src/client/public/${publicClientId}`, rootClientPath);
+            fs.writeFileSync(
+              `${rootClientPath}/index.php`,
+              fs
+                .readFileSync(`${rootClientPath}/index.php`, 'utf8')
+                .replace('test_servername', 'localhost')
+                .replace('test_username', db.user)
+                .replace('test_password', db.password)
+                .replace('test_dbname', db.name),
+              'utf8',
+            );
+          } else logger.error('not provided db config');
+          break;
+
+        default:
+          break;
+      }
+    }
+    if (dists)
+      for (const dist of dists) {
+        if ('folder' in dist) {
+          if (fs.statSync(dist.folder).isDirectory()) {
+            fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
+            fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
+          } else {
+            const folder = dist.public_folder.split('/');
+            folder.pop();
+            fs.mkdirSync(`${rootClientPath}${folder.join('/')}`, { recursive: true });
+            fs.copyFileSync(dist.folder, `${rootClientPath}${dist.public_folder}`);
+          }
+        }
+        if ('styles' in dist) {
+          fs.mkdirSync(`${rootClientPath}${dist.public_styles_folder}`, { recursive: true });
+          fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
+        }
+      }
+  };
 
   // { srcBuildPath, publicBuildPath }
   const enableLiveRebuild =
