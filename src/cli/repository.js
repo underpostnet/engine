@@ -90,11 +90,23 @@ class UnderpostRepository {
       );
     },
 
-    new(repositoryName, options = { dev: false, deployId: false, cluster: false }) {
+    new(repositoryName, options = { dev: false, deployId: false, cluster: false, subConf: '' }) {
       return new Promise(async (resolve, reject) => {
         try {
           await logger.setUpInfo();
           actionInitLog();
+          if (options.subConf && typeof options.subConf === 'string') {
+            const deployId = repositoryName;
+            logger.info('Creating sub conf', {
+              deployId,
+              subConf: options.subConf,
+            });
+            fs.copySync(
+              `./engine-private/conf/${deployId}/conf.server.json`,
+              `./engine-private/conf/${deployId}/conf.server.dev.${options.subConf}.json`,
+            );
+            return resolve();
+          }
           if (repositoryName === 'service')
             return resolve(
               await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), ':'),

@@ -1,3 +1,9 @@
+/**
+ * Manages the startup and runtime configuration of Underpost applications.
+ * @module src/server/start.js
+ * @namespace UnderpostStartUp
+ */
+
 import UnderpostDeploy from '../cli/deploy.js';
 import fs from 'fs-extra';
 import { awaitDeployMonitor } from './conf.js';
@@ -7,8 +13,17 @@ import UnderpostRootEnv from '../cli/env.js';
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostStartUp
+ * @description Manages the startup and runtime configuration of Underpost applications.
+ * @memberof UnderpostStartUp
+ */
 class UnderpostStartUp {
   static API = {
+    /**
+     * Logs the runtime network configuration.
+     * @memberof UnderpostStartUp
+     */
     logRuntimeRouter: () => {
       const displayLog = {};
 
@@ -18,6 +33,12 @@ class UnderpostStartUp {
 
       logger.info('Runtime network', displayLog);
     },
+    /**
+     * Creates a server factory.
+     * @memberof UnderpostStartUp
+     * @param {Function} logic - The logic to execute when the server is listening.
+     * @returns {Object} An object with a listen method.
+     */
     listenServerFactory: (logic = async () => {}) => {
       return {
         listen: async (...args) => {
@@ -36,6 +57,15 @@ class UnderpostStartUp {
         },
       };
     },
+
+    /**
+     * Controls the listening port for a server.
+     * @memberof UnderpostStartUp
+     * @param {Object} server - The server to listen on.
+     * @param {number|string} port - The port number or colon for all ports.
+     * @param {Object} metadata - Metadata for the server.
+     * @returns {Promise<boolean>} A promise that resolves to true if the server is listening, false otherwise.
+     */
     listenPortController: async (server, port, metadata) =>
       new Promise((resolve) => {
         try {
@@ -79,6 +109,15 @@ class UnderpostStartUp {
         }
       }),
 
+    /**
+     * Starts a deployment.
+     * @memberof UnderpostStartUp
+     * @param {string} deployId - The ID of the deployment.
+     * @param {string} env - The environment of the deployment.
+     * @param {Object} options - Options for the deployment.
+     * @param {boolean} options.build - Whether to build the deployment.
+     * @param {boolean} options.run - Whether to run the deployment.
+     */
     async callback(deployId = 'dd-default', env = 'development', options = { build: false, run: false }) {
       if (options.build === true) await UnderpostStartUp.API.build(deployId, env);
       if (options.run === true) await UnderpostStartUp.API.run(deployId, env);
