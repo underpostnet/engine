@@ -1,3 +1,9 @@
+/**
+ * Image management module for pull, build, creation of docker images and loading them into Kubernetes clusters
+ * @module src/cli/image.js
+ * @namespace UnderpostImage
+ */
+
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import { loggerFactory } from '../server/logger.js';
@@ -22,6 +28,7 @@ class UnderpostImage {
        * @param {boolean} [options.k3sLoad=false] - If true, load image into K3s cluster.
        * @param {string} [options.path=false] - Path to the Dockerfile context.
        * @param {string} [options.version=''] - Version tag for the image.
+       * @memberof UnderpostImage
        */
       pullBaseImages(
         options = {
@@ -68,6 +75,7 @@ class UnderpostImage {
        * @param {boolean} [options.secrets=false] - If true, load secrets from the .env file for the build.
        * @param {string} [options.secretsPath=''] - Custom path to the .env file for secrets.
        * @param {boolean} [options.reset=false] - If true, perform a no-cache build.
+       * @memberof UnderpostImage
        */
       build(
         options = {

@@ -1,3 +1,9 @@
+/**
+ * File storage module for managing file operations using Cloudinary.
+ * @module src/cli/fs.js
+ * @namespace UnderpostFileStorage
+ */
+
 import { v2 as cloudinary } from 'cloudinary';
 import { loggerFactory } from '../server/logger.js';
 import dotenv from 'dotenv';
@@ -11,8 +17,19 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostFileStorage
+ * @description Manages file storage operations using Cloudinary.
+ * This class provides a set of static methods to upload, pull, and delete files
+ * from Cloudinary, as well as manage a local storage configuration file.
+ */
 class UnderpostFileStorage {
   static API = {
+    /**
+     * @method cloudinaryConfig
+     * @description Configures the Cloudinary client with environment variables.
+     * @memberof UnderpostFileStorage
+     */
     cloudinaryConfig() {
       // https://console.cloudinary.com/
       cloudinary.config({
@@ -21,6 +38,15 @@ class UnderpostFileStorage {
         api_secret: process.env.CLOUDINARY_API_SECRET,
       });
     },
+    /**
+     * @method getStorageConf
+     * @description Retrieves the storage configuration for a specific deployment.
+     * @param {object} options - An object containing deployment-specific options.
+     * @param {string} options.deployId - The identifier for the deployment.
+     * @param {string} [options.storageFilePath] - The path to the storage configuration file.
+     * @returns {object} An object containing the storage configuration and storage file path.
+     * @memberof UnderpostFileStorage
+     */
     getStorageConf(options) {
       let storage, storageConf;
       if (options.deployId && typeof options.deployId === 'string') {
@@ -30,9 +56,31 @@ class UnderpostFileStorage {
       }
       return { storage, storageConf };
     },
+    /**
+     * @method writeStorageConf
+     * @description Writes the storage configuration to a file.
+     * @param {object} storage - The storage configuration object.
+     * @param {string} storageConf - The path to the storage configuration file.
+     * @memberof UnderpostFileStorage
+     */
     writeStorageConf(storage, storageConf) {
       if (storage) fs.writeFileSync(storageConf, JSON.stringify(storage, null, 4), 'utf8');
     },
+    /**
+     * @method recursiveCallback
+     * @description Recursively processes files and directories based on the provided options.
+     * @param {string} path - The path to the directory to process.
+     * @param {object} [options] - An object containing options for the recursive callback.
+     * @param {boolean} [options.rm=false] - Flag to remove files and directories.
+     * @param {boolean} [options.recursive=false] - Flag to process directories recursively.
+     * @param {string} [options.deployId=''] - The identifier for the deployment.
+     * @param {boolean} [options.force=false] - Flag to force file operations.
+     * @param {boolean} [options.pull=false] - Flag to pull files from storage.
+     * @param {boolean} [options.git=false] - Flag to use Git for file operations.
+     * @param {string} [options.storageFilePath=''] - The path to the storage configuration file.
+     * @returns {Promise<void>} A promise that resolves when the recursive callback is complete.
+     * @memberof UnderpostFileStorage
+     */
     async recursiveCallback(
       path,
       options = {
@@ -84,6 +132,21 @@ class UnderpostFileStorage {
         shellExec(`underpost cmt ${path} feat`);
       }
     },
+    /**
+     * @method callback
+     * @description Orchestrates file storage operations based on the provided options.
+     * This method handles file uploads, deletions, and recursive processing of directories.
+     * @param {string} path - The path to the file or directory to process.
+     * @param {object} [options] - An object containing options for the callback.
+     * @param {boolean} [options.rm=false] - Flag to remove files and directories.
+     * @param {boolean} [options.recursive=false] - Flag to process directories recursively.
+     * @param {string} [options.deployId=''] - The identifier for the deployment.
+     * @param {boolean} [options.force=false] - Flag to force file operations.
+     * @param {boolean} [options.pull=false] - Flag to pull files from storage.
+     * @param {boolean} [options.git=false] - Flag to use Git for file operations.
+     * @returns {Promise<void>} A promise that resolves when the callback is complete.
+     * @memberof UnderpostFileStorage
+     */
     async callback(
       path,
       options = { rm: false, recursive: false, deployId: '', force: false, pull: false, git: false },
@@ -94,6 +157,16 @@ class UnderpostFileStorage {
       if (options.rm === true) return await UnderpostFileStorage.API.delete(path, options);
       return await UnderpostFileStorage.API.upload(path, options);
     },
+    /**
+     * @method upload
+     * @description Uploads a file to Cloudinary.
+     * @param {string} path - The path to the file to upload.
+     * @param {object} [options] - An object containing options for the upload.
+     * @param {boolean} [options.force=false] - Flag to force file operations.
+     * @param {string} [options.storageFilePath=''] - The path to the storage configuration file.
+     * @returns {Promise<object>} A promise that resolves to the upload result.
+     * @memberof UnderpostFileStorage
+     */
     async upload(
       path,
       options = { rm: false, recursive: false, deployId: '', force: false, pull: false, storageFilePath: '' },
@@ -115,6 +188,13 @@ class UnderpostFileStorage {
       UnderpostFileStorage.API.writeStorageConf(storage, storageConf);
       return uploadResult;
     },
+    /**
+     * @method pull
+     * @description Pulls a file from Cloudinary.
+     * @param {string} path - The path to the file to pull.
+     * @returns {Promise<void>} A promise that resolves when the file is pulled.
+     * @memberof UnderpostFileStorage
+     */
     async pull(path) {
       UnderpostFileStorage.API.cloudinaryConfig();
       const folder = dir.dirname(path);
@@ -138,6 +218,13 @@ class UnderpostFileStorage {
       logger.info('delete result', deleteResult);
       return deleteResult;
     },
+    /**
+     * @method file2Zip
+     * @description Converts a file to a zip file.
+     * @param {string} path - The path to the file to convert.
+     * @returns {string} The path to the zip file.
+     * @memberof UnderpostFileStorage
+     */
     file2Zip(path) {
       const zip = new AdmZip();
       zip.addLocalFile(path, '/');
@@ -145,6 +232,13 @@ class UnderpostFileStorage {
       zip.writeZip(path);
       return path;
     },
+    /**
+     * @method zip2File
+     * @description Converts a zip file to a file.
+     * @param {string} path - The path to the zip file to convert.
+     * @returns {string} The path to the file.
+     * @memberof UnderpostFileStorage
+     */
     zip2File(path) {
       const zip = new AdmZip(path);
       path = path.replaceAll('.zip', '');

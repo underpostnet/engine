@@ -23,9 +23,26 @@ import UnderpostCluster from './cluster.js';
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostDeploy
+ * @description Manages the deployment of applications and services.
+ * This class provides a set of static methods to handle the deployment process,
+ * including resource allocation, configuration management, and Kubernetes deployment.
+ * @memberof UnderpostDeploy
+ */
 class UnderpostDeploy {
   static NETWORK = {};
   static API = {
+    /**
+     * Synchronizes deployment configurations for a list of deployments.
+     * @param {string} deployList - List of deployment IDs to synchronize.
+     * @param {object} options - Options for the synchronization process.
+     * @param {string} options.versions - Comma-separated list of versions to deploy.
+     * @param {string} options.replicas - Number of replicas for each deployment.
+     * @param {string} options.node - Node name for resource allocation.
+     * @returns {object} - Deployment data for the specified deployments.
+     * @memberof UnderpostDeploy
+     */
     sync(deployList, { versions, replicas, node }) {
       const deployGroupId = 'dd.router';
       fs.writeFileSync(`./engine-private/deploy/${deployGroupId}`, deployList, 'utf8');
@@ -48,6 +65,13 @@ class UnderpostDeploy {
         deployGroupId,
       });
     },
+    /**
+     * Creates a router configuration for a list of deployments.
+     * @param {string} deployList - List of deployment IDs to include in the router.
+     * @param {string} env - Environment for which the router is being created.
+     * @returns {object} - Router configuration for the specified deployments.
+     * @memberof UnderpostDeploy
+     */
     async routerFactory(deployList, env) {
       const initEnvPath = `./engine-private/conf/${deployList.split(',')[0]}/.env.${env}`;
       const initEnvObj = dotenv.parse(fs.readFileSync(initEnvPath, 'utf8'));
@@ -56,6 +80,15 @@ class UnderpostDeploy {
       await Config.build('proxy', deployList);
       return buildPortProxyRouter(env === 'development' ? 80 : 443, buildProxyRouter());
     },
+    /**
+     * Creates a YAML service configuration for a deployment.
+     * @param {string} deployId - Deployment ID for which the service is being created.
+     * @param {string} env - Environment for which the service is being created.
+     * @param {number} port - Port number for the service.
+     * @param {Array<string>} deploymentVersions - List of deployment versions.
+     * @returns {string} - YAML service configuration for the specified deployment.
+     * @memberof UnderpostDeploy
+     */
     deploymentYamlServiceFactory({ deployId, env, port, deploymentVersions }) {
       return deploymentVersions
         .map(
@@ -66,6 +99,17 @@ class UnderpostDeploy {
         )
         .join('');
     },
+    /**
+     * Creates a YAML deployment configuration for a deployment.
+     * @param {string} deployId - Deployment ID for which the deployment is being created.
+     * @param {string} env - Environment for which the deployment is being created.
+     * @param {string} suffix - Suffix for the deployment.
+     * @param {object} resources - Resource configuration for the deployment.
+     * @param {number} replicas - Number of replicas for the deployment.
+     * @param {string} image - Docker image for the deployment.
+     * @returns {string} - YAML deployment configuration for the specified deployment.
+     * @memberof UnderpostDeploy
+     */
     deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image }) {
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
       return `apiVersion: apps/v1
@@ -120,6 +164,16 @@ spec:
   ports:
 {{ports}}  type: LoadBalancer`;
     },
+    /**
+     * Builds a manifest for a list of deployments.
+     * @param {string} deployList - List of deployment IDs to include in the manifest.
+     * @param {string} env - Environment for which the manifest is being built.
+     * @param {object} options - Options for the manifest build process.
+     * @param {string} options.replicas - Number of replicas for each deployment.
+     * @param {string} options.image - Docker image for the deployment.
+     * @returns {Promise<void>} - Promise that resolves when the manifest is built.
+     * @memberof UnderpostDeploy
+     */
     async buildManifest(deployList, env, options) {
       const resources = UnderpostDeploy.API.resourcesFactory();
       const replicas = options.replicas;
@@ -213,6 +267,12 @@ spec:
         }
       }
     },
+    /**
+     * Builds a Certificate resource for a host using cert-manager.
+     * @param {string} host - Hostname for which the certificate is being built.
+     * @returns {string} - Certificate resource YAML for the specified host.
+     * @memberof UnderpostDeploy
+     */
     buildCertManagerCertificate({ host }) {
       return `
 ---
@@ -229,6 +289,12 @@ spec:
     kind: ClusterIssuer
   secretName: ${host}`;
     },
+    /**
+     * Retrieves the current traffic status for a deployment.
+     * @param {string} deployId - Deployment ID for which the traffic status is being retrieved.
+     * @returns {string|null} - Current traffic status ('blue' or 'green') or null if not found.
+     * @memberof UnderpostDeploy
+     */
     getCurrentTraffic(deployId) {
       // kubectl get deploy,sts,svc,configmap,secret -n default -o yaml --export > default.yaml
       const hostTest = Object.keys(
@@ -237,6 +303,32 @@ spec:
       const info = shellExec(`sudo kubectl get HTTPProxy/${hostTest} -o yaml`, { silent: true, stdout: true });
       return info.match('blue') ? 'blue' : info.match('green') ? 'green' : null;
     },
+
+    /**
+     * Callback function for handling deployment options.
+     * @param {string} deployList - List of deployment IDs to include in the manifest.
+     * @param {string} env - Environment for which the manifest is being built.
+     * @param {object} options - Options for the manifest build process.
+     * @param {string} options.remove - Whether to remove the deployment.
+     * @param {string} options.infoRouter - Whether to display router information.
+     * @param {string} options.sync - Whether to synchronize the deployment.
+     * @param {string} options.buildManifest - Whether to build the manifest.
+     * @param {string} options.infoUtil - Whether to display utility information.
+     * @param {string} options.expose - Whether to expose the deployment.
+     * @param {string} options.cert - Whether to create a certificate.
+     * @param {string} options.certHosts - List of hosts for which certificates are being created.
+     * @param {string} options.versions - Comma-separated list of versions to deploy.
+     * @param {string} options.image - Docker image for the deployment.
+     * @param {string} options.traffic - Current traffic status for the deployment.
+     * @param {string} options.replicas - Number of replicas for the deployment.
+     * @param {string} options.node - Node name for resource allocation.
+     * @param {string} options.restoreHosts - Whether to restore hosts.
+     * @param {string} options.disableUpdateDeployment - Whether to disable updating the deployment.
+     * @param {string} options.infoTraffic - Whether to display traffic information.
+     * @param {string} options.etcHosts - Whether to update /etc/hosts.
+     * @returns {Promise<void>} - Promise that resolves when the callback is complete.
+     * @memberof UnderpostDeploy
+     */
     async callback(
       deployList = '',
       env = 'development',
@@ -404,6 +496,13 @@ EOF`);
 ` + renderHosts,
         );
     },
+    /**
+     * Retrieves information about a deployment.
+     * @param {string} deployId - Deployment ID for which information is being retrieved.
+     * @param {string} kindType - Type of Kubernetes resource to retrieve information for (e.g. 'pods').
+     * @returns {Array<object>} - Array of objects containing information about the deployment.
+     * @memberof UnderpostDeploy
+     */
     get(deployId, kindType = 'pods') {
       const raw = shellExec(`sudo kubectl get ${kindType} --all-namespaces -o wide`, {
         stdout: true,
@@ -435,6 +534,11 @@ EOF`);
 
       return result;
     },
+    /**
+     * Retrieves the resources factory for a deployment.
+     * @returns {object} - Object containing the resources factory for the deployment.
+     * @memberof UnderpostDeploy
+     */
     resourcesFactory() {
       return {
         requests: {
@@ -448,6 +552,14 @@ EOF`);
         totalPods: UnderpostRootEnv.API.get('total-pods'),
       };
     },
+    /**
+     * Checks if a container file exists in a pod.
+     * @param {object} options - Options for the check.
+     * @param {string} options.podName - Name of the pod to check.
+     * @param {string} options.path - Path to the container file to check.
+     * @returns {boolean} - True if the container file exists, false otherwise.
+     * @memberof UnderpostDeploy
+     */
     existsContainerFile({ podName, path }) {
       return JSON.parse(
         shellExec(`kubectl exec ${podName} -- test -f ${path} && echo "true" || echo "false"`, {
@@ -457,6 +569,15 @@ EOF`);
         }).trim(),
       );
     },
+    /**
+     * Checks the status of a deployment.
+     * @param {string} deployId - Deployment ID for which the status is being checked.
+     * @param {string} env - Environment for which the status is being checked.
+     * @param {string} traffic - Current traffic status for the deployment.
+     * @param {Array<string>} ignoresNames - List of pod names to ignore.
+     * @returns {object} - Object containing the status of the deployment.
+     * @memberof UnderpostDeploy
+     */
     checkDeploymentReadyStatus(deployId, env, traffic, ignoresNames = []) {
       const cmd = `underpost config get container-status`;
       const pods = UnderpostDeploy.API.get(`${deployId}-${env}-${traffic}`);
@@ -481,12 +602,25 @@ EOF`);
         readyPods,
       };
     },
+    /**
+     * Creates a configmap for a deployment.
+     * @param {string} env - Environment for which the configmap is being created.
+     * @memberof UnderpostDeploy
+     */
     configMap(env) {
       shellExec(`kubectl delete configmap underpost-config`);
       shellExec(
         `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env}`,
       );
     },
+    /**
+     * Switches the traffic for a deployment.
+     * @param {string} deployId - Deployment ID for which the traffic is being switched.
+     * @param {string} env - Environment for which the traffic is being switched.
+     * @param {string} targetTraffic - Target traffic status for the deployment.
+     * @param {number} replicas - Number of replicas for the deployment.
+     * @memberof UnderpostDeploy
+     */
     switchTraffic(deployId, env, targetTraffic, replicas = 1) {
       UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, targetTraffic);
       shellExec(
@@ -494,6 +628,11 @@ EOF`);
       );
       shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
     },
+    /**
+     * Creates a hosts file for a deployment.
+     * @param {Array<string>} hosts - List of hosts to be added to the hosts file.
+     * @memberof UnderpostDeploy
+     */
     etcHostFactory(hosts = []) {
       const renderHosts = `127.0.0.1         ${hosts.join(
         ' ',
@@ -503,6 +642,15 @@ EOF`);
       fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
       return { renderHosts };
     },
+    /**
+     * Checks if a TLS context is valid.
+     * @param {object} options - Options for the check.
+     * @param {string} options.host - Host for which the TLS context is being checked.
+     * @param {string} options.env - Environment for which the TLS context is being checked.
+     * @param {object} options.options - Options for the TLS context check.
+     * @returns {boolean} - True if the TLS context is valid, false otherwise.
+     * @memberof UnderpostDeploy
+     */
     isValidTLSContext: ({ host, env, options }) =>
       env === 'production' &&
       options.cert === true &&

@@ -1,3 +1,9 @@
+/**
+ * Repository module for managing Git operations and configurations.
+ * @module src/cli/repository.js
+ * @namespace UnderpostRepository
+ */
+
 import { commitData } from '../client/components/core/CommonJs.js';
 import dotenv from 'dotenv';
 import { pbcopy, shellCd, shellExec } from '../server/process.js';
@@ -11,8 +17,23 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostRepository
+ * @description Manages Git operations and configurations.
+ * This class provides a set of static methods to automate various
+ * Git operations, including cloning, pulling, and committing changes.
+ * @memberof UnderpostRepository
+ */
 class UnderpostRepository {
   static API = {
+    /**
+     * Clones a Git repository from GitHub.
+     * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template`] - The URI of the GitHub repository (e.g., "username/repository").
+     * @param {object} [options={ bare: false, g8: false }] - Cloning options.
+     * @param {boolean} [options.bare=false] - If true, performs a bare clone.
+     * @param {boolean} [options.g8=false] - If true, uses the .g8 extension.
+     * @memberof UnderpostRepository
+     */
     clone(gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`, options = { bare: false, g8: false }) {
       const gExtension = options.g8 === true ? '.g8' : '.git';
       const repoName = gitUri.split('/').pop();
@@ -26,6 +47,14 @@ class UnderpostRepository {
         },
       );
     },
+    /**
+     * Pulls updates from a GitHub repository.
+     * @param {string} [repoPath='./'] - The local path to the repository.
+     * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template`] - The URI of the GitHub repository.
+     * @param {object} [options={ g8: false }] - Pulling options.
+     * @param {boolean} [options.g8=false] - If true, uses the .g8 extension.
+     * @memberof UnderpostRepository
+     */
     pull(
       repoPath = './',
       gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`,
@@ -41,6 +70,18 @@ class UnderpostRepository {
         },
       );
     },
+    /**
+     * Creates a Git commit with a conventional commit message.
+     * @param {string} [repoPath='./'] - The local path to the repository.
+     * @param {string} [commitType='feat'] - The type of commit (e.g., 'feat', 'fix', 'docs', 'reset').
+     * @param {string} [subModule=''] - The submodule or scope of the commit.
+     * @param {string} [message=''] - The commit message.
+     * @param {object} [options={ copy: false, info: false, empty: false }] - Commit options.
+     * @param {boolean} [options.copy=false] - If true, copies the commit message to the clipboard.
+     * @param {boolean} [options.info=false] - If true, displays information about commit types.
+     * @param {boolean} [options.empty=false] - If true, allows an empty commit.
+     * @memberof UnderpostRepository
+     */
     commit(
       repoPath = './',
       commitType = 'feat',
@@ -65,6 +106,15 @@ class UnderpostRepository {
       shellExec(`cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}-m "${_message}"`);
     },
 
+    /**
+     * Pushes commits to a remote GitHub repository.
+     * @param {string} [repoPath='./'] - The local path to the repository.
+     * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template}`] - The URI of the GitHub repository.
+     * @param {object} [options={ f: false, g8: false }] - Push options.
+     * @param {boolean} [options.f=false] - If true, forces the push.
+     * @param {boolean} [options.g8=false] - If true, uses the .g8 extension.
+     * @memberof UnderpostRepository
+     */
     push(
       repoPath = './',
       gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template}`,
@@ -90,6 +140,17 @@ class UnderpostRepository {
       );
     },
 
+    /**
+     * Creates a new Underpost project, service, or configuration.
+     * @param {string} repositoryName - The name of the new project or service, or a deployId.
+     * @param {object} [options={ dev: false, deployId: false, cluster: false, subConf: '' }] - Creation options.
+     * @param {boolean} [options.dev=false] - If true, sets up a development project.
+     * @param {boolean} [options.deployId=false] - If true, creates deploy ID configuration files.
+     * @param {boolean} [options.cluster=false] - If true, creates cluster configuration files.
+     * @param {string} [options.subConf=''] - If provided, creates a sub-configuration for a deployId.
+     * @returns {Promise<void>} A promise that resolves when the operation is complete.
+     * @memberof UnderpostRepository
+     */
     new(repositoryName, options = { dev: false, deployId: false, cluster: false, subConf: '' }) {
       return new Promise(async (resolve, reject) => {
         try {
@@ -138,12 +199,26 @@ class UnderpostRepository {
       });
     },
 
+    /**
+     * Gets a list of deleted files from a Git repository.
+     * @param {string} [path='.'] - The path to the repository.
+     * @returns {string[]} An array of deleted file paths.
+     * @memberof UnderpostRepository
+     */
     getDeleteFiles(path = '.') {
       const commandUntrack = `cd ${path} && git ls-files --deleted`;
       const diffUntrackOutput = shellExec(commandUntrack, { stdout: true, silent: true });
       return diffUntrackOutput.toString().split('\n').filter(Boolean);
     },
 
+    /**
+     * Gets a list of changed (modified and untracked) files in a Git repository.
+     * @param {string} [path='.'] - The path to the repository.
+     * @param {string} [extension=''] - An optional file extension to filter by.
+     * @param {boolean} [head=false] - If true, diffs against HEAD^.
+     * @returns {string[]} An array of changed file paths.
+     * @memberof UnderpostRepository
+     */
     getChangedFiles(path = '.', extension = '', head = false) {
       const extensionFilter = extension ? `-- '***.${extension}'` : '';
       const command = `cd ${path} && git diff ${head ? 'HEAD^ HEAD ' : ''}--name-only ${extensionFilter}`;
@@ -158,6 +233,12 @@ class UnderpostRepository {
         .concat(diffUntrackOutput.toString().split('\n').filter(Boolean))
         .filter((f) => !deleteFiles.includes(f));
     },
+    /**
+     * Updates the private configuration repository for a given deployId.
+     * @param {string} deployId - The deployment ID.
+     * @returns {{validVersion: boolean, engineVersion: string, deployVersion: string}} An object indicating if the versions are valid.
+     * @memberof UnderpostRepository
+     */
     privateConfUpdate(deployId) {
       shellCd(`/home/dd/engine`);
       const privateRepoName = `engine-${deployId.split('dd-')[1]}-private`;
