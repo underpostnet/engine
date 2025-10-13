@@ -15,6 +15,13 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostImage
+ * @description Manages Docker image operations, including pulling, building, and loading images into Kubernetes clusters.
+ * This class provides a set of static methods to handle image operations, including pulling base images,
+ * building custom images, and loading them into specified Kubernetes clusters (Kind, Kubeadm, or K3s).
+ * @memberof UnderpostImage
+ */
 class UnderpostImage {
   static API = {
     dockerfile: {

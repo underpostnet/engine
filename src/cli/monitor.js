@@ -1,3 +1,9 @@
+/**
+ * Monitor module for managing the monitoring of deployments and services.
+ * @module src/cli/monitor.js
+ * @namespace UnderpostMonitor
+ */
+
 import { loadReplicas, pathPortAssignmentFactory } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import UnderpostDeploy from './deploy.js';
@@ -9,8 +15,34 @@ import { isInternetConnection } from '../server/dns.js';
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostMonitor
+ * @description Manages deployment monitoring and health checks.
+ * This class provides a set of static methods to monitor and manage
+ * deployment health, including checking server status, handling traffic
+ * switching, and orchestrating monitoring workflows.
+ * @memberof UnderpostMonitor
+ */
 class UnderpostMonitor {
   static API = {
+    /**
+     * @method callback
+     * @description Initiates a deployment monitoring workflow based on the provided options.
+     * This method orchestrates the monitoring process for a specific deployment, handling
+     * traffic switching, error accumulation, and optional Git integration for version control.
+     * @param {string} deployId - The identifier for the deployment to monitor.
+     * @param {string} [env='development'] - The environment for the deployment (e.g., 'development', 'production').
+     * @param {object} [options] - An object containing boolean flags for various operations.
+     * @param {boolean} [options.now=false] - Perform a single health check immediately.
+     * @param {boolean} [options.single=false] - Perform a single health check and exit.
+     * @param {string} [options.msInterval=''] - Interval in milliseconds for periodic health checks.
+     * @param {string} [options.type=''] - Type of deployment (e.g., 'blue-green', 'remote').
+     * @param {string} [options.replicas=''] - Number of replicas for the deployment.
+     * @param {boolean} [options.sync=false] - Synchronize traffic switching with the deployment.
+     * @param {object} [commanderOptions] - Options passed from the command line interface.
+     * @param {object} [auxRouter] - Optional router configuration for the deployment.
+     * @memberof UnderpostMonitor
+     */
     async callback(
       deployId,
       env = 'development',

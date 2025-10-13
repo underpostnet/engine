@@ -1,3 +1,9 @@
+/**
+ * Test module for running tests on the application.
+ * @module src/cli/test.js
+ * @namespace UnderpostTest
+ */
+
 import { timer } from '../client/components/core/CommonJs.js';
 import { MariaDB } from '../db/mariadb/MariaDB.js';
 import { getNpmRootPath } from '../server/conf.js';
@@ -7,6 +13,11 @@ import UnderpostDeploy from './deploy.js';
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostTest
+ * @description Manages the test of the application.
+ * @memberof UnderpostTest
+ */
 class UnderpostTest {
   static API = {
     /**
@@ -20,15 +31,35 @@ class UnderpostTest {
      * @static
      * @method setUpInfo
      * @returns {Promise<void>}
-     * @memberof Underpost
+     * @memberof UnderpostTest
      */
     async setUpInfo() {
       return await setUpInfo(logger);
     },
+    /**
+     * @method run
+     * @description Runs the test of the application.
+     * @memberof UnderpostTest
+     */
     run() {
       actionInitLog();
       shellExec(`cd ${getNpmRootPath()}/underpost && npm run test`);
     },
+    /**
+     * @method callback
+     * @description Manages the test of the application.
+     * @param {string} deployList - The list of deployments to test.
+     * @param {object} options - The options for the test.
+     * @param {boolean} options.itc - If true, tests the inside container.
+     * @param {boolean} options.sh - If true, tests the shell.
+     * @param {boolean} options.logs - If true, tests the logs.
+     * @param {string} options.podName - The name of the pod to test.
+     * @param {string} options.podStatus - The status of the pod to test.
+     * @param {string} options.kindType - The type of the kind to test.
+     * @param {number} options.deltaMs - The delta time in milliseconds.
+     * @param {number} options.maxAttempts - The maximum number of attempts.
+     * @memberof UnderpostTest
+     */
     async callback(deployList = '', options = { itc: false, sh: false, logs: false }) {
       if (
         options.podName &&
@@ -86,6 +117,16 @@ class UnderpostTest {
         }
       } else return UnderpostTest.API.run();
     },
+    /**
+     * @method statusMonitor
+     * @description Monitors the status of a pod.
+     * @param {string} podName - The name of the pod to monitor.
+     * @param {string} status - The status of the pod to monitor.
+     * @param {string} kindType - The type of the kind to monitor.
+     * @param {number} deltaMs - The delta time in milliseconds.
+     * @param {number} maxAttempts - The maximum number of attempts.
+     * @memberof UnderpostTest
+     */
     statusMonitor(podName, status = 'Running', kindType = '', deltaMs = 1000, maxAttempts = 60 * 5) {
       if (!(kindType && typeof kindType === 'string')) kindType = 'pods';
       return new Promise(async (resolve) => {

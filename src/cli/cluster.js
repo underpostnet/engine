@@ -15,6 +15,13 @@ import fs from 'fs-extra';
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostCluster
+ * @description Manages Kubernetes cluster initialization, configuration, and component deployment.
+ * This class provides a set of static methods to handle cluster initialization, configuration,
+ * and optional component deployments.
+ * @memberof UnderpostCluster
+ */
 class UnderpostCluster {
   static API = {
     /**

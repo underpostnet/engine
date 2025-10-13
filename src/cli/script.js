@@ -1,3 +1,9 @@
+/**
+ * Script module for managing the execution of scripts.
+ * @module src/cli/script.js
+ * @namespace UnderpostScript
+ */
+
 import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
@@ -6,14 +12,34 @@ import UnderpostDeploy from './deploy.js';
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostScript
+ * @description Manages the execution of scripts.
+ * @memberof UnderpostScript
+ */
 class UnderpostScript {
   static API = {
+    /**
+     * @method set
+     * @description Sets a script in the package.json file.
+     * @param {string} key - The key for the script.
+     * @param {string} value - The value for the script.
+     * @memberof UnderpostScript
+     */
     set(key, value) {
       const npmRoot = `${getNpmRootPath()}/underpost`;
       const packageJson = JSON.parse(fs.readFileSync(`${npmRoot}/package.json`, 'utf8'));
       packageJson.scripts[key] = value;
       fs.writeFileSync(`${npmRoot}/package.json`, JSON.stringify(packageJson, null, 4));
     },
+    /**
+     * @method run
+     * @description Runs a script.
+     * @param {string} key - The key for the script.
+     * @param {string} value - The value for the script.
+     * @param {object} options - The options for the script.
+     * @memberof UnderpostScript
+     */
     run(key, value, options) {
       const npmRoot = `${getNpmRootPath()}/underpost`;
       const packageJson = JSON.parse(fs.readFileSync(`${npmRoot}/package.json`, 'utf8'));
@@ -41,6 +67,12 @@ class UnderpostScript {
       }
       shellExec(`cd ${npmRoot} && npm run ${key}`);
     },
+    /**
+     * @method get
+     * @description Gets a script from the package.json file.
+     * @param {string} key - The key for the script.
+     * @memberof UnderpostScript
+     */
     get(key) {
       const npmRoot = `${getNpmRootPath()}/underpost`;
       const packageJson = JSON.parse(fs.readFileSync(`${npmRoot}/package.json`, 'utf8'));
