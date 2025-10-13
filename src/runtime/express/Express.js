@@ -21,6 +21,8 @@ import { createPeerServer } from '../../server/peer.js';
 import { createValkeyConnection } from '../../server/valkey.js';
 import { applySecurity, authMiddlewareFactory } from '../../server/auth.js';
 import { ssrMiddlewareFactory } from '../../server/ssr.js';
+import { Ssl } from '../../server/ssl.js';
+import { shellExec } from '../../server/process.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -43,6 +45,7 @@ class ExpressService {
    * @param {string[]} [config.apis] - A list of API names to load and attach routers for.
    * @param {string[]} config.origins - Allowed origins for CORS.
    * @param {string} [config.directory] - The directory for static files (if overriding default).
+   * @param {boolean} [config.useLocalSsl] - Whether to use local SSL for the instance.
    * @param {string} [config.ws] - The WebSocket server name to use.
    * @param {object} [config.mailer] - Mailer configuration.
    * @param {object} [config.db] - Database configuration.
@@ -65,6 +68,7 @@ class ExpressService {
     apis,
     origins,
     directory,
+    useLocalSsl,
     ws,
     mailer,
     db,
@@ -239,7 +243,11 @@ class ExpressService {
     for (const [_, ssrMiddleware] of Object.entries(ssr)) app.use(ssrMiddleware);
 
     // Start listening on the main port
-    await UnderpostStartUp.API.listenPortController(server, port, runningData);
+    if (useLocalSsl && process.env.NODE_ENV === 'development') {
+      if (!Ssl.validateSecureContext()) shellExec(`node bin/deploy ssl`);
+      const { ServerSSL } = await Ssl.createSslServer(app);
+      await UnderpostStartUp.API.listenPortController(ServerSSL, port, runningData);
+    } else await UnderpostStartUp.API.listenPortController(server, port, runningData);
 
     return { portsUsed };
   }

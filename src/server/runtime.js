@@ -76,6 +76,7 @@ const buildRuntime = async () => {
         replicas,
         valkey,
         apiBaseHost,
+        useLocalSsl,
       } = confServer[host][path];
 
       // Calculate context data
@@ -115,6 +116,7 @@ const buildRuntime = async () => {
             apis,
             origins,
             directory,
+            useLocalSsl,
             ws,
             mailer,
             db,
