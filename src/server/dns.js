@@ -114,8 +114,6 @@ class Dns {
    * @returns {Promise<void>}
    */
   static async callback(deployList) {
-    // Network topology configuration logic comments removed for brevity/focus on code.
-
     const isOnline = await Dns.isInternetConnection();
 
     if (!isOnline) return;
