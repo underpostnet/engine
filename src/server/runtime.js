@@ -1,9 +1,9 @@
 /**
- * @namespace Runtime
- * @description The main runtime orchestrator responsible for reading configuration,
+ * The main runtime orchestrator responsible for reading configuration,
  * initializing services (Prometheus, Ports, DB, Mailer), and building the
  * specific server runtime for each host/path (e.g., nodejs, lampp).
  * @module src/server/runtime.js
+ * @namespace Runtime
  */
 
 import fs from 'fs-extra';

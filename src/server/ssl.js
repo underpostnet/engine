@@ -1,8 +1,8 @@
 /**
- * @namespace Ssl
- * @description Provides utilities for managing, building, and serving SSL/TLS contexts,
+ * Provides utilities for managing, building, and serving SSL/TLS contexts,
  * primarily using Certbot files and creating HTTPS servers.
  * @module src/server/ssl.js
+ * @namespace Ssl
  */
 
 import fs from 'fs-extra';

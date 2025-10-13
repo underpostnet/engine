@@ -1,7 +1,7 @@
 /**
- * @description Manages the client-side build process, including full builds and incremental builds.
- * @namespace clientBuild
+ * Manages the client-side build process, including full builds and incremental builds.
  * @module server/client-build.js
+ * @namespace clientBuild
  */
 
 'use strict';

@@ -1,8 +1,8 @@
 /**
- * @namespace Dns
- * @description Provides a comprehensive set of DNS and IP management utilities,
+ * Provides a comprehensive set of DNS and IP management utilities,
  * primarily focused on dynamic DNS (DDNS) updates and network checks.
  * @module src/server/dns.js
+ * @namespace Dns
  */
 import axios from 'axios';
 import dotenv from 'dotenv';

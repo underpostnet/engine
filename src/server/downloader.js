@@ -1,7 +1,7 @@
 /**
- * @namespace Downloader
- * @description Provides a utility class for downloading files from a URL and saving them to the local filesystem.
+ * Provides a utility class for downloading files from a URL and saving them to the local filesystem.
  * @module src/server/downloader.js
+ * @namespace Downloader
  */
 
 import axios from 'axios';
