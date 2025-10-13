@@ -4,7 +4,11 @@ This guide explains how to run the client-side and API-side of your application 
 
 ## Prerequisites
 
-Ensure your `package.json` is configured with the following scripts:
+Ensure your deployment configuration is set up correctly.
+
+If you don't have a deployment configuration, create one using `underpost new --deploy-id <deploy-id>`
+
+Your `package.json` should be configured with the following scripts:
 
 ```json
 "scripts": {
@@ -21,6 +25,20 @@ And that you have a base development configuration for your `deployId`. For this
 - **`path`**: `/`
 - **Client** will run on `localhost:3999`
 - **API** will run on `localhost:4000`
+
+## Create a Local Sub-Configuration
+
+Before running the servers, you need a specific configuration for this local development setup. The `subConf` (`local` in our case) allows you to have a variant of your main `dd-default` deployment configuration.
+
+Run the following command to create the `local` sub-configuration based on your default development configuration:
+
+```bash
+underpost new dd-default --sub-conf local
+```
+
+This command copies the base configuration files for `dd-default` and creates new versions suffixed with `.local` (e.g., `conf.server.dev.local.json`). You can now customize these new files for your separate server setup without affecting your primary development configuration.
+
+---
 
 ## Run the Servers
 

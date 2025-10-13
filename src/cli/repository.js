@@ -109,7 +109,7 @@ class UnderpostRepository {
     /**
      * Pushes commits to a remote GitHub repository.
      * @param {string} [repoPath='./'] - The local path to the repository.
-     * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template}`] - The URI of the GitHub repository.
+     * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template`] - The URI of the GitHub repository.
      * @param {object} [options={ f: false, g8: false }] - Push options.
      * @param {boolean} [options.f=false] - If true, forces the push.
      * @param {boolean} [options.g8=false] - If true, uses the .g8 extension.
@@ -117,7 +117,7 @@ class UnderpostRepository {
      */
     push(
       repoPath = './',
-      gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template}`,
+      gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`,
       options = { f: false, g8: false },
     ) {
       const gExtension = options.g8 === true || options.G8 === true ? '.g8' : '.git';

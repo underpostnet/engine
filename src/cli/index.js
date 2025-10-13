@@ -27,7 +27,7 @@ program
   .option('--cluster', 'Create deploy ID cluster files and sync to current cluster')
   .option('--dev', 'Sets the development cli context')
   .option('--sub-conf <sub-conf>', 'Create sub conf env files')
-  .description('Initializes a new Underpost project with a predefined structure.')
+  .description('Initializes a new Underpost project, service, or configuration.')
   .action(Underpost.repo.new);
 
 // 'start' command: Start application servers, build pipelines, or services
@@ -87,7 +87,10 @@ program
 // 'env' command: Manage environment variables
 program
   .command('env')
-  .argument('[deploy-id]', `The deployment configuration ID. Use 'clean' to restore default environment settings.`)
+  .argument(
+    '[deploy-id]',
+    `The deployment configuration ID. Use 'clean' to restore default environment settings. User 'root' to load root env. User 'current' to get plain current deploy Id.`,
+  )
   .argument('[env]', 'Optional: The environment to set (e.g., "production", "development"). Defaults to "production".')
   .argument('[subConf]', 'Optional: The sub configuration to set.')
   .description('Sets environment variables and configurations related to a specific deployment ID.')
