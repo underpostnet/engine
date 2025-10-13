@@ -46,7 +46,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { InstanceManagement } from '../../services/instance/instance.management.js';
 import { UserManagement } from '../../services/user/user.management.js';
 import { PanelForm } from '../core/PanelForm.js';
-import { RouterEvents, setDocTitle, getProxyPath, getQueryParams } from '../core/Router.js';
+import { getProxyPath, getQueryParams, setQueryParams } from '../core/Router.js';
 import { CronManagement } from '../../services/cron/cron.management.js';
 import { Scroll } from '../core/Scroll.js';
 
@@ -785,7 +785,10 @@ const MenuNexodev = {
     });
 
     EventsUI.onClick(`.main-btn-docs`, async (e) => {
-      if (!isSubMenuOpen('docs') || e.isTrusted) await subMenuRender('docs');
+      if (!isSubMenuOpen('docs') || e.isTrusted) {
+        if (e.isTrusted) setQueryParams({ cid: '' });
+        await subMenuRender('docs');
+      }
 
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({

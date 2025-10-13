@@ -2476,8 +2476,8 @@ const subMenuHandler = (routes, route) => {
   }
   setTimeout(() => {
     let cid = getQueryParams().cid;
+    if (s(`.main-sub-btn-active`)) s(`.main-sub-btn-active`).classList.remove('main-sub-btn-active');
     if (cid && s(`.btn-${route}-${cid}`)) {
-      if (s(`.main-sub-btn-active`)) s(`.main-sub-btn-active`).classList.remove('main-sub-btn-active');
       s(`.btn-${route}-${cid}`).classList.add('main-sub-btn-active');
     }
   });
