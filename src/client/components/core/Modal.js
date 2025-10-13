@@ -21,6 +21,7 @@ import {
   getProxyPath,
   setPath,
   coreUI,
+  sanitizeRoute,
 } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
@@ -1168,6 +1169,7 @@ const Modal = {
                 });
                 EventsUI.onClick(`.action-btn-home`, async () => {
                   await Modal.onHomeRouterEvent();
+                  subMenuHandler(Object.keys(options.RouterInstance.Routes()));
                   Object.keys(this.Data[idModal].onHome).map((keyListener) => this.Data[idModal].onHome[keyListener]());
                 });
                 EventsUI.onClick(`.action-btn-app-icon`, () => s(`.action-btn-home`).click());
@@ -1348,7 +1350,6 @@ const Modal = {
                   removeEvent();
                 }
               });
-              // TODO: mobile padding gap on init size top height, Iphone SE responsive case
               setTimeout(window.onresize);
             });
           })();
@@ -2397,7 +2398,7 @@ const buildBadgeToolTipMenuOption = (id, sideKey = 'left') => {
 };
 
 const isSubMenuOpen = (subMenuId) => {
-  return s(`.down-arrow-submenu-${subMenuId}`).style.rotate === '180deg';
+  return s(`.down-arrow-submenu-${subMenuId}`) && s(`.down-arrow-submenu-${subMenuId}`).style.rotate === '180deg';
 };
 
 const subMenuRender = async (subMenuId) => {
@@ -2409,7 +2410,16 @@ const subMenuRender = async (subMenuId) => {
   if (!menuBtn || !menuContainer || !arrow) return;
 
   const top = () => {
-    menuContainer.style.top = menuBtn.offsetTop + Modal.Data['modal-menu'].options.heightTopBar + 'px';
+    let value = menuBtn.offsetTop + Modal.Data['modal-menu'].options.heightTopBar;
+
+    if (Modal.Data['modal-menu'].options.barMode === 'top-bottom-bar') {
+      if (!s(`.main-body-btn-ui-open`).classList.contains('hide')) value += 51;
+    } else {
+      if (!s(`.main-body-btn-ui-open`).classList.contains('hide')) value += 51;
+      else value -= 51;
+    }
+
+    menuContainer.style.top = `${value}px`;
   };
 
   Modal.subMenuBtnClass[subMenuId] = {
@@ -2456,4 +2466,21 @@ const subMenuRender = async (subMenuId) => {
   }, 500);
 };
 
-export { Modal, renderMenuLabel, renderViewTitle, buildBadgeToolTipMenuOption, subMenuRender, isSubMenuOpen };
+const subMenuHandler = (routes, route) => {
+  for (let _route of routes) {
+    _route = sanitizeRoute(_route);
+    if (_route !== route) {
+      if (isSubMenuOpen(_route)) subMenuRender(_route);
+    }
+  }
+};
+
+export {
+  Modal,
+  renderMenuLabel,
+  renderViewTitle,
+  buildBadgeToolTipMenuOption,
+  subMenuRender,
+  isSubMenuOpen,
+  subMenuHandler,
+};

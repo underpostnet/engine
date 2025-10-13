@@ -7,7 +7,7 @@
 import { titleFormatted } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
 import { htmls, s } from './VanillaJs.js';
-import { Modal } from './Modal.js';
+import { Modal, subMenuHandler } from './Modal.js';
 import { Worker } from './Worker.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
@@ -162,6 +162,7 @@ const Router = function (options = { Routes: () => {}, e: new PopStateEvent() })
 
     if (path === pushPath) {
       for (const event of Object.keys(RouterEvents)) RouterEvents[event](routerEvent);
+      subMenuHandler(Object.keys(Routes()), route);
       setDocTitle(route);
       return Routes()[`/${route}`].render();
     }
@@ -256,8 +257,8 @@ const closeModalRouteChangeEvent = (options = {}) => {
  * @param {string} options.route - The route associated with the modal view.
  * @memberof PwaRouter
  */
-const handleModalViewRoute = (options = { route: '' }) => {
-  const { route } = options;
+const handleModalViewRoute = (options = { RouterInstance: { Routes: () => {} }, route: '' }) => {
+  const { route, RouterInstance } = options;
   if (!route) return;
 
   let path = window.location.pathname;
@@ -266,6 +267,7 @@ const handleModalViewRoute = (options = { route: '' }) => {
   const newPath = `${proxyPath}${route}`;
 
   if (path !== newPath) {
+    subMenuHandler(Object.keys(RouterInstance.Routes()), route);
     setPath(newPath);
     setDocTitle(newPath);
   }
@@ -311,4 +313,5 @@ export {
   getProxyPath,
   setPath,
   setQueryParams,
+  sanitizeRoute,
 };
