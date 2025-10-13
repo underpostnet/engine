@@ -1,6 +1,6 @@
 /**
  * Module for creating and managing WebSocket channels.
- * @module src/ws/IoInterface
+ * @module src/ws/IoInterface.js
  * @namespace SocketIoInterface
  */
 
