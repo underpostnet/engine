@@ -1379,6 +1379,77 @@ nvidia/gpu-operator \
       break;
     }
 
+    case 'udpate-version-files': {
+      const oldNpmVersion = process.argv[3];
+      const oldNodeVersion = process.argv[4];
+      const oldNodeMajorVersion = oldNodeVersion.split('.')[0];
+      const nodeVersion = shellExec(`node --version`, { stdout: true }).trim().replace('v', '');
+      const newNodeMajorVersion = nodeVersion.split('.')[0];
+      const npmVersion = shellExec(`npm --version`, { stdout: true }).trim();
+
+      fs.writeFileSync(
+        `README.md`,
+        fs
+          .readFileSync(`README.md`, 'utf8')
+          .replaceAll(oldNodeVersion, nodeVersion)
+          .replaceAll(oldNpmVersion, npmVersion),
+      );
+      fs.writeFileSync(
+        `manifests/lxd/underpost-setup.sh`,
+        fs
+          .readFileSync(`manifests/lxd/underpost-setup.sh`, 'utf8')
+          .replaceAll(oldNodeVersion, nodeVersion)
+          .replaceAll(oldNpmVersion, npmVersion),
+      );
+      fs.writeFileSync(
+        `src/client/public/nexodev/docs/references/Getting started.md`,
+        fs
+          .readFileSync(`src/client/public/nexodev/docs/references/Getting started.md`, 'utf8')
+          .replaceAll(oldNodeVersion, nodeVersion)
+          .replaceAll(oldNpmVersion, npmVersion),
+      );
+
+      const workflowFiles = [
+        `./.github/workflows/coverall.ci.yml`,
+
+        `./.github/workflows/engine-core.ci.yml`,
+
+        `./.github/workflows/engine-cyberia.ci.yml`,
+
+        `./.github/workflows/engine-lampp.ci.yml`,
+
+        `./.github/workflows/engine-test.ci.yml`,
+
+        `./.github/workflows/ghpkg.ci.yml`,
+
+        `./.github/workflows/npmpkg.ci.yml`,
+
+        `./.github/workflows/publish.ci.yml`,
+
+        `./.github/workflows/pwa-microservices-template-page.cd.yml`,
+
+        `./.github/workflows/pwa-microservices-template-test.ci.yml`,
+
+        `./.github/workflows/test-api-rest.cd.yml`,
+
+        `./src/runtime/lampp/Dockerfile`,
+
+        `./Dockerfile`,
+      ];
+
+      workflowFiles.forEach((file) => {
+        fs.writeFileSync(
+          file,
+          fs
+            .readFileSync(file, 'utf8')
+            .replaceAll(oldNodeMajorVersion + '.x', newNodeMajorVersion + '.x')
+            .replaceAll(oldNodeVersion, nodeVersion)
+            .replaceAll(oldNpmVersion, npmVersion),
+        );
+      });
+      break;
+    }
+
     case 'sbt': {
       // https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html
 
