@@ -2412,12 +2412,11 @@ const subMenuRender = async (subMenuId) => {
   const top = () => {
     let value = menuBtn.offsetTop + Modal.Data['modal-menu'].options.heightTopBar;
 
-    if (Modal.Data['modal-menu'].options.barMode === 'top-bottom-bar') {
-      if (!s(`.main-body-btn-ui-open`).classList.contains('hide')) value += 51;
-    } else {
-      if (!s(`.main-body-btn-ui-open`).classList.contains('hide')) value += 51;
-      else value -= 51;
-    }
+    const isHidden = s('.main-body-btn-ui-open').classList.contains('hide');
+    const isTopBottom = Modal.Data['modal-menu'].options.barMode === 'top-bottom-bar';
+
+    if (!isTopBottom && isHidden) value -= 51;
+    else if (!isHidden) value += 51;
 
     menuContainer.style.top = `${value}px`;
   };
