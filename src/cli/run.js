@@ -1,3 +1,9 @@
+/**
+ * @description The main entry point for the Underpost CLI applications.
+ * @module src/cli/run.js
+ * @namespace UnderpostRun
+ */
+
 import { daemonProcess, getTerminalPid, openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
 import read from 'read';
 import { getNpmRootPath } from '../server/conf.js';
@@ -12,7 +18,33 @@ import os from 'os';
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class UnderpostRun
+ * @description Manages the execution of various CLI commands and operations.
+ * This class provides a set of static methods to perform different tasks
+ * such as running tests, deploying applications, managing environment variables,
+ * and more. It also includes a default option configuration and a collection of
+ * runners for executing specific commands.
+ * @memberof UnderpostRun
+ */
 class UnderpostRun {
+  /**
+   * @static
+   * @description Default options for the UnderpostRun class.
+   * @type {Object}
+   * @property {boolean} dev - Whether to run in development mode.
+   * @property {string} podName - The name of the pod to run.
+   * @property {string} volumeHostPath - The host path for the volume.
+   * @property {string} volumeMountPath - The mount path for the volume.
+   * @property {string} imageName - The name of the image to run.
+   * @property {string} containerName - The name of the container to run.
+   * @property {string} namespace - The namespace to run in.
+   * @property {boolean} build - Whether to build the image.
+   * @property {number} replicas - The number of replicas to run.
+   * @property {boolean} k3s - Whether to run in k3s mode.
+   * @property {boolean} kubeadm - Whether to run in kubeadm mode.
+   * @memberof UnderpostRun
+   */
   static DEFAULT_OPTION = {
     dev: false,
     podName: '',
@@ -26,7 +58,20 @@ class UnderpostRun {
     k3s: false,
     kubeadm: false,
   };
+  /**
+   * @static
+   * @description Collection of runners for executing specific commands.
+   * @type {Object}
+   * @memberof UnderpostRun
+   */
   static RUNNERS = {
+    /**
+     * @method spark-template
+     * @description Creates a new Spark template project.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'spark-template': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const dir = '/home/dd/spark-template';
       shellExec(`sudo rm -rf ${dir}`);
@@ -47,12 +92,33 @@ class UnderpostRun {
 
       shellCd('/home/dd/engine');
     },
+    /**
+     * @method rmi
+     * @description Removes all podman images.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     rmi: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       shellExec(`podman rmi $(podman images -qa) --force`);
     },
+    /**
+     * @method kill
+     * @description Kills a process by its port.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     kill: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       shellExec(`sudo kill -9 $(lsof -t -i:${path})`);
     },
+    /**
+     * @method secret
+     * @description Creates a new secret from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     secret: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       shellExec(
         `underpost secret underpost --create-from-file ${
@@ -60,20 +126,48 @@ class UnderpostRun {
         }`,
       );
     },
+    /**
+     * @method underpost-config
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'underpost-config': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       UnderpostDeploy.API.configMap(path ?? 'production');
     },
+    /**
+     * @method gpu-env
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'gpu-env': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       shellExec(
         `node bin cluster --dev --reset && node bin cluster --dev --dedicated-gpu --kubeadm && kubectl get pods --all-namespaces -o wide -w`,
       );
     },
+    /**
+     * @method tf-gpu-test
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'tf-gpu-test': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       shellExec(`kubectl delete configmap tf-gpu-test-script`);
       shellExec(`kubectl delete pod tf-gpu-test-pod`);
       shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/tensorflow/tf-gpu-test.yaml`);
     },
+    /**
+     * @method dev-cluster
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'dev-cluster': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --reset`);
@@ -92,21 +186,49 @@ class UnderpostRun {
         logger.info(hostListenResult.renderHosts);
       }
     },
+    /**
+     * @method ssh-cluster-info
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'ssh-cluster-info': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       shellExec(`chmod +x ${underpostRoot}/manifests/maas/ssh-cluster-info.sh`);
       shellExec(`${underpostRoot}/manifests/maas/ssh-cluster-info.sh`);
     },
+    /**
+     * @method cyberia-ide
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'cyberia-ide': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} run ide /home/dd/cyberia-server`);
       shellExec(`${baseCommand} run ide /home/dd/cyberia-client`);
     },
+    /**
+     * @method engine-ide
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'engine-ide': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} run ide /home/dd/engine`);
       shellExec(`${baseCommand} run ide /home/dd/engine/engine-private`);
     },
+    /**
+     * @method template-deploy
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'template-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} run clean`);
@@ -116,16 +238,37 @@ class UnderpostRun {
       shellExec(`${baseCommand} cmt . --empty ci package-pwa-microservices-template`);
       shellExec(`${baseCommand} push . ${process.env.GITHUB_USERNAME}/engine`);
     },
+    /**
+     * @method clean
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     clean: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       shellCd(path ?? `/home/dd/engine`);
       shellExec(`node bin/deploy clean-core-repo`);
     },
+    /**
+     * @method pull
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     pull: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       shellCd(`/home/dd/engine`);
       shellExec(`node bin/deploy clean-core-repo`);
       shellExec(`underpost pull . ${process.env.GITHUB_USERNAME}/engine`);
       shellExec(`underpost pull ./engine-private ${process.env.GITHUB_USERNAME}/engine-private`);
     },
+    /**
+     * @method release-deploy
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'release-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       actionInitLog();
       shellExec(`underpost --version`);
@@ -135,6 +278,13 @@ class UnderpostRun {
         shellExec(`underpost run deploy ${deployId}`, { async: true });
       }
     },
+    /**
+     * @method ssh-deploy
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'ssh-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       actionInitLog();
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
@@ -143,20 +293,24 @@ class UnderpostRun {
       shellExec(`${baseCommand} cmt . --empty cd ssh-${path}`);
       shellExec(`${baseCommand} push . ${process.env.GITHUB_USERNAME}/engine`);
     },
+    /**
+     * @method ide
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     ide: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       shellExec(`node ${underpostRoot}/bin/vs ${path}`);
     },
-    'dev-client': (_path, options = UnderpostRun.DEFAULT_OPTION) => {
-      let [deployId, hostpath, subConf, lite] = _path.split(',');
-      let [host, path] = hostpath.split('/');
-      if (!path) path = '/';
-      shellExec(`npm run dev-client ${deployId} ${host} ${path} ${subConf} static${lite === 'l' ? ' l' : ''}`);
-    },
-    'dev-api': (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      let [deployId, subConf] = path.split(',');
-      shellExec(`npm run dev-api ${deployId} ${subConf}`);
-    },
+    /**
+     * @method sync
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     sync: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
@@ -177,9 +331,23 @@ class UnderpostRun {
       );
       if (!options.build) shellExec(`${baseCommand} deploy --kubeadm ${deployId} ${env}`);
     },
+    /**
+     * @method ls-deployments
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'ls-deployments': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       console.table(await UnderpostDeploy.API.get(path, 'deployments'));
     },
+    /**
+     * @method monitor
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     monitor: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const pid = getTerminalPid();
       logger.info('monitor pid', pid);
@@ -253,6 +421,13 @@ class UnderpostRun {
       };
       _monitor();
     },
+    /**
+     * @method db-client
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'db-client': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
 
@@ -274,6 +449,13 @@ class UnderpostRun {
         shellExec(`underpost deploy --expose adminer`);
       }
     },
+    /**
+     * @method promote
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     promote: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       let [inputDeployId, inputEnv, inputReplicas] = path.split(',');
       if (!inputEnv) inputEnv = 'production';
@@ -290,7 +472,13 @@ class UnderpostRun {
         UnderpostDeploy.API.switchTraffic(inputDeployId, inputEnv, targetTraffic, inputReplicas);
       }
     },
-
+    /**
+     * @method metrics
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     metrics: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',');
       let hosts = [];
@@ -301,7 +489,13 @@ class UnderpostRun {
       shellExec(`node bin cluster --prom ${hosts.join(',')}`);
       shellExec(`node bin cluster --grafana`);
     },
-
+    /**
+     * @method cluster
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     cluster: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',');
       const env = 'production';
@@ -329,6 +523,13 @@ class UnderpostRun {
         shellExec(`underpost deploy ${deployId} ${env} --kubeadm --cert`);
       }
     },
+    /**
+     * @method deploy
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     deploy: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const deployId = path;
       const { validVersion, deployVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
@@ -373,6 +574,13 @@ class UnderpostRun {
 
       // shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${currentTraffic}`);
     },
+    /**
+     * @method tf-vae-test
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'tf-vae-test': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       const podName = 'tf-vae-test';
@@ -406,6 +614,13 @@ class UnderpostRun {
         ],
       });
     },
+    /**
+     * @method deploy-job
+     * @description Creates a new configmap from a file.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     'deploy-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const podName = options.podName || 'deploy-job';
       const volumeName = `${podName}-volume`;
@@ -485,7 +700,17 @@ EOF`;
       }
     },
   };
+
   static API = {
+    /**
+     * @method callback
+     * @description Initiates a callback to a specified runner with the provided path and options.
+     * @param {string} runner - The name of the runner to execute.
+     * @param {string} path - The path to the directory where the template will be created.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     * @returns {Promise<any>} The result of the callback execution.
+     */
     async callback(runner, path, options = UnderpostRun.DEFAULT_OPTION) {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
