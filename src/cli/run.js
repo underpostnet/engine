@@ -195,8 +195,8 @@ class UnderpostRun {
      */
     'ssh-cluster-info': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
-      shellExec(`chmod +x ${underpostRoot}/manifests/maas/ssh-cluster-info.sh`);
-      shellExec(`${underpostRoot}/manifests/maas/ssh-cluster-info.sh`);
+      shellExec(`chmod +x ${underpostRoot}/scripts/ssh-cluster-info.sh`);
+      shellExec(`${underpostRoot}/scripts/ssh-cluster-info.sh`);
     },
     /**
      * @method cyberia-ide

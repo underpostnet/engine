@@ -182,7 +182,7 @@ cut -d: -f1 /etc/passwd`,
 
           // Copy the device scan script from manifests.
           logger.info('Build', `${nfsHostToolsPath}/device_scan.sh`);
-          fs.copySync(`${underpostRoot}/manifests/maas/device-scan.sh`, `${nfsHostToolsPath}/device_scan.sh`);
+          fs.copySync(`${underpostRoot}/scripts/device-scan.sh`, `${nfsHostToolsPath}/device_scan.sh`);
 
           // Build and write the config path script.
           logger.info('Build', `${nfsHostToolsPath}/config-path.sh`);

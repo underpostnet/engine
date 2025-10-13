@@ -153,10 +153,10 @@ class UnderpostBaremetal {
       // Handle control server installation.
       if (options.controlServerInstall === true) {
         // Ensure scripts are executable and then run them.
-        shellExec(`chmod +x ${underpostRoot}/manifests/maas/maas-setup.sh`);
-        shellExec(`chmod +x ${underpostRoot}/manifests/maas/nat-iptables.sh`);
-        shellExec(`${underpostRoot}/manifests/maas/maas-setup.sh`);
-        shellExec(`${underpostRoot}/manifests/maas/nat-iptables.sh`);
+        shellExec(`chmod +x ${underpostRoot}/scripts/maas-setup.sh`);
+        shellExec(`chmod +x ${underpostRoot}/scripts/nat-iptables.sh`);
+        shellExec(`${underpostRoot}/scripts/maas-setup.sh`);
+        shellExec(`${underpostRoot}/scripts/nat-iptables.sh`);
         return;
       }
 
@@ -530,7 +530,7 @@ menuentry '${menuentryStr}' {
         if (options.cloudInitUpdate === true) return;
 
         // Apply NAT iptables rules.
-        shellExec(`${underpostRoot}/manifests/maas/nat-iptables.sh`, { silent: true });
+        shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
 
         // Wait for MAC address assignment.
         logger.info('Waiting for MAC assignment...');
