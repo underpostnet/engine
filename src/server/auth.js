@@ -348,7 +348,7 @@ const cookieOptionsFactory = (req, host) => {
     secure,
     sameSite,
     path: '/',
-    domain: host,
+    domain: process.env.NODE_ENV === 'production' ? host : 'localhost',
     maxAge,
   };
 
