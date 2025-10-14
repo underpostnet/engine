@@ -489,6 +489,7 @@ const buildProxyRouter = () => {
       if (confServer[host][path].singleReplica && !singleReplicaHosts.includes(host)) {
         singleReplicaHosts.push(host);
         currentPort++;
+        if (confServer[host][path].peer) currentPort++;
         continue;
       }
       confServer[host][path].port = newInstance(currentPort);
@@ -583,7 +584,6 @@ const buildPortProxyRouter = (port, proxyRouter, options = { orderByPathLength: 
   // build router
   Object.keys(hosts).map((hostKey) => {
     let { host, path, target, proxy, peer } = hosts[hostKey];
-    if (process.env.NODE_ENV === 'development' && process.argv.includes('localhost')) host = `localhost`;
 
     if (!proxy.includes(port)) {
       logger.warn('Proxy port not set on conf', { port, host, path, proxy, target });
