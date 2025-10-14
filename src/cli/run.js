@@ -579,10 +579,11 @@ class UnderpostRun {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
       let [deployId, host, _path] = path.split(',');
+      if (!_path) _path = '/single-replica';
       shellExec(`${baseCommand} env ${deployId} ${env}`);
       shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${_path}`);
       shellExec(`node bin/deploy build-full-client ${deployId}`);
-      shellExec(`${baseCommand} --dev --build sync ${deployId}`);
+      shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${deployId}`);
     },
 
     /**
