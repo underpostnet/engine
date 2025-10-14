@@ -168,22 +168,11 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         `./.github/workflows/publish.cyberia.ci.yml`,
         `${basePath}/.github/workflows/publish.cyberia.ci.yml`,
       );
-      delete packageJson.version.bin.underpost;
-
-      fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
-
+      delete packageJson.bin.underpost;
       packageJson.bin.cyberia = 'bin/index.js';
 
-      let _originMd = fs.readFileSync(`./README.md`, 'utf8').split('<!-- end-badges -->');
-
-      _originMd[0] = _originMd[0].replaceAll('underpost.net', 'www.cyberiaonline.com');
-      _originMd[0] = _originMd[0].replaceAll('underpost', 'cyberia');
-
-      fs.writeFileSync(
-        `${basePath}/README.md`,
-        _originMd[0] + '<!-- end-badges -->' + fs.readFileSync(`./src/api/object-layer/README.md`, 'utf8'),
-        'utf8',
-      );
+      fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
+      fs.copyFileSync(`./src/api/object-layer/README.md`, `${basePath}/README.md`);
 
     default:
       break;

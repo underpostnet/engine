@@ -1,4 +1,16 @@
-# **Cyberia Network Object Layer Engine CLI**
+<p align="center">
+  <img src="https://www.cyberiaonline.com/assets/splash/apple-touch-icon-precomposed.png" alt="CYBERIA Network Object Layer Engine CLI"/>
+</p>
+
+<div align="center">
+
+<h1>cyberia</h1>
+
+<h2>Network Object Layer Engine CLI</h2>
+
+[![Downloads](https://img.shields.io/npm/dm/cyberia.svg)](https://www.npmjs.com/package/cyberia) [![Version](https://img.shields.io/npm/v/cyberia.svg)](https://www.npmjs.org/package/cyberia)
+
+</div>
 
 This Command Line Interface (CLI) is a core tool for the **Cyberia Network Object Layer Engine**, specifically designed for processing, generating, and managing game assets, primarily **Object Layer** elements like skins, floors, and weapons.
 
