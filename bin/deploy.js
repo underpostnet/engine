@@ -1447,6 +1447,7 @@ nvidia/gpu-operator \
             .replaceAll(oldNpmVersion, npmVersion),
         );
       });
+      pbcopy(`nvm alias default v${nodeVersion}`);
       break;
     }
 
