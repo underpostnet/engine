@@ -31,7 +31,7 @@ const Config = {
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     UnderpostRootEnv.API.set('await-deploy', new Date().toISOString());
     if (deployContext.startsWith('dd-')) loadConf(deployContext, subConf);
-    if (deployContext === 'proxy') Config.buildProxy(deployList, subConf);
+    if (deployContext === 'proxy') await Config.buildProxy(deployList, subConf);
   },
   deployIdFactory: function (deployId = 'dd-default', options = { cluster: false }) {
     if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
@@ -105,33 +105,33 @@ const Config = {
     for (const confType of Object.keys(this.default))
       fs.writeFileSync(`${folder}/conf.${confType}.json`, JSON.stringify(this.default[confType], null, 4), 'utf8');
   },
-  buildProxy: function (deployList = 'dd-default', subConf = '') {
+  buildProxyByDeployId: function (deployId = 'dd-default', subConf = '') {
+    let confPath = `./engine-private/conf/${deployId}/conf.server.json`;
+    const privateConfDevPath = fs.existsSync(`./engine-private/replica/${deployId}/conf.server.json`)
+      ? `./engine-private/replica/${deployId}/conf.server.json`
+      : `./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`;
+    const confDevPath = fs.existsSync(privateConfDevPath)
+      ? privateConfDevPath
+      : `./engine-private/conf/${deployId}/conf.server.dev.json`;
+
+    if (process.env.NODE_ENV === 'development' && fs.existsSync(confDevPath)) confPath = confDevPath;
+    const serverConf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+
+    for (const host of Object.keys(loadReplicas(serverConf)))
+      this.default.server[host] = {
+        ...this.default.server[host],
+        ...serverConf[host],
+      };
+  },
+  buildProxy: async function (deployList = 'dd-default', subConf = '') {
     if (!deployList) deployList = process.argv[3];
     if (!subConf) subConf = process.argv[4];
     this.default.server = {};
     for (const deployId of deployList.split(',')) {
-      let confPath = `./engine-private/conf/${deployId}/conf.server.json`;
-      const privateConfDevPath = fs.existsSync(`./engine-private/replica/${deployId}/conf.server.json`)
-        ? `./engine-private/replica/${deployId}/conf.server.json`
-        : `./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`;
-      const confDevPath = fs.existsSync(privateConfDevPath)
-        ? privateConfDevPath
-        : `./engine-private/conf/${deployId}/conf.server.dev.json`;
-
-      if (process.env.NODE_ENV === 'development' && fs.existsSync(confDevPath)) confPath = confDevPath;
-      const serverConf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
-
-      for (const host of Object.keys(loadReplicas(serverConf))) {
-        if (serverConf[host]['/'])
-          this.default.server[host] = {
-            ...this.default.server[host],
-            ...serverConf[host],
-          };
-        else
-          this.default.server[host] = {
-            ...serverConf[host],
-            ...this.default.server[host],
-          };
+      this.buildProxyByDeployId(deployId, subConf);
+      const singleReplicas = await fs.readdir(`./engine-private/replica`);
+      for (let replica of singleReplicas) {
+        if (replica.startsWith(deployId)) this.buildProxyByDeployId(replica, subConf);
       }
     }
     this.buildTmpConf();
