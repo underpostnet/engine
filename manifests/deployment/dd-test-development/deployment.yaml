@@ -20,10 +20,10 @@ spec:
           image: localhost/rockylinux9-underpost:v2.8.885
 #          resources:
 #            requests:
-#              memory: "96294Ki"
+#              memory: "94Ki"
 #              cpu: "75m"
 #            limits:
-#              memory: "1540709Ki"
+#              memory: "1504Ki"
 #              cpu: "1200m"
           command:
             - /bin/sh
@@ -49,41 +49,41 @@ spec:
   selector:
     app: dd-test-development-blue
   ports:
-    - name: 'tcp-4021'
+    - name: 'tcp-4042'
       protocol: TCP
-      port: 4021
-      targetPort: 4021
-    - name: 'udp-4021'
+      port: 4042
+      targetPort: 4042
+    - name: 'udp-4042'
       protocol: UDP
-      port: 4021
-      targetPort: 4021
+      port: 4042
+      targetPort: 4042
 
-    - name: 'tcp-4022'
+    - name: 'tcp-4043'
       protocol: TCP
-      port: 4022
-      targetPort: 4022
-    - name: 'udp-4022'
+      port: 4043
+      targetPort: 4043
+    - name: 'udp-4043'
       protocol: UDP
-      port: 4022
-      targetPort: 4022
+      port: 4043
+      targetPort: 4043
 
-    - name: 'tcp-4023'
+    - name: 'tcp-4044'
       protocol: TCP
-      port: 4023
-      targetPort: 4023
-    - name: 'udp-4023'
+      port: 4044
+      targetPort: 4044
+    - name: 'udp-4044'
       protocol: UDP
-      port: 4023
-      targetPort: 4023
+      port: 4044
+      targetPort: 4044
 
-    - name: 'tcp-4024'
+    - name: 'tcp-4045'
       protocol: TCP
-      port: 4024
-      targetPort: 4024
-    - name: 'udp-4024'
+      port: 4045
+      targetPort: 4045
+    - name: 'udp-4045'
       protocol: UDP
-      port: 4024
-      targetPort: 4024
+      port: 4045
+      targetPort: 4045
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -107,10 +107,10 @@ spec:
           image: localhost/rockylinux9-underpost:v2.8.885
 #          resources:
 #            requests:
-#              memory: "96294Ki"
+#              memory: "94Ki"
 #              cpu: "75m"
 #            limits:
-#              memory: "1540709Ki"
+#              memory: "1504Ki"
 #              cpu: "1200m"
           command:
             - /bin/sh
@@ -136,39 +136,39 @@ spec:
   selector:
     app: dd-test-development-green
   ports:
-    - name: 'tcp-4021'
+    - name: 'tcp-4042'
       protocol: TCP
-      port: 4021
-      targetPort: 4021
-    - name: 'udp-4021'
+      port: 4042
+      targetPort: 4042
+    - name: 'udp-4042'
       protocol: UDP
-      port: 4021
-      targetPort: 4021
+      port: 4042
+      targetPort: 4042
 
-    - name: 'tcp-4022'
+    - name: 'tcp-4043'
       protocol: TCP
-      port: 4022
-      targetPort: 4022
-    - name: 'udp-4022'
+      port: 4043
+      targetPort: 4043
+    - name: 'udp-4043'
       protocol: UDP
-      port: 4022
-      targetPort: 4022
+      port: 4043
+      targetPort: 4043
 
-    - name: 'tcp-4023'
+    - name: 'tcp-4044'
       protocol: TCP
-      port: 4023
-      targetPort: 4023
-    - name: 'udp-4023'
+      port: 4044
+      targetPort: 4044
+    - name: 'udp-4044'
       protocol: UDP
-      port: 4023
-      targetPort: 4023
+      port: 4044
+      targetPort: 4044
 
-    - name: 'tcp-4024'
+    - name: 'tcp-4045'
       protocol: TCP
-      port: 4024
-      targetPort: 4024
-    - name: 'udp-4024'
+      port: 4045
+      targetPort: 4045
+    - name: 'udp-4045'
       protocol: UDP
-      port: 4024
-      targetPort: 4024
+      port: 4045
+      targetPort: 4045
   type: LoadBalancer
