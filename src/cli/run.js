@@ -575,15 +575,33 @@ class UnderpostRun {
       // shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${currentTraffic}`);
     },
 
-    'build-replica-conf': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    /**
+     * @method sync-replica
+     * @description Syncs a replica for the dd.router
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'sync-replica': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
-      let [deployId, host, _path] = path.split(',');
-      if (!_path) _path = '/single-replica';
-      shellExec(`${baseCommand} env ${deployId} ${env}`);
-      shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${_path}`);
-      shellExec(`node bin/deploy build-full-client ${deployId}`);
-      shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${deployId}`);
+
+      for (let deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
+        deployId = deployId.trim();
+        const _path = '/single-replica';
+        const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
+        shellExec(`${baseCommand} env ${deployId} ${env}`);
+        for (const host of Object.keys(confServer)) {
+          if (!(_path in confServer[host])) continue;
+          shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${_path}`);
+          shellExec(`node bin/deploy build-full-client ${deployId}`);
+          const node = options.dev ? 'kind-control-plane' : os.hostname();
+          // deployId, replicas, versions, image, node
+          let defaultPath = [deployId, 1, ``, ``, node];
+          shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${defaultPath}`);
+        }
+        if (path) shellExec(`${baseCommand} run promote ${path} production`);
+      }
     },
 
     /**
