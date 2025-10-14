@@ -114,7 +114,7 @@ const Config = {
       ? privateConfDevPath
       : `./engine-private/conf/${deployId}/conf.server.dev.json`;
 
-    if (process.env.NODE_ENV === 'development' && fs.existsSync(confDevPath)) confPath = confDevPath;
+    if (fs.existsSync(confDevPath)) confPath = confDevPath;
     const serverConf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
 
     for (const host of Object.keys(loadReplicas(serverConf)))
