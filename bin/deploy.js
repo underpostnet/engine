@@ -1279,7 +1279,7 @@ nvidia/gpu-operator \
       break;
     }
 
-    case 'ssl': {
+    case 'tls': {
       fs.mkdirSync(`./engine-private/ssl/localhost`, { recursive: true });
       const targetDir = `./engine-private/ssl/localhost`;
       const domains = ['localhost', '127.0.0.1', '::1'];

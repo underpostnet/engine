@@ -21,7 +21,7 @@ import { createPeerServer } from '../../server/peer.js';
 import { createValkeyConnection } from '../../server/valkey.js';
 import { applySecurity, authMiddlewareFactory } from '../../server/auth.js';
 import { ssrMiddlewareFactory } from '../../server/ssr.js';
-import { TLS } from '../../server/ssl.js';
+import { TLS } from '../../server/tls.js';
 import { shellExec } from '../../server/process.js';
 
 const logger = loggerFactory(import.meta);
@@ -247,7 +247,7 @@ class ExpressService {
 
     // Start listening on the main port
     if (useLocalSsl && process.env.NODE_ENV === 'development') {
-      if (!TLS.validateSecureContext()) shellExec(`node bin/deploy ssl`);
+      if (!TLS.validateSecureContext()) shellExec(`node bin/deploy tls`);
       const { ServerSSL } = await TLS.createSslServer(app);
       await UnderpostStartUp.API.listenPortController(ServerSSL, port, runningData);
     } else await UnderpostStartUp.API.listenPortController(server, port, runningData);

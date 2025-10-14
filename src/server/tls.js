@@ -1,7 +1,7 @@
 /**
  * Provides utilities for managing, building, and serving SSL/TLS contexts,
  * primarily using Certbot files and creating HTTPS servers.
- * @module src/server/ssl.js
+ * @module src/server/tls.js
  * @namespace TransportLayerSecurity
  */
 
