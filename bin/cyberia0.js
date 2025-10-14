@@ -13,7 +13,7 @@ import {
   getKeyFramesDirectionsFromNumberFolderDirection,
   buildImgFromTile,
   generateRandomStats,
-  zIndexPriority,
+  itemTypes,
 } from '../src/server/object-layer.js';
 
 import crypto from 'crypto';
@@ -62,7 +62,7 @@ program
     const objectLayers = {};
 
     if (options.import || options.showFrame) {
-      const argItemTypes = options.import === 'all' ? Object.keys(zIndexPriority) : options.import.split(',');
+      const argItemTypes = options.import === 'all' ? Object.keys(itemTypes) : options.import.split(',');
       for (const argItemType of argItemTypes) {
         await pngDirectoryIteratorByObjectLayerType(
           argItemType,

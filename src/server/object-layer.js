@@ -183,7 +183,7 @@ const generateRandomStats = () => {
   };
 };
 
-const zIndexPriority = { floor: 0, skin: 1, weapon: 2, skill: 3, coin: 4 };
+const itemTypes = { floor: 0, skin: 1, weapon: 2, skill: 3, coin: 4 };
 
 export {
   pngDirectoryIteratorByObjectLayerType,
@@ -192,5 +192,5 @@ export {
   getKeyFramesDirectionsFromNumberFolderDirection,
   buildImgFromTile,
   generateRandomStats,
-  zIndexPriority,
+  itemTypes,
 };
