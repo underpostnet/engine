@@ -226,9 +226,7 @@ class ExpressService {
         const peerPort = newInstance(port + portsUsed); // portsUsed is 1 here
         const { options, meta, peerServer } = await createPeerServer({
           port: peerPort,
-          devPort: port,
           origins,
-          host,
           path,
         });
         await UnderpostStartUp.API.listenPortController(peerServer, peerPort, {

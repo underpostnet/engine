@@ -37,6 +37,7 @@ class IoServerClass {
    * @returns {object} return.meta - The module's import meta object (`import.meta`).
    */
   static create(httpServer, options = {}, ConnectionHandler = () => {}) {
+    logger.info('origins', options.origins);
     const wsOptions = {
       cors: {
         origins: options.origins,

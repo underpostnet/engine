@@ -37,21 +37,15 @@ const logger = loggerFactory(import.meta);
  * @memberof Peer
  * @param {object} config - Configuration object for the PeerJS server setup.
  * @param {number} config.port - The primary port on which the PeerJS server will listen.
- * @param {number} [config.devPort] - Optional development port. If provided and in 'development' NODE_ENV, 'http://localhost:${devPort}' is added to allowed origins.
  * @param {string[]} config.origins - An array of allowed domain origins for Cross-Origin Resource Sharing (CORS).
- * @param {string} config.host - The host address the server is bound to (used internally for configuration).
  * @param {string} config.path - The base path for the API. The PeerJS path ('/peer') will be appended to this.
  * @returns {Promise<object>} A promise that resolves to an object containing the final configuration and the server instance.
  * @returns {import('peer').IConfig} return.options - The final options object used to create the PeerServer.
  * @returns {import('peer').Server} return.peerServer - The created and listening PeerServer instance (wrapped by the listening server factory).
  * @returns {object} return.meta - The module's import meta object (`import.meta`).
  */
-const createPeerServer = async ({ port, devPort, origins, host, path }) => {
-  if (process.env.NODE_ENV === 'development' && devPort) {
-    // logger.warn(`Adding development origin: http://localhost:${devPort}`);
-    origins.push(`http://localhost:${devPort}`);
-  }
-
+const createPeerServer = async ({ port, origins, path }) => {
+  logger.info('origins', origins);
   /** @type {import('peer').IConfig} */
   const options = {
     port,
