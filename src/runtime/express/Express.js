@@ -169,6 +169,9 @@ class ExpressService {
       }
 
       // Security and CORS
+      if (process.env.NODE_ENV === 'development' && useLocalSsl)
+        origins = origins.map((origin) => origin.replace('http', 'https'));
+
       applySecurity(app, {
         origin: origins,
       });
