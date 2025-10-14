@@ -165,7 +165,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
     case 'dd-cyberia':
       fs.copyFileSync(`./bin/cyberia.js`, `${basePath}/bin/cyberia.js`);
       fs.copyFileSync(
-        `./github/workflows/publish.cyberia.ci.yml`,
+        `./.github/workflows/publish.cyberia.ci.yml`,
         `${basePath}/.github/workflows/publish.cyberia.ci.yml`,
       );
       delete packageJson.version.bin.underpost;
