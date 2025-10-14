@@ -78,7 +78,6 @@ const buildRuntime = async () => {
       // Calculate context data
       const { redirectTarget, singleReplicaHost } = await getInstanceContext({
         redirect,
-        singleReplicaHosts,
         singleReplica,
         replicas,
       });
