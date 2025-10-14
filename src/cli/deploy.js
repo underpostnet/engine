@@ -186,7 +186,7 @@ spec:
           JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
         );
         const router = await UnderpostDeploy.API.routerFactory(deployId, env);
-        const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
+        const pathPortAssignmentData = await pathPortAssignmentFactory(deployId, router, confServer);
         const { fromPort, toPort } = deployRangePortFactory(router);
         const deploymentVersions = options.versions.split(',');
         fs.mkdirSync(`./engine-private/conf/${deployId}/build/${env}`, { recursive: true });

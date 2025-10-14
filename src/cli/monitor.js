@@ -68,7 +68,7 @@ class UnderpostMonitor {
         JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
       );
 
-      const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
+      const pathPortAssignmentData = await pathPortAssignmentFactory(deployId, router, confServer);
 
       let errorPayloads = [];
       if (options.sync === true) {

@@ -274,7 +274,7 @@ class UnderpostDB {
             JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
           );
           const router = await UnderpostDeploy.API.routerFactory(deployId, env);
-          const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
+          const pathPortAssignmentData = await pathPortAssignmentFactory(deployId, router, confServer);
 
           for (const host of Object.keys(confServer)) {
             for (const { path, port } of pathPortAssignmentData[host]) {

@@ -129,9 +129,11 @@ const Config = {
     this.default.server = {};
     for (const deployId of deployList.split(',')) {
       this.buildProxyByDeployId(deployId, subConf);
-      const singleReplicas = await fs.readdir(`./engine-private/replica`);
-      for (let replica of singleReplicas) {
-        if (replica.startsWith(deployId)) this.buildProxyByDeployId(replica, subConf);
+      if (fs.existsSync(`./engine-private/replica`)) {
+        const singleReplicas = await fs.readdir(`./engine-private/replica`);
+        for (let replica of singleReplicas) {
+          if (replica.startsWith(deployId)) this.buildProxyByDeployId(replica, subConf);
+        }
       }
     }
     this.buildTmpConf();
@@ -524,7 +526,7 @@ const buildProxyRouter = () => {
   return proxyRouter;
 };
 
-const pathPortAssignmentFactory = (router, confServer) => {
+const pathPortAssignmentFactory = async (deployId, router, confServer) => {
   const pathPortAssignmentData = {};
   for (const host of Object.keys(confServer)) {
     const pathPortAssignment = [];
@@ -547,6 +549,38 @@ const pathPortAssignmentFactory = (router, confServer) => {
       }
     }
     pathPortAssignmentData[host] = pathPortAssignment;
+  }
+  if (fs.existsSync(`./engine-private/replica`)) {
+    const singleReplicas = await fs.readdir(`./engine-private/replica`);
+    for (let replica of singleReplicas) {
+      if (replica.startsWith(deployId)) {
+        const replicaServerConf = JSON.parse(
+          fs.readFileSync(`./engine-private/replica/${replica}/conf.server.json`, 'utf8'),
+        );
+        for (const host of Object.keys(replicaServerConf)) {
+          const pathPortAssignment = [];
+          for (const path of Object.keys(replicaServerConf[host])) {
+            const { peer } = replicaServerConf[host][path];
+            if (!router[`${host}${path === '/' ? '' : path}`]) continue;
+            const port = parseInt(router[`${host}${path === '/' ? '' : path}`].split(':')[2]);
+            // logger.info('', { host, port, path });
+            pathPortAssignment.push({
+              port,
+              path,
+            });
+
+            if (peer) {
+              //  logger.info('', { host, port: port + 1, path: '/peer' });
+              pathPortAssignment.push({
+                port: port + 1,
+                path: '/peer',
+              });
+            }
+          }
+          pathPortAssignmentData[host] = pathPortAssignmentData[host].concat(pathPortAssignment);
+        }
+      }
+    }
   }
   return pathPortAssignmentData;
 };
