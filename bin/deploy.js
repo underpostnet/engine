@@ -923,82 +923,6 @@ EOF`);
       break;
     }
 
-    case 'nfs': {
-      // Daemon RPC  NFSv3. ports:
-
-      // 2049 (TCP/UDP) – nfsd standard port.
-      // 111 (TCP/UDP) – rpcbind/portmapper.
-      // 20048 (TCP/UDP) – rpc.mountd.
-      // 32765 (TCP/UDP) – rpc.statd.
-      // 32766 (TCP/UDP) – lockd (NLM).
-
-      // Configure export and permissions:
-      // /etc/exports
-
-      // Configure ports:
-      // /etc/nfs.conf
-
-      fs.writeFileSync(
-        `/etc/nfs.conf`,
-        `
-[mountd]
-port = 20048
-
-[statd]
-port = 32765
-outgoing-port = 32765
-
-[nfsd]
-rdma=y
-rdma-port=20049
-
-[lockd]
-port = 32766
-udp-port = 32766
-        `,
-        'utf8',
-      );
-
-      // Client users have read-only access to resources and are identified as anonymous on the server.
-      // /share ip-client(ro,all_squash)
-
-      // Client users can modify resources and keep their UID on the server. Only root is identified as anonymous.
-      // /share ip-client(rw)
-
-      // Users on client workstation 1 can modify resources, while those on client workstation 2 have read-only access.
-      // UIDs are kept on the server, and only root is identified as anonymous.
-      // /share ip-client1(rw) ip-client2(ro)
-
-      // Client1 users can modify resources. Their UID is changed to 1001 and their GID to 100 on the server.
-      // /share ip-client(rw,all_squash,anonuid=1001,anongid=100)
-
-      // sudo dnf install nfs-utils
-      // sudo systemctl enable --now rpcbind    // RPC map service
-      // sudo systemctl enable --now nfs-server // nfs domains nfsd
-
-      // Update exports:
-      // shellExec(`sudo exportfs -a -r`);
-      // shellExec(`sudo exportfs -v`);
-
-      // Active nfs
-      shellExec(`sudo exportfs -s`);
-
-      shellExec(`sudo exportfs -rav`);
-
-      // Rocky enable virt_use_nfs
-      // sudo setsebool -P virt_use_nfs 1
-
-      // Disable share:
-      // sudo exportfs -u <client-ip>:${process.env.NFS_EXPORT_PATH}/rpi4mb
-
-      // Nfs client:
-      // mount -t nfs <server-ip>:/server-mnt /mnt
-      // umount /mnt
-
-      shellExec(`sudo systemctl restart nfs-server`);
-      break;
-    }
-
     case 'mount': {
       const mounts = shellExec(`mount`).split(`\n`);
       console.table(
@@ -1026,102 +950,6 @@ udp-port = 32766
         cmd.push(`${name}:${port}-${port}:${commissioningDeviceIp}`);
       }
       pbcopy(`node engine-private/r create-port ${cmd}`);
-      break;
-    }
-
-    case 'maas-ports': {
-      // Configure firewall:
-
-      // systemctl stop firewalld
-      // systemctl mask firewalld
-
-      // ufw disable
-      // ufw enable
-
-      // sudo snap install ufw
-      // const ports = ['80', '443', '22', '3000-3100'];
-      const ports = [
-        '43',
-        '53',
-        '60',
-        '66',
-        '67',
-        '69',
-        '4011',
-        '111',
-        '2049',
-        '20048',
-        '20049',
-        '32765',
-        '32766',
-        '5248',
-        '5240',
-      ];
-      for (const port of ports) {
-        shellExec(`ufw allow ${port}/tcp`);
-        shellExec(`ufw allow ${port}/udp`);
-      }
-
-      shellExec(`sudo systemctl mask firewalld`);
-
-      break;
-    }
-
-    case 'iptables': {
-      shellExec(`sudo systemctl enable nftables`);
-      shellExec(`sudo systemctl restart nftables`);
-
-      shellExec(`sudo tee /etc/nftables.conf <<EOF
-table inet filter {
-  chain input {
-    type filter hook input priority 0;
-    policy drop;
-    tcp dport 22 accept
-  }
-}
-EOF`);
-      shellExec(`sudo nft -f /etc/nftables.conf`);
-
-      // sudo systemctl stop nftables
-      // sudo systemctl disable nftables
-
-      break;
-    }
-
-    case 'rpi4': {
-      // Rpi4 Run Bootloader:
-
-      // 1) create boot.conf
-
-      // 2) Run lite RPiOs from rpi-imager
-      // with boot.conf files in root disk path
-
-      // 3) cd /boot/firmware && sudo rpi-eeprom-config --apply boot.conf
-
-      // 4) sudo reboot
-
-      // 5) check: 'vcgencmd bootloader_version'
-      // 6) check: 'vcgencmd bootloader_config'
-
-      // 7) shutdown and restart without sd card
-
-      // sudo apt update
-      // sudo apt install git
-
-      break;
-    }
-
-    case 'blue': {
-      // lsusb | grep blue -i
-      // rfkill list
-      // sudo service bluetooth start
-      // bluetoothctl show
-      // sudo rfkill unblock bluetooth
-      // dmesg | grep -i bluetooth
-      // journalctl -u bluetooth -f
-      // sudo dnf update bluez bluez-libs bluez-utils
-      // sudo rmmod btusb
-      // sudo modprobe btusb
       break;
     }
 
@@ -1448,16 +1276,6 @@ nvidia/gpu-operator \
         );
       });
       pbcopy(`nvm alias default v${nodeVersion}`);
-      break;
-    }
-
-    case 'sbt': {
-      // https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html
-
-      // sudo rm -f /etc/yum.repos.d/bintray-rpm.repo
-      // curl -L https://www.scala-sbt.org/sbt-rpm.repo > sbt-rpm.repo
-      // sudo mv sbt-rpm.repo /etc/yum.repos.d/
-      // sudo yum install sbt
       break;
     }
 

@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 import { Command } from 'commander';
 import fs from 'fs-extra';
 import { shellExec } from '../src/server/process.js';
-import Underpost from '../src/index.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import {
@@ -15,10 +14,9 @@ import {
   generateRandomStats,
   itemTypes,
 } from '../src/server/object-layer.js';
+import { packageVersionFactory } from '../src/server/conf.js';
 
 import crypto from 'crypto';
-
-dotenv.config({ path: `./engine-private/conf/dd-cyberia/.env.production`, override: true });
 
 const logger = loggerFactory(import.meta);
 
@@ -52,13 +50,26 @@ await ObjectLayer.deleteMany();
 
 const program = new Command();
 
-program.name('cyberia').description(`content generator cli ${Underpost.version}`).version(Underpost.version);
+const version = packageVersionFactory('cyberia');
+
+program
+  .name('cyberia')
+  .description(
+    `    cyberia online network object layer management ${version}
+    https://www.cyberiaonline.com/object-layer-engine`,
+  )
+  .version(version);
 
 program
   .command('ol')
   .option('--import [object-layer-type]', 'Commas separated object layer types e.g. skin,floors')
   .option('--show-frame <show-frame-input>', 'View object layer frame e.g. anon_08_0')
-  .action(async (options = { import: false, showFrame: '' }) => {
+  .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+  .action(async (options = { import: false, showFrame: '', envPath: '' }) => {
+    if (!options.envPath) options.envPath = `./engine-private/conf/dd-cyberia/.env.production`;
+
+    dotenv.config({ path: options.envPath, override: true });
+
     const objectLayers = {};
 
     if (options.import || options.showFrame) {
