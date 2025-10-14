@@ -67,8 +67,8 @@ class UnderpostRun {
   static RUNNERS = {
     /**
      * @method spark-template
-     * @description Creates a new Spark template project.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Creates a new Spark template project using `sbt new` in `/home/dd/spark-template`, initializes a Git repository, and runs `replace_params.sh` and `build.sh`.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -94,8 +94,8 @@ class UnderpostRun {
     },
     /**
      * @method rmi
-     * @description Removes all podman images.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Forces the removal of all local Podman images (`podman rmi $(podman images -qa) --force`).
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -104,8 +104,8 @@ class UnderpostRun {
     },
     /**
      * @method kill
-     * @description Kills a process by its port.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Kills the process running on the specified port by finding its PID using `lsof -t -i:${path}`.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the port number).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -114,8 +114,8 @@ class UnderpostRun {
     },
     /**
      * @method secret
-     * @description Creates a new secret from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Creates an Underpost secret named 'underpost' from a file, defaulting to `/home/dd/engine/engine-private/conf/dd-cron/.env.production` if no path is provided.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the optional path to the secret file).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -128,8 +128,8 @@ class UnderpostRun {
     },
     /**
      * @method underpost-config
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Calls `UnderpostDeploy.API.configMap` to create a Kubernetes ConfigMap, defaulting to the 'production' environment.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the optional configuration name/environment).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -138,8 +138,8 @@ class UnderpostRun {
     },
     /**
      * @method gpu-env
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Sets up a dedicated GPU development environment cluster, resetting and then setting up the cluster with `--dedicated-gpu` and monitoring the pods.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -150,8 +150,8 @@ class UnderpostRun {
     },
     /**
      * @method tf-gpu-test
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Deletes existing `tf-gpu-test-script` ConfigMap and `tf-gpu-test-pod`, and applies the test manifest from `manifests/deployment/tensorflow/tf-gpu-test.yaml`.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -163,8 +163,8 @@ class UnderpostRun {
     },
     /**
      * @method dev-cluster
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Resets and deploys a full development cluster including MongoDB, Valkey, exposes services, and updates `/etc/hosts` for local access.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -188,8 +188,8 @@ class UnderpostRun {
     },
     /**
      * @method ssh-cluster-info
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Executes the `ssh-cluster-info.sh` script to display cluster connection information.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -200,8 +200,8 @@ class UnderpostRun {
     },
     /**
      * @method cyberia-ide
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Starts the development environment (IDE) for both `cyberia-server` and `cyberia-client` repositories.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -212,8 +212,8 @@ class UnderpostRun {
     },
     /**
      * @method engine-ide
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Starts the development environment (IDE) for the `engine` and `engine-private` repositories.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -224,8 +224,8 @@ class UnderpostRun {
     },
     /**
      * @method template-deploy
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Cleans up, pushes `engine-private` and `engine` repositories with a commit tag `ci package-pwa-microservices-template`.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -240,8 +240,8 @@ class UnderpostRun {
     },
     /**
      * @method clean
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Changes directory to the provided path (defaulting to `/home/dd/engine`) and runs `node bin/deploy clean-core-repo`.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the optional directory path).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -251,8 +251,8 @@ class UnderpostRun {
     },
     /**
      * @method pull
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Cleans the core repository and pulls the latest content for `engine` and `engine-private` repositories from the remote.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -264,8 +264,8 @@ class UnderpostRun {
     },
     /**
      * @method release-deploy
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Executes deployment (`underpost run deploy`) for all deployment IDs listed in `./engine-private/deploy/dd.router`.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -280,8 +280,8 @@ class UnderpostRun {
     },
     /**
      * @method ssh-deploy
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Performs a Git reset, commits with a message `cd ssh-${path}`, and pushes the `engine` repository, likely triggering an SSH-based CD pipeline.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the deployment identifier for the commit message).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -295,8 +295,8 @@ class UnderpostRun {
     },
     /**
      * @method ide
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Opens a Visual Studio Code (VS Code) session for the specified path using `node ${underpostRoot}/bin/vs ${path}`.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the path to the directory to open in the IDE).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -306,8 +306,8 @@ class UnderpostRun {
     },
     /**
      * @method sync
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Cleans up, and then runs a deployment synchronization command (`underpost deploy --kubeadm --build-manifest --sync...`) using parameters parsed from `path` (deployId, replicas, versions, image, node).
+     * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string containing deploy parameters).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -333,8 +333,8 @@ class UnderpostRun {
     },
     /**
      * @method ls-deployments
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Retrieves and logs a table of Kubernetes deployments using `UnderpostDeploy.API.get`.
+     * @param {string} path - The input value, identifier, or path for the operation (used as an optional deployment name filter).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -343,8 +343,8 @@ class UnderpostRun {
     },
     /**
      * @method monitor
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Monitors a specific pod (identified by `path`) for the existence of a file (`/await`), and performs conditional actions (like file copying and opening Firefox) when the file is removed.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the name of the pod to monitor).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -423,8 +423,8 @@ class UnderpostRun {
     },
     /**
      * @method db-client
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Deploys and exposes the Adminer database client application (using `adminer:4.7.6-standalone` image) on the cluster.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -451,8 +451,8 @@ class UnderpostRun {
     },
     /**
      * @method promote
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Switches traffic between blue/green deployments for a specified deployment ID(s) (uses `dd.router` for 'dd', or a specific ID).
+     * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string: `deployId,env,replicas`).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -474,8 +474,8 @@ class UnderpostRun {
     },
     /**
      * @method metrics
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Deploys Prometheus and Grafana for metrics monitoring, targeting the hosts defined in the deployment configuration files.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -491,8 +491,8 @@ class UnderpostRun {
     },
     /**
      * @method cluster
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Deploys a full production-ready Kubernetes cluster environment including MongoDB, MariaDB, Valkey, Contour (Ingress), and Cert-Manager, and deploys all services.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -525,8 +525,8 @@ class UnderpostRun {
     },
     /**
      * @method deploy
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Deploys a specified service (identified by `path`) using blue/green strategy, monitors its status, and switches traffic upon readiness.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the deployment ID to deploy).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -576,8 +576,8 @@ class UnderpostRun {
     },
     /**
      * @method tf-vae-test
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Creates and runs a job pod (`tf-vae-test`) that installs TensorFlow dependencies, clones the TensorFlow docs, and runs the CVAE tutorial script, with a terminal monitor attached.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -616,8 +616,8 @@ class UnderpostRun {
     },
     /**
      * @method deploy-job
-     * @description Creates a new configmap from a file.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @description Creates and applies a custom Kubernetes Pod manifest (Job) for running arbitrary commands inside a container image (defaulting to a TensorFlow/NVIDIA image).
+     * @param {string} path - The input value, identifier, or path for the operation (used as the optional script path or job argument).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -704,9 +704,9 @@ EOF`;
   static API = {
     /**
      * @method callback
-     * @description Initiates a callback to a specified runner with the provided path and options.
+     * @description Initiates the execution of a specified CLI command (runner) with the given input value (`path`) and processed options.
      * @param {string} runner - The name of the runner to execute.
-     * @param {string} path - The path to the directory where the template will be created.
+     * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      * @returns {Promise<any>} The result of the callback execution.
