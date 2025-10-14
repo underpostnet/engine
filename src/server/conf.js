@@ -30,8 +30,7 @@ const Config = {
     if (!subConf && process.argv[3] && typeof process.argv[3] === 'string') subConf = process.argv[3];
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     UnderpostRootEnv.API.set('await-deploy', new Date().toISOString());
-    if (fs.existsSync(`./engine-private/replica/${deployContext}`)) return loadConf(deployContext, subConf);
-    else if (deployContext.startsWith('dd-')) return loadConf(deployContext, subConf);
+    if (deployContext.startsWith('dd-')) loadConf(deployContext, subConf);
     if (deployContext === 'proxy') Config.buildProxy(deployList, subConf);
   },
   deployIdFactory: function (deployId = 'dd-default', options = { cluster: false }) {
@@ -578,7 +577,7 @@ const buildKindPorts = (from, to) =>
     )
     .join('\n');
 
-const buildPortProxyRouter = (port, proxyRouter) => {
+const buildPortProxyRouter = (port, proxyRouter, options = { orderByPathLength: false }) => {
   const hosts = proxyRouter[port];
   const router = {};
   // build router
@@ -606,11 +605,14 @@ const buildPortProxyRouter = (port, proxyRouter) => {
 
   if (Object.keys(router).length === 0) return router;
 
-  const reOrderRouter = {};
-  for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(router), 'length'))
-    reOrderRouter[absoluteHostKey] = router[absoluteHostKey];
+  if (options.orderByPathLength === true) {
+    const reOrderRouter = {};
+    for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(router), 'length'))
+      reOrderRouter[absoluteHostKey] = router[absoluteHostKey];
+    return reOrderRouter;
+  }
 
-  return reOrderRouter;
+  return router;
 };
 
 const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1)}`;

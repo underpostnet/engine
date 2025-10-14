@@ -68,7 +68,7 @@ class Proxy {
         },
       };
 
-      options.router = buildPortProxyRouter(port, proxyRouter);
+      options.router = buildPortProxyRouter(port, proxyRouter, { orderByPathLength: true });
 
       const filter = proxyPath; // Use '/' as the general filter
       app.use(proxyPath, createProxyMiddleware(filter, options));
