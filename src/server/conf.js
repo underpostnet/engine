@@ -1,3 +1,10 @@
+/**
+ * Provides utilities for building, loading, and managing server configurations,
+ * deployment contexts, and service configurations (API, Client, WS).
+ * @module src/server/conf.js
+ * @namespace ServerConfBuilder
+ */
+
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import {
@@ -22,8 +29,29 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
+/**
+ * @class Config
+ * @description Manages the configuration of the server.
+ * This class provides a set of static methods to automate various
+ * infrastructure operations, including NFS management, control server setup,
+ * and system provisioning for different architectures.
+ * @memberof ServerConfBuilder
+ */
 const Config = {
+  /**
+   * @method default
+   * @description The default configuration of the server.
+   * @memberof ServerConfBuilder
+   */
   default: DefaultConf,
+  /**
+   * @method build
+   * @description Builds the configuration of the server.
+   * @param {string} [deployContext='dd-default'] - The deploy context.
+   * @param {string} [deployList=''] - The deploy list.
+   * @param {string} [subConf=''] - The sub configuration.
+   * @memberof ServerConfBuilder
+   */
   build: async function (deployContext = 'dd-default', deployList, subConf) {
     if (process.argv[2] && typeof process.argv[2] === 'string' && process.argv[2].startsWith('dd-'))
       deployContext = process.argv[2];
@@ -33,6 +61,13 @@ const Config = {
     if (deployContext.startsWith('dd-')) loadConf(deployContext, subConf);
     if (deployContext === 'proxy') await Config.buildProxy(deployList, subConf);
   },
+  /**
+   * @method deployIdFactory
+   * @description Creates a new deploy ID.
+   * @param {string} [deployId='dd-default'] - The deploy ID.
+   * @param {object} [options={ cluster: false }] - The options.
+   * @memberof ServerConfBuilder
+   */
   deployIdFactory: function (deployId = 'dd-default', options = { cluster: false }) {
     if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
 
@@ -101,10 +136,23 @@ const Config = {
 
     return { deployIdFolder: folder, deployId };
   },
+  /**
+   * @method buildTmpConf
+   * @description Builds the temporary configuration of the server.
+   * @param {string} [folder='./conf'] - The folder.
+   * @memberof ServerConfBuilder
+   */
   buildTmpConf: function (folder = './conf') {
     for (const confType of Object.keys(this.default))
       fs.writeFileSync(`${folder}/conf.${confType}.json`, JSON.stringify(this.default[confType], null, 4), 'utf8');
   },
+  /**
+   * @method buildProxyByDeployId
+   * @description Builds the proxy by deploy ID.
+   * @param {string} [deployId='dd-default'] - The deploy ID.
+   * @param {string} [subConf=''] - The sub configuration.
+   * @memberof ServerConfBuilder
+   */
   buildProxyByDeployId: function (deployId = 'dd-default', subConf = '') {
     let confPath = `./engine-private/conf/${deployId}/conf.server.json`;
     const privateConfDevPath = fs.existsSync(`./engine-private/replica/${deployId}/conf.server.json`)
@@ -123,6 +171,13 @@ const Config = {
         ...serverConf[host],
       };
   },
+  /**
+   * @method buildProxy
+   * @description Builds the proxy.
+   * @param {string} [deployList='dd-default'] - The deploy list.
+   * @param {string} [subConf=''] - The sub configuration.
+   * @memberof ServerConfBuilder
+   */
   buildProxy: async function (deployList = 'dd-default', subConf = '') {
     if (!deployList) deployList = process.argv[3];
     if (!subConf) subConf = process.argv[4];
@@ -140,6 +195,13 @@ const Config = {
   },
 };
 
+/**
+ * @method loadConf
+ * @description Loads the configuration of the server.
+ * @param {string} [deployId='dd-default'] - The deploy ID.
+ * @param {string} [subConf=''] - The sub configuration.
+ * @memberof ServerConfBuilder
+ */
 const loadConf = (deployId = 'dd-default', subConf) => {
   if (deployId === 'current') {
     console.log(process.env.DEPLOY_ID);
@@ -195,6 +257,12 @@ const loadConf = (deployId = 'dd-default', subConf) => {
   return { folder, deployId };
 };
 
+/**
+ * @method loadReplicas
+ * @description Loads the replicas of the server.
+ * @param {object} confServer - The server configuration.
+ * @memberof ServerConfBuilder
+ */
 const loadReplicas = (confServer) => {
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
@@ -211,6 +279,14 @@ const loadReplicas = (confServer) => {
   return confServer;
 };
 
+/**
+ * @method cloneConf
+ * @description Clones the configuration of the server.
+ * @param {object} toOptions - The options for the target configuration.
+ * @param {object} fromOptions - The options for the source configuration.
+ * @param {object} [fromDefaultOptions={ deployId: 'dd-default', clientId: 'default' }] - The default options for the source configuration.
+ * @memberof ServerConfBuilder
+ */
 const cloneConf = async (
   { toOptions, fromOptions },
   fromDefaultOptions = { deployId: 'dd-default', clientId: 'default' },
@@ -254,6 +330,14 @@ const cloneConf = async (
   fs.writeFileSync(`${confToFolder}/package.json`, JSON.stringify(packageData, null, 4), 'utf8');
 };
 
+/**
+ * @method addClientConf
+ * @description Adds the client configuration to the server.
+ * @param {object} toOptions - The options for the target configuration.
+ * @param {object} fromOptions - The options for the source configuration.
+ * @param {object} [fromDefaultOptions={ deployId: 'dd-default', clientId: 'default' }] - The default options for the source configuration.
+ * @memberof ServerConfBuilder
+ */
 const addClientConf = async (
   { toOptions, fromOptions },
   fromDefaultOptions = { deployId: 'dd-default', clientId: 'default' },
@@ -293,6 +377,14 @@ const addClientConf = async (
   fs.writeFileSync(`${confToFolder}/conf.ssr.json`, JSON.stringify(toSsrConf, null, 4), 'utf8');
 };
 
+/**
+ * @method buildClientSrc
+ * @description Builds the client source code.
+ * @param {object} toOptions - The options for the target configuration.
+ * @param {object} fromOptions - The options for the source configuration.
+ * @param {object} [fromDefaultOptions={ deployId: 'dd-default', clientId: 'default' }] - The default options for the source configuration.
+ * @memberof ServerConfBuilder
+ */
 const buildClientSrc = async (
   { toOptions, fromOptions },
   fromDefaultOptions = { deployId: 'dd-default', clientId: 'default' },
@@ -335,6 +427,14 @@ const buildClientSrc = async (
   fs.copySync(`./src/client/public/${fromOptions.clientId}`, `./src/client/public/${toOptions.clientId}`);
 };
 
+/**
+ * @method buildApiSrc
+ * @description Builds the API source code.
+ * @param {object} toOptions - The options for the target configuration.
+ * @param {object} fromOptions - The options for the source configuration.
+ * @param {object} [fromDefaultOptions={ apiId: 'default', deployId: 'dd-default', clientId: 'default' }] - The default options for the source configuration.
+ * @memberof ServerConfBuilder
+ */
 const buildApiSrc = async (
   { toOptions, fromOptions },
   fromDefaultOptions = { apiId: 'default', deployId: 'dd-default', clientId: 'default' },
@@ -374,6 +474,14 @@ const buildApiSrc = async (
     );
 };
 
+/**
+ * @method addApiConf
+ * @description Adds the API configuration to the server.
+ * @param {object} toOptions - The options for the target configuration.
+ * @param {object} fromOptions - The options for the source configuration.
+ * @param {object} [fromDefaultOptions={ apiId: 'default', deployId: 'dd-default', clientId: 'default' }] - The default options for the source configuration.
+ * @memberof ServerConfBuilder
+ */
 const addApiConf = async (
   { toOptions, fromOptions },
   fromDefaultOptions = { apiId: 'default', deployId: 'dd-default', clientId: 'default' },
@@ -399,6 +507,14 @@ const addApiConf = async (
   fs.writeFileSync(`${confToFolder}/conf.client.json`, JSON.stringify(confClient, null, 4), 'utf8');
 };
 
+/**
+ * @method addWsConf
+ * @description Adds the WebSocket configuration to the server.
+ * @param {object} toOptions - The options for the target configuration.
+ * @param {object} fromOptions - The options for the source configuration.
+ * @param {object} [fromDefaultOptions={ wsId: 'default', deployId: 'dd-default', host: 'default.net', paths: '/' }] - The default options for the source configuration.
+ * @memberof ServerConfBuilder
+ */
 const addWsConf = async (
   { toOptions, fromOptions },
   fromDefaultOptions = { wsId: 'default', deployId: 'dd-default', host: 'default.net', paths: '/' },
@@ -424,6 +540,14 @@ const addWsConf = async (
   fs.writeFileSync(`${confToFolder}/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
 };
 
+/**
+ * @method buildWsSrc
+ * @description Builds the WebSocket source code.
+ * @param {object} toOptions - The options for the target configuration.
+ * @param {object} fromOptions - The options for the source configuration.
+ * @param {object} [fromDefaultOptions={ wsId: 'default', deployId: 'dd-default', host: 'default.net', paths: '/' }] - The default options for the source configuration.
+ * @memberof ServerConfBuilder
+ */
 const buildWsSrc = async (
   { toOptions, fromOptions },
   fromDefaultOptions = { wsId: 'default', deployId: 'dd-default', host: 'default.net', paths: '/' },
@@ -458,6 +582,13 @@ const buildWsSrc = async (
   }
 };
 
+/**
+ * @method cloneSrcComponents
+ * @description Clones the source components.
+ * @param {object} toOptions - The options for the target configuration.
+ * @param {object} fromOptions - The options for the source configuration.
+ * @memberof ServerConfBuilder
+ */
 const cloneSrcComponents = async ({ toOptions, fromOptions }) => {
   const toClientVariableName = getCapVariableName(toOptions.componentsFolder);
   const fromClientVariableName = getCapVariableName(fromOptions.componentsFolder);
@@ -481,6 +612,11 @@ const cloneSrcComponents = async ({ toOptions, fromOptions }) => {
   }
 };
 
+/**
+ * @method buildProxyRouter
+ * @description Builds the proxy router.
+ * @memberof ServerConfBuilder
+ */
 const buildProxyRouter = () => {
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   let currentPort = parseInt(process.env.PORT) + 1;
@@ -526,6 +662,14 @@ const buildProxyRouter = () => {
   return proxyRouter;
 };
 
+/**
+ * @method pathPortAssignmentFactory
+ * @description Creates the path port assignment.
+ * @param {string} deployId - The deploy ID.
+ * @param {object} router - The router.
+ * @param {object} confServer - The server configuration.
+ * @memberof ServerConfBuilder
+ */
 const pathPortAssignmentFactory = async (deployId, router, confServer) => {
   const pathPortAssignmentData = {};
   for (const host of Object.keys(confServer)) {
@@ -585,6 +729,13 @@ const pathPortAssignmentFactory = async (deployId, router, confServer) => {
   return pathPortAssignmentData;
 };
 
+/**
+ * @method deployRangePortFactory
+ * @description Creates the deploy range port factory.
+ * @param {object} router - The router.
+ * @returns {object} - The deploy range port factory.
+ * @memberof ServerConfBuilder
+ */
 const deployRangePortFactory = (router) => {
   const ports = Object.values(router).map((p) => parseInt(p.split(':')[2]));
   const fromPort = Math.min(...ports);
@@ -592,6 +743,14 @@ const deployRangePortFactory = (router) => {
   return { ports, fromPort, toPort };
 };
 
+/**
+ * @method buildKindPorts
+ * @description Builds the kind ports.
+ * @param {number} from - The from port.
+ * @param {number} to - The to port.
+ * @returns {string} - The kind ports.
+ * @memberof ServerConfBuilder
+ */
 const buildKindPorts = (from, to) =>
   range(parseInt(from), parseInt(to))
     .map(
@@ -607,6 +766,15 @@ const buildKindPorts = (from, to) =>
     )
     .join('\n');
 
+/**
+ * @method buildPortProxyRouter
+ * @description Builds the port proxy router.
+ * @param {number} port - The port.
+ * @param {object} proxyRouter - The proxy router.
+ * @param {object} [options={ orderByPathLength: false }] - The options.
+ * @returns {object} - The port proxy router.
+ * @memberof ServerConfBuilder
+ */
 const buildPortProxyRouter = (port, proxyRouter, options = { orderByPathLength: false }) => {
   const hosts = proxyRouter[port];
   const router = {};
@@ -644,8 +812,28 @@ const buildPortProxyRouter = (port, proxyRouter, options = { orderByPathLength: 
   return router;
 };
 
+/**
+ * @method buildReplicaId
+ * @description Builds the replica ID.
+ * @param {object} options - The options.
+ * @param {string} options.deployId - The deploy ID.
+ * @param {string} options.replica - The replica.
+ * @returns {string} - The replica ID.
+ * @memberof ServerConfBuilder
+ */
 const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1)}`;
 
+/**
+ * @method getDataDeploy
+ * @description Gets the data deploy.
+ * @param {object} options - The options.
+ * @param {boolean} [options.buildSingleReplica=false] - The build single replica.
+ * @param {string} options.deployGroupId - The deploy group ID.
+ * @param {string} options.deployId - The deploy ID.
+ * @param {boolean} [options.disableSyncEnvPort=false] - The disable sync env port.
+ * @returns {object} - The data deploy.
+ * @memberof ServerConfBuilder
+ */
 const getDataDeploy = (
   options = {
     buildSingleReplica: false,
@@ -707,6 +895,13 @@ const getDataDeploy = (
   return buildDataDeploy;
 };
 
+/**
+ * @method validateTemplatePath
+ * @description Validates the template path.
+ * @param {string} absolutePath - The absolute path.
+ * @returns {boolean} - The validation result.
+ * @memberof ServerConfBuilder
+ */
 const validateTemplatePath = (absolutePath = '') => {
   const host = 'default.net';
   const path = '/';
@@ -784,16 +979,40 @@ const validateTemplatePath = (absolutePath = '') => {
   return true;
 };
 
+/**
+ * @method awaitDeployMonitor
+ * @description Waits for the deploy monitor.
+ * @param {boolean} [init=false] - The init flag.
+ * @param {number} [deltaMs=1000] - The delta ms.
+ * @returns {Promise<void>} - The await deploy monitor.
+ * @memberof ServerConfBuilder
+ */
 const awaitDeployMonitor = async (init = false, deltaMs = 1000) => {
   if (init) UnderpostRootEnv.API.set('await-deploy', new Date().toISOString());
   await timer(deltaMs);
   if (UnderpostRootEnv.API.get('await-deploy')) return await awaitDeployMonitor();
 };
 
+/**
+ * @method getCronBackUpFolder
+ * @description Gets the cron back up folder.
+ * @param {string} host - The host.
+ * @param {string} path - The path.
+ * @returns {string} - The cron back up folder.
+ * @memberof ServerConfBuilder
+ */
 const getCronBackUpFolder = (host = '', path = '') => {
   return `${host}${path.replace(/\\/g, '/').replace(`/`, '-')}`;
 };
 
+/**
+ * @method mergeFile
+ * @description Merges the file.
+ * @param {Array} parts - The parts.
+ * @param {string} outputFilePath - The output file path.
+ * @returns {Promise<void>} - The merge file.
+ * @memberof ServerConfBuilder
+ */
 const mergeFile = async (parts = [], outputFilePath) => {
   await new Promise((resolve) => {
     splitFile
@@ -808,6 +1027,16 @@ const mergeFile = async (parts = [], outputFilePath) => {
   });
 };
 
+/**
+ * @method rebuildConfFactory
+ * @description Rebuilds the conf factory.
+ * @param {object} options - The options.
+ * @param {string} options.deployId - The deploy ID.
+ * @param {string} options.valkey - The valkey.
+ * @param {boolean} [options.mongo=false] - The mongo.
+ * @returns {object} - The rebuild conf factory.
+ * @memberof ServerConfBuilder
+ */
 const rebuildConfFactory = ({ deployId, valkey, mongo }) => {
   const confServer = loadReplicas(
     JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
@@ -855,6 +1084,13 @@ const rebuildConfFactory = ({ deployId, valkey, mongo }) => {
   return { hosts };
 };
 
+/**
+ * @method getPathsSSR
+ * @description Gets the paths SSR.
+ * @param {object} conf - The conf.
+ * @returns {Array} - The paths SSR.
+ * @memberof ServerConfBuilder
+ */
 const getPathsSSR = (conf) => {
   const paths = ['src/client/ssr/Render.js'];
   for (const o of conf.head) paths.push(`src/client/ssr/head/${o}.js`);
@@ -865,19 +1101,87 @@ const getPathsSSR = (conf) => {
   return paths;
 };
 
+/**
+ * @method Cmd
+ * @description The command factory.
+ * @memberof ServerConfBuilder
+ */
 const Cmd = {
+  /**
+   * @method delete
+   * @description Deletes the deploy.
+   * @param {string} deployId - The deploy ID.
+   * @returns {string} - The delete command.
+   * @memberof Cmd
+   */
   delete: (deployId) => `pm2 delete ${deployId}`,
+  /**
+   * @method run
+   * @description Runs the deploy.
+   * @returns {string} - The run command.
+   * @memberof Cmd
+   */
   run: () => `npm start`,
+  /**
+   * @method build
+   * @description Builds the deploy.
+   * @param {string} deployId - The deploy ID.
+   * @returns {string} - The build command.
+   * @memberof Cmd
+   */
   build: (deployId) => `node bin/deploy build-full-client ${deployId}${process.argv.includes('l') ? ' l' : ''}`,
+  /**
+   * @method conf
+   * @description Configures the deploy.
+   * @param {string} deployId - The deploy ID.
+   * @param {string} env - The environment.
+   * @returns {string} - The conf command.
+   * @memberof Cmd
+   */
   conf: (deployId, env) => `node bin/deploy conf ${deployId} ${env ? env : 'production'}`,
+  /**
+   * @method replica
+   * @description Builds the replica.
+   * @param {string} deployId - The deploy ID.
+   * @param {string} host - The host.
+   * @param {string} path - The path.
+   * @returns {string} - The replica command.
+   * @memberof Cmd
+   */
   replica: (deployId, host, path) => `node bin/deploy build-single-replica ${deployId} ${host} ${path}`,
+  /**
+   * @method syncPorts
+   * @description Syncs the ports.
+   * @param {string} deployGroupId - The deploy group ID.
+   * @returns {string} - The sync ports command.
+   * @memberof Cmd
+   */
   syncPorts: (deployGroupId) => `node bin/deploy sync-env-port ${deployGroupId}`,
+  /**
+   * @method cron
+   * @description Creates a cron job.
+   * @param {string} deployList - The deploy list.
+   * @param {string} jobList - The job list.
+   * @param {string} name - The name.
+   * @param {string} expression - The expression.
+   * @param {object} options - The options.
+   * @returns {string} - The cron command.
+   * @memberof Cmd
+   */
   cron: (deployList, jobList, name, expression, options) =>
     `pm2 start ./bin/index.js --no-autorestart --instances 1 --cron "${expression}" --name ${name} -- cron ${
       options?.itc ? `--itc ` : ''
     }${options?.git ? `--git ` : ''}${deployList} ${jobList}`,
 };
 
+/**
+ * @method splitFileFactory
+ * @description Splits the file factory.
+ * @param {string} name - The name.
+ * @param {string} _path - The path.
+ * @returns {Promise<boolean>} - The split file factory.
+ * @memberof ServerConfBuilder
+ */
 const splitFileFactory = async (name, _path) => {
   const stats = fs.statSync(_path);
   const maxSizeInBytes = 1024 * 1024 * 50; // 50 mb
@@ -906,6 +1210,12 @@ const splitFileFactory = async (name, _path) => {
   return false;
 };
 
+/**
+ * @method getNpmRootPath
+ * @description Gets the npm root path.
+ * @returns {string} - The npm root path.
+ * @memberof ServerConfBuilder
+ */
 const getNpmRootPath = () =>
   shellExec(`npm root -g`, {
     stdout: true,
@@ -913,8 +1223,21 @@ const getNpmRootPath = () =>
     silent: true,
   }).trim();
 
+/**
+ * @method getUnderpostRootPath
+ * @description Gets the underpost root path.
+ * @returns {string} - The underpost root path.
+ * @memberof ServerConfBuilder
+ */
 const getUnderpostRootPath = () => `${getNpmRootPath()}/underpost`;
 
+/**
+ * @method writeEnv
+ * @description Writes the environment variables.
+ * @param {string} envPath - The environment path.
+ * @param {object} envObj - The environment object.
+ * @memberof ServerConfBuilder
+ */
 const writeEnv = (envPath, envObj) =>
   fs.writeFileSync(
     envPath,
@@ -924,6 +1247,14 @@ const writeEnv = (envPath, envObj) =>
     'utf8',
   );
 
+/**
+ * @method buildCliDoc
+ * @description Builds the CLI documentation.
+ * @param {object} program - The program.
+ * @param {string} oldVersion - The old version.
+ * @param {string} newVersion - The new version.
+ * @memberof ServerConfBuilder
+ */
 const buildCliDoc = (program, oldVersion, newVersion) => {
   let md = shellExec(`node bin help`, { silent: true, stdout: true }).split('Options:');
   const baseOptions =
@@ -984,6 +1315,16 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
   );
 };
 
+/**
+ * @method getInstanceContext
+ * @description Gets the instance context.
+ * @param {object} options - The options.
+ * @param {boolean} options.singleReplica - The single replica.
+ * @param {Array} options.replicas - The replicas.
+ * @param {string} options.redirect - The redirect.
+ * @returns {object} - The instance context.
+ * @memberof ServerConfBuilder
+ */
 const getInstanceContext = async (options = { singleReplica, replicas, redirect: '' }) => {
   const { singleReplica, replicas, redirect } = options;
 
@@ -1001,6 +1342,18 @@ const getInstanceContext = async (options = { singleReplica, replicas, redirect:
   return { redirectTarget };
 };
 
+/**
+ * @method buildApiConf
+ * @description Builds the API configuration.
+ * @param {object} options - The options.
+ * @param {string} options.deployId - The deploy ID.
+ * @param {string} options.subConf - The sub configuration.
+ * @param {string} options.host - The host.
+ * @param {string} options.path - The path.
+ * @param {string} options.origin - The origin.
+ * @returns {object} - The API configuration.
+ * @memberof ServerConfBuilder
+ */
 const buildApiConf = async (options = { deployId: '', subConf: '', host: '', path: '', origin: '' }) => {
   let { deployId, subConf, host, path, origin } = options;
   if (!deployId) deployId = process.argv[2].trim();
@@ -1029,6 +1382,18 @@ const buildApiConf = async (options = { deployId: '', subConf: '', host: '', pat
   );
 };
 
+/**
+ * @method buildClientStaticConf
+ * @description Builds the client static configuration.
+ * @param {object} options - The options.
+ * @param {string} options.deployId - The deploy ID.
+ * @param {string} options.subConf - The sub configuration.
+ * @param {string} options.apiBaseHost - The API base host.
+ * @param {string} options.host - The host.
+ * @param {string} options.path - The path.
+ * @returns {void}
+ * @memberof ServerConfBuilder
+ */
 const buildClientStaticConf = async (options = { deployId: '', subConf: '', apiBaseHost: '', host: '', path: '' }) => {
   let { deployId, subConf, host, path } = options;
   if (!deployId) deployId = process.argv[2].trim();
