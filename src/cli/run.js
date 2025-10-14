@@ -312,9 +312,9 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     sync: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      // Dev usage: node bin run --dev --build sync dd-default
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
-      shellExec(`${baseCommand} run clean`);
       const defaultPath = ['dd-default', 1, ``, ``, 'kind-control-plane'];
       let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPath;
       deployId = deployId ?? defaultPath[0];
