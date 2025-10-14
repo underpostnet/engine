@@ -1466,6 +1466,7 @@ nvidia/gpu-operator \
       const domains = ['localhost', '127.0.0.1', '::1'];
       shellExec(`chmod +x ./scripts/ssl.sh`);
       shellExec(`./scripts/ssl.sh ${targetDir} "${domains.join(' ')}"`);
+      break;
     }
   }
 } catch (error) {
