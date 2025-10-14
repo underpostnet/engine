@@ -50,13 +50,9 @@ const buildRuntime = async () => {
   // 2. Load Configuration
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const confSSR = JSON.parse(fs.readFileSync(`./conf/conf.ssr.json`, 'utf8'));
-  const singleReplicaHosts = [];
 
   // 3. Iterate through hosts and paths
   for (const host of Object.keys(confServer)) {
-    if (singleReplicaHosts.length > 0)
-      currentPort += singleReplicaHosts.reduce((accumulator, currentValue) => accumulator + currentValue.replicas, 0);
-
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
@@ -87,13 +83,7 @@ const buildRuntime = async () => {
         replicas,
       });
 
-      if (singleReplicaHost) {
-        singleReplicaHosts.push({
-          host,
-          replicas: replicas.length,
-        });
-        continue;
-      }
+      if (singleReplicaHost) continue;
 
       const runningData = {
         host,

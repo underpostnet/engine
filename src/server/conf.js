@@ -483,21 +483,16 @@ const buildProxyRouter = () => {
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   let currentPort = parseInt(process.env.PORT) + 1;
   const proxyRouter = {};
-  const singleReplicaHosts = [];
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      if (confServer[host][path].singleReplica && !singleReplicaHosts.includes(host)) {
-        singleReplicaHosts.push(host);
-        currentPort++;
-        if (confServer[host][path].peer) currentPort++;
-        continue;
-      }
+      if (confServer[host][path].singleReplica) continue;
+
       confServer[host][path].port = newInstance(currentPort);
       for (const port of confServer[host][path].proxy) {
         if (!(port in proxyRouter)) proxyRouter[port] = {};
         proxyRouter[port][`${host}${path}`] = {
           // target: `http://${host}:${confServer[host][path].port}${path}`,
-          target: `http://localhost:${confServer[host][path].port - singleReplicaHosts.length}`,
+          target: `http://localhost:${confServer[host][path].port}`,
           // target: `http://127.0.0.1:${confServer[host][path].port}`,
           proxy: confServer[host][path].proxy,
           redirect: confServer[host][path].redirect,
@@ -514,7 +509,7 @@ const buildProxyRouter = () => {
           if (!(port in proxyRouter)) proxyRouter[port] = {};
           proxyRouter[port][`${host}${peerPath}`] = {
             // target: `http://${host}:${confServer[host][peerPath].port}${peerPath}`,
-            target: `http://localhost:${confServer[host][peerPath].port - singleReplicaHosts.length}`,
+            target: `http://localhost:${confServer[host][peerPath].port}`,
             // target: `http://127.0.0.1:${confServer[host][peerPath].port}`,
             proxy: confServer[host][peerPath].proxy,
             host,
