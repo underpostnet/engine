@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# RHEL / Rocky Linux — Generate local TLS cert + fullchain (cert + root CA) using mkcert (no go) or OpenSSL fallback.
+# RHEL / Rocky Linux — Generate local TLS cert + fullchain (cert + root CA) using mkcert
 # Usage:
 #   ./generate-local-ssl-fullchain.sh /path/to/target "localhost 127.0.0.1 ::1"
 

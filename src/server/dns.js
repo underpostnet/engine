@@ -200,7 +200,7 @@ class Dns {
     updateIp: {
       /**
        * Updates the IP address for a dondominio.com DNS record.
-       * @memberof Dns.services.updateIp
+       * @memberof Dns
        * @param {object} options
        * @param {string} options.user - The dondominio DDNS username.
        * @param {string} options.api_key - The dondominio DDNS password/API key.
@@ -239,7 +239,7 @@ class Dns {
 }
 
 /**
- * @namespace Dns.ip
+ * @namespace Dns
  * @description Exported IP object for backward compatibility, mapping to Dns static methods.
  */
 const ip = {
