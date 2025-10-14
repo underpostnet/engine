@@ -2,7 +2,7 @@
  * Provides a comprehensive set of DNS and IP management utilities,
  * primarily focused on dynamic DNS (DDNS) updates and network checks.
  * @module src/server/dns.js
- * @namespace Dns
+ * @namespace DnsManager
  */
 import axios from 'axios';
 import dotenv from 'dotenv';
@@ -22,16 +22,16 @@ const logger = loggerFactory(import.meta);
 /**
  * Main class for handling DNS and IP related operations.
  * All utility methods are implemented as static to serve as a namespace container.
- * @class
+ * @class Dns
  * @augments Dns
- * @memberof Dns
+ * @memberof DnsManager
  */
 class Dns {
   /**
    * Retrieves the current public IP address (IPv4 or IPv6).
    * @async
    * @static
-   * @memberof Dns
+   * @memberof DnsManager
    * @returns {Promise<string>} The public IP address.
    */
   static async getPublicIp() {
@@ -42,7 +42,7 @@ class Dns {
    * Retrieves the current public IPv4 address.
    * @async
    * @static
-   * @memberof Dns
+   * @memberof DnsManager
    * @returns {Promise<string>} The public IPv4 address.
    */
   static async getPublicIpv4() {
@@ -53,7 +53,7 @@ class Dns {
    * Retrieves the current public IPv6 address.
    * @async
    * @static
-   * @memberof Dns
+   * @memberof DnsManager
    * @returns {Promise<string>} The public IPv6 address.
    */
   static async getPublicIpv6() {
@@ -63,7 +63,7 @@ class Dns {
   /**
    * Checks for active internet connection by performing a DNS lookup on a specified domain.
    * @static
-   * @memberof Dns
+   * @memberof DnsManager
    * @param {string} [domain='google.com'] The domain to check the connection against.
    * @returns {Promise<boolean>} True if connected, false otherwise.
    */
@@ -75,7 +75,7 @@ class Dns {
    * Gets the local device's IPv4 address by determining the active network interface.
    * This relies on shell execution (`ip route`) and is primarily intended for Linux environments.
    * @static
-   * @memberof Dns
+   * @memberof DnsManager
    * @returns {string} The local IPv4 address.
    */
   static getLocalIPv4Address() {
@@ -109,7 +109,7 @@ class Dns {
    * It checks if the public IP has changed and, if so, updates the configured DNS records.
    * @async
    * @static
-   * @memberof Dns
+   * @memberof DnsManager
    * @param {string} deployList Comma-separated string of deployment IDs to process.
    * @returns {Promise<void>}
    */
@@ -193,14 +193,14 @@ class Dns {
   /**
    * Internal collection of external DNS service update functions.
    * @static
-   * @memberof Dns
+   * @memberof DnsManager
    * @property {object} updateIp - Functions keyed by DNS provider name to update A/AAAA records.
    */
   static services = {
     updateIp: {
       /**
        * Updates the IP address for a dondominio.com DNS record.
-       * @memberof Dns
+       * @memberof DnsManager
        * @param {object} options
        * @param {string} options.user - The dondominio DDNS username.
        * @param {string} options.api_key - The dondominio DDNS password/API key.
@@ -255,7 +255,7 @@ const ip = {
 
 /**
  * @function isInternetConnection
- * @memberof Dns
+ * @memberof DnsManager
  * @description Exported function for backward compatibility.
  * @param {string} [domain='google.com']
  * @returns {Promise<boolean>}
@@ -264,7 +264,7 @@ const isInternetConnection = Dns.isInternetConnection;
 
 /**
  * @function getLocalIPv4Address
- * @memberof Dns
+ * @memberof DnsManager
  * @description Exported function for backward compatibility.
  * @returns {string}
  */

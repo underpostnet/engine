@@ -15,7 +15,7 @@ const logger = loggerFactory(import.meta);
 /**
  * Main class for handling file downloading operations.
  * All utility methods are implemented as static to serve as a namespace container.
- * @class
+ * @class Downloader
  * @augments Downloader
  * @memberof Downloader
  */
@@ -61,8 +61,12 @@ class Downloader {
   }
 }
 
-// Backward compatibility export
-/** @type {function(string, string, object): Promise<string>} */
+/**
+ * Backward compatibility export
+ * @type {function(string, string, object): Promise<string>}
+ * @memberof Downloader
+ */
+
 const downloadFile = Downloader.downloadFile;
 
 export default Downloader;

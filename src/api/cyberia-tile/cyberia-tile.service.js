@@ -13,15 +13,6 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
-/**
- * Convert an RGBA-like input to a hex string.
- * - Returns "#RRGGBB" when alpha is 1 (or absent).
- * - Returns "#RRGGBBAA" when alpha < 1.
- * Supported input types:
- * - Array: [r, g, b] or [r, g, b, a]
- * - Object: { r, g, b, a } or { 0: ..., 1: ..., 2: ..., 3: ... }
- * - String: "rgb(r,g,b)" or "rgba(r,g,b,a)" (numbers or percentages)
- */
 const rgba2Hexa = (input) => {
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const toHex = (n) => Math.round(n).toString(16).padStart(2, '0').toUpperCase();

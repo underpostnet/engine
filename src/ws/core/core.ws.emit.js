@@ -10,7 +10,7 @@ import { Socket } from 'socket.io';
 const logger = loggerFactory(import.meta);
 
 /**
- * @class
+ * @class CoreWsEmitter
  * @alias CoreWsEmitter
  * @memberof CoreWsEmitter
  * @classdesc Provides a static utility method for safely emitting messages over a WebSocket connection.

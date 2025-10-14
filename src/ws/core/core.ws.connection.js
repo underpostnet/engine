@@ -13,7 +13,7 @@ import { Socket } from 'socket.io'; // Added for JSDoc type hinting
 const logger = loggerFactory(import.meta);
 
 /**
- * @class
+ * @class CoreWsConnectionManager
  * @alias CoreWsConnectionManager
  * @memberof CoreWsConnection
  * @classdesc Manages the lifecycle of a new WebSocket connection, setting up listeners for

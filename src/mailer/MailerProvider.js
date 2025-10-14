@@ -27,6 +27,7 @@ const logger = loggerFactory(import.meta);
  * @property {string} [host=''] - Application host for context.
  * @property {string} [path=''] - Application path for context.
  * @property {object.<string, string>} templates - Map of template keys to SSR component file names.
+ * @memberof MailerProviderNamespace
  */
 
 /**

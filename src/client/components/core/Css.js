@@ -690,14 +690,6 @@ const scrollBarLightRender = () => {
     .join('');
 };
 
-/**
- * Adjust hex color brightness toward white/black ("mix") or by modifying HSL lightness ("hsl").
- *
- * @param {string} hex - Color as '#rrggbb', 'rrggbb', '#rgb', or 'rgb'.
- * @param {number} factor - -1..1 or -100..100 (percent). Positive = lighten, negative = darken.
- * @param {{mode?: 'mix'|'hsl'}} [options]
- * @returns {string} - Adjusted color as '#rrggbb' (lowercase).
- */
 function adjustHex(hex, factor = 0.1, options = {}) {
   if (typeof hex !== 'string') throw new TypeError('hex must be a string');
   if (typeof factor !== 'number') throw new TypeError('factor must be a number');

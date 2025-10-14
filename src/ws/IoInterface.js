@@ -17,10 +17,11 @@ const logger = loggerFactory(import.meta);
  * @property {function(Socket, Object.<string, Socket>, any, string, any[]): Promise<void>} [controller] - Handler for incoming channel messages.
  * @property {function(Socket, Object.<string, Socket>, string, string): Promise<void>} [disconnect] - Handler on client disconnection.
  * @property {boolean} [stream=false] - Whether the channel should treat the message as a raw stream (no JSON parsing).
+ * @memberof SocketIoInterface
  */
 
 /**
- * @class
+ * @class IoChannel
  * @alias IoChannel
  * @memberof SocketIoInterface
  * @classdesc Manages the logic, client map, and event listeners for a specific WebSocket channel,

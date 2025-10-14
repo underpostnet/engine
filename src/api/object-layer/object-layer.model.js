@@ -1,3 +1,10 @@
+/**
+ * Object layer model for managing the generation and deployment of cloud-init configuration files
+ * and associated scripts for baremetal provisioning.
+ * @module src/api/object-layer/object-layer.model.js
+ * @namespace CyberiaObjectLayerModel
+ */
+
 import { Schema, model } from 'mongoose';
 
 /**
@@ -8,8 +15,8 @@ import { Schema, model } from 'mongoose';
  * @property {number} range - The range attribute value
  * @property {number} intelligence - The intelligence attribute value
  * @property {number} utility - The utility attribute value
+ * @memberof CyberiaObjectLayerModel
  */
-
 const StatsSchema = new Schema(
   {
     effect: { type: Number, required: true, min: 0 },
@@ -42,8 +49,8 @@ const StatsSchema = new Schema(
  * @property {number[][][]} up_left_walking - Up-left walking animation frames
  * @property {number[][][]} down_left_walking - Down-left walking frames
  * @property {number[][][]} none_idle - None state animation frames
+ * @memberof CyberiaObjectLayerModel
  */
-
 const RenderFramesSchema = new Schema(
   {
     up_idle: { type: [[[Number]]], default: [] },
@@ -74,8 +81,8 @@ const RenderFramesSchema = new Schema(
  * @property {number[][]} colors - Color palette for rendering
  * @property {number} frame_duration - Duration of each frame in milliseconds
  * @property {boolean} is_stateless - Whether the render is stateless
+ * @memberof CyberiaObjectLayerModel
  */
-
 const RenderSchema = new Schema(
   {
     frames: { type: RenderFramesSchema, required: true },
@@ -92,8 +99,8 @@ const RenderSchema = new Schema(
  * @property {string} type - Type of the item
  * @property {string} description - Description of the item
  * @property {boolean} activable - Whether the item can be activated
+ * @memberof CyberiaObjectLayerModel
  */
-
 const ItemSchema = new Schema(
   {
     id: { type: String, required: true, trim: true },
@@ -113,8 +120,8 @@ const ItemSchema = new Schema(
  * @property {string} sha256 - SHA-256 hash of the object layer data
  * @property {Date} createdAt - When the document was created
  * @property {Date} updatedAt - When the document was last updated
+ * @memberof CyberiaObjectLayerModel
  */
-
 const ObjectLayerSchema = new Schema(
   {
     data: {

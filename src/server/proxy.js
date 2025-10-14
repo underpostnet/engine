@@ -1,8 +1,8 @@
 /**
- * @namespace ProxyService
- * @description Manages the creation and configuration of the reverse proxy server,
+ * Manages the creation and configuration of the reverse proxy server,
  * including handling HTTP/HTTPS listeners and routing based on host configuration.
- * @memberof src/server/proxy.js
+ * @module src/server/proxy.js
+ * @namespace ProxyService
  */
 'use strict';
 
@@ -22,7 +22,7 @@ const logger = loggerFactory(import.meta);
 /**
  * Main class for building and running the proxy server.
  * All utility methods are implemented as static to serve as a namespace container.
- * @class
+ * @class Proxy
  * @augments Proxy
  * @memberof ProxyService
  */
@@ -33,6 +33,7 @@ class Proxy {
    * @static
    * @memberof ProxyService
    * @returns {Promise<void>}
+   * @memberof ProxyService
    */
   static async buildProxy() {
     // Start a default Express listener on process.env.PORT (potentially unused, but ensures Express is initialized)
@@ -99,8 +100,11 @@ class Proxy {
   }
 }
 
-// Backward compatibility export
-/** @type {function(): Promise<void>} */
+/**
+ * Backward compatibility export
+ * @type {function(): Promise<void>}
+ * @memberof ProxyService
+ */
 const buildProxy = Proxy.buildProxy;
 
 export { Proxy, buildProxy };

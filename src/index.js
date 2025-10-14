@@ -25,7 +25,7 @@ import UnderpostStartUp from './server/start.js';
 
 /**
  * Underpost main module methods
- * @class
+ * @class Underpost
  * @memberof Underpost
  */
 class Underpost {

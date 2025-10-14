@@ -15,7 +15,7 @@ import http from 'http';
 const logger = loggerFactory(import.meta);
 
 /**
- * @class
+ * @class IoServerClass
  * @alias IoServerClass
  * @memberof SocketIoServer
  * @classdesc Provides a static factory method to create and configure a Socket.IO server,

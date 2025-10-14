@@ -17,7 +17,7 @@ const logger = loggerFactory(import.meta);
 
 /**
  * UnderpostCron main module methods
- * @class
+ * @class UnderpostCron
  * @memberof UnderpostCron
  */
 class UnderpostCron {

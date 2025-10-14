@@ -16,7 +16,7 @@ import http from 'http'; // Added for JSDoc type hinting
 // https://socket.io/docs/v3/
 
 /**
- * @class
+ * @class CoreWsServerClass
  * @alias CoreWsServerClass
  * @memberof CoreWsServer
  * @classdesc Manages the creation and initialization of the main WebSocket server,
