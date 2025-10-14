@@ -115,7 +115,6 @@ class ExpressService {
 
     // Logging, Compression, and Body Parsers
     app.use(loggerMiddleware(import.meta));
-    // Compression filter logic is correctly inlined here
     app.use(compression({ filter: (req, res) => !req.headers['x-no-compression'] && compression.filter(req, res) }));
     app.use(express.json({ limit: '100MB' }));
     app.use(express.urlencoded({ extended: true, limit: '20MB' }));

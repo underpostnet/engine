@@ -153,18 +153,37 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
 
   fs.copyFileSync(`./conf.${confName}.js`, `${basePath}/conf.js`);
 
+  const packageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
+  packageJson.name = repoName.replace('engine-', '');
+
   switch (confName) {
     case 'dd-cyberia':
       fs.copyFileSync(`./bin/cyberia.js`, `${basePath}/bin/cyberia.js`);
-      fs.copyFileSync(`./bin/cyberia.js`, `${basePath}/bin/cyberia0.js`);
-      break;
+      fs.copyFileSync(
+        `./github/workflows/publish.cyberia.ci.yml`,
+        `${basePath}/.github/workflows/publish.cyberia.ci.yml`,
+      );
+      delete packageJson.version.bin.underpost;
+
+      fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
+
+      packageJson.bin.cyberia = 'bin/index.js';
+
+      let _originMd = fs.readFileSync(`./README.md`, 'utf8').split('<!-- end-badges -->');
+
+      _originMd[0] = _originMd[0].replaceAll('underpost.net', 'www.cyberiaonline.com');
+      _originMd[0] = _originMd[0].replaceAll('underpost', 'cyberia');
+
+      fs.writeFileSync(
+        `${basePath}/README.md`,
+        _originMd[0] + '<!-- end-badges -->' + fs.readFileSync(`./src/api/object-layer/README.md`, 'utf8'),
+        'utf8',
+      );
 
     default:
       break;
   }
 
-  const packageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
-  packageJson.name = repoName;
   fs.writeFileSync(
     `${basePath}/package.json`,
     JSON.stringify(packageJson, null, 4).replaceAll('pwa-microservices-template', repoName),

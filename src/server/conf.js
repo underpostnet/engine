@@ -1033,16 +1033,6 @@ const buildClientStaticConf = async (options = { deployId: '', subConf: '', apiB
   );
 };
 
-const packageVersionFactory = (packageId) => {
-  switch (packageId) {
-    case 'cyberia':
-      return '1.0.0';
-    default:
-      const packageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
-      return packageJson.version;
-  }
-};
-
 export {
   Cmd,
   Config,
