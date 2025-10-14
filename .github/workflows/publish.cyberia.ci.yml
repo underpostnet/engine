@@ -1,4 +1,4 @@
-name: CI | Publish npm package
+name: CI | Publish cyberia npm package
 on:
   release:
     types: [released]
