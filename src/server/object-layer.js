@@ -3,10 +3,13 @@ import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import { PNG } from 'pngjs';
 import sharp from 'sharp';
-import Jimp from 'jimp';
+import { Jimp, intToRGBA, rgbaToInt } from 'jimp';
 
 import { range } from '../client/components/core/CommonJs.js';
 import { random } from '../client/components/core/CommonJs.js';
+import { loggerFactory } from '../server/logger.js';
+
+const logger = loggerFactory(import.meta);
 
 dotenv.config({ path: `./engine-private/conf/dd-cyberia/.env.production`, override: true });
 
@@ -39,8 +42,10 @@ const readPngAsync = (filePath) => {
           data: Buffer.from(this.data),
         });
       })
-      .on('error', (err) => {
-        reject(err);
+      .on('error', (error) => {
+        logger.error(`Error reading PNG file: ${filePath}`, error);
+        // Resolve with a specific error indicator instead of rejecting
+        resolve({ error: true, message: error.message });
       });
   });
 };
@@ -56,11 +61,15 @@ const frameFactory = async (path, colors = []) => {
       fs.removeSync(path);
       // save image replacing gif for png
       const pngPath = path.replace('.gif', '.png');
-      await image.writeAsync(pngPath);
+      await image.write(pngPath);
     } else {
       const png = await readPngAsync(path);
-      image = new Jimp(png.width, png.height);
-      image.bitmap = png;
+      if (png.error) {
+        throw new Error(`Failed to read PNG: ${png.message}`);
+      }
+      image = new Jimp(png);
+      // The bitmap is already part of the Jimp object when constructed with a bitmap object.
+      // image.bitmap = png;
     }
 
     const mazeFactor = parseInt(image.bitmap.height / 24);
@@ -72,7 +81,7 @@ const frameFactory = async (path, colors = []) => {
       }
       let _x = -1;
       for (const x of range(0, image.bitmap.width - 1)) {
-        const rgba = Object.values(Jimp.intToRGBA(image.getPixelColor(x, y)));
+        const rgba = Object.values(intToRGBA(image.getPixelColor(x, y)));
         if (y % mazeFactor === 0 && x % mazeFactor === 0) {
           _x++;
           const indexColor = colors.findIndex(
@@ -163,13 +172,13 @@ const buildImgFromTile = async (
         for (let dx = 0; dx < cellPixelDim; dx++) {
           const pixelX = x * cellPixelDim + dx;
           const pixelY = y * cellPixelDim + dy;
-          image.setPixelColor(Jimp.rgbaToInt(...rgbaColor), pixelX, pixelY);
+          image.setPixelColor(rgbaToInt(...rgbaColor), pixelX, pixelY);
         }
       }
     }
   }
 
-  await image.writeAsync(imagePath);
+  await image.write(imagePath);
 };
 
 const generateRandomStats = () => {

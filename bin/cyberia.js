@@ -13,7 +13,7 @@ import { random, range, s4, uniqueArray } from '../src/client/components/core/Co
 import { pbcopy, shellExec } from '../src/server/process.js';
 import read from 'read';
 import { buildImgFromTile, setTransparency } from '../src/api/cyberia-tile/cyberia-tile.service.js';
-import Jimp from 'jimp';
+import { Jimp } from 'jimp';
 
 dotenv.config();
 
