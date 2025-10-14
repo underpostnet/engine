@@ -2,7 +2,7 @@
  * Provides utilities for managing, building, and serving SSL/TLS contexts,
  * primarily using Certbot files and creating HTTPS servers.
  * @module src/server/ssl.js
- * @namespace Ssl
+ * @namespace TransportLayerSecurity
  */
 
 import fs from 'fs-extra';
@@ -37,13 +37,13 @@ const KEY_CANDIDATES = [
 ];
 const ROOT_CANDIDATES = ['rootCA.pem', 'ca.pem', 'ca.crt', 'root.pem'];
 
-class Ssl {
+class TLS {
   /**
    * Look for existing SSL files under engine-private/ssl/<host> and return canonical paths.
    * It attempts to be permissive: accepts cert-only, cert+ca, or fullchain.
    * @param {string} host
    * @returns {{key?:string, cert?:string, fullchain?:string, ca?:string, dir:string}}
-   * @memberof Ssl
+   * @memberof TransportLayerSecurity
    */
   static locateSslFiles(host = DEFAULT_HOST) {
     const dir = SSL_BASE(host);
@@ -103,10 +103,10 @@ class Ssl {
    * Validate that a secure context can be built for host (key + cert or fullchain present)
    * @param {string} host
    * @returns {boolean}
-   * @memberof Ssl
+   * @memberof TransportLayerSecurity
    */
   static validateSecureContext(host = DEFAULT_HOST) {
-    const files = Ssl.locateSslFiles(host);
+    const files = TLS.locateSslFiles(host);
     return Boolean((files.key && files.cert) || (files.key && files.fullchain));
   }
 
@@ -116,10 +116,10 @@ class Ssl {
    * If separate cert + ca are found, they will be used accordingly.
    * @param {string} host
    * @returns {{key:string, cert:string, ca?:string}} options
-   * @memberof Ssl
+   * @memberof TransportLayerSecurity
    */
   static buildSecureContext(host = DEFAULT_HOST) {
-    const files = Ssl.locateSslFiles(host);
+    const files = TLS.locateSslFiles(host);
     if (!files.key) throw new Error(`SSL key not found for host ${host} (looked in ${files.dir})`);
     if (!files.cert) throw new Error(`SSL certificate not found for host ${host} (looked in ${files.dir})`);
 
@@ -142,12 +142,12 @@ class Ssl {
    * The function will copy existing discovered files to: key.key, crt.crt, ca_bundle.crt when possible.
    * @param {string} host
    * @returns {boolean} true if at least key+cert exist after operation
-   * @memberof Ssl
+   * @memberof TransportLayerSecurity
    */
   static async buildLocalSSL(host = DEFAULT_HOST) {
     const dir = SSL_BASE(host);
     await fs.ensureDir(dir);
-    const files = Ssl.locateSslFiles(host);
+    const files = TLS.locateSslFiles(host);
 
     // If key+cert already exist under canonical names, done
     const canonicalKey = path.join(dir, 'key.key');
@@ -167,7 +167,7 @@ class Ssl {
       logger.warn('buildLocalSSL copy step failed', { err: err.message });
     }
 
-    return Ssl.validateSecureContext(host);
+    return TLS.validateSecureContext(host);
   }
 
   /**
@@ -177,16 +177,16 @@ class Ssl {
    * @param {import('express').Application} app
    * @param {Object<string, any>} hosts
    * @returns {{ServerSSL?: https.Server}}
-   * @memberof Ssl
+   * @memberof TransportLayerSecurity
    */
   static async createSslServer(app, hosts = { [DEFAULT_HOST]: {} }) {
     let server;
     for (const host of Object.keys(hosts)) {
       // ensure canonical files exist (copies where possible)
-      await Ssl.buildLocalSSL(host);
-      if (!Ssl.validate_secure_context_check(host)) {
+      await TLS.buildLocalSSL(host);
+      if (!TLS.validate_secure_context_check(host)) {
         // backward compatibility: some callers expect validateSecureContext
-        if (!Ssl.validateSecureContext(host)) {
+        if (!TLS.validateSecureContext(host)) {
           logger.error('Invalid SSL context, skipping host', { host });
           continue;
         }
@@ -194,7 +194,7 @@ class Ssl {
 
       // build secure context options
       try {
-        const ctx = Ssl.buildSecureContext(host);
+        const ctx = TLS.buildSecureContext(host);
         if (!server) {
           server = https.createServer(ctx, app);
           logger.info('Created HTTPS server for host', { host });
@@ -218,7 +218,7 @@ class Ssl {
    * @param {number} port
    * @param {Object<string, any>} proxyRouter
    * @returns {import('express').RequestHandler}
-   * @memberof Ssl
+   * @memberof TransportLayerSecurity
    */
   static sslRedirectMiddleware(req, res, port = 80, proxyRouter = {}) {
     const sslRedirectUrl = `https://${req.headers.host}${req.url}`;
@@ -230,7 +230,7 @@ class Ssl {
       proxyRouter[443] &&
       Object.keys(proxyRouter[443]).find((host) => {
         const [hostSSL] = host.split('/');
-        return sslRedirectUrl.match(hostSSL) && Ssl.validateSecureContext(hostSSL);
+        return sslRedirectUrl.match(hostSSL) && TLS.validateSecureContext(hostSSL);
       })
     ) {
       return res.status(302).redirect(sslRedirectUrl);
@@ -239,13 +239,13 @@ class Ssl {
 }
 
 // small helper for internal backward compatibility check name typo in older code
-Ssl.validate_secure_context_check = Ssl.validateSecureContext;
+TLS.validate_secure_context_check = TLS.validateSecureContext;
 
 // Backward compatibility exports
-const buildSSL = Ssl.buildLocalSSL;
-const buildSecureContext = Ssl.buildSecureContext;
-const validateSecureContext = Ssl.validateSecureContext;
-const createSslServer = Ssl.createSslServer;
-const sslRedirectMiddleware = Ssl.sslRedirectMiddleware;
+const buildSSL = TLS.buildLocalSSL;
+const buildSecureContext = TLS.buildSecureContext;
+const validateSecureContext = TLS.validateSecureContext;
+const createSslServer = TLS.createSslServer;
+const sslRedirectMiddleware = TLS.sslRedirectMiddleware;
 
-export { Ssl, buildSSL, buildSecureContext, validateSecureContext, createSslServer, sslRedirectMiddleware };
+export { TLS, buildSSL, buildSecureContext, validateSecureContext, createSslServer, sslRedirectMiddleware };

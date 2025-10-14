@@ -1,7 +1,7 @@
 /**
  * Module for managing server side rendering
  * @module src/server/ssr.js
- * @namespace SSR
+ * @namespace ServerSideRendering
  */
 
 import fs from 'fs-extra';
@@ -23,7 +23,7 @@ const logger = loggerFactory(import.meta);
  * It reads the component file, formats it, and executes it in a sandboxed Node.js VM context to extract the component.
  * @param {string} [componentPath='./src/client/ssr/Render.js'] - The path to the SSR component file.
  * @returns {Promise<Function>} A promise that resolves to the SSR component function.
- * @memberof SSR
+ * @memberof ServerSideRendering
  */
 const ssrFactory = async (componentPath = `./src/client/ssr/Render.js`) => {
   const context = { SrrComponent: () => {}, npm_package_version: Underpost.version };
@@ -39,7 +39,7 @@ const ssrFactory = async (componentPath = `./src/client/ssr/Render.js`) => {
  * @param {object} req - The Express request object.
  * @param {string} html - The HTML string to sanitize.
  * @returns {string} The sanitized HTML string with nonces.
- * @memberof SSR
+ * @memberof ServerSideRendering
  */
 const sanitizeHtml = (res, req, html) => {
   const nonce = res.locals.nonce;
@@ -58,7 +58,7 @@ const sanitizeHtml = (res, req, html) => {
  * @param {string} options.rootHostPath - The root path for the host's public files.
  * @param {string} options.path - The base path for the instance.
  * @returns {Promise<{error500: Function, error400: Function}>} A promise that resolves to an object containing the 500 and 404 error handling middleware.
- * @memberof SSR
+ * @memberof ServerSideRendering
  */
 const ssrMiddlewareFactory = async ({ app, directory, rootHostPath, path }) => {
   const Render = await ssrFactory();

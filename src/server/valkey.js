@@ -1,7 +1,7 @@
 /**
  * Module for managing Valkey
  * @module src/server/valkey.js
- * @namespace Valkey
+ * @namespace ValkeyService
  */
 
 import Valkey from 'iovalkey';
@@ -20,7 +20,7 @@ const ValkeyStatus = {}; // 'connected' | 'dummy' | 'error' | undefined
  * Checks if any Valkey instance is connected.
  * This is a backward-compatible overall flag.
  * @returns {boolean} True if any instance has a 'connected' status.
- * @memberof Valkey
+ * @memberof ValkeyService
  */
 const isValkeyEnable = () => Object.values(ValkeyStatus).some((s) => s === 'connected');
 
@@ -31,7 +31,7 @@ const isValkeyEnable = () => Object.values(ValkeyStatus).some((s) => s === 'conn
  * @param {string} [opts.path=''] - The path of the instance.
  * @returns {string} The instance key.
  * @private
- * @memberof Valkey
+ * @memberof ValkeyService
  */
 const _instanceKey = (opts = { host: '', path: '' }) => `${opts.host || ''}${opts.path || ''}`;
 
@@ -43,7 +43,7 @@ const _instanceKey = (opts = { host: '', path: '' }) => `${opts.host || ''}${opt
  * @param {string} [instance.path=''] - The path of the instance.
  * @param {object} [valkeyServerConnectionOptions={ host: '', path: '' }] - Connection options for the iovalkey client.
  * @returns {Promise<Valkey|undefined>} A promise that resolves to the Valkey client instance, or undefined if creation fails.
- * @memberof Valkey
+ * @memberof ValkeyService
  */
 const createValkeyConnection = async (
   instance = { host: '', path: '' },
@@ -108,7 +108,7 @@ const createValkeyConnection = async (
  * @param {object} payload - The source object.
  * @param {object} select - An object where keys are field names and values are 1 to include them.
  * @returns {object} A new object containing only the selected fields from the payload.
- * @memberof Valkey
+ * @memberof ValkeyService
  */
 const selectDtoFactory = (payload, select) => {
   const result = {};
@@ -122,7 +122,7 @@ const selectDtoFactory = (payload, select) => {
  * Factory function to create a new Valkey client instance.
  * @param {object} options - Connection options for the iovalkey client.
  * @returns {Promise<Valkey>} A promise that resolves to a new Valkey client.
- * @memberof Valkey
+ * @memberof ValkeyService
  */
 const valkeyClientFactory = async (options) => {
   const valkey = new Valkey({
@@ -154,7 +154,7 @@ const valkeyClientFactory = async (options) => {
  * @param {object} [options={ host: '', path: '' }] - The instance identifier.
  * @param {string} [key=''] - The key of the object to retrieve.
  * @returns {Promise<object|string|null>} A promise that resolves to the retrieved object, string, or null if not found.
- * @memberof Valkey
+ * @memberof ValkeyService
  */
 const getValkeyObject = async (options = { host: '', path: '' }, key = '') => {
   const k = _instanceKey(options);
@@ -185,7 +185,7 @@ const getValkeyObject = async (options = { host: '', path: '' }, key = '') => {
  * @param {string} [key=''] - The key under which to store the payload.
  * @param {object|string} [payload={}] - The data to store.
  * @returns {Promise<string>} A promise that resolves to 'OK' on success.
- * @memberof Valkey
+ * @memberof ValkeyService
  */
 const setValkeyObject = async (options = { host: '', path: '' }, key = '', payload = {}) => {
   const k = _instanceKey(options);
@@ -212,7 +212,7 @@ const setValkeyObject = async (options = { host: '', path: '' }, key = '', paylo
  * @param {string} [key=''] - The key of the object to update.
  * @param {object} [payload={}] - The new data to merge into the object.
  * @returns {Promise<string>} A promise that resolves to the result of the set operation.
- * @memberof Valkey
+ * @memberof ValkeyService
  */
 const updateValkeyObject = async (options = { host: '', path: '' }, key = '', payload = {}) => {
   let base = await getValkeyObject(options, key);
@@ -230,7 +230,7 @@ const updateValkeyObject = async (options = { host: '', path: '' }, key = '', pa
  * @param {object} [options.object={}] - An initial object to extend.
  * @param {string} [model=''] - The name of the model schema to use (e.g., 'user').
  * @returns {Promise<object>} A promise that resolves to the newly created object.
- * @memberof Valkey
+ * @memberof ValkeyService
  */
 const valkeyObjectFactory = async (options = { host: 'localhost', path: '', object: {} }, model = '') => {
   const idoDate = new Date().toISOString();
@@ -268,6 +268,7 @@ const valkeyObjectFactory = async (options = { host: 'localhost', path: '', obje
 /**
  * A collection of Valkey-related API functions.
  * @type {object}
+ * @memberof ValkeyServiceService
  */
 const ValkeyAPI = {
   valkeyClientFactory,

@@ -1,5 +1,5 @@
 /**
- * @namespace Proxy
+ * @namespace ProxyService
  * @description Manages the creation and configuration of the reverse proxy server,
  * including handling HTTP/HTTPS listeners and routing based on host configuration.
  * @memberof src/server/proxy.js
@@ -11,7 +11,7 @@ import dotenv from 'dotenv';
 
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
-import { Ssl } from './ssl.js';
+import { TLS } from './ssl.js';
 import { buildPortProxyRouter, buildProxyRouter } from './conf.js';
 import UnderpostStartUp from './start.js';
 
@@ -24,14 +24,14 @@ const logger = loggerFactory(import.meta);
  * All utility methods are implemented as static to serve as a namespace container.
  * @class
  * @augments Proxy
- * @memberof Proxy
+ * @memberof ProxyService
  */
 class Proxy {
   /**
    * Initializes and starts the reverse proxy server for all configured ports and hosts.
    * @async
    * @static
-   * @memberof Proxy
+   * @memberof ProxyService
    * @returns {Promise<void>}
    */
   static async buildProxy() {
@@ -59,8 +59,8 @@ class Proxy {
         router: {},
         xfwd: true, // Adds x-forward headers (Host, Proto, etc.)
         onProxyReq: (proxyReq, req, res, options) => {
-          // Use the static method from the Ssl class for redirection logic
-          Ssl.sslRedirectMiddleware(req, res, port, proxyRouter);
+          // Use the static method from the TLS class for redirection logic
+          TLS.sslRedirectMiddleware(req, res, port, proxyRouter);
         },
         pathRewrite: {
           // Add path rewrite rules here if necessary
@@ -78,7 +78,7 @@ class Proxy {
           switch (port) {
             case 443:
               // For port 443 (HTTPS), create the SSL server
-              const { ServerSSL } = await Ssl.createSslServer(app, hosts);
+              const { ServerSSL } = await TLS.createSslServer(app, hosts);
               await UnderpostStartUp.API.listenPortController(ServerSSL, port, runningData);
               break;
 

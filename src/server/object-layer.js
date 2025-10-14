@@ -1,7 +1,7 @@
 /**
  * Provides utilities and engine logic for processing and managing Cyberia Online's object layer assets (skins, floors, weapons, etc.).
- * @namespace CyberiaObjectLayer
  * @module src/server/object-layer.js
+ * @namespace CyberiaObjectLayer
  */
 
 import dotenv from 'dotenv';
