@@ -14,7 +14,6 @@ import {
   generateRandomStats,
   itemTypes,
 } from '../src/server/object-layer.js';
-import { packageVersionFactory } from '../src/server/conf.js';
 
 import crypto from 'crypto';
 
@@ -52,7 +51,7 @@ await ObjectLayer.deleteMany();
 
 const program = new Command();
 
-const version = packageVersionFactory('cyberia');
+const version = JSON.parse(fs.readFileSync('./package.json', 'utf8')).version;
 
 program
   .name('cyberia')

@@ -1068,5 +1068,4 @@ export {
   getInstanceContext,
   buildApiConf,
   buildClientStaticConf,
-  packageVersionFactory,
 };
