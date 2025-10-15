@@ -7,7 +7,7 @@ import { ceil10, range } from '../../client/components/core/CommonJs.js';
 import { CyberiaTileDto } from './cyberia-tile.model.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-import { Downloader } from '../../server/downloader.js';
+import Downloader from '../../server/downloader.js';
 
 dotenv.config();
 
@@ -308,7 +308,7 @@ const CyberiaTileService = {
     switch (req.params.id) {
       case 'hex-matrix-from-png': {
         logger.info('download', req.body.src);
-        const imageFilePath = await Downloader(
+        const imageFilePath = await Downloader.downloadFile(
           process.env.NODE_ENV === 'production'
             ? `https://www.cyberiaonline.com${req.body.src}`
             : `http://localhost${req.body.src}`,
