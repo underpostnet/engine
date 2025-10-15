@@ -717,7 +717,7 @@ const pathPortAssignmentFactory = async (deployId, router, confServer) => {
               //  logger.info('', { host, port: port + 1, path: '/peer' });
               pathPortAssignment.push({
                 port: port + 1,
-                path: '/peer',
+                path: `${path === '/' ? '' : path}/peer`,
               });
             }
           }

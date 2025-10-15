@@ -223,6 +223,21 @@ class UnderpostRun {
       shellExec(`${baseCommand} run ide /home/dd/engine/engine-private`);
     },
     /**
+     * @method cluster-build
+     * @description Build configuration for cluster deployment.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'cluster-build': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(`node bin run clean`);
+      shellExec(`node bin run --dev sync-replica template-deploy`);
+      shellExec(`node bin run sync-replica template-deploy`);
+      shellExec(`node bin env clean`);
+      shellExec(`git add . && underpost cmt . build cluster-build`);
+      shellExec(`cd engine-private && git add . && underpost cmt . build cluster-build`);
+    },
+    /**
      * @method template-deploy
      * @description Cleans up, pushes `engine-private` and `engine` repositories with a commit tag `ci package-pwa-microservices-template`.
      * @param {string} path - The input value, identifier, or path for the operation.
@@ -315,7 +330,13 @@ class UnderpostRun {
       // Dev usage: node bin run --dev --build sync dd-default
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
-      const defaultPath = ['dd-default', 1, ``, ``, options.dev ? 'kind-control-plane' : os.hostname()];
+      const defaultPath = [
+        'dd-default',
+        1,
+        ``,
+        ``,
+        options.dev || path === 'template-deploy' ? 'kind-control-plane' : os.hostname(),
+      ];
       let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPath;
       deployId = deployId ?? defaultPath[0];
       replicas = replicas ?? defaultPath[1];
@@ -329,7 +350,7 @@ class UnderpostRun {
           versions ? ` --versions ${versions.replaceAll('+', ',')}` : ''
         } dd ${env}`,
       );
-      if (!options.build) shellExec(`${baseCommand} deploy --kubeadm ${deployId} ${env}`);
+      if (!options.build && path !== 'template-deploy') shellExec(`${baseCommand} deploy --kubeadm ${deployId} ${env}`);
     },
     /**
      * @method ls-deployments
@@ -588,13 +609,13 @@ class UnderpostRun {
           if (!(_path in confServer[host])) continue;
           shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${_path}`);
           shellExec(`node bin/deploy build-full-client ${deployId}`);
-          const node = options.dev ? 'kind-control-plane' : os.hostname();
+          const node = options.dev || path === 'template-deploy' ? 'kind-control-plane' : os.hostname();
           // deployId, replicas, versions, image, node
           let defaultPath = [deployId, 1, ``, ``, node];
           shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${defaultPath}`);
         }
       }
-      if (path) shellExec(`${baseCommand} run promote ${path} production`);
+      if (path && path !== 'template-deploy') shellExec(`${baseCommand} run promote ${path} production`);
     },
 
     /**

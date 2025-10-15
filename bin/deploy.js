@@ -271,7 +271,10 @@ try {
         );
         for (const host of Object.keys(serverConf)) {
           for (const path of Object.keys(serverConf[host])) {
-            if (serverConf[host][path].singleReplica) continue;
+            if (serverConf[host][path].singleReplica) {
+              portOffset--;
+              continue;
+            }
             portOffset++;
             if (serverConf[host][path].peer) portOffset++;
           }
