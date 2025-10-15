@@ -539,14 +539,8 @@ class UnderpostRun {
       const env = 'production';
       const ignorePods = UnderpostDeploy.API.get(`${deployId}-${env}-${targetTraffic}`).map((p) => p.NAME);
 
-      if (options.build === true) {
-        // deployId, replicas, versions, image, node
-        shellExec(
-          `node bin run sync ${deployId},${options.replicas ?? 1},${targetTraffic},${
-            options.imageName ?? `localhost/rockylinux9-underpost:${deployVersion}`
-          },${os.hostname()}`,
-        );
-      } else shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic}`);
+      shellExec(`node bin run sync-replica`);
+      shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic}`);
 
       let checkStatusIteration = 0;
       const checkStatusIterationMsDelay = 1000;
