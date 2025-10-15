@@ -5,8 +5,7 @@
  */
 
 import { daemonProcess, getTerminalPid, openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
-import read from 'read';
-import { getNpmRootPath } from '../server/conf.js';
+import { getNpmRootPath, isDeployRunnerContext } from '../server/conf.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import UnderpostTest from './test.js';
 import fs from 'fs-extra';
@@ -335,7 +334,7 @@ class UnderpostRun {
         1,
         ``,
         ``,
-        options.dev || path === 'template-deploy' ? 'kind-control-plane' : os.hostname(),
+        options.dev || isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname(),
       ];
       let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPath;
       deployId = deployId ?? defaultPath[0];
@@ -344,7 +343,9 @@ class UnderpostRun {
       image = image ?? defaultPath[3];
       node = node ?? defaultPath[4];
 
-      const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
+      const currentTraffic = isDeployRunnerContext(path, options)
+        ? UnderpostDeploy.API.getCurrentTraffic(deployId)
+        : '';
       let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : '';
       if (targetTraffic) versions = targetTraffic;
 
@@ -355,12 +356,15 @@ class UnderpostRun {
           versions ? ` --versions ${versions.replaceAll('+', ',')}` : ''
         } dd ${env}`,
       );
-      if (!options.build && path !== 'template-deploy') shellExec(`${baseCommand} deploy --kubeadm ${deployId} ${env}`);
 
-      logger.info('sync', {
-        deployId,
-        traffic: UnderpostDeploy.API.getCurrentTraffic(deployId),
-      });
+      if (isDeployRunnerContext(path, options)) {
+        const { validVersion, deployVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
+        if (validVersion !== deployVersion) throw new Error('Version mismatch');
+        shellExec(`${baseCommand} deploy --kubeadm ${deployId} ${env}`);
+        if (!targetTraffic) targetTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
+        await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic);
+        UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
+      } else logger.info('current traffic', UnderpostDeploy.API.getCurrentTraffic(deployId));
     },
     /**
      * @method ls-deployments
@@ -572,31 +576,9 @@ class UnderpostRun {
 
       shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic}`);
 
-      let checkStatusIteration = 0;
-      const checkStatusIterationMsDelay = 1000;
-      const iteratorTag = `[${deployId}-${env}-${targetTraffic}]`;
-      logger.info('Deployment init', { deployId, env, targetTraffic, checkStatusIterationMsDelay });
-      const minReadyOk = 3;
-      let readyOk = 0;
-
-      while (readyOk < minReadyOk) {
-        const ready = UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods).ready;
-        if (ready === true) {
-          readyOk++;
-          logger.info(`${iteratorTag} | Deployment ready. Verification number: ${readyOk}`);
-        }
-        await timer(checkStatusIterationMsDelay);
-        checkStatusIteration++;
-        logger.info(
-          `${iteratorTag} | Deployment in progress... | Delay number check iterations: ${checkStatusIteration}`,
-        );
-      }
-
-      logger.info(`${iteratorTag} | Deployment ready. | Total delay number check iterations: ${checkStatusIteration}`);
+      await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic, ignorePods);
 
       UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
-
-      // shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${currentTraffic}`);
     },
 
     /**
@@ -619,13 +601,13 @@ class UnderpostRun {
           if (!(_path in confServer[host])) continue;
           shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${_path}`);
           shellExec(`node bin/deploy build-full-client ${deployId}`);
-          const node = options.dev || path === 'template-deploy' ? 'kind-control-plane' : os.hostname();
+          const node = options.dev || !isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname();
           // deployId, replicas, versions, image, node
           let defaultPath = [deployId, 1, ``, ``, node];
           shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${defaultPath}`);
         }
       }
-      if (path && path !== 'template-deploy') shellExec(`${baseCommand} run promote ${path} production`);
+      if (isDeployRunnerContext(path, options)) shellExec(`${baseCommand} run promote ${path} production`);
     },
 
     /**

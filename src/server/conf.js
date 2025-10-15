@@ -1420,6 +1420,16 @@ const buildClientStaticConf = async (options = { deployId: '', subConf: '', apiB
   );
 };
 
+/**
+ * @method isDeployRunnerContext
+ * @description Checks if the deploy runner context is valid.
+ * @param {string} path - The path.
+ * @param {object} options - The options.
+ * @returns {boolean} - The deploy runner context.
+ * @memberof ServerConfBuilder
+ */
+const isDeployRunnerContext = (path, options) => !options.build && path && path !== 'template-deploy';
+
 export {
   Cmd,
   Config,
@@ -1455,4 +1465,5 @@ export {
   getInstanceContext,
   buildApiConf,
   buildClientStaticConf,
+  isDeployRunnerContext,
 };

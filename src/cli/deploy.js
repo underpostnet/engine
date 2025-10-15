@@ -20,6 +20,7 @@ import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import UnderpostRootEnv from './env.js';
 import UnderpostCluster from './cluster.js';
+import { timer } from '../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -655,6 +656,37 @@ EOF`);
       env === 'production' &&
       options.cert === true &&
       (!options.certHosts || options.certHosts.split(',').includes(host)),
+
+    /**
+     * Monitors the ready status of a deployment.
+     * @param {string} deployId - Deployment ID for which the ready status is being monitored.
+     * @param {string} env - Environment for which the ready status is being monitored.
+     * @param {string} targetTraffic - Target traffic status for the deployment.
+     * @param {Array<string>} ignorePods - List of pod names to ignore.
+     * @memberof UnderpostDeploy
+     */
+    async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = []) {
+      let checkStatusIteration = 0;
+      const checkStatusIterationMsDelay = 1000;
+      const iteratorTag = `[${deployId}-${env}-${targetTraffic}]`;
+      logger.info('Deployment init', { deployId, env, targetTraffic, checkStatusIterationMsDelay });
+      const minReadyOk = 3;
+      let readyOk = 0;
+
+      while (readyOk < minReadyOk) {
+        const ready = UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods).ready;
+        if (ready === true) {
+          readyOk++;
+          logger.info(`${iteratorTag} | Deployment ready. Verification number: ${readyOk}`);
+        }
+        await timer(checkStatusIterationMsDelay);
+        checkStatusIteration++;
+        logger.info(
+          `${iteratorTag} | Deployment in progress... | Delay number check iterations: ${checkStatusIteration}`,
+        );
+      }
+      logger.info(`${iteratorTag} | Deployment ready. | Total delay number check iterations: ${checkStatusIteration}`);
+    },
   };
 }
 
