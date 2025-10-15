@@ -170,6 +170,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       );
       delete packageJson.bin.underpost;
       packageJson.bin.cyberia = 'bin/index.js';
+      packageJson.keywords = ['cyberia', 'object-layer', 'game-engine', 'assets-management'];
 
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
       fs.copyFileSync(`./src/api/object-layer/README.md`, `${basePath}/README.md`);
