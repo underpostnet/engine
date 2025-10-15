@@ -227,7 +227,7 @@ const loadConf = (deployId = 'dd-default', subConf) => {
 
   for (const typeConf of Object.keys(Config.default)) {
     let srcConf = fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8');
-    if (process.env.NODE_ENV === 'development' && typeConf === 'server') {
+    if (process.env.NODE_ENV === 'development' && typeConf === 'server' && subConf) {
       const devConfPath = `${folder}/conf.${typeConf}.dev${subConf ? `.${subConf}` : ''}.json`;
       if (fs.existsSync(devConfPath)) srcConf = fs.readFileSync(devConfPath, 'utf8');
     }
@@ -1319,19 +1319,31 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
  * @method getInstanceContext
  * @description Gets the instance context.
  * @param {object} options - The options.
+ * @param {string} options.deployId - The deploy ID.
  * @param {boolean} options.singleReplica - The single replica.
  * @param {Array} options.replicas - The replicas.
  * @param {string} options.redirect - The redirect.
  * @returns {object} - The instance context.
  * @memberof ServerConfBuilder
  */
-const getInstanceContext = async (options = { singleReplica, replicas, redirect: '' }) => {
-  const { singleReplica, replicas, redirect } = options;
+const getInstanceContext = async (options = { deployId, singleReplica, replicas, redirect: '' }) => {
+  const { deployId, singleReplica, replicas, redirect } = options;
+  let singleReplicaOffsetPortSum = 0;
 
-  if (singleReplica && replicas && replicas.length > 0)
-    return {
-      singleReplicaHost: true,
-    };
+  if (singleReplica && replicas && replicas.length > 0) {
+    for (const replica of replicas) {
+      const replicaDeployId = buildReplicaId({ deployId, replica });
+      const confReplicaServer = JSON.parse(
+        fs.readFileSync(`./engine-private/replica/${replicaDeployId}/conf.server.json`, 'utf8'),
+      );
+      for (const host of Object.keys(confReplicaServer)) {
+        for (const path of Object.keys(confReplicaServer[host])) {
+          singleReplicaOffsetPortSum++;
+          if (confReplicaServer[host][path].peer) singleReplicaOffsetPortSum++;
+        }
+      }
+    }
+  }
 
   const redirectTarget = redirect
     ? redirect[redirect.length - 1] === '/'
@@ -1339,7 +1351,7 @@ const getInstanceContext = async (options = { singleReplica, replicas, redirect:
       : redirect
     : undefined;
 
-  return { redirectTarget };
+  return { redirectTarget, singleReplicaOffsetPortSum };
 };
 
 /**
