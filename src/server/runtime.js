@@ -33,7 +33,7 @@ const logger = loggerFactory(import.meta);
 const buildRuntime = async () => {
   const deployId = process.env.DEPLOY_ID;
 
-  // 1. Initialize Prometheus Metrics
+  // Initialize Prometheus Metrics
   const collectDefaultMetrics = promClient.collectDefaultMetrics;
   collectDefaultMetrics();
 
@@ -47,12 +47,13 @@ const buildRuntime = async () => {
   const initPort = parseInt(process.env.PORT) + 1;
   let currentPort = initPort;
 
-  // 2. Load Configuration
+  // Load Configuration
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const confSSR = JSON.parse(fs.readFileSync(`./conf/conf.ssr.json`, 'utf8'));
 
-  // 3. Iterate through hosts and paths
+  // Iterate through hosts and paths
   for (const host of Object.keys(confServer)) {
+    let singleReplicaOffsetPortCount = 0;
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
@@ -76,13 +77,17 @@ const buildRuntime = async () => {
       } = confServer[host][path];
 
       // Calculate context data
-      const { redirectTarget, singleReplicaHost } = await getInstanceContext({
+      const { redirectTarget, singleReplicaOffsetPortSum } = await getInstanceContext({
+        deployId,
         redirect,
         singleReplica,
         replicas,
       });
 
-      if (singleReplicaHost) continue;
+      if (singleReplicaOffsetPortSum > 0) {
+        singleReplicaOffsetPortCount += singleReplicaOffsetPortSum;
+        continue;
+      }
 
       const runningData = {
         host,
@@ -149,6 +154,7 @@ const buildRuntime = async () => {
       }
       currentPort++;
     }
+    currentPort += singleReplicaOffsetPortCount;
   }
 
   if (Lampp.enabled() && Lampp.router) Lampp.initService();
