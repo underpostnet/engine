@@ -315,7 +315,7 @@ class UnderpostRun {
       // Dev usage: node bin run --dev --build sync dd-default
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
-      const defaultPath = ['dd-default', 1, ``, ``, 'kind-control-plane'];
+      const defaultPath = ['dd-default', 1, ``, ``, options.dev ? 'kind-control-plane' : os.hostname()];
       let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPath;
       deployId = deployId ?? defaultPath[0];
       replicas = replicas ?? defaultPath[1];
@@ -539,7 +539,6 @@ class UnderpostRun {
       const env = 'production';
       const ignorePods = UnderpostDeploy.API.get(`${deployId}-${env}-${targetTraffic}`).map((p) => p.NAME);
 
-      shellExec(`node bin run sync-replica`);
       shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic}`);
 
       let checkStatusIteration = 0;
