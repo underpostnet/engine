@@ -49,6 +49,15 @@ spec:
   selector:
     app: dd-test-development-blue
   ports:
+    - name: 'tcp-4041'
+      protocol: TCP
+      port: 4041
+      targetPort: 4041
+    - name: 'udp-4041'
+      protocol: UDP
+      port: 4041
+      targetPort: 4041
+
     - name: 'tcp-4042'
       protocol: TCP
       port: 4042
@@ -75,15 +84,6 @@ spec:
       protocol: UDP
       port: 4044
       targetPort: 4044
-
-    - name: 'tcp-4045'
-      protocol: TCP
-      port: 4045
-      targetPort: 4045
-    - name: 'udp-4045'
-      protocol: UDP
-      port: 4045
-      targetPort: 4045
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -136,6 +136,15 @@ spec:
   selector:
     app: dd-test-development-green
   ports:
+    - name: 'tcp-4041'
+      protocol: TCP
+      port: 4041
+      targetPort: 4041
+    - name: 'udp-4041'
+      protocol: UDP
+      port: 4041
+      targetPort: 4041
+
     - name: 'tcp-4042'
       protocol: TCP
       port: 4042
@@ -162,13 +171,4 @@ spec:
       protocol: UDP
       port: 4044
       targetPort: 4044
-
-    - name: 'tcp-4045'
-      protocol: TCP
-      port: 4045
-      targetPort: 4045
-    - name: 'udp-4045'
-      protocol: UDP
-      port: 4045
-      targetPort: 4045
   type: LoadBalancer

@@ -33,7 +33,7 @@ spec:
           weight: 100
     
     - conditions:
-        - prefix: /peer
+        - prefix: /admin/peer
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
@@ -49,7 +49,7 @@ spec:
           weight: 100
     
     - conditions:
-        - prefix: /peer
+        - prefix: /admin0/peer
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
@@ -65,7 +65,7 @@ spec:
           weight: 100
     
     - conditions:
-        - prefix: /peer
+        - prefix: /hh/peer
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
@@ -81,7 +81,7 @@ spec:
           weight: 100
     
     - conditions:
-        - prefix: /peer
+        - prefix: /interior32/peer
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
@@ -97,7 +97,7 @@ spec:
           weight: 100
     
     - conditions:
-        - prefix: /peer
+        - prefix: /seed-city/peer
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
@@ -113,7 +113,7 @@ spec:
           weight: 100
     
     - conditions:
-        - prefix: /peer
+        - prefix: /zax-shop-odisea-department/peer
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service

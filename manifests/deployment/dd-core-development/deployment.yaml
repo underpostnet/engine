@@ -49,6 +49,15 @@ spec:
   selector:
     app: dd-core-development-blue
   ports:
+    - name: 'tcp-4019'
+      protocol: TCP
+      port: 4019
+      targetPort: 4019
+    - name: 'udp-4019'
+      protocol: UDP
+      port: 4019
+      targetPort: 4019
+
     - name: 'tcp-4020'
       protocol: TCP
       port: 4020
@@ -237,15 +246,6 @@ spec:
       protocol: UDP
       port: 4040
       targetPort: 4040
-
-    - name: 'tcp-4041'
-      protocol: TCP
-      port: 4041
-      targetPort: 4041
-    - name: 'udp-4041'
-      protocol: UDP
-      port: 4041
-      targetPort: 4041
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -298,6 +298,15 @@ spec:
   selector:
     app: dd-core-development-green
   ports:
+    - name: 'tcp-4019'
+      protocol: TCP
+      port: 4019
+      targetPort: 4019
+    - name: 'udp-4019'
+      protocol: UDP
+      port: 4019
+      targetPort: 4019
+
     - name: 'tcp-4020'
       protocol: TCP
       port: 4020
@@ -486,13 +495,4 @@ spec:
       protocol: UDP
       port: 4040
       targetPort: 4040
-
-    - name: 'tcp-4041'
-      protocol: TCP
-      port: 4041
-      targetPort: 4041
-    - name: 'udp-4041'
-      protocol: UDP
-      port: 4041
-      targetPort: 4041
   type: LoadBalancer
