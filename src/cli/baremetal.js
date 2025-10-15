@@ -11,7 +11,7 @@ import dotenv from 'dotenv';
 import { loggerFactory } from '../server/logger.js';
 import { getLocalIPv4Address } from '../server/dns.js';
 import fs from 'fs-extra';
-import { Downloader } from '../server/downloader.js';
+import Downloader from '../server/downloader.js';
 import UnderpostCloudInit from './cloud-init.js';
 import { s4, timer } from '../client/components/core/CommonJs.js';
 
@@ -349,7 +349,7 @@ class UnderpostBaremetal {
             const name = url.split('/').pop().replace('.zip', '');
             const path = `../${name}`;
             if (!fs.existsSync(path)) {
-              await Downloader(url, `../${name}.zip`); // Download firmware if not exists.
+              await Downloader.downloadFile(url, `../${name}.zip`); // Download firmware if not exists.
               shellExec(`cd .. && mkdir ${name} && cd ${name} && unzip ../${name}.zip`); // Unzip firmware.
             }
             shellExec(`sudo cp -a ${path}/* ${tftpRootPath}`); // Copy firmware files to TFTP root.

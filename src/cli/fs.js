@@ -10,7 +10,7 @@ import dotenv from 'dotenv';
 import AdmZip from 'adm-zip';
 import * as dir from 'path';
 import fs from 'fs-extra';
-import { Downloader } from '../server/downloader.js';
+import Downloader from '../server/downloader.js';
 import UnderpostRepository from './repository.js';
 import { shellExec } from '../server/process.js';
 dotenv.config();
@@ -204,7 +204,7 @@ class UnderpostFileStorage {
         resource_type: 'raw',
       });
       logger.info('download result', downloadResult);
-      await Downloader(downloadResult, path + '.zip');
+      await Downloader.downloadFile(downloadResult, path + '.zip');
       path = UnderpostFileStorage.API.zip2File(path + '.zip');
       fs.removeSync(path + '.zip');
     },

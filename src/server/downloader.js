@@ -61,14 +61,15 @@ class Downloader {
   }
 }
 
-/**
- * Backward compatibility export
- * @type {function(string, string, object): Promise<string>}
- * @memberof Downloader
- */
-
-const downloadFile = Downloader.downloadFile;
-
 export default Downloader;
 
-export { Downloader, downloadFile };
+/**
+ * @function downloadFile
+ * @description Backward compatibility export for `Downloader.downloadFile`.
+ * @param {string} url The URL of the file to download.
+ * @param {string} fullPath The full local path where the file should be saved.
+ * @param {object} [options] Axios request configuration options.
+ * @returns {Promise<string>} Resolves with the full path of the saved file on success.
+ * @memberof Downloader
+ */
+export const downloadFile = Downloader.downloadFile;
