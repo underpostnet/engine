@@ -343,6 +343,11 @@ class UnderpostRun {
       image = image ?? defaultPath[3];
       node = node ?? defaultPath[4];
 
+      if (isDeployRunnerContext(path, options)) {
+        const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
+        if (!validVersion) throw new Error('Version mismatch');
+      }
+
       const currentTraffic = isDeployRunnerContext(path, options)
         ? UnderpostDeploy.API.getCurrentTraffic(deployId)
         : '';
@@ -358,8 +363,6 @@ class UnderpostRun {
       );
 
       if (isDeployRunnerContext(path, options)) {
-        const { validVersion, deployVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
-        if (validVersion !== deployVersion) throw new Error('Version mismatch');
         shellExec(`${baseCommand} deploy --kubeadm ${deployId} ${env}`);
         if (!targetTraffic) targetTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
         await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic);
@@ -567,7 +570,7 @@ class UnderpostRun {
      */
     deploy: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const deployId = path;
-      const { validVersion, deployVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
+      const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
       if (!validVersion) throw new Error('Version mismatch');
       const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
       const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
