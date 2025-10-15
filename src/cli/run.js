@@ -334,7 +334,7 @@ class UnderpostRun {
         1,
         ``,
         ``,
-        options.dev || isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname(),
+        options.dev || !isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname(),
       ];
       let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPath;
       deployId = deployId ?? defaultPath[0];
