@@ -326,7 +326,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    sync: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    sync: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       // Dev usage: node bin run --dev --build sync dd-default
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev || true ? 'node bin' : 'underpost';
@@ -343,6 +343,11 @@ class UnderpostRun {
       versions = versions ?? defaultPath[2];
       image = image ?? defaultPath[3];
       node = node ?? defaultPath[4];
+
+      const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
+      let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : '';
+      if (targetTraffic) versions = targetTraffic;
+
       shellExec(
         `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
           replicas ?? 1
@@ -351,6 +356,11 @@ class UnderpostRun {
         } dd ${env}`,
       );
       if (!options.build && path !== 'template-deploy') shellExec(`${baseCommand} deploy --kubeadm ${deployId} ${env}`);
+
+      logger.info('sync', {
+        deployId,
+        traffic: UnderpostDeploy.API.getCurrentTraffic(deployId),
+      });
     },
     /**
      * @method ls-deployments
