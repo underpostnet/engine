@@ -27,5 +27,5 @@ jobs:
           # Commands to run on the remote VM
           script: |
             set -e
-            echo "Starting remote deploy: underpost run deploy dd-cyberia"
-            cd /home/dd/engine && underpost run pull && underpost run deploy dd-cyberia
+            echo "Starting remote deploy: node bin run deploy dd-cyberia"
+            cd /home/dd/engine && underpost run pull && node bin run deploy dd-cyberia
