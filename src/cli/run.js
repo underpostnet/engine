@@ -600,8 +600,8 @@ class UnderpostRun {
           let defaultPath = [deployId, 1, ``, ``, node];
           shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${defaultPath}`);
         }
-        if (path) shellExec(`${baseCommand} run promote ${path} production`);
       }
+      if (path) shellExec(`${baseCommand} run promote ${path} production`);
     },
 
     /**
