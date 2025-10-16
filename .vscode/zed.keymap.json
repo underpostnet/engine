@@ -1,0 +1,17 @@
+[
+  {
+    "context": "Editor && edit_prediction",
+    "bindings": {
+      "tab": "editor::AcceptEditPrediction",
+      "alt-tab": "editor::AcceptEditPrediction",
+      "alt-l": null
+    }
+  },
+  {
+    "context": "Editor && edit_prediction_conflict",
+    "bindings": {
+      "alt-l": "editor::AcceptEditPrediction",
+      "tab": "editor::ComposeCompletion"
+    }
+  }
+]
