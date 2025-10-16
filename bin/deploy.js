@@ -479,6 +479,14 @@ try {
       break;
     }
 
+    case 'private': {
+      shellExec(`node bin/deploy sync-deploy-envs`);
+      shellExec(`node bin/build dd conf`);
+      shellExec(`cd ./engine-private && git add . && node ../bin cmt . build`);
+      shellExec(`cd ./engine-private && node ../bin push . ${process.env.GITHUB_USERNAME}/engine-private`);
+      break;
+    }
+
     case 'version-deploy': {
       shellExec(
         `underpost secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
@@ -1292,6 +1300,20 @@ nvidia/gpu-operator \
       const domains = ['localhost', '127.0.0.1', '::1'];
       shellExec(`chmod +x ./scripts/ssl.sh`);
       shellExec(`./scripts/ssl.sh ${targetDir} "${domains.join(' ')}"`);
+      break;
+    }
+
+    case 'sync-deploy-envs': {
+      const envObj = dotenv.parse(fs.readFileSync(`./engine-private/conf/dd-cron/.env.production`));
+      for (const deployId of ['dd-cron'].concat(
+        fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(','),
+      )) {
+        for (const env of ['production', 'development', 'test']) {
+          const _envObj = dotenv.parse(fs.readFileSync(`./engine-private/conf/${deployId}/.env.${env}`, 'utf8'));
+          _envObj.GITHUB_TOKEN = envObj.GITHUB_TOKEN;
+          writeEnv(`./engine-private/conf/${deployId}/.env.${env}`, _envObj);
+        }
+      }
       break;
     }
   }
