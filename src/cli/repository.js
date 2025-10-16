@@ -83,7 +83,7 @@ class UnderpostRepository {
      * @memberof UnderpostRepository
      */
     commit(
-      repoPath = './',
+      repoPath = undefined,
       commitType = 'feat',
       subModule = '',
       message = '',
@@ -91,8 +91,15 @@ class UnderpostRepository {
         copy: false,
         info: false,
         empty: false,
+        log: false,
       },
     ) {
+      if (options.log) {
+        const history = UnderpostRepository.API.getHistory(repoPath);
+        console.table(history);
+        if (history[0]) pbcopy(`git show ${history[0].hash}`);
+        return;
+      }
       if (commitType === 'reset') {
         if (options.copy) pbcopy(shellExec(`git --no-pager log -1 --pretty=%B`, { stdout: true }));
         shellExec(`cd ${repoPath} && git reset --soft HEAD~${isNaN(parseInt(subModule)) ? 1 : parseInt(subModule)}`);
@@ -267,6 +274,17 @@ Prevent build private config repo.`,
         engineVersion: packageJsonEngine.version,
         deployVersion: packageJsonDeploy.version,
       };
+    },
+    getHistory(sinceCommit = 5) {
+      return shellExec(`git log --oneline --graph --decorate -n ${sinceCommit}`, { stdout: true, silent: false })
+        .split(`\n`)
+        .map((line) => {
+          return {
+            hash: line.slice(2, 10),
+            message: line.slice(11),
+          };
+        })
+        .filter((line) => line.hash);
     },
   };
 }
