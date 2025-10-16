@@ -30,10 +30,6 @@ RUN dnf clean all
 RUN node --version
 RUN npm --version
 
-# Install underpost ci/cd cli
-RUN npm install -g underpost
-RUN underpost --version
-
 # Set working directory
 WORKDIR /home/dd
 
