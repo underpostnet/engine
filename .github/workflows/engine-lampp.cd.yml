@@ -34,7 +34,7 @@ jobs:
   sync-and-deploy:
     if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-sync-engine-lampp)')
     name: Remote SSH sync and deploy
-    runs-on: ubuntu-lalampp
+    runs-on: ubuntu-latest
     steps:
       - name: Run remote deploy via SSH
         uses: appleboy/ssh-action@v1.2.2
