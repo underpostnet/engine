@@ -197,6 +197,29 @@ class UnderpostRun {
       shellExec(`chmod +x ${underpostRoot}/scripts/ssh-cluster-info.sh`);
       shellExec(`${underpostRoot}/scripts/ssh-cluster-info.sh`);
     },
+
+    /**
+     * @method dev-hosts-expose
+     * @description Deploys a specified service in development mode with `/etc/hosts` modification for local access.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the deployment ID to deploy).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'dev-hosts-expose': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(`node bin deploy ${path} development --disable-update-deployment --kubeadm --etc-hosts`);
+    },
+
+    /**
+     * @method dev-hosts-restore
+     * @description Restores the `/etc/hosts` file to its original state after modifications made during development deployments.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'dev-hosts-restore': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(`node bin deploy --restore-hosts`);
+    },
+
     /**
      * @method cyberia-ide
      * @description Starts the development environment (IDE) for both `cyberia-server` and `cyberia-client` repositories.
@@ -337,11 +360,11 @@ class UnderpostRun {
         options.dev || !isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname(),
       ];
       let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPath;
-      deployId = deployId ?? defaultPath[0];
-      replicas = replicas ?? defaultPath[1];
-      versions = versions ?? defaultPath[2];
-      image = image ?? defaultPath[3];
-      node = node ?? defaultPath[4];
+      deployId = deployId ? deployId : defaultPath[0];
+      replicas = replicas ? replicas : defaultPath[1];
+      versions = versions ? versions : defaultPath[2];
+      image = image ? image : defaultPath[3];
+      node = node ? node : defaultPath[4];
 
       if (isDeployRunnerContext(path, options)) {
         const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
