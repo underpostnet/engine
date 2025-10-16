@@ -104,8 +104,14 @@ class UnderpostRepository {
               .join(''),
           );
           for (const commit of history) {
-            logger.info(commit.hash, commit.message);
-            shellExec(`git show --name-status --pretty="" ${commit.hash}`);
+            console.log(commit.hash.yellow, commit.message);
+            console.log(
+              shellExec(`git show --name-status --pretty="" ${commit.hash}`, {
+                stdout: true,
+                silent: true,
+                disableLog: true,
+              }).red,
+            );
           }
         } else logger.warn('No commits found');
         return;
