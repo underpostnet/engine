@@ -309,14 +309,14 @@ class UnderpostRun {
     },
     /**
      * @method ide
-     * @description Opens a Visual Studio Code (VS Code) session for the specified path using `node ${underpostRoot}/bin/vs ${path}`.
+     * @description Opens a Visual Studio Code (VS Code) session for the specified path using `node ${underpostRoot}/bin/zed ${path}`.
      * @param {string} path - The input value, identifier, or path for the operation (used as the path to the directory to open in the IDE).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     ide: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
-      shellExec(`node ${underpostRoot}/bin/vs ${path}`);
+      shellExec(`node ${underpostRoot}/bin/zed ${path}`);
     },
     /**
      * @method sync

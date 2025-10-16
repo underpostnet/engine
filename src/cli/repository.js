@@ -96,8 +96,10 @@ class UnderpostRepository {
     ) {
       if (options.log) {
         const history = UnderpostRepository.API.getHistory(repoPath);
+        pbcopy(
+          history.map((commitData, i) => `${i === 0 ? '' : ' && '}git --no-pager show ${commitData.hash}`).join(''),
+        );
         console.table(history);
-        if (history[0]) pbcopy(`git show ${history[0].hash}`);
         return;
       }
       if (commitType === 'reset') {
@@ -276,7 +278,7 @@ Prevent build private config repo.`,
       };
     },
     getHistory(sinceCommit = 5) {
-      return shellExec(`git log --oneline --graph --decorate -n ${sinceCommit}`, { stdout: true, silent: false })
+      return shellExec(`git log --oneline --graph --decorate -n ${sinceCommit}`, { stdout: true, silent: true })
         .split(`\n`)
         .map((line) => {
           return {
