@@ -96,10 +96,18 @@ class UnderpostRepository {
     ) {
       if (options.log) {
         const history = UnderpostRepository.API.getHistory(repoPath);
-        pbcopy(
-          history.map((commitData, i) => `${i === 0 ? '' : ' && '}git --no-pager show ${commitData.hash}`).join(''),
-        );
-        console.table(history);
+        if (history[0]) {
+          pbcopy(
+            history
+              .reverse()
+              .map((commitData, i) => `${i === 0 ? '' : ' && '}git --no-pager show ${commitData.hash}`)
+              .join(''),
+          );
+          for (const commit of history) {
+            logger.info(commit.hash, commit.message);
+            shellExec(`git show --name-status --pretty="" ${commit.hash}`);
+          }
+        } else logger.warn('No commits found');
         return;
       }
       if (commitType === 'reset') {
@@ -286,7 +294,14 @@ Prevent build private config repo.`,
             message: line.slice(11),
           };
         })
-        .filter((line) => line.hash);
+        .filter((line) => line.hash)
+        .map((line) => {
+          line.files = shellExec(`git show --name-status --pretty="" ${line.hash}`, {
+            stdout: true,
+            silent: true,
+          });
+          return line;
+        });
     },
   };
 }
