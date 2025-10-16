@@ -244,7 +244,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'template-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const baseCommand = options.dev || true ? 'node bin' : 'underpost';
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} run clean`);
       shellExec(`${baseCommand} push ./engine-private ${process.env.GITHUB_USERNAME}/engine-private`);
       shellCd('/home/dd/engine');
@@ -301,7 +301,7 @@ class UnderpostRun {
      */
     'ssh-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       actionInitLog();
-      const baseCommand = options.dev || true ? 'node bin' : 'underpost';
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
       shellExec(`${baseCommand} cmt . --empty cd ssh-${path}`);
@@ -328,7 +328,7 @@ class UnderpostRun {
     sync: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       // Dev usage: node bin run --dev --build sync dd-default
       const env = options.dev ? 'development' : 'production';
-      const baseCommand = options.dev || true ? 'node bin' : 'underpost';
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
       const defaultPath = [
         'dd-default',
         1,
@@ -534,31 +534,51 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    cluster: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',');
-      const env = 'production';
+    cluster: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      const env = options.dev ? 'development' : 'production';
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseClusterCommand = options.dev ? ' --dev' : '';
       shellCd(`/home/dd/engine`);
-      shellExec(`underpost cluster --reset`);
+      shellExec(`${baseCommand} cluster${baseClusterCommand} --reset`);
       await timer(5000);
-      shellExec(`underpost cluster --kubeadm`);
+      shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm`);
       await timer(5000);
-      shellExec(`underpost dockerfile-pull-base-images --path /home/dd/engine/src/runtime/lampp --kubeadm-load`);
+      let [runtimeImage, deployList] = path.split(',')
+        ? path.split(',')
+        : ['lampp', fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+')];
+      shellExec(
+        `${baseCommand} dockerfile-pull-base-images${baseClusterCommand}${
+          runtimeImage ? ` --path /home/dd/engine/src/runtime/${runtimeImage}` : ''
+        } --kubeadm-load`,
+      );
+      if (!deployList) {
+        deployList = [];
+        logger.warn('No deploy list provided');
+      } else deployList = deployList.split('+');
       await timer(5000);
-      shellExec(`underpost cluster --kubeadm --pull-image --mongodb`);
-      await timer(5000);
-      shellExec(`underpost cluster --kubeadm --pull-image --mariadb`);
-      await timer(5000);
-      for (const deployId of deployList) {
-        shellExec(`underpost db ${deployId} --import --git`);
+      shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm --pull-image --mongodb`);
+      if (runtimeImage === 'lampp') {
+        await timer(5000);
+        shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm --pull-image --mariadb`);
       }
       await timer(5000);
-      shellExec(`underpost cluster --kubeadm --pull-image --valkey`);
-      await timer(5000);
-      shellExec(`underpost cluster --kubeadm --contour`);
-      await timer(5000);
-      shellExec(`underpost cluster --kubeadm --cert-manager`);
       for (const deployId of deployList) {
-        shellExec(`underpost deploy ${deployId} ${env} --kubeadm --cert`);
+        shellExec(`${baseCommand} db ${deployId} --import --git`);
+      }
+      await timer(5000);
+      shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm --pull-image --valkey`);
+      await timer(5000);
+      shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm --contour`);
+      if (env === 'production') {
+        await timer(5000);
+        shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm --cert-manager`);
+      }
+      for (const deployId of deployList) {
+        shellExec(
+          `${baseCommand} deploy ${deployId} ${env} --kubeadm${env === 'production' ? ' --cert' : ''}${
+            env === 'development' ? ' --etc-hosts' : ''
+          }`,
+        );
       }
     },
     /**
@@ -593,7 +613,7 @@ class UnderpostRun {
      */
     'sync-replica': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
-      const baseCommand = options.dev || true ? 'node bin' : 'underpost';
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
 
       for (let deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
         deployId = deployId.trim();

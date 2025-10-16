@@ -34,6 +34,7 @@ class UnderpostImage {
        * @param {boolean} [options.kubeadmLoad=false] - If true, load image into Kubeadm cluster.
        * @param {boolean} [options.k3sLoad=false] - If true, load image into K3s cluster.
        * @param {string} [options.path=false] - Path to the Dockerfile context.
+       * @param {boolean} [options.dev=false] - If true, use development mode.
        * @param {string} [options.version=''] - Version tag for the image.
        * @memberof UnderpostImage
        */
@@ -43,11 +44,14 @@ class UnderpostImage {
           kubeadmLoad: false,
           k3sLoad: false,
           path: false,
+          dev: false,
           version: '',
         },
       ) {
         // shellExec(`sudo podman pull docker.io/library/debian:buster`);
         shellExec(`sudo podman pull docker.io/library/rockylinux:9`);
+        const baseCommand = options.dev ? 'node bin' : 'underpost';
+        const baseCommandOption = options.dev ? ' --dev' : '';
         const IMAGE_NAME = `rockylinux9-underpost`;
         const IMAGE_NAME_FULL = `${IMAGE_NAME}:${options.version ?? Underpost.version}`;
         let LOAD_TYPE = '';
@@ -61,7 +65,7 @@ class UnderpostImage {
         }
 
         shellExec(
-          `underpost dockerfile-image-build --podman-save --reset --image-path=. --path ${
+          `${baseCommand} dockerfile-image-build${baseCommandOption} --podman-save --reset --image-path=. --path ${
             options.path ?? getUnderpostRootPath()
           } --image-name=${IMAGE_NAME_FULL} ${LOAD_TYPE}`,
         );
@@ -82,6 +86,7 @@ class UnderpostImage {
        * @param {boolean} [options.secrets=false] - If true, load secrets from the .env file for the build.
        * @param {string} [options.secretsPath=''] - Custom path to the .env file for secrets.
        * @param {boolean} [options.reset=false] - If true, perform a no-cache build.
+       * @param {boolean} [options.dev=false] - If true, use development mode.
        * @memberof UnderpostImage
        */
       build(
@@ -97,6 +102,7 @@ class UnderpostImage {
           secrets: false,
           secretsPath: '',
           reset: false,
+          dev: false,
         },
       ) {
         const {
@@ -111,6 +117,7 @@ class UnderpostImage {
           kubeadmLoad,
           k3sLoad,
           reset,
+          dev,
         } = options;
         const podManImg = `localhost/${imageName}`;
         if (imagePath && typeof imagePath === 'string' && !fs.existsSync(imagePath))
@@ -139,7 +146,10 @@ class UnderpostImage {
             } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache}${secretDockerInput} --network host`,
           );
 
-        if (podmanSave === true) shellExec(`podman save -o ${tarFile} ${podManImg}`);
+        if (podmanSave === true) {
+          if (fs.existsSync(tarFile)) fs.removeSync(tarFile);
+          shellExec(`podman save -o ${tarFile} ${podManImg}`);
+        }
         if (kindLoad === true) shellExec(`sudo kind load image-archive ${tarFile}`);
         if (kubeadmLoad === true) {
           // Use 'ctr' for Kubeadm

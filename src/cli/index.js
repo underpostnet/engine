@@ -217,6 +217,7 @@ program
   .option('--secrets', 'Includes Dockerfile environment secrets during the build.')
   .option('--secrets-path [secrets-path]', 'Specifies a custom path for Dockerfile environment secrets.')
   .option('--reset', 'Performs a build without using the cache.')
+  .option('--dev', 'Use development mode.')
   .option('--k3s-load', 'Loads the image into a K3s cluster.')
   .description(
     'Builds a Docker image from a specified Dockerfile with various options for naming, saving, and loading.',
@@ -231,6 +232,7 @@ program
   .option('--kubeadm-load', 'Imports the pulled image into a Kubeadm cluster.')
   .option('--version', 'Sets a custom version for the base images.')
   .option('--k3s-load', 'Loads the image into a K3s cluster.')
+  .option('--dev', 'Use development mode.')
   .description('Pulls required Underpost Dockerfile base images and optionally loads them into clusters.')
   .action(Underpost.image.dockerfile.pullBaseImages);
 
