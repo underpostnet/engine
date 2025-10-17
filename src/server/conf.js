@@ -285,12 +285,8 @@ const loadReplicas = (deployId, confServer) => {
       }
     }
   }
-  if (fs.existsSync(`./engine-private/conf/${deployId}/conf.server.json`))
-    fs.writeFileSync(
-      `./engine-private/conf/${deployId}/conf.server.json`,
-      JSON.stringify(confServerOrigin, null, 4),
-      'utf8',
-    );
+  const serverPath = `./engine-private/conf/${deployId}/conf.server${process.env.NODE_ENV === 'production' ? '' : '.dev'}.json`;
+  if (fs.existsSync(serverPath)) fs.writeFileSync(serverPath, JSON.stringify(confServerOrigin, null, 4), 'utf8');
 
   return confServer;
 };
