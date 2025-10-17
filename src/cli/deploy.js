@@ -21,6 +21,9 @@ import dotenv from 'dotenv';
 import UnderpostRootEnv from './env.js';
 import UnderpostCluster from './cluster.js';
 import { timer } from '../client/components/core/CommonJs.js';
+import os from 'node:os';
+import Dns, { getLocalIPv4Address } from '../server/dns.js';
+import UnderpostBaremetal from './baremetal.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -327,7 +330,7 @@ spec:
      * @param {string} options.restoreHosts - Whether to restore hosts.
      * @param {string} options.disableUpdateDeployment - Whether to disable updating the deployment.
      * @param {string} options.disableUpdateProxy - Whether to disable updating the proxy.
-     * @param {string} options.infoTraffic - Whether to display traffic information.
+     * @param {string} options.status - Whether to display status host machine server and traffic information.
      * @param {string} options.etcHosts - Whether to update /etc/hosts.
      * @returns {Promise<void>} - Promise that resolves when the callback is complete.
      * @memberof UnderpostDeploy
@@ -352,7 +355,7 @@ spec:
         restoreHosts: false,
         disableUpdateDeployment: false,
         disableUpdateProxy: false,
-        infoTraffic: false,
+        status: false,
         etcHosts: false,
       },
     ) {
@@ -418,7 +421,7 @@ EOF`);
       } else if (!deployList) deployList = 'dd-default';
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
-      if (options.infoTraffic === true) {
+      if (options.status === true) {
         for (const _deployId of deployList.split(',')) {
           const deployId = _deployId.trim();
           logger.info('', {
@@ -429,6 +432,16 @@ EOF`);
             pods: await UnderpostDeploy.API.get(deployId),
           });
         }
+        const interfaceName = Dns.getDefaultNetworkInterface();
+        logger.info('Machine', {
+          node: os.hostname(),
+          arch: UnderpostBaremetal.API.getHostArch(),
+          ipv4Public: await Dns.getPublicIp(),
+          ipv4Local: getLocalIPv4Address(),
+          resources: UnderpostCluster.API.getResourcesCapacity(),
+          defaultInterfaceName: interfaceName,
+          defaultInterfaceInfo: os.networkInterfaces()[interfaceName],
+        });
         return;
       }
       if (!(options.versions && typeof options.versions === 'string')) options.versions = 'blue,green';

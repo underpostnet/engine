@@ -8,7 +8,6 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import validator from 'validator';
-import { publicIp, publicIpv4, publicIpv6 } from 'public-ip';
 import { loggerFactory } from './logger.js';
 import UnderpostRootEnv from '../cli/env.js';
 import dns from 'node:dns';
@@ -35,29 +34,14 @@ class Dns {
    * @returns {Promise<string>} The public IP address.
    */
   static async getPublicIp() {
-    return await publicIp();
-  }
-
-  /**
-   * Retrieves the current public IPv4 address.
-   * @async
-   * @static
-   * @memberof DnsManager
-   * @returns {Promise<string>} The public IPv4 address.
-   */
-  static async getPublicIpv4() {
-    return await publicIpv4();
-  }
-
-  /**
-   * Retrieves the current public IPv6 address.
-   * @async
-   * @static
-   * @memberof DnsManager
-   * @returns {Promise<string>} The public IPv6 address.
-   */
-  static async getPublicIpv6() {
-    return await publicIpv6();
+    return await new Promise(async (resolve) => {
+      try {
+        return axios.get('https://api.ipify.org').then((response) => resolve(response.data));
+      } catch (error) {
+        logger.error('Error fetching public IP:', { error: error.message, stack: error.stack });
+        return resolve(null);
+      }
+    });
   }
 
   /**
@@ -72,6 +56,22 @@ class Dns {
   }
 
   /**
+   * Determines the default network interface name using shell command.
+   * This method is primarily intended for Linux environments.
+   * @static
+   * @memberof DnsManager
+   * @returns {string} The default network interface name.
+   * @memberof DnsManager
+   */
+  static getDefaultNetworkInterface() {
+    return shellExec(`ip route | grep default | cut -d ' ' -f 5`, {
+      stdout: true,
+      silent: true,
+      disableLog: true,
+    }).trim();
+  }
+
+  /**
    * Gets the local device's IPv4 address by determining the active network interface.
    * This relies on shell execution (`ip route`) and is primarily intended for Linux environments.
    * @static
@@ -80,11 +80,7 @@ class Dns {
    */
   static getLocalIPv4Address() {
     // Determine the default network interface name using shell command
-    const interfaceName = shellExec(`ip route | grep default | cut -d ' ' -f 5`, {
-      stdout: true,
-      silent: true,
-      disableLog: true,
-    }).trim();
+    const interfaceName = Dns.getDefaultNetworkInterface();
 
     // Find the IPv4 address associated with the determined interface
     const networkInfo = os.networkInterfaces()[interfaceName];
@@ -121,7 +117,7 @@ class Dns {
     let testIp;
 
     try {
-      testIp = await Dns.getPublicIpv4();
+      testIp = await Dns.getPublicIp();
     } catch (error) {
       logger.error(error, { testIp, stack: error.stack });
     }
@@ -239,21 +235,6 @@ class Dns {
 }
 
 /**
- * @namespace Dns
- * @description Exported IP object for backward compatibility, mapping to Dns static methods.
- */
-const ip = {
-  public: {
-    /** @type {function(): Promise<string>} */
-    get: Dns.getPublicIp,
-    /** @type {function(): Promise<string>} */
-    ipv4: Dns.getPublicIpv4,
-    /** @type {function(): Promise<string>} */
-    ipv6: Dns.getPublicIpv6,
-  },
-};
-
-/**
  * @function isInternetConnection
  * @memberof DnsManager
  * @description Exported function for backward compatibility.
@@ -273,4 +254,4 @@ const getLocalIPv4Address = Dns.getLocalIPv4Address;
 // Export the class as default and all original identifiers for backward compatibility.
 export default Dns;
 
-export { Dns, ip, isInternetConnection, getLocalIPv4Address };
+export { Dns, isInternetConnection, getLocalIPv4Address };

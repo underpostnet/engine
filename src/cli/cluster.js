@@ -698,7 +698,11 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
      */
     getResourcesCapacity(node) {
       const resources = {};
-      const nodeName = node ?? os.hostname();
+      const nodeName = node
+        ? node
+        : UnderpostDeploy.API.get('kind-control-plane', 'node').length > 0
+          ? 'kind-control-plane'
+          : os.hostname();
       const info = shellExec(`kubectl describe node ${nodeName} | grep -E '(Allocatable:|Capacity:)' -A 6`, {
         stdout: true,
         silent: true,

@@ -952,7 +952,7 @@ EOF`);
      */
     getHostArch() {
       // `uname -m` returns e.g. 'x86_64' or 'aarch64'
-      const machine = shellExec('uname -m', { stdout: true }).trim();
+      const machine = shellExec('uname -m', { stdout: true, silent: true }).trim();
       if (machine === 'x86_64') return { alias: 'amd64', name: 'x86_64' };
       if (machine === 'aarch64') return { alias: 'arm64', name: 'aarch64' };
       throw new Error(`Unsupported host architecture: ${machine}`);

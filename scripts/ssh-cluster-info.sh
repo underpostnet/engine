@@ -9,6 +9,6 @@ chmod 600 "$SSH_KEY"
 
 ssh -i "$SSH_KEY" -o BatchMode=yes "${REMOTE_USER}@${REMOTE_HOST}" sh <<EOF
 cd /home/dd/engine
-node bin deploy dd production --info-traffic
+node bin deploy dd production --status
 kubectl get pods -A
 EOF
