@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.887
+## underpost ci/cd cli v2.81.0
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -168,7 +168,7 @@ ID.
 
 Arguments:
   deploy-id   The deployment configuration ID. Use 'clean' to restore default
-              environment settings. User 'root' to load root env. User
+              environment settings. Use 'root' to load underpost root env. Use
               'current' to get plain current deploy Id.
   env         Optional: The environment to set (e.g., "production",
               "development"). Defaults to "production".
@@ -314,8 +314,9 @@ Options:
                                     traffic weights.
   --disable-update-deployment       Disables updates to deployments.
   --disable-update-proxy            Disables updates to proxies.
-  --info-traffic                    Retrieves traffic configuration from
-                                    current resource deployments.
+  --status                          Retrieves current network traffic data from
+                                    resource deployments and the host machine
+                                    network configuration.
   --kubeadm                         Enables the kubeadm context for deployment
                                     operations.
   --etc-hosts                       Enables the etc-hosts context for

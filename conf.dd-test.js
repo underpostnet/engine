@@ -160,7 +160,7 @@ const DefaultConf = /**/ {
       '/': {
         client: 'default',
         runtime: 'nodejs',
-        apis: ['default', 'core', 'user', 'test', 'file', 'document'],
+        apis: ['default', 'core', 'user', 'test', 'file'],
         origins: ['https://stagging.nexodev.org'],
         minifyBuild: false,
         iconsBuild: false,
@@ -187,7 +187,7 @@ const DefaultConf = /**/ {
       '/': {
         client: 'default',
         runtime: 'nodejs',
-        apis: ['default', 'core', 'user', 'test', 'file', 'document'],
+        apis: ['default', 'core', 'user', 'test', 'file'],
         origins: [],
         apiBaseProxyPath: '/',
         apiBaseHost: 'test.nexodev.org',
