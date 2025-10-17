@@ -96,13 +96,11 @@ class UnderpostRepository {
     ) {
       if (options.log) {
         const history = UnderpostRepository.API.getHistory(repoPath);
+        const chainCmd = history
+          .reverse()
+          .map((commitData, i) => `${i === 0 ? '' : ' && '}git --no-pager show ${commitData.hash}`)
+          .join('');
         if (history[0]) {
-          pbcopy(
-            history
-              .reverse()
-              .map((commitData, i) => `${i === 0 ? '' : ' && '}git --no-pager show ${commitData.hash}`)
-              .join(''),
-          );
           for (const commit of history) {
             console.log(commit.hash.yellow, commit.message);
             console.log(
@@ -112,6 +110,8 @@ class UnderpostRepository {
                 disableLog: true,
               }).red,
             );
+            if (options.copy) pbcopy(chainCmd);
+            else console.log('Show all:', chainCmd);
           }
         } else logger.warn('No commits found');
         return;

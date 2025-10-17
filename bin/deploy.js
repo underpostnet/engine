@@ -251,7 +251,7 @@ try {
       break;
 
     case 'sync-env-port':
-      const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], disableSyncEnvPort: true });
+      const dataDeploy = getDataDeploy({ disableSyncEnvPort: true });
       const dataEnv = [
         { env: 'production', port: 3000 },
         { env: 'development', port: 4000 },

@@ -57,7 +57,8 @@ const Config = {
     if (process.argv[2] && typeof process.argv[2] === 'string' && process.argv[2].startsWith('dd-'))
       deployContext = process.argv[2];
     if (!subConf && process.argv[3] && typeof process.argv[3] === 'string') subConf = process.argv[3];
-    if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
+    if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`);
+    if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
     UnderpostRootEnv.API.set('await-deploy', new Date().toISOString());
     if (deployContext.startsWith('dd-')) loadConf(deployContext, subConf);
     if (deployContext === 'proxy') await Config.buildProxy(deployList, subConf);
@@ -842,7 +843,6 @@ const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1
  * @description Gets the data deploy.
  * @param {object} options - The options.
  * @param {boolean} [options.buildSingleReplica=false] - The build single replica.
- * @param {string} options.deployGroupId - The deploy group ID.
  * @param {string} options.deployId - The deploy ID.
  * @param {boolean} [options.disableSyncEnvPort=false] - The disable sync env port.
  * @returns {object} - The data deploy.
@@ -851,22 +851,14 @@ const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1
 const getDataDeploy = (
   options = {
     buildSingleReplica: false,
-    deployGroupId: '',
-    deployId: '',
     disableSyncEnvPort: false,
   },
 ) => {
-  let dataDeploy =
-    options.deployGroupId === 'dd'
-      ? fs.readFileSync(`./engine-private/deploy/${options.deployGroupId}.router`, 'utf8')
-      : fs.readFileSync(`./engine-private/deploy/${options.deployGroupId}`, 'utf8');
-
-  dataDeploy = dataDeploy
+  let dataDeploy = fs
+    .readFileSync(`./engine-private/deploy/dd.router`, 'utf8')
     .split(',')
     .map((deployId) => deployId.trim())
     .filter((deployId) => deployId);
-
-  if (options.deployId) dataDeploy = dataDeploy.filter((d) => d === options.deployId);
 
   dataDeploy = dataDeploy.map((deployId) => {
     return {
@@ -902,8 +894,7 @@ const getDataDeploy = (
     if (replicaDataDeploy.length > 0) buildDataDeploy = buildDataDeploy.concat(replicaDataDeploy);
   }
 
-  const enableSyncEnvPort = !options.disableSyncEnvPort && options.buildSingleReplica;
-  if (enableSyncEnvPort) shellExec(Cmd.syncPorts(options.deployGroupId));
+  if (!options.disableSyncEnvPort && options.buildSingleReplica) shellExec(Cmd.syncPorts());
 
   logger.info('buildDataDeploy', { buildDataDeploy, enableSyncEnvPort });
 
@@ -1168,11 +1159,10 @@ const Cmd = {
   /**
    * @method syncPorts
    * @description Syncs the ports.
-   * @param {string} deployGroupId - The deploy group ID.
    * @returns {string} - The sync ports command.
    * @memberof Cmd
    */
-  syncPorts: (deployGroupId) => `node bin/deploy sync-env-port ${deployGroupId}`,
+  syncPorts: () => `node bin/deploy sync-env-port`,
   /**
    * @method cron
    * @description Creates a cron job.

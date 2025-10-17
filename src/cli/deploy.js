@@ -48,8 +48,7 @@ class UnderpostDeploy {
      * @memberof UnderpostDeploy
      */
     sync(deployList, { versions, replicas, node }) {
-      const deployGroupId = 'dd.router';
-      fs.writeFileSync(`./engine-private/deploy/${deployGroupId}`, deployList, 'utf8');
+      fs.writeFileSync(`./engine-private/deploy/dd.router`, deployList, 'utf8');
       const totalPods = deployList.split(',').length * versions.split(',').length * parseInt(replicas);
       const limitFactor = 0.8;
       const reserveFactor = 0.05;
@@ -66,7 +65,6 @@ class UnderpostDeploy {
       UnderpostRootEnv.API.set('total-pods', totalPods);
       return getDataDeploy({
         buildSingleReplica: true,
-        deployGroupId,
       });
     },
     /**
