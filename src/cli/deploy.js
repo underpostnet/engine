@@ -325,6 +325,7 @@ spec:
      * @param {string} options.node - Node name for resource allocation.
      * @param {string} options.restoreHosts - Whether to restore hosts.
      * @param {string} options.disableUpdateDeployment - Whether to disable updating the deployment.
+     * @param {string} options.disableUpdateProxy - Whether to disable updating the proxy.
      * @param {string} options.infoTraffic - Whether to display traffic information.
      * @param {string} options.etcHosts - Whether to update /etc/hosts.
      * @returns {Promise<void>} - Promise that resolves when the callback is complete.
@@ -349,6 +350,7 @@ spec:
         node: '',
         restoreHosts: false,
         disableUpdateDeployment: false,
+        disableUpdateProxy: false,
         infoTraffic: false,
         etcHosts: false,
       },
@@ -467,12 +469,14 @@ EOF`);
           }
 
         const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
-        for (const host of Object.keys(confServer)) {
-          shellExec(`sudo kubectl delete HTTPProxy ${host}`);
-          if (UnderpostDeploy.API.isValidTLSContext({ host, env, options }))
-            shellExec(`sudo kubectl delete Certificate ${host}`);
-          if (!options.remove === true && env === 'development') etcHosts.push(host);
-        }
+
+        if (!options.disableUpdateProxy)
+          for (const host of Object.keys(confServer)) {
+            shellExec(`sudo kubectl delete HTTPProxy ${host}`);
+            if (UnderpostDeploy.API.isValidTLSContext({ host, env, options }))
+              shellExec(`sudo kubectl delete Certificate ${host}`);
+            if (!options.remove === true && env === 'development') etcHosts.push(host);
+          }
 
         const manifestsPath =
           env === 'production'
@@ -481,7 +485,7 @@ EOF`);
 
         if (!options.remove === true) {
           if (!options.disableUpdateDeployment) shellExec(`sudo kubectl apply -f ./${manifestsPath}/deployment.yaml`);
-          shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml`);
+          if (!options.disableUpdateProxy) shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml`);
 
           if (UnderpostDeploy.API.isValidTLSContext({ host: Object.keys(confServer)[0], env, options }))
             shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml`);

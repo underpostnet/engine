@@ -184,6 +184,7 @@ program
   .option('--versions <deployment-versions>', 'A comma-separated list of custom deployment versions.')
   .option('--traffic <traffic-versions>', 'A comma-separated list of custom deployment traffic weights.')
   .option('--disable-update-deployment', 'Disables updates to deployments.')
+  .option('--disable-update-proxy', 'Disables updates to proxies.')
   .option('--info-traffic', 'Retrieves traffic configuration from current resource deployments.')
   .option('--kubeadm', 'Enables the kubeadm context for deployment operations.')
   .option('--etc-hosts', 'Enables the etc-hosts context for deployment operations.')

@@ -362,7 +362,7 @@ class UnderpostRun {
       let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPath;
       deployId = deployId ? deployId : defaultPath[0];
       replicas = replicas ? replicas : defaultPath[1];
-      versions = versions ? versions : defaultPath[2];
+      versions = versions ? versions.replaceAll('+', ',') : defaultPath[2];
       image = image ? image : defaultPath[3];
       node = node ? node : defaultPath[4];
 
@@ -380,13 +380,11 @@ class UnderpostRun {
       shellExec(
         `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
           replicas ?? 1
-        } --node ${node}${image ? ` --image ${image}` : ''}${
-          versions ? ` --versions ${versions.replaceAll('+', ',')}` : ''
-        } dd ${env}`,
+        } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''} dd ${env}`,
       );
 
       if (isDeployRunnerContext(path, options)) {
-        shellExec(`${baseCommand} deploy --kubeadm ${deployId} ${env}`);
+        shellExec(`${baseCommand} deploy --kubeadm --disable-update-proxy ${deployId} ${env} --versions ${versions}`);
         if (!targetTraffic) targetTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
         await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic);
         UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
