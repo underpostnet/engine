@@ -277,7 +277,11 @@ const loadReplicas = (deployId, confServer) => {
               delete confServer[host][replicaPath].replicas;
             }
           }
-        else confServerOrigin[host][path].replicas = orderAbc(confServerOrigin[host][path].replicas);
+        else {
+          const orderReplica = orderAbc(confServerOrigin[host][path].replicas);
+          confServerOrigin[host][path].replicas = orderReplica;
+          confServer[host][path].replicas = orderReplica;
+        }
       }
     }
   }
