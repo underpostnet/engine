@@ -169,15 +169,18 @@ class UnderpostRun {
      */
     'dev-cluster': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
-      shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --reset`);
-      shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''}`);
       const mongoHosts = ['mongodb-0.mongodb-service'];
-      shellExec(
-        `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb --mongo-db-host ${mongoHosts.join(
-          ',',
-        )} --pull-image`,
-      );
-      shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --valkey --pull-image`);
+      if (path !== 'expose') {
+        shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --reset`);
+        shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''}`);
+
+        shellExec(
+          `${baseCommand} cluster${options.dev ? ' --dev' : ''} --mongodb --mongo-db-host ${mongoHosts.join(
+            ',',
+          )} --pull-image`,
+        );
+        shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --valkey --pull-image`);
+      }
       shellExec(`${baseCommand} deploy --expose mongo`, { async: true });
       shellExec(`${baseCommand} deploy --expose valkey`, { async: true });
       {
