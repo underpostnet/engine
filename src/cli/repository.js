@@ -110,9 +110,9 @@ class UnderpostRepository {
                 disableLog: true,
               }).red,
             );
-            if (options.copy) pbcopy(chainCmd);
-            else console.log('Show all:', chainCmd);
           }
+          if (options.copy) pbcopy(chainCmd);
+          else console.log('Show all:', chainCmd);
         } else logger.warn('No commits found');
         return;
       }
@@ -292,7 +292,11 @@ Prevent build private config repo.`,
       };
     },
     getHistory(sinceCommit = 5) {
-      return shellExec(`git log --oneline --graph --decorate -n ${sinceCommit}`, { stdout: true, silent: true })
+      return shellExec(`git log --oneline --graph --decorate -n ${sinceCommit}`, {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+      })
         .split(`\n`)
         .map((line) => {
           return {
@@ -305,6 +309,7 @@ Prevent build private config repo.`,
           line.files = shellExec(`git show --name-status --pretty="" ${line.hash}`, {
             stdout: true,
             silent: true,
+            disableLog: true,
           });
           return line;
         });
