@@ -896,7 +896,7 @@ const getDataDeploy = (
 
   if (!options.disableSyncEnvPort && options.buildSingleReplica) shellExec(Cmd.syncPorts());
 
-  logger.info('buildDataDeploy', { buildDataDeploy, enableSyncEnvPort });
+  logger.info('Deployments configured', buildDataDeploy);
 
   return buildDataDeploy;
 };
