@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.8.886
+## underpost ci/cd cli v2.8.887
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -11,7 +11,7 @@ Commands:
   start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
   clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
   pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
-  cmt [options] <path> <commit-type> [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
+  cmt [options] [path] [commit-type] [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
   push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
   env [deploy-id] [env] [subConf]                            Sets environment variables and configurations related to a specific deployment ID.
   config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
@@ -117,7 +117,7 @@ Options:
 
 ### `cmt` :
 ```
- Usage: underpost cmt [options] <path> <commit-type> [module-tag] [message]
+ Usage: underpost cmt [options] [path] [commit-type] [module-tag] [message]
 
 Manages commits to a GitHub repository, supporting various commit types and
 options.
@@ -131,6 +131,8 @@ Arguments:
   message      Optional: Provides an additional custom message for the commit.
 
 Options:
+  --log        Shows commit history from the specified number of latest n path
+               commits.
   --empty      Allows committing with empty files.
   --copy       Copies the generated commit message to the clipboard.
   --info       Displays information about available commit types.
@@ -311,6 +313,7 @@ Options:
   --traffic <traffic-versions>      A comma-separated list of custom deployment
                                     traffic weights.
   --disable-update-deployment       Disables updates to deployments.
+  --disable-update-proxy            Disables updates to proxies.
   --info-traffic                    Retrieves traffic configuration from
                                     current resource deployments.
   --kubeadm                         Enables the kubeadm context for deployment
@@ -370,6 +373,7 @@ Options:
                                        environment secrets.
   --reset                              Performs a build without using the
                                        cache.
+  --dev                                Use development mode.
   --k3s-load                           Loads the image into a K3s cluster.
   -h, --help                           display help for command
  
@@ -389,6 +393,7 @@ Options:
   --kubeadm-load  Imports the pulled image into a Kubeadm cluster.
   --version       Sets a custom version for the base images.
   --k3s-load      Loads the image into a K3s cluster.
+  --dev           Use development mode.
   -h, --help      display help for command
  
 ```
@@ -607,7 +612,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, cyberia-ide, engine-ide, cluster-build, template-deploy, clean, pull, release-deploy, ssh-deploy, ide, sync, ls-deployments, monitor, db-client, promote, metrics, cluster, deploy, sync-replica, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cyberia-ide, engine-ide, cluster-build, template-deploy, clean, pull, release-deploy, ssh-deploy, ide, sync, ls-deployments, monitor, db-client, promote, metrics, cluster, deploy, sync-replica, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
