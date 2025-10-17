@@ -90,7 +90,7 @@ program
   .command('env')
   .argument(
     '[deploy-id]',
-    `The deployment configuration ID. Use 'clean' to restore default environment settings. User 'root' to load root env. User 'current' to get plain current deploy Id.`,
+    `The deployment configuration ID. Use 'clean' to restore default environment settings. Use 'root' to load underpost root env. Use 'current' to get plain current deploy Id.`,
   )
   .argument('[env]', 'Optional: The environment to set (e.g., "production", "development"). Defaults to "production".')
   .argument('[subConf]', 'Optional: The sub configuration to set.')

@@ -155,15 +155,17 @@ const Config = {
    * @memberof ServerConfBuilder
    */
   buildProxyByDeployId: function (deployId = 'dd-default', subConf = '') {
-    let confPath = `./engine-private/conf/${deployId}/conf.server.json`;
-    const privateConfDevPath = fs.existsSync(`./engine-private/replica/${deployId}/conf.server.json`)
+    let confPath = fs.existsSync(`./engine-private/replica/${deployId}/conf.server.json`)
       ? `./engine-private/replica/${deployId}/conf.server.json`
-      : `./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`;
-    const confDevPath = fs.existsSync(privateConfDevPath)
-      ? privateConfDevPath
-      : `./engine-private/conf/${deployId}/conf.server.dev.json`;
+      : `./engine-private/conf/${deployId}/conf.server.json`;
 
-    if (fs.existsSync(confDevPath)) confPath = confDevPath;
+    if (
+      process.env.NODE_ENV === 'development' &&
+      subConf &&
+      fs.existsSync(`./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`)
+    )
+      confPath = `./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`;
+
     const serverConf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
 
     for (const host of Object.keys(loadReplicas(deployId, serverConf)))

@@ -124,8 +124,12 @@ try {
     case 'conf': {
       let subConf = process.argv[5] ?? '';
 
-      if (!['current', 'clean'].includes(process.argv[3]))
-        dotenv.config({ path: `./engine-private/conf/${process.argv[3]}/.env.${process.argv[4]}`, override: true });
+      if (!['current', 'clean', 'root'].includes(process.argv[3])) {
+        const path = fs.existsSync(`./engine-private/replica/${process.argv[3]}`)
+          ? `./engine-private/replica/${process.argv[3]}/.env.${process.argv[4]}`
+          : `./engine-private/conf/${process.argv[3]}/.env.${process.argv[4]}`;
+        dotenv.config({ path, override: true });
+      }
 
       loadConf(process.argv[3], subConf);
       break;
