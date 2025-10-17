@@ -459,7 +459,6 @@ try {
       );
       shellExec(`node bin/deploy cli-docs ${version} ${newVersion}`);
       shellExec(`node bin/deploy update-dependencies`);
-      shellExec(`auto-changelog`);
       shellExec(`node bin/build dd`);
       shellExec(
         `node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 --node ${node} dd production`,
