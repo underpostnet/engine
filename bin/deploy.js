@@ -27,7 +27,7 @@ import { buildClient } from '../src/server/client-build.js';
 import { DefaultConf } from '../conf.js';
 import colors from 'colors';
 import { program } from '../src/cli/index.js';
-import { getLocalIPv4Address, ip } from '../src/server/dns.js';
+import Dns, { getLocalIPv4Address } from '../src/server/dns.js';
 import { timer } from '../src/client/components/core/CommonJs.js';
 
 colors.enable();
@@ -665,7 +665,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // generate + import + start
       // node bin/deploy ssh root@<host> <password>
 
-      const host = process.argv[3] ?? `root@${await ip.public.ipv4()}`;
+      const host = process.argv[3] ?? `root@${await Dns.getPublicIp()}`;
       const domain = host.split('@')[1];
       const user = 'root'; // host.split('@')[0];
       const password = process.argv[4] ?? '';
