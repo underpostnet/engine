@@ -267,6 +267,7 @@ try {
           writeEnv(envPath, envObj);
         }
         const serverConf = loadReplicas(
+          deployId,
           JSON.parse(fs.readFileSync(`${baseConfPath}/${deployId}/conf.server.json`, 'utf8')),
         );
         for (const host of Object.keys(serverConf)) {
@@ -287,6 +288,7 @@ try {
       const host = process.argv[4];
       const path = process.argv[5];
       const serverConf = loadReplicas(
+        deployId,
         JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
       );
 
@@ -491,6 +493,7 @@ try {
       shellExec(
         `underpost secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
       );
+      shellExec(`node bin/deploy sync-deploy-envs`);
       shellExec(`node bin/build dd conf`);
       shellExec(`git add . && cd ./engine-private && git add .`);
       shellExec(`node bin cmt . ci package-pwa-microservices-template`);
@@ -572,10 +575,10 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
             `${key}`.toUpperCase().match('MAC')
               ? 'changethis'
               : isNaN(parseFloat(privateEnv[key]))
-              ? `${privateEnv[key]}`.match(`@`)
-                ? 'admin@default.net'
-                : 'changethis'
-              : privateEnv[key];
+                ? `${privateEnv[key]}`.match(`@`)
+                  ? 'admin@default.net'
+                  : 'changethis'
+                : privateEnv[key];
         }
         return env;
       };

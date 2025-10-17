@@ -65,6 +65,7 @@ class UnderpostMonitor {
       const router = auxRouter ?? (await UnderpostDeploy.API.routerFactory(deployId, env));
 
       const confServer = loadReplicas(
+        deployId,
         JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
       );
 
