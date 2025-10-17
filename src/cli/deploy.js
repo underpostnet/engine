@@ -227,12 +227,12 @@ metadata:
 spec:
   virtualhost:
     fqdn: ${host}${
-            env === 'development'
-              ? ''
-              : `
+      env === 'development'
+        ? ''
+        : `
     tls:
       secretName: ${host}`
-          }
+    }
   routes:`;
           for (const conditionObj of pathPortAssignment) {
             const { path, port } = conditionObj;
@@ -470,20 +470,21 @@ EOF`);
 
         const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
 
-        if (!options.disableUpdateProxy)
-          for (const host of Object.keys(confServer)) {
+        for (const host of Object.keys(confServer)) {
+          if (!options.disableUpdateProxy) {
             shellExec(`sudo kubectl delete HTTPProxy ${host}`);
             if (UnderpostDeploy.API.isValidTLSContext({ host, env, options }))
               shellExec(`sudo kubectl delete Certificate ${host}`);
-            if (!options.remove === true && env === 'development') etcHosts.push(host);
           }
+          if (!options.remove) etcHosts.push(host);
+        }
 
         const manifestsPath =
           env === 'production'
             ? `engine-private/conf/${deployId}/build/production`
             : `manifests/deployment/${deployId}-${env}`;
 
-        if (!options.remove === true) {
+        if (!options.remove) {
           if (!options.disableUpdateDeployment) shellExec(`sudo kubectl apply -f ./${manifestsPath}/deployment.yaml`);
           if (!options.disableUpdateProxy) shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml`);
 

@@ -206,7 +206,9 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'dev-hosts-expose': (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      shellExec(`node bin deploy ${path} development --disable-update-deployment --kubeadm --etc-hosts`);
+      shellExec(
+        `node bin deploy ${path} development --disable-update-deployment --disable-update-proxy --kubeadm --etc-hosts`,
+      );
     },
 
     /**
