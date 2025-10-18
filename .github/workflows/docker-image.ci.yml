@@ -4,9 +4,17 @@ on:
     workflows: ['CI | Publish npm repository package']
     types:
       - completed
+
+  push:
+    branches: ['master']
+
 jobs:
   build:
-    if: github.repository == 'underpostnet/engine'
+    if: |
+      github.repository == 'underpostnet/engine'
+      && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+      ||
+      startsWith(github.event.head_commit.message, 'ci(docker-image)'))
     runs-on: ubuntu-latest
     permissions:
       packages: write
