@@ -14,6 +14,7 @@ import UnderpostDeploy from './deploy.js';
 import UnderpostRootEnv from './env.js';
 import UnderpostRepository from './repository.js';
 import os from 'os';
+import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -279,6 +280,20 @@ class UnderpostRun {
       shellExec(`git reset`);
       shellExec(`${baseCommand} cmt . --empty ci package-pwa-microservices-template`);
       shellExec(`${baseCommand} push . ${process.env.GITHUB_USERNAME}/engine`);
+    },
+
+    /**
+     * @method template-deploy-image
+     * @description Commits and pushes a Docker image deployment for the `engine` repository.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'template-deploy-image': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      // const baseCommand = options.dev ? 'node bin' : 'underpost';
+      shellExec(
+        `cd /home/dd/engine && git reset && underpost cmt . --empty ci docker-image 'underpost-engine:${Underpost.version}' && underpost push . ${process.env.GITHUB_USERNAME}/engine`,
+      );
     },
     /**
      * @method clean
