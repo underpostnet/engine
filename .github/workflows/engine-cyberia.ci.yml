@@ -12,6 +12,8 @@ jobs:
   pwa-microservices-template:
     # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-cyberia-repo-build)')
     name: Update github repo package Jobs
+    env:
+      SYNC: ${{ startsWith(github.event.workflow_run.head_commit.message, 'ci(package-pwa-microservices-template-sync-dd-cyberia)') }}
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
@@ -58,3 +60,9 @@ jobs:
           git add .
           underpost cmt . ci engine-cyberia-repo-build 'Update engine cyberia repository'
           underpost push . underpostnet/engine-cyberia
+          if [ "${SYNC}" = "true" ]; then
+            echo "[INFO] Init engine-cyberia deployment"
+            node bin run ssh-deploy sync-engine-cyberia
+          else
+            echo "[INFO] Deployment skipped"
+          fi

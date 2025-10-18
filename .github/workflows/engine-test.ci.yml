@@ -1,7 +1,7 @@
 name: CI | Engine test | github repository
 on:
   workflow_run:
-    workflows: ["CI | Publish npm repository package"]
+    workflows: ['CI | Publish npm repository package']
     types:
       - completed
 permissions:
@@ -12,6 +12,8 @@ jobs:
   pwa-microservices-template:
     # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-test-repo-build)')
     name: Update github repo package Jobs
+    env:
+      SYNC: ${{ startsWith(github.event.workflow_run.head_commit.message, 'ci(package-pwa-microservices-template-sync-dd-test)') }}
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
@@ -58,3 +60,9 @@ jobs:
           git add .
           underpost cmt . ci engine-test-repo-build 'Update engine test repository'
           underpost push . underpostnet/engine-test
+          if [ "${SYNC}" = "true" ]; then
+            echo "[INFO] Init engine-test deployment"
+            node bin run ssh-deploy sync-engine-test
+          else
+            echo "[INFO] Deployment skipped"
+          fi
