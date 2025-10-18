@@ -118,7 +118,12 @@ const getQueryParams = () => {
 const sanitizeRoute = (route) =>
   !route || route === '/' || route === `\\`
     ? 'home'
-    : route.toLowerCase().replaceAll('/', '').replaceAll(`\\`, '').replaceAll(' ', '-');
+    : route
+        .toLowerCase()
+        .replaceAll('/', '')
+        .replaceAll(`\\`, '')
+        .replaceAll(' ', '-')
+        .replaceAll(getProxyPath().replaceAll('/', ''), '');
 
 /**
  * Sets the document title and updates the active state of the main menu button corresponding to the route.
