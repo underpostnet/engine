@@ -62,7 +62,7 @@ jobs:
           underpost push . underpostnet/engine-test
           if [ "${SYNC}" = "true" ]; then
             echo "[INFO] Init engine-test deployment"
-            node bin run ssh-deploy sync-engine-test
+            underpost run ssh-deploy sync-engine-test
           else
             echo "[INFO] Deployment skipped"
           fi

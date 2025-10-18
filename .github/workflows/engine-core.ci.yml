@@ -62,7 +62,7 @@ jobs:
           underpost push . underpostnet/engine-core
           if [ "${SYNC}" = "true" ]; then
             echo "[INFO] Init engine-core deployment"
-            node bin run ssh-deploy sync-engine-core
+            underpost run ssh-deploy sync-engine-core
           else
             echo "[INFO] Deployment skipped"
           fi

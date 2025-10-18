@@ -62,7 +62,7 @@ jobs:
           underpost push . underpostnet/engine-cyberia
           if [ "${SYNC}" = "true" ]; then
             echo "[INFO] Init engine-cyberia deployment"
-            node bin run ssh-deploy sync-engine-cyberia
+            underpost run ssh-deploy sync-engine-cyberia
           else
             echo "[INFO] Deployment skipped"
           fi

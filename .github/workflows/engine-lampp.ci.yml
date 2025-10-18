@@ -62,7 +62,7 @@ jobs:
           underpost push . underpostnet/engine-lampp
           if [ "${SYNC}" = "true" ]; then
             echo "[INFO] Init engine-lampp deployment"
-            node bin run ssh-deploy sync-engine-lampp
+            underpost run ssh-deploy sync-engine-lampp
           else
             echo "[INFO] Deployment skipped"
           fi
