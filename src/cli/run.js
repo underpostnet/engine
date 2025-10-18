@@ -5,7 +5,7 @@
  */
 
 import { daemonProcess, getTerminalPid, openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
-import { getNpmRootPath, isDeployRunnerContext } from '../server/conf.js';
+import { getNpmRootPath, getUnderpostRootPath, isDeployRunnerContext } from '../server/conf.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import UnderpostTest from './test.js';
 import fs from 'fs-extra';
@@ -277,7 +277,9 @@ class UnderpostRun {
     'template-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} run clean`);
-      shellExec(`${baseCommand} push ./engine-private ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine-private`);
+      shellExec(
+        `${baseCommand} push ./engine-private ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine-private`,
+      );
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
       shellExec(`${baseCommand} cmt . --empty ci package-pwa-microservices-template`);
@@ -530,6 +532,40 @@ class UnderpostRun {
         shellExec(`underpost deploy --expose adminer`);
       }
     },
+
+    /**
+     * @method git-conf
+     * @description Configures Git global and local user name and email settings based on the provided `path` (formatted as `username,email`), or defaults to environment variables.
+     * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string: `username,email`).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'git-conf': (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      const defaultUsername = UnderpostRootEnv.API.get('GITHUB_USERNAME', '', { disableLog: true });
+      const defaultEmail = UnderpostRootEnv.API.get('GITHUB_EMAIL', '', { disableLog: true });
+      const [username, email] = path && path.split(',').length > 0 ? path.split(',') : [defaultUsername, defaultEmail];
+
+      shellExec(
+        `git config --global credential.helper "" && ` +
+          `git config credential.helper "" && ` +
+          `git config --global user.name '${username}' && ` +
+          `git config --global user.email '${email}' && ` +
+          `git config --global credential.interactive always && ` +
+          `git config user.name '${username}' && ` +
+          `git config user.email '${email}' && ` +
+          `git config credential.interactive always &&` +
+          `git config pull.rebase false`,
+      );
+
+      console.log(
+        shellExec(`git config list`, { silent: true, stdout: true })
+          .replaceAll('user.email', 'user.email'.yellow)
+          .replaceAll(username, username.green)
+          .replaceAll('user.name', 'user.name'.yellow)
+          .replaceAll(email, email.green),
+      );
+    },
+
     /**
      * @method promote
      * @description Switches traffic between blue/green deployments for a specified deployment ID(s) (uses `dd.router` for 'dd', or a specific ID).
@@ -814,15 +850,22 @@ EOF`;
      * @returns {Promise<any>} The result of the callback execution.
      */
     async callback(runner, path, options = UnderpostRun.DEFAULT_OPTION) {
-      const npmRoot = getNpmRootPath();
-      const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
-      if (options.command) options.command = options.command.split(',');
-      if (options.args) options.args = options.args.split(',');
-      options.underpostRoot = underpostRoot;
-      options.npmRoot = npmRoot;
-      logger.info('callback', { path, options });
-      const result = await UnderpostRun.RUNNERS[runner](path, options);
-      return result;
+      try {
+        const npmRoot = getNpmRootPath();
+        const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
+        if (options.command) options.command = options.command.split(',');
+        if (options.args) options.args = options.args.split(',');
+        options.underpostRoot = underpostRoot;
+        options.npmRoot = npmRoot;
+        logger.info('callback', { path, options });
+        if (!(runner in UnderpostRun.RUNNERS)) throw new Error(`Runner not found: ${runner}`);
+        const result = await UnderpostRun.RUNNERS[runner](path, options);
+        return result;
+      } catch (error) {
+        console.log(error);
+        logger.error(error);
+        return null;
+      }
     },
   };
 }

@@ -17,6 +17,8 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
+const diffCmd = `--no-pager show -U0 -w --word-diff=color --word-diff-regex='[^[:space:]]' --color=always`;
+
 /**
  * @class UnderpostRepository
  * @description Manages Git operations and configurations.
@@ -92,13 +94,20 @@ class UnderpostRepository {
         info: false,
         empty: false,
         log: false,
+        diff: false,
       },
     ) {
+      if (options.diff) {
+        const _diffCmd = `git ${diffCmd.replace('show', 'diff')}`;
+        if (options.copy) pbcopy(_diffCmd);
+        else console.log('Diff command:', _diffCmd);
+        return;
+      }
       if (options.log) {
         const history = UnderpostRepository.API.getHistory(repoPath);
         const chainCmd = history
           .reverse()
-          .map((commitData, i) => `${i === 0 ? '' : ' && '}git --no-pager show ${commitData.hash}`)
+          .map((commitData, i) => `${i === 0 ? '' : ' && '}git ${diffCmd} ${commitData.hash}`)
           .join('');
         if (history[0]) {
           for (const commit of history) {
@@ -291,7 +300,14 @@ Prevent build private config repo.`,
         deployVersion: packageJsonDeploy.version,
       };
     },
-    getHistory(sinceCommit = 5) {
+
+    /**
+     * Retrieves the Git commit history.
+     * @param {number} [sinceCommit=1] - The number of recent commits to retrieve.
+     * @returns {Array<{hash: string, message: string, files: string}>} An array of commit objects with hash, message, and files.
+     * @memberof UnderpostRepository
+     */
+    getHistory(sinceCommit = 1) {
       return shellExec(`git log -1 --pretty=format:"%h %s" -n ${sinceCommit}`, {
         stdout: true,
         silent: true,

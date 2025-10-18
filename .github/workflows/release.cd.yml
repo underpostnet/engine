@@ -33,6 +33,6 @@ jobs:
             underpost run secret
             underpost run pull
             underpost run secret
-            git config pull.rebase false
+            node bin run git-conf
             node bin run template-deploy-image
             underpost run ssh-deploy sync-engine-test

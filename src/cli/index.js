@@ -72,6 +72,7 @@ program
   .option('--empty', 'Allows committing with empty files.')
   .option('--copy', 'Copies the generated commit message to the clipboard.')
   .option('--info', 'Displays information about available commit types.')
+  .option('--diff', 'Shows the current git diff changes.')
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 

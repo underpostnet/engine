@@ -56,9 +56,10 @@ class UnderpostRootEnv {
      * @param {string} value - The value of the environment variable to get.
      * @param {object} options - Options for getting the environment variable.
      * @param {boolean} [options.plain=false] - If true, returns the environment variable value as a string.
+     * @param {boolean} [options.disableLog=false] - If true, disables logging of the environment variable value.
      * @memberof UnderpostEnv
      */
-    get(key, value, options = { plain: false }) {
+    get(key, value, options = { plain: false, disableLog: false }) {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
       if (!fs.existsSync(envPath)) {
@@ -66,7 +67,8 @@ class UnderpostRootEnv {
         return undefined;
       }
       const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-      options?.plain === true ? console.log(env[key]) : logger.info(`${key}(${typeof env[key]})`, env[key]);
+      if (!options.disableLog)
+        options?.plain === true ? console.log(env[key]) : logger.info(`${key}(${typeof env[key]})`, env[key]);
       return env[key];
     },
     /**
