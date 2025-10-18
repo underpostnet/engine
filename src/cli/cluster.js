@@ -735,8 +735,11 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
     initHost() {
       const archData = UnderpostBaremetal.API.getHostArch();
       logger.info('Installing essential host-level prerequisites for Kubernetes...', archData);
+
+      // Install base rocky setup and updates
+      shellExec(`node bin run host-update`);
+
       // Install Docker and its dependencies
-      shellExec(`sudo dnf -y install dnf-plugins-core dbus-x11`);
       shellExec(`sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo`);
       shellExec(`sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`);
 
