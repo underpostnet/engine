@@ -283,7 +283,7 @@ class UnderpostRun {
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
       shellExec(
-        `${baseCommand} cmt . --empty ci package-pwa-microservices-template${path.startsWith('-sync') ? path : ''}`,
+        `${baseCommand} cmt . --empty ci package-pwa-microservices-template${path.startsWith('sync') ? `-${path}` : ''}`,
       );
       shellExec(`${baseCommand} push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`);
     },

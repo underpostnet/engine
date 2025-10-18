@@ -499,7 +499,7 @@ try {
       shellExec(`node bin/deploy sync-deploy-envs`);
       shellExec(`node bin/build dd conf`);
       shellExec(`git add . && cd ./engine-private && git add .`);
-      shellExec(`node bin cmt . ci package-pwa-microservices-template`);
+      shellExec(`node bin cmt . ci package-pwa-microservices-template 'New release v:${process.argv[3]}'`);
       shellExec(`node bin cmt ./engine-private ci package-pwa-microservices-template`);
       shellExec(`node bin push . ${process.env.GITHUB_USERNAME}/engine`);
       shellExec(`cd ./engine-private && node ../bin push . ${process.env.GITHUB_USERNAME}/engine-private`);
