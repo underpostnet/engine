@@ -93,10 +93,12 @@ class UnderpostRepository {
         copy: false,
         info: false,
         empty: false,
-        log: false,
         diff: false,
+        edit: false,
+        log: 0,
       },
     ) {
+      if (!repoPath) repoPath = '.';
       if (options.diff) {
         const _diffCmd = `git ${diffCmd.replace('show', 'diff')}`;
         if (options.copy) pbcopy(_diffCmd);
@@ -104,7 +106,7 @@ class UnderpostRepository {
         return;
       }
       if (options.log) {
-        const history = UnderpostRepository.API.getHistory(repoPath);
+        const history = UnderpostRepository.API.getHistory(options.log);
         const chainCmd = history
           .reverse()
           .map((commitData, i) => `${i === 0 ? '' : ' && '}git ${diffCmd} ${commitData.hash}`)
@@ -126,7 +128,7 @@ class UnderpostRepository {
         return;
       }
       if (commitType === 'reset') {
-        if (options.copy) pbcopy(shellExec(`git --no-pager log -1 --pretty=%B`, { stdout: true }));
+        if (options.copy) pbcopy(UnderpostRepository.API.getLastCommitMsg());
         shellExec(`cd ${repoPath} && git reset --soft HEAD~${isNaN(parseInt(subModule)) ? 1 : parseInt(subModule)}`);
         return;
       }
@@ -135,7 +137,18 @@ class UnderpostRepository {
         commitData[commitType].emoji
       } ${message ? message : commitData[commitType].description}`;
       if (options.copy) return pbcopy(_message);
-      shellExec(`cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}-m "${_message}"`);
+      shellExec(
+        `cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}${options.edit ? `--amend  --no-edit ` : `-m "${_message}"`}`,
+      );
+    },
+
+    /**
+     * Retrieves the message of the last Git commit.
+     * @returns {string} The last commit message.
+     * @memberof UnderpostRepository
+     */
+    getLastCommitMsg() {
+      return shellExec(`git --no-pager log -1 --pretty=%B`, { stdout: true });
     },
 
     /**

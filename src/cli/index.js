@@ -68,11 +68,12 @@ program
   .argument(`[commit-type]`, `The type of commit to perform. Options: ${Object.keys(commitData).join(', ')}.`)
   .argument(`[module-tag]`, 'Optional: Sets a specific module tag for the commit.')
   .argument(`[message]`, 'Optional: Provides an additional custom message for the commit.')
-  .option(`--log`, 'Shows commit history from the specified number of latest n path commits.')
+  .option(`--log <latest-n>`, 'Shows commit history from the specified number of latest n path commits.')
   .option('--empty', 'Allows committing with empty files.')
   .option('--copy', 'Copies the generated commit message to the clipboard.')
   .option('--info', 'Displays information about available commit types.')
   .option('--diff', 'Shows the current git diff changes.')
+  .option('--edit', 'Edit last commit.')
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 
