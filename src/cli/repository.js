@@ -292,16 +292,17 @@ Prevent build private config repo.`,
       };
     },
     getHistory(sinceCommit = 5) {
-      return shellExec(`git log --oneline --graph --decorate -n ${sinceCommit}`, {
+      return shellExec(`git log -1 --pretty=format:"%h %s" -n ${sinceCommit}`, {
         stdout: true,
         silent: true,
         disableLog: true,
       })
         .split(`\n`)
         .map((line) => {
+          const hash = line.split(' ')[0];
           return {
-            hash: line.slice(2, 10),
-            message: line.slice(11),
+            hash,
+            message: line.split(`${hash} `)[1],
           };
         })
         .filter((line) => line.hash)

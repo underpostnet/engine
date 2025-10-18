@@ -277,11 +277,11 @@ class UnderpostRun {
     'template-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} run clean`);
-      shellExec(`${baseCommand} push ./engine-private ${process.env.GITHUB_USERNAME}/engine-private`);
+      shellExec(`${baseCommand} push ./engine-private ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine-private`);
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
       shellExec(`${baseCommand} cmt . --empty ci package-pwa-microservices-template`);
-      shellExec(`${baseCommand} push . ${process.env.GITHUB_USERNAME}/engine`);
+      shellExec(`${baseCommand} push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`);
     },
 
     /**
@@ -294,7 +294,7 @@ class UnderpostRun {
     'template-deploy-image': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       // const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(
-        `cd /home/dd/engine && git reset && underpost cmt . --empty ci ${options.force ? '-f ' : ''}docker-image 'underpost-engine:${Underpost.version}' && underpost push . ${process.env.GITHUB_USERNAME}/engine`,
+        `cd /home/dd/engine && git reset && underpost cmt . --empty ci docker-image 'underpost-engine:${Underpost.version}' && underpost push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`,
       );
     },
     /**
@@ -350,7 +350,7 @@ class UnderpostRun {
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
       shellExec(`${baseCommand} cmt . --empty cd ssh-${path}`);
-      shellExec(`${baseCommand} push . ${process.env.GITHUB_USERNAME}/engine`);
+      shellExec(`${baseCommand} push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`);
     },
     /**
      * @method ide
