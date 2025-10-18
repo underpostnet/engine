@@ -36,4 +36,10 @@ jobs:
             node bin run git-conf
             node bin run template-deploy-image
             underpost config set GITHUB_USERNAME underpostnet
-            underpost run ssh-deploy sync-engine-core-test
+            mkdir -p /home/dd
+            sudo rm -rf /home/dd/engine
+            cd /home/dd
+            underpost clone underpostnet/engine
+            cd engine
+            npm install
+            node bin run ssh-deploy sync-engine-test

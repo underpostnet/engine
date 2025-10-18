@@ -111,12 +111,11 @@ class UnderpostRepository {
     ) {
       if (!repoPath) repoPath = '.';
       if (options.msg) {
-        const key = Object.keys(commitData).find((k) => k && options.msg.toLocaleLowerCase().match(k));
-        if (key) {
-          shellExec(
-            `underpost cmt ${repoPath} ${key} ${options.deployId ? options.deployId : `''`} '${options.msg.replaceAll(`${key}(${key}`, '')}'`,
-          );
-        } else logger.error('Invalid commit type key provided in msg option');
+        let key = Object.keys(commitData).find((k) => k && options.msg.toLocaleLowerCase().match(k));
+        if (!key) key == 'chore';
+        shellExec(
+          `underpost cmt ${repoPath} ${key} ${options.deployId ? options.deployId : `''`} '${options.msg.replaceAll(`${key}(${key}`, '')}'`,
+        );
         return;
       }
       if (options.lastMsg) {
