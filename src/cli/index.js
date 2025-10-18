@@ -382,6 +382,7 @@ program
   .option('--namespace <namespace>', 'Optional: Specifies the namespace for test execution.')
   .option('--kubeadm', 'Flag to indicate Kubeadm cluster type context')
   .option('--k3s', 'Flag to indicate K3s cluster type context')
+  .option('--force', 'Forces operation, overriding any warnings or conflicts.')
   .description('Runs a script from the specified path.')
   .action(UnderpostRun.API.callback);
 
