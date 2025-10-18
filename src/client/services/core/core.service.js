@@ -16,8 +16,10 @@ const getApiBasePath = (options) =>
     options?.proxyPath
       ? `/${options.proxyPath}/`
       : window.renderPayload?.apiBaseProxyPath
-      ? window.renderPayload.apiBaseProxyPath
-      : getProxyPath()
+        ? window.renderPayload.apiBaseProxyPath == '/'
+          ? window.renderPayload.apiBaseProxyPath
+          : `${window.renderPayload.apiBaseProxyPath}/`
+        : getProxyPath()
   }${window.renderPayload?.apiBasePath ? window.renderPayload.apiBasePath : 'api'}/`;
 
 const getApiBaseUrl = (options = { id: '', endpoint: '', proxyPath: '' }) =>
