@@ -74,6 +74,7 @@ program
   .option('--info', 'Displays information about available commit types.')
   .option('--diff', 'Shows the current git diff changes.')
   .option('--edit', 'Edit last commit.')
+  .option('--cached', 'Commit staged changes only or context.')
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 

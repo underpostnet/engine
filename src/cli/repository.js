@@ -82,6 +82,10 @@ class UnderpostRepository {
      * @param {boolean} [options.copy=false] - If true, copies the commit message to the clipboard.
      * @param {boolean} [options.info=false] - If true, displays information about commit types.
      * @param {boolean} [options.empty=false] - If true, allows an empty commit.
+     * @param {boolean} [options.diff=false] - If true, shows the diff of the last commit.
+     * @param {boolean} [options.edit=false] - If true, amends the last commit without changing the message.
+     * @param {boolean} [options.cached=false] - If true, commits only staged changes.
+     * @param {number} [options.log=0] - If greater than 0, shows the last N commits with diffs.
      * @memberof UnderpostRepository
      */
     commit(
@@ -95,12 +99,13 @@ class UnderpostRepository {
         empty: false,
         diff: false,
         edit: false,
+        cached: false,
         log: 0,
       },
     ) {
       if (!repoPath) repoPath = '.';
       if (options.diff) {
-        const _diffCmd = `git ${diffCmd.replace('show', 'diff')}`;
+        const _diffCmd = `git ${diffCmd.replace('show', `diff${options.cached ? ` --cached` : ''}`)}`;
         if (options.copy) pbcopy(_diffCmd);
         else console.log('Diff command:', _diffCmd);
         return;
