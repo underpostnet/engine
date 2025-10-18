@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.81.1
+## underpost ci/cd cli v2.85.0
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -123,20 +123,30 @@ Manages commits to a GitHub repository, supporting various commit types and
 options.
 
 Arguments:
-  path         The absolute or relative directory path of the repository.
-  commit-type  The type of commit to perform. Options: feat, fix, docs, style,
-               refactor, perf, ci, cd, infra, build, test, chore, revert,
-               backup.
-  module-tag   Optional: Sets a specific module tag for the commit.
-  message      Optional: Provides an additional custom message for the commit.
+  path                     The absolute or relative directory path of the
+                           repository.
+  commit-type              The type of commit to perform. Options: feat, fix,
+                           docs, style, refactor, perf, ci, cd, infra, build,
+                           test, chore, revert, backup.
+  module-tag               Optional: Sets a specific module tag for the commit.
+  message                  Optional: Provides an additional custom message for
+                           the commit.
 
 Options:
-  --log        Shows commit history from the specified number of latest n path
-               commits.
-  --empty      Allows committing with empty files.
-  --copy       Copies the generated commit message to the clipboard.
-  --info       Displays information about available commit types.
-  -h, --help   display help for command
+  --log <latest-n>         Shows commit history from the specified number of
+                           latest n path commits.
+  --last-msg <latest-n>    Displays the last n commit message.
+  --empty                  Allows committing with empty files.
+  --copy                   Copies the generated commit message to the
+                           clipboard.
+  --info                   Displays information about available commit types.
+  --diff                   Shows the current git diff changes.
+  --edit                   Edit last commit.
+  --msg <msg>              Sets a custom commit message.
+  --deploy-id <deploy-id>  Sets the deployment configuration ID for the commit
+                           context.
+  --cached                 Commit staged changes only or context.
+  -h, --help               display help for command
  
 ```
   
@@ -613,7 +623,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cyberia-ide, engine-ide, cluster-build, template-deploy, clean, pull, release-deploy, ssh-deploy, ide, sync, ls-deployments, monitor, db-client, promote, metrics, cluster, deploy, sync-replica, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cyberia-ide, engine-ide, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, ls-deployments, host-update, monitor, db-client, git-conf, promote, metrics, cluster, deploy, sync-replica, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
@@ -631,6 +641,7 @@ Options:
   --namespace <namespace>                  Optional: Specifies the namespace for test execution.
   --kubeadm                                Flag to indicate Kubeadm cluster type context
   --k3s                                    Flag to indicate K3s cluster type context
+  --force                                  Forces operation, overriding any warnings or conflicts.
   -h, --help                               display help for command
  
 ```
