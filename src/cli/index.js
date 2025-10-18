@@ -75,6 +75,8 @@ program
   .option('--info', 'Displays information about available commit types.')
   .option('--diff', 'Shows the current git diff changes.')
   .option('--edit', 'Edit last commit.')
+  .option('--msg <msg>', 'Sets a custom commit message.')
+  .option('--deploy-id <deploy-id>', 'Sets the deployment configuration ID for the commit context.')
   .option('--cached', 'Commit staged changes only or context.')
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);

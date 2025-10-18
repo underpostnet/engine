@@ -86,7 +86,9 @@ class UnderpostRepository {
      * @param {boolean} [options.edit=false] - If true, amends the last commit without changing the message.
      * @param {boolean} [options.cached=false] - If true, commits only staged changes.
      * @param {number} [options.log=0] - If greater than 0, shows the last N commits with diffs.
-     * @param {boolean} [options.lastMsg=0] - If true, copies the last last single n commit message to clipboard.
+     * @param {boolean} [options.lastMsg=0] - If greater than 0, copies or show the last last single n commit message to clipboard.
+     * @param {string} [options.msg=''] - If provided, outputs this message instead of committing.
+     * @param {string} [options.deployId=''] - An optional deploy ID to include in the commit message.
      * @memberof UnderpostRepository
      */
     commit(
@@ -103,9 +105,20 @@ class UnderpostRepository {
         cached: false,
         lastMsg: 0,
         log: 0,
+        msg: '',
+        deployId: '',
       },
     ) {
       if (!repoPath) repoPath = '.';
+      if (options.msg) {
+        const key = Object.keys(commitData).find((k) => k && options.msg.toLocaleLowerCase().match(k));
+        if (key) {
+          shellExec(
+            `underpost cmt ${repoPath} ${key} ${options.deployId ? options.deployId : `''`} '${options.msg.replaceAll(`${key}(${key}`, '')}'`,
+          );
+        } else logger.error('Invalid commit type key provided in msg option');
+        return;
+      }
       if (options.lastMsg) {
         if (options.copy) {
           pbcopy(UnderpostRepository.API.getLastCommitMsg(options.lastMsg - 1));
