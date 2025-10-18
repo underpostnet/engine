@@ -33,5 +33,5 @@ jobs:
             underpost run secret
             underpost run pull
             underpost run secret
-            underpost cmt . --empty ci docker-image-engine
+            node bin run template-deploy-image
             underpost run ssh-deploy sync-engine-test
