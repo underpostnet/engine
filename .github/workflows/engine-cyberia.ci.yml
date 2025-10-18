@@ -62,7 +62,8 @@ jobs:
           underpost push . underpostnet/engine-cyberia
           if [ "${SYNC}" = "true" ]; then
             echo "[INFO] Init engine-cyberia deployment"
-            underpost run ssh-deploy sync-engine-cyberia
+            underpost config set GITHUB_USERNAME underpostnet
+            underpost run ssh-deploy sync-engine-core-cyberia
           else
             echo "[INFO] Deployment skipped"
           fi

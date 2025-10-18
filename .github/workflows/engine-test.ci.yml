@@ -62,7 +62,8 @@ jobs:
           underpost push . underpostnet/engine-test
           if [ "${SYNC}" = "true" ]; then
             echo "[INFO] Init engine-test deployment"
-            underpost run ssh-deploy sync-engine-test
+            underpost config set GITHUB_USERNAME underpostnet
+            underpost run ssh-deploy sync-engine-core-test
           else
             echo "[INFO] Deployment skipped"
           fi

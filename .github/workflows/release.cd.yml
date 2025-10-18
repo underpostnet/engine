@@ -35,4 +35,5 @@ jobs:
             underpost run secret
             node bin run git-conf
             node bin run template-deploy-image
-            underpost run ssh-deploy sync-engine-test
+            underpost config set GITHUB_USERNAME underpostnet
+            underpost run ssh-deploy sync-engine-core-test

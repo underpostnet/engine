@@ -62,7 +62,8 @@ jobs:
           underpost push . underpostnet/engine-lampp
           if [ "${SYNC}" = "true" ]; then
             echo "[INFO] Init engine-lampp deployment"
-            underpost run ssh-deploy sync-engine-lampp
+            underpost config set GITHUB_USERNAME underpostnet
+            underpost run ssh-deploy sync-engine-core-lampp
           else
             echo "[INFO] Deployment skipped"
           fi

@@ -62,7 +62,8 @@ jobs:
           underpost push . underpostnet/engine-core
           if [ "${SYNC}" = "true" ]; then
             echo "[INFO] Init engine-core deployment"
-            underpost run ssh-deploy sync-engine-core
+            underpost config set GITHUB_USERNAME underpostnet
+            underpost run ssh-deploy sync-engine-core-core
           else
             echo "[INFO] Deployment skipped"
           fi
