@@ -34,7 +34,9 @@ RUN npm --version
 RUN npm install -g underpost
 RUN underpost --version
 
-# Set working directory
+# Create working directory
+RUN mkdir /home/dd
+VOLUME /home/dd
 WORKDIR /home/dd
 
 # Expose necessary ports

@@ -454,31 +454,38 @@ class UnderpostRun {
       shellExec(`${options.underpostRoot}/scripts/rocky-setup.sh --yes${options.dev ? ' --install-dev' : ``}`);
     },
 
-    'dev-container': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    /**
+     * @method dev-container
+     * @description Runs a development container pod named `underpost-dev-container` with specified volume mounts and opens a terminal to follow its logs.
+     * @param {string} path - The input value, identifier, or path for the operation (used as an optional command to run inside the container).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'dev-container': async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
       options.dev = true;
-      let input = path.split(',');
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
-      const runtimeImage = input[0] ? input[0] : 'express';
       const currentImage = UnderpostDeploy.API.getCurrentLoadedImages().find((o) => o.image.match('underpost'));
-      if (!currentImage)
-        shellExec(
-          `${baseCommand} dockerfile-pull-base-images${baseClusterCommand}${
-            runtimeImage ? ` --path /home/dd/engine/src/runtime/${runtimeImage}` : ''
-          }`,
-        );
+      const podName = `underpost-dev-container`;
+      if (!UnderpostDeploy.API.existsContainerFile({ podName: 'kind-worker', path: '/home/dd/engine/package.json' })) {
+        shellExec(`docker exec -it kind-worker bash -c "mkdir -p /home/dd"`);
+        shellExec(`docker cp /home/dd/engine kind-worker:/home/dd/engine`);
+        shellExec(`docker exec -it kind-worker bash -c "chown -R 1000:1000 /home/dd || true; chmod -R 755 /home/dd"`);
+      }
+      if (!currentImage) shellExec(`${baseCommand} dockerfile-pull-base-images${baseClusterCommand}`);
+      shellExec(`kubectl delete pod ${podName} --ignore-not-found`);
       await UnderpostRun.RUNNERS['deploy-job']('', {
         dev: true,
-        podName: 'underpost-dev-container',
+        podName,
         imageName: currentImage ? currentImage.image : `localhost/rockylinux9-underpost:${Underpost.version}`,
         volumeHostPath: '/home/dd',
         volumeMountPath: '/home/dd',
         on: {
           init: async () => {
-            openTerminal(`kubectl logs -f underpost-dev-container`);
+            openTerminal(`kubectl logs -f ${podName}`);
           },
         },
-        args: [`npm install -g underpost`, daemonProcess(`cd /home/dd/engine && npm install`)],
+        args: [daemonProcess(path ? path : `cd /home/dd/engine && npm run test`)],
       });
     },
 

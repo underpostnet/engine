@@ -53,7 +53,7 @@ class UnderpostImage {
         const baseCommand = options.dev ? 'node bin' : 'underpost';
         const baseCommandOption = options.dev ? ' --dev' : '';
         const IMAGE_NAME = `rockylinux9-underpost`;
-        const IMAGE_NAME_FULL = `${IMAGE_NAME}:${options.version ?? Underpost.version}`;
+        const IMAGE_NAME_FULL = `${IMAGE_NAME}:${options.version ? options.version : Underpost.version}`;
         let LOAD_TYPE = '';
         if (options.kindLoad === true) {
           LOAD_TYPE = `--kind-load`;
@@ -105,7 +105,7 @@ class UnderpostImage {
           dev: false,
         },
       ) {
-        const {
+        let {
           path,
           imageName,
           imagePath,
@@ -119,6 +119,7 @@ class UnderpostImage {
           reset,
           dev,
         } = options;
+        if (!path) path = '.';
         const podManImg = `localhost/${imageName}`;
         if (imagePath && typeof imagePath === 'string' && !fs.existsSync(imagePath))
           fs.mkdirSync(imagePath, { recursive: true });

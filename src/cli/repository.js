@@ -111,6 +111,7 @@ class UnderpostRepository {
     ) {
       if (!repoPath) repoPath = '.';
       if (options.msg) {
+        options.msg = options.msg.replaceAll('"', '').replaceAll(`'`, '').replaceAll('`', '');
         let key = Object.keys(commitData).find((k) => k && options.msg.toLocaleLowerCase().slice(0, 16).match(k));
         if (!key) key = Object.keys(commitData).find((k) => k && options.msg.toLocaleLowerCase().match(k));
         if (!key) key == 'chore';
