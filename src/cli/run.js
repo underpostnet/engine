@@ -320,10 +320,17 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     pull: (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      shellCd(`/home/dd/engine`);
-      shellExec(`node bin/deploy clean-core-repo`);
-      shellExec(`underpost pull . ${process.env.GITHUB_USERNAME}/engine`);
-      shellExec(`underpost pull ./engine-private ${process.env.GITHUB_USERNAME}/engine-private`);
+      if (!fs.existsSync(`/home/dd`) || !fs.existsSync(`/home/dd/engine`)) {
+        fs.mkdirSync(`/home/dd`, { recursive: true });
+        shellExec(`cd /home/dd && underpost clone ${process.env.GITHUB_USERNAME}/engine`);
+      } else {
+        shellExec(`underpost run clean`);
+        shellExec(`cd /home/dd/engine && underpost pull . ${process.env.GITHUB_USERNAME}/engine`);
+      }
+      if (!fs.existsSync(`/home/dd/engine/engine-private`))
+        shellExec(`cd /home/dd/engine && underpost clone ${process.env.GITHUB_USERNAME}/engine-private`);
+      else
+        shellExec(`cd /home/dd/engine/engine-private underpost pull . ${process.env.GITHUB_USERNAME}/zz`);
     },
     /**
      * @method release-deploy

@@ -28,18 +28,8 @@ jobs:
           script: |
             set -e
             echo "Starting remote release deploy"
-            cd /home/dd/engine
-            npm install -g underpost
-            underpost run secret
             underpost run pull
             underpost run secret
-            node bin run git-conf
-            node bin run template-deploy-image
-            underpost config set GITHUB_USERNAME underpostnet
-            mkdir -p /home/dd
-            sudo rm -rf /home/dd/engine
-            cd /home/dd
-            underpost clone underpostnet/engine
-            cd engine
-            npm install
-            node bin run ssh-deploy sync-engine-test
+            cd /home/dd/engine
+            underpost run template-deploy-image
+            underpost run ssh-deploy sync-engine-test
