@@ -750,6 +750,13 @@ class UnderpostRun {
       UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
     },
 
+    /**
+     * @method service
+     * @description Deploys and exposes specific services (like `mongo-express-service`) on the cluster, updating deployment configurations and monitoring status.
+     * @param {string} path - The input value, identifier, or path for the operation (formatted as `deployId,serviceId,host,path,replicas,image,node`).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     service: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
