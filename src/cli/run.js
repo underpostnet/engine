@@ -314,7 +314,7 @@ class UnderpostRun {
     },
     /**
      * @method pull
-     * @description Cleans the core repository and pulls the latest content for `engine` and `engine-private` repositories from the remote.
+     * @description Clones or pulls updates for the `engine` and `engine-private` repositories into `/home/dd/engine` and `/home/dd/engine/engine-private`.
      * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
@@ -330,7 +330,7 @@ class UnderpostRun {
       if (!fs.existsSync(`/home/dd/engine/engine-private`))
         shellExec(`cd /home/dd/engine && underpost clone ${process.env.GITHUB_USERNAME}/engine-private`);
       else
-        shellExec(`cd /home/dd/engine/engine-private underpost pull . ${process.env.GITHUB_USERNAME}/zz`);
+        shellExec(`cd /home/dd/engine/engine-private underpost pull . ${process.env.GITHUB_USERNAME}/engine-private`);
     },
     /**
      * @method release-deploy
