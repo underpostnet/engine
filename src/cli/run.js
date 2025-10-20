@@ -454,6 +454,34 @@ class UnderpostRun {
       shellExec(`${options.underpostRoot}/scripts/rocky-setup.sh --yes${options.dev ? ' --install-dev' : ``}`);
     },
 
+    'dev-container': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      options.dev = true;
+      let input = path.split(',');
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseClusterCommand = options.dev ? ' --dev' : '';
+      const runtimeImage = input[0] ? input[0] : 'express';
+      const currentImage = UnderpostDeploy.API.getCurrentLoadedImages().find((o) => o.image.match('underpost'));
+      if (!currentImage)
+        shellExec(
+          `${baseCommand} dockerfile-pull-base-images${baseClusterCommand}${
+            runtimeImage ? ` --path /home/dd/engine/src/runtime/${runtimeImage}` : ''
+          }`,
+        );
+      await UnderpostRun.RUNNERS['deploy-job']('', {
+        dev: true,
+        podName: 'underpost-dev-container',
+        imageName: currentImage ? currentImage.image : `localhost/rockylinux9-underpost:${Underpost.version}`,
+        volumeHostPath: '/home/dd',
+        volumeMountPath: '/home/dd',
+        on: {
+          init: async () => {
+            openTerminal(`kubectl logs -f underpost-dev-container`);
+          },
+        },
+        args: [`npm install -g underpost`, daemonProcess(`cd /home/dd/engine && npm install`)],
+      });
+    },
+
     /**
      * @method monitor
      * @description Monitors a specific pod (identified by `path`) for the existence of a file (`/await`), and performs conditional actions (like file copying and opening Firefox) when the file is removed.
