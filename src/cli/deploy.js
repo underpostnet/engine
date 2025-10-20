@@ -704,6 +704,28 @@ EOF`);
       }
       logger.info(`${iteratorTag} | Deployment ready. | Total delay number check iterations: ${checkStatusIteration}`);
     },
+
+    /**
+     * Retrieves the currently loaded images in the Kubernetes cluster.
+     * @returns {Array<object>} - Array of objects containing pod names and their corresponding images.
+     * @memberof UnderpostDeploy
+     */
+    getCurrentLoadedImages() {
+      const raw = shellExec(
+        `kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
+        {
+          stdout: true,
+          silent: true,
+        },
+      );
+      return raw
+        .split(`\n`)
+        .map((lines) => ({
+          pod: lines.split('\t')[0].replaceAll(':', '').trim(),
+          image: lines.split('\t')[1] ? lines.split('\t')[1].replaceAll(',', '').trim() : null,
+        }))
+        .filter((o) => o.image);
+    },
   };
 }
 
