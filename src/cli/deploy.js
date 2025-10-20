@@ -579,6 +579,23 @@ EOF`);
      * @memberof UnderpostDeploy
      */
     existsContainerFile({ podName, path }) {
+      if (podName === 'kind-worker') {
+        const isFile = JSON.parse(
+          shellExec(`docker exec ${podName} sh -c 'test -f "$1" && echo true || echo false' sh ${path}`, {
+            stdout: true,
+            disableLog: true,
+            silent: true,
+          }).trim(),
+        );
+        const isFolder = JSON.parse(
+          shellExec(`docker exec ${podName} sh -c 'test -d "$1" && echo true || echo false' sh ${path}`, {
+            stdout: true,
+            disableLog: true,
+            silent: true,
+          }).trim(),
+        );
+        return isFolder || isFile;
+      }
       return JSON.parse(
         shellExec(`kubectl exec ${podName} -- test -f ${path} && echo "true" || echo "false"`, {
           stdout: true,
@@ -710,21 +727,54 @@ EOF`);
      * @returns {Array<object>} - Array of objects containing pod names and their corresponding images.
      * @memberof UnderpostDeploy
      */
-    getCurrentLoadedImages() {
-      const raw = shellExec(
-        `kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
-        {
+    getCurrentLoadedImages(node = 'kind-worker', specContainers = false) {
+      if (specContainers) {
+        const raw = shellExec(
+          `kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
+          {
+            stdout: true,
+            silent: true,
+          },
+        );
+        return raw
+          .split(`\n`)
+          .map((lines) => ({
+            pod: lines.split('\t')[0].replaceAll(':', '').trim(),
+            image: lines.split('\t')[1] ? lines.split('\t')[1].replaceAll(',', '').trim() : null,
+          }))
+          .filter((o) => o.image);
+      }
+      if (node === 'kind-worker') {
+        const raw = shellExec(`docker exec -i kind-control-plane crictl images`, {
           stdout: true,
           silent: true,
-        },
-      );
-      return raw
-        .split(`\n`)
-        .map((lines) => ({
-          pod: lines.split('\t')[0].replaceAll(':', '').trim(),
-          image: lines.split('\t')[1] ? lines.split('\t')[1].replaceAll(',', '').trim() : null,
-        }))
-        .filter((o) => o.image);
+        });
+
+        const heads = raw
+          .split(`\n`)[0]
+          .split(' ')
+          .filter((_r) => _r.trim());
+
+        const pods = raw
+          .split(`\n`)
+          .filter((r) => !r.match('IMAGE'))
+          .map((r) => r.split(' ').filter((_r) => _r.trim()));
+
+        const result = [];
+
+        for (const row of pods) {
+          if (row.length === 0) continue;
+          const pod = {};
+          let index = -1;
+          for (const head of heads) {
+            if (head in pod) continue;
+            index++;
+            pod[head] = row[index];
+          }
+          result.push(pod);
+        }
+        return result;
+      }
     },
   };
 }

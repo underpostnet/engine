@@ -465,15 +465,17 @@ class UnderpostRun {
       options.dev = true;
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
-      const currentImage = UnderpostDeploy.API.getCurrentLoadedImages().find((o) => o.image.match('underpost'));
+      const currentImage = UnderpostDeploy.API.getCurrentLoadedImages('kind-worker', false).find((o) =>
+        o.IMAGE.match('underpost'),
+      );
       const podName = `underpost-dev-container`;
-      if (!UnderpostDeploy.API.existsContainerFile({ podName: 'kind-worker', path: '/home/dd/engine/package.json' })) {
-        shellExec(`docker exec -it kind-worker bash -c "mkdir -p /home/dd"`);
+      if (!UnderpostDeploy.API.existsContainerFile({ podName: 'kind-worker', path: '/home/dd/engine' })) {
+        shellExec(`docker exec -i kind-worker bash -c "mkdir -p /home/dd"`);
         shellExec(`docker cp /home/dd/engine kind-worker:/home/dd/engine`);
-        shellExec(`docker exec -it kind-worker bash -c "chown -R 1000:1000 /home/dd || true; chmod -R 755 /home/dd"`);
+        shellExec(`docker exec -i kind-worker bash -c "chown -R 1000:1000 /home/dd || true; chmod -R 755 /home/dd"`);
       }
-      if (!currentImage) shellExec(`${baseCommand} dockerfile-pull-base-images${baseClusterCommand}`);
-      shellExec(`kubectl delete pod ${podName} --ignore-not-found`);
+      if (!currentImage) shellExec(`${baseCommand} dockerfile-pull-base-images${baseClusterCommand} --kind-load`);
+      // shellExec(`kubectl delete pod ${podName} --ignore-not-found`);
       await UnderpostRun.RUNNERS['deploy-job']('', {
         dev: true,
         podName,
@@ -482,7 +484,7 @@ class UnderpostRun {
         volumeMountPath: '/home/dd',
         on: {
           init: async () => {
-            openTerminal(`kubectl logs -f ${podName}`);
+            // openTerminal(`kubectl logs -f ${podName}`);
           },
         },
         args: [daemonProcess(path ? path : `cd /home/dd/engine && npm run test`)],
