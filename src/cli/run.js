@@ -274,7 +274,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'template-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'template-deploy': (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} run clean`);
       shellExec(
