@@ -85,21 +85,28 @@ class UnderpostDeploy {
     /**
      * Creates a YAML service configuration for a deployment.
      * @param {string} deployId - Deployment ID for which the service is being created.
+     * @param {string} path - Path for which the service is being created.
      * @param {string} env - Environment for which the service is being created.
      * @param {number} port - Port number for the service.
      * @param {Array<string>} deploymentVersions - List of deployment versions.
      * @returns {string} - YAML service configuration for the specified deployment.
+     * @param {string} [serviceId] - Custom service name (optional).
      * @memberof UnderpostDeploy
      */
-    deploymentYamlServiceFactory({ deployId, env, port, deploymentVersions }) {
-      return deploymentVersions
-        .map(
-          (version, i) => `    - name: ${deployId}-${env}-${version}-service
+    deploymentYamlServiceFactory({ deployId, path, env, port, deploymentVersions, serviceId }) {
+      return `
+    - conditions:
+        - prefix: ${path}
+      enableWebsockets: true
+      services:
+    ${deploymentVersions
+      .map(
+        (version, i) => `    - name: ${serviceId ? serviceId : `${deployId}-${env}-${version}-service`}
           port: ${port}
           weight: ${i === 0 ? 100 : 0}
     `,
-        )
-        .join('');
+      )
+      .join('')}`;
     },
     /**
      * Creates a YAML deployment configuration for a deployment.
@@ -214,6 +221,9 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
 
         let proxyYaml = '';
         let secretYaml = '';
+        const customServices = fs.existsSync(`./engine-private/conf/${deployId}/conf.services.json`)
+          ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.services.json`))
+          : [];
 
         for (const host of Object.keys(confServer)) {
           if (env === 'production') secretYaml += UnderpostDeploy.API.buildCertManagerCertificate({ host });
@@ -236,20 +246,33 @@ spec:
       secretName: ${host}`
     }
   routes:`;
+          const deploymentVersions =
+            options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',') : ['blue'];
           for (const conditionObj of pathPortAssignment) {
             const { path, port } = conditionObj;
-            proxyYaml += `
-    - conditions:
-        - prefix: ${path}
-      enableWebsockets: true
-      services:
-    ${UnderpostDeploy.API.deploymentYamlServiceFactory({
-      deployId,
-      env,
-      port,
-      deploymentVersions:
-        options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',') : ['blue'],
-    })}`;
+            proxyYaml += UnderpostDeploy.API.deploymentYamlServiceFactory({
+              path,
+              deployId,
+              env,
+              port,
+              deploymentVersions,
+            });
+          }
+          for (const customService of customServices) {
+            const { path: _path, port, serviceId, host: _host } = customService;
+            if (host === _host) {
+              switch (serviceId) {
+                case 'mongo-express-service': {
+                  proxyYaml += UnderpostDeploy.API.deploymentYamlServiceFactory({
+                    path: _path,
+                    port,
+                    serviceId,
+                    deploymentVersions,
+                  });
+                  break;
+                }
+              }
+            }
           }
         }
         const yamlPath = `./engine-private/conf/${deployId}/build/${env}/proxy.yaml`;

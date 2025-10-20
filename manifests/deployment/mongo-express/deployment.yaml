@@ -30,6 +30,8 @@ spec:
             #     secretKeyRef:
             #       name: mongodb-secret
             #       key: password
+            - name: ME_CONFIG_SITE_BASEURL
+              value: '/mongo/'
             - name: ME_CONFIG_BASICAUTH_USERNAME
               valueFrom:
                 secretKeyRef:

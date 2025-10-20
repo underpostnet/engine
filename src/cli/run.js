@@ -419,7 +419,7 @@ class UnderpostRun {
 
       shellExec(
         `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
-          replicas ?? 1
+          replicas ? replicas : 1
         } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''} dd ${env}`,
       );
 
@@ -748,6 +748,57 @@ class UnderpostRun {
       await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic, ignorePods);
 
       UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
+    },
+
+    service: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      const env = options.dev ? 'development' : 'production';
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      // const baseClusterCommand = options.dev ? ' --dev' : '';
+      shellCd(`/home/dd/engine`);
+      let [deployId, serviceId, host, _path, replicas, image, node] = path.split(',');
+      const services = fs.existsSync(`./engine-private/deploy/${deployId}/conf.services.json`)
+        ? JSON.parse(fs.readFileSync(`./engine-private/deploy/${deployId}/conf.services.json`, 'utf8'))
+        : [];
+      switch (serviceId) {
+        case 'mongo-express-service': {
+          let serviceData = services.findIndex((s) => s.serviceId === serviceId);
+          const payload = {
+            serviceId,
+            path: _path,
+            port: 8081,
+            host,
+          };
+          if (serviceData == -1) {
+            services.push(payload);
+          } else {
+            services[serviceData] = payload;
+          }
+          fs.writeFileSync(
+            `./engine-private/conf/${deployId}/conf.services.json`,
+            JSON.stringify(services, null, 4),
+            'utf8',
+          );
+          shellExec(`kubectl delete svc mongo-express-service --ignore-not-found`);
+          shellExec(`kubectl delete deployment mongo-express --ignore-not-found`);
+          shellExec(`kubectl apply -f manifests/deployment/mongo-express/deployment.yaml`);
+
+          const success = await UnderpostTest.API.statusMonitor('mongo-express');
+
+          if (success) {
+            const versions = UnderpostDeploy.API.getCurrentTraffic(deployId) || 'blue';
+            if (!node) node = os.hostname();
+            shellExec(
+              `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
+                replicas ? replicas : 1
+              } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''} dd ${env}`,
+            );
+            shellExec(
+              `${baseCommand} deploy --kubeadm --disable-update-deployment ${deployId} ${env} --versions ${versions}`,
+            );
+          } else logger.error('Mongo Express deployment failed');
+          break;
+        }
+      }
     },
 
     /**
