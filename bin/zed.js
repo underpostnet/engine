@@ -1,11 +1,14 @@
 import { shellExec } from '../src/server/process.js';
 import fs from 'fs-extra';
 import { loggerFactory } from '../src/server/logger.js';
+import { getUnderpostRootPath } from '../src/server/conf.js';
 
 const logger = loggerFactory(import.meta);
+const underpostRoot = getUnderpostRootPath();
 
-fs.copyFileSync(`./.vscode/zed.settings.json`, `/root/.config/zed/settings.json`);
-fs.copyFileSync(`./.vscode/zed.keymap.json`, `/root/.config/zed/keymap.json`);
+if (!fs.existsSync('/root/.config/zed')) fs.mkdirSync('/root/.config/zed', { recursive: true });
+fs.copyFileSync(`${underpostRoot}/.vscode/zed.settings.json`, `/root/.config/zed/settings.json`);
+fs.copyFileSync(`${underpostRoot}/.vscode/zed.keymap.json`, `/root/.config/zed/keymap.json`);
 
 shellExec(`ZED_ALLOW_ROOT=true zed ${process.argv[2] ? process.argv[2] : '.'}`);
 
