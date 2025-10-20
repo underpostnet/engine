@@ -29,6 +29,7 @@ jobs:
             set -e
             echo "Starting remote release deploy"
             underpost run pull
+            underpost run git-conf
             underpost run secret
             cd /home/dd/engine
             underpost run template-deploy-image
