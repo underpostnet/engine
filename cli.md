@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.85.0
+## underpost ci/cd cli v2.85.1
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -623,7 +623,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cyberia-ide, engine-ide, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, ls-deployments, host-update, monitor, db-client, git-conf, promote, metrics, cluster, deploy, sync-replica, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cyberia-ide, engine-ide, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, ls-deployments, host-update, dev-container, monitor, db-client, git-conf, promote, metrics, cluster, deploy, service, sync-replica, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
