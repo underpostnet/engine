@@ -919,6 +919,8 @@ kind: Pod
 metadata:
   name: ${podName}
   namespace: ${namespace}
+  labels:
+    app: ${podName}
 spec:
   restartPolicy: Never
 ${runtimeClassName ? `  runtimeClassName: ${runtimeClassName}` : ''}
