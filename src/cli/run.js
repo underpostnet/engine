@@ -906,6 +906,9 @@ class UnderpostRun {
       const volumeMountPath = options.volumeMountPath || path;
       const volumeHostPath = options.volumeHostPath || path;
       const enableVolumeMount = volumeHostPath && volumeMountPath;
+      const tty = options.tty ? 'true' : 'false';
+      const stdin = options.stdin ? 'true' : 'false';
+      const restartPolicy = options.restartPolicy || 'Never';
 
       if (options.volumeType === 'dev') options.volumeType = 'FileOrCreate';
       const volumeType =
@@ -922,14 +925,14 @@ metadata:
   labels:
     app: ${podName}
 spec:
-  restartPolicy: Never
+  restartPolicy: ${restartPolicy}
 ${runtimeClassName ? `  runtimeClassName: ${runtimeClassName}` : ''}
   containers:
     - name: ${containerName}
       image: ${imageName}
       imagePullPolicy: IfNotPresent
-      tty: true
-      stdin: true
+      tty: ${tty}
+      stdin: ${stdin}
       command: ${JSON.stringify(options.command ? options.command : ['/bin/bash', '-c'])}
 ${
   args.length > 0
@@ -965,7 +968,7 @@ ${
     : ''
 }
 EOF`;
-      shellExec(`kubectl delete pod ${podName}`);
+      shellExec(`kubectl delete pod ${podName} --ignore-not-found`);
       console.log(cmd);
       shellExec(cmd, { disableLog: true });
       const successInstance = await UnderpostTest.API.statusMonitor(podName);
