@@ -440,6 +440,16 @@ class UnderpostRun {
     'ls-deployments': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       console.table(await UnderpostDeploy.API.get(path, 'deployments'));
     },
+    /**
+     * @method ls-images
+     * @description Retrieves and logs a table of currently loaded Docker images in the 'kind-worker' node using `UnderpostDeploy.API.getCurrentLoadedImages`.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'ls-images': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      console.table(UnderpostDeploy.API.getCurrentLoadedImages('kind-worker', false));
+    },
 
     /**
      * @method host-update

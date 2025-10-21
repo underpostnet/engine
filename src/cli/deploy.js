@@ -768,7 +768,7 @@ EOF`);
           .filter((o) => o.image);
       }
       if (node === 'kind-worker') {
-        const raw = shellExec(`docker exec -i kind-control-plane crictl images`, {
+        const raw = shellExec(`docker exec -i ${node} crictl images`, {
           stdout: true,
           silent: true,
         });
