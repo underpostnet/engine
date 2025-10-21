@@ -76,9 +76,9 @@ class UnderpostBaremetal {
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
 
       // Set default values if not provided.
-      workflowId = workflowId ?? 'rpi4mb';
-      hostname = hostname ?? workflowId;
-      ipAddress = ipAddress ?? '192.168.1.192';
+      workflowId = workflowId ? workflowId : 'rpi4mb';
+      hostname = hostname ? hostname : workflowId;
+      ipAddress = ipAddress ? ipAddress : '192.168.1.192';
 
       // Set default MAC address
       let macAddress = '00:00:00:00:00:00';
