@@ -80,7 +80,7 @@ class UnderpostDeploy {
       process.env.PORT = initEnvObj.PORT;
       process.env.NODE_ENV = env;
       await Config.build('proxy', deployList);
-      return buildPortProxyRouter(env === 'development' ? 80 : 443, buildProxyRouter());
+      return buildPortProxyRouter({ port: env === 'development' ? 80 : 443, proxyRouter: buildProxyRouter() });
     },
     /**
      * Creates a YAML service configuration for a deployment.

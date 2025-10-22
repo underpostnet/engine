@@ -11,7 +11,6 @@ import dotenv from 'dotenv';
 
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
-import { TLS } from './tls.js';
 import { buildPortProxyRouter, buildProxyRouter } from './conf.js';
 import UnderpostStartUp from './start.js';
 
@@ -42,8 +41,8 @@ class Proxy {
     const proxyRouter = buildProxyRouter();
 
     for (let port of Object.keys(proxyRouter)) {
-      port = parseInt(port);
       const hosts = proxyRouter[port];
+      port = parseInt(port) + parseInt(process.env.DEV_PROXY_PORT_OFFSET);
       const proxyPath = '/';
       const proxyHost = 'localhost';
       const runningData = { host: proxyHost, path: proxyPath, client: null, runtime: 'nodejs', meta: import.meta };
@@ -59,16 +58,11 @@ class Proxy {
         target: `http://localhost:${process.env.PORT}`, // Default target (should be overridden by router)
         router: {},
         xfwd: true, // Adds x-forward headers (Host, Proto, etc.)
-        onProxyReq: (proxyReq, req, res, options) => {
-          // Use the static method from the TLS class for redirection logic
-          TLS.sslRedirectMiddleware(req, res, port, proxyRouter);
-        },
-        pathRewrite: {
-          // Add path rewrite rules here if necessary
-        },
+        onProxyReq: (proxyReq, req, res, options) => {},
+        pathRewrite: {},
       };
 
-      options.router = buildPortProxyRouter(port, proxyRouter, { orderByPathLength: true });
+      options.router = buildPortProxyRouter({ port, proxyRouter, hosts, orderByPathLength: true });
 
       const filter = proxyPath; // Use '/' as the general filter
       app.use(proxyPath, createProxyMiddleware(filter, options));

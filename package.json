@@ -15,7 +15,7 @@
         "monitor": "pm2 start src/monitor.js --name monitor -- dd production",
         "dev-api": "env-cmd -f .env.development nodemon --watch src --ignore src/client src/api",
         "dev-client": "env-cmd -f .env.development node src/client.dev",
-        "proxy": "node src/proxy proxy",
+        "dev-proxy": "env-cmd -f .env.development node src/proxy proxy",
         "docs": "jsdoc -c jsdoc.json",
         "install-global": "npm install -g pm2 && npm install -g jsdoc && npm install -g prettier && npm install -g env-cmd",
         "install-test": "npm install -g mocha && npm install -g c8 && npm install -g coveralls",

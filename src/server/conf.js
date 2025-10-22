@@ -784,14 +784,18 @@ const buildKindPorts = (from, to) =>
 /**
  * @method buildPortProxyRouter
  * @description Builds the port proxy router.
- * @param {number} port - The port.
- * @param {object} proxyRouter - The proxy router.
- * @param {object} [options={ orderByPathLength: false }] - The options.
+ * @param {object} options - The options.
+ * @param {number} [options.port=4000] - The port.
+ * @param {object} options.proxyRouter - The proxy router.
+ * @param {object} [options.hosts] - The hosts.
+ * @param {boolean} [options.orderByPathLength=false] - Whether to order by path length.
  * @returns {object} - The port proxy router.
  * @memberof ServerConfBuilder
  */
-const buildPortProxyRouter = (port, proxyRouter, options = { orderByPathLength: false }) => {
-  const hosts = proxyRouter[port];
+const buildPortProxyRouter = (options = { port: 4000, proxyRouter, hosts, orderByPathLength: false }) => {
+  let { port, proxyRouter, hosts, orderByPathLength } = options;
+  hosts = hosts || proxyRouter[port] || {};
+
   const router = {};
   // build router
   Object.keys(hosts).map((hostKey) => {
@@ -806,7 +810,7 @@ const buildPortProxyRouter = (port, proxyRouter, options = { orderByPathLength: 
     }
 
     const absoluteHost = [80, 443].includes(port)
-      ? `${host}${path === '/' ? '' : path}`
+      ? `${host}${process.env.NODE_ENV === 'development' ? `:${port}` : ''}${path === '/' ? '' : path}`
       : `${host}:${port}${path === '/' ? '' : path}`;
 
     if (absoluteHost in router)
@@ -817,7 +821,7 @@ const buildPortProxyRouter = (port, proxyRouter, options = { orderByPathLength: 
 
   if (Object.keys(router).length === 0) return router;
 
-  if (options.orderByPathLength === true) {
+  if (orderByPathLength === true) {
     const reOrderRouter = {};
     for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(router), 'length'))
       reOrderRouter[absoluteHostKey] = router[absoluteHostKey];
