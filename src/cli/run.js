@@ -330,7 +330,9 @@ class UnderpostRun {
       if (!fs.existsSync(`/home/dd/engine/engine-private`))
         shellExec(`cd /home/dd/engine && underpost clone ${process.env.GITHUB_USERNAME}/engine-private`);
       else
-        shellExec(`cd /home/dd/engine/engine-private underpost pull . ${process.env.GITHUB_USERNAME}/engine-private`);
+        shellExec(
+          `cd /home/dd/engine/engine-private && underpost pull . ${process.env.GITHUB_USERNAME}/engine-private`,
+        );
     },
     /**
      * @method release-deploy
