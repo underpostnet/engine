@@ -781,7 +781,7 @@ class UnderpostRun {
     /**
      * @method dev
      * @description Starts development servers for client, API, and proxy based on provided parameters (deployId, host, path, clientHostPort).
-     * @param {string} path - The input value, identifier, or path for the operation (formatted as `deployId,host,path,clientHostPort`).
+     * @param {string} path - The input value, identifier, or path for the operation (formatted as `deployId,subConf,host,path,clientHostPort`).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -789,15 +789,15 @@ class UnderpostRun {
       let [deployId, subConf, host, _path, clientHostPort] = path.split(',');
       if (!deployId) deployId = 'dd-default';
       if (!host) host = 'default.net';
-      if (!path) path = '/';
+      if (!_path) _path = '/';
       if (!clientHostPort) clientHostPort = 'localhost:3999';
       if (!subConf) subConf = 'local';
       if (!fs.existsSync(`./engine-private/conf/${deployId}`)) Config.deployIdFactory(deployId, { subConf });
-      shellExec(`npm run dev-api ${deployId} ${subConf} ${host} ${path} ${clientHostPort}`, { async: true });
+      shellExec(`npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}`, { async: true });
       await awaitDeployMonitor(true);
-      shellExec(`npm run dev-client ${deployId} ${subConf} ${host} ${path}`, { async: true });
+      shellExec(`npm run dev-client ${deployId} ${subConf} ${host} ${_path}`, { async: true });
       await awaitDeployMonitor(true);
-      shellExec(`npm run dev-proxy ${deployId} ${subConf} ${host} ${path}`);
+      shellExec(`npm run dev-proxy ${deployId} ${subConf} ${host} ${_path}`);
     },
 
     /**
