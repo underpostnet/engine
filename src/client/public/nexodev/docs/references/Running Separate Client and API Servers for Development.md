@@ -23,7 +23,7 @@ And that you have a base development configuration for your `deployId`. For this
 - **`subConf`**: `local` (a custom identifier for this setup)
 - **`host`**: `default.net`
 - **`path`**: `/`
-- **Client** will run on `localhost:3999`
+- **Client** will run on `localhost:4004`
 - **API** will run on `localhost:4000`
 
 ## Create a Local Sub-Configuration
@@ -48,7 +48,7 @@ Now that both configurations are ready, you can start the API and client servers
     Open a new terminal and run:
 
     ```bash
-    npm run dev-api dd-default local default.net / localhost:3999
+    npm run dev-api dd-default local default.net / localhost:4004
     ```
 
     - This command starts the API server using `src/api.js`.
@@ -64,7 +64,7 @@ Now that both configurations are ready, you can start the API and client servers
 
     - This command starts the client development server using `src/client.dev.js`.
     - The script `createClientDevServer` is called, which uses the `local-dev-client` configuration.
-    - It will first build the client assets and then start a server on `http://localhost:3999`.
+    - It will first build the client assets and then start a server on `http://localhost:4004`.
     - `nodemon` will watch for changes in `src/client` and automatically rebuild the client-side code.
 
-You should now have the API running on port 4000 and the client on port 3999, with the client correctly making API calls to the separate API server.
+You should now have the API running on port 4000 and the client on port 4004, with the client correctly making API calls to the separate API server.

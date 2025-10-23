@@ -59,7 +59,7 @@ class Proxy {
       /** @type {import('http-proxy-middleware/dist/types').Options} */
       const options = {
         ws: true, // Enable websocket proxying
-        target: `http://localhost:${process.env.PORT}`, // Default target (should be overridden by router)
+        target: `http://localhost:${parseInt(process.env.PORT - 1)}`, // Default target (should be overridden by router)
         router: {},
         // changeOrigin: true,
         logLevel: 'debug',

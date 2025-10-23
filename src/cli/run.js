@@ -51,6 +51,7 @@ class UnderpostRun {
    * @property {boolean} kubeadm - Whether to run in kubeadm mode.
    * @property {boolean} force - Whether to force the operation.
    * @property {boolean} reset - Whether to reset the operation.
+   * @property {boolean} tls - Whether to use TLS.
    * @property {string} tty - The TTY option for the container.
    * @property {string} stdin - The stdin option for the container.
    * @property {string} restartPolicy - The restart policy for the container.
@@ -70,6 +71,7 @@ class UnderpostRun {
     kubeadm: false,
     force: false,
     reset: false,
+    tls: false,
     tty: '',
     stdin: '',
     restartPolicy: '',
@@ -792,15 +794,20 @@ class UnderpostRun {
       if (!deployId) deployId = 'dd-default';
       if (!host) host = 'default.net';
       if (!_path) _path = '/';
-      if (!clientHostPort) clientHostPort = 'localhost:3999';
+      if (!clientHostPort) clientHostPort = 'localhost:4004';
       if (!subConf) subConf = 'local';
       if (options.reset && fs.existsSync(`./engine-private/conf/${deployId}`))
         fs.removeSync(`./engine-private/conf/${deployId}`);
       if (!fs.existsSync(`./engine-private/conf/${deployId}`)) Config.deployIdFactory(deployId, { subConf });
       shellExec(`node bin run dev-cluster expose`);
-      shellExec(`npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}`, { async: true });
+      shellExec(
+        `npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}${options.tls ? ' tls' : ''}`,
+        { async: true },
+      );
       await awaitDeployMonitor(true);
-      shellExec(`npm run dev-client ${deployId} ${subConf} ${host} ${_path} proxy`, { async: true });
+      shellExec(`npm run dev-client ${deployId} ${subConf} ${host} ${_path} proxy${options.tls ? ' tls' : ''}`, {
+        async: true,
+      });
       await awaitDeployMonitor(true);
       shellExec(`npm run dev-proxy ${deployId} ${subConf} ${host} ${_path}`);
     },
