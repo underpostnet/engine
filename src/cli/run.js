@@ -50,6 +50,7 @@ class UnderpostRun {
    * @property {boolean} k3s - Whether to run in k3s mode.
    * @property {boolean} kubeadm - Whether to run in kubeadm mode.
    * @property {boolean} force - Whether to force the operation.
+   * @property {boolean} reset - Whether to reset the operation.
    * @property {string} tty - The TTY option for the container.
    * @property {string} stdin - The stdin option for the container.
    * @property {string} restartPolicy - The restart policy for the container.
@@ -68,6 +69,7 @@ class UnderpostRun {
     k3s: false,
     kubeadm: false,
     force: false,
+    reset: false,
     tty: '',
     stdin: '',
     restartPolicy: '',
@@ -792,6 +794,8 @@ class UnderpostRun {
       if (!_path) _path = '/';
       if (!clientHostPort) clientHostPort = 'localhost:3999';
       if (!subConf) subConf = 'local';
+      if (options.reset && fs.existsSync(`./engine-private/conf/${deployId}`))
+        fs.removeSync(`./engine-private/conf/${deployId}`);
       if (!fs.existsSync(`./engine-private/conf/${deployId}`)) Config.deployIdFactory(deployId, { subConf });
       shellExec(`npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}`, { async: true });
       await awaitDeployMonitor(true);

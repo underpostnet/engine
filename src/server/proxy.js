@@ -35,6 +35,8 @@ class Proxy {
    * @memberof ProxyService
    */
   static async buildProxy() {
+    if (process.env.NODE_ENV === 'production') process.env.DEV_PROXY_PORT_OFFSET = 0;
+
     // Start a default Express listener on process.env.PORT (potentially unused, but ensures Express is initialized)
     process.env.PORT = parseInt(process.env.PORT) + parseInt(process.env.DEV_PROXY_PORT_OFFSET);
     express().listen(process.env.PORT);
@@ -43,7 +45,7 @@ class Proxy {
 
     for (let port of Object.keys(proxyRouter)) {
       const hosts = proxyRouter[port];
-      port = parseInt(port);
+      port = parseInt(port) + parseInt(process.env.DEV_PROXY_PORT_OFFSET);
       const proxyPath = '/';
       const proxyHost = 'localhost';
       const runningData = { host: proxyHost, path: proxyPath, client: null, runtime: 'nodejs', meta: import.meta };
@@ -63,7 +65,13 @@ class Proxy {
         pathRewrite: {},
       };
 
-      options.router = buildPortProxyRouter({ port, proxyRouter, hosts, orderByPathLength: true });
+      options.router = buildPortProxyRouter({
+        port,
+        proxyRouter,
+        hosts,
+        orderByPathLength: true,
+        devProxyContext: process.env.NODE_ENV !== 'production',
+      });
 
       const filter = proxyPath; // Use '/' as the general filter
       app.use(proxyPath, createProxyMiddleware(filter, options));

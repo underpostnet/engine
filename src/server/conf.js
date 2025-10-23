@@ -800,10 +800,13 @@ const buildKindPorts = (from, to) =>
  * @param {object} options.proxyRouter - The proxy router.
  * @param {object} [options.hosts] - The hosts.
  * @param {boolean} [options.orderByPathLength=false] - Whether to order by path length.
+ * @param {boolean} [options.devProxyContext=false] - Whether to use dev proxy context.
  * @returns {object} - The port proxy router.
  * @memberof ServerConfBuilder
  */
-const buildPortProxyRouter = (options = { port: 4000, proxyRouter, hosts, orderByPathLength: false }) => {
+const buildPortProxyRouter = (
+  options = { port: 4000, proxyRouter, hosts, orderByPathLength: false, devProxyContext: false },
+) => {
   let { port, proxyRouter, hosts, orderByPathLength } = options;
   hosts = hosts || proxyRouter[port] || {};
 
@@ -827,7 +830,10 @@ const buildPortProxyRouter = (options = { port: 4000, proxyRouter, hosts, orderB
     if (absoluteHost in router)
       logger.warn('Overwrite: Absolute host already exists on router', { absoluteHost, target });
 
-    router[absoluteHost] = target;
+    if (options.devProxyContext === true) {
+      const appDevPort = parseInt(target.split(':')[2]) - process.env.DEV_PROXY_PORT_OFFSET;
+      router[absoluteHost] = `http://localhost:${appDevPort}`;
+    } else router[absoluteHost] = target;
   }); // order router
 
   if (Object.keys(router).length === 0) return router;
