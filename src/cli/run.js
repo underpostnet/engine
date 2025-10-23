@@ -797,6 +797,7 @@ class UnderpostRun {
       if (options.reset && fs.existsSync(`./engine-private/conf/${deployId}`))
         fs.removeSync(`./engine-private/conf/${deployId}`);
       if (!fs.existsSync(`./engine-private/conf/${deployId}`)) Config.deployIdFactory(deployId, { subConf });
+      shellExec(`node bin run dev-cluster expose`);
       shellExec(`npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}`, { async: true });
       await awaitDeployMonitor(true);
       shellExec(`npm run dev-client ${deployId} ${subConf} ${host} ${_path}`, { async: true });

@@ -689,15 +689,37 @@ EOF`);
     /**
      * Creates a hosts file for a deployment.
      * @param {Array<string>} hosts - List of hosts to be added to the hosts file.
+     * @param {object} options - Options for the hosts file creation.
+     * @param {boolean} options.append - Whether to append to the existing hosts file.
+     * @returns {object} - Object containing the rendered hosts file.
      * @memberof UnderpostDeploy
      */
-    etcHostFactory(hosts = []) {
+    etcHostFactory(hosts = [], options = { append: false }) {
+      hosts = hosts.map((host) => {
+        try {
+          if (!host.startsWith('http')) host = `http://${host}`;
+          const hostname = new URL(host).hostname;
+          logger.info('Hostname extract valid', { host, hostname });
+          return hostname;
+        } catch (e) {
+          logger.warn('No hostname extract valid', host);
+          return host;
+        }
+      });
       const renderHosts = `127.0.0.1         ${hosts.join(
         ' ',
       )} localhost localhost.localdomain localhost4 localhost4.localdomain4
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6`;
 
-      fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
+      if (options && options.append && fs.existsSync(`/etc/hosts`)) {
+        fs.writeFileSync(
+          `/etc/hosts`,
+          fs.readFileSync(`/etc/hosts`, 'utf8') +
+            `
+${renderHosts}`,
+          'utf8',
+        );
+      } else fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
       return { renderHosts };
     },
     /**

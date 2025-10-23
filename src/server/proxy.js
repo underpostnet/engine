@@ -13,6 +13,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { buildPortProxyRouter, buildProxyRouter } from './conf.js';
 import UnderpostStartUp from './start.js';
+import UnderpostDeploy from '../cli/deploy.js';
 
 dotenv.config();
 
@@ -99,6 +100,12 @@ class Proxy {
           break;
       }
       logger.info('Proxy running', { port, options });
+      if (process.env.NODE_ENV === 'development')
+        logger.info(
+          UnderpostDeploy.API.etcHostFactory(Object.keys(options.router), {
+            append: true,
+          }).renderHosts,
+        );
     }
   }
 }
