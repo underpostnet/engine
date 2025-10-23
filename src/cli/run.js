@@ -11,6 +11,7 @@ import {
   getNpmRootPath,
   getUnderpostRootPath,
   isDeployRunnerContext,
+  writeEnv,
 } from '../server/conf.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import UnderpostTest from './test.js';
@@ -21,6 +22,7 @@ import UnderpostRootEnv from './env.js';
 import UnderpostRepository from './repository.js';
 import os from 'os';
 import Underpost from '../index.js';
+import dotenv from 'dotenv';
 
 const logger = loggerFactory(import.meta);
 
@@ -77,6 +79,7 @@ class UnderpostRun {
     stdin: '',
     restartPolicy: '',
     terminal: false,
+    devProxyPortOffset: 0,
   };
   /**
    * @static
@@ -802,6 +805,12 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     dev: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      if (options.devProxyPortOffset) {
+        const envPath = './.env.development';
+        const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+        envObj.DEV_PROXY_PORT_OFFSET = options.devProxyPortOffset;
+        writeEnv(envPath, envObj);
+      }
       let [deployId, subConf, host, _path, clientHostPort] = path.split(',');
       if (!deployId) deployId = 'dd-default';
       if (!host) host = 'default.net';
