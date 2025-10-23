@@ -391,6 +391,7 @@ program
   .option('--force', 'Forces operation, overriding any warnings or conflicts.')
   .option('--tls', 'Enables TLS for the runner execution.')
   .option('--reset', 'Resets the runner state before execution.')
+  .option('--terminal', 'Enables terminal mode for interactive script execution.')
   .description('Runs a script from the specified path.')
   .action(UnderpostRun.API.callback);
 

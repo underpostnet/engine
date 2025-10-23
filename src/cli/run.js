@@ -55,6 +55,7 @@ class UnderpostRun {
    * @property {string} tty - The TTY option for the container.
    * @property {string} stdin - The stdin option for the container.
    * @property {string} restartPolicy - The restart policy for the container.
+   * @property {boolean} terminal - Whether to open a terminal.
    * @memberof UnderpostRun
    */
   static DEFAULT_OPTION = {
@@ -75,6 +76,7 @@ class UnderpostRun {
     tty: '',
     stdin: '',
     restartPolicy: '',
+    terminal: false,
   };
   /**
    * @static
@@ -800,14 +802,19 @@ class UnderpostRun {
         fs.removeSync(`./engine-private/conf/${deployId}`);
       if (!fs.existsSync(`./engine-private/conf/${deployId}`)) Config.deployIdFactory(deployId, { subConf });
       shellExec(`node bin run dev-cluster expose`);
-      shellExec(
-        `npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}${options.tls ? ' tls' : ''}`,
-        { async: true },
-      );
+      {
+        const cmd = `npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}${options.tls ? ' tls' : ''}`;
+        options.terminal ? openTerminal(cmd) : shellExec(cmd, { async: true });
+      }
       await awaitDeployMonitor(true);
-      shellExec(`npm run dev-client ${deployId} ${subConf} ${host} ${_path} proxy${options.tls ? ' tls' : ''}`, {
-        async: true,
-      });
+      {
+        const cmd = `npm run dev-client ${deployId} ${subConf} ${host} ${_path} proxy${options.tls ? ' tls' : ''}`;
+        options.terminal
+          ? openTerminal(cmd)
+          : shellExec(cmd, {
+              async: true,
+            });
+      }
       await awaitDeployMonitor(true);
       shellExec(`npm run dev-proxy ${deployId} ${subConf} ${host} ${_path}${options.tls ? ' tls' : ''}`);
     },
