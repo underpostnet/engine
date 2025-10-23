@@ -25,20 +25,16 @@ const logger = loggerFactory(import.meta);
 /**
  * Main class for building and running the proxy server.
  * All utility methods are implemented as static to serve as a namespace container.
- * @class Proxy
- * @augments Proxy
+ * @class ProxyService
  * @memberof ProxyService
  */
-class Proxy {
+class ProxyService {
   /**
-   * Initializes and starts the reverse proxy server for all configured ports and hosts.
-   * @async
+   * Builds and starts the proxy server with appropriate routing and SSL configuration.
    * @static
-   * @memberof ProxyService
-   * @returns {Promise<void>}
-   * @memberof ProxyService
+   * @returns {Promise<void>} Resolves when the server is successfully started.
    */
-  static async buildProxy() {
+  static async build() {
     if (process.env.NODE_ENV === 'production') process.env.DEV_PROXY_PORT_OFFSET = 0;
 
     // Start a default Express listener on process.env.PORT (potentially unused, but ensures Express is initialized)
@@ -136,6 +132,6 @@ class Proxy {
  * @type {function(): Promise<void>}
  * @memberof ProxyService
  */
-const buildProxy = Proxy.buildProxy;
+const buildProxy = ProxyService.build;
 
-export { Proxy, buildProxy };
+export { ProxyService, buildProxy };
