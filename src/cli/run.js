@@ -779,6 +779,28 @@ class UnderpostRun {
     },
 
     /**
+     * @method dev
+     * @description Starts development servers for client, API, and proxy based on provided parameters (deployId, host, path, clientHostPort).
+     * @param {string} path - The input value, identifier, or path for the operation (formatted as `deployId,host,path,clientHostPort`).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    dev: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      let [deployId, subConf, host, _path, clientHostPort] = path.split(',');
+      if (!deployId) deployId = 'dd-default';
+      if (!host) host = 'default.net';
+      if (!path) path = '/';
+      if (!clientHostPort) clientHostPort = 'localhost:3999';
+      if (!subConf) subConf = 'local';
+      if (!fs.existsSync(`./engine-private/conf/${deployId}`)) Config.deployIdFactory(deployId, { subConf });
+      shellExec(`npm run dev-api ${deployId} ${subConf} ${host} ${path} ${clientHostPort}`, { async: true });
+      await awaitDeployMonitor(true);
+      shellExec(`npm run dev-client ${deployId} ${subConf} ${host} ${path}`, { async: true });
+      await awaitDeployMonitor(true);
+      shellExec(`npm run dev-proxy ${deployId} ${subConf} ${host} ${path}`);
+    },
+
+    /**
      * @method service
      * @description Deploys and exposes specific services (like `mongo-express-service`) on the cluster, updating deployment configurations and monitoring status.
      * @param {string} path - The input value, identifier, or path for the operation (formatted as `deployId,serviceId,host,path,replicas,image,node`).

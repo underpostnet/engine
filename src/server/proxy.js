@@ -36,13 +36,14 @@ class Proxy {
    */
   static async buildProxy() {
     // Start a default Express listener on process.env.PORT (potentially unused, but ensures Express is initialized)
+    process.env.PORT = parseInt(process.env.PORT) + parseInt(process.env.DEV_PROXY_PORT_OFFSET);
     express().listen(process.env.PORT);
 
     const proxyRouter = buildProxyRouter();
 
     for (let port of Object.keys(proxyRouter)) {
       const hosts = proxyRouter[port];
-      port = parseInt(port) + parseInt(process.env.DEV_PROXY_PORT_OFFSET);
+      port = parseInt(port);
       const proxyPath = '/';
       const proxyHost = 'localhost';
       const runningData = { host: proxyHost, path: proxyPath, client: null, runtime: 'nodejs', meta: import.meta };
