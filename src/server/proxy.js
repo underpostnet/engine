@@ -11,9 +11,12 @@ import dotenv from 'dotenv';
 
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
-import { buildPortProxyRouter, buildProxyRouter } from './conf.js';
+import { buildPortProxyRouter, buildProxyRouter, getTlsHosts, isDevProxyContext, isTlsDevProxy } from './conf.js';
 import UnderpostStartUp from './start.js';
 import UnderpostDeploy from '../cli/deploy.js';
+import { SSL_BASE, TLS } from './tls.js';
+import { shellExec } from './process.js';
+import fs from 'fs-extra';
 
 dotenv.config();
 
@@ -97,9 +100,25 @@ class Proxy {
           break;
 
         default:
-          // In non-production, always use standard HTTP listener
-          await UnderpostStartUp.API.listenPortController(app, port, runningData);
-          break;
+          switch (port) {
+            case 443: {
+              let tlsHosts = hosts;
+              if (isDevProxyContext() && isTlsDevProxy()) {
+                tlsHosts = {};
+                for (const tlsHost of getTlsHosts(hosts)) {
+                  if (fs.existsSync(SSL_BASE(tlsHost))) fs.removeSync(SSL_BASE(tlsHost));
+                  if (!TLS.validateSecureContext(tlsHost)) shellExec(`node bin/deploy tls "${tlsHost}"`);
+                  tlsHosts[tlsHost] = {};
+                }
+              }
+              const { ServerSSL } = await TLS.createSslServer(app, tlsHosts);
+              await UnderpostStartUp.API.listenPortController(ServerSSL, port, runningData);
+              break;
+            }
+            default: // In non-production, always use standard HTTP listener
+              await UnderpostStartUp.API.listenPortController(app, port, runningData);
+              break;
+          }
       }
       logger.info('Proxy running', { port, options });
       if (process.env.NODE_ENV === 'development')

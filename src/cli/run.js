@@ -809,7 +809,7 @@ class UnderpostRun {
         async: true,
       });
       await awaitDeployMonitor(true);
-      shellExec(`npm run dev-proxy ${deployId} ${subConf} ${host} ${_path}`);
+      shellExec(`npm run dev-proxy ${deployId} ${subConf} ${host} ${_path}${options.tls ? ' tls' : ''}`);
     },
 
     /**

@@ -1302,8 +1302,8 @@ nvidia/gpu-operator \
 
     case 'tls': {
       fs.mkdirSync(`./engine-private/ssl/localhost`, { recursive: true });
-      const targetDir = `./engine-private/ssl/localhost`;
-      const domains = ['localhost', '127.0.0.1', '::1'];
+      const targetDir = `./engine-private/ssl/${process.argv[3] ? process.argv[3] : 'localhost'}`;
+      const domains = ['localhost', '127.0.0.1', '::1'].concat(process.argv[3] ? process.argv[3] : []);
       shellExec(`chmod +x ./scripts/ssl.sh`);
       shellExec(`./scripts/ssl.sh ${targetDir} "${domains.join(' ')}"`);
       break;

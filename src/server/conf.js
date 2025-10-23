@@ -1551,6 +1551,16 @@ const devProxyHostFactory = (options = { host: 'default.net', includeHttp: false
  */
 const isTlsDevProxy = () => process.env.NODE_ENV !== 'production' && process.argv[7] === 'tls';
 
+/**
+ * @method getTlsHosts
+ * @description Gets the TLS hosts.
+ * @param {object} confServer - The server configuration.
+ * @returns {Array} - The TLS hosts.
+ * @memberof ServerConfBuilder
+ */
+const getTlsHosts = (confServer) =>
+  Array.from(new Set(Object.keys(confServer).map((h) => new URL('https://' + h).hostname)));
+
 export {
   Cmd,
   Config,
@@ -1590,4 +1600,5 @@ export {
   isDevProxyContext,
   devProxyHostFactory,
   isTlsDevProxy,
+  getTlsHosts,
 };

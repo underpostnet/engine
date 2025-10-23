@@ -248,4 +248,4 @@ const validateSecureContext = TLS.validateSecureContext;
 const createSslServer = TLS.createSslServer;
 const sslRedirectMiddleware = TLS.sslRedirectMiddleware;
 
-export { TLS, buildSSL, buildSecureContext, validateSecureContext, createSslServer, sslRedirectMiddleware };
+export { TLS, SSL_BASE, buildSSL, buildSecureContext, validateSecureContext, createSslServer, sslRedirectMiddleware };
