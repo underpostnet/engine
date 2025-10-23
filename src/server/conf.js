@@ -838,6 +838,36 @@ const buildPortProxyRouter = (
 
   if (Object.keys(router).length === 0) return router;
 
+  if (options.devProxyContext === true && process.env.NODE_ENV === 'development') {
+    const confDevApiServer = JSON.parse(
+      fs.readFileSync(`./engine-private/conf/${process.argv[3]}/conf.server.dev.${process.argv[4]}-dev-api.json`),
+      'utf8',
+    );
+    let devApiHosts = [];
+    let origins = [];
+    for (const _host of Object.keys(confDevApiServer))
+      for (const _path of Object.keys(confDevApiServer[_host])) {
+        if (confDevApiServer[_host][_path].origins && confDevApiServer[_host][_path].origins.length) {
+          origins.push(...confDevApiServer[_host][_path].origins);
+          if (_path !== 'peer' && devApiHosts.length === 0)
+            devApiHosts.push(`${_host}:${port}${_path == '/' ? '' : _path}`);
+        }
+      }
+    origins = Array.from(new Set(origins));
+    console.log({
+      origins,
+      devApiHosts,
+    });
+    for (const devApiHost of devApiHosts) {
+      if (devApiHost in router) {
+        const target = router[devApiHost];
+        delete router[devApiHost];
+        router[`${devApiHost}/${process.env.BASE_API}`] = target;
+        for (const origin of origins) router[devApiHost] = origin;
+      }
+    }
+  }
+
   if (orderByPathLength === true) {
     const reOrderRouter = {};
     for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(router), 'length'))
@@ -1430,11 +1460,14 @@ const buildApiConf = async (options = { deployId: '', subConf: '', host: '', pat
  * @param {string} options.apiBaseHost - The API base host.
  * @param {string} options.host - The host.
  * @param {string} options.path - The path.
+ * @param {boolean} options.devProxy - The dev proxy flag.
  * @returns {void}
  * @memberof ServerConfBuilder
  */
-const buildClientStaticConf = async (options = { deployId: '', subConf: '', apiBaseHost: '', host: '', path: '' }) => {
-  let { deployId, subConf, host, path } = options;
+const buildClientStaticConf = async (
+  options = { deployId: '', subConf: '', apiBaseHost: '', host: '', path: '', devProxy: false },
+) => {
+  let { deployId, subConf, host, path, devProxy } = options;
   if (!deployId) deployId = process.argv[2].trim();
   if (!subConf) subConf = process.argv[3].trim();
   if (!host) host = process.argv[4].trim();
@@ -1446,10 +1479,14 @@ const buildClientStaticConf = async (options = { deployId: '', subConf: '', apiB
     fs.readFileSync(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-api`, 'utf8'),
   );
   envObj.PORT = parseInt(envObj.PORT);
-  const apiBaseHost = options?.apiBaseHost ? options.apiBaseHost : `localhost:${envObj.PORT + 1}`;
+  const apiBaseHost = devProxy
+    ? `${host}:${443 + parseInt(process.env.DEV_PROXY_PORT_OFFSET)}`
+    : options?.apiBaseHost
+      ? options.apiBaseHost
+      : `localhost:${envObj.PORT + 1}`;
   confServer[host][path].apiBaseHost = apiBaseHost;
   confServer[host][path].apiBaseProxyPath = path;
-  logger.info('Build client static conf', { host, path, apiBaseHost });
+  logger.warn('Build client static conf', { host, path, apiBaseHost });
   envObj.PORT = parseInt(confServer[host][path].origins[0].split(':')[2]) - 1;
   writeEnv(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-client`, envObj);
   fs.writeFileSync(

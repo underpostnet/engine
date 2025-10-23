@@ -15,7 +15,7 @@ const logger = loggerFactory(import.meta);
 
 await logger.setUpInfo();
 
-await buildClientStaticConf();
+await buildClientStaticConf({ devProxy: process.argv[6] === 'proxy' });
 
 await Config.build();
 

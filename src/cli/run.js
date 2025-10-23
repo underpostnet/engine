@@ -800,7 +800,7 @@ class UnderpostRun {
       shellExec(`node bin run dev-cluster expose`);
       shellExec(`npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}`, { async: true });
       await awaitDeployMonitor(true);
-      shellExec(`npm run dev-client ${deployId} ${subConf} ${host} ${_path}`, { async: true });
+      shellExec(`npm run dev-client ${deployId} ${subConf} ${host} ${_path} proxy`, { async: true });
       await awaitDeployMonitor(true);
       shellExec(`npm run dev-proxy ${deployId} ${subConf} ${host} ${_path}`);
     },

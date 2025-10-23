@@ -101,6 +101,7 @@ const cap = (str) =>
 
 const capFirst = (str) => str.charAt(0).toUpperCase() + str.slice(1);
 
+// Other option: Array.from(new Set(arr))
 const uniqueArray = (arr) => arr.filter((item, pos) => arr.indexOf(item) == pos);
 
 const orderArrayFromAttrInt = (arr, attr, type) =>
