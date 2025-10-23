@@ -124,13 +124,21 @@ class UnderpostRun {
     },
     /**
      * @method kill
-     * @description Kills the process running on the specified port by finding its PID using `lsof -t -i:${path}`.
+     * @description Kills processes listening on the specified port(s). If the `path` contains a `+`, it treats it as a range of ports to kill.
      * @param {string} path - The input value, identifier, or path for the operation (used as the port number).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    kill: (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      shellExec(`sudo kill -9 $(lsof -t -i:${path})`);
+    kill: (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      for (const _path of path.split(',')) {
+        if (_path.split('+')[1]) {
+          let [port, sumPortOffSet] = _path.split('+');
+          port = parseInt(port);
+          sumPortOffSet = parseInt(sumPortOffSet);
+          for (const sumPort of range(0, sumPortOffSet))
+            shellExec(`sudo kill -9 $(lsof -t -i:${parseInt(port) + parseInt(sumPort)})`);
+        } else shellExec(`sudo kill -9 $(lsof -t -i:${_path})`);
+      }
     },
     /**
      * @method secret
