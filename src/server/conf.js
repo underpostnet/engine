@@ -1506,6 +1506,21 @@ const buildClientStaticConf = async (
  */
 const isDeployRunnerContext = (path, options) => !options.build && path && path !== 'template-deploy';
 
+/**
+ * @method isDevProxyContext
+ * @description Checks if the dev proxy context is valid.
+ * @returns {boolean} - The dev proxy context.
+ * @memberof ServerConfBuilder
+ */
+const isDevProxyContext = () => {
+  try {
+    if (!process.argv[6].startsWith('localhost')) return false;
+    return new URL('http://' + process.argv[6]).hostname ? true : false;
+  } catch {
+    return false;
+  }
+};
+
 export {
   Cmd,
   Config,
@@ -1542,4 +1557,5 @@ export {
   buildApiConf,
   buildClientStaticConf,
   isDeployRunnerContext,
+  isDevProxyContext,
 };

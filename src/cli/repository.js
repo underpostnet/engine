@@ -220,7 +220,7 @@ class UnderpostRepository {
      * @param {string} [options.subConf=''] - The sub-configuration to create.
      * @param {boolean} [options.cluster=false] - If true, sets up a clustered configuration.
      * @param {boolean} [options.dev=false] - If true, uses development settings.
-     * @returns {Promise<void>} A promise that resolves when the initialization is complete.
+     * @returns {Promise<boolean>} A promise that resolves when the initialization is complete.
      * @memberof UnderpostRepository
      */
     new(projectName, options = { deployId: '', subConf: '', cluster: false, dev: false }) {

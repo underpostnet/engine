@@ -17,6 +17,7 @@ import slowDown from 'express-slow-down';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
+import { isDevProxyContext } from './conf.js';
 
 dotenv.config();
 const logger = loggerFactory(import.meta);
@@ -348,7 +349,7 @@ const cookieOptionsFactory = (req, host) => {
     secure,
     sameSite,
     path: '/',
-    domain: process.env.NODE_ENV === 'production' ? host : 'localhost',
+    domain: process.env.NODE_ENV === 'production' || isDevProxyContext() ? host : 'localhost',
     maxAge,
   };
 
