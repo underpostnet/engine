@@ -53,7 +53,7 @@ class UnderpostStartUp {
               throw new Error(message);
             }
           }, msDelta);
-          return logic ? await logic(...args) : undefined, args[1]();
+          return (logic ? await logic(...args) : undefined, args[1]());
         },
       };
     },
@@ -95,8 +95,8 @@ class UnderpostStartUp {
                 port === 80
                   ? `http://${host}${path}`
                   : port === 443
-                  ? `https://${host}${path}`
-                  : `http://${host}:${port}${path}`,
+                    ? `https://${host}${path}`
+                    : `http://${host}:${port}${path}`,
               local: `http://localhost:${port}${path}`,
               apis: metadata.apis,
             };
@@ -158,4 +158,14 @@ class UnderpostStartUp {
   };
 }
 
+/**
+ * Creates a keep-alive process to maintain server activity.
+ * @memberof UnderpostStartUp
+ * @returns
+ */
+const createKeepAliveProcess = async () =>
+  await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), ':');
+
 export default UnderpostStartUp;
+
+export { createKeepAliveProcess, UnderpostStartUp };
