@@ -4,11 +4,11 @@ import { loggerFactory } from '../src/server/logger.js';
 
 const logger = loggerFactory(import.meta);
 
-// const vsCodeRootPath = '/root/.vscode-root';
-// const vsProgram = 'code';
+const vsCodeRootPath = '/root/.vscode-root';
+const vsProgram = 'code';
 
-const vsCodeRootPath = '/root/.windsurf';
-const vsProgram = 'windsurf';
+// const vsCodeRootPath = '/root/.windsurf';
+// const vsProgram = 'windsurf';
 
 switch (process.argv[2]) {
   case 'info': {
