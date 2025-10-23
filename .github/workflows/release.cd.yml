@@ -29,8 +29,8 @@ jobs:
             set -e
             echo "Starting remote release deploy"
             underpost run pull
-            underpost run git-conf
             underpost run secret
             cd /home/dd/engine
-            underpost run template-deploy-image
-            underpost run ssh-deploy sync-engine-test
+            node bin run --dev git-conf admin@underpost.net,underpostnet
+            node bin run --dev template-deploy-image
+            node bin run --dev ssh-deploy sync-engine-test

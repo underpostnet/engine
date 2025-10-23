@@ -646,13 +646,15 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'git-conf': (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
-      const defaultUsername = UnderpostRootEnv.API.get('GITHUB_USERNAME', '', { disableLog: true });
-      const defaultEmail = UnderpostRootEnv.API.get('GITHUB_EMAIL', '', { disableLog: true });
+      const defaultUsername = UnderpostRootEnv.API.get('GITHUB_USERNAME');
+      const defaultEmail = UnderpostRootEnv.API.get('GITHUB_EMAIL');
       const validPath = path && path.split(',').length;
       const [username, email] = validPath ? path.split(',') : [defaultUsername, defaultEmail];
       if (validPath) {
         UnderpostRootEnv.API.set('GITHUB_USERNAME', username);
         UnderpostRootEnv.API.set('GITHUB_EMAIL', email);
+        UnderpostRootEnv.API.get('GITHUB_USERNAME');
+        UnderpostRootEnv.API.get('GITHUB_EMAIL');
       }
       shellExec(
         `git config --global credential.helper "" && ` +
