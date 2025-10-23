@@ -5,7 +5,13 @@
  */
 
 import { daemonProcess, getTerminalPid, openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
-import { getNpmRootPath, getUnderpostRootPath, isDeployRunnerContext } from '../server/conf.js';
+import {
+  awaitDeployMonitor,
+  Config,
+  getNpmRootPath,
+  getUnderpostRootPath,
+  isDeployRunnerContext,
+} from '../server/conf.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import UnderpostTest from './test.js';
 import fs from 'fs-extra';
@@ -44,6 +50,9 @@ class UnderpostRun {
    * @property {boolean} k3s - Whether to run in k3s mode.
    * @property {boolean} kubeadm - Whether to run in kubeadm mode.
    * @property {boolean} force - Whether to force the operation.
+   * @property {string} tty - The TTY option for the container.
+   * @property {string} stdin - The stdin option for the container.
+   * @property {string} restartPolicy - The restart policy for the container.
    * @memberof UnderpostRun
    */
   static DEFAULT_OPTION = {
@@ -59,6 +68,9 @@ class UnderpostRun {
     k3s: false,
     kubeadm: false,
     force: false,
+    tty: '',
+    stdin: '',
+    restartPolicy: '',
   };
   /**
    * @static
@@ -622,8 +634,12 @@ class UnderpostRun {
     'git-conf': (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
       const defaultUsername = UnderpostRootEnv.API.get('GITHUB_USERNAME', '', { disableLog: true });
       const defaultEmail = UnderpostRootEnv.API.get('GITHUB_EMAIL', '', { disableLog: true });
-      const [username, email] = path && path.split(',').length > 0 ? path.split(',') : [defaultUsername, defaultEmail];
-
+      const validPath = path && path.split(',').length;
+      const [username, email] = validPath ? path.split(',') : [defaultUsername, defaultEmail];
+      if (validPath) {
+        UnderpostRootEnv.API.set('GITHUB_USERNAME', username);
+        UnderpostRootEnv.API.set('GITHUB_EMAIL', email);
+      }
       shellExec(
         `git config --global credential.helper "" && ` +
           `git config credential.helper "" && ` +

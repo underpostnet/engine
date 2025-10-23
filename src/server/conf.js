@@ -66,11 +66,11 @@ const Config = {
   /**
    * @method deployIdFactory
    * @description Creates a new deploy ID.
-   * @param {string} [deployId='dd-default'] - The deploy ID.
-   * @param {object} [options={ cluster: false }] - The options.
+   * @param {string} [deployId='dd-default
+   * @param {object} [options={ subConf: '', cluster: false }] - The options.
    * @memberof ServerConfBuilder
    */
-  deployIdFactory: function (deployId = 'dd-default', options = { cluster: false }) {
+  deployIdFactory: function (deployId = 'dd-default', options = { subConf: '', cluster: false }) {
     if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
 
     logger.info('Build deployId', deployId);
@@ -101,6 +101,17 @@ const Config = {
     );
 
     this.buildTmpConf(folder);
+
+    if (options.subConf) {
+      logger.info('Creating sub conf', {
+        deployId: deployId,
+        subConf: options.subConf,
+      });
+      fs.copySync(
+        `./engine-private/conf/${deployId}/conf.server.json`,
+        `./engine-private/conf/${deployId}/conf.server.dev.${options.subConf}.json`,
+      );
+    }
 
     if (options.cluster === true) {
       fs.writeFileSync(

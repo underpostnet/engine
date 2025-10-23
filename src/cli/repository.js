@@ -213,60 +213,50 @@ class UnderpostRepository {
     },
 
     /**
-     * Creates a new Underpost project, service, or configuration.
-     * @param {string} repositoryName - The name of the new project or service, or a deployId.
-     * @param {object} [options={ dev: false, deployId: false, cluster: false, subConf: '' }] - Creation options.
-     * @param {boolean} [options.dev=false] - If true, sets up a development project.
-     * @param {boolean} [options.deployId=false] - If true, creates deploy ID configuration files.
-     * @param {boolean} [options.cluster=false] - If true, creates cluster configuration files.
-     * @param {string} [options.subConf=''] - If provided, creates a sub-configuration for a deployId.
-     * @returns {Promise<void>} A promise that resolves when the operation is complete.
+     * Initializes a new Underpost repository, optionally setting up a deploy ID or sub-configuration.
+     * @param {string} [projectName=''] - The name of the project to create.
+     * @param {object} [options={ deployId: '', subConf: '', cluster: false, dev: false }] - Initialization options.
+     * @param {string} [options.deployId=''] - The deployment ID to set up.
+     * @param {string} [options.subConf=''] - The sub-configuration to create.
+     * @param {boolean} [options.cluster=false] - If true, sets up a clustered configuration.
+     * @param {boolean} [options.dev=false] - If true, uses development settings.
+     * @returns {Promise<void>} A promise that resolves when the initialization is complete.
      * @memberof UnderpostRepository
      */
-    new(repositoryName, options = { dev: false, deployId: false, cluster: false, subConf: '' }) {
+    new(projectName, options = { deployId: '', subConf: '', cluster: false, dev: false }) {
       return new Promise(async (resolve, reject) => {
         try {
           await logger.setUpInfo();
           actionInitLog();
-          if (options.subConf && typeof options.subConf === 'string') {
-            const deployId = repositoryName;
-            logger.info('Creating sub conf', {
-              deployId,
-              subConf: options.subConf,
-            });
-            fs.copySync(
-              `./engine-private/conf/${deployId}/conf.server.json`,
-              `./engine-private/conf/${deployId}/conf.server.dev.${options.subConf}.json`,
-            );
-            return resolve();
+          if (options.deployId) {
+            Config.deployIdFactory(options.deployId, options);
+            return resolve(true);
           }
-          if (repositoryName === 'service')
-            return resolve(
-              await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), ':'),
-            );
-          if (options.deployId === true) return Config.deployIdFactory(repositoryName, options);
-          const npmRoot = getNpmRootPath();
-          const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
-          const destFolder = `./${repositoryName}`;
-          logger.info('Note: This process may take several minutes to complete');
-          logger.info('build app', { destFolder });
-          if (fs.existsSync(destFolder)) fs.removeSync(destFolder);
-          fs.mkdirSync(destFolder, { recursive: true });
-          if (!options.dev) {
-            fs.copySync(underpostRoot, destFolder);
-            fs.writeFileSync(
-              `${destFolder}/.gitignore`,
-              fs.readFileSync(`${underpostRoot}/.dockerignore`, 'utf8'),
-              'utf8',
-            );
-            shellExec(`cd ${destFolder} && git init && git add . && git commit -m "Base template implementation"`);
+          if (projectName) {
+            const npmRoot = getNpmRootPath();
+            const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
+            const destFolder = `./${projectName}`;
+            logger.info('Note: This process may take several minutes to complete');
+            logger.info('build app', { destFolder });
+            if (fs.existsSync(destFolder)) fs.removeSync(destFolder);
+            fs.mkdirSync(destFolder, { recursive: true });
+            if (!options.dev) {
+              fs.copySync(underpostRoot, destFolder);
+              fs.writeFileSync(
+                `${destFolder}/.gitignore`,
+                fs.readFileSync(`${underpostRoot}/.dockerignore`, 'utf8'),
+                'utf8',
+              );
+              shellExec(`cd ${destFolder} && git init && git add . && git commit -m "Base template implementation"`);
+            }
+            shellExec(`cd ${destFolder} && npm run build`);
+            shellExec(`cd ${destFolder} && npm run dev`);
           }
-          shellExec(`cd ${destFolder} && npm run build`);
-          shellExec(`cd ${destFolder} && npm run dev`);
-          return resolve();
+          return resolve(true);
         } catch (error) {
+          console.log(error);
           logger.error(error, error.stack);
-          return reject(error.message);
+          return reject(false);
         }
       });
     },

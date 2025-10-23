@@ -33,7 +33,7 @@ Before running the servers, you need a specific configuration for this local dev
 Run the following command to create the `local` sub-configuration based on your default development configuration:
 
 ```bash
-underpost new dd-default --sub-conf local
+underpost new --deploy-id dd-default --sub-conf local
 ```
 
 This command copies the base configuration files for `dd-default` and creates new versions suffixed with `.local` (e.g., `conf.server.dev.local.json`). You can now customize these new files for your separate server setup without affecting your primary development configuration.
