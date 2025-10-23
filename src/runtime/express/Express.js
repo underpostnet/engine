@@ -23,6 +23,7 @@ import { applySecurity, authMiddlewareFactory } from '../../server/auth.js';
 import { ssrMiddlewareFactory } from '../../server/ssr.js';
 import { TLS } from '../../server/tls.js';
 import { shellExec } from '../../server/process.js';
+import { devProxyHostFactory, isDevProxyContext } from '../../server/conf.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -94,6 +95,7 @@ class ExpressService {
 
     const app = express();
 
+    if (origins && isDevProxyContext()) origins.push(devProxyHostFactory({ host, includeHttp: true }));
     app.set('trust proxy', true);
 
     app.use((req, res, next) => {

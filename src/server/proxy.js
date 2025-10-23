@@ -61,6 +61,8 @@ class Proxy {
         ws: true, // Enable websocket proxying
         target: `http://localhost:${process.env.PORT}`, // Default target (should be overridden by router)
         router: {},
+        // changeOrigin: true,
+        logLevel: 'debug',
         xfwd: true, // Adds x-forward headers (Host, Proto, etc.)
         onProxyReq: (proxyReq, req, res, options) => {},
         pathRewrite: {},

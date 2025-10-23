@@ -863,6 +863,7 @@ const buildPortProxyRouter = (
         const target = router[devApiHost];
         delete router[devApiHost];
         router[`${devApiHost}/${process.env.BASE_API}`] = target;
+        router[`${devApiHost}/socket.io`] = target;
         for (const origin of origins) router[devApiHost] = origin;
       }
     }
@@ -1480,7 +1481,7 @@ const buildClientStaticConf = async (
   );
   envObj.PORT = parseInt(envObj.PORT);
   const apiBaseHost = devProxy
-    ? `${host}:${443 + parseInt(process.env.DEV_PROXY_PORT_OFFSET)}`
+    ? devProxyHostFactory({ host })
     : options?.apiBaseHost
       ? options.apiBaseHost
       : `localhost:${envObj.PORT + 1}`;
@@ -1521,6 +1522,19 @@ const isDevProxyContext = () => {
   }
 };
 
+/**
+ * @method devProxyHostFactory
+ * @description Creates the dev proxy host.
+ * @param {object} options - The options.
+ * @param {string} [options.host='default.net'] - The host.
+ * @param {boolean} [options.includeHttp=false] - Whether to include HTTP.
+ * @param {number} [options.port=443] - The port.
+ * @returns {string} - The dev proxy host.
+ * @memberof ServerConfBuilder
+ */
+const devProxyHostFactory = (options = { host: 'default.net', includeHttp: false, port: 443 }) =>
+  `${options.includeHttp ? 'https://' : ''}${options.host ? options.host : 'localhost'}:${(options.port ? options.port : 443) + parseInt(process.env.DEV_PROXY_PORT_OFFSET)}`;
+
 export {
   Cmd,
   Config,
@@ -1558,4 +1572,5 @@ export {
   buildClientStaticConf,
   isDeployRunnerContext,
   isDevProxyContext,
+  devProxyHostFactory,
 };

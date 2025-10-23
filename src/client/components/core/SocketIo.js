@@ -35,8 +35,12 @@ const SocketIo = {
       // forceNew: true,
       // reconnectionAttempts: 'Infinity',
       // timeout: 10000,
-      // withCredentials: true,
       // autoConnect: 5000,
+      // Custom auth socket io credentials:
+      withCredentials: true,
+      extraHeaders: {
+        //   "my-custom-header": "abcd"
+      },
       transports: ['websocket', 'polling', 'flashsocket'],
     };
     // logger.error(`connect options:`, JSON.stringify(connectOptions, null, 4));
