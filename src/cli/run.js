@@ -805,12 +805,6 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     dev: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
-      if (options.devProxyPortOffset) {
-        const envPath = './.env.development';
-        const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-        envObj.DEV_PROXY_PORT_OFFSET = options.devProxyPortOffset;
-        writeEnv(envPath, envObj);
-      }
       let [deployId, subConf, host, _path, clientHostPort] = path.split(',');
       if (!deployId) deployId = 'dd-default';
       if (!host) host = 'default.net';
@@ -820,6 +814,12 @@ class UnderpostRun {
       if (options.reset && fs.existsSync(`./engine-private/conf/${deployId}`))
         fs.removeSync(`./engine-private/conf/${deployId}`);
       if (!fs.existsSync(`./engine-private/conf/${deployId}`)) Config.deployIdFactory(deployId, { subConf });
+      if (options.devProxyPortOffset) {
+        const envPath = `./engine-private/conf/${deployId}/.env.development`;
+        const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+        envObj.DEV_PROXY_PORT_OFFSET = options.devProxyPortOffset;
+        writeEnv(envPath, envObj);
+      }
       shellExec(`node bin run dev-cluster expose`);
       {
         const cmd = `npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}${options.tls ? ' tls' : ''}`;
