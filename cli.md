@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.85.1
+## underpost ci/cd cli v2.85.7
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -7,7 +7,7 @@
   -h, --help                                                 display help for command
 
 Commands:
-  new [options] <app-name>                                   Initializes a new Underpost project, service, or configuration.
+  new [options] [app-name]                                   Initializes a new Underpost project, service, or configuration.
   start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
   clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
   pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
@@ -42,20 +42,20 @@ Commands:
 
 ### `new` :
 ```
- Usage: underpost new [options] <app-name>
+ Usage: underpost new [options] [app-name]
 
 Initializes a new Underpost project, service, or configuration.
 
 Arguments:
-  app-name               The name or deploy-id of the application to create.
+  app-name                 The name of the new project.
 
 Options:
-  --deploy-id            Crete deploy ID conf env files
-  --cluster              Create deploy ID cluster files and sync to current
-                         cluster
-  --dev                  Sets the development cli context
-  --sub-conf <sub-conf>  Create sub conf env files
-  -h, --help             display help for command
+  --deploy-id <deploy-id>  Crete deploy ID conf env files
+  --sub-conf <sub-conf>    Create sub conf env files
+  --cluster                Create deploy ID cluster files and sync to current
+                           cluster
+  --dev                    Sets the development cli context
+  -h, --help               display help for command
  
 ```
   
@@ -623,7 +623,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cyberia-ide, engine-ide, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, ls-deployments, host-update, dev-container, monitor, db-client, git-conf, promote, metrics, cluster, deploy, service, sync-replica, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cyberia-ide, engine-ide, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, ls-deployments, ls-images, host-update, dev-container, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, release-cmt, sync-replica, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
@@ -642,6 +642,10 @@ Options:
   --kubeadm                                Flag to indicate Kubeadm cluster type context
   --k3s                                    Flag to indicate K3s cluster type context
   --force                                  Forces operation, overriding any warnings or conflicts.
+  --tls                                    Enables TLS for the runner execution.
+  --reset                                  Resets the runner state before execution.
+  --terminal                               Enables terminal mode for interactive script execution.
+  --dev-proxy-port-offset <port-offset>    Sets a custom port offset for development proxy.
   -h, --help                               display help for command
  
 ```
