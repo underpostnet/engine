@@ -380,6 +380,7 @@ try {
     }
 
     case 'version-build': {
+      dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
       shellCd(`/home/dd/engine`);
       shellExec(`node bin/deploy clean-core-repo`);
       shellExec(`node bin pull . ${process.env.GITHUB_USERNAME}/engine`);
@@ -493,6 +494,7 @@ try {
     }
 
     case 'version-deploy': {
+      dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
       shellExec(
         `underpost secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
       );

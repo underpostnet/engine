@@ -11,8 +11,11 @@ import {
 import { shellCd, shellExec } from '../src/server/process.js';
 import walk from 'ignore-walk';
 import { validateTemplatePath } from '../src/server/conf.js';
+import dotenv from 'dotenv';
 
 const logger = loggerFactory(import.meta);
+
+dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
 
 logger.info('argv', process.argv);
 
@@ -69,6 +72,7 @@ try {
       }
 
       for (const copyPath of result) {
+        if (copyPath === 'NaN') continue;
         const folder = getDirname(`${toPath}/${copyPath}`);
         const absolutePath = `${rawPath}/${copyPath}`;
 
