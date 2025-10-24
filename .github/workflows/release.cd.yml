@@ -31,6 +31,6 @@ jobs:
             underpost run pull
             underpost run secret
             cd /home/dd/engine
-            node bin run --dev git-conf admin@underpost.net,underpostnet
+            node bin run --dev git-conf
             node bin run --dev template-deploy-image
             node bin run --dev ssh-deploy sync-engine-test
