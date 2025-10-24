@@ -824,9 +824,9 @@ const buildPortProxyRouter = (
         return;
       }
     }
-
+    // ${process.env.NODE_ENV === 'development' && !isDevProxyContext() ? `:${port}` : ''}
     const absoluteHost = [80, 443].includes(port)
-      ? `${host}${process.env.NODE_ENV === 'development' && !isDevProxyContext() ? `:${port}` : ''}${path === '/' ? '' : path}`
+      ? `${host}${path === '/' ? '' : path}`
       : `${host}:${port}${path === '/' ? '' : path}`;
 
     if (absoluteHost in router)
