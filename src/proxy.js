@@ -11,7 +11,7 @@ import { Config } from './server/conf.js';
 
 dotenv.config();
 
-await Config.build();
+await Config.build(process.argv[2], process.argv[3], process.argv[4]);
 
 const logger = loggerFactory(import.meta);
 
