@@ -897,6 +897,21 @@ class UnderpostRun {
     },
 
     /**
+     * @method release-cmt
+     * @description Commits and pushes a new release for the `engine` repository with a message indicating the new version.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'release-cmt': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(`underpost run pull`);
+      shellExec(`underpost run secret`);
+      shellCd(`/home/dd/engine`);
+      shellExec(`underpost cmt --empty . ci engine ' New engine release $(underpost --version)'`);
+      shellExec(`underpost push . ${process.env.GITHUB_USERNAME}/engine`);
+    },
+
+    /**
      * @method sync-replica
      * @description Syncs a replica for the dd.router
      * @param {string} path - The input value, identifier, or path for the operation.
