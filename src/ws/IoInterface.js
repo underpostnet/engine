@@ -21,11 +21,10 @@ const logger = loggerFactory(import.meta);
  */
 
 /**
- * @class IoChannel
- * @alias IoChannel
- * @memberof SocketIoInterface
- * @classdesc Manages the logic, client map, and event listeners for a specific WebSocket channel,
+ * Manages the logic, client map, and event listeners for a specific WebSocket channel,
  * ensuring robust message handling and lifecycle management.
+ * @class IoChannel
+ * @memberof SocketIoInterface
  */
 class IoChannel {
   /**

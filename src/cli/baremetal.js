@@ -1,6 +1,5 @@
 /**
- * Baremetal module for managing the generation and deployment of cloud-init configuration files
- * and associated scripts for baremetal provisioning.
+ * Provides baremetal provisioning and configuration functionalities.
  * @module src/cli/baremetal.js
  * @namespace UnderpostBaremetal
  */
