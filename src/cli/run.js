@@ -820,7 +820,7 @@ class UnderpostRun {
         envObj.DEV_PROXY_PORT_OFFSET = options.devProxyPortOffset;
         writeEnv(envPath, envObj);
       }
-      shellExec(`node bin run dev-cluster expose`);
+      shellExec(`node bin run dev-cluster expose`, { async: true });
       {
         const cmd = `npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}${options.tls ? ' tls' : ''}`;
         options.terminal ? openTerminal(cmd) : shellExec(cmd, { async: true });
