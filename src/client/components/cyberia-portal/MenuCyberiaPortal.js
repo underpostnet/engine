@@ -18,6 +18,7 @@ import { Chat } from '../core/Chat.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { ObjectLayerEngineModal } from '../core/ObjectLayerEngineModal.js';
+import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 
 const MenuCyberiaPortal = {
   Data: {},
@@ -167,6 +168,18 @@ const MenuCyberiaPortal = {
             tabHref: `${getProxyPath()}object-layer-engine`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('object-layer-engine')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-object-layer-engine-management',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-cog"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('object-layer-engine-management')}</span>`,
+            }),
+            attrs: `data-id="object-layer-engine-management"`,
+            tabHref: `${getProxyPath()}object-layer-engine-management`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('object-layer-engine-management')),
           })}
         </div>
       `,
@@ -466,7 +479,35 @@ const MenuCyberiaPortal = {
           icon: html`<i class="fa-solid fa-cog"></i>`,
           text: Translate.Render('object-layer-engine'),
         }),
-        html: async () => await ObjectLayerEngineModal.Render({ idModal: 'modal-object-layer-engine' }),
+        html: async () =>
+          await ObjectLayerEngineModal.Render({
+            idModal: 'modal-object-layer-engine',
+            Elements: ElementsCyberiaPortal,
+          }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-object-layer-engine-management`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-object-layer-engine-management',
+        route: 'object-layer-engine-management',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-cog"></i>`,
+          text: Translate.Render('object-layer-engine-management'),
+        }),
+        html: async () =>
+          ObjectLayerManagement.RenderTable({
+            Elements: ElementsCyberiaPortal,
+          }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

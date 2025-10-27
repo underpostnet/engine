@@ -177,4 +177,12 @@ const ObjectLayerModel = model('ObjectLayer', ObjectLayerSchema);
 
 const ProviderSchema = ObjectLayerSchema;
 
-export { ObjectLayerSchema, ObjectLayerModel, ProviderSchema };
+const ObjectLayerDto = {
+  select: {
+    get: () => {
+      return { _id: 1, 'data.item': 1 };
+    },
+  },
+};
+
+export { ObjectLayerSchema, ObjectLayerModel, ProviderSchema, ObjectLayerDto };

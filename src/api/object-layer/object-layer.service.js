@@ -2,6 +2,7 @@ import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { FileFactory } from '../file/file.service.js';
 import fs from 'fs-extra';
+import { ObjectLayerDto } from './object-layer.model.js';
 const logger = loggerFactory(import.meta);
 
 const ObjectLayerService = {
@@ -30,8 +31,18 @@ const ObjectLayerService = {
   get: async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
-    if (req.params.id) return await ObjectLayer.findById(req.params.id);
-    return await ObjectLayer.find();
+    const { page = 1, limit = 10, sort = { updatedAt: -1 } } = req.query;
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      ObjectLayer.find() // { userId: req.auth.user._id }
+        .sort(sort)
+        .limit(limit)
+        .skip(skip)
+        .select(ObjectLayerDto.select.get()),
+      ObjectLayer.countDocuments(), // { userId: req.auth.user._id }
+    ]);
+    return { data, total, page, totalPages: Math.ceil(total / limit) };
   },
   put: async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
