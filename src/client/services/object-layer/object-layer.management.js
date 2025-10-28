@@ -1,5 +1,6 @@
 import { DefaultManagement } from '../default/default.management.js';
 import { ObjectLayerService } from './object-layer.service.js';
+import { commonUserGuard } from '../../components/core/CommonJs.js';
 
 const ObjectLayerManagement = {
   RenderTable: async ({ Elements }) => {
@@ -20,8 +21,8 @@ const ObjectLayerManagement = {
       serviceId: 'object-layer-engine-management',
       entity: 'object-layer',
       permissions: {
-        add: role === 'user',
-        remove: role === 'user',
+        add: commonUserGuard(role),
+        remove: commonUserGuard(role),
       },
       columnDefs,
       customFormat: (obj) => {
@@ -33,7 +34,7 @@ const ObjectLayerManagement = {
         const [event] = args;
         return { status: 'success', data: event.data };
       },
-      defaultColKeyFocus: 'host',
+      defaultColKeyFocus: 'data.item.id',
       ServiceProvider: ObjectLayerService,
     });
   },

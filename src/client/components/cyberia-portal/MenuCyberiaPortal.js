@@ -515,6 +515,7 @@ const MenuCyberiaPortal = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        observer: true,
       });
     });
 

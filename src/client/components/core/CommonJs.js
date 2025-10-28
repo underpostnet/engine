@@ -947,6 +947,8 @@ const emotionsData = [
 const userRoleEnum = ['admin', 'moderator', 'user', 'guest'];
 const commonAdminGuard = (role) => userRoleEnum.indexOf(role) === userRoleEnum.indexOf('admin');
 const commonModeratorGuard = (role) => userRoleEnum.indexOf(role) <= userRoleEnum.indexOf('moderator');
+const commonUserGuard = (role) => userRoleEnum.indexOf(role) <= userRoleEnum.indexOf('user');
+const commonGuestGuard = (role) => userRoleEnum.indexOf(role) <= userRoleEnum.indexOf('guest');
 
 export {
   s4,
@@ -1003,6 +1005,8 @@ export {
   generateRandomPasswordSelection,
   commonAdminGuard,
   commonModeratorGuard,
+  commonUserGuard,
+  commonGuestGuard,
   isChileanIdentityDocument,
   getCurrentTrace,
   userRoleEnum,
