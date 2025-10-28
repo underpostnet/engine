@@ -68,6 +68,22 @@ class ObjectLayerEngineElement extends HTMLElement {
           <button part="redo" title="Redo" disabled>Redo</button>
 
           <input type="color" part="color" title="Brush color" value="#000000" />
+          <label
+            >hex
+            <input
+              type="text"
+              part="hex-input"
+              title="Hex color (e.g., #FF0000 or #FF0000FF)"
+              placeholder="#000000FF"
+              style="width:9ch"
+          /></label>
+          <label
+            >rgba
+            <input type="number" part="r-input" min="0" max="255" value="0" title="Red (0-255)" style="width:5ch" />
+            <input type="number" part="g-input" min="0" max="255" value="0" title="Green (0-255)" style="width:5ch" />
+            <input type="number" part="b-input" min="0" max="255" value="0" title="Blue (0-255)" style="width:5ch" />
+            <input type="number" part="a-input" min="0" max="255" value="255" title="Alpha (0-255)" style="width:5ch" />
+          </label>
           <select part="tool">
             <option value="pencil">pencil</option>
             <option value="eraser">eraser</option>
@@ -121,6 +137,11 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._pixelCanvas = this.shadowRoot.querySelector('canvas[part="canvas"]');
     this._gridCanvas = this.shadowRoot.querySelector('canvas[part="grid"]');
     this._colorInput = this.shadowRoot.querySelector('input[part="color"]');
+    this._hexInput = this.shadowRoot.querySelector('input[part="hex-input"]');
+    this._rInput = this.shadowRoot.querySelector('input[part="r-input"]');
+    this._gInput = this.shadowRoot.querySelector('input[part="g-input"]');
+    this._bInput = this.shadowRoot.querySelector('input[part="b-input"]');
+    this._aInput = this.shadowRoot.querySelector('input[part="a-input"]');
     this._toolSelect = this.shadowRoot.querySelector('select[part="tool"]');
     this._brushSizeInput = this.shadowRoot.querySelector('input[part="brush-size"]');
     this._pixelSizeInput = this.shadowRoot.querySelector('input[part="pixel-size"]');
@@ -207,6 +228,11 @@ class ObjectLayerEngineElement extends HTMLElement {
 
     // initialize color & opacity UI
     if (this._colorInput) this._colorInput.value = this._rgbaToHex(this._brushColor);
+    if (this._hexInput) this._hexInput.value = this._rgbaToHexWithAlpha(this._brushColor);
+    if (this._rInput) this._rInput.value = String(this._brushColor[0]);
+    if (this._gInput) this._gInput.value = String(this._brushColor[1]);
+    if (this._bInput) this._bInput.value = String(this._brushColor[2]);
+    if (this._aInput) this._aInput.value = String(this._brushColor[3]);
     if (this._opacityRange) this._opacityRange.value = String(this._brushColor[3]);
     if (this._opacityNumber) this._opacityNumber.value = String(this._brushColor[3]);
 
@@ -216,6 +242,28 @@ class ObjectLayerEngineElement extends HTMLElement {
       // keep current alpha
       this.setBrushColor([rgb[0], rgb[1], rgb[2], this._brushColor[3]]);
     });
+
+    // hex text input with optional alpha
+    if (this._hexInput) {
+      this._hexInput.addEventListener('change', (e) => {
+        const rgba = this._hexToRgbaWithAlpha(e.target.value);
+        this.setBrushColor(rgba);
+      });
+    }
+
+    // individual RGBA inputs
+    const updateFromRGBAInputs = () => {
+      const r = Math.max(0, Math.min(255, parseInt(this._rInput.value, 10) || 0));
+      const g = Math.max(0, Math.min(255, parseInt(this._gInput.value, 10) || 0));
+      const b = Math.max(0, Math.min(255, parseInt(this._bInput.value, 10) || 0));
+      const a = Math.max(0, Math.min(255, parseInt(this._aInput.value, 10) || 0));
+      this.setBrushColor([r, g, b, a]);
+    };
+    if (this._rInput) this._rInput.addEventListener('change', updateFromRGBAInputs);
+    if (this._gInput) this._gInput.addEventListener('change', updateFromRGBAInputs);
+    if (this._bInput) this._bInput.addEventListener('change', updateFromRGBAInputs);
+    if (this._aInput) this._aInput.addEventListener('change', updateFromRGBAInputs);
+
     this._toolSelect.addEventListener('change', (e) => this.setTool(e.target.value));
     this._brushSizeInput.addEventListener('change', (e) => this.setBrushSize(parseInt(e.target.value, 10) || 1));
     this._pixelSizeInput.addEventListener('change', (e) => {
@@ -562,6 +610,11 @@ class ObjectLayerEngineElement extends HTMLElement {
     const a = typeof rgba[3] === 'number' ? this._clampInt(rgba[3]) : this._brushColor[3];
     this._brushColor = [r, g, b, a];
     if (this._colorInput) this._colorInput.value = this._rgbaToHex(this._brushColor);
+    if (this._hexInput) this._hexInput.value = this._rgbaToHexWithAlpha(this._brushColor);
+    if (this._rInput) this._rInput.value = String(this._brushColor[0]);
+    if (this._gInput) this._gInput.value = String(this._brushColor[1]);
+    if (this._bInput) this._bInput.value = String(this._brushColor[2]);
+    if (this._aInput) this._aInput.value = String(this._brushColor[3]);
     if (this._opacityRange) this._opacityRange.value = String(this._brushColor[3]);
     if (this._opacityNumber) this._opacityNumber.value = String(this._brushColor[3]);
   }
@@ -572,8 +625,10 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._brushColor[3] = v;
     if (this._opacityRange) this._opacityRange.value = String(v);
     if (this._opacityNumber) this._opacityNumber.value = String(v);
+    if (this._aInput) this._aInput.value = String(v);
     // keep color input (hex) representing rgb only
     if (this._colorInput) this._colorInput.value = this._rgbaToHex(this._brushColor);
+    if (this._hexInput) this._hexInput.value = this._rgbaToHexWithAlpha(this._brushColor);
   }
   getBrushAlpha() {
     return this._brushColor[3];
@@ -913,6 +968,48 @@ class ObjectLayerEngineElement extends HTMLElement {
     return `#${((1 << 24) + (this._clampInt(r) << 16) + (this._clampInt(g) << 8) + this._clampInt(b))
       .toString(16)
       .slice(1)}`;
+  }
+
+  // convert RGBA to hex with alpha channel
+  _rgbaToHexWithAlpha(rgba) {
+    const [r, g, b, a] = rgba;
+    const rHex = this._clampInt(r).toString(16).padStart(2, '0');
+    const gHex = this._clampInt(g).toString(16).padStart(2, '0');
+    const bHex = this._clampInt(b).toString(16).padStart(2, '0');
+    const aHex = this._clampInt(a).toString(16).padStart(2, '0');
+    return `#${rHex}${gHex}${bHex}${aHex}`.toUpperCase();
+  }
+
+  // convert hex to RGBA with optional alpha channel support
+  _hexToRgbaWithAlpha(hex) {
+    const h = (hex || '').replace('#', '');
+    if (h.length === 3) {
+      // #RGB -> expand to RRGGBB
+      return [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16), 255];
+    }
+    if (h.length === 4) {
+      // #RGBA -> expand to RRGGBBAA
+      return [
+        parseInt(h[0] + h[0], 16),
+        parseInt(h[1] + h[1], 16),
+        parseInt(h[2] + h[2], 16),
+        parseInt(h[3] + h[3], 16),
+      ];
+    }
+    if (h.length === 6) {
+      // #RRGGBB
+      return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16), 255];
+    }
+    if (h.length === 8) {
+      // #RRGGBBAA
+      return [
+        parseInt(h.substring(0, 2), 16),
+        parseInt(h.substring(2, 4), 16),
+        parseInt(h.substring(4, 6), 16),
+        parseInt(h.substring(6, 8), 16),
+      ];
+    }
+    return [0, 0, 0, 255];
   }
 
   // ---------------- Transform helpers (flip/rotate) ----------------
