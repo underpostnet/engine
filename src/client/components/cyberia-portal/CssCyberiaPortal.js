@@ -75,6 +75,14 @@ const CssCommonCyberia = async () => {
         height: 30px;
         top: -5px;
       }
+      .cyberia-menu-icon-modal {
+        top: -3px;
+        width: 30px;
+        height: 30px;
+      }
+      .cyberia-text-title-modal {
+        top: -10px;
+      }
       .main-btn-menu {
         font-size: 20px;
       }
