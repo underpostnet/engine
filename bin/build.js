@@ -54,10 +54,12 @@ if (process.argv.includes('conf')) {
     fs.mkdirSync(toPath, { recursive: true });
     fs.copySync(`./engine-private/conf/${_confName}`, toPath);
     fs.removeSync(`../${privateRepoName}/replica`);
-    const replicas = await fs.readdir(`./engine-private/replica`);
-    for (const replica of replicas)
-      if (replica.match(_confName))
-        fs.copySync(`./engine-private/replica/${replica}`, `../${privateRepoName}/replica/${replica}`);
+    if (fs.existsSync(`./engine-private/replica`)) {
+      const replicas = await fs.readdir(`./engine-private/replica`);
+      for (const replica of replicas)
+        if (replica.match(_confName))
+          fs.copySync(`./engine-private/replica/${replica}`, `../${privateRepoName}/replica/${replica}`);
+    }
 
     if (fs.existsSync(`./engine-private/itc-scripts`)) {
       const itcScripts = await fs.readdir(`./engine-private/itc-scripts`);
