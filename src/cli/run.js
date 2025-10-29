@@ -293,8 +293,10 @@ class UnderpostRun {
       shellExec(`node bin run --dev sync-replica template-deploy`);
       shellExec(`node bin run sync-replica template-deploy`);
       shellExec(`node bin env clean`);
-      shellExec(`git add . && underpost cmt . build cluster-build`);
-      shellExec(`cd engine-private && git add . && underpost cmt . build cluster-build`);
+      if (path === 'push') {
+        shellExec(`git add . && underpost cmt . build cluster-build`);
+        shellExec(`cd engine-private && git add . && underpost cmt . build cluster-build`);
+      }
     },
     /**
      * @method template-deploy
