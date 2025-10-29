@@ -929,14 +929,13 @@ class UnderpostRun {
         const _path = '/single-replica';
         const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
         shellExec(`${baseCommand} env ${deployId} ${env}`);
-        for (const host of Object.keys(confServer)) {
+        for (const host of Object.keys(confServer))
           if (_path in confServer[host]) shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${_path}`);
-          shellExec(`node bin/deploy build-full-client ${deployId}`);
-          const node = options.dev || !isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname();
-          // deployId, replicas, versions, image, node
-          let defaultPath = [deployId, 1, ``, ``, node];
-          shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${defaultPath}`);
-        }
+        const node = options.dev || !isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname();
+        // deployId, replicas, versions, image, node
+        let defaultPath = [deployId, 1, ``, ``, node];
+        shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${defaultPath}`);
+        shellExec(`node bin/deploy build-full-client ${deployId}`);
       }
       if (isDeployRunnerContext(path, options)) shellExec(`${baseCommand} run promote ${path} production`);
     },
