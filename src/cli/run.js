@@ -293,8 +293,10 @@ class UnderpostRun {
       shellExec(`node bin run --dev sync-replica template-deploy`);
       shellExec(`node bin run sync-replica template-deploy`);
       shellExec(`node bin env clean`);
-      shellExec(`git add . && underpost cmt . build cluster-build`);
-      shellExec(`cd engine-private && git add . && underpost cmt . build cluster-build`);
+      if (path === 'cmt') {
+        shellExec(`git add . && underpost cmt . build cluster-build`);
+        shellExec(`cd engine-private && git add . && underpost cmt . build cluster-build`);
+      }
     },
     /**
      * @method template-deploy
@@ -820,7 +822,7 @@ class UnderpostRun {
         envObj.DEV_PROXY_PORT_OFFSET = options.devProxyPortOffset;
         writeEnv(envPath, envObj);
       }
-      shellExec(`node bin run dev-cluster expose`);
+      shellExec(`node bin run dev-cluster expose`, { async: true });
       {
         const cmd = `npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}${options.tls ? ' tls' : ''}`;
         options.terminal ? openTerminal(cmd) : shellExec(cmd, { async: true });
@@ -927,15 +929,13 @@ class UnderpostRun {
         const _path = '/single-replica';
         const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
         shellExec(`${baseCommand} env ${deployId} ${env}`);
-        for (const host of Object.keys(confServer)) {
-          if (!(_path in confServer[host])) continue;
-          shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${_path}`);
-          shellExec(`node bin/deploy build-full-client ${deployId}`);
-          const node = options.dev || !isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname();
-          // deployId, replicas, versions, image, node
-          let defaultPath = [deployId, 1, ``, ``, node];
-          shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${defaultPath}`);
-        }
+        for (const host of Object.keys(confServer))
+          if (_path in confServer[host]) shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${_path}`);
+        const node = options.dev || !isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname();
+        // deployId, replicas, versions, image, node
+        let defaultPath = [deployId, 1, ``, ``, node];
+        shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${defaultPath}`);
+        shellExec(`node bin/deploy build-full-client ${deployId}`);
       }
       if (isDeployRunnerContext(path, options)) shellExec(`${baseCommand} run promote ${path} production`);
     },

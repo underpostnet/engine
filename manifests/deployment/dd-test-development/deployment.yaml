@@ -23,7 +23,7 @@ spec:
 #              memory: "96294Ki"
 #              cpu: "75m"
 #            limits:
-#              memory: "1540709Ki"
+#              memory: "1540708Ki"
 #              cpu: "1200m"
           command:
             - /bin/sh
@@ -49,41 +49,41 @@ spec:
   selector:
     app: dd-test-development-blue
   ports:
-    - name: 'tcp-4041'
+    - name: 'tcp-4030'
       protocol: TCP
-      port: 4041
-      targetPort: 4041
-    - name: 'udp-4041'
+      port: 4030
+      targetPort: 4030
+    - name: 'udp-4030'
       protocol: UDP
-      port: 4041
-      targetPort: 4041
+      port: 4030
+      targetPort: 4030
 
-    - name: 'tcp-4042'
+    - name: 'tcp-4031'
       protocol: TCP
-      port: 4042
-      targetPort: 4042
-    - name: 'udp-4042'
+      port: 4031
+      targetPort: 4031
+    - name: 'udp-4031'
       protocol: UDP
-      port: 4042
-      targetPort: 4042
+      port: 4031
+      targetPort: 4031
 
-    - name: 'tcp-4043'
+    - name: 'tcp-4032'
       protocol: TCP
-      port: 4043
-      targetPort: 4043
-    - name: 'udp-4043'
+      port: 4032
+      targetPort: 4032
+    - name: 'udp-4032'
       protocol: UDP
-      port: 4043
-      targetPort: 4043
+      port: 4032
+      targetPort: 4032
 
-    - name: 'tcp-4044'
+    - name: 'tcp-4033'
       protocol: TCP
-      port: 4044
-      targetPort: 4044
-    - name: 'udp-4044'
+      port: 4033
+      targetPort: 4033
+    - name: 'udp-4033'
       protocol: UDP
-      port: 4044
-      targetPort: 4044
+      port: 4033
+      targetPort: 4033
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -110,7 +110,7 @@ spec:
 #              memory: "96294Ki"
 #              cpu: "75m"
 #            limits:
-#              memory: "1540709Ki"
+#              memory: "1540708Ki"
 #              cpu: "1200m"
           command:
             - /bin/sh
@@ -136,39 +136,39 @@ spec:
   selector:
     app: dd-test-development-green
   ports:
-    - name: 'tcp-4041'
+    - name: 'tcp-4030'
       protocol: TCP
-      port: 4041
-      targetPort: 4041
-    - name: 'udp-4041'
+      port: 4030
+      targetPort: 4030
+    - name: 'udp-4030'
       protocol: UDP
-      port: 4041
-      targetPort: 4041
+      port: 4030
+      targetPort: 4030
 
-    - name: 'tcp-4042'
+    - name: 'tcp-4031'
       protocol: TCP
-      port: 4042
-      targetPort: 4042
-    - name: 'udp-4042'
+      port: 4031
+      targetPort: 4031
+    - name: 'udp-4031'
       protocol: UDP
-      port: 4042
-      targetPort: 4042
+      port: 4031
+      targetPort: 4031
 
-    - name: 'tcp-4043'
+    - name: 'tcp-4032'
       protocol: TCP
-      port: 4043
-      targetPort: 4043
-    - name: 'udp-4043'
+      port: 4032
+      targetPort: 4032
+    - name: 'udp-4032'
       protocol: UDP
-      port: 4043
-      targetPort: 4043
+      port: 4032
+      targetPort: 4032
 
-    - name: 'tcp-4044'
+    - name: 'tcp-4033'
       protocol: TCP
-      port: 4044
-      targetPort: 4044
-    - name: 'udp-4044'
+      port: 4033
+      targetPort: 4033
+    - name: 'udp-4033'
       protocol: UDP
-      port: 4044
-      targetPort: 4044
+      port: 4033
+      targetPort: 4033
   type: LoadBalancer

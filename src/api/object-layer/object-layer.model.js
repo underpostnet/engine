@@ -1,6 +1,5 @@
 /**
- * Object layer model for managing the generation and deployment of cloud-init configuration files
- * and associated scripts for baremetal provisioning.
+ * Mongoose model for ObjectLayer API, defining schema, indexes, and data validation.
  * @module src/api/object-layer/object-layer.model.js
  * @namespace CyberiaObjectLayerModel
  */
@@ -178,4 +177,12 @@ const ObjectLayerModel = model('ObjectLayer', ObjectLayerSchema);
 
 const ProviderSchema = ObjectLayerSchema;
 
-export { ObjectLayerSchema, ObjectLayerModel, ProviderSchema };
+const ObjectLayerDto = {
+  select: {
+    get: () => {
+      return { _id: 1, 'data.item': 1 };
+    },
+  },
+};
+
+export { ObjectLayerSchema, ObjectLayerModel, ProviderSchema, ObjectLayerDto };

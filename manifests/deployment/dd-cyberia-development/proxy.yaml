@@ -24,102 +24,6 @@ spec:
           port: 4006
           weight: 100
     
-    - conditions:
-        - prefix: /admin
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4007
-          weight: 100
-    
-    - conditions:
-        - prefix: /admin/peer
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4008
-          weight: 100
-    
-    - conditions:
-        - prefix: /admin0
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4009
-          weight: 100
-    
-    - conditions:
-        - prefix: /admin0/peer
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4010
-          weight: 100
-    
-    - conditions:
-        - prefix: /hh
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4011
-          weight: 100
-    
-    - conditions:
-        - prefix: /hh/peer
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4012
-          weight: 100
-    
-    - conditions:
-        - prefix: /interior32
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4013
-          weight: 100
-    
-    - conditions:
-        - prefix: /interior32/peer
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4014
-          weight: 100
-    
-    - conditions:
-        - prefix: /seed-city
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4015
-          weight: 100
-    
-    - conditions:
-        - prefix: /seed-city/peer
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4016
-          weight: 100
-    
-    - conditions:
-        - prefix: /zax-shop-odisea-department
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4017
-          weight: 100
-    
-    - conditions:
-        - prefix: /zax-shop-odisea-department/peer
-      enableWebsockets: true
-      services:
-        - name: dd-cyberia-development-blue-service
-          port: 4018
-          weight: 100
-    
 ---
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
@@ -134,6 +38,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
-          port: 4019
+          port: 4007
           weight: 100
     

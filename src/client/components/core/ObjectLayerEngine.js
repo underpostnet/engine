@@ -11,7 +11,13 @@ class ObjectLayerEngineElement extends HTMLElement {
           --border: 1px solid #bbb;
           --gap: 8px;
           display: inline-block;
-          font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+          font-family:
+            system-ui,
+            -apple-system,
+            'Segoe UI',
+            Roboto,
+            'Helvetica Neue',
+            Arial;
         }
         .wrap {
           display: flex;
@@ -58,7 +64,26 @@ class ObjectLayerEngineElement extends HTMLElement {
 
       <div class="wrap">
         <div class="toolbar">
+          <button part="undo" title="Undo" disabled>Undo</button>
+          <button part="redo" title="Redo" disabled>Redo</button>
+
           <input type="color" part="color" title="Brush color" value="#000000" />
+          <label
+            >hex
+            <input
+              type="text"
+              part="hex-input"
+              title="Hex color (e.g., #FF0000 or #FF0000FF)"
+              placeholder="#000000FF"
+              style="width:9ch"
+          /></label>
+          <label
+            >rgba
+            <input type="number" part="r-input" min="0" max="255" value="0" title="Red (0-255)" style="width:5ch" />
+            <input type="number" part="g-input" min="0" max="255" value="0" title="Green (0-255)" style="width:5ch" />
+            <input type="number" part="b-input" min="0" max="255" value="0" title="Blue (0-255)" style="width:5ch" />
+            <input type="number" part="a-input" min="0" max="255" value="255" title="Alpha (0-255)" style="width:5ch" />
+          </label>
           <select part="tool">
             <option value="pencil">pencil</option>
             <option value="eraser">eraser</option>
@@ -112,6 +137,11 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._pixelCanvas = this.shadowRoot.querySelector('canvas[part="canvas"]');
     this._gridCanvas = this.shadowRoot.querySelector('canvas[part="grid"]');
     this._colorInput = this.shadowRoot.querySelector('input[part="color"]');
+    this._hexInput = this.shadowRoot.querySelector('input[part="hex-input"]');
+    this._rInput = this.shadowRoot.querySelector('input[part="r-input"]');
+    this._gInput = this.shadowRoot.querySelector('input[part="g-input"]');
+    this._bInput = this.shadowRoot.querySelector('input[part="b-input"]');
+    this._aInput = this.shadowRoot.querySelector('input[part="a-input"]');
     this._toolSelect = this.shadowRoot.querySelector('select[part="tool"]');
     this._brushSizeInput = this.shadowRoot.querySelector('input[part="brush-size"]');
     this._pixelSizeInput = this.shadowRoot.querySelector('input[part="pixel-size"]');
@@ -131,6 +161,10 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._opacityRange = this.shadowRoot.querySelector('input[part="opacity"]');
     this._opacityNumber = this.shadowRoot.querySelector('input[part="opacity-num"]');
 
+    // undo/redo buttons
+    this._undoBtn = this.shadowRoot.querySelector('button[part="undo"]');
+    this._redoBtn = this.shadowRoot.querySelector('button[part="redo"]');
+
     // internal state
     this._width = 16;
     this._height = 16;
@@ -147,16 +181,25 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._tool = 'pencil';
     this._showGrid = false;
 
+    // history (undo/redo)
+    this._undoStack = [];
+    this._redoStack = [];
+    this._maxHistory = 200;
+    this._transactionActive = false; // grouping for pointer drags
+
     // binds
     this._onPointerDown = this._onPointerDown.bind(this);
     this._onPointerMove = this._onPointerMove.bind(this);
     this._onPointerUp = this._onPointerUp.bind(this);
+    this._onKeyDown = this._onKeyDown.bind(this);
 
     // transform methods bound (useful if passing as callbacks)
     this.flipHorizontal = this.flipHorizontal.bind(this);
     this.flipVertical = this.flipVertical.bind(this);
     this.rotateCW = this.rotateCW.bind(this);
     this.rotateCCW = this.rotateCCW.bind(this);
+
+    // ensure keyboard handlers bound for undo/redo
   }
 
   static get observedAttributes() {
@@ -185,6 +228,11 @@ class ObjectLayerEngineElement extends HTMLElement {
 
     // initialize color & opacity UI
     if (this._colorInput) this._colorInput.value = this._rgbaToHex(this._brushColor);
+    if (this._hexInput) this._hexInput.value = this._rgbaToHexWithAlpha(this._brushColor);
+    if (this._rInput) this._rInput.value = String(this._brushColor[0]);
+    if (this._gInput) this._gInput.value = String(this._brushColor[1]);
+    if (this._bInput) this._bInput.value = String(this._brushColor[2]);
+    if (this._aInput) this._aInput.value = String(this._brushColor[3]);
     if (this._opacityRange) this._opacityRange.value = String(this._brushColor[3]);
     if (this._opacityNumber) this._opacityNumber.value = String(this._brushColor[3]);
 
@@ -194,6 +242,28 @@ class ObjectLayerEngineElement extends HTMLElement {
       // keep current alpha
       this.setBrushColor([rgb[0], rgb[1], rgb[2], this._brushColor[3]]);
     });
+
+    // hex text input with optional alpha
+    if (this._hexInput) {
+      this._hexInput.addEventListener('change', (e) => {
+        const rgba = this._hexToRgbaWithAlpha(e.target.value);
+        this.setBrushColor(rgba);
+      });
+    }
+
+    // individual RGBA inputs
+    const updateFromRGBAInputs = () => {
+      const r = Math.max(0, Math.min(255, parseInt(this._rInput.value, 10) || 0));
+      const g = Math.max(0, Math.min(255, parseInt(this._gInput.value, 10) || 0));
+      const b = Math.max(0, Math.min(255, parseInt(this._bInput.value, 10) || 0));
+      const a = Math.max(0, Math.min(255, parseInt(this._aInput.value, 10) || 0));
+      this.setBrushColor([r, g, b, a]);
+    };
+    if (this._rInput) this._rInput.addEventListener('change', updateFromRGBAInputs);
+    if (this._gInput) this._gInput.addEventListener('change', updateFromRGBAInputs);
+    if (this._bInput) this._bInput.addEventListener('change', updateFromRGBAInputs);
+    if (this._aInput) this._aInput.addEventListener('change', updateFromRGBAInputs);
+
     this._toolSelect.addEventListener('change', (e) => this.setTool(e.target.value));
     this._brushSizeInput.addEventListener('change', (e) => this.setBrushSize(parseInt(e.target.value, 10) || 1));
     this._pixelSizeInput.addEventListener('change', (e) => {
@@ -232,13 +302,38 @@ class ObjectLayerEngineElement extends HTMLElement {
       });
 
     // transform buttons
-    if (this._flipHBtn) this._flipHBtn.addEventListener('click', this.flipHorizontal);
-    if (this._flipVBtn) this._flipVBtn.addEventListener('click', this.flipVertical);
-    if (this._rotCWBtn) this._rotCWBtn.addEventListener('click', this.rotateCW);
-    if (this._rotCCWBtn) this._rotCCWBtn.addEventListener('click', this.rotateCCW);
+    if (this._flipHBtn)
+      this._flipHBtn.addEventListener('click', () => {
+        this._beginTransaction();
+        this.flipHorizontal();
+        this._endTransaction();
+      });
+    if (this._flipVBtn)
+      this._flipVBtn.addEventListener('click', () => {
+        this._beginTransaction();
+        this.flipVertical();
+        this._endTransaction();
+      });
+    if (this._rotCWBtn)
+      this._rotCWBtn.addEventListener('click', () => {
+        this._beginTransaction();
+        this.rotateCW();
+        this._endTransaction();
+      });
+    if (this._rotCCWBtn)
+      this._rotCCWBtn.addEventListener('click', () => {
+        this._beginTransaction();
+        this.rotateCCW();
+        this._endTransaction();
+      });
 
     // clear button (makes canvas fully transparent)
-    if (this._clearBtn) this._clearBtn.addEventListener('click', () => this.clear([0, 0, 0, 0]));
+    if (this._clearBtn)
+      this._clearBtn.addEventListener('click', () => {
+        this._beginTransaction();
+        this.clear([0, 0, 0, 0]);
+        this._endTransaction();
+      });
 
     // Export/Import
     this._exportBtn.addEventListener('click', () => this.exportPNG());
@@ -258,19 +353,31 @@ class ObjectLayerEngineElement extends HTMLElement {
       if (!file) return;
       const text = await file.text();
       try {
+        this._beginTransaction();
         this.importMatrixJSON(text);
+        this._endTransaction();
       } catch (err) {
         console.error(err);
         alert('Invalid JSON');
       }
     });
 
+    // undo/redo
+    if (this._undoBtn) this._undoBtn.addEventListener('click', () => this.undo());
+    if (this._redoBtn) this._redoBtn.addEventListener('click', () => this.redo());
+
     // Pointer events
     this._pixelCanvas.addEventListener('pointerdown', this._onPointerDown);
     window.addEventListener('pointermove', this._onPointerMove);
     window.addEventListener('pointerup', this._onPointerUp);
 
+    // keyboard for undo/redo
+    window.addEventListener('keydown', this._onKeyDown);
+
+    // initial render and clear history
     this.render();
+    this._clearHistory();
+    this._updateToolbarButtons();
   }
 
   disconnectedCallback() {
@@ -285,6 +392,11 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (this._clearBtn) this._clearBtn.removeEventListener('click', () => this.clear([0, 0, 0, 0]));
     if (this._opacityRange) this._opacityRange.removeEventListener('input', () => {});
     if (this._opacityNumber) this._opacityNumber.removeEventListener('change', () => {});
+
+    if (this._undoBtn) this._undoBtn.removeEventListener('click', () => this.undo());
+    if (this._redoBtn) this._redoBtn.removeEventListener('click', () => this.redo());
+
+    window.removeEventListener('keydown', this._onKeyDown);
   }
 
   // ---------------- Matrix helpers ----------------
@@ -498,6 +610,11 @@ class ObjectLayerEngineElement extends HTMLElement {
     const a = typeof rgba[3] === 'number' ? this._clampInt(rgba[3]) : this._brushColor[3];
     this._brushColor = [r, g, b, a];
     if (this._colorInput) this._colorInput.value = this._rgbaToHex(this._brushColor);
+    if (this._hexInput) this._hexInput.value = this._rgbaToHexWithAlpha(this._brushColor);
+    if (this._rInput) this._rInput.value = String(this._brushColor[0]);
+    if (this._gInput) this._gInput.value = String(this._brushColor[1]);
+    if (this._bInput) this._bInput.value = String(this._brushColor[2]);
+    if (this._aInput) this._aInput.value = String(this._brushColor[3]);
     if (this._opacityRange) this._opacityRange.value = String(this._brushColor[3]);
     if (this._opacityNumber) this._opacityNumber.value = String(this._brushColor[3]);
   }
@@ -508,8 +625,10 @@ class ObjectLayerEngineElement extends HTMLElement {
     this._brushColor[3] = v;
     if (this._opacityRange) this._opacityRange.value = String(v);
     if (this._opacityNumber) this._opacityNumber.value = String(v);
+    if (this._aInput) this._aInput.value = String(v);
     // keep color input (hex) representing rgb only
     if (this._colorInput) this._colorInput.value = this._rgbaToHex(this._brushColor);
+    if (this._hexInput) this._hexInput.value = this._rgbaToHexWithAlpha(this._brushColor);
   }
   getBrushAlpha() {
     return this._brushColor[3];
@@ -533,9 +652,13 @@ class ObjectLayerEngineElement extends HTMLElement {
 
   fillBucket(x, y, targetColor = null) {
     if (!this._inBounds(x, y)) return;
+    this._beginTransaction();
     const src = this.getPixel(x, y);
     const newColor = targetColor ? targetColor.slice() : this._brushColor.slice();
-    if (this._colorsEqual(src, newColor)) return;
+    if (this._colorsEqual(src, newColor)) {
+      this._endTransaction();
+      return;
+    }
     const stack = [[x, y]];
     while (stack.length) {
       const [cx, cy] = stack.pop();
@@ -547,6 +670,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     }
     this.render();
     this.dispatchEvent(new CustomEvent('fill', { detail: { x, y } }));
+    this._endTransaction();
   }
 
   _colorsEqual(a, b) {
@@ -573,6 +697,8 @@ class ObjectLayerEngineElement extends HTMLElement {
       this._pixelCanvas.setPointerCapture(evt.pointerId);
     } catch (e) {}
     const [x, y] = this._toGridCoords(evt);
+    // start transaction for continuous stroke
+    this._beginTransaction();
     this._applyToolAt(x, y, evt);
   }
   _onPointerMove(evt) {
@@ -585,6 +711,8 @@ class ObjectLayerEngineElement extends HTMLElement {
     try {
       this._pixelCanvas.releasePointerCapture(evt.pointerId);
     } catch (e) {}
+    // finish transaction for the stroke
+    this._endTransaction();
   }
 
   _applyToolAt(x, y, evt, continuous = false) {
@@ -613,6 +741,7 @@ class ObjectLayerEngineElement extends HTMLElement {
   importMatrixJSON(json) {
     const data = typeof json === 'string' ? JSON.parse(json) : json;
     if (!data || !Array.isArray(data.matrix)) throw new TypeError('Invalid matrix JSON');
+    // wrap import as transactional change
     this.loadMatrix(data.matrix);
   }
 
@@ -712,6 +841,117 @@ class ObjectLayerEngineElement extends HTMLElement {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
+  // ---------------- Undo/Redo helpers ----------------
+  _snapshot() {
+    return {
+      width: this._width,
+      height: this._height,
+      matrix: this._matrix.map((r) => r.map((c) => c.slice())),
+    };
+  }
+
+  _loadSnapshot(snap) {
+    if (!snap) return;
+    this._width = snap.width;
+    this._height = snap.height;
+    this._matrix = snap.matrix.map((r) => r.map((c) => c.slice()));
+    if (this._widthInput) this._widthInput.value = String(this._width);
+    if (this._heightInput) this._heightInput.value = String(this._height);
+    this.setAttribute('width', String(this._width));
+    this.setAttribute('height', String(this._height));
+    this._setupContextsAndSize();
+    this.render();
+    this.dispatchEvent(new CustomEvent('matrixload', { detail: { width: this._width, height: this._height } }));
+  }
+
+  _matricesEqual(a, b) {
+    if (!a || !b) return false;
+    if (a.width !== b.width || a.height !== b.height) return false;
+    const h = a.height;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < a.width; x++) {
+        const ac = a.matrix[y][x];
+        const bc = b.matrix[y][x];
+        for (let i = 0; i < 4; i++) if (ac[i] !== bc[i]) return false;
+      }
+    }
+    return true;
+  }
+
+  _pushUndo(snap) {
+    this._undoStack.push(snap);
+    if (this._undoStack.length > this._maxHistory) this._undoStack.shift();
+    // clear redo
+    this._redoStack.length = 0;
+    this._updateToolbarButtons();
+  }
+
+  _clearHistory() {
+    this._undoStack.length = 0;
+    this._redoStack.length = 0;
+    this._updateToolbarButtons();
+  }
+
+  _beginTransaction() {
+    if (this._transactionActive) return;
+    this._transactionActive = true;
+    const before = this._snapshot();
+    this._pushUndo(before);
+  }
+
+  _endTransaction() {
+    if (!this._transactionActive) return;
+    this._transactionActive = false;
+    // if the last undo state is identical to current (no-op), remove it
+    const last = this._undoStack[this._undoStack.length - 1];
+    const now = this._snapshot();
+    if (this._matricesEqual(last, now)) this._undoStack.pop();
+    this._updateToolbarButtons();
+  }
+
+  undo() {
+    if (!this._undoStack.length) return;
+    const snap = this._undoStack.pop();
+    // push current to redo
+    this._redoStack.push(this._snapshot());
+    this._loadSnapshot(snap);
+    this._updateToolbarButtons();
+    this.dispatchEvent(new CustomEvent('undo'));
+  }
+
+  redo() {
+    if (!this._redoStack.length) return;
+    const snap = this._redoStack.pop();
+    // push current to undo
+    this._undoStack.push(this._snapshot());
+    this._loadSnapshot(snap);
+    this._updateToolbarButtons();
+    this.dispatchEvent(new CustomEvent('redo'));
+  }
+
+  _updateToolbarButtons() {
+    if (this._undoBtn) this._undoBtn.disabled = this._undoStack.length === 0;
+    if (this._redoBtn) this._redoBtn.disabled = this._redoStack.length === 0;
+  }
+
+  _onKeyDown(e) {
+    const meta = e.ctrlKey || e.metaKey;
+    if (!meta) return;
+    // ctrl/cmd+z -> undo, ctrl/cmd+shift+z or ctrl+ y -> redo
+    if (e.key === 'z' || e.key === 'Z') {
+      if (e.shiftKey) {
+        e.preventDefault();
+        this.redo();
+      } else {
+        e.preventDefault();
+        this.undo();
+      }
+    } else if (e.key === 'y' || e.key === 'Y') {
+      e.preventDefault();
+      this.redo();
+    }
+  }
+
   // ---------------- Helpers ----------------
   _hexToRgba(hex) {
     const h = (hex || '').replace('#', '');
@@ -728,6 +968,48 @@ class ObjectLayerEngineElement extends HTMLElement {
     return `#${((1 << 24) + (this._clampInt(r) << 16) + (this._clampInt(g) << 8) + this._clampInt(b))
       .toString(16)
       .slice(1)}`;
+  }
+
+  // convert RGBA to hex with alpha channel
+  _rgbaToHexWithAlpha(rgba) {
+    const [r, g, b, a] = rgba;
+    const rHex = this._clampInt(r).toString(16).padStart(2, '0');
+    const gHex = this._clampInt(g).toString(16).padStart(2, '0');
+    const bHex = this._clampInt(b).toString(16).padStart(2, '0');
+    const aHex = this._clampInt(a).toString(16).padStart(2, '0');
+    return `#${rHex}${gHex}${bHex}${aHex}`.toUpperCase();
+  }
+
+  // convert hex to RGBA with optional alpha channel support
+  _hexToRgbaWithAlpha(hex) {
+    const h = (hex || '').replace('#', '');
+    if (h.length === 3) {
+      // #RGB -> expand to RRGGBB
+      return [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16), 255];
+    }
+    if (h.length === 4) {
+      // #RGBA -> expand to RRGGBBAA
+      return [
+        parseInt(h[0] + h[0], 16),
+        parseInt(h[1] + h[1], 16),
+        parseInt(h[2] + h[2], 16),
+        parseInt(h[3] + h[3], 16),
+      ];
+    }
+    if (h.length === 6) {
+      // #RRGGBB
+      return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16), 255];
+    }
+    if (h.length === 8) {
+      // #RRGGBBAA
+      return [
+        parseInt(h.substring(0, 2), 16),
+        parseInt(h.substring(2, 4), 16),
+        parseInt(h.substring(4, 6), 16),
+        parseInt(h.substring(6, 8), 16),
+      ];
+    }
+    return [0, 0, 0, 255];
   }
 
   // ---------------- Transform helpers (flip/rotate) ----------------
@@ -869,7 +1151,12 @@ class ObjectLayerPngLoader extends HTMLElement {
       <style>
         :host {
           display: block;
-          font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+          font-family:
+            system-ui,
+            -apple-system,
+            'Segoe UI',
+            Roboto,
+            Arial;
         }
         .wrap {
           display: flex;

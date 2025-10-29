@@ -10,6 +10,7 @@ import { s4 } from './CommonJs.js';
 import { Input } from './Input.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
+import { NotificationManager } from './NotificationManager.js';
 
 const ObjectLayerEngineModal = {
   templates: [
@@ -34,7 +35,8 @@ const ObjectLayerEngineModal = {
     ole.loadMatrix(matrix);
   },
   ObjectLayerData: {},
-  Render: async (options = { idModal: '' }) => {
+  Render: async (options = { idModal: '', Elements: {} }) => {
+    const { Elements } = options;
     await import(`${getProxyPath()}components/core/ObjectLayerEngine.js`);
     // await import(`${getProxyPath()}components/core/WebComponent.js`);
     const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
@@ -164,6 +166,14 @@ const ObjectLayerEngineModal = {
             description: s(`.ol-input-item-description`).value,
           };
           console.warn('objectLayer', objectLayer);
+
+          if (Elements.Data.user.main.model.user.role === 'guest') {
+            NotificationManager.Push({
+              html: 'Guests cannot save object layers. Please log in.',
+              status: 'warning',
+            });
+            return;
+          }
 
           // Upload images
           {
@@ -398,12 +408,13 @@ const ObjectLayerEngineModal = {
         </div>
       </div>
 
-      <div class="in section-mp">
+      <div class="fl section-mp">
         ${await BtnIcon.Render({
           label: html`<i class="fa-solid fa-save"></i> ${Translate.Render('save')}`,
           class: `in flr ol-btn-save`,
         })}
       </div>
+      <div class="in section-mp"></div>
     `;
   },
   getDirectionsFromDirectionCode(directionCode = '08') {

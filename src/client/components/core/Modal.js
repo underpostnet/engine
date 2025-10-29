@@ -619,12 +619,12 @@ const Modal = {
                         result.fontAwesomeIcon
                           ? html`<i class="${result.fontAwesomeIcon.classList.toString()}"></i> `
                           : result.imgElement
-                          ? html`<img
-                              class="inl"
-                              src="${result.imgElement.src}"
-                              style="${renderCssAttr({ style: { width: '25px', height: '25px' } })}"
-                            />`
-                          : ''
+                            ? html`<img
+                                class="inl"
+                                src="${result.imgElement.src}"
+                                style="${renderCssAttr({ style: { width: '25px', height: '25px' } })}"
+                              />`
+                            : ''
                       } ${Translate.Render(result.routerId)}`,
                       class: `wfa search-result-btn-${result.routerId} ${
                         indexResult === currentKeyBoardSearchBoxIndex ? 'main-btn-menu-active' : ''
@@ -1896,8 +1896,8 @@ const Modal = {
         const idSlide = this.Data[options.slideMenu]['slide-menu']
           ? 'slide-menu'
           : this.Data[options.slideMenu]['slide-menu-right']
-          ? 'slide-menu-right'
-          : 'slide-menu-left';
+            ? 'slide-menu-right'
+            : 'slide-menu-left';
         const callBack = () => {
           s(`.${idModal}`).style.transition = '0.3s';
           s(`.${idModal}`).style.width = `${windowGetW() - this.Data[options.slideMenu][idSlide].width}px`;
@@ -2159,6 +2159,8 @@ const Modal = {
       };
     });
   },
+  labelSelectorTopOffsetStartAnimation: `-40px`,
+  labelSelectorTopOffsetEndAnimation: `-3px`,
   menuTextLabelAnimation: (idModal, subMenuId) => {
     if (
       !s(
@@ -2193,12 +2195,12 @@ const Modal = {
           el.style.transition = null;
         });
         sa(labelSelector).forEach((el) => {
-          el.style.top = '-40px';
+          el.style.top = Modal.labelSelectorTopOffsetStartAnimation;
         });
       }, 300);
       setTimeout(() => {
         sa(labelSelector).forEach((el) => {
-          el.style.top = '-3px';
+          el.style.top = Modal.labelSelectorTopOffsetEndAnimation;
         });
       }, 400);
     }

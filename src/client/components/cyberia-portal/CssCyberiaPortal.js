@@ -1,6 +1,7 @@
 import { AgGrid } from '../core/AgGrid.js';
 import { borderChar, subThemeManager } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
+import { Modal } from '../core/Modal.js';
 import { getProxyPath } from '../core/Router.js';
 
 const CssCommonCyberia = async () => {
@@ -12,6 +13,7 @@ const CssCommonCyberia = async () => {
   });
   subThemeManager.setDarkTheme('#ff0000');
   subThemeManager.setLightTheme('#ffcc00');
+  Modal.labelSelectorTopOffsetEndAnimation = '-15px';
   await AgGrid.RenderStyle({
     eventThemeId: 'CssCommonCyberia',
     style: {
@@ -67,6 +69,22 @@ const CssCommonCyberia = async () => {
       }
       .handle-btn-container {
         text-shadow: none;
+      }
+      .cyberia-menu-icon {
+        width: 30px;
+        height: 30px;
+        top: -5px;
+      }
+      .cyberia-menu-icon-modal {
+        top: -3px;
+        width: 30px;
+        height: 30px;
+      }
+      .cyberia-text-title-modal {
+        top: -10px;
+      }
+      .main-btn-menu {
+        font-size: 20px;
       }
     </style>
 

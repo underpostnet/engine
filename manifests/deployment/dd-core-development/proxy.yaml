@@ -13,7 +13,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4019
+          port: 4008
           weight: 100
     
     - conditions:
@@ -21,7 +21,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4020
+          port: 4009
           weight: 100
     
 ---
@@ -38,7 +38,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4021
+          port: 4010
           weight: 100
     
 ---
@@ -49,6 +49,157 @@ metadata:
 spec:
   virtualhost:
     fqdn: cryptokoyn.net
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4011
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4012
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.cryptokoyn.net
+spec:
+  virtualhost:
+    fqdn: www.cryptokoyn.net
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4013
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: dogmadual.com
+spec:
+  virtualhost:
+    fqdn: dogmadual.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4014
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.dogmadual.com
+spec:
+  virtualhost:
+    fqdn: www.dogmadual.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4015
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4016
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: nexodev.org
+spec:
+  virtualhost:
+    fqdn: nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4017
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.nexodev.org
+spec:
+  virtualhost:
+    fqdn: www.nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4018
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4019
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: healthcare.nexodev.org
+spec:
+  virtualhost:
+    fqdn: healthcare.nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4020
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4021
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: itemledger.com
+spec:
+  virtualhost:
+    fqdn: itemledger.com
   routes:
     - conditions:
         - prefix: /
@@ -70,157 +221,6 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: www.cryptokoyn.net
-spec:
-  virtualhost:
-    fqdn: www.cryptokoyn.net
-  routes:
-    - conditions:
-        - prefix: /
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4024
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: dogmadual.com
-spec:
-  virtualhost:
-    fqdn: dogmadual.com
-  routes:
-    - conditions:
-        - prefix: /
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4025
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: www.dogmadual.com
-spec:
-  virtualhost:
-    fqdn: www.dogmadual.com
-  routes:
-    - conditions:
-        - prefix: /
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4026
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4027
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: nexodev.org
-spec:
-  virtualhost:
-    fqdn: nexodev.org
-  routes:
-    - conditions:
-        - prefix: /
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4028
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: www.nexodev.org
-spec:
-  virtualhost:
-    fqdn: www.nexodev.org
-  routes:
-    - conditions:
-        - prefix: /
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4029
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4030
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: healthcare.nexodev.org
-spec:
-  virtualhost:
-    fqdn: healthcare.nexodev.org
-  routes:
-    - conditions:
-        - prefix: /
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4031
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4032
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: itemledger.com
-spec:
-  virtualhost:
-    fqdn: itemledger.com
-  routes:
-    - conditions:
-        - prefix: /
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4033
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4034
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
   name: www.itemledger.com
 spec:
   virtualhost:
@@ -231,7 +231,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4035
+          port: 4024
           weight: 100
     
 ---
@@ -248,7 +248,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4036
+          port: 4025
           weight: 100
     
     - conditions:
@@ -256,7 +256,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4037
+          port: 4026
           weight: 100
     
 ---
@@ -273,7 +273,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4038
+          port: 4027
           weight: 100
     
 ---
@@ -290,7 +290,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4039
+          port: 4028
           weight: 100
     
     - conditions:
@@ -298,6 +298,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4040
+          port: 4029
           weight: 100
     

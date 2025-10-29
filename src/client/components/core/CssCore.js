@@ -230,7 +230,6 @@ const CssCommonCore = async () => {
       .menu-btn-icon {
         font-size: 20px;
         width: 40px;
-        overflow: hidden;
         text-align: center;
       }
     </style>
