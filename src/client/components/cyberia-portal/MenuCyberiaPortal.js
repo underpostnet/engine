@@ -38,7 +38,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-home"></i>`,
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/home.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
             }),
             // style: 'display: none',
@@ -51,7 +51,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-log-in',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-in-alt"></i>`,
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
             }),
             attrs: `data-id="log-in"`,
@@ -63,7 +63,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-sign-up',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-plus"></i>`,
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
             }),
             attrs: `data-id="sign-up"`,
@@ -75,7 +75,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-log-out',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-out-alt"></i>`,
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
             }),
             attrs: `data-id="log-out"`,
@@ -88,7 +88,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-account',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-circle"></i>`,
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/account.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
             }),
             style: 'display: none',
@@ -101,7 +101,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-settings',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sliders-h"></i>`,
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/settings.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
             }),
             attrs: `data-id="settings"`,
@@ -125,7 +125,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-chat',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="far fa-comments"></i>`,
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/chat.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('chat')}</span>`,
             }),
             attrs: `data-id="chat"`,
@@ -161,7 +161,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-object-layer-engine',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-cog"></i>`,
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('object-layer-engine')}</span>`,
             }),
             attrs: `data-id="object-layer-engine"`,
@@ -173,7 +173,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-object-layer-engine-management',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-cog"></i>`,
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('object-layer-engine-management')}</span>`,
             }),
             attrs: `data-id="object-layer-engine-management"`,

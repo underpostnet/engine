@@ -7,8 +7,8 @@ const TranslateCyberiaPortal = {
       es: 'Object Layer Engine',
     };
     Translate.Data['object-layer-engine-management'] = {
-      en: 'Object Layer Engine Management',
-      es: 'Object Layer Engine Management',
+      en: 'Object Layer Management',
+      es: 'Object Layer Management',
     };
   },
 };
