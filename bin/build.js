@@ -149,8 +149,6 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
     }
   }
 
-  shellExec(`node bin/deploy update-default-conf ${confName}`);
-
   if (!fs.existsSync(`${basePath}/.github/workflows`))
     fs.mkdirSync(`${basePath}/.github/workflows`, {
       recursive: true,
@@ -199,10 +197,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   fs.copyFileSync(`./.github/workflows/${repoName}.cd.yml`, `${basePath}/.github/workflows/${repoName}.cd.yml`);
 
   // Copy conf.<deploy-id>.js to conf.js for the respective deployment
-  logger.info(`Copying conf.${confName}.js to ${basePath}/conf.js`);
   fs.copyFileSync(`./conf.${confName}.js`, `${basePath}/conf.js`);
-  shellExec(`cat ${basePath}/conf.js`);
-  console.log(`${basePath}/conf.js copied from conf.${confName}.js`);
   fs.copyFileSync(`./manifests/deployment/${confName}-development/proxy.yaml`, `${basePath}/proxy.yaml`);
   fs.copyFileSync(`./manifests/deployment/${confName}-development/deployment.yaml`, `${basePath}/deployment.yaml`);
 
