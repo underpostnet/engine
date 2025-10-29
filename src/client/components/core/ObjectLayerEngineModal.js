@@ -36,6 +36,7 @@ const ObjectLayerEngineModal = {
   },
   ObjectLayerData: {},
   Render: async (options = { idModal: '', Elements: {} }) => {
+    const { Elements } = options;
     await import(`${getProxyPath()}components/core/ObjectLayerEngine.js`);
     // await import(`${getProxyPath()}components/core/WebComponent.js`);
     const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
@@ -166,7 +167,7 @@ const ObjectLayerEngineModal = {
           };
           console.warn('objectLayer', objectLayer);
 
-          if (Element.user.main.model.user.role === 'guest') {
+          if (Elements.Data.user.main.model.user.role === 'guest') {
             NotificationManager.Push({
               html: 'Guests cannot save object layers. Please log in.',
               status: 'warning',
@@ -407,12 +408,13 @@ const ObjectLayerEngineModal = {
         </div>
       </div>
 
-      <div class="in section-mp">
+      <div class="fl section-mp">
         ${await BtnIcon.Render({
           label: html`<i class="fa-solid fa-save"></i> ${Translate.Render('save')}`,
           class: `in flr ol-btn-save`,
         })}
       </div>
+      <div class="in section-mp"></div>
     `;
   },
   getDirectionsFromDirectionCode(directionCode = '08') {
