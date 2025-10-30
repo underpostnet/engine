@@ -149,10 +149,6 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
     }
   }
 
-  shellExec(`node bin/deploy update-default-conf ${confName}`);
-
-  fs.copyFileSync(`./conf.${confName}.js`, `${basePath}/conf.js`);
-
   if (!fs.existsSync(`${basePath}/.github/workflows`))
     fs.mkdirSync(`${basePath}/.github/workflows`, {
       recursive: true,
@@ -170,11 +166,12 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       );
       delete packageJson.bin.underpost;
       packageJson.bin.cyberia = 'bin/index.js';
-      packageJson.keywords = ['cyberia', 'object-layer', 'game-engine', 'assets-management'];
-
+      packageJson.keywords = ['cyberia', 'object-layer', 'game-engine', 'assets-management', 'web3'];
+      packageJson.description = 'Cyberia Engine - Object Layer and Assets Management Microservice';
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
       fs.copyFileSync(`./src/api/object-layer/README.md`, `${basePath}/README.md`);
-
+      fs.copySync(`./hardhat`, `${basePath}/hardhat`);
+      fs.copySync(`./hardhat/white-paper.md`, `${basePath}/white-paper.md`);
     default:
       break;
   }
@@ -200,6 +197,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   fs.copyFileSync(`./.github/workflows/${repoName}.ci.yml`, `${basePath}/.github/workflows/${repoName}.ci.yml`);
   fs.copyFileSync(`./.github/workflows/${repoName}.cd.yml`, `${basePath}/.github/workflows/${repoName}.cd.yml`);
 
+  // Copy conf.<deploy-id>.js to conf.js for the respective deployment
   fs.copyFileSync(`./conf.${confName}.js`, `${basePath}/conf.js`);
   fs.copyFileSync(`./manifests/deployment/${confName}-development/proxy.yaml`, `${basePath}/proxy.yaml`);
   fs.copyFileSync(`./manifests/deployment/${confName}-development/deployment.yaml`, `${basePath}/deployment.yaml`);

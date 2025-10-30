@@ -14,12 +14,13 @@ import { CryptokoynParams } from './components/cryptokoyn/CommonCryptokoyn.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoCryptokoyn } from './components/cryptokoyn/SocketIoCryptokoyn.js';
 import { ElementsCryptokoyn } from './components/cryptokoyn/ElementsCryptokoyn.js';
+import { CssCryptokoynDark, CssCryptokoynLight } from './components/cryptokoyn/CssCryptokoyn.js';
 
 window.onload = () =>
   Worker.instance({
     router: RouterCryptokoyn,
     render: async () => {
-      await Css.loadThemes();
+      await Css.loadThemes([CssCryptokoynDark, CssCryptokoynLight]);
       await TranslateCore.Init();
       await Responsive.Init();
       await MenuCryptokoyn.Render();

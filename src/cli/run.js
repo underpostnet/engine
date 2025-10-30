@@ -293,6 +293,8 @@ class UnderpostRun {
       shellExec(`node bin run --dev sync-replica template-deploy`);
       shellExec(`node bin run sync-replica template-deploy`);
       shellExec(`node bin env clean`);
+      for (const deployId of fs.readFileSync('./engine-private/deploy/dd.router', 'utf8').split(','))
+        shellExec(`node bin/deploy update-default-conf ${deployId.trim()}`);
       if (path === 'cmt') {
         shellExec(`git add . && underpost cmt . build cluster-build`);
         shellExec(`cd engine-private && git add . && underpost cmt . build cluster-build`);

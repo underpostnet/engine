@@ -33,6 +33,51 @@ dotenv.config();
 // Static Site Generation (SSG)
 
 /**
+ * Recursively copies files from source to destination, but only files that don't exist in destination.
+ * @function copyNonExistingFiles
+ * @param {string} src - Source directory path
+ * @param {string} dest - Destination directory path
+ * @returns {void}
+ * @memberof clientBuild
+ */
+const copyNonExistingFiles = (src, dest) => {
+  // Ensure source exists
+  if (!fs.existsSync(src)) {
+    throw new Error(`Source directory does not exist: ${src}`);
+  }
+
+  // Get stats for source
+  const srcStats = fs.statSync(src);
+
+  // If source is a file, copy only if it doesn't exist in destination
+  if (srcStats.isFile()) {
+    if (!fs.existsSync(dest)) {
+      const destDir = dir.dirname(dest);
+      fs.mkdirSync(destDir, { recursive: true });
+      fs.copyFileSync(src, dest);
+    }
+    return;
+  }
+
+  // If source is a directory, create destination if it doesn't exist
+  if (srcStats.isDirectory()) {
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest, { recursive: true });
+    }
+
+    // Read all items in source directory
+    const items = fs.readdirSync(src);
+
+    // Recursively process each item
+    for (const item of items) {
+      const srcPath = dir.join(src, item);
+      const destPath = dir.join(dest, item);
+      copyNonExistingFiles(srcPath, destPath);
+    }
+  }
+};
+
+/**
  * @async
  * @function buildClient
  * @memberof clientBuild
@@ -83,6 +128,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
    * @param {string} options.publicClientId - Public client ID.
    * @param {boolean} options.iconsBuild - Whether to build icons.
    * @param {Object} options.metadata - Metadata for the client.
+   * @param {boolean} options.publicCopyNonExistingFiles - Whether to copy non-existing files from public directory.
    * @returns {Promise<void>} - Promise that resolves when the full build is complete.
    * @throws {Error} - If the full build fails.
    * @memberof clientBuild
@@ -98,6 +144,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
     publicClientId,
     iconsBuild,
     metadata,
+    publicCopyNonExistingFiles,
   }) => {
     logger.warn('Full build', rootClientPath);
 
@@ -169,6 +216,9 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
         }
       }
+
+    if (publicCopyNonExistingFiles)
+      copyNonExistingFiles(`./src/client/public/${publicCopyNonExistingFiles}`, rootClientPath);
   };
 
   // { srcBuildPath, publicBuildPath }
@@ -205,7 +255,8 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
       } = confServer[host][path];
       if (singleReplica) continue;
       if (!confClient[client]) confClient[client] = {};
-      const { components, dists, views, services, metadata, publicRef } = confClient[client];
+      const { components, dists, views, services, metadata, publicRef, publicCopyNonExistingFiles } =
+        confClient[client];
       let backgroundImage;
       if (metadata) {
         backgroundImage = metadata.backgroundImage;
@@ -240,6 +291,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           publicClientId,
           iconsBuild,
           metadata,
+          publicCopyNonExistingFiles,
         });
 
       if (components)
@@ -687,4 +739,4 @@ ${fs.readFileSync(`${rootClientPath}/sw.js`, 'utf8')}`,
   }
 };
 
-export { buildClient };
+export { buildClient, copyNonExistingFiles };

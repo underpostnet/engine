@@ -122,6 +122,12 @@ class UnderpostStartUp {
       if (options.build === true) await UnderpostStartUp.API.build(deployId, env);
       if (options.run === true) await UnderpostStartUp.API.run(deployId, env);
     },
+    /**
+     * Run itc-scripts and builds client bundle.
+     * @param {string} deployId - The ID of the deployment.
+     * @param {string} env - The environment of the deployment.
+     * @memberof UnderpostStartUp
+     */
     async build(deployId = 'dd-default', env = 'development') {
       const buildBasePath = `/home/dd`;
       const repoName = `engine-${deployId.split('-')[1]}`;
@@ -139,6 +145,12 @@ class UnderpostStartUp {
       }
       shellExec(`node bin/deploy build-full-client ${deployId}`);
     },
+    /**
+     * Runs a deployment.
+     * @param {string} deployId - The ID of the deployment.
+     * @param {string} env - The environment of the deployment.
+     * @memberof UnderpostStartUp
+     */
     async run(deployId = 'dd-default', env = 'development') {
       const runCmd = env === 'production' ? 'run prod-img' : 'run dev-img';
       if (fs.existsSync(`./engine-private/replica`)) {

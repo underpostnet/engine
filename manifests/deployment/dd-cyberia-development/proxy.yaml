@@ -41,3 +41,87 @@ spec:
           port: 4007
           weight: 100
     
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: cryptokoyn.net
+spec:
+  virtualhost:
+    fqdn: cryptokoyn.net
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4008
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4009
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.cryptokoyn.net
+spec:
+  virtualhost:
+    fqdn: www.cryptokoyn.net
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4010
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: itemledger.com
+spec:
+  virtualhost:
+    fqdn: itemledger.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4011
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4012
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.itemledger.com
+spec:
+  virtualhost:
+    fqdn: www.itemledger.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4013
+          weight: 100
+    
