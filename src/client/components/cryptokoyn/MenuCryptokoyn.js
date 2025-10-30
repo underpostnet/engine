@@ -153,7 +153,7 @@ const MenuCryptokoyn = {
       RouterInstance,
       heightTopBar,
       heightBottomBar,
-      htmlMainBody: html`<div>test</div>`,
+      htmlMainBody: html``,
     });
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
