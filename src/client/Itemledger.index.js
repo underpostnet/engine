@@ -15,6 +15,7 @@ import { ItemledgerParams } from './components/itemledger/CommonItemledger.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoItemledger } from './components/itemledger/SocketIoItemledger.js';
 import { ElementsItemledger } from './components/itemledger/ElementsItemledger.js';
+import { CssItemledgerDark, CssItemledgerLight } from './components/itemledger/CssItemledger.js';
 
 const htmlMainBody = async () => {
   return html``;
@@ -24,7 +25,7 @@ window.onload = () =>
   Worker.instance({
     router: RouterItemledger,
     render: async () => {
-      await Css.loadThemes();
+      await Css.loadThemes([CssItemledgerLight, CssItemledgerDark]);
       await TranslateCore.Init();
       await TranslateItemledger.Init();
       await Responsive.Init();

@@ -39,7 +39,7 @@ const MenuItemledger = {
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-home"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/home.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
             }),
             // style: 'display: none',
@@ -52,7 +52,7 @@ const MenuItemledger = {
             class: 'in wfa main-btn-menu main-btn-log-in',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-in-alt"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
             }),
             attrs: `data-id="log-in"`,
@@ -64,7 +64,7 @@ const MenuItemledger = {
             class: 'in wfa main-btn-menu main-btn-sign-up',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-plus"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
             }),
             attrs: `data-id="sign-up"`,
@@ -76,7 +76,7 @@ const MenuItemledger = {
             class: 'in wfa main-btn-menu main-btn-log-out',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-out-alt"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
             }),
             attrs: `data-id="log-out"`,
@@ -89,7 +89,7 @@ const MenuItemledger = {
             class: 'in wfa main-btn-menu main-btn-account',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-circle"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/account.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
             }),
             style: 'display: none',
@@ -102,7 +102,7 @@ const MenuItemledger = {
             class: 'in wfa main-btn-menu main-btn-settings',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sliders-h"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/settings.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
             }),
             attrs: `data-id="settings"`,
@@ -213,8 +213,8 @@ const MenuItemledger = {
         route: 'sign-up',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-user-plus"></i>`,
-          text: Translate.Render('sign-up'),
+          icon: html`<img class="inl itemledger-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.Render('sign-up')}</span>`,
         }),
         html: async () => await SignUp.Render({ idModal: 'modal-sign-up' }),
         handleType: 'bar',
@@ -234,8 +234,8 @@ const MenuItemledger = {
         route: 'log-out',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-sign-out-alt"></i>`,
-          text: Translate.Render('log-out'),
+          icon: html`<img class="inl itemledger-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.Render('log-out')}</span>`,
         }),
         html: async () => await LogOut.Render(),
         handleType: 'bar',
@@ -255,8 +255,8 @@ const MenuItemledger = {
         route: 'log-in',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-sign-in-alt"></i>`,
-          text: Translate.Render('log-in'),
+          icon: html`<img class="inl itemledger-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.Render('log-in')}</span>`,
         }),
         html: async () => await LogIn.Render(),
         handleType: 'bar',
@@ -276,8 +276,8 @@ const MenuItemledger = {
         route: 'account',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-user-circle"></i>`,
-          text: Translate.Render('account'),
+          icon: html`<img class="inl itemledger-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/account.png" />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.Render('account')}</span>`,
         }),
         html: async () =>
           await Account.Render({
@@ -302,8 +302,11 @@ const MenuItemledger = {
         route: 'settings',
         barConfig,
         title: renderViewTitle({
-          icon: html` <i class="fas fa-sliders-h"></i>`,
-          text: Translate.Render('settings'),
+          icon: html`<img
+            class="inl itemledger-menu-icon-modal"
+            src="${getProxyPath()}assets/ui-icons/settings.png"
+          />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.Render('settings')}</span>`,
         }),
         html: async () => await SettingsItemledger.Render({ idModal: 'modal-settings' }),
         handleType: 'bar',

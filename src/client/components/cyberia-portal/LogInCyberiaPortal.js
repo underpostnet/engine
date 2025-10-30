@@ -9,7 +9,7 @@ const LogInCyberiaPortal = async function () {
 
     ElementsCyberiaPortal.Data.user.main.model.user = user;
 
-    if (user.role === 'admin' || user.role === 'moderator') s(`.main-btn-admin`).classList.remove('hide');
+    // if (user.role === 'admin' || user.role === 'moderator') s(`.main-btn-admin`).classList.remove('hide');
   };
   const { user } = await Auth.sessionIn();
   ElementsCyberiaPortal.Data.user.main.model.user = user;
