@@ -511,6 +511,7 @@ const DefaultConf = /**/ {
     },
     cryptokoyn: {
       metadata: { title: 'Cryptokoyn' },
+      publicCopyNonExistingFiles: 'cyberia',
       components: {
         core: [
           'CommonJs',
@@ -615,6 +616,7 @@ const DefaultConf = /**/ {
     },
     itemledger: {
       metadata: { title: 'Item Ledger' },
+      publicCopyNonExistingFiles: 'cyberia',
       components: {
         core: [
           'CommonJs',
