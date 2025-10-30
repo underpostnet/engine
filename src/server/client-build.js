@@ -128,6 +128,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
    * @param {string} options.publicClientId - Public client ID.
    * @param {boolean} options.iconsBuild - Whether to build icons.
    * @param {Object} options.metadata - Metadata for the client.
+   * @param {boolean} options.publicCopyNonExistingFiles - Whether to copy non-existing files from public directory.
    * @returns {Promise<void>} - Promise that resolves when the full build is complete.
    * @throws {Error} - If the full build fails.
    * @memberof clientBuild
@@ -143,6 +144,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
     publicClientId,
     iconsBuild,
     metadata,
+    publicCopyNonExistingFiles,
   }) => {
     logger.warn('Full build', rootClientPath);
 
@@ -214,6 +216,9 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
         }
       }
+
+    if (publicCopyNonExistingFiles)
+      copyNonExistingFiles(`./src/client/public/${publicCopyNonExistingFiles}`, rootClientPath);
   };
 
   // { srcBuildPath, publicBuildPath }
@@ -250,7 +255,8 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
       } = confServer[host][path];
       if (singleReplica) continue;
       if (!confClient[client]) confClient[client] = {};
-      const { components, dists, views, services, metadata, publicRef } = confClient[client];
+      const { components, dists, views, services, metadata, publicRef, publicCopyNonExistingFiles } =
+        confClient[client];
       let backgroundImage;
       if (metadata) {
         backgroundImage = metadata.backgroundImage;
@@ -285,6 +291,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           publicClientId,
           iconsBuild,
           metadata,
+          publicCopyNonExistingFiles,
         });
 
       if (components)
