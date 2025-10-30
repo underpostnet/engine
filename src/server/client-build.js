@@ -33,6 +33,51 @@ dotenv.config();
 // Static Site Generation (SSG)
 
 /**
+ * Recursively copies files from source to destination, but only files that don't exist in destination.
+ * @function copyNonExistingFiles
+ * @param {string} src - Source directory path
+ * @param {string} dest - Destination directory path
+ * @returns {void}
+ * @memberof clientBuild
+ */
+const copyNonExistingFiles = (src, dest) => {
+  // Ensure source exists
+  if (!fs.existsSync(src)) {
+    throw new Error(`Source directory does not exist: ${src}`);
+  }
+
+  // Get stats for source
+  const srcStats = fs.statSync(src);
+
+  // If source is a file, copy only if it doesn't exist in destination
+  if (srcStats.isFile()) {
+    if (!fs.existsSync(dest)) {
+      const destDir = dir.dirname(dest);
+      fs.mkdirSync(destDir, { recursive: true });
+      fs.copyFileSync(src, dest);
+    }
+    return;
+  }
+
+  // If source is a directory, create destination if it doesn't exist
+  if (srcStats.isDirectory()) {
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest, { recursive: true });
+    }
+
+    // Read all items in source directory
+    const items = fs.readdirSync(src);
+
+    // Recursively process each item
+    for (const item of items) {
+      const srcPath = dir.join(src, item);
+      const destPath = dir.join(dest, item);
+      copyNonExistingFiles(srcPath, destPath);
+    }
+  }
+};
+
+/**
  * @async
  * @function buildClient
  * @memberof clientBuild
@@ -687,4 +732,4 @@ ${fs.readFileSync(`${rootClientPath}/sw.js`, 'utf8')}`,
   }
 };
 
-export { buildClient };
+export { buildClient, copyNonExistingFiles };
