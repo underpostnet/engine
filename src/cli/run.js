@@ -427,6 +427,7 @@ class UnderpostRun {
       // Dev usage: node bin run --dev --build sync dd-default
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseClusterCommand = options.dev ? ' --dev' : '';
       const defaultPath = [
         'dd-default',
         1,
@@ -444,6 +445,8 @@ class UnderpostRun {
       if (isDeployRunnerContext(path, options)) {
         const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
         if (!validVersion) throw new Error('Version mismatch');
+        shellExec(`${baseCommand} run${baseClusterCommand} tz`);
+        shellExec(`${baseCommand} run${baseClusterCommand} cron`);
       }
 
       const currentTraffic = isDeployRunnerContext(path, options)
@@ -465,6 +468,39 @@ class UnderpostRun {
         UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
       } else logger.info('current traffic', UnderpostDeploy.API.getCurrentTraffic(deployId));
     },
+
+    /**
+     * @method tz
+     * @description Sets the system timezone using `timedatectl set-timezone` command.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the timezone string).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    tz: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const tz = path
+        ? path
+        : UnderpostRootEnv.API.get('TIME_ZONE', undefined, { disableLog: true })
+          ? UnderpostRootEnv.API.get('TIME_ZONE')
+          : process.env.TIME_ZONE
+            ? process.env.TIME_ZONE
+            : 'America/New_York';
+      shellExec(`sudo timedatectl set-timezone ${tz}`);
+    },
+
+    /**
+     * @method cron
+     * @description Sets up and starts the `dd-cron` environment by writing environment variables, starting the cron service, and cleaning up.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    cron: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const env = options.dev ? 'development' : 'production';
+      shellExec(`node bin env ${path ? path : 'dd-cron'} ${env}`);
+      shellExec(`npm start`);
+      shellExec(`node bin env clean`);
+    },
+
     /**
      * @method ls-deployments
      * @description Retrieves and logs a table of Kubernetes deployments using `UnderpostDeploy.API.get`.
