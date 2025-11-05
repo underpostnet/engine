@@ -1,6 +1,6 @@
 import { getCurrentTrace } from './CommonJs.js';
 
-const DEV = true;
+const DEV = window.renderPayload ? window.renderPayload.dev : false;
 
 const loggerFactory = (meta, options = { trace: false }) => {
   meta = meta.url.split('/').pop();
