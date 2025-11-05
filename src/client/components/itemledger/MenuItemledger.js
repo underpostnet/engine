@@ -141,11 +141,8 @@ const MenuItemledger = {
       // titleClass: 'hide',
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {
-          const srcLogo = `${getProxyPath()}android-chrome-192x192.png`;
-          htmls(
-            '.action-btn-app-icon-render',
-            html`<img class="inl top-bar-app-icon ${!darkTheme ? '' : 'negative-color'}" src="${srcLogo}" />`,
-          );
+          const srcLogo = `${getProxyPath()}assets/ui-icons/itemledger.png`;
+          htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
         };
         setTimeout(ThemeEvents['titleRender']);
         return '';

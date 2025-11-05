@@ -11,7 +11,7 @@ const CssCommonItemledger = async () => {
     classes: 'inl',
     style: 'width: 100px; height: 100px',
   });
-  subThemeManager.setDarkTheme('#00ff88');
+  subThemeManager.setDarkTheme('#24FBFFFF');
   subThemeManager.setLightTheme('#ffcc00');
   Modal.labelSelectorTopOffsetEndAnimation = '-15px';
   await AgGrid.RenderStyle({
@@ -112,7 +112,7 @@ const CssItemledgerDark = {
             color: black !important;
           }
         </style>
-        ${borderChar(2, `#00ff88`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
+        ${borderChar(2, `#24FBFFFF`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
       `
     );
   },

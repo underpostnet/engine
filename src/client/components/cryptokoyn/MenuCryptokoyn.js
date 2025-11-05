@@ -140,10 +140,11 @@ const MenuCryptokoyn = {
       // titleClass: 'hide',
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {
-          const srcLogo = `${getProxyPath()}assets/logo/cryptokoyn.png`;
+          const srcLogo = `${getProxyPath()}assets/ui-icons/cryptokoyn.png`;
+          // negative-color
           htmls(
             '.action-btn-app-icon-render',
-            html`<img class="inl top-bar-app-icon ${darkTheme ? '' : 'negative-color'}" src="${srcLogo}" />`,
+            html`<img class="inl top-bar-app-icon ${darkTheme ? '' : ''}" src="${srcLogo}" />`,
           );
         };
         setTimeout(ThemeEvents['titleRender']);
