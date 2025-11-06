@@ -99,6 +99,46 @@ const ObjectLayerEngineModal = {
         });
 
         EventsUI.onClick(`.ol-btn-save`, async () => {
+          const requiredDirectionCodes = ['08', '02', '04', '06'];
+          const missingFrames = [];
+
+          for (const directionCode of requiredDirectionCodes) {
+            if (
+              !ObjectLayerEngineModal.ObjectLayerData[directionCode] ||
+              ObjectLayerEngineModal.ObjectLayerData[directionCode].length === 0
+            ) {
+              missingFrames.push(directionCode);
+            }
+          }
+
+          if (missingFrames.length > 0) {
+            NotificationManager.Push({
+              html: `At least one frame must exist for directions: ${missingFrames.join(', ')}`,
+              status: 'error',
+            });
+            return;
+          }
+
+          // Validate minimum frame_duration 100ms
+          const frameDuration = parseInt(s(`.ol-input-render-frame-duration`).value);
+          if (!frameDuration || frameDuration < 100) {
+            NotificationManager.Push({
+              html: 'Frame duration must be at least 100ms',
+              status: 'error',
+            });
+            return;
+          }
+
+          // Validate that item.id is not empty
+          const itemId = s(`.ol-input-item-id`).value;
+          if (!itemId || itemId.trim() === '') {
+            NotificationManager.Push({
+              html: 'Item ID is required',
+              status: 'error',
+            });
+            return;
+          }
+
           const objectLayer = {
             data: {
               render: {
@@ -199,10 +239,22 @@ const ObjectLayerEngineModal = {
           {
             delete objectLayer.data.render.frames;
             delete objectLayer.data.render.color;
-            const { status, data } = await ObjectLayerService.post({
+            const { status, data, message } = await ObjectLayerService.post({
               id: `metadata/${objectLayer.data.item.type}/${objectLayer.data.item.id}`,
               body: objectLayer,
             });
+
+            if (status === 'success') {
+              NotificationManager.Push({
+                html: `Object layer "${objectLayer.data.item.id}" created successfully!`,
+                status: 'success',
+              });
+            } else {
+              NotificationManager.Push({
+                html: `Error creating object layer: ${message}`,
+                status: 'error',
+              });
+            }
           }
         });
       });
