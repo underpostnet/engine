@@ -346,6 +346,7 @@ const DefaultManagement = {
           id: gridId,
           parentModal: options.idModal,
           usePagination: true,
+          customHeightOffset: !permissions.add && !permissions.remove ? 50 : 0,
           darkTheme,
           gridOptions: {
             defaultColDef: {
