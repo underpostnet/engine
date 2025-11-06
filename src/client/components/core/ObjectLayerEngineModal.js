@@ -286,21 +286,72 @@ const ObjectLayerEngineModal = {
       `;
     }
 
+    const statDescriptions = {
+      effect: {
+        title: 'Effect',
+        icon: 'fa-solid fa-burst',
+        description: 'Amount of life removed when an entity collides or deals an impact.',
+        detail: 'Measured in life points.',
+      },
+      resistance: {
+        title: 'Resistance',
+        icon: 'fa-solid fa-shield',
+        description: "Adds to the owner's maximum life (survivability cap).",
+        detail:
+          "This value is summed with the entity's base max life. It also increases the amount of life restored when a regeneration event occurs (adds directly to current life).",
+      },
+      agility: {
+        title: 'Agility',
+        icon: 'fa-solid fa-person-running',
+        description: 'Increases the movement speed of entities.',
+        detail: 'Higher values result in faster movement.',
+      },
+      range: {
+        title: 'Range',
+        icon: 'fa-solid fa-bullseye',
+        description: 'Increases the lifetime of a cast/summoned entity.',
+        detail: 'Measured in milliseconds.',
+      },
+      intelligence: {
+        title: 'Intelligence',
+        icon: 'fa-solid fa-brain',
+        description: 'Probability-based stat that increases the chance to spawn/trigger a summoned entity.',
+        detail: 'Higher values increase summoning success rate.',
+      },
+      utility: {
+        title: 'Utility',
+        icon: 'fa-solid fa-wrench',
+        description: 'Reduces the cooldown time between actions, allowing for more frequent actions.',
+        detail: 'It also increases the chance to trigger life-regeneration events.',
+      },
+    };
+
     let statsInputsRender = '';
     for (const statType of statTypes) {
+      const statInfo = statDescriptions[statType];
       statsInputsRender += html`
-        ${await Input.Render({
-          id: `ol-input-item-stats-${statType}`,
-          label: html`<div class="inl" style="width: 120px; font-size: 16px; overflow: hidden">
-            <i class="fa-solid fa-chart-simple"></i> ${statType}
-          </div>`,
-          containerClass: 'inl',
-          type: 'number',
-          min: 0,
-          max: 10,
-          placeholder: true,
-          value: 0,
-        })}
+        <div class="inl" style="margin-bottom: 10px; position: relative;">
+          ${await Input.Render({
+            id: `ol-input-item-stats-${statType}`,
+            label: html`<div
+              title="${statInfo.description} ${statInfo.detail}"
+              class="inl stat-label-container stat-info-icon"
+              style="width: 120px; font-size: 16px; overflow: visible; position: relative;"
+            >
+              <i class="${statInfo.icon}" style="margin-right: 5px;"></i> ${statInfo.title}
+            </div>`,
+            containerClass: 'inl',
+            type: 'number',
+            min: 0,
+            max: 10,
+            placeholder: true,
+            value: 0,
+          })}
+          <div class="in stat-description">
+            ${statInfo.description}<br />
+            <span style="color: #888; font-style: italic;">${statInfo.detail}</span>
+          </div>
+        </div>
       `;
     }
 
@@ -336,6 +387,19 @@ const ObjectLayerEngineModal = {
         }
         .sub-title-modal {
           color: #ffcc00;
+        }
+        .stat-label-container {
+          display: flex;
+          align-items: center;
+        }
+        .stat-info-icon {
+          cursor: default;
+        }
+        .stat-description {
+          padding: 2px 5px;
+          border-left: 2px solid #444;
+          margin-bottom: 5px;
+          max-width: 200px;
         }
       </style>
       ${borderChar(2, 'black', ['.sub-title-modal'])}
