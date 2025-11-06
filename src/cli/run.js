@@ -58,6 +58,8 @@ class UnderpostRun {
    * @property {string} stdin - The stdin option for the container.
    * @property {string} restartPolicy - The restart policy for the container.
    * @property {boolean} terminal - Whether to open a terminal.
+   * @property {number} devProxyPortOffset - The port offset for the development proxy.
+   * @property {string} confServerPath - The configuration server path.
    * @memberof UnderpostRun
    */
   static DEFAULT_OPTION = {
@@ -80,6 +82,7 @@ class UnderpostRun {
     restartPolicy: '',
     terminal: false,
     devProxyPortOffset: 0,
+    confServerPath: '',
   };
   /**
    * @static
@@ -846,6 +849,22 @@ class UnderpostRun {
      */
     dev: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
       let [deployId, subConf, host, _path, clientHostPort] = path.split(',');
+      if (options.confServerPath) {
+        const confServer = JSON.parse(fs.readFileSync(options.confServerPath, 'utf8'));
+        fs.writeFileSync(
+          `./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`,
+          JSON.stringify(
+            {
+              [host]: {
+                [_path]: confServer[host][_path],
+              },
+            },
+            null,
+            4,
+          ),
+          'utf8',
+        );
+      }
       if (!deployId) deployId = 'dd-default';
       if (!host) host = 'default.net';
       if (!_path) _path = '/';

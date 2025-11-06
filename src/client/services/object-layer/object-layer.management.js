@@ -39,8 +39,9 @@ const ObjectLayerManagement = {
     }
 
     let columnDefs = [
-      { field: '_id', headerName: 'Mongo ID', width: 220, editable: false },
+      { field: '_id', headerName: 'Storage ID', width: 220, editable: false },
       { field: 'data.item.id', headerName: 'Item ID', editable: role === 'user' },
+      { field: 'data.item.type', headerName: 'Item Type', editable: role === 'user' },
       { field: 'data.item.description', headerName: 'Description', flex: 1, editable: role === 'user' },
       {
         field: 'frame08',
@@ -69,6 +70,7 @@ const ObjectLayerManagement = {
       permissions: {
         add: commonUserGuard(role),
         remove: commonUserGuard(role),
+        reload: commonUserGuard(role),
       },
       columnDefs,
       customFormat: (obj) => {

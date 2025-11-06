@@ -29,6 +29,7 @@ const DefaultOptions = {
   permissions: {
     add: true,
     remove: true,
+    reload: true,
   },
 };
 
@@ -66,6 +67,17 @@ const DefaultManagement = {
       paginationComp.setAttribute('current-page', this.Tokens[id].page);
       paginationComp.setAttribute('total-pages', this.Tokens[id].totalPages);
       paginationComp.setAttribute('total-items', this.Tokens[id].total);
+    }
+  },
+  refreshTable: async function (id) {
+    const gridApi = AgGrid.grids[this.Tokens[id].gridId];
+    if (gridApi) {
+      // Use refreshCells with change detection for optimal performance
+      // This is preferred over redrawRows() as it only updates changed cells
+      gridApi.refreshCells({
+        force: false, // Use change detection - only refresh cells whose values have changed
+        suppressFlash: false, // Show flash animation for changed cells (requires enableCellChangeFlash)
+      });
     }
   },
   RenderTable: async function (options = DefaultOptions) {
@@ -292,6 +304,26 @@ const DefaultManagement = {
           DefaultManagement.loadTable(id);
         }
       });
+      EventsUI.onClick(`.management-table-btn-reload-${id}`, async () => {
+        try {
+          // Reload data from server
+          await DefaultManagement.loadTable(id);
+
+          // Other option: Refresh cells to update UI
+          // DefaultManagement.refreshTable(id);
+
+          NotificationManager.Push({
+            html: Translate.Render('success-reload-data') || 'Data reloaded successfully',
+            status: 'success',
+          });
+        } catch (error) {
+          NotificationManager.Push({
+            html: error.message || 'Error reloading data',
+            status: 'error',
+          });
+        } finally {
+        }
+      });
       s(`#ag-pagination-${gridId}`).addEventListener('page-change', async (event) => {
         const token = DefaultManagement.Tokens[id];
         token.page = event.detail.page;
@@ -318,7 +350,7 @@ const DefaultManagement = {
         }
       };
     }, 1);
-    return html`<div class="fl">
+    return html`<div class="fl management-table-toolbar">
         ${await BtnIcon.Render({
           class: `in fll section-mp management-table-btn-mini management-table-btn-add-${id} ${
             permissions.add ? '' : 'hide'
@@ -340,13 +372,20 @@ const DefaultManagement = {
           label: html`<div class="abs center btn-clean-${id}-label"><i class="fas fa-broom"></i></div> `,
           type: 'button',
         })}
+        ${await BtnIcon.Render({
+          class: `in fll section-mp management-table-btn-mini management-table-btn-reload-${id} ${
+            permissions.reload ? '' : 'hide'
+          }`,
+          label: html`<div class="abs center btn-reload-${id}-label"><i class="fas fa-sync-alt"></i></div> `,
+          type: 'button',
+        })}
       </div>
       <div class="in section-mp">
         ${await AgGrid.Render({
           id: gridId,
           parentModal: options.idModal,
           usePagination: true,
-          customHeightOffset: !permissions.add && !permissions.remove ? 50 : 0,
+          customHeightOffset: !permissions.add && !permissions.remove && !permissions.reload ? 50 : 0,
           darkTheme,
           gridOptions: {
             defaultColDef: {

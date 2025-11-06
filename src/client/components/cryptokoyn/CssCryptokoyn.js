@@ -137,7 +137,7 @@ const CssCryptokoynLight = {
           }
           .default-slide-menu-top-bar-fix-title-container-text {
             font-size: 40px !important;
-            color: #00cc00 !important;
+            color: yellow !important;
           }
         </style>
         ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
