@@ -393,6 +393,7 @@ program
   .option('--reset', 'Resets the runner state before execution.')
   .option('--terminal', 'Enables terminal mode for interactive script execution.')
   .option('--dev-proxy-port-offset <port-offset>', 'Sets a custom port offset for development proxy.')
+  .option('--conf-server-path <conf-server-path>', 'Sets a custom configuration server path.')
   .description('Runs a script from the specified path.')
   .action(UnderpostRun.API.callback);
 
