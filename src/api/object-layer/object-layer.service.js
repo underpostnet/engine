@@ -36,8 +36,6 @@ const ObjectLayerService = {
           render: {
             frame_duration: req.body.data.render.frame_duration,
             is_stateless: req.body.data.render.is_stateless,
-            colors: [],
-            frames: {},
           },
           item: req.body.data.item,
           stats: req.body.data.stats,
@@ -62,22 +60,9 @@ const ObjectLayerService = {
           if (!frameFile.endsWith('.png')) continue;
 
           const framePath = `${directionPath}/${frameFile}`;
-          const frameFactoryResult = await ObjectLayerEngine.frameFactory(
-            framePath,
-            objectLayerData.data.render.colors,
-          );
 
-          objectLayerData.data.render.colors = frameFactoryResult.colors;
-
-          // Get the keyframe directions from the numerical folder direction
-          const keyframeDirections = ObjectLayerEngine.getKeyFramesDirectionsFromNumberFolderDirection(directionCode);
-
-          for (const keyframeDirection of keyframeDirections) {
-            if (!objectLayerData.data.render.frames[keyframeDirection]) {
-              objectLayerData.data.render.frames[keyframeDirection] = [];
-            }
-            objectLayerData.data.render.frames[keyframeDirection].push(frameFactoryResult.frame);
-          }
+          // Process image and push frame to render data with color palette management
+          await ObjectLayerEngine.processAndPushFrame(objectLayerData.data.render, framePath, directionCode);
         }
       }
 

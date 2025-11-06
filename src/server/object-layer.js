@@ -195,6 +195,49 @@ export class ObjectLayerEngine {
   /**
    * @memberof CyberiaObjectLayer
    * @static
+   * @description Processes an image file through frameFactory and adds the resulting frame to the render data structure.
+   * Updates the color palette and pushes the frame to all keyframe directions corresponding to the given direction code.
+   * Initializes colors array, frames object, and direction arrays if they don't exist.
+   * @param {Object} renderData - The render data object containing frames and colors.
+   * @param {string} imagePath - The path to the image file to process.
+   * @param {string} directionCode - The numerical direction code (e.g., '08', '14').
+   * @returns {Promise<Object>} - The updated render data object.
+   * @memberof CyberiaObjectLayer
+   */
+  static async processAndPushFrame(renderData, imagePath, directionCode) {
+    // Initialize colors array if it doesn't exist
+    if (!renderData.colors) {
+      renderData.colors = [];
+    }
+
+    // Initialize frames object if it doesn't exist
+    if (!renderData.frames) {
+      renderData.frames = {};
+    }
+
+    // Process the image and extract frame matrix and updated colors
+    const frameFactoryResult = await ObjectLayerEngine.frameFactory(imagePath, renderData.colors);
+
+    // Update the colors palette
+    renderData.colors = frameFactoryResult.colors;
+
+    // Get all keyframe directions for this direction code
+    const keyframeDirections = ObjectLayerEngine.getKeyFramesDirectionsFromNumberFolderDirection(directionCode);
+
+    // Push the frame to all corresponding directions
+    for (const keyframeDirection of keyframeDirections) {
+      if (!renderData.frames[keyframeDirection]) {
+        renderData.frames[keyframeDirection] = [];
+      }
+      renderData.frames[keyframeDirection].push(frameFactoryResult.frame);
+    }
+
+    return renderData;
+  }
+
+  /**
+   * @memberof CyberiaObjectLayer
+   * @static
    * @description Builds a PNG image file from a tile matrix and color map using Jimp and Sharp.
    * @param {Object} options - Options object.
    * @param {Object} options.tile - The tile data.
@@ -290,5 +333,6 @@ export const readPngAsync = ObjectLayerEngine.readPngAsync;
 export const frameFactory = ObjectLayerEngine.frameFactory;
 export const getKeyFramesDirectionsFromNumberFolderDirection =
   ObjectLayerEngine.getKeyFramesDirectionsFromNumberFolderDirection;
+export const processAndPushFrame = ObjectLayerEngine.processAndPushFrame;
 export const buildImgFromTile = ObjectLayerEngine.buildImgFromTile;
 export const generateRandomStats = ObjectLayerEngine.generateRandomStats;
