@@ -40,7 +40,8 @@ program
   .option('--import [object-layer-type]', 'Commas separated object layer types e.g. skin,floors')
   .option('--show-frame <show-frame-input>', 'View object layer frame e.g. anon_08_0')
   .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
-  .action(async (options = { import: false, showFrame: '', envPath: '' }) => {
+  .option('--mongo-host <mongo-host>', 'Mongo host override')
+  .action(async (options = { import: false, showFrame: '', envPath: '', mongoHost: '' }) => {
     const deployId = process.env.DEFAULT_DEPLOY_ID;
     const host = process.env.DEFAULT_DEPLOY_HOST;
     const path = process.env.DEFAULT_DEPLOY_PATH;
@@ -49,7 +50,7 @@ program
     const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
     const { db } = confServer[host][path];
 
-    db.host = db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+    db.host = options.mongoHost ? options.mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
     logger.info('env', {
       deployId,
