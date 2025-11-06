@@ -81,7 +81,10 @@ const ObjectLayerEngineModal = {
             `.frames-${directionCode}`,
             html`
               <div class="in fll ${id}">
-                <img class="in fll direction-code-bar-frames-img" src="${URL.createObjectURL(image)}" />
+                <img
+                  class="in fll direction-code-bar-frames-img direction-code-bar-frames-img-${id}"
+                  src="${URL.createObjectURL(image)}"
+                />
                 ${await BtnIcon.Render({
                   label: html`<i class="fa-solid fa-trash"></i>`,
                   class: `abs direction-code-bar-trash-btn direction-code-bar-trash-btn-${id}`,
@@ -89,6 +92,13 @@ const ObjectLayerEngineModal = {
               </div>
             `,
           );
+
+          EventsUI.onClick(`.direction-code-bar-frames-img-${id}`, async () => {
+            const frameData = ObjectLayerEngineModal.ObjectLayerData[directionCode].find((frame) => frame.id === id);
+            if (frameData && frameData.json) {
+              s('object-layer-engine').importMatrixJSON(frameData.json);
+            }
+          });
 
           EventsUI.onClick(`.direction-code-bar-trash-btn-${id}`, async () => {
             s(`.${id}`).remove();
@@ -305,6 +315,7 @@ const ObjectLayerEngineModal = {
           width: 100px;
           height: auto;
           margin: 3px;
+          cursor: pointer;
         }
         .direction-code-bar-trash-btn {
           top: 3px;
