@@ -10,6 +10,7 @@ import {
   pngDirectoryIteratorByObjectLayerType,
   frameFactory,
   getKeyFramesDirectionsFromNumberFolderDirection,
+  processAndPushFrame,
   buildImgFromTile,
   generateRandomStats,
   itemTypes,
@@ -101,16 +102,8 @@ program
                       stats: generateRandomStats(),
                     },
                   };
-              objectLayers[objectLayerId].data.render.colors = [];
-              objectLayers[objectLayerId].data.render.frames = {};
             }
-            const frameFactoryResult = await frameFactory(path, objectLayers[objectLayerId].data.render.colors);
-            objectLayers[objectLayerId].data.render.colors = frameFactoryResult.colors;
-            for (const objectLayerFrameDirection of getKeyFramesDirectionsFromNumberFolderDirection(direction)) {
-              if (!objectLayers[objectLayerId].data.render.frames[objectLayerFrameDirection])
-                objectLayers[objectLayerId].data.render.frames[objectLayerFrameDirection] = [];
-              objectLayers[objectLayerId].data.render.frames[objectLayerFrameDirection].push(frameFactoryResult.frame);
-            }
+            await processAndPushFrame(objectLayers[objectLayerId].data.render, path, direction);
           },
         );
       }

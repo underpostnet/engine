@@ -224,6 +224,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
   // { srcBuildPath, publicBuildPath }
   const enableLiveRebuild =
     options && options.liveClientBuildPaths && options.liveClientBuildPaths.length > 0 ? true : false;
+  const isDevelopment = process.env.NODE_ENV === 'development';
 
   let currentPort = parseInt(process.env.PORT) + 1;
   for (const host of Object.keys(confServer)) {
@@ -572,7 +573,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                 apiBaseHost,
                 apiBasePath: process.env.BASE_API,
                 version: Underpost.version,
-                dev: options.liveClientBuildPaths && options.liveClientBuildPaths.length > 0,
+                dev: isDevelopment,
               },
               renderApi: {
                 JSONweb,
@@ -666,7 +667,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
                   apiBaseHost,
                   apiBasePath: process.env.BASE_API,
                   version: Underpost.version,
-                  dev: options.liveClientBuildPaths && options.liveClientBuildPaths.length > 0,
+                  dev: isDevelopment,
                 },
                 renderApi: {
                   JSONweb,
