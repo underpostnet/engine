@@ -11,7 +11,7 @@ const CssCommonCyberia = async () => {
     classes: 'inl',
     style: 'width: 100px; height: 100px',
   });
-  subThemeManager.setDarkTheme('#ff0000');
+  subThemeManager.setDarkTheme('#ffcc00');
   subThemeManager.setLightTheme('#ffcc00');
   Modal.labelSelectorTopOffsetEndAnimation = '-15px';
   await AgGrid.RenderStyle({
