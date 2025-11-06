@@ -53,15 +53,22 @@ class PwaWorker {
    */
   constructor() {
     this.title = `${s('title').textContent}`;
+    if (!window.renderPayload.dev) {
+      console.log = () => null;
+      console.error = () => null;
+      console.info = () => null;
+      console.warn = () => null;
+    }
   }
 
   /**
    * Checks if the application is running in development mode (localhost or 127.0.0.1).
+   * @method devMode
    * @memberof PwaWorker
    * @returns {boolean} True if in development mode.
    */
   devMode() {
-    return location.origin.match('localhost') || location.origin.match('127.0.0.1');
+    return window.renderPayload.dev || location.origin.match('localhost') || location.origin.match('127.0.0.1');
   }
 
   /**
