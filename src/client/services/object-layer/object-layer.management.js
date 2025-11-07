@@ -1,14 +1,56 @@
 import { DefaultManagement } from '../default/default.management.js';
 import { ObjectLayerService } from './object-layer.service.js';
 import { commonUserGuard } from '../../components/core/CommonJs.js';
-import { getProxyPath } from '../../components/core/Router.js';
+import { getProxyPath, setPath } from '../../components/core/Router.js';
+import { ObjectLayerEngineModal } from '../../components/core/ObjectLayerEngineModal.js';
 import { s } from '../../components/core/VanillaJs.js';
 import { Modal } from '../../components/core/Modal.js';
+import { BtnIcon } from '../../components/core/BtnIcon.js';
 
 const ObjectLayerManagement = {
   RenderTable: async ({ Elements }) => {
     const user = Elements.Data.user.main.model.user;
     const { role } = user;
+
+    // Custom renderer for edit button
+    class EditButtonRenderer {
+      eGui;
+
+      async init(params) {
+        this.eGui = document.createElement('div');
+        const { data } = params;
+
+        if (!data || !data._id) {
+          this.eGui.innerHTML = '';
+          return;
+        }
+
+        this.eGui.innerHTML = html` ${await BtnIcon.Render({
+          label: html`<div class="abs center">
+            <i class="fas fa-edit"></i>
+          </div> `,
+          class: `in fll section-mp management-table-btn-mini btn-edit-object-layer-${data._id}`,
+        })}`;
+
+        setTimeout(() => {
+          s(`.btn-edit-object-layer-${data._id}`).onclick = async () => {
+            if (s(`.modal-object-layer-engine`)) await ObjectLayerEngineModal.Reload();
+            else s(`.main-btn-object-layer-engine`).click();
+            setTimeout(() => {
+              setPath(`${getProxyPath()}?cid=${data._id}`);
+            });
+          };
+        });
+      }
+
+      getGui() {
+        return this.eGui;
+      }
+
+      refresh(params) {
+        return true;
+      }
+    }
 
     // Custom renderer for the frame 08 preview
     class Frame08Renderer {
@@ -56,14 +98,16 @@ const ObjectLayerManagement = {
       },
     ];
 
-    switch (role) {
-      case 'admin':
-        {
-        }
-        break;
-
-      default:
-        break;
+    if (commonUserGuard(role)) {
+      columnDefs.push({
+        field: 'edit',
+        headerName: '',
+        width: 100,
+        cellRenderer: EditButtonRenderer,
+        editable: false,
+        sortable: false,
+        filter: false,
+      });
     }
     return await DefaultManagement.RenderTable({
       idModal: 'modal-object-layer-engine-management',

@@ -11,6 +11,7 @@ import { Input } from './Input.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { NotificationManager } from './NotificationManager.js';
+import { Modal } from './Modal.js';
 
 const ObjectLayerEngineModal = {
   templates: [
@@ -581,6 +582,14 @@ const ObjectLayerEngineModal = {
     const _s = s(`.management-table-btn-reload-modal-object-layer-engine-management`);
     if (_s) _s.click();
     s(`.main-btn-object-layer-engine-management`).click();
+  },
+  Reload: async function () {
+    const idModal = 'modal-object-layer-engine';
+    if (s(`.modal-object-layer-engine`))
+      Modal.writeHTML({
+        idModal,
+        html: await Modal.Data[idModal].options.html(),
+      });
   },
 };
 
