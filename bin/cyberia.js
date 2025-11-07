@@ -36,12 +36,23 @@ program
   .version(version);
 
 program
+  .command('underpost')
+  .description('Underpost cli passthrough')
+  .action(() => {
+    process.argv = process.argv.filter((c) => c !== 'underpost');
+    underpostProgram.parse();
+  });
+
+program
   .command('ol')
   .option('--import [object-layer-type]', 'Commas separated object layer types e.g. skin,floors')
   .option('--show-frame <show-frame-input>', 'View object layer frame e.g. anon_08_0')
   .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
   .option('--mongo-host <mongo-host>', 'Mongo host override')
   .action(async (options = { import: false, showFrame: '', envPath: '', mongoHost: '' }) => {
+    if (!options.envPath) options.envPath = `./env`;
+    dotenv.config({ path: options.envPath, override: true });
+
     const deployId = process.env.DEFAULT_DEPLOY_ID;
     const host = process.env.DEFAULT_DEPLOY_HOST;
     const path = process.env.DEFAULT_DEPLOY_PATH;
@@ -69,9 +80,6 @@ program
     const ObjectLayer = DataBaseProvider.instance[`${host}${path}`].mongoose.models.ObjectLayer;
 
     await ObjectLayer.deleteMany();
-    if (!options.envPath) options.envPath = `./engine-private/conf/dd-cyberia/.env.production`;
-
-    dotenv.config({ path: options.envPath, override: true });
 
     const objectLayers = {};
 
@@ -137,8 +145,8 @@ program
   .description('Object layer management');
 
 try {
+  // throw new Error('');
   program.parse();
 } catch (error) {
-  console.error('Cyberia cli reference not found', error);
-  underpostProgram.parse();
+  logger.error(error);
 }
