@@ -2,6 +2,8 @@ import { DefaultManagement } from '../default/default.management.js';
 import { ObjectLayerService } from './object-layer.service.js';
 import { commonUserGuard } from '../../components/core/CommonJs.js';
 import { getProxyPath } from '../../components/core/Router.js';
+import { s } from '../../components/core/VanillaJs.js';
+import { Modal } from '../../components/core/Modal.js';
 
 const ObjectLayerManagement = {
   RenderTable: async ({ Elements }) => {
@@ -85,6 +87,14 @@ const ObjectLayerManagement = {
       defaultColKeyFocus: 'data.item.id',
       ServiceProvider: ObjectLayerService,
     });
+  },
+  Reload: async function () {
+    const idModal = 'modal-object-layer-engine-management';
+    if (s(`.modal-object-layer-engine-management`))
+      Modal.writeHTML({
+        idModal,
+        html: await Modal.Data[idModal].options.html(),
+      });
   },
 };
 

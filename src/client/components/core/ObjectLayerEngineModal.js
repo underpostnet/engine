@@ -259,6 +259,7 @@ const ObjectLayerEngineModal = {
                 html: `Object layer "${objectLayer.data.item.id}" created successfully!`,
                 status: 'success',
               });
+              ObjectLayerEngineModal.toManagement();
             } else {
               NotificationManager.Push({
                 html: `Error creating object layer: ${message}`,
@@ -575,6 +576,11 @@ const ObjectLayerEngineModal = {
     }
 
     return objectLayerFrameDirections;
+  },
+  toManagement: () => {
+    const _s = s(`.management-table-btn-reload-modal-object-layer-engine-management`);
+    if (_s) _s.click();
+    s(`.main-btn-object-layer-engine-management`).click();
   },
 };
 
