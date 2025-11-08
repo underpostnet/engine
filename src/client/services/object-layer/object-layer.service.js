@@ -29,11 +29,11 @@ const ObjectLayerService = {
           return reject(error);
         }),
     ),
-  put: (options = { id: '', body: {} }) =>
+  put: (options = { id: '', body: {}, headerId: undefined }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
-        headers: headersFactory(),
+        headers: headersFactory(options.headerId),
         credentials: 'include',
         body: payloadFactory(options.body),
       })
@@ -53,6 +53,48 @@ const ObjectLayerService = {
     const url = new URL(getApiBaseUrl({ id: options.id, endpoint }));
     if (options.page) url.searchParams.set('page', options.page);
     if (options.limit) url.searchParams.set('limit', options.limit);
+    return new Promise((resolve, reject) =>
+      fetch(url.toString(), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
+  },
+  getRender: (options = { id: '' }) => {
+    const url = new URL(getApiBaseUrl({ id: `render/${options.id}`, endpoint }));
+    return new Promise((resolve, reject) =>
+      fetch(url.toString(), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
+  },
+  getMetadata: (options = { id: '' }) => {
+    const url = new URL(getApiBaseUrl({ id: `metadata/${options.id}`, endpoint }));
     return new Promise((resolve, reject) =>
       fetch(url.toString(), {
         method: 'GET',

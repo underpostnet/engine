@@ -12,21 +12,84 @@ const ObjectLayerService = {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
 
     if (req.path.startsWith('/frame-image')) {
-      for (const basePath of ['./src/client/public/cyberia/', `./public/${options.host}${options.path}`]) {
-        const folder = `${basePath}assets/${req.params.itemType}/${req.params.itemId}/${req.params.directionCode}`;
-        if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
-        const files = FileFactory.filesExtract(req);
-        for (const file of files) {
-          fs.writeFileSync(`${folder}/${file.name}`, file.data);
+      const itemType = req.params.itemType;
+      const itemId = req.params.itemId;
+      const directionCode = req.params.directionCode;
+
+      // Debug: Log request files structure
+      logger.info(`POST Request files for direction ${directionCode}:`, {
+        filesKeys: req.files ? Object.keys(req.files) : [],
+        filesCount: req.files ? Object.keys(req.files).length : 0,
+      });
+
+      // Extract all frames for this direction
+      const files = FileFactory.filesExtract(req);
+
+      // Validate files
+      if (!files || files.length === 0) {
+        logger.error(`No files received for direction ${directionCode}`);
+        throw new Error(`No files received for direction ${directionCode}`);
+      }
+
+      // Validate each file has data
+      for (let i = 0; i < files.length; i++) {
+        if (!files[i].data) {
+          logger.error(`File ${files[i].name || i} has no data for direction ${directionCode}`);
+          throw new Error(`File ${files[i].name || i} has no data`);
+        }
+        if (!Buffer.isBuffer(files[i].data)) {
+          logger.error(`File ${files[i].name || i} data is not a Buffer for direction ${directionCode}`);
+          throw new Error(`File ${files[i].name || i} data is not a Buffer`);
         }
       }
-      return;
+
+      logger.info(
+        `Processing ${files.length} file(s) for direction ${directionCode}: ${files.map((f) => f.name).join(', ')}`,
+      );
+
+      // Always clear and rewrite ALL frames for this direction code
+      for (const basePath of ['./src/client/public/cyberia/', `./public/${options.host}${options.path}`]) {
+        const folder = `${basePath}assets/${itemType}/${itemId}/${directionCode}`;
+
+        // Always remove entire direction folder to ensure clean state
+        if (fs.existsSync(folder)) {
+          await fs.remove(folder);
+          logger.info(`Cleared folder: ${folder}`);
+        }
+
+        // Create fresh folder
+        fs.mkdirSync(folder, { recursive: true });
+
+        // Write all frames sent in this request
+        for (const file of files) {
+          const filePath = `${folder}/${file.name}`;
+          try {
+            fs.writeFileSync(filePath, file.data);
+            logger.info(`Wrote file: ${filePath} (${file.data.length} bytes)`);
+          } catch (error) {
+            logger.error(`Error writing file ${filePath}:`, error);
+            throw new Error(`Failed to write ${file.name}: ${error.message}`);
+          }
+        }
+      }
+
+      logger.info(`Successfully wrote ${files.length} frame(s) for direction ${directionCode}`);
+
+      return { success: true, directionCode, frameCount: files.length };
     }
 
     if (req.path.startsWith('/metadata')) {
       const folder = `./src/client/public/cyberia/assets/${req.params.itemType}/${req.params.itemId}`;
+      const publicFolder = `./public/${options.host}${options.path}/assets/${req.params.itemType}/${req.params.itemId}`;
+
+      // Ensure both folders exist
       if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
-      fs.writeFileSync(`${folder}/metadata.json`, JSON.stringify(req.body));
+      if (!fs.existsSync(publicFolder)) fs.mkdirSync(publicFolder, { recursive: true });
+
+      // Write metadata.json to both locations
+      const metadataContent = JSON.stringify(req.body);
+      fs.writeFileSync(`${folder}/metadata.json`, metadataContent);
+      fs.writeFileSync(`${publicFolder}/metadata.json`, metadataContent);
 
       // Create object layer from PNG saved and metadata
       const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
@@ -36,6 +99,8 @@ const ObjectLayerService = {
           render: {
             frame_duration: req.body.data.render.frame_duration,
             is_stateless: req.body.data.render.is_stateless,
+            frames: {},
+            colors: [],
           },
           item: req.body.data.item,
           stats: req.body.data.stats,
@@ -92,6 +157,26 @@ const ObjectLayerService = {
   get: async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+
+    // GET /render/:id - Get only render data for specific object layer
+    if (req.path.startsWith('/render/')) {
+      const objectLayer = await ObjectLayer.findById(req.params.id).select(ObjectLayerDto.select.getRender());
+      if (!objectLayer) {
+        throw new Error('ObjectLayer not found');
+      }
+      return objectLayer;
+    }
+
+    // GET /metadata/:id - Get only metadata (no render frames/colors) for specific object layer
+    if (req.path.startsWith('/metadata/')) {
+      const objectLayer = await ObjectLayer.findById(req.params.id).select(ObjectLayerDto.select.getMetadata());
+      if (!objectLayer) {
+        throw new Error('ObjectLayer not found');
+      }
+      return objectLayer;
+    }
+
+    // GET / - Get paginated list of object layers
     const { page = 1, limit = 10, sort = { updatedAt: -1 } } = req.query;
     const skip = (page - 1) * limit;
 
@@ -108,7 +193,164 @@ const ObjectLayerService = {
   put: async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
-    return await ObjectLayer.findByIdAndUpdate(req.params.id, req.body);
+
+    // PUT /:id/frame-image/:itemType/:itemId/:directionCode - Update frame images for specific direction
+    if (req.path.includes('/frame-image/')) {
+      const objectLayerId = req.params.id;
+      const itemType = req.params.itemType;
+      const itemId = req.params.itemId;
+      const directionCode = req.params.directionCode;
+
+      // Debug: Log request files structure
+      logger.info(`Request files for direction ${directionCode}:`, {
+        filesKeys: req.files ? Object.keys(req.files) : [],
+        filesCount: req.files ? Object.keys(req.files).length : 0,
+      });
+
+      // Extract all frames for this direction
+      const files = FileFactory.filesExtract(req);
+
+      // Validate files
+      if (!files || files.length === 0) {
+        logger.error(`No files received for direction ${directionCode}`);
+        throw new Error(`No files received for direction ${directionCode}`);
+      }
+
+      // Validate each file has data
+      for (let i = 0; i < files.length; i++) {
+        if (!files[i].data) {
+          logger.error(`File ${files[i].name || i} has no data for direction ${directionCode}`);
+          throw new Error(`File ${files[i].name || i} has no data`);
+        }
+        if (!Buffer.isBuffer(files[i].data)) {
+          logger.error(`File ${files[i].name || i} data is not a Buffer for direction ${directionCode}`);
+          throw new Error(`File ${files[i].name || i} data is not a Buffer`);
+        }
+      }
+
+      logger.info(
+        `Processing ${files.length} file(s) for direction ${directionCode}: ${files.map((f) => f.name).join(', ')}`,
+      );
+
+      // Always clear and rewrite ALL frames for this direction code
+      for (const basePath of ['./src/client/public/cyberia/', `./public/${options.host}${options.path}`]) {
+        const folder = `${basePath}assets/${itemType}/${itemId}/${directionCode}`;
+
+        // Always remove entire direction folder to ensure clean state
+        if (fs.existsSync(folder)) {
+          await fs.remove(folder);
+          logger.info(`Cleared folder: ${folder}`);
+        }
+
+        // Create fresh folder
+        fs.mkdirSync(folder, { recursive: true });
+
+        // Write all frames sent in this request
+        for (const file of files) {
+          const filePath = `${folder}/${file.name}`;
+          try {
+            fs.writeFileSync(filePath, file.data);
+            logger.info(`Wrote file: ${filePath}`);
+          } catch (error) {
+            logger.error(`Error writing file ${filePath}:`, error);
+            throw new Error(`Failed to write ${file.name}: ${error.message}`);
+          }
+        }
+      }
+
+      logger.info(
+        `Successfully wrote ${files.length} frame(s) for direction ${directionCode} in object layer ${objectLayerId}`,
+      );
+
+      return { success: true, directionCode, frameCount: files.length };
+    }
+
+    // PUT /:id/metadata/:itemType/:itemId - Update object layer metadata and reprocess all frames
+    if (req.path.includes('/metadata/')) {
+      const objectLayerId = req.params.id;
+      const itemType = req.params.itemType;
+      const itemId = req.params.itemId;
+
+      const folder = `./src/client/public/cyberia/assets/${itemType}/${itemId}`;
+      const publicFolder = `./public/${options.host}${options.path}/assets/${itemType}/${itemId}`;
+
+      // Ensure both folders exist
+      if (!fs.existsSync(folder)) {
+        fs.mkdirSync(folder, { recursive: true });
+      }
+      if (!fs.existsSync(publicFolder)) {
+        fs.mkdirSync(publicFolder, { recursive: true });
+      }
+
+      // Write metadata.json to both locations
+      const metadataContent = JSON.stringify(req.body);
+      fs.writeFileSync(`${folder}/metadata.json`, metadataContent);
+      fs.writeFileSync(`${publicFolder}/metadata.json`, metadataContent);
+
+      const objectLayerData = {
+        data: {
+          render: {
+            frame_duration: req.body.data.render.frame_duration,
+            is_stateless: req.body.data.render.is_stateless,
+            frames: {},
+            colors: [],
+          },
+          item: req.body.data.item,
+          stats: req.body.data.stats,
+        },
+      };
+
+      // Process all PNG files from direction folders (uploaded via /frame-image/)
+      const directionFolders = await fs.readdir(folder);
+      for (const directionCode of directionFolders) {
+        const directionPath = `${folder}/${directionCode}`;
+
+        // Skip non-directories (like metadata.json)
+        try {
+          const stat = await fs.stat(directionPath);
+          if (!stat.isDirectory()) continue;
+        } catch (error) {
+          logger.warn(`Skipping ${directionCode}: ${error.message}`);
+          continue;
+        }
+
+        const frameFiles = await fs.readdir(directionPath);
+        // Sort frame files numerically
+        frameFiles.sort((a, b) => {
+          const numA = parseInt(a.split('.')[0]);
+          const numB = parseInt(b.split('.')[0]);
+          return numA - numB;
+        });
+
+        for (const frameFile of frameFiles) {
+          if (!frameFile.endsWith('.png')) continue;
+
+          const framePath = `${directionPath}/${frameFile}`;
+
+          // Process image and push frame to render data with color palette management
+          await ObjectLayerEngine.processAndPushFrame(objectLayerData.data.render, framePath, directionCode);
+        }
+      }
+
+      // Generate SHA256 hash
+      objectLayerData.sha256 = crypto.createHash('sha256').update(JSON.stringify(objectLayerData.data)).digest('hex');
+
+      // Update MongoDB
+      try {
+        const updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(objectLayerId, objectLayerData, { new: true });
+        if (!updatedObjectLayer) {
+          throw new Error('ObjectLayer not found for update');
+        }
+        logger.info(`ObjectLayer updated successfully with id: ${objectLayerId}`);
+        return updatedObjectLayer;
+      } catch (error) {
+        logger.error('Error updating ObjectLayer:', error);
+        throw error;
+      }
+    }
+
+    // PUT /:id - Standard update
+    return await ObjectLayer.findByIdAndUpdate(req.params.id, req.body, { new: true });
   },
   delete: async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */

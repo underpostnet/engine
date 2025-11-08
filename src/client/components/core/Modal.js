@@ -2038,7 +2038,10 @@ const Modal = {
       setTopModal();
       this.Data[idModal].onClickListener[`${idModal}-z-index`] = () => {
         if (s(`.${idModal}`) && s(`.${idModal}`).style.zIndex === '3') {
-          if (this.Data[idModal].options.route) setPath(`${getProxyPath()}${this.Data[idModal].options.route}`);
+          if (this.Data[idModal].options.route)
+            setPath(
+              `${getProxyPath()}${this.Data[idModal].options.route}${location.search ?? ''}${location.hash ?? ''}`,
+            );
           cleanTopModal();
           setTopModal();
         }

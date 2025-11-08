@@ -33,13 +33,13 @@ const ObjectLayerManagement = {
         })}`;
 
         setTimeout(() => {
-          s(`.btn-edit-object-layer-${data._id}`).onclick = async () => {
-            if (s(`.modal-object-layer-engine`)) await ObjectLayerEngineModal.Reload();
-            else s(`.main-btn-object-layer-engine`).click();
-            setTimeout(() => {
-              setPath(`${getProxyPath()}?cid=${data._id}`);
-            });
-          };
+          if (s(`.btn-edit-object-layer-${data._id}`))
+            s(`.btn-edit-object-layer-${data._id}`).onclick = async () =>
+              setTimeout(async () => {
+                setPath(`${getProxyPath()}object-layer-engine?cid=${data._id}`);
+                if (s(`.modal-object-layer-engine`)) await ObjectLayerEngineModal.Reload();
+                else s(`.main-btn-object-layer-engine`).click();
+              });
         });
       }
 

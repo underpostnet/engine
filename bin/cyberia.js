@@ -50,7 +50,7 @@ program
   .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
   .option('--mongo-host <mongo-host>', 'Mongo host override')
   .action(async (options = { import: false, showFrame: '', envPath: '', mongoHost: '' }) => {
-    if (!options.envPath) options.envPath = `./env`;
+    if (!options.envPath) options.envPath = `./.env`;
     dotenv.config({ path: options.envPath, override: true });
 
     const deployId = process.env.DEFAULT_DEPLOY_ID;
@@ -64,6 +64,7 @@ program
     db.host = options.mongoHost ? options.mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
     logger.info('env', {
+      env: options.envPath,
       deployId,
       host,
       path,
