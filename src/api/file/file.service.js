@@ -7,9 +7,35 @@ const logger = loggerFactory(import.meta);
 const FileFactory = {
   filesExtract: (req) => {
     const files = [];
-    if (Array.isArray(req.files.file)) for (const file of req.files.file) files.push(file);
-    else if (Object.keys(req.files).length > 0)
-      for (const keyFile of Object.keys(req.files)) files.push(req.files[keyFile]);
+    if (!req.files || Object.keys(req.files).length === 0) {
+      return files;
+    }
+
+    // Handle standard 'file' field
+    if (Array.isArray(req.files.file)) {
+      for (const file of req.files.file) files.push(file);
+    } else if (req.files.file) {
+      files.push(req.files.file);
+    }
+
+    // Handle all other fields (like direction codes)
+    for (const keyFile of Object.keys(req.files)) {
+      if (keyFile === 'file') continue; // Already handled above
+
+      const fileOrFiles = req.files[keyFile];
+      if (Array.isArray(fileOrFiles)) {
+        // Multiple files with same field name
+        for (const file of fileOrFiles) {
+          if (file && file.data) {
+            files.push(file);
+          }
+        }
+      } else if (fileOrFiles && fileOrFiles.data) {
+        // Single file
+        files.push(fileOrFiles);
+      }
+    }
+
     return files;
   },
   upload: async function (req, File) {

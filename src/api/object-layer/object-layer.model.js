@@ -182,6 +182,25 @@ const ObjectLayerDto = {
     get: () => {
       return { _id: 1, 'data.item': 1 };
     },
+    getMetadata: () => {
+      return {
+        _id: 1,
+        'data.item': 1,
+        'data.stats': 1,
+        'data.render.frame_duration': 1,
+        'data.render.is_stateless': 1,
+        sha256: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      };
+    },
+    getRender: () => {
+      return {
+        _id: 1,
+        'data.render.frames': 1,
+        'data.render.colors': 1,
+      };
+    },
   },
 };
 
