@@ -31,6 +31,9 @@ const DefaultOptions = {
     remove: true,
     reload: true,
   },
+  paginationOptions: {
+    limitOptions: [10, 20, 50, 100],
+  },
 };
 
 const columnDefFormatter = (obj, columnDefs, customFormat) => {
@@ -82,13 +85,15 @@ const DefaultManagement = {
   },
   RenderTable: async function (options = DefaultOptions) {
     if (!options) options = DefaultOptions;
-    const { serviceId, columnDefs, entity, defaultColKeyFocus, ServiceProvider, permissions } = options;
+    const { serviceId, columnDefs, entity, defaultColKeyFocus, ServiceProvider, permissions, paginationOptions } =
+      options;
     logger.info('DefaultManagement RenderTable', options);
     const id = options?.idModal ? options.idModal : getId(this.Tokens, `${serviceId}-`);
     const gridId = `${serviceId}-grid-${id}`;
     const queryParams = getQueryParams();
     const page = parseInt(queryParams.page) || 1;
-    const limit = parseInt(queryParams.limit) || 10;
+    const defaultLimit = paginationOptions?.limitOptions?.[0] || 10;
+    const limit = parseInt(queryParams.limit) || defaultLimit;
     this.Tokens[id] = {
       ...options,
       gridId,
@@ -387,6 +392,7 @@ const DefaultManagement = {
           id: gridId,
           parentModal: options.idModal,
           usePagination: true,
+          paginationOptions,
           customHeightOffset: !permissions.add && !permissions.remove && !permissions.reload ? 50 : 0,
           darkTheme,
           gridOptions: {

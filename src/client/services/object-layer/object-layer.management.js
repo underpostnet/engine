@@ -139,6 +139,9 @@ const ObjectLayerManagement = {
       },
       defaultColKeyFocus: 'data.item.id',
       ServiceProvider: ObjectLayerService,
+      paginationOptions: {
+        limitOptions: [10, 25, 50, 100, 200],
+      },
     });
   },
   Reload: async function () {
