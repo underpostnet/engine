@@ -118,6 +118,15 @@ const ObjectLayerManagement = {
         remove: commonUserGuard(role),
         reload: commonUserGuard(role),
       },
+      customEvent: {
+        add: async () => {
+          if (s(`.modal-object-layer-engine`))
+            setTimeout(() => {
+              ObjectLayerEngineModal.Reload();
+            });
+          s(`.main-btn-object-layer-engine`).click();
+        },
+      },
       columnDefs,
       customFormat: (obj) => {
         return {

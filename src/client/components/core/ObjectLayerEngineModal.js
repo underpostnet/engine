@@ -731,14 +731,13 @@ const ObjectLayerEngineModal = {
           width: 120px;
           padding: 0.5rem;
           font-size: 20px;
-          font-weight: bold;
-          background: #2f2f2f;
+          min-height: 50px;
         }
         .ol-btn-reset {
           width: 120px;
           padding: 0.5rem;
           font-size: 20px;
-          font-weight: bold;
+          min-height: 50px;
         }
         .ol-number-label {
           width: 120px;
@@ -911,7 +910,7 @@ const ObjectLayerEngineModal = {
 
       <div class="fl section-mp">
         ${await BtnIcon.Render({
-          label: html`<i class="submit-btn-icon fa-solid fa-save"></i> ${Translate.Render('save')}`,
+          label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i> ${Translate.Render('save')}`,
           class: `in flr ol-btn-save`,
         })}
         ${await BtnIcon.Render({

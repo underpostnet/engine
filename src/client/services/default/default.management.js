@@ -206,6 +206,8 @@ const DefaultManagement = {
         AgGrid.grids[gridId].stopEditing();
       };
       EventsUI.onClick(`.management-table-btn-add-${id}`, async () => {
+        if (options.customEvent && options.customEvent.add) return await options.customEvent.add();
+
         const rowObj = {};
         for (const def of columnDefs) {
           rowObj[def.field] = '';
