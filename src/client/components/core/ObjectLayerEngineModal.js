@@ -13,6 +13,7 @@ import { ObjectLayerService } from '../../services/object-layer/object-layer.ser
 import { NotificationManager } from './NotificationManager.js';
 import { Modal } from './Modal.js';
 import { loggerFactory } from './Logger.js';
+import { LoadingAnimation } from './LoadingAnimation.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
 
@@ -265,6 +266,22 @@ const ObjectLayerEngineModal = {
       });
     };
 
+    // Helper function to show loading animation
+    const showFrameLoading = () => {
+      LoadingAnimation.spinner.play(`.frame-editor-container-loading`, null, {
+        prepend: html`<span class="inl loading-text">Loading </span>`,
+      });
+      s(`.frame-editor-container`).classList.add('hide');
+      s(`.frame-editor-container-loading`).classList.remove('hide');
+    };
+
+    // Helper function to hide loading animation
+    const hideFrameLoading = () => {
+      LoadingAnimation.spinner.stop(`.frame-editor-container-loading`);
+      s(`.frame-editor-container-loading`).classList.add('hide');
+      s(`.frame-editor-container`).classList.remove('hide');
+    };
+
     // Helper function to process and add frame from PNG URL using ObjectLayerPngLoader
     const processAndAddFrameFromPngUrl = async (directionCode, pngUrl) => {
       // Wait for components to be available with retry logic
@@ -315,6 +332,9 @@ const ObjectLayerEngineModal = {
           // Load existing frames if data was loaded from database - chain promises to load sequentially
           frameLoadingPromise = frameLoadingPromise.then(async () => {
             if (loadedData && loadedData.metadata && loadedData.metadata.data && currentDirectionCode) {
+              // Show loading animation when starting to load frames
+              showFrameLoading();
+
               const { type, id } = loadedData.metadata.data.item;
               const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(currentDirectionCode);
 
@@ -339,6 +359,9 @@ const ObjectLayerEngineModal = {
                   break;
                 }
               }
+
+              // Hide loading animation after all frames for this direction are loaded
+              hideFrameLoading();
             }
           });
           const buttonSelector = `.direction-code-bar-frames-btn-${currentDirectionCode}`;
@@ -418,6 +441,16 @@ const ObjectLayerEngineModal = {
     }
 
     setTimeout(() => {
+      // Wait for all frame loading promises to complete before showing the editor
+      frameLoadingPromise
+        .then(() => {
+          hideFrameLoading();
+        })
+        .catch((error) => {
+          console.error('Error during frame loading:', error);
+          hideFrameLoading();
+        });
+
       EventsUI.onClick(`.ol-btn-save`, async () => {
         const requiredDirectionCodes = ['08', '02', '04', '06'];
         const missingFrames = [];
@@ -729,10 +762,21 @@ const ObjectLayerEngineModal = {
           margin-bottom: 5px;
           max-width: 200px;
         }
+        .frame-editor-container-loading {
+          width: 100%;
+          height: 80px;
+          color: #ffcc00;
+        }
+        .loading-text {
+          top: -13px;
+          left: -10px;
+          font-family: 'retro-font';
+          font-size: 26px;
+        }
       </style>
       ${borderChar(2, 'black', ['.sub-title-modal'])}
-
-      <div class="in section-mp section-mp-border">
+      <div class="in frame-editor-container-loading"></div>
+      <div class="in section-mp section-mp-border frame-editor-container hide">
         <div class="in sub-title-modal"><i class="fa-solid fa-table-cells-large"></i> Frame editor</div>
 
         <object-layer-engine id="ole" width="${cells}" height="${cells}" pixel-size="${pixelSize}">

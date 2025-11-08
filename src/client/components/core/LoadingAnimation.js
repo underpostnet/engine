@@ -57,7 +57,7 @@ const LoadingAnimation = {
   },
   spinner: {
     getId: (id) => `spinner-progress-${id.slice(1)}`,
-    play: async function (container, spinner) {
+    play: async function (container, spinner, options = { append: '', prepend: '' }) {
       if (!s(container)) return;
       const id = this.getId(container);
 
@@ -85,7 +85,7 @@ const LoadingAnimation = {
               style,
             })}"
           >
-            ${render}
+            ${options.prepend ? options.prepend : ''} ${render} ${options.append ? options.append : ''}
           </div>
         `,
       );
