@@ -1,5 +1,6 @@
 import { darkTheme, renderChessPattern } from './Css.js';
 import { append, htmls } from './VanillaJs.js';
+import { NotificationManager } from './NotificationManager.js';
 
 class ObjectLayerEngineElement extends HTMLElement {
   constructor() {
@@ -1332,7 +1333,10 @@ class ObjectLayerPngLoader extends HTMLElement {
   }
 
   _showError(msg) {
-    alert(msg);
+    NotificationManager.Push({
+      status: 'error',
+      html: msg,
+    });
   }
   _dispatchLoadedEvent(filename) {
     this.dispatchEvent(new CustomEvent('pngloaded', { detail: { filename } }));
