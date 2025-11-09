@@ -162,6 +162,47 @@ const ObjectLayerService = {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
 
+    // GET /frame-counts/:id - Get frame counts for each direction using numeric codes
+    if (req.path.startsWith('/frame-counts/')) {
+      const objectLayer = await ObjectLayer.findById(req.params.id).select(ObjectLayerDto.select.getMetadata());
+      if (!objectLayer) {
+        throw new Error('ObjectLayer not found');
+      }
+
+      const itemType = objectLayer.data.item.type;
+      const itemId = objectLayer.data.item.id;
+      const frameCounts = {};
+
+      // Define numeric direction codes (as used in file system)
+      const numericDirectionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
+
+      // Check each numeric direction code folder and count PNG files
+      for (const numericCode of numericDirectionCodes) {
+        const folder = `./src/client/public/cyberia/assets/${itemType}/${itemId}/${numericCode}`;
+
+        if (fs.existsSync(folder)) {
+          try {
+            const files = await fs.readdir(folder);
+            const pngFiles = files.filter((file) => file.endsWith('.png'));
+            frameCounts[numericCode] = pngFiles.length;
+          } catch (error) {
+            logger.warn(`Error reading folder ${folder}:`, error);
+            frameCounts[numericCode] = 0;
+          }
+        } else {
+          frameCounts[numericCode] = 0;
+        }
+      }
+
+      return {
+        _id: objectLayer._id,
+        itemType,
+        itemId,
+        frameDuration: objectLayer.data.render.frame_duration,
+        frameCounts,
+      };
+    }
+
     // GET /render/:id - Get only render data for specific object layer
     if (req.path.startsWith('/render/')) {
       const objectLayer = await ObjectLayer.findById(req.params.id).select(ObjectLayerDto.select.getRender());

@@ -114,6 +114,27 @@ const ObjectLayerService = {
         }),
     );
   },
+  getFrameCounts: (options = { id: '' }) => {
+    const url = new URL(getApiBaseUrl({ id: `frame-counts/${options.id}`, endpoint }));
+    return new Promise((resolve, reject) =>
+      fetch(url.toString(), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
+  },
   delete: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
