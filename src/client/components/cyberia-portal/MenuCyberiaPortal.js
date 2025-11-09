@@ -206,6 +206,7 @@ const MenuCyberiaPortal = {
       RouterInstance,
       heightTopBar,
       heightBottomBar,
+      searchCustomImgClass: 'cyberia-menu-icon',
     });
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {

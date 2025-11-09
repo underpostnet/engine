@@ -465,6 +465,7 @@ const Modal = {
                   >
                     ${await Input.Render({
                       id: inputSearchBoxId,
+                      autocomplete: 'off',
                       placeholder: Modal.mobileModal() ? Translate.Render('search', '.top-bar-search-box') : undefined, // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.Render('search')}`,
                       placeholderIcon: html`<div
                         class="in fll"
@@ -692,10 +693,12 @@ const Modal = {
                             });
                             const imgElement = getAllChildNodes(s(`.main-btn-${routerId}`)).find((e) => {
                               return (
-                                typeof e.src === 'string' &&
-                                e.src.match(routerId) &&
                                 e.classList &&
-                                Array.from(e.classList).find((e) => e.match('img-btn-square-menu'))
+                                Array.from(e.classList).find((e) =>
+                                  options.searchCustomImgClass
+                                    ? e.match(options.searchCustomImgClass)
+                                    : e.match('img-btn-square-menu'),
+                                )
                               );
                             });
                             if (imgElement || fontAwesomeIcon) {

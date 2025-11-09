@@ -152,6 +152,7 @@ const MenuItemledger = {
       heightTopBar,
       heightBottomBar,
       htmlMainBody: options?.htmlMainBody ? options.htmlMainBody : undefined,
+      searchCustomImgClass: 'itemledger-menu-icon',
     });
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
