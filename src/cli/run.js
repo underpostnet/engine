@@ -956,6 +956,34 @@ class UnderpostRun {
     },
 
     /**
+     * @method sh
+     * @description Enables remote control for the Kitty terminal emulator.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    sh: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(`kitty -o allow_remote_control=yes`);
+    },
+
+    /**
+     * @method log
+     * @description Searches and highlights keywords in a specified log file, optionally showing surrounding lines.
+     * @param {string} path - The input value, identifier, or path for the operation (formatted as `filePath,keywords,lines`).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    log: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const [filePath, keywords, lines] = path.split(',');
+      let result = shellExec(`grep -i -E ${lines ? `-C ${lines} ` : ''}'${keywords}' ${filePath}`, {
+        stdout: true,
+        silent: true,
+      }).replaceAll(`--`, `==============================`.green.bold);
+      for (const keyword of keywords.split('|')) result = result.replaceAll(keyword, keyword.bgYellow.black.bold);
+      console.log(result);
+    },
+
+    /**
      * @method release-cmt
      * @description Commits and pushes a new release for the `engine` repository with a message indicating the new version.
      * @param {string} path - The input value, identifier, or path for the operation.

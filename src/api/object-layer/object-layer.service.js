@@ -25,26 +25,25 @@ const ObjectLayerService = {
       // Extract all frames for this direction
       const files = FileFactory.filesExtract(req);
 
-      // Validate files
+      // Allow empty files to remove all frames from direction
       if (!files || files.length === 0) {
-        logger.error(`No files received for direction ${directionCode}`);
-        throw new Error(`No files received for direction ${directionCode}`);
-      }
-
-      // Validate each file has data
-      for (let i = 0; i < files.length; i++) {
-        if (!files[i].data) {
-          logger.error(`File ${files[i].name || i} has no data for direction ${directionCode}`);
-          throw new Error(`File ${files[i].name || i} has no data`);
-        }
-        if (!Buffer.isBuffer(files[i].data)) {
-          logger.error(`File ${files[i].name || i} data is not a Buffer for direction ${directionCode}`);
-          throw new Error(`File ${files[i].name || i} data is not a Buffer`);
+        logger.info(`No files received for direction ${directionCode} - will remove all frames from this direction`);
+      } else {
+        // Validate each file has data
+        for (let i = 0; i < files.length; i++) {
+          if (!files[i].data) {
+            logger.error(`File ${files[i].name || i} has no data for direction ${directionCode}`);
+            throw new Error(`File ${files[i].name || i} has no data`);
+          }
+          if (!Buffer.isBuffer(files[i].data)) {
+            logger.error(`File ${files[i].name || i} data is not a Buffer for direction ${directionCode}`);
+            throw new Error(`File ${files[i].name || i} data is not a Buffer`);
+          }
         }
       }
 
       logger.info(
-        `Processing ${files.length} file(s) for direction ${directionCode}: ${files.map((f) => f.name).join(', ')}`,
+        `Processing ${files?.length || 0} file(s) for direction ${directionCode}: ${files?.map((f) => f.name).join(', ') || 'none'}`,
       );
 
       // Always clear and rewrite ALL frames for this direction code
@@ -57,25 +56,30 @@ const ObjectLayerService = {
           logger.info(`Cleared folder: ${folder}`);
         }
 
-        // Create fresh folder
-        fs.mkdirSync(folder, { recursive: true });
+        // Only create and write files if we have frames to upload
+        if (files && files.length > 0) {
+          // Create fresh folder
+          fs.mkdirSync(folder, { recursive: true });
 
-        // Write all frames sent in this request
-        for (const file of files) {
-          const filePath = `${folder}/${file.name}`;
-          try {
-            fs.writeFileSync(filePath, file.data);
-            logger.info(`Wrote file: ${filePath} (${file.data.length} bytes)`);
-          } catch (error) {
-            logger.error(`Error writing file ${filePath}:`, error);
-            throw new Error(`Failed to write ${file.name}: ${error.message}`);
+          // Write all frames sent in this request
+          for (const file of files) {
+            const filePath = `${folder}/${file.name}`;
+            try {
+              fs.writeFileSync(filePath, file.data);
+              logger.info(`Wrote file: ${filePath} (${file.data.length} bytes)`);
+            } catch (error) {
+              logger.error(`Error writing file ${filePath}:`, error);
+              throw new Error(`Failed to write ${file.name}: ${error.message}`);
+            }
           }
+        } else {
+          logger.info(`No frames to write for direction ${directionCode} - folder removed`);
         }
       }
 
-      logger.info(`Successfully wrote ${files.length} frame(s) for direction ${directionCode}`);
+      logger.info(`Successfully processed ${files?.length || 0} frame(s) for direction ${directionCode}`);
 
-      return { success: true, directionCode, frameCount: files.length };
+      return { success: true, directionCode, frameCount: files?.length || 0 };
     }
 
     if (req.path.startsWith('/metadata')) {
@@ -177,7 +181,22 @@ const ObjectLayerService = {
     }
 
     // GET / - Get paginated list of object layers
-    const { page = 1, limit = 10, sort = { updatedAt: -1 } } = req.query;
+    // Validate and sanitize pagination parameters
+    const allowedLimits = [10, 25, 50, 100, 200];
+    let requestedPage = parseInt(req.query.page, 10) || 1;
+    let requestedLimit = parseInt(req.query.limit, 10) || 10;
+
+    // Validate page number
+    const page = requestedPage < 1 ? 1 : requestedPage;
+
+    // Validate limit against allowed values
+    let limit = allowedLimits.includes(requestedLimit) ? requestedLimit : 10;
+
+    // Additional safety check: limit should be between 1 and 200
+    if (limit < 1) limit = 10;
+    if (limit > 200) limit = 200;
+
+    const sort = req.query.sort || { updatedAt: -1 };
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
@@ -210,26 +229,25 @@ const ObjectLayerService = {
       // Extract all frames for this direction
       const files = FileFactory.filesExtract(req);
 
-      // Validate files
+      // Allow empty files to remove all frames from direction
       if (!files || files.length === 0) {
-        logger.error(`No files received for direction ${directionCode}`);
-        throw new Error(`No files received for direction ${directionCode}`);
-      }
-
-      // Validate each file has data
-      for (let i = 0; i < files.length; i++) {
-        if (!files[i].data) {
-          logger.error(`File ${files[i].name || i} has no data for direction ${directionCode}`);
-          throw new Error(`File ${files[i].name || i} has no data`);
-        }
-        if (!Buffer.isBuffer(files[i].data)) {
-          logger.error(`File ${files[i].name || i} data is not a Buffer for direction ${directionCode}`);
-          throw new Error(`File ${files[i].name || i} data is not a Buffer`);
+        logger.info(`No files received for direction ${directionCode} - will remove all frames from this direction`);
+      } else {
+        // Validate each file has data
+        for (let i = 0; i < files.length; i++) {
+          if (!files[i].data) {
+            logger.error(`File ${files[i].name || i} has no data for direction ${directionCode}`);
+            throw new Error(`File ${files[i].name || i} has no data`);
+          }
+          if (!Buffer.isBuffer(files[i].data)) {
+            logger.error(`File ${files[i].name || i} data is not a Buffer for direction ${directionCode}`);
+            throw new Error(`File ${files[i].name || i} data is not a Buffer`);
+          }
         }
       }
 
       logger.info(
-        `Processing ${files.length} file(s) for direction ${directionCode}: ${files.map((f) => f.name).join(', ')}`,
+        `Processing ${files?.length || 0} file(s) for direction ${directionCode}: ${files?.map((f) => f.name).join(', ') || 'none'}`,
       );
 
       // Always clear and rewrite ALL frames for this direction code
@@ -242,27 +260,32 @@ const ObjectLayerService = {
           logger.info(`Cleared folder: ${folder}`);
         }
 
-        // Create fresh folder
-        fs.mkdirSync(folder, { recursive: true });
+        // Only create and write files if we have frames to upload
+        if (files && files.length > 0) {
+          // Create fresh folder
+          fs.mkdirSync(folder, { recursive: true });
 
-        // Write all frames sent in this request
-        for (const file of files) {
-          const filePath = `${folder}/${file.name}`;
-          try {
-            fs.writeFileSync(filePath, file.data);
-            logger.info(`Wrote file: ${filePath}`);
-          } catch (error) {
-            logger.error(`Error writing file ${filePath}:`, error);
-            throw new Error(`Failed to write ${file.name}: ${error.message}`);
+          // Write all frames sent in this request
+          for (const file of files) {
+            const filePath = `${folder}/${file.name}`;
+            try {
+              fs.writeFileSync(filePath, file.data);
+              logger.info(`Wrote file: ${filePath}`);
+            } catch (error) {
+              logger.error(`Error writing file ${filePath}:`, error);
+              throw new Error(`Failed to write ${file.name}: ${error.message}`);
+            }
           }
+        } else {
+          logger.info(`No frames to write for direction ${directionCode} - folder removed`);
         }
       }
 
       logger.info(
-        `Successfully wrote ${files.length} frame(s) for direction ${directionCode} in object layer ${objectLayerId}`,
+        `Successfully processed ${files?.length || 0} frame(s) for direction ${directionCode} in object layer ${objectLayerId}`,
       );
 
-      return { success: true, directionCode, frameCount: files.length };
+      return { success: true, directionCode, frameCount: files?.length || 0 };
     }
 
     // PUT /:id/metadata/:itemType/:itemId - Update object layer metadata and reprocess all frames

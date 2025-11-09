@@ -118,6 +118,16 @@ const ObjectLayerManagement = {
         remove: commonUserGuard(role),
         reload: commonUserGuard(role),
       },
+      customEvent: {
+        add: async () => {
+          setPath(`${getProxyPath()}object-layer-engine`);
+          if (s(`.modal-object-layer-engine`))
+            setTimeout(() => {
+              ObjectLayerEngineModal.Reload();
+            });
+          s(`.main-btn-object-layer-engine`).click();
+        },
+      },
       columnDefs,
       customFormat: (obj) => {
         return {
@@ -130,6 +140,9 @@ const ObjectLayerManagement = {
       },
       defaultColKeyFocus: 'data.item.id',
       ServiceProvider: ObjectLayerService,
+      paginationOptions: {
+        limitOptions: [10, 25, 50, 100, 200],
+      },
     });
   },
   Reload: async function () {

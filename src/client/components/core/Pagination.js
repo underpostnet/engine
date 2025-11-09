@@ -10,12 +10,13 @@ class AgPagination extends HTMLElement {
     this._limit = parseInt(queryParams.limit, 10) || 10;
     this._totalPages = 1;
     this._totalItems = 0;
+    this._limitOptions = [10, 20, 50, 100]; // Default options
     this.handlePageChange = this.handlePageChange.bind(this);
     this.handleLimitChange = this.handleLimitChange.bind(this);
   }
 
   static get observedAttributes() {
-    return ['grid-id', 'current-page', 'total-pages', 'total-items', 'limit'];
+    return ['grid-id', 'current-page', 'total-pages', 'total-items', 'limit', 'limit-options'];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -34,6 +35,16 @@ class AgPagination extends HTMLElement {
         break;
       case 'limit':
         this._limit = parseInt(newValue, 10) || this._limit;
+        break;
+      case 'limit-options':
+        try {
+          const parsed = JSON.parse(newValue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            this._limitOptions = parsed.map((v) => parseInt(v, 10)).filter((v) => !isNaN(v) && v > 0);
+          }
+        } catch (e) {
+          console.warn('Invalid limit-options format, using defaults');
+        }
         break;
     }
     this.update();
@@ -133,6 +144,8 @@ class AgPagination extends HTMLElement {
   }
 
   render() {
+    const limitOptionsHtml = this._limitOptions.map((value) => `<option value="${value}">${value}</option>`).join('');
+
     this.shadowRoot.innerHTML = html`
       <style>
         :host {
@@ -193,10 +206,7 @@ class AgPagination extends HTMLElement {
       <button id="next-page">Next</button>
       <button id="last-page">Last</button>
       <select id="limit-selector">
-        <option value="10">10</option>
-        <option value="20">20</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
+        ${limitOptionsHtml}
       </select>
     `;
   }

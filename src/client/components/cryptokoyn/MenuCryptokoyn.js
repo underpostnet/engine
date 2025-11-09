@@ -155,6 +155,7 @@ const MenuCryptokoyn = {
       heightTopBar,
       heightBottomBar,
       htmlMainBody: html``,
+      searchCustomImgClass: 'cryptokoyn-menu-icon',
     });
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {

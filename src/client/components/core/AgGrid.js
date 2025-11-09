@@ -11,7 +11,7 @@ const AgGrid = {
   grids: {},
   theme: `ag-theme-alpine`, // quartz
   Render: async function (options) {
-    let { id } = options;
+    let { id, paginationOptions } = options;
     setTimeout(() => {
       // Grid Options: Contains all of the grid configurations
       const gridOptions = {
@@ -72,6 +72,9 @@ const AgGrid = {
       }
     });
     const usePagination = options?.usePagination;
+    const limitOptionsAttr = paginationOptions?.limitOptions
+      ? `limit-options='${JSON.stringify(paginationOptions.limitOptions)}'`
+      : '';
     return html`
       <div
         class="${id} ${this.theme}${options?.darkTheme ? `-dark` : ''}"
@@ -79,7 +82,7 @@ const AgGrid = {
           ? Object.keys(options.style).map((styleKey) => `${styleKey}: ${options.style[styleKey]}; `)
           : ''}"
       ></div>
-      ${usePagination ? `<ag-pagination id="ag-pagination-${id}"></ag-pagination>` : ''}
+      ${usePagination ? `<ag-pagination id="ag-pagination-${id}" ${limitOptionsAttr}></ag-pagination>` : ''}
     `;
   },
   RenderStyle: async function (

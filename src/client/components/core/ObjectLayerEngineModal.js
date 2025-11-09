@@ -176,6 +176,7 @@ const ObjectLayerEngineModal = {
     const queryParams = getQueryParams();
     let loadedData = null;
     let existingObjectLayerId = null; // Track the _id for updates
+    let originalDirectionCodes = []; // Track original direction codes for update mode
     if (queryParams.cid) {
       existingObjectLayerId = queryParams.cid;
       loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.cid);
@@ -268,8 +269,10 @@ const ObjectLayerEngineModal = {
 
     // Helper function to show loading animation
     const showFrameLoading = () => {
-      LoadingAnimation.spinner.play(`.frame-editor-container-loading`, null, {
-        prepend: html`<span class="inl loading-text">Loading </span>`,
+      if (!s(`.frame-editor-container`) || s(`.frame-editor-container`).classList.contains('hide')) return;
+      LoadingAnimation.spinner.play(`.frame-editor-container-loading`, 'dual-ring-mini', {
+        prepend: html`<span class="inl loading-text">Loading </span><br /><br /> ` + '<div style="color: gray;">',
+        append: '</div>',
       });
       s(`.frame-editor-container`).classList.add('hide');
       s(`.frame-editor-container-loading`).classList.remove('hide');
@@ -277,6 +280,8 @@ const ObjectLayerEngineModal = {
 
     // Helper function to hide loading animation
     const hideFrameLoading = () => {
+      if (!s(`.frame-editor-container-loading`) || s(`.frame-editor-container-loading`).classList.contains('hide'))
+        return;
       LoadingAnimation.spinner.stop(`.frame-editor-container-loading`);
       s(`.frame-editor-container-loading`).classList.add('hide');
       s(`.frame-editor-container`).classList.remove('hide');
@@ -319,79 +324,7 @@ const ObjectLayerEngineModal = {
       }
     };
 
-    // Create a promise chain to load frames sequentially for each direction code
-    let frameLoadingPromise = Promise.resolve();
-
-    // Now loop through direction codes for frame loading and button handlers
     for (const directionCode of directionCodes) {
-      // Use IIFE to properly capture directionCode and handle async operations
-      (async (currentDirectionCode) => {
-        // Register frame add button handler after DOM is ready
-        // Wait longer to ensure all direction bars are rendered
-        setTimeout(async () => {
-          // Load existing frames if data was loaded from database - chain promises to load sequentially
-          frameLoadingPromise = frameLoadingPromise.then(async () => {
-            if (loadedData && loadedData.metadata && loadedData.metadata.data && currentDirectionCode) {
-              // Show loading animation when starting to load frames
-              showFrameLoading();
-
-              const { type, id } = loadedData.metadata.data.item;
-              const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(currentDirectionCode);
-
-              console.log(`Loading frames for direction code: ${currentDirectionCode}, directions:`, directions);
-
-              // Check if frames exist for any direction mapped to this direction code
-              const { frames } = loadedData.renderData.data.render;
-              for (const direction of directions) {
-                if (frames[direction] && frames[direction].length > 0) {
-                  // Load frames from static PNG URLs sequentially to avoid race conditions
-                  const frameCount = frames[direction].length;
-                  console.log(`Found ${frameCount} frames for direction: ${direction} (code: ${currentDirectionCode})`);
-                  for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
-                    const pngUrl = `${getProxyPath()}assets/${type}/${id}/${currentDirectionCode}/${frameIndex}.png`;
-                    console.log(
-                      `Loading frame ${frameIndex} for direction code ${currentDirectionCode} from: ${pngUrl}`,
-                    );
-                    await processAndAddFrameFromPngUrl(currentDirectionCode, pngUrl);
-                  }
-                  console.log(`Completed loading ${frameCount} frames for direction code: ${currentDirectionCode}`);
-                  // Once we found frames for this direction code, we can break to avoid duplicates
-                  break;
-                }
-              }
-
-              // Hide loading animation after all frames for this direction are loaded
-              hideFrameLoading();
-            }
-          });
-          const buttonSelector = `.direction-code-bar-frames-btn-${currentDirectionCode}`;
-          console.log(`Registering click handler for: ${buttonSelector}`);
-
-          EventsUI.onClick(buttonSelector, async () => {
-            console.log(`Add frame button clicked for direction: ${currentDirectionCode}`);
-            const ole = s('object-layer-engine');
-            if (!ole) {
-              console.error('object-layer-engine not found');
-              return;
-            }
-            const image = await ole.toBlob();
-            const json = ole.exportMatrixJSON();
-            const id = `frame-capture-${s4()}-${s4()}`;
-            console.log(`Creating new frame ${id} for direction ${currentDirectionCode}`);
-
-            if (!ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode])
-              ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode] = [];
-            ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].push({ id, image, json });
-            console.log(
-              `Stored frame ${id} in direction code ${currentDirectionCode}. Total frames:`,
-              ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].length,
-            );
-
-            await addFrameToBar(currentDirectionCode, id, image, json);
-          });
-        });
-      })(directionCode);
-
       directionsCodeBarRender += html`
         <div class="in section-mp-border">
           <div class="fl">
@@ -440,38 +373,76 @@ const ObjectLayerEngineModal = {
       `;
     }
 
-    setTimeout(() => {
-      // Wait for all frame loading promises to complete before showing the editor
-      frameLoadingPromise
-        .then(() => {
-          hideFrameLoading();
-        })
-        .catch((error) => {
-          console.error('Error during frame loading:', error);
-          hideFrameLoading();
-        });
+    setTimeout(async () => {
+      showFrameLoading();
+      for (const directionCode of directionCodes) {
+        // Use IIFE to properly capture directionCode and handle async operations
+        await (async (currentDirectionCode) => {
+          // Register frame add button handler after DOM is ready
+          // Wait longer to ensure all direction bars are rendered
+
+          if (loadedData && loadedData.metadata && loadedData.metadata.data && currentDirectionCode) {
+            // Show loading animation only once on first direction that has frames
+
+            const { type, id } = loadedData.metadata.data.item;
+            const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(currentDirectionCode);
+
+            console.log(`Loading frames for direction code: ${currentDirectionCode}, directions:`, directions);
+
+            // Check if frames exist for any direction mapped to this direction code
+            const { frames } = loadedData.renderData.data.render;
+            for (const direction of directions) {
+              if (frames[direction] && frames[direction].length > 0) {
+                // Track this direction code as having original data
+                if (!originalDirectionCodes.includes(currentDirectionCode)) {
+                  originalDirectionCodes.push(currentDirectionCode);
+                }
+                // Load frames from static PNG URLs sequentially to avoid race conditions
+                const frameCount = frames[direction].length;
+                console.log(`Found ${frameCount} frames for direction: ${direction} (code: ${currentDirectionCode})`);
+                for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+                  const pngUrl = `${getProxyPath()}assets/${type}/${id}/${currentDirectionCode}/${frameIndex}.png`;
+                  console.log(`Loading frame ${frameIndex} for direction code ${currentDirectionCode} from: ${pngUrl}`);
+                  await processAndAddFrameFromPngUrl(currentDirectionCode, pngUrl);
+                }
+                console.log(`Completed loading ${frameCount} frames for direction code: ${currentDirectionCode}`);
+                // Once we found frames for this direction code, we can break to avoid duplicates
+                break;
+              }
+            }
+          }
+
+          const buttonSelector = `.direction-code-bar-frames-btn-${currentDirectionCode}`;
+          console.log(`Registering click handler for: ${buttonSelector}`);
+
+          EventsUI.onClick(buttonSelector, async () => {
+            console.log(`Add frame button clicked for direction: ${currentDirectionCode}`);
+            const ole = s('object-layer-engine');
+            if (!ole) {
+              console.error('object-layer-engine not found');
+              return;
+            }
+            const image = await ole.toBlob();
+            const json = ole.exportMatrixJSON();
+            const id = `frame-capture-${s4()}-${s4()}`;
+            console.log(`Creating new frame ${id} for direction ${currentDirectionCode}`);
+
+            if (!ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode])
+              ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode] = [];
+            ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].push({ id, image, json });
+            console.log(
+              `Stored frame ${id} in direction code ${currentDirectionCode}. Total frames:`,
+              ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].length,
+            );
+
+            await addFrameToBar(currentDirectionCode, id, image, json);
+          });
+        })(directionCode);
+      }
+      hideFrameLoading();
+      s('object-layer-engine').clear();
 
       EventsUI.onClick(`.ol-btn-save`, async () => {
-        const requiredDirectionCodes = ['08', '02', '04', '06'];
-        const missingFrames = [];
-
-        for (const directionCode of requiredDirectionCodes) {
-          if (
-            !ObjectLayerEngineModal.ObjectLayerData[directionCode] ||
-            ObjectLayerEngineModal.ObjectLayerData[directionCode].length === 0
-          ) {
-            missingFrames.push(directionCode);
-          }
-        }
-
-        if (missingFrames.length > 0) {
-          NotificationManager.Push({
-            html: `At least one frame must exist for directions: ${missingFrames.join(', ')}`,
-            status: 'error',
-          });
-          return;
-        }
-
         // Validate minimum frame_duration 100ms
         const frameDuration = parseInt(s(`.ol-input-render-frame-duration`).value);
         if (!frameDuration || frameDuration < 100) {
@@ -573,15 +544,22 @@ const ObjectLayerEngineModal = {
 
         // Upload images
         {
+          // Get all direction codes that currently have frames
           const directionCodesToUpload = Object.keys(ObjectLayerEngineModal.ObjectLayerData);
+
+          // In UPDATE mode, also include original direction codes that may have been cleared
+          const allDirectionCodes = existingObjectLayerId
+            ? [...new Set([...directionCodesToUpload, ...originalDirectionCodes])]
+            : directionCodesToUpload;
+
           console.warn(
-            `Uploading frames for ${directionCodesToUpload.length} directions:`,
-            directionCodesToUpload,
+            `Uploading frames for ${allDirectionCodes.length} directions:`,
+            allDirectionCodes,
             existingObjectLayerId ? '(UPDATE MODE)' : '(CREATE MODE)',
           );
 
-          for (const directionCode of directionCodesToUpload) {
-            const frames = ObjectLayerEngineModal.ObjectLayerData[directionCode];
+          for (const directionCode of allDirectionCodes) {
+            const frames = ObjectLayerEngineModal.ObjectLayerData[directionCode] || [];
             console.warn(`Direction ${directionCode}: ${frames.length} frames`);
 
             // Create FormData with ALL frames for this direction
@@ -600,7 +578,7 @@ const ObjectLayerEngineModal = {
               form.append(directionCode, pngBlob, `${frameIndex}.png`);
             }
 
-            // Send all frames for this direction in one request
+            // Send all frames for this direction in one request (even if empty, to remove frames)
             try {
               if (existingObjectLayerId) {
                 // UPDATE: use PUT endpoint with object layer ID
@@ -611,13 +589,15 @@ const ObjectLayerEngineModal = {
                 });
                 console.warn(`Updated ${frames.length} frames for direction ${directionCode}`);
               } else {
-                // CREATE: use POST endpoint
-                const { status, data } = await ObjectLayerService.post({
-                  id: `frame-image/${objectLayer.data.item.type}/${objectLayer.data.item.id}/${directionCode}`,
-                  body: form,
-                  headerId: 'file',
-                });
-                console.warn(`Created ${frames.length} frames for direction ${directionCode}`);
+                // CREATE: use POST endpoint (only if frames exist)
+                if (frames.length > 0) {
+                  const { status, data } = await ObjectLayerService.post({
+                    id: `frame-image/${objectLayer.data.item.type}/${objectLayer.data.item.id}/${directionCode}`,
+                    body: form,
+                    headerId: 'file',
+                  });
+                  console.warn(`Created ${frames.length} frames for direction ${directionCode}`);
+                }
               }
             } catch (error) {
               console.error(`Error uploading frames for direction ${directionCode}:`, error);
@@ -731,14 +711,13 @@ const ObjectLayerEngineModal = {
           width: 120px;
           padding: 0.5rem;
           font-size: 20px;
-          font-weight: bold;
-          background: #2f2f2f;
+          min-height: 50px;
         }
         .ol-btn-reset {
           width: 120px;
           padding: 0.5rem;
           font-size: 20px;
-          font-weight: bold;
+          min-height: 50px;
         }
         .ol-number-label {
           width: 120px;
@@ -764,19 +743,19 @@ const ObjectLayerEngineModal = {
         }
         .frame-editor-container-loading {
           width: 100%;
-          height: 80px;
+          height: 150px;
           color: #ffcc00;
         }
         .loading-text {
-          top: -13px;
-          left: -10px;
           font-family: 'retro-font';
           font-size: 26px;
         }
       </style>
-      ${borderChar(2, 'black', ['.sub-title-modal'])}
-      <div class="in frame-editor-container-loading"></div>
-      <div class="in section-mp section-mp-border frame-editor-container hide">
+      ${borderChar(2, 'black', ['.sub-title-modal', '.frame-editor-container-loading'])}
+      <div class="in frame-editor-container-loading">
+        <div class="abs center frame-editor-container-loading-center"></div>
+      </div>
+      <div class="in section-mp section-mp-border frame-editor-container">
         <div class="in sub-title-modal"><i class="fa-solid fa-table-cells-large"></i> Frame editor</div>
 
         <object-layer-engine id="ole" width="${cells}" height="${cells}" pixel-size="${pixelSize}">
@@ -911,7 +890,7 @@ const ObjectLayerEngineModal = {
 
       <div class="fl section-mp">
         ${await BtnIcon.Render({
-          label: html`<i class="submit-btn-icon fa-solid fa-save"></i> ${Translate.Render('save')}`,
+          label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i> ${Translate.Render('save')}`,
           class: `in flr ol-btn-save`,
         })}
         ${await BtnIcon.Render({
