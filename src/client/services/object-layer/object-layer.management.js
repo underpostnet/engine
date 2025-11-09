@@ -1,8 +1,9 @@
 import { DefaultManagement } from '../default/default.management.js';
 import { ObjectLayerService } from './object-layer.service.js';
 import { commonUserGuard } from '../../components/core/CommonJs.js';
-import { getProxyPath, setPath } from '../../components/core/Router.js';
+import { getProxyPath, setPath, setQueryParams } from '../../components/core/Router.js';
 import { ObjectLayerEngineModal } from '../../components/core/ObjectLayerEngineModal.js';
+import { ObjectLayerEngineViewer } from '../../components/core/ObjectLayerEngineViewer.js';
 import { s } from '../../components/core/VanillaJs.js';
 import { Modal } from '../../components/core/Modal.js';
 import { BtnIcon } from '../../components/core/BtnIcon.js';
@@ -11,6 +12,51 @@ const ObjectLayerManagement = {
   RenderTable: async ({ Elements }) => {
     const user = Elements.Data.user.main.model.user;
     const { role } = user;
+
+    // Custom renderer for view button
+    class ViewButtonRenderer {
+      eGui;
+
+      async init(params) {
+        this.eGui = document.createElement('div');
+        const { data } = params;
+
+        if (!data || !data._id) {
+          this.eGui.innerHTML = '';
+          return;
+        }
+
+        this.eGui.innerHTML = html` ${await BtnIcon.Render({
+          label: html`<div class="abs center">
+            <i class="fas fa-eye"></i>
+          </div> `,
+          class: `in fll section-mp management-table-btn-mini btn-view-object-layer-${data._id}`,
+        })}`;
+
+        setTimeout(() => {
+          if (s(`.btn-view-object-layer-${data._id}`))
+            s(`.btn-view-object-layer-${data._id}`).onclick = async () =>
+              setTimeout(async () => {
+                // Navigate to viewer route first
+                setPath(`${getProxyPath()}object-layer-engine-viewer`);
+                // Then add query param without replacing history
+                setQueryParams({ cid: data._id }, { replace: false });
+                if (s(`.modal-object-layer-engine-viewer`)) {
+                  await ObjectLayerEngineViewer.Reload();
+                }
+                s(`.main-btn-object-layer-engine-viewer`).click();
+              });
+        });
+      }
+
+      getGui() {
+        return this.eGui;
+      }
+
+      refresh(params) {
+        return true;
+      }
+    }
 
     // Custom renderer for edit button
     class EditButtonRenderer {
@@ -36,7 +82,10 @@ const ObjectLayerManagement = {
           if (s(`.btn-edit-object-layer-${data._id}`))
             s(`.btn-edit-object-layer-${data._id}`).onclick = async () =>
               setTimeout(async () => {
-                setPath(`${getProxyPath()}object-layer-engine?cid=${data._id}`);
+                // Navigate to editor route first
+                setPath(`${getProxyPath()}object-layer-engine`);
+                // Then add query param without replacing history
+                setQueryParams({ cid: data._id }, { replace: false });
                 if (s(`.modal-object-layer-engine`)) await ObjectLayerEngineModal.Reload();
                 else s(`.main-btn-object-layer-engine`).click();
               });
@@ -104,15 +153,26 @@ const ObjectLayerManagement = {
     ];
 
     if (commonUserGuard(role)) {
-      columnDefs.push({
-        field: 'edit',
-        headerName: '',
-        width: 100,
-        cellRenderer: EditButtonRenderer,
-        editable: false,
-        sortable: false,
-        filter: false,
-      });
+      columnDefs.push(
+        {
+          field: 'view',
+          headerName: '',
+          width: 100,
+          cellRenderer: ViewButtonRenderer,
+          editable: false,
+          sortable: false,
+          filter: false,
+        },
+        {
+          field: 'edit',
+          headerName: '',
+          width: 100,
+          cellRenderer: EditButtonRenderer,
+          editable: false,
+          sortable: false,
+          filter: false,
+        },
+      );
     }
     return await DefaultManagement.RenderTable({
       idModal: 'modal-object-layer-engine-management',
@@ -125,6 +185,7 @@ const ObjectLayerManagement = {
       },
       customEvent: {
         add: async () => {
+          // Navigate to editor route for new object (no query params)
           setPath(`${getProxyPath()}object-layer-engine`);
           if (s(`.modal-object-layer-engine`))
             setTimeout(() => {

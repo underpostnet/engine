@@ -4,7 +4,7 @@ import { ObjectLayerService } from '../../services/object-layer/object-layer.ser
 import { NotificationManager } from './NotificationManager.js';
 import { htmls, s } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
-import { darkTheme } from './Css.js';
+import { darkTheme, ThemeEvents } from './Css.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -179,7 +179,13 @@ const ObjectLayerEngineViewer = {
 
     const itemType = objectLayer.data.item.type;
     const itemId = objectLayer.data.item.id;
+    const itemDescription = objectLayer.data.item.description || '';
+    const itemActivable = objectLayer.data.item.activable || false;
     const frameDuration = objectLayer.data.render.frame_duration || 100;
+    const isStateless = objectLayer.data.render.is_stateless || false;
+
+    // Get stats data
+    const stats = objectLayer.data.stats || {};
 
     // Helper function to check if direction/mode has frames
     const hasFrames = (direction, mode) => {
@@ -192,15 +198,16 @@ const ObjectLayerEngineViewer = {
       const numericCode = this.getDirectionCode(direction, mode);
       return numericCode ? frameCounts[numericCode] || 0 : 0;
     };
-
-    htmls(
-      `#${id}`,
-      html`
-        <style>
+    ThemeEvents[id] = () => {
+      if (!s(`.style-${id}`)) return;
+      htmls(
+        `.style-${id}`,
+        html` <style>
           .object-layer-viewer-container {
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
+            font-family: 'retro-font';
           }
 
           .viewer-header {
@@ -213,11 +220,6 @@ const ObjectLayerEngineViewer = {
           .viewer-header h2 {
             margin: 0 0 10px 0;
             color: ${darkTheme ? '#fff' : '#333'};
-          }
-
-          .viewer-header .item-info {
-            color: ${darkTheme ? '#aaa' : '#666'};
-            font-size: 14px;
           }
 
           .gif-display-area {
@@ -319,7 +321,7 @@ const ObjectLayerEngineViewer = {
           .control-group h4 {
             margin: 0 0 15px 0;
             color: ${darkTheme ? '#fff' : '#333'};
-            font-size: 14px;
+            font-size: 20px;
             text-transform: uppercase;
             letter-spacing: 1px;
           }
@@ -440,17 +442,65 @@ const ObjectLayerEngineViewer = {
               min-width: 100%;
             }
           }
-        </style>
+          .item-data-key-label {
+            font-size: 16px;
+            color: ${darkTheme ? '#aaa' : '#666'};
+            text-transform: uppercase;
+          }
+          .item-data-value-label {
+            font-size: 20px;
+            font-weight: 700;
+            color: ${darkTheme ? '#4a9eff' : '#2196F3'};
+          }
+          .item-stat-entry {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 12px;
+            background: ${darkTheme ? '#1a1a1a' : '#f9f9f9'};
+            border-radius: 6px;
+            border: 1px solid ${darkTheme ? '#333' : '#e0e0e0'};
+          }
+          .no-data-container {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: ${darkTheme ? '#666' : '#999'};
+            padding: 20px;
+          }
+        </style>`,
+      );
+    };
+    htmls(
+      `#${id}`,
+      html`
+        <div class="hide style-${id}"></div>
 
         <div class="object-layer-viewer-container">
-          <div class="viewer-header">
-            <h2>${objectLayer.data.item.id}</h2>
-            <div class="item-info">
-              Type: <strong>${itemType}</strong> | Frame Duration: <strong>${frameDuration}ms</strong>
+          <!-- Item Data Section -->
+          <div class="control-group" style="margin-bottom: 20px;">
+            <h4><i class="fa-solid fa-cube"></i> Item Data</h4>
+            <div
+              style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; padding: 10px 0;"
+            >
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span class="item-data-key-label">Item ID</span>
+                <span style="font-weight: 600;">${itemId}</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span class="item-data-key-label">Type</span>
+                <span style="font-weight: 600;">${itemType}</span>
+              </div>
+              ${itemDescription
+                ? html`<div style="display: flex; flex-direction: column; gap: 4px;">
+                    <span class="item-data-key-label">Description</span>
+                    <span style="font-weight: 600;">${itemDescription}</span>
+                  </div>`
+                : ''}
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span class="item-data-key-label">Activable</span>
+                <span style="font-weight: 600;">${itemActivable ? 'Yes' : 'No'}</span>
+              </div>
             </div>
-            ${objectLayer.data.item.description
-              ? html`<div class="item-info" style="margin-top: 8px;">${objectLayer.data.item.description}</div>`
-              : ''}
           </div>
 
           <div class="gif-display-area">
@@ -547,7 +597,26 @@ const ObjectLayerEngineViewer = {
               </div>
             </div>
           </div>
-
+          <!-- Stats Data Section -->
+          <div class="control-group" style="margin-bottom: 20px;">
+            <h4><i class="fa-solid fa-chart-bar"></i> Stats Data</h4>
+            <div
+              style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; padding: 10px 0;"
+            >
+              ${Object.keys(stats).length > 0
+                ? Object.entries(stats)
+                    .map(
+                      ([statKey, statValue]) => html`
+                        <div class="item-stat-entry">
+                          <span class="item-data-key-label"> ${statKey} </span>
+                          <span style="item-data-value-label"> ${statValue} </span>
+                        </div>
+                      `,
+                    )
+                    .join('')
+                : html`<div class="no-data-container">No stats data available</div>`}
+            </div>
+          </div>
           <button class="download-btn" id="download-gif-btn">
             <i class="fa-solid fa-download"></i>
             <span>Download GIF</span>
@@ -555,7 +624,7 @@ const ObjectLayerEngineViewer = {
         </div>
       `,
     );
-
+    ThemeEvents[id]();
     // Attach event listeners
     this.attachEventListeners();
   },
@@ -817,7 +886,7 @@ const ObjectLayerEngineViewer = {
 
       // Handle GIF finished event
       gif.on('finished', (blob) => {
-        this.displayGif(blob, maxWidth, maxHeight);
+        this.displayGif(blob, maxWidth, maxHeight, frameDuration, frameCount);
         this.Data.gif = blob;
         this.Data.isGenerating = false;
         this.showLoading(false);
@@ -846,7 +915,7 @@ const ObjectLayerEngineViewer = {
     });
   },
 
-  displayGif: function (blob, originalWidth, originalHeight) {
+  displayGif: function (blob, originalWidth, originalHeight, frameDuration, frameCount) {
     const container = s('#gif-canvas-container');
     if (!container) return;
 
@@ -923,12 +992,15 @@ const ObjectLayerEngineViewer = {
       // Add info badge with dimensions and scale
       const infoBadge = document.createElement('div');
       infoBadge.className = 'gif-info-badge';
-      const displayW = naturalWidth * scale;
-      const displayH = naturalHeight * scale;
+      const displayW = Math.round(naturalWidth * scale);
+      const displayH = Math.round(naturalHeight * scale);
       infoBadge.innerHTML = html`
-        <span class="info-label">Size:</span>${naturalWidth}x${naturalHeight}
-        <span class="info-label" style="margin-left: 8px;">Display:</span>${displayW}x${displayH}
-        ${scale > 1 ? `<span class="info-label" style="margin-left: 8px;">Scale:</span>${scale}x` : ''}
+        <span class="info-label">Dimensions:</span> ${naturalWidth}x${naturalHeight}px<br />
+        <span class="info-label">Display:</span> ${displayW}x${displayH}px<br />
+        ${scale > 1 ? `<span class="info-label">Scale:</span> ${scale}x<br />` : ''}
+        <span class="info-label">Frames:</span> ${frameCount}<br />
+        <span class="info-label">Frame Duration:</span> ${frameDuration}ms<br />
+        <span class="info-label">Total Duration:</span> ${(frameDuration * frameCount) / 1000}s
       `;
       container.appendChild(infoBadge);
 
@@ -982,6 +1054,17 @@ const ObjectLayerEngineViewer = {
       html: `GIF downloaded: ${filename}`,
       status: 'success',
     });
+  },
+
+  Reload: async function () {
+    const queryParams = new URLSearchParams(window.location.search);
+    const cid = queryParams.get('cid');
+
+    if (cid) {
+      await this.loadObjectLayer(cid);
+    } else {
+      this.renderEmpty();
+    }
   },
 };
 
