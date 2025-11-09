@@ -122,7 +122,7 @@ const DefaultManagement = {
             label: html`<div class="abs center">
               <i class="fas fa-times"></i>
             </div> `,
-            class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${cellRenderId}`,
+            class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${cellRenderId} ${!params.data._id ? 'hide' : ''}`,
           })}`;
           setTimeout(() => {
             EventsUI.onClick(
@@ -206,6 +206,11 @@ const DefaultManagement = {
       //   }
       // }
       s(`.management-table-btn-save-${id}`).onclick = () => {
+        s(`.management-table-btn-save-${id}`).classList.add('hide');
+        // s(`.management-table-btn-stop-${id}`).classList.add('hide');
+        if (permissions.add) s(`.management-table-btn-add-${id}`).classList.remove('hide');
+        if (permissions.remove) s(`.management-table-btn-clean-${id}`).classList.remove('hide');
+        if (permissions.reload) s(`.management-table-btn-reload-${id}`).classList.remove('hide');
         AgGrid.grids[gridId].stopEditing();
       };
       EventsUI.onClick(`.management-table-btn-add-${id}`, async () => {
@@ -277,6 +282,11 @@ const DefaultManagement = {
         // }
 
         setTimeout(() => {
+          s(`.management-table-btn-save-${id}`).classList.remove('hide');
+          // s(`.management-table-btn-stop-${id}`).classList.remove('hide');
+          if (permissions.add) s(`.management-table-btn-add-${id}`).classList.add('hide');
+          if (permissions.remove) s(`.management-table-btn-clean-${id}`).classList.add('hide');
+          if (permissions.reload) s(`.management-table-btn-reload-${id}`).classList.add('hide');
           AgGrid.grids[gridId].startEditingCell({
             rowIndex: 0,
             colKey: defaultColKeyFocus,
@@ -284,6 +294,15 @@ const DefaultManagement = {
             key: key,
           });
         });
+      });
+
+      EventsUI.onClick(`.management-table-btn-stop-${id}`, async () => {
+        s(`.management-table-btn-save-${id}`).classList.add('hide');
+        // s(`.management-table-btn-stop-${id}`).classList.add('hide');
+        if (permissions.add) s(`.management-table-btn-add-${id}`).classList.remove('hide');
+        if (permissions.remove) s(`.management-table-btn-clean-${id}`).classList.remove('hide');
+        if (permissions.reload) s(`.management-table-btn-reload-${id}`).classList.remove('hide');
+        AgGrid.grids[gridId].stopEditing();
       });
       EventsUI.onClick(`.management-table-btn-clean-${id}`, async () => {
         const confirmResult = await Modal.RenderConfirm(
@@ -364,10 +383,13 @@ const DefaultManagement = {
           type: 'button',
         })}
         ${await BtnIcon.Render({
-          class: `in fll section-mp management-table-btn-mini management-table-btn-save-${id} ${
-            permissions.add ? '' : 'hide'
-          }`,
+          class: `in fll section-mp management-table-btn-mini management-table-btn-save-${id} hide`,
           label: html`<div class="abs center btn-save-${id}-label"><i class="fas fa-save"></i></div> `,
+          type: 'button',
+        })}
+        ${await BtnIcon.Render({
+          class: `in fll section-mp management-table-btn-mini management-table-btn-stop-${id} hide`,
+          label: html`<div class="abs center btn-save-${id}-label"><i class="fa-solid fa-rectangle-xmark"></i></div> `,
           type: 'button',
         })}
         ${await BtnIcon.Render({
@@ -471,6 +493,7 @@ const DefaultManagement = {
                     //   rowNode.setData(newRow);
                     // }, 2000);
                   }
+                  s(`.management-table-btn-save-${id}`).click();
                 }
               } else {
                 const body = event.data ? event.data : {};
