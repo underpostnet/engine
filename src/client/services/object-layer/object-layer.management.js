@@ -120,6 +120,7 @@ const ObjectLayerManagement = {
       },
       customEvent: {
         add: async () => {
+          setPath(`${getProxyPath()}object-layer-engine`);
           if (s(`.modal-object-layer-engine`))
             setTimeout(() => {
               ObjectLayerEngineModal.Reload();

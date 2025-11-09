@@ -176,6 +176,7 @@ const ObjectLayerEngineModal = {
     const queryParams = getQueryParams();
     let loadedData = null;
     let existingObjectLayerId = null; // Track the _id for updates
+    let originalDirectionCodes = []; // Track original direction codes for update mode
     if (queryParams.cid) {
       existingObjectLayerId = queryParams.cid;
       loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.cid);
@@ -392,6 +393,10 @@ const ObjectLayerEngineModal = {
             const { frames } = loadedData.renderData.data.render;
             for (const direction of directions) {
               if (frames[direction] && frames[direction].length > 0) {
+                // Track this direction code as having original data
+                if (!originalDirectionCodes.includes(currentDirectionCode)) {
+                  originalDirectionCodes.push(currentDirectionCode);
+                }
                 // Load frames from static PNG URLs sequentially to avoid race conditions
                 const frameCount = frames[direction].length;
                 console.log(`Found ${frameCount} frames for direction: ${direction} (code: ${currentDirectionCode})`);
@@ -438,26 +443,6 @@ const ObjectLayerEngineModal = {
       s('object-layer-engine').clear();
 
       EventsUI.onClick(`.ol-btn-save`, async () => {
-        const requiredDirectionCodes = ['08', '02', '04', '06'];
-        const missingFrames = [];
-
-        for (const directionCode of requiredDirectionCodes) {
-          if (
-            !ObjectLayerEngineModal.ObjectLayerData[directionCode] ||
-            ObjectLayerEngineModal.ObjectLayerData[directionCode].length === 0
-          ) {
-            missingFrames.push(directionCode);
-          }
-        }
-
-        if (missingFrames.length > 0) {
-          NotificationManager.Push({
-            html: `At least one frame must exist for directions: ${missingFrames.join(', ')}`,
-            status: 'error',
-          });
-          return;
-        }
-
         // Validate minimum frame_duration 100ms
         const frameDuration = parseInt(s(`.ol-input-render-frame-duration`).value);
         if (!frameDuration || frameDuration < 100) {
@@ -559,15 +544,22 @@ const ObjectLayerEngineModal = {
 
         // Upload images
         {
+          // Get all direction codes that currently have frames
           const directionCodesToUpload = Object.keys(ObjectLayerEngineModal.ObjectLayerData);
+
+          // In UPDATE mode, also include original direction codes that may have been cleared
+          const allDirectionCodes = existingObjectLayerId
+            ? [...new Set([...directionCodesToUpload, ...originalDirectionCodes])]
+            : directionCodesToUpload;
+
           console.warn(
-            `Uploading frames for ${directionCodesToUpload.length} directions:`,
-            directionCodesToUpload,
+            `Uploading frames for ${allDirectionCodes.length} directions:`,
+            allDirectionCodes,
             existingObjectLayerId ? '(UPDATE MODE)' : '(CREATE MODE)',
           );
 
-          for (const directionCode of directionCodesToUpload) {
-            const frames = ObjectLayerEngineModal.ObjectLayerData[directionCode];
+          for (const directionCode of allDirectionCodes) {
+            const frames = ObjectLayerEngineModal.ObjectLayerData[directionCode] || [];
             console.warn(`Direction ${directionCode}: ${frames.length} frames`);
 
             // Create FormData with ALL frames for this direction
@@ -586,7 +578,7 @@ const ObjectLayerEngineModal = {
               form.append(directionCode, pngBlob, `${frameIndex}.png`);
             }
 
-            // Send all frames for this direction in one request
+            // Send all frames for this direction in one request (even if empty, to remove frames)
             try {
               if (existingObjectLayerId) {
                 // UPDATE: use PUT endpoint with object layer ID
@@ -597,13 +589,15 @@ const ObjectLayerEngineModal = {
                 });
                 console.warn(`Updated ${frames.length} frames for direction ${directionCode}`);
               } else {
-                // CREATE: use POST endpoint
-                const { status, data } = await ObjectLayerService.post({
-                  id: `frame-image/${objectLayer.data.item.type}/${objectLayer.data.item.id}/${directionCode}`,
-                  body: form,
-                  headerId: 'file',
-                });
-                console.warn(`Created ${frames.length} frames for direction ${directionCode}`);
+                // CREATE: use POST endpoint (only if frames exist)
+                if (frames.length > 0) {
+                  const { status, data } = await ObjectLayerService.post({
+                    id: `frame-image/${objectLayer.data.item.type}/${objectLayer.data.item.id}/${directionCode}`,
+                    body: form,
+                    headerId: 'file',
+                  });
+                  console.warn(`Created ${frames.length} frames for direction ${directionCode}`);
+                }
               }
             } catch (error) {
               console.error(`Error uploading frames for direction ${directionCode}:`, error);
