@@ -5,15 +5,17 @@ import { DropDown } from './DropDown.js';
 import { EventsUI } from './EventsUI.js';
 import { Translate } from './Translate.js';
 import { s, append, hexToRgbA } from './VanillaJs.js';
-import { getProxyPath, getQueryParams, setPath } from './Router.js';
+import { getProxyPath, getQueryParams, setPath, setQueryParams } from './Router.js';
 import { s4 } from './CommonJs.js';
 import { Input } from './Input.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { NotificationManager } from './NotificationManager.js';
+import { AgGrid } from './AgGrid.js';
 import { Modal } from './Modal.js';
 import { loggerFactory } from './Logger.js';
 import { LoadingAnimation } from './LoadingAnimation.js';
+import { DefaultManagement } from '../../services/default/default.management.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
 
@@ -933,11 +935,35 @@ const ObjectLayerEngineModal = {
 
     return objectLayerFrameDirections;
   },
-  toManagement: () => {
-    // Clear data when navigating back to management
-    ObjectLayerEngineModal.clearData();
+  toManagement: async () => {
+    await ObjectLayerEngineModal.clearData();
+    const queryParams = getQueryParams();
+    queryParams.page = 1;
+    setQueryParams(queryParams);
+    const managerComponent = DefaultManagement.Tokens['modal-object-layer-engine-management'];
+    if (managerComponent) {
+      managerComponent.page = 1;
+      if (!managerComponent.readyRowDataEvent) managerComponent.readyRowDataEvent = {};
+      let readyLoad = false;
+      const gridId = 'object-layer-engine-management-grid-modal-object-layer-engine-management';
+      managerComponent.readyRowDataEvent['object-layer-engine-management'] = async () => {
+        if (readyLoad) {
+          AgGrid.grids[gridId].setGridOption('getRowClass', null);
+          return delete managerComponent.readyRowDataEvent['object-layer-engine-management'];
+        }
+
+        AgGrid.grids[gridId].setGridOption('getRowClass', (params) => {
+          if (params.node.rowIndex === 0) {
+            return 'row-new-highlight';
+          }
+        });
+        readyLoad = true;
+      };
+    }
+
     const _s = s(`.management-table-btn-reload-modal-object-layer-engine-management`);
     if (_s) _s.click();
+
     s(`.main-btn-object-layer-engine-management`).click();
   },
   Reload: async function () {

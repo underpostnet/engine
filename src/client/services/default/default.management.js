@@ -18,7 +18,7 @@ const DefaultOptions = {
   serviceId: 'default-management',
   entity: 'default',
   columnDefs: [
-    { field: '0', headerName: '0' },
+    { field: '0', headerName: '0', cellClassRules: { 'row-new-highlight': (params) => true } },
     { field: '1', headerName: '1' },
     { field: '2', headerName: '2' },
     { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
@@ -70,6 +70,11 @@ const DefaultManagement = {
       paginationComp.setAttribute('current-page', this.Tokens[id].page);
       paginationComp.setAttribute('total-pages', this.Tokens[id].totalPages);
       paginationComp.setAttribute('total-items', this.Tokens[id].total);
+      setTimeout(async () => {
+        if (DefaultManagement.Tokens[id].readyRowDataEvent)
+          for (const event of Object.keys(DefaultManagement.Tokens[id].readyRowDataEvent))
+            await DefaultManagement.Tokens[id].readyRowDataEvent[event](rowDataScope);
+      }, 1);
     }
   },
   refreshTable: async function (id) {
@@ -94,14 +99,7 @@ const DefaultManagement = {
     const page = parseInt(queryParams.page) || 1;
     const defaultLimit = paginationOptions?.limitOptions?.[0] || 10;
     const limit = parseInt(queryParams.limit) || defaultLimit;
-    this.Tokens[id] = {
-      ...options,
-      gridId,
-      page,
-      limit,
-      total: 0,
-      totalPages: 1,
-    };
+    this.Tokens[id] = { ...this.Tokens[id], ...options, gridId, page, limit, total: 0, totalPages: 1 };
 
     setQueryParams({ page, limit });
     setTimeout(async () => {
@@ -489,6 +487,7 @@ const DefaultManagement = {
                 }
               }
             },
+            ...(options.gridOptions ? options.gridOptions : undefined),
           },
         })}
       </div>`;

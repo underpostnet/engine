@@ -34,6 +34,38 @@ const AgGrid = {
             return params.data && params.data._new;
           },
         },
+        // Cell rendering events
+        onFirstDataRendered: options?.onFirstDataRendered,
+        onViewportChanged: options?.onViewportChanged,
+        onModelUpdated: options?.onModelUpdated,
+        onVirtualRowRemoved: options?.onVirtualRowRemoved,
+        // Cell interaction events
+        onCellClicked: options?.onCellClicked,
+        onCellDoubleClicked: options?.onCellDoubleClicked,
+        onCellFocused: options?.onCellFocused,
+        onCellMouseOver: options?.onCellMouseOver,
+        onCellMouseOut: options?.onCellMouseOut,
+        onCellValueChanged: options?.onCellValueChanged,
+        // set background colour on every row, this is probably bad, should be using CSS classes
+        // rowStyle: { background: 'black' },
+
+        // set background colour on even rows again, this looks bad, should be using CSS classes
+        // getRowStyle: (params) => {
+        //   if (params.node.rowIndex % 2 === 0) {
+        //     return { background: 'red' };
+        //   }
+        // },
+
+        // all rows assigned CSS class 'my-green-class'
+        // rowClass: 'my-green-class',
+
+        // all even rows assigned 'my-shaded-effect'
+        // getRowClass: (params) => {
+        //   if (params.node.rowIndex % 2 === 0) {
+        //     return 'my-shaded-effect';
+        //   }
+        // },
+
         // domLayout: 'autoHeight', || 'normal'
         // Column Definitions: Defines & controls grid columns.
         columnDefs: options?.gridOptions?.rowData?.[0]
@@ -164,6 +196,7 @@ const AgGrid = {
           ${darkTheme
             ? html`
                 <style>
+                  .row-new-highlight,
                   .ag-row.row-new-highlight {
                     background-color: #6d68ff !important;
                     transition: background-color 1s ease-out;
@@ -177,6 +210,7 @@ const AgGrid = {
                 </style>
               `
             : html`<style>
+                .row-new-highlight,
                 .ag-row.row-new-highlight {
                   background-color: #d0eaf8 !important;
                   transition: background-color 1s ease-out;
