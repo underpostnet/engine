@@ -268,8 +268,10 @@ const ObjectLayerEngineModal = {
 
     // Helper function to show loading animation
     const showFrameLoading = () => {
-      LoadingAnimation.spinner.play(`.frame-editor-container-loading`, null, {
-        prepend: html`<span class="inl loading-text">Loading </span>`,
+      if (!s(`.frame-editor-container`) || s(`.frame-editor-container`).classList.contains('hide')) return;
+      LoadingAnimation.spinner.play(`.frame-editor-container-loading`, 'dual-ring-mini', {
+        prepend: html`<span class="inl loading-text">Loading </span><br /><br /> ` + '<div style="color: gray;">',
+        append: '</div>',
       });
       s(`.frame-editor-container`).classList.add('hide');
       s(`.frame-editor-container-loading`).classList.remove('hide');
@@ -277,6 +279,8 @@ const ObjectLayerEngineModal = {
 
     // Helper function to hide loading animation
     const hideFrameLoading = () => {
+      if (!s(`.frame-editor-container-loading`) || s(`.frame-editor-container-loading`).classList.contains('hide'))
+        return;
       LoadingAnimation.spinner.stop(`.frame-editor-container-loading`);
       s(`.frame-editor-container-loading`).classList.add('hide');
       s(`.frame-editor-container`).classList.remove('hide');
@@ -319,79 +323,7 @@ const ObjectLayerEngineModal = {
       }
     };
 
-    // Create a promise chain to load frames sequentially for each direction code
-    let frameLoadingPromise = Promise.resolve();
-
-    // Now loop through direction codes for frame loading and button handlers
     for (const directionCode of directionCodes) {
-      // Use IIFE to properly capture directionCode and handle async operations
-      (async (currentDirectionCode) => {
-        // Register frame add button handler after DOM is ready
-        // Wait longer to ensure all direction bars are rendered
-        setTimeout(async () => {
-          // Load existing frames if data was loaded from database - chain promises to load sequentially
-          frameLoadingPromise = frameLoadingPromise.then(async () => {
-            if (loadedData && loadedData.metadata && loadedData.metadata.data && currentDirectionCode) {
-              // Show loading animation when starting to load frames
-              showFrameLoading();
-
-              const { type, id } = loadedData.metadata.data.item;
-              const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(currentDirectionCode);
-
-              console.log(`Loading frames for direction code: ${currentDirectionCode}, directions:`, directions);
-
-              // Check if frames exist for any direction mapped to this direction code
-              const { frames } = loadedData.renderData.data.render;
-              for (const direction of directions) {
-                if (frames[direction] && frames[direction].length > 0) {
-                  // Load frames from static PNG URLs sequentially to avoid race conditions
-                  const frameCount = frames[direction].length;
-                  console.log(`Found ${frameCount} frames for direction: ${direction} (code: ${currentDirectionCode})`);
-                  for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
-                    const pngUrl = `${getProxyPath()}assets/${type}/${id}/${currentDirectionCode}/${frameIndex}.png`;
-                    console.log(
-                      `Loading frame ${frameIndex} for direction code ${currentDirectionCode} from: ${pngUrl}`,
-                    );
-                    await processAndAddFrameFromPngUrl(currentDirectionCode, pngUrl);
-                  }
-                  console.log(`Completed loading ${frameCount} frames for direction code: ${currentDirectionCode}`);
-                  // Once we found frames for this direction code, we can break to avoid duplicates
-                  break;
-                }
-              }
-
-              // Hide loading animation after all frames for this direction are loaded
-              hideFrameLoading();
-            }
-          });
-          const buttonSelector = `.direction-code-bar-frames-btn-${currentDirectionCode}`;
-          console.log(`Registering click handler for: ${buttonSelector}`);
-
-          EventsUI.onClick(buttonSelector, async () => {
-            console.log(`Add frame button clicked for direction: ${currentDirectionCode}`);
-            const ole = s('object-layer-engine');
-            if (!ole) {
-              console.error('object-layer-engine not found');
-              return;
-            }
-            const image = await ole.toBlob();
-            const json = ole.exportMatrixJSON();
-            const id = `frame-capture-${s4()}-${s4()}`;
-            console.log(`Creating new frame ${id} for direction ${currentDirectionCode}`);
-
-            if (!ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode])
-              ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode] = [];
-            ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].push({ id, image, json });
-            console.log(
-              `Stored frame ${id} in direction code ${currentDirectionCode}. Total frames:`,
-              ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].length,
-            );
-
-            await addFrameToBar(currentDirectionCode, id, image, json);
-          });
-        });
-      })(directionCode);
-
       directionsCodeBarRender += html`
         <div class="in section-mp-border">
           <div class="fl">
@@ -440,16 +372,70 @@ const ObjectLayerEngineModal = {
       `;
     }
 
-    setTimeout(() => {
-      // Wait for all frame loading promises to complete before showing the editor
-      frameLoadingPromise
-        .then(() => {
-          hideFrameLoading();
-        })
-        .catch((error) => {
-          console.error('Error during frame loading:', error);
-          hideFrameLoading();
-        });
+    setTimeout(async () => {
+      showFrameLoading();
+      for (const directionCode of directionCodes) {
+        // Use IIFE to properly capture directionCode and handle async operations
+        await (async (currentDirectionCode) => {
+          // Register frame add button handler after DOM is ready
+          // Wait longer to ensure all direction bars are rendered
+
+          if (loadedData && loadedData.metadata && loadedData.metadata.data && currentDirectionCode) {
+            // Show loading animation only once on first direction that has frames
+
+            const { type, id } = loadedData.metadata.data.item;
+            const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(currentDirectionCode);
+
+            console.log(`Loading frames for direction code: ${currentDirectionCode}, directions:`, directions);
+
+            // Check if frames exist for any direction mapped to this direction code
+            const { frames } = loadedData.renderData.data.render;
+            for (const direction of directions) {
+              if (frames[direction] && frames[direction].length > 0) {
+                // Load frames from static PNG URLs sequentially to avoid race conditions
+                const frameCount = frames[direction].length;
+                console.log(`Found ${frameCount} frames for direction: ${direction} (code: ${currentDirectionCode})`);
+                for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+                  const pngUrl = `${getProxyPath()}assets/${type}/${id}/${currentDirectionCode}/${frameIndex}.png`;
+                  console.log(`Loading frame ${frameIndex} for direction code ${currentDirectionCode} from: ${pngUrl}`);
+                  await processAndAddFrameFromPngUrl(currentDirectionCode, pngUrl);
+                }
+                console.log(`Completed loading ${frameCount} frames for direction code: ${currentDirectionCode}`);
+                // Once we found frames for this direction code, we can break to avoid duplicates
+                break;
+              }
+            }
+          }
+
+          const buttonSelector = `.direction-code-bar-frames-btn-${currentDirectionCode}`;
+          console.log(`Registering click handler for: ${buttonSelector}`);
+
+          EventsUI.onClick(buttonSelector, async () => {
+            console.log(`Add frame button clicked for direction: ${currentDirectionCode}`);
+            const ole = s('object-layer-engine');
+            if (!ole) {
+              console.error('object-layer-engine not found');
+              return;
+            }
+            const image = await ole.toBlob();
+            const json = ole.exportMatrixJSON();
+            const id = `frame-capture-${s4()}-${s4()}`;
+            console.log(`Creating new frame ${id} for direction ${currentDirectionCode}`);
+
+            if (!ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode])
+              ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode] = [];
+            ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].push({ id, image, json });
+            console.log(
+              `Stored frame ${id} in direction code ${currentDirectionCode}. Total frames:`,
+              ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].length,
+            );
+
+            await addFrameToBar(currentDirectionCode, id, image, json);
+          });
+        })(directionCode);
+      }
+      hideFrameLoading();
+      s('object-layer-engine').clear();
 
       EventsUI.onClick(`.ol-btn-save`, async () => {
         const requiredDirectionCodes = ['08', '02', '04', '06'];
@@ -763,19 +749,19 @@ const ObjectLayerEngineModal = {
         }
         .frame-editor-container-loading {
           width: 100%;
-          height: 80px;
+          height: 150px;
           color: #ffcc00;
         }
         .loading-text {
-          top: -13px;
-          left: -10px;
           font-family: 'retro-font';
           font-size: 26px;
         }
       </style>
-      ${borderChar(2, 'black', ['.sub-title-modal'])}
-      <div class="in frame-editor-container-loading"></div>
-      <div class="in section-mp section-mp-border frame-editor-container hide">
+      ${borderChar(2, 'black', ['.sub-title-modal', '.frame-editor-container-loading'])}
+      <div class="in frame-editor-container-loading">
+        <div class="abs center frame-editor-container-loading-center"></div>
+      </div>
+      <div class="in section-mp section-mp-border frame-editor-container">
         <div class="in sub-title-modal"><i class="fa-solid fa-table-cells-large"></i> Frame editor</div>
 
         <object-layer-engine id="ole" width="${cells}" height="${cells}" pixel-size="${pixelSize}">
