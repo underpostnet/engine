@@ -10,6 +10,10 @@ const TranslateCyberiaPortal = {
       en: 'Object Layer Management',
       es: 'Object Layer Management',
     };
+    Translate.Data['object-layer-engine-viewer'] = {
+      en: 'Object Layer Viewer',
+      es: 'Object Layer Viewer',
+    };
   },
 };
 
