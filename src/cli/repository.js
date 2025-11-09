@@ -140,13 +140,20 @@ class UnderpostRepository {
           .join('');
         if (history[0]) {
           for (const commit of history) {
+            console.log(
+              shellExec(`git show -s --format=%ci ${commit.hash}`, {
+                stdout: true,
+                silent: true,
+                disableLog: true,
+              }).trim().green,
+            );
             console.log(commit.hash.yellow, commit.message);
             console.log(
               shellExec(`git show --name-status --pretty="" ${commit.hash}`, {
                 stdout: true,
                 silent: true,
                 disableLog: true,
-              }).red,
+              }).trim().red,
             );
           }
           if (options.copy) pbcopy(chainCmd);

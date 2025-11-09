@@ -18,6 +18,7 @@ import { Chat } from '../core/Chat.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { ObjectLayerEngineModal } from '../core/ObjectLayerEngineModal.js';
+import { ObjectLayerEngineViewer } from '../core/ObjectLayerEngineViewer.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 
 const MenuCyberiaPortal = {
@@ -180,6 +181,18 @@ const MenuCyberiaPortal = {
             tabHref: `${getProxyPath()}object-layer-engine-management`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('object-layer-engine-management')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-object-layer-engine-viewer',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
+              text: html`<span class="menu-label-text">${Translate.Render('object-layer-engine-viewer')}</span>`,
+            }),
+            attrs: `data-id="object-layer-engine-viewer"`,
+            tabHref: `${getProxyPath()}object-layer-engine-viewer`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('object-layer-engine-viewer')),
           })}
         </div>
       `,
@@ -508,6 +521,31 @@ const MenuCyberiaPortal = {
         }),
         html: async () =>
           ObjectLayerManagement.RenderTable({
+            Elements: ElementsCyberiaPortal,
+          }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        observer: true,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-object-layer-engine-viewer`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-object-layer-engine-viewer',
+        route: 'object-layer-engine-viewer',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('object-layer-engine-viewer')}</span>`,
+        }),
+        html: async () =>
+          ObjectLayerEngineViewer.Render({
             Elements: ElementsCyberiaPortal,
           }),
         handleType: 'bar',

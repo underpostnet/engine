@@ -18,7 +18,7 @@ const DefaultOptions = {
   serviceId: 'default-management',
   entity: 'default',
   columnDefs: [
-    { field: '0', headerName: '0' },
+    { field: '0', headerName: '0', cellClassRules: { 'row-new-highlight': (params) => true } },
     { field: '1', headerName: '1' },
     { field: '2', headerName: '2' },
     { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
@@ -70,6 +70,11 @@ const DefaultManagement = {
       paginationComp.setAttribute('current-page', this.Tokens[id].page);
       paginationComp.setAttribute('total-pages', this.Tokens[id].totalPages);
       paginationComp.setAttribute('total-items', this.Tokens[id].total);
+      setTimeout(async () => {
+        if (DefaultManagement.Tokens[id].readyRowDataEvent)
+          for (const event of Object.keys(DefaultManagement.Tokens[id].readyRowDataEvent))
+            await DefaultManagement.Tokens[id].readyRowDataEvent[event](rowDataScope);
+      }, 1);
     }
   },
   refreshTable: async function (id) {
@@ -94,14 +99,7 @@ const DefaultManagement = {
     const page = parseInt(queryParams.page) || 1;
     const defaultLimit = paginationOptions?.limitOptions?.[0] || 10;
     const limit = parseInt(queryParams.limit) || defaultLimit;
-    this.Tokens[id] = {
-      ...options,
-      gridId,
-      page,
-      limit,
-      total: 0,
-      totalPages: 1,
-    };
+    this.Tokens[id] = { ...this.Tokens[id], ...options, gridId, page, limit, total: 0, totalPages: 1 };
 
     setQueryParams({ page, limit });
     setTimeout(async () => {
@@ -124,7 +122,7 @@ const DefaultManagement = {
             label: html`<div class="abs center">
               <i class="fas fa-times"></i>
             </div> `,
-            class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${cellRenderId}`,
+            class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${cellRenderId} ${!params.data._id ? 'hide' : ''}`,
           })}`;
           setTimeout(() => {
             EventsUI.onClick(
@@ -208,6 +206,11 @@ const DefaultManagement = {
       //   }
       // }
       s(`.management-table-btn-save-${id}`).onclick = () => {
+        s(`.management-table-btn-save-${id}`).classList.add('hide');
+        // s(`.management-table-btn-stop-${id}`).classList.add('hide');
+        if (permissions.add) s(`.management-table-btn-add-${id}`).classList.remove('hide');
+        if (permissions.remove) s(`.management-table-btn-clean-${id}`).classList.remove('hide');
+        if (permissions.reload) s(`.management-table-btn-reload-${id}`).classList.remove('hide');
         AgGrid.grids[gridId].stopEditing();
       };
       EventsUI.onClick(`.management-table-btn-add-${id}`, async () => {
@@ -279,6 +282,11 @@ const DefaultManagement = {
         // }
 
         setTimeout(() => {
+          s(`.management-table-btn-save-${id}`).classList.remove('hide');
+          // s(`.management-table-btn-stop-${id}`).classList.remove('hide');
+          if (permissions.add) s(`.management-table-btn-add-${id}`).classList.add('hide');
+          if (permissions.remove) s(`.management-table-btn-clean-${id}`).classList.add('hide');
+          if (permissions.reload) s(`.management-table-btn-reload-${id}`).classList.add('hide');
           AgGrid.grids[gridId].startEditingCell({
             rowIndex: 0,
             colKey: defaultColKeyFocus,
@@ -286,6 +294,15 @@ const DefaultManagement = {
             key: key,
           });
         });
+      });
+
+      EventsUI.onClick(`.management-table-btn-stop-${id}`, async () => {
+        s(`.management-table-btn-save-${id}`).classList.add('hide');
+        // s(`.management-table-btn-stop-${id}`).classList.add('hide');
+        if (permissions.add) s(`.management-table-btn-add-${id}`).classList.remove('hide');
+        if (permissions.remove) s(`.management-table-btn-clean-${id}`).classList.remove('hide');
+        if (permissions.reload) s(`.management-table-btn-reload-${id}`).classList.remove('hide');
+        AgGrid.grids[gridId].stopEditing();
       });
       EventsUI.onClick(`.management-table-btn-clean-${id}`, async () => {
         const confirmResult = await Modal.RenderConfirm(
@@ -366,10 +383,13 @@ const DefaultManagement = {
           type: 'button',
         })}
         ${await BtnIcon.Render({
-          class: `in fll section-mp management-table-btn-mini management-table-btn-save-${id} ${
-            permissions.add ? '' : 'hide'
-          }`,
+          class: `in fll section-mp management-table-btn-mini management-table-btn-save-${id} hide`,
           label: html`<div class="abs center btn-save-${id}-label"><i class="fas fa-save"></i></div> `,
+          type: 'button',
+        })}
+        ${await BtnIcon.Render({
+          class: `in fll section-mp management-table-btn-mini management-table-btn-stop-${id} hide`,
+          label: html`<div class="abs center btn-save-${id}-label"><i class="fa-solid fa-rectangle-xmark"></i></div> `,
           type: 'button',
         })}
         ${await BtnIcon.Render({
@@ -473,6 +493,7 @@ const DefaultManagement = {
                     //   rowNode.setData(newRow);
                     // }, 2000);
                   }
+                  s(`.management-table-btn-save-${id}`).click();
                 }
               } else {
                 const body = event.data ? event.data : {};
@@ -489,6 +510,7 @@ const DefaultManagement = {
                 }
               }
             },
+            ...(options.gridOptions ? options.gridOptions : undefined),
           },
         })}
       </div>`;

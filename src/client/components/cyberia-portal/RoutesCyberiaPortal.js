@@ -37,6 +37,10 @@ const RoutesCyberiaPortal = () => {
       title: 'object-layer-engine-management',
       render: () => s(`.main-btn-object-layer-engine-management`).click(),
     },
+    '/object-layer-engine-viewer': {
+      title: 'object-layer-engine-viewer',
+      render: () => s(`.main-btn-object-layer-engine-viewer`).click(),
+    },
   };
 };
 

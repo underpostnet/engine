@@ -300,7 +300,11 @@ const setQueryParams = (newParams, options = { replace: true }) => {
 
   const newPath = url.pathname + url.search + url.hash;
 
-  history.pushState(history.state, '', newPath);
+  if (options.replace) {
+    history.replaceState(history.state, '', newPath);
+  } else {
+    history.pushState(history.state, '', newPath);
+  }
 };
 
 export {

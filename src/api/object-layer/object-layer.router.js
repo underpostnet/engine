@@ -18,6 +18,11 @@ const ObjectLayerRouter = (options) => {
   router.post(`/`, authMiddleware, async (req, res) => await ObjectLayerController.post(req, res, options));
   router.get(`/render/:id`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));
   router.get(`/metadata/:id`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));
+  router.get(
+    `/frame-counts/:id`,
+    authMiddleware,
+    async (req, res) => await ObjectLayerController.get(req, res, options),
+  );
   router.get(`/:id`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));
   router.get(`/:id`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));
   router.get(`/`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));

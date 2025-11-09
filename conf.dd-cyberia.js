@@ -233,6 +233,7 @@ const DefaultConf = /**/ {
           'WebComponent',
           'ObjectLayerEngine',
           'ObjectLayerEngineModal',
+          'ObjectLayerEngineViewer',
         ],
         'cyberia-portal': [
           'MenuCyberiaPortal',
@@ -260,6 +261,7 @@ const DefaultConf = /**/ {
         { path: '/recover', client: 'CyberiaPortal', ssr: 'CyberiaPortal' },
         { path: '/object-layer-engine', client: 'CyberiaPortal', ssr: 'CyberiaPortal' },
         { path: '/object-layer-engine-management', client: 'CyberiaPortal', ssr: 'CyberiaPortal' },
+        { path: '/object-layer-engine-viewer', client: 'CyberiaPortal', ssr: 'CyberiaPortal' },
       ],
       dists: [
         {
