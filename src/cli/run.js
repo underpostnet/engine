@@ -261,30 +261,6 @@ class UnderpostRun {
     },
 
     /**
-     * @method cyberia-ide
-     * @description Starts the development environment (IDE) for both `cyberia-server` and `cyberia-client` repositories.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'cyberia-ide': (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
-      shellExec(`${baseCommand} run ide /home/dd/cyberia-server`);
-      shellExec(`${baseCommand} run ide /home/dd/cyberia-client`);
-    },
-    /**
-     * @method engine-ide
-     * @description Starts the development environment (IDE) for the `engine` and `engine-private` repositories.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'engine-ide': (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
-      shellExec(`${baseCommand} run ide /home/dd/engine`);
-      shellExec(`${baseCommand} run ide /home/dd/engine/engine-private`);
-    },
-    /**
      * @method cluster-build
      * @description Build configuration for cluster deployment.
      * @param {string} path - The input value, identifier, or path for the operation.
