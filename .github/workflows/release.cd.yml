@@ -30,7 +30,9 @@ jobs:
             echo "Starting remote release deploy"
             underpost run pull
             underpost run secret
+            npm install -g underpost
             cd /home/dd/engine
+            underpost run secret
             node bin run --dev git-conf
             node bin run --dev template-deploy-image
             node bin run --dev ssh-deploy sync-engine-test
