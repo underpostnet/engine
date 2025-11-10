@@ -17,13 +17,13 @@ spec:
     spec:
       containers:
         - name: dd-test-development-blue
-          image: localhost/rockylinux9-underpost:v2.85.7
+          image: localhost/rockylinux9-underpost:v2.89.0
 #          resources:
 #            requests:
 #              memory: "96294Ki"
 #              cpu: "75m"
 #            limits:
-#              memory: "1540708Ki"
+#              memory: "1540709Ki"
 #              cpu: "1200m"
           command:
             - /bin/sh
@@ -104,13 +104,13 @@ spec:
     spec:
       containers:
         - name: dd-test-development-green
-          image: localhost/rockylinux9-underpost:v2.85.7
+          image: localhost/rockylinux9-underpost:v2.89.0
 #          resources:
 #            requests:
 #              memory: "96294Ki"
 #              cpu: "75m"
 #            limits:
-#              memory: "1540708Ki"
+#              memory: "1540709Ki"
 #              cpu: "1200m"
           command:
             - /bin/sh
