@@ -280,7 +280,6 @@ const ObjectLayerEngineViewer = {
             border-radius: 4px;
             font-size: 12px;
             font-family: monospace;
-            z-index: 5;
             backdrop-filter: blur(4px);
           }
 
@@ -1002,7 +1001,7 @@ const ObjectLayerEngineViewer = {
         <span class="info-label">Frame Duration:</span> ${frameDuration}ms<br />
         <span class="info-label">Total Duration:</span> ${(frameDuration * frameCount) / 1000}s
       `;
-      container.appendChild(infoBadge);
+      s(`.gif-display-area`).appendChild(infoBadge);
 
       logger.info(`Displaying GIF: ${naturalWidth}x${naturalHeight} at ${scale}x scale (${displayW}x${displayH})`);
     };
