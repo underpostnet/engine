@@ -132,7 +132,13 @@ const ObjectLayerManagement = {
     }
 
     let columnDefs = [
-      { field: '_id', headerName: 'Storage ID', width: 220, editable: false },
+      // {
+      //   field: '_id',
+      //   headerName: 'Content ID',
+      //   width: 220,
+      //   editable: false,
+      //   cellClassRules: { m: (params) => true },
+      // },
       {
         field: 'data.item.id',
         headerName: 'Item ID',
@@ -150,30 +156,26 @@ const ObjectLayerManagement = {
         sortable: false,
         filter: false,
       },
+      {
+        field: 'view',
+        headerName: '',
+        width: 100,
+        cellRenderer: ViewButtonRenderer,
+        editable: false,
+        sortable: false,
+        filter: false,
+      },
+      {
+        field: 'edit',
+        headerName: '',
+        width: 100,
+        cellRenderer: EditButtonRenderer,
+        editable: false,
+        sortable: false,
+        filter: false,
+      },
     ];
 
-    if (commonUserGuard(role)) {
-      columnDefs.push(
-        {
-          field: 'view',
-          headerName: '',
-          width: 100,
-          cellRenderer: ViewButtonRenderer,
-          editable: false,
-          sortable: false,
-          filter: false,
-        },
-        {
-          field: 'edit',
-          headerName: '',
-          width: 100,
-          cellRenderer: EditButtonRenderer,
-          editable: false,
-          sortable: false,
-          filter: false,
-        },
-      );
-    }
     return await DefaultManagement.RenderTable({
       idModal: 'modal-object-layer-engine-management',
       serviceId: 'object-layer-engine-management',

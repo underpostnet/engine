@@ -5,6 +5,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { htmls, s } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { darkTheme, ThemeEvents } from './Css.js';
+import { ObjectLayerCyberiaPortal } from '../cyberia-portal/ObjectLayerCyberiaPortal.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -93,7 +94,7 @@ const ObjectLayerEngineViewer = {
 
     return html`
       <div class="fl">
-        <div class="in fll ${id}" id="${id}">
+        <div class="in ${id}" id="${id}">
           <div class="in section-mp">
             <div class="in">Loading object layer...</div>
           </div>
@@ -102,19 +103,9 @@ const ObjectLayerEngineViewer = {
     `;
   },
 
-  renderEmpty: function () {
+  renderEmpty: async function () {
     const id = 'object-layer-engine-viewer';
-    htmls(
-      `#${id}`,
-      html`
-        <div class="in section-mp">
-          <div class="in">
-            <h3>Object Layer Viewer</h3>
-            <p>No object layer selected. Please provide a <code>cid</code> query parameter.</p>
-          </div>
-        </div>
-      `,
-    );
+    htmls(`#${id}`, await ObjectLayerCyberiaPortal.Render());
   },
 
   loadObjectLayer: async function (objectLayerId) {
@@ -274,13 +265,12 @@ const ObjectLayerEngineViewer = {
             position: absolute;
             bottom: 10px;
             right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
+            background: rgba(0, 0, 0, 0.2);
+            color: ${darkTheme ? 'white' : 'black'};
             padding: 6px 12px;
             border-radius: 4px;
             font-size: 12px;
             font-family: monospace;
-            z-index: 5;
             backdrop-filter: blur(4px);
           }
 
@@ -1002,7 +992,7 @@ const ObjectLayerEngineViewer = {
         <span class="info-label">Frame Duration:</span> ${frameDuration}ms<br />
         <span class="info-label">Total Duration:</span> ${(frameDuration * frameCount) / 1000}s
       `;
-      container.appendChild(infoBadge);
+      s(`.gif-display-area`).appendChild(infoBadge);
 
       logger.info(`Displaying GIF: ${naturalWidth}x${naturalHeight} at ${scale}x scale (${displayW}x${displayH})`);
     };

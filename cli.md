@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.85.7
+## underpost ci/cd cli v2.89.0
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -623,7 +623,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cyberia-ide, engine-ide, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, ls-deployments, ls-images, host-update, dev-container, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, release-cmt, sync-replica, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, tz, cron, ls-deployments, ls-images, host-update, dev-container, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
@@ -646,6 +646,7 @@ Options:
   --reset                                  Resets the runner state before execution.
   --terminal                               Enables terminal mode for interactive script execution.
   --dev-proxy-port-offset <port-offset>    Sets a custom port offset for development proxy.
+  --conf-server-path <conf-server-path>    Sets a custom configuration server path.
   -h, --help                               display help for command
  
 ```
