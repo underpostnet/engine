@@ -5,6 +5,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { htmls, s } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { darkTheme, ThemeEvents } from './Css.js';
+import { ObjectLayerCyberiaPortal } from '../cyberia-portal/ObjectLayerCyberiaPortal.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -102,19 +103,9 @@ const ObjectLayerEngineViewer = {
     `;
   },
 
-  renderEmpty: function () {
+  renderEmpty: async function () {
     const id = 'object-layer-engine-viewer';
-    htmls(
-      `#${id}`,
-      html`
-        <div class="in section-mp">
-          <div class="in">
-            <h3>Object Layer Viewer</h3>
-            <p>No object layer selected. Please provide a <code>cid</code> query parameter.</p>
-          </div>
-        </div>
-      `,
-    );
+    htmls(`#${id}`, await ObjectLayerCyberiaPortal.Render());
   },
 
   loadObjectLayer: async function (objectLayerId) {
