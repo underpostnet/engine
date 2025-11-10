@@ -187,7 +187,7 @@ const ObjectLayerCyberiaPortal = {
           <div class="hero-content">
             <img src="${getProxyPath()}assets/ui-icons/cyberia-white.png" alt="Cyberia Logo" class="logo-image" />
             <h1>CYBERIA</h1>
-            <p>
+            <p style="color: #fff;">
               An action-packed Hack and Slash MMORPG. Explore a dynamic online sandbox pixel art universe, right from
               your browser.
             </p>

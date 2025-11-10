@@ -94,7 +94,7 @@ const ObjectLayerEngineViewer = {
 
     return html`
       <div class="fl">
-        <div class="in fll ${id}" id="${id}">
+        <div class="in ${id}" id="${id}">
           <div class="in section-mp">
             <div class="in">Loading object layer...</div>
           </div>

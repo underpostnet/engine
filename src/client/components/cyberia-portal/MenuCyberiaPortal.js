@@ -20,6 +20,7 @@ import { Recover } from '../core/Recover.js';
 import { ObjectLayerEngineModal } from '../core/ObjectLayerEngineModal.js';
 import { ObjectLayerEngineViewer } from '../core/ObjectLayerEngineViewer.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
+import { ObjectLayerCyberiaPortal } from './ObjectLayerCyberiaPortal.js';
 
 const MenuCyberiaPortal = {
   Data: {},
@@ -215,6 +216,7 @@ const MenuCyberiaPortal = {
         return '';
       },
       // mode: 'slide-menu-right',
+      htmlMainBody: async () => await ObjectLayerCyberiaPortal.Render(),
       mode: 'slide-menu',
       RouterInstance,
       heightTopBar,
