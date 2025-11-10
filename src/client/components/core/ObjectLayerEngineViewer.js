@@ -265,8 +265,8 @@ const ObjectLayerEngineViewer = {
             position: absolute;
             bottom: 10px;
             right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
+            background: rgba(0, 0, 0, 0.2);
+            color: ${darkTheme ? 'white' : 'black'};
             padding: 6px 12px;
             border-radius: 4px;
             font-size: 12px;
