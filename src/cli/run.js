@@ -938,7 +938,14 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    sh: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    sh: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      let [operator, arg0, arg1] = path.split(',');
+      if (operator == 'copy') {
+        shellExec(
+          `kitty @ get-text ${arg0 === 'all' ? '--match all' : '--self'} --extent all${arg1 === 'ansi' ? ' --ansi yes' : ''} | kitty +kitten clipboard`,
+        );
+        return;
+      }
       shellExec(`kitty -o allow_remote_control=yes`);
     },
 
