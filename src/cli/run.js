@@ -42,6 +42,7 @@ class UnderpostRun {
    * @type {Object}
    * @property {boolean} dev - Whether to run in development mode.
    * @property {string} podName - The name of the pod to run.
+   * @property {string} nodeName - The name of the node to run.
    * @property {string} volumeHostPath - The host path for the volume.
    * @property {string} volumeMountPath - The mount path for the volume.
    * @property {string} imageName - The name of the image to run.
@@ -65,6 +66,7 @@ class UnderpostRun {
   static DEFAULT_OPTION = {
     dev: false,
     podName: '',
+    nodeName: '',
     volumeHostPath: '',
     volumeMountPath: '',
     imageName: '',
@@ -498,7 +500,12 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'ls-images': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      console.table(UnderpostDeploy.API.getCurrentLoadedImages('kind-worker', false));
+      console.table(
+        UnderpostDeploy.API.getCurrentLoadedImages(
+          options.nodeName ? options.nodeName : 'kind-worker',
+          path === 'spec' ? true : false,
+        ),
+      );
     },
 
     /**

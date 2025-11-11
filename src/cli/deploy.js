@@ -789,37 +789,35 @@ ${renderHosts}`,
           }))
           .filter((o) => o.image);
       }
-      if (node === 'kind-worker') {
-        const raw = shellExec(`docker exec -i ${node} crictl images`, {
-          stdout: true,
-          silent: true,
-        });
+      const raw = shellExec(node === 'kind-worker' ? `docker exec -i ${node} crictl images` : `crictl images`, {
+        stdout: true,
+        silent: true,
+      });
 
-        const heads = raw
-          .split(`\n`)[0]
-          .split(' ')
-          .filter((_r) => _r.trim());
+      const heads = raw
+        .split(`\n`)[0]
+        .split(' ')
+        .filter((_r) => _r.trim());
 
-        const pods = raw
-          .split(`\n`)
-          .filter((r) => !r.match('IMAGE'))
-          .map((r) => r.split(' ').filter((_r) => _r.trim()));
+      const pods = raw
+        .split(`\n`)
+        .filter((r) => !r.match('IMAGE'))
+        .map((r) => r.split(' ').filter((_r) => _r.trim()));
 
-        const result = [];
+      const result = [];
 
-        for (const row of pods) {
-          if (row.length === 0) continue;
-          const pod = {};
-          let index = -1;
-          for (const head of heads) {
-            if (head in pod) continue;
-            index++;
-            pod[head] = row[index];
-          }
-          result.push(pod);
+      for (const row of pods) {
+        if (row.length === 0) continue;
+        const pod = {};
+        let index = -1;
+        for (const head of heads) {
+          if (head in pod) continue;
+          index++;
+          pod[head] = row[index];
         }
-        return result;
+        result.push(pod);
       }
+      return result;
     },
   };
 }
