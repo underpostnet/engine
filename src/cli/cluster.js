@@ -58,6 +58,7 @@ class UnderpostCluster {
      * @param {boolean} [options.config=false] - Apply general host configuration (SELinux, containerd, sysctl, firewalld).
      * @param {boolean} [options.worker=false] - Configure as a worker node (for Kubeadm or K3s join).
      * @param {boolean} [options.chown=false] - Set up kubectl configuration for the current user.
+     * @param {string} [options.hosts] - Set custom hosts entries.
      * @memberof UnderpostCluster
      */
     async init(
@@ -90,6 +91,7 @@ class UnderpostCluster {
         config: false,
         worker: false,
         chown: false,
+        hosts: '',
       },
     ) {
       // Handles initial host setup (installing docker, podman, kind, kubeadm, helm)
@@ -280,6 +282,14 @@ class UnderpostCluster {
       if (options.grafana === true) {
         shellExec(`kubectl delete deployment grafana --ignore-not-found`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/grafana`);
+        const yaml = `${fs
+          .readFileSync(`${underpostRoot}/manifests/grafana/deployment.yaml`, 'utf8')
+          .replace('{{GF_SERVER_ROOT_URL}}', options.hosts.split(',')[0])}`;
+        console.log(yaml);
+        shellExec(`kubectl apply -f - <<EOF
+${yaml}
+EOF
+`);
       }
 
       if (options.prom && typeof options.prom === 'string') {

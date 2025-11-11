@@ -919,12 +919,12 @@ class UnderpostRun {
           }
           case 'grafana': {
             payload.port = 3000;
-            payload.pathRewritePolicy = [
-              {
-                prefix: '/grafana',
-                replacement: '/',
-              },
-            ];
+            // payload.pathRewritePolicy = [
+            //   {
+            //     prefix: '/grafana',
+            //     replacement: '/',
+            //   },
+            // ];
             break;
           }
         }
@@ -947,7 +947,9 @@ class UnderpostRun {
           break;
         }
         case 'grafana': {
-          shellExec(`node bin cluster${baseClusterCommand} --grafana --prom '${Object.keys(confServer)}'`);
+          shellExec(
+            `node bin cluster${baseClusterCommand} --grafana --hosts '${host}' --prom '${Object.keys(confServer)}'`,
+          );
           podToMonitor = 'grafana';
           break;
         }
@@ -966,7 +968,7 @@ class UnderpostRun {
         );
       } else logger.error('Mongo Express deployment failed');
       if (options.etcHosts === true) {
-        const hostListenResult = UnderpostDeploy.API.etcHostFactory(Object.keys(confServer));
+        const hostListenResult = UnderpostDeploy.API.etcHostFactory([host]);
         logger.info(hostListenResult.renderHosts);
       }
     },
