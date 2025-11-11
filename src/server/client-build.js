@@ -573,7 +573,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                 apiBaseHost,
                 apiBasePath: process.env.BASE_API,
                 version: Underpost.version,
-                dev: isDevelopment,
+                ...(isDevelopment ? { dev: true } : undefined),
               },
               renderApi: {
                 JSONweb,
@@ -667,7 +667,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
                   apiBaseHost,
                   apiBasePath: process.env.BASE_API,
                   version: Underpost.version,
-                  dev: isDevelopment,
+                  ...(isDevelopment ? { dev: true } : undefined),
                 },
                 renderApi: {
                   JSONweb,
