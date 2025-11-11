@@ -36,14 +36,6 @@ program
   .version(version);
 
 program
-  .command('underpost')
-  .description('Underpost cli passthrough')
-  .action(() => {
-    process.argv = process.argv.filter((c) => c !== 'underpost');
-    underpostProgram.parse();
-  });
-
-program
   .command('ol')
   .option('--import [object-layer-type]', 'Commas separated object layer types e.g. skin,floors')
   .option('--show-frame <show-frame-input>', 'View object layer frame e.g. anon_08_0')
@@ -145,9 +137,23 @@ program
   })
   .description('Object layer management');
 
+program
+  .command('underpost')
+  .description('Underpost cli passthrough')
+  .action(() => {
+    throw new Error('Trigger underpost passthrough');
+  });
+
 try {
   // throw new Error('');
   program.parse();
 } catch (error) {
   logger.error(error);
+  process.argv = process.argv.filter((c) => c !== 'underpost');
+  logger.warn('Rerouting to underpost cli...');
+  try {
+    underpostProgram.parse();
+  } catch (error) {
+    logger.error(error);
+  }
 }
