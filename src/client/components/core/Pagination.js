@@ -1,11 +1,11 @@
-import { getQueryParams, setQueryParams } from './Router.js';
+import { getQueryParams, setQueryParams, listenQueryParamsChange } from './Router.js';
 
 class AgPagination extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     this._gridId = null;
-    const queryParams = getQueryParams();
+    let queryParams = getQueryParams();
     this._currentPage = parseInt(queryParams.page, 10) || 1;
     this._limit = parseInt(queryParams.limit, 10) || 10;
     this._totalPages = 1;
@@ -13,6 +13,8 @@ class AgPagination extends HTMLElement {
     this._limitOptions = [10, 20, 50, 100]; // Default options
     this.handlePageChange = this.handlePageChange.bind(this);
     this.handleLimitChange = this.handleLimitChange.bind(this);
+
+    this.handleQueryParamsChange = this.handleQueryParamsChange.bind(this);
   }
 
   static get observedAttributes() {
@@ -53,11 +55,43 @@ class AgPagination extends HTMLElement {
   connectedCallback() {
     this.render();
     this.addEventListeners();
-    this.update();
+    // Subscribe to query parameter changes once the component is connected and _gridId is potentially set.
+    listenQueryParamsChange({
+      id: `ag-pagination-${this._gridId || 'default'}`, // Use _gridId for a unique listener ID
+      event: this.handleQueryParamsChange,
+    });
+    // The initial state is already set in the constructor from getQueryParams().
+    // The `listenQueryParamsChange` in `Router.js` will trigger an immediate (setTimeout) call
+    // to `handleQueryParamsChange`, which will re-sync the state if needed and update the component.
+    this.update(); // Keep the initial update for rendering based on constructor's initial state.
   }
 
   disconnectedCallback() {
-    // Event listeners on shadow DOM are garbage collected with the component
+    // If Router.js held strong references to queryParamsChangeListeners, you might need to unsubscribe here.
+    // However, for this example, we'll assume the component's lifecycle or weak references handle cleanup.
+  }
+
+  handleQueryParamsChange(queryParams) {
+    const newPage = parseInt(queryParams.page, 10) || 1;
+    const newLimit = parseInt(queryParams.limit, 10) || 10;
+
+    let shouldUpdate = false;
+
+    if (newPage !== this._currentPage) {
+      this._currentPage = newPage;
+      shouldUpdate = true;
+    }
+    if (newLimit !== this._limit) {
+      this._limit = newLimit;
+      shouldUpdate = true;
+    }
+
+    if (shouldUpdate) {
+      this.update();
+      this.dispatchEvent(
+        new CustomEvent('pagination-query-params-change', { detail: { page: this._currentPage, limit: this._limit } }),
+      );
+    }
   }
 
   handlePageChange(newPage) {
@@ -65,7 +99,7 @@ class AgPagination extends HTMLElement {
       return;
     }
     this._currentPage = newPage;
-    setQueryParams({ page: newPage, limit: this._limit });
+    setQueryParams({ page: newPage, limit: this._limit }, { replace: false }); // Use pushState
     this.dispatchEvent(new CustomEvent('page-change', { detail: { page: newPage } }));
   }
 
@@ -76,7 +110,7 @@ class AgPagination extends HTMLElement {
     }
     this._limit = newLimit;
     this._currentPage = 1; // Reset to first page on limit change
-    setQueryParams({ page: 1, limit: newLimit });
+    setQueryParams({ page: 1, limit: newLimit }, { replace: false }); // Use pushState
     this.dispatchEvent(new CustomEvent('limit-change', { detail: { limit: newLimit } }));
   }
 
@@ -98,7 +132,8 @@ class AgPagination extends HTMLElement {
     this.shadowRoot.querySelector('#page-info').textContent = `Page ${this._currentPage} of ${this._totalPages}`;
 
     const limitSelector = this.shadowRoot.querySelector('#limit-selector');
-    if (limitSelector.value != this._limit) {
+    if (limitSelector && limitSelector.value != this._limit) {
+      // Added null check for limitSelector
       limitSelector.value = this._limit;
     }
 

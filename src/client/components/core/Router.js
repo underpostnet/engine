@@ -20,6 +20,13 @@ const logger = loggerFactory(import.meta, { trace: true });
 const RouterEvents = {};
 
 /**
+ * @type {Object.<string, function>}\n
+ * @description Holds event listeners for query parameter changes.\n
+ * @memberof PwaRouter
+ */
+const queryParamsChangeListeners = {};
+
+/**
  * @type {string[]}
  * @description Array of core UI component IDs that should not trigger modal close route changes.
  * @memberof PwaRouter
@@ -228,6 +235,22 @@ const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
 };
 
 /**
+ * Registers a listener for changes to query parameters.\n
+ * The provided event callback is triggered with the current query parameters object.\n
+ * @param {object} options - The listener options.\n
+ * @param {string} options.id - A unique ID for the listener.\n
+ * @param {function(Object.<string, string>): void} options.event - The callback function to execute with the new query parameters.\n
+ * @memberof PwaRouter
+ */
+const listenQueryParamsChange = ({ id, event }) => {
+  queryParamsChangeListeners[id] = event;
+  // Immediately call with current query params for initial state
+  setTimeout(() => {
+    event(getQueryParams());
+  });
+};
+
+/**
  * Handles the logic for changing the route when a modal is closed. It determines the next URL
  * based on the remaining open modals or falls back to a home URL.
  * @param {object} [options={}] - Options for the modal close event.
@@ -305,6 +328,13 @@ const setQueryParams = (newParams, options = { replace: true }) => {
   } else {
     history.pushState(history.state, '', newPath);
   }
+
+  const updatedParams = getQueryParams();
+  for (const listenerId in queryParamsChangeListeners) {
+    if (Object.hasOwnProperty.call(queryParamsChangeListeners, listenerId)) {
+      queryParamsChangeListeners[listenerId](updatedParams);
+    }
+  }
 };
 
 export {
@@ -323,4 +353,6 @@ export {
   setPath,
   setQueryParams,
   sanitizeRoute,
+  queryParamsChangeListeners,
+  listenQueryParamsChange,
 };
