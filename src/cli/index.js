@@ -191,6 +191,7 @@ program
   .option('--traffic <traffic-versions>', 'A comma-separated list of custom deployment traffic weights.')
   .option('--disable-update-deployment', 'Disables updates to deployments.')
   .option('--disable-update-proxy', 'Disables updates to proxies.')
+  .option('--disable-deployment-proxy', 'Disables proxies of deployments.')
   .option(
     '--status',
     'Retrieves current network traffic data from resource deployments and the host machine network configuration.',
@@ -381,6 +382,8 @@ program
   .option('--replicas <replicas>', 'Sets a custom number of replicas for deployment.')
   .option('--pod-name <pod-name>', 'Optional: Specifies the pod name for execution.')
   .option('--node-name <node-name>', 'Optional: Specifies the node name for execution.')
+  .option('--port <port>', 'Optional: Specifies the port for execution.')
+  .option('--etc-hosts', 'Enables etc-hosts context for the runner execution.')
   .option('--volume-host-path <volume-host-path>', 'Optional: Specifies the volume host path for test execution.')
   .option('--volume-mount-path <volume-mount-path>', 'Optional: Specifies the volume mount path for test execution.')
   .option('--volume-type <volume-type>', 'Optional: Specifies the volume type for test execution.')

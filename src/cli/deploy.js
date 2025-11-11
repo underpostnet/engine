@@ -91,12 +91,25 @@ class UnderpostDeploy {
      * @param {Array<string>} deploymentVersions - List of deployment versions.
      * @returns {string} - YAML service configuration for the specified deployment.
      * @param {string} [serviceId] - Custom service name (optional).
+     * @param {Array} [pathRewritePolicy] - Path rewrite policy (optional).
      * @memberof UnderpostDeploy
      */
-    deploymentYamlServiceFactory({ deployId, path, env, port, deploymentVersions, serviceId }) {
+    deploymentYamlServiceFactory({ deployId, path, env, port, deploymentVersions, serviceId, pathRewritePolicy }) {
       return `
     - conditions:
         - prefix: ${path}
+      ${
+        pathRewritePolicy
+          ? `pathRewritePolicy:
+          replacePrefix:
+          ${pathRewritePolicy.map(
+            (rd) => `- prefix: ${rd.prefix}
+            replacement: ${rd.replacement}
+            `,
+          ).join(`
+`)}`
+          : ''
+      }
       enableWebsockets: true
       services:
     ${deploymentVersions
@@ -230,7 +243,7 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
 
           const pathPortAssignment = pathPortAssignmentData[host];
           // logger.info('', { host, pathPortAssignment });
-          proxyYaml += `
+          let _proxyYaml = `
 ---
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
@@ -248,32 +261,31 @@ spec:
   routes:`;
           const deploymentVersions =
             options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',') : ['blue'];
-          for (const conditionObj of pathPortAssignment) {
-            const { path, port } = conditionObj;
-            proxyYaml += UnderpostDeploy.API.deploymentYamlServiceFactory({
-              path,
-              deployId,
-              env,
-              port,
-              deploymentVersions,
-            });
-          }
+          let proxyRoutes = '';
+          if (!options.disableDeploymentProxy)
+            for (const conditionObj of pathPortAssignment) {
+              const { path, port } = conditionObj;
+              proxyRoutes += UnderpostDeploy.API.deploymentYamlServiceFactory({
+                path,
+                deployId,
+                env,
+                port,
+                deploymentVersions,
+              });
+            }
           for (const customService of customServices) {
-            const { path: _path, port, serviceId, host: _host } = customService;
+            const { path: _path, port, serviceId, host: _host, pathRewritePolicy } = customService;
             if (host === _host) {
-              switch (serviceId) {
-                case 'mongo-express-service': {
-                  proxyYaml += UnderpostDeploy.API.deploymentYamlServiceFactory({
-                    path: _path,
-                    port,
-                    serviceId,
-                    deploymentVersions,
-                  });
-                  break;
-                }
-              }
+              proxyRoutes += UnderpostDeploy.API.deploymentYamlServiceFactory({
+                path: _path,
+                port,
+                serviceId,
+                deploymentVersions,
+                pathRewritePolicy,
+              });
             }
           }
+          if (proxyRoutes) proxyYaml += _proxyYaml + proxyRoutes;
         }
         const yamlPath = `./engine-private/conf/${deployId}/build/${env}/proxy.yaml`;
         fs.writeFileSync(yamlPath, proxyYaml, 'utf8');
@@ -332,28 +344,28 @@ spec:
 
     /**
      * Callback function for handling deployment options.
-     * @param {string} deployList - List of deployment IDs to include in the manifest.
-     * @param {string} env - Environment for which the manifest is being built.
-     * @param {object} options - Options for the manifest build process.
-     * @param {string} options.remove - Whether to remove the deployment.
-     * @param {string} options.infoRouter - Whether to display router information.
-     * @param {string} options.sync - Whether to synchronize the deployment.
-     * @param {string} options.buildManifest - Whether to build the manifest.
-     * @param {string} options.infoUtil - Whether to display utility information.
-     * @param {string} options.expose - Whether to expose the deployment.
-     * @param {string} options.cert - Whether to create a certificate.
-     * @param {string} options.certHosts - List of hosts for which certificates are being created.
+     * @param {string} deployList - List of deployment IDs to process.
+     * @param {string} env - Environment for which the deployment is being processed.
+     * @param {object} options - Options for the deployment process.
+     * @param {boolean} options.remove - Whether to remove the deployment.
+     * @param {boolean} options.infoRouter - Whether to display router information.
+     * @param {boolean} options.sync - Whether to synchronize deployment configurations.
+     * @param {boolean} options.buildManifest - Whether to build the deployment manifest.
+     * @param {boolean} options.infoUtil - Whether to display utility information.
+     * @param {boolean} options.expose - Whether to expose the deployment.
+     * @param {boolean} options.cert - Whether to create certificates for the deployment.
+     * @param {string} options.certHosts - Comma-separated list of hosts for which to create certificates.
      * @param {string} options.versions - Comma-separated list of versions to deploy.
      * @param {string} options.image - Docker image for the deployment.
-     * @param {string} options.traffic - Current traffic status for the deployment.
+     * @param {string} options.traffic - Traffic status for the deployment.
      * @param {string} options.replicas - Number of replicas for the deployment.
      * @param {string} options.node - Node name for resource allocation.
-     * @param {string} options.restoreHosts - Whether to restore hosts.
-     * @param {string} options.disableUpdateDeployment - Whether to disable updating the deployment.
-     * @param {string} options.disableUpdateProxy - Whether to disable updating the proxy.
-     * @param {string} options.status - Whether to display status host machine server and traffic information.
-     * @param {string} options.etcHosts - Whether to update /etc/hosts.
-     * @returns {Promise<void>} - Promise that resolves when the callback is complete.
+     * @param {boolean} options.restoreHosts - Whether to restore the hosts file.
+     * @param {boolean} options.disableUpdateDeployment - Whether to disable deployment updates.
+     * @param {boolean} options.disableUpdateProxy - Whether to disable proxy updates.
+     * @param {boolean} options.disableDeploymentProxy - Whether to disable deployment proxy.
+     * @param {boolean} options.status - Whether to display deployment status.
+     * @param {boolean} options.etcHosts - Whether to display the /etc/hosts file.
      * @memberof UnderpostDeploy
      */
     async callback(
@@ -376,6 +388,7 @@ spec:
         restoreHosts: false,
         disableUpdateDeployment: false,
         disableUpdateProxy: false,
+        disableDeploymentProxy: false,
         status: false,
         etcHosts: false,
       },

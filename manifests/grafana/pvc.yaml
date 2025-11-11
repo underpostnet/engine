@@ -6,7 +6,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: local-path
+  storageClassName: grafana-storage-class
   resources:
     requests:
       storage: 5Gi
