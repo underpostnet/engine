@@ -22,6 +22,8 @@ jobs:
           key: ${{ secrets.SSH_PRIV_KEY }}
           # Remote port (optional)
           port: ${{ secrets.SSH_PORT }}
+          # Optional: increase timeout for long-running commands
+          command_timeout: 60m
           # Optional: if your private key has a passphrase, add:
           # passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
           # Commands to run on the remote VM
