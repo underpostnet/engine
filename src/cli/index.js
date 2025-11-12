@@ -200,6 +200,7 @@ program
   .option('--kubeadm', 'Enables the kubeadm context for deployment operations.')
   .option('--etc-hosts', 'Enables the etc-hosts context for deployment operations.')
   .option('--restore-hosts', 'Restores default `/etc/hosts` entries.')
+  .option('--disable-update-underpost-config', 'Disables updates to Underpost configuration during deployment.')
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);
 

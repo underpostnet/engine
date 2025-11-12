@@ -221,8 +221,8 @@ class UnderpostRun {
         );
         shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --valkey --pull-image`);
       }
-      shellExec(`${baseCommand} deploy --expose mongo`, { async: true });
-      shellExec(`${baseCommand} deploy --expose valkey`, { async: true });
+      shellExec(`${baseCommand} deploy --expose --disable-update-underpost-config mongo`, { async: true });
+      shellExec(`${baseCommand} deploy --expose --disable-update-underpost-config valkey`, { async: true });
       {
         const hostListenResult = UnderpostDeploy.API.etcHostFactory(mongoHosts);
         logger.info(hostListenResult.renderHosts);

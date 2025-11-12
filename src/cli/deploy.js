@@ -366,6 +366,8 @@ spec:
      * @param {boolean} options.disableDeploymentProxy - Whether to disable deployment proxy.
      * @param {boolean} options.status - Whether to display deployment status.
      * @param {boolean} options.etcHosts - Whether to display the /etc/hosts file.
+     * @param {boolean} options.disableUpdateUnderpostConfig - Whether to disable Underpost config updates.
+     * @returns {Promise<void>} - Promise that resolves when the deployment process is complete.
      * @memberof UnderpostDeploy
      */
     async callback(
@@ -391,6 +393,7 @@ spec:
         disableDeploymentProxy: false,
         status: false,
         etcHosts: false,
+        disableUpdateUnderpostConfig: false,
       },
     ) {
       if (options.infoUtil === true)
@@ -486,7 +489,7 @@ EOF`);
         logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
         return;
       }
-      UnderpostDeploy.API.configMap(env);
+      if (!options.disableUpdateUnderpostConfig) UnderpostDeploy.API.configMap(env);
       let renderHosts = '';
       let etcHosts = [];
       if (options.restoreHosts === true) {
