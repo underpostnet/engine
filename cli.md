@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.89.1
+## underpost ci/cd cli v2.89.2
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -277,6 +277,8 @@ Options:
                           kubeconfig files.
   --k3s                   Initializes the cluster using K3s (Lightweight
                           Kubernetes).
+  --hosts <hosts>         A comma-separated list of cluster hostnames or IP
+                          addresses.
   -h, --help              display help for command
  
 ```
@@ -289,50 +291,53 @@ Options:
 Manages application deployments, defaulting to deploying development pods.
 
 Arguments:
-  deploy-list                       A comma-separated list of deployment IDs
-                                    (e.g., "default-a,default-b").
-  env                               Optional: The environment for deployment
-                                    (e.g., "development", "production").
-                                    Defaults to "development".
+  deploy-list                        A comma-separated list of deployment IDs
+                                     (e.g., "default-a,default-b").
+  env                                Optional: The environment for deployment
+                                     (e.g., "development", "production").
+                                     Defaults to "development".
 
 Options:
-  --remove                          Deletes specified deployments and their
-                                    associated services.
-  --sync                            Synchronizes deployment environment
-                                    variables, ports, and replica counts.
-  --info-router                     Displays the current router structure and
-                                    configuration.
-  --expose                          Exposes services matching the provided
-                                    deployment ID list.
-  --info-util                       Displays useful `kubectl` utility
-                                    management commands.
-  --cert                            Resets TLS/SSL certificate secrets for
-                                    deployments.
-  --cert-hosts <hosts>              Resets TLS/SSL certificate secrets for
-                                    specified hosts.
-  --node <node>                     Sets optional node for deployment
-                                    operations.
-  --build-manifest                  Builds Kubernetes YAML manifests, including
-                                    deployments, services, proxies, and
-                                    secrets.
-  --replicas <replicas>             Sets a custom number of replicas for
-                                    deployments.
-  --image <image>                   Sets a custom image for deployments.
-  --versions <deployment-versions>  A comma-separated list of custom deployment
-                                    versions.
-  --traffic <traffic-versions>      A comma-separated list of custom deployment
-                                    traffic weights.
-  --disable-update-deployment       Disables updates to deployments.
-  --disable-update-proxy            Disables updates to proxies.
-  --status                          Retrieves current network traffic data from
-                                    resource deployments and the host machine
-                                    network configuration.
-  --kubeadm                         Enables the kubeadm context for deployment
-                                    operations.
-  --etc-hosts                       Enables the etc-hosts context for
-                                    deployment operations.
-  --restore-hosts                   Restores default `/etc/hosts` entries.
-  -h, --help                        display help for command
+  --remove                           Deletes specified deployments and their
+                                     associated services.
+  --sync                             Synchronizes deployment environment
+                                     variables, ports, and replica counts.
+  --info-router                      Displays the current router structure and
+                                     configuration.
+  --expose                           Exposes services matching the provided
+                                     deployment ID list.
+  --info-util                        Displays useful `kubectl` utility
+                                     management commands.
+  --cert                             Resets TLS/SSL certificate secrets for
+                                     deployments.
+  --cert-hosts <hosts>               Resets TLS/SSL certificate secrets for
+                                     specified hosts.
+  --node <node>                      Sets optional node for deployment
+                                     operations.
+  --build-manifest                   Builds Kubernetes YAML manifests,
+                                     including deployments, services, proxies,
+                                     and secrets.
+  --replicas <replicas>              Sets a custom number of replicas for
+                                     deployments.
+  --image <image>                    Sets a custom image for deployments.
+  --versions <deployment-versions>   A comma-separated list of custom
+                                     deployment versions.
+  --traffic <traffic-versions>       A comma-separated list of custom
+                                     deployment traffic weights.
+  --disable-update-deployment        Disables updates to deployments.
+  --disable-update-proxy             Disables updates to proxies.
+  --disable-deployment-proxy         Disables proxies of deployments.
+  --status                           Retrieves current network traffic data
+                                     from resource deployments and the host
+                                     machine network configuration.
+  --kubeadm                          Enables the kubeadm context for deployment
+                                     operations.
+  --etc-hosts                        Enables the etc-hosts context for
+                                     deployment operations.
+  --restore-hosts                    Restores default `/etc/hosts` entries.
+  --disable-update-underpost-config  Disables updates to Underpost
+                                     configuration during deployment.
+  -h, --help                         display help for command
  
 ```
   
@@ -623,7 +628,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, tz, cron, ls-deployments, ls-images, host-update, dev-container, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, tz, cron, ls-deployments, ls-images, host-update, dev-container, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
@@ -632,7 +637,10 @@ Options:
   --dev                                    Sets the development context environment for the script.
   --build                                  Set builder context runner
   --replicas <replicas>                    Sets a custom number of replicas for deployment.
-  --pod-name <pod-name>                    Optional: Specifies the pod name for test execution.
+  --pod-name <pod-name>                    Optional: Specifies the pod name for execution.
+  --node-name <node-name>                  Optional: Specifies the node name for execution.
+  --port <port>                            Optional: Specifies the port for execution.
+  --etc-hosts                              Enables etc-hosts context for the runner execution.
   --volume-host-path <volume-host-path>    Optional: Specifies the volume host path for test execution.
   --volume-mount-path <volume-mount-path>  Optional: Specifies the volume mount path for test execution.
   --volume-type <volume-type>              Optional: Specifies the volume type for test execution.

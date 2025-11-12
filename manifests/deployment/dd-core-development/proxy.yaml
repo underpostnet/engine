@@ -10,6 +10,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -18,6 +19,7 @@ spec:
     
     - conditions:
         - prefix: /peer
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -35,6 +37,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -52,6 +55,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -69,6 +73,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -77,6 +82,7 @@ spec:
     
     - conditions:
         - prefix: /peer
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -94,6 +100,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -111,6 +118,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -119,6 +127,7 @@ spec:
     
     - conditions:
         - prefix: /peer
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -136,6 +145,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -144,6 +154,7 @@ spec:
     
     - conditions:
         - prefix: /peer
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -161,6 +172,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -169,6 +181,7 @@ spec:
     
     - conditions:
         - prefix: /peer
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -186,6 +199,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -203,6 +217,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
@@ -211,6 +226,7 @@ spec:
     
     - conditions:
         - prefix: /peer
+      
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service

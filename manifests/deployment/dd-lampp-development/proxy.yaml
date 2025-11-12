@@ -10,6 +10,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-lampp-development-blue-service
@@ -27,6 +28,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-lampp-development-blue-service
@@ -44,6 +46,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-lampp-development-blue-service
@@ -61,6 +64,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-lampp-development-blue-service

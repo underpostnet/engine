@@ -10,6 +10,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
@@ -18,6 +19,7 @@ spec:
     
     - conditions:
         - prefix: /peer
+      
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
@@ -35,6 +37,7 @@ spec:
   routes:
     - conditions:
         - prefix: /
+      
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
@@ -43,6 +46,7 @@ spec:
     
     - conditions:
         - prefix: /peer
+      
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
