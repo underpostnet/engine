@@ -499,6 +499,27 @@ const ObjectLayerEngineViewer = {
             </div>
           </div>
 
+          <!-- Stats Data Section -->
+          <div class="control-group" style="margin-bottom: 20px;">
+            <h4><i class="fa-solid fa-chart-bar"></i> Stats Data</h4>
+            <div
+              style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; padding: 10px 0;"
+            >
+              ${Object.keys(stats).length > 0
+                ? Object.entries(stats)
+                    .map(
+                      ([statKey, statValue]) => html`
+                        <div class="item-stat-entry">
+                          <span class="item-data-key-label"> ${statKey} </span>
+                          <span style="item-data-value-label"> ${statValue} </span>
+                        </div>
+                      `,
+                    )
+                    .join('')
+                : html`<div class="no-data-container">No stats data available</div>`}
+            </div>
+          </div>
+
           <div class="gif-display-area">
             <div class="gif-canvas-container" id="gif-canvas-container">
               <div style="text-align: center; color: ${darkTheme ? '#aaa' : '#666'};">
@@ -593,26 +614,7 @@ const ObjectLayerEngineViewer = {
               </div>
             </div>
           </div>
-          <!-- Stats Data Section -->
-          <div class="control-group" style="margin-bottom: 20px;">
-            <h4><i class="fa-solid fa-chart-bar"></i> Stats Data</h4>
-            <div
-              style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; padding: 10px 0;"
-            >
-              ${Object.keys(stats).length > 0
-                ? Object.entries(stats)
-                    .map(
-                      ([statKey, statValue]) => html`
-                        <div class="item-stat-entry">
-                          <span class="item-data-key-label"> ${statKey} </span>
-                          <span style="item-data-value-label"> ${statValue} </span>
-                        </div>
-                      `,
-                    )
-                    .join('')
-                : html`<div class="no-data-container">No stats data available</div>`}
-            </div>
-          </div>
+
           <button class="download-btn" id="download-gif-btn">
             <i class="fa-solid fa-download"></i>
             <span>Download GIF</span>

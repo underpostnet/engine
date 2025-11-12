@@ -171,6 +171,29 @@ const ObjectLayerCyberiaPortal = {
               transform: translateY(0);
             }
           }
+
+          /* Responsive Styles */
+          @media (max-width: 650px) {
+            .hero-content h1 {
+              font-size: 2.2rem;
+            }
+            .hero-content p {
+              font-size: 1rem;
+            }
+            .hero-content .logo-image {
+              max-width: 180px;
+            }
+            .cta-button {
+              padding: 12px 28px;
+              font-size: 1rem;
+            }
+            .features-section {
+              padding: 3rem 1rem;
+            }
+            .features-section h2 {
+              font-size: 2rem;
+            }
+          }
         </style> `,
       );
     };
@@ -185,8 +208,8 @@ const ObjectLayerCyberiaPortal = {
         <section class="hero-section">
           <div class="hero-content">
             <img src="${getProxyPath()}assets/ui-icons/cyberia-white.png" alt="Cyberia Logo" class="logo-image" />
-            <h1>CYBERIA</h1>
-            <p style="color: #fff;">
+            <h1 style="margin: 10px">CYBERIA</h1>
+            <p style="color: #fff; margin: 10px 20px 10px 20px;">
               An action-packed Hack and Slash MMORPG. Explore a dynamic online sandbox pixel art universe, right from
               your browser.
             </p>
