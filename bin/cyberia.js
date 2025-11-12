@@ -8,7 +8,6 @@ import { loggerFactory } from '../src/server/logger.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import {
   pngDirectoryIteratorByObjectLayerType,
-  frameFactory,
   getKeyFramesDirectionsFromNumberFolderDirection,
   processAndPushFrame,
   buildImgFromTile,
@@ -18,14 +17,13 @@ import {
 import { program as underpostProgram } from '../src/cli/index.js';
 
 import crypto from 'crypto';
-
-shellCd(`/home/dd/engine`);
+import Underpost from '../src/index.js';
 
 const logger = loggerFactory(import.meta);
 
 const program = new Command();
 
-const version = JSON.parse(fs.readFileSync('./package.json', 'utf8')).version;
+const version = Underpost.version;
 
 program
   .name('cyberia')
@@ -43,7 +41,7 @@ program
   .option('--mongo-host <mongo-host>', 'Mongo host override')
   .action(async (options = { import: false, showFrame: '', envPath: '', mongoHost: '' }) => {
     if (!options.envPath) options.envPath = `./.env`;
-    dotenv.config({ path: options.envPath, override: true });
+    if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
     const deployId = process.env.DEFAULT_DEPLOY_ID;
     const host = process.env.DEFAULT_DEPLOY_HOST;
@@ -148,7 +146,7 @@ try {
   // throw new Error('');
   program.parse();
 } catch (error) {
-  logger.error(error);
+  logger.warn(error);
   process.argv = process.argv.filter((c) => c !== 'underpost');
   logger.warn('Rerouting to underpost cli...');
   try {
