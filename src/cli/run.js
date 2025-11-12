@@ -236,9 +236,14 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    metadata: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    metadata: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const ports = '6379,27017';
+      shellExec(`node bin run kill '${ports}'`);
       shellExec(`node bin run dev-cluster --dev expose`, { async: true });
+      console.log('Loading fordward services...');
+      await timer(5000);
       shellExec(`node bin metadata --generate ${path}`);
+      shellExec(`node bin run kill '${ports}'`);
     },
 
     /**
