@@ -228,6 +228,54 @@ class UnderpostRun {
         logger.info(hostListenResult.renderHosts);
       }
     },
+
+    /**
+     * @method metadata
+     * @description Generates metadata for the specified path after exposing the development cluster.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    metadata: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(`node bin run dev-cluster --dev expose`, { async: true });
+      shellExec(`node bin metadata --generate ${path}`);
+    },
+
+    /**
+     * @method svc-ls
+     * @description Lists systemd services and installed packages, optionally filtering by the provided path.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the optional filter for services and packages).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'svc-ls': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const log = shellExec(`systemctl list-units --type=service${path ? ` | grep ${path}` : ''}`, {
+        silent: true,
+        stdout: true,
+      });
+      console.log(path ? log.replaceAll(path, path.red) : log);
+      const log0 = shellExec(`sudo dnf list installed${path ? ` | grep ${path}` : ''}`, {
+        silent: true,
+        stdout: true,
+      });
+      console.log(path ? log0.replaceAll(path, path.red) : log0);
+    },
+
+    /**
+     * @method svc-rm
+     * @description Removes a systemd service by stopping it, disabling it, uninstalling the package, and deleting related files.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the service name).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'svc-rm': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(`sudo systemctl stop ${path}`);
+      shellExec(`sudo systemctl disable --now ${path}`);
+      shellExec(`sudo dnf remove -y ${path}*`);
+      shellExec(`sudo rm -f /usr/lib/systemd/system/${path}.service`);
+      shellExec(`sudo rm -f /etc/yum.repos.d/${path}*.repo`);
+    },
+
     /**
      * @method ssh-cluster-info
      * @description Executes the `ssh-cluster-info.sh` script to display cluster connection information.

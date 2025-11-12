@@ -55,4 +55,5 @@ jobs:
             echo "Starting remote sync and deploy"
             cd /home/dd/engine
             underpost run pull
+            node bin run metadata dd-core
             node bin run sync dd-core,1,,localhost/rockylinux9-underpost:v2.8.846
