@@ -940,12 +940,13 @@ const ObjectLayerEngineModal = {
     const queryParams = getQueryParams();
     queryParams.page = 1;
     setQueryParams(queryParams);
-    const managerComponent = DefaultManagement.Tokens['modal-object-layer-engine-management'];
+    const modalId = 'modal-object-layer-engine-management';
+    const managerComponent = DefaultManagement.Tokens[modalId];
     if (managerComponent) {
       managerComponent.page = 1;
       if (!managerComponent.readyRowDataEvent) managerComponent.readyRowDataEvent = {};
       let readyLoad = false;
-      const gridId = 'object-layer-engine-management-grid-modal-object-layer-engine-management';
+      const gridId = `object-layer-engine-management-grid-${modalId}`;
       managerComponent.readyRowDataEvent['object-layer-engine-management'] = async () => {
         if (readyLoad) {
           AgGrid.grids[gridId].setGridOption('getRowClass', null);
@@ -961,7 +962,7 @@ const ObjectLayerEngineModal = {
       };
     }
 
-    const _s = s(`.management-table-btn-reload-modal-object-layer-engine-management`);
+    const _s = s(`.management-table-btn-reload-${modalId}`);
     if (_s) _s.click();
 
     s(`.main-btn-object-layer-engine-management`).click();
