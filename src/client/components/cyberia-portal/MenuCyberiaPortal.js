@@ -172,7 +172,7 @@ const MenuCyberiaPortal = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('object-layer-engine')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-object-layer-engine-management',
+            class: 'in wfa main-btn-menu main-btn-object-layer-engine-management hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,

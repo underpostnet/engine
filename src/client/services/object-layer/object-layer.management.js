@@ -9,7 +9,7 @@ import { Modal } from '../../components/core/Modal.js';
 import { BtnIcon } from '../../components/core/BtnIcon.js';
 
 const ObjectLayerManagement = {
-  RenderTable: async ({ Elements }) => {
+  RenderTable: async ({ Elements, idModal }) => {
     const user = Elements.Data.user.main.model.user;
     const { role } = user;
 
@@ -40,9 +40,9 @@ const ObjectLayerManagement = {
                 // Navigate to viewer route first
                 setPath(`${getProxyPath()}object-layer-engine-viewer`);
                 // Then add query param without replacing history
-                setQueryParams({ cid: data._id }, { replace: false });
+                setQueryParams({ cid: data._id }, { replace: true });
                 if (s(`.modal-object-layer-engine-viewer`)) {
-                  await ObjectLayerEngineViewer.Reload();
+                  await ObjectLayerEngineViewer.Reload({ Elements });
                 }
                 s(`.main-btn-object-layer-engine-viewer`).click();
               });
@@ -85,7 +85,7 @@ const ObjectLayerManagement = {
                 // Navigate to editor route first
                 setPath(`${getProxyPath()}object-layer-engine`);
                 // Then add query param without replacing history
-                setQueryParams({ cid: data._id }, { replace: false });
+                setQueryParams({ cid: data._id }, { replace: true });
                 if (s(`.modal-object-layer-engine`)) await ObjectLayerEngineModal.Reload();
                 else s(`.main-btn-object-layer-engine`).click();
               });
@@ -177,7 +177,7 @@ const ObjectLayerManagement = {
     ];
 
     return await DefaultManagement.RenderTable({
-      idModal: 'modal-object-layer-engine-management',
+      idModal: idModal ? idModal : 'modal-object-layer-engine-management',
       serviceId: 'object-layer-engine-management',
       entity: 'object-layer',
       permissions: {

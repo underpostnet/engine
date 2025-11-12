@@ -5,7 +5,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { htmls, s } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { darkTheme, ThemeEvents } from './Css.js';
-import { ObjectLayerCyberiaPortal } from '../cyberia-portal/ObjectLayerCyberiaPortal.js';
+import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -66,7 +66,7 @@ const ObjectLayerEngineViewer = {
           if (cid) {
             await this.loadObjectLayer(cid);
           } else {
-            this.renderEmpty();
+            this.renderEmpty({ Elements });
           }
         },
       },
@@ -103,9 +103,15 @@ const ObjectLayerEngineViewer = {
     `;
   },
 
-  renderEmpty: async function () {
+  renderEmpty: async function ({ Elements }) {
     const id = 'object-layer-engine-viewer';
-    htmls(`#${id}`, await ObjectLayerCyberiaPortal.Render());
+    htmls(
+      `#${id}`,
+      await ObjectLayerManagement.RenderTable({
+        Elements,
+        idModal: 'modal-object-layer-engine-viewer',
+      }),
+    );
   },
 
   loadObjectLayer: async function (objectLayerId) {
@@ -1046,14 +1052,14 @@ const ObjectLayerEngineViewer = {
     });
   },
 
-  Reload: async function () {
+  Reload: async function ({ Elements }) {
     const queryParams = new URLSearchParams(window.location.search);
     const cid = queryParams.get('cid');
 
     if (cid) {
       await this.loadObjectLayer(cid);
     } else {
-      this.renderEmpty();
+      this.renderEmpty({ Elements });
     }
   },
 };
