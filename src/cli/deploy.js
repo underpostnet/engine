@@ -179,7 +179,10 @@ spec:
               npm install -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.${env} &&
               underpost start --build --run ${deployId} ${env}
-${UnderpostDeploy.API.volumeFactory(volumes).render}
+${UnderpostDeploy.API.volumeFactory(volumes)
+  .render.split(`\n`)
+  .map((l) => '    ' + l)
+  .join(`\n`)}
 ---
 apiVersion: v1
 kind: Service
@@ -755,28 +758,28 @@ EOF
       ],
     ) {
       let _volumeMounts = `
-          volumeMounts:`;
+      volumeMounts:`;
       let _volumes = `
-      volumes:`;
+  volumes:`;
       volumes.map((volumeData) => {
         const { volumeName, volumeMountPath, volumeHostPath, volumeType, claimName, configMap } = volumeData;
         _volumeMounts += `
-            - name: ${volumeName}
-              mountPath: ${volumeMountPath}
+        - name: ${volumeName}
+          mountPath: ${volumeMountPath}
 `;
 
         _volumes += `
-        - name: ${volumeName}
+    - name: ${volumeName}
  ${
    configMap
-     ? `         configMap:
-            name: ${configMap}`
+     ? `     configMap:
+        name: ${configMap}`
      : claimName
-       ? `         persistentVolumeClaim:
-            claimName: ${claimName}`
+       ? `     persistentVolumeClaim:
+        claimName: ${claimName}`
        : `         hostPath:
-            path: ${volumeHostPath}
-            type: ${volumeType}
+        path: ${volumeHostPath}
+        type: ${volumeType}
 `
  }
 
