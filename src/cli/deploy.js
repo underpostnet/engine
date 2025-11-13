@@ -777,7 +777,7 @@ EOF
      : claimName
        ? `     persistentVolumeClaim:
         claimName: ${claimName}`
-       : `         hostPath:
+       : `     hostPath:
         path: ${volumeHostPath}
         type: ${volumeType}
 `

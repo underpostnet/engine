@@ -604,10 +604,7 @@ class UnderpostRun {
         false,
       ).find((o) => o.IMAGE.match('underpost'));
       const podName = `underpost-dev-container`;
-      if (
-        !options.nodeName &&
-        !UnderpostDeploy.API.existsContainerFile({ podName: 'kind-worker', path: '/home/dd/engine' })
-      ) {
+      if (!options.nodeName) {
         shellExec(`docker exec -i kind-worker bash -c "rm -rf /home/dd"`);
         shellExec(`docker exec -i kind-worker bash -c "mkdir -p /home/dd"`);
         shellExec(`docker cp /home/dd/engine kind-worker:/home/dd/engine`);
@@ -637,7 +634,7 @@ class UnderpostRun {
             // openTerminal(`kubectl logs -f ${podName}`);
           },
         },
-        args: [daemonProcess(path ? path : `cd /home/dd/engine && npm run test`)],
+        args: [daemonProcess(path ? path : `cd /home/dd/engine && npm install && npm run test`)],
       });
     },
 
