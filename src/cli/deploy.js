@@ -533,6 +533,11 @@ EOF`);
 
         if (!options.disableUpdateVolume) {
           for (const volume of confVolume) {
+            if (options.remove) {
+              shellExec(`kubectl delete pvc ${volume.claimName}`);
+              shellExec(`kubectl delete pv ${volume.claimName.replace('pvc-', 'pv-')}`);
+              continue;
+            }
             shellExec(`kubectl apply -f - <<EOF
 ${UnderpostDeploy.API.persistentVolumeFactory({
   hostPath: volume.volumeMountPath,
