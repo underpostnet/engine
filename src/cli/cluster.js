@@ -621,7 +621,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
         // Phase 1: Clean up Persistent Volumes with hostPath
         // This targets data created by Kubernetes Persistent Volumes that use hostPath.
         logger.info('Phase 1/7: Cleaning Kubernetes hostPath volumes...');
-        if (removeVolumeHostPaths)
+        if (options.removeVolumeHostPaths)
           try {
             const pvListJson = shellExec(`kubectl get pv -o json || echo '{"items":[]}'`, {
               stdout: true,
