@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.89.2
+## underpost ci/cd cli v2.89.21
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -146,6 +146,9 @@ Options:
   --deploy-id <deploy-id>  Sets the deployment configuration ID for the commit
                            context.
   --cached                 Commit staged changes only or context.
+  --hashes <hashes>        Comma-separated list of specific file hashes of
+                           commits.
+  --extension <extension>  specific file extensions of commits.
   -h, --help               display help for command
  
 ```
@@ -228,58 +231,66 @@ Options:
 Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 
 Arguments:
-  pod-name                Optional: Filters information by a specific pod name.
+  pod-name                    Optional: Filters information by a specific pod
+                              name.
 
 Options:
-  --reset                 Deletes all clusters and prunes all related data and
-                          caches.
-  --mariadb               Initializes the cluster with a MariaDB statefulset.
-  --mysql                 Initializes the cluster with a MySQL statefulset.
-  --mongodb               Initializes the cluster with a MongoDB statefulset.
-  --mongo-db-host <host>  Set custom mongo db host
-  --postgresql            Initializes the cluster with a PostgreSQL
-                          statefulset.
-  --mongodb4              Initializes the cluster with a MongoDB 4.4 service.
-  --valkey                Initializes the cluster with a Valkey service.
-  --contour               Initializes the cluster with Project Contour base
-                          HTTPProxy and Envoy.
-  --cert-manager          Initializes the cluster with a Let's Encrypt
-                          production ClusterIssuer.
-  --dedicated-gpu         Initializes the cluster with dedicated GPU base
-                          resources and environment settings.
-  --info                  Retrieves information about all deployed Kubernetes
-                          objects.
-  --full                  Initializes the cluster with all available
-                          statefulsets and services.
-  --ns-use <ns-name>      Switches the current Kubernetes context to the
-                          specified namespace.
-  --kubeadm               Initializes the cluster using kubeadm for control
-                          plane management.
-  --grafana               Initializes the cluster with a Grafana deployment.
-  --prom [hosts]          Initializes the cluster with a Prometheus Operator
-                          deployment and monitor scrap for specified hosts.
-  --dev                   Initializes a development-specific cluster
-                          configuration.
-  --list-pods             Displays detailed information about all pods.
-  --info-capacity         Displays the current total machine capacity
-                          information.
-  --info-capacity-pod     Displays the current machine capacity information per
-                          pod.
-  --pull-image            Sets an optional associated image to pull during
-                          initialization.
-  --init-host             Installs necessary Kubernetes node CLI tools (e.g.,
-                          kind, kubeadm, docker, podman, helm).
-  --uninstall-host        Uninstalls all host components installed by
-                          init-host.
-  --config                Sets the base Kubernetes node configuration.
-  --worker                Sets the context for a worker node.
-  --chown                 Sets the appropriate ownership for Kubernetes
-                          kubeconfig files.
-  --k3s                   Initializes the cluster using K3s (Lightweight
-                          Kubernetes).
-  --hosts <hosts>         A comma-separated list of cluster hostnames or IP
-                          addresses.
-  -h, --help              display help for command
+  --reset                     Deletes all clusters and prunes all related data
+                              and caches.
+  --mariadb                   Initializes the cluster with a MariaDB
+                              statefulset.
+  --mysql                     Initializes the cluster with a MySQL statefulset.
+  --mongodb                   Initializes the cluster with a MongoDB
+                              statefulset.
+  --mongo-db-host <host>      Set custom mongo db host
+  --postgresql                Initializes the cluster with a PostgreSQL
+                              statefulset.
+  --mongodb4                  Initializes the cluster with a MongoDB 4.4
+                              service.
+  --valkey                    Initializes the cluster with a Valkey service.
+  --contour                   Initializes the cluster with Project Contour base
+                              HTTPProxy and Envoy.
+  --cert-manager              Initializes the cluster with a Let's Encrypt
+                              production ClusterIssuer.
+  --dedicated-gpu             Initializes the cluster with dedicated GPU base
+                              resources and environment settings.
+  --info                      Retrieves information about all deployed
+                              Kubernetes objects.
+  --full                      Initializes the cluster with all available
+                              statefulsets and services.
+  --ns-use <ns-name>          Switches the current Kubernetes context to the
+                              specified namespace.
+  --kubeadm                   Initializes the cluster using kubeadm for control
+                              plane management.
+  --grafana                   Initializes the cluster with a Grafana
+                              deployment.
+  --prom [hosts]              Initializes the cluster with a Prometheus
+                              Operator deployment and monitor scrap for
+                              specified hosts.
+  --dev                       Initializes a development-specific cluster
+                              configuration.
+  --list-pods                 Displays detailed information about all pods.
+  --info-capacity             Displays the current total machine capacity
+                              information.
+  --info-capacity-pod         Displays the current machine capacity information
+                              per pod.
+  --pull-image                Sets an optional associated image to pull during
+                              initialization.
+  --init-host                 Installs necessary Kubernetes node CLI tools
+                              (e.g., kind, kubeadm, docker, podman, helm).
+  --uninstall-host            Uninstalls all host components installed by
+                              init-host.
+  --config                    Sets the base Kubernetes node configuration.
+  --worker                    Sets the context for a worker node.
+  --chown                     Sets the appropriate ownership for Kubernetes
+                              kubeconfig files.
+  --k3s                       Initializes the cluster using K3s (Lightweight
+                              Kubernetes).
+  --hosts <hosts>             A comma-separated list of cluster hostnames or IP
+                              addresses.
+  --remove-volume-host-paths  Removes specified volume host paths after
+                              execution.
+  -h, --help                  display help for command
  
 ```
   
@@ -327,6 +338,8 @@ Options:
   --disable-update-deployment        Disables updates to deployments.
   --disable-update-proxy             Disables updates to proxies.
   --disable-deployment-proxy         Disables proxies of deployments.
+  --disable-update-volume            Disables updates to volume mounts during
+                                     deployment.
   --status                           Retrieves current network traffic data
                                      from resource deployments and the host
                                      machine network configuration.
@@ -628,7 +641,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, tz, cron, ls-deployments, ls-images, host-update, dev-container, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, tz, cron, ls-deployments, ls-images, host-update, dd-container, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
@@ -647,6 +660,14 @@ Options:
   --image-name <image-name>                Optional: Specifies the image name for test execution.
   --container-name <container-name>        Optional: Specifies the container name for test execution.
   --namespace <namespace>                  Optional: Specifies the namespace for test execution.
+  --tty                                    Enables TTY for the container in deploy-job.
+  --stdin                                  Keeps STDIN open for the container in deploy-job.
+  --restart-policy <policy>                Sets the restart policy for the job in deploy-job.
+  --runtime-class-name <name>              Sets the runtime class name for the job in deploy-job.
+  --image-pull-policy <policy>             Sets the image pull policy for the job in deploy-job.
+  --api-version <version>                  Sets the API version for the job manifest in deploy-job.
+  --claim-name <name>                      Optional: Specifies the claim name for volume mounting in deploy-job.
+  --kind <kind-type>                       Specifies the kind of Kubernetes resource (e.g., Job, Deployment) for deploy-job.
   --kubeadm                                Flag to indicate Kubeadm cluster type context
   --k3s                                    Flag to indicate K3s cluster type context
   --force                                  Forces operation, overriding any warnings or conflicts.
@@ -655,6 +676,7 @@ Options:
   --terminal                               Enables terminal mode for interactive script execution.
   --dev-proxy-port-offset <port-offset>    Sets a custom port offset for development proxy.
   --conf-server-path <conf-server-path>    Sets a custom configuration server path.
+  --underpost-root <underpost-root>        Sets a custom Underpost root path.
   -h, --help                               display help for command
  
 ```
@@ -741,4 +763,3 @@ Options:
   -h, --help                     display help for command
  
 ```
-  

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-blue
-          image: localhost/rockylinux9-underpost:v2.89.2
+          image: localhost/rockylinux9-underpost:v2.89.21
 #          resources:
 #            requests:
 #              memory: "96294Ki"
@@ -33,13 +33,25 @@ spec:
               npm install -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.development &&
               underpost start --build --run dd-cyberia development
+    
           volumeMounts:
             - name: config-volume
               mountPath: /etc/config
+    
+            - name: vol-public-dd-cyberia
+              mountPath: /home/dd/engine/src/client/public/cyberia
+    
       volumes:
         - name: config-volume
           configMap:
             name: underpost-config
+    
+      
+        - name: vol-public-dd-cyberia
+          persistentVolumeClaim:
+            claimName: pvc-public-dd-cyberia
+    
+      
 ---
 apiVersion: v1
 kind: Service
@@ -149,7 +161,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-green
-          image: localhost/rockylinux9-underpost:v2.89.2
+          image: localhost/rockylinux9-underpost:v2.89.21
 #          resources:
 #            requests:
 #              memory: "96294Ki"
@@ -165,13 +177,25 @@ spec:
               npm install -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.development &&
               underpost start --build --run dd-cyberia development
+    
           volumeMounts:
             - name: config-volume
               mountPath: /etc/config
+    
+            - name: vol-public-dd-cyberia
+              mountPath: /home/dd/engine/src/client/public/cyberia
+    
       volumes:
         - name: config-volume
           configMap:
             name: underpost-config
+    
+      
+        - name: vol-public-dd-cyberia
+          persistentVolumeClaim:
+            claimName: pvc-public-dd-cyberia
+    
+      
 ---
 apiVersion: v1
 kind: Service
