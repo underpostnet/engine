@@ -163,6 +163,7 @@ program
   .option('--chown', 'Sets the appropriate ownership for Kubernetes kubeconfig files.')
   .option('--k3s', 'Initializes the cluster using K3s (Lightweight Kubernetes).')
   .option('--hosts <hosts>', 'A comma-separated list of cluster hostnames or IP addresses.')
+  .option('--remove-volume-host-paths', 'Removes specified volume host paths after execution.')
   .action(Underpost.cluster.init)
   .description('Manages Kubernetes clusters, defaulting to Kind cluster initialization.');
 

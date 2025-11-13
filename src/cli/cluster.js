@@ -58,6 +58,7 @@ class UnderpostCluster {
      * @param {boolean} [options.config=false] - Apply general host configuration (SELinux, containerd, sysctl, firewalld).
      * @param {boolean} [options.worker=false] - Configure as a worker node (for Kubeadm or K3s join).
      * @param {boolean} [options.chown=false] - Set up kubectl configuration for the current user.
+     * @param {boolean} [options.removeVolumeHostPaths=false] - Remove data from host paths used by Persistent Volumes.
      * @param {string} [options.hosts] - Set custom hosts entries.
      * @memberof UnderpostCluster
      */
@@ -91,6 +92,7 @@ class UnderpostCluster {
         config: false,
         worker: false,
         chown: false,
+        removeVolumeHostPaths: false,
         hosts: '',
       },
     ) {
@@ -153,7 +155,11 @@ class UnderpostCluster {
       }
 
       // Reset Kubernetes cluster components (Kind/Kubeadm/K3s) and container runtimes
-      if (options.reset === true) return await UnderpostCluster.API.safeReset({ underpostRoot });
+      if (options.reset === true)
+        return await UnderpostCluster.API.safeReset({
+          underpostRoot,
+          removeVolumeHostPaths: options.removeVolumeHostPaths,
+        });
 
       // Check if a cluster (Kind, Kubeadm, or K3s) is already initialized
       const alreadyKubeadmCluster = UnderpostDeploy.API.get('calico-kube-controllers')[0];
@@ -585,9 +591,10 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
      * in coredns) by restoring SELinux security contexts and safely cleaning up cluster artifacts.
      * @param {object} [options] - Configuration options for the reset.
      * @param {string} [options.underpostRoot] - The root path of the underpost project.
+     * @param {boolean} [options.removeVolumeHostPaths=false] - Whether to remove data from host paths used by Persistent Volumes.
      * @memberof UnderpostCluster
      */
-    async safeReset(options = { underpostRoot: '.' }) {
+    async safeReset(options = { underpostRoot: '.', removeVolumeHostPaths: false }) {
       logger.info('Starting a safe and comprehensive reset of Kubernetes and container environments...');
 
       try {
@@ -614,25 +621,30 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
         // Phase 1: Clean up Persistent Volumes with hostPath
         // This targets data created by Kubernetes Persistent Volumes that use hostPath.
         logger.info('Phase 1/7: Cleaning Kubernetes hostPath volumes...');
-        try {
-          const pvListJson = shellExec(`kubectl get pv -o json || echo '{"items":[]}'`, { stdout: true, silent: true });
-          const pvList = JSON.parse(pvListJson);
+        if (removeVolumeHostPaths)
+          try {
+            const pvListJson = shellExec(`kubectl get pv -o json || echo '{"items":[]}'`, {
+              stdout: true,
+              silent: true,
+            });
+            const pvList = JSON.parse(pvListJson);
 
-          if (pvList.items && pvList.items.length > 0) {
-            for (const pv of pvList.items) {
-              // Check if the PV uses hostPath and delete its contents
-              if (pv.spec.hostPath && pv.spec.hostPath.path) {
-                const hostPath = pv.spec.hostPath.path;
-                logger.info(`Removing data from host path for PV '${pv.metadata.name}': ${hostPath}`);
-                shellExec(`sudo rm -rf ${hostPath}/* || true`);
+            if (pvList.items && pvList.items.length > 0) {
+              for (const pv of pvList.items) {
+                // Check if the PV uses hostPath and delete its contents
+                if (pv.spec.hostPath && pv.spec.hostPath.path) {
+                  const hostPath = pv.spec.hostPath.path;
+                  logger.info(`Removing data from host path for PV '${pv.metadata.name}': ${hostPath}`);
+                  shellExec(`sudo rm -rf ${hostPath}/* || true`);
+                }
               }
+            } else {
+              logger.info('No Persistent Volumes found with hostPath to clean up.');
             }
-          } else {
-            logger.info('No Persistent Volumes found with hostPath to clean up.');
+          } catch (error) {
+            logger.error('Failed to clean up Persistent Volumes:', error);
           }
-        } catch (error) {
-          logger.error('Failed to clean up Persistent Volumes:', error);
-        }
+        else logger.info('  -> Skipping hostPath volume cleanup as per configuration.');
         // Phase 2: Restore SELinux and stop services
         // This is critical for fixing the 'permission denied' error you experienced.
         // Enable SELinux permissive mode and restore file contexts.
