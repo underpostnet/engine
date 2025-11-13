@@ -63,6 +63,7 @@ class UnderpostRun {
    * @property {boolean} terminal - Whether to open a terminal.
    * @property {number} devProxyPortOffset - The port offset for the development proxy.
    * @property {string} confServerPath - The configuration server path.
+   * @property {string} underpostRoot - The root path of the Underpost installation.
    * @memberof UnderpostRun
    */
   static DEFAULT_OPTION = {
@@ -88,6 +89,7 @@ class UnderpostRun {
     terminal: false,
     devProxyPortOffset: 0,
     confServerPath: '',
+    underpostRoot: '',
   };
   /**
    * @static
@@ -578,33 +580,48 @@ class UnderpostRun {
     },
 
     /**
-     * @method dev-container
-     * @description Runs a development container pod named `underpost-dev-container` with specified volume mounts and opens a terminal to follow its logs.
-     * @param {string} path - The input value, identifier, or path for the operation (used as an optional command to run inside the container).
+     * @method dd-container
+     * @description Deploys a development or debug container tasks jobs, setting up necessary volumes and images, and running specified commands within the container.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the command to run inside the container).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'dev-container': async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
-      options.dev = true;
+    'dd-container': async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
-      const currentImage = UnderpostDeploy.API.getCurrentLoadedImages('kind-worker', false).find((o) =>
-        o.IMAGE.match('underpost'),
-      );
+      const currentImage = UnderpostDeploy.API.getCurrentLoadedImages(
+        options.nodeName ? options.nodeName : 'kind-worker',
+        false,
+      ).find((o) => o.IMAGE.match('underpost'));
       const podName = `underpost-dev-container`;
-      if (!UnderpostDeploy.API.existsContainerFile({ podName: 'kind-worker', path: '/home/dd/engine' })) {
+      if (
+        !options.nodeName &&
+        !UnderpostDeploy.API.existsContainerFile({ podName: 'kind-worker', path: '/home/dd/engine' })
+      ) {
+        shellExec(`docker exec -i kind-worker bash -c "rm -rf /home/dd"`);
         shellExec(`docker exec -i kind-worker bash -c "mkdir -p /home/dd"`);
         shellExec(`docker cp /home/dd/engine kind-worker:/home/dd/engine`);
         shellExec(`docker exec -i kind-worker bash -c "chown -R 1000:1000 /home/dd || true; chmod -R 755 /home/dd"`);
+      } else {
+        shellExec(`kubectl apply -f ${options.underpostRoot}/pv-pvc-dd.yaml`);
       }
-      if (!currentImage) shellExec(`${baseCommand} dockerfile-pull-base-images${baseClusterCommand} --kind-load`);
+      if (!currentImage)
+        shellExec(
+          `${baseCommand} dockerfile-pull-base-images${baseClusterCommand} ${options.dev ? '--kind-load' : '--kubeadm-load'}`,
+        );
       // shellExec(`kubectl delete pod ${podName} --ignore-not-found`);
       await UnderpostRun.RUNNERS['deploy-job']('', {
-        dev: true,
+        dev: options.dev,
         podName,
-        imageName: currentImage ? currentImage.image : `localhost/rockylinux9-underpost:${Underpost.version}`,
-        volumeHostPath: '/home/dd',
+        imageName: currentImage
+          ? currentImage.image
+            ? currentImage.image
+            : currentImage.IMAGE
+              ? `${currentImage.IMAGE}:${currentImage.TAG}`
+              : `localhost/rockylinux9-underpost:${Underpost.version}`
+          : `localhost/rockylinux9-underpost:${Underpost.version}`,
         volumeMountPath: '/home/dd',
+        ...(options.dev ? { volumeHostPath: '/home/dd' } : { claimName: 'dd-pvc' }),
         on: {
           init: async () => {
             // openTerminal(`kubectl logs -f ${podName}`);
@@ -1153,11 +1170,12 @@ class UnderpostRun {
     'deploy-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const podName = options.podName || 'deploy-job';
       const volumeName = `${podName}-volume`;
-      const args = (options.args ? options.args : path ? [`python ${path}`] : []).filter((c) => c.trim());
+      if (typeof options.args === 'string') options.args = options.args.split(',');
+      const args = (options.args ? options.args : path ? [path] : [`python ${path}`]).filter((c) => c.trim());
       const imageName = options.imageName || 'nvcr.io/nvidia/tensorflow:24.04-tf2-py3';
       const containerName = options.containerName || `${podName}-container`;
       const gpuEnable = imageName.match('nvidia');
-      const runtimeClassName = gpuEnable ? 'nvidia' : '';
+      const runtimeClassName = options.runtimeClassName ? options.runtimeClassName : gpuEnable ? 'nvidia' : '';
       const namespace = options.namespace || 'default';
       const volumeMountPath = options.volumeMountPath || path;
       const volumeHostPath = options.volumeHostPath || path;
@@ -1165,16 +1183,21 @@ class UnderpostRun {
       const tty = options.tty ? 'true' : 'false';
       const stdin = options.stdin ? 'true' : 'false';
       const restartPolicy = options.restartPolicy || 'Never';
-
+      const kind = options.kind || 'Pod';
+      const claimName = options.claimName || '';
+      const imagePullPolicy = options.imagePullPolicy || 'IfNotPresent';
+      const apiVersion = options.apiVersion || 'v1';
       if (options.volumeType === 'dev') options.volumeType = 'FileOrCreate';
       const volumeType =
-        options.volumeType || (enableVolumeMount && fs.statSync(volumeHostPath).isDirectory()) ? 'Directory' : 'File';
+        options.volumeType || (enableVolumeMount && volumeHostPath && fs.statSync(volumeHostPath).isDirectory())
+          ? 'Directory'
+          : 'File';
 
       const envs = UnderpostRootEnv.API.list();
 
       const cmd = `kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Pod
+apiVersion: ${apiVersion}
+kind: ${kind}
 metadata:
   name: ${podName}
   namespace: ${namespace}
@@ -1186,7 +1209,7 @@ ${runtimeClassName ? `  runtimeClassName: ${runtimeClassName}` : ''}
   containers:
     - name: ${containerName}
       image: ${imageName}
-      imagePullPolicy: IfNotPresent
+      imagePullPolicy: ${imagePullPolicy}
       tty: ${tty}
       stdin: ${stdin}
       command: ${JSON.stringify(options.command ? options.command : ['/bin/bash', '-c'])}
@@ -1212,15 +1235,7 @@ ${Object.keys(envs)
   .join('\n')}`}
 ${
   enableVolumeMount
-    ? `
-      volumeMounts:
-        - name: ${volumeName}
-          mountPath: ${volumeMountPath}
-  volumes:
-    - name: ${volumeName}
-      hostPath:
-        path: ${volumeHostPath}
-        type: ${volumeType}`
+    ? UnderpostDeploy.API.volumeFactory([{ volumeMountPath, volumeName, volumeHostPath, volumeType, claimName }]).render
     : ''
 }
 EOF`;
@@ -1251,7 +1266,7 @@ EOF`;
         const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
         if (options.command) options.command = options.command.split(',');
         if (options.args) options.args = options.args.split(',');
-        options.underpostRoot = underpostRoot;
+        if (!options.underpostRoot) options.underpostRoot = underpostRoot;
         options.npmRoot = npmRoot;
         logger.info('callback', { path, options });
         if (!(runner in UnderpostRun.RUNNERS)) throw new Error(`Runner not found: ${runner}`);

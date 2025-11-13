@@ -702,6 +702,56 @@ EOF`);
       );
       shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
     },
+
+    /**
+     * Creates volume mounts and volumes for a deployment.
+     * @param {Array<volume>} volumes - List of volume configurations.
+     * @param {string} volume.volumeName - Name of the volume.
+     * @param {string} volume.volumeMountPath - Mount path of the volume in the container.
+     * @param {string} volume.volumeHostPath - Host path of the volume.
+     * @param {string} volume.volumeType - Type of the volume (e.g. 'Directory').
+     * @param {string|null} volume.claimName - Name of the persistent volume claim (if applicable).
+     * @returns {object} - Object containing the rendered volume mounts and volumes.
+     * @memberof UnderpostDeploy
+     */
+    volumeFactory(
+      volumes = [
+        {
+          volumeName: 'volume-name',
+          volumeMountPath: '/path/in/container',
+          volumeHostPath: '/path/on/host',
+          volumeType: 'Directory',
+          claimName: null,
+        },
+      ],
+    ) {
+      let _volumeMounts = `
+          volumeMounts:`;
+      let _volumes = `
+      volumes:`;
+      volumes.map((volumeData) => {
+        const { volumeName, volumeMountPath, volumeHostPath, volumeType, claimName } = volumeData;
+        _volumeMounts += `
+            - name: ${volumeName}
+              mountPath: ${volumeMountPath}`;
+
+        _volumes += `
+        - name: ${volumeName}
+          ${
+            claimName
+              ? `          persistentVolumeClaim:
+            claimName: pvc-home-dd`
+              : `          hostPath:
+            path: ${volumeHostPath}
+            type: ${volumeType}
+`
+          }
+
+  `;
+      });
+      return { render: _volumeMounts + _volumes };
+    },
+
     /**
      * Creates a hosts file for a deployment.
      * @param {Array<string>} hosts - List of hosts to be added to the hosts file.
