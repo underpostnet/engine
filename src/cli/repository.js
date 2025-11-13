@@ -89,6 +89,8 @@ class UnderpostRepository {
      * @param {boolean} [options.lastMsg=0] - If greater than 0, copies or show the last last single n commit message to clipboard.
      * @param {string} [options.msg=''] - If provided, outputs this message instead of committing.
      * @param {string} [options.deployId=''] - An optional deploy ID to include in the commit message.
+     * @param {string} [options.hashes=''] - If provided with diff option, shows the diff between two hashes.
+     * @param {string} [options.extension=''] - If provided with diff option, filters the diff by this file extension.
      * @memberof UnderpostRepository
      */
     commit(
@@ -107,9 +109,19 @@ class UnderpostRepository {
         log: 0,
         msg: '',
         deployId: '',
+        hashes: '',
+        extension: '',
       },
     ) {
       if (!repoPath) repoPath = '.';
+      if (options.diff && options.hashes) {
+        const hashes = options.hashes.split(',');
+        const cmd = `git --no-pager diff ${hashes[0]} ${hashes[1] ? hashes[1] : 'HEAD'}${options.extension ? ` -- '*.${options.extension}'` : ''}`;
+        if (options.copy) {
+          pbcopy(cmd);
+        } else console.log(cmd);
+        return;
+      }
       if (options.msg) {
         options.msg = options.msg.replaceAll('"', '').replaceAll(`'`, '').replaceAll('`', '');
         let key = Object.keys(commitData).find((k) => k && options.msg.toLocaleLowerCase().slice(0, 16).match(k));
