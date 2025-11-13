@@ -60,6 +60,11 @@ class UnderpostRun {
    * @property {string} tty - The TTY option for the container.
    * @property {string} stdin - The stdin option for the container.
    * @property {string} restartPolicy - The restart policy for the container.
+   * @property {string} runtimeClassName - The runtime class name for the container.
+   * @property {string} imagePullPolicy - The image pull policy for the container.
+   * @property {string} apiVersion - The API version for the container.
+   * @property {string} claimName - The claim name for the volume.
+   * @property {string} kind - The kind of resource to create.
    * @property {boolean} terminal - Whether to open a terminal.
    * @property {number} devProxyPortOffset - The port offset for the development proxy.
    * @property {string} confServerPath - The configuration server path.
@@ -86,6 +91,11 @@ class UnderpostRun {
     tty: '',
     stdin: '',
     restartPolicy: '',
+    runtimeClassName: '',
+    imagePullPolicy: '',
+    apiVersion: '',
+    claimName: '',
+    kind: '',
     terminal: false,
     devProxyPortOffset: 0,
     confServerPath: '',
@@ -1179,12 +1189,12 @@ class UnderpostRun {
       const namespace = options.namespace || 'default';
       const volumeMountPath = options.volumeMountPath || path;
       const volumeHostPath = options.volumeHostPath || path;
-      const enableVolumeMount = volumeHostPath && volumeMountPath;
+      const claimName = options.claimName || '';
+      const enableVolumeMount = volumeMountPath && (volumeHostPath || claimName);
       const tty = options.tty ? 'true' : 'false';
       const stdin = options.stdin ? 'true' : 'false';
       const restartPolicy = options.restartPolicy || 'Never';
       const kind = options.kind || 'Pod';
-      const claimName = options.claimName || '';
       const imagePullPolicy = options.imagePullPolicy || 'IfNotPresent';
       const apiVersion = options.apiVersion || 'v1';
       if (options.volumeType === 'dev') options.volumeType = 'FileOrCreate';
