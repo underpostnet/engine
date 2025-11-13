@@ -613,7 +613,7 @@ class UnderpostRun {
         shellExec(`docker cp /home/dd/engine kind-worker:/home/dd/engine`);
         shellExec(`docker exec -i kind-worker bash -c "chown -R 1000:1000 /home/dd || true; chmod -R 755 /home/dd"`);
       } else {
-        shellExec(`kubectl apply -f ${options.underpostRoot}/pv-pvc-dd.yaml`);
+        shellExec(`kubectl apply -f ${options.underpostRoot}/manifests/pv-pvc-dd.yaml`);
       }
       if (!currentImage)
         shellExec(
@@ -631,7 +631,7 @@ class UnderpostRun {
               : `localhost/rockylinux9-underpost:${Underpost.version}`
           : `localhost/rockylinux9-underpost:${Underpost.version}`,
         volumeMountPath: '/home/dd',
-        ...(options.dev ? { volumeHostPath: '/home/dd' } : { claimName: 'dd-pvc' }),
+        ...(options.dev ? { volumeHostPath: '/home/dd' } : { claimName: 'pvc-dd' }),
         on: {
           init: async () => {
             // openTerminal(`kubectl logs -f ${podName}`);

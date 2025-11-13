@@ -726,26 +726,27 @@ EOF`);
       ],
     ) {
       let _volumeMounts = `
-          volumeMounts:`;
+      volumeMounts:`;
       let _volumes = `
-      volumes:`;
+  volumes:`;
       volumes.map((volumeData) => {
         const { volumeName, volumeMountPath, volumeHostPath, volumeType, claimName } = volumeData;
         _volumeMounts += `
-            - name: ${volumeName}
-              mountPath: ${volumeMountPath}`;
+        - name: ${volumeName}
+          mountPath: ${volumeMountPath}
+`;
 
         _volumes += `
-        - name: ${volumeName}
-          ${
-            claimName
-              ? `          persistentVolumeClaim:
-            claimName: pvc-home-dd`
-              : `          hostPath:
+    - name: ${volumeName}
+ ${
+   claimName
+     ? `     persistentVolumeClaim:
+        claimName: ${claimName}`
+     : `          hostPath:
             path: ${volumeHostPath}
             type: ${volumeType}
 `
-          }
+ }
 
   `;
       });
