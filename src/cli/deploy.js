@@ -134,7 +134,7 @@ class UnderpostDeploy {
      */
     deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image }) {
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
-      const volumes = [
+      let volumes = [
         {
           volumeMountPath: '/etc/config',
           volumeName: 'config-volume',
@@ -179,7 +179,7 @@ spec:
               npm install -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.${env} &&
               underpost start --build --run ${deployId} ${env}
-${UnderpostDeploy.API.volumeFactory(volumes)}
+${UnderpostDeploy.API.volumeFactory(volumes).render}
 ---
 apiVersion: v1
 kind: Service
@@ -750,28 +750,28 @@ EOF
       ],
     ) {
       let _volumeMounts = `
-      volumeMounts:`;
+          volumeMounts:`;
       let _volumes = `
-  volumes:`;
+      volumes:`;
       volumes.map((volumeData) => {
         const { volumeName, volumeMountPath, volumeHostPath, volumeType, claimName, configMap } = volumeData;
         _volumeMounts += `
-        - name: ${volumeName}
-          mountPath: ${volumeMountPath}
+            - name: ${volumeName}
+              mountPath: ${volumeMountPath}
 `;
 
         _volumes += `
-    - name: ${volumeName}
+        - name: ${volumeName}
  ${
    configMap
-     ? `     configMap:
-        name: ${configMap}`
+     ? `         configMap:
+            name: ${configMap}`
      : claimName
-       ? `     persistentVolumeClaim:
-        claimName: ${claimName}`
-       : `     hostPath:
-        path: ${volumeHostPath}
-        type: ${volumeType}
+       ? `         persistentVolumeClaim:
+            claimName: ${claimName}`
+       : `         hostPath:
+            path: ${volumeHostPath}
+            type: ${volumeType}
 `
  }
 
