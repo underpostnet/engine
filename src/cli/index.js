@@ -196,6 +196,7 @@ program
   .option('--disable-update-deployment', 'Disables updates to deployments.')
   .option('--disable-update-proxy', 'Disables updates to proxies.')
   .option('--disable-deployment-proxy', 'Disables proxies of deployments.')
+  .option('--disable-update-volume', 'Disables updates to volume mounts during deployment.')
   .option(
     '--status',
     'Retrieves current network traffic data from resource deployments and the host machine network configuration.',

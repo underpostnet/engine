@@ -134,6 +134,17 @@ class UnderpostDeploy {
      */
     deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image }) {
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+      const volumes = [
+        {
+          volumeMountPath: '/etc/config',
+          volumeName: 'config-volume',
+          configMap: 'underpost-config',
+        },
+      ];
+      const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
+        ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.volume.json`, 'utf8'))
+        : [];
+      volumes = volumes.concat(confVolume);
       return `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -168,13 +179,7 @@ spec:
               npm install -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.${env} &&
               underpost start --build --run ${deployId} ${env}
-          volumeMounts:
-            - name: config-volume
-              mountPath: /etc/config
-      volumes:
-        - name: config-volume
-          configMap:
-            name: underpost-config
+${UnderpostDeploy.API.volumeFactory(volumes)}
 ---
 apiVersion: v1
 kind: Service
@@ -364,6 +369,7 @@ spec:
      * @param {boolean} options.disableUpdateDeployment - Whether to disable deployment updates.
      * @param {boolean} options.disableUpdateProxy - Whether to disable proxy updates.
      * @param {boolean} options.disableDeploymentProxy - Whether to disable deployment proxy.
+     * @param {boolean} options.disableUpdateVolume - Whether to disable volume updates.
      * @param {boolean} options.status - Whether to display deployment status.
      * @param {boolean} options.etcHosts - Whether to display the /etc/hosts file.
      * @param {boolean} options.disableUpdateUnderpostConfig - Whether to disable Underpost config updates.
@@ -391,6 +397,7 @@ spec:
         disableUpdateDeployment: false,
         disableUpdateProxy: false,
         disableDeploymentProxy: false,
+        disableUpdateVolume: false,
         status: false,
         etcHosts: false,
         disableUpdateUnderpostConfig: false,
@@ -520,6 +527,21 @@ EOF`);
           }
 
         const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
+        const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
+          ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.volume.json`, 'utf8'))
+          : [];
+
+        if (!options.disableUpdateVolume) {
+          for (const volume of confVolume) {
+            shellExec(`kubectl apply -f - <<EOF
+${UnderpostDeploy.API.persistentVolumeFactory({
+  hostPath: volume.volumeMountPath,
+  pvcId: volume.claimName,
+})}
+EOF
+`);
+          }
+        }
 
         for (const host of Object.keys(confServer)) {
           if (!options.disableUpdateProxy) {
@@ -711,6 +733,7 @@ EOF`);
      * @param {string} volume.volumeHostPath - Host path of the volume.
      * @param {string} volume.volumeType - Type of the volume (e.g. 'Directory').
      * @param {string|null} volume.claimName - Name of the persistent volume claim (if applicable).
+     * @param {string|null} volume.configMap - Name of the config map (if applicable).
      * @returns {object} - Object containing the rendered volume mounts and volumes.
      * @memberof UnderpostDeploy
      */
@@ -722,6 +745,7 @@ EOF`);
           volumeHostPath: '/path/on/host',
           volumeType: 'Directory',
           claimName: null,
+          configMap: null,
         },
       ],
     ) {
@@ -730,7 +754,7 @@ EOF`);
       let _volumes = `
   volumes:`;
       volumes.map((volumeData) => {
-        const { volumeName, volumeMountPath, volumeHostPath, volumeType, claimName } = volumeData;
+        const { volumeName, volumeMountPath, volumeHostPath, volumeType, claimName, configMap } = volumeData;
         _volumeMounts += `
         - name: ${volumeName}
           mountPath: ${volumeMountPath}
@@ -739,10 +763,13 @@ EOF`);
         _volumes += `
     - name: ${volumeName}
  ${
-   claimName
-     ? `     persistentVolumeClaim:
+   configMap
+     ? `     configMap:
+        name: ${configMap}`
+     : claimName
+       ? `     persistentVolumeClaim:
         claimName: ${claimName}`
-     : `     hostPath:
+       : `     hostPath:
         path: ${volumeHostPath}
         type: ${volumeType}
 `
@@ -751,6 +778,22 @@ EOF`);
   `;
       });
       return { render: _volumeMounts + _volumes };
+    },
+
+    /**
+     * Creates a persistent volume and persistent volume claim for a deployment.
+     * @param {object} options - Options for the persistent volume and claim creation.
+     * @param {string} options.hostPath - Host path for the persistent volume.
+     * @param {string} options.pvcId - Persistent volume claim ID.
+     * @returns {string} - YAML configuration for the persistent volume and claim.
+     * @memberof UnderpostDeploy
+     */
+    persistentVolumeFactory({ hostPath, pvcId }) {
+      return fs
+        .readFileSync(`./manifests/pv-pvc-dd.yaml`, 'utf8')
+        .replace('/home/dd', hostPath)
+        .replace('pv-dd', pvcId.replace('pvc-', 'pv-'))
+        .replace('pvc-dd', pvcId);
     },
 
     /**
