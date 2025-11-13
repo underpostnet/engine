@@ -132,7 +132,8 @@ class UnderpostStartUp {
       const buildBasePath = `/home/dd`;
       const repoName = `engine-${deployId.split('-')[1]}`;
       shellExec(`cd ${buildBasePath} && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
-      shellExec(`cd ${buildBasePath} && sudo mv ./${repoName} ./engine`);
+      shellExec(`cd ${buildBasePath} && sudo cp -a ./${repoName} ./engine`);
+      shellExec(`cd ${buildBasePath} && sudo rm -rf ./${repoName}`);
       shellExec(`cd ${buildBasePath}/engine && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}-private`);
       shellExec(`cd ${buildBasePath}/engine && sudo mv ./${repoName}-private ./engine-private`);
       shellCd(`${buildBasePath}/engine`);
