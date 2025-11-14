@@ -651,6 +651,19 @@ class UnderpostRun {
     },
 
     /**
+     * @method ip-info
+     * @description Executes the `ip-info.sh` script to display IP-related information for the specified path.
+     * @param {string} path - The input value, identifier, or path for the operation (used as an argument to the script).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'ip-info': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const { underpostRoot } = options;
+      shellExec(`chmod +x ${underpostRoot}/scripts/ip-info.sh`);
+      shellExec(`${underpostRoot}/scripts/ip-info.sh ${path}`);
+    },
+
+    /**
      * @method monitor
      * @description Monitors a specific pod (identified by `path`) for the existence of a file (`/await`), and performs conditional actions (like file copying and opening Firefox) when the file is removed.
      * @param {string} path - The input value, identifier, or path for the operation (used as the name of the pod to monitor).
