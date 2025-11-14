@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.89.22
+## underpost ci/cd cli v2.89.3
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -641,7 +641,7 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, tz, cron, ls-deployments, ls-images, host-update, dd-container, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
+  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, tz, cron, ls-deployments, ls-images, host-update, dd-container, ip-info, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
   path                                     The absolute or relative directory path where the script is located.
 
 Options:
@@ -675,6 +675,7 @@ Options:
   --reset                                  Resets the runner state before execution.
   --terminal                               Enables terminal mode for interactive script execution.
   --dev-proxy-port-offset <port-offset>    Sets a custom port offset for development proxy.
+  --host-network                           Enables host network mode for the runner execution.
   --conf-server-path <conf-server-path>    Sets a custom configuration server path.
   --underpost-root <underpost-root>        Sets a custom Underpost root path.
   -h, --help                               display help for command
