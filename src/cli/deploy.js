@@ -437,6 +437,15 @@ kubectl wait --for=jsonpath='{.status.phase}'=Running pod/busybox1
 kubectl wait --for='jsonpath={.status.conditions[?(@.type=="Ready")].status}=True' pod/busybox1
 kubectl wait --for=delete pod/busybox1 --timeout=60s
 
+fqdn: <service>.<namespace>.<kind(svc/pod)>.<cluster-domain(cluster.local)>
+node bin run cluster-build
+node bin run template-deploy
+node bin run ssh-deploy (sync-)engine-core
+node bin run cluster --dev 'express,dd-test+dd-core'
+node bin run dd-container --dev
+node bin dockerfile-pull-base-images --dev --path 'image-path' --kind-load
+node bin/deploy update-default-conf <deploy-id>
+
 kubectl run --rm -it test-dns --image=busybox:latest --restart=Never -- /bin/sh -c "
   nslookup kubernetes.default.svc.cluster.local;
   nslookup mongodb-service.default.svc.cluster.local;
@@ -536,11 +545,8 @@ EOF`);
 
         if (!options.disableUpdateVolume) {
           for (const volume of confVolume) {
-            if (options.remove) {
-              shellExec(`kubectl delete pvc ${volume.claimName}`);
-              shellExec(`kubectl delete pv ${volume.claimName.replace('pvc-', 'pv-')}`);
-              continue;
-            }
+            shellExec(`kubectl delete pvc ${volume.claimName}`);
+            shellExec(`kubectl delete pv ${volume.claimName.replace('pvc-', 'pv-')}`);
             shellExec(`kubectl apply -f - <<EOF
 ${UnderpostDeploy.API.persistentVolumeFactory({
   hostPath: volume.volumeMountPath,
