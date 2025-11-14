@@ -67,6 +67,7 @@ class UnderpostRun {
    * @property {string} kind - The kind of resource to create.
    * @property {boolean} terminal - Whether to open a terminal.
    * @property {number} devProxyPortOffset - The port offset for the development proxy.
+   * @property {boolean} hostNetwork - Whether to use host networking.
    * @property {string} confServerPath - The configuration server path.
    * @property {string} underpostRoot - The root path of the Underpost installation.
    * @memberof UnderpostRun
@@ -98,6 +99,7 @@ class UnderpostRun {
     kind: '',
     terminal: false,
     devProxyPortOffset: 0,
+    hostNetwork: false,
     confServerPath: '',
     underpostRoot: '',
   };
@@ -1193,6 +1195,7 @@ class UnderpostRun {
       const restartPolicy = options.restartPolicy || 'Never';
       const kind = options.kind || 'Pod';
       const imagePullPolicy = options.imagePullPolicy || 'IfNotPresent';
+      const hostNetwork = options.hostNetwork ? options.hostNetwork : '';
       const apiVersion = options.apiVersion || 'v1';
       if (options.volumeType === 'dev') options.volumeType = 'FileOrCreate';
       const volumeType =
@@ -1213,6 +1216,7 @@ metadata:
 spec:
   restartPolicy: ${restartPolicy}
 ${runtimeClassName ? `  runtimeClassName: ${runtimeClassName}` : ''}
+${hostNetwork ? `  hostNetwork: ${hostNetwork}` : ''}
   containers:
     - name: ${containerName}
       image: ${imageName}

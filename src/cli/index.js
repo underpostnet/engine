@@ -411,6 +411,7 @@ program
   .option('--reset', 'Resets the runner state before execution.')
   .option('--terminal', 'Enables terminal mode for interactive script execution.')
   .option('--dev-proxy-port-offset <port-offset>', 'Sets a custom port offset for development proxy.')
+  .option('--host-network', 'Enables host network mode for the runner execution.')
   .option('--conf-server-path <conf-server-path>', 'Sets a custom configuration server path.')
   .option('--underpost-root <underpost-root>', 'Sets a custom Underpost root path.')
   .description('Runs a script from the specified path.')
