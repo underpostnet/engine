@@ -44,7 +44,7 @@ After template installation, the server will be running on <a target="_top" href
 
 Package repo and usage info: <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/README.md">pwa-microservices-template</a>
 
-## underpost ci/cd cli v2.89.355
+## underpost ci/cd cli v2.89.35
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -84,4 +84,3 @@ Commands:
 ```
 
 <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/cli.md">See complete CLI Docs here.</a>
-
