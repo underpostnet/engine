@@ -601,26 +601,34 @@ class UnderpostRun {
     'dd-container': async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
-      const currentImage = UnderpostDeploy.API.getCurrentLoadedImages(
-        options.nodeName ? options.nodeName : 'kind-worker',
-        false,
-      ).find((o) => o.IMAGE.match('underpost'));
-      const podName = `underpost-dev-container`;
+      const currentImage = options.imageName
+        ? options.imageName
+        : UnderpostDeploy.API.getCurrentLoadedImages(options.nodeName ? options.nodeName : 'kind-worker', false).find(
+            (o) => o.IMAGE.match('underpost'),
+          );
+      const podName = options.podName || `underpost-dev-container`;
+      const volumeHostPath = options.claimName || '/home/dd';
+      const claimName = options.claimName || `pvc-dd`;
+
       if (!options.nodeName) {
-        shellExec(`docker exec -i kind-worker bash -c "rm -rf /home/dd"`);
-        shellExec(`docker exec -i kind-worker bash -c "mkdir -p /home/dd"`);
-        shellExec(`docker cp /home/dd/engine kind-worker:/home/dd/engine`);
-        shellExec(`docker exec -i kind-worker bash -c "chown -R 1000:1000 /home/dd || true; chmod -R 755 /home/dd"`);
+        shellExec(`docker exec -i kind-worker bash -c "rm -rf ${volumeHostPath}"`);
+        shellExec(`docker exec -i kind-worker bash -c "mkdir -p ${volumeHostPath}"`);
+        shellExec(`docker cp ${volumeHostPath}/engine kind-worker:${volumeHostPath}/engine`);
+        shellExec(
+          `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${volumeHostPath} || true; chmod -R 755 ${volumeHostPath}"`,
+        );
       } else {
         shellExec(`kubectl apply -f ${options.underpostRoot}/manifests/pv-pvc-dd.yaml`);
       }
+
       if (!currentImage)
         shellExec(
           `${baseCommand} dockerfile-pull-base-images${baseClusterCommand} ${options.dev ? '--kind-load' : '--kubeadm-load'}`,
         );
       // shellExec(`kubectl delete pod ${podName} --ignore-not-found`);
-      await UnderpostRun.RUNNERS['deploy-job']('', {
-        dev: options.dev,
+
+      const payload = {
+        ...options,
         podName,
         imageName: currentImage
           ? currentImage.image
@@ -629,15 +637,17 @@ class UnderpostRun {
               ? `${currentImage.IMAGE}:${currentImage.TAG}`
               : `localhost/rockylinux9-underpost:${Underpost.version}`
           : `localhost/rockylinux9-underpost:${Underpost.version}`,
-        volumeMountPath: '/home/dd',
-        ...(options.dev ? { volumeHostPath: '/home/dd' } : { claimName: 'pvc-dd' }),
+        volumeMountPath: volumeHostPath,
+        ...(options.dev ? { volumeHostPath } : { claimName }),
         on: {
           init: async () => {
             // openTerminal(`kubectl logs -f ${podName}`);
           },
         },
         args: [daemonProcess(path ? path : `cd /home/dd/engine && npm install && npm run test`)],
-      });
+      };
+
+      await UnderpostRun.RUNNERS['deploy-job'](path, payload);
     },
 
     /**
