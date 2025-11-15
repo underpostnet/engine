@@ -73,7 +73,16 @@ const ProviderSchema = UserSchema;
 const UserDto = {
   select: {
     get: () => {
-      return { _id: 1, username: 1, email: 1, role: 1, emailConfirmed: 1, profileImageId: 1 };
+      return {
+        _id: 1,
+        username: 1,
+        email: 1,
+        role: 1,
+        emailConfirmed: 1,
+        profileImageId: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      };
     },
     getAll: () => {
       return { _id: 1 };
