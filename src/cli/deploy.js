@@ -545,7 +545,7 @@ EOF`);
               for (const volume of confVolume) {
                 const pvcId = `${volume.claimName}-${deployId}-${env}-${version}`;
                 const pvId = `${volume.claimName.replace('pvc-', 'pv-')}-${deployId}-${env}-${version}`;
-                const rootVolumeHostPath = `./volume/${pvId}`;
+                const rootVolumeHostPath = `/home/dd/engine/volume/${pvId}`;
                 if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
                 fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
                 shellExec(`kubectl delete pvc ${pvcId}`);
