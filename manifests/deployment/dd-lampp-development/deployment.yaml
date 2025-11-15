@@ -35,11 +35,11 @@ spec:
               underpost start --build --run dd-lampp development
     
           volumeMounts:
-            - name: config-volume
+            - name: config-volume-dd-lampp-development-blue
               mountPath: /etc/config
     
       volumes:
-        - name: config-volume
+        - name: config-volume-dd-lampp-development-blue
           configMap:
             name: underpost-config
     
@@ -126,11 +126,11 @@ spec:
               underpost start --build --run dd-lampp development
     
           volumeMounts:
-            - name: config-volume
+            - name: config-volume-dd-lampp-development-green
               mountPath: /etc/config
     
       volumes:
-        - name: config-volume
+        - name: config-volume-dd-lampp-development-green
           configMap:
             name: underpost-config
     

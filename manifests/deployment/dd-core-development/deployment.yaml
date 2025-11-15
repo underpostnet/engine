@@ -35,11 +35,11 @@ spec:
               underpost start --build --run dd-core development
     
           volumeMounts:
-            - name: config-volume
+            - name: config-volume-dd-core-development-blue
               mountPath: /etc/config
     
       volumes:
-        - name: config-volume
+        - name: config-volume-dd-core-development-blue
           configMap:
             name: underpost-config
     
@@ -234,11 +234,11 @@ spec:
               underpost start --build --run dd-core development
     
           volumeMounts:
-            - name: config-volume
+            - name: config-volume-dd-core-development-green
               mountPath: /etc/config
     
       volumes:
-        - name: config-volume
+        - name: config-volume-dd-core-development-green
           configMap:
             name: underpost-config
     
