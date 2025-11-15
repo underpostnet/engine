@@ -340,9 +340,10 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'cluster-build': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const nodeOptions = options.nodeName ? ` --node-name ${options.nodeName}` : '';
       shellExec(`node bin run clean`);
-      shellExec(`node bin run --dev sync-replica template-deploy`);
-      shellExec(`node bin run sync-replica template-deploy`);
+      shellExec(`node bin run --dev sync-replica template-deploy${nodeOptions}`);
+      shellExec(`node bin run sync-replica template-deploy${nodeOptions}`);
       shellExec(`node bin env clean`);
       for (const deployId of fs.readFileSync('./engine-private/deploy/dd.router', 'utf8').split(','))
         shellExec(`node bin/deploy update-default-conf ${deployId.trim()}`);
@@ -1143,7 +1144,11 @@ class UnderpostRun {
         shellExec(`${baseCommand} env ${deployId} ${env}`);
         for (const host of Object.keys(confServer))
           if (_path in confServer[host]) shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${_path}`);
-        const node = options.dev || !isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname();
+        const node = options.nodeName
+          ? options.nodeName
+          : options.dev || !isDeployRunnerContext(path, options)
+            ? 'kind-control-plane'
+            : os.hostname();
         // deployId, replicas, versions, image, node
         let defaultPath = [deployId, 1, ``, ``, node];
         shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${defaultPath}`);
