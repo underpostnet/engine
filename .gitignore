@@ -14,6 +14,7 @@
 /images
 /src/client/public/cyberia
 /src/client/public/doc/.gitignore/engine
+/volume
 .cache
 .nyc_output
 *.tar
