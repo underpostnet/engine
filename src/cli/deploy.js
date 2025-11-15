@@ -443,6 +443,7 @@ node bin run template-deploy
 node bin run ssh-deploy (sync-)engine-core
 node bin run cluster --dev 'express,dd-test+dd-core'
 node bin run dd-container --dev
+node bin run promote dd-default production
 node bin dockerfile-pull-base-images --dev --path 'image-path' --kind-load
 node bin/deploy update-default-conf <deploy-id>
 
