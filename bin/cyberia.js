@@ -39,7 +39,8 @@ program
   .option('--show-frame <show-frame-input>', 'View object layer frame e.g. anon_08_0')
   .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
   .option('--mongo-host <mongo-host>', 'Mongo host override')
-  .action(async (options = { import: false, showFrame: '', envPath: '', mongoHost: '' }) => {
+  .option('--storage-file-path <storage-file-path>', 'Storage file path override')
+  .action(async (options = { import: false, showFrame: '', envPath: '', mongoHost: '', storageFilePath: '' }) => {
     if (!options.envPath) options.envPath = `./.env`;
     if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
@@ -72,6 +73,8 @@ program
 
     await ObjectLayer.deleteMany();
 
+    const storage = options.storageFilePath ? JSON.parse(fs.readFileSync(options.storageFilePath, 'utf8')) : null;
+
     const objectLayers = {};
 
     if (options.import || options.showFrame) {
@@ -80,6 +83,8 @@ program
         await pngDirectoryIteratorByObjectLayerType(
           argItemType,
           async ({ path, objectLayerType, objectLayerId, direction, frame }) => {
+            if (storage && !storage[`src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/08/0.png`])
+              return;
             if (options.showFrame && !`${objectLayerId}_${direction}_${frame}`.match(options.showFrame)) return;
             console.log(path, { objectLayerType, objectLayerId, direction, frame });
             if (!objectLayers[objectLayerId]) {

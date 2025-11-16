@@ -937,20 +937,21 @@ const ObjectLayerEngineModal = {
   },
   toManagement: async () => {
     await ObjectLayerEngineModal.clearData();
+    const subModalId = 'viewer' || 'management';
+    const modalId = `modal-object-layer-engine-${subModalId}`;
     const queryParams = getQueryParams();
     queryParams.page = 1;
     setQueryParams(queryParams);
-    const modalId = 'modal-object-layer-engine-management';
     const managerComponent = DefaultManagement.Tokens[modalId];
     if (managerComponent) {
       managerComponent.page = 1;
       if (!managerComponent.readyRowDataEvent) managerComponent.readyRowDataEvent = {};
       let readyLoad = false;
-      const gridId = `object-layer-engine-management-grid-${modalId}`;
-      managerComponent.readyRowDataEvent['object-layer-engine-management'] = async () => {
+      const gridId = `object-layer-engine-${subModalId}-grid-${modalId}`;
+      managerComponent.readyRowDataEvent[`object-layer-engine-${subModalId}`] = async () => {
         if (readyLoad) {
           AgGrid.grids[gridId].setGridOption('getRowClass', null);
-          return delete managerComponent.readyRowDataEvent['object-layer-engine-management'];
+          return delete managerComponent.readyRowDataEvent[`object-layer-engine-${subModalId}`];
         }
 
         AgGrid.grids[gridId].setGridOption('getRowClass', (params) => {
@@ -962,10 +963,10 @@ const ObjectLayerEngineModal = {
       };
     }
 
-    const _s = s(`.management-table-btn-reload-${modalId}`);
+    const _s = s(`.${subModalId}-table-btn-reload-${modalId}`);
     if (_s) _s.click();
 
-    s(`.main-btn-object-layer-engine-management`).click();
+    s(`.main-btn-object-layer-engine-${subModalId}`).click();
   },
   Reload: async function () {
     // Clear data before reload to prevent contamination
