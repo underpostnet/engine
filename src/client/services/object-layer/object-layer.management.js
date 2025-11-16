@@ -213,9 +213,9 @@ const ObjectLayerManagement = {
       },
     });
   },
-  Reload: async function () {
-    const idModal = 'modal-object-layer-engine-management';
-    if (s(`.modal-object-layer-engine-management`))
+  Reload: async function (subModalId = 'management') {
+    const idModal = `modal-object-layer-engine-${subModalId}`;
+    if (s(`.modal-object-layer-engine-${subModalId}`))
       Modal.writeHTML({
         idModal,
         html: await Modal.Data[idModal].options.html(),

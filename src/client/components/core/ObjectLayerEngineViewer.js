@@ -473,6 +473,12 @@ const ObjectLayerEngineViewer = {
             color: ${darkTheme ? '#666' : '#999'};
             padding: 20px;
           }
+
+          @media (max-width: 850px) {
+            .object-layer-viewer-container {
+              padding: 5px;
+            }
+          }
         </style>`,
       );
     };

@@ -947,7 +947,7 @@ const ObjectLayerEngineModal = {
       managerComponent.page = 1;
       if (!managerComponent.readyRowDataEvent) managerComponent.readyRowDataEvent = {};
       let readyLoad = false;
-      const gridId = `object-layer-engine-${subModalId}-grid-${modalId}`;
+      const gridId = `object-layer-engine-management-grid-${modalId}`;
       managerComponent.readyRowDataEvent[`object-layer-engine-${subModalId}`] = async () => {
         if (readyLoad) {
           AgGrid.grids[gridId].setGridOption('getRowClass', null);
@@ -963,7 +963,7 @@ const ObjectLayerEngineModal = {
       };
     }
 
-    const _s = s(`.${subModalId}-table-btn-reload-${modalId}`);
+    const _s = s(` .management-table-btn-reload-${modalId}`);
     if (_s) _s.click();
 
     s(`.main-btn-object-layer-engine-${subModalId}`).click();
