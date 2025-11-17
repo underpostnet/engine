@@ -52,12 +52,32 @@ const columnDefFormatter = (obj, columnDefs, customFormat) => {
 
 const DefaultManagement = {
   Tokens: {},
-  loadTable: async function (id, options = { reload: true }) {
+  loadTable: async function (id, options = { reload: true, force: true }) {
     const { serviceId, columnDefs, customFormat } = this.Tokens[id];
+
+    let _page = this.Tokens[id].page;
+    let _limit = this.Tokens[id].limit;
+    let _id = this.Tokens[id].serviceOptions?.get?.id ?? undefined;
+    if (!options.force && this.Tokens[id].lastOptions) {
+      if (
+        _page === this.Tokens[id].lastOptions.page &&
+        _limit === this.Tokens[id].lastOptions.limit &&
+        _id === this.Tokens[id].lastOptions.id
+      ) {
+        logger.warn(`DefaultManagement loadTable ${serviceId} - Skipping load, options unchanged`);
+        return;
+      }
+    }
+    this.Tokens[id].lastOptions = {
+      page: _page,
+      limit: _limit,
+      id: _id,
+    };
+
     const result = await this.Tokens[id].ServiceProvider.get({
-      page: this.Tokens[id].page,
-      limit: this.Tokens[id].limit,
-      id: this.Tokens[id].serviceOptions?.get?.id ?? undefined,
+      page: _page,
+      limit: _limit,
+      id: _id,
     });
     if (result.status === 'success') {
       const { data, total, page, totalPages } = result.data;
@@ -331,7 +351,7 @@ const DefaultManagement = {
       EventsUI.onClick(`.management-table-btn-reload-${id}`, async () => {
         try {
           // Reload data from server
-          await DefaultManagement.loadTable(id);
+          await DefaultManagement.loadTable(id, { force: true, reload: true });
 
           // Other option: Refresh cells to update UI
           // DefaultManagement.refreshTable(id);
