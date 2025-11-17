@@ -8,6 +8,8 @@ import { darkTheme, ThemeEvents } from './Css.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 import { ObjectLayerEngineModal } from './ObjectLayerEngineModal.js';
 import { Modal } from './Modal.js';
+import { DefaultManagement } from '../../services/default/default.management.js';
+import { AgGrid } from './AgGrid.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -111,13 +113,19 @@ const ObjectLayerEngineViewer = {
 
   renderEmpty: async function ({ Elements }) {
     const id = 'object-layer-engine-viewer';
-    htmls(
-      `#${id}`,
-      await ObjectLayerManagement.RenderTable({
-        Elements,
-        idModal: 'modal-object-layer-engine-viewer',
-      }),
-    );
+    const idModal = 'modal-object-layer-engine-viewer';
+    const serviceId = 'object-layer-engine-management';
+    const gridId = `${serviceId}-grid-${idModal}`;
+    if (s(`.${serviceId}-grid-${idModal}`) && AgGrid.grids[gridId])
+      await DefaultManagement.loadTable(idModal, { reload: true });
+    else
+      htmls(
+        `#${id}`,
+        await ObjectLayerManagement.RenderTable({
+          Elements,
+          idModal,
+        }),
+      );
   },
 
   loadObjectLayer: async function (objectLayerId) {
