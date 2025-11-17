@@ -87,6 +87,7 @@ const Modal = {
       onExpandUiListener: {},
       onBarUiOpen: {},
       onBarUiClose: {},
+      onReloadModalListener: {},
       onHome: {},
       homeModals: options.homeModals ? options.homeModals : [],
       query: options.query ? `${window.location.search}` : undefined,
@@ -121,6 +122,7 @@ const Modal = {
         top = `${windowGetH() / 2 - height / 2}px`;
         left = `${windowGetW() / 2 - width / 2}px`;
       },
+      ...this.Data[idModal],
     };
 
     if (options && 'mode' in options) {
@@ -1387,6 +1389,9 @@ const Modal = {
     if (options.zIndexSync) this.zIndexSync({ idModal });
 
     if (s(`.${idModal}`)) {
+      for (const event of Object.keys(Modal.Data[idModal].onReloadModalListener))
+        await Modal.Data[idModal].onReloadModalListener[event]();
+
       s(`.btn-maximize-${idModal}`).click();
       return;
     }

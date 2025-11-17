@@ -7,6 +7,7 @@ import { BtnIcon } from './BtnIcon.js';
 import { darkTheme, ThemeEvents } from './Css.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 import { ObjectLayerEngineModal } from './ObjectLayerEngineModal.js';
+import { Modal } from './Modal.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -57,6 +58,10 @@ const ObjectLayerEngineViewer = {
 
   Render: async function ({ Elements }) {
     const id = 'object-layer-engine-viewer';
+
+    Modal.Data[`modal-${id}`].onReloadModalListener[id] = async () => {
+      ObjectLayerEngineViewer.Reload({ Elements });
+    };
 
     // Listen for cid query parameter
     listenQueryPathInstance(
