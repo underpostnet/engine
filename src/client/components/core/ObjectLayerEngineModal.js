@@ -391,6 +391,9 @@ const ObjectLayerEngineModal = {
 
               console.log(`Loading frames for direction code: ${currentDirectionCode}, directions:`, directions);
 
+              // reset frames
+              s(`.frames-${currentDirectionCode}`).innerHTML = '';
+
               // Check if frames exist for any direction mapped to this direction code
               const { frames } = loadedData.renderData.data.render;
               for (const direction of directions) {
@@ -947,6 +950,7 @@ const ObjectLayerEngineModal = {
     const subModalId = 'viewer' || 'management';
     const modalId = `modal-object-layer-engine-${subModalId}`;
     const queryParams = getQueryParams();
+    queryParams.cid = '';
     queryParams.page = 1;
     setQueryParams(queryParams);
     const managerComponent = DefaultManagement.Tokens[modalId];
