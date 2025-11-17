@@ -377,6 +377,7 @@ const ObjectLayerEngineModal = {
 
     setTimeout(async () => {
       const loadFrames = async () => {
+        showFrameLoading();
         for (const directionCode of directionCodes) {
           // Use IIFE to properly capture directionCode and handle async operations
           await (async (currentDirectionCode) => {
@@ -446,12 +447,11 @@ const ObjectLayerEngineModal = {
             });
           })(directionCode);
         }
+        hideFrameLoading();
       };
       RouterEvents[`router-${options.idModal}`] = loadFrames;
 
-      showFrameLoading();
       await loadFrames();
-      hideFrameLoading();
       s('object-layer-engine').clear();
 
       EventsUI.onClick(`.ol-btn-save`, async () => {
