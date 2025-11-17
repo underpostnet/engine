@@ -57,7 +57,7 @@ const ObjectLayerEngineViewer = {
         routeId: 'object-layer-engine-viewer',
         event: async (cid) => {
           if (cid) {
-            await this.loadObjectLayer(cid);
+            await this.loadObjectLayer(cid, Elements);
           } else {
             this.renderEmpty({ Elements });
           }
@@ -94,7 +94,7 @@ const ObjectLayerEngineViewer = {
       );
   },
 
-  loadObjectLayer: async function (objectLayerId) {
+  loadObjectLayer: async function (objectLayerId, Elements) {
     const id = 'object-layer-engine-viewer';
 
     try {
@@ -120,7 +120,7 @@ const ObjectLayerEngineViewer = {
       this.selectFirstAvailableDirectionMode();
 
       // Render the viewer UI
-      await this.renderViewer();
+      await this.renderViewer({ Elements });
 
       // Initialize gif.js worker
       await this.initGifJs();
@@ -148,7 +148,7 @@ const ObjectLayerEngineViewer = {
     }
   },
 
-  renderViewer: async function () {
+  renderViewer: async function ({ Elements }) {
     const id = 'object-layer-engine-viewer';
     const { objectLayer, frameCounts } = this.Data;
 
@@ -340,7 +340,7 @@ const ObjectLayerEngineViewer = {
             font-size: 16px;
           }
 
-          .download-btn {
+          .default-viewer-btn {
             width: 100%;
             padding: 15px;
             background: ${darkTheme ? '#4caf50' : '#4CAF50'};
@@ -357,7 +357,7 @@ const ObjectLayerEngineViewer = {
             gap: 10px;
           }
 
-          .download-btn:hover {
+          .default-viewer-btn:hover {
             background: ${darkTheme ? '#45a049' : '#45a049'};
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
@@ -376,7 +376,7 @@ const ObjectLayerEngineViewer = {
             margin-left: 4px;
           }
 
-          .download-btn:disabled {
+          .default-viewer-btn:disabled {
             background: ${darkTheme ? '#555' : '#ccc'};
             cursor: not-allowed;
             transform: none;
@@ -614,11 +614,15 @@ const ObjectLayerEngineViewer = {
           </div>
 
           <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button class="download-btn" id="download-gif-btn" style="width: 100%;">
+            <button class="default-viewer-btn" id="return-to-list-btn">
+              <i class="fa-solid fa-arrow-left"></i>
+              <span>Return to List</span>
+            </button>
+            <button class="default-viewer-btn" id="download-gif-btn">
               <i class="fa-solid fa-download"></i>
               <span>Download GIF</span>
             </button>
-            <button class="download-btn edit-btn" id="edit-object-layer-btn" style="width: 100%;">
+            <button class="default-viewer-btn edit-btn" id="edit-object-layer-btn">
               <i class="fa-solid fa-edit"></i>
               <span>Edit</span>
             </button>
@@ -628,10 +632,10 @@ const ObjectLayerEngineViewer = {
     );
     ThemeEvents[id]();
     // Attach event listeners
-    this.attachEventListeners();
+    this.attachEventListeners({ Elements });
   },
 
-  attachEventListeners: function () {
+  attachEventListeners: function ({ Elements }) {
     // Direction buttons
     const directionButtons = document.querySelectorAll('[data-direction]');
     directionButtons.forEach((btn) => {
@@ -640,7 +644,7 @@ const ObjectLayerEngineViewer = {
         const direction = e.currentTarget.getAttribute('data-direction');
         if (direction !== this.Data.currentDirection) {
           this.Data.currentDirection = direction;
-          await this.renderViewer();
+          await this.renderViewer({ Elements });
           await this.attachEventListeners();
           await this.generateGif();
         }
@@ -655,7 +659,7 @@ const ObjectLayerEngineViewer = {
         const mode = e.currentTarget.getAttribute('data-mode');
         if (mode !== this.Data.currentMode) {
           this.Data.currentMode = mode;
-          await this.renderViewer();
+          await this.renderViewer({ Elements });
           await this.attachEventListeners();
           await this.generateGif();
         }
@@ -667,6 +671,15 @@ const ObjectLayerEngineViewer = {
     if (downloadBtn) {
       downloadBtn.addEventListener('click', () => {
         this.downloadGif();
+      });
+    }
+
+    const listBtn = s('#return-to-list-btn');
+    if (listBtn) {
+      listBtn.addEventListener('click', () => {
+        setPath(`${getProxyPath()}object-layer-engine-viewer`);
+        setQueryParams({ cid: null });
+        ObjectLayerEngineViewer.renderEmpty({ Elements });
       });
     }
 
@@ -1076,7 +1089,7 @@ const ObjectLayerEngineViewer = {
     const cid = queryParams.get('cid');
 
     if (cid) {
-      await this.loadObjectLayer(cid);
+      await this.loadObjectLayer(cid, Elements);
     } else {
       this.renderEmpty({ Elements });
     }
