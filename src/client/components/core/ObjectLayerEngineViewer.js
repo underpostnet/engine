@@ -645,7 +645,7 @@ const ObjectLayerEngineViewer = {
         if (direction !== this.Data.currentDirection) {
           this.Data.currentDirection = direction;
           await this.renderViewer({ Elements });
-          await this.attachEventListeners();
+          await this.attachEventListeners({ Elements });
           await this.generateGif();
         }
       });
@@ -660,7 +660,7 @@ const ObjectLayerEngineViewer = {
         if (mode !== this.Data.currentMode) {
           this.Data.currentMode = mode;
           await this.renderViewer({ Elements });
-          await this.attachEventListeners();
+          await this.attachEventListeners({ Elements });
           await this.generateGif();
         }
       });
