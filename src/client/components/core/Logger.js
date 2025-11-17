@@ -6,7 +6,7 @@ const loggerFactory = (meta, options = { trace: false }) => {
   const logger = {
     log: function (type, args) {
       if (!window.renderPayload.dev) return;
-      if (options.trace === true) args.push(getCurrentTrace().split('Logger.js:23')[1]);
+      if (options.trace === true) args.push(getCurrentTrace().split('Logger.js')[1]);
       return console[type](`[${meta}] ${new Date().toISOString()} ${type}:`, ...args);
     },
   };
