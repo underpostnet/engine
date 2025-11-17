@@ -189,7 +189,16 @@ const Router = function (options = { Routes: () => {}, e: new PopStateEvent() })
  */
 const LoadRouter = function (RouterInstance) {
   Router(RouterInstance);
-  window.onpopstate = (e) => Router({ ...RouterInstance, e });
+  window.onpopstate = (e) => {
+    Router({ ...RouterInstance, e });
+    // Notify query params listeners on browser back/forward navigation
+    const updatedParams = getQueryParams();
+    for (const listenerId in queryParamsChangeListeners) {
+      if (Object.hasOwnProperty.call(queryParamsChangeListeners, listenerId)) {
+        queryParamsChangeListeners[listenerId](updatedParams);
+      }
+    }
+  };
 };
 
 /**
