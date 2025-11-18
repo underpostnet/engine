@@ -378,6 +378,19 @@ const ObjectLayerEngineModal = {
     setTimeout(async () => {
       const loadFrames = async () => {
         showFrameLoading();
+
+        // Clear all frames and data at the start to prevent duplication from multiple calls
+        // This must happen BEFORE any async operations to avoid race conditions
+        for (const directionCode of directionCodes) {
+          // Clear DOM frames for this direction code
+          const framesContainer = s(`.frames-${directionCode}`);
+          if (framesContainer) {
+            framesContainer.innerHTML = '';
+          }
+          // Clear data for this direction code
+          ObjectLayerEngineModal.ObjectLayerData[directionCode] = [];
+        }
+
         for (const directionCode of directionCodes) {
           // Use IIFE to properly capture directionCode and handle async operations
           await (async (currentDirectionCode) => {
@@ -391,9 +404,6 @@ const ObjectLayerEngineModal = {
               const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(currentDirectionCode);
 
               console.log(`Loading frames for direction code: ${currentDirectionCode}, directions:`, directions);
-
-              // reset frames
-              s(`.frames-${currentDirectionCode}`).innerHTML = '';
 
               // Check if frames exist for any direction mapped to this direction code
               const { frames } = loadedData.renderData.data.render;
