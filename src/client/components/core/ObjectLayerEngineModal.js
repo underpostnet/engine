@@ -254,7 +254,7 @@ const ObjectLayerEngineModal = {
           (frame) => frame.id === id,
         );
         if (frameData && frameData.json) {
-          console.log(`Loading frame data for direction code ${clickedDirectionCode}:`, frameData.json);
+          // console.log(`Loading frame data for direction code ${clickedDirectionCode}:`, frameData.json);
           s('object-layer-engine').importMatrixJSON(frameData.json);
         } else {
           console.error(`Frame data not found for id ${id} in direction code ${clickedDirectionCode}`);
