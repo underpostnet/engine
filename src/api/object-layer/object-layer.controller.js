@@ -34,6 +34,25 @@ const ObjectLayerController = {
       });
     }
   },
+  generateWebp: async (req, res, options) => {
+    try {
+      const result = await ObjectLayerService.generateWebp(req, res, options);
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Content-Type', 'image/webp');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${req.params.itemType}_${req.params.itemId}_${req.params.directionCode}.webp"`,
+      );
+      res.setHeader('Content-Length', result.length);
+      return res.status(200).end(result);
+    } catch (error) {
+      logger.error(error, error.stack);
+      return res.status(400).json({
+        status: 'error',
+        message: error.message,
+      });
+    }
+  },
   put: async (req, res, options) => {
     try {
       const result = await ObjectLayerService.put(req, res, options);

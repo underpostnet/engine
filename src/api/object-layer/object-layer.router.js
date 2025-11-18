@@ -16,6 +16,10 @@ const ObjectLayerRouter = (options) => {
 
   router.post(`/:id`, authMiddleware, async (req, res) => await ObjectLayerController.post(req, res, options));
   router.post(`/`, authMiddleware, async (req, res) => await ObjectLayerController.post(req, res, options));
+  router.get(
+    `/generate-webp/:itemType/:itemId/:directionCode`,
+    async (req, res) => await ObjectLayerController.generateWebp(req, res, options),
+  );
   router.get(`/render/:id`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));
   router.get(`/metadata/:id`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));
   router.get(

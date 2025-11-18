@@ -5,6 +5,7 @@ import fs from 'fs-extra';
 import crypto from 'crypto';
 import { ObjectLayerDto } from './object-layer.model.js';
 import { ObjectLayerEngine } from '../../server/object-layer.js';
+import { shellExec } from '../../server/process.js';
 const logger = loggerFactory(import.meta);
 
 const ObjectLayerService = {
@@ -249,6 +250,114 @@ const ObjectLayerService = {
       ObjectLayer.countDocuments(), // { userId: req.auth.user._id }
     ]);
     return { data, total, page, totalPages: Math.ceil(total / limit) };
+  },
+  generateWebp: async (req, res, options) => {
+    /** @type {import('./object-layer.model.js').ObjectLayerModel} */
+    const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+
+    // GET /generate-webp/:itemType/:itemId/:directionCode - Generate webp animation from PNG frames
+    const itemType = req.params.itemType;
+    const itemId = req.params.itemId;
+    const directionCode = req.params.directionCode;
+
+    if (!itemType || !itemId || !directionCode) {
+      throw new Error('Missing required parameters: itemType, itemId, directionCode');
+    }
+
+    // Path to the PNG frames directory
+    const framesFolder = `./src/client/public/cyberia/assets/${itemType}/${itemId}/${directionCode}`;
+
+    // Check if the folder exists
+    if (!fs.existsSync(framesFolder)) {
+      throw new Error(`Frames directory not found: ${framesFolder}`);
+    }
+
+    // Check if there are PNG files in the directory
+    const files = await fs.readdir(framesFolder);
+    const pngFiles = files.filter((file) => file.endsWith('.png')).sort();
+
+    if (pngFiles.length === 0) {
+      throw new Error(`No PNG frames found in directory: ${framesFolder}`);
+    }
+
+    logger.info(`Found ${pngFiles.length} PNG frames in ${framesFolder}`);
+
+    // Get frame duration from the object layer metadata
+    let frameDuration = 100; // Default to 100ms
+
+    try {
+      // Find object layer by itemType and itemId
+      const objectLayer = await ObjectLayer.findOne({
+        'data.item.type': itemType,
+        'data.item.id': itemId,
+      }).select(ObjectLayerDto.select.getMetadata());
+
+      if (objectLayer && objectLayer.data.render.frame_duration) {
+        frameDuration = objectLayer.data.render.frame_duration;
+        logger.info(`Using frame duration from object layer: ${frameDuration}ms`);
+      } else {
+        logger.warn(`Object layer not found or no frame_duration set, using default: ${frameDuration}ms`);
+      }
+    } catch (error) {
+      logger.warn(
+        `Error fetching object layer metadata: ${error.message}. Using default frame duration: ${frameDuration}ms`,
+      );
+    }
+
+    // Create temporary output file path
+    const tempOutputPath = `${framesFolder}/output.webp`;
+
+    try {
+      // Change to the frames directory and execute img2webp command
+      const cmd = `cd "${framesFolder}" && img2webp -d ${frameDuration} -loop 0 *.png -o output.webp`;
+
+      logger.info(`Executing command: ${cmd}`);
+
+      const result = shellExec(cmd, { silent: false });
+
+      if (result.code !== 0) {
+        throw new Error(`img2webp command failed: ${result.stderr || result.stdout}`);
+      }
+
+      logger.info(`Successfully generated webp: ${tempOutputPath}`);
+
+      // Check if the output file was created
+      if (!fs.existsSync(tempOutputPath)) {
+        throw new Error(`Output file was not created: ${tempOutputPath}`);
+      }
+
+      // Read the webp file as a buffer
+      const webpBuffer = await fs.readFile(tempOutputPath);
+
+      logger.info(`WebP file size: ${webpBuffer.length} bytes`);
+
+      // Delete the temporary file after sending the response
+      // Use setImmediate to ensure the response is fully sent before cleanup
+      setImmediate(async () => {
+        try {
+          if (fs.existsSync(tempOutputPath)) {
+            await fs.remove(tempOutputPath);
+            logger.info(`Cleaned up temporary file: ${tempOutputPath}`);
+          }
+        } catch (cleanupError) {
+          logger.error(`Error cleaning up temporary file: ${cleanupError.message}`);
+        }
+      });
+
+      return webpBuffer;
+    } catch (error) {
+      // Clean up on error
+      try {
+        if (fs.existsSync(tempOutputPath)) {
+          await fs.remove(tempOutputPath);
+          logger.info(`Cleaned up temporary file after error: ${tempOutputPath}`);
+        }
+      } catch (cleanupError) {
+        logger.error(`Error cleaning up temporary file after error: ${cleanupError.message}`);
+      }
+
+      throw error;
+    }
   },
   put: async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
