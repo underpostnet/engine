@@ -304,12 +304,14 @@ const ObjectLayerService = {
       );
     }
 
+    const tmpOutputFileName = `output_${Date.now()}_${Math.floor(Math.random() * 1000)}.webp`;
+
     // Create temporary output file path
-    const tempOutputPath = `${framesFolder}/output.webp`;
+    const tempOutputPath = `${framesFolder}/${tmpOutputFileName}`;
 
     try {
       // Change to the frames directory and execute img2webp command
-      const cmd = `cd "${framesFolder}" && img2webp -d ${frameDuration} -loop 0 *.png -o output.webp`;
+      const cmd = `cd "${framesFolder}" && img2webp -d ${frameDuration} -loop 0 *.png -o ${tmpOutputFileName}`;
 
       logger.info(`Executing command: ${cmd}`);
 

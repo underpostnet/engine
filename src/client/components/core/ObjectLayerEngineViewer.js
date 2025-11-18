@@ -717,9 +717,19 @@ const ObjectLayerEngineViewer = {
 
     const itemType = objectLayer.data.item.type;
     const itemId = objectLayer.data.item.id;
+    const frameDuration = objectLayer.data.render.frame_duration || 100;
 
     this.Data.isGenerating = true;
     this.showLoading(true);
+
+    // Update loading overlay text
+    const loadingOverlay = s('#webp-loading-overlay');
+    if (loadingOverlay) {
+      const loadingText = loadingOverlay.querySelector('span');
+      if (loadingText) {
+        loadingText.textContent = `Loading WebP animation for ${currentDirection} ${currentMode}...`;
+      }
+    }
 
     try {
       // Call the WebP generation API endpoint
@@ -736,26 +746,40 @@ const ObjectLayerEngineViewer = {
         // Display the WebP in the viewer
         const container = s('#webp-canvas-container');
         if (container) {
-          htmls(
-            container,
-            html`
-              <img src="${data}" alt="WebP Animation" />
-              <div class="webp-info-badge">
-                <span class="info-label">Frames:</span>
-                <span>${frameCount}</span>
-                <span class="info-label" style="margin-left: 8px;">Direction:</span>
-                <span>${currentDirection}</span>
-                <span class="info-label" style="margin-left: 8px;">Mode:</span>
-                <span>${currentMode}</span>
-              </div>
-            `,
-          );
+          // Clear container
+          container.innerHTML = '';
+
+          // Create and append image
+          const img = document.createElement('img');
+          img.src = data;
+          img.alt = 'WebP Animation';
+          container.appendChild(img);
+
+          // Create and append info badge
+          const infoBadge = document.createElement('div');
+          infoBadge.className = 'webp-info-badge';
+          infoBadge.innerHTML = html`
+            <span class="info-label" style="margin-left: 8px;">Frames:</span>
+            <span>${frameCount}</span><br />
+            <span class="info-label" style="margin-left: 8px;">Duration:</span>
+            <span>${frameDuration}ms</span><br />
+            <span class="info-label" style="margin-left: 8px;">Direction:</span>
+            <span>${currentDirection}</span><br />
+            <span class="info-label" style="margin-left: 8px;">Mode:</span>
+            <span>${currentMode}</span><br />
+            <span class="info-label" style="margin-left: 8px;">Code:</span>
+            <span>${numericCode}</span>
+          `;
+          const displayArea = s('.webp-display-area');
+          if (displayArea) {
+            displayArea.appendChild(infoBadge);
+          }
         }
 
-        NotificationManager.Push({
-          html: `WebP generated successfully`,
-          status: 'success',
-        });
+        // NotificationManager.Push({
+        //   html: `WebP generated successfully (${frameCount} frames, ${frameDuration}ms duration)`,
+        //   status: 'success',
+        // });
       } else {
         throw new Error('Failed to generate WebP');
       }
@@ -777,11 +801,24 @@ const ObjectLayerEngineViewer = {
     const overlay = s('#webp-loading-overlay');
     if (overlay) {
       overlay.style.display = show ? 'flex' : 'none';
+      if (!show) {
+        // Reset loading text when hiding
+        const loadingText = overlay.querySelector('span');
+        if (loadingText) {
+          loadingText.textContent = 'Generating WebP...';
+        }
+      }
     }
 
     const downloadBtn = s('#download-webp-btn');
     if (downloadBtn) {
       downloadBtn.disabled = show;
+    }
+
+    // Remove old info badge if exists
+    const oldBadge = s('.webp-info-badge');
+    if (oldBadge && show) {
+      oldBadge.remove();
     }
   },
 
