@@ -32,6 +32,7 @@ echo "6) Try to install audio helper packages that sometimes block ffmpeg (ladsp
 # These may be provided by CRB/EPEL or other compatible repos
 dnf -y install ladspa || echo "ladspa not available from enabled repos (will try later)"
 dnf -y install rubberband || echo "rubberband not available from enabled repos (will try later)"
+dnf -y install libwebp-tools || echo "libwebp-tools not available from enabled repos (will try later)"
 
 echo "7) Try installing ffmpeg (several fallbacks tried)"
 if dnf -y install ffmpeg ffmpeg-devel --allowerasing; then
