@@ -179,6 +179,110 @@ const ObjectLayerEngineModal = {
     let loadedData = null;
     let existingObjectLayerId = null; // Track the _id for updates
     let originalDirectionCodes = []; // Track original direction codes for update mode
+
+    // Track frame editing state
+    let editingFrameId = null;
+    let editingDirectionCode = null;
+
+    // Helper function to update UI when entering edit mode
+    const enterEditMode = (frameId, directionCode) => {
+      editingFrameId = frameId;
+      editingDirectionCode = directionCode;
+
+      // Hide/disable all "Add Frame" buttons except the one for the editing direction
+      directionCodes.forEach((code) => {
+        const addButton = s(`.direction-code-bar-frames-btn-${code}`);
+        const addButtonParent = addButton?.parentElement;
+        if (addButton && addButtonParent) {
+          if (code === directionCode) {
+            // Keep the button for the editing direction visible and highlighted with animation
+            addButton.style.opacity = '1';
+            addButton.style.pointerEvents = 'auto';
+            addButton.style.border = '2px solid #4CAF50';
+            addButton.style.boxShadow = '0 0 15px rgba(76, 175, 80, 0.6)';
+            addButtonParent.classList.add('edit-mode-active');
+          } else {
+            // Hide/disable buttons for other directions
+            addButton.style.opacity = '0.3';
+            addButton.style.pointerEvents = 'none';
+            addButton.style.filter = 'grayscale(100%)';
+            addButton.style.cursor = 'not-allowed';
+          }
+        }
+      });
+
+      // Change the edit button to close button for the frame being edited
+      const editBtn = s(`.direction-code-bar-edit-btn-${frameId}`);
+      if (editBtn) {
+        editBtn.innerHTML = '<i class="fa-solid fa-times"></i>';
+        editBtn.classList.add('edit-mode-active');
+        editBtn.title = 'Cancel editing (Esc)';
+      }
+
+      // Highlight the frame being edited
+      document.querySelectorAll('.direction-code-bar-frames-img').forEach((img) => {
+        img.style.border = '';
+        img.style.boxShadow = '';
+      });
+      const frameImg = s(`.direction-code-bar-frames-img-${frameId}`);
+      if (frameImg) {
+        frameImg.style.border = '3px solid #4CAF50';
+        frameImg.style.boxShadow = '0 0 10px rgba(76, 175, 80, 0.5)';
+      }
+
+      // Show notification with better instructions
+      NotificationManager.Push({
+        html: `<strong>Edit Mode Active</strong><br/>Click the glowing <i class="fa-solid fa-edit"></i> button for direction <strong>${directionCode}</strong> to save, or click <i class="fa-solid fa-times"></i> to cancel.`,
+        status: 'info',
+      });
+      s(`.direction-code-bar-frames-btn-icon-add-${directionCode}`).classList.add('hide');
+      s(`.direction-code-bar-frames-btn-icon-edit-${directionCode}`).classList.remove('hide');
+    };
+
+    // Helper function to exit edit mode and restore UI
+    const exitEditMode = () => {
+      const previousEditingFrameId = editingFrameId;
+
+      s(`.direction-code-bar-frames-btn-icon-add-${editingDirectionCode}`).classList.remove('hide');
+      s(`.direction-code-bar-frames-btn-icon-edit-${editingDirectionCode}`).classList.add('hide');
+
+      editingFrameId = null;
+      editingDirectionCode = null;
+
+      // Restore all "Add Frame" buttons
+      directionCodes.forEach((code) => {
+        const addButton = s(`.direction-code-bar-frames-btn-${code}`);
+        const addButtonParent = addButton?.parentElement;
+        if (addButton) {
+          addButton.style.opacity = '1';
+          addButton.style.pointerEvents = 'auto';
+          addButton.style.border = '';
+          addButton.style.filter = 'none';
+          addButton.style.cursor = 'pointer';
+          addButton.style.boxShadow = '';
+          if (addButtonParent) {
+            addButtonParent.classList.remove('edit-mode-active');
+          }
+        }
+      });
+
+      // Restore edit button icon if it exists
+      if (previousEditingFrameId) {
+        const editBtn = s(`.direction-code-bar-edit-btn-${previousEditingFrameId}`);
+        if (editBtn) {
+          editBtn.innerHTML = '<i class="fa-solid fa-edit"></i>';
+          editBtn.classList.remove('edit-mode-active');
+          editBtn.title = 'Edit frame';
+        }
+      }
+
+      // Remove all frame borders and shadows
+      document.querySelectorAll('.direction-code-bar-frames-img').forEach((img) => {
+        img.style.border = '';
+        img.style.boxShadow = '';
+      });
+    };
+
     if (queryParams.cid) {
       existingObjectLayerId = queryParams.cid;
       loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.cid);
@@ -239,6 +343,10 @@ const ObjectLayerEngineModal = {
               data-direction-code="${capturedDirectionCode}"
             />
             ${await BtnIcon.Render({
+              label: html`<i class="fa-solid fa-edit"></i>`,
+              class: `abs direction-code-bar-edit-btn direction-code-bar-edit-btn-${id}`,
+            })}
+            ${await BtnIcon.Render({
               label: html`<i class="fa-solid fa-trash"></i>`,
               class: `abs direction-code-bar-trash-btn direction-code-bar-trash-btn-${id}`,
             })}
@@ -266,6 +374,57 @@ const ObjectLayerEngineModal = {
         ObjectLayerEngineModal.ObjectLayerData[capturedDirectionCode] = ObjectLayerEngineModal.ObjectLayerData[
           capturedDirectionCode
         ].filter((frame) => frame.id !== id);
+
+        // Clear edit mode if deleting the frame being edited
+        if (editingFrameId === id && editingDirectionCode === capturedDirectionCode) {
+          exitEditMode();
+        }
+      });
+
+      EventsUI.onClick(`.direction-code-bar-edit-btn-${id}`, async () => {
+        // Check if this is the frame being edited (close button behavior)
+        if (editingFrameId === id && editingDirectionCode === capturedDirectionCode) {
+          console.log(`Canceling edit mode for frame ${id}`);
+          exitEditMode();
+          // Clear the editor
+          s('object-layer-engine').clear();
+          NotificationManager.Push({
+            html: `<i class="fa-solid fa-times-circle"></i> Edit canceled`,
+            status: 'info',
+          });
+          return;
+        }
+
+        s(`.direction-code-bar-frames-btn-icon-add-${capturedDirectionCode}`).classList.add('hide');
+        s(`.direction-code-bar-frames-btn-icon-edit-${capturedDirectionCode}`).classList.remove('hide');
+
+        console.log(`Edit button clicked for frame ${id} in direction code ${capturedDirectionCode}`);
+
+        // If another frame is being edited, exit that edit mode first
+        if (editingFrameId && editingFrameId !== id) {
+          exitEditMode();
+        }
+
+        // Find the frame data
+        const frameData = ObjectLayerEngineModal.ObjectLayerData[capturedDirectionCode]?.find(
+          (frame) => frame.id === id,
+        );
+
+        if (frameData && frameData.json) {
+          // Load the frame into the editor
+          s('object-layer-engine').importMatrixJSON(frameData.json);
+
+          // Enter edit mode with UI updates
+          enterEditMode(id, capturedDirectionCode);
+
+          console.log(`Entering edit mode for frame ${id} in direction ${capturedDirectionCode}`);
+        } else {
+          console.error(`Frame data not found for id ${id} in direction code ${capturedDirectionCode}`);
+          NotificationManager.Push({
+            html: `<i class="fa-solid fa-exclamation-triangle"></i> Error: Frame data not found`,
+            status: 'error',
+          });
+        }
       });
     };
 
@@ -334,8 +493,11 @@ const ObjectLayerEngineModal = {
               <div class="in direction-code-bar-frames-title">${directionCode}</div>
               <div class="in direction-code-bar-frames-btn">
                 ${await BtnIcon.Render({
-                  label: html`<i class="fa-solid fa-plus"></i>`,
-                  class: `direction-code-bar-frames-btn-${directionCode}`,
+                  label: html`
+                    <i class="fa-solid fa-plus direction-code-bar-frames-btn-icon-add-${directionCode}"></i>
+                    <i class="fa-solid fa-edit direction-code-bar-frames-btn-icon-edit-${directionCode} hide"></i>
+                  `,
+                  class: `direction-code-bar-frames-btn-add direction-code-bar-frames-btn-${directionCode}`,
                 })}
               </div>
             </div>
@@ -442,18 +604,69 @@ const ObjectLayerEngineModal = {
               }
               const image = await ole.toBlob();
               const json = ole.exportMatrixJSON();
-              const id = `frame-capture-${s4()}-${s4()}`;
-              console.log(`Creating new frame ${id} for direction ${currentDirectionCode}`);
 
-              if (!ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode])
-                ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode] = [];
-              ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].push({ id, image, json });
-              console.log(
-                `Stored frame ${id} in direction code ${currentDirectionCode}. Total frames:`,
-                ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].length,
-              );
+              // Check if we're in edit mode
+              if (editingFrameId && editingDirectionCode) {
+                // Ensure we're clicking the add button for the same direction being edited
+                if (currentDirectionCode !== editingDirectionCode) {
+                  NotificationManager.Push({
+                    html: `<i class="fa-solid fa-exclamation-circle"></i> Please click the glowing <i class="fa-solid fa-edit"></i> button for direction <strong>${editingDirectionCode}</strong> to save changes, or click <i class="fa-solid fa-times"></i> to cancel.`,
+                    status: 'warning',
+                  });
+                  return; // Don't add a new frame
+                }
 
-              await addFrameToBar(currentDirectionCode, id, image, json);
+                // UPDATE existing frame
+                console.log(`Updating frame ${editingFrameId} in direction ${editingDirectionCode}`);
+
+                // Find the frame in the data array
+                const frameArray = ObjectLayerEngineModal.ObjectLayerData[editingDirectionCode];
+                const frameIndex = frameArray?.findIndex((frame) => frame.id === editingFrameId);
+
+                if (frameIndex !== undefined && frameIndex >= 0) {
+                  // Update the frame data while preserving the ID and index
+                  frameArray[frameIndex] = {
+                    id: editingFrameId,
+                    image,
+                    json,
+                  };
+
+                  // Update the visual representation
+                  const imgElement = s(`.direction-code-bar-frames-img-${editingFrameId}`);
+                  if (imgElement) {
+                    imgElement.src = URL.createObjectURL(image);
+                  }
+
+                  console.log(`Frame ${editingFrameId} updated successfully at index ${frameIndex}`);
+                  NotificationManager.Push({
+                    html: `<i class="fa-solid fa-check-circle"></i> Frame updated successfully at position ${frameIndex + 1}!`,
+                    status: 'success',
+                  });
+                } else {
+                  console.error(`Could not find frame ${editingFrameId} in direction ${editingDirectionCode}`);
+                  NotificationManager.Push({
+                    html: `<i class="fa-solid fa-exclamation-triangle"></i> Error: Could not find frame to update`,
+                    status: 'error',
+                  });
+                }
+
+                // Exit edit mode and restore UI
+                exitEditMode();
+              } else {
+                // ADD new frame (existing behavior)
+                const id = `frame-capture-${s4()}-${s4()}`;
+                console.log(`Creating new frame ${id} for direction ${currentDirectionCode}`);
+
+                if (!ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode])
+                  ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode] = [];
+                ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].push({ id, image, json });
+                console.log(
+                  `Stored frame ${id} in direction code ${currentDirectionCode}. Total frames:`,
+                  ObjectLayerEngineModal.ObjectLayerData[currentDirectionCode].length,
+                );
+
+                await addFrameToBar(currentDirectionCode, id, image, json);
+              }
             });
           })(directionCode);
         }
@@ -725,9 +938,31 @@ const ObjectLayerEngineModal = {
         }
         .direction-code-bar-trash-btn {
           top: 3px;
-          left: 3px;
-          background: red;
+          left: 30px;
           color: white;
+          border: none !important;
+        }
+        .direction-code-bar-edit-btn {
+          top: 3px;
+          left: 3px;
+          color: white;
+          border: none !important;
+        }
+        .direction-code-bar-frames-btn-add {
+          color: white;
+          border: none !important;
+        }
+        .direction-code-bar-trash-btn:hover {
+          background: none !important;
+          color: red;
+        }
+        .direction-code-bar-edit-btn:hover {
+          background: none !important;
+          color: yellow;
+        }
+        .direction-code-bar-frames-btn-add:hover {
+          background: none !important;
+          color: #c7ff58;
         }
         .ol-btn-save {
           width: 120px;
@@ -773,7 +1008,13 @@ const ObjectLayerEngineModal = {
           font-size: 26px;
         }
       </style>
-      ${borderChar(2, 'black', ['.sub-title-modal', '.frame-editor-container-loading'])}
+      ${borderChar(2, 'black', [
+        '.sub-title-modal',
+        '.frame-editor-container-loading',
+        '.direction-code-bar-edit-btn',
+        '.direction-code-bar-trash-btn',
+        '.direction-code-bar-frames-btn-add',
+      ])}
       <div class="in frame-editor-container-loading">
         <div class="abs center frame-editor-container-loading-center"></div>
       </div>
