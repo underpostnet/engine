@@ -125,9 +125,21 @@ const ObjectLayerCyberiaPortal = {
           }
           .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(100%, 1fr)); /* Default to 1 column */
             gap: 2rem;
             margin-top: 3rem;
+          }
+
+          @media (min-width: 576px) {
+            .features-grid {
+              grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); /* 2 columns */
+            }
+          }
+
+          @media (min-width: 992px) {
+            .features-grid {
+              grid-template-columns: repeat(auto-fit, minmax(22%, 1fr)); /* 4 columns */
+            }
           }
           .feature-card {
             background: var(--card-bg-color);
@@ -238,6 +250,12 @@ const ObjectLayerCyberiaPortal = {
                 title: 'Deep Loot & Crafting',
                 description:
                   'Hunt for epic loot, gather rare resources, and craft powerful gear to define your playstyle.',
+              },
+              {
+                icon: 'wallet.png',
+                title: 'Earn While You Play',
+                description:
+                  'Engage in an innovative play-to-earn economy. Trade items, complete quests, and earn rewards.',
               },
             ]
               .map(
