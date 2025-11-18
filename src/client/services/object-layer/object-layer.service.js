@@ -155,6 +155,40 @@ const ObjectLayerService = {
           return reject(error);
         }),
     ),
+  generateWebp: (options = { itemType: '', itemId: '', directionCode: '' }) => {
+    const url = new URL(
+      getApiBaseUrl({
+        id: `generate-webp/${options.itemType}/${options.itemId}/${options.directionCode}`,
+        endpoint,
+      }),
+    );
+    return new Promise((resolve, reject) =>
+      fetch(url.toString(), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.message || 'Failed to generate WebP');
+          }
+          // Get the blob data
+          const blob = await res.blob();
+          // Create a blob URL for display
+          const blobUrl = URL.createObjectURL(blob);
+          return { status: 'success', data: blobUrl };
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
+  },
 };
 
 export { ObjectLayerService };

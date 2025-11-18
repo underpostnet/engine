@@ -19,9 +19,8 @@ const ObjectLayerEngineViewer = {
     frameCounts: null,
     currentDirection: 'down',
     currentMode: 'idle',
-    gif: null,
+    webp: null,
     isGenerating: false,
-    // Binary transparency settings for GIF export
   },
 
   // Map user-friendly direction/mode to numeric direction codes
@@ -122,8 +121,8 @@ const ObjectLayerEngineViewer = {
       // Render the viewer UI
       await this.renderViewer({ Elements });
 
-      // Generate GIF
-      await this.generateGif();
+      // Generate WebP
+      await this.generateWebp();
     } catch (error) {
       logger.error('Error loading object layer:', error);
       NotificationManager.Push({
@@ -194,7 +193,7 @@ const ObjectLayerEngineViewer = {
             color: ${darkTheme ? '#fff' : '#333'};
           }
 
-          .gif-display-area {
+          .webp-display-area {
             background: ${darkTheme ? '#2a2a2a' : '#f5f5f5'};
             border: 2px solid ${darkTheme ? '#444' : '#ddd'};
             border-radius: 12px;
@@ -210,7 +209,7 @@ const ObjectLayerEngineViewer = {
             overflow: auto;
           }
 
-          .gif-canvas-container {
+          .webp-canvas-container {
             position: relative;
             display: flex;
             justify-content: center;
@@ -219,8 +218,8 @@ const ObjectLayerEngineViewer = {
             height: 100%;
           }
 
-          .gif-canvas-container canvas,
-          .gif-canvas-container img {
+          .webp-canvas-container canvas,
+          .webp-canvas-container img {
             image-rendering: pixelated;
             image-rendering: -moz-crisp-edges;
             image-rendering: crisp-edges;
@@ -236,13 +235,13 @@ const ObjectLayerEngineViewer = {
             display: block;
           }
 
-          .gif-canvas-container canvas {
+          .webp-canvas-container canvas {
             background: repeating-conic-gradient(#80808020 0% 25%, #fff0 0% 50%) 50% / 20px 20px;
             min-width: 128px;
             min-height: 128px;
           }
 
-          .gif-info-badge {
+          .webp-info-badge {
             position: absolute;
             bottom: 10px;
             right: 10px;
@@ -255,7 +254,7 @@ const ObjectLayerEngineViewer = {
             backdrop-filter: blur(4px);
           }
 
-          .gif-info-badge .info-label {
+          .webp-info-badge .info-label {
             opacity: 0.7;
             margin-right: 4px;
           }
@@ -388,28 +387,28 @@ const ObjectLayerEngineViewer = {
           }
 
           @media (max-width: 768px) {
-            .gif-display-area {
+            .webp-display-area {
               max-height: 500px;
               min-height: 300px;
               padding: 20px;
             }
 
-            .gif-canvas-container canvas,
-            .gif-canvas-container img {
+            .webp-canvas-container canvas,
+            .webp-canvas-container img {
               max-width: 100%;
               max-height: 440px;
             }
           }
 
           @media (max-width: 600px) {
-            .gif-display-area {
+            .webp-display-area {
               max-height: 400px;
               min-height: 250px;
               padding: 15px;
             }
 
-            .gif-canvas-container canvas,
-            .gif-canvas-container img {
+            .webp-canvas-container canvas,
+            .webp-canvas-container img {
               max-height: 340px;
             }
 
@@ -515,16 +514,16 @@ const ObjectLayerEngineViewer = {
             </div>
           </div>
 
-          <div class="gif-display-area">
-            <div class="gif-canvas-container" id="gif-canvas-container">
+          <div class="webp-display-area">
+            <div class="webp-canvas-container" id="webp-canvas-container">
               <div style="text-align: center; color: ${darkTheme ? '#aaa' : '#666'};">
                 <i class="fa-solid fa-image" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
-                <p style="margin: 0; font-size: 14px;">GIF preview will appear here</p>
+                <p style="margin: 0; font-size: 14px;">WebP preview will appear here</p>
               </div>
-              <div id="gif-loading-overlay" class="loading-overlay" style="display: none;">
+              <div id="webp-loading-overlay" class="loading-overlay" style="display: none;">
                 <div>
                   <i class="fa-solid fa-spinner fa-spin"></i>
-                  <span style="margin-left: 10px;">Generating GIF...</span>
+                  <span style="margin-left: 10px;">Generating WebP...</span>
                 </div>
               </div>
             </div>
@@ -615,9 +614,9 @@ const ObjectLayerEngineViewer = {
               <i class="fa-solid fa-arrow-left"></i>
               <span>Return to List</span>
             </button>
-            <button class="default-viewer-btn" id="download-gif-btn">
+            <button class="default-viewer-btn" id="download-webp-btn">
               <i class="fa-solid fa-download"></i>
-              <span>Download GIF</span>
+              <span>Download WebP</span>
             </button>
             <button class="default-viewer-btn edit-btn" id="edit-object-layer-btn">
               <i class="fa-solid fa-edit"></i>
@@ -643,7 +642,7 @@ const ObjectLayerEngineViewer = {
           this.Data.currentDirection = direction;
           await this.renderViewer({ Elements });
           await this.attachEventListeners({ Elements });
-          await this.generateGif();
+          await this.generateWebp();
         }
       });
     });
@@ -658,19 +657,20 @@ const ObjectLayerEngineViewer = {
           this.Data.currentMode = mode;
           await this.renderViewer({ Elements });
           await this.attachEventListeners({ Elements });
-          await this.generateGif();
+          await this.generateWebp();
         }
       });
     });
 
     // Download button
-    const downloadBtn = s('#download-gif-btn');
+    const downloadBtn = s('#download-webp-btn');
     if (downloadBtn) {
       downloadBtn.addEventListener('click', () => {
-        this.downloadGif();
+        this.downloadWebp();
       });
     }
 
+    // Return to list button
     const listBtn = s('#return-to-list-btn');
     if (listBtn) {
       listBtn.addEventListener('click', () => {
@@ -680,6 +680,7 @@ const ObjectLayerEngineViewer = {
       });
     }
 
+    // Edit button
     const editBtn = s('#edit-object-layer-btn');
     if (editBtn) {
       editBtn.addEventListener('click', () => {
@@ -688,7 +689,7 @@ const ObjectLayerEngineViewer = {
     }
   },
 
-  generateGif: async function () {
+  generateWebp: async function () {
     if (this.Data.isGenerating) return;
 
     const { objectLayer, frameCounts, currentDirection, currentMode } = this.Data;
@@ -716,28 +717,55 @@ const ObjectLayerEngineViewer = {
 
     const itemType = objectLayer.data.item.type;
     const itemId = objectLayer.data.item.id;
-    const frameDuration = objectLayer.data.render.frame_duration || 100;
 
     this.Data.isGenerating = true;
     this.showLoading(true);
 
     try {
-      // Build frame paths based on frame count using numeric code
-      const frames = [];
-      for (let i = 0; i < frameCount; i++) {
-        frames.push(`${getProxyPath()}assets/${itemType}/${itemId}/${numericCode}/${i}.png`);
+      // Call the WebP generation API endpoint
+      const { status, data } = await ObjectLayerService.generateWebp({
+        itemType,
+        itemId,
+        directionCode: numericCode,
+      });
+
+      if (status === 'success' && data) {
+        // Store the blob URL
+        this.Data.webp = data;
+
+        // Display the WebP in the viewer
+        const container = s('#webp-canvas-container');
+        if (container) {
+          htmls(
+            container,
+            html`
+              <img src="${data}" alt="WebP Animation" />
+              <div class="webp-info-badge">
+                <span class="info-label">Frames:</span>
+                <span>${frameCount}</span>
+                <span class="info-label" style="margin-left: 8px;">Direction:</span>
+                <span>${currentDirection}</span>
+                <span class="info-label" style="margin-left: 8px;">Mode:</span>
+                <span>${currentMode}</span>
+              </div>
+            `,
+          );
+        }
+
+        NotificationManager.Push({
+          html: `WebP generated successfully`,
+          status: 'success',
+        });
+      } else {
+        throw new Error('Failed to generate WebP');
       }
 
-      const blob = new Blob();
-      this.Data.gif = blob;
       this.Data.isGenerating = false;
       this.showLoading(false);
-
-      console.error('frames', { itemType, itemId, frameDuration }, frames);
     } catch (error) {
-      logger.error('Error generating GIF:', error);
+      logger.error('Error generating WebP:', error);
       NotificationManager.Push({
-        html: `Failed to generate GIF: ${error.message}`,
+        html: `Failed to generate WebP: ${error.message}`,
         status: 'error',
       });
       this.Data.isGenerating = false;
@@ -746,21 +774,21 @@ const ObjectLayerEngineViewer = {
   },
 
   showLoading: function (show) {
-    const overlay = s('#gif-loading-overlay');
+    const overlay = s('#webp-loading-overlay');
     if (overlay) {
       overlay.style.display = show ? 'flex' : 'none';
     }
 
-    const downloadBtn = s('#download-gif-btn');
+    const downloadBtn = s('#download-webp-btn');
     if (downloadBtn) {
       downloadBtn.disabled = show;
     }
   },
 
-  downloadGif: function () {
-    if (!this.Data.gif) {
+  downloadWebp: function () {
+    if (!this.Data.webp) {
       NotificationManager.Push({
-        html: 'No GIF available to download',
+        html: 'No WebP available to download',
         status: 'warning',
       });
       return;
@@ -768,19 +796,18 @@ const ObjectLayerEngineViewer = {
 
     const { objectLayer, currentDirection, currentMode } = this.Data;
     const numericCode = this.getDirectionCode(currentDirection, currentMode);
-    const filename = `${objectLayer.data.item.id}_${currentDirection}_${currentMode}_${numericCode}.gif`;
+    const filename = `${objectLayer.data.item.id}_${currentDirection}_${currentMode}_${numericCode}.webp`;
 
-    const url = URL.createObjectURL(this.Data.gif);
+    // Create a temporary anchor element to trigger download
     const a = document.createElement('a');
-    a.href = url;
+    a.href = this.Data.webp;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 
     NotificationManager.Push({
-      html: `GIF downloaded: ${filename}`,
+      html: `WebP downloaded: ${filename}`,
       status: 'success',
     });
   },
