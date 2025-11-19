@@ -44,7 +44,7 @@ class UnderpostCluster {
      * @param {boolean} [options.listPods=false] - List Kubernetes pods.
      * @param {boolean} [options.reset=false] - Perform a comprehensive reset of Kubernetes and container environments.
      * @param {boolean} [options.dev=false] - Run in development mode (adjusts paths).
-     * @param {string} [options.nsUse=''] - Set the current kubectl namespace.
+     * @param {string} [options.nsUse=''] - Set the current kubectl namespace (creates namespace if it doesn't exist).
      * @param {string} [options.namespace='default'] - Kubernetes namespace for cluster operations.
      * @param {boolean} [options.infoCapacity=false] - Display resource capacity information for the cluster.
      * @param {boolean} [options.infoCapacityPod=false] - Display resource capacity information for pods.
@@ -122,7 +122,22 @@ class UnderpostCluster {
       if (!options.namespace) options.namespace = 'default';
 
       if (options.nsUse && typeof options.nsUse === 'string') {
+        // Verify if namespace exists, create if not
+        const namespaceExists = shellExec(`kubectl get namespace ${options.nsUse} --ignore-not-found -o name`, {
+          stdout: true,
+          silent: true,
+        }).trim();
+
+        if (!namespaceExists) {
+          logger.info(`Namespace '${options.nsUse}' does not exist. Creating it...`);
+          shellExec(`kubectl create namespace ${options.nsUse}`);
+          logger.info(`Namespace '${options.nsUse}' created successfully.`);
+        } else {
+          logger.info(`Namespace '${options.nsUse}' already exists.`);
+        }
+
         shellExec(`kubectl config set-context --current --namespace=${options.nsUse}`);
+        logger.info(`Context switched to namespace: ${options.nsUse}`);
         return;
       }
       if (options.info === true) {

@@ -158,7 +158,10 @@ program
   .option('--dedicated-gpu', 'Initializes the cluster with dedicated GPU base resources and environment settings.')
   .option('--info', 'Retrieves information about all deployed Kubernetes objects.')
   .option('--full', 'Initializes the cluster with all available statefulsets and services.')
-  .option('--ns-use <ns-name>', 'Switches the current Kubernetes context to the specified namespace.')
+  .option(
+    '--ns-use <ns-name>',
+    "Switches the current Kubernetes context to the specified namespace (creates if it doesn't exist).",
+  )
   .option('--kubeadm', 'Initializes the cluster using kubeadm for control plane management.')
   .option('--grafana', 'Initializes the cluster with a Grafana deployment.')
   .option(
