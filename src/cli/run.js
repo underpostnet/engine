@@ -493,7 +493,7 @@ class UnderpostRun {
       versions = versions ? versions.replaceAll('+', ',') : defaultPath[2];
       image = image ? image : defaultPath[3];
       node = node ? node : defaultPath[4];
-
+      shellExec(`${baseCommand} cluster --ns-use ${options.namespace}`);
       if (isDeployRunnerContext(path, options)) {
         const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
         if (!validVersion) throw new Error('Version mismatch');
@@ -1318,6 +1318,7 @@ EOF`;
         if (options.command) options.command = options.command.split(',');
         if (options.args) options.args = options.args.split(',');
         if (!options.underpostRoot) options.underpostRoot = underpostRoot;
+        if (!options.namespace) options.namespace = 'default';
         options.npmRoot = npmRoot;
         logger.info('callback', { path, options });
         if (!(runner in UnderpostRun.RUNNERS)) throw new Error(`Runner not found: ${runner}`);
