@@ -51,6 +51,7 @@ class UnderpostMonitor {
       commanderOptions,
       auxRouter,
     ) {
+      if (!options.namespace) options.namespace = 'default';
       if (deployId === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`)) {
         for (const _deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(','))
           UnderpostMonitor.API.callback(
