@@ -414,6 +414,10 @@ program
   .option('--runtime-class-name <name>', 'Sets the runtime class name for the job in deploy-job.')
   .option('--image-pull-policy <policy>', 'Sets the image pull policy for the job in deploy-job.')
   .option('--api-version <version>', 'Sets the API version for the job manifest in deploy-job.')
+  .option(
+    '--labels <labels>',
+    'Optional: Specifies a comma-separated list of key-value pairs for labels (e.g., "app=my-app,env=prod").',
+  )
   .option('--claim-name <name>', 'Optional: Specifies the claim name for volume mounting in deploy-job.')
   .option('--kind <kind-type>', 'Specifies the kind of Kubernetes resource (e.g., Job, Deployment) for deploy-job.')
   .option('--kubeadm', 'Flag to indicate Kubeadm cluster type context')

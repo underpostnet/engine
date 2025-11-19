@@ -1225,6 +1225,13 @@ class UnderpostRun {
       const imagePullPolicy = options.imagePullPolicy || 'IfNotPresent';
       const hostNetwork = options.hostNetwork ? options.hostNetwork : '';
       const apiVersion = options.apiVersion || 'v1';
+      const labels = options.labels
+        ? options.labels.split(',').map((keyValue) => {
+            const [key, value] = keyValue.split('=');
+            return `    ${key}: ${value}
+`;
+          })
+        : `    app: ${podName}`;
       if (options.volumeType === 'dev') options.volumeType = 'FileOrCreate';
       const volumeType =
         options.volumeType || (enableVolumeMount && volumeHostPath && fs.statSync(volumeHostPath).isDirectory())
@@ -1240,7 +1247,7 @@ metadata:
   name: ${podName}
   namespace: ${namespace}
   labels:
-    app: ${podName}
+${labels}
 spec:
   restartPolicy: ${restartPolicy}
 ${runtimeClassName ? `  runtimeClassName: ${runtimeClassName}` : ''}
