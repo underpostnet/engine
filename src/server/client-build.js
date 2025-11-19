@@ -84,11 +84,12 @@ const copyNonExistingFiles = (src, dest) => {
  * @param {Object} options - Options for the build process.
  * @param {Array} options.liveClientBuildPaths - List of paths to build incrementally.
  * @param {Array} options.instances - List of instances to build.
+ * @param {boolean} options.buildZip - Whether to create zip files of the builds.
  * @returns {Promise<void>} - Promise that resolves when the build is complete.
  * @throws {Error} - If the build fails.
  * @memberof clientBuild
  */
-const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }) => {
+const buildClient = async (options = { liveClientBuildPaths: [], instances: [], buildZip: false }) => {
   const logger = loggerFactory(import.meta);
   const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
@@ -266,7 +267,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       const port = newInstance(currentPort);
       const publicClientId = publicRef ? publicRef : client;
-      const fullBuildEnabled = !process.argv.includes('l') && !confServer[host][path].liteBuild && !enableLiveRebuild;
+      const fullBuildEnabled = !confServer[host][path].liteBuild && !enableLiveRebuild;
       // const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : `http://localhost:${port}`;
       const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
       // ''; // process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
@@ -625,7 +626,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
         );
       }
 
-      if (fullBuildEnabled && !enableLiveRebuild && !process.argv.includes('l') && docsBuild) {
+      if (fullBuildEnabled && !enableLiveRebuild && docsBuild) {
         await buildDocs({
           host,
           path,
@@ -716,7 +717,7 @@ ${fs.readFileSync(`${rootClientPath}/sw.js`, 'utf8')}`,
           );
         }
       }
-      if (!enableLiveRebuild && process.argv.includes('zip')) {
+      if (!enableLiveRebuild && options.buildZip) {
         logger.warn('build zip', rootClientPath);
 
         if (!fs.existsSync('./build')) fs.mkdirSync('./build');

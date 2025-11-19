@@ -1192,7 +1192,7 @@ const Cmd = {
    * @returns {string} - The build command.
    * @memberof Cmd
    */
-  build: (deployId) => `node bin/deploy build-full-client ${deployId}${process.argv.includes('l') ? ' l' : ''}`,
+  build: (deployId) => `node bin/deploy build-full-client ${deployId}`,
   /**
    * @method conf
    * @description Configures the deploy.

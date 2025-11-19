@@ -179,7 +179,7 @@ class UnderpostRepository {
         return;
       }
       if (options.info) return logger.info('', commitData);
-      const _message = `${commitType}${subModule ? `(${subModule})` : ''}${process.argv.includes('!') ? '!' : ''}: ${
+      const _message = `${commitType}${subModule ? `(${subModule})` : ''}: ${
         commitData[commitType].emoji
       } ${message ? message : commitData[commitType].description}`;
       if (options.copy) return pbcopy(_message);
