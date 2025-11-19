@@ -237,9 +237,7 @@ class UnderpostCluster {
           shellExec(
             `sudo kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.3/manifests/tigera-operator.yaml`,
           );
-          shellExec(
-            `sudo kubectl apply -f ${underpostRoot}/manifests/kubeadm-calico-config.yaml -n ${options.namespace}`,
-          );
+          shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/kubeadm-calico-config.yaml`);
 
           // Untaint control plane node to allow scheduling pods
           const nodeName = os.hostname();
