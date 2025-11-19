@@ -162,6 +162,14 @@ program
     "Switches the current Kubernetes context to the specified namespace (creates if it doesn't exist).",
   )
   .option('--kubeadm', 'Initializes the cluster using kubeadm for control plane management.')
+  .option(
+    '--pod-network-cidr <cidr>',
+    'Sets custom pod network CIDR for kubeadm cluster initialization (defaults to "192.168.0.0/16").',
+  )
+  .option(
+    '--control-plane-endpoint <endpoint>',
+    'Sets custom control plane endpoint for kubeadm cluster initialization (defaults to "localhost:6443").',
+  )
   .option('--grafana', 'Initializes the cluster with a Grafana deployment.')
   .option(
     '--prom [hosts]',

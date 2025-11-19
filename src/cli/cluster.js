@@ -51,6 +51,8 @@ class UnderpostCluster {
      * @param {boolean} [options.pullImage=false] - Pull necessary Docker images before deployment.
      * @param {boolean} [options.dedicatedGpu=false] - Configure for dedicated GPU usage (e.g., NVIDIA GPU Operator).
      * @param {boolean} [options.kubeadm=false] - Initialize the cluster using Kubeadm.
+     * @param {string} [options.podNetworkCidr='192.168.0.0/16'] - Custom pod network CIDR for Kubeadm cluster initialization. Defaults to '192.168.0.0/16'.
+     * @param {string} [options.controlPlaneEndpoint=''] - Custom control plane endpoint for Kubeadm cluster initialization. Defaults to '${os.hostname()}:6443'.
      * @param {boolean} [options.k3s=false] - Initialize the cluster using K3s.
      * @param {boolean} [options.initHost=false] - Perform initial host setup (install Docker, Podman, Kind, Kubeadm, Helm).
      * @param {boolean} [options.grafana=false] - Initialize the cluster with a Grafana deployment.
@@ -86,6 +88,8 @@ class UnderpostCluster {
         pullImage: false,
         dedicatedGpu: false,
         kubeadm: false,
+        podNetworkCidr: '192.168.0.0/16',
+        controlPlaneEndpoint: '',
         k3s: false,
         initHost: false,
         grafana: false,
@@ -217,9 +221,13 @@ class UnderpostCluster {
           logger.info('K3s comes with local-path-provisioner by default. Skipping explicit installation.');
         } else if (options.kubeadm === true) {
           logger.info('Initializing Kubeadm control plane...');
+          // Set default values if not provided
+          const podNetworkCidr = options.podNetworkCidr || '192.168.0.0/16';
+          const controlPlaneEndpoint = options.controlPlaneEndpoint || `${os.hostname()}:6443`;
+
           // Initialize kubeadm control plane
           shellExec(
-            `sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --control-plane-endpoint="${os.hostname()}:6443"`,
+            `sudo kubeadm init --pod-network-cidr=${podNetworkCidr} --control-plane-endpoint="${controlPlaneEndpoint}"`,
           );
           // Configure kubectl for the current user
           UnderpostCluster.API.chown('kubeadm'); // Pass 'kubeadm' to chown
