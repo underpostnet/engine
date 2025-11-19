@@ -7,6 +7,8 @@ import { commitData } from '../client/components/core/CommonJs.js';
 import UnderpostLxd from './lxd.js';
 import UnderpostBaremetal from './baremetal.js';
 import UnderpostRun from './run.js';
+import Dns from '../server/dns.js';
+import { pbcopy } from '../server/process.js';
 
 // Load environment variables from .env file
 const underpostRootPath = getUnderpostRootPath();
@@ -128,6 +130,16 @@ program
   .command('root')
   .description('Displays the root path of the npm installation.')
   .action(() => console.log(getNpmRootPath()));
+
+program
+  .command('ip')
+  .option('--copy', 'Copies the IP addresses to the clipboard.')
+  .description('Displays the current public machine IP addresses.')
+  .action(async (options) => {
+    const ip = await Dns.getPublicIp();
+    if (options.copy) return pbcopy(ip);
+    return console.log(ip);
+  });
 
 // 'cluster' command: Manage Kubernetes clusters
 program
