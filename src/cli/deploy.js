@@ -417,68 +417,6 @@ spec:
         namespace: '',
       },
     ) {
-      if (options.infoUtil === true)
-        return logger.info(`
-kubectl rollout restart deployment/deployment-name
-kubectl rollout undo deployment/deployment-name
-kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
-kubectl get pods -w
-kubectl patch statefulset valkey-service --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"valkey/valkey:latest"}]'
-kubectl patch statefulset valkey-service -p '{"spec":{"template":{"spec":{"containers":[{"name":"valkey-service","imagePullPolicy":"Never"}]}}}}'
-kubectl logs -f <pod-name>
-kubectl describe pod <pod-name>
-kubectl exec -it <pod-name> -- bash
-kubectl exec -it <pod-name> -- sh
-docker exec -it kind-control-plane bash
-curl -4 -v google.com
-kubectl taint nodes <node-name> node-role.kubernetes.io/control-plane:NoSchedule-
-kubectl run test-pod --image=busybox:latest --restart=Never -- /bin/sh -c "while true; do sleep 30; done;"
-kubectl run test-pod --image=alpine/curl:latest --restart=Never -- sh -c "sleep infinity"
-kubectl get ippools -o yaml
-kubectl get node <node-name> -o jsonpath='{.spec.podCIDR}'
-kubectl patch ippool default-ipv4-ippool --type='json' -p='[{"op": "replace", "path": "/spec/cidr", "value": "10.244.0.0/16"}]'
-kubectl patch ippool default-ipv4-ippool --type='json' -p='[{"op": "replace", "path": "/spec/cidr", "value": "192.168.0.0/24"}]'
-sudo podman run --rm localhost/<image-name>:<image-version> <command>
-kubectl get configmap kubelet-config -n kube-system -o yaml > kubelet-config.yaml
-kubectl -n kube-system rollout restart daemonset kube-proxy
-kubectl get EndpointSlice -o wide --all-namespaces -w
-kubectl apply -k manifests/deployment/adminer/.
-kubectl wait --for=condition=Ready pod/busybox1
-kubectl wait --for=jsonpath='{.status.phase}'=Running pod/busybox1
-kubectl wait --for='jsonpath={.status.conditions[?(@.type=="Ready")].status}=True' pod/busybox1
-kubectl wait --for=delete pod/busybox1 --timeout=60s
-
-node bin run cluster-build
-node bin run template-deploy
-node bin run ssh-deploy (sync-)engine-core
-node bin run cluster --dev 'express,dd-test+dd-core'
-node bin run dd-container --dev
-node bin run promote dd-default production
-node bin dockerfile-pull-base-images --dev --path 'image-path' --kind-load
-node bin/deploy update-default-conf <deploy-id>
-
-fqdn: <service>.<namespace>.<kind(svc/pod)>.<cluster-domain(cluster.local)>
-kubectl run --rm -it test-dns --image=busybox:latest --restart=Never -- /bin/sh -c "
-  nslookup kubernetes.default.svc.cluster.local;
-  nslookup mongodb-service.default.svc.cluster.local;
-  nslookup valkey-service.default.svc.cluster.local;
-  nc -vz mongodb-service 27017;
-  nc -vz valkey-service 6379;
-  echo exit code: \\\$?
-"
-
-kubectl apply -f - <<EOF
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: ...
-EOF
-
-https://org.ngc.nvidia.com/setup/api-keys
-docker login nvcr.io
-Username: $oauthtoken
-Password: <Your Key>
-`);
       const namespace = options.namespace ? options.namespace : 'default';
       if (!deployList && options.certHosts) {
         for (const host of options.certHosts.split(',')) {

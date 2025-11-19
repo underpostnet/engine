@@ -156,7 +156,6 @@ program
   .option('--contour', 'Initializes the cluster with Project Contour base HTTPProxy and Envoy.')
   .option('--cert-manager', "Initializes the cluster with a Let's Encrypt production ClusterIssuer.")
   .option('--dedicated-gpu', 'Initializes the cluster with dedicated GPU base resources and environment settings.')
-  .option('--info', 'Retrieves information about all deployed Kubernetes objects.')
   .option('--full', 'Initializes the cluster with all available statefulsets and services.')
   .option(
     '--ns-use <ns-name>',
@@ -197,7 +196,6 @@ program
   .option('--sync', 'Synchronizes deployment environment variables, ports, and replica counts.')
   .option('--info-router', 'Displays the current router structure and configuration.')
   .option('--expose', 'Exposes services matching the provided deployment ID list.')
-  .option('--info-util', 'Displays useful `kubectl` utility management commands.')
   .option('--cert', 'Resets TLS/SSL certificate secrets for deployments.')
   .option('--cert-hosts <hosts>', 'Resets TLS/SSL certificate secrets for specified hosts.')
   .option('--node <node>', 'Sets optional node for deployment operations.')

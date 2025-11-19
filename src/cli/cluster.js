@@ -140,39 +140,6 @@ class UnderpostCluster {
         logger.info(`Context switched to namespace: ${options.nsUse}`);
         return;
       }
-      if (options.info === true) {
-        shellExec(`kubectl config get-contexts`);
-        shellExec(`kubectl config get-clusters`);
-        shellExec(`kubectl get nodes -o wide`);
-        shellExec(`kubectl config view | grep namespace`);
-        shellExec(`kubectl get ns -o wide`);
-        shellExec(`kubectl get pvc --all-namespaces -o wide`);
-        shellExec(`kubectl get pv --all-namespaces -o wide`);
-        shellExec(`kubectl get cronjob --all-namespaces -o wide`);
-        shellExec(`kubectl get svc --all-namespaces -o wide`);
-        shellExec(`kubectl get statefulsets --all-namespaces -o wide`);
-        shellExec(`kubectl get deployments --all-namespaces -o wide`);
-        shellExec(`kubectl get configmap --all-namespaces -o wide`);
-        shellExec(`kubectl get pods --all-namespaces -o wide`);
-        shellExec(
-          `kubectl get pod --all-namespaces -o="custom-columns=NAME:.metadata.name,INIT-CONTAINERS:.spec.initContainers[*].name,CONTAINERS:.spec.containers[*].name"`,
-        );
-        shellExec(
-          `kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
-        );
-        shellExec(`sudo crictl images`);
-        console.log();
-        logger.info('contour -------------------------------------------------');
-        for (const _k of ['Cluster', 'HTTPProxy', 'ClusterIssuer', 'Certificate']) {
-          shellExec(`kubectl get ${_k} --all-namespaces -o wide`);
-        }
-        logger.info('----------------------------------------------------------------');
-        shellExec(`kubectl get secrets --all-namespaces -o wide`);
-        shellExec(`docker secret ls`);
-        shellExec(`kubectl get crd --all-namespaces -o wide`);
-        shellExec(`sudo kubectl api-resources`);
-        return;
-      }
 
       // Reset Kubernetes cluster components (Kind/Kubeadm/K3s) and container runtimes
       if (options.reset === true)
