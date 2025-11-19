@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.89.44
+## underpost ci/cd cli v2.89.45
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -245,69 +245,79 @@ Options:
 Manages Kubernetes clusters, defaulting to Kind cluster initialization.
 
 Arguments:
-  pod-name                    Optional: Filters information by a specific pod
-                              name.
+  pod-name                             Optional: Filters information by a
+                                       specific pod name.
 
 Options:
-  --reset                     Deletes all clusters and prunes all related data
-                              and caches.
-  --mariadb                   Initializes the cluster with a MariaDB
-                              statefulset.
-  --mysql                     Initializes the cluster with a MySQL statefulset.
-  --mongodb                   Initializes the cluster with a MongoDB
-                              statefulset.
-  --mongo-db-host <host>      Set custom mongo db host
-  --postgresql                Initializes the cluster with a PostgreSQL
-                              statefulset.
-  --mongodb4                  Initializes the cluster with a MongoDB 4.4
-                              service.
-  --valkey                    Initializes the cluster with a Valkey service.
-  --contour                   Initializes the cluster with Project Contour base
-                              HTTPProxy and Envoy.
-  --cert-manager              Initializes the cluster with a Let's Encrypt
-                              production ClusterIssuer.
-  --dedicated-gpu             Initializes the cluster with dedicated GPU base
-                              resources and environment settings.
-  --info                      Retrieves information about all deployed
-                              Kubernetes objects.
-  --full                      Initializes the cluster with all available
-                              statefulsets and services.
-  --ns-use <ns-name>          Switches the current Kubernetes context to the
-                              specified namespace (creates if it doesn't
-                              exist).
-  --kubeadm                   Initializes the cluster using kubeadm for control
-                              plane management.
-  --grafana                   Initializes the cluster with a Grafana
-                              deployment.
-  --prom [hosts]              Initializes the cluster with a Prometheus
-                              Operator deployment and monitor scrap for
-                              specified hosts.
-  --dev                       Initializes a development-specific cluster
-                              configuration.
-  --list-pods                 Displays detailed information about all pods.
-  --info-capacity             Displays the current total machine capacity
-                              information.
-  --info-capacity-pod         Displays the current machine capacity information
-                              per pod.
-  --pull-image                Sets an optional associated image to pull during
-                              initialization.
-  --init-host                 Installs necessary Kubernetes node CLI tools
-                              (e.g., kind, kubeadm, docker, podman, helm).
-  --uninstall-host            Uninstalls all host components installed by
-                              init-host.
-  --config                    Sets the base Kubernetes node configuration.
-  --worker                    Sets the context for a worker node.
-  --chown                     Sets the appropriate ownership for Kubernetes
-                              kubeconfig files.
-  --k3s                       Initializes the cluster using K3s (Lightweight
-                              Kubernetes).
-  --hosts <hosts>             A comma-separated list of cluster hostnames or IP
-                              addresses.
-  --remove-volume-host-paths  Removes specified volume host paths after
-                              execution.
-  --namespace <namespace>     Kubernetes namespace for cluster operations
-                              (defaults to "default").
-  -h, --help                  display help for command
+  --reset                              Deletes all clusters and prunes all
+                                       related data and caches.
+  --mariadb                            Initializes the cluster with a MariaDB
+                                       statefulset.
+  --mysql                              Initializes the cluster with a MySQL
+                                       statefulset.
+  --mongodb                            Initializes the cluster with a MongoDB
+                                       statefulset.
+  --mongo-db-host <host>               Set custom mongo db host
+  --postgresql                         Initializes the cluster with a
+                                       PostgreSQL statefulset.
+  --mongodb4                           Initializes the cluster with a MongoDB
+                                       4.4 service.
+  --valkey                             Initializes the cluster with a Valkey
+                                       service.
+  --contour                            Initializes the cluster with Project
+                                       Contour base HTTPProxy and Envoy.
+  --cert-manager                       Initializes the cluster with a Let's
+                                       Encrypt production ClusterIssuer.
+  --dedicated-gpu                      Initializes the cluster with dedicated
+                                       GPU base resources and environment
+                                       settings.
+  --full                               Initializes the cluster with all
+                                       available statefulsets and services.
+  --ns-use <ns-name>                   Switches the current Kubernetes context
+                                       to the specified namespace (creates if
+                                       it doesn't exist).
+  --kubeadm                            Initializes the cluster using kubeadm
+                                       for control plane management.
+  --pod-network-cidr <cidr>            Sets custom pod network CIDR for kubeadm
+                                       cluster initialization (defaults to
+                                       "192.168.0.0/16").
+  --control-plane-endpoint <endpoint>  Sets custom control plane endpoint for
+                                       kubeadm cluster initialization (defaults
+                                       to "localhost:6443").
+  --grafana                            Initializes the cluster with a Grafana
+                                       deployment.
+  --prom [hosts]                       Initializes the cluster with a
+                                       Prometheus Operator deployment and
+                                       monitor scrap for specified hosts.
+  --dev                                Initializes a development-specific
+                                       cluster configuration.
+  --list-pods                          Displays detailed information about all
+                                       pods.
+  --info-capacity                      Displays the current total machine
+                                       capacity information.
+  --info-capacity-pod                  Displays the current machine capacity
+                                       information per pod.
+  --pull-image                         Sets an optional associated image to
+                                       pull during initialization.
+  --init-host                          Installs necessary Kubernetes node CLI
+                                       tools (e.g., kind, kubeadm, docker,
+                                       podman, helm).
+  --uninstall-host                     Uninstalls all host components installed
+                                       by init-host.
+  --config                             Sets the base Kubernetes node
+                                       configuration.
+  --worker                             Sets the context for a worker node.
+  --chown                              Sets the appropriate ownership for
+                                       Kubernetes kubeconfig files.
+  --k3s                                Initializes the cluster using K3s
+                                       (Lightweight Kubernetes).
+  --hosts <hosts>                      A comma-separated list of cluster
+                                       hostnames or IP addresses.
+  --remove-volume-host-paths           Removes specified volume host paths
+                                       after execution.
+  --namespace <namespace>              Kubernetes namespace for cluster
+                                       operations (defaults to "default").
+  -h, --help                           display help for command
  
 ```
   
@@ -334,8 +344,6 @@ Options:
                                      configuration.
   --expose                           Exposes services matching the provided
                                      deployment ID list.
-  --info-util                        Displays useful `kubectl` utility
-                                     management commands.
   --cert                             Resets TLS/SSL certificate secrets for
                                      deployments.
   --cert-hosts <hosts>               Resets TLS/SSL certificate secrets for
