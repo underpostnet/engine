@@ -1226,11 +1226,14 @@ class UnderpostRun {
       const hostNetwork = options.hostNetwork ? options.hostNetwork : '';
       const apiVersion = options.apiVersion || 'v1';
       const labels = options.labels
-        ? options.labels.split(',').map((keyValue) => {
-            const [key, value] = keyValue.split('=');
-            return `    ${key}: ${value}
+        ? options.labels
+            .split(',')
+            .map((keyValue) => {
+              const [key, value] = keyValue.split('=');
+              return `    ${key}: ${value}
 `;
-          })
+            })
+            .join('')
         : `    app: ${podName}`;
       if (options.volumeType === 'dev') options.volumeType = 'FileOrCreate';
       const volumeType =
