@@ -1,119 +1,14 @@
-# This consolidated YAML file contains configurations for:
-# 1. Calico Installation (Installation and APIServer resources)
-# 2. A permissive Egress NetworkPolicy for the 'default' namespace
-#
-# These are standard Kubernetes resources that can be applied directly using 'kubectl apply'.
-# The kubeadm-specific ClusterConfiguration and InitConfiguration have been removed
-# as they are only processed by the 'kubeadm init' command, not 'kubectl apply'.
-
-# --- Calico Installation: Base configuration for Calico ---
-# For more information, see: https://projectcalico.docs.tigera.io/master/reference/installation/api#operator.tigera.io/v1.Installation
-apiVersion: operator.tigera.io/v1
-kind: Installation
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
 metadata:
-  name: default
+  name: allow-all-egress-cluster
 spec:
-  # Configures Calico networking.
-  calicoNetwork:
-    # Note: The ipPools section cannot be modified post-install.
-    ipPools:
-      - blockSize: 26
-        cidr: 192.168.0.0/16
-        encapsulation: VXLANCrossSubnet
-        natOutgoing: Enabled
-        nodeSelector: all()
-
----
-# This section configures the Calico API server.
-# For more information, see: https://projectcalico.docs.tigera.io/master/reference/installation/api#operator.tigera.io/v1.APIServer
-apiVersion: operator.tigera.io/v1
-kind: APIServer
-metadata:
-  name: default
-spec: {}
-
----
-# This consolidated NetworkPolicy file ensures that all pods in the specified namespaces
-# have unrestricted egress (outbound) access.
-# This is useful for troubleshooting or for environments where strict egress control
-# is not immediately required for these system/default namespaces.
-
----
-# Policy for the 'default' namespace
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-all-egress-default-namespace
-  namespace: default # This policy applies to the 'default' namespace
-spec:
-  podSelector: {} # Selects all pods in this namespace
-  policyTypes:
+  selector: all()
+  order: 1000
+  types:
     - Egress
   egress:
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0 # Allows traffic to any IPv4 address
-
----
-# Policy for the 'kube-system' namespace
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-all-egress-kube-system-namespace
-  namespace: kube-system # This policy applies to the 'kube-system' namespace
-spec:
-  podSelector: {} # Selects all pods in this namespace
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0 # Allows traffic to any IPv4 address
-
----
-# Policy for the 'kube-node-lease' namespace
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-all-egress-kube-node-lease-namespace
-  namespace: kube-node-lease # This policy applies to the 'kube-node-lease' namespace
-spec:
-  podSelector: {} # Selects all pods in this namespace
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0 # Allows traffic to any IPv4 address
-
----
-# Policy for the 'kube-public' namespace
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-all-egress-kube-public-namespace
-  namespace: kube-public # This policy applies to the 'kube-public' namespace
-spec:
-  podSelector: {} # Selects all pods in this namespace
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0 # Allows traffic to any IPv4 address
-
----
-# Policy for the 'tigera-operator' namespace
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-all-egress-tigera-operator-namespace
-  namespace: tigera-operator # This policy applies to the 'tigera-operator' namespace
-spec:
-  podSelector: {} # Selects all pods in this namespace
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0 # Allows traffic to any IPv4 address
+    - action: Allow
+      destination:
+        nets:
+          - 0.0.0.0/0
