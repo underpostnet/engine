@@ -2,7 +2,6 @@ apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
   name: spark-pi-python
-  namespace: default
 spec:
   type: Python
   pythonVersion: '3'

@@ -4,7 +4,6 @@ metadata:
   labels:
     app: envoy
   name: envoy
-  namespace: default
 spec:
   externalTrafficPolicy: Cluster
   ports:

@@ -3,7 +3,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: prometheus-config
-  namespace: default
   labels:
     app: prometheus
 data:
@@ -26,7 +25,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus
-  namespace: default
   labels:
     app: prometheus
 spec:
@@ -71,7 +69,6 @@ apiVersion: v1
 kind: Service
 metadata:
   name: prometheus
-  namespace: default
   labels:
     app: prometheus
 spec:

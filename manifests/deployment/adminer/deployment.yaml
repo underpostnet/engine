@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: adminer
-  namespace: default
   labels:
     app: adminer
     group: db

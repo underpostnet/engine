@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: valkey-service
-  namespace: default
 spec:
   serviceName: valkey-service
   replicas: 1
@@ -19,8 +18,8 @@ spec:
         - name: valkey-service
           image: docker.io/valkey/valkey:latest
           imagePullPolicy: IfNotPresent
-          command: ["valkey-server"]
-          args: ["--port", "6379"]
+          command: ['valkey-server']
+          args: ['--port', '6379']
           ports:
             - containerPort: 6379
           startupProbe:

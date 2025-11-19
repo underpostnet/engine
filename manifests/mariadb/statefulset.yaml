@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mariadb-statefulset
-  namespace: default
 spec:
   serviceName: mariadb
   replicas: 1
