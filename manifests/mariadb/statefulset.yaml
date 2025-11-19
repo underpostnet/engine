@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mariadb-statefulset
+  namespace: default
 spec:
   serviceName: mariadb
   replicas: 1
@@ -49,7 +50,7 @@ spec:
     - metadata:
         name: mariadb-storage
       spec:
-        accessModes: ["ReadWriteOnce"]
+        accessModes: ['ReadWriteOnce']
         storageClassName: mariadb-storage-class
         resources:
           requests:

@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mysql
+  namespace: default
   labels:
     app: mysql
 spec:
@@ -16,8 +17,9 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: mysql
+  namespace: default
 spec:
-  serviceName: "mysql"
+  serviceName: 'mysql'
   selector:
     matchLabels:
       app: mysql

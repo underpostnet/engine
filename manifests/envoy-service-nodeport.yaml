@@ -4,7 +4,7 @@ metadata:
   labels:
     app: envoy
   name: envoy
-  namespace: projectcontour
+  namespace: default
 spec:
   externalTrafficPolicy: Cluster
   ports:

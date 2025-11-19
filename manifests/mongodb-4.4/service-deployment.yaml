@@ -44,6 +44,7 @@ kind: Service
 metadata:
   name: mongodb-service
   namespace: default
+  namespace: default
 spec:
   clusterIP: None
   selector:
