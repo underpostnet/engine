@@ -178,6 +178,7 @@ program
   .option('--k3s', 'Initializes the cluster using K3s (Lightweight Kubernetes).')
   .option('--hosts <hosts>', 'A comma-separated list of cluster hostnames or IP addresses.')
   .option('--remove-volume-host-paths', 'Removes specified volume host paths after execution.')
+  .option('--namespace <namespace>', 'Kubernetes namespace for cluster operations (defaults to "default").')
   .action(Underpost.cluster.init)
   .description('Manages Kubernetes clusters, defaulting to Kind cluster initialization.');
 
@@ -217,6 +218,7 @@ program
   .option('--etc-hosts', 'Enables the etc-hosts context for deployment operations.')
   .option('--restore-hosts', 'Restores default `/etc/hosts` entries.')
   .option('--disable-update-underpost-config', 'Disables updates to Underpost configuration during deployment.')
+  .option('--namespace <namespace>', 'Kubernetes namespace for deployment operations (defaults to "default").')
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);
 

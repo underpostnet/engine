@@ -95,12 +95,13 @@ class UnderpostMonitor {
         if (traffic === 'blue') traffic = 'green';
         else traffic = 'blue';
         UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, traffic);
+        const namespace = options.namespace || 'default';
         shellExec(
           `node bin deploy --info-router --build-manifest --traffic ${traffic} --replicas ${
             options.replicas ? options.replicas : 1
-          } ${deployId} ${env}`,
+          } --namespace ${namespace} ${deployId} ${env}`,
         );
-        shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
+        shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml -n ${namespace}`);
       };
 
       const monitor = async (reject) => {
@@ -152,12 +153,15 @@ class UnderpostMonitor {
                           fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'),
                         );
 
-                        UnderpostDeploy.API.configMap(env);
+                        const namespace = options.namespace || 'default';
+                        UnderpostDeploy.API.configMap(env, namespace);
 
                         for (const host of Object.keys(confServer)) {
-                          shellExec(`sudo kubectl delete HTTPProxy ${host}`);
+                          shellExec(`sudo kubectl delete HTTPProxy ${host} -n ${namespace} --ignore-not-found`);
                         }
-                        shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${traffic}`);
+                        shellExec(
+                          `sudo kubectl rollout restart deployment/${deployId}-${env}-${traffic} -n ${namespace}`,
+                        );
 
                         switchTraffic();
                       }

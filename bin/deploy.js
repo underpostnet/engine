@@ -1071,34 +1071,39 @@ EOF`);
         shellExec(args.join(' '));
       }
       if (process.argv.includes('secret')) {
+        const namespace = process.argv.find((arg) => arg.startsWith('--namespace='))?.split('=')[1] || 'default';
         {
           const secretSelector = `fastapi-postgres-credentials`;
-          shellExec(`sudo kubectl delete secret ${secretSelector}`);
+          shellExec(`sudo kubectl delete secret ${secretSelector} -n ${namespace} --ignore-not-found`);
           shellExec(
             `sudo kubectl create secret generic ${secretSelector}` +
               ` --from-literal=POSTGRES_DB=postgresdb` +
               ` --from-literal=POSTGRES_USER=admin` +
-              ` --from-file=POSTGRES_PASSWORD=/home/dd/engine/engine-private/postgresql-password`,
+              ` --from-file=POSTGRES_PASSWORD=/home/dd/engine/engine-private/postgresql-password` +
+              ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
           );
         }
         {
           const secretSelector = `fastapi-backend-config-secret`;
-          shellExec(`sudo kubectl delete secret ${secretSelector}`);
+          shellExec(`sudo kubectl delete secret ${secretSelector} -n ${namespace} --ignore-not-found`);
           shellExec(
             `sudo kubectl create secret generic ${secretSelector}` +
               ` --from-file=SECRET_KEY=/home/dd/engine/engine-private/postgresql-password` +
               ` --from-literal=FIRST_SUPERUSER=development@underpost.net` +
-              ` --from-file=FIRST_SUPERUSER_PASSWORD=/home/dd/engine/engine-private/postgresql-password`,
+              ` --from-file=FIRST_SUPERUSER_PASSWORD=/home/dd/engine/engine-private/postgresql-password` +
+              ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
           );
         }
       }
       if (process.argv.includes('run-back')) {
-        shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/backend-deployment.yml`);
-        shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/backend-service.yml`);
+        const namespace = process.argv.find((arg) => arg.startsWith('--namespace='))?.split('=')[1] || 'default';
+        shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/backend-deployment.yml -n ${namespace}`);
+        shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/backend-service.yml -n ${namespace}`);
       }
       if (process.argv.includes('run-front')) {
-        shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/frontend-deployment.yml`);
-        shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/frontend-service.yml`);
+        const namespace = process.argv.find((arg) => arg.startsWith('--namespace='))?.split('=')[1] || 'default';
+        shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/frontend-deployment.yml -n ${namespace}`);
+        shellExec(`sudo kubectl apply -f ./manifests/deployment/fastapi/frontend-service.yml -n ${namespace}`);
       }
       break;
     }
@@ -1117,14 +1122,15 @@ EOF`);
 
     case 'kafka': {
       // https://medium.com/@martin.hodges/deploying-kafka-on-a-kind-kubernetes-cluster-for-development-and-testing-purposes-ed7adefe03cb
+      const namespace = process.argv.find((arg) => arg.startsWith('--namespace='))?.split('=')[1] || 'kafka';
       const imageName = `doughgle/kafka-kraft`;
       shellExec(`docker pull ${imageName}`);
       if (!process.argv.includes('kubeadm'))
         shellExec(
           `${process.argv.includes('kubeadm') ? `ctr -n k8s.io images import` : `kind load docker-image`} ${imageName}`,
         );
-      shellExec(`kubectl create namespace kafka`);
-      shellExec(`kubectl apply -f ./manifests/deployment/kafka/deployment.yaml`);
+      shellExec(`kubectl create namespace ${namespace} --dry-run=client -o yaml | kubectl apply -f -`);
+      shellExec(`kubectl apply -f ./manifests/deployment/kafka/deployment.yaml -n ${namespace}`);
       // kubectl logs kafka-0 -n kafka | grep STARTED
       // kubectl logs kafka-1 -n kafka | grep STARTED
       // kubectl logs kafka-2 -n kafka | grep STARTED
@@ -1152,9 +1158,9 @@ libnvidia-container-tools-${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
 libnvidia-container1-${NVIDIA_CONTAINER_TOOLKIT_VERSION}`);
 
       // https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/getting-started.html
-
-      shellExec(`kubectl create ns gpu-operator`);
-      shellExec(`kubectl label --overwrite ns gpu-operator pod-security.kubernetes.io/enforce=privileged`);
+      const namespace = 'gpu-operator';
+      shellExec(`kubectl create ns ${namespace} --dry-run=client -o yaml | kubectl apply -f -`);
+      shellExec(`kubectl label --overwrite ns ${namespace} pod-security.kubernetes.io/enforce=privileged`);
 
       shellExec(`helm repo add nvidia https://helm.ngc.nvidia.com/nvidia \
     && helm repo update`);
@@ -1209,7 +1215,8 @@ nvidia/gpu-operator \
             process.argv.includes('kubeadm') ? `ctr -n k8s.io images import` : `kind load docker-image`
           } ${image}`,
         );
-      shellExec(`kubectl apply -f ./manifests/deployment/spark/spark-pi-py.yaml`);
+      const namespace = process.argv.find((arg) => arg.startsWith('--namespace='))?.split('=')[1] || 'default';
+      shellExec(`kubectl apply -f ./manifests/deployment/spark/spark-pi-py.yaml -n ${namespace}`);
 
       // Check the status of the Spark job:
       // kubectl get sparkapplications.sparkoperator.k8s.io -n default

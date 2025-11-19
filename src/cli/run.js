@@ -81,7 +81,7 @@ class UnderpostRun {
     volumeMountPath: '',
     imageName: '',
     containerName: '',
-    namespace: '',
+    namespace: 'default',
     build: false,
     replicas: 1,
     k3s: false,
@@ -209,10 +209,10 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     'tf-gpu-test': (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const { underpostRoot } = options;
-      shellExec(`kubectl delete configmap tf-gpu-test-script`);
-      shellExec(`kubectl delete pod tf-gpu-test-pod`);
-      shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/tensorflow/tf-gpu-test.yaml`);
+      const { underpostRoot, namespace } = options;
+      shellExec(`kubectl delete configmap tf-gpu-test-script -n ${namespace} --ignore-not-found`);
+      shellExec(`kubectl delete pod tf-gpu-test-pod -n ${namespace} --ignore-not-found`);
+      shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/tensorflow/tf-gpu-test.yaml -n ${namespace}`);
     },
     /**
      * @method dev-cluster
@@ -510,11 +510,13 @@ class UnderpostRun {
       shellExec(
         `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
           replicas ? replicas : 1
-        } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''} dd ${env}`,
+        } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''}${options.namespace ? ` --namespace ${options.namespace}` : ''} dd ${env}`,
       );
 
       if (isDeployRunnerContext(path, options)) {
-        shellExec(`${baseCommand} deploy --kubeadm --disable-update-proxy ${deployId} ${env} --versions ${versions}`);
+        shellExec(
+          `${baseCommand} deploy --kubeadm --disable-update-proxy ${deployId} ${env} --versions ${versions}${options.namespace ? ` --namespace ${options.namespace}` : ''}`,
+        );
         if (!targetTraffic) targetTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
         await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic);
         UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
@@ -619,7 +621,7 @@ class UnderpostRun {
           `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${volumeHostPath} || true; chmod -R 755 ${volumeHostPath}"`,
         );
       } else {
-        shellExec(`kubectl apply -f ${options.underpostRoot}/manifests/pv-pvc-dd.yaml`);
+        shellExec(`kubectl apply -f ${options.underpostRoot}/manifests/pv-pvc-dd.yaml -n ${options.namespace}`);
       }
 
       if (!currentImage)
@@ -682,7 +684,7 @@ class UnderpostRun {
           switch (path) {
             case 'tf-vae-test':
               {
-                const nameSpace = 'default';
+                const nameSpace = options.namespace || 'default';
                 const podName = path;
                 const basePath = '/home/dd';
                 const scriptPath = '/site/en/tutorials/generative/cvae.py';
@@ -764,8 +766,8 @@ class UnderpostRun {
         // For kubeadm/k3s, ensure it's available for containerd
         shellExec(`sudo crictl pull ${image}`);
 
-      shellExec(`kubectl delete deployment adminer`);
-      shellExec(`kubectl apply -k ${underpostRoot}/manifests/deployment/adminer/.`);
+      shellExec(`kubectl delete deployment adminer -n ${options.namespace} --ignore-not-found`);
+      shellExec(`kubectl apply -k ${underpostRoot}/manifests/deployment/adminer/. -n ${options.namespace}`);
       const successInstance = await UnderpostTest.API.statusMonitor('adminer', 'Running', 'pods', 1000, 60 * 10);
 
       if (successInstance) {
@@ -922,7 +924,7 @@ class UnderpostRun {
       const env = 'production';
       const ignorePods = UnderpostDeploy.API.get(`${deployId}-${env}-${targetTraffic}`).map((p) => p.NAME);
 
-      shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic}`);
+      shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic} -n ${options.namespace}`);
 
       await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic, ignorePods);
 
@@ -1043,9 +1045,9 @@ class UnderpostRun {
       );
       switch (serviceId) {
         case 'mongo-express-service': {
-          shellExec(`kubectl delete svc mongo-express-service --ignore-not-found`);
-          shellExec(`kubectl delete deployment mongo-express --ignore-not-found`);
-          shellExec(`kubectl apply -f manifests/deployment/mongo-express/deployment.yaml`);
+          shellExec(`kubectl delete svc mongo-express-service -n ${options.namespace} --ignore-not-found`);
+          shellExec(`kubectl delete deployment mongo-express -n ${options.namespace} --ignore-not-found`);
+          shellExec(`kubectl apply -f manifests/deployment/mongo-express/deployment.yaml -n ${options.namespace}`);
           podToMonitor = 'mongo-express';
           break;
         }
@@ -1288,13 +1290,13 @@ ${
     : ''
 }
 EOF`;
-      shellExec(`kubectl delete pod ${podName} --ignore-not-found`);
+      shellExec(`kubectl delete pod ${podName} -n ${namespace} --ignore-not-found`);
       console.log(cmd);
       shellExec(cmd, { disableLog: true });
       const successInstance = await UnderpostTest.API.statusMonitor(podName);
       if (successInstance) {
         options.on?.init ? await options.on.init() : null;
-        shellExec(`kubectl logs -f ${podName}`);
+        shellExec(`kubectl logs -f ${podName} -n ${namespace}`);
       }
     },
   };

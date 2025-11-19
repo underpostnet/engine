@@ -129,10 +129,11 @@ class UnderpostDeploy {
      * @param {object} resources - Resource configuration for the deployment.
      * @param {number} replicas - Number of replicas for the deployment.
      * @param {string} image - Docker image for the deployment.
+     * @param {string} namespace - Kubernetes namespace for the deployment.
      * @returns {string} - YAML deployment configuration for the specified deployment.
      * @memberof UnderpostDeploy
      */
-    deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image }) {
+    deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image, namespace }) {
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
       let volumes = [
         {
@@ -149,6 +150,7 @@ class UnderpostDeploy {
 kind: Deployment
 metadata:
   name: ${deployId}-${env}-${suffix}
+  namespace: ${namespace ? namespace : 'default'}
   labels:
     app: ${deployId}-${env}-${suffix}
 spec:
@@ -188,6 +190,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ${deployId}-${env}-${suffix}-service
+  namespace: ${namespace}
 spec:
   selector:
     app: ${deployId}-${env}-${suffix}
@@ -201,6 +204,7 @@ spec:
      * @param {object} options - Options for the manifest build process.
      * @param {string} options.replicas - Number of replicas for each deployment.
      * @param {string} options.image - Docker image for the deployment.
+     * @param {string} options.namespace - Kubernetes namespace for the deployment.
      * @returns {Promise<void>} - Promise that resolves when the manifest is built.
      * @memberof UnderpostDeploy
      */
@@ -208,6 +212,7 @@ spec:
       const resources = UnderpostDeploy.API.resourcesFactory();
       const replicas = options.replicas;
       const image = options.image;
+      if (!options.namespace) options.namespace = 'default';
 
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
@@ -235,6 +240,7 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   resources,
   replicas,
   image,
+  namespace: options.namespace,
 }).replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;
         }
@@ -257,6 +263,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: ${host}
+  namespace: ${options.namespace}
 spec:
   virtualhost:
     fqdn: ${host}${
@@ -316,16 +323,18 @@ spec:
     /**
      * Builds a Certificate resource for a host using cert-manager.
      * @param {string} host - Hostname for which the certificate is being built.
+     * @param {string} namespace - Kubernetes namespace for the certificate.
      * @returns {string} - Certificate resource YAML for the specified host.
      * @memberof UnderpostDeploy
      */
-    buildCertManagerCertificate({ host }) {
+    buildCertManagerCertificate({ host, namespace }) {
       return `
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: ${host}
+  namespace: ${namespace}
 spec:
   commonName: ${host}
   dnsNames:
@@ -376,6 +385,7 @@ spec:
      * @param {boolean} options.status - Whether to display deployment status.
      * @param {boolean} options.etcHosts - Whether to display the /etc/hosts file.
      * @param {boolean} options.disableUpdateUnderpostConfig - Whether to disable Underpost config updates.
+     * @param {string} [options.namespace] - Kubernetes namespace for the deployment.
      * @returns {Promise<void>} - Promise that resolves when the deployment process is complete.
      * @memberof UnderpostDeploy
      */
@@ -404,6 +414,7 @@ spec:
         status: false,
         etcHosts: false,
         disableUpdateUnderpostConfig: false,
+        namespace: '',
       },
     ) {
       if (options.infoUtil === true)
@@ -468,10 +479,11 @@ docker login nvcr.io
 Username: $oauthtoken
 Password: <Your Key>
 `);
+      const namespace = options.namespace ? options.namespace : 'default';
       if (!deployList && options.certHosts) {
         for (const host of options.certHosts.split(',')) {
-          shellExec(`sudo kubectl apply -f - <<EOF
-${UnderpostDeploy.API.buildCertManagerCertificate({ host })}
+          shellExec(`sudo kubectl apply -f - -n ${namespace} <<EOF
+${UnderpostDeploy.API.buildCertManagerCertificate({ host, namespace })}
 EOF`);
         }
         return;
@@ -540,8 +552,12 @@ EOF`);
 
         if (!options.disableUpdateDeployment)
           for (const version of options.versions.split(',')) {
-            shellExec(`sudo kubectl delete svc ${deployId}-${env}-${version}-service`);
-            shellExec(`sudo kubectl delete deployment ${deployId}-${env}-${version}`);
+            shellExec(
+              `sudo kubectl delete svc ${deployId}-${env}-${version}-service -n ${namespace} --ignore-not-found`,
+            );
+            shellExec(
+              `sudo kubectl delete deployment ${deployId}-${env}-${version} -n ${namespace} --ignore-not-found`,
+            );
             if (!options.disableUpdateVolume) {
               for (const volume of confVolume) {
                 const pvcId = `${volume.claimName}-${deployId}-${env}-${version}`;
@@ -549,9 +565,9 @@ EOF`);
                 const rootVolumeHostPath = `/home/dd/engine/volume/${pvId}`;
                 if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
                 fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
-                shellExec(`kubectl delete pvc ${pvcId}`);
-                shellExec(`kubectl delete pv ${pvId}`);
-                shellExec(`kubectl apply -f - <<EOF
+                shellExec(`kubectl delete pvc ${pvcId} -n ${namespace} --ignore-not-found`);
+                shellExec(`kubectl delete pv ${pvId} --ignore-not-found`);
+                shellExec(`kubectl apply -f - -n ${namespace} <<EOF
 ${UnderpostDeploy.API.persistentVolumeFactory({
   hostPath: rootVolumeHostPath,
   pvcId,
@@ -564,9 +580,9 @@ EOF
 
         for (const host of Object.keys(confServer)) {
           if (!options.disableUpdateProxy) {
-            shellExec(`sudo kubectl delete HTTPProxy ${host}`);
+            shellExec(`sudo kubectl delete HTTPProxy ${host} -n ${namespace} --ignore-not-found`);
             if (UnderpostDeploy.API.isValidTLSContext({ host, env, options }))
-              shellExec(`sudo kubectl delete Certificate ${host}`);
+              shellExec(`sudo kubectl delete Certificate ${host} -n ${namespace} --ignore-not-found`);
           }
           if (!options.remove) etcHosts.push(host);
         }
@@ -577,11 +593,13 @@ EOF
             : `manifests/deployment/${deployId}-${env}`;
 
         if (!options.remove) {
-          if (!options.disableUpdateDeployment) shellExec(`sudo kubectl apply -f ./${manifestsPath}/deployment.yaml`);
-          if (!options.disableUpdateProxy) shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml`);
+          if (!options.disableUpdateDeployment)
+            shellExec(`sudo kubectl apply -f ./${manifestsPath}/deployment.yaml -n ${namespace}`);
+          if (!options.disableUpdateProxy)
+            shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml -n ${namespace}`);
 
           if (UnderpostDeploy.API.isValidTLSContext({ host: Object.keys(confServer)[0], env, options }))
-            shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml`);
+            shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml -n ${namespace}`);
         }
       }
       if (options.etcHosts === true) {
@@ -598,15 +616,19 @@ EOF
      * Retrieves information about a deployment.
      * @param {string} deployId - Deployment ID for which information is being retrieved.
      * @param {string} kindType - Type of Kubernetes resource to retrieve information for (e.g. 'pods').
+     * @param {string} namespace - Kubernetes namespace to retrieve information from.
      * @returns {Array<object>} - Array of objects containing information about the deployment.
      * @memberof UnderpostDeploy
      */
-    get(deployId, kindType = 'pods') {
-      const raw = shellExec(`sudo kubectl get ${kindType} --all-namespaces -o wide`, {
-        stdout: true,
-        disableLog: true,
-        silent: true,
-      });
+    get(deployId, kindType = 'pods', namespace = '') {
+      const raw = shellExec(
+        `sudo kubectl get ${kindType}${namespace ? ` -n ${namespace}` : ` --all-namespaces`} -o wide`,
+        {
+          stdout: true,
+          disableLog: true,
+          silent: true,
+        },
+      );
 
       const heads = raw
         .split(`\n`)[0]
@@ -720,12 +742,13 @@ EOF
     /**
      * Creates a configmap for a deployment.
      * @param {string} env - Environment for which the configmap is being created.
+     * @param {string} [namespace='default'] - Kubernetes namespace for the configmap.
      * @memberof UnderpostDeploy
      */
-    configMap(env) {
-      shellExec(`kubectl delete configmap underpost-config`);
+    configMap(env, namespace = 'default') {
+      shellExec(`kubectl delete configmap underpost-config -n ${namespace} --ignore-not-found`);
       shellExec(
-        `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env}`,
+        `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env} --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
       );
     },
     /**
@@ -734,14 +757,15 @@ EOF
      * @param {string} env - Environment for which the traffic is being switched.
      * @param {string} targetTraffic - Target traffic status for the deployment.
      * @param {number} replicas - Number of replicas for the deployment.
+     * @param {string} [namespace='default'] - Kubernetes namespace for the deployment.
      * @memberof UnderpostDeploy
      */
-    switchTraffic(deployId, env, targetTraffic, replicas = 1) {
+    switchTraffic(deployId, env, targetTraffic, replicas = 1, namespace = 'default') {
       UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, targetTraffic);
       shellExec(
-        `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${replicas} ${deployId} ${env}`,
+        `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${replicas} --namespace ${namespace} ${deployId} ${env}`,
       );
-      shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
+      shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml -n ${namespace}`);
     },
 
     /**
@@ -909,7 +933,7 @@ ${renderHosts}`,
     getCurrentLoadedImages(node = 'kind-worker', specContainers = false) {
       if (specContainers) {
         const raw = shellExec(
-          `kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
+          `kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.namespace}{"/"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
           {
             stdout: true,
             silent: true,

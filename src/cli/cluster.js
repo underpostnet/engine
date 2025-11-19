@@ -45,6 +45,7 @@ class UnderpostCluster {
      * @param {boolean} [options.reset=false] - Perform a comprehensive reset of Kubernetes and container environments.
      * @param {boolean} [options.dev=false] - Run in development mode (adjusts paths).
      * @param {string} [options.nsUse=''] - Set the current kubectl namespace.
+     * @param {string} [options.namespace='default'] - Kubernetes namespace for cluster operations.
      * @param {boolean} [options.infoCapacity=false] - Display resource capacity information for the cluster.
      * @param {boolean} [options.infoCapacityPod=false] - Display resource capacity information for pods.
      * @param {boolean} [options.pullImage=false] - Pull necessary Docker images before deployment.
@@ -79,6 +80,7 @@ class UnderpostCluster {
         reset: false,
         dev: false,
         nsUse: '',
+        namespace: 'default',
         infoCapacity: false,
         infoCapacityPod: false,
         pullImage: false,
@@ -116,6 +118,9 @@ class UnderpostCluster {
       if (options.infoCapacity === true)
         return logger.info('', UnderpostCluster.API.getResourcesCapacity(options.kubeadm || options.k3s)); // Adjust for k3s
       if (options.listPods === true) return console.table(UnderpostDeploy.API.get(podName ?? undefined));
+      // Set default namespace if not specified
+      if (!options.namespace) options.namespace = 'default';
+
       if (options.nsUse && typeof options.nsUse === 'string') {
         shellExec(`kubectl config set-context --current --namespace=${options.nsUse}`);
         return;
@@ -242,14 +247,17 @@ class UnderpostCluster {
           shellExec(
             `sudo kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.3/manifests/tigera-operator.yaml`,
           );
-          shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/kubeadm-calico-config.yaml`);
+          shellExec(
+            `sudo kubectl apply -f ${underpostRoot}/manifests/kubeadm-calico-config.yaml -n ${options.namespace}`,
+          );
+
           // Untaint control plane node to allow scheduling pods
           const nodeName = os.hostname();
           shellExec(`kubectl taint nodes ${nodeName} node-role.kubernetes.io/control-plane:NoSchedule-`);
           // Install local-path-provisioner for dynamic PVCs (optional but recommended)
           logger.info('Installing local-path-provisioner...');
           shellExec(
-            `kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml`,
+            `kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml -n ${options.namespace}`,
           );
         } else {
           // Kind cluster initialization (if not using kubeadm or k3s)
@@ -286,13 +294,13 @@ class UnderpostCluster {
       }
 
       if (options.grafana === true) {
-        shellExec(`kubectl delete deployment grafana --ignore-not-found`);
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/grafana`);
+        shellExec(`kubectl delete deployment grafana -n ${options.namespace} --ignore-not-found`);
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/grafana -n ${options.namespace}`);
         const yaml = `${fs
           .readFileSync(`${underpostRoot}/manifests/grafana/deployment.yaml`, 'utf8')
           .replace('{{GF_SERVER_ROOT_URL}}', options.hosts.split(',')[0])}`;
         console.log(yaml);
-        shellExec(`kubectl apply -f - <<EOF
+        shellExec(`kubectl apply -f - -n ${options.namespace} <<EOF
 ${yaml}
 EOF
 `);
@@ -311,7 +319,7 @@ EOF
             .join(',')}]`,
         )}`;
         console.log(yaml);
-        shellExec(`kubectl apply -f - <<EOF
+        shellExec(`kubectl apply -f - -n ${options.namespace} <<EOF
 ${yaml}
 EOF
 `);
@@ -340,15 +348,15 @@ EOF
             // For kubeadm/k3s, ensure it's available for containerd
             shellExec(`sudo crictl pull valkey/valkey:latest`);
         }
-        shellExec(`kubectl delete statefulset valkey-service --ignore-not-found`);
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey`);
+        shellExec(`kubectl delete statefulset valkey-service -n ${options.namespace} --ignore-not-found`);
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey -n ${options.namespace}`);
         await UnderpostTest.API.statusMonitor('valkey-service', 'Running', 'pods', 1000, 60);
       }
       if (options.full === true || options.mariadb === true) {
         shellExec(
-          `sudo kubectl create secret generic mariadb-secret --from-file=username=/home/dd/engine/engine-private/mariadb-username --from-file=password=/home/dd/engine/engine-private/mariadb-password --dry-run=client -o yaml | kubectl apply -f -`,
+          `sudo kubectl create secret generic mariadb-secret --from-file=username=/home/dd/engine/engine-private/mariadb-username --from-file=password=/home/dd/engine/engine-private/mariadb-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
-        shellExec(`kubectl delete statefulset mariadb-statefulset --ignore-not-found`);
+        shellExec(`kubectl delete statefulset mariadb-statefulset -n ${options.namespace} --ignore-not-found`);
 
         if (options.pullImage === true) {
           // shellExec(`sudo podman pull mariadb:latest`);
@@ -360,17 +368,17 @@ EOF
             // For kubeadm/k3s, ensure it's available for containerd
             shellExec(`sudo crictl pull mariadb:latest`);
         }
-        shellExec(`kubectl apply -f ${underpostRoot}/manifests/mariadb/storage-class.yaml`);
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb`);
+        shellExec(`kubectl apply -f ${underpostRoot}/manifests/mariadb/storage-class.yaml -n ${options.namespace}`);
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb -n ${options.namespace}`);
       }
       if (options.full === true || options.mysql === true) {
         shellExec(
-          `sudo kubectl create secret generic mysql-secret --from-file=username=/home/dd/engine/engine-private/mysql-username --from-file=password=/home/dd/engine/engine-private/mysql-password --dry-run=client -o yaml | kubectl apply -f -`,
+          `sudo kubectl create secret generic mysql-secret --from-file=username=/home/dd/engine/engine-private/mysql-username --from-file=password=/home/dd/engine/engine-private/mysql-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
         shellExec(`sudo mkdir -p /mnt/data`);
         shellExec(`sudo chmod 777 /mnt/data`);
         shellExec(`sudo chown -R root:root /mnt/data`);
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mysql`);
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mysql -n ${options.namespace}`);
       }
       if (options.full === true || options.postgresql === true) {
         if (options.pullImage === true) {
@@ -383,9 +391,9 @@ EOF
             shellExec(`sudo crictl pull postgres:latest`);
         }
         shellExec(
-          `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password --dry-run=client -o yaml | kubectl apply -f -`,
+          `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/postgresql`);
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/postgresql -n ${options.namespace}`);
       }
       if (options.mongodb4 === true) {
         if (options.pullImage === true) {
@@ -397,7 +405,7 @@ EOF
             // For kubeadm/k3s, ensure it's available for containerd
             shellExec(`sudo crictl pull mongo:4.4`);
         }
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb-4.4`);
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb-4.4 -n ${options.namespace}`);
 
         const deploymentName = 'mongodb-deployment';
 
@@ -428,14 +436,14 @@ EOF
             shellExec(`sudo crictl pull mongo:latest`);
         }
         shellExec(
-          `sudo kubectl create secret generic mongodb-keyfile --from-file=/home/dd/engine/engine-private/mongodb-keyfile --dry-run=client -o yaml | kubectl apply -f -`,
+          `sudo kubectl create secret generic mongodb-keyfile --from-file=/home/dd/engine/engine-private/mongodb-keyfile --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
         shellExec(
-          `sudo kubectl create secret generic mongodb-secret --from-file=username=/home/dd/engine/engine-private/mongodb-username --from-file=password=/home/dd/engine/engine-private/mongodb-password --dry-run=client -o yaml | kubectl apply -f -`,
+          `sudo kubectl create secret generic mongodb-secret --from-file=username=/home/dd/engine/engine-private/mongodb-username --from-file=password=/home/dd/engine/engine-private/mongodb-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
-        shellExec(`kubectl delete statefulset mongodb --ignore-not-found`);
-        shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml`);
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb`);
+        shellExec(`kubectl delete statefulset mongodb -n ${options.namespace} --ignore-not-found`);
+        shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml -n ${options.namespace}`);
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb -n ${options.namespace}`);
 
         const successInstance = await UnderpostTest.API.statusMonitor('mongodb-0', 'Running', 'pods', 1000, 60 * 10);
 
@@ -456,10 +464,12 @@ EOF
       }
 
       if (options.full === true || options.contour === true) {
-        shellExec(`kubectl apply -f https://projectcontour.io/quickstart/contour.yaml`);
+        shellExec(`kubectl apply -f https://projectcontour.io/quickstart/contour.yaml -n ${options.namespace}`);
         if (options.kubeadm === true) {
           // Envoy service might need NodePort for kubeadm
-          shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/envoy-service-nodeport.yaml`);
+          shellExec(
+            `sudo kubectl apply -f ${underpostRoot}/manifests/envoy-service-nodeport.yaml -n ${options.namespace}`,
+          );
         }
         // K3s has a built-in LoadBalancer (Klipper-lb) that can expose services,
         // so a specific NodePort service might not be needed or can be configured differently.
@@ -479,7 +489,7 @@ EOF
 
         const letsEncName = 'letsencrypt-prod';
         shellExec(`sudo kubectl delete ClusterIssuer ${letsEncName} --ignore-not-found`);
-        shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/${letsEncName}.yaml`);
+        shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/${letsEncName}.yaml -n ${options.namespace}`);
       }
     },
 
