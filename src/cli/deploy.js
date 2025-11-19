@@ -437,7 +437,6 @@ kubectl wait --for=jsonpath='{.status.phase}'=Running pod/busybox1
 kubectl wait --for='jsonpath={.status.conditions[?(@.type=="Ready")].status}=True' pod/busybox1
 kubectl wait --for=delete pod/busybox1 --timeout=60s
 
-fqdn: <service>.<namespace>.<kind(svc/pod)>.<cluster-domain(cluster.local)>
 node bin run cluster-build
 node bin run template-deploy
 node bin run ssh-deploy (sync-)engine-core
@@ -447,6 +446,7 @@ node bin run promote dd-default production
 node bin dockerfile-pull-base-images --dev --path 'image-path' --kind-load
 node bin/deploy update-default-conf <deploy-id>
 
+fqdn: <service>.<namespace>.<kind(svc/pod)>.<cluster-domain(cluster.local)>
 kubectl run --rm -it test-dns --image=busybox:latest --restart=Never -- /bin/sh -c "
   nslookup kubernetes.default.svc.cluster.local;
   nslookup mongodb-service.default.svc.cluster.local;
