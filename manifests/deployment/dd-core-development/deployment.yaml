@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: dd-core-development-blue
+  namespace: default
   labels:
     app: dd-core-development-blue
 spec:
@@ -17,7 +18,7 @@ spec:
     spec:
       containers:
         - name: dd-core-development-blue
-          image: localhost/rockylinux9-underpost:v2.89.37
+          image: localhost/rockylinux9-underpost:v2.89.44
 #          resources:
 #            requests:
 #              memory: "96294Ki"
@@ -49,6 +50,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: dd-core-development-blue-service
+  namespace: default
 spec:
   selector:
     app: dd-core-development-blue
@@ -202,6 +204,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: dd-core-development-green
+  namespace: default
   labels:
     app: dd-core-development-green
 spec:
@@ -216,7 +219,7 @@ spec:
     spec:
       containers:
         - name: dd-core-development-green
-          image: localhost/rockylinux9-underpost:v2.89.37
+          image: localhost/rockylinux9-underpost:v2.89.44
 #          resources:
 #            requests:
 #              memory: "96294Ki"
@@ -248,6 +251,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: dd-core-development-green-service
+  namespace: default
 spec:
   selector:
     app: dd-core-development-green

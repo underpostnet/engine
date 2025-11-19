@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.89.37
+## underpost ci/cd cli v2.89.44
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -16,6 +16,7 @@ Commands:
   env [deploy-id] [env] [subConf]                            Sets environment variables and configurations related to a specific deployment ID.
   config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
   root                                                       Displays the root path of the npm installation.
+  ip [options]                                               Displays the current public machine IP addresses.
   cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
   deploy [options] [deploy-list] [env]                       Manages application deployments, defaulting to deploying development pods.
   secret [options] <platform>                                Manages secrets for various platforms.
@@ -224,6 +225,19 @@ Options:
 ```
   
 
+### `ip` :
+```
+ Usage: underpost ip [options]
+
+Displays the current public machine IP addresses.
+
+Options:
+  --copy      Copies the IP addresses to the clipboard.
+  -h, --help  display help for command
+ 
+```
+  
+
 ### `cluster` :
 ```
  Usage: underpost cluster [options] [pod-name]
@@ -259,7 +273,8 @@ Options:
   --full                      Initializes the cluster with all available
                               statefulsets and services.
   --ns-use <ns-name>          Switches the current Kubernetes context to the
-                              specified namespace.
+                              specified namespace (creates if it doesn't
+                              exist).
   --kubeadm                   Initializes the cluster using kubeadm for control
                               plane management.
   --grafana                   Initializes the cluster with a Grafana
@@ -290,6 +305,8 @@ Options:
                               addresses.
   --remove-volume-host-paths  Removes specified volume host paths after
                               execution.
+  --namespace <namespace>     Kubernetes namespace for cluster operations
+                              (defaults to "default").
   -h, --help                  display help for command
  
 ```
@@ -350,6 +367,8 @@ Options:
   --restore-hosts                    Restores default `/etc/hosts` entries.
   --disable-update-underpost-config  Disables updates to Underpost
                                      configuration during deployment.
+  --namespace <namespace>            Kubernetes namespace for deployment
+                                     operations (defaults to "default").
   -h, --help                         display help for command
  
 ```
@@ -666,6 +685,7 @@ Options:
   --runtime-class-name <name>              Sets the runtime class name for the job in deploy-job.
   --image-pull-policy <policy>             Sets the image pull policy for the job in deploy-job.
   --api-version <version>                  Sets the API version for the job manifest in deploy-job.
+  --labels <labels>                        Optional: Specifies a comma-separated list of key-value pairs for labels (e.g., "app=my-app,env=prod").
   --claim-name <name>                      Optional: Specifies the claim name for volume mounting in deploy-job.
   --kind <kind-type>                       Specifies the kind of Kubernetes resource (e.g., Job, Deployment) for deploy-job.
   --kubeadm                                Flag to indicate Kubeadm cluster type context

@@ -4,6 +4,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: test.nexodev.org
+  namespace: default
 spec:
   virtualhost:
     fqdn: test.nexodev.org
@@ -31,6 +32,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: stagging.nexodev.org
+  namespace: default
 spec:
   virtualhost:
     fqdn: stagging.nexodev.org

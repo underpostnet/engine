@@ -4,6 +4,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: underpost.net
+  namespace: default
 spec:
   virtualhost:
     fqdn: underpost.net
@@ -31,6 +32,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: www.underpost.net
+  namespace: default
 spec:
   virtualhost:
     fqdn: www.underpost.net
@@ -49,6 +51,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: dogmadual.com
+  namespace: default
 spec:
   virtualhost:
     fqdn: dogmadual.com
@@ -67,6 +70,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: www.dogmadual.com
+  namespace: default
 spec:
   virtualhost:
     fqdn: www.dogmadual.com
@@ -94,6 +98,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: nexodev.org
+  namespace: default
 spec:
   virtualhost:
     fqdn: nexodev.org
@@ -112,6 +117,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: www.nexodev.org
+  namespace: default
 spec:
   virtualhost:
     fqdn: www.nexodev.org
@@ -139,6 +145,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: healthcare.nexodev.org
+  namespace: default
 spec:
   virtualhost:
     fqdn: healthcare.nexodev.org
@@ -166,6 +173,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: www.bymyelectrics.com
+  namespace: default
 spec:
   virtualhost:
     fqdn: www.bymyelectrics.com
@@ -193,6 +201,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: bymyelectrics.com
+  namespace: default
 spec:
   virtualhost:
     fqdn: bymyelectrics.com
@@ -211,6 +220,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: vitaintegral.nexodev.org
+  namespace: default
 spec:
   virtualhost:
     fqdn: vitaintegral.nexodev.org
