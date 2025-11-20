@@ -247,7 +247,7 @@ const DefaultConf = /**/ {
           'TranslateCyberiaPortal',
           'SettingsCyberiaPortal',
           'SocketIoCyberiaPortal',
-          'ObjectLayerCyberiaPortal',
+          'MainBodyCyberiaPortal',
         ],
       },
       views: [

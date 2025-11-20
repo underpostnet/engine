@@ -3,7 +3,7 @@ import { EventsUI } from '../core/EventsUI.js';
 import { getProxyPath } from '../core/Router.js';
 import { htmls, s } from '../core/VanillaJs.js';
 
-const ObjectLayerCyberiaPortal = {
+const MainBodyCyberiaPortal = {
   Render: async function () {
     setTimeout(() => {
       EventsUI.onClick('.cta-button', () => {
@@ -283,4 +283,4 @@ const ObjectLayerCyberiaPortal = {
   },
 };
 
-export { ObjectLayerCyberiaPortal };
+export { MainBodyCyberiaPortal };
