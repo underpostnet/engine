@@ -14,6 +14,10 @@ const TranslateCyberiaPortal = {
       en: 'Object Layer Viewer',
       es: 'Object Layer Viewer',
     };
+    Translate.Data['cyberia-map-engine'] = {
+      en: 'Cyberia Map Engine',
+      es: 'Cyberia Map Engine',
+    };
   },
 };
 
