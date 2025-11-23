@@ -556,6 +556,38 @@ class UnderpostRun {
     },
 
     /**
+     * @method build
+     * @description Builds specific components based on the provided build ID.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the build ID).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    build: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const env = options.dev ? 'development' : 'production';
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseClusterCommand = options.dev ? ' --dev' : '';
+      const [buildId, serviceId, host, _path, versions] = path ? path.split(',') : [];
+      switch (buildId) {
+        case 'proxy':
+          {
+            const yaml =
+              UnderpostDeploy.API.baseProxyYamlFactory({ host, env, options }) +
+              UnderpostDeploy.API.deploymentYamlServiceFactory({
+                path: _path,
+                port: options.port,
+                serviceId,
+                deploymentVersions: versions.split('+'),
+                // pathRewritePolicy,
+              });
+            console.log(yaml);
+          }
+          break;
+        default:
+          logger.error(`Unknown build ID: ${buildId}`);
+      }
+    },
+
+    /**
      * @method ls-deployments
      * @description Retrieves and logs a table of Kubernetes deployments using `UnderpostDeploy.API.get`.
      * @param {string} path - The input value, identifier, or path for the operation (used as an optional deployment name filter).

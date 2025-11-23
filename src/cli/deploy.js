@@ -257,23 +257,7 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
 
           const pathPortAssignment = pathPortAssignmentData[host];
           // logger.info('', { host, pathPortAssignment });
-          let _proxyYaml = `
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: ${host}
-  namespace: ${options.namespace}
-spec:
-  virtualhost:
-    fqdn: ${host}${
-      env === 'development'
-        ? ''
-        : `
-    tls:
-      secretName: ${host}`
-    }
-  routes:`;
+          let _proxyYaml = UnderpostDeploy.API.baseProxyYamlFactory({ host, env, options });
           const deploymentVersions =
             options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',') : ['blue'];
           let proxyRoutes = '';
@@ -357,6 +341,35 @@ spec:
       )[0];
       const info = shellExec(`sudo kubectl get HTTPProxy/${hostTest} -o yaml`, { silent: true, stdout: true });
       return info.match('blue') ? 'blue' : info.match('green') ? 'green' : null;
+    },
+
+    /**
+     * Creates a base YAML configuration for an HTTPProxy resource.
+     * @param {string} host - Hostname for which the HTTPProxy is being created.
+     * @param {string} env - Environment for which the HTTPProxy is being created.
+     * @param {object} options - Options for the HTTPProxy creation.
+     * @param {string} options.namespace - Kubernetes namespace for the HTTPProxy.
+     * @returns {string} - Base YAML configuration for the HTTPProxy resource.
+     * @memberof UnderpostDeploy
+     */
+    baseProxyYamlFactory({ host, env, options }) {
+      return `
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: ${host}
+  namespace: ${options.namespace}
+spec:
+  virtualhost:
+    fqdn: ${host}${
+      env === 'development'
+        ? ''
+        : `
+    tls:
+      secretName: ${host}`
+    }
+  routes:`;
     },
 
     /**
