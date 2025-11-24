@@ -619,11 +619,14 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   ],
 }).replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;
-            console.log(deploymentYaml);
-            shellExec(`kubectl apply -f - -n ${options.namespace} <<EOF
+            // console.log(deploymentYaml);
+            shellExec(
+              `kubectl apply -f - -n ${options.namespace} <<EOF
 ${deploymentYaml}
 EOF
-`);
+`,
+              { disableLog: true },
+            );
             const { ready, readyPods } = await UnderpostDeploy.API.monitorReadyRunner(
               deployId,
               env,
@@ -651,12 +654,15 @@ EOF
               shellExec(`sudo kubectl delete Certificate ${host} -n ${options.namespace} --ignore-not-found`);
               proxyYaml += UnderpostDeploy.API.buildCertManagerCertificate({ host, ...options });
             }
-            console.log(proxyYaml);
+            // console.log(proxyYaml);
             shellExec(`kubectl delete HTTPProxy ${host} --namespace ${options.namespace} --ignore-not-found`);
-            shellExec(`kubectl apply -f - -n ${options.namespace} <<EOF
+            shellExec(
+              `kubectl apply -f - -n ${options.namespace} <<EOF
 ${proxyYaml}
 EOF
-`);
+`,
+              { disableLog: true },
+            );
           }
           break;
         default:
