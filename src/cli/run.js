@@ -558,35 +558,48 @@ class UnderpostRun {
 
     /**
      * @method instance
-     * @description Generates deployment YAML for a specified build ID and deployment parameters.
-     * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string containing deploy parameters).
+     * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string containing workflow parameters).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    instance: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    instance: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
-      let [deployId, host, _path, versions] = path ? path.split(',') : [];
+      let [deployId, replicas, versions, image, node] = path.split(',');
       switch (deployId) {
         case 'cyberia-server':
           {
-            host = 'services.cyberiaonline.com';
-            _path = '/cyberia-server';
-            const image = `localhost/rockylinux9-underpost:${Underpost.version}`;
-            const fromPort = 8080;
-            const toPort = 8080;
-            const replicas = 1;
+            const host = 'server.cyberiaonline.com';
+            const _path = '/';
+            image = image
+              ? image
+              : (`underpost/underpost-engine:${Underpost.version}` ??
+                `localhost/rockylinux9-underpost:${Underpost.version}`);
+
+            if (options.nodeName) {
+              shellExec(`sudo crictl pull ${image}`);
+            } else {
+              shellExec(`docker pull ${image}`);
+              shellExec(`sudo kind load docker-image ${image}`);
+            }
+
+            const fromPort = options.port ? options.port : 8080;
+            const toPort = options.port ? options.port : 8080;
+            if (!replicas) replicas = 1;
             const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, {
               hostTest: host,
             });
-            versions = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
-            const yaml =
-              `---
+            const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
+            const podId = `${deployId}-${env}-${targetTraffic}`;
+            const ignorePods = UnderpostDeploy.API.get(podId).map((p) => p.NAME);
+            shellExec(`kubectl delete service ${podId}-service --namespace ${options.namespace} --ignore-not-found`);
+            shellExec(`kubectl delete deployment ${podId} --namespace ${options.namespace} --ignore-not-found`);
+            let deploymentYaml = `---
 ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   deployId,
   env,
-  suffix: versions,
+  suffix: targetTraffic,
   resources: {
     requests: {},
     limits: {},
@@ -594,8 +607,36 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   replicas,
   image,
   namespace: options.namespace,
+  cmd: [
+    'sudo dnf install -y golang',
+    `underpost secret underpost --create-from-file /etc/config/.env.${env}`,
+    `underpost start --build ${'dd-cyberia'} ${env}`,
+    `cd /home/dd`,
+    `underpost clone ${process.env.GITHUB_USERNAME}/cyberia-server`,
+    `cd cyberia-server`,
+    `underpost config set container-status ${deployId}-${env}-running-deployment`,
+    `go run main.go`,
+  ],
 }).replace('{{ports}}', buildKindPorts(fromPort, toPort))}
-` +
+`;
+            console.log(deploymentYaml);
+            shellExec(`kubectl apply -f - -n ${options.namespace} <<EOF
+${deploymentYaml}
+EOF
+`);
+            const { ready, readyPods } = await UnderpostDeploy.API.monitorReadyRunner(
+              deployId,
+              env,
+              targetTraffic,
+              ignorePods,
+            );
+
+            if (!ready) {
+              logger.error(`Deployment ${deployId} did not become ready in time.`);
+              return;
+            }
+
+            let proxyYaml =
               UnderpostDeploy.API.baseProxyYamlFactory({ host, env, options }) +
               UnderpostDeploy.API.deploymentYamlServiceFactory({
                 path: _path,
@@ -603,12 +644,19 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
                 // serviceId: deployId,
                 deployId,
                 env,
-                deploymentVersions: [versions],
+                deploymentVersions: [targetTraffic],
                 // pathRewritePolicy,
-              }) +
-              UnderpostDeploy.API.buildCertManagerCertificate({ host, ...options });
-
-            console.log(yaml);
+              });
+            if (options.tls) {
+              shellExec(`sudo kubectl delete Certificate ${host} -n ${options.namespace} --ignore-not-found`);
+              proxyYaml += UnderpostDeploy.API.buildCertManagerCertificate({ host, ...options });
+            }
+            console.log(proxyYaml);
+            shellExec(`kubectl delete HTTPProxy ${host} --namespace ${options.namespace} --ignore-not-found`);
+            shellExec(`kubectl apply -f - -n ${options.namespace} <<EOF
+${proxyYaml}
+EOF
+`);
           }
           break;
         default:

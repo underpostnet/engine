@@ -130,10 +130,18 @@ class UnderpostDeploy {
      * @param {number} replicas - Number of replicas for the deployment.
      * @param {string} image - Docker image for the deployment.
      * @param {string} namespace - Kubernetes namespace for the deployment.
+     * @param {Array<string>} cmd - Command to run in the deployment container.
      * @returns {string} - YAML deployment configuration for the specified deployment.
      * @memberof UnderpostDeploy
      */
-    deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image, namespace }) {
+    deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image, namespace, cmd }) {
+      if (!cmd)
+        cmd = [
+          `npm install -g npm@11.2.0`,
+          `npm install -g underpost`,
+          `underpost secret underpost --create-from-file /etc/config/.env.${env}`,
+          `underpost start --build --run ${deployId} ${env}`,
+        ];
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
       let volumes = [
         {
@@ -177,10 +185,8 @@ spec:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 &&
-              npm install -g underpost &&
-              underpost secret underpost --create-from-file /etc/config/.env.${env} &&
-              underpost start --build --run ${deployId} ${env}
+              ${cmd.join(` && `)}
+
 ${UnderpostDeploy.API.volumeFactory(volumes.map((v) => ((v.version = `${deployId}-${env}-${suffix}`), v)))
   .render.split(`\n`)
   .map((l) => '    ' + l)
@@ -853,19 +859,32 @@ ${renderHosts}`,
      * @param {string} env - Environment for which the ready status is being monitored.
      * @param {string} targetTraffic - Target traffic status for the deployment.
      * @param {Array<string>} ignorePods - List of pod names to ignore.
+     * @returns {object} - Object containing the ready status of the deployment.
      * @memberof UnderpostDeploy
      */
     async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = []) {
       let checkStatusIteration = 0;
       const checkStatusIterationMsDelay = 1000;
+      const maxIterations = 500;
       const iteratorTag = `[${deployId}-${env}-${targetTraffic}]`;
       logger.info('Deployment init', { deployId, env, targetTraffic, checkStatusIterationMsDelay });
       const minReadyOk = 3;
       let readyOk = 0;
+      let result = {
+        ready: false,
+        notReadyPods: [],
+        readyPods: [],
+      };
 
       while (readyOk < minReadyOk) {
-        const ready = UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods).ready;
-        if (ready === true) {
+        if (checkStatusIteration >= maxIterations) {
+          logger.error(
+            `${iteratorTag} | Deployment check ready status timeout. Max iterations reached: ${maxIterations}`,
+          );
+          break;
+        }
+        result = UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods);
+        if (result.ready === true) {
           readyOk++;
           logger.info(`${iteratorTag} | Deployment ready. Verification number: ${readyOk}`);
         }
@@ -876,6 +895,7 @@ ${renderHosts}`,
         );
       }
       logger.info(`${iteratorTag} | Deployment ready. | Total delay number check iterations: ${checkStatusIteration}`);
+      return result;
     },
 
     /**
