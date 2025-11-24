@@ -7,6 +7,7 @@
 import { daemonProcess, getTerminalPid, openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
 import {
   awaitDeployMonitor,
+  buildKindPorts,
   Config,
   getNpmRootPath,
   getUnderpostRootPath,
@@ -556,29 +557,57 @@ class UnderpostRun {
     },
 
     /**
-     * @method build
-     * @description Builds specific components based on the provided build ID.
-     * @param {string} path - The input value, identifier, or path for the operation (used as the build ID).
+     * @method instance
+     * @description Generates deployment YAML for a specified build ID and deployment parameters.
+     * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string containing deploy parameters).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    build: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    instance: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
-      const [buildId, serviceId, host, _path, versions] = path ? path.split(',') : [];
-      switch (buildId) {
-        case 'proxy':
+      let [deployId, host, _path, versions] = path ? path.split(',') : [];
+      switch (deployId) {
+        case 'cyberia-server':
           {
+            host = 'services.cyberiaonline.com';
+            _path = '/cyberia-server';
+            const image = `localhost/rockylinux9-underpost:${Underpost.version}`;
+            const fromPort = 8080;
+            const toPort = 8080;
+            const replicas = 1;
+            const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, {
+              hostTest: host,
+            });
+            versions = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
             const yaml =
+              `---
+${UnderpostDeploy.API.deploymentYamlPartsFactory({
+  deployId,
+  env,
+  suffix: versions,
+  resources: {
+    requests: {},
+    limits: {},
+  },
+  replicas,
+  image,
+  namespace: options.namespace,
+}).replace('{{ports}}', buildKindPorts(fromPort, toPort))}
+` +
               UnderpostDeploy.API.baseProxyYamlFactory({ host, env, options }) +
               UnderpostDeploy.API.deploymentYamlServiceFactory({
                 path: _path,
-                port: options.port,
-                serviceId,
-                deploymentVersions: versions.split('+'),
+                port: fromPort,
+                // serviceId: deployId,
+                deployId,
+                env,
+                deploymentVersions: [versions],
                 // pathRewritePolicy,
-              });
+              }) +
+              UnderpostDeploy.API.buildCertManagerCertificate({ host, ...options });
+
             console.log(yaml);
           }
           break;

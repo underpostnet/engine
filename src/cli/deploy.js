@@ -331,14 +331,16 @@ spec:
     /**
      * Retrieves the current traffic status for a deployment.
      * @param {string} deployId - Deployment ID for which the traffic status is being retrieved.
+     * @param {object} options - Options for the traffic retrieval.
+     * @param {string} options.hostTest - Hostname to test for traffic status.
      * @returns {string|null} - Current traffic status ('blue' or 'green') or null if not found.
      * @memberof UnderpostDeploy
      */
-    getCurrentTraffic(deployId) {
+    getCurrentTraffic(deployId, options = { hostTest: '' }) {
       // kubectl get deploy,sts,svc,configmap,secret -n default -o yaml --export > default.yaml
-      const hostTest = Object.keys(
-        JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
-      )[0];
+      const hostTest = options?.hostTest
+        ? options.hostTest
+        : Object.keys(JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')))[0];
       const info = shellExec(`sudo kubectl get HTTPProxy/${hostTest} -o yaml`, { silent: true, stdout: true });
       return info.match('blue') ? 'blue' : info.match('green') ? 'green' : null;
     },
