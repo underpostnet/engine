@@ -665,7 +665,7 @@ EOF
           });
         if (options.tls) {
           shellExec(`sudo kubectl delete Certificate ${_host} -n ${options.namespace} --ignore-not-found`);
-          proxyYaml += UnderpostDeploy.API.buildCertManagerCertificate({ host: _host, ...options });
+          proxyYaml += UnderpostDeploy.API.buildCertManagerCertificate({ ...options, host: _host });
         }
         // console.log(proxyYaml);
         shellExec(`kubectl delete HTTPProxy ${_host} --namespace ${options.namespace} --ignore-not-found`);
