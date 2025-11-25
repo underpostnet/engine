@@ -147,18 +147,20 @@ class UnderpostDB {
                   for (const podNameData of [podNames[0]]) {
                     const podName = podNameData.NAME;
                     if (options.import === true) {
-                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf /${dbName}.sql"`);
+                      shellExec(`sudo kubectl exec -n ${nameSpace} -i ${podName} -- sh -c "rm -rf /${dbName}.sql"`);
                       shellExec(`sudo kubectl cp ${_toSqlPath} ${nameSpace}/${podName}:/${dbName}.sql`);
                       const cmd = `mariadb -u ${user} -p${password} ${dbName} < /${dbName}.sql`;
                       shellExec(
-                        `kubectl exec -i ${podName} -- ${serviceName} -p${password} -e 'CREATE DATABASE ${dbName};'`,
+                        `kubectl exec -n ${nameSpace} -i ${podName} -- ${serviceName} -p${password} -e 'CREATE DATABASE ${dbName};'`,
                       );
-                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
+                      shellExec(`sudo kubectl exec -n ${nameSpace} -i ${podName} -- sh -c "${cmd}"`);
                     }
                     if (options.export === true) {
-                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf ${sqlContainerPath}"`);
+                      shellExec(
+                        `sudo kubectl exec -n ${nameSpace} -i ${podName} -- sh -c "rm -rf ${sqlContainerPath}"`,
+                      );
                       const cmd = `mariadb-dump --user=${user} --password=${password} --lock-tables ${dbName} > ${sqlContainerPath}`;
-                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
+                      shellExec(`sudo kubectl exec -n ${nameSpace} -i ${podName} -- sh -c "${cmd}"`);
                       shellExec(
                         `sudo kubectl cp ${nameSpace}/${podName}:${sqlContainerPath} ${
                           options.outPath ? options.outPath : _toNewSqlPath
@@ -179,7 +181,7 @@ class UnderpostDB {
                     // `mongodb-0`;
                     for (const podNameData of [podNames[0]]) {
                       const podName = podNameData.NAME;
-                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf /${dbName}"`);
+                      shellExec(`sudo kubectl exec -n ${nameSpace} -i ${podName} -- sh -c "rm -rf /${dbName}"`);
                       shellExec(
                         `sudo kubectl cp ${
                           options.outPath ? options.outPath : _toBsonPath
@@ -188,7 +190,7 @@ class UnderpostDB {
                       const cmd = `mongorestore -d ${dbName} /${dbName}${options.drop ? ' --drop' : ''}${
                         options.preserveUUID ? ' --preserveUUID' : ''
                       }`;
-                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
+                      shellExec(`sudo kubectl exec -n ${nameSpace} -i ${podName} -- sh -c "${cmd}"`);
                     }
                   }
                   if (options.export === true) {
@@ -198,13 +200,16 @@ class UnderpostDB {
                         : UnderpostDeploy.API.get('mongo'); // `backup-access`;
                     for (const podNameData of [podNames[0]]) {
                       const podName = podNameData.NAME;
-                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf /${dbName}"`);
+                      shellExec(`sudo kubectl exec -n ${nameSpace} -i ${podName} -- sh -c "rm -rf /${dbName}"`);
                       if (options.collections)
                         for (const collection of options.collections.split(','))
                           shellExec(
-                            `sudo kubectl exec -i ${podName} -- sh -c "mongodump -d ${dbName} --collection ${collection} -o /"`,
+                            `sudo kubectl exec -n ${nameSpace} -i ${podName} -- sh -c "mongodump -d ${dbName} --collection ${collection} -o /"`,
                           );
-                      else shellExec(`sudo kubectl exec -i ${podName} -- sh -c "mongodump -d ${dbName} -o /"`);
+                      else
+                        shellExec(
+                          `sudo kubectl exec -n ${nameSpace} -i ${podName} -- sh -c "mongodump -d ${dbName} -o /"`,
+                        );
                       shellExec(
                         `sudo kubectl cp ${nameSpace}/${podName}:/${dbName} ${
                           options.outPath ? options.outPath : _toNewBsonPath
