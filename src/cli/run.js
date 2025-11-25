@@ -612,7 +612,7 @@ class UnderpostRun {
         });
         const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
         let proxyYaml =
-          UnderpostDeploy.API.baseProxyYamlFactory({ host: _host, env, options }) +
+          UnderpostDeploy.API.baseProxyYamlFactory({ host: _host, env: options.tls ? 'production' : env, options }) +
           UnderpostDeploy.API.deploymentYamlServiceFactory({
             path: _path,
             port: _fromPort,

@@ -261,7 +261,8 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
           : [];
 
         for (const host of Object.keys(confServer)) {
-          if (env === 'production') secretYaml += UnderpostDeploy.API.buildCertManagerCertificate({ host });
+          if (env === 'production')
+            secretYaml += UnderpostDeploy.API.buildCertManagerCertificate({ host, namespace: options.namespace });
 
           const pathPortAssignment = pathPortAssignmentData[host];
           // logger.info('', { host, pathPortAssignment });
