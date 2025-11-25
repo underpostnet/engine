@@ -503,7 +503,7 @@ class UnderpostRun {
       }
 
       const currentTraffic = isDeployRunnerContext(path, options)
-        ? UnderpostDeploy.API.getCurrentTraffic(deployId)
+        ? UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace })
         : '';
       let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : '';
       if (targetTraffic) versions = targetTraffic;
@@ -518,10 +518,15 @@ class UnderpostRun {
         shellExec(
           `${baseCommand} deploy --kubeadm --disable-update-proxy ${deployId} ${env} --versions ${versions}${options.namespace ? ` --namespace ${options.namespace}` : ''}`,
         );
-        if (!targetTraffic) targetTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
+        if (!targetTraffic)
+          targetTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
         await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic);
         UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
-      } else logger.info('current traffic', UnderpostDeploy.API.getCurrentTraffic(deployId));
+      } else
+        logger.info(
+          'current traffic',
+          UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace }),
+        );
     },
 
     /**
@@ -1009,12 +1014,12 @@ EOF
       if (!inputReplicas) inputReplicas = 1;
       if (inputDeployId === 'dd') {
         for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
-          const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
+          const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
           const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
           UnderpostDeploy.API.switchTraffic(deployId, inputEnv, targetTraffic, inputReplicas);
         }
       } else {
-        const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(inputDeployId);
+        const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(inputDeployId, { namespace: options.namespace });
         const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
         UnderpostDeploy.API.switchTraffic(inputDeployId, inputEnv, targetTraffic, inputReplicas);
       }
@@ -1101,7 +1106,7 @@ EOF
       const deployId = path;
       const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
       if (!validVersion) throw new Error('Version mismatch');
-      const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
+      const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
       const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
       const env = 'production';
       const ignorePods = UnderpostDeploy.API.get(`${deployId}-${env}-${targetTraffic}`).map((p) => p.NAME);
@@ -1243,7 +1248,7 @@ EOF
       }
       const success = await UnderpostTest.API.statusMonitor(podToMonitor);
       if (success) {
-        const versions = UnderpostDeploy.API.getCurrentTraffic(deployId) || 'blue';
+        const versions = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';
         if (!node) node = os.hostname();
         shellExec(
           `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''} --build-manifest --sync --info-router --replicas ${

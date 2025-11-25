@@ -341,15 +341,20 @@ spec:
      * @param {string} deployId - Deployment ID for which the traffic status is being retrieved.
      * @param {object} options - Options for the traffic retrieval.
      * @param {string} options.hostTest - Hostname to test for traffic status.
+     * @param {string} options.namespace - Kubernetes namespace for the deployment.
      * @returns {string|null} - Current traffic status ('blue' or 'green') or null if not found.
      * @memberof UnderpostDeploy
      */
-    getCurrentTraffic(deployId, options = { hostTest: '' }) {
+    getCurrentTraffic(deployId, options = { hostTest: '', namespace: '' }) {
+      if (!options.namespace) options.namespace = 'default';
       // kubectl get deploy,sts,svc,configmap,secret -n default -o yaml --export > default.yaml
       const hostTest = options?.hostTest
         ? options.hostTest
         : Object.keys(JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')))[0];
-      const info = shellExec(`sudo kubectl get HTTPProxy/${hostTest} -o yaml`, { silent: true, stdout: true });
+      const info = shellExec(`sudo kubectl get HTTPProxy/${hostTest} -n ${options.namespace} -o yaml`, {
+        silent: true,
+        stdout: true,
+      });
       return info.match('blue') ? 'blue' : info.match('green') ? 'green' : null;
     },
 
@@ -457,7 +462,7 @@ EOF`);
           logger.info('', {
             deployId,
             env,
-            traffic: UnderpostDeploy.API.getCurrentTraffic(deployId),
+            traffic: UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace }),
             router: await UnderpostDeploy.API.routerFactory(deployId, env),
             pods: await UnderpostDeploy.API.get(deployId),
           });

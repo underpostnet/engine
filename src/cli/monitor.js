@@ -75,7 +75,7 @@ class UnderpostMonitor {
 
       let errorPayloads = [];
       if (options.sync === true) {
-        const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
+        const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
         if (currentTraffic) UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, currentTraffic);
       }
       let traffic = UnderpostRootEnv.API.get(`${deployId}-${env}-traffic`) ?? 'blue';
