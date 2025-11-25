@@ -34,8 +34,7 @@ const MenuHealthcare = {
     const RouterInstance = RouterHealthcare();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const heightTopBar = 50;
-    const heightBottomBar = 50;
+
     const vitaintegralMod = location.host.match('vitaintegral') || getQueryParams().vitaintegral;
     await Modal.Render({
       id: 'modal-menu',
@@ -238,8 +237,6 @@ const MenuHealthcare = {
       },
       mode: 'slide-menu',
       RouterInstance,
-      heightTopBar,
-      heightBottomBar,
       htmlMainBody: async () => {
         setTimeout(() => {
           Modal.Data['main-body'].onObserverListener['observer'] = () => {
@@ -391,8 +388,6 @@ const MenuHealthcare = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -412,8 +407,6 @@ const MenuHealthcare = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -433,8 +426,6 @@ const MenuHealthcare = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -459,8 +450,6 @@ const MenuHealthcare = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -480,8 +469,6 @@ const MenuHealthcare = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -502,8 +489,6 @@ const MenuHealthcare = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -525,8 +510,6 @@ const MenuHealthcare = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         // barMode,
       });
       if (!eventData) return { status: 'error' };
@@ -590,8 +573,6 @@ const MenuHealthcare = {
           return await CalendarCore.Render({
             idModal,
             Elements: ElementsHealthcare,
-            heightBottomBar,
-            heightTopBar,
             route,
             hiddenDates,
             parentIdModal: 'modal-calendar',
@@ -612,8 +593,6 @@ const MenuHealthcare = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         observer: true,
       });
     });
@@ -639,8 +618,6 @@ const MenuHealthcare = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -661,8 +638,6 @@ const MenuHealthcare = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -712,8 +687,6 @@ const MenuHealthcare = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
   },

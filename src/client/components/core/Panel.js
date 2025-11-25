@@ -38,7 +38,7 @@ const Panel = {
         formObj.id = `${idPanel}-${formObj.id}`;
         return formObj;
       });
-    const { scrollClassContainer, formData, data, heightTopBar, heightBottomBar } = options;
+    const { scrollClassContainer, formData, data } = options;
 
     const titleObj = formData.find((f) => f.panel && f.panel.type === 'title');
     const titleKey = titleObj ? titleObj.model : '';

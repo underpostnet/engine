@@ -27,8 +27,7 @@ const MenuItemledger = {
     const RouterInstance = RouterItemledger();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const heightTopBar = 50;
-    const heightBottomBar = 50;
+
     const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
     const barMode = undefined; // 'top-bottom-bar';
     await Modal.Render({
@@ -149,8 +148,6 @@ const MenuItemledger = {
       },
       mode: 'slide-menu',
       RouterInstance,
-      heightTopBar,
-      heightBottomBar,
       htmlMainBody: options?.htmlMainBody ? options.htmlMainBody : undefined,
       searchCustomImgClass: 'itemledger-menu-icon',
     });
@@ -220,8 +217,6 @@ const MenuItemledger = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -241,8 +236,6 @@ const MenuItemledger = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -262,8 +255,6 @@ const MenuItemledger = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -288,8 +279,6 @@ const MenuItemledger = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -312,8 +301,6 @@ const MenuItemledger = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -337,8 +324,6 @@ const MenuItemledger = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -360,8 +345,6 @@ const MenuItemledger = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
   },

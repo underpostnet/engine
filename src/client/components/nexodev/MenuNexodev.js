@@ -58,8 +58,7 @@ const MenuNexodev = {
     const RouterInstance = RouterNexodev();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const heightTopBar = 50;
-    const heightBottomBar = 50;
+
     const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
     const barMode = 'top-bottom-bar';
     await Modal.Render({
@@ -342,8 +341,6 @@ const MenuNexodev = {
       mode: 'slide-menu-right',
       RouterInstance,
       barMode,
-      heightTopBar,
-      heightBottomBar,
       htmlMainBody: options.htmlMainBody,
     });
 
@@ -461,8 +458,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -483,8 +478,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -505,8 +498,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -529,8 +520,6 @@ const MenuNexodev = {
           setTimeout(async () => {
             await PanelForm.instance({
               idPanel: 'nexodev-blog',
-              heightTopBar,
-              heightBottomBar,
               defaultUrlImage: `${getProxyPath()}assets/splash/android-chrome-96x96.png`,
               Elements: ElementsNexodev,
               parentIdModal: idModal,
@@ -544,8 +533,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -566,8 +553,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -593,8 +578,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -618,8 +601,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -643,8 +624,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -664,8 +643,6 @@ const MenuNexodev = {
           return await CalendarNexodev.Render({
             idModal: 'modal-calendar',
             Elements: ElementsNexodev,
-            heightBottomBar,
-            heightTopBar,
             route,
             parentIdModal: 'modal-calendar',
           });
@@ -675,8 +652,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
         observer: true,
       });
@@ -711,8 +686,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -733,8 +706,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -756,8 +727,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -778,8 +747,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -809,8 +776,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -832,8 +797,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -854,8 +817,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
         observer: true,
       });
@@ -877,8 +838,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
         observer: true,
       });
@@ -900,8 +859,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
         observer: true,
       });
@@ -928,8 +885,6 @@ const MenuNexodev = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
         observer: true,
       });
@@ -956,8 +911,6 @@ const MenuNexodev = {
         },
         slideMenu: 'modal-menu',
         // RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
 

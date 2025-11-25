@@ -29,8 +29,7 @@ const MenuBymyelectrics = {
     const RouterInstance = RouterBymyelectrics();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const heightTopBar = 50;
-    const heightBottomBar = 50;
+
     const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
     const barMode = undefined; // 'top-bottom-bar';
     await Modal.Render({
@@ -221,8 +220,6 @@ const MenuBymyelectrics = {
       },
       mode: 'slide-menu',
       RouterInstance,
-      heightTopBar,
-      heightBottomBar,
       htmlMainBody: options?.htmlMainBody ? options.htmlMainBody : undefined,
     });
 
@@ -291,8 +288,6 @@ const MenuBymyelectrics = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -312,8 +307,6 @@ const MenuBymyelectrics = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -333,8 +326,6 @@ const MenuBymyelectrics = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -359,8 +350,6 @@ const MenuBymyelectrics = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -380,8 +369,6 @@ const MenuBymyelectrics = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -405,8 +392,6 @@ const MenuBymyelectrics = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -428,8 +413,6 @@ const MenuBymyelectrics = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -449,8 +432,6 @@ const MenuBymyelectrics = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         observer: true,
       });
     });
@@ -471,8 +452,6 @@ const MenuBymyelectrics = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         observer: true,
       });
     });
@@ -493,8 +472,6 @@ const MenuBymyelectrics = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         observer: true,
       });
     });

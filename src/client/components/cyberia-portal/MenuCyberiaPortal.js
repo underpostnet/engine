@@ -31,8 +31,7 @@ const MenuCyberiaPortal = {
     const RouterInstance = RouterCyberiaPortal();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const heightTopBar = 50;
-    const heightBottomBar = 50;
+
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -232,8 +231,6 @@ const MenuCyberiaPortal = {
       htmlMainBody: async () => await MainBodyCyberiaPortal.Render(),
       mode: 'slide-menu',
       RouterInstance,
-      heightTopBar,
-      heightBottomBar,
       searchCustomImgClass: 'cyberia-menu-icon',
     });
 
@@ -331,8 +328,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -352,8 +347,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -373,8 +366,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -399,8 +390,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -420,8 +409,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -442,8 +429,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -472,8 +457,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -494,8 +477,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -519,8 +500,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -543,8 +522,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         observer: true,
       });
     });
@@ -568,8 +545,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         observer: true,
       });
     });
@@ -590,8 +565,6 @@ const MenuCyberiaPortal = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         observer: true,
       });
     });

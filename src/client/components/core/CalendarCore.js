@@ -25,9 +25,7 @@ const eventDateFactory = (event) =>
 const CalendarCore = {
   RenderStyle: async function () {},
   Data: {},
-  Render: async function (
-    options = { idModal: '', Elements: {}, heightTopBar: 50, heightBottomBar: 50, hiddenDates: [] },
-  ) {
+  Render: async function (options = { idModal: '', Elements: {}, hiddenDates: [] }) {
     this.Data[options.idModal] = {
       data: [],
       originData: [],
@@ -35,8 +33,6 @@ const CalendarCore = {
       calendar: {},
       hiddenDates: options.hiddenDates ? options.hiddenDates : [],
     };
-
-    const { heightTopBar, heightBottomBar } = options;
 
     const titleIcon = html`<i class="fas fa-calendar-alt"></i>`;
 
@@ -234,8 +230,6 @@ const CalendarCore = {
           idPanel,
           parentIdModal: options.idModal,
           formData,
-          heightTopBar,
-          heightBottomBar,
           data: this.Data[options.idModal].data,
           formContainerClass: '',
           scrollClassContainer: `main-body-calendar-${options.idModal}`,

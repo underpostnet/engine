@@ -34,8 +34,7 @@ const MenuCyberia = {
     const RouterInstance = RouterCyberia();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const heightTopBar = 50;
-    const heightBottomBar = 50;
+
     const onCollapseMenu = async () => {
       s(`.menu-btn-container`).style.width = null;
       htmls(
@@ -221,8 +220,6 @@ const MenuCyberia = {
       },
       // barClass: 'hide',
       disableTools: ['navigator', 'text-box', 'lang', 'theme', 'app-icon', 'center', 'profile'],
-      heightTopBar,
-      heightBottomBar,
       barConfig: newInstance(barConfig),
       title: BannerAppTemplate,
       // titleClass: 'hide',
@@ -300,8 +297,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -318,8 +313,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -336,8 +329,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -354,8 +345,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -372,8 +361,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -391,8 +378,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -427,8 +412,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -445,8 +428,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -463,8 +444,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -481,8 +460,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -505,8 +482,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -524,8 +499,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -542,8 +515,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -560,8 +531,6 @@ const MenuCyberia = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 

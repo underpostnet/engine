@@ -40,8 +40,7 @@ const MenuDefault = {
     const RouterInstance = RouterDefault();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const heightTopBar = 50;
-    const heightBottomBar = 50;
+
     const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
     const barMode = undefined; // 'top-bottom-bar';
     await Modal.Render({
@@ -221,8 +220,6 @@ const MenuDefault = {
       },
       mode: 'slide-menu',
       RouterInstance,
-      heightTopBar,
-      heightBottomBar,
       htmlMainBody: options.htmlMainBody,
     });
 
@@ -252,7 +249,7 @@ const MenuDefault = {
         `.style-lading-render`,
         html` <style>
           .landing-container {
-            min-height: calc(100vh - ${heightTopBar + heightBottomBar}px);
+            min-height: calc(100vh - 100px);
             display: flex;
             /*    align-items: center; */
             justify-content: center;
@@ -306,7 +303,9 @@ const MenuDefault = {
             padding: 2rem;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transition:
+              transform 0.3s ease,
+              box-shadow 0.3s ease;
             opacity: 0;
             animation: fadeInUp 0.6s ease-out forwards;
           }
@@ -494,8 +493,6 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -515,8 +512,6 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -536,8 +531,6 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -562,8 +555,6 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -583,8 +574,6 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -605,8 +594,6 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -626,8 +613,6 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         observer: true,
       });
     });
@@ -648,8 +633,6 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         observer: true,
       });
     });
@@ -670,8 +653,6 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         observer: true,
       });
     });
@@ -694,8 +675,6 @@ const MenuDefault = {
           setTimeout(async () => {
             await PanelForm.instance({
               idPanel: 'default-blog',
-              heightTopBar,
-              heightBottomBar,
               defaultUrlImage: `${getProxyPath()}android-chrome-96x96.png`,
               Elements: ElementsDefault,
               parentIdModal: idModal,
@@ -709,8 +688,6 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -732,8 +709,6 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });

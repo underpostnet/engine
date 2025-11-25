@@ -25,8 +25,7 @@ const MenuDogmadual = {
     const RouterInstance = RouterDogmadual();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const heightTopBar = 50;
-    const heightBottomBar = 50;
+
     const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
     const barMode = undefined; // 'top-bottom-bar';
     await Modal.Render({
@@ -137,8 +136,6 @@ const MenuDogmadual = {
       },
       mode: 'slide-menu',
       RouterInstance,
-      heightTopBar,
-      heightBottomBar,
       htmlMainBody: options.htmlMainBody,
     });
 
@@ -207,8 +204,6 @@ const MenuDogmadual = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -228,8 +223,6 @@ const MenuDogmadual = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -249,8 +242,6 @@ const MenuDogmadual = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -275,8 +266,6 @@ const MenuDogmadual = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -296,8 +285,6 @@ const MenuDogmadual = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -319,8 +306,6 @@ const MenuDogmadual = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
   },

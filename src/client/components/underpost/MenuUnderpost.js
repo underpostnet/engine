@@ -28,8 +28,7 @@ const MenuUnderpost = {
     const RouterInstance = RouterUnderpost();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const heightTopBar = 50;
-    const heightBottomBar = 50;
+
     const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
     const barMode = undefined; // 'top-bottom-bar';
     await Modal.Render({
@@ -179,13 +178,9 @@ const MenuUnderpost = {
       },
       mode: 'slide-menu',
       RouterInstance,
-      heightTopBar,
-      heightBottomBar,
       htmlMainBody: async () =>
         await PanelForm.instance({
           idPanel: 'underpost-panel',
-          heightTopBar,
-          heightBottomBar,
           defaultUrlImage: `${getProxyPath()}assets/splash/apple-touch-icon-precomposed.png`,
           Elements: ElementsUnderpost,
           route: 'home',
@@ -257,8 +252,6 @@ const MenuUnderpost = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -278,8 +271,6 @@ const MenuUnderpost = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -299,8 +290,6 @@ const MenuUnderpost = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -320,8 +309,6 @@ const MenuUnderpost = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -341,8 +328,6 @@ const MenuUnderpost = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -367,8 +352,6 @@ const MenuUnderpost = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -388,8 +371,6 @@ const MenuUnderpost = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
         barMode,
       });
     });
@@ -411,8 +392,6 @@ const MenuUnderpost = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 

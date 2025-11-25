@@ -54,8 +54,8 @@ const Modal = {
       disableBoxShadow: false,
     },
   ) {
-    if (options.heightBottomBar === undefined) options.heightBottomBar = 50;
-    if (options.heightTopBar === undefined) options.heightTopBar = 50;
+    options.heightBottomBar = 50;
+    options.heightTopBar = 50;
     let originHeightBottomBar = options.heightBottomBar ? newInstance(options.heightBottomBar) : 0;
     let originHeightTopBar = options.heightTopBar ? newInstance(options.heightTopBar) : 0;
     let width = 300;

@@ -35,8 +35,7 @@ const MenuCyberiaAdmin = {
     const RouterInstance = RouterCyberiaAdmin();
 
     const { barConfig } = await Themes[Css.currentTheme]();
-    const heightTopBar = 50;
-    const heightBottomBar = 50;
+
     const onCollapseMenu = async () => {
       s(`.menu-btn-container`).style.width = null;
       htmls(
@@ -246,8 +245,6 @@ const MenuCyberiaAdmin = {
       },
       // barClass: 'hide',
       // disableTools: ['navigator', 'text-box', 'lang', 'theme', 'app-icon', 'center'],
-      heightTopBar,
-      heightBottomBar,
       barConfig: newInstance(barConfig),
       title: BannerAppTemplate,
       // titleClass: 'hide',
@@ -323,8 +320,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -340,8 +335,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -358,8 +351,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -376,8 +367,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -404,8 +393,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -422,8 +409,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -440,8 +425,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -458,8 +441,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -476,8 +457,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -494,8 +473,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -513,8 +490,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -532,8 +507,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -550,8 +523,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -568,8 +539,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -595,8 +564,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -613,8 +580,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -632,8 +597,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
 
@@ -650,8 +613,6 @@ const MenuCyberiaAdmin = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        heightTopBar,
-        heightBottomBar,
       });
     });
   },

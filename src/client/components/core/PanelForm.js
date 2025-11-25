@@ -21,8 +21,6 @@ const PanelForm = {
   instance: async function (
     options = {
       idPanel: '',
-      heightTopBar: 50,
-      heightBottomBar: 50,
       defaultUrlImage: '',
       Elements: {},
       parentIdModal: undefined,
@@ -31,7 +29,7 @@ const PanelForm = {
       firsUpdateEvent: async () => {},
     },
   ) {
-    const { idPanel, heightTopBar, heightBottomBar, defaultUrlImage, Elements } = options;
+    const { idPanel, defaultUrlImage, Elements } = options;
 
     let prefixTags = [idPanel, 'public'];
     this.Data[idPanel] = {
@@ -101,8 +99,6 @@ const PanelForm = {
       await Panel.Render({
         idPanel,
         formData,
-        heightTopBar,
-        heightBottomBar,
         data,
         htmlFormHeader: options.htmlFormHeader,
         parentIdModal: options.parentIdModal,
