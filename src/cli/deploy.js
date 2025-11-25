@@ -38,36 +38,6 @@ class UnderpostDeploy {
   static NETWORK = {};
   static API = {
     /**
-     * Synchronizes deployment configurations for a list of deployments.
-     * @param {string} deployList - List of deployment IDs to synchronize.
-     * @param {object} options - Options for the synchronization process.
-     * @param {string} options.versions - Comma-separated list of versions to deploy.
-     * @param {string} options.replicas - Number of replicas for each deployment.
-     * @param {string} options.node - Node name for resource allocation.
-     * @returns {object} - Deployment data for the specified deployments.
-     * @memberof UnderpostDeploy
-     */
-    sync(deployList, { versions, replicas, node }) {
-      fs.writeFileSync(`./engine-private/deploy/dd.router`, deployList, 'utf8');
-      const totalPods = deployList.split(',').length * versions.split(',').length * parseInt(replicas);
-      const limitFactor = 0.8;
-      const reserveFactor = 0.05;
-      const resources = UnderpostCluster.API.getResourcesCapacity(node);
-      const memory = parseInt(resources.memory.value / totalPods);
-      const cpu = parseInt(resources.cpu.value / totalPods);
-      UnderpostRootEnv.API.set(
-        'resources.requests.memory',
-        `${parseInt(memory * reserveFactor)}${resources.memory.unit}`,
-      );
-      UnderpostRootEnv.API.set('resources.requests.cpu', `${parseInt(cpu * reserveFactor)}${resources.cpu.unit}`);
-      UnderpostRootEnv.API.set('resources.limits.memory', `${parseInt(memory * limitFactor)}${resources.memory.unit}`);
-      UnderpostRootEnv.API.set('resources.limits.cpu', `${parseInt(cpu * limitFactor)}${resources.cpu.unit}`);
-      UnderpostRootEnv.API.set('total-pods', totalPods);
-      return getDataDeploy({
-        buildSingleReplica: true,
-      });
-    },
-    /**
      * Creates a router configuration for a list of deployments.
      * @param {string} deployList - List of deployment IDs to include in the router.
      * @param {string} env - Environment for which the router is being created.
@@ -176,13 +146,17 @@ spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
           image: ${image ?? `localhost/rockylinux9-underpost:v${packageJson.version}`}
-#          resources:
-#            requests:
-#              memory: "${resources.requests.memory}"
-#              cpu: "${resources.requests.cpu}"
-#            limits:
-#              memory: "${resources.limits.memory}"
-#              cpu: "${resources.limits.cpu}"
+${
+  resources
+    ? `          resources:
+            requests:
+              memory: "${resources.requests.memory}"
+              cpu: "${resources.requests.cpu}"
+            limits:
+              memory: "${resources.limits.memory}"
+              cpu: "${resources.limits.cpu}"`
+    : ''
+}
           command:
             - /bin/sh
             - -c
@@ -217,7 +191,6 @@ spec:
      * @memberof UnderpostDeploy
      */
     async buildManifest(deployList, env, options) {
-      const resources = UnderpostDeploy.API.resourcesFactory();
       const replicas = options.replicas;
       const image = options.image;
       if (!options.namespace) options.namespace = 'default';
@@ -245,7 +218,6 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   deployId,
   env,
   suffix: deploymentVersion,
-  resources,
   replicas,
   image,
   namespace: options.namespace,
@@ -482,7 +454,10 @@ EOF`);
       }
       if (!(options.versions && typeof options.versions === 'string')) options.versions = 'blue,green';
       if (!options.replicas) options.replicas = 1;
-      if (options.sync) UnderpostDeploy.API.sync(deployList, options);
+      if (options.sync)
+        getDataDeploy({
+          buildSingleReplica: true,
+        });
       if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env, options);
       if (options.infoRouter === true || options.buildManifest === true) {
         logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
@@ -612,24 +587,7 @@ EOF`);
 
       return result;
     },
-    /**
-     * Retrieves the resources factory for a deployment.
-     * @returns {object} - Object containing the resources factory for the deployment.
-     * @memberof UnderpostDeploy
-     */
-    resourcesFactory() {
-      return {
-        requests: {
-          memory: UnderpostRootEnv.API.get('resources.requests.memory'),
-          cpu: UnderpostRootEnv.API.get('resources.requests.cpu'),
-        },
-        limits: {
-          memory: UnderpostRootEnv.API.get('resources.limits.memory'),
-          cpu: UnderpostRootEnv.API.get('resources.limits.cpu'),
-        },
-        totalPods: UnderpostRootEnv.API.get('total-pods'),
-      };
-    },
+
     /**
      * Checks if a container file exists in a pod.
      * @param {object} options - Options for the check.
@@ -1002,6 +960,106 @@ ${renderHosts}`,
         result.push(pod);
       }
       return result;
+    },
+
+    /**
+     * Predefined resource templates for Kubernetes deployments.
+     * @memberof UnderpostDeploy
+     */
+    resourcesTemplate: {
+      dev_small: {
+        id: 'dev_small',
+        useCase: 'microservice_development',
+        resources: {
+          requests: {
+            memory: '128Mi',
+            cpu: '250m',
+          },
+          limits: {
+            memory: '512Mi',
+            cpu: '1',
+          },
+        },
+      },
+      prod_moderate: {
+        id: 'prod_moderate',
+        useCase: 'production_moderate',
+        resources: {
+          requests: {
+            memory: '256Mi',
+            cpu: '500m',
+          },
+          limits: {
+            memory: '512Mi',
+            cpu: '1',
+          },
+        },
+      },
+      memory_heavy: {
+        id: 'memory_heavy',
+        useCase: 'memory_intensive_app',
+        resources: {
+          requests: {
+            memory: '512Mi',
+            cpu: '500m',
+          },
+          limits: {
+            memory: '1Gi',
+            cpu: '1',
+          },
+        },
+      },
+      cpu_bound: {
+        id: 'cpu_bound',
+        useCase: 'cpu_intensive_job',
+        resources: {
+          requests: {
+            memory: '256Mi',
+            cpu: '1000m',
+          },
+          limits: {
+            memory: '512Mi',
+            cpu: '2000m',
+          },
+        },
+      },
+    },
+
+    /**
+     * Creates a resource object for Kubernetes deployments.
+     * @param {object} resources - Resource specifications.
+     * @param {string} resources.requestsMemory - Memory request for the container.
+     * @param {string} resources.requestsCpu - CPU request for the container.
+     * @param {string} resources.limitsMemory - Memory limit for the container.
+     * @param {string} resources.limitsCpu - CPU limit for the container.
+     * @returns {object|undefined} - Resource object for Kubernetes deployments or undefined if any resource is missing.
+     * @memberof UnderpostDeploy
+     */
+    resourcesFactory: (
+      resources = {
+        resourceTemplateId: '',
+        requestsMemory: '',
+        requestsCpu: '',
+        limitsMemory: '',
+        limitsCpu: '',
+      },
+    ) => {
+      if (resources) {
+        if (resources.resourceTemplateId)
+          return UnderpostDeploy.API.resourcesTemplate[resources.resourceTemplateId].resources;
+        if (resources.requestsMemory && resources.requestsCpu && resources.limitsMemory && resources.limitsCpu)
+          return {
+            requests: {
+              memory: resources.requestsMemory,
+              cpu: resources.requestsCpu,
+            },
+            limits: {
+              memory: resources.limitsMemory,
+              cpu: resources.limitsCpu,
+            },
+          };
+      }
+      return undefined;
     },
   };
 }

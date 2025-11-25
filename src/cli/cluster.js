@@ -117,10 +117,6 @@ class UnderpostCluster {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
 
-      // Information gathering options
-      if (options.infoCapacityPod === true) return logger.info('', UnderpostDeploy.API.resourcesFactory());
-      if (options.infoCapacity === true)
-        return logger.info('', UnderpostCluster.API.getResourcesCapacity(options.kubeadm || options.k3s)); // Adjust for k3s
       if (options.listPods === true) return console.table(UnderpostDeploy.API.get(podName ?? undefined));
       // Set default namespace if not specified
       if (!options.namespace) options.namespace = 'default';

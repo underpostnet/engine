@@ -177,8 +177,6 @@ program
   )
   .option('--dev', 'Initializes a development-specific cluster configuration.')
   .option('--list-pods', 'Displays detailed information about all pods.')
-  .option('--info-capacity', 'Displays the current total machine capacity information.')
-  .option('--info-capacity-pod', 'Displays the current machine capacity information per pod.')
   .option('--pull-image', 'Sets an optional associated image to pull during initialization.')
   .option('--init-host', 'Installs necessary Kubernetes node CLI tools (e.g., kind, kubeadm, docker, podman, helm).')
   .option('--uninstall-host', 'Uninstalls all host components installed by init-host.')
@@ -439,6 +437,14 @@ program
   .option('--terminal', 'Enables terminal mode for interactive script execution.')
   .option('--dev-proxy-port-offset <port-offset>', 'Sets a custom port offset for development proxy.')
   .option('--host-network', 'Enables host network mode for the runner execution.')
+  .option('--requests-memory <requests-memory>', 'Requests memory limit for the runner execution.')
+  .option('--requests-cpu <requests-cpu>', 'Requests CPU limit for the runner execution.')
+  .option('--limits-memory <limits-memory>', 'Sets memory limit for the runner execution.')
+  .option('--limits-cpu <limits-cpu>', 'Sets CPU limit for the runner execution.')
+  .option(
+    '--resource-template-id <resource-template-id >',
+    'Specifies a resource template ID for the runner execution.',
+  )
   .option('--conf-server-path <conf-server-path>', 'Sets a custom configuration server path.')
   .option('--underpost-root <underpost-root>', 'Sets a custom Underpost root path.')
   .description('Runs a script from the specified path.')

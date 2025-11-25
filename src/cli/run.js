@@ -69,6 +69,11 @@ class UnderpostRun {
    * @property {boolean} terminal - Whether to open a terminal.
    * @property {number} devProxyPortOffset - The port offset for the development proxy.
    * @property {boolean} hostNetwork - Whether to use host networking.
+   * @property {string} requestsMemory - The memory request for the container.
+   * @property {string} requestsCpu - The CPU request for the container.
+   * @property {string} limitsMemory - The memory limit for the container.
+   * @property {string} limitsCpu - The CPU limit for the container.
+   * @property {string} resourceTemplateId - The resource template ID.
    * @property {string} confServerPath - The configuration server path.
    * @property {string} underpostRoot - The root path of the Underpost installation.
    * @memberof UnderpostRun
@@ -101,6 +106,11 @@ class UnderpostRun {
     terminal: false,
     devProxyPortOffset: 0,
     hostNetwork: false,
+    requestsMemory: '',
+    requestsCpu: '',
+    limitsMemory: '',
+    limitsCpu: '',
+    resourceTemplateId: '',
     confServerPath: '',
     underpostRoot: '',
   };
@@ -703,10 +713,7 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   deployId: _deployId,
   env,
   suffix: targetTraffic,
-  resources: {
-    requests: {},
-    limits: {},
-  },
+  resources: UnderpostDeploy.API.resourcesFactory(options),
   replicas,
   image: _image,
   namespace: options.namespace,
