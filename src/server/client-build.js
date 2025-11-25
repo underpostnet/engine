@@ -519,39 +519,21 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
 
               for (const ssrBodyComponent of confSSR[view.ssr].body) {
                 const SrrComponent = await ssrFactory(`./src/client/ssr/body/${ssrBodyComponent}.js`);
-                switch (ssrBodyComponent) {
-                  case 'UnderpostDefaultSplashScreen':
-                  case 'CyberiaDefaultSplashScreen':
-                  case 'NexodevSplashScreen':
-                  case 'DefaultSplashScreen':
-                    if (backgroundImage)
-                      ssrHeadComponents += SrrComponent({
-                        ...metadata,
-                        backgroundImage: (path === '/' ? path : `${path}/`) + backgroundImage,
-                      });
-                    else ssrHeadComponents += SrrComponent({ metadata });
-                    break;
-
-                  case 'CyberiaSplashScreenLore': {
+                if (ssrBodyComponent.match('SplashScreen')) {
+                  if (backgroundImage)
                     ssrBodyComponents += SrrComponent({
-                      ssrPath,
-                      host,
-                      path,
-                      ttiLoadTimeLimit,
+                      ...metadata,
+                      backgroundImage: (path === '/' ? path : `${path}/`) + backgroundImage,
                     });
-                    break;
-                  }
-
-                  default:
-                    ssrBodyComponents += SrrComponent({
-                      ssrPath,
-                      host,
-                      path,
-                      ttiLoadTimeLimit,
-                      version: Underpost.version,
-                    });
-                    break;
-                }
+                  else ssrBodyComponents += SrrComponent({ metadata });
+                } else
+                  ssrBodyComponents += SrrComponent({
+                    ssrPath,
+                    host,
+                    path,
+                    ttiLoadTimeLimit,
+                    version: Underpost.version,
+                  });
               }
             }
 
