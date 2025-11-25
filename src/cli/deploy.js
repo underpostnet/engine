@@ -130,11 +130,12 @@ class UnderpostDeploy {
      * @param {number} replicas - Number of replicas for the deployment.
      * @param {string} image - Docker image for the deployment.
      * @param {string} namespace - Kubernetes namespace for the deployment.
+     * @param {Array<object>} volumes - Volume configurations for the deployment.
      * @param {Array<string>} cmd - Command to run in the deployment container.
      * @returns {string} - YAML deployment configuration for the specified deployment.
      * @memberof UnderpostDeploy
      */
-    deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image, namespace, cmd }) {
+    deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image, namespace, volumes, cmd }) {
       if (!cmd)
         cmd = [
           `npm install -g npm@11.2.0`,
@@ -143,13 +144,14 @@ class UnderpostDeploy {
           `underpost start --build --run ${deployId} ${env}`,
         ];
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
-      let volumes = [
-        {
-          volumeMountPath: '/etc/config',
-          volumeName: 'config-volume',
-          configMap: 'underpost-config',
-        },
-      ];
+      if (!volumes)
+        volumes = [
+          {
+            volumeMountPath: '/etc/config',
+            volumeName: 'config-volume',
+            configMap: 'underpost-config',
+          },
+        ];
       const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
         ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.volume.json`, 'utf8'))
         : [];
@@ -739,7 +741,7 @@ EOF`);
         namespace: 'default',
       },
     ) {
-      if (volume.claimName) {
+      if (!volume.claimName) {
         logger.warn('Volume claimName is required to deploy volume', volume);
         return;
       }

@@ -187,8 +187,8 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'underpost-config': (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      UnderpostDeploy.API.configMap(path ?? 'production');
+    'underpost-config': (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      UnderpostDeploy.API.configMap(path ? path : 'production', options.namespace);
     },
     /**
      * @method gpu-env
@@ -568,7 +568,7 @@ class UnderpostRun {
       const baseClusterCommand = options.dev ? ' --dev' : '';
       let [deployId, id, replicas = 1] = path.split(',');
       const confInstances = JSON.parse(
-        fs.readFileSync(`./engine-private/conf/${deployId}/conf.isntances.json`, 'utf8'),
+        fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
       );
       for (const instance of confInstances) {
         let {
@@ -588,6 +588,7 @@ class UnderpostRun {
         // Examples images:
         // `underpost/underpost-engine:${Underpost.version}`
         // `localhost/rockylinux9-underpost:${Underpost.version}`
+        if (!_image) _image = `underpost/underpost-engine:${Underpost.version}`;
 
         if (options.nodeName) {
           shellExec(`sudo crictl pull ${_image}`);
@@ -603,15 +604,17 @@ class UnderpostRun {
         const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
         const podId = `${_deployId}-${env}-${targetTraffic}`;
         const ignorePods = UnderpostDeploy.API.get(podId).map((p) => p.NAME);
+        UnderpostDeploy.API.configMap(env, options.namespace);
         shellExec(`kubectl delete service ${podId}-service --namespace ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl delete deployment ${podId} --namespace ${options.namespace} --ignore-not-found`);
         for (const _volume of _volumes)
-          UnderpostDeploy.API.deployVolume(_volume, {
-            namespace: options.namespace,
-            deployId: _deployId,
-            env,
-            version: targetTraffic,
-          });
+          if (_volume.claimName)
+            UnderpostDeploy.API.deployVolume(_volume, {
+              namespace: options.namespace,
+              deployId: _deployId,
+              env,
+              version: targetTraffic,
+            });
         let deploymentYaml = `---
 ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   deployId: _deployId,
@@ -624,9 +627,9 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   replicas,
   image: _image,
   namespace: options.namespace,
-  cmd: _cmd,
+  volumes: _volumes,
+  cmd: _cmd[env],
 }).replace('{{ports}}', buildKindPorts(_fromPort, _toPort))}
-${UnderpostDeploy.API.volumeFactory(_volumes).render}
 `;
         // console.log(deploymentYaml);
         shellExec(
