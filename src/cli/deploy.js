@@ -526,6 +526,7 @@ EOF`);
                   env,
                   version,
                   namespace,
+                  nodeName: options.node ? options.node : env === 'development' ? 'kind-worker' : os.hostname(),
                 });
           }
 
@@ -730,15 +731,17 @@ EOF`);
      * @param {string} options.env - Environment for the deployment.
      * @param {string} options.version - Version of the deployment.
      * @param {string} options.namespace - Kubernetes namespace for the deployment.
+     * @param {string} options.nodeName - Node name for the deployment.
      * @memberof UnderpostDeploy
      */
     deployVolume(
       volume = { claimName: '', volumeMountPath: '', volumeName: '' },
       options = {
-        deployId: 'dd-default',
-        env: 'development',
-        version: 'blue',
-        namespace: 'default',
+        deployId: '',
+        env: '',
+        version: '',
+        namespace: '',
+        nodeName: '',
       },
     ) {
       if (!volume.claimName) {
@@ -749,8 +752,17 @@ EOF`);
       const pvcId = `${volume.claimName}-${deployId}-${env}-${version}`;
       const pvId = `${volume.claimName.replace('pvc-', 'pv-')}-${deployId}-${env}-${version}`;
       const rootVolumeHostPath = `/home/dd/engine/volume/${pvId}`;
-      if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
-      fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
+      if (options.nodeName) {
+        if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
+        fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
+      } else {
+        shellExec(`docker exec -i kind-worker bash -c "mkdir -p ${rootVolumeHostPath}"`);
+        // shellExec(`docker cp ${volume.volumeMountPath} kind-worker:${rootVolumeHostPath}`);
+        shellExec(`tar -C ${volume.volumeMountPath} -c . | docker cp - kind-worker:${rootVolumeHostPath}`);
+        shellExec(
+          `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${rootVolumeHostPath} || true; chmod -R 755 ${rootVolumeHostPath}"`,
+        );
+      }
       shellExec(`kubectl delete pvc ${pvcId} -n ${namespace} --ignore-not-found`);
       shellExec(`kubectl delete pv ${pvId} --ignore-not-found`);
       shellExec(`kubectl apply -f - -n ${namespace} <<EOF

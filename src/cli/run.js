@@ -614,6 +614,7 @@ class UnderpostRun {
               deployId: _deployId,
               env,
               version: targetTraffic,
+              nodeName: options.nodeName,
             });
         let deploymentYaml = `---
 ${UnderpostDeploy.API.deploymentYamlPartsFactory({
@@ -664,7 +665,7 @@ EOF
           });
         if (options.tls) {
           shellExec(`sudo kubectl delete Certificate ${_host} -n ${options.namespace} --ignore-not-found`);
-          proxyYaml += UnderpostDeploy.API.buildCertManagerCertificate({ host, ...options });
+          proxyYaml += UnderpostDeploy.API.buildCertManagerCertificate({ host: _host, ...options });
         }
         // console.log(proxyYaml);
         shellExec(`kubectl delete HTTPProxy ${_host} --namespace ${options.namespace} --ignore-not-found`);
