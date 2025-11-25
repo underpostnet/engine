@@ -557,6 +557,83 @@ class UnderpostRun {
     },
 
     /**
+     * @method get-proxy
+     * @description Retrieves and logs the HTTPProxy resources in the specified namespace using `kubectl get HTTPProxy`.
+     * @param {string} path - The input value, identifier, or path for the operation (used as an optional filter for the HTTPProxy resources).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'get-proxy': async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      console.log(
+        shellExec(`kubectl get HTTPProxy -n ${options.namespace} ${path} -o yaml`, {
+          silent: true,
+          stdout: true,
+        })
+          .replaceAll(`blue`, `blue`.bgBlue.bold.black)
+          .replaceAll('green', 'green'.bgGreen.bold.black)
+          .replaceAll('Error', 'Error'.bold.red)
+          .replaceAll('error', 'error'.bold.red)
+          .replaceAll('ERROR', 'ERROR'.bold.red)
+          .replaceAll('Invalid', 'Invalid'.bold.red)
+          .replaceAll('invalid', 'invalid'.bold.red)
+          .replaceAll('INVALID', 'INVALID'.bold.red),
+      );
+    },
+
+    'instance-promote': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const env = options.dev ? 'development' : 'production';
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseClusterCommand = options.dev ? ' --dev' : '';
+      let [deployId, id] = path.split(',');
+      const confInstances = JSON.parse(
+        fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
+      );
+      for (const instance of confInstances) {
+        let {
+          id: _id,
+          host: _host,
+          path: _path,
+          image: _image,
+          fromPort: _fromPort,
+          toPort: _toPort,
+          cmd: _cmd,
+          volumes: _volumes,
+          metadata: _metadata,
+        } = instance;
+        if (id !== _id) continue;
+        const _deployId = `${deployId}-${_id}`;
+        const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(_deployId, {
+          hostTest: _host,
+        });
+        const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
+        let proxyYaml =
+          UnderpostDeploy.API.baseProxyYamlFactory({ host: _host, env, options }) +
+          UnderpostDeploy.API.deploymentYamlServiceFactory({
+            path: _path,
+            port: _fromPort,
+            // serviceId: deployId,
+            deployId: _deployId,
+            env,
+            deploymentVersions: [targetTraffic],
+            // pathRewritePolicy,
+          });
+        if (options.tls) {
+          shellExec(`sudo kubectl delete Certificate ${_host} -n ${options.namespace} --ignore-not-found`);
+          proxyYaml += UnderpostDeploy.API.buildCertManagerCertificate({ ...options, host: _host });
+        }
+        // console.log(proxyYaml);
+        shellExec(`kubectl delete HTTPProxy ${_host} --namespace ${options.namespace} --ignore-not-found`);
+        shellExec(
+          `kubectl apply -f - -n ${options.namespace} <<EOF
+${proxyYaml}
+EOF
+`,
+          { disableLog: true },
+        );
+      }
+    },
+
+    /**
      * @method instance
      * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string containing workflow parameters).
      * @param {Object} options - The default underpost runner options for customizing workflow
@@ -651,30 +728,11 @@ EOF
           logger.error(`Deployment ${deployId} did not become ready in time.`);
           return;
         }
-
-        let proxyYaml =
-          UnderpostDeploy.API.baseProxyYamlFactory({ host: _host, env, options }) +
-          UnderpostDeploy.API.deploymentYamlServiceFactory({
-            path: _path,
-            port: _fromPort,
-            // serviceId: deployId,
-            deployId: _deployId,
-            env,
-            deploymentVersions: [targetTraffic],
-            // pathRewritePolicy,
-          });
-        if (options.tls) {
-          shellExec(`sudo kubectl delete Certificate ${_host} -n ${options.namespace} --ignore-not-found`);
-          proxyYaml += UnderpostDeploy.API.buildCertManagerCertificate({ ...options, host: _host });
-        }
-        // console.log(proxyYaml);
-        shellExec(`kubectl delete HTTPProxy ${_host} --namespace ${options.namespace} --ignore-not-found`);
         shellExec(
-          `kubectl apply -f - -n ${options.namespace} <<EOF
-${proxyYaml}
-EOF
-`,
-          { disableLog: true },
+          `${baseCommand} run${baseClusterCommand} --namespace ${options.namespace}` +
+            `${options.nodeName ? ` --node-name ${options.nodeName}` : ''}` +
+            `${options.tls ? ` --tls` : ''}` +
+            ` instance-promote '${path}'`,
         );
       }
     },
