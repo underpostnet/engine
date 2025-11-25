@@ -235,10 +235,10 @@ class UnderpostCluster {
           // Install Calico CNI
           logger.info('Installing Calico CNI...');
           shellExec(
-            `sudo kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.3/manifests/tigera-operator.yaml`,
+            `sudo kubectl create -f https://cdn.jsdelivr.net/gh/projectcalico/calico@v3.29.3/manifests/tigera-operator.yaml`,
           );
           shellExec(
-            `kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.3/manifests/custom-resources.yaml`,
+            `kubectl create -f https://cdn.jsdelivr.net/gh/projectcalico/calico@v3.29.3/manifests/custom-resources.yaml`,
           );
           shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/kubeadm-calico-config.yaml`);
 
@@ -248,7 +248,7 @@ class UnderpostCluster {
           // Install local-path-provisioner for dynamic PVCs (optional but recommended)
           logger.info('Installing local-path-provisioner...');
           shellExec(
-            `kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml`,
+            `kubectl apply -f https://cdn.jsdelivr.net/gh/rancher/local-path-provisioner@master/deploy/local-path-storage.yaml`,
           );
         } else {
           // Kind cluster initialization (if not using kubeadm or k3s)
@@ -314,18 +314,6 @@ EOF
 ${yaml}
 EOF
 `);
-
-        // https://grafana.com/docs/grafana-cloud/monitor-infrastructure/kubernetes-monitoring/configuration/config-other-methods/prometheus/prometheus-operator/
-        // shellExec(
-        //   `kubectl create -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/master/bundle.yaml`,
-        // );
-        // shellExec(`kubectl apply -f ${underpostRoot}/manifests/prometheus/prometheus-cr.yaml`);
-        // shellExec(`kubectl rollout status sts prometheus-prometheus -n default`);
-        // shellExec(`kubectl apply -f ${underpostRoot}/manifests/prometheus/prometheus-server.yaml`);
-        // shellExec(`helm repo add prometheus-community https://prometheus-community.github.io/helm-charts`);
-        // shellExec(`helm repo update`);
-        // shellExec(`helm install prometheus prometheus-community/prometheus`);
-        // shellExec(`kubectl rollout status deployment prometheus-server -n default`);
       }
 
       if (options.full === true || options.valkey === true) {
@@ -455,7 +443,9 @@ EOF
       }
 
       if (options.full === true || options.contour === true) {
-        shellExec(`kubectl apply -f https://projectcontour.io/quickstart/contour.yaml`);
+        shellExec(
+          `kubectl apply -f https://cdn.jsdelivr.net/gh/projectcontour/contour@release-1.33/examples/render/contour.yaml`,
+        );
         if (options.kubeadm === true) {
           // Envoy service might need NodePort for kubeadm
           shellExec(
@@ -786,7 +776,7 @@ EOF`);
       shellExec(`sudo yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes`);
 
       // Install Helm
-      shellExec(`curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3`);
+      shellExec(`curl -fsSL -o get_helm.sh https://cdn.jsdelivr.net/gh/helm/helm@main/scripts/get-helm-3`);
       shellExec(`chmod 700 get_helm.sh`);
       shellExec(`./get_helm.sh`);
       shellExec(`chmod +x /usr/local/bin/helm`);

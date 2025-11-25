@@ -40,7 +40,7 @@ sudo dnf -y update
 
 # --- NVM and Node.js Installation ---
 echo "Installing NVM and Node.js v24.10.0..."
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+curl -o- https://cdn.jsdelivr.net/gh/nvm-sh/nvm@v0.40.1/install.sh | bash
 
 # Load nvm for the current session
 export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"

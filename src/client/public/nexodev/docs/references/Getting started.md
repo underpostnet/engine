@@ -3,11 +3,11 @@
 **1.1** Install node version manager <a target='_top' href='https://github.com/nvm-sh/nvm'>nvm</a>:
 
 ```bash
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+curl -o- https://cdn.jsdelivr.net/gh/nvm-sh/nvm@v0.40.1/install.sh | bash
 ```
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+wget -qO- https://cdn.jsdelivr.net/gh/nvm-sh/nvm@v0.40.1/install.sh | bash
 ```
 
 **1.2** In your terminal profile file (`~/.bash_profile`, `~/.zshrc`, `~/.profile`, or `~/.bashrc`) set:

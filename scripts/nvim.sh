@@ -12,7 +12,7 @@ mkdir -p ~/.local/share/nvim/site/autoload
 
 # Install vim-plug for Neovim
 curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
-  https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+    https://cdn.jsdelivr.net/gh/junegunn/vim-plug@master/plug.vim
 
 # Create an init.vim with nvim-tree.lua + web-devicons + gruvbox (theme)
 cat > ~/.config/nvim/init.vim <<'EOF'
