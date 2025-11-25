@@ -517,24 +517,14 @@ EOF`);
             shellExec(
               `sudo kubectl delete deployment ${deployId}-${env}-${version} -n ${namespace} --ignore-not-found`,
             );
-            if (!options.disableUpdateVolume) {
-              for (const volume of confVolume) {
-                const pvcId = `${volume.claimName}-${deployId}-${env}-${version}`;
-                const pvId = `${volume.claimName.replace('pvc-', 'pv-')}-${deployId}-${env}-${version}`;
-                const rootVolumeHostPath = `/home/dd/engine/volume/${pvId}`;
-                if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
-                fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
-                shellExec(`kubectl delete pvc ${pvcId} -n ${namespace} --ignore-not-found`);
-                shellExec(`kubectl delete pv ${pvId} --ignore-not-found`);
-                shellExec(`kubectl apply -f - -n ${namespace} <<EOF
-${UnderpostDeploy.API.persistentVolumeFactory({
-  hostPath: rootVolumeHostPath,
-  pvcId,
-})}
-EOF
-`);
-              }
-            }
+            if (!options.disableUpdateVolume)
+              for (const volume of confVolume)
+                UnderpostDeploy.API.deployVolume(volume, {
+                  deployId,
+                  env,
+                  version,
+                  namespace,
+                });
           }
 
         for (const host of Object.keys(confServer)) {
@@ -725,6 +715,49 @@ EOF
         `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${replicas} --namespace ${namespace} ${deployId} ${env}`,
       );
       shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml -n ${namespace}`);
+    },
+
+    /**
+     * Deploys a volume for a deployment.
+     * @param {object} volume - Volume configuration.
+     * @param {string} volume.claimName - Name of the persistent volume claim.
+     * @param {string} volume.volumeMountPath - Mount path of the volume in the container.
+     * @param {string} volume.volumeName - Name of the volume.
+     * @param {object} options - Options for the volume deployment.
+     * @param {string} options.deployId - Deployment ID.
+     * @param {string} options.env - Environment for the deployment.
+     * @param {string} options.version - Version of the deployment.
+     * @param {string} options.namespace - Kubernetes namespace for the deployment.
+     * @memberof UnderpostDeploy
+     */
+    deployVolume(
+      volume = { claimName: '', volumeMountPath: '', volumeName: '' },
+      options = {
+        deployId: 'dd-default',
+        env: 'development',
+        version: 'blue',
+        namespace: 'default',
+      },
+    ) {
+      if (volume.claimName) {
+        logger.warn('Volume claimName is required to deploy volume', volume);
+        return;
+      }
+      const { deployId, env, version, namespace } = options;
+      const pvcId = `${volume.claimName}-${deployId}-${env}-${version}`;
+      const pvId = `${volume.claimName.replace('pvc-', 'pv-')}-${deployId}-${env}-${version}`;
+      const rootVolumeHostPath = `/home/dd/engine/volume/${pvId}`;
+      if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
+      fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
+      shellExec(`kubectl delete pvc ${pvcId} -n ${namespace} --ignore-not-found`);
+      shellExec(`kubectl delete pv ${pvId} --ignore-not-found`);
+      shellExec(`kubectl apply -f - -n ${namespace} <<EOF
+${UnderpostDeploy.API.persistentVolumeFactory({
+  hostPath: rootVolumeHostPath,
+  pvcId,
+})}
+EOF
+`);
     },
 
     /**
