@@ -268,7 +268,7 @@ class UnderpostRun {
     metadata: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const ports = '6379,27017';
       shellExec(`node bin run kill '${ports}'`);
-      shellExec(`node bin run dev-cluster --dev expose`, { async: true });
+      shellExec(`node bin run dev-cluster --dev --expose`, { async: true });
       console.log('Loading fordward services...');
       await timer(5000);
       shellExec(`node bin metadata --generate ${path}`);
@@ -682,7 +682,7 @@ EOF
         if (id !== _id) continue;
         const _deployId = `${deployId}-${_id}`;
         etcHosts.push(_host);
-
+        if (options.expose) continue;
         // Examples images:
         // `underpost/underpost-engine:${Underpost.version}`
         // `localhost/rockylinux9-underpost:${Underpost.version}`
@@ -1174,7 +1174,7 @@ EOF
         envObj.DEV_PROXY_PORT_OFFSET = options.devProxyPortOffset;
         writeEnv(envPath, envObj);
       }
-      shellExec(`node bin run dev-cluster expose`, { async: true });
+      shellExec(`node bin run dev-cluster --expose`, { async: true });
       {
         const cmd = `npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}${options.tls ? ' tls' : ''}`;
         options.terminal ? openTerminal(cmd) : shellExec(cmd, { async: true });

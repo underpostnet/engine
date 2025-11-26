@@ -316,6 +316,25 @@ class UnderpostDB {
               }
             }
           }
+          if (fs.existsSync(`./engine-private/conf/${deployId}/conf.instances.json`)) {
+            const confInstances = JSON.parse(
+              fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
+            );
+            for (const instance of confInstances) {
+              const { id, host, path, fromPort, metadata } = instance;
+              const { runtime } = metadata;
+              const body = {
+                deployId,
+                host,
+                path,
+                port: fromPort,
+                client: id,
+                runtime,
+              };
+              logger.info('Instance save', body);
+              await new Instance(body).save();
+            }
+          }
         }
       } catch (error) {
         logger.error(error, error.stack);
