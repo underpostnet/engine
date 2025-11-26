@@ -74,6 +74,8 @@ class UnderpostRun {
    * @property {string} limitsMemory - The memory limit for the container.
    * @property {string} limitsCpu - The CPU limit for the container.
    * @property {string} resourceTemplateId - The resource template ID.
+   * @property {boolean} expose - Whether to expose the service.
+   * @property {boolean} etcHosts - Whether to modify /etc/hosts.
    * @property {string} confServerPath - The configuration server path.
    * @property {string} underpostRoot - The root path of the Underpost installation.
    * @memberof UnderpostRun
@@ -111,6 +113,8 @@ class UnderpostRun {
     limitsMemory: '',
     limitsCpu: '',
     resourceTemplateId: '',
+    expose: false,
+    etcHosts: false,
     confServerPath: '',
     underpostRoot: '',
   };
@@ -235,7 +239,7 @@ class UnderpostRun {
     'dev-cluster': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const mongoHosts = ['mongodb-0.mongodb-service'];
-      if (path !== 'expose') {
+      if (!options.expose) {
         shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --reset`);
         shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''}`);
 
@@ -662,6 +666,7 @@ EOF
       const confInstances = JSON.parse(
         fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
       );
+      const etcHosts = [];
       for (const instance of confInstances) {
         let {
           id: _id,
@@ -676,6 +681,7 @@ EOF
         } = instance;
         if (id !== _id) continue;
         const _deployId = `${deployId}-${_id}`;
+        etcHosts.push(_host);
 
         // Examples images:
         // `underpost/underpost-engine:${Underpost.version}`
@@ -746,6 +752,10 @@ EOF
             `${options.tls ? ` --tls` : ''}` +
             ` instance-promote '${path}'`,
         );
+      }
+      if (options.etcHosts) {
+        const hostListenResult = UnderpostDeploy.API.etcHostFactory(etcHosts);
+        logger.info(hostListenResult.renderHosts);
       }
     },
 
