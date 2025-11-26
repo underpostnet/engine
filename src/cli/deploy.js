@@ -432,21 +432,39 @@ EOF`);
       if (options.status === true) {
         for (const _deployId of deployList.split(',')) {
           const deployId = _deployId.trim();
+          const instances = [];
+          if (fs.existsSync(`./engine-private/conf/${deployId}/conf.instances.json`)) {
+            const confInstances = JSON.parse(
+              fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
+            );
+            for (const instance of confInstances) {
+              const _deployId = `${deployId}-${instance.id}`;
+              instances.push({
+                id: instance.id,
+                host: instance.host,
+                path: instance.path,
+                fromPort: instance.fromPort,
+                toPort: instance.toPort,
+                traffic: UnderpostDeploy.API.getCurrentTraffic(_deployId, { namespace, hostTest: instance.host }),
+              });
+            }
+          }
           logger.info('', {
             deployId,
             env,
             traffic: UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace }),
             router: await UnderpostDeploy.API.routerFactory(deployId, env),
             pods: await UnderpostDeploy.API.get(deployId),
+            instances,
           });
         }
         const interfaceName = Dns.getDefaultNetworkInterface();
         logger.info('Machine', {
-          node: os.hostname(),
+          hostname: os.hostname(),
           arch: UnderpostBaremetal.API.getHostArch(),
           ipv4Public: await Dns.getPublicIp(),
           ipv4Local: getLocalIPv4Address(),
-          resources: UnderpostCluster.API.getResourcesCapacity(),
+          resources: UnderpostCluster.API.getResourcesCapacity(options.node),
           defaultInterfaceName: interfaceName,
           defaultInterfaceInfo: os.networkInterfaces()[interfaceName],
         });
