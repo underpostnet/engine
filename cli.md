@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.89.45
+## underpost ci/cd cli v2.90.0
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -293,10 +293,6 @@ Options:
                                        cluster configuration.
   --list-pods                          Displays detailed information about all
                                        pods.
-  --info-capacity                      Displays the current total machine
-                                       capacity information.
-  --info-capacity-pod                  Displays the current machine capacity
-                                       information per pod.
   --pull-image                         Sets an optional associated image to
                                        pull during initialization.
   --init-host                          Installs necessary Kubernetes node CLI
@@ -668,45 +664,52 @@ Options:
 Runs a script from the specified path.
 
 Arguments:
-  runner-id                                The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, tz, cron, ls-deployments, ls-images, host-update, dd-container, ip-info, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
-  path                                     The absolute or relative directory path where the script is located.
+  runner-id                                       The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, tz, cron, get-proxy, instance-promote, instance, ls-deployments, ls-images, host-update, dd-container, ip-info, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
+  path                                            The absolute or relative directory path where the script is located.
 
 Options:
-  --command <command-array>                Array of commands to run.
-  --args <args-array>                      Array of arguments to pass to the command.
-  --dev                                    Sets the development context environment for the script.
-  --build                                  Set builder context runner
-  --replicas <replicas>                    Sets a custom number of replicas for deployment.
-  --pod-name <pod-name>                    Optional: Specifies the pod name for execution.
-  --node-name <node-name>                  Optional: Specifies the node name for execution.
-  --port <port>                            Optional: Specifies the port for execution.
-  --etc-hosts                              Enables etc-hosts context for the runner execution.
-  --volume-host-path <volume-host-path>    Optional: Specifies the volume host path for test execution.
-  --volume-mount-path <volume-mount-path>  Optional: Specifies the volume mount path for test execution.
-  --volume-type <volume-type>              Optional: Specifies the volume type for test execution.
-  --image-name <image-name>                Optional: Specifies the image name for test execution.
-  --container-name <container-name>        Optional: Specifies the container name for test execution.
-  --namespace <namespace>                  Optional: Specifies the namespace for test execution.
-  --tty                                    Enables TTY for the container in deploy-job.
-  --stdin                                  Keeps STDIN open for the container in deploy-job.
-  --restart-policy <policy>                Sets the restart policy for the job in deploy-job.
-  --runtime-class-name <name>              Sets the runtime class name for the job in deploy-job.
-  --image-pull-policy <policy>             Sets the image pull policy for the job in deploy-job.
-  --api-version <version>                  Sets the API version for the job manifest in deploy-job.
-  --labels <labels>                        Optional: Specifies a comma-separated list of key-value pairs for labels (e.g., "app=my-app,env=prod").
-  --claim-name <name>                      Optional: Specifies the claim name for volume mounting in deploy-job.
-  --kind <kind-type>                       Specifies the kind of Kubernetes resource (e.g., Job, Deployment) for deploy-job.
-  --kubeadm                                Flag to indicate Kubeadm cluster type context
-  --k3s                                    Flag to indicate K3s cluster type context
-  --force                                  Forces operation, overriding any warnings or conflicts.
-  --tls                                    Enables TLS for the runner execution.
-  --reset                                  Resets the runner state before execution.
-  --terminal                               Enables terminal mode for interactive script execution.
-  --dev-proxy-port-offset <port-offset>    Sets a custom port offset for development proxy.
-  --host-network                           Enables host network mode for the runner execution.
-  --conf-server-path <conf-server-path>    Sets a custom configuration server path.
-  --underpost-root <underpost-root>        Sets a custom Underpost root path.
-  -h, --help                               display help for command
+  --command <command-array>                       Array of commands to run.
+  --args <args-array>                             Array of arguments to pass to the command.
+  --dev                                           Sets the development context environment for the script.
+  --build                                         Set builder context runner
+  --replicas <replicas>                           Sets a custom number of replicas for deployment.
+  --pod-name <pod-name>                           Optional: Specifies the pod name for execution.
+  --node-name <node-name>                         Optional: Specifies the node name for execution.
+  --port <port>                                   Optional: Specifies the port for execution.
+  --etc-hosts                                     Enables etc-hosts context for the runner execution.
+  --volume-host-path <volume-host-path>           Optional: Specifies the volume host path for test execution.
+  --volume-mount-path <volume-mount-path>         Optional: Specifies the volume mount path for test execution.
+  --volume-type <volume-type>                     Optional: Specifies the volume type for test execution.
+  --image-name <image-name>                       Optional: Specifies the image name for test execution.
+  --container-name <container-name>               Optional: Specifies the container name for test execution.
+  --namespace <namespace>                         Optional: Specifies the namespace for test execution.
+  --tty                                           Enables TTY for the container in deploy-job.
+  --stdin                                         Keeps STDIN open for the container in deploy-job.
+  --restart-policy <policy>                       Sets the restart policy for the job in deploy-job.
+  --runtime-class-name <name>                     Sets the runtime class name for the job in deploy-job.
+  --image-pull-policy <policy>                    Sets the image pull policy for the job in deploy-job.
+  --api-version <version>                         Sets the API version for the job manifest in deploy-job.
+  --labels <labels>                               Optional: Specifies a comma-separated list of key-value pairs for labels (e.g., "app=my-app,env=prod").
+  --claim-name <name>                             Optional: Specifies the claim name for volume mounting in deploy-job.
+  --kind <kind-type>                              Specifies the kind of Kubernetes resource (e.g., Job, Deployment) for deploy-job.
+  --kubeadm                                       Flag to indicate Kubeadm cluster type context
+  --k3s                                           Flag to indicate K3s cluster type context
+  --force                                         Forces operation, overriding any warnings or conflicts.
+  --tls                                           Enables TLS for the runner execution.
+  --reset                                         Resets the runner state before execution.
+  --terminal                                      Enables terminal mode for interactive script execution.
+  --dev-proxy-port-offset <port-offset>           Sets a custom port offset for development proxy.
+  --host-network                                  Enables host network mode for the runner execution.
+  --requests-memory <requests-memory>             Requests memory limit for the runner execution.
+  --requests-cpu <requests-cpu>                   Requests CPU limit for the runner execution.
+  --limits-memory <limits-memory>                 Sets memory limit for the runner execution.
+  --limits-cpu <limits-cpu>                       Sets CPU limit for the runner execution.
+  --resource-template-id <resource-template-id >  Specifies a resource template ID for the runner execution.
+  --etcHosts                                      Enables /etc/hosts management for the runner execution.
+  --expose                                        Enables service exposure for the runner execution.
+  --conf-server-path <conf-server-path>           Sets a custom configuration server path.
+  --underpost-root <underpost-root>               Sets a custom Underpost root path.
+  -h, --help                                      display help for command
  
 ```
   

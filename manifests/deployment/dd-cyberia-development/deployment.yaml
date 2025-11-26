@@ -18,22 +18,14 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-blue
-          image: localhost/rockylinux9-underpost:v2.89.45
-#          resources:
-#            requests:
-#              memory: "96294Ki"
-#              cpu: "75m"
-#            limits:
-#              memory: "1540709Ki"
-#              cpu: "1200m"
+          image: localhost/rockylinux9-underpost:v2.90.0
+
           command:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 &&
-              npm install -g underpost &&
-              underpost secret underpost --create-from-file /etc/config/.env.development &&
-              underpost start --build --run dd-cyberia development
+              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-cyberia development
+
     
           volumeMounts:
             - name: config-volume-dd-cyberia-development-blue
@@ -164,22 +156,14 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-green
-          image: localhost/rockylinux9-underpost:v2.89.45
-#          resources:
-#            requests:
-#              memory: "96294Ki"
-#              cpu: "75m"
-#            limits:
-#              memory: "1540709Ki"
-#              cpu: "1200m"
+          image: localhost/rockylinux9-underpost:v2.90.0
+
           command:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 &&
-              npm install -g underpost &&
-              underpost secret underpost --create-from-file /etc/config/.env.development &&
-              underpost start --build --run dd-cyberia development
+              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-cyberia development
+
     
           volumeMounts:
             - name: config-volume-dd-cyberia-development-green
