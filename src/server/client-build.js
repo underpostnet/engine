@@ -519,21 +519,15 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
 
               for (const ssrBodyComponent of confSSR[view.ssr].body) {
                 const SrrComponent = await ssrFactory(`./src/client/ssr/body/${ssrBodyComponent}.js`);
-                if (ssrBodyComponent.match('SplashScreen')) {
-                  if (backgroundImage)
-                    ssrBodyComponents += SrrComponent({
-                      ...metadata,
-                      backgroundImage: (path === '/' ? path : `${path}/`) + backgroundImage,
-                    });
-                  else ssrBodyComponents += SrrComponent({ metadata });
-                } else
-                  ssrBodyComponents += SrrComponent({
-                    ssrPath,
-                    host,
-                    path,
-                    ttiLoadTimeLimit,
-                    version: Underpost.version,
-                  });
+                ssrBodyComponents += SrrComponent({
+                  ...metadata,
+                  ssrPath,
+                  host,
+                  path,
+                  ttiLoadTimeLimit,
+                  version: Underpost.version,
+                  backgroundImage: backgroundImage ? (path === '/' ? path : `${path}/`) + backgroundImage : undefined,
+                });
               }
             }
 
