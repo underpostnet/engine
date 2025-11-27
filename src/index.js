@@ -20,6 +20,7 @@ import UnderpostRun from './cli/run.js';
 import UnderpostScript from './cli/script.js';
 import UnderpostSecret from './cli/secrets.js';
 import UnderpostSSH from './cli/ssh.js';
+import UnderpostStatic from './cli/static.js';
 import UnderpostTest from './cli/test.js';
 import UnderpostStartUp from './server/start.js';
 
@@ -64,6 +65,14 @@ class Underpost {
    * @memberof Underpost
    */
   static start = UnderpostStartUp.API;
+  /**
+   * Static cli API
+   * @static
+   * @type {UnderpostStatic.API}
+   * @memberof Underpost
+   */
+  static static = UnderpostStatic.API;
+
   /**
    * Cluster cli API
    * @static

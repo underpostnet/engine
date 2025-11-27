@@ -9,6 +9,7 @@ import UnderpostBaremetal from './baremetal.js';
 import UnderpostRun from './run.js';
 import Dns from '../server/dns.js';
 import { pbcopy } from '../server/process.js';
+import UnderpostStatic from './static.js';
 
 // Load environment variables from .env file
 const underpostRootPath = getUnderpostRootPath();
@@ -114,6 +115,22 @@ program
 
     loadConf(deployId, subConf);
   });
+
+// 'static' command: Manage static configurations
+program
+  .command('static')
+  .option('--page <ssr-component-path>', 'Build custom static pages.')
+  .option('--title <title>', 'Sets a custom title for the static page.')
+  .option('--output-path <output-path>', 'Sets the output path for the generated static page.')
+
+  .option('--deploy-id <deploy-id>', 'Build static assets for a specific deployment ID.')
+  .option('--build', 'Triggers the static build process for the specified deployment ID.')
+  .option('--build-host <build-host>', 'Sets a custom build host for static documents or assets.')
+  .option('--build-path <build-path>', 'Sets a custom build path for static documents or assets.')
+  .option('--env <env>', 'Sets the environment for the static build (e.g., "development", "production").')
+  .option('--dev', 'Sets the development cli context')
+  .description(`Manages static build of page, bundles, and documentation.`)
+  .action(UnderpostStatic.API.callback);
 
 // 'config' command: Manage Underpost configurations
 program
