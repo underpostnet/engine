@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.90.0
+## underpost ci/cd cli v2.90.1
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -14,6 +14,7 @@ Commands:
   cmt [options] [path] [commit-type] [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
   push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
   env [deploy-id] [env] [subConf]                            Sets environment variables and configurations related to a specific deployment ID.
+  static [options]                                           Manages static build of page, bundles, and documentation.
   config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
   root                                                       Displays the root path of the npm installation.
   ip [options]                                               Displays the current public machine IP addresses.
@@ -190,6 +191,33 @@ Arguments:
 
 Options:
   -h, --help  display help for command
+ 
+```
+  
+
+### `static` :
+```
+ Usage: underpost static [options]
+
+Manages static build of page, bundles, and documentation.
+
+Options:
+  --page <ssr-component-path>  Build custom static pages.
+  --title <title>              Sets a custom title for the static page.
+  --output-path <output-path>  Sets the output path for the generated static
+                               page.
+  --deploy-id <deploy-id>      Build static assets for a specific deployment
+                               ID.
+  --build                      Triggers the static build process for the
+                               specified deployment ID.
+  --build-host <build-host>    Sets a custom build host for static documents or
+                               assets.
+  --build-path <build-path>    Sets a custom build path for static documents or
+                               assets.
+  --env <env>                  Sets the environment for the static build (e.g.,
+                               "development", "production").
+  --dev                        Sets the development cli context
+  -h, --help                   display help for command
  
 ```
   
