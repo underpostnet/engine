@@ -172,6 +172,10 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       fs.copyFileSync(`./src/api/object-layer/README.md`, `${basePath}/README.md`);
       fs.copySync(`./hardhat`, `${basePath}/hardhat`);
       fs.copySync(`./hardhat/white-paper.md`, `${basePath}/white-paper.md`);
+      fs.copySync(
+        `./src/client/ssr/pages/CyberiaServerMetrics.js`,
+        `${basePath}/src/client/ssr/pages/CyberiaServerMetrics.js`,
+      );
     default:
       break;
   }
