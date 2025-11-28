@@ -15,140 +15,131 @@ import {
   itemTypes,
 } from '../src/server/object-layer.js';
 import { program as underpostProgram } from '../src/cli/index.js';
-
 import crypto from 'crypto';
 import Underpost from '../src/index.js';
-
 const logger = loggerFactory(import.meta);
+try {
+  const program = new Command();
 
-const program = new Command();
+  const version = Underpost.version;
 
-const version = Underpost.version;
+  program
+    .name('cyberia')
+    .description(
+      `    cyberia online network object layer management ${version}
+      https://www.cyberiaonline.com/object-layer-engine`,
+    )
+    .version(version);
 
-program
-  .name('cyberia')
-  .description(
-    `    cyberia online network object layer management ${version}
-    https://www.cyberiaonline.com/object-layer-engine`,
-  )
-  .version(version);
+  program
+    .command('ol')
+    .option('--import [object-layer-type]', 'Commas separated object layer types e.g. skin,floors')
+    .option('--show-frame <show-frame-input>', 'View object layer frame e.g. anon_08_0')
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option('--storage-file-path <storage-file-path>', 'Storage file path override')
+    .action(async (options = { import: false, showFrame: '', envPath: '', mongoHost: '', storageFilePath: '' }) => {
+      if (!options.envPath) options.envPath = `./.env`;
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
-program
-  .command('ol')
-  .option('--import [object-layer-type]', 'Commas separated object layer types e.g. skin,floors')
-  .option('--show-frame <show-frame-input>', 'View object layer frame e.g. anon_08_0')
-  .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
-  .option('--mongo-host <mongo-host>', 'Mongo host override')
-  .option('--storage-file-path <storage-file-path>', 'Storage file path override')
-  .action(async (options = { import: false, showFrame: '', envPath: '', mongoHost: '', storageFilePath: '' }) => {
-    if (!options.envPath) options.envPath = `./.env`;
-    if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+      const deployId = process.env.DEFAULT_DEPLOY_ID;
+      const host = process.env.DEFAULT_DEPLOY_HOST;
+      const path = process.env.DEFAULT_DEPLOY_PATH;
 
-    const deployId = process.env.DEFAULT_DEPLOY_ID;
-    const host = process.env.DEFAULT_DEPLOY_HOST;
-    const path = process.env.DEFAULT_DEPLOY_PATH;
+      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
+      const { db } = confServer[host][path];
 
-    const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-    const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
-    const { db } = confServer[host][path];
+      db.host = options.mongoHost ? options.mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
-    db.host = options.mongoHost ? options.mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
-
-    logger.info('env', {
-      env: options.envPath,
-      deployId,
-      host,
-      path,
-      db,
-    });
-
-    await DataBaseProvider.load({
-      apis: ['object-layer'],
-      host,
-      path,
-      db,
-    });
-
-    const ObjectLayer = DataBaseProvider.instance[`${host}${path}`].mongoose.models.ObjectLayer;
-
-    await ObjectLayer.deleteMany();
-
-    const storage = options.storageFilePath ? JSON.parse(fs.readFileSync(options.storageFilePath, 'utf8')) : null;
-
-    const objectLayers = {};
-
-    if (options.import || options.showFrame) {
-      const argItemTypes = options.import === 'all' ? Object.keys(itemTypes) : options.import.split(',');
-      for (const argItemType of argItemTypes) {
-        await pngDirectoryIteratorByObjectLayerType(
-          argItemType,
-          async ({ path, objectLayerType, objectLayerId, direction, frame }) => {
-            if (storage && !storage[`src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/08/0.png`])
-              return;
-            if (options.showFrame && !`${objectLayerId}_${direction}_${frame}`.match(options.showFrame)) return;
-            console.log(path, { objectLayerType, objectLayerId, direction, frame });
-            if (!objectLayers[objectLayerId]) {
-              const metadataPath = `./src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/metadata.json`;
-              const metadata = fs.existsSync(metadataPath) ? JSON.parse(fs.readFileSync(metadataPath, 'utf8')) : null;
-              objectLayers[objectLayerId] = metadata
-                ? metadata
-                : {
-                    data: {
-                      render: {
-                        frame_duration: 250,
-                        is_stateless: false,
-                      },
-                      item: {
-                        id: objectLayerId,
-                        type: objectLayerType,
-                        description: '',
-                        activable: true,
-                      },
-                      stats: generateRandomStats(),
-                    },
-                  };
-            }
-            await processAndPushFrame(objectLayers[objectLayerId].data.render, path, direction);
-          },
-        );
-      }
-      for (const objectLayerId of Object.keys(objectLayers)) {
-        objectLayers[objectLayerId].sha256 = crypto
-          .createHash('sha256')
-          .update(JSON.stringify(objectLayers[objectLayerId].data))
-          .digest('hex');
-        console.log(await ObjectLayer.create(objectLayers[objectLayerId]));
-      }
-    }
-    if (options.showFrame) {
-      const [objectLayerId, direction, frame] = options.showFrame.split('_');
-      const objectLayerFrameDirection = getKeyFramesDirectionsFromNumberFolderDirection(direction)[0];
-
-      await buildImgFromTile({
-        tile: {
-          map_color: objectLayers[objectLayerId].data.render.colors,
-          frame_matrix: objectLayers[objectLayerId].data.render.frames[objectLayerFrameDirection][0],
-        },
-        cellPixelDim: 20,
-        opacityFilter: (x, y, color) => 255,
-        imagePath: `./${options.showFrame}.png`,
+      logger.info('env', {
+        env: options.envPath,
+        deployId,
+        host,
+        path,
+        db,
       });
 
-      shellExec(`firefox ./${options.showFrame}.png`);
-    }
-    await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
-  })
-  .description('Object layer management');
+      await DataBaseProvider.load({
+        apis: ['object-layer'],
+        host,
+        path,
+        db,
+      });
 
-program
-  .command('underpost')
-  .description('Underpost cli passthrough')
-  .action(() => {
-    throw new Error('Trigger underpost passthrough');
-  });
+      const ObjectLayer = DataBaseProvider.instance[`${host}${path}`].mongoose.models.ObjectLayer;
 
-try {
-  // throw new Error('');
+      await ObjectLayer.deleteMany();
+
+      const storage = options.storageFilePath ? JSON.parse(fs.readFileSync(options.storageFilePath, 'utf8')) : null;
+
+      const objectLayers = {};
+
+      if (options.import || options.showFrame) {
+        const argItemTypes = options.import === 'all' ? Object.keys(itemTypes) : options.import.split(',');
+        for (const argItemType of argItemTypes) {
+          await pngDirectoryIteratorByObjectLayerType(
+            argItemType,
+            async ({ path, objectLayerType, objectLayerId, direction, frame }) => {
+              if (storage && !storage[`src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/08/0.png`])
+                return;
+              if (options.showFrame && !`${objectLayerId}_${direction}_${frame}`.match(options.showFrame)) return;
+              console.log(path, { objectLayerType, objectLayerId, direction, frame });
+              if (!objectLayers[objectLayerId]) {
+                const metadataPath = `./src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/metadata.json`;
+                const metadata = fs.existsSync(metadataPath) ? JSON.parse(fs.readFileSync(metadataPath, 'utf8')) : null;
+                objectLayers[objectLayerId] = metadata
+                  ? metadata
+                  : {
+                      data: {
+                        render: {
+                          frame_duration: 250,
+                          is_stateless: false,
+                        },
+                        item: {
+                          id: objectLayerId,
+                          type: objectLayerType,
+                          description: '',
+                          activable: true,
+                        },
+                        stats: generateRandomStats(),
+                      },
+                    };
+              }
+              await processAndPushFrame(objectLayers[objectLayerId].data.render, path, direction);
+            },
+          );
+        }
+        for (const objectLayerId of Object.keys(objectLayers)) {
+          objectLayers[objectLayerId].sha256 = crypto
+            .createHash('sha256')
+            .update(JSON.stringify(objectLayers[objectLayerId].data))
+            .digest('hex');
+          console.log(await ObjectLayer.create(objectLayers[objectLayerId]));
+        }
+      }
+      if (options.showFrame) {
+        const [objectLayerId, direction, frame] = options.showFrame.split('_');
+        const objectLayerFrameDirection = getKeyFramesDirectionsFromNumberFolderDirection(direction)[0];
+
+        await buildImgFromTile({
+          tile: {
+            map_color: objectLayers[objectLayerId].data.render.colors,
+            frame_matrix: objectLayers[objectLayerId].data.render.frames[objectLayerFrameDirection][0],
+          },
+          cellPixelDim: 20,
+          opacityFilter: (x, y, color) => 255,
+          imagePath: `./${options.showFrame}.png`,
+        });
+
+        shellExec(`firefox ./${options.showFrame}.png`);
+      }
+      await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+    })
+    .description('Object layer management');
+
+  if (process.argv[2] == 'underpost') throw new Error('Trigger underpost passthrough');
+
   program.parse();
 } catch (error) {
   logger.warn(error);
