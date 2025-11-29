@@ -18,7 +18,7 @@
 
 <!-- badges -->
 
-[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/2.90.1)](https://socket.dev/npm/package/underpost/overview/2.90.1) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
+[![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.ci.yml) [![Downloads](https://img.shields.io/npm/dm/underpost.svg)](https://www.npmjs.com/package/underpost) [![Socket Badge](https://socket.dev/api/badge/npm/package/underpost/2.90.4)](https://socket.dev/npm/package/underpost/overview/2.90.4) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master) [![Version](https://img.shields.io/npm/v/underpost.svg)](https://www.npmjs.org/package/underpost) [![License](https://img.shields.io/npm/l/underpost.svg)](https://www.npmjs.com/package/underpost)
 
 <!-- end-badges -->
 
@@ -44,7 +44,7 @@ After template installation, the server will be running on <a target="_top" href
 
 Package repo and usage info: <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/README.md">pwa-microservices-template</a>
 
-## underpost ci/cd cli v2.90.1
+## underpost ci/cd cli v2.90.4
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -60,7 +60,7 @@ Commands:
   cmt [options] [path] [commit-type] [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
   push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
   env [deploy-id] [env] [subConf]                            Sets environment variables and configurations related to a specific deployment ID.
-  static [options]                                           Manages static build of page, bundles, and documentation.
+  static [options]                                           Manages static build of page, bundles, and documentation with comprehensive customization options.
   config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
   root                                                       Displays the root path of the npm installation.
   ip [options]                                               Displays the current public machine IP addresses.

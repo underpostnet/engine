@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.90.1
+## underpost ci/cd cli v2.90.4
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -14,7 +14,7 @@ Commands:
   cmt [options] [path] [commit-type] [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
   push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
   env [deploy-id] [env] [subConf]                            Sets environment variables and configurations related to a specific deployment ID.
-  static [options]                                           Manages static build of page, bundles, and documentation.
+  static [options]                                           Manages static build of page, bundles, and documentation with comprehensive customization options.
   config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
   root                                                       Displays the root path of the npm installation.
   ip [options]                                               Displays the current public machine IP addresses.
@@ -199,13 +199,33 @@ Options:
 ```
  Usage: underpost static [options]
 
-Manages static build of page, bundles, and documentation.
+Manages static build of page, bundles, and documentation with comprehensive
+customization options.
 
 Options:
   --page <ssr-component-path>  Build custom static pages.
-  --title <title>              Sets a custom title for the static page.
+  --title <title>              Sets a custom title for the static page
+                               (deprecated: use --config-file).
   --output-path <output-path>  Sets the output path for the generated static
                                page.
+  --description <description>  Page description for SEO.
+  --keywords <keywords>        Comma-separated keywords for SEO.
+  --author <author>            Page author.
+  --theme-color <color>        Theme color for mobile browsers.
+  --canonical-url <url>        Canonical URL for SEO.
+  --thumbnail <url>            Open Graph thumbnail image URL.
+  --locale <locale>            Page locale (default: en-US).
+  --site-name <name>           Site name for Open Graph.
+  --head-scripts <paths>       Comma-separated paths to scripts for head
+                               section.
+  --body-scripts <paths>       Comma-separated paths to scripts for body
+                               section.
+  --styles <paths>             Comma-separated paths to stylesheets.
+  --favicon <path>             Favicon path.
+  --apple-touch-icon <path>    Apple touch icon path.
+  --manifest <path>            Web manifest path.
+  --head-components <paths>    Comma-separated SSR head component paths.
+  --body-components <paths>    Comma-separated SSR body component paths.
   --deploy-id <deploy-id>      Build static assets for a specific deployment
                                ID.
   --build                      Triggers the static build process for the
@@ -216,6 +236,13 @@ Options:
                                assets.
   --env <env>                  Sets the environment for the static build (e.g.,
                                "development", "production").
+  --minify                     Minify HTML output (default: true for
+                               production).
+  --no-minify                  Disable HTML minification.
+  --config-file <path>         Path to JSON configuration file.
+  --generate-config [path]     Generate a template configuration file.
+  --lang <lang>                HTML lang attribute (default: en).
+  --dir <dir>                  HTML dir attribute (default: ltr).
   --dev                        Sets the development cli context
   -h, --help                   display help for command
  
@@ -733,7 +760,6 @@ Options:
   --limits-memory <limits-memory>                 Sets memory limit for the runner execution.
   --limits-cpu <limits-cpu>                       Sets CPU limit for the runner execution.
   --resource-template-id <resource-template-id >  Specifies a resource template ID for the runner execution.
-  --etcHosts                                      Enables /etc/hosts management for the runner execution.
   --expose                                        Enables service exposure for the runner execution.
   --conf-server-path <conf-server-path>           Sets a custom configuration server path.
   --underpost-root <underpost-root>               Sets a custom Underpost root path.
