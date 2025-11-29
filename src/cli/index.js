@@ -120,17 +120,105 @@ program
 program
   .command('static')
   .option('--page <ssr-component-path>', 'Build custom static pages.')
-  .option('--title <title>', 'Sets a custom title for the static page.')
+  .option('--title <title>', 'Sets a custom title for the static page (deprecated: use --config-file).')
   .option('--output-path <output-path>', 'Sets the output path for the generated static page.')
 
+  // Metadata options
+  .option('--description <description>', 'Page description for SEO.')
+  .option('--keywords <keywords>', 'Comma-separated keywords for SEO.')
+  .option('--author <author>', 'Page author.')
+  .option('--theme-color <color>', 'Theme color for mobile browsers.')
+  .option('--canonical-url <url>', 'Canonical URL for SEO.')
+  .option('--thumbnail <url>', 'Open Graph thumbnail image URL.')
+  .option('--locale <locale>', 'Page locale (default: en-US).')
+  .option('--site-name <name>', 'Site name for Open Graph.')
+
+  // Script and style options
+  .option('--head-scripts <paths>', 'Comma-separated paths to scripts for head section.')
+  .option('--body-scripts <paths>', 'Comma-separated paths to scripts for body section.')
+  .option('--styles <paths>', 'Comma-separated paths to stylesheets.')
+
+  // Icon options
+  .option('--favicon <path>', 'Favicon path.')
+  .option('--apple-touch-icon <path>', 'Apple touch icon path.')
+  .option('--manifest <path>', 'Web manifest path.')
+
+  // Component options
+  .option('--head-components <paths>', 'Comma-separated SSR head component paths.')
+  .option('--body-components <paths>', 'Comma-separated SSR body component paths.')
+
+  // Build options
   .option('--deploy-id <deploy-id>', 'Build static assets for a specific deployment ID.')
   .option('--build', 'Triggers the static build process for the specified deployment ID.')
   .option('--build-host <build-host>', 'Sets a custom build host for static documents or assets.')
   .option('--build-path <build-path>', 'Sets a custom build path for static documents or assets.')
   .option('--env <env>', 'Sets the environment for the static build (e.g., "development", "production").')
+  .option('--minify', 'Minify HTML output (default: true for production).')
+  .option('--no-minify', 'Disable HTML minification.')
+
+  // Config file options
+  .option('--config-file <path>', 'Path to JSON configuration file.')
+  .option('--generate-config [path]', 'Generate a template configuration file.')
+
+  // Other options
+  .option('--lang <lang>', 'HTML lang attribute (default: en).')
+  .option('--dir <dir>', 'HTML dir attribute (default: ltr).')
   .option('--dev', 'Sets the development cli context')
-  .description(`Manages static build of page, bundles, and documentation.`)
-  .action(UnderpostStatic.API.callback);
+
+  .description(`Manages static build of page, bundles, and documentation with comprehensive customization options.`)
+  .action((options) => {
+    // Handle config template generation
+    if (options.generateConfig) {
+      const configPath = typeof options.generateConfig === 'string' ? options.generateConfig : './static-config.json';
+      return UnderpostStatic.API.generateConfigTemplate(configPath);
+    }
+
+    // Parse comma-separated options
+    if (options.keywords) {
+      options.keywords = options.keywords.split(',').map((k) => k.trim());
+    }
+    if (options.headScripts) {
+      options.scripts = options.scripts || {};
+      options.scripts.head = options.headScripts.split(',').map((s) => ({ src: s.trim() }));
+    }
+    if (options.bodyScripts) {
+      options.scripts = options.scripts || {};
+      options.scripts.body = options.bodyScripts.split(',').map((s) => ({ src: s.trim() }));
+    }
+    if (options.styles) {
+      options.styles = options.styles.split(',').map((s) => ({ href: s.trim() }));
+    }
+    if (options.headComponents) {
+      options.headComponents = options.headComponents.split(',').map((c) => c.trim());
+    }
+    if (options.bodyComponents) {
+      options.bodyComponents = options.bodyComponents.split(',').map((c) => c.trim());
+    }
+
+    // Build metadata object from individual options
+    options.metadata = {
+      ...(options.title && { title: options.title }),
+      ...(options.description && { description: options.description }),
+      ...(options.keywords && { keywords: options.keywords }),
+      ...(options.author && { author: options.author }),
+      ...(options.themeColor && { themeColor: options.themeColor }),
+      ...(options.canonicalUrl && { canonicalURL: options.canonicalUrl }),
+      ...(options.thumbnail && { thumbnail: options.thumbnail }),
+      ...(options.locale && { locale: options.locale }),
+      ...(options.siteName && { siteName: options.siteName }),
+    };
+
+    // Build icons object
+    if (options.favicon || options.appleTouchIcon || options.manifest) {
+      options.icons = {
+        ...(options.favicon && { favicon: options.favicon }),
+        ...(options.appleTouchIcon && { appleTouchIcon: options.appleTouchIcon }),
+        ...(options.manifest && { manifest: options.manifest }),
+      };
+    }
+
+    return UnderpostStatic.API.callback(options);
+  });
 
 // 'config' command: Manage Underpost configurations
 program

@@ -1,0 +1,183 @@
+{
+  "_comment": "Example static site configuration file for Underpost Static Generator",
+  "_usage": "Use with: underpost static --config-file ./static-config-example.json",
+
+  "page": "./src/client/ssr/body/DefaultSplashScreen.js",
+  "outputPath": "./dist/index.html",
+  "env": "production",
+  "minify": true,
+  "lang": "en",
+  "dir": "ltr",
+
+  "metadata": {
+    "_comment": "SEO and social media metadata",
+    "title": "My Awesome Application",
+    "description": "A comprehensive example of a static site with full metadata customization",
+    "keywords": ["static site", "generator", "underpost", "seo", "progressive web app"],
+    "author": "Your Name or Company",
+    "themeColor": "#4CAF50",
+    "canonicalURL": "https://example.com",
+    "thumbnail": "https://example.com/images/og-thumbnail.png",
+    "locale": "en-US",
+    "siteName": "My Awesome Site",
+    "openGraph": {
+      "_comment": "Additional Open Graph properties",
+      "type": "website",
+      "image:width": "1200",
+      "image:height": "630"
+    },
+    "twitter": {
+      "_comment": "Twitter card specific metadata",
+      "site": "@yourhandle",
+      "creator": "@creatorhandle"
+    }
+  },
+
+  "scripts": {
+    "_comment": "Scripts to inject into head and body sections",
+    "head": [
+      {
+        "_comment": "External analytics script with async loading",
+        "src": "https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID",
+        "async": true
+      },
+      {
+        "_comment": "Inline configuration script",
+        "content": "window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'GA_MEASUREMENT_ID');",
+        "type": "text/javascript"
+      },
+      {
+        "_comment": "App configuration as inline script",
+        "content": "window.appConfig = { apiUrl: 'https://api.example.com', version: '1.0.0', features: { analytics: true, debugging: false } };",
+        "type": "text/javascript"
+      }
+    ],
+    "body": [
+      {
+        "_comment": "Main application bundle as ES module",
+        "src": "/dist/app.js",
+        "type": "module",
+        "defer": true
+      },
+      {
+        "_comment": "Service worker registration",
+        "content": "if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW registered', reg)).catch(err => console.log('SW error', err)); }",
+        "type": "text/javascript"
+      }
+    ]
+  },
+
+  "styles": [
+    {
+      "_comment": "Main stylesheet",
+      "href": "/styles/main.css"
+    },
+    {
+      "_comment": "External font",
+      "href": "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+    },
+    {
+      "_comment": "Critical inline CSS for faster rendering",
+      "content": "body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; } * { box-sizing: border-box; }"
+    },
+    {
+      "_comment": "Print stylesheet",
+      "href": "/styles/print.css",
+      "media": "print"
+    }
+  ],
+
+  "icons": {
+    "_comment": "Icon configuration for various platforms",
+    "favicon": "/favicon.ico",
+    "appleTouchIcon": "/apple-touch-icon.png",
+    "manifest": "/manifest.json",
+    "additional": [
+      {
+        "rel": "icon",
+        "type": "image/png",
+        "sizes": "32x32",
+        "href": "/favicon-32x32.png"
+      },
+      {
+        "rel": "icon",
+        "type": "image/png",
+        "sizes": "16x16",
+        "href": "/favicon-16x16.png"
+      },
+      {
+        "rel": "mask-icon",
+        "href": "/safari-pinned-tab.svg",
+        "color": "#4CAF50"
+      }
+    ]
+  },
+
+  "_headComponents_comment": "SSR components disabled in this example - they require specific data structures",
+  "headComponents": [],
+
+  "_bodyComponents_comment": "Additional SSR components to include in body section",
+  "bodyComponents": [],
+
+  "microdata": [
+    {
+      "_comment": "Organization schema for better SEO",
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "My Organization",
+      "url": "https://example.com",
+      "logo": "https://example.com/logo.png",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+1-555-123-4567",
+        "contactType": "Customer Service"
+      },
+      "sameAs": [
+        "https://twitter.com/yourhandle",
+        "https://linkedin.com/company/yourcompany",
+        "https://github.com/yourorg"
+      ]
+    },
+    {
+      "_comment": "WebSite schema",
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "My Awesome Site",
+      "url": "https://example.com",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://example.com/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "_comment": "WebPage schema",
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Home Page",
+      "description": "Welcome to our awesome site",
+      "url": "https://example.com"
+    }
+  ],
+
+  "customPayload": {
+    "_comment": "Custom data injected into window.renderPayload",
+    "apiEndpoint": "https://api.example.com",
+    "cdnUrl": "https://cdn.example.com",
+    "features": {
+      "chat": true,
+      "notifications": true,
+      "darkMode": true
+    },
+    "externalServices": {
+      "analytics": "GA_MEASUREMENT_ID",
+      "maps": "GOOGLE_MAPS_API_KEY"
+    }
+  },
+
+  "buildPath": "/",
+  "deployId": "",
+  "buildHost": "",
+  "build": false,
+  "dev": false
+}

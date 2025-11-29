@@ -1,0 +1,57 @@
+{
+  "page": "./examples/ssr-components/CustomPage.js",
+  "outputPath": "./public/default.net/example.html",
+  "env": "production",
+  "minify": true,
+  "lang": "en",
+  "dir": "ltr",
+
+  "metadata": {
+    "title": "Simple Example Page",
+    "description": "A simple working example of the static site generator",
+    "keywords": ["example", "static", "generator"],
+    "author": "Underpost",
+    "themeColor": "#667eea",
+    "canonicalURL": "https://example.com",
+    "thumbnail": "https://example.com/images/thumbnail.png",
+    "locale": "en-US",
+    "siteName": "Example Site"
+  },
+
+  "scripts": {
+    "head": [
+      {
+        "content": "console.log('Page loaded successfully');"
+      }
+    ],
+    "body": []
+  },
+
+  "styles": [
+    {
+      "content": "/* Additional custom styles can go here */"
+    }
+  ],
+
+  "icons": {
+    "favicon": "/favicon.ico"
+  },
+
+  "headComponents": [],
+  "bodyComponents": [],
+
+  "microdata": [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Simple Example Page",
+      "description": "A simple working example",
+      "url": "https://example.com"
+    }
+  ],
+
+  "customPayload": {
+    "example": true,
+    "message": "This is a simple working example"
+  }
+}
