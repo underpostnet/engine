@@ -1237,6 +1237,22 @@ nvidia/gpu-operator \
       break;
     }
 
+    case 'update-static-guide': {
+      fs.writeFileSync(
+        `src/client/public/nexodev/docs/references/Static Site Generator Quick Reference.md`,
+        fs.readFileSync(`examples/QUICK-REFERENCE.md`, 'utf8'),
+      );
+      fs.writeFileSync(
+        `src/client/public/nexodev/docs/references/Static Site Generator Examples.md`,
+        fs.readFileSync(`examples/README.md`, 'utf8'),
+      );
+      fs.writeFileSync(
+        `src/client/public/nexodev/docs/references/Static Generator Guide.md`,
+        fs.readFileSync(`examples/STATIC-GENERATOR-GUIDE.md`, 'utf8'),
+      );
+      break;
+    }
+
     case 'udpate-version-files': {
       const oldNpmVersion = process.argv[3];
       const oldNodeVersion = process.argv[4];

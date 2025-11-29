@@ -767,7 +767,7 @@ EOF
      * @memberof UnderpostRun
      */
     'ls-deployments': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      console.table(await UnderpostDeploy.API.get(path, 'deployments'));
+      console.table(await UnderpostDeploy.API.get(path, 'deployments', options.namespace));
     },
     /**
      * @method ls-images

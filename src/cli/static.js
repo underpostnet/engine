@@ -65,6 +65,7 @@ const logger = loggerFactory(import.meta);
 
 /**
  * @typedef {Object} MetadataOptions
+ * @memberof UnderpostStatic
  * @property {string} [title='Home'] - Page title
  * @property {string} [description=''] - Page description for SEO
  * @property {string[]} [keywords=[]] - Keywords for SEO
@@ -80,6 +81,7 @@ const logger = loggerFactory(import.meta);
 
 /**
  * @typedef {Object} ScriptOptions
+ * @memberof UnderpostStatic
  * @property {string} [src] - External script source URL
  * @property {string} [content] - Inline script content
  * @property {string} [type='text/javascript'] - Script type
@@ -92,6 +94,7 @@ const logger = loggerFactory(import.meta);
 
 /**
  * @typedef {Object} StyleOptions
+ * @memberof UnderpostStatic
  * @property {string} [href] - External stylesheet URL
  * @property {string} [content] - Inline style content
  * @property {string} [media='all'] - Media query
@@ -101,6 +104,7 @@ const logger = loggerFactory(import.meta);
 
 /**
  * @typedef {Object} IconOptions
+ * @memberof UnderpostStatic
  * @property {string} [favicon] - Favicon path
  * @property {string} [appleTouchIcon] - Apple touch icon path
  * @property {string} [manifest] - Web manifest path
@@ -109,6 +113,7 @@ const logger = loggerFactory(import.meta);
 
 /**
  * @typedef {Object} StaticGenerationOptions
+ * @memberof UnderpostStatic
  * @property {string} [page=''] - SSR component path to render
  * @property {string} [title='Home'] - Page title (deprecated: use metadata.title)
  * @property {string} [outputPath='.'] - Output file path
