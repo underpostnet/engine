@@ -230,9 +230,10 @@ const PanelForm = {
             let message = '';
             let status = 'success';
             let indexFormDoc = -1;
-            const filesData = data.fileId ? data.fileId : [null];
 
-            for (const file of filesData) {
+            const inputFiles = data.fileId ? data.fileId : [null];
+
+            for (const file of inputFiles) {
               indexFormDoc++;
               let fileId;
 
@@ -247,8 +248,17 @@ const PanelForm = {
                   status,
                 });
                 if (status === 'success') {
-                  mdFileId = data[0]._id;
-                  if (data[1]) fileId = data[1]._id;
+                  // Identify files by comparing filename instead of just mimetype
+                  // This handles the case where an .md file is uploaded as the optional file
+                  // - mdFileId: matches the generated mdFileName from the title
+                  // - fileId: any other file (including other .md files)
+                  for (const uploadedFile of data) {
+                    if (uploadedFile.name === mdFileName) {
+                      mdFileId = uploadedFile._id;
+                    } else {
+                      fileId = uploadedFile._id;
+                    }
+                  }
                 }
               })();
               const body = {
@@ -329,8 +339,12 @@ const PanelForm = {
 
     const getPanelData = async (isLoadMore = false) => {
       const panelData = PanelForm.Data[idPanel];
+      logger.warn('getPanelData called, isLoadMore:', isLoadMore);
       try {
-        if (panelData.loading || !panelData.hasMore) return;
+        if (panelData.loading || !panelData.hasMore) {
+          logger.warn('getPanelData early return - loading:', panelData.loading, 'hasMore:', panelData.hasMore);
+          return;
+        }
         panelData.loading = true;
 
         if (!isLoadMore) {
@@ -364,45 +378,51 @@ const PanelForm = {
             let mdBlob, fileBlob;
             let mdPlain, filePlain;
 
-            {
-              const {
-                data: [file],
-              } = await FileService.get({ id: documentObject.mdFileId });
+            try {
+              {
+                const {
+                  data: [file],
+                } = await FileService.get({ id: documentObject.mdFileId._id });
 
-              // const ext = file.name.split('.')[file.name.split('.').length - 1];
-              mdBlob = file;
-              mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
-              mdFileId = newInstance(mdPlain);
+                // const ext = file.name.split('.')[file.name.split('.').length - 1];
+                mdBlob = file;
+                mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+                mdFileId = newInstance(mdPlain);
+              }
+              if (documentObject.fileId) {
+                const {
+                  data: [file],
+                } = await FileService.get({ id: documentObject.fileId._id });
+
+                // const ext = file.name.split('.')[file.name.split('.').length - 1];
+                fileBlob = file;
+                filePlain = undefined;
+                fileId = getSrcFromFileData(file);
+              }
+
+              panelData.filesData.push({
+                id: documentObject._id,
+                _id: documentObject._id,
+                mdFileId: { mdBlob, mdPlain },
+                fileId: { fileBlob, filePlain },
+              });
+
+              panelData.data.push({
+                id: documentObject._id,
+                title: documentObject.title,
+                createdAt: documentObject.createdAt,
+                tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
+                mdFileId: marked.parse(mdFileId),
+                userId: documentObject.userId._id,
+                fileId,
+                tools: Elements.Data.user.main.model.user._id === documentObject.userId._id,
+                _id: documentObject._id,
+              });
+            } catch (fileError) {
+              logger.error('Error fetching files for document:', documentObject._id, fileError);
+              // Still add the document to originData even if file fetching fails
+              // but skip adding to data and filesData arrays
             }
-            if (documentObject.fileId) {
-              const {
-                data: [file],
-              } = await FileService.get({ id: documentObject.fileId._id });
-
-              // const ext = file.name.split('.')[file.name.split('.').length - 1];
-              fileBlob = file;
-              filePlain = undefined;
-              fileId = getSrcFromFileData(file);
-            }
-
-            panelData.filesData.push({
-              id: documentObject._id,
-              _id: documentObject._id,
-              mdFileId: { mdBlob, mdPlain },
-              fileId: { fileBlob, filePlain },
-            });
-
-            panelData.data.push({
-              id: documentObject._id,
-              title: documentObject.title,
-              createdAt: documentObject.createdAt,
-              tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
-              mdFileId: marked.parse(mdFileId),
-              userId: documentObject.userId._id,
-              fileId,
-              tools: Elements.Data.user.main.model.user._id === documentObject.userId._id,
-              _id: documentObject._id,
-            });
           }
 
           panelData.skip += result.data.data.length;
@@ -497,7 +517,11 @@ const PanelForm = {
             JSON.stringify(Elements.Data.user.main.model.user, null, 4),
           );
 
-          if (loadingGetData || (lastCid === cid && !forceUpdate)) return;
+          // Normalize empty values for comparison (undefined, null, '' should all be treated as empty)
+          const normalizedCid = cid || '';
+          const normalizedLastCid = lastCid || '';
+
+          if (loadingGetData || (normalizedLastCid === normalizedCid && !forceUpdate)) return;
           loadingGetData = true;
           lastUserId = newInstance(Elements.Data.user.main.model.user._id);
           lastCid = cid;
@@ -579,16 +603,7 @@ const PanelForm = {
         id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
         routeId: options.route,
         event: async (path) => {
-          PanelForm.Data[idPanel] = {
-            ...PanelForm.Data[idPanel],
-            originData: [],
-            data: [],
-            filesData: [],
-            // skip: 0,
-            limit: 3, // Load 5 items per page
-            hasMore: true,
-            loading: false,
-          };
+          // Don't manually clear arrays - updatePanel() will handle it if needed
           await PanelForm.Data[idPanel].updatePanel();
         },
       });

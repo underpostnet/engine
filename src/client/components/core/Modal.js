@@ -54,19 +54,18 @@ const Modal = {
       disableBoxShadow: false,
     },
   ) {
-    options.heightBottomBar = 50;
-    options.heightTopBar = 50;
-    let originHeightBottomBar = options.heightBottomBar ? newInstance(options.heightBottomBar) : 0;
-    let originHeightTopBar = options.heightTopBar ? newInstance(options.heightTopBar) : 0;
+    const originHeightBottomBar = 50;
+    const originHeightTopBar = 50;
+    options.heightBottomBar = 0;
+    options.heightTopBar = 100;
+    if (options && options.barMode && options.barMode === 'top-bottom-bar') {
+      options.heightTopBar = 50;
+      options.heightBottomBar = 50;
+    }
     let width = 300;
     let height = 400;
     let top = options.style?.top ? options.style.top : 0;
     let left = options.style?.left ? options.style.left : 0;
-    const topBottomBarEnable = options && options.barMode && options.barMode === 'top-bottom-bar';
-    if (!topBottomBarEnable) {
-      options.heightTopBar = options.heightTopBar + options.heightBottomBar;
-      options.heightBottomBar = 0;
-    }
     let transition = `opacity 0.3s, box-shadow 0.3s, bottom 0.3s`;
     const originSlideMenuWidth = 320;
     const collapseSlideMenuWidth = 50;
@@ -828,8 +827,7 @@ const Modal = {
                     },
                     dragDisabled: true,
                     maximize: true,
-                    heightBottomBar: 0,
-                    heightTopBar: options.heightTopBar,
+                    barMode: options.barMode,
                   });
 
                   // Bind hover/focus and click-outside to dismiss
@@ -997,8 +995,6 @@ const Modal = {
                   dragDisabled: true,
                   maximize: true,
                   slideMenu: 'modal-menu',
-                  heightTopBar: originHeightTopBar,
-                  heightBottomBar: originHeightBottomBar,
                   barMode: options.barMode,
                   observer: true,
                   disableBoxShadow: true,
@@ -1150,7 +1146,7 @@ const Modal = {
                     dragDisabled: true,
                     disableCenter: true,
                     // maximize: true,
-                    // barMode: options.barMode,
+                    barMode: options.barMode,
                   });
                   Responsive.Event[`view-${id}`] = () => {
                     if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
@@ -1259,8 +1255,6 @@ const Modal = {
                       },
                       dragDisabled: true,
                       maximize: true,
-                      heightBottomBar: 0,
-                      heightTopBar: originHeightTopBar,
                       barMode: options.barMode,
                     });
 
@@ -1319,8 +1313,6 @@ const Modal = {
                   },
                   dragDisabled: true,
                   maximize: true,
-                  heightTopBar: originHeightTopBar,
-                  heightBottomBar: originHeightBottomBar,
                   barMode: options.barMode,
                 });
 
@@ -2489,6 +2481,9 @@ const subMenuHandler = (routes, route) => {
   }
   setTimeout(() => {
     let cid = getQueryParams().cid;
+    if (cid && cid.includes(',')) {
+      cid = cid.split(',')[0];
+    }
     if (s(`.main-sub-btn-active`)) s(`.main-sub-btn-active`).classList.remove('main-sub-btn-active');
     if (cid && s(`.btn-${route}-${cid}`)) {
       s(`.btn-${route}-${cid}`).classList.add('main-sub-btn-active');

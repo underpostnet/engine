@@ -58,6 +58,7 @@ const DocumentService = {
         .limit(limit)
         .skip(skip)
         .populate(DocumentDto.populate.file())
+        .populate(DocumentDto.populate.mdFile())
         .populate(user && user.role !== 'guest' ? DocumentDto.populate.user() : null);
 
       const lastDoc = await Document.findOne(queryPayload, '_id').sort({ createdAt: 1 });
@@ -74,7 +75,9 @@ const DocumentService = {
         return await Document.find({
           userId: req.auth.user._id,
           ...(req.params.id ? { _id: req.params.id } : undefined),
-        }).populate(DocumentDto.populate.file());
+        })
+          .populate(DocumentDto.populate.file())
+          .populate(DocumentDto.populate.mdFile());
     }
   },
   delete: async (req, res, options) => {

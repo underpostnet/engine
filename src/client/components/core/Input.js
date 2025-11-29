@@ -102,8 +102,8 @@ const Input = {
               </div>
             `
           : options?.placeholderIcon
-          ? html` <div class="fl input-row-${id}">${options.placeholderIcon} ${inputElement}</div> `
-          : inputElement}
+            ? html` <div class="fl input-row-${id}">${options.placeholderIcon} ${inputElement}</div> `
+            : inputElement}
         <div class="in input-info input-info-${id}">&nbsp</div>
       </div>
     </div>`;
@@ -189,7 +189,7 @@ const Input = {
 
         switch (inputData.inputType) {
           case 'file':
-            if (fileObj[inputData.model] && s(`.${inputData.id}`)) {
+            if (fileObj && fileObj[inputData.model] && s(`.${inputData.id}`)) {
               const dataTransfer = new DataTransfer();
 
               if (fileObj[inputData.model].fileBlob)
@@ -207,7 +207,9 @@ const Input = {
             continue;
             break;
           case 'md':
-            RichText.Tokens[inputData.id].easyMDE.value(fileObj[inputData.model].mdPlain);
+            if (fileObj && fileObj[inputData.model] && fileObj[inputData.model].mdPlain) {
+              RichText.Tokens[inputData.id].easyMDE.value(fileObj[inputData.model].mdPlain);
+            }
             continue;
             break;
 

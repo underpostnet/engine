@@ -108,12 +108,32 @@ const Panel = {
           openPanelForm();
           // s(`.btn-${idPanel}-add`).click();
           s(`.${scrollClassContainer}`).scrollTop = 0;
-          Input.setValues(
-            formData,
-            obj,
-            options.originData().find((d) => d._id === obj._id || d.id === obj.id),
-            options.filesData().find((d) => d._id === obj._id || d.id === obj.id),
-          );
+
+          const originData = options.originData();
+          const filesData = options.filesData();
+
+          // Convert IDs to strings for comparison to handle ObjectId vs string issues
+          const searchId = String(obj._id || obj.id);
+          const foundOrigin = originData.find((d) => String(d._id || d.id) === searchId);
+          const foundFiles = filesData.find((d) => String(d._id || d.id) === searchId);
+
+          if (!foundOrigin) {
+            logger.error('Could not find origin data for ID:', searchId);
+            logger.error(
+              'Available originData IDs:',
+              originData.map((d) => String(d._id || d.id)),
+            );
+          }
+
+          if (!foundFiles) {
+            logger.error('Could not find files data for ID:', searchId);
+            logger.error(
+              'Available filesData IDs:',
+              filesData.map((d) => String(d._id || d.id)),
+            );
+          }
+
+          Input.setValues(formData, obj, foundOrigin, foundFiles);
           if (options.on.initEdit) await options.on.initEdit({ data: obj });
         });
         s(`.a-${payload._id}`).onclick = async (e) => {

@@ -38,6 +38,13 @@ const DocumentDto = {
         select: '_id name mimetype',
       };
     },
+    mdFile: () => {
+      return {
+        path: 'mdFileId',
+        model: 'File',
+        select: '_id name mimetype',
+      };
+    },
     user: () => {
       return {
         path: 'userId',
