@@ -462,7 +462,6 @@ program
     '--resource-template-id <resource-template-id >',
     'Specifies a resource template ID for the runner execution.',
   )
-  .option('--etcHosts', 'Enables /etc/hosts management for the runner execution.')
   .option('--expose', 'Enables service exposure for the runner execution.')
   .option('--conf-server-path <conf-server-path>', 'Sets a custom configuration server path.')
   .option('--underpost-root <underpost-root>', 'Sets a custom Underpost root path.')
