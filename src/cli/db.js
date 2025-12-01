@@ -193,10 +193,12 @@ class UnderpostDB {
         }
 
         // Parse the output to get the primary pod name
-        // Output format: [ 'mongodb-0:27017' ] or similar
+        // Output format: [ 'mongodb-0:27017' ] or [ 'mongodb-1.mongodb-service:27017' ] or similar
         const match = output.match(/['"]([^'"]+)['"]/);
         if (match && match[1]) {
-          const primaryName = match[1].split(':')[0]; // Extract pod name without port
+          let primaryName = match[1].split(':')[0]; // Extract pod name without port
+          // Remove service suffix if present (e.g., "mongodb-1.mongodb-service" -> "mongodb-1")
+          primaryName = primaryName.split('.')[0];
           logger.info('Found MongoDB primary pod', { primaryPod: primaryName });
           return primaryName;
         }
@@ -978,7 +980,24 @@ class UnderpostDB {
 
             // Handle primary pod detection for MongoDB
             let podsToProcess = [];
-            if (options.primaryPod === true && provider === 'mongoose') {
+            if (provider === 'mongoose' && !options.podName && !options.allPods) {
+              // When no pod name is specified for MongoDB, always use primary pod
+              const primaryPodName = UnderpostDB.API._getMongoPrimaryPod(namespace, targetPods);
+              if (primaryPodName) {
+                const primaryPod = targetPods.find((p) => p.NAME === primaryPodName);
+                if (primaryPod) {
+                  podsToProcess = [primaryPod];
+                  logger.info('Using MongoDB primary pod', { primaryPod: primaryPodName });
+                } else {
+                  logger.warn('Primary pod not in filtered list, using first pod', { primaryPodName });
+                  podsToProcess = [targetPods[0]];
+                }
+              } else {
+                logger.warn('Could not detect primary pod, using first pod');
+                podsToProcess = [targetPods[0]];
+              }
+            } else if (options.primaryPod === true && provider === 'mongoose') {
+              // Explicit primaryPod flag
               const primaryPodName = UnderpostDB.API._getMongoPrimaryPod(namespace, targetPods);
               if (primaryPodName) {
                 const primaryPod = targetPods.find((p) => p.NAME === primaryPodName);
