@@ -394,16 +394,27 @@ program
   .argument('<deploy-list>', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
   .option('--import', 'Imports container backups from specified repositories.')
   .option('--export', 'Exports container backups to specified repositories.')
-  .option('--pod-name <pod-name>', 'Optional: Specifies the pod context for database operations.')
-  .option('--collections <collections>', 'A comma-separated list of database collections to operate on.')
+  .option(
+    '--pod-name <pod-name>',
+    'Comma-separated list of pod names or patterns (supports wildcards like "mariadb-*").',
+  )
+  .option('--node-name <node-name>', 'Comma-separated list of node names to filter pods by their node placement.')
+  .option('--label-selector <selector>', 'Kubernetes label selector for filtering pods (e.g., "app=mariadb").')
+  .option('--all-pods', 'Target all matching pods instead of just the first one.')
+  .option('--primary-pod', 'Automatically detect and use MongoDB primary pod (MongoDB only).')
+  .option('--stats', 'Display database statistics (collection/table names with document/row counts).')
+  .option('--collections <collections>', 'Comma-separated list of database collections to operate on.')
   .option('--out-path <out-path>', 'Specifies a custom output path for backups.')
-  .option('--drop', 'Drops the specified databases or collections.')
-  .option('--preserveUUID', 'Preserves UUIDs during database operations.')
-  .option('--git', 'Uploads database backups to GitHub.')
-  .option('--hosts <hosts>', 'A comma-separated list of database hosts.')
-  .option('--paths <paths>', 'A comma-separated list of paths for database files.')
-  .option('--ns <ns-name>', 'Optional: Specifies the namespace context for database operations.')
-  .description('Manages database operations, including import, export, and collection management.')
+  .option('--drop', 'Drops the specified databases or collections before importing.')
+  .option('--preserveUUID', 'Preserves UUIDs during database import operations.')
+  .option('--git', 'Enables Git integration for backup version control (clone, pull, commit, push to GitHub).')
+  .option('--hosts <hosts>', 'Comma-separated list of database hosts to filter operations.')
+  .option('--paths <paths>', 'Comma-separated list of paths to filter database operations.')
+  .option('--ns <ns-name>', 'Kubernetes namespace context for database operations (defaults to "default").')
+  .option('--dry-run', 'Simulates operations without executing them (useful for testing).')
+  .description(
+    'Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.',
+  )
   .action(Underpost.db.callback);
 
 program
