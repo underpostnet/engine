@@ -28,7 +28,7 @@ class UnderpostSSH {
      * @param {string} [options.deployId=''] - Deployment ID context for SSH operations
      * @param {boolean} [options.generate=false] - Generate new SSH credentials
      * @param {string} [options.user=''] - SSH user name (defaults to 'root')
-     * @param {string} [options.password=''] - SSH user password (auto-generated if not provided)
+     * @param {string} [options.password=''] - SSH user password (auto-generated if not provided, overridden by saved password if user exists in config)
      * @param {string} [options.host=''] - SSH host address (defaults to public IP)
      * @param {string} [options.filter=''] - Filter for user/group listings
      * @param {string} [options.groups=''] - Comma-separated list of groups for the user (defaults to 'wheel')
@@ -50,6 +50,10 @@ class UnderpostSSH {
      * - Key import/export between SSH directory and private backup location
      * - SSH service initialization and hardening
      * - User and group listing with optional filtering
+     *
+     * Password behavior:
+     * - If deploy-id is provided and user exists in config: password is automatically loaded from saved config
+     * - If user is new or no saved password: uses provided password or generates a random one
      *
      * When userAdd is true:
      * - If user exists in config and keys exist in backup: imports existing keys automatically
@@ -98,6 +102,18 @@ class UnderpostSSH {
       if (!options.password) options.password = generateRandomPasswordSelection(16);
       if (!options.groups) options.groups = 'wheel';
       if (!options.port) options.port = 22;
+
+      // Load config and override password if user exists in config
+      if (options.deployId) {
+        confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
+        confNode = fs.existsSync(confNodePath) ? JSON.parse(fs.readFileSync(confNodePath, 'utf8')) : { users: {} };
+
+        if (confNode.users && confNode.users[options.user] && confNode.users[options.user].password) {
+          options.password = confNode.users[options.user].password;
+          logger.info(`Using saved password for user ${options.user}`);
+        }
+      }
+
       let userHome = shellExec(`getent passwd ${options.user} | cut -d: -f6`, { silent: true, stdout: true }).trim();
       options.userHome = userHome;
 
@@ -131,8 +147,11 @@ class UnderpostSSH {
       }
 
       if (options.deployId) {
-        confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
-        confNode = fs.existsSync(confNodePath) ? JSON.parse(fs.readFileSync(confNodePath, 'utf8')) : { users: {} };
+        // Config already loaded above, just use it
+        if (!confNode) {
+          confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
+          confNode = fs.existsSync(confNodePath) ? JSON.parse(fs.readFileSync(confNodePath, 'utf8')) : { users: {} };
+        }
 
         if (options.importKeys) {
           if (!options.user) {
