@@ -40,11 +40,15 @@ class UnderpostSSH {
       if (!options.user) options.user = 'root';
       if (!options.host) options.host = await Dns.getPublicIp();
       if (!options.password) options.password = generateRandomPasswordSelection(16);
+      if (!options.groups) options.groups = 'wheel';
+      const userHome = shellExec(`getent passwd ${options.user} | cut -d: -f6`, { silent: true, stdout: true });
+      options.userHome = userHome.trim();
+
       logger.info('options', options);
 
       if (options.reset) {
-        shellExec(`> ~/.ssh/authorized_keys`);
-        shellExec(`> ~/.ssh/known_hosts`);
+        shellExec(`> ${userHome}/.ssh/authorized_keys`);
+        shellExec(`> ${userHome}/.ssh/known_hosts`);
         return;
       }
 
@@ -70,9 +74,15 @@ class UnderpostSSH {
         confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
         confNode = fs.existsSync(confNodePath) ? JSON.parse(fs.readFileSync(confNodePath, 'utf8')) : { users: {} };
         if (options.userAdd) {
-          confNode.users[options.user] = {};
+          shellExec(`useradd -m -s /bin/bash ${options.user}`);
+          shellExec(`echo "${options.user}:${options.password}" | chpasswd`);
+          confNode.users[options.user] = { ...confNode.users[options.user], ...options };
           fs.writeFileSync(confNodePath, JSON.stringify(confNode, null, 4), 'utf8');
           logger.info(`User added`);
+          if (options.groups)
+            for (const group of options.groups.split(',').map((g) => g.trim())) {
+              shellExec(`usermod -aG "${group}" "${options.user}"`);
+            }
           return;
         }
         if (options.userRemove) {
