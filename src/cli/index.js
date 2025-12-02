@@ -522,6 +522,8 @@ program
   .option('--user-ls', 'Lists all ssh user credentials from current private keys file storage.')
   .option('--start', 'Starts an SSH session with the specified credentials.')
   .option('--reset', 'Resets ssh configuration and deletes all stored credentials.')
+  .option('--keys-list', 'Lists all ssh keys from current private keys file storage.')
+  .option('--hosts-list', 'Lists all ssh hosts from current private keys file storage.')
   .action(Underpost.ssh.callback);
 
 // 'run' command: Run a script

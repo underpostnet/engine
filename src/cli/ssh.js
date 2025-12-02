@@ -34,6 +34,8 @@ class UnderpostSSH {
         userRemove: false,
         userLs: false,
         reset: false,
+        keysList: false,
+        hostsList: false,
       },
     ) => {
       let confNode, confNodePath;
@@ -41,8 +43,9 @@ class UnderpostSSH {
       if (!options.host) options.host = await Dns.getPublicIp();
       if (!options.password) options.password = generateRandomPasswordSelection(16);
       if (!options.groups) options.groups = 'wheel';
-      const userHome = shellExec(`getent passwd ${options.user} | cut -d: -f6`, { silent: true, stdout: true });
-      options.userHome = userHome.trim();
+      if (!options.port) options.port = 22;
+      let userHome = shellExec(`getent passwd ${options.user} | cut -d: -f6`, { silent: true, stdout: true }).trim();
+      options.userHome = userHome;
 
       logger.info('options', options);
 
@@ -51,6 +54,9 @@ class UnderpostSSH {
         shellExec(`> ${userHome}/.ssh/known_hosts`);
         return;
       }
+
+      if (options.keysList) shellExec(`cat ${userHome}/.ssh/authorized_keys`);
+      if (options.hostsList) shellExec(`cat ${userHome}/.ssh/known_hosts`);
 
       if (options.userLs) {
         const filter = options.filter ? `${options.filter}` : '';
@@ -76,19 +82,59 @@ class UnderpostSSH {
         if (options.userAdd) {
           shellExec(`useradd -m -s /bin/bash ${options.user}`);
           shellExec(`echo "${options.user}:${options.password}" | chpasswd`);
-          confNode.users[options.user] = { ...confNode.users[options.user], ...options };
-          fs.writeFileSync(confNodePath, JSON.stringify(confNode, null, 4), 'utf8');
-          logger.info(`User added`);
           if (options.groups)
             for (const group of options.groups.split(',').map((g) => g.trim())) {
               shellExec(`usermod -aG "${group}" "${options.user}"`);
             }
+
+          const userHome = shellExec(`getent passwd ${options.user} | cut -d: -f6`, {
+            silent: true,
+            stdout: true,
+          }).trim();
+          const sshDir = `${userHome}/.ssh`;
+
+          if (!fs.existsSync(sshDir)) {
+            shellExec(`mkdir -p ${sshDir}`);
+            shellExec(`chmod 700 ${sshDir}`);
+          }
+
+          const keyPath = `${sshDir}/id_rsa`;
+          const pubKeyPath = `${sshDir}/id_rsa.pub`;
+
+          if (!fs.existsSync(keyPath)) {
+            shellExec(
+              `ssh-keygen -t ed25519 -f ${keyPath} -N "${options.password}" -q -C "${options.user}@${options.host}"`,
+            );
+          }
+
+          shellExec(`cat ${pubKeyPath} >> ${sshDir}/authorized_keys`);
+          shellExec(`ssh-keyscan -p ${options.port} -H localhost >> ${sshDir}/known_hosts`);
+          shellExec(`ssh-keyscan -p ${options.port} -H 127.0.0.1 >> ${sshDir}/known_hosts`);
+          if (options.host) shellExec(`ssh-keyscan -p ${options.port} -H ${options.host} >> ${sshDir}/known_hosts`);
+
+          shellExec(`chmod 600 ${sshDir}/authorized_keys`);
+          shellExec(`chmod 644 ${sshDir}/known_hosts`);
+          shellExec(`chmod 600 ${keyPath}`);
+          shellExec(`chmod 644 ${pubKeyPath}`);
+          shellExec(`chown -R ${options.user}:${options.user} ${sshDir}`);
+
+          confNode.users[options.user] = {
+            ...confNode.users[options.user],
+            ...options,
+            keyPath,
+            pubKeyPath,
+          };
+          fs.outputFileSync(confNodePath, JSON.stringify(confNode, null, 4), 'utf8');
+          logger.info(`User added`);
           return;
         }
         if (options.userRemove) {
+          const groups = shellExec(`id -Gn ${options.user}`, { silent: true, stdout: true }).trim().replace(/ /g, ', ');
+          shellExec(`userdel -r ${options.user}`);
           delete confNode.users[options.user];
-          fs.writeFileSync(confNodePath, JSON.stringify(confNode, null, 4), 'utf8');
+          fs.outputFileSync(confNodePath, JSON.stringify(confNode, null, 4), 'utf8');
           logger.info(`User removed`);
+          if (groups) logger.info(`User removed from groups: ${groups}`);
           return;
         }
         if (options.userLs) {
