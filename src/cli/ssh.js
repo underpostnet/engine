@@ -8,6 +8,7 @@ import { generateRandomPasswordSelection } from '../client/components/core/Commo
 import Dns from '../server/dns.js';
 import { shellExec } from '../server/process.js';
 import { loggerFactory } from '../server/logger.js';
+import fs from 'fs-extra';
 
 const logger = loggerFactory(import.meta);
 
@@ -18,13 +19,50 @@ const logger = loggerFactory(import.meta);
  */
 class UnderpostSSH {
   static API = {
-    callback: async (options = { generate: false, user: '', password: '', host: '', port: 22, start: false }) => {
+    callback: async (
+      options = {
+        deployId: '',
+        generate: false,
+        user: '',
+        password: '',
+        host: '',
+        port: 22,
+        start: false,
+        userAdd: false,
+        userRemove: false,
+        userLs: false,
+      },
+    ) => {
+      let confNode, confNodePath;
       if (!options.user) options.user = 'root';
       if (!options.host) options.host = await Dns.getPublicIp();
-      if (!options.password) {
-        options.password = generateRandomPasswordSelection(16);
-        logger.warn(`No password provided. Generated password: ${options.password}`);
+      if (!options.password) options.password = generateRandomPasswordSelection(16);
+      logger.info('options', options);
+
+      if (options.deployId) {
+        confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
+        confNode = fs.existsSync(confNodePath) ? JSON.parse(fs.readFileSync(confNodePath, 'utf8')) : { users: {} };
+        if (options.userAdd) {
+          confNode.users[options.user] = {};
+          fs.writeFileSync(confNodePath, JSON.stringify(confNode, null, 4), 'utf8');
+          logger.info(`User added`);
+          return;
+        }
+        if (options.userRemove) {
+          delete confNode.users[options.user];
+          fs.writeFileSync(confNodePath, JSON.stringify(confNode, null, 4), 'utf8');
+          logger.info(`User removed`);
+          return;
+        }
+        if (options.userLs) {
+          logger.info(`Users:`);
+          Object.keys(confNode.users).forEach((user) => {
+            logger.info(`- ${user}`);
+          });
+          return;
+        }
       }
+
       if (options.generate)
         UnderpostSSH.API.generateKeys({ user: options.user, password: options.password, host: options.host });
       if (options.start) {

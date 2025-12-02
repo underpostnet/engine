@@ -509,11 +509,15 @@ program
 // 'ssh' command: SSH management
 program
   .command('ssh')
+  .option('--deploy-id <deploy-id>', 'Sets deploy id context for ssh operations.')
   .option('--generate', 'Generates new ssh credential and stores it in current private keys file storage.')
   .option('--user <user>', 'Sets custom ssh user')
   .option('--password <password>', 'Sets custom ssh password')
   .option('--host <host>', 'Sets custom ssh host')
   .option('--port <port>', 'Sets custom ssh port')
+  .option('--user-add', 'Adds a new ssh user credential to current private keys file storage.')
+  .option('--user-remove', 'Removes an existing ssh user credential from current private keys file storage.')
+  .option('--user-ls', 'Lists all ssh user credentials from current private keys file storage.')
   .option('--start', 'Starts an SSH session with the specified credentials.')
   .action(Underpost.ssh.callback);
 
