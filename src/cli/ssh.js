@@ -19,6 +19,58 @@ const logger = loggerFactory(import.meta);
  */
 class UnderpostSSH {
   static API = {
+    /**
+     * Main callback function for SSH operations including user management, key import/export, and SSH service configuration.
+     * @async
+     * @function callback
+     * @memberof UnderpostSSH
+     * @param {Object} options - Configuration options for SSH operations
+     * @param {string} [options.deployId=''] - Deployment ID context for SSH operations
+     * @param {boolean} [options.generate=false] - Generate new SSH credentials
+     * @param {string} [options.user=''] - SSH user name (defaults to 'root')
+     * @param {string} [options.password=''] - SSH user password (auto-generated if not provided)
+     * @param {string} [options.host=''] - SSH host address (defaults to public IP)
+     * @param {string} [options.filter=''] - Filter for user/group listings
+     * @param {string} [options.groups=''] - Comma-separated list of groups for the user (defaults to 'wheel')
+     * @param {number} [options.port=22] - SSH port number
+     * @param {boolean} [options.start=false] - Start SSH service with hardened configuration
+     * @param {boolean} [options.userAdd=false] - Add a new SSH user and generate keys
+     * @param {boolean} [options.userRemove=false] - Remove an SSH user and cleanup keys
+     * @param {boolean} [options.userLs=false] - List all SSH users and groups
+     * @param {boolean} [options.reset=false] - Reset SSH configuration (clear authorized_keys and known_hosts)
+     * @param {boolean} [options.keysList=false] - List authorized SSH keys
+     * @param {boolean} [options.hostsList=false] - List known SSH hosts
+     * @param {boolean} [options.importKeys=false] - Import keys from private backup to user's SSH directory
+     * @param {boolean} [options.exportKeys=false] - Export keys from user's SSH directory to private backup
+     * @returns {Promise<void>}
+     * @description
+     * Handles various SSH operations:
+     * - User creation with automatic key generation and backup
+     * - User removal with key cleanup
+     * - Key import/export between SSH directory and private backup location
+     * - SSH service initialization and hardening
+     * - User and group listing with optional filtering
+     *
+     * When userAdd is true:
+     * - If user exists in config and keys exist in backup: imports existing keys automatically
+     * - If user is new or no backup exists: creates system user, generates ED25519 SSH key pair
+     * - Configures authorized_keys and known_hosts
+     * - Backs up keys to ./engine-private/conf/<deploy-id>/users/<user>/
+     * - Creates system user if it doesn't exist
+     *
+     * When userRemove is true:
+     * - Removes system user and home directory
+     * - Deletes private key backup folder
+     * - Updates configuration file
+     *
+     * When importKeys is true:
+     * - Copies keys from ./engine-private/conf/<deploy-id>/users/<user>/ to user's ~/.ssh/
+     * - Sets proper permissions and ownership
+     *
+     * When exportKeys is true:
+     * - Copies keys from user's ~/.ssh/ to ./engine-private/conf/<deploy-id>/users/<user>/
+     * - Creates backup directory if needed
+     */
     callback: async (
       options = {
         deployId: '',
@@ -36,6 +88,8 @@ class UnderpostSSH {
         reset: false,
         keysList: false,
         hostsList: false,
+        importKeys: false,
+        exportKeys: false,
       },
     ) => {
       let confNode, confNodePath;
@@ -79,7 +133,132 @@ class UnderpostSSH {
       if (options.deployId) {
         confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
         confNode = fs.existsSync(confNodePath) ? JSON.parse(fs.readFileSync(confNodePath, 'utf8')) : { users: {} };
+
+        if (options.importKeys) {
+          if (!options.user) {
+            logger.error('User must be specified with --user option');
+            return;
+          }
+
+          const privateCopyDir = `./engine-private/conf/${options.deployId}/users/${options.user}`;
+          const privateKeyPath = `${privateCopyDir}/id_rsa`;
+          const publicKeyPath = `${privateCopyDir}/id_rsa.pub`;
+
+          if (!fs.existsSync(privateKeyPath) || !fs.existsSync(publicKeyPath)) {
+            logger.error(`Keys not found in ${privateCopyDir}`);
+            return;
+          }
+
+          const sshDir = `${userHome}/.ssh`;
+          if (!fs.existsSync(sshDir)) {
+            shellExec(`mkdir -p ${sshDir}`);
+            shellExec(`chmod 700 ${sshDir}`);
+          }
+
+          const userKeyPath = `${sshDir}/id_rsa`;
+          const userPubKeyPath = `${sshDir}/id_rsa.pub`;
+
+          fs.copyFileSync(privateKeyPath, userKeyPath);
+          fs.copyFileSync(publicKeyPath, userPubKeyPath);
+
+          shellExec(`chmod 600 ${userKeyPath}`);
+          shellExec(`chmod 644 ${userPubKeyPath}`);
+          shellExec(`chown -R ${options.user}:${options.user} ${sshDir}`);
+
+          logger.info(`Keys imported from ${privateCopyDir} to ${sshDir}`);
+          return;
+        }
+
+        if (options.exportKeys) {
+          if (!options.user) {
+            logger.error('User must be specified with --user option');
+            return;
+          }
+
+          const sshDir = `${userHome}/.ssh`;
+          const userKeyPath = `${sshDir}/id_rsa`;
+          const userPubKeyPath = `${sshDir}/id_rsa.pub`;
+
+          if (!fs.existsSync(userKeyPath) || !fs.existsSync(userPubKeyPath)) {
+            logger.error(`Keys not found in ${sshDir}`);
+            return;
+          }
+
+          const privateCopyDir = `./engine-private/conf/${options.deployId}/users/${options.user}`;
+          fs.ensureDirSync(privateCopyDir);
+
+          const privateKeyPath = `${privateCopyDir}/id_rsa`;
+          const publicKeyPath = `${privateCopyDir}/id_rsa.pub`;
+
+          fs.copyFileSync(userKeyPath, privateKeyPath);
+          fs.copyFileSync(userPubKeyPath, publicKeyPath);
+
+          logger.info(`Keys exported from ${sshDir} to ${privateCopyDir}`);
+          return;
+        }
+
         if (options.userAdd) {
+          // Check if user already exists in config
+          const userExistsInConfig = confNode.users && confNode.users[options.user];
+          const privateCopyDir = `./engine-private/conf/${options.deployId}/users/${options.user}`;
+          const privateKeyPath = `${privateCopyDir}/id_rsa`;
+          const publicKeyPath = `${privateCopyDir}/id_rsa.pub`;
+          const keysExistInBackup = fs.existsSync(privateKeyPath) && fs.existsSync(publicKeyPath);
+
+          if (userExistsInConfig && keysExistInBackup) {
+            logger.info(`User ${options.user} already exists in config. Importing existing keys...`);
+
+            // Check if system user exists
+            const userExists =
+              shellExec(`id -u ${options.user} 2>/dev/null || echo "not_found"`, {
+                silent: true,
+                stdout: true,
+              }).trim() !== 'not_found';
+
+            if (!userExists) {
+              shellExec(`useradd -m -s /bin/bash ${options.user}`);
+              shellExec(`echo "${options.user}:${options.password}" | chpasswd`);
+              if (options.groups)
+                for (const group of options.groups.split(',').map((g) => g.trim())) {
+                  shellExec(`usermod -aG "${group}" "${options.user}"`);
+                }
+            }
+
+            const userHome = shellExec(`getent passwd ${options.user} | cut -d: -f6`, {
+              silent: true,
+              stdout: true,
+            }).trim();
+            const sshDir = `${userHome}/.ssh`;
+
+            if (!fs.existsSync(sshDir)) {
+              shellExec(`mkdir -p ${sshDir}`);
+              shellExec(`chmod 700 ${sshDir}`);
+            }
+
+            const userKeyPath = `${sshDir}/id_rsa`;
+            const userPubKeyPath = `${sshDir}/id_rsa.pub`;
+
+            // Import keys from backup
+            fs.copyFileSync(privateKeyPath, userKeyPath);
+            fs.copyFileSync(publicKeyPath, userPubKeyPath);
+
+            shellExec(`cat ${userPubKeyPath} >> ${sshDir}/authorized_keys`);
+            shellExec(`ssh-keyscan -p ${options.port} -H localhost >> ${sshDir}/known_hosts`);
+            shellExec(`ssh-keyscan -p ${options.port} -H 127.0.0.1 >> ${sshDir}/known_hosts`);
+            if (options.host) shellExec(`ssh-keyscan -p ${options.port} -H ${options.host} >> ${sshDir}/known_hosts`);
+
+            shellExec(`chmod 600 ${sshDir}/authorized_keys`);
+            shellExec(`chmod 644 ${sshDir}/known_hosts`);
+            shellExec(`chmod 600 ${userKeyPath}`);
+            shellExec(`chmod 644 ${userPubKeyPath}`);
+            shellExec(`chown -R ${options.user}:${options.user} ${sshDir}`);
+
+            logger.info(`Keys imported from ${privateCopyDir} to ${sshDir}`);
+            logger.info(`User added with existing keys`);
+            return;
+          }
+
+          // New user or no existing keys - create new user and generate keys
           shellExec(`useradd -m -s /bin/bash ${options.user}`);
           shellExec(`echo "${options.user}:${options.password}" | chpasswd`);
           if (options.groups)
@@ -118,11 +297,24 @@ class UnderpostSSH {
           shellExec(`chmod 644 ${pubKeyPath}`);
           shellExec(`chown -R ${options.user}:${options.user} ${sshDir}`);
 
+          // Save a copy of the keys to the private folder
+          fs.ensureDirSync(privateCopyDir);
+
+          const privateKeyCopyPath = `${privateCopyDir}/id_rsa`;
+          const publicKeyCopyPath = `${privateCopyDir}/id_rsa.pub`;
+
+          fs.copyFileSync(keyPath, privateKeyCopyPath);
+          fs.copyFileSync(pubKeyPath, publicKeyCopyPath);
+
+          logger.info(`Keys backed up to ${privateCopyDir}`);
+
           confNode.users[options.user] = {
             ...confNode.users[options.user],
             ...options,
             keyPath,
             pubKeyPath,
+            privateKeyCopyPath,
+            publicKeyCopyPath,
           };
           fs.outputFileSync(confNodePath, JSON.stringify(confNode, null, 4), 'utf8');
           logger.info(`User added`);
@@ -131,6 +323,14 @@ class UnderpostSSH {
         if (options.userRemove) {
           const groups = shellExec(`id -Gn ${options.user}`, { silent: true, stdout: true }).trim().replace(/ /g, ', ');
           shellExec(`userdel -r ${options.user}`);
+
+          // Remove the private key copy folder
+          const privateCopyDir = `./engine-private/conf/${options.deployId}/users/${options.user}`;
+          if (fs.existsSync(privateCopyDir)) {
+            fs.removeSync(privateCopyDir);
+            logger.info(`Private key copy removed from ${privateCopyDir}`);
+          }
+
           delete confNode.users[options.user];
           fs.outputFileSync(confNodePath, JSON.stringify(confNode, null, 4), 'utf8');
           logger.info(`User removed`);
@@ -153,6 +353,21 @@ class UnderpostSSH {
         UnderpostSSH.API.initService({ port: options.port });
       }
     },
+    /**
+     * Generates new SSH ED25519 key pair and stores copies in multiple locations.
+     * @function generateKeys
+     * @memberof UnderpostSSH
+     * @param {Object} params - Key generation parameters
+     * @param {string} params.user - Username for the SSH key comment
+     * @param {string} params.password - Password to encrypt the private key
+     * @param {string} params.host - Host address for the SSH key comment
+     * @returns {void}
+     * @description
+     * Creates a new SSH ED25519 key pair and distributes it to:
+     * - User's ~/.ssh/ directory
+     * - ./engine-private/deploy/ directory
+     * Cleans up temporary key files after copying.
+     */
     generateKeys: ({ user, password, host }) => {
       shellExec(`sudo rm -rf ./id_rsa`);
       shellExec(`sudo rm -rf ./id_rsa.pub`);
@@ -168,6 +383,22 @@ class UnderpostSSH {
       shellExec(`sudo rm -rf ./id_rsa`);
       shellExec(`sudo rm -rf ./id_rsa.pub`);
     },
+    /**
+     * Sets proper permissions and ownership for SSH directories and files.
+     * @function chmod
+     * @memberof UnderpostSSH
+     * @param {Object} params - Permission configuration parameters
+     * @param {string} params.user - Username for setting ownership
+     * @returns {void}
+     * @description
+     * Applies secure permissions to SSH files:
+     * - ~/.ssh/ directory: 700
+     * - ~/.ssh/authorized_keys: 600
+     * - ~/.ssh/known_hosts: 644
+     * - ~/.ssh/id_rsa: 600
+     * - /etc/ssh/ssh_host_ed25519_key: 600
+     * Sets ownership to specified user for ~/.ssh/ and contents.
+     */
     chmod: ({ user }) => {
       shellExec(`sudo chmod 700 ~/.ssh/`);
       shellExec(`sudo chmod 600 ~/.ssh/authorized_keys`);
@@ -176,6 +407,27 @@ class UnderpostSSH {
       shellExec(`sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`);
       shellExec(`chown -R ${user}:${user} ~/.ssh`);
     },
+    /**
+     * Initializes and hardens SSH service configuration for RHEL-based systems.
+     * @function initService
+     * @memberof UnderpostSSH
+     * @param {Object} params - Service configuration parameters
+     * @param {number} params.port - Port number for SSH service
+     * @returns {void}
+     * @description
+     * Configures SSH daemon with hardened security settings:
+     * - Disables password authentication (key-only)
+     * - Disables root login
+     * - Enables ED25519 host key
+     * - Disables X11 forwarding and TCP forwarding
+     * - Sets client alive intervals to prevent ghost connections
+     * - Configures PAM for RHEL/SELinux compatibility
+     *
+     * After configuration:
+     * - Enables sshd service for auto-start on boot
+     * - Restarts sshd service to apply changes
+     * - Displays service status with colored output
+     */
     initService: ({ port }) => {
       shellExec(
         `sudo tee /etc/ssh/sshd_config <<EOF

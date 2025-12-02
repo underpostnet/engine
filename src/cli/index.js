@@ -524,6 +524,8 @@ program
   .option('--reset', 'Resets ssh configuration and deletes all stored credentials.')
   .option('--keys-list', 'Lists all ssh keys from current private keys file storage.')
   .option('--hosts-list', 'Lists all ssh hosts from current private keys file storage.')
+  .option('--import-keys', "Imports SSH keys from the private key folder to the user's SSH home directory.")
+  .option('--export-keys', "Exports SSH keys from the user's SSH home directory to the private key folder.")
   .action(Underpost.ssh.callback);
 
 // 'run' command: Run a script
