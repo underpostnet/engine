@@ -510,7 +510,11 @@ program
 program
   .command('ssh')
   .option('--generate', 'Generates new ssh credential and stores it in current private keys file storage.')
-  .description('Import and start ssh server and client based on current default deployment ID.')
+  .option('--user <user>', 'Sets custom ssh user')
+  .option('--password <password>', 'Sets custom ssh password')
+  .option('--host <host>', 'Sets custom ssh host')
+  .option('--port <port>', 'Sets custom ssh port')
+  .option('--start', 'Starts an SSH session with the specified credentials.')
   .action(Underpost.ssh.callback);
 
 // 'run' command: Run a script
