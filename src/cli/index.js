@@ -515,6 +515,8 @@ program
   .option('--password <password>', 'Sets custom ssh password')
   .option('--host <host>', 'Sets custom ssh host')
   .option('--port <port>', 'Sets custom ssh port')
+  .option('--filter <filter>', 'Filters ssh user credentials from current private keys file storage.')
+  .option('--groups <groups>', 'Sets comma-separated ssh user groups for the ssh user credential.')
   .option('--user-add', 'Adds a new ssh user credential to current private keys file storage.')
   .option('--user-remove', 'Removes an existing ssh user credential from current private keys file storage.')
   .option('--user-ls', 'Lists all ssh user credentials from current private keys file storage.')

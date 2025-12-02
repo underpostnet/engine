@@ -26,6 +26,8 @@ class UnderpostSSH {
         user: '',
         password: '',
         host: '',
+        filter: '',
+        groups: '',
         port: 22,
         start: false,
         userAdd: false,
@@ -44,6 +46,24 @@ class UnderpostSSH {
         shellExec(`> ~/.ssh/authorized_keys`);
         shellExec(`> ~/.ssh/known_hosts`);
         return;
+      }
+
+      if (options.userLs) {
+        const filter = options.filter ? `${options.filter}` : '';
+        const groupsOut = shellExec(`getent group${filter ? ` | grep '${filter}'` : ''}`, {
+          silent: true,
+          stdout: true,
+        });
+        const usersOut = shellExec(`getent passwd${filter ? ` | grep '${filter}'` : ''}`, {
+          silent: true,
+          stdout: true,
+        });
+        console.log('Groups'.bold.blue);
+        console.log(`group_name : password_x : GID(Internal Group ID) : user_list`.blue);
+        console.log(filter ? groupsOut.replaceAll(filter, filter.red) : groupsOut);
+        console.log('Users'.bold.blue);
+        console.log(`usuario : x : UID : GID : GECOS : home_dir : shell`.blue);
+        console.log(filter ? usersOut.replaceAll(filter, filter.red) : usersOut);
       }
 
       if (options.deployId) {
