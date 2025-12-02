@@ -31,6 +31,7 @@ class UnderpostSSH {
         userAdd: false,
         userRemove: false,
         userLs: false,
+        reset: false,
       },
     ) => {
       let confNode, confNodePath;
@@ -38,6 +39,12 @@ class UnderpostSSH {
       if (!options.host) options.host = await Dns.getPublicIp();
       if (!options.password) options.password = generateRandomPasswordSelection(16);
       logger.info('options', options);
+
+      if (options.reset) {
+        shellExec(`> ~/.ssh/authorized_keys`);
+        shellExec(`> ~/.ssh/known_hosts`);
+        return;
+      }
 
       if (options.deployId) {
         confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;

@@ -519,6 +519,7 @@ program
   .option('--user-remove', 'Removes an existing ssh user credential from current private keys file storage.')
   .option('--user-ls', 'Lists all ssh user credentials from current private keys file storage.')
   .option('--start', 'Starts an SSH session with the specified credentials.')
+  .option('--reset', 'Resets ssh configuration and deletes all stored credentials.')
   .action(Underpost.ssh.callback);
 
 // 'run' command: Run a script
