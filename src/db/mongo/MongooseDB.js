@@ -32,8 +32,9 @@ class MongooseDBService {
     return await mongoose
       .createConnection(uri, {
         readPreference: 'primary',
-        directConnection: true, // Bypass replica set discovery to connect directly to this specific pod
-        // Options like useNewUrlParser and useUnifiedTopology are often set here.
+        // directConnection: true,
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
       })
       .asPromise();
   }
