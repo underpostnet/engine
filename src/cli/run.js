@@ -262,7 +262,10 @@ class UnderpostRun {
           });
           // shellExec(`${baseCommand} deploy --expose --disable-update-underpost-config mongo`, { async: true });
           shellExec(`kubectl port-forward -n ${options.namespace} pod/${primaryPodName} 27017:27017`, { async: true });
-          shellExec(`${baseCommand} deploy --expose --disable-update-underpost-config valkey`, { async: true });
+          shellExec(
+            `${baseCommand} deploy --expose --namespace ${options.namespace} --disable-update-underpost-config valkey`,
+            { async: true },
+          );
         } catch (error) {
           logger.warn('Failed to detect MongoDB primary pod, using default', {
             error: error.message,
@@ -285,7 +288,7 @@ class UnderpostRun {
     metadata: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const ports = '6379,27017';
       shellExec(`node bin run kill '${ports}'`);
-      shellExec(`node bin run dev-cluster --dev --expose`, { async: true });
+      shellExec(`node bin run dev-cluster --dev --expose --namespace ${options.namespace}`, { async: true });
       console.log('Loading fordward services...');
       await timer(5000);
       shellExec(`node bin metadata --generate ${path}`);
@@ -1001,7 +1004,7 @@ EOF
       const successInstance = await UnderpostTest.API.statusMonitor('adminer', 'Running', 'pods', 1000, 60 * 10);
 
       if (successInstance) {
-        shellExec(`underpost deploy --expose adminer`);
+        shellExec(`underpost deploy --expose adminer --namespace ${options.namespace}`);
       }
     },
 
@@ -1200,7 +1203,7 @@ EOF
         envObj.DEV_PROXY_PORT_OFFSET = options.devProxyPortOffset;
         writeEnv(envPath, envObj);
       }
-      shellExec(`node bin run dev-cluster --expose`, { async: true });
+      shellExec(`node bin run dev-cluster --expose --namespace ${options.namespace}`, { async: true });
       {
         const cmd = `npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}${options.tls ? ' tls' : ''}`;
         options.terminal ? openTerminal(cmd) : shellExec(cmd, { async: true });
