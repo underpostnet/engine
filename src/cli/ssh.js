@@ -51,30 +51,6 @@ class UnderpostSSH {
      * - Key import/export between SSH directory and private backup location
      * - SSH service initialization and hardening
      * - User and group listing with optional filtering
-     *
-     * Configuration override behavior:
-     * - If deploy-id is provided and user exists in config: password and host are automatically loaded from saved config
-     * - If user is new or no saved config: uses provided values or defaults (password auto-generated, host from public IP)
-     *
-     * When userAdd is true:
-     * - If user exists in config and keys exist in backup: imports existing keys automatically
-     * - If user is new or no backup exists: creates system user, generates ED25519 SSH key pair
-     * - Configures authorized_keys and known_hosts
-     * - Backs up keys to ./engine-private/conf/<deploy-id>/users/<user>/
-     * - Creates system user if it doesn't exist
-     *
-     * When userRemove is true:
-     * - Removes system user and home directory
-     * - Deletes private key backup folder
-     * - Updates configuration file
-     *
-     * When importKeys is true:
-     * - Copies keys from ./engine-private/conf/<deploy-id>/users/<user>/ to user's ~/.ssh/
-     * - Sets proper permissions and ownership
-     *
-     * When exportKeys is true:
-     * - Copies keys from user's ~/.ssh/ to ./engine-private/conf/<deploy-id>/users/<user>/
-     * - Creates backup directory if needed
      */
     callback: async (
       options = {
@@ -203,8 +179,11 @@ class UnderpostSSH {
             // Import keys from backup
             fs.copyFileSync(privateKeyPath, userKeyPath);
             fs.copyFileSync(publicKeyPath, userPubKeyPath);
-
-            shellExec(`cat ${userPubKeyPath} >> ${sshDir}/authorized_keys`);
+            if (options.disablePassword) {
+              shellExec(`sudo -u git_user bash -c 'cat >> ${sshDir}/authorized_keys <<EOF
+command="sudo -i",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(userPubKeyPath, 'utf8')}
+EOF'`);
+            } else shellExec(`cat ${userPubKeyPath} >> ${sshDir}/authorized_keys`);
             shellExec(`ssh-keyscan -p ${options.port} -H localhost >> ${sshDir}/known_hosts`);
             shellExec(`ssh-keyscan -p ${options.port} -H 127.0.0.1 >> ${sshDir}/known_hosts`);
             if (options.host) shellExec(`ssh-keyscan -p ${options.port} -H ${options.host} >> ${sshDir}/known_hosts`);
@@ -248,7 +227,11 @@ class UnderpostSSH {
             );
           }
 
-          shellExec(`cat ${pubKeyPath} >> ${sshDir}/authorized_keys`);
+          if (options.disablePassword) {
+            shellExec(`sudo -u git_user bash -c 'cat >> ${sshDir}/authorized_keys <<EOF
+command="sudo -i",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(pubKeyPath, 'utf8')}
+EOF'`);
+          } else shellExec(`cat ${pubKeyPath} >> ${sshDir}/authorized_keys`);
           shellExec(`ssh-keyscan -p ${options.port} -H localhost >> ${sshDir}/known_hosts`);
           shellExec(`ssh-keyscan -p ${options.port} -H 127.0.0.1 >> ${sshDir}/known_hosts`);
           if (options.host) shellExec(`ssh-keyscan -p ${options.port} -H ${options.host} >> ${sshDir}/known_hosts`);
