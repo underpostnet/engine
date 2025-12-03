@@ -252,7 +252,51 @@ program
   .option('--ban-both-remove', 'Removes IP addresses from both banned ingress and egress lists.')
   .description('Displays the current public machine IP addresses.')
   .action(async (ips = '', options) => {
-    console.log({ ips: ips.split(',') });
+    const ipList = ips
+      ? ips
+          .split(',')
+          .map((i) => i.trim())
+          .filter(Boolean)
+      : [];
+
+    if (options.banIngressAdd) {
+      return ipList.forEach((ip) => Dns.banIngress(ip));
+    }
+    if (options.banIngressRemove) {
+      return ipList.forEach((ip) => Dns.unbanIngress(ip));
+    }
+    if (options.banIngressList) {
+      return Dns.listBannedIngress();
+    }
+    if (options.banIngressClear) {
+      return Dns.clearBannedIngress();
+    }
+
+    if (options.banEgressAdd) {
+      return ipList.forEach((ip) => Dns.banEgress(ip));
+    }
+    if (options.banEgressRemove) {
+      return ipList.forEach((ip) => Dns.unbanEgress(ip));
+    }
+    if (options.banEgressList) {
+      return Dns.listBannedEgress();
+    }
+    if (options.banEgressClear) {
+      return Dns.clearBannedEgress();
+    }
+
+    if (options.banBothAdd) {
+      return ipList.forEach((ip) => {
+        Dns.banIngress(ip);
+        Dns.banEgress(ip);
+      });
+    }
+    if (options.banBothRemove) {
+      return ipList.forEach((ip) => {
+        Dns.unbanIngress(ip);
+        Dns.unbanEgress(ip);
+      });
+    }
 
     const ip = await Dns.getPublicIp();
     if (options.copy) return pbcopy(ip);

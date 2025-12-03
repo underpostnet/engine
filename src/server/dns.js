@@ -101,6 +101,160 @@ class Dns {
   }
 
   /**
+   * Setup nftables tables and chains if they don't exist.
+   * @static
+   * @memberof DnsManager
+   */
+  static setupNftables() {
+    shellExec(`sudo nft add table inet filter 2>/dev/null || true`, { silent: true });
+    shellExec(
+      `sudo nft add chain inet filter input '{ type filter hook input priority 0; policy accept; }' 2>/dev/null || true`,
+      { silent: true },
+    );
+    shellExec(
+      `sudo nft add chain inet filter output '{ type filter hook output priority 0; policy accept; }' 2>/dev/null || true`,
+      { silent: true },
+    );
+    shellExec(
+      `sudo nft add chain inet filter forward '{ type filter hook forward priority 0; policy accept; }' 2>/dev/null || true`,
+      { silent: true },
+    );
+  }
+
+  /**
+   * Bans an IP address from ingress traffic.
+   * @static
+   * @memberof DnsManager
+   * @param {string} ip - The IP address to ban.
+   */
+  static banIngress(ip) {
+    Dns.setupNftables();
+    if (!validator.isIP(ip)) {
+      logger.error(`Invalid IP address: ${ip}`);
+      return;
+    }
+    shellExec(`sudo nft add rule inet filter input ip saddr ${ip} counter drop`, { silent: true });
+    logger.info(`Banned ingress for IP: ${ip}`);
+  }
+
+  /**
+   * Bans an IP address from egress traffic.
+   * @static
+   * @memberof DnsManager
+   * @param {string} ip - The IP address to ban.
+   */
+  static banEgress(ip) {
+    Dns.setupNftables();
+    if (!validator.isIP(ip)) {
+      logger.error(`Invalid IP address: ${ip}`);
+      return;
+    }
+    shellExec(`sudo nft add rule inet filter output ip daddr ${ip} counter drop`, { silent: true });
+    shellExec(`sudo nft add rule inet filter forward ip daddr ${ip} counter drop`, { silent: true });
+    logger.info(`Banned egress for IP: ${ip}`);
+  }
+
+  /**
+   * Helper to get nftables rule handles for a specific IP and chain.
+   * @static
+   * @memberof DnsManager
+   * @param {string} chain - The chain name (input, output, forward).
+   * @param {string} ip - The IP address.
+   * @param {string} type - The type (saddr or daddr).
+   * @returns {string[]} Array of handles.
+   */
+  static getNftHandles(chain, ip, type) {
+    const output = shellExec(`sudo nft -a list chain inet filter ${chain}`, { stdout: true, silent: true });
+    const lines = output.split('\n');
+    const handles = [];
+    // Regex to match IP and handle. Note: output format depends on nft version but usually contains "handle <id>" at end.
+    // Example: ip saddr 1.2.3.4 counter packets 0 bytes 0 drop # handle 5
+    const regex = new RegExp(`ip ${type} ${ip} .* handle (\\d+)`);
+    for (const line of lines) {
+      const match = line.match(regex);
+      if (match) {
+        handles.push(match[1]);
+      }
+    }
+    return handles;
+  }
+
+  /**
+   * Unbans an IP address from ingress traffic.
+   * @static
+   * @memberof DnsManager
+   * @param {string} ip - The IP address to unban.
+   */
+  static unbanIngress(ip) {
+    const handles = Dns.getNftHandles('input', ip, 'saddr');
+    for (const handle of handles) {
+      shellExec(`sudo nft delete rule inet filter input handle ${handle}`, { silent: true });
+    }
+    logger.info(`Unbanned ingress for IP: ${ip}`);
+  }
+
+  /**
+   * Unbans an IP address from egress traffic.
+   * @static
+   * @memberof DnsManager
+   * @param {string} ip - The IP address to unban.
+   */
+  static unbanEgress(ip) {
+    const outputHandles = Dns.getNftHandles('output', ip, 'daddr');
+    for (const handle of outputHandles) {
+      shellExec(`sudo nft delete rule inet filter output handle ${handle}`, { silent: true });
+    }
+    const forwardHandles = Dns.getNftHandles('forward', ip, 'daddr');
+    for (const handle of forwardHandles) {
+      shellExec(`sudo nft delete rule inet filter forward handle ${handle}`, { silent: true });
+    }
+    logger.info(`Unbanned egress for IP: ${ip}`);
+  }
+
+  /**
+   * Lists all banned ingress IPs.
+   * @static
+   * @memberof DnsManager
+   */
+  static listBannedIngress() {
+    const output = shellExec(`sudo nft list chain inet filter input`, { stdout: true, silent: true });
+    console.log(output);
+  }
+
+  /**
+   * Lists all banned egress IPs.
+   * @static
+   * @memberof DnsManager
+   */
+  static listBannedEgress() {
+    console.log('--- Output Chain ---');
+    console.log(shellExec(`sudo nft list chain inet filter output`, { stdout: true, silent: true }));
+    console.log('--- Forward Chain ---');
+    console.log(shellExec(`sudo nft list chain inet filter forward`, { stdout: true, silent: true }));
+  }
+
+  /**
+   * Clears all banned ingress IPs.
+   * @static
+   * @memberof DnsManager
+   */
+  static clearBannedIngress() {
+    shellExec(`sudo nft flush chain inet filter input`, { silent: true });
+    logger.info('Cleared all ingress bans.');
+  }
+
+  /**
+   * Clears all banned egress IPs.
+   * @static
+   * @memberof DnsManager
+   */
+  static clearBannedEgress() {
+    shellExec(`sudo nft flush chain inet filter output`, { silent: true });
+    shellExec(`sudo nft flush chain inet filter forward`, { silent: true });
+    logger.info('Cleared all egress bans.');
+  }
+
+  /**
    * Performs the dynamic DNS update logic.
    * It checks if the public IP has changed and, if so, updates the configured DNS records.
    * @async
