@@ -42,6 +42,7 @@ class UnderpostSSH {
      * @param {boolean} [options.hostsList=false] - List known SSH hosts
      * @param {boolean} [options.importKeys=false] - Import keys from private backup to user's SSH directory
      * @param {boolean} [options.exportKeys=false] - Export keys from user's SSH directory to private backup
+     * @param {boolean} [options.noPassword=false] - If true, do not set a password for the user
      * @returns {Promise<void>}
      * @description
      * Handles various SSH operations:
@@ -94,12 +95,13 @@ class UnderpostSSH {
         hostsList: false,
         importKeys: false,
         exportKeys: false,
+        noPassword: false,
       },
     ) => {
       let confNode, confNodePath;
       if (!options.user) options.user = 'root';
       if (!options.host) options.host = await Dns.getPublicIp();
-      if (!options.password) options.password = generateRandomPasswordSelection(16);
+      if (!options.password) options.password = options.noPassword ? '' : generateRandomPasswordSelection(16);
       if (!options.groups) options.groups = 'wheel';
       if (!options.port) options.port = 22;
 
