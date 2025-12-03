@@ -52,7 +52,7 @@ jobs:
           # Optional: increase timeout for long-running commands
           command_timeout: 60m
           # Optional: if your private key has a passphrase, add:
-          passphrase: ${{ secrets.SSH_PASSWORD }}
+          # passphrase: ${{ secrets.SSH_PASSWORD }}
           # Commands to run on the remote VM
           script: |
             set -e
