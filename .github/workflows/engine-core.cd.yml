@@ -31,8 +31,8 @@ jobs:
             set -e
             echo "Starting remote deploy"
             cd /home/dd/engine
-            underpost run pull
-            node bin run deploy dd-core
+            sudo -n -- /bin/bash -lc "underpost run pull"
+            sudo -n -- /bin/bash -lc "node bin run deploy dd-core"
   sync-and-deploy:
     if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-sync-engine-core)')
     name: Remote SSH sync and deploy
