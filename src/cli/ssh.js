@@ -28,8 +28,8 @@ class UnderpostSSH {
      * @param {string} [options.deployId=''] - Deployment ID context for SSH operations
      * @param {boolean} [options.generate=false] - Generate new SSH credentials
      * @param {string} [options.user=''] - SSH user name (defaults to 'root')
-     * @param {string} [options.password=''] - SSH user password (auto-generated if not provided, overridden by saved password if user exists in config)
-     * @param {string} [options.host=''] - SSH host address (defaults to public IP)
+     * @param {string} [options.password=''] - SSH user password (auto-generated if not provided, overridden by saved config if user exists)
+     * @param {string} [options.host=''] - SSH host address (defaults to public IP, overridden by saved config if user exists)
      * @param {string} [options.filter=''] - Filter for user/group listings
      * @param {string} [options.groups=''] - Comma-separated list of groups for the user (defaults to 'wheel')
      * @param {number} [options.port=22] - SSH port number
@@ -51,9 +51,9 @@ class UnderpostSSH {
      * - SSH service initialization and hardening
      * - User and group listing with optional filtering
      *
-     * Password behavior:
-     * - If deploy-id is provided and user exists in config: password is automatically loaded from saved config
-     * - If user is new or no saved password: uses provided password or generates a random one
+     * Configuration override behavior:
+     * - If deploy-id is provided and user exists in config: password and host are automatically loaded from saved config
+     * - If user is new or no saved config: uses provided values or defaults (password auto-generated, host from public IP)
      *
      * When userAdd is true:
      * - If user exists in config and keys exist in backup: imports existing keys automatically
@@ -103,14 +103,20 @@ class UnderpostSSH {
       if (!options.groups) options.groups = 'wheel';
       if (!options.port) options.port = 22;
 
-      // Load config and override password if user exists in config
+      // Load config and override password and host if user exists in config
       if (options.deployId) {
         confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
         confNode = fs.existsSync(confNodePath) ? JSON.parse(fs.readFileSync(confNodePath, 'utf8')) : { users: {} };
 
-        if (confNode.users && confNode.users[options.user] && confNode.users[options.user].password) {
-          options.password = confNode.users[options.user].password;
-          logger.info(`Using saved password for user ${options.user}`);
+        if (confNode.users && confNode.users[options.user]) {
+          if (confNode.users[options.user].password) {
+            options.password = confNode.users[options.user].password;
+            logger.info(`Using saved password for user ${options.user}`);
+          }
+          if (confNode.users[options.user].host) {
+            options.host = confNode.users[options.user].host;
+            logger.info(`Using saved host for user ${options.user}: ${options.host}`);
+          }
         }
       }
 
