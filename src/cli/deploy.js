@@ -387,6 +387,8 @@ spec:
      * @param {boolean} options.etcHosts - Whether to display the /etc/hosts file.
      * @param {boolean} options.disableUpdateUnderpostConfig - Whether to disable Underpost config updates.
      * @param {string} [options.namespace] - Kubernetes namespace for the deployment.
+     * @param {string} [options.kindType] - Type of Kubernetes resource to retrieve information for.
+     * @param {number} [options.port] - Port number for exposing the deployment.
      * @returns {Promise<void>} - Promise that resolves when the deployment process is complete.
      * @memberof UnderpostDeploy
      */
@@ -416,6 +418,8 @@ spec:
         etcHosts: false,
         disableUpdateUnderpostConfig: false,
         namespace: '',
+        kindType: '',
+        port: 0,
       },
     ) {
       const namespace = options.namespace ? options.namespace : 'default';
@@ -495,13 +499,18 @@ EOF`);
         const deployId = _deployId.trim();
         if (!deployId) continue;
         if (options.expose === true) {
-          const svc = UnderpostDeploy.API.get(deployId, 'svc')[0];
-          const port = parseInt(svc[`PORT(S)`].split('/TCP')[0]);
+          const kindType = options.kindType ? options.kindType : 'svc';
+          const svc = UnderpostDeploy.API.get(deployId, kindType)[0];
+          const port = options.port
+            ? options.port
+            : kindType !== 'svc'
+              ? 80
+              : parseInt(svc[`PORT(S)`].split('/TCP')[0]);
           logger.info(deployId, {
             svc,
             port,
           });
-          shellExec(`sudo kubectl port-forward -n ${namespace} svc/${svc.NAME} ${port}:${port}`, {
+          shellExec(`sudo kubectl port-forward -n ${namespace} ${kindType}/${svc.NAME} ${port}:${port}`, {
             async: true,
           });
           continue;

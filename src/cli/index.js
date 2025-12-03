@@ -331,6 +331,8 @@ program
   .option('--restore-hosts', 'Restores default `/etc/hosts` entries.')
   .option('--disable-update-underpost-config', 'Disables updates to Underpost configuration during deployment.')
   .option('--namespace <namespace>', 'Kubernetes namespace for deployment operations (defaults to "default").')
+  .option('--kind-type <kind-type>', 'Specifies the Kind cluster type for deployment operations.')
+  .option('--port <port>', 'Sets up port forwarding from local to remote ports.')
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);
 
