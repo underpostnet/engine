@@ -180,9 +180,9 @@ class UnderpostSSH {
             fs.copyFileSync(privateKeyPath, userKeyPath);
             fs.copyFileSync(publicKeyPath, userPubKeyPath);
             if (options.disablePassword) {
-              shellExec(`sudo -u git_user bash -c 'cat >> ${sshDir}/authorized_keys <<EOF
+              shellExec(`cat >> ${sshDir}/authorized_keys <<EOF
 command="sudo -i",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(userPubKeyPath, 'utf8')}
-EOF'`);
+EOF`);
             } else shellExec(`cat ${userPubKeyPath} >> ${sshDir}/authorized_keys`);
             shellExec(`ssh-keyscan -p ${options.port} -H localhost >> ${sshDir}/known_hosts`);
             shellExec(`ssh-keyscan -p ${options.port} -H 127.0.0.1 >> ${sshDir}/known_hosts`);
@@ -228,9 +228,9 @@ EOF'`);
           }
 
           if (options.disablePassword) {
-            shellExec(`sudo -u git_user bash -c 'cat >> ${sshDir}/authorized_keys <<EOF
+            shellExec(`cat >> ${sshDir}/authorized_keys <<EOF
 command="sudo -i",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(pubKeyPath, 'utf8')}
-EOF'`);
+EOF`);
           } else shellExec(`cat ${pubKeyPath} >> ${sshDir}/authorized_keys`);
           shellExec(`ssh-keyscan -p ${options.port} -H localhost >> ${sshDir}/known_hosts`);
           shellExec(`ssh-keyscan -p ${options.port} -H 127.0.0.1 >> ${sshDir}/known_hosts`);
