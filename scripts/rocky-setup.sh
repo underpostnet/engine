@@ -34,6 +34,7 @@ PACKAGES=(
   which
   net-tools
   bind-utils
+  tcpdump
 )
 
 # Defaults

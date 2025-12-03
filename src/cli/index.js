@@ -238,9 +238,22 @@ program
 
 program
   .command('ip')
+  .argument('[ips]', 'Optional args comma-separated list of IP to process.')
   .option('--copy', 'Copies the IP addresses to the clipboard.')
+  .option('--ban-ingress-add', 'Adds IP addresses to banned ingress list.')
+  .option('--ban-ingress-remove', 'Removes IP addresses from banned ingress list.')
+  .option('--ban-ingress-list', 'Lists all banned ingress IP addresses.')
+  .option('--ban-ingress-clear', 'Clears all banned ingress IP addresses.')
+  .option('--ban-egress-add', 'Adds IP addresses to banned egress list.')
+  .option('--ban-egress-remove', 'Removes IP addresses from banned egress list.')
+  .option('--ban-egress-list', 'Lists all banned egress IP addresses.')
+  .option('--ban-egress-clear', 'Clears all banned egress IP addresses.')
+  .option('--ban-both-add', 'Adds IP addresses to both banned ingress and egress lists.')
+  .option('--ban-both-remove', 'Removes IP addresses from both banned ingress and egress lists.')
   .description('Displays the current public machine IP addresses.')
-  .action(async (options) => {
+  .action(async (ips = '', options) => {
+    console.log({ ips: ips.split(',') });
+
     const ip = await Dns.getPublicIp();
     if (options.copy) return pbcopy(ip);
     return console.log(ip);
