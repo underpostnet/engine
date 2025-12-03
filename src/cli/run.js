@@ -425,8 +425,8 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    clean: (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      shellCd(path ?? `/home/dd/engine`);
+    clean: (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      shellCd(path ? path : `/home/dd/engine`);
       shellExec(`node bin/deploy clean-core-repo`);
     },
     /**
@@ -439,7 +439,9 @@ class UnderpostRun {
     pull: (path, options = UnderpostRun.DEFAULT_OPTION) => {
       if (!fs.existsSync(`/home/dd`) || !fs.existsSync(`/home/dd/engine`)) {
         fs.mkdirSync(`/home/dd`, { recursive: true });
-        shellExec(`cd /home/dd && underpost clone ${process.env.GITHUB_USERNAME}/engine`);
+        shellExec(`cd /home/dd && underpost clone ${process.env.GITHUB_USERNAME}/engine`, {
+          silent: true,
+        });
       } else {
         shellExec(`underpost run clean`);
         shellExec(`cd /home/dd/engine && underpost pull . ${process.env.GITHUB_USERNAME}/engine`, {
@@ -453,6 +455,9 @@ class UnderpostRun {
       else
         shellExec(
           `cd /home/dd/engine/engine-private && underpost pull . ${process.env.GITHUB_USERNAME}/engine-private`,
+          {
+            silent: true,
+          },
         );
     },
     /**
