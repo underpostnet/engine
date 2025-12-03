@@ -93,8 +93,6 @@ class UnderpostSSH {
         reset: false,
         keysList: false,
         hostsList: false,
-        importKeys: false,
-        exportKeys: false,
         disablePassword: false,
       },
     ) => {
@@ -159,69 +157,6 @@ class UnderpostSSH {
         if (!confNode) {
           confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
           confNode = fs.existsSync(confNodePath) ? JSON.parse(fs.readFileSync(confNodePath, 'utf8')) : { users: {} };
-        }
-
-        if (options.importKeys) {
-          if (!options.user) {
-            logger.error('User must be specified with --user option');
-            return;
-          }
-
-          const privateCopyDir = `./engine-private/conf/${options.deployId}/users/${options.user}`;
-          const privateKeyPath = `${privateCopyDir}/id_rsa`;
-          const publicKeyPath = `${privateCopyDir}/id_rsa.pub`;
-
-          if (!fs.existsSync(privateKeyPath) || !fs.existsSync(publicKeyPath)) {
-            logger.error(`Keys not found in ${privateCopyDir}`);
-            return;
-          }
-
-          const sshDir = `${userHome}/.ssh`;
-          if (!fs.existsSync(sshDir)) {
-            shellExec(`mkdir -p ${sshDir}`);
-            shellExec(`chmod 700 ${sshDir}`);
-          }
-
-          const userKeyPath = `${sshDir}/id_rsa`;
-          const userPubKeyPath = `${sshDir}/id_rsa.pub`;
-
-          fs.copyFileSync(privateKeyPath, userKeyPath);
-          fs.copyFileSync(publicKeyPath, userPubKeyPath);
-
-          shellExec(`chmod 600 ${userKeyPath}`);
-          shellExec(`chmod 644 ${userPubKeyPath}`);
-          shellExec(`chown -R ${options.user}:${options.user} ${sshDir}`);
-
-          logger.info(`Keys imported from ${privateCopyDir} to ${sshDir}`);
-          return;
-        }
-
-        if (options.exportKeys) {
-          if (!options.user) {
-            logger.error('User must be specified with --user option');
-            return;
-          }
-
-          const sshDir = `${userHome}/.ssh`;
-          const userKeyPath = `${sshDir}/id_rsa`;
-          const userPubKeyPath = `${sshDir}/id_rsa.pub`;
-
-          if (!fs.existsSync(userKeyPath) || !fs.existsSync(userPubKeyPath)) {
-            logger.error(`Keys not found in ${sshDir}`);
-            return;
-          }
-
-          const privateCopyDir = `./engine-private/conf/${options.deployId}/users/${options.user}`;
-          fs.ensureDirSync(privateCopyDir);
-
-          const privateKeyPath = `${privateCopyDir}/id_rsa`;
-          const publicKeyPath = `${privateCopyDir}/id_rsa.pub`;
-
-          fs.copyFileSync(userKeyPath, privateKeyPath);
-          fs.copyFileSync(userPubKeyPath, publicKeyPath);
-
-          logger.info(`Keys exported from ${sshDir} to ${privateCopyDir}`);
-          return;
         }
 
         if (options.userAdd) {
