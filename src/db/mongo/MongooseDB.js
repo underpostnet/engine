@@ -31,6 +31,7 @@ class MongooseDBService {
     logger.info('MongooseDB connect', { host, name, uri });
     return await mongoose
       .createConnection(uri, {
+        readPreference: 'primary',
         // Options like useNewUrlParser and useUnifiedTopology are often set here.
       })
       .asPromise();

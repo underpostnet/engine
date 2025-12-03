@@ -1318,7 +1318,7 @@ class UnderpostDB {
      * @returns {void}
      * @memberof UnderpostDB
      */
-    clusterMetadataBackupCallback(
+    async clusterMetadataBackupCallback(
       deployId = process.env.DEFAULT_DEPLOY_ID,
       host = process.env.DEFAULT_DEPLOY_HOST,
       path = process.env.DEFAULT_DEPLOY_PATH,
@@ -1344,7 +1344,7 @@ class UnderpostDB {
 
       if (options.generate === true) {
         logger.info('Generating cluster metadata');
-        UnderpostDB.API.clusterMetadataFactory(deployId, host, path);
+        await UnderpostDB.API.clusterMetadataFactory(deployId, host, path);
       }
 
       if (options.instances === true) {
@@ -1357,14 +1357,14 @@ class UnderpostDB {
         if (options.export === true) {
           logger.info('Exporting instances collection', { outputPath });
           shellExec(
-            `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+            `node bin db --export --primary-pod --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
           );
         }
 
         if (options.import === true) {
           logger.info('Importing instances collection', { outputPath });
           shellExec(
-            `node bin db --import --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+            `node bin db --import --primary-pod --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
           );
         }
       }
@@ -1379,14 +1379,14 @@ class UnderpostDB {
         if (options.export === true) {
           logger.info('Exporting crons collection', { outputPath });
           shellExec(
-            `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+            `node bin db --export --primary-pod --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
           );
         }
 
         if (options.import === true) {
           logger.info('Importing crons collection', { outputPath });
           shellExec(
-            `node bin db --import --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+            `node bin db --import --primary-pod --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
           );
         }
       }
