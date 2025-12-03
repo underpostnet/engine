@@ -31,10 +31,11 @@ class MongooseDBService {
     logger.info('MongooseDB connect', { host, name, uri });
     return await mongoose
       .createConnection(uri, {
-        readPreference: 'primary',
+        serverSelectionTimeoutMS: 5000,
+        // readPreference: 'primary',
         // directConnection: true,
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
+        // useNewUrlParser: true,
+        // useUnifiedTopology: true,
       })
       .asPromise();
   }
