@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.90.4
+## underpost ci/cd cli v2.92.0
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -17,21 +17,21 @@ Commands:
   static [options]                                           Manages static build of page, bundles, and documentation with comprehensive customization options.
   config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
   root                                                       Displays the root path of the npm installation.
-  ip [options]                                               Displays the current public machine IP addresses.
+  ip [options] [ips]                                         Displays the current public machine IP addresses.
   cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
   deploy [options] [deploy-list] [env]                       Manages application deployments, defaulting to deploying development pods.
   secret [options] <platform>                                Manages secrets for various platforms.
   dockerfile-image-build [options]                           Builds a Docker image from a specified Dockerfile with various options for naming, saving, and loading.
   dockerfile-pull-base-images [options]                      Pulls required Underpost Dockerfile base images and optionally loads them into clusters.
   install                                                    Quickly imports Underpost npm dependencies by copying them.
-  db [options] <deploy-list>                                 Manages database operations, including import, export, and collection management.
+  db [options] <deploy-list>                                 Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.
   metadata [options] [deploy-id] [host] [path]               Manages cluster metadata operations, including import and export.
   script [options] <operator> <script-name> [script-value]   Supports a variety of built-in Underpost global scripts, their preset lifecycle events, and arbitrary custom scripts.
   cron [options] [deploy-list] [job-list]                    Manages cron jobs, including initialization, execution, and configuration updates.
   fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
   test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
   monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
-  ssh [options]                                              Import and start ssh server and client based on current default deployment ID.
+  ssh [options]
   run [options] <runner-id> [path]                           Runs a script from the specified path.
   lxd [options]                                              Manages LXD containers and virtual machines.
   baremetal [options] [workflow-id] [hostname] [ip-address]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
@@ -56,6 +56,15 @@ Options:
   --sub-conf <sub-conf>    Create sub conf env files
   --cluster                Create deploy ID cluster files and sync to current
                            cluster
+  --build-repos            Create deploy ID repositories
+  --build                  Build the deployment to pwa-microservices-template
+                           (requires --deploy-id)
+  --clean-template         Clean the build directory
+                           (pwa-microservices-template)
+  --sync-conf              Sync configuration to private repositories (requires
+                           --deploy-id)
+  --purge                  Remove deploy ID conf and all related repositories
+                           (requires --deploy-id)
   --dev                    Sets the development cli context
   -h, --help               display help for command
  
@@ -282,13 +291,28 @@ Options:
 
 ### `ip` :
 ```
- Usage: underpost ip [options]
+ Usage: underpost ip [options] [ips]
 
 Displays the current public machine IP addresses.
 
+Arguments:
+  ips                   Optional args comma-separated list of IP to process.
+
 Options:
-  --copy      Copies the IP addresses to the clipboard.
-  -h, --help  display help for command
+  --copy                Copies the IP addresses to the clipboard.
+  --ban-ingress-add     Adds IP addresses to banned ingress list.
+  --ban-ingress-remove  Removes IP addresses from banned ingress list.
+  --ban-ingress-list    Lists all banned ingress IP addresses.
+  --ban-ingress-clear   Clears all banned ingress IP addresses.
+  --ban-egress-add      Adds IP addresses to banned egress list.
+  --ban-egress-remove   Removes IP addresses from banned egress list.
+  --ban-egress-list     Lists all banned egress IP addresses.
+  --ban-egress-clear    Clears all banned egress IP addresses.
+  --ban-both-add        Adds IP addresses to both banned ingress and egress
+                        lists.
+  --ban-both-remove     Removes IP addresses from both banned ingress and
+                        egress lists.
+  -h, --help            display help for command
  
 ```
   
@@ -428,6 +452,10 @@ Options:
                                      configuration during deployment.
   --namespace <namespace>            Kubernetes namespace for deployment
                                      operations (defaults to "default").
+  --kind-type <kind-type>            Specifies the Kind cluster type for
+                                     deployment operations.
+  --port <port>                      Sets up port forwarding from local to
+                                     remote ports.
   -h, --help                         display help for command
  
 ```
@@ -522,8 +550,8 @@ Options:
 ```
  Usage: underpost db [options] <deploy-list>
 
-Manages database operations, including import, export, and collection
-management.
+Manages database operations with support for MariaDB and MongoDB, including
+import/export, multi-pod targeting, and Git integration.
 
 Arguments:
   deploy-list                  A comma-separated list of deployment IDs (e.g.,
@@ -534,19 +562,35 @@ Options:
                                repositories.
   --export                     Exports container backups to specified
                                repositories.
-  --pod-name <pod-name>        Optional: Specifies the pod context for database
-                               operations.
-  --collections <collections>  A comma-separated list of database collections
-                               to operate on.
+  --pod-name <pod-name>        Comma-separated list of pod names or patterns
+                               (supports wildcards like "mariadb-*").
+  --node-name <node-name>      Comma-separated list of node names to filter
+                               pods by their node placement.
+  --label-selector <selector>  Kubernetes label selector for filtering pods
+                               (e.g., "app=mariadb").
+  --all-pods                   Target all matching pods instead of just the
+                               first one.
+  --primary-pod                Automatically detect and use MongoDB primary pod
+                               (MongoDB only).
+  --stats                      Display database statistics (collection/table
+                               names with document/row counts).
+  --collections <collections>  Comma-separated list of database collections to
+                               operate on.
   --out-path <out-path>        Specifies a custom output path for backups.
-  --drop                       Drops the specified databases or collections.
-  --preserveUUID               Preserves UUIDs during database operations.
-  --git                        Uploads database backups to GitHub.
-  --hosts <hosts>              A comma-separated list of database hosts.
-  --paths <paths>              A comma-separated list of paths for database
-                               files.
-  --ns <ns-name>               Optional: Specifies the namespace context for
-                               database operations.
+  --drop                       Drops the specified databases or collections
+                               before importing.
+  --preserveUUID               Preserves UUIDs during database import
+                               operations.
+  --git                        Enables Git integration for backup version
+                               control (clone, pull, commit, push to GitHub).
+  --hosts <hosts>              Comma-separated list of database hosts to filter
+                               operations.
+  --paths <paths>              Comma-separated list of paths to filter database
+                               operations.
+  --ns <ns-name>               Kubernetes namespace context for database
+                               operations (defaults to "default").
+  --dry-run                    Simulates operations without executing them
+                               (useful for testing).
   -h, --help                   display help for command
  
 ```
@@ -702,12 +746,35 @@ Options:
 ```
  Usage: underpost ssh [options]
 
-Import and start ssh server and client based on current default deployment ID.
-
 Options:
-  --generate  Generates new ssh credential and stores it in current private
-              keys file storage.
-  -h, --help  display help for command
+  --deploy-id <deploy-id>  Sets deploy id context for ssh operations.
+  --generate               Generates new ssh credential and stores it in
+                           current private keys file storage.
+  --user <user>            Sets custom ssh user
+  --password <password>    Sets custom ssh password
+  --host <host>            Sets custom ssh host
+  --port <port>            Sets custom ssh port
+  --filter <filter>        Filters ssh user credentials from current private
+                           keys file storage.
+  --groups <groups>        Sets comma-separated ssh user groups for the ssh
+                           user credential.
+  --user-add               Adds a new ssh user credential to current private
+                           keys file storage.
+  --user-remove            Removes an existing ssh user credential from current
+                           private keys file storage.
+  --user-ls                Lists all ssh user credentials from current private
+                           keys file storage.
+  --start                  Starts an SSH session with the specified
+                           credentials.
+  --reset                  Resets ssh configuration and deletes all stored
+                           credentials.
+  --keys-list              Lists all ssh keys from current private keys file
+                           storage.
+  --hosts-list             Lists all ssh hosts from current private keys file
+                           storage.
+  --disable-password       Disables password authentication for the SSH
+                           session.
+  -h, --help               display help for command
  
 ```
   
