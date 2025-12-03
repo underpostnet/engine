@@ -29,6 +29,11 @@ program
   .option('--deploy-id <deploy-id>', 'Crete deploy ID conf env files')
   .option('--sub-conf <sub-conf>', 'Create sub conf env files')
   .option('--cluster', 'Create deploy ID cluster files and sync to current cluster')
+  .option('--build-repos', 'Create deploy ID repositories')
+  .option('--build', 'Build the deployment to pwa-microservices-template (requires --deploy-id)')
+  .option('--clean-template', 'Clean the build directory (pwa-microservices-template)')
+  .option('--sync-conf', 'Sync configuration to private repositories (requires --deploy-id)')
+  .option('--purge', 'Remove deploy ID conf and all related repositories (requires --deploy-id)')
   .option('--dev', 'Sets the development cli context')
   .description('Initializes a new Underpost project, service, or configuration.')
   .action(Underpost.repo.new);
@@ -238,9 +243,66 @@ program
 
 program
   .command('ip')
+  .argument('[ips]', 'Optional args comma-separated list of IP to process.')
   .option('--copy', 'Copies the IP addresses to the clipboard.')
+  .option('--ban-ingress-add', 'Adds IP addresses to banned ingress list.')
+  .option('--ban-ingress-remove', 'Removes IP addresses from banned ingress list.')
+  .option('--ban-ingress-list', 'Lists all banned ingress IP addresses.')
+  .option('--ban-ingress-clear', 'Clears all banned ingress IP addresses.')
+  .option('--ban-egress-add', 'Adds IP addresses to banned egress list.')
+  .option('--ban-egress-remove', 'Removes IP addresses from banned egress list.')
+  .option('--ban-egress-list', 'Lists all banned egress IP addresses.')
+  .option('--ban-egress-clear', 'Clears all banned egress IP addresses.')
+  .option('--ban-both-add', 'Adds IP addresses to both banned ingress and egress lists.')
+  .option('--ban-both-remove', 'Removes IP addresses from both banned ingress and egress lists.')
   .description('Displays the current public machine IP addresses.')
-  .action(async (options) => {
+  .action(async (ips = '', options) => {
+    const ipList = ips
+      ? ips
+          .split(',')
+          .map((i) => i.trim())
+          .filter(Boolean)
+      : [];
+
+    if (options.banIngressAdd) {
+      return ipList.forEach((ip) => Dns.banIngress(ip));
+    }
+    if (options.banIngressRemove) {
+      return ipList.forEach((ip) => Dns.unbanIngress(ip));
+    }
+    if (options.banIngressList) {
+      return Dns.listBannedIngress();
+    }
+    if (options.banIngressClear) {
+      return Dns.clearBannedIngress();
+    }
+
+    if (options.banEgressAdd) {
+      return ipList.forEach((ip) => Dns.banEgress(ip));
+    }
+    if (options.banEgressRemove) {
+      return ipList.forEach((ip) => Dns.unbanEgress(ip));
+    }
+    if (options.banEgressList) {
+      return Dns.listBannedEgress();
+    }
+    if (options.banEgressClear) {
+      return Dns.clearBannedEgress();
+    }
+
+    if (options.banBothAdd) {
+      return ipList.forEach((ip) => {
+        Dns.banIngress(ip);
+        Dns.banEgress(ip);
+      });
+    }
+    if (options.banBothRemove) {
+      return ipList.forEach((ip) => {
+        Dns.unbanIngress(ip);
+        Dns.unbanEgress(ip);
+      });
+    }
+
     const ip = await Dns.getPublicIp();
     if (options.copy) return pbcopy(ip);
     return console.log(ip);

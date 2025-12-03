@@ -234,21 +234,145 @@ class UnderpostRepository {
     /**
      * Initializes a new Underpost repository, optionally setting up a deploy ID or sub-configuration.
      * @param {string} [projectName=''] - The name of the project to create.
-     * @param {object} [options={ deployId: '', subConf: '', cluster: false, dev: false }] - Initialization options.
+     * @param {object} [options] - Initialization options.
      * @param {string} [options.deployId=''] - The deployment ID to set up.
      * @param {string} [options.subConf=''] - The sub-configuration to create.
      * @param {boolean} [options.cluster=false] - If true, sets up a clustered configuration.
      * @param {boolean} [options.dev=false] - If true, uses development settings.
+     * @param {boolean} [options.buildRepos=false] - If true, creates the deployment repositories (engine-*, engine-*-private, engine-*-cron-backups).
+     * @param {boolean} [options.purge=false] - If true, removes the deploy ID conf and all related repositories (requires deployId).
+     * @param {boolean} [options.cleanTemplate=false] - If true, cleans the pwa-microservices-template build directory.
+     * @param {boolean} [options.build=false] - If true, builds the deployment to pwa-microservices-template (requires deployId).
+     * @param {boolean} [options.syncConf=false] - If true, syncs configuration to private repositories (requires deployId).
      * @returns {Promise<boolean>} A promise that resolves when the initialization is complete.
      * @memberof UnderpostRepository
      */
-    new(projectName, options = { deployId: '', subConf: '', cluster: false, dev: false }) {
+    new(
+      projectName,
+      options = {
+        deployId: '',
+        subConf: '',
+        cluster: false,
+        dev: false,
+        buildRepos: false,
+        purge: false,
+        cleanTemplate: false,
+        build: false,
+        syncConf: false,
+      },
+    ) {
       return new Promise(async (resolve, reject) => {
         try {
           await logger.setUpInfo();
           actionInitLog();
+
+          // Handle cleanTemplate operation
+          if (options.cleanTemplate) {
+            logger.info('Cleaning build directory');
+            const basePath = '../pwa-microservices-template';
+            shellExec(`cd ${basePath} && git reset`);
+            shellExec(`cd ${basePath} && git checkout .`);
+            shellExec(`cd ${basePath} && git clean -f -d`);
+            logger.info('Build directory cleaned successfully');
+            return resolve(true);
+          }
+
           if (options.deployId) {
-            Config.deployIdFactory(options.deployId, options);
+            let deployId = options.deployId;
+            if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
+
+            // Handle purge operation
+            if (options.purge) {
+              logger.info(`Purging deploy ID: ${deployId}`);
+
+              const suffix = deployId.split('dd-')[1];
+              const repoName = `engine-${suffix}`;
+              const privateRepoName = `engine-${suffix}-private`;
+              const cronRepoName = `engine-${suffix}-cron-backups`;
+              const confFolder = `./engine-private/conf/${deployId}`;
+
+              // Remove conf folder
+              if (fs.existsSync(confFolder)) {
+                fs.removeSync(confFolder);
+                logger.info(`Removed conf folder: ${confFolder}`);
+              } else {
+                logger.warn(`Conf folder not found: ${confFolder}`);
+              }
+
+              // Remove repositories
+              const repos = [
+                { path: `../${repoName}`, name: repoName },
+                { path: `../${privateRepoName}`, name: privateRepoName },
+                { path: `../${cronRepoName}`, name: cronRepoName },
+              ];
+
+              for (const repo of repos) {
+                if (fs.existsSync(repo.path)) {
+                  fs.removeSync(repo.path);
+                  logger.info(`Removed repository: ${repo.path}`);
+                } else {
+                  logger.warn(`Repository not found: ${repo.path}`);
+                }
+              }
+
+              logger.info(`Successfully purged deploy ID: ${deployId}`);
+              return resolve(true);
+            }
+
+            // Handle sync-conf operation
+            if (options.syncConf) {
+              logger.info(`Syncing configuration for deploy ID: ${deployId}`);
+              shellExec(`node bin/build ${deployId} conf`);
+              logger.info('Configuration synced successfully');
+              return resolve(true);
+            }
+
+            // Handle build operation
+            if (options.build) {
+              logger.info(`Building deployment for deploy ID: ${deployId}`);
+              shellExec(`node bin/build ${deployId}`);
+              logger.info('Build completed successfully');
+              return resolve(true);
+            }
+
+            // Normal deploy ID factory operation
+            const { deployId: normalizedDeployId } = Config.deployIdFactory(deployId, options);
+
+            if (options.buildRepos) {
+              const suffix = normalizedDeployId.split('dd-')[1];
+              const repoName = `engine-${suffix}`;
+              const privateRepoName = `engine-${suffix}-private`;
+              const cronRepoName = `engine-${suffix}-cron-backups`;
+              const repos = [
+                { path: `../${repoName}`, name: repoName },
+                { path: `../${privateRepoName}`, name: privateRepoName },
+                { path: `../${cronRepoName}`, name: cronRepoName },
+              ];
+
+              const username = process.env.GITHUB_USERNAME;
+              const token = process.env.GITHUB_TOKEN;
+
+              if (!username) {
+                logger.error('GITHUB_USERNAME environment variable not set');
+                return reject(false);
+              }
+
+              for (const repo of repos) {
+                if (!fs.existsSync(repo.path)) {
+                  fs.mkdirSync(repo.path, { recursive: true });
+                  logger.info(`Created repository directory: ${repo.path}`);
+                }
+
+                // Initialize git repository
+                shellExec(`cd ${repo.path} && git init`, { disableLog: false });
+                logger.info(`Initialized git repository in: ${repo.path}`);
+
+                // Add remote origin
+                const remoteUrl = `https://${token ? `${token}@` : ''}github.com/${username}/${repo.name}.git`;
+                shellExec(`cd ${repo.path} && git remote add origin ${remoteUrl}`, { disableLog: false });
+                logger.info(`Added remote origin for: ${repo.name}`);
+              }
+            }
             return resolve(true);
           }
           if (projectName) {

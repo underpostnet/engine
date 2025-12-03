@@ -668,15 +668,9 @@ EOF`);
       for (const pod of pods) {
         const { NAME } = pod;
         if (ignoresNames && ignoresNames.find((t) => NAME.trim().toLowerCase().match(t.trim().toLowerCase()))) continue;
-        if (
-          shellExec(`sudo kubectl exec -i ${NAME} -- sh -c "${cmd}"`, { stdout: true }).match(
-            `${deployId}-${env}-running-deployment`,
-          )
-        ) {
-          readyPods.push(pod);
-        } else {
-          notReadyPods.push(pod);
-        }
+        const out = shellExec(`sudo kubectl exec -i ${NAME} -- sh -c "${cmd}"`, { stdout: true, silent: true });
+        const ready = out.match(`${deployId}-${env}-running-deployment`);
+        ready ? readyPods.push(pod) : notReadyPods.push(pod);
       }
       return {
         ready: pods.length > 0 && notReadyPods.length === 0,
