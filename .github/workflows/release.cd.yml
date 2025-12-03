@@ -31,7 +31,7 @@ jobs:
             set -e
             echo "Starting remote release deploy"
             cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "underpost run pull"
+            sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "underpost run secret"
             sudo -n -- /bin/bash -lc "npm install -g underpost"
             sudo -n -- /bin/bash -lc "underpost run secret"
