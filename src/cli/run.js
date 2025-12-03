@@ -19,6 +19,7 @@ import UnderpostTest from './test.js';
 import fs from 'fs-extra';
 import { range, setPad, timer } from '../client/components/core/CommonJs.js';
 import UnderpostDeploy from './deploy.js';
+import UnderpostDB from './db.js';
 import UnderpostRootEnv from './env.js';
 import UnderpostRepository from './repository.js';
 import os from 'os';
@@ -253,7 +254,29 @@ class UnderpostRun {
       shellExec(`${baseCommand} deploy --expose --disable-update-underpost-config mongo`, { async: true });
       shellExec(`${baseCommand} deploy --expose --disable-update-underpost-config valkey`, { async: true });
       {
-        const hostListenResult = UnderpostDeploy.API.etcHostFactory(mongoHosts);
+        // Detect MongoDB primary pod using centralized method
+        let primaryMongoHost = 'mongodb-0.mongodb-service';
+        try {
+          const namespace = options.namespace || 'default';
+          const primaryPodName = UnderpostDB.API.getMongoPrimaryPodName({ namespace, podName: 'mongodb-0' });
+
+          if (primaryPodName) {
+            primaryMongoHost = `${primaryPodName}.mongodb-service`;
+            logger.info('Using MongoDB primary pod for /etc/hosts', {
+              primaryPod: primaryPodName,
+              primaryHost: primaryMongoHost,
+            });
+          } else {
+            logger.warn('Could not detect MongoDB primary pod, using default', { default: primaryMongoHost });
+          }
+        } catch (error) {
+          logger.warn('Failed to detect MongoDB primary pod, using default', {
+            error: error.message,
+            default: primaryMongoHost,
+          });
+        }
+
+        const hostListenResult = UnderpostDeploy.API.etcHostFactory([primaryMongoHost]);
         logger.info(hostListenResult.renderHosts);
       }
     },
