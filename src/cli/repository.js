@@ -242,13 +242,94 @@ class UnderpostRepository {
      * @returns {Promise<boolean>} A promise that resolves when the initialization is complete.
      * @memberof UnderpostRepository
      */
-    new(projectName, options = { deployId: '', subConf: '', cluster: false, dev: false }) {
+    new(
+      projectName,
+      options = { deployId: '', subConf: '', cluster: false, dev: false, buildRepos: false, purge: false },
+    ) {
       return new Promise(async (resolve, reject) => {
         try {
           await logger.setUpInfo();
           actionInitLog();
           if (options.deployId) {
-            Config.deployIdFactory(options.deployId, options);
+            let deployId = options.deployId;
+            if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
+
+            // Handle purge operation
+            if (options.purge) {
+              logger.info(`Purging deploy ID: ${deployId}`);
+
+              const suffix = deployId.split('dd-')[1];
+              const repoName = `engine-${suffix}`;
+              const privateRepoName = `engine-${suffix}-private`;
+              const cronRepoName = `engine-${suffix}-cron-backups`;
+              const confFolder = `./engine-private/conf/${deployId}`;
+
+              // Remove conf folder
+              if (fs.existsSync(confFolder)) {
+                fs.removeSync(confFolder);
+                logger.info(`Removed conf folder: ${confFolder}`);
+              } else {
+                logger.warn(`Conf folder not found: ${confFolder}`);
+              }
+
+              // Remove repositories
+              const repos = [
+                { path: `../${repoName}`, name: repoName },
+                { path: `../${privateRepoName}`, name: privateRepoName },
+                { path: `../${cronRepoName}`, name: cronRepoName },
+              ];
+
+              for (const repo of repos) {
+                if (fs.existsSync(repo.path)) {
+                  fs.removeSync(repo.path);
+                  logger.info(`Removed repository: ${repo.path}`);
+                } else {
+                  logger.warn(`Repository not found: ${repo.path}`);
+                }
+              }
+
+              logger.info(`Successfully purged deploy ID: ${deployId}`);
+              return resolve(true);
+            }
+
+            // Normal deploy ID factory operation
+            const { deployId: normalizedDeployId } = Config.deployIdFactory(deployId, options);
+
+            if (options.buildRepos) {
+              const suffix = normalizedDeployId.split('dd-')[1];
+              const repoName = `engine-${suffix}`;
+              const privateRepoName = `engine-${suffix}-private`;
+              const cronRepoName = `engine-${suffix}-cron-backups`;
+              const repos = [
+                { path: `../${repoName}`, name: repoName },
+                { path: `../${privateRepoName}`, name: privateRepoName },
+                { path: `../${cronRepoName}`, name: cronRepoName },
+              ];
+
+              const username = process.env.GITHUB_USERNAME;
+              const token = process.env.GITHUB_TOKEN;
+
+              if (!username) {
+                logger.error('GITHUB_USERNAME environment variable not set');
+                return reject(false);
+              }
+
+              for (const repo of repos) {
+                if (!fs.existsSync(repo.path)) {
+                  fs.mkdirSync(repo.path, { recursive: true });
+                  logger.info(`Created repository directory: ${repo.path}`);
+                }
+
+                // Initialize git repository
+                shellExec(`cd ${repo.path} && git init`, { disableLog: false });
+                logger.info(`Initialized git repository in: ${repo.path}`);
+
+                // Add remote origin
+                const remoteUrl = `https://${token ? `${token}@` : ''}github.com/${username}/${repo.name}.git`;
+                shellExec(`cd ${repo.path} && git remote add origin ${remoteUrl}`, { disableLog: false });
+                logger.info(`Added remote origin for: ${repo.name}`);
+              }
+            }
             return resolve(true);
           }
           if (projectName) {

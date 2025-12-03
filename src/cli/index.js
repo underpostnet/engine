@@ -29,6 +29,8 @@ program
   .option('--deploy-id <deploy-id>', 'Crete deploy ID conf env files')
   .option('--sub-conf <sub-conf>', 'Create sub conf env files')
   .option('--cluster', 'Create deploy ID cluster files and sync to current cluster')
+  .option('--build-repos', 'Create deploy ID repositories')
+  .option('--purge', 'Remove deploy ID conf and all related repositories (requires --deploy-id)')
   .option('--dev', 'Sets the development cli context')
   .description('Initializes a new Underpost project, service, or configuration.')
   .action(Underpost.repo.new);
