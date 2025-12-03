@@ -181,7 +181,7 @@ class UnderpostSSH {
             fs.copyFileSync(publicKeyPath, userPubKeyPath);
             if (options.disablePassword) {
               shellExec(`cat >> ${sshDir}/authorized_keys <<EOF
-command=no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(userPubKeyPath, 'utf8')}
+no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(userPubKeyPath, 'utf8')}
 EOF`);
               shellExec(`echo '${options.user} ALL=(ALL) NOPASSWD: ALL' | sudo tee /etc/sudoers.d/90_${options.user}`);
             } else {
@@ -233,7 +233,7 @@ EOF`);
 
           if (options.disablePassword) {
             shellExec(`cat >> ${sshDir}/authorized_keys <<EOF
-command=no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(pubKeyPath, 'utf8')}
+no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(pubKeyPath, 'utf8')}
 EOF`);
             shellExec(`echo '${options.user} ALL=(ALL) NOPASSWD: ALL' | sudo tee /etc/sudoers.d/90_${options.user}`);
           } else {
