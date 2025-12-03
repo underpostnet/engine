@@ -31,8 +31,8 @@ jobs:
             set -e
             echo "Starting remote deploy"
             cd /home/dd/engine
-            underpost run pull
-            node bin run deploy dd-cyberia
+            sudo -n -- /bin/bash -lc "underpost run pull"
+            sudo -n -- /bin/bash -lc "node bin run deploy dd-cyberia"
   sync-and-deploy:
     if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-sync-engine-cyberia)')
     name: Remote SSH sync and deploy
@@ -58,5 +58,5 @@ jobs:
             set -e
             echo "Starting remote sync and deploy"
             cd /home/dd/engine
-            underpost run pull
-            node bin run sync dd-cyberia,1,,localhost/rockylinux9-underpost:v2.8.846
+            sudo -n -- /bin/bash -lc "underpost run pull"
+            sudo -n -- /bin/bash -lc "node bin run sync dd-cyberia,1,,localhost/rockylinux9-underpost:v2.8.846"

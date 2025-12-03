@@ -63,7 +63,7 @@ class UnderpostRootEnv {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
       if (!fs.existsSync(envPath)) {
-        logger.error(`Unable to find underpost root environment`);
+        logger.warn(`Empty environment variables`);
         return undefined;
       }
       const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
@@ -80,7 +80,7 @@ class UnderpostRootEnv {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
       if (!fs.existsSync(envPath)) {
-        logger.error(`Unable to find underpost root environment`);
+        logger.warn(`Empty environment variables`);
         return {};
       }
       const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));

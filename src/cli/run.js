@@ -425,10 +425,14 @@ class UnderpostRun {
         shellExec(`cd /home/dd && underpost clone ${process.env.GITHUB_USERNAME}/engine`);
       } else {
         shellExec(`underpost run clean`);
-        shellExec(`cd /home/dd/engine && underpost pull . ${process.env.GITHUB_USERNAME}/engine`);
+        shellExec(`cd /home/dd/engine && underpost pull . ${process.env.GITHUB_USERNAME}/engine`, {
+          silent: true,
+        });
       }
       if (!fs.existsSync(`/home/dd/engine/engine-private`))
-        shellExec(`cd /home/dd/engine && underpost clone ${process.env.GITHUB_USERNAME}/engine-private`);
+        shellExec(`cd /home/dd/engine && underpost clone ${process.env.GITHUB_USERNAME}/engine-private`, {
+          silent: true,
+        });
       else
         shellExec(
           `cd /home/dd/engine/engine-private && underpost pull . ${process.env.GITHUB_USERNAME}/engine-private`,

@@ -181,9 +181,13 @@ class UnderpostSSH {
             fs.copyFileSync(publicKeyPath, userPubKeyPath);
             if (options.disablePassword) {
               shellExec(`cat >> ${sshDir}/authorized_keys <<EOF
-command="sudo -i",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(userPubKeyPath, 'utf8')}
+command="no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(userPubKeyPath, 'utf8')}
 EOF`);
-            } else shellExec(`cat ${userPubKeyPath} >> ${sshDir}/authorized_keys`);
+              shellExec(`echo '${options.user} ALL=(ALL) NOPASSWD: ALL' | sudo tee /etc/sudoers.d/90_${options.user}`);
+            } else {
+              shellExec(`cat ${userPubKeyPath} >> ${sshDir}/authorized_keys`);
+              shellExec(`echo "${options.user}:${options.password}" | sudo chpasswd`);
+            }
             shellExec(`ssh-keyscan -p ${options.port} -H localhost >> ${sshDir}/known_hosts`);
             shellExec(`ssh-keyscan -p ${options.port} -H 127.0.0.1 >> ${sshDir}/known_hosts`);
             if (options.host) shellExec(`ssh-keyscan -p ${options.port} -H ${options.host} >> ${sshDir}/known_hosts`);
@@ -229,9 +233,13 @@ EOF`);
 
           if (options.disablePassword) {
             shellExec(`cat >> ${sshDir}/authorized_keys <<EOF
-command="sudo -i",no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(pubKeyPath, 'utf8')}
+command="no-port-forwarding,no-X11-forwarding,no-agent-forwarding ${fs.readFileSync(pubKeyPath, 'utf8')}
 EOF`);
-          } else shellExec(`cat ${pubKeyPath} >> ${sshDir}/authorized_keys`);
+            shellExec(`echo '${options.user} ALL=(ALL) NOPASSWD: ALL' | sudo tee /etc/sudoers.d/90_${options.user}`);
+          } else {
+            shellExec(`cat ${pubKeyPath} >> ${sshDir}/authorized_keys`);
+            shellExec(`echo "${options.user}:${options.password}" | sudo chpasswd`);
+          }
           shellExec(`ssh-keyscan -p ${options.port} -H localhost >> ${sshDir}/known_hosts`);
           shellExec(`ssh-keyscan -p ${options.port} -H 127.0.0.1 >> ${sshDir}/known_hosts`);
           if (options.host) shellExec(`ssh-keyscan -p ${options.port} -H ${options.host} >> ${sshDir}/known_hosts`);

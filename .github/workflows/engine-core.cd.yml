@@ -58,6 +58,6 @@ jobs:
             set -e
             echo "Starting remote sync and deploy"
             cd /home/dd/engine
-            underpost run pull
-            node bin run metadata dd-core
-            node bin run sync dd-core,1,,localhost/rockylinux9-underpost:v2.8.846
+            sudo -n -- /bin/bash -lc "underpost run pull"
+            sudo -n -- /bin/bash -lc "node bin run metadata dd-core"
+            sudo -n -- /bin/bash -lc "node bin run sync dd-core,1,,localhost/rockylinux9-underpost:v2.8.846"

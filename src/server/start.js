@@ -119,6 +119,7 @@ class UnderpostStartUp {
      * @param {boolean} options.run - Whether to run the deployment.
      */
     async callback(deployId = 'dd-default', env = 'development', options = { build: false, run: false }) {
+      UnderpostRootEnv.API.set('container-status', `${deployId}-${env}-build-deployment`);
       if (options.build === true) await UnderpostStartUp.API.build(deployId, env);
       if (options.run === true) await UnderpostStartUp.API.run(deployId, env);
     },
