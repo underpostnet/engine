@@ -251,24 +251,18 @@ class UnderpostRun {
         );
         shellExec(`${baseCommand} cluster${options.dev ? ' --dev' : ''} --valkey --pull-image`);
       }
-      shellExec(`${baseCommand} deploy --expose --disable-update-underpost-config mongo`, { async: true });
-      shellExec(`${baseCommand} deploy --expose --disable-update-underpost-config valkey`, { async: true });
+
       {
         // Detect MongoDB primary pod using centralized method
         let primaryMongoHost = 'mongodb-0.mongodb-service';
         try {
-          const namespace = options.namespace || 'default';
-          const primaryPodName = UnderpostDB.API.getMongoPrimaryPodName({ namespace, podName: 'mongodb-0' });
-
-          if (primaryPodName) {
-            primaryMongoHost = `${primaryPodName}.mongodb-service`;
-            logger.info('Using MongoDB primary pod for /etc/hosts', {
-              primaryPod: primaryPodName,
-              primaryHost: primaryMongoHost,
-            });
-          } else {
-            logger.warn('Could not detect MongoDB primary pod, using default', { default: primaryMongoHost });
-          }
+          const primaryPodName = UnderpostDB.API.getMongoPrimaryPodName({
+            namespace: options.namespace,
+            podName: 'mongodb-0',
+          });
+          // shellExec(`${baseCommand} deploy --expose --disable-update-underpost-config mongo`, { async: true });
+          shellExec(`kubectl port-forward -n ${options.namespace} pod/${primaryPodName} 27017:27017`, { async: true });
+          shellExec(`${baseCommand} deploy --expose --disable-update-underpost-config valkey`, { async: true });
         } catch (error) {
           logger.warn('Failed to detect MongoDB primary pod, using default', {
             error: error.message,

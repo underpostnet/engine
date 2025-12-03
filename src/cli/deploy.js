@@ -501,7 +501,9 @@ EOF`);
             svc,
             port,
           });
-          shellExec(`sudo kubectl port-forward -n default svc/${svc.NAME} ${port}:${port}`, { async: true });
+          shellExec(`sudo kubectl port-forward -n ${namespace} svc/${svc.NAME} ${port}:${port}`, {
+            async: true,
+          });
           continue;
         }
 
