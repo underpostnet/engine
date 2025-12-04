@@ -19,6 +19,16 @@ const logger = loggerFactory(import.meta);
 
 await logger.setUpInfo();
 
-UnderpostMonitor.API.callback(process.argv[2], process.argv[3], { type: 'blue-green', sync: true });
+const deployId = process.argv[2];
+const env = process.argv[3] || 'production';
+const replicas = process.argv[4] || '1';
+const namespace = process.argv[5] || 'default';
+
+UnderpostMonitor.API.callback(deployId, env, {
+  type: 'blue-green',
+  sync: true,
+  replicas,
+  namespace,
+});
 
 ProcessController.init(logger);

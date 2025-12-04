@@ -657,18 +657,22 @@ EOF`);
      * @param {string} env - Environment for which the status is being checked.
      * @param {string} traffic - Current traffic status for the deployment.
      * @param {Array<string>} ignoresNames - List of pod names to ignore.
+     * @param {string} [namespace='default'] - Kubernetes namespace for the deployment.
      * @returns {object} - Object containing the status of the deployment.
      * @memberof UnderpostDeploy
      */
-    checkDeploymentReadyStatus(deployId, env, traffic, ignoresNames = []) {
+    checkDeploymentReadyStatus(deployId, env, traffic, ignoresNames = [], namespace = 'default') {
       const cmd = `underpost config get container-status`;
-      const pods = UnderpostDeploy.API.get(`${deployId}-${env}-${traffic}`);
+      const pods = UnderpostDeploy.API.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
       const readyPods = [];
       const notReadyPods = [];
       for (const pod of pods) {
         const { NAME } = pod;
         if (ignoresNames && ignoresNames.find((t) => NAME.trim().toLowerCase().match(t.trim().toLowerCase()))) continue;
-        const out = shellExec(`sudo kubectl exec -i ${NAME} -- sh -c "${cmd}"`, { stdout: true, silent: true });
+        const out = shellExec(`sudo kubectl exec -i ${NAME} -n ${namespace} -- sh -c "${cmd}"`, {
+          stdout: true,
+          silent: true,
+        });
         const ready = out.match(`${deployId}-${env}-running-deployment`);
         ready ? readyPods.push(pod) : notReadyPods.push(pod);
       }
@@ -893,15 +897,16 @@ ${renderHosts}`,
      * @param {string} env - Environment for which the ready status is being monitored.
      * @param {string} targetTraffic - Target traffic status for the deployment.
      * @param {Array<string>} ignorePods - List of pod names to ignore.
+     * @param {string} [namespace='default'] - Kubernetes namespace for the deployment.
      * @returns {object} - Object containing the ready status of the deployment.
      * @memberof UnderpostDeploy
      */
-    async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = []) {
+    async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = [], namespace = 'default') {
       let checkStatusIteration = 0;
       const checkStatusIterationMsDelay = 1000;
       const maxIterations = 500;
       const iteratorTag = `[${deployId}-${env}-${targetTraffic}]`;
-      logger.info('Deployment init', { deployId, env, targetTraffic, checkStatusIterationMsDelay });
+      logger.info('Deployment init', { deployId, env, targetTraffic, checkStatusIterationMsDelay, namespace });
       const minReadyOk = 3;
       let readyOk = 0;
       let result = {
@@ -917,7 +922,7 @@ ${renderHosts}`,
           );
           break;
         }
-        result = UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods);
+        result = UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods, namespace);
         if (result.ready === true) {
           readyOk++;
           logger.info(`${iteratorTag} | Deployment ready. Verification number: ${readyOk}`);

@@ -526,7 +526,7 @@ class UnderpostRun {
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const defaultPath = [
         'dd-default',
-        1,
+        options.replicas,
         ``,
         ``,
         options.dev || !isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname(),
@@ -553,7 +553,7 @@ class UnderpostRun {
 
       shellExec(
         `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
-          replicas ? replicas : 1
+          replicas
         } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''}${options.namespace ? ` --namespace ${options.namespace}` : ''} dd ${env}`,
       );
 
@@ -563,8 +563,8 @@ class UnderpostRun {
         );
         if (!targetTraffic)
           targetTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
-        await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic);
-        UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
+        await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic, [], options.namespace);
+        UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic, replicas, options.namespace);
       } else
         logger.info(
           'current traffic',
@@ -652,6 +652,7 @@ class UnderpostRun {
         const _deployId = `${deployId}-${_id}`;
         const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(_deployId, {
           hostTest: _host,
+          namespace: options.namespace,
         });
         const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
         let proxyYaml =
@@ -691,7 +692,8 @@ EOF
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
-      let [deployId, id, replicas = 1] = path.split(',');
+      let [deployId, id, replicas] = path.split(',');
+      if (!replicas) replicas = options.replicas;
       const confInstances = JSON.parse(
         fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
       );
@@ -726,11 +728,12 @@ EOF
 
         const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(_deployId, {
           hostTest: _host,
+          namespace: options.namespace,
         });
 
         const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
         const podId = `${_deployId}-${env}-${targetTraffic}`;
-        const ignorePods = UnderpostDeploy.API.get(podId).map((p) => p.NAME);
+        const ignorePods = UnderpostDeploy.API.get(podId, 'pods', options.namespace).map((p) => p.NAME);
         UnderpostDeploy.API.configMap(env, options.namespace);
         shellExec(`kubectl delete service ${podId}-service --namespace ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl delete deployment ${podId} --namespace ${options.namespace} --ignore-not-found`);
@@ -769,6 +772,7 @@ EOF
           env,
           targetTraffic,
           ignorePods,
+          options.namespace,
         );
 
         if (!ready) {
@@ -917,7 +921,7 @@ EOF
           switch (path) {
             case 'tf-vae-test':
               {
-                const nameSpace = options.namespace || 'default';
+                const nameSpace = options.namespace;
                 const podName = path;
                 const basePath = '/home/dd';
                 const scriptPath = '/site/en/tutorials/generative/cvae.py';
@@ -1062,12 +1066,12 @@ EOF
         for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
           const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
           const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
-          UnderpostDeploy.API.switchTraffic(deployId, inputEnv, targetTraffic, inputReplicas);
+          UnderpostDeploy.API.switchTraffic(deployId, inputEnv, targetTraffic, inputReplicas, options.namespace);
         }
       } else {
         const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(inputDeployId, { namespace: options.namespace });
         const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
-        UnderpostDeploy.API.switchTraffic(inputDeployId, inputEnv, targetTraffic, inputReplicas);
+        UnderpostDeploy.API.switchTraffic(inputDeployId, inputEnv, targetTraffic, inputReplicas, options.namespace);
       }
     },
     /**
@@ -1155,13 +1159,15 @@ EOF
       const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
       const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
       const env = 'production';
-      const ignorePods = UnderpostDeploy.API.get(`${deployId}-${env}-${targetTraffic}`).map((p) => p.NAME);
+      const ignorePods = UnderpostDeploy.API.get(`${deployId}-${env}-${targetTraffic}`, 'pods', options.namespace).map(
+        (p) => p.NAME,
+      );
 
       shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic} -n ${options.namespace}`);
 
-      await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic, ignorePods);
+      await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic, ignorePods, options.namespace);
 
-      UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic);
+      UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic, options.replicas, options.namespace);
     },
 
     /**
@@ -1234,6 +1240,7 @@ EOF
       const baseClusterCommand = options.dev ? ' --dev' : '';
       shellCd(`/home/dd/engine`);
       let [deployId, serviceId, host, _path, replicas, image, node] = path.split(',');
+      if (!replicas) replicas = options.replicas;
       // const confClient = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.client.json`, 'utf8'));
       const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
       // const confSSR = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.ssr.json`, 'utf8'));
@@ -1298,7 +1305,7 @@ EOF
         if (!node) node = os.hostname();
         shellExec(
           `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''} --build-manifest --sync --info-router --replicas ${
-            replicas ? replicas : 1
+            replicas
           } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''} dd ${env}`,
         );
         shellExec(
@@ -1552,6 +1559,8 @@ EOF`;
         if (options.args) options.args = options.args.split(',');
         if (!options.underpostRoot) options.underpostRoot = underpostRoot;
         if (!options.namespace) options.namespace = 'default';
+        if (options.replicas === '' || options.replicas === null || options.replicas === undefined)
+          options.replicas = 1;
         options.npmRoot = npmRoot;
         logger.info('callback', { path, options });
         if (!(runner in UnderpostRun.RUNNERS)) throw new Error(`Runner not found: ${runner}`);

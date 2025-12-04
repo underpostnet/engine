@@ -564,9 +564,10 @@ program
   .option('--ms-interval <ms-interval>', 'Sets a custom millisecond interval for monitoring checks.')
   .option('--now', 'Executes the monitor script immediately.')
   .option('--single', 'Disables recurrence, running the monitor script only once.')
-  .option('--replicas <replicas>', 'Sets a custom number of replicas for monitoring.')
+  .option('--replicas <replicas>', 'Sets a custom number of replicas for monitoring. Defaults to 1.')
   .option('--type <type>', 'Sets a custom monitor type.')
   .option('--sync', 'Synchronizes with current proxy deployments and traffic configurations.')
+  .option('--namespace <namespace>', 'Sets the Kubernetes namespace for the deployment. Defaults to "default".')
   .description('Manages health server monitoring for specified deployments.')
   .action(Underpost.monitor.callback);
 

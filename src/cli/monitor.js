@@ -37,9 +37,9 @@ class UnderpostMonitor {
      * @param {boolean} [options.single=false] - Perform a single health check and exit.
      * @param {string} [options.msInterval=''] - Interval in milliseconds for periodic health checks.
      * @param {string} [options.type=''] - Type of deployment (e.g., 'blue-green', 'remote').
-     * @param {string} [options.replicas=''] - Number of replicas for the deployment.
+     * @param {string} [options.replicas='1'] - Number of replicas for the deployment. Defaults to 1.
      * @param {boolean} [options.sync=false] - Synchronize traffic switching with the deployment.
-     * @param {string} [options.namespace=''] - Kubernetes namespace for the deployment.
+     * @param {string} [options.namespace='default'] - Kubernetes namespace for the deployment. Defaults to 'default'.
      * @param {object} [commanderOptions] - Options passed from the command line interface.
      * @param {object} [auxRouter] - Optional router configuration for the deployment.
      * @memberof UnderpostMonitor
@@ -47,11 +47,20 @@ class UnderpostMonitor {
     async callback(
       deployId,
       env = 'development',
-      options = { now: false, single: false, msInterval: '', type: '', replicas: '', sync: false, namespace: '' },
+      options = {
+        now: false,
+        single: false,
+        msInterval: '',
+        type: '',
+        replicas: '1',
+        sync: false,
+        namespace: 'default',
+      },
       commanderOptions,
       auxRouter,
     ) {
       if (!options.namespace) options.namespace = 'default';
+      if (!options.replicas) options.replicas = '1';
       if (deployId === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`)) {
         for (const _deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(','))
           UnderpostMonitor.API.callback(
@@ -97,10 +106,10 @@ class UnderpostMonitor {
         if (traffic === 'blue') traffic = 'green';
         else traffic = 'blue';
         UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, traffic);
-        const namespace = options.namespace || 'default';
+        const namespace = options.namespace;
         shellExec(
           `node bin deploy --info-router --build-manifest --traffic ${traffic} --replicas ${
-            options.replicas ? options.replicas : 1
+            options.replicas
           } --namespace ${namespace} ${deployId} ${env}`,
         );
         shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml -n ${namespace}`);
@@ -155,7 +164,7 @@ class UnderpostMonitor {
                           fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'),
                         );
 
-                        const namespace = options.namespace || 'default';
+                        const namespace = options.namespace;
                         UnderpostDeploy.API.configMap(env, namespace);
 
                         for (const host of Object.keys(confServer)) {
@@ -213,6 +222,8 @@ class UnderpostMonitor {
                       deployId,
                       env,
                       traffic,
+                      [],
+                      options.namespace,
                     );
                     if (ready) {
                       monitorPodName = readyPods[0].NAME;
