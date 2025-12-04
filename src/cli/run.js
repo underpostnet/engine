@@ -1358,7 +1358,7 @@ EOF
       shellExec(`underpost run secret`);
       shellCd(`/home/dd/engine`);
       shellExec(`underpost cmt --empty . ci engine ' New engine release $(underpost --version)'`);
-      shellExec(`underpost push . ${process.env.GITHUB_USERNAME}/engine`);
+      shellExec(`underpost push . ${process.env.GITHUB_USERNAME}/engine`, { silent: true });
     },
 
     /**

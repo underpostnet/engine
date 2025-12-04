@@ -450,7 +450,9 @@ class UnderpostRepository {
       const privateRepoPath = `../${privateRepoName}`;
       if (fs.existsSync(privateRepoPath)) fs.removeSync(privateRepoPath);
       shellExec(`cd .. && underpost clone ${process.env.GITHUB_USERNAME}/${privateRepoName}`);
-      shellExec(`cd ${privateRepoPath} && underpost pull . ${process.env.GITHUB_USERNAME}/${privateRepoName}`);
+      shellExec(`cd ${privateRepoPath} && underpost pull . ${process.env.GITHUB_USERNAME}/${privateRepoName}`, {
+        silent: true,
+      });
       shellExec(`underpost run secret`);
       shellExec(`underpost run underpost-config`);
       const packageJsonDeploy = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/package.json`, 'utf8'));

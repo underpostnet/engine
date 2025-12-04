@@ -86,7 +86,7 @@ class BackUp {
           ` && underpost cmt . backup cron-job '${new Date().toLocaleDateString()}'` +
           ` && underpost push . ${process.env.GITHUB_USERNAME}/cron-backups`,
         {
-          disableLog: true,
+          silent: true,
         },
       );
     }

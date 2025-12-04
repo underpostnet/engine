@@ -286,7 +286,9 @@ class UnderpostDB {
           case 'pull':
             if (fs.existsSync(repoPath)) {
               shellExec(`cd ${repoPath} && git checkout . && git clean -f -d`);
-              shellExec(`cd ${repoPath} && underpost pull . ${username}/${repoName}`);
+              shellExec(`cd ${repoPath} && underpost pull . ${username}/${repoName}`, {
+                silent: true,
+              });
               logger.info(`Pulled repository: ${repoName}`);
             }
             break;
@@ -301,7 +303,7 @@ class UnderpostDB {
 
           case 'push':
             if (fs.existsSync(repoPath)) {
-              shellExec(`cd ${repoPath} && underpost push . ${username}/${repoName}`, { disableLog: true });
+              shellExec(`cd ${repoPath} && underpost push . ${username}/${repoName}`, { silent: true });
               logger.info(`Pushed repository: ${repoName}`);
             }
             break;
