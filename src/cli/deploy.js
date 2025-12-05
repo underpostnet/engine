@@ -983,10 +983,12 @@ ${renderHosts}`,
         await timer(checkStatusIterationMsDelay);
         checkStatusIteration++;
         logger.info(
-          `${iteratorTag} | Deployment in progress... | Delay number check iterations: ${checkStatusIteration}`,
+          `${iteratorTag} | Deployment in progress... | Delay number monitor iterations: ${checkStatusIteration}`,
         );
       }
-      logger.info(`${iteratorTag} | Deployment ready. | Total delay number check iterations: ${checkStatusIteration}`);
+      logger.info(
+        `${iteratorTag} | Deployment ready. | Total delay number monitor iterations: ${checkStatusIteration}`,
+      );
       return result;
     },
 
