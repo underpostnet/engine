@@ -79,6 +79,8 @@ class UnderpostRun {
    * @property {boolean} etcHosts - Whether to modify /etc/hosts.
    * @property {string} confServerPath - The configuration server path.
    * @property {string} underpostRoot - The root path of the Underpost installation.
+   * @property {string} cronJobs - The cron jobs to run.
+   * @property {string} timezone - The timezone to set.
    * @memberof UnderpostRun
    */
   static DEFAULT_OPTION = {
@@ -118,6 +120,8 @@ class UnderpostRun {
     etcHosts: false,
     confServerPath: '',
     underpostRoot: '',
+    cronJobs: '',
+    timezone: '',
   };
   /**
    * @static
@@ -541,8 +545,8 @@ class UnderpostRun {
       if (isDeployRunnerContext(path, options)) {
         const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
         if (!validVersion) throw new Error('Version mismatch');
-        shellExec(`${baseCommand} run${baseClusterCommand} tz`);
-        shellExec(`${baseCommand} run${baseClusterCommand} cron`);
+        if (options.timezone !== 'none') shellExec(`${baseCommand} run${baseClusterCommand} tz`);
+        if (options.cronJobs !== 'none') shellExec(`${baseCommand} run${baseClusterCommand} cron`);
       }
 
       const currentTraffic = isDeployRunnerContext(path, options)
@@ -580,13 +584,16 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     tz: (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const tz = path
-        ? path
-        : UnderpostRootEnv.API.get('TIME_ZONE', undefined, { disableLog: true })
-          ? UnderpostRootEnv.API.get('TIME_ZONE')
-          : process.env.TIME_ZONE
-            ? process.env.TIME_ZONE
-            : 'America/New_York';
+      const tz =
+        options.timezone && options.timezone !== 'none'
+          ? options.timezone
+          : path
+            ? path
+            : UnderpostRootEnv.API.get('TIME_ZONE', undefined, { disableLog: true })
+              ? UnderpostRootEnv.API.get('TIME_ZONE')
+              : process.env.TIME_ZONE
+                ? process.env.TIME_ZONE
+                : 'America/New_York';
       shellExec(`sudo timedatectl set-timezone ${tz}`);
     },
 

@@ -96,10 +96,15 @@ const ProcessController = {
  * @param {boolean} [options.async=false] - Run command asynchronously.
  * @param {boolean} [options.stdout=false] - Return stdout content (string) instead of shelljs result object.
  * @param {boolean} [options.disableLog=false] - Prevent logging of the command.
+ * @param {Function} [options.callback=null] - Callback function for asynchronous execution.
  * @returns {string|shelljs.ShellString} The result of the shell command (string if `stdout: true`, otherwise a ShellString object).
  */
-const shellExec = (cmd, options = { silent: false, async: false, stdout: false, disableLog: false }) => {
+const shellExec = (
+  cmd,
+  options = { silent: false, async: false, stdout: false, disableLog: false, callback: null },
+) => {
   if (!options.disableLog) logger.info(`cmd`, cmd);
+  if (options.callback) return shell.exec(cmd, options, options.callback);
   return options.stdout ? shell.exec(cmd, options).stdout : shell.exec(cmd, options);
 };
 

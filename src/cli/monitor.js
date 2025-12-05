@@ -217,8 +217,8 @@ class UnderpostMonitor {
                     monitorTrafficName = undefined;
                     monitorPodName = undefined;
                   }
-                  const checkDeploymentReadyStatus = () => {
-                    const { ready, notReadyPods, readyPods } = UnderpostDeploy.API.checkDeploymentReadyStatus(
+                  const checkDeploymentReadyStatus = async () => {
+                    const { ready, notReadyPods, readyPods } = await UnderpostDeploy.API.checkDeploymentReadyStatus(
                       deployId,
                       env,
                       traffic,
@@ -231,7 +231,7 @@ class UnderpostMonitor {
                     }
                   };
                   if (!monitorPodName) {
-                    checkDeploymentReadyStatus();
+                    await checkDeploymentReadyStatus();
                     monitorCallBack(resolve, reject);
                     return;
                   }

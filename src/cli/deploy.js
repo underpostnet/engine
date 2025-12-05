@@ -661,20 +661,24 @@ EOF`);
      * @returns {object} - Object containing the status of the deployment.
      * @memberof UnderpostDeploy
      */
-    checkDeploymentReadyStatus(deployId, env, traffic, ignoresNames = [], namespace = 'default') {
+    async checkDeploymentReadyStatus(deployId, env, traffic, ignoresNames = [], namespace = 'default') {
       const cmd = `underpost config get container-status`;
       const pods = UnderpostDeploy.API.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
       const readyPods = [];
       const notReadyPods = [];
-      const outs = [];
       for (const pod of pods) {
         const { NAME } = pod;
         if (ignoresNames && ignoresNames.find((t) => NAME.trim().toLowerCase().match(t.trim().toLowerCase()))) continue;
-        const out = shellExec(`sudo kubectl exec -i ${NAME} -n ${namespace} -- sh -c "${cmd}"`, {
-          stdout: true,
-          silent: true,
+        const out = await new Promise((resolve) => {
+          shellExec(`sudo kubectl exec -i ${NAME} -n ${namespace} -- sh -c "${cmd}"`, {
+            silent: true,
+            disableLog: true,
+            callback: function (code, stdout, stderr) {
+              return resolve(JSON.stringify({ code, stdout, stderr }));
+            },
+          });
         });
-        outs.push(out);
+        pod.out = out;
         const ready = out.match(`${deployId}-${env}-running-deployment`);
         ready ? readyPods.push(pod) : notReadyPods.push(pod);
       }
@@ -682,7 +686,6 @@ EOF`);
         ready: pods.length > 0 && notReadyPods.length === 0,
         notReadyPods,
         readyPods,
-        outs,
       };
     },
     /**
@@ -919,7 +922,7 @@ ${renderHosts}`,
         notReadyPods: [],
         readyPods: [],
       };
-
+      let lastMsg = {};
       while (readyOk < minReadyOk) {
         if (checkStatusIteration >= maxIterations) {
           logger.error(
@@ -927,27 +930,53 @@ ${renderHosts}`,
           );
           break;
         }
-        result = UnderpostDeploy.API.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods, namespace);
+        result = await UnderpostDeploy.API.checkDeploymentReadyStatus(
+          deployId,
+          env,
+          targetTraffic,
+          ignorePods,
+          namespace,
+        );
         if (result.ready === true) {
           readyOk++;
           logger.info(`${iteratorTag} | Deployment ready. Verification number: ${readyOk}`);
+          for (const pod of result.readyPods) {
+            const { NAME } = pod;
+            lastMsg[NAME] = 'Deployment ready';
+            console.log(
+              'Target pod:',
+              NAME[NAME.match('green') ? 'bgGreen' : 'bgBlue'].bold.black,
+              '| Status:',
+              lastMsg[NAME].bold.magenta,
+            );
+          }
         }
+
         switch (outLogType) {
           case 'underpost': {
-            for (const out of result.outs) {
-              if (out.match('not') && out.match('found')) {
-                if (checkStatusIteration <= 20)
-                  if (out.match(deploymentId))
-                    logger.info(`${iteratorTag} | Starting deployment runner inside container...`);
-                  else if (out.match('underpost'))
-                    logger.info(`${iteratorTag} | Installing underpost client inside container...`);
-                  else if (out.match('task'))
-                    logger.info(`${iteratorTag} | Running initial setup tasks inside container...`);
-                  else logger.error(`${iteratorTag} | ${out}`);
-              } else if (out.match('Empty environment variables'))
-                logger.info(`${iteratorTag} | Waiting for environment variables to be set inside container...`);
-              else if (out.match('info container-status(')) console.log(out);
-              else console.log(out);
+            let indexOf = -1;
+            for (const pod of result.notReadyPods) {
+              indexOf++;
+              const { NAME, out } = pod;
+
+              if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match(deploymentId))
+                lastMsg[NAME] = 'Starting deployment';
+              else if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match('underpost'))
+                lastMsg[NAME] = 'Installing underpost cli';
+              else if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match('task'))
+                lastMsg[NAME] = 'Initializing setup task';
+              else if (out.match('Empty environment variables')) lastMsg[NAME] = 'Setup environment';
+              else if (out.match(`${deployId}-${env}-build-deployment`)) lastMsg[NAME] = 'Building apps/services';
+              else if (out.match(`${deployId}-${env}-initializing-deployment`))
+                lastMsg[NAME] = 'Initializing apps/services';
+              else if (!lastMsg[NAME]) lastMsg[NAME] = `Waiting for status`;
+
+              console.log(
+                'Target pod:',
+                NAME[NAME.match('green') ? 'bgGreen' : 'bgBlue'].bold.black,
+                '| Status:',
+                lastMsg[NAME].bold.magenta,
+              );
             }
           }
         }

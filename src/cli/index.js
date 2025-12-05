@@ -648,6 +648,8 @@ program
   .option('--expose', 'Enables service exposure for the runner execution.')
   .option('--conf-server-path <conf-server-path>', 'Sets a custom configuration server path.')
   .option('--underpost-root <underpost-root>', 'Sets a custom Underpost root path.')
+  .option('--cron-jobs <jobs>', 'Comma-separated list of cron jobs to run before executing the script.')
+  .option('--timezone <timezone>', 'Sets the timezone for the runner execution.')
   .description('Runs a script from the specified path.')
   .action(UnderpostRun.API.callback);
 
