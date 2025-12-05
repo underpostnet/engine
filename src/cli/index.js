@@ -590,6 +590,11 @@ program
   .option('--keys-list', 'Lists all ssh keys from current private keys file storage.')
   .option('--hosts-list', 'Lists all ssh hosts from current private keys file storage.')
   .option('--disable-password', 'Disables password authentication for the SSH session.')
+  .option('--key-test', 'Tests the SSH key using ssh-keygen.')
+  .option('--stop', 'Stops the SSH service.')
+  .option('--status', 'Checks the status of the SSH service.')
+  .option('--connect-uri', 'Displays the connection URI.')
+  .option('--copy', 'Copies the connection URI to clipboard.')
   .action(Underpost.ssh.callback);
 
 // 'run' command: Run a script

@@ -6,7 +6,7 @@
 
 import { generateRandomPasswordSelection } from '../client/components/core/CommonJs.js';
 import Dns from '../server/dns.js';
-import { shellExec } from '../server/process.js';
+import { pbcopy, shellExec } from '../server/process.js';
 import { loggerFactory } from '../server/logger.js';
 import fs from 'fs-extra';
 
@@ -208,6 +208,11 @@ EOF`);
      * @param {boolean} [options.keysList=false] - List authorized SSH keys
      * @param {boolean} [options.hostsList=false] - List known SSH hosts
      * @param {boolean} [options.disablePassword=false] - If true, enable passwordless sudo and add SSH restrictions
+     * @param {boolean} [options.keyTest=false] - Test SSH key generation
+     * @param {boolean} [options.stop=false] - Stop SSH service
+     * @param {boolean} [options.status=false] - Check SSH service status
+     * @param {boolean} [options.connectUri=false] - Output SSH connection URI
+     * @param {boolean} [options.copy=false] - Copy SSH connection URI to clipboard
      * @returns {Promise<void>}
      * @description
      * Handles various SSH operations:
@@ -235,6 +240,11 @@ EOF`);
         keysList: false,
         hostsList: false,
         disablePassword: false,
+        keyTest: false,
+        stop: false,
+        status: false,
+        connectUri: false,
+        copy: false,
       },
     ) => {
       let confNode, confNodePath;
@@ -244,7 +254,10 @@ EOF`);
       if (!options.host) options.host = await Dns.getPublicIp();
       if (!options.password) options.password = options.disablePassword ? '' : generateRandomPasswordSelection(16);
       if (!options.groups) options.groups = 'wheel';
-      if (!options.port) options.port = 22;
+      if (!options.port) options.port = 22; // Handle connect uri
+
+      const userHome = UnderpostSSH.API.getUserHome(options.user);
+      options.userHome = userHome;
 
       // Load config and override password and host if user exists in config
       if (options.deployId) {
@@ -253,32 +266,39 @@ EOF`);
         confNodePath = config.confNodePath;
 
         if (confNode.users && confNode.users[options.user]) {
-          if (confNode.users[options.user].password) {
-            options.password = confNode.users[options.user].password;
-            logger.info(`Using saved password for user ${options.user}`);
-          }
           if (confNode.users[options.user].host) {
             options.host = confNode.users[options.user].host;
             logger.info(`Using saved host for user ${options.user}: ${options.host}`);
           }
+          if (confNode.users[options.user].password === '') {
+            options.disablePassword = true;
+            options.password = '';
+            logger.info(`Using saved empty password for user ${options.user}`);
+          } else if (confNode.users[options.user].password) {
+            options.disablePassword = false;
+            options.password = confNode.users[options.user].password;
+            logger.info(`Using saved password for user ${options.user}`);
+          }
         }
       }
 
-      const userHome = UnderpostSSH.API.getUserHome(options.user);
-      options.userHome = userHome;
-
       logger.info('options', options);
+
+      // Handle connect uri
+      if (options.connectUri) {
+        const keyPath = `${userHome}/.ssh/id_rsa`;
+        const uri = `ssh ${options.user}@${options.host} -i ${keyPath}`;
+        if (options.copy) {
+          pbcopy(uri);
+        } else console.log(uri);
+        return;
+      }
 
       // Handle reset operation
       if (options.reset) {
         shellExec(`> ${userHome}/.ssh/authorized_keys`);
         shellExec(`> ${userHome}/.ssh/known_hosts`);
-        return;
       }
-
-      // Handle list operations
-      if (options.keysList) shellExec(`cat ${userHome}/.ssh/authorized_keys`);
-      if (options.hostsList) shellExec(`cat ${userHome}/.ssh/known_hosts`);
 
       if (options.userLs) {
         const filter = options.filter ? `${options.filter}` : '';
@@ -445,17 +465,34 @@ EOF`);
           Object.keys(confNode.users).forEach((user) => {
             logger.info(`- ${user}`);
           });
-          return;
         }
       }
 
-      // Handle generate and start operations
+      // Handle generate root keys
       if (options.generate)
         UnderpostSSH.API.generateKeys({ user: options.user, password: options.password, host: options.host });
+
+      // Handle list operations
+      if (options.keysList) shellExec(`cat ${userHome}/.ssh/authorized_keys`);
+      if (options.hostsList) shellExec(`cat ${userHome}/.ssh/known_hosts`);
+
+      // Handle key test
+      if (options.keyTest) {
+        const keyPath = `${userHome}/.ssh/id_rsa`;
+        shellExec(`ssh-keygen -y -f ${keyPath} -P "${options.password}"`);
+      }
+
+      // Handle stop server
+      if (options.stop) shellExec('service sshd stop');
+
+      // Handle start server
       if (options.start) {
         UnderpostSSH.API.chmod({ user: options.user });
         UnderpostSSH.API.initService({ port: options.port });
       }
+
+      // Handle status server
+      if (options.status) shellExec('service sshd status');
     },
 
     /**
