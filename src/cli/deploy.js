@@ -666,6 +666,7 @@ EOF`);
       const pods = UnderpostDeploy.API.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
       const readyPods = [];
       const notReadyPods = [];
+      const outs = [];
       for (const pod of pods) {
         const { NAME } = pod;
         if (ignoresNames && ignoresNames.find((t) => NAME.trim().toLowerCase().match(t.trim().toLowerCase()))) continue;
@@ -673,6 +674,7 @@ EOF`);
           stdout: true,
           silent: true,
         });
+        outs.push(out);
         const ready = out.match(`${deployId}-${env}-running-deployment`);
         ready ? readyPods.push(pod) : notReadyPods.push(pod);
       }
@@ -680,6 +682,7 @@ EOF`);
         ready: pods.length > 0 && notReadyPods.length === 0,
         notReadyPods,
         readyPods,
+        outs,
       };
     },
     /**
@@ -898,14 +901,16 @@ ${renderHosts}`,
      * @param {string} targetTraffic - Target traffic status for the deployment.
      * @param {Array<string>} ignorePods - List of pod names to ignore.
      * @param {string} [namespace='default'] - Kubernetes namespace for the deployment.
+     * @param {string} [outLogType=''] - Type of log output.
      * @returns {object} - Object containing the ready status of the deployment.
      * @memberof UnderpostDeploy
      */
-    async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = [], namespace = 'default') {
+    async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = [], namespace = 'default', outLogType = '') {
       let checkStatusIteration = 0;
       const checkStatusIterationMsDelay = 1000;
       const maxIterations = 500;
-      const iteratorTag = `[${deployId}-${env}-${targetTraffic}]`;
+      const deploymentId = `${deployId}-${env}-${targetTraffic}`;
+      const iteratorTag = `[${deploymentId}]`;
       logger.info('Deployment init', { deployId, env, targetTraffic, checkStatusIterationMsDelay, namespace });
       const minReadyOk = 3;
       let readyOk = 0;
@@ -926,6 +931,25 @@ ${renderHosts}`,
         if (result.ready === true) {
           readyOk++;
           logger.info(`${iteratorTag} | Deployment ready. Verification number: ${readyOk}`);
+        }
+        switch (outLogType) {
+          case 'underpost': {
+            for (const out of result.outs) {
+              if (out.match('not') && out.match('found')) {
+                if (checkStatusIteration <= 20)
+                  if (out.match(deploymentId))
+                    logger.info(`${iteratorTag} | Starting deployment runner inside container...`);
+                  else if (out.match('underpost'))
+                    logger.info(`${iteratorTag} | Installing underpost client inside container...`);
+                  else if (out.match('task'))
+                    logger.info(`${iteratorTag} | Running initial setup tasks inside container...`);
+                  else logger.error(`${iteratorTag} | ${out}`);
+              } else if (out.match('Empty environment variables'))
+                logger.info(`${iteratorTag} | Waiting for environment variables to be set inside container...`);
+              else if (out.match('info container-status(')) console.log(out);
+              else console.log(out);
+            }
+          }
         }
         await timer(checkStatusIterationMsDelay);
         checkStatusIteration++;

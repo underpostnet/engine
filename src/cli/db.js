@@ -1138,9 +1138,9 @@ class UnderpostDB {
       host = process.env.DEFAULT_DEPLOY_HOST,
       path = process.env.DEFAULT_DEPLOY_PATH,
     ) {
-      deployId = deployId ?? process.env.DEFAULT_DEPLOY_ID;
-      host = host ?? process.env.DEFAULT_DEPLOY_HOST;
-      path = path ?? process.env.DEFAULT_DEPLOY_PATH;
+      deployId = deployId ? deployId : process.env.DEFAULT_DEPLOY_ID;
+      host = host ? host : process.env.DEFAULT_DEPLOY_HOST;
+      path = path ? path : process.env.DEFAULT_DEPLOY_PATH;
 
       logger.info('Creating cluster metadata', { deployId, host, path });
 

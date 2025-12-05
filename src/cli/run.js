@@ -563,7 +563,7 @@ class UnderpostRun {
         );
         if (!targetTraffic)
           targetTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
-        await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic, [], options.namespace);
+        await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic, [], options.namespace, 'underpost');
         UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic, replicas, options.namespace);
       } else
         logger.info(
@@ -1165,7 +1165,14 @@ EOF
 
       shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic} -n ${options.namespace}`);
 
-      await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic, ignorePods, options.namespace);
+      await UnderpostDeploy.API.monitorReadyRunner(
+        deployId,
+        env,
+        targetTraffic,
+        ignorePods,
+        options.namespace,
+        'underpost',
+      );
 
       UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic, options.replicas, options.namespace);
     },
