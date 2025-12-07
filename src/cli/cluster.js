@@ -558,7 +558,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
       }
 
       if (kubeconfigPath) {
-        shellExec(`sudo -E cp -i ${kubeconfigPath} ~/.kube/config`);
+        shellExec(`sudo -E cp -i -f ${kubeconfigPath} ~/.kube/config`);
         shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
       } else if (clusterType === 'kind') {
         // For Kind, the kubeconfig is usually merged automatically or can be explicitly exported

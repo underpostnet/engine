@@ -387,6 +387,12 @@ ipv6.address=none`);
           shellExec(`lxc exec ${vmName} -- bash -lc 'underpost run secret'`);
           break;
         }
+        case 'k3s-setup': {
+          shellExec(
+            `lxc exec ${vmName} -- bash -lc 'cd /home/dd/engine && node bin cluster --dev --reset && node bin cluster --dev --k3s'`,
+          );
+          break;
+        }
       }
     },
   };
