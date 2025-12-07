@@ -40,7 +40,8 @@ class UnderpostLxd {
      * @param {string} [options.expose=''] - Expose ports from a VM to the host (format: 'vmName:port1,port2').
      * @param {string} [options.deleteExpose=''] - Delete exposed ports from a VM (format: 'vmName:port1,port2').
      * @param {string} [options.test=''] - Test health, status and network connectivity for a VM.
-     * @param {string} [options.autoExposeK8sPorts=''] - Automatically expose common Kubernetes ports for the VM.
+     * @param {string} [options.runWorkflow=''] - Run predefined workflows on a VM.
+     * @param {string} [options.vmId=''] - VM identifier for workflow execution.
      * @memberof UnderpostLxd
      */
     async callback(
@@ -62,7 +63,8 @@ class UnderpostLxd {
         expose: '',
         deleteExpose: '',
         test: '',
-        autoExposeK8sPorts: '',
+        runWorkflow: '',
+        vmId: '',
       },
     ) {
       const npmRoot = getNpmRootPath();
@@ -123,9 +125,10 @@ ipv6.address=none`);
             // Default to kubeadm if not K3s
             flag = ' -s -- --kubeadm';
           }
-          shellExec(`lxc exec ${options.initVm} -- bash -c 'mkdir -p /home/dd/engine'`);
-          shellExec(`lxc file push /home/dd/engine/engine-private ${options.initVm}/home/dd/engine --recursive`);
-          shellExec(`lxc file push /home/dd/engine/manifests ${options.initVm}/home/dd/engine --recursive`);
+          await UnderpostLxd.API.runWorkflow({
+            workflowId: 'import-pwa-microservices-template',
+            vmName: options.initVm,
+          });
         } else if (options.worker == true) {
           if (options.k3s === true) {
             flag = ' -s -- --worker --k3s';
@@ -137,6 +140,14 @@ ipv6.address=none`);
         console.log(`Executing underpost-setup.sh on VM: ${options.initVm}`);
         shellExec(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash${flag}`);
         console.log(`underpost-setup.sh execution completed on VM: ${options.initVm}`);
+      }
+
+      if (options.runWorkflow) {
+        await UnderpostLxd.API.runWorkflow({
+          workflowId: options.runWorkflow,
+          vmName: options.vmId,
+          dev: options.dev,
+        });
       }
 
       if (options.joinNode && typeof options.joinNode === 'string') {
@@ -342,6 +353,41 @@ ipv6.address=none`);
         }
 
         console.log(`\nComprehensive test for VM: ${vmName} completed.`);
+      }
+    },
+    /**
+     * @method runWorkflow
+     * @description Executes predefined workflows on LXD VMs.
+     * @param {object} params - Parameters for the workflow.
+     * @param {string} params.workflowId - The workflow id to execute (e.g., 'init').
+     * @param {string} params.vmName - The name of the VM to run the workflow on.
+     * @param {boolean} [params.dev=false] - Run in development mode (adjusts paths).
+     * @memberof UnderpostLxd
+     */
+    async runWorkflow({ workflowId, vmName, dev }) {
+      switch (workflowId) {
+        case 'pwa-microservices-template': {
+          const basePath = `/home/dd`;
+          const subDir = 'engine';
+          const repoName = 'pwa-microservices-template';
+          const repoUri = `underpostnet/${repoName}'`;
+          shellExec(`lxc exec ${vmName} -- bash -c 'rm ${basePath} && mkdir -p ${basePath}'`);
+          if (!dev) {
+            shellExec(`lxc exec ${vmName} -- bash -c 'cd ${basePath} && underpost clone ${repoUri}'`);
+            shellExec(`lxc exec ${vmName} -- bash -c 'cd ${basePath} && pwa-microservices-template ${subDir}'`);
+            shellExec(
+              `lxc file push ${basePath}/${subDir}/${subDir}-private ${vmName}${basePath}/${subDir} --recursive`,
+            );
+          } else {
+            shellExec(`lxc file push ${basePath}/${subDir} ${vmName}${basePath} --recursive`);
+          }
+          break;
+        }
+        case 'setup-underpost-engine': {
+          const basePath = `/home/dd/engine`;
+          shellExec(`lxc exec ${vmName} -- bash -c 'underpost run secret'`);
+          shellExec(`lxc exec ${vmName} -- bash -c 'cd ${basePath} && npm install'`);
+        }
       }
     },
   };
