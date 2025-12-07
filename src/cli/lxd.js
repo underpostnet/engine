@@ -40,7 +40,7 @@ class UnderpostLxd {
      * @param {string} [options.expose=''] - Expose ports from a VM to the host (format: 'vmName:port1,port2').
      * @param {string} [options.deleteExpose=''] - Delete exposed ports from a VM (format: 'vmName:port1,port2').
      * @param {string} [options.test=''] - Test health, status and network connectivity for a VM.
-     * @param {string} [options.runWorkflow=''] - Run predefined workflows on a VM.
+     * @param {string} [options.workflowId=''] - Workflow identifier for workflow execution.
      * @param {string} [options.vmId=''] - VM identifier for workflow execution.
      * @param {string} [options.deployId=''] - Deployment identifier for workflow execution.
      * @param {string} [options.namespace=''] - Namespace for workflow execution.
@@ -65,7 +65,7 @@ class UnderpostLxd {
         expose: '',
         deleteExpose: '',
         test: '',
-        runWorkflow: '',
+        workflowId: '',
         vmId: '',
         deployId: '',
         namespace: '',
@@ -130,7 +130,7 @@ ipv6.address=none`);
             flag = ' -s -- --kubeadm';
           }
           await UnderpostLxd.API.runWorkflow({
-            workflowId: 'import-pwa-microservices-template',
+            workflowId: 'engine',
             vmName: options.initVm,
           });
         } else if (options.worker == true) {
@@ -146,9 +146,9 @@ ipv6.address=none`);
         console.log(`underpost-setup.sh execution completed on VM: ${options.initVm}`);
       }
 
-      if (options.runWorkflow) {
+      if (options.workflowId) {
         await UnderpostLxd.API.runWorkflow({
-          workflowId: options.runWorkflow,
+          workflowId: options.workflowId,
           vmName: options.vmId,
           deployId: options.deployId,
           dev: options.dev,
@@ -383,8 +383,8 @@ ipv6.address=none`);
         }
         case 'setup-underpost-engine': {
           const basePath = `/home/dd/engine`;
-          shellExec(`lxc exec ${vmName} -- bash -c 'cd ${basePath} && npm install'`);
-          shellExec(`lxc exec ${vmName} -- bash -c 'underpost run secret'`);
+          shellExec(`lxc exec ${vmName} -- bash -lc 'nvm use $(node --version) && cd ${basePath} && npm install'`);
+          shellExec(`lxc exec ${vmName} -- bash -lc 'underpost run secret'`);
           break;
         }
       }

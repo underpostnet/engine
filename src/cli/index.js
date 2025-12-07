@@ -687,7 +687,7 @@ program
     '--delete-expose <vm-name-ports>',
     'Removes exposed ports on a VM (e.g., "k8s-control:80,443"). Multiple VM-port pairs can be comma-separated.',
   )
-  .option('--run-workflow <workflow-id>', 'Runs the specified workflow ID on the LXD VM environment.')
+  .option('--workflow-id <workflow-id>', 'Sets the workflow ID context for LXD operations.')
   .option('--vm-id <vm-id>', 'Sets the VM ID context for LXD operations.')
   .option('--deploy-id <deploy-id>', 'Sets the deployment ID context for LXD operations.')
   .option('--namespace <namespace>', 'Kubernetes namespace for LXD operations (defaults to "default").')
