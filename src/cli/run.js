@@ -1108,7 +1108,7 @@ EOF
         : ['express', fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+')];
       shellExec(
         `${baseCommand} image${baseClusterCommand}${
-          runtimeImage ? ` --build --path /home/dd/engine/src/runtime/${runtimeImage}` : ''
+          runtimeImage ? ` --pull-base --path /home/dd/engine/src/runtime/${runtimeImage}` : ''
         } --${clusterType}`,
       );
       if (!deployList) {

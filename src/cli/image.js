@@ -118,7 +118,10 @@ class UnderpostImage {
         dev,
       } = options;
       if (!path) path = '.';
-      const podManImg = `localhost/${imageName}${version ? `:${version}` : ''}`;
+      if (!imageName) imageName = `rockylinux9-underpost:${Underpost.version}`;
+      if (!version) version = 'latest';
+      version = imageName && imageName.match(':') ? '' : `:${version}`;
+      const podManImg = `localhost/${imageName}${version}`;
       if (imagePath && typeof imagePath === 'string' && !fs.existsSync(imagePath))
         fs.mkdirSync(imagePath, { recursive: true });
       const tarFile = `${imagePath}/${imageName.replace(':', '_')}.tar`;
@@ -161,10 +164,15 @@ class UnderpostImage {
      * @param {string} [options.namespace=''] - The namespace to filter images (if applicable).
      * @param {boolean} [options.spec=false] - If true, include detailed specifications of each image.
      * @param {boolean} [options.log=false] - If true, log the list of images to the console.
+     * @param {boolean} [options.k3s=false] - If true, list images from a K3s cluster.
+     * @param {boolean} [options.kubeadm=false] - If true, list images from a Kubeadm cluster.
+     * @param {boolean} [options.kind=false] - If true, list images from a Kind cluster.
      * @returns {Array} - An array of loaded images information.
      * @memberof UnderpostImage
      */
-    list(options = { nodeName: '', namespace: '', spec: false, log: false }) {
+    list(options = { nodeName: '', namespace: '', spec: false, log: false, k3s: false, kubeadm: false, kind: false }) {
+      if ((options.kubeadm === true || options.k3s === true) && !options.nodeName)
+        options.nodeName = shellExec('echo $HOSTNAME', { stdout: true, silent: true }).trim();
       const list = Underpost.deploy.getCurrentLoadedImages(
         options.nodeName ? options.nodeName : 'kind-worker',
         options,
@@ -191,6 +199,32 @@ class UnderpostImage {
         shellExec(`crictl rmi ${imageName}`);
       } else if (k3s === true) {
         shellExec(`sudo k3s ctr images rm ${imageName}`);
+      }
+    },
+    /**
+     * @method pullDockerHubImage
+     * @description Pulls a Docker image from Docker Hub and loads it into the specified Kubernetes cluster type (Kind, Kubeadm, or K3s).
+     * @param {object} options - Options for pulling and loading the image.
+     * @param {boolean} [options.k3s=false] - If true, load the image into a K3s cluster.
+     * @param {boolean} [options.kubeadm=false] - If true, load the image into a Kubeadm cluster.
+     * @param {boolean} [options.kind=false] - If true, load the image into a Kind cluster.
+     * @param {string} [options.dockerhubImage=''] - The name of the Docker Hub image to be pulled.
+     * @param {string} [options.version=''] - The version tag of the image to be pulled.
+     * @memberof UnderpostImage
+     */
+    pullDockerHubImage(options = { k3s: false, kubeadm: false, kind: false, dockerhubImage: '', version: '' }) {
+      if (options.dockerhubImage === 'underpost') {
+        options.dockerhubImage = 'underpost/underpost-engine';
+        if (!options.version) options.version = Underpost.version;
+      }
+      if (!options.version) options.version = 'latest';
+      const version = options.dockerhubImage && options.dockerhubImage.match(':') ? '' : `:${options.version}`;
+      const image = `${options.dockerhubImage}${version}`;
+      if (options.kind === true) {
+        shellExec(`docker pull ${image}`);
+        shellExec(`sudo kind load docker-image ${image}`);
+      } else {
+        shellExec(`sudo crictl pull ${image}`);
       }
     },
   };
