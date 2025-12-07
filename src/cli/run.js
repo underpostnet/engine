@@ -1184,6 +1184,21 @@ EOF
     },
 
     /**
+     * @method disk-usage
+     * @description Displays disk usage statistics using the `du` command, sorted by size.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'disk-usage': async (path = '/', options = UnderpostRun.DEFAULT_OPTION) => {
+      if (!path) path = '/';
+      logger.info('Mount filesystem');
+      shellExec(`df -h${path === '/' ? '' : ` ${path}`}`);
+      logger.info('Files disks usage');
+      shellExec(`du -xh ${path} --max-depth=1 | sort -h`);
+    },
+
+    /**
      * @method dev
      * @description Starts development servers for client, API, and proxy based on provided parameters (deployId, host, path, clientHostPort).
      * @param {string} path - The input value, identifier, or path for the operation (formatted as `deployId,subConf,host,path,clientHostPort`).
