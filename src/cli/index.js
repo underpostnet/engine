@@ -420,7 +420,7 @@ program
     'Builds a Docker image using Podman, optionally saves it as a tar archive, and loads it into a specified Kubernetes cluster (Kind, Kubeadm, or K3s).',
   )
   .option('--ls', 'Lists all available Underpost Dockerfile images.')
-  .option('--rm', 'Removes specified Underpost Dockerfile images.')
+  .option('--rm <image-id>', 'Removes specified Underpost Dockerfile images.')
   .option('--path [path]', 'The path to the Dockerfile directory.')
   .option('--image-name [image-name]', 'Sets a custom name for the Docker image.')
   .option('--image-path [image-path]', 'Sets the output path for the tar image archive.')
@@ -438,9 +438,10 @@ program
   .option('--dev', 'Use development mode.')
   .description('Manages Docker images, including building, saving, and loading into Kubernetes clusters.')
   .action(async (options) => {
-    if (options.ls) Underpost.image.dockerfile.ls(options);
-    if (options.pullBase) Underpost.image.dockerfile.pullBaseImages(options);
-    if (options.build) Underpost.image.dockerfile.build(options);
+    if (options.rm) Underpost.image.rm({ ...options, imageName: options.rm });
+    if (options.ls) Underpost.image.list({ ...options, log: true });
+    if (options.pullBase) Underpost.image.pullBaseImages(options);
+    if (options.build) Underpost.image.build(options);
   });
 
 // 'install' command: Fast import npm dependencies
@@ -653,6 +654,7 @@ program
   .option('--kubeadm', 'Sets the kubeadm cluster context for the runner execution.')
   .option('--k3s', 'Sets the k3s cluster context for the runner execution.')
   .option('--kind', 'Sets the kind cluster context for the runner execution.')
+  .option('--log-type <log-type>', 'Sets the log type for the runner execution.')
   .description('Runs a script from the specified path.')
   .action(UnderpostRun.API.callback);
 
@@ -687,6 +689,8 @@ program
   )
   .option('--run-workflow <workflow-id>', 'Runs the specified workflow ID on the LXD VM environment.')
   .option('--vm-id <vm-id>', 'Sets the VM ID context for LXD operations.')
+  .option('--deploy-id <deploy-id>', 'Sets the deployment ID context for LXD operations.')
+  .option('--namespace <namespace>', 'Kubernetes namespace for LXD operations (defaults to "default").')
   .description('Manages LXD containers and virtual machines.')
   .action(UnderpostLxd.API.callback);
 

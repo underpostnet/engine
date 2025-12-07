@@ -42,6 +42,8 @@ class UnderpostLxd {
      * @param {string} [options.test=''] - Test health, status and network connectivity for a VM.
      * @param {string} [options.runWorkflow=''] - Run predefined workflows on a VM.
      * @param {string} [options.vmId=''] - VM identifier for workflow execution.
+     * @param {string} [options.deployId=''] - Deployment identifier for workflow execution.
+     * @param {string} [options.namespace=''] - Namespace for workflow execution.
      * @memberof UnderpostLxd
      */
     async callback(
@@ -65,6 +67,8 @@ class UnderpostLxd {
         test: '',
         runWorkflow: '',
         vmId: '',
+        deployId: '',
+        namespace: '',
       },
     ) {
       const npmRoot = getNpmRootPath();
@@ -146,6 +150,7 @@ ipv6.address=none`);
         await UnderpostLxd.API.runWorkflow({
           workflowId: options.runWorkflow,
           vmName: options.vmId,
+          deployId: options.deployId,
           dev: options.dev,
         });
       }
@@ -361,32 +366,26 @@ ipv6.address=none`);
      * @param {object} params - Parameters for the workflow.
      * @param {string} params.workflowId - The workflow id to execute (e.g., 'init').
      * @param {string} params.vmName - The name of the VM to run the workflow on.
+     * @param {string} [params.deployId] - Optional deployment identifier.
      * @param {boolean} [params.dev=false] - Run in development mode (adjusts paths).
      * @memberof UnderpostLxd
      */
-    async runWorkflow({ workflowId, vmName, dev }) {
+    async runWorkflow({ workflowId, vmName, deployId, dev }) {
       switch (workflowId) {
-        case 'pwa-microservices-template': {
+        case 'engine': {
           const basePath = `/home/dd`;
           const subDir = 'engine';
-          const repoName = 'pwa-microservices-template';
-          const repoUri = `underpostnet/${repoName}'`;
-          shellExec(`lxc exec ${vmName} -- bash -c 'rm ${basePath} && mkdir -p ${basePath}'`);
-          if (!dev) {
-            shellExec(`lxc exec ${vmName} -- bash -c 'cd ${basePath} && underpost clone ${repoUri}'`);
-            shellExec(`lxc exec ${vmName} -- bash -c 'cd ${basePath} && pwa-microservices-template ${subDir}'`);
-            shellExec(
-              `lxc file push ${basePath}/${subDir}/${subDir}-private ${vmName}${basePath}/${subDir} --recursive`,
-            );
-          } else {
-            shellExec(`lxc file push ${basePath}/${subDir} ${vmName}${basePath} --recursive`);
-          }
+          shellExec(`lxc exec ${vmName} -- bash -c 'rm ${basePath} && mkdir -p ${basePath}/${subDir}'`);
+          shellExec(`lxc file push ${basePath}/${subDir}/package.json ${vmName}${basePath}/${subDir}/package.json`);
+          shellExec(`lxc file push ${basePath}/${subDir}/src ${vmName}${basePath}/${subDir} --recursive`);
+          shellExec(`lxc file push ${basePath}/${subDir}/${subDir}-private ${vmName}${basePath}/${subDir} --recursive`);
           break;
         }
         case 'setup-underpost-engine': {
           const basePath = `/home/dd/engine`;
-          shellExec(`lxc exec ${vmName} -- bash -c 'underpost run secret'`);
           shellExec(`lxc exec ${vmName} -- bash -c 'cd ${basePath} && npm install'`);
+          shellExec(`lxc exec ${vmName} -- bash -c 'underpost run secret'`);
+          break;
         }
       }
     },

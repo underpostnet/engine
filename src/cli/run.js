@@ -82,6 +82,7 @@ class UnderpostRun {
    * @property {boolean} kubeadm - Whether to run in kubeadm mode.
    * @property {boolean} kind - Whether to run in kind mode.
    * @property {boolean} k3s - Whether to run in k3s mode.
+   * @property {string} logType - The type of log to generate.
    * @memberof UnderpostRun
    */
   static DEFAULT_OPTION = {
@@ -124,6 +125,7 @@ class UnderpostRun {
     kubeadm: false,
     kind: false,
     k3s: false,
+    logType: '',
   };
   /**
    * @static
@@ -782,6 +784,7 @@ EOF
           targetTraffic,
           ignorePods,
           options.namespace,
+          options.logType,
         );
 
         if (!ready) {
