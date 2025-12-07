@@ -8,6 +8,9 @@ import { getNpmRootPath } from '../server/conf.js';
 import { getLocalIPv4Address } from '../server/dns.js';
 import { pbcopy, shellExec } from '../server/process.js';
 import fs from 'fs-extra';
+import { loggerFactory } from '../server/logger.js';
+
+const logger = loggerFactory(import.meta);
 
 /**
  * @class UnderpostLxd
@@ -86,9 +89,21 @@ ipv4.dhcp=true \
 ipv6.address=none`);
       }
       if (options.createAdminProfile === true) {
-        pbcopy(`lxc profile create admin-profile`);
-        shellExec(`cat ${underpostRoot}/manifests/lxd/lxd-admin-profile.yaml | lxc profile edit admin-profile`);
-        shellExec(`lxc profile show admin-profile`);
+        const existingProfiles = await new Promise((resolve) => {
+          shellExec(`lxc profile show admin-profile`, {
+            silent: true,
+            callback: (...args) => {
+              return resolve(JSON.stringify(args));
+            },
+          });
+        });
+        if (existingProfiles.toLowerCase().match('error')) {
+          logger.warn('Profile does not exist. Using following command to create admin-profile:');
+          pbcopy(`lxc profile create admin-profile`);
+        } else {
+          shellExec(`cat ${underpostRoot}/manifests/lxd/lxd-admin-profile.yaml | lxc profile edit admin-profile`);
+          shellExec(`lxc profile show admin-profile`);
+        }
       }
       if (options.createVm && typeof options.createVm === 'string') {
         pbcopy(
@@ -123,74 +138,7 @@ ipv6.address=none`);
         shellExec(`cat ${underpostRoot}/manifests/lxd/underpost-setup.sh | lxc exec ${options.initVm} -- bash${flag}`);
         console.log(`underpost-setup.sh execution completed on VM: ${options.initVm}`);
       }
-      // --- Automatic Kubernetes Port Exposure ---
-      if (options.autoExposeK8sPorts && typeof options.autoExposeK8sPorts === 'string') {
-        console.log(`Automatically exposing Kubernetes ports for VM: ${options.autoExposeK8sPorts}`);
-        const vmName = options.autoExposeK8sPorts;
-        const hostIp = getLocalIPv4Address();
-        let vmIp = '';
-        let retries = 0;
-        const maxRetries = 10;
-        const delayMs = 5000; // 5 seconds
 
-        // Wait for VM to get an IP address
-        while (!vmIp && retries < maxRetries) {
-          try {
-            console.log(`Attempting to get IPv4 address for ${vmName} (Attempt ${retries + 1}/${maxRetries})...`);
-            vmIp = shellExec(
-              `lxc list ${vmName} --format json | jq -r '.[0].state.network.enp5s0.addresses[] | select(.family=="inet") | .address'`,
-              { stdout: true },
-            ).trim();
-            if (vmIp) {
-              console.log(`IPv4 address found for ${vmName}: ${vmIp}`);
-            } else {
-              console.log(`IPv4 address not yet available for ${vmName}. Retrying in ${delayMs / 1000} seconds...`);
-              await new Promise((resolve) => setTimeout(resolve, delayMs));
-            }
-          } catch (error) {
-            console.error(`Error getting IPv4 address for exposure: ${error.message}`);
-            console.log(`Retrying in ${delayMs / 1000} seconds...`);
-            await new Promise((resolve) => setTimeout(resolve, delayMs));
-          }
-          retries++;
-        }
-
-        if (!vmIp) {
-          console.error(`Failed to get VM IP for ${vmName} after ${maxRetries} attempts. Cannot expose ports.`);
-          return;
-        }
-
-        let portsToExpose = [];
-        if (options.control === true) {
-          // Kubernetes API Server (Kubeadm and K3s both use 6443 by default)
-          portsToExpose.push('6443');
-          // Standard HTTP/HTTPS for Ingress if deployed
-          portsToExpose.push('80');
-          portsToExpose.push('443');
-        }
-        // Add common NodePorts if needed, or rely on explicit 'expose'
-        portsToExpose.push('30000'); // Example NodePort
-        portsToExpose.push('30001'); // Example NodePort
-        portsToExpose.push('30002'); // Example NodePort
-
-        const protocols = ['tcp']; // Most K8s services are TCP, UDP for some like DNS
-
-        for (const port of portsToExpose) {
-          for (const protocol of protocols) {
-            const deviceName = `${vmName}-${protocol}-port-${port}`;
-            try {
-              // Remove existing device first to avoid conflicts if re-running
-              shellExec(`lxc config device remove ${vmName} ${deviceName} || true`);
-              shellExec(
-                `lxc config device add ${vmName} ${deviceName} proxy listen=${protocol}:${hostIp}:${port} connect=${protocol}:${vmIp}:${port} nat=true`,
-              );
-              console.log(`Exposed ${protocol}:${hostIp}:${port} -> ${vmIp}:${port} for ${vmName}`);
-            } catch (error) {
-              console.error(`Failed to expose port ${port} for ${vmName}: ${error.message}`);
-            }
-          }
-        }
-      }
       if (options.joinNode && typeof options.joinNode === 'string') {
         const [workerNode, controlNode] = options.joinNode.split(',');
         // Determine if it's a Kubeadm or K3s join

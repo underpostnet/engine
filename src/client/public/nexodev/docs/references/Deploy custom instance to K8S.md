@@ -135,13 +135,13 @@ View images loaded in the cluster:
 
 ```bash
 # Default node (kind-worker)
-underpost run ls-images
+underpost image --ls
 
 # Specific node
-underpost run --node-name worker-01 ls-images
+underpost image --node-name worker-01 --ls
 
 # Detailed specification
-underpost run ls-images spec
+underpost image --ls --spec
 ```
 
 ## Deployment Workflow
@@ -338,7 +338,7 @@ underpost run get-proxy myapp.example.com
 
 ```bash
 # List loaded images
-underpost run --node-name worker-01 ls-images
+underpost image --node-name worker-01 --ls
 
 # Load image manually
 kind load docker-image my-custom-image:latest

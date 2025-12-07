@@ -412,37 +412,36 @@ program
     if (args[1].init) return Underpost.secret[args[0]].init();
   });
 
-// 'dockerfile-image-build' command: Build Docker images from Dockerfiles
+// 'image'
 program
-  .command('dockerfile-image-build')
+  .command('image')
+  .option(
+    '--build',
+    'Builds a Docker image using Podman, optionally saves it as a tar archive, and loads it into a specified Kubernetes cluster (Kind, Kubeadm, or K3s).',
+  )
+  .option('--ls', 'Lists all available Underpost Dockerfile images.')
+  .option('--rm', 'Removes specified Underpost Dockerfile images.')
   .option('--path [path]', 'The path to the Dockerfile directory.')
   .option('--image-name [image-name]', 'Sets a custom name for the Docker image.')
   .option('--image-path [image-path]', 'Sets the output path for the tar image archive.')
   .option('--dockerfile-name [dockerfile-name]', 'Sets a custom name for the Dockerfile.')
   .option('--podman-save', 'Exports the built image as a tar file using Podman.')
-  .option('--kind-load', 'Imports the tar image into a Kind cluster.')
-  .option('--kubeadm-load', 'Imports the tar image into a Kubeadm cluster.')
+  .option('--pull-base', 'Pulls base images and builds a "rockylinux9-underpost" image.')
+  .option('--spec', 'Get current cached list of container images used by all pods')
+  .option('--namespace <namespace>', 'Kubernetes namespace for image operations (defaults to "default").')
+  .option('--kind', 'Set kind cluster env image context management.')
+  .option('--kubeadm', 'Set kubeadm cluster env image context management.')
+  .option('--k3s', 'Set k3s cluster env image context management.')
   .option('--secrets', 'Includes Dockerfile environment secrets during the build.')
   .option('--secrets-path [secrets-path]', 'Specifies a custom path for Dockerfile environment secrets.')
   .option('--reset', 'Performs a build without using the cache.')
   .option('--dev', 'Use development mode.')
-  .option('--k3s-load', 'Loads the image into a K3s cluster.')
-  .description(
-    'Builds a Docker image from a specified Dockerfile with various options for naming, saving, and loading.',
-  )
-  .action(Underpost.image.dockerfile.build);
-
-// 'dockerfile-pull-base-images' command: Pull base Dockerfile images
-program
-  .command('dockerfile-pull-base-images')
-  .option('--path [path]', 'The path to the Dockerfile directory.')
-  .option('--kind-load', 'Imports the pulled image into a Kind cluster.')
-  .option('--kubeadm-load', 'Imports the pulled image into a Kubeadm cluster.')
-  .option('--version', 'Sets a custom version for the base images.')
-  .option('--k3s-load', 'Loads the image into a K3s cluster.')
-  .option('--dev', 'Use development mode.')
-  .description('Pulls required Underpost Dockerfile base images and optionally loads them into clusters.')
-  .action(Underpost.image.dockerfile.pullBaseImages);
+  .description('Manages Docker images, including building, saving, and loading into Kubernetes clusters.')
+  .action(async (options) => {
+    if (options.ls) Underpost.image.dockerfile.ls(options);
+    if (options.pullBase) Underpost.image.dockerfile.pullBaseImages(options);
+    if (options.build) Underpost.image.dockerfile.build(options);
+  });
 
 // 'install' command: Fast import npm dependencies
 program
@@ -628,9 +627,10 @@ program
     'Optional: Specifies a comma-separated list of key-value pairs for labels (e.g., "app=my-app,env=prod").',
   )
   .option('--claim-name <name>', 'Optional: Specifies the claim name for volume mounting in deploy-job.')
-  .option('--kind <kind-type>', 'Specifies the kind of Kubernetes resource (e.g., Job, Deployment) for deploy-job.')
-  .option('--kubeadm', 'Flag to indicate Kubeadm cluster type context')
-  .option('--k3s', 'Flag to indicate K3s cluster type context')
+  .option(
+    '--kind-type <kind-type>',
+    'Specifies the kind of Kubernetes resource (e.g., Job, Deployment) for deploy-job.',
+  )
   .option('--force', 'Forces operation, overriding any warnings or conflicts.')
   .option('--tls', 'Enables TLS for the runner execution.')
   .option('--reset', 'Resets the runner state before execution.')
@@ -650,6 +650,9 @@ program
   .option('--underpost-root <underpost-root>', 'Sets a custom Underpost root path.')
   .option('--cron-jobs <jobs>', 'Comma-separated list of cron jobs to run before executing the script.')
   .option('--timezone <timezone>', 'Sets the timezone for the runner execution.')
+  .option('--kubeadm', 'Sets the kubeadm cluster context for the runner execution.')
+  .option('--k3s', 'Sets the k3s cluster context for the runner execution.')
+  .option('--kind', 'Sets the kind cluster context for the runner execution.')
   .description('Runs a script from the specified path.')
   .action(UnderpostRun.API.callback);
 
@@ -682,7 +685,6 @@ program
     '--delete-expose <vm-name-ports>',
     'Removes exposed ports on a VM (e.g., "k8s-control:80,443"). Multiple VM-port pairs can be comma-separated.',
   )
-  .option('--auto-expose-k8s-ports <vm-id>', 'Automatically exposes common Kubernetes ports for the specified VM.')
   .description('Manages LXD containers and virtual machines.')
   .action(UnderpostLxd.API.callback);
 

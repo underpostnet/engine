@@ -54,8 +54,6 @@ class UnderpostRun {
    * @property {string} namespace - The namespace to run in.
    * @property {boolean} build - Whether to build the image.
    * @property {number} replicas - The number of replicas to run.
-   * @property {boolean} k3s - Whether to run in k3s mode.
-   * @property {boolean} kubeadm - Whether to run in kubeadm mode.
    * @property {boolean} force - Whether to force the operation.
    * @property {boolean} reset - Whether to reset the operation.
    * @property {boolean} tls - Whether to use TLS.
@@ -66,7 +64,7 @@ class UnderpostRun {
    * @property {string} imagePullPolicy - The image pull policy for the container.
    * @property {string} apiVersion - The API version for the container.
    * @property {string} claimName - The claim name for the volume.
-   * @property {string} kind - The kind of resource to create.
+   * @property {string} kindType - The kind of resource to create.
    * @property {boolean} terminal - Whether to open a terminal.
    * @property {number} devProxyPortOffset - The port offset for the development proxy.
    * @property {boolean} hostNetwork - Whether to use host networking.
@@ -81,6 +79,9 @@ class UnderpostRun {
    * @property {string} underpostRoot - The root path of the Underpost installation.
    * @property {string} cronJobs - The cron jobs to run.
    * @property {string} timezone - The timezone to set.
+   * @property {boolean} kubeadm - Whether to run in kubeadm mode.
+   * @property {boolean} kind - Whether to run in kind mode.
+   * @property {boolean} k3s - Whether to run in k3s mode.
    * @memberof UnderpostRun
    */
   static DEFAULT_OPTION = {
@@ -95,8 +96,6 @@ class UnderpostRun {
     namespace: 'default',
     build: false,
     replicas: 1,
-    k3s: false,
-    kubeadm: false,
     force: false,
     reset: false,
     tls: false,
@@ -107,7 +106,7 @@ class UnderpostRun {
     imagePullPolicy: '',
     apiVersion: '',
     claimName: '',
-    kind: '',
+    kindType: '',
     terminal: false,
     devProxyPortOffset: 0,
     hostNetwork: false,
@@ -122,6 +121,9 @@ class UnderpostRun {
     underpostRoot: '',
     cronJobs: '',
     timezone: '',
+    kubeadm: false,
+    kind: false,
+    k3s: false,
   };
   /**
    * @static
@@ -809,21 +811,6 @@ EOF
     'ls-deployments': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       console.table(await UnderpostDeploy.API.get(path, 'deployments', options.namespace));
     },
-    /**
-     * @method ls-images
-     * @description Retrieves and logs a table of currently loaded Docker images in the 'kind-worker' node using `UnderpostDeploy.API.getCurrentLoadedImages`.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'ls-images': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      console.table(
-        UnderpostDeploy.API.getCurrentLoadedImages(
-          options.nodeName ? options.nodeName : 'kind-worker',
-          path === 'spec' ? true : false,
-        ),
-      );
-    },
 
     /**
      * @method host-update
@@ -869,9 +856,7 @@ EOF
       }
 
       if (!currentImage)
-        shellExec(
-          `${baseCommand} dockerfile-pull-base-images${baseClusterCommand} ${options.dev ? '--kind-load' : '--kubeadm-load'}`,
-        );
+        shellExec(`${baseCommand} image${baseClusterCommand} --pull-base ${options.dev ? '--kind' : '--kubeadm'}`);
       // shellExec(`kubectl delete pod ${podName} --ignore-not-found`);
 
       const payload = {
@@ -1109,44 +1094,45 @@ EOF
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
+      const clusterType = options.k3s ? 'k3s' : 'kubeadm';
       shellCd(`/home/dd/engine`);
       shellExec(`${baseCommand} cluster${baseClusterCommand} --reset`);
       await timer(5000);
-      shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm`);
+      shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType}`);
       await timer(5000);
       let [runtimeImage, deployList] = path.split(',')
         ? path.split(',')
-        : ['lampp', fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+')];
+        : ['express', fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+')];
       shellExec(
-        `${baseCommand} dockerfile-pull-base-images${baseClusterCommand}${
-          runtimeImage ? ` --path /home/dd/engine/src/runtime/${runtimeImage}` : ''
-        } --kubeadm-load`,
+        `${baseCommand} image${baseClusterCommand}${
+          runtimeImage ? ` --build --path /home/dd/engine/src/runtime/${runtimeImage}` : ''
+        } --${clusterType}`,
       );
       if (!deployList) {
         deployList = [];
         logger.warn('No deploy list provided');
       } else deployList = deployList.split('+');
       await timer(5000);
-      shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm --pull-image --mongodb`);
+      shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --pull-image --mongodb`);
       if (runtimeImage === 'lampp') {
         await timer(5000);
-        shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm --pull-image --mariadb`);
+        shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --pull-image --mariadb`);
       }
       await timer(5000);
       for (const deployId of deployList) {
         shellExec(`${baseCommand} db ${deployId} --import --git`);
       }
       await timer(5000);
-      shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm --pull-image --valkey`);
+      shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --pull-image --valkey`);
       await timer(5000);
-      shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm --contour`);
+      shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --contour`);
       if (env === 'production') {
         await timer(5000);
-        shellExec(`${baseCommand} cluster${baseClusterCommand} --kubeadm --cert-manager`);
+        shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --cert-manager`);
       }
       for (const deployId of deployList) {
         shellExec(
-          `${baseCommand} deploy ${deployId} ${env} --kubeadm${env === 'production' ? ' --cert' : ''}${
+          `${baseCommand} deploy ${deployId} ${env} --${clusterType}${env === 'production' ? ' --cert' : ''}${
             env === 'development' ? ' --etc-hosts' : ''
           }`,
         );
@@ -1477,7 +1463,7 @@ EOF
       const tty = options.tty ? 'true' : 'false';
       const stdin = options.stdin ? 'true' : 'false';
       const restartPolicy = options.restartPolicy || 'Never';
-      const kind = options.kind || 'Pod';
+      const kindType = options.kindType || 'Pod';
       const imagePullPolicy = options.imagePullPolicy || 'IfNotPresent';
       const hostNetwork = options.hostNetwork ? options.hostNetwork : '';
       const apiVersion = options.apiVersion || 'v1';
@@ -1501,7 +1487,7 @@ EOF
 
       const cmd = `kubectl apply -f - <<EOF
 apiVersion: ${apiVersion}
-kind: ${kind}
+kind: ${kindType}
 metadata:
   name: ${podName}
   namespace: ${namespace}

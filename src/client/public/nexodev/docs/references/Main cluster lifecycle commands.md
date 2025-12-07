@@ -9,7 +9,7 @@ This guide provides detailed information on using the main cluster lifecycle com
 3. [ssh-deploy](#ssh-deploy)
 4. [cluster](#cluster)
 5. [dd-container](#dd-container)
-6. [dockerfile-pull-base-images](#dockerfile-pull-base-images)
+6. [image](#image)
 7. [update-default-conf](#update-default-conf)
 8. [promote](#promote)
 
@@ -184,25 +184,25 @@ node bin run dd-container --image-name custom-image:latest --dev
 
 ---
 
-## dockerfile-pull-base-images
+## image
 
-**Command:** `node bin dockerfile-pull-base-images [options]`
+**Command:** `node bin image [options]`
 
 **Description:** Pulls required Underpost Dockerfile base images and optionally loads them into Kubernetes clusters.
 
 ### Usage
 ```bash
-node bin dockerfile-pull-base-images
-node bin dockerfile-pull-base-images --path /home/dd/engine/src/runtime/lampp
-node bin dockerfile-pull-base-images --kind-load --dev
-node bin dockerfile-pull-base-images --kubeadm-load --version 1.2.3
+node bin image --pull-base
+node bin image --pull-base --path /home/dd/engine/src/runtime/lampp
+node bin image --pull-base --kind --dev
+node bin image --pull-base --kubeadm --version 1.2.3
 ```
 
 ### Options
 - `--path <path>` - Specific path to Dockerfile directory
-- `--kind-load` - Import pulled images into Kind cluster
-- `--kubeadm-load` - Import pulled images into Kubeadm cluster  
-- `--k3s-load` - Load images into K3s cluster
+- `--kind` - Import pulled images into Kind cluster
+- `--kubeadm` - Import pulled images into Kubeadm cluster  
+- `--k3s` - Load images into K3s cluster
 - `--version <version>` - Set custom version for base images
 - `--dev` - Use development mode
 

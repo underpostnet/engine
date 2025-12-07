@@ -925,7 +925,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         shellExec(`sudo podman pull ghcr.io/astral-sh/uv:0.5.11`);
         shellExec(`sudo rm -rf ${path}/${imageName.replace(':', '_')}.tar`);
         const args = [
-          `node bin dockerfile-image-build --path ${path}/backend/`,
+          `node bin image --build --path ${path}/backend/`,
           `--image-name=${imageName} --image-path=${path}`,
           `--podman-save --${process.argv.includes('kubeadm') ? 'kubeadm' : 'kind'}-load --reset`,
         ];
@@ -937,7 +937,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         shellExec(`sudo podman pull docker.io/library/nginx:1`);
         shellExec(`sudo rm -rf ${path}/${imageName.replace(':', '_')}.tar`);
         const args = [
-          `node bin dockerfile-image-build --path ${path}/frontend/`,
+          `node bin image --build --path ${path}/frontend/`,
           `--image-name=${imageName} --image-path=${path}`,
           `--podman-save --${process.argv.includes('kubeadm') ? 'kubeadm' : 'kind'}-load --reset`,
         ];

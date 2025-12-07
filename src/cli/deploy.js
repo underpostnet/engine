@@ -994,13 +994,17 @@ ${renderHosts}`,
 
     /**
      * Retrieves the currently loaded images in the Kubernetes cluster.
+     * @param {string} [node='kind-worker'] - Node name to check for loaded images.
+     * @param {object} options - Options for the image retrieval.
+     * @param {boolean} options.spec - Whether to retrieve images from the pod specifications.
+     * @param {string} options.namespace - Kubernetes namespace to filter pods.
      * @returns {Array<object>} - Array of objects containing pod names and their corresponding images.
      * @memberof UnderpostDeploy
      */
-    getCurrentLoadedImages(node = 'kind-worker', specContainers = false) {
-      if (specContainers) {
+    getCurrentLoadedImages(node = 'kind-worker', options = { spec: false, namespace: '' }) {
+      if (options.spec) {
         const raw = shellExec(
-          `kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.namespace}{"/"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
+          `kubectl get pods ${options.namespace ? `--namespace ${options.namespace}` : `--all-namespaces`} -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.namespace}{"/"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
           {
             stdout: true,
             silent: true,

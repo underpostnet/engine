@@ -30,44 +30,40 @@ class UnderpostImage {
        * @description Pulls base images and builds a 'rockylinux9-underpost' image,
        * then loads it into the specified Kubernetes cluster type (Kind, Kubeadm, or K3s).
        * @param {object} options - Options for pulling and loading images.
-       * @param {boolean} [options.kindLoad=false] - If true, load image into Kind cluster.
-       * @param {boolean} [options.kubeadmLoad=false] - If true, load image into Kubeadm cluster.
-       * @param {boolean} [options.k3sLoad=false] - If true, load image into K3s cluster.
+       * @param {boolean} [options.kind=false] - If true, load image into Kind cluster.
+       * @param {boolean} [options.kubeadm=false] - If true, load image into Kubeadm cluster.
+       * @param {boolean} [options.k3s=false] - If true, load image into K3s cluster.
        * @param {string} [options.path=false] - Path to the Dockerfile context.
        * @param {boolean} [options.dev=false] - If true, use development mode.
        * @param {string} [options.version=''] - Version tag for the image.
+       * @param {string} [options.imageName=''] - Custom name for the image.
        * @memberof UnderpostImage
        */
       pullBaseImages(
         options = {
-          kindLoad: false,
-          kubeadmLoad: false,
-          k3sLoad: false,
+          kind: false,
+          kubeadm: false,
+          k3s: false,
           path: false,
           dev: false,
           version: '',
+          imageName: '',
         },
       ) {
-        // shellExec(`sudo podman pull docker.io/library/debian:buster`);
         shellExec(`sudo podman pull docker.io/library/rockylinux:9`);
         const baseCommand = options.dev ? 'node bin' : 'underpost';
         const baseCommandOption = options.dev ? ' --dev' : '';
-        const IMAGE_NAME = `rockylinux9-underpost`;
-        const IMAGE_NAME_FULL = `${IMAGE_NAME}:${options.version ? options.version : Underpost.version}`;
+        const IMAGE_NAME = options.imageName
+          ? `options.imageName${options.version ? `:${options.version}` : ''}`
+          : `rockylinux9-underpost:${options.version ? options.version : Underpost.version}`;
         let LOAD_TYPE = '';
-        if (options.kindLoad === true) {
-          LOAD_TYPE = `--kind-load`;
-        } else if (options.kubeadmLoad === true) {
-          LOAD_TYPE = `--kubeadm-load`;
-        } else if (options.k3sLoad === true) {
-          // Handle K3s load type
-          LOAD_TYPE = `--k3s-load`;
-        }
-
+        if (options.kind === true) LOAD_TYPE = `--kind`;
+        else if (options.kubeadm === true) LOAD_TYPE = `--kubeadm`;
+        else if (options.k3s === true) LOAD_TYPE = `--k3s`;
         shellExec(
-          `${baseCommand} dockerfile-image-build${baseCommandOption} --podman-save --reset --image-path=. --path ${
-            options.path ?? getUnderpostRootPath()
-          } --image-name=${IMAGE_NAME_FULL} ${LOAD_TYPE}`,
+          `${baseCommand} image${baseCommandOption} --build --podman-save --reset --image-path=. --path ${
+            options.path ? options.path : getUnderpostRootPath()
+          } --image-name=${IMAGE_NAME} ${LOAD_TYPE}`,
         );
       },
       /**
@@ -77,12 +73,13 @@ class UnderpostImage {
        * @param {object} options - Options for building and loading images.
        * @param {string} [options.path=''] - The path to the directory containing the Dockerfile.
        * @param {string} [options.imageName=''] - The name and tag for the image (e.g., 'my-app:latest').
+       * @param {string} [options.version=''] - Version tag for the image.
        * @param {string} [options.imagePath=''] - Directory to save the image tar file.
        * @param {string} [options.dockerfileName=''] - Name of the Dockerfile (defaults to 'Dockerfile').
        * @param {boolean} [options.podmanSave=false] - If true, save the image as a tar archive using Podman.
-       * @param {boolean} [options.kindLoad=false] - If true, load the image archive into a Kind cluster.
-       * @param {boolean} [options.kubeadmLoad=false] - If true, load the image archive into a Kubeadm cluster (uses 'ctr').
-       * @param {boolean} [options.k3sLoad=false] - If true, load the image archive into a K3s cluster (uses 'k3s ctr').
+       * @param {boolean} [options.kind=false] - If true, load the image archive into a Kind cluster.
+       * @param {boolean} [options.kubeadm=false] - If true, load the image archive into a Kubeadm cluster (uses 'ctr').
+       * @param {boolean} [options.k3s=false] - If true, load the image archive into a K3s cluster (uses 'k3s ctr').
        * @param {boolean} [options.secrets=false] - If true, load secrets from the .env file for the build.
        * @param {string} [options.secretsPath=''] - Custom path to the .env file for secrets.
        * @param {boolean} [options.reset=false] - If true, perform a no-cache build.
@@ -93,12 +90,13 @@ class UnderpostImage {
         options = {
           path: '',
           imageName: '',
+          version: '',
           imagePath: '',
           dockerfileName: '',
           podmanSave: false,
-          kindLoad: false,
-          kubeadmLoad: false,
-          k3sLoad: false,
+          kind: false,
+          kubeadm: false,
+          k3s: false,
           secrets: false,
           secretsPath: '',
           reset: false,
@@ -108,19 +106,20 @@ class UnderpostImage {
         let {
           path,
           imageName,
+          version,
           imagePath,
           dockerfileName,
           podmanSave,
           secrets,
           secretsPath,
-          kindLoad,
-          kubeadmLoad,
-          k3sLoad,
+          kind,
+          kubeadm,
+          k3s,
           reset,
           dev,
         } = options;
         if (!path) path = '.';
-        const podManImg = `localhost/${imageName}`;
+        const podManImg = `localhost/${imageName}${version ? `:${version}` : ''}`;
         if (imagePath && typeof imagePath === 'string' && !fs.existsSync(imagePath))
           fs.mkdirSync(imagePath, { recursive: true });
         const tarFile = `${imagePath}/${imageName.replace(':', '_')}.tar`;
@@ -151,15 +150,17 @@ class UnderpostImage {
           if (fs.existsSync(tarFile)) fs.removeSync(tarFile);
           shellExec(`podman save -o ${tarFile} ${podManImg}`);
         }
-        if (kindLoad === true) shellExec(`sudo kind load image-archive ${tarFile}`);
-        if (kubeadmLoad === true) {
-          // Use 'ctr' for Kubeadm
-          shellExec(`sudo ctr -n k8s.io images import ${tarFile}`);
-        }
-        if (k3sLoad === true) {
-          // Use 'k3s ctr' for K3s
-          shellExec(`sudo k3s ctr images import ${tarFile}`);
-        }
+        if (kind === true) shellExec(`sudo kind load image-archive ${tarFile}`);
+        else if (kubeadm === true) shellExec(`sudo ctr -n k8s.io images import ${tarFile}`);
+        else if (k3s === true) shellExec(`sudo k3s ctr images import ${tarFile}`);
+      },
+      list(options = { nodeName: '', namespace: '', spec: false, log: false }) {
+        const list = Underpost.deploy.getCurrentLoadedImages(
+          options.nodeName ? options.nodeName : 'kind-worker',
+          options,
+        );
+        if (options.log) console.table(list);
+        return list;
       },
     },
   };
