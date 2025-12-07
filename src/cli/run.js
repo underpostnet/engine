@@ -1171,6 +1171,19 @@ EOF
     },
 
     /**
+     * @method disk-clean
+     * @description Executes the `disk-clean-sh` script to perform disk cleanup operations.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'disk-clean': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const { underpostRoot } = options;
+      shellExec(`chmod +x ${underpostRoot}/scripts/disk-clean.sh`);
+      shellExec(`./scripts/disk-clean.sh --yes --aggressive`);
+    },
+
+    /**
      * @method dev
      * @description Starts development servers for client, API, and proxy based on provided parameters (deployId, host, path, clientHostPort).
      * @param {string} path - The input value, identifier, or path for the operation (formatted as `deployId,subConf,host,path,clientHostPort`).
