@@ -73,7 +73,6 @@ node bin db <deploy-list> [options]
 | `--import` | Import data from backup | `--import` |
 | `--export` | Export data to backup | `--export` |
 | `--stats` | Display database statistics (collections/tables with counts) | `--stats` |
-| `--dry-run` | Simulate without executing | `--dry-run` |
 
 ### Pod/Node Targeting
 
@@ -104,6 +103,7 @@ node bin db <deploy-list> [options]
 | Option | Description | Example |
 |--------|-------------|---------|
 | `--git` | Enable Git backup versioning | `--git` |
+| `--macro-rollback-export <n>` | Rollback n commits before export (requires `--git` and `--export`) | `--macro-rollback-export 3` |
 
 ---
 
@@ -288,20 +288,12 @@ Import to all MariaDB pods in a statefulset:
 node bin db --import --all-pods dd-myapp
 ```
 
-### Import from Custom Path
+### Export to Custom Path
 
-Import from a custom backup location:
-
-```bash
-node bin db --import --out-path ./custom-backup dd-myapp
-```
-
-### Dry Run (Test Mode)
-
-Test import operation without executing:
+Export to a custom directory:
 
 ```bash
-node bin db --import --dry-run dd-myapp
+node bin db --export --out-path ./custom-backup dd-myapp
 ```
 
 ---
@@ -363,6 +355,24 @@ Export from a different namespace:
 ```bash
 node bin db --export --ns staging dd-myapp
 ```
+
+### Export with Macro Rollback
+
+Export after rolling back n commits in the Git repository (useful for reverting to a previous backup state):
+
+```bash
+# Rollback 2 commits and export
+node bin db --export --git --macro-rollback-export 2 dd-myapp
+
+# Rollback 5 commits before exporting
+node bin db --export --git --macro-rollback-export 5 dd-myapp
+```
+
+**What happens:**
+1. Clones/pulls the Git backup repository
+2. Rolls back the specified number of commits using `underpost cmt . reset <n>`
+3. Exports the database with the rolled-back state
+4. Useful for recovering from bad backups or reverting to earlier states
 
 ### Basic Import
 
@@ -426,14 +436,6 @@ Import only specific collections:
 
 ```bash
 node bin db --import --collections "users,posts" dd-myapp
-```
-
-### Dry Run Import
-
-Test import without executing:
-
-```bash
-node bin db --import --drop --preserveUUID --dry-run dd-myapp
 ```
 
 ### Import to Primary Pod Only
@@ -688,33 +690,11 @@ node bin db --import \
   dd-myapp
 ```
 
-### Safe Testing with Dry Run
-
-Test complex operations before executing:
-
-```bash
-node bin db --import \
-  --drop \
-  --preserveUUID \
-  --pod-name "mongodb-*" \
-  --all-pods \
-  --dry-run \
-  dd-myapp
-```
-
 ---
 
 ## Best Practices
 
-### 1. Always Use Dry Run First
-
-Test operations before executing on production:
-
-```bash
-node bin db --import --drop --dry-run dd-myapp
-```
-
-### 2. Enable Git Backups for Production
+### 1. Enable Git Backups for Production
 
 Version control your database backups:
 
@@ -722,7 +702,7 @@ Version control your database backups:
 node bin db --export --git dd-production-app
 ```
 
-### 3. Use Specific Namespaces
+### 2. Use Specific Namespaces
 
 Explicitly specify namespaces to avoid accidents:
 
@@ -730,7 +710,7 @@ Explicitly specify namespaces to avoid accidents:
 node bin db --export --ns production dd-myapp
 ```
 
-### 4. Target Specific Pods for Critical Operations
+### 3. Target Specific Pods for Critical Operations
 
 Use `--primary-pod` for MongoDB imports to ensure data goes to the primary:
 
@@ -742,7 +722,7 @@ node bin db --import --primary-pod dd-myapp
 node bin db --import --pod-name "mongodb-0" dd-myapp
 ```
 
-### 5. Preserve UUIDs for MongoDB
+### 4. Preserve UUIDs for MongoDB
 
 Always use `--preserveUUID` for MongoDB imports:
 
@@ -750,7 +730,7 @@ Always use `--preserveUUID` for MongoDB imports:
 node bin db --import --drop --preserveUUID dd-myapp
 ```
 
-### 6. Regular Automated Backups
+### 5. Regular Automated Backups
 
 Set up cron jobs for automated backups:
 
@@ -759,7 +739,7 @@ Set up cron jobs for automated backups:
 0 2 * * * node bin db --export --git dd-myapp
 ```
 
-### 7. Custom Output Paths for Organization
+### 6. Custom Output Paths for Organization
 
 Use descriptive backup directories:
 
@@ -767,7 +747,7 @@ Use descriptive backup directories:
 node bin db --export --out-path ./backups/$(date +%Y%m%d) dd-myapp
 ```
 
-### 8. Filter Collections for Large Databases
+### 7. Filter Collections for Large Databases
 
 Export only needed collections to save time and space:
 
@@ -775,7 +755,7 @@ Export only needed collections to save time and space:
 node bin db --export --collections "users,products" dd-myapp
 ```
 
-### 9. Monitor Pod Status
+### 8. Monitor Pod Status
 
 Check pod status before operations:
 
@@ -784,7 +764,7 @@ kubectl get pods -n production
 node bin db --export --ns production dd-myapp
 ```
 
-### 10. Use Node Targeting for Geo-Distributed Clusters
+### 9. Use Node Targeting for Geo-Distributed Clusters
 
 Target pods on specific nodes for regional backups:
 
@@ -792,7 +772,7 @@ Target pods on specific nodes for regional backups:
 node bin db --export --node-name "us-east-node-1" dd-myapp
 ```
 
-### 11. Check Database Statistics Before Operations
+### 10. Check Database Statistics Before Operations
 
 Review database size and collection counts before backup:
 
@@ -903,9 +883,6 @@ kubectl describe pod mariadb-0 -n default
 ```bash
 # Verify backup file exists
 ls -lh ./backups/
-
-# Test with dry run first
-node bin db --import --dry-run dd-myapp
 
 # Check database version compatibility
 ```

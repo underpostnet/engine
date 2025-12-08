@@ -4,14 +4,107 @@ This guide provides detailed information on using the main cluster lifecycle com
 
 ## Table of Contents
 
-1. [cluster-build](#cluster-build)
-2. [template-deploy](#template-deploy)
-3. [ssh-deploy](#ssh-deploy)
-4. [cluster](#cluster)
-5. [dd-container](#dd-container)
-6. [image](#image)
-7. [update-default-conf](#update-default-conf)
-8. [promote](#promote)
+1. [new](#new)
+2. [cluster-build](#cluster-build)
+3. [template-deploy](#template-deploy)
+4. [ssh-deploy](#ssh-deploy)
+5. [cluster](#cluster)
+6. [dd-container](#dd-container)
+7. [image](#image)
+8. [Default Configuration](#default-configuration)
+9. [promote](#promote)
+
+---
+
+## new
+
+**Command:** `node bin new [app-name] [options]`
+
+**Description:** Initializes a new Underpost project, service, deployment configuration, or cluster files. This is the primary command for creating deployment configurations and cluster resources.
+
+### Usage
+```bash
+# Create a new deployment ID with configuration files
+node bin new my-service --deploy-id
+
+# Create deployment ID with cluster files and sync to current cluster
+node bin new my-service --deploy-id --cluster
+
+# Create default configuration for existing deployment
+node bin new --default-conf --deploy-id dd-my-app
+
+# Create sub-configuration files
+node bin new --sub-conf client my-service
+
+# Build deployment to pwa-microservices-template
+node bin new --deploy-id my-service --build
+
+# Purge deployment ID and all related files
+node bin new --deploy-id my-service --purge
+```
+
+### Parameters
+- `[app-name]` (optional): The name of the new project or service
+
+### Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--deploy-id <id>` | Create deployment ID configuration and environment files | `--deploy-id dd-myapp` |
+| `--sub-conf <type>` | Create sub-configuration environment files (e.g., `client`, `server`) | `--sub-conf client` |
+| `--cluster` | Create deployment ID cluster files and sync to current cluster (requires `--deploy-id`) | `--cluster` |
+| `--build-repos` | Create deployment ID repositories | `--build-repos` |
+| `--build` | Build the deployment to pwa-microservices-template (requires `--deploy-id`) | `--build` |
+| `--clean-template` | Clean the build directory (pwa-microservices-template) | `--clean-template` |
+| `--sync-conf` | Sync configuration to private repositories (requires `--deploy-id`) | `--sync-conf` |
+| `--purge` | Remove deploy ID configuration and all related repositories (requires `--deploy-id`) | `--purge` |
+| `--dev` | Sets the development CLI context | `--dev` |
+| `--default-conf` | Create default deploy ID configuration environment files | `--default-conf` |
+| `--conf-workflow-id <id>` | Set custom configuration workflow ID for conf generation | `--conf-workflow-id custom-flow` |
+
+### Common Use Cases
+
+#### Create New Deployment with Cluster Support
+```bash
+# Creates configuration and Kubernetes manifests, adds to dd.router
+node bin new my-api --deploy-id --cluster
+```
+
+**What happens:**
+1. Creates `./engine-private/conf/dd-my-api/` directory
+2. Generates configuration files (client.js, server.js, ssr.js)
+3. Creates Kubernetes manifests for deployment
+4. Adds `dd-my-api` to `./engine-private/deploy/dd.router`
+5. Syncs cluster configurations
+
+#### Update Default Configuration
+```bash
+node bin new --default-conf --deploy-id dd-my-app
+```
+
+**What happens:**
+1. Loads base default configuration
+2. Applies deployment-specific modifications
+3. Creates/updates `conf.dd-my-app.js` file
+4. Formats output with Prettier
+
+#### Build Deployment Package
+```bash
+# Build deployment for template distribution
+node bin new --deploy-id my-service --build
+```
+
+#### Remove Deployment
+```bash
+# Clean up deployment and all related resources
+node bin new --deploy-id my-service --purge
+```
+
+**Warning:** This removes configuration files and repositories permanently.
+
+### Notes
+- Use `--cluster` flag when creating deployments for Kubernetes environments
+- The `--deploy-id` prefix convention is `dd-<service-name>`
 
 ---
 
@@ -40,8 +133,12 @@ node bin run cluster-build --node-name worker-01
 2. Executes sync-replica template-deploy in dev mode
 3. Executes sync-replica template-deploy in production mode
 4. Runs `node bin env clean` to clean environment variables
-5. Updates default configurations for all deployments listed in `./engine-private/deploy/dd.router`
+5. Updates default configurations for all deployments listed in `./engine-private/deploy/dd.router` using `node bin new --default-conf --deploy-id <deploy-id>` for each deployment
 6. If `cmt` path is specified, commits changes to git repositories
+
+### Notes
+- Uses `node bin new --default-conf --deploy-id <deploy-id>` for each deployment
+- Processes all deployments from the router file automatically
 
 ---
 
@@ -146,6 +243,22 @@ node bin run cluster mysql,api+frontend --dev
 - **Development**: Uses `--etc-hosts` flag for local DNS resolution
 - **Production**: Uses `--cert` flag for SSL certificate management
 
+### Select Crucial Options
+
+When running the cluster command, only specific options from `DEFAULT_OPTION` are crucial for cluster initialization:
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--dev` | Use development environment | `--dev` |
+| `--namespace <name>` | Kubernetes namespace (default: `default`) | `--namespace production` |
+| `--replicas <n>` | Number of replicas per service (default: 1) | `--replicas 3` |
+| `--node-name <name>` | Target specific node | `--node-name worker-01` |
+| `--kubeadm` | Use kubeadm cluster type | `--kubeadm` |
+| `--kind` | Use Kind cluster type | `--kind` |
+| `--k3s` | Use K3s cluster type | `--k3s` |
+
+**Note:** Most other options in `DEFAULT_OPTION` are used internally by other commands. The cluster command primarily needs the options listed above.
+
 ---
 
 ## dd-container
@@ -213,21 +326,21 @@ node bin image --pull-base --kubeadm --version 1.2.3
 
 ---
 
-## update-default-conf
+## Default Configuration
 
-**Command:** `node bin/deploy update-default-conf <deploy-id>`
+**Command:** `node bin new --default-conf --deploy-id <deploy-id>`
 
 **Description:** Updates the default configuration files for a specific deployment or creates specialized configurations.
 
 ### Usage
 ```bash
-node bin/deploy update-default-conf my-deployment
-node bin/deploy update-default-conf dd-github-pages
-node bin/deploy update-default-conf template
+node bin new --default-conf --deploy-id my-deployment
+node bin new --default-conf --deploy-id dd-github-pages
+node bin new --default-conf --deploy-id template
 ```
 
 ### Parameters
-- `deploy-id` (required): Deployment identifier or special configuration name
+- `--deploy-id <deploy-id>` (required): Deployment identifier or special configuration name
 
 ### Special Configurations
 
@@ -322,30 +435,34 @@ node bin run promote dd,production,2
 
 Most commands support these common options through `DEFAULT_OPTION`:
 
-### Cluster Options
+### Cluster Options (Crucial for Cluster Commands)
 - `--dev` - Use development mode
 - `--k3s` - Target K3s cluster
 - `--kubeadm` - Target Kubeadm cluster
-- `--force` - Force operations (bypass confirmations)
-- `--reset` - Reset cluster state
-
-### Container Options
-- `--pod-name <name>` - Custom pod name
+- `--kind` - Target Kind cluster
+- `--namespace <name>` - Kubernetes namespace (default: `default`)
 - `--node-name <name>` - Target specific node
+- `--replicas <count>` - Number of replicas
+
+### Container Options (For dd-container and similar)
+- `--pod-name <name>` - Custom pod name
 - `--image-name <name>` - Specific Docker image
 - `--container-name <name>` - Custom container name
-- `--namespace <name>` - Kubernetes namespace
-
-### Volume Options
 - `--volume-host-path <path>` - Host directory path
 - `--volume-mount-path <path>` - Container mount path
 - `--claim-name <name>` - PVC name
 
-### Runtime Options
-- `--replicas <count>` - Number of replicas
+### Advanced Options (Used by specific commands)
+- `--force` - Force operations (bypass confirmations)
+- `--reset` - Reset cluster state
 - `--port <number>` - Port configuration
 - `--tls` - Enable TLS
 - `--host-network` - Use host networking
+- `--build` - Trigger build processes
+- `--expose` - Expose services
+- `--etc-hosts` - Modify /etc/hosts for local DNS
+
+**Note:** Not all options are relevant for every command. The cluster command primarily uses cluster-specific options (`--dev`, `--namespace`, `--replicas`, `--node-name`, cluster type flags). Other options are utilized by specialized commands like `dd-container`, `deploy`, and service-specific runners.
 
 ## Environment Setup
 
@@ -388,5 +505,29 @@ docker images | grep underpost
 cat ./engine-private/deploy/dd.router
 ls -la ./engine-private/conf/
 ```
+
+## Additional Run Commands
+
+The `node bin run` command provides access to many helper commands. Key commands documented above include:
+
+- `cluster-build` - Full cluster build and configuration
+- `template-deploy` - Deploy PWA template
+- `ssh-deploy` - SSH-based deployment
+- `cluster` - Complete cluster initialization
+- `dd-container` - Development container creation
+- `promote` - Blue-green deployment promotion
+
+Other available run commands (use with caution, may require specific setup):
+- `clean` - Clean build artifacts
+- `pull` - Pull and sync repositories
+- `dev-cluster` - Quick development cluster setup
+- `dev-hosts-expose` - Expose hosts for development
+- `dev-hosts-restore` - Restore /etc/hosts
+- `metadata` - Cluster metadata operations
+- `sync` - Synchronize deployments
+- `instance` - Deploy individual instances
+- `service` - Deploy individual services
+
+For a complete list of available run commands, check the source code at `src/cli/run.js`.
 
 For additional support, refer to the other documentation files or check the command implementations in the source code.
