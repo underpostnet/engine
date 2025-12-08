@@ -23,7 +23,7 @@ import UnderpostDB from './db.js';
 import UnderpostRootEnv from './env.js';
 import UnderpostRepository from './repository.js';
 import os from 'os';
-import Underpost from '../index.js';
+import Underpost, { UnderpostSSH } from '../index.js';
 import dotenv from 'dotenv';
 
 const logger = loggerFactory(import.meta);
@@ -83,7 +83,9 @@ class UnderpostRun {
    * @property {boolean} kind - Whether to run in kind mode.
    * @property {boolean} k3s - Whether to run in k3s mode.
    * @property {string} logType - The type of log to generate.
+   * @property {string} hosts - The hosts to use.
    * @property {string} deployId - The deployment ID.
+   * @property {string} instanceId - The instance ID.
    * @property {string} user - The user to run as.
    * @memberof UnderpostRun
    */
@@ -128,7 +130,9 @@ class UnderpostRun {
     kind: false,
     k3s: false,
     logType: '',
+    hosts: '',
     deployId: '',
+    instanceId: '',
     user: '',
   };
   /**
@@ -349,19 +353,9 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'ssh-cluster-info': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'ssh-cluster-info': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
-      if (options.deployId && options.user) {
-        const confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
-        if (fs.existsSync(confNodePath)) {
-          const { users } = JSON.parse(fs.readFileSync(confNodePath, 'utf8'));
-          const { user, host, keyPath, port } = users[options.user];
-          UnderpostRootEnv.API.set('DEFAULT_SSH_USER', user);
-          UnderpostRootEnv.API.set('DEFAULT_SSH_HOST', host);
-          UnderpostRootEnv.API.set('DEFAULT_SSH_KEY_PATH', keyPath);
-          UnderpostRootEnv.API.set('DEFAULT_SSH_PORT', port);
-        }
-      }
+      if (options.deployId && options.user) await UnderpostSSH.API.setDefautlSshCredentials(options);
       shellExec(`chmod +x ${underpostRoot}/scripts/ssh-cluster-info.sh`);
       shellExec(`${underpostRoot}/scripts/ssh-cluster-info.sh`);
     },
@@ -593,6 +587,61 @@ class UnderpostRun {
           'current traffic',
           UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace }),
         );
+    },
+
+    /**
+     * @method stop
+     * @description Stops a deployment by deleting the corresponding Kubernetes deployment and service resources.
+     * @param {string} path - The input value, identifier, or path for the operation (used to determine which traffic to stop).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    stop: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      let currentTraffic = UnderpostDeploy.API.getCurrentTraffic(options.deployId, {
+        namespace: options.namespace,
+        hostTest: options.hosts,
+      });
+      const env = options.dev ? 'development' : 'production';
+
+      if (!path.match('current')) currentTraffic === 'blue' ? (currentTraffic = 'green') : (currentTraffic = 'blue');
+      const [_deployId] = path.split(',');
+      const deploymentId = `${_deployId ? _deployId : options.deployId}${options.instanceId ? `-${options.instanceId}` : ''}-${env}-${currentTraffic}`;
+
+      shellExec(`kubectl delete deployment ${deploymentId} -n ${options.namespace}`);
+      shellExec(`kubectl delete svc ${deploymentId}-service -n ${options.namespace}`);
+    },
+
+    /**
+     * @method ssh-deploy-stop
+     * @description Stops a remote deployment via SSH by executing the appropriate Underpost command on the remote server.
+     * @param {string} path - The input value, identifier, or path for the operation (used to determine which traffic to stop).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'ssh-deploy-stop': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const env = options.dev ? 'development' : 'production';
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseClusterCommand = options.dev ? ' --dev' : '';
+      await UnderpostSSH.API.setDefautlSshCredentials(options);
+      shellExec(`#!/usr/bin/env bash
+set -euo pipefail
+
+REMOTE_USER=$(node bin config get --plain DEFAULT_SSH_USER)
+REMOTE_HOST=$(node bin config get --plain DEFAULT_SSH_HOST)
+REMOTE_PORT=$(node bin config get --plain DEFAULT_SSH_PORT)
+SSH_KEY=$(node bin config get --plain DEFAULT_SSH_KEY_PATH)
+
+chmod 600 "$SSH_KEY"
+
+ssh -i "$SSH_KEY" -o BatchMode=yes "$REMOTE_USER@$REMOTE_HOST" -p $REMOTE_PORT sh <<EOF
+cd /home/dd/engine
+sudo -n -- /bin/bash -lc "${[
+        `${baseCommand} run${baseClusterCommand} stop${path ? path : ` ${path}`}`,
+        ` --deploy-id ${options.deployId}${options.instanceId ? ` --instance-id ${options.instanceId}` : ''}`,
+        ` --namespace ${options.namespace}`,
+      ].join('')}"
+EOF
+`);
     },
 
     /**

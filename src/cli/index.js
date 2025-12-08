@@ -661,6 +661,8 @@ program
   .option('--log-type <log-type>', 'Sets the log type for the runner execution.')
   .option('--deploy-id <deploy-id>', 'Sets deploy id context for the runner execution.')
   .option('--user <user>', 'Sets user context for the runner execution.')
+  .option('--hosts <hosts>', 'Comma-separated list of hosts for the runner execution.')
+  .option('--instance-id <instance-id>', 'Sets instance id context for the runner execution.')
   .description('Runs specified scripts using various runners.')
   .action(UnderpostRun.API.callback);
 

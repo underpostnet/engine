@@ -9,6 +9,7 @@ import Dns from '../server/dns.js';
 import { pbcopy, shellExec } from '../server/process.js';
 import { loggerFactory } from '../server/logger.js';
 import fs from 'fs-extra';
+import UnderpostRootEnv from './env.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -494,6 +495,28 @@ EOF`);
 
       // Handle status server
       if (options.status) shellExec('service sshd status');
+    },
+
+    /**
+     * Loads saved SSH credentials from config and sets them in the UnderpostRootEnv API.
+     * @async
+     * @function setDefautlSshCredentials
+     * @memberof UnderpostSSH
+     * @param {Object} options - Options for setting default SSH credentials
+     * @param {string} options.deployId - Deployment ID for the config path
+     * @param {string} options.user - SSH user name
+     * @returns {Promise<void>}
+     */
+    setDefautlSshCredentials: async (options = { deployId: '', user: '' }) => {
+      const confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
+      if (fs.existsSync(confNodePath)) {
+        const { users } = JSON.parse(fs.readFileSync(confNodePath, 'utf8'));
+        const { user, host, keyPath, port } = users[options.user];
+        UnderpostRootEnv.API.set('DEFAULT_SSH_USER', user);
+        UnderpostRootEnv.API.set('DEFAULT_SSH_HOST', host);
+        UnderpostRootEnv.API.set('DEFAULT_SSH_KEY_PATH', keyPath);
+        UnderpostRootEnv.API.set('DEFAULT_SSH_PORT', port);
+      } else logger.warn(`No SSH config found at ${confNodePath}`);
     },
 
     /**
