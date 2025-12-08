@@ -430,7 +430,6 @@ program
   .option('--hosts <hosts>', 'Comma-separated list of database hosts to filter operations.')
   .option('--paths <paths>', 'Comma-separated list of paths to filter database operations.')
   .option('--ns <ns-name>', 'Kubernetes namespace context for database operations (defaults to "default").')
-  .option('--dry-run', 'Simulates operations without executing them (useful for testing).')
   .option(
     '--macro-rollback-export <n-commits-reset>',
     'Exports a macro rollback script that reverts the last n commits (Git integration required).',

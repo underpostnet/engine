@@ -49,7 +49,6 @@ const KUBECTL_TIMEOUT = 300000; // 5 minutes
  * @property {string} [paths=''] - Comma-separated list of paths to include
  * @property {string} [labelSelector=''] - Kubernetes label selector for pods
  * @property {boolean} [allPods=false] - Flag to target all matching pods
- * @property {boolean} [dryRun=false] - Flag to simulate operations without executing
  * @property {boolean} [primaryPod=false] - Flag to automatically detect and use MongoDB primary pod
  * @property {boolean} [stats=false] - Flag to display collection/table statistics
  */
@@ -171,17 +170,11 @@ class UnderpostDB {
      * @private
      * @param {string} command - kubectl command to execute
      * @param {Object} options - Execution options
-     * @param {boolean} [options.dryRun=false] - Dry run mode
      * @param {string} [options.context=''] - Command context for logging
      * @returns {string|null} Command output or null on error
      */
     _executeKubectl(command, options = {}) {
-      const { dryRun = false, context = '' } = options;
-
-      if (dryRun) {
-        logger.info(`[DRY RUN] Would execute: ${command}`, { context });
-        return null;
-      }
+      const { context = '' } = options;
 
       try {
         logger.info(`Executing kubectl command`, { command, context });
@@ -200,13 +193,12 @@ class UnderpostDB {
      * @param {string} params.podName - Target pod name
      * @param {string} params.namespace - Pod namespace
      * @param {string} params.destPath - Destination path in pod
-     * @param {boolean} [params.dryRun=false] - Dry run mode
      * @returns {boolean} Success status
      */
-    _copyToPod({ sourcePath, podName, namespace, destPath, dryRun = false }) {
+    _copyToPod({ sourcePath, podName, namespace, destPath }) {
       try {
         const command = `sudo kubectl cp ${sourcePath} ${namespace}/${podName}:${destPath}`;
-        UnderpostDB.API._executeKubectl(command, { dryRun, context: `copy to pod ${podName}` });
+        UnderpostDB.API._executeKubectl(command, { context: `copy to pod ${podName}` });
         return true;
       } catch (error) {
         logger.error('Failed to copy file to pod', { sourcePath, podName, destPath, error: error.message });
@@ -222,13 +214,12 @@ class UnderpostDB {
      * @param {string} params.namespace - Pod namespace
      * @param {string} params.sourcePath - Source path in pod
      * @param {string} params.destPath - Destination file path
-     * @param {boolean} [params.dryRun=false] - Dry run mode
      * @returns {boolean} Success status
      */
-    _copyFromPod({ podName, namespace, sourcePath, destPath, dryRun = false }) {
+    _copyFromPod({ podName, namespace, sourcePath, destPath }) {
       try {
         const command = `sudo kubectl cp ${namespace}/${podName}:${sourcePath} ${destPath}`;
-        UnderpostDB.API._executeKubectl(command, { dryRun, context: `copy from pod ${podName}` });
+        UnderpostDB.API._executeKubectl(command, { context: `copy from pod ${podName}` });
         return true;
       } catch (error) {
         logger.error('Failed to copy file from pod', { podName, sourcePath, destPath, error: error.message });
@@ -243,13 +234,12 @@ class UnderpostDB {
      * @param {string} params.podName - Pod name
      * @param {string} params.namespace - Pod namespace
      * @param {string} params.command - Command to execute
-     * @param {boolean} [params.dryRun=false] - Dry run mode
      * @returns {string|null} Command output or null
      */
-    _execInPod({ podName, namespace, command, dryRun = false }) {
+    _execInPod({ podName, namespace, command }) {
       try {
         const kubectlCmd = `sudo kubectl exec -n ${namespace} -i ${podName} -- sh -c "${command}"`;
-        return UnderpostDB.API._executeKubectl(kubectlCmd, { dryRun, context: `exec in pod ${podName}` });
+        return UnderpostDB.API._executeKubectl(kubectlCmd, { context: `exec in pod ${podName}` });
       } catch (error) {
         logger.error('Failed to execute command in pod', { podName, command, error: error.message });
         throw error;
@@ -378,10 +368,9 @@ class UnderpostDB {
      * @param {string} params.user - Database user
      * @param {string} params.password - Database password
      * @param {string} params.sqlPath - SQL file path
-     * @param {boolean} [params.dryRun=false] - Dry run mode
      * @returns {boolean} Success status
      */
-    _importMariaDB({ pod, namespace, dbName, user, password, sqlPath, dryRun = false }) {
+    _importMariaDB({ pod, namespace, dbName, user, password, sqlPath }) {
       try {
         const podName = pod.NAME;
         const containerSqlPath = `/${dbName}.sql`;
@@ -393,7 +382,6 @@ class UnderpostDB {
           podName,
           namespace,
           command: `rm -rf ${containerSqlPath}`,
-          dryRun,
         });
 
         // Copy SQL file to pod
@@ -403,7 +391,6 @@ class UnderpostDB {
             podName,
             namespace,
             destPath: containerSqlPath,
-            dryRun,
           })
         ) {
           return false;
@@ -412,12 +399,12 @@ class UnderpostDB {
         // Create database if it doesn't exist
         UnderpostDB.API._executeKubectl(
           `kubectl exec -n ${namespace} -i ${podName} -- mariadb -p${password} -e 'CREATE DATABASE IF NOT EXISTS ${dbName};'`,
-          { dryRun, context: `create database ${dbName}` },
+          { context: `create database ${dbName}` },
         );
 
         // Import SQL file
         const importCmd = `mariadb -u ${user} -p${password} ${dbName} < ${containerSqlPath}`;
-        UnderpostDB.API._execInPod({ podName, namespace, command: importCmd, dryRun });
+        UnderpostDB.API._execInPod({ podName, namespace, command: importCmd });
 
         logger.info('Successfully imported MariaDB database', { podName, dbName });
         return true;
@@ -437,10 +424,9 @@ class UnderpostDB {
      * @param {string} params.user - Database user
      * @param {string} params.password - Database password
      * @param {string} params.outputPath - Output file path
-     * @param {boolean} [params.dryRun=false] - Dry run mode
      * @returns {boolean} Success status
      */
-    async _exportMariaDB({ pod, namespace, dbName, user, password, outputPath, dryRun = false }) {
+    async _exportMariaDB({ pod, namespace, dbName, user, password, outputPath }) {
       try {
         const podName = pod.NAME;
         const containerSqlPath = `/home/${dbName}.sql`;
@@ -452,12 +438,11 @@ class UnderpostDB {
           podName,
           namespace,
           command: `rm -rf ${containerSqlPath}`,
-          dryRun,
         });
 
         // Dump database
         const dumpCmd = `mariadb-dump --user=${user} --password=${password} --lock-tables ${dbName} > ${containerSqlPath}`;
-        UnderpostDB.API._execInPod({ podName, namespace, command: dumpCmd, dryRun });
+        UnderpostDB.API._execInPod({ podName, namespace, command: dumpCmd });
 
         // Copy SQL file from pod
         if (
@@ -466,14 +451,13 @@ class UnderpostDB {
             namespace,
             sourcePath: containerSqlPath,
             destPath: outputPath,
-            dryRun,
           })
         ) {
           return false;
         }
 
         // Split file if it exists
-        if (!dryRun && fs.existsSync(outputPath)) {
+        if (fs.existsSync(outputPath)) {
           await splitFileFactory(dbName, outputPath);
         }
 
@@ -495,10 +479,9 @@ class UnderpostDB {
      * @param {string} params.bsonPath - BSON directory path
      * @param {boolean} params.drop - Whether to drop existing database
      * @param {boolean} params.preserveUUID - Whether to preserve UUIDs
-     * @param {boolean} [params.dryRun=false] - Dry run mode
      * @returns {boolean} Success status
      */
-    _importMongoDB({ pod, namespace, dbName, bsonPath, drop, preserveUUID, dryRun = false }) {
+    _importMongoDB({ pod, namespace, dbName, bsonPath, drop, preserveUUID }) {
       try {
         const podName = pod.NAME;
         const containerBsonPath = `/${dbName}`;
@@ -510,7 +493,6 @@ class UnderpostDB {
           podName,
           namespace,
           command: `rm -rf ${containerBsonPath}`,
-          dryRun,
         });
 
         // Copy BSON directory to pod
@@ -520,7 +502,6 @@ class UnderpostDB {
             podName,
             namespace,
             destPath: containerBsonPath,
-            dryRun,
           })
         ) {
           return false;
@@ -530,7 +511,7 @@ class UnderpostDB {
         const restoreCmd = `mongorestore -d ${dbName} ${containerBsonPath}${drop ? ' --drop' : ''}${
           preserveUUID ? ' --preserveUUID' : ''
         }`;
-        UnderpostDB.API._execInPod({ podName, namespace, command: restoreCmd, dryRun });
+        UnderpostDB.API._execInPod({ podName, namespace, command: restoreCmd });
 
         logger.info('Successfully imported MongoDB database', { podName, dbName });
         return true;
@@ -549,10 +530,9 @@ class UnderpostDB {
      * @param {string} params.dbName - Database name
      * @param {string} params.outputPath - Output directory path
      * @param {string} [params.collections=''] - Comma-separated collection list
-     * @param {boolean} [params.dryRun=false] - Dry run mode
      * @returns {boolean} Success status
      */
-    _exportMongoDB({ pod, namespace, dbName, outputPath, collections = '', dryRun = false }) {
+    _exportMongoDB({ pod, namespace, dbName, outputPath, collections = '' }) {
       try {
         const podName = pod.NAME;
         const containerBsonPath = `/${dbName}`;
@@ -564,7 +544,6 @@ class UnderpostDB {
           podName,
           namespace,
           command: `rm -rf ${containerBsonPath}`,
-          dryRun,
         });
 
         // Dump database or specific collections
@@ -572,11 +551,11 @@ class UnderpostDB {
           const collectionList = collections.split(',').map((c) => c.trim());
           for (const collection of collectionList) {
             const dumpCmd = `mongodump -d ${dbName} --collection ${collection} -o /`;
-            UnderpostDB.API._execInPod({ podName, namespace, command: dumpCmd, dryRun });
+            UnderpostDB.API._execInPod({ podName, namespace, command: dumpCmd });
           }
         } else {
           const dumpCmd = `mongodump -d ${dbName} -o /`;
-          UnderpostDB.API._execInPod({ podName, namespace, command: dumpCmd, dryRun });
+          UnderpostDB.API._execInPod({ podName, namespace, command: dumpCmd });
         }
 
         // Copy BSON directory from pod
@@ -586,7 +565,6 @@ class UnderpostDB {
             namespace,
             sourcePath: containerBsonPath,
             destPath: outputPath,
-            dryRun,
           })
         ) {
           return false;
@@ -799,7 +777,6 @@ class UnderpostDB {
      * @param {string} [options.paths=''] - Comma-separated list of paths to filter databases
      * @param {string} [options.labelSelector=''] - Label selector for pod filtering
      * @param {boolean} [options.allPods=false] - Whether to target all pods in deployment
-     * @param {boolean} [options.dryRun=false] - Dry run mode (no changes made)
      * @param {boolean} [options.primaryPod=false] - Whether to target MongoDB primary pod only
      * @param {boolean} [options.stats=false] - Whether to display database statistics
      * @param {number} [options.macroRollbackExport=1] - Number of commits to rollback in macro export
@@ -823,7 +800,6 @@ class UnderpostDB {
         paths: '',
         labelSelector: '',
         allPods: false,
-        dryRun: false,
         primaryPod: false,
         stats: false,
         macroRollbackExport: 1,
@@ -845,7 +821,6 @@ class UnderpostDB {
         namespace,
         import: options.import,
         export: options.export,
-        dryRun: options.dryRun,
       });
 
       for (const _deployId of deployList.split(',')) {
@@ -1060,7 +1035,6 @@ class UnderpostDB {
                       user,
                       password,
                       sqlPath: toSqlPath,
-                      dryRun: options.dryRun,
                     });
                   }
 
@@ -1073,7 +1047,6 @@ class UnderpostDB {
                       user,
                       password,
                       outputPath,
-                      dryRun: options.dryRun,
                     });
                   }
                   break;
@@ -1100,7 +1073,6 @@ class UnderpostDB {
                       bsonPath,
                       drop: options.drop,
                       preserveUUID: options.preserveUUID,
-                      dryRun: options.dryRun,
                     });
                   }
 
@@ -1112,7 +1084,6 @@ class UnderpostDB {
                       dbName,
                       outputPath,
                       collections: options.collections,
-                      dryRun: options.dryRun,
                     });
                   }
                   break;
@@ -1342,9 +1313,9 @@ class UnderpostDB {
         crons: false,
       },
     ) {
-      deployId = deployId ?? process.env.DEFAULT_DEPLOY_ID;
-      host = host ?? process.env.DEFAULT_DEPLOY_HOST;
-      path = path ?? process.env.DEFAULT_DEPLOY_PATH;
+      deployId = deployId ? deployId : process.env.DEFAULT_DEPLOY_ID;
+      host = host ? host : process.env.DEFAULT_DEPLOY_HOST;
+      path = path ? path : process.env.DEFAULT_DEPLOY_PATH;
 
       logger.info('Starting cluster metadata backup operation', {
         deployId,
