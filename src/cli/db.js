@@ -784,33 +784,27 @@ class UnderpostDB {
      * database connections, backup storage, and optional Git integration for version control.
      * Supports targeting multiple specific pods, nodes, and namespaces with advanced filtering.
      * @param {string} [deployList='default'] - Comma-separated list of deployment IDs
-     * @param {DatabaseOptions} [options] - Database operation options
-     * @returns {Promise<void>}
+     * @param {Object} options - Backup options
+     * @param {boolean} [options.import=false] - Whether to perform import operation
+     * @param {boolean} [options.export=false] - Whether to perform export operation
+     * @param {string} [options.podName=''] - Comma-separated pod name patterns to target
+     * @param {string} [options.nodeName=''] - Comma-separated node names to target
+     * @param {string} [options.ns='default'] - Kubernetes namespace
+     * @param {string} [options.collections=''] - Comma-separated MongoDB collections for export
+     * @param {string} [options.outPath=''] - Output path for backups
+     * @param {boolean} [options.drop=false] - Whether to drop existing database on import
+     * @param {boolean} [options.preserveUUID=false] - Whether to preserve UUIDs on MongoDB import
+     * @param {boolean} [options.git=false] - Whether to use Git for backup versioning
+     * @param {string} [options.hosts=''] - Comma-separated list of hosts to filter databases
+     * @param {string} [options.paths=''] - Comma-separated list of paths to filter databases
+     * @param {string} [options.labelSelector=''] - Label selector for pod filtering
+     * @param {boolean} [options.allPods=false] - Whether to target all pods in deployment
+     * @param {boolean} [options.dryRun=false] - Dry run mode (no changes made)
+     * @param {boolean} [options.primaryPod=false] - Whether to target MongoDB primary pod only
+     * @param {boolean} [options.stats=false] - Whether to display database statistics
+     * @param {number} [options.macroRollbackExport=1] - Number of commits to rollback in macro export
+     * @returns {Promise<void>} Resolves when operation is complete
      * @memberof UnderpostDB
-     * @example
-     * // Export database from specific pods
-     * await UnderpostDB.API.callback('dd-myapp', {
-     *   export: true,
-     *   podName: 'mariadb-statefulset-0,mariadb-statefulset-1',
-     *   ns: 'production'
-     * });
-     *
-     * @example
-     * // Import database to all matching pods on specific nodes
-     * await UnderpostDB.API.callback('dd-myapp', {
-     *   import: true,
-     *   nodeName: 'node-1,node-2',
-     *   allPods: true,
-     *   ns: 'staging'
-     * });
-     *
-     * @example
-     * // Import to MongoDB primary pod only
-     * await UnderpostDB.API.callback('dd-myapp', {
-     *   import: true,
-     *   primaryPod: true,
-     *   ns: 'production'
-     * });
      */
     async callback(
       deployList = 'default',
@@ -832,6 +826,7 @@ class UnderpostDB {
         dryRun: false,
         primaryPod: false,
         stats: false,
+        macroRollbackExport: 1,
       },
     ) {
       const newBackupTimestamp = new Date().getTime();
@@ -842,6 +837,8 @@ class UnderpostDB {
         logger.error('Invalid namespace format', { namespace });
         throw new Error(`Invalid namespace: ${namespace}`);
       }
+
+      if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
 
       logger.info('Starting database operation', {
         deployList,
@@ -895,6 +892,27 @@ class UnderpostDB {
         if (options.git === true) {
           UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone' });
           UnderpostDB.API._manageGitRepo({ repoName, operation: 'pull' });
+        }
+
+        if (options.macroRollbackExport) {
+          UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone' });
+          UnderpostDB.API._manageGitRepo({ repoName, operation: 'pull' });
+
+          const nCommits = parseInt(options.macroRollbackExport);
+          const repoPath = `../${repoName}`;
+          const username = process.env.GITHUB_USERNAME;
+
+          if (fs.existsSync(repoPath) && username) {
+            logger.info('Executing macro rollback export', { repoName, nCommits });
+            shellExec(`cd ${repoPath} && underpost cmt . reset ${nCommits}`);
+            shellExec(`cd ${repoPath} && git reset`);
+            shellExec(`cd ${repoPath} && git checkout .`);
+            shellExec(`cd ${repoPath} && git clean -f -d`);
+            shellExec(`cd ${repoPath} && underpost push . ${username}/${repoName} -f`);
+          } else {
+            if (!username) logger.error('GITHUB_USERNAME environment variable not set');
+            logger.warn('Repository not found for macro rollback', { repoPath });
+          }
         }
 
         // Process each database provider
