@@ -24,10 +24,8 @@ import {
   buildCliDoc,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
-import { DefaultConf } from '../conf.js';
 import colors from 'colors';
 import { program } from '../src/cli/index.js';
-import Dns, { getLocalIPv4Address } from '../src/server/dns.js';
 import { timer } from '../src/client/components/core/CommonJs.js';
 
 colors.enable();
@@ -595,71 +593,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         env = buildEnv(`./engine-private/conf/dd-core/${envPath}`, originEnv, env);
         writeEnv(envPath, env);
       }
-      break;
-    }
-
-    case 'update-default-conf': {
-      const defaultServer = DefaultConf.server['default.net']['/'];
-      let confName = process.argv[3];
-      let defaultConf = false;
-      if (confName === 'dd-github-pages') {
-        const host = `${process.env.GITHUB_USERNAME ?? 'underpostnet'}.github.io`;
-        const path = '/pwa-microservices-template-ghpkg';
-        DefaultConf.server = {
-          [host]: { [path]: defaultServer },
-        };
-        DefaultConf.server[host][path].apiBaseProxyPath = '/';
-        DefaultConf.server[host][path].apiBaseHost = 'www.nexodev.org';
-        defaultConf = true;
-      } else if (confName === 'template') {
-        const host = 'default.net';
-        const path = '/';
-        DefaultConf.server[host][path].valkey = {
-          port: 6379,
-          host: 'valkey-service.default.svc.cluster.local',
-        };
-        // mongodb-0.mongodb-service
-        DefaultConf.server[host][path].db.host = 'mongodb://mongodb-service:27017';
-        defaultConf = true;
-      } else if (confName && fs.existsSync(`./engine-private/conf/${confName}`)) {
-        DefaultConf.client = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.client.json`, 'utf8'));
-        DefaultConf.server = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.server.json`, 'utf8'));
-        DefaultConf.ssr = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.ssr.json`, 'utf8'));
-        // DefaultConf.cron = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.cron.json`, 'utf8'));
-
-        for (const host of Object.keys(DefaultConf.server)) {
-          for (const path of Object.keys(DefaultConf.server[host])) {
-            DefaultConf.server[host][path].db = defaultServer.db;
-            DefaultConf.server[host][path].mailer = defaultServer.mailer;
-
-            delete DefaultConf.server[host][path]._wp_client;
-            delete DefaultConf.server[host][path]._wp_git;
-            delete DefaultConf.server[host][path]._wp_directory;
-            delete DefaultConf.server[host][path].wp;
-            delete DefaultConf.server[host][path].git;
-            delete DefaultConf.server[host][path].directory;
-          }
-        }
-      }
-      const sepRender = '/**/';
-      const confRawPaths = fs.readFileSync('./conf.js', 'utf8').split(sepRender);
-      confRawPaths[1] = `${JSON.stringify(DefaultConf)};`;
-      const targetConfPath = `./conf${defaultConf ? '' : `.${confName}`}.js`;
-      fs.writeFileSync(targetConfPath, confRawPaths.join(sepRender), 'utf8');
-      shellExec(`prettier --write ${targetConfPath}`);
-
-      switch (confName) {
-        case 'dd-github-pages':
-          {
-            if (fs.exists(`./engine-private/conf/${confName}`)) fs.removeSync(`./engine-private/conf/${confName}`);
-            shellExec(`node bin new --deploy-id ${confName}`);
-          }
-          break;
-
-        default:
-          break;
-      }
-
       break;
     }
 

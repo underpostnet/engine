@@ -10,8 +10,8 @@ import { pbcopy, shellCd, shellExec } from '../server/process.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import fs from 'fs-extra';
 import { getNpmRootPath } from '../server/conf.js';
-import UnderpostStartUp from '../server/start.js';
 import { Config } from '../server/conf.js';
+import { DefaultConf } from '../../conf.js';
 
 dotenv.config();
 
@@ -244,6 +244,8 @@ class UnderpostRepository {
      * @param {boolean} [options.cleanTemplate=false] - If true, cleans the pwa-microservices-template build directory.
      * @param {boolean} [options.build=false] - If true, builds the deployment to pwa-microservices-template (requires deployId).
      * @param {boolean} [options.syncConf=false] - If true, syncs configuration to private repositories (requires deployId).
+     * @param {boolean} [options.defaultConf=false] - If true, updates the default configuration file (requires deployId).
+     * @param {string} [options.confWorkflowId=''] - If provided, uses this configuration workflow ID.
      * @returns {Promise<boolean>} A promise that resolves when the initialization is complete.
      * @memberof UnderpostRepository
      */
@@ -259,6 +261,8 @@ class UnderpostRepository {
         cleanTemplate: false,
         build: false,
         syncConf: false,
+        defaultConf: false,
+        confWorkflowId: '',
       },
     ) {
       return new Promise(async (resolve, reject) => {
@@ -277,10 +281,15 @@ class UnderpostRepository {
             return resolve(true);
           }
 
+          // Handle defaultConf operation
+          if (options.defaultConf) {
+            UnderpostRepository.API.updateDefaultConf(options);
+            return resolve(true);
+          }
+
           if (options.deployId) {
             let deployId = options.deployId;
             if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
-
             // Handle purge operation
             if (options.purge) {
               logger.info(`Purging deploy ID: ${deployId}`);
@@ -505,6 +514,78 @@ Prevent build private config repo.`,
           });
           return line;
         });
+    },
+    /**
+     * Updates the default configuration file based on the provided options.
+     * @param {object} [options={ deployId: '' }] - The options for updating the configuration.
+     * @param {string} [options.deployId=''] - The deployment ID to use for configuration.
+     * @param {string} [options.confWorkflowId=''] - The configuration workflow ID to use.
+     * @memberof UnderpostRepository
+     */
+    updateDefaultConf(options = { deployId: '', confWorkflowId: '' }) {
+      const defaultServer = DefaultConf.server['default.net']['/'];
+      let { deployId, confWorkflowId } = options;
+      let defaultConf = false;
+
+      // Custom workflow configurations
+      if (confWorkflowId)
+        switch (confWorkflowId) {
+          case 'dd-github-pages': {
+            const host = `${process.env.GITHUB_USERNAME ? process.env.GITHUB_USERNAME : 'underpostnet'}.github.io`;
+            const path = '/pwa-microservices-template-ghpkg';
+            DefaultConf.server = {
+              [host]: { [path]: defaultServer },
+            };
+            DefaultConf.server[host][path].apiBaseProxyPath = '/';
+            DefaultConf.server[host][path].apiBaseHost = 'www.nexodev.org';
+            defaultConf = true;
+            break;
+          }
+          case 'template': {
+            const host = 'default.net';
+            const path = '/';
+            DefaultConf.server[host][path].valkey = {
+              port: 6379,
+              host: 'valkey-service.default.svc.cluster.local',
+            };
+            // mongodb-0.mongodb-service
+            DefaultConf.server[host][path].db.host = 'mongodb://mongodb-service:27017';
+            defaultConf = true;
+            break;
+          }
+          default:
+            logger.error(`Unknown confWorkflowId: ${confWorkflowId}.`);
+            return;
+        }
+      else if (deployId && fs.existsSync(`./engine-private/conf/${deployId}`)) {
+        DefaultConf.client = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.client.json`, 'utf8'));
+        DefaultConf.server = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
+        DefaultConf.ssr = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.ssr.json`, 'utf8'));
+        // DefaultConf.cron = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.cron.json`, 'utf8'));
+
+        for (const host of Object.keys(DefaultConf.server)) {
+          for (const path of Object.keys(DefaultConf.server[host])) {
+            DefaultConf.server[host][path].db = defaultServer.db;
+            DefaultConf.server[host][path].mailer = defaultServer.mailer;
+
+            delete DefaultConf.server[host][path]._wp_client;
+            delete DefaultConf.server[host][path]._wp_git;
+            delete DefaultConf.server[host][path]._wp_directory;
+            delete DefaultConf.server[host][path].wp;
+            delete DefaultConf.server[host][path].git;
+            delete DefaultConf.server[host][path].directory;
+          }
+        }
+      } else
+        logger.warn(
+          `Deploy ID configuration not found: ./engine-private/conf/${deployId}, using default configuration.`,
+        );
+      const sepRender = '/**/';
+      const confRawPaths = fs.readFileSync('./conf.js', 'utf8').split(sepRender);
+      confRawPaths[1] = `${JSON.stringify(DefaultConf)};`;
+      const targetConfPath = `./conf${defaultConf ? '' : `.${deployId}`}.js`;
+      fs.writeFileSync(targetConfPath, confRawPaths.join(sepRender), 'utf8');
+      shellExec(`prettier --write ${targetConfPath}`);
     },
   };
 }

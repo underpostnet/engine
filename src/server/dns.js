@@ -12,7 +12,7 @@ import { loggerFactory } from './logger.js';
 import UnderpostRootEnv from '../cli/env.js';
 import dns from 'node:dns';
 import os from 'node:os';
-import { shellExec } from './process.js';
+import { shellExec, pbcopy } from './process.js';
 
 dotenv.config();
 
@@ -386,6 +386,93 @@ class Dns {
       // Add other DNS provider update functions here
     },
   };
+
+  /**
+   * Dispatcher for IP ban/unban/list/clear operations based on CLI options.
+   * @static
+   * @memberof DnsManager
+   * @param {string} [ips=''] Comma-separated string of IPs to process.
+   * @param {object} options - Options indicating which action to perform.
+   * @property {boolean} [options.banIngressAdd=false] - Ban IPs from ingress.
+   * @property {boolean} [options.banIngressRemove=false] - Unban IPs from ingress.
+   * @property {boolean} [options.banIngressList=false] - List banned ingress IPs.
+   * @property {boolean} [options.banIngressClear=false] - Clear all banned ingress IPs.
+   * @property {boolean} [options.banEgressAdd=false] - Ban IPs from egress.
+   * @property {boolean} [options.banEgressRemove=false] - Unban IPs from egress.
+   * @property {boolean} [options.banEgressList=false] - List banned egress IPs.
+   * @property {boolean} [options.banEgressClear=false] - Clear all banned egress IPs.
+   * @property {boolean} [options.banBothAdd=false] - Ban IPs from both ingress and egress.
+   * @property {boolean} [options.banBothRemove=false] - Unban IPs from both ingress and egress.
+   * @property {boolean} [options.copy=false] - Copy the public IP to clipboard.
+   * @return {Promise<string|void>} The public IP if no ban/unban action is taken.
+   */
+  static async ipDispatcher(
+    ips = '',
+    options = {
+      banIngressAdd: false,
+      banIngressRemove: false,
+      banIngressList: false,
+      banIngressClear: false,
+      banEgressAdd: false,
+      banEgressRemove: false,
+      banEgressList: false,
+      banEgressClear: false,
+      banBothAdd: false,
+      banBothRemove: false,
+      copy: false,
+    },
+  ) {
+    const ipList = ips
+      ? ips
+          .split(',')
+          .map((i) => i.trim())
+          .filter(Boolean)
+      : [];
+
+    if (options.banIngressAdd) {
+      return ipList.forEach((ip) => Dns.banIngress(ip));
+    }
+    if (options.banIngressRemove) {
+      return ipList.forEach((ip) => Dns.unbanIngress(ip));
+    }
+    if (options.banIngressList) {
+      return Dns.listBannedIngress();
+    }
+    if (options.banIngressClear) {
+      return Dns.clearBannedIngress();
+    }
+
+    if (options.banEgressAdd) {
+      return ipList.forEach((ip) => Dns.banEgress(ip));
+    }
+    if (options.banEgressRemove) {
+      return ipList.forEach((ip) => Dns.unbanEgress(ip));
+    }
+    if (options.banEgressList) {
+      return Dns.listBannedEgress();
+    }
+    if (options.banEgressClear) {
+      return Dns.clearBannedEgress();
+    }
+
+    if (options.banBothAdd) {
+      return ipList.forEach((ip) => {
+        Dns.banIngress(ip);
+        Dns.banEgress(ip);
+      });
+    }
+    if (options.banBothRemove) {
+      return ipList.forEach((ip) => {
+        Dns.unbanIngress(ip);
+        Dns.unbanEgress(ip);
+      });
+    }
+
+    const ip = await Dns.getPublicIp();
+    if (options.copy) return pbcopy(ip);
+    console.log(ip);
+    return ip;
+  }
 }
 
 /**

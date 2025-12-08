@@ -124,7 +124,7 @@ const Config = {
         fs.readFileSync(`./.github/workflows/engine-test.ci.yml`, 'utf8').replaceAll('test', deployId.split('dd-')[1]),
         'utf8',
       );
-      shellExec(`node bin/deploy update-default-conf ${deployId}`);
+      shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
 
       if (!fs.existsSync(`./engine-private/deploy/dd.router`))
         fs.writeFileSync(`./engine-private/deploy/dd.router`, '', 'utf8');

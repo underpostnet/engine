@@ -32,7 +32,7 @@ spec:
               npm install -g npm@11.2.0 &&
               npm install -g underpost &&
               cd $(underpost root)/underpost &&
-              node bin/deploy update-default-conf template &&
+              node bin new --default-conf --conf-workflow-id template &&
               mkdir -p /home/dd &&
               cd /home/dd &&
               underpost new engine
@@ -115,7 +115,7 @@ spec:
               npm install -g npm@11.2.0 &&
               npm install -g underpost &&
               cd $(underpost root)/underpost &&
-              node bin/deploy update-default-conf template &&
+              node bin new --default-conf --conf-workflow-id template &&
               mkdir -p /home/dd &&
               cd /home/dd &&
               underpost new engine

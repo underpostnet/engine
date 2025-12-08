@@ -4,7 +4,7 @@ name: CD | Gihub page | PWA Microservices Template
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: ["main"]
+    branches: ['main']
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -18,7 +18,7 @@ permissions:
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
-  group: "pages"
+  group: 'pages'
   cancel-in-progress: false
 
 jobs:
@@ -53,7 +53,8 @@ jobs:
         run: |
           npm install -g underpost
           npm install
-          node bin/deploy update-default-conf dd-github-pages
+          node bin new --default-conf --conf-workflow-id dd-github-pages
+          node bin new --deploy-id dd-github-pages
           underpost env dd-github-pages production
           env-cmd -f .env.production node bin/deploy build-full-client dd-github-pages underpostnet.github.io /pwa-microservices-template-ghpkg
       # git lfs install
@@ -66,7 +67,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           # Upload entire repository
-          path: "./public/underpostnet.github.io/pwa-microservices-template-ghpkg/"
+          path: './public/underpostnet.github.io/pwa-microservices-template-ghpkg/'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
