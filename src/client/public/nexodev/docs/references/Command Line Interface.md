@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.92.0
+## underpost ci/cd cli v2.95.0
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -21,8 +21,7 @@ Commands:
   cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
   deploy [options] [deploy-list] [env]                       Manages application deployments, defaulting to deploying development pods.
   secret [options] <platform>                                Manages secrets for various platforms.
-  dockerfile-image-build [options]                           Builds a Docker image from a specified Dockerfile with various options for naming, saving, and loading.
-  dockerfile-pull-base-images [options]                      Pulls required Underpost Dockerfile base images and optionally loads them into clusters.
+  image [options]                                            Manages Docker images, including building, saving, and loading into Kubernetes clusters.
   install                                                    Quickly imports Underpost npm dependencies by copying them.
   db [options] <deploy-list>                                 Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.
   metadata [options] [deploy-id] [host] [path]               Manages cluster metadata operations, including import and export.
@@ -32,7 +31,7 @@ Commands:
   test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
   monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
   ssh [options]
-  run [options] <runner-id> [path]                           Runs a script from the specified path.
+  run [options] <runner-id> [path]                           Runs specified scripts using various runners.
   lxd [options]                                              Manages LXD containers and virtual machines.
   baremetal [options] [workflow-id] [hostname] [ip-address]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
   help [command]                                             display help for command
@@ -49,24 +48,28 @@ Commands:
 Initializes a new Underpost project, service, or configuration.
 
 Arguments:
-  app-name                 The name of the new project.
+  app-name                          The name of the new project.
 
 Options:
-  --deploy-id <deploy-id>  Crete deploy ID conf env files
-  --sub-conf <sub-conf>    Create sub conf env files
-  --cluster                Create deploy ID cluster files and sync to current
-                           cluster
-  --build-repos            Create deploy ID repositories
-  --build                  Build the deployment to pwa-microservices-template
-                           (requires --deploy-id)
-  --clean-template         Clean the build directory
-                           (pwa-microservices-template)
-  --sync-conf              Sync configuration to private repositories (requires
-                           --deploy-id)
-  --purge                  Remove deploy ID conf and all related repositories
-                           (requires --deploy-id)
-  --dev                    Sets the development cli context
-  -h, --help               display help for command
+  --deploy-id <deploy-id>           Crete deploy ID conf env files
+  --sub-conf <sub-conf>             Create sub conf env files
+  --cluster                         Create deploy ID cluster files and sync to
+                                    current cluster
+  --build-repos                     Create deploy ID repositories
+  --build                           Build the deployment to
+                                    pwa-microservices-template (requires
+                                    --deploy-id)
+  --clean-template                  Clean the build directory
+                                    (pwa-microservices-template)
+  --sync-conf                       Sync configuration to private repositories
+                                    (requires --deploy-id)
+  --purge                           Remove deploy ID conf and all related
+                                    repositories (requires --deploy-id)
+  --dev                             Sets the development cli context
+  --default-conf                    Create default deploy ID conf env files
+  --conf-workflow-id <workflow-id>  Set custom configuration workflow ID for
+                                    conf generation
+  -h, --help                        display help for command
  
 ```
   
@@ -483,14 +486,22 @@ Options:
 ```
   
 
-### `dockerfile-image-build` :
+### `image` :
 ```
- Usage: underpost dockerfile-image-build [options]
+ Usage: underpost image [options]
 
-Builds a Docker image from a specified Dockerfile with various options for
-naming, saving, and loading.
+Manages Docker images, including building, saving, and loading into Kubernetes
+clusters.
 
 Options:
+  --build                              Builds a Docker image using Podman,
+                                       optionally saves it as a tar archive,
+                                       and loads it into a specified Kubernetes
+                                       cluster (Kind, Kubeadm, or K3s).
+  --ls                                 Lists all available Underpost Dockerfile
+                                       images.
+  --rm <image-id>                      Removes specified Underpost Dockerfile
+                                       images.
   --path [path]                        The path to the Dockerfile directory.
   --image-name [image-name]            Sets a custom name for the Docker image.
   --image-path [image-path]            Sets the output path for the tar image
@@ -498,10 +509,20 @@ Options:
   --dockerfile-name [dockerfile-name]  Sets a custom name for the Dockerfile.
   --podman-save                        Exports the built image as a tar file
                                        using Podman.
-  --kind-load                          Imports the tar image into a Kind
-                                       cluster.
-  --kubeadm-load                       Imports the tar image into a Kubeadm
-                                       cluster.
+  --pull-base                          Pulls base images and builds a
+                                       "rockylinux9-underpost" image.
+  --spec                               Get current cached list of container
+                                       images used by all pods
+  --namespace <namespace>              Kubernetes namespace for image
+                                       operations (defaults to "default").
+  --kind                               Set kind cluster env image context
+                                       management.
+  --kubeadm                            Set kubeadm cluster env image context
+                                       management.
+  --k3s                                Set k3s cluster env image context
+                                       management.
+  --node-name                          Set node name for kubeadm or k3s cluster
+                                       env image context management.
   --secrets                            Includes Dockerfile environment secrets
                                        during the build.
   --secrets-path [secrets-path]        Specifies a custom path for Dockerfile
@@ -509,27 +530,9 @@ Options:
   --reset                              Performs a build without using the
                                        cache.
   --dev                                Use development mode.
-  --k3s-load                           Loads the image into a K3s cluster.
+  --pull-dockerhub <dockerhub-image>   Sets a custom Docker Hub image for base
+                                       image pulls.
   -h, --help                           display help for command
- 
-```
-  
-
-### `dockerfile-pull-base-images` :
-```
- Usage: underpost dockerfile-pull-base-images [options]
-
-Pulls required Underpost Dockerfile base images and optionally loads them into
-clusters.
-
-Options:
-  --path [path]   The path to the Dockerfile directory.
-  --kind-load     Imports the pulled image into a Kind cluster.
-  --kubeadm-load  Imports the pulled image into a Kubeadm cluster.
-  --version       Sets a custom version for the base images.
-  --k3s-load      Loads the image into a K3s cluster.
-  --dev           Use development mode.
-  -h, --help      display help for command
  
 ```
   
@@ -554,44 +557,27 @@ Manages database operations with support for MariaDB and MongoDB, including
 import/export, multi-pod targeting, and Git integration.
 
 Arguments:
-  deploy-list                  A comma-separated list of deployment IDs (e.g.,
-                               "default-a,default-b").
+  deploy-list                                A comma-separated list of deployment IDs (e.g., "default-a,default-b").
 
 Options:
-  --import                     Imports container backups from specified
-                               repositories.
-  --export                     Exports container backups to specified
-                               repositories.
-  --pod-name <pod-name>        Comma-separated list of pod names or patterns
-                               (supports wildcards like "mariadb-*").
-  --node-name <node-name>      Comma-separated list of node names to filter
-                               pods by their node placement.
-  --label-selector <selector>  Kubernetes label selector for filtering pods
-                               (e.g., "app=mariadb").
-  --all-pods                   Target all matching pods instead of just the
-                               first one.
-  --primary-pod                Automatically detect and use MongoDB primary pod
-                               (MongoDB only).
-  --stats                      Display database statistics (collection/table
-                               names with document/row counts).
-  --collections <collections>  Comma-separated list of database collections to
-                               operate on.
-  --out-path <out-path>        Specifies a custom output path for backups.
-  --drop                       Drops the specified databases or collections
-                               before importing.
-  --preserveUUID               Preserves UUIDs during database import
-                               operations.
-  --git                        Enables Git integration for backup version
-                               control (clone, pull, commit, push to GitHub).
-  --hosts <hosts>              Comma-separated list of database hosts to filter
-                               operations.
-  --paths <paths>              Comma-separated list of paths to filter database
-                               operations.
-  --ns <ns-name>               Kubernetes namespace context for database
-                               operations (defaults to "default").
-  --dry-run                    Simulates operations without executing them
-                               (useful for testing).
-  -h, --help                   display help for command
+  --import                                   Imports container backups from specified repositories.
+  --export                                   Exports container backups to specified repositories.
+  --pod-name <pod-name>                      Comma-separated list of pod names or patterns (supports wildcards like "mariadb-*").
+  --node-name <node-name>                    Comma-separated list of node names to filter pods by their node placement.
+  --label-selector <selector>                Kubernetes label selector for filtering pods (e.g., "app=mariadb").
+  --all-pods                                 Target all matching pods instead of just the first one.
+  --primary-pod                              Automatically detect and use MongoDB primary pod (MongoDB only).
+  --stats                                    Display database statistics (collection/table names with document/row counts).
+  --collections <collections>                Comma-separated list of database collections to operate on.
+  --out-path <out-path>                      Specifies a custom output path for backups.
+  --drop                                     Drops the specified databases or collections before importing.
+  --preserveUUID                             Preserves UUIDs during database import operations.
+  --git                                      Enables Git integration for backup version control (clone, pull, commit, push to GitHub).
+  --hosts <hosts>                            Comma-separated list of database hosts to filter operations.
+  --paths <paths>                            Comma-separated list of paths to filter database operations.
+  --ns <ns-name>                             Kubernetes namespace context for database operations (defaults to "default").
+  --macro-rollback-export <n-commits-reset>  Exports a macro rollback script that reverts the last n commits (Git integration required).
+  -h, --help                                 display help for command
  
 ```
   
@@ -734,9 +720,12 @@ Options:
   --single                     Disables recurrence, running the monitor script
                                only once.
   --replicas <replicas>        Sets a custom number of replicas for monitoring.
+                               Defaults to 1.
   --type <type>                Sets a custom monitor type.
   --sync                       Synchronizes with current proxy deployments and
                                traffic configurations.
+  --namespace <namespace>      Sets the Kubernetes namespace for the
+                               deployment. Defaults to "default".
   -h, --help                   display help for command
  
 ```
@@ -774,6 +763,11 @@ Options:
                            storage.
   --disable-password       Disables password authentication for the SSH
                            session.
+  --key-test               Tests the SSH key using ssh-keygen.
+  --stop                   Stops the SSH service.
+  --status                 Checks the status of the SSH service.
+  --connect-uri            Displays the connection URI.
+  --copy                   Copies the connection URI to clipboard.
   -h, --help               display help for command
  
 ```
@@ -783,11 +777,11 @@ Options:
 ```
  Usage: underpost run [options] <runner-id> [path]
 
-Runs a script from the specified path.
+Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, tz, cron, get-proxy, instance-promote, instance, ls-deployments, ls-images, host-update, dd-container, ip-info, monitor, db-client, git-conf, promote, metrics, cluster, deploy, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
-  path                                            The absolute or relative directory path where the script is located.
+  runner-id                                       The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, stop, ssh-deploy-stop, tz, cron, get-proxy, instance-promote, instance, ls-deployments, host-update, dd-container, ip-info, monitor, db-client, git-conf, promote, metrics, cluster, deploy, disk-clean, disk-usage, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
+  path                                            The input value, identifier, or path for the operation.
 
 Options:
   --command <command-array>                       Array of commands to run.
@@ -813,9 +807,7 @@ Options:
   --api-version <version>                         Sets the API version for the job manifest in deploy-job.
   --labels <labels>                               Optional: Specifies a comma-separated list of key-value pairs for labels (e.g., "app=my-app,env=prod").
   --claim-name <name>                             Optional: Specifies the claim name for volume mounting in deploy-job.
-  --kind <kind-type>                              Specifies the kind of Kubernetes resource (e.g., Job, Deployment) for deploy-job.
-  --kubeadm                                       Flag to indicate Kubeadm cluster type context
-  --k3s                                           Flag to indicate K3s cluster type context
+  --kind-type <kind-type>                         Specifies the kind of Kubernetes resource (e.g., Job, Deployment) for deploy-job.
   --force                                         Forces operation, overriding any warnings or conflicts.
   --tls                                           Enables TLS for the runner execution.
   --reset                                         Resets the runner state before execution.
@@ -830,6 +822,16 @@ Options:
   --expose                                        Enables service exposure for the runner execution.
   --conf-server-path <conf-server-path>           Sets a custom configuration server path.
   --underpost-root <underpost-root>               Sets a custom Underpost root path.
+  --cron-jobs <jobs>                              Comma-separated list of cron jobs to run before executing the script.
+  --timezone <timezone>                           Sets the timezone for the runner execution.
+  --kubeadm                                       Sets the kubeadm cluster context for the runner execution.
+  --k3s                                           Sets the k3s cluster context for the runner execution.
+  --kind                                          Sets the kind cluster context for the runner execution.
+  --log-type <log-type>                           Sets the log type for the runner execution.
+  --deploy-id <deploy-id>                         Sets deploy id context for the runner execution.
+  --user <user>                                   Sets user context for the runner execution.
+  --hosts <hosts>                                 Comma-separated list of hosts for the runner execution.
+  --instance-id <instance-id>                     Sets instance id context for the runner execution.
   -h, --help                                      display help for command
  
 ```
@@ -873,8 +875,13 @@ Options:
   --delete-expose <vm-name-ports>  Removes exposed ports on a VM (e.g.,
                                    "k8s-control:80,443"). Multiple VM-port
                                    pairs can be comma-separated.
-  --auto-expose-k8s-ports <vm-id>  Automatically exposes common Kubernetes
-                                   ports for the specified VM.
+  --workflow-id <workflow-id>      Sets the workflow ID context for LXD
+                                   operations.
+  --vm-id <vm-id>                  Sets the VM ID context for LXD operations.
+  --deploy-id <deploy-id>          Sets the deployment ID context for LXD
+                                   operations.
+  --namespace <namespace>          Kubernetes namespace for LXD operations
+                                   (defaults to "default").
   -h, --help                       display help for command
  
 ```
