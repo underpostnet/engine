@@ -83,6 +83,8 @@ class UnderpostRun {
    * @property {boolean} kind - Whether to run in kind mode.
    * @property {boolean} k3s - Whether to run in k3s mode.
    * @property {string} logType - The type of log to generate.
+   * @property {string} deployId - The deployment ID.
+   * @property {string} user - The user to run as.
    * @memberof UnderpostRun
    */
   static DEFAULT_OPTION = {
@@ -126,6 +128,8 @@ class UnderpostRun {
     kind: false,
     k3s: false,
     logType: '',
+    deployId: '',
+    user: '',
   };
   /**
    * @static
@@ -347,6 +351,17 @@ class UnderpostRun {
      */
     'ssh-cluster-info': (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
+      if (options.deployId && options.user) {
+        const confNodePath = `./engine-private/conf/${options.deployId}/conf.node.json`;
+        if (fs.existsSync(confNodePath)) {
+          const { users } = JSON.parse(fs.readFileSync(confNodePath, 'utf8'));
+          const { user, host, keyPath, port } = users[options.user];
+          UnderpostRootEnv.API.set('DEFAULT_SSH_USER', user);
+          UnderpostRootEnv.API.set('DEFAULT_SSH_HOST', host);
+          UnderpostRootEnv.API.set('DEFAULT_SSH_KEY_PATH', keyPath);
+          UnderpostRootEnv.API.set('DEFAULT_SSH_PORT', port);
+        }
+      }
       shellExec(`chmod +x ${underpostRoot}/scripts/ssh-cluster-info.sh`);
       shellExec(`${underpostRoot}/scripts/ssh-cluster-info.sh`);
     },

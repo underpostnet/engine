@@ -605,7 +605,7 @@ program
 program
   .command('run')
   .argument('<runner-id>', `The runner ID to run. Options: ${Object.keys(UnderpostRun.RUNNERS).join(', ')}.`)
-  .argument('[path]', 'The absolute or relative directory path where the script is located.')
+  .argument('[path]', 'The input value, identifier, or path for the operation.')
   .option('--command <command-array>', 'Array of commands to run.')
   .option('--args <args-array>', 'Array of arguments to pass to the command.')
   .option('--dev', 'Sets the development context environment for the script.')
@@ -659,7 +659,9 @@ program
   .option('--k3s', 'Sets the k3s cluster context for the runner execution.')
   .option('--kind', 'Sets the kind cluster context for the runner execution.')
   .option('--log-type <log-type>', 'Sets the log type for the runner execution.')
-  .description('Runs a script from the specified path.')
+  .option('--deploy-id <deploy-id>', 'Sets deploy id context for the runner execution.')
+  .option('--user <user>', 'Sets user context for the runner execution.')
+  .description('Runs specified scripts using various runners.')
   .action(UnderpostRun.API.callback);
 
 // 'lxd' command: LXD management

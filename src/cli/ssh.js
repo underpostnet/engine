@@ -279,6 +279,7 @@ EOF`);
             options.password = confNode.users[options.user].password;
             logger.info(`Using saved password for user ${options.user}`);
           }
+          options.port = confNode.users[options.user].port || options.port;
         }
       }
 
@@ -287,7 +288,7 @@ EOF`);
       // Handle connect uri
       if (options.connectUri) {
         const keyPath = `${userHome}/.ssh/id_rsa`;
-        const uri = `ssh ${options.user}@${options.host} -i ${keyPath}`;
+        const uri = `ssh ${options.user}@${options.host} -i ${keyPath} -p ${options.port}`;
         if (options.copy) {
           pbcopy(uri);
         } else console.log(uri);
