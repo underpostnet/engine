@@ -26,13 +26,6 @@ const logger = loggerFactory(import.meta);
 const MAX_BACKUP_RETENTION = 5;
 
 /**
- * Timeout for kubectl operations in milliseconds
- * @constant {number} KUBECTL_TIMEOUT
- * @memberof UnderpostDB
- */
-const KUBECTL_TIMEOUT = 300000; // 5 minutes
-
-/**
  * @typedef {Object} DatabaseOptions
  * @memberof UnderpostDB
  * @property {boolean} [import=false] - Flag to import data from a backup
@@ -51,6 +44,7 @@ const KUBECTL_TIMEOUT = 300000; // 5 minutes
  * @property {boolean} [allPods=false] - Flag to target all matching pods
  * @property {boolean} [primaryPod=false] - Flag to automatically detect and use MongoDB primary pod
  * @property {boolean} [stats=false] - Flag to display collection/table statistics
+ * @property {boolean} [forceClone=false] - Flag to force remove and re-clone cron backup repository
  */
 
 /**
@@ -253,9 +247,10 @@ class UnderpostDB {
      * @param {string} params.repoName - Repository name
      * @param {string} params.operation - Operation (clone, pull, commit, push)
      * @param {string} [params.message=''] - Commit message
+     * @param {boolean} [params.forceClone=false] - Force remove and re-clone repository
      * @returns {boolean} Success status
      */
-    _manageGitRepo({ repoName, operation, message = '' }) {
+    _manageGitRepo({ repoName, operation, message = '', forceClone = false }) {
       try {
         const username = process.env.GITHUB_USERNAME;
         if (!username) {
@@ -267,6 +262,10 @@ class UnderpostDB {
 
         switch (operation) {
           case 'clone':
+            if (forceClone && fs.existsSync(repoPath)) {
+              logger.info(`Force clone enabled, removing existing repository: ${repoName}`);
+              fs.removeSync(repoPath);
+            }
             if (!fs.existsSync(repoPath)) {
               shellExec(`cd .. && underpost clone ${username}/${repoName}`);
               logger.info(`Cloned repository: ${repoName}`);
@@ -803,6 +802,7 @@ class UnderpostDB {
         primaryPod: false,
         stats: false,
         macroRollbackExport: 1,
+        forceClone: false,
       },
     ) {
       const newBackupTimestamp = new Date().getTime();
@@ -865,12 +865,12 @@ class UnderpostDB {
 
         // Handle Git operations
         if (options.git === true) {
-          UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone' });
+          UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
           UnderpostDB.API._manageGitRepo({ repoName, operation: 'pull' });
         }
 
         if (options.macroRollbackExport) {
-          UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone' });
+          UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
           UnderpostDB.API._manageGitRepo({ repoName, operation: 'pull' });
 
           const nCommits = parseInt(options.macroRollbackExport);
