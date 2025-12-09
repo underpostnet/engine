@@ -638,7 +638,7 @@ cd /home/dd/engine
 sudo -n -- /bin/bash -lc "${[
         `${baseCommand} run${baseClusterCommand} stop${path ? ` ${path}` : ''}`,
         ` --deploy-id ${options.deployId}${options.instanceId ? ` --instance-id ${options.instanceId}` : ''}`,
-        ` --namespace ${options.namespace}`,
+        ` --namespace ${options.namespace}${options.hosts ? ` --hosts ${options.hosts}` : ''}`,
       ].join('')}"
 EOF
 `);

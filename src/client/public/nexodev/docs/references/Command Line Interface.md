@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.95.1
+## underpost ci/cd cli v2.95.3
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -573,6 +573,7 @@ Options:
   --drop                                     Drops the specified databases or collections before importing.
   --preserveUUID                             Preserves UUIDs during database import operations.
   --git                                      Enables Git integration for backup version control (clone, pull, commit, push to GitHub).
+  --force-clone                              Forces cloning of the Git repository, overwriting local changes.
   --hosts <hosts>                            Comma-separated list of database hosts to filter operations.
   --paths <paths>                            Comma-separated list of paths to filter database operations.
   --ns <ns-name>                             Kubernetes namespace context for database operations (defaults to "default").

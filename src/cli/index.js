@@ -427,6 +427,7 @@ program
   .option('--drop', 'Drops the specified databases or collections before importing.')
   .option('--preserveUUID', 'Preserves UUIDs during database import operations.')
   .option('--git', 'Enables Git integration for backup version control (clone, pull, commit, push to GitHub).')
+  .option('--force-clone', 'Forces cloning of the Git repository, overwriting local changes.')
   .option('--hosts <hosts>', 'Comma-separated list of database hosts to filter operations.')
   .option('--paths <paths>', 'Comma-separated list of paths to filter database operations.')
   .option('--ns <ns-name>', 'Kubernetes namespace context for database operations (defaults to "default").')
