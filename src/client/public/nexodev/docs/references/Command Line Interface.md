@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.95.3
+## underpost ci/cd cli v2.95.7
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -563,8 +563,6 @@ Options:
   --import                                   Imports container backups from specified repositories.
   --export                                   Exports container backups to specified repositories.
   --pod-name <pod-name>                      Comma-separated list of pod names or patterns (supports wildcards like "mariadb-*").
-  --node-name <node-name>                    Comma-separated list of node names to filter pods by their node placement.
-  --label-selector <selector>                Kubernetes label selector for filtering pods (e.g., "app=mariadb").
   --all-pods                                 Target all matching pods instead of just the first one.
   --primary-pod                              Automatically detect and use MongoDB primary pod (MongoDB only).
   --stats                                    Display database statistics (collection/table names with document/row counts).
@@ -640,16 +638,20 @@ Manages cron jobs, including initialization, execution, and configuration
 updates.
 
 Arguments:
-  deploy-list  A comma-separated list of deployment IDs (e.g.,
-               "default-a,default-b").
-  job-list     A comma-separated list of job IDs. Options: callback,
-               getRelatedDeployId. Defaults to all available jobs.
+  deploy-list               A comma-separated list of deployment IDs (e.g.,
+                            "default-a,default-b").
+  job-list                  A comma-separated list of job IDs. Options:
+                            callback, initCronJobs, updatePackageScripts,
+                            getRelatedDeployIdList. Defaults to all available
+                            jobs.
 
 Options:
-  --itc        Executes cron jobs within the container execution context.
-  --init       Initializes cron jobs for the default deployment ID.
-  --git        Uploads cron job configurations to GitHub.
-  -h, --help   display help for command
+  --init-pm2-cronjobs       Initializes PM2 cron jobs from configuration for
+                            the specified deployment IDs.
+  --git                     Uploads cron job configurations to GitHub.
+  --update-package-scripts  Updates package.json start scripts for each
+                            deploy-id configuration.
+  -h, --help                display help for command
  
 ```
   
@@ -913,8 +915,6 @@ Options:
   --nfs-sh                       Copies QEMU emulation root entrypoint shell
                                  command to the clipboard.
   --cloud-init-update            Updates cloud init for a workflow id config
-                                 architecture.
-  --cloud-init-reset             Resets cloud init for a workflow id config
                                  architecture.
   --logs <log-id>                Displays logs for log id: dhcp, cloud,
                                  machine, cloud-config.
