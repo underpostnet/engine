@@ -1,1027 +1,442 @@
-# Database and Backup Management Guide
+# DB and Backup Management Guide
+
+This guide provides comprehensive documentation for managing database backups using the `db` command in the Underpost CLI.
+
+## Quick Reference
+
+```bash
+# Export backups with Git version control
+underpost db <deploy-id> --export --git
+
+# Import backups (clean restore)
+underpost db <deploy-id> --import --drop --git
+
+# View database statistics
+underpost db <deploy-id> --stats
+
+# MongoDB primary pod operations
+underpost db <deploy-id> --export --primary-pod --git
+
+# Multi-pod export
+underpost db <deploy-id> --export --pod-name "mariadb-*" --all-pods
+
+# Specific collections only
+underpost db <deploy-id> --export --collections users,orders --git
+
+# Generate rollback script
+underpost db <deploy-id> --macro-rollback-export 3
+```
 
 ## Overview
 
-The Underpost DB CLI provides comprehensive database management capabilities for Kubernetes-based deployments, supporting both MariaDB and MongoDB. This guide covers import/export operations, multi-pod targeting, backup management, and Git integration.
-
-## Table of Contents
-
-- [Quick Start](#quick-start)
-- [Command Syntax](#command-syntax)
-- [Options Reference](#options-reference)
-- [MariaDB Operations](#mariadb-operations)
-- [MongoDB Operations](#mongodb-operations)
-- [Multi-Pod Targeting](#multi-pod-targeting)
-- [Git Integration](#git-integration)
-- [Advanced Use Cases](#advanced-use-cases)
-- [Best Practices](#best-practices)
-- [Troubleshooting](#troubleshooting)
-
----
-
-## Quick Start
-
-### Export Database Backup
-
-```bash
-# Export MariaDB database (uses default namespace)
-node bin db --export dd-myapp
-
-# Export MongoDB database (uses default namespace)
-node bin db --export dd-myapp
-
-# Export with specific namespace
-node bin db --export --ns production dd-myapp
-```
-
-### Import Database Backup
-
-```bash
-# Import MariaDB database (uses default namespace)
-node bin db --import dd-myapp
-
-# Import MongoDB database with drop
-node bin db --import --drop dd-myapp
-
-# Import with Git integration
-node bin db --import --git dd-cyberia
-
-# Display database statistics
-node bin db --stats dd-myapp
-```
-
----
+The `db` command supports:
+- **Database Types**: MariaDB and MongoDB
+- **Operations**: Import, export, statistics, and rollback
+- **Git Integration**: Version control for backups
+- **Multi-Pod Support**: Target specific pods or all matching pods
+- **Kubernetes Native**: Seamless integration with Kubernetes deployments
 
 ## Command Syntax
 
 ```bash
-node bin db <deploy-list> [options]
+underpost db <deploy-list> [options]
 ```
 
-### Arguments
+### Required Arguments
 
-- **`<deploy-list>`** - Comma-separated list of deployment IDs (e.g., `dd-app1,dd-app2`)
+- `<deploy-list>`: Comma-separated list of deployment IDs (e.g., `default-a,default-b`)
+
+### Available Options
+
+| Option | Description |
+|--------|-------------|
+| `--import` | Import container backups from specified repositories |
+| `--export` | Export container backups to specified repositories |
+| `--pod-name <pod-name>` | Comma-separated pod names or patterns (supports wildcards like `mariadb-*`) |
+| `--all-pods` | Target all matching pods instead of just the first one |
+| `--primary-pod` | Automatically detect and use MongoDB primary pod (MongoDB only) |
+| `--stats` | Display database statistics (collection/table names with document/row counts) |
+| `--collections <collections>` | Comma-separated list of database collections to operate on |
+| `--out-path <out-path>` | Custom output path for backups |
+| `--drop` | Drop specified databases or collections before importing |
+| `--preserveUUID` | Preserve UUIDs during database import operations |
+| `--git` | Enable Git integration for backup version control |
+| `--force-clone` | Force clone Git repository, overwriting local changes |
+| `--hosts <hosts>` | Comma-separated list of database hosts to filter operations |
+| `--paths <paths>` | Comma-separated list of paths to filter database operations |
+| `--ns <ns-name>` | Kubernetes namespace context (defaults to `default`) |
+| `--macro-rollback-export <n>` | Export macro rollback script that reverts the last n commits |
 
 ---
 
-## Options Reference
+## Core Usage Examples
 
-### Core Operations
+### 1. Export Database Backups
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--import` | Import data from backup | `--import` |
-| `--export` | Export data to backup | `--export` |
-| `--stats` | Display database statistics (collections/tables with counts) | `--stats` |
-
-### Pod/Node Targeting
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--pod-name <names>` | Target specific pods (supports wildcards) | `--pod-name "mariadb-0,mariadb-1"` |
-| `--node-name <names>` | Filter pods by node placement | `--node-name "node-1,node-2"` |
-| `--label-selector <selector>` | Kubernetes label selector | `--label-selector "app=mariadb"` |
-| `--all-pods` | Target all matching pods | `--all-pods` |
-| `--primary-pod` | Automatically detect and use MongoDB primary pod (MongoDB only) | `--primary-pod` |
-| `--ns <namespace>` | Kubernetes namespace (default: `default`) | `--ns production` |
-
-**Note:** If `--node-name` is not specified, all pods in the namespace will be considered (node filtering will be skipped).
-
-### Database Options
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--collections <names>` | Comma-separated collection list (MongoDB) | `--collections "users,posts"` |
-| `--drop` | Drop database before import | `--drop` |
-| `--preserveUUID` | Preserve UUIDs during import (MongoDB) | `--preserveUUID` |
-| `--hosts <hosts>` | Filter by database hosts | `--hosts "localhost,example.com"` |
-| `--paths <paths>` | Filter by paths | `--paths "/,/api"` |
-| `--out-path <path>` | Custom output path for backups | `--out-path ./my-backup` |
-
-### Git Integration
-
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--git` | Enable Git backup versioning | `--git` |
-| `--macro-rollback-export <n>` | Rollback n commits before export (requires `--git` and `--export`) | `--macro-rollback-export 3` |
-
----
-
-## Database Statistics
-
-### MongoDB Statistics
-
-Display all collections with document counts:
+Export backups from all databases in a deployment:
 
 ```bash
-# Basic statistics
-node bin db --stats dd-myapp
-
-# Statistics from specific pod
-node bin db --stats --pod-name mongodb-0 dd-myapp
-
-# Statistics from primary pod
-node bin db --stats --primary-pod dd-myapp
-
-# Statistics from specific namespace
-node bin db --stats --ns production dd-myapp
+underpost db default-a --export
 ```
 
-**MongoDB Output Example:**
-```
-======================================================================
-DATABASE: example2-cyberia (MONGOOSE)
-======================================================================
-Collections                                        Documents/Rows
-----------------------------------------------------------------------
-users                                                           1523
-posts                                                            847
-comments                                                        3421
-sessions                                                         156
-tokens                                                           892
-notifications                                                    654
-----------------------------------------------------------------------
-TOTAL                                                           8493
-======================================================================
-```
-
-### MariaDB Statistics
-
-Display all tables with row counts:
+Export with Git version control:
 
 ```bash
-# Basic statistics
-node bin db --stats dd-myapp
-
-# Statistics from specific pod
-node bin db --stats --pod-name mariadb-statefulset-0 dd-myapp
-
-# Statistics from specific namespace
-node bin db --stats --ns production dd-myapp
+underpost db default-a --export --git
 ```
 
-**MariaDB Output Example:**
-```
-======================================================================
-DATABASE: my-database (MARIADB)
-======================================================================
-Tables                                             Documents/Rows
-----------------------------------------------------------------------
-customers                                                       2341
-orders                                                          5678
-products                                                        1234
-inventory                                                       3456
-invoices                                                        4567
-----------------------------------------------------------------------
-TOTAL                                                          17276
-======================================================================
-```
-
-### Statistics with Other Options
-
-Combine statistics with pod filtering:
+Export to custom output path:
 
 ```bash
-# Stats from all pods
-node bin db --stats --all-pods dd-myapp
-
-# Stats from specific node
-node bin db --stats --node-name "node-1" dd-myapp
-
-# Stats with host and path filtering
-node bin db --stats --hosts "localhost" --paths "/" dd-myapp
+underpost db default-a --export --out-path /custom/backup/path
 ```
 
-### Use Case: Pre-Backup Verification
+### 2. Import Database Backups
 
-Check database size before creating backups:
+Import backups to restore databases:
 
 ```bash
-# Check statistics
-node bin db --stats dd-myapp
-
-# If size is acceptable, proceed with backup
-node bin db --export --git dd-myapp
+underpost db default-a --import
 ```
 
----
-
-## MariaDB Operations
-
-### Basic Export
-
-Export MariaDB database from the default pod:
+Import with database drop (clean import):
 
 ```bash
-node bin db --export dd-myapp
+underpost db default-a --import --drop
 ```
 
-### Export from Specific Pod
-
-Export from a specific MariaDB pod:
+Import while preserving UUIDs:
 
 ```bash
-node bin db --export --pod-name mariadb-statefulset-0 dd-myapp
+underpost db default-a --import --preserveUUID
 ```
 
-### Export from Multiple Pods
-
-Export from multiple pods:
+Import with Git integration:
 
 ```bash
-node bin db --export --pod-name "mariadb-0,mariadb-1" --all-pods dd-myapp
+underpost db default-a --import --git
 ```
 
-### Export with Custom Namespace
+### 3. Database Statistics
 
-Export from a specific namespace:
+View database statistics (collections/tables and counts):
 
 ```bash
-node bin db --export --ns production dd-myapp
+underpost db default-a --stats
 ```
 
-### Export to Custom Path
-
-Export to a custom directory:
+View stats for specific pod:
 
 ```bash
-node bin db --export --out-path ./custom-backup dd-myapp
+underpost db default-a --stats --pod-name mongodb-primary
 ```
 
-### Export with Git Versioning
+### 4. Multi-Pod Operations
 
-Export and commit to Git repository:
+Target specific pod by name:
 
 ```bash
-node bin db --export --git dd-myapp
+underpost db default-a --export --pod-name mariadb-master
 ```
 
-### Basic Import
-
-Import MariaDB database to the default pod:
+Target all pods matching a pattern:
 
 ```bash
-node bin db --import dd-myapp
+underpost db default-a --export --pod-name "mariadb-*" --all-pods
 ```
 
-### Import and Drop Existing Database
-
-Import and replace existing database:
+Automatically detect MongoDB primary pod:
 
 ```bash
-node bin db --import --drop dd-myapp
+underpost db default-a --export --primary-pod
 ```
 
-### Import to Specific Pod
+### 5. Collection-Specific Operations
 
-Import to a specific MariaDB pod:
+Export specific collections only:
 
 ```bash
-node bin db --import --pod-name mariadb-statefulset-0 dd-myapp
+underpost db default-a --export --collections users,orders,products
 ```
 
-### Import to All Pods
-
-Import to all MariaDB pods in a statefulset:
+Import specific collections with drop:
 
 ```bash
-node bin db --import --all-pods dd-myapp
+underpost db default-a --import --collections users --drop
 ```
 
-### Export to Custom Path
+### 6. Git Version Control
 
-Export to a custom directory:
+Export with Git integration (clone, commit, push):
 
 ```bash
-node bin db --export --out-path ./custom-backup dd-myapp
+underpost db default-a --export --git
+```
+
+Force clone repository (overwrite local changes):
+
+```bash
+underpost db default-a --export --git --force-clone
+```
+
+Import from Git repository:
+
+```bash
+underpost db default-a --import --git
+```
+
+### 7. Rollback Operations
+
+Generate rollback script to revert last 3 commits:
+
+```bash
+underpost db default-a --macro-rollback-export 3
+```
+
+Generate rollback script for last 5 commits:
+
+```bash
+underpost db default-a --macro-rollback-export 5
+```
+
+### 8. Filtered Operations
+
+Filter by specific hosts:
+
+```bash
+underpost db default-a --export --hosts db1.example.com,db2.example.com
+```
+
+Filter by paths:
+
+```bash
+underpost db default-a --export --paths /data/db1,/data/db2
+```
+
+Combine host and path filters:
+
+```bash
+underpost db default-a --export --hosts db1.example.com --paths /data/db1
+```
+
+### 9. Namespace Operations
+
+Specify Kubernetes namespace:
+
+```bash
+underpost db default-a --export --ns production
+```
+
+Export from multiple deployments in staging namespace:
+
+```bash
+underpost db app-a,app-b --export --ns staging --git
+```
+
+### 10. Multiple Deployments
+
+Process multiple deployments simultaneously:
+
+```bash
+underpost db default-a,default-b,default-c --export --git
+```
+
+Export from all deployments with specific pod pattern:
+
+```bash
+underpost db default-a,default-b --export --pod-name "mongodb-*" --all-pods
 ```
 
 ---
 
-## MongoDB Operations
-
-### Basic Export
-
-Export MongoDB database from the default pod:
-
-```bash
-node bin db --export dd-myapp
-```
-
-### Export Specific Collections
-
-Export only specific collections:
-
-```bash
-node bin db --export --collections "users,posts,comments" dd-myapp
-```
-
-### Export from Specific Pod
-
-Export from a specific MongoDB pod:
-
-```bash
-node bin db --export --pod-name mongodb-0 dd-myapp
-```
-
-### Export from Multiple Pods
-
-Export from multiple MongoDB pods:
-
-```bash
-node bin db --export --pod-name "mongodb-0,mongodb-1,mongodb-2" --all-pods dd-myapp
-```
-
-### Export with Git Versioning
-
-Export and version control with Git:
-
-```bash
-node bin db --export --git dd-myapp
-```
-
-### Export to Custom Path
-
-Export to a specific directory:
-
-```bash
-node bin db --export --out-path ./mongo-backup dd-myapp
-```
-
-### Export from Specific Namespace
-
-Export from a different namespace:
-
-```bash
-node bin db --export --ns staging dd-myapp
-```
-
-### Export with Macro Rollback
-
-Export after rolling back n commits in the Git repository (useful for reverting to a previous backup state):
-
-```bash
-# Rollback 2 commits and export
-node bin db --export --git --macro-rollback-export 2 dd-myapp
-
-# Rollback 5 commits before exporting
-node bin db --export --git --macro-rollback-export 5 dd-myapp
-```
-
-**What happens:**
-1. Clones/pulls the Git backup repository
-2. Rolls back the specified number of commits using `underpost cmt . reset <n>`
-3. Exports the database with the rolled-back state
-4. Useful for recovering from bad backups or reverting to earlier states
-
-### Basic Import
-
-Import MongoDB database to the default pod:
-
-```bash
-node bin db --import dd-myapp
-```
-
-### Import with Drop
-
-Import and drop existing collections:
-
-```bash
-node bin db --import --drop dd-myapp
-```
-
-### Import Preserving UUIDs
-
-Import while preserving document UUIDs:
-
-```bash
-node bin db --import --preserveUUID dd-myapp
-```
-
-### Import with Drop and Preserve UUID
-
-Combine drop and preserve UUID:
-
-```bash
-node bin db --import --drop --preserveUUID dd-myapp
-```
-
-### Import to Specific Pod
-
-Import to a specific MongoDB pod:
-
-```bash
-node bin db --import --pod-name mongodb-0 dd-myapp
-```
-
-### Import to All Pods
-
-Import to all MongoDB pods in replica set:
-
-```bash
-node bin db --import --all-pods dd-myapp
-```
-
-### Import from Custom Path
-
-Import from a custom backup location:
-
-```bash
-node bin db --import --out-path ./mongo-backup dd-myapp
-```
-
-### Import Specific Collections
-
-Import only specific collections:
-
-```bash
-node bin db --import --collections "users,posts" dd-myapp
-```
-
-### Import to Primary Pod Only
-
-Automatically detect and import to MongoDB primary pod in a replica set:
-
-```bash
-node bin db --import --primary-pod dd-myapp
-```
-
-**What happens:**
-1. Queries the replica set to find the PRIMARY node
-2. Targets only that pod for import operation
-3. Ensures data is written to the primary for proper replication
-
-### Import to Primary with Drop and Preserve UUID
-
-```bash
-node bin db --import --drop --preserveUUID --primary-pod dd-myapp
-```
-
-### Export from Primary Pod
-
-```bash
-node bin db --export --primary-pod dd-myapp
-```
-
-**Use Cases for `--primary-pod`:**
-- Ensuring writes go to the primary in a replica set
-- Avoiding read-only secondary nodes during imports
-- Maintaining data consistency in multi-node deployments
-- Automatic failover handling (always finds current primary)
-
-### Display Collection Statistics
-
-View all collections and their document counts:
-
-```bash
-# Display MongoDB collection statistics
-node bin db --stats dd-myapp
-
-# Display from specific pod
-node bin db --stats --pod-name mongodb-0 dd-myapp
-
-# Display from primary pod
-node bin db --stats --primary-pod dd-myapp
-
-# Display from specific namespace
-node bin db --stats --ns production dd-myapp
-```
-
-**Output example:**
-```
-======================================================================
-DATABASE: example2-cyberia (MONGOOSE)
-======================================================================
-Collections                                        Documents/Rows
-----------------------------------------------------------------------
-users                                                           1523
-posts                                                            847
-comments                                                        3421
-sessions                                                         156
-----------------------------------------------------------------------
-TOTAL                                                           5947
-======================================================================
-```
-
----
-
-## Multi-Pod Targeting
-
-### Target Pods by Name Pattern
-
-Use wildcards to match multiple pods:
-
-```bash
-# Target all mariadb pods
-node bin db --export --pod-name "mariadb-*" --all-pods dd-myapp
-
-# Target specific numbered pods
-node bin db --export --pod-name "mongodb-0,mongodb-2" --all-pods dd-myapp
-```
-
-### Target Pods by Node
-
-Filter pods running on specific nodes:
-
-```bash
-# Export from pods on specific nodes
-node bin db --export --node-name "node-1,node-2" --all-pods dd-myapp
-
-# Import to pods on a single node
-node bin db --import --node-name "node-production" --all-pods dd-myapp
-```
-
-**Note:** When `--node-name` is not specified, no node filtering is applied and all pods in the namespace are considered. This is the recommended default behavior when working with Kubernetes clusters where node names may not be available in kubectl output.
-
-### Target Pods by Label Selector
-
-Use Kubernetes labels to select pods:
-
-```bash
-# Target pods with specific label
-node bin db --export --label-selector "app=mariadb,tier=backend" dd-myapp
-```
-
-### Combine Multiple Filters
-
-Combine pod name, node, and namespace filters:
-
-```bash
-node bin db --export \
-  --pod-name "mariadb-*" \
-  --node-name "node-1,node-2" \
-  --ns production \
-  --all-pods \
-  dd-myapp
-```
-
-### Use MongoDB Primary Pod
-
-Automatically detect and use the primary pod in a MongoDB replica set:
-
-```bash
-# Export from primary pod
-node bin db --export --primary-pod dd-myapp
-
-# Import to primary pod
-node bin db --import --drop --preserveUUID --primary-pod dd-myapp
-
-# With specific namespace
-node bin db --import --primary-pod --ns production dd-myapp
-```
-
-**How it works:**
-The `--primary-pod` option executes:
-```bash
-kubectl exec -it mongodb-0 -- mongosh --quiet --eval 'rs.status().members.filter(m => m.stateStr=="PRIMARY").map(m=>m.name)'
-```
-This command queries the replica set status and returns the current PRIMARY pod name.
-
-### Single Pod vs All Pods
-
-```bash
-# Default: targets only the first matching pod
-node bin db --export --pod-name "mongodb-*" dd-myapp
-
-# Target all matching pods
-node bin db --export --pod-name "mongodb-*" --all-pods dd-myapp
-```
-
----
-
-## Git Integration
-
-### Setup
-
-Ensure `GITHUB_USERNAME` environment variable is set:
-
-```bash
-export GITHUB_USERNAME=your-username
-```
-
-### Export with Git Backup
-
-Automatically clone/pull, commit, and push backups:
-
-```bash
-node bin db --export --git dd-myapp
-```
-
-**What happens:**
-1. Clones or pulls the backup repository: `engine-myapp-cron-backups`
-2. Exports database to timestamped directory
-3. Commits changes with timestamp
-4. Pushes to GitHub
-
-### Import from Git Backup
-
-Import the latest backup from Git:
-
-```bash
-node bin db --import --git dd-myapp
-```
-
-**What happens:**
-1. Pulls latest backup from repository
-2. Imports the most recent timestamped backup
-
-### Backup Retention
-
-- Maximum of **5 backups** are retained per database
-- Oldest backups are automatically removed when limit is reached
-- Configurable via `MAX_BACKUP_RETENTION` constant in code
-
----
-
-## Advanced Use Cases
-
-### Multi-Deployment Backup
-
-Backup multiple deployments in one command:
-
-```bash
-node bin db --export --git dd-app1,dd-app2,dd-app3
-```
-
-### Cross-Namespace Operations
-
-Export from production, import to staging:
-
-```bash
-# Export from production
-node bin db --export --ns production --out-path ./prod-backup dd-myapp
-
-# Import to staging
-node bin db --import --ns staging --out-path ./prod-backup dd-myapp
-```
-
-### Filter by Host and Path
-
-Target specific database configurations:
-
-```bash
-node bin db --export \
-  --hosts "api.example.com" \
-  --paths "/api,/admin" \
-  dd-myapp
-```
-
-### Partial Collection Export (MongoDB)
-
-Export only specific collections:
-
-```bash
-node bin db --export \
-  --collections "users,sessions,tokens" \
-  --out-path ./partial-backup \
-  dd-myapp
-```
-
-### High Availability Import
-
-Import to all pods in a replica set simultaneously:
-
-```bash
-node bin db --import \
-  --drop \
-  --preserveUUID \
-  --all-pods \
-  --ns production \
-  dd-myapp
-```
+## Common Workflows
+
+### Complete Backup Workflow
+
+1. **Export with Git version control:**
+   ```bash
+   underpost db default-a --export --git
+   ```
+
+2. **View statistics to verify:**
+   ```bash
+   underpost db default-a --stats
+   ```
+
+3. **Create rollback point (optional):**
+   ```bash
+   underpost db default-a --macro-rollback-export 1
+   ```
+
+### Clean Database Restore
+
+1. **Import with drop to clean existing data:**
+   ```bash
+   underpost db default-a --import --drop --git
+   ```
+
+2. **Verify with statistics:**
+   ```bash
+   underpost db default-a --stats
+   ```
+
+### MongoDB Primary Pod Backup
+
+1. **Auto-detect and backup primary pod:**
+   ```bash
+   underpost db mongodb-cluster --export --primary-pod --git
+   ```
+
+2. **Restore to primary pod:**
+   ```bash
+   underpost db mongodb-cluster --import --primary-pod --drop
+   ```
+
+### Multi-Environment Sync
+
+1. **Export from production:**
+   ```bash
+   underpost db prod-app --export --git --ns production
+   ```
+
+2. **Import to staging with clean slate:**
+   ```bash
+   underpost db staging-app --import --git --drop --ns staging
+   ```
 
 ---
 
 ## Best Practices
 
-### 1. Enable Git Backups for Production
-
-Version control your database backups:
-
+### 1. Always Use Git Integration
+Enable `--git` for automated version control and backup history:
 ```bash
-node bin db --export --git dd-production-app
+underpost db default-a --export --git
 ```
 
-### 2. Use Specific Namespaces
-
-Explicitly specify namespaces to avoid accidents:
-
+### 2. Verify Before Import
+Check statistics before importing to understand data impact:
 ```bash
-node bin db --export --ns production dd-myapp
+underpost db default-a --stats
 ```
 
-### 3. Target Specific Pods for Critical Operations
-
-Use `--primary-pod` for MongoDB imports to ensure data goes to the primary:
-
+### 3. Use --drop Carefully
+The `--drop` flag removes existing data. Always backup first:
 ```bash
-# Import to MongoDB primary pod automatically
-node bin db --import --primary-pod dd-myapp
-
-# Or manually specify the pod
-node bin db --import --pod-name "mongodb-0" dd-myapp
+underpost db default-a --export --git  # Backup first
+underpost db default-a --import --drop  # Then import
 ```
 
-### 4. Preserve UUIDs for MongoDB
-
-Always use `--preserveUUID` for MongoDB imports:
-
+### 4. Target Specific Pods
+For production systems, target specific pods to minimize impact:
 ```bash
-node bin db --import --drop --preserveUUID dd-myapp
+underpost db default-a --export --pod-name mongodb-primary
 ```
 
-### 5. Regular Automated Backups
-
-Set up cron jobs for automated backups:
-
+### 5. Create Rollback Points
+Before major changes, create rollback scripts:
 ```bash
-# Daily backup at 2 AM
-0 2 * * * node bin db --export --git dd-myapp
+underpost db default-a --macro-rollback-export 5
 ```
 
-### 6. Custom Output Paths for Organization
-
-Use descriptive backup directories:
-
+### 6. Use Namespaces
+Always specify namespace in multi-environment setups:
 ```bash
-node bin db --export --out-path ./backups/$(date +%Y%m%d) dd-myapp
-```
-
-### 7. Filter Collections for Large Databases
-
-Export only needed collections to save time and space:
-
-```bash
-node bin db --export --collections "users,products" dd-myapp
-```
-
-### 8. Monitor Pod Status
-
-Check pod status before operations:
-
-```bash
-kubectl get pods -n production
-node bin db --export --ns production dd-myapp
-```
-
-### 9. Use Node Targeting for Geo-Distributed Clusters
-
-Target pods on specific nodes for regional backups:
-
-```bash
-node bin db --export --node-name "us-east-node-1" dd-myapp
-```
-
-### 10. Check Database Statistics Before Operations
-
-Review database size and collection counts before backup:
-
-```bash
-# Check statistics first
-node bin db --stats dd-myapp
-
-# Then perform backup
-node bin db --export --git dd-myapp
+underpost db default-a --export --ns production --git
 ```
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
-
-#### 1. "No pods found matching criteria"
-
-**Problem:** No pods match the specified filters.
-
-**Solution:**
+### Pod Not Found
+If pod is not found, list available pods:
 ```bash
-# Check available pods
-kubectl get pods -n default
-
-# Use correct pod name
-node bin db --export --pod-name "mariadb-statefulset-0" dd-myapp
+kubectl get pods -n <namespace>
 ```
 
-#### 2. "Invalid namespace format"
-
-**Problem:** Namespace name doesn't follow Kubernetes naming rules.
-
-**Solution:**
+Then specify exact pod name:
 ```bash
-# Use lowercase, alphanumeric, and hyphens only
-node bin db --export --ns production dd-myapp  # ✓ Correct
-node bin db --export --ns Production_ENV dd-myapp  # ✗ Invalid
+underpost db default-a --export --pod-name <exact-pod-name>
 ```
 
-#### 3. "Configuration file not found"
-
-**Problem:** Deployment configuration doesn't exist.
-
-**Solution:**
+### Multiple Pods Detected
+Use `--all-pods` to process all matching pods:
 ```bash
-# Check if deployment config exists
-ls ./engine-private/conf/dd-myapp/
-
-# Use correct deployment ID
-node bin db --export dd-myapp  # not just "myapp"
+underpost db default-a --export --pod-name "mariadb-*" --all-pods
 ```
 
-#### 4. "kubectl command failed"
-
-**Problem:** kubectl permissions or connection issues.
-
-**Solution:**
+Or target the primary pod for MongoDB:
 ```bash
-# Check kubectl access
-kubectl get pods
-
-# Check if sudo is needed
-sudo kubectl get pods
-
-# Verify Kubernetes context
-kubectl config current-context
+underpost db default-a --export --primary-pod
 ```
 
-#### 5. "Git operation failed"
-
-**Problem:** GitHub credentials or repository access issues.
-
-**Solution:**
+### Git Conflicts
+Force clone to override local changes:
 ```bash
-# Set GitHub username
-export GITHUB_USERNAME=your-username
-
-# Check repository exists
-# Repository should be: engine-{deployId}-cron-backups
-
-# Verify Git credentials
-git config --list
+underpost db default-a --export --git --force-clone
 ```
 
-#### 6. "Failed to copy file to pod"
-
-**Problem:** Pod filesystem permissions or path issues.
-
-**Solution:**
+### Namespace Access
+Ensure you have proper Kubernetes RBAC permissions:
 ```bash
-# Check pod is running
-kubectl get pods -n default
-
-# Verify pod has enough disk space
-kubectl exec -n default mariadb-0 -- df -h
-
-# Check pod status
-kubectl describe pod mariadb-0 -n default
-```
-
-#### 7. "Database import failed"
-
-**Problem:** Backup file corrupted or incompatible.
-
-**Solution:**
-```bash
-# Verify backup file exists
-ls -lh ./backups/
-
-# Check database version compatibility
-```
-
-#### 8. "All pods failed"
-
-**Problem:** When using `--all-pods`, all operations failed.
-
-**Solution:**
-```bash
-# Target single pod first to debug
-node bin db --import --pod-name "mongodb-0" dd-myapp
-
-# Check pod logs
-kubectl logs mongodb-0 -n default
-
-# Verify network connectivity
-kubectl exec -n default mongodb-0 -- ping -c 1 google.com
-```
-
-### Debug Mode
-
-Enable detailed logging by checking the log output:
-
-```bash
-# Operations are logged with context
-# Look for lines starting with:
-# - "Executing kubectl command"
-# - "Processing pod"
-# - "Found X pod(s) matching criteria"
-```
-
-### Verify Operations
-
-After import/export, verify the operation:
-
-```bash
-# For MariaDB
-kubectl exec -n default mariadb-0 -- mariadb -u root -p'password' -e "SHOW DATABASES;"
-
-# For MongoDB
-kubectl exec -n default mongodb-0 -- mongosh --eval "show dbs"
+kubectl auth can-i get pods -n <namespace>
 ```
 
 ---
 
-## Examples Summary
+## Advanced Examples
 
-### MariaDB Quick Reference
+### Selective Collection Backup and Restore
 
+Export only user-related collections:
 ```bash
-# Stats
-node bin db --stats dd-myapp
-
-# Export
-node bin db --export dd-myapp
-node bin db --export --git dd-myapp
-node bin db --export --pod-name mariadb-0 --ns production dd-myapp
-
-# Import
-node bin db --import dd-myapp
-node bin db --import --drop dd-myapp
-node bin db --import --pod-name mariadb-0 --ns production dd-myapp
+underpost db default-a --export --collections users,user_profiles,user_sessions --git
 ```
 
-### MongoDB Quick Reference
-
+Import only specific collections without affecting others:
 ```bash
-# Stats
-node bin db --stats dd-myapp
-node bin db --stats --primary-pod dd-myapp
-
-# Export
-node bin db --export dd-myapp
-node bin db --export --collections "users,posts" dd-myapp
-node bin db --export --git --all-pods dd-myapp
-node bin db --export --primary-pod dd-myapp
-
-# Import
-node bin db --import dd-myapp
-node bin db --import --drop --preserveUUID dd-myapp
-node bin db --import --pod-name mongodb-0 --ns production dd-myapp
-node bin db --import --drop --preserveUUID --primary-pod dd-myapp
+underpost db default-a --import --collections users --preserveUUID
 ```
 
-### Multi-Pod Quick Reference
+### Cross-Namespace Migration
 
+1. Export from production:
+   ```bash
+   underpost db prod-app --export --git --ns production
+   ```
+
+2. Import to development:
+   ```bash
+   underpost db dev-app --import --git --drop --ns development
+   ```
+
+### Automated Backup Script
+
+Create a scheduled backup script:
 ```bash
-# All pods
-node bin db --export --all-pods dd-myapp
-
-# Specific nodes
-node bin db --export --node-name "node-1,node-2" --all-pods dd-myapp
-
-# Pod patterns
-node bin db --export --pod-name "mariadb-*" --all-pods dd-myapp
-
-# MongoDB primary pod
-node bin db --import --primary-pod dd-myapp
+#!/bin/bash
+# Daily backup with Git version control
+underpost db default-a,default-b --export --git --ns production
+underpost db default-a,default-b --stats --ns production > backup-stats-$(date +%Y%m%d).log
 ```
 
 ---
 
-## Cluster Metadata Management
+## Notes
 
-In addition to database backups, you can manage cluster metadata (instances and crons):
+- **Backup Retention**: System automatically maintains the last `MAX_BACKUP_RETENTION` backups
+- **MongoDB Primary Detection**: `--primary-pod` automatically identifies the primary pod in replica sets
+- **Wildcard Support**: Pod names support wildcards (e.g., `mariadb-*`, `mongo-*`)
+- **Git Requirements**: Git integration requires properly configured GitHub credentials
+- **Kubernetes Context**: Ensure `kubectl` is configured with correct cluster context
 
-### Generate Cluster Metadata
+---
 
-```bash
-node bin metadata --generate
-```
+## Related Commands
 
-### Export Instances
+- `underpost metadata --export`: Export cluster metadata
+- `underpost metadata --import`: Import cluster metadata
+- `kubectl get pods -n <namespace>`: List available pods
 
-```bash
-node bin metadata --export --instances
-```
-
-### Import Instances
-
-```bash
-node bin metadata --import --instances
-```
-
-### Export Crons
-
-```bash
-node bin metadata --export --crons
-```
-
-### Import Crons
-
-```bash
-node bin metadata --import --crons
-```
-
-### Export All Metadata
-
-```bash
-node bin metadata --export --instances --crons
-```
+For more information, refer to the [CLI Reference Guide](./CLI%20Reference%20Guide.md).

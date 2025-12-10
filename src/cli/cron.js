@@ -48,7 +48,7 @@ class UnderpostCron {
      */
     callback: async function (
       deployList = 'default',
-      jobList = Object.keys(UnderpostCron.JOB),
+      jobList = Object.keys(UnderpostCron.JOB).join(','),
       options = { itc: false, init: false, git: false },
     ) {
       if (options.init === true) {

@@ -1186,7 +1186,7 @@ EOF
       }
       await timer(5000);
       for (const deployId of deployList) {
-        shellExec(`${baseCommand} db ${deployId} --import --git`);
+        shellExec(`${baseCommand} db ${deployId} --import --git --drop --preserveUUID --primary-pod`);
       }
       await timer(5000);
       shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --pull-image --valkey`);

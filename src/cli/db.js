@@ -77,30 +77,6 @@ const MAX_BACKUP_RETENTION = 5;
 class UnderpostDB {
   static API = {
     /**
-     * Helper: Validates namespace name
-     * @private
-     * @param {string} namespace - Namespace to validate
-     * @returns {boolean} True if valid
-     */
-    _validateNamespace(namespace) {
-      if (!namespace || typeof namespace !== 'string') return false;
-      // Kubernetes namespace naming rules: lowercase alphanumeric, -, max 63 chars
-      return /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/.test(namespace) && namespace.length <= 63;
-    },
-
-    /**
-     * Helper: Validates pod name
-     * @private
-     * @param {string} podName - Pod name to validate
-     * @returns {boolean} True if valid
-     */
-    _validatePodName(podName) {
-      if (!podName || typeof podName !== 'string') return false;
-      // Kubernetes pod naming rules: lowercase alphanumeric, -, max 253 chars
-      return /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/.test(podName) && podName.length <= 253;
-    },
-
-    /**
      * Helper: Gets filtered pods based on criteria
      * @private
      * @param {Object} criteria - Filter criteria
@@ -777,12 +753,6 @@ class UnderpostDB {
     ) {
       const newBackupTimestamp = new Date().getTime();
       const namespace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
-
-      // Validate namespace
-      if (!UnderpostDB.API._validateNamespace(namespace)) {
-        logger.error('Invalid namespace format', { namespace });
-        throw new Error(`Invalid namespace: ${namespace}`);
-      }
 
       if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
 
