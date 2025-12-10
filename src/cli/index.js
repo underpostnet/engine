@@ -425,9 +425,9 @@ program
       ', ',
     )}. Defaults to all available jobs.`,
   )
-  .option('--itc', 'Executes cron jobs within the container execution context.')
-  .option('--init', 'Initializes cron jobs for the default deployment ID.')
+  .option('--init-pm2-cronjobs', 'Initializes PM2 cron jobs from configuration for the specified deployment IDs.')
   .option('--git', 'Uploads cron job configurations to GitHub.')
+  .option('--update-package-scripts', 'Updates package.json start scripts for each deploy-id configuration.')
   .description('Manages cron jobs, including initialization, execution, and configuration updates.')
   .action(Underpost.cron.callback);
 

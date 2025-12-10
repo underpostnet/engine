@@ -4,12 +4,10 @@
  * @namespace UnderpostCron
  */
 
-import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import BackUp from '../server/backup.js';
 import { Cmd } from '../server/conf.js';
 import Dns from '../server/dns.js';
 import { loggerFactory } from '../server/logger.js';
-
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 
@@ -37,57 +35,191 @@ class UnderpostCron {
      */
     backup: BackUp,
   };
+
   static API = {
     /**
      * Run the cron jobs
      * @static
      * @param {String} deployList - Comma separated deploy ids
      * @param {String} jobList - Comma separated job ids
+     * @param {Object} options - Options for cron execution
      * @return {void}
      * @memberof UnderpostCron
      */
     callback: async function (
       deployList = 'default',
       jobList = Object.keys(UnderpostCron.JOB).join(','),
-      options = { itc: false, init: false, git: false },
+      options = { initPm2Cronjobs: false, git: false, updatePackageScripts: false },
     ) {
-      if (options.init === true) {
-        const jobDeployId = fs.readFileSync('./engine-private/deploy/dd.cron', 'utf8').trim();
-        deployList = fs.readFileSync('./engine-private/deploy/dd.router', 'utf8').trim();
-        const confCronConfig = JSON.parse(fs.readFileSync(`./engine-private/conf/${jobDeployId}/conf.cron.json`));
-        if (confCronConfig.jobs && Object.keys(confCronConfig.jobs).length > 0) {
-          for (const job of Object.keys(confCronConfig.jobs)) {
-            const name = `${jobDeployId}-${job}`;
-            let deployId;
-            shellExec(Cmd.delete(name));
-            deployId = UnderpostCron.API.getRelatedDeployId(job);
-            shellExec(Cmd.cron(deployId, job, name, confCronConfig.jobs[job].expression, options));
-          }
-        }
+      if (options.updatePackageScripts === true) {
+        await UnderpostCron.API.updatePackageScripts(deployList);
         return;
       }
+
+      if (options.initPm2Cronjobs === true) {
+        await UnderpostCron.API.initCronJobs(options);
+        return;
+      }
+
+      // Execute the requested jobs
       for (const _jobId of jobList.split(',')) {
         const jobId = _jobId.trim();
-        if (UnderpostCron.JOB[jobId]) await UnderpostCron.JOB[jobId].callback(deployList, options);
+        if (UnderpostCron.JOB[jobId]) {
+          logger.info(`Executing cron job: ${jobId}`);
+          await UnderpostCron.JOB[jobId].callback(deployList, options);
+        } else {
+          logger.warn(`Unknown cron job: ${jobId}`);
+        }
       }
     },
 
     /**
-     * Get the related deploy id for the given job id
+     * Initialize PM2 cron jobs from configuration
      * @static
-     * @param {String} jobId - The job id
-     * @return {String} The related deploy id
+     * @param {Object} options - Initialization options
      * @memberof UnderpostCron
      */
-    getRelatedDeployId(jobId) {
-      switch (jobId) {
-        case 'dns':
-          return fs.readFileSync('./engine-private/deploy/dd.cron', 'utf8').trim();
-        case 'backup':
-          return fs.readFileSync('./engine-private/deploy/dd.router', 'utf8').trim();
-        default:
-          return fs.readFileSync('./engine-private/deploy/dd.cron', 'utf8').trim();
+    initCronJobs: async function (options = { git: false }) {
+      logger.info('Initializing PM2 cron jobs');
+
+      // Read cron job deployment ID from dd.cron file (e.g., "dd-cron")
+      const jobDeployId = fs.readFileSync('./engine-private/deploy/dd.cron', 'utf8').trim();
+      const confCronPath = `./engine-private/conf/${jobDeployId}/conf.cron.json`;
+
+      if (!fs.existsSync(confCronPath)) {
+        logger.warn(`Cron configuration not found: ${confCronPath}`);
+        return;
       }
+
+      const confCronConfig = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
+
+      if (!confCronConfig.jobs || Object.keys(confCronConfig.jobs).length === 0) {
+        logger.info('No cron jobs configured');
+        return;
+      }
+
+      // Delete all existing cron jobs
+      for (const job of Object.keys(confCronConfig.jobs)) {
+        const name = `${jobDeployId}-${job}`;
+        logger.info(`Removing existing PM2 process: ${name}`);
+        shellExec(Cmd.delete(name));
+      }
+
+      // Create PM2 cron jobs for each configured job
+      for (const job of Object.keys(confCronConfig.jobs)) {
+        const jobConfig = confCronConfig.jobs[job];
+
+        if (jobConfig.enabled === false) {
+          logger.info(`Skipping disabled job: ${job}`);
+          continue;
+        }
+
+        const name = `${jobDeployId}-${job}`;
+        const deployIdList = UnderpostCron.API.getRelatedDeployIdList(job);
+        const expression = jobConfig.expression || '0 0 * * *'; // Default: daily at midnight
+        const instances = jobConfig.instances || 1; // Default: 1 instance
+
+        logger.info(`Creating PM2 cron job: ${name} with expression: ${expression}, instances: ${instances}`);
+        shellExec(Cmd.cron(deployIdList, job, name, expression, options, instances));
+      }
+
+      logger.info('PM2 cron jobs initialization completed');
+    },
+
+    /**
+     * Update package.json start scripts for specified deploy-ids
+     * @static
+     * @param {String} deployList - Comma separated deploy ids
+     * @memberof UnderpostCron
+     */
+    updatePackageScripts: async function (deployList = 'default') {
+      logger.info('Updating package.json start scripts for deploy-id configurations');
+
+      // Resolve deploy list
+      if ((!deployList || deployList === 'dd') && fs.existsSync(`./engine-private/deploy/dd.router`)) {
+        deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').trim();
+      }
+
+      const confDir = './engine-private/conf';
+      if (!fs.existsSync(confDir)) {
+        logger.warn(`Configuration directory not found: ${confDir}`);
+        return;
+      }
+
+      // Parse deploy list into array
+      const deployIds = deployList
+        .split(',')
+        .map((id) => id.trim())
+        .filter((id) => id);
+
+      for (const deployId of deployIds) {
+        const packageJsonPath = `${confDir}/${deployId}/package.json`;
+        const confCronPath = `${confDir}/${deployId}/conf.cron.json`;
+
+        // Only update if both package.json and conf.cron.json exist
+        if (!fs.existsSync(packageJsonPath)) {
+          logger.info(`Skipping ${deployId}: package.json not found`);
+          continue;
+        }
+
+        if (!fs.existsSync(confCronPath)) {
+          logger.info(`Skipping ${deployId}: conf.cron.json not found`);
+          continue;
+        }
+
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+        const confCron = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
+
+        // Build start script based on cron jobs configuration
+        if (confCron.jobs && Object.keys(confCron.jobs).length > 0) {
+          const hasEnabledJobs = Object.values(confCron.jobs).some((job) => job.enabled !== false);
+
+          if (hasEnabledJobs) {
+            // Update start script with PM2 cron jobs initialization
+            const startScript = 'pm2 flush && pm2 reloadLogs && node bin cron --init-pm2-cronjobs --git';
+
+            if (!packageJson.scripts) {
+              packageJson.scripts = {};
+            }
+
+            packageJson.scripts.start = startScript;
+
+            // Write updated package.json
+            fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 4) + '\n', 'utf8');
+            logger.info(`Updated package.json for ${deployId} with cron start script`);
+          } else {
+            logger.info(`Skipping ${deployId}: no enabled cron jobs`);
+          }
+        } else {
+          logger.info(`Skipping ${deployId}: no cron jobs configured`);
+        }
+      }
+
+      logger.info('Package.json start scripts update completed');
+    },
+
+    /**
+     * Get the related deploy id list for the given job id
+     * @static
+     * @param {String} jobId - The job id (e.g., 'dns', 'backup')
+     * @return {String} Comma-separated list of deploy ids to process
+     * @memberof UnderpostCron
+     */
+    getRelatedDeployIdList(jobId) {
+      // Backup job uses dd.router file (contains multiple deploy-ids)
+      // Other jobs use dd.cron file (contains single deploy-id)
+      const deployFilePath =
+        jobId === 'backup' ? './engine-private/deploy/dd.router' : './engine-private/deploy/dd.cron';
+
+      if (!fs.existsSync(deployFilePath)) {
+        logger.warn(`Deploy file not found: ${deployFilePath}, using default`);
+        return fs.existsSync('./engine-private/deploy/dd.cron')
+          ? fs.readFileSync('./engine-private/deploy/dd.cron', 'utf8').trim()
+          : 'dd-cron';
+      }
+
+      // Return the deploy-id list from the file (may be single or comma-separated)
+      return fs.readFileSync(deployFilePath, 'utf8').trim();
     },
   };
 }

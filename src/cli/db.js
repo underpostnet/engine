@@ -1234,7 +1234,7 @@ class UnderpostDB {
         for (const jobId of Object.keys(confCron.jobs)) {
           const body = {
             jobId,
-            deployId: UnderpostCron.API.getRelatedDeployId(jobId),
+            deployId: UnderpostCron.API.getRelatedDeployIdList(jobId),
             expression: confCron.jobs[jobId].expression,
             enabled: confCron.jobs[jobId].enabled,
           };

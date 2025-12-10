@@ -596,10 +596,9 @@ Prevent build private config repo.`,
      */
     clean(options = { paths: [''] }) {
       for (const path of options.paths) {
-        shellCd(path);
-        shellExec(`git reset`, { silent: true });
-        shellExec(`git checkout .`, { silent: true });
-        shellExec(`git clean -f -d`, { silent: true });
+        shellExec(`cd ${path} && git reset`, { silent: true });
+        shellExec(`cd ${path} && git checkout .`, { silent: true });
+        shellExec(`cd ${path} && git clean -f -d`, { silent: true });
       }
     },
   };

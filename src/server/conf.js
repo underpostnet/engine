@@ -1227,13 +1227,12 @@ const Cmd = {
    * @param {string} name - The name.
    * @param {string} expression - The expression.
    * @param {object} options - The options.
+   * @param {number} instances - The number of PM2 instances (default: 1).
    * @returns {string} - The cron command.
    * @memberof Cmd
    */
-  cron: (deployList, jobList, name, expression, options) =>
-    `pm2 start ./bin/index.js --no-autorestart --instances 1 --cron "${expression}" --name ${name} -- cron ${
-      options?.itc ? `--itc ` : ''
-    }${options?.git ? `--git ` : ''}${deployList} ${jobList}`,
+  cron: (deployList, jobList, name, expression, options, instances = 1) =>
+    `pm2 start ./bin/index.js --no-autorestart --instances ${instances} --cron "${expression}" --name ${name} -- cron ${options?.git ? `--git ` : ''}${deployList} ${jobList}`,
 };
 
 /**

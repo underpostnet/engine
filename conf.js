@@ -211,7 +211,10 @@ const DefaultConf = /**/ {
   },
   cron: {
     records: { A: [{ host: 'example.com', dns: 'dondominio', api_key: '???', user: '???' }] },
-    jobs: { dns: { expression: '* * * * *', enabled: true }, backups: { expression: '0 1 * * *', enabled: true } },
+    jobs: {
+      dns: { expression: '* * * * *', enabled: true, instances: 1 },
+      backups: { expression: '0 1 * * *', enabled: true, instances: 1 },
+    },
   },
 }; /**/
 
