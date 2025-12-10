@@ -670,7 +670,6 @@ program
   .option('--nfs-unmount', 'Unmounts the NFS root filesystem for a workflow id config architecture.')
   .option('--nfs-sh', 'Copies QEMU emulation root entrypoint shell command to the clipboard.')
   .option('--cloud-init-update', 'Updates cloud init for a workflow id config architecture.')
-  .option('--cloud-init-reset', 'Resets cloud init for a workflow id config architecture.')
   .option('--logs <log-id>', 'Displays logs for log id: dhcp, cloud, machine, cloud-config.')
   .option('--dev', 'Sets the development context environment for baremetal operations.')
   .option('--ls', 'Lists available boot resources and machines.')

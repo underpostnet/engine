@@ -59,6 +59,7 @@ class UnderpostBaremetal {
         controlServerUninstall: false,
         controlServerDbInstall: false,
         controlServerDbUninstall: false,
+        cloudInitUpdate: false,
         commission: false,
         nfsBuild: false,
         nfsMount: false,
@@ -216,11 +217,6 @@ class UnderpostBaremetal {
       if (options.nfsBuild === true) {
         // Check if NFS is already mounted to avoid redundant builds.
         const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId });
-        if (isMounted) {
-          logger.warn('NFS root filesystem is mounted, skipping build.');
-          return; // Exit if already mounted.
-        }
-        logger.info('NFS root filesystem is not mounted, building...');
 
         // Clean and create the NFS host path.
         shellExec(`sudo rm -rf ${nfsHostPath}/*`);
@@ -630,8 +626,13 @@ menuentry '${menuentryStr}' {
           const machine = {
             architecture: maas.image.architecture.match('amd') ? 'amd64/generic' : 'arm64/generic',
             mac_address: discovery.mac_address,
-            hostname:
-              discovery.hostname ?? discovery.mac_organization ?? discovery.domain ?? `generic-host-${s4()}${s4()}`,
+            hostname: discovery.hostname
+              ? discovery.hostname
+              : discovery.mac_organization
+                ? discovery.mac_organization
+                : discovery.domain
+                  ? discovery.domain
+                  : `generic-host-${s4()}${s4()}`,
             power_type: 'manual',
             mac_addresses: discovery.mac_address,
             ip: discovery.ip,
@@ -742,7 +743,7 @@ menuentry '${menuentryStr}' {
       shellExec(`sudo dnf install -y debootstrap`);
       shellExec(`sudo dnf install kernel-modules-extra-$(uname -r)`);
       // Reset QEMU user-static binfmt for proper cross-architecture execution.
-      shellExec(`sudo podman run --rm --privileged multiarch/qemu-user-static --reset -p yes`);
+      shellExec(`sudo podman run --rm --privileged docker.io/multiarch/qemu-user-static:latest --reset -p yes`);
       // Mount binfmt_misc filesystem.
       shellExec(`sudo modprobe binfmt_misc`);
       shellExec(`sudo mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc`);
@@ -826,8 +827,8 @@ menuentry '${menuentryStr}' {
           break;
       }
       // Install GRUB EFI modules for both architectures to ensure compatibility.
-      shellExec(`sudo dnf install grub2-efi-aa64-modules`);
-      shellExec(`sudo dnf install grub2-efi-x64-modules`);
+      shellExec(`sudo dnf install -y grub2-efi-aa64-modules`);
+      shellExec(`sudo dnf install -y grub2-efi-x64-modules`);
     },
 
     /**
