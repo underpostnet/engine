@@ -446,8 +446,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     clean: (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
-      shellCd(path ? path : `/home/dd/engine`);
-      shellExec(`node bin/deploy clean-core-repo`);
+      Underpost.repo.clean({ paths: path ? path.split(',') : ['/home/dd/engine', '/home/dd/engine-private'] });
     },
     /**
      * @method pull

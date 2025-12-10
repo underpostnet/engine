@@ -27,6 +27,7 @@ import { buildClient } from '../src/server/client-build.js';
 import colors from 'colors';
 import { program } from '../src/cli/index.js';
 import { timer } from '../src/client/components/core/CommonJs.js';
+import Underpost from '../src/index.js';
 
 colors.enable();
 
@@ -364,23 +365,10 @@ try {
       break;
     }
 
-    case 'clean-core-repo': {
-      shellCd(`/home/dd/engine`);
-      shellExec(`git reset`);
-      shellExec(`git checkout .`);
-      shellExec(`git clean -f -d`);
-      shellCd(`/home/dd/engine/engine-private`);
-      shellExec(`git reset`);
-      shellExec(`git checkout .`);
-      shellExec(`git clean -f -d`);
-      shellCd(`/home/dd/engine`);
-      break;
-    }
-
     case 'version-build': {
       dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
       shellCd(`/home/dd/engine`);
-      shellExec(`node bin/deploy clean-core-repo`);
+      Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
       shellExec(`node bin pull . ${process.env.GITHUB_USERNAME}/engine`);
       shellExec(`node bin run kill 4001`);
       shellExec(`node bin run kill 4002`);
@@ -399,7 +387,7 @@ try {
         break;
       }
       shellCd(`/home/dd/engine`);
-      shellExec(`node bin/deploy clean-core-repo`);
+      Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
       const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
       const newVersion = process.argv[3] ?? originPackageJson.version;
       const node = process.argv[4] ?? 'kind-control-plane';

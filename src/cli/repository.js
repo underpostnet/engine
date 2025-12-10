@@ -587,6 +587,21 @@ Prevent build private config repo.`,
       fs.writeFileSync(targetConfPath, confRawPaths.join(sepRender), 'utf8');
       shellExec(`prettier --write ${targetConfPath}`);
     },
+
+    /**
+     * Cleans the specified paths in the repository by resetting, checking out, and cleaning untracked files.
+     * @param {object} [options={ paths: [''] }] - The options for cleaning.
+     * @param {string[]} [options.paths=['']] - The paths to clean.
+     * @memberof UnderpostRepository
+     */
+    clean(options = { paths: [''] }) {
+      for (const path of options.paths) {
+        shellCd(path);
+        shellExec(`git reset`, { silent: true });
+        shellExec(`git checkout .`, { silent: true });
+        shellExec(`git clean -f -d`, { silent: true });
+      }
+    },
   };
 }
 
