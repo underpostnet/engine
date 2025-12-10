@@ -172,59 +172,7 @@ program
   .option('--dev', 'Sets the development cli context')
 
   .description(`Manages static build of page, bundles, and documentation with comprehensive customization options.`)
-  .action((options) => {
-    // Handle config template generation
-    if (options.generateConfig) {
-      const configPath = typeof options.generateConfig === 'string' ? options.generateConfig : './static-config.json';
-      return UnderpostStatic.API.generateConfigTemplate(configPath);
-    }
-
-    // Parse comma-separated options
-    if (options.keywords) {
-      options.keywords = options.keywords.split(',').map((k) => k.trim());
-    }
-    if (options.headScripts) {
-      options.scripts = options.scripts || {};
-      options.scripts.head = options.headScripts.split(',').map((s) => ({ src: s.trim() }));
-    }
-    if (options.bodyScripts) {
-      options.scripts = options.scripts || {};
-      options.scripts.body = options.bodyScripts.split(',').map((s) => ({ src: s.trim() }));
-    }
-    if (options.styles) {
-      options.styles = options.styles.split(',').map((s) => ({ href: s.trim() }));
-    }
-    if (options.headComponents) {
-      options.headComponents = options.headComponents.split(',').map((c) => c.trim());
-    }
-    if (options.bodyComponents) {
-      options.bodyComponents = options.bodyComponents.split(',').map((c) => c.trim());
-    }
-
-    // Build metadata object from individual options
-    options.metadata = {
-      ...(options.title && { title: options.title }),
-      ...(options.description && { description: options.description }),
-      ...(options.keywords && { keywords: options.keywords }),
-      ...(options.author && { author: options.author }),
-      ...(options.themeColor && { themeColor: options.themeColor }),
-      ...(options.canonicalUrl && { canonicalURL: options.canonicalUrl }),
-      ...(options.thumbnail && { thumbnail: options.thumbnail }),
-      ...(options.locale && { locale: options.locale }),
-      ...(options.siteName && { siteName: options.siteName }),
-    };
-
-    // Build icons object
-    if (options.favicon || options.appleTouchIcon || options.manifest) {
-      options.icons = {
-        ...(options.favicon && { favicon: options.favicon }),
-        ...(options.appleTouchIcon && { appleTouchIcon: options.appleTouchIcon }),
-        ...(options.manifest && { manifest: options.manifest }),
-      };
-    }
-
-    return UnderpostStatic.API.callback(options);
-  });
+  .action(UnderpostStatic.API.callback);
 
 // 'config' command: Manage Underpost configurations
 program

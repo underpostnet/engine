@@ -1,5 +1,5 @@
 {
-  "page": "./examples/ssr-components/CustomPage.js",
+  "page": "./examples/static-page/ssr-components/CustomPage.js",
   "outputPath": "./public/default.net/example.html",
   "env": "production",
   "minify": true,

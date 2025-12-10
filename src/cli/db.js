@@ -717,9 +717,6 @@ class UnderpostDB {
      * @param {string} [options.podName='mongodb-0'] - Initial pod name to query replica set status
      * @returns {string|null} Primary pod name or null if not found
      * @memberof UnderpostDB
-     * @example
-     * const primaryPod = UnderpostDB.API.getMongoPrimaryPodName({ namespace: 'production' });
-     * console.log(primaryPod); // 'mongodb-1'
      */
     getMongoPrimaryPodName(options = { namespace: 'default', podName: 'mongodb-0' }) {
       const { namespace = 'default', podName = 'mongodb-0' } = options;

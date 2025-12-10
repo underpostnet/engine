@@ -2,55 +2,6 @@
  * Static site generation module with enhanced customization capabilities
  * @module src/cli/static.js
  * @namespace UnderpostStatic
- *
- * @example
- * // Basic usage - generate a simple page
- * import UnderpostStatic from './static.js';
- *
- * await UnderpostStatic.API.callback({
- *   page: './src/client/ssr/body/DefaultSplashScreen.js',
- *   title: 'My App',
- *   outputPath: './dist/index.html'
- * });
- *
- * @example
- * // Advanced usage - full customization
- * await UnderpostStatic.API.callback({
- *   page: './src/client/ssr/body/CustomPage.js',
- *   outputPath: './dist/custom.html',
- *   metadata: {
- *     title: 'My Custom Page',
- *     description: 'A fully customized static page',
- *     keywords: ['static', 'generator', 'custom'],
- *     author: 'John Doe',
- *     themeColor: '#007bff',
- *     canonicalURL: 'https://example.com/custom',
- *     thumbnail: 'https://example.com/thumb.png'
- *   },
- *   scripts: {
- *     head: [
- *       { src: '/vendor/library.js', async: true },
- *       { content: 'console.log("Inline script");', type: 'module' }
- *     ],
- *     body: [
- *       { src: '/app.js', defer: true }
- *     ]
- *   },
- *   styles: [
- *     { href: '/custom.css' },
- *     { content: 'body { margin: 0; }' }
- *   ],
- *   headComponents: [
- *     './src/client/ssr/head/Seo.js',
- *     './src/client/ssr/head/Pwa.js'
- *   ],
- *   icons: {
- *     favicon: '/custom-favicon.ico',
- *     appleTouchIcon: '/apple-touch-icon.png'
- *   },
- *   env: 'production',
- *   minify: true
- * });
  */
 
 import fs from 'fs-extra';
@@ -140,6 +91,31 @@ const logger = loggerFactory(import.meta);
  * @property {Object} [microdata=[]] - Structured data (JSON-LD)
  */
 
+const DefaultStaticGenerationOptions = {
+  page: '',
+  title: '',
+  outputPath: '',
+  deployId: '',
+  buildHost: '',
+  buildPath: '/',
+  env: 'production',
+  build: false,
+  dev: false,
+  minify: true,
+  metadata: {},
+  scripts: {},
+  styles: [],
+  headComponents: [],
+  bodyComponents: [],
+  icons: {},
+  customPayload: {},
+  templateHelpers: {},
+  configFile: '',
+  lang: 'en',
+  dir: 'ltr',
+  microdata: [],
+};
+
 /**
  * Template helper functions for common SSR patterns
  * @namespace TemplateHelpers
@@ -150,19 +126,6 @@ const TemplateHelpers = {
    * @param {ScriptOptions} options - Script options
    * @returns {string} HTML script tag
    * @memberof TemplateHelpers
-   *
-   * @example
-   * // External script with async
-   * TemplateHelpers.createScriptTag({ src: '/app.js', async: true })
-   * // Returns: <script async src="/app.js"></script>
-   *
-   * @example
-   * // Inline module script
-   * TemplateHelpers.createScriptTag({
-   *   content: 'console.log("Hello");',
-   *   type: 'module'
-   * })
-   * // Returns: <script type="module">console.log("Hello");</script>
    */
   createScriptTag(options) {
     const attrs = [];
@@ -194,16 +157,6 @@ const TemplateHelpers = {
    * @param {StyleOptions} options - Style options
    * @returns {string} HTML link or style tag
    * @memberof TemplateHelpers
-   *
-   * @example
-   * // External stylesheet
-   * TemplateHelpers.createStyleTag({ href: '/styles.css' })
-   * // Returns: <link rel="stylesheet" href="/styles.css" media="all">
-   *
-   * @example
-   * // Inline styles
-   * TemplateHelpers.createStyleTag({ content: 'body { margin: 0; }' })
-   * // Returns: <style>body { margin: 0; }</style>
    */
   createStyleTag(options) {
     if (options.content) {
@@ -224,13 +177,6 @@ const TemplateHelpers = {
    * @param {IconOptions} icons - Icon options
    * @returns {string} HTML icon link tags
    * @memberof TemplateHelpers
-   *
-   * @example
-   * TemplateHelpers.createIconTags({
-   *   favicon: '/favicon.ico',
-   *   appleTouchIcon: '/apple-touch-icon.png',
-   *   manifest: '/manifest.json'
-   * })
    */
   createIconTags(icons) {
     const tags = [];
@@ -261,13 +207,6 @@ const TemplateHelpers = {
    * @param {MetadataOptions} metadata - Metadata options
    * @returns {string} HTML meta tags
    * @memberof TemplateHelpers
-   *
-   * @example
-   * TemplateHelpers.createMetaTags({
-   *   description: 'My page description',
-   *   keywords: ['web', 'app'],
-   *   author: 'John Doe'
-   * })
    */
   createMetaTags(metadata) {
     const tags = [];
@@ -329,16 +268,6 @@ const TemplateHelpers = {
    * @param {Object[]} microdata - Array of structured data objects
    * @returns {string} HTML script tags with JSON-LD
    * @memberof TemplateHelpers
-   *
-   * @example
-   * TemplateHelpers.createMicrodataTags([
-   *   {
-   *     '@context': 'https://schema.org',
-   *     '@type': 'WebSite',
-   *     'name': 'My Site',
-   *     'url': 'https://example.com'
-   *   }
-   * ])
    */
   createMicrodataTags(microdata) {
     if (!microdata || !Array.isArray(microdata) || microdata.length === 0) {
@@ -410,19 +339,6 @@ const ConfigLoader = {
    * @param {string} configPath - Path to config file
    * @returns {Object} Configuration object
    * @memberof ConfigLoader
-   *
-   * @example
-   * // static-config.json
-   * {
-   *   "metadata": {
-   *     "title": "My App",
-   *     "description": "My application description"
-   *   },
-   *   "env": "production"
-   * }
-   *
-   * // Usage
-   * const config = ConfigLoader.load('./static-config.json');
    */
   load(configPath) {
     try {
@@ -466,90 +382,83 @@ class UnderpostStatic {
      * Generate static HTML file with enhanced customization options
      *
      * @param {StaticGenerationOptions} options - Options for static generation
+     * @param {string} [options.page] - Path to the SSR component to render
+     * @param {string} [options.title] - Page title (deprecated: use metadata.title)
+     * @param {string} [options.outputPath] - Output file path
+     * @param {string} [options.deployId] - Deployment identifier
+     * @param {string} [options.buildHost] - Build host URL
+     * @param {string} [options.buildPath='/'] - Build path
+     * @param {string} [options.env='production'] - Environment (development/production)
+     * @param {boolean} [options.build=false] - Whether to trigger build
+     * @param {boolean} [options.minify=true] - Minify HTML output
+     * @param {MetadataOptions} [options.metadata={}] - Comprehensive metadata options
+     * @param {Object} [options.scripts={}] - Script injection options
+     * @param {ScriptOptions[]} [options.scripts.head=[]] - Scripts for
+     * head section
+     * @param {ScriptOptions[]} [options.scripts.body=[]] - Scripts for body section
+     * @param {StyleOptions[]} [options.styles=[]] - Stylesheet options
+     * @param {string[]} [options.headComponents=[]] - Array of SSR head component paths
+     * @param {string[]} [options.bodyComponents=[]] - Array of SSR body component paths
+     * @param {IconOptions} [options.icons={}] - Icon configuration
+     * @param {Object} [options.customPayload={}] - Custom data to inject into renderPayload
+     * @param {string} [options.configFile=''] - Path to JSON config file
+     * @param {string} [options.lang='en'] - HTML lang attribute
+     * @param {string} [options.dir='ltr'] - HTML dir attribute
+     * @param {Object} [options.microdata=[]] - Structured data (JSON-LD)
      * @returns {Promise<void>}
      * @memberof UnderpostStatic
-     *
-     * @example
-     * // Minimal usage
-     * await UnderpostStatic.API.callback({
-     *   page: './src/client/ssr/body/DefaultSplashScreen.js',
-     *   outputPath: './dist/index.html'
-     * });
-     *
-     * @example
-     * // Full customization with metadata and scripts
-     * await UnderpostStatic.API.callback({
-     *   page: './src/client/ssr/body/CustomPage.js',
-     *   outputPath: './dist/page.html',
-     *   metadata: {
-     *     title: 'My Custom Page',
-     *     description: 'A fully customized page',
-     *     keywords: ['custom', 'static', 'page'],
-     *     author: 'Jane Developer',
-     *     themeColor: '#4CAF50',
-     *     canonicalURL: 'https://example.com/page',
-     *     thumbnail: 'https://example.com/images/thumbnail.png',
-     *     locale: 'en-US',
-     *     siteName: 'My Website'
-     *   },
-     *   scripts: {
-     *     head: [
-     *       { src: 'https://cdn.example.com/analytics.js', async: true },
-     *       { content: 'window.config = { apiUrl: "https://api.example.com" };' }
-     *     ],
-     *     body: [
-     *       { src: '/app.js', type: 'module', defer: true }
-     *     ]
-     *   },
-     *   styles: [
-     *     { href: '/main.css' },
-     *     { content: 'body { font-family: sans-serif; }' }
-     *   ],
-     *   icons: {
-     *     favicon: '/favicon.ico',
-     *     appleTouchIcon: '/apple-touch-icon.png',
-     *     manifest: '/manifest.json'
-     *   },
-     *   headComponents: [
-     *     './src/client/ssr/head/Seo.js',
-     *     './src/client/ssr/head/Pwa.js'
-     *   ],
-     *   microdata: [
-     *     {
-     *       '@context': 'https://schema.org',
-     *       '@type': 'WebPage',
-     *       'name': 'My Custom Page',
-     *       'url': 'https://example.com/page'
-     *     }
-     *   ],
-     *   customPayload: {
-     *     apiEndpoint: 'https://api.example.com',
-     *     features: ['feature1', 'feature2']
-     *   },
-     *   env: 'production',
-     *   minify: true
-     * });
-     *
-     * @example
-     * // Using a config file
-     * await UnderpostStatic.API.callback({
-     *   configFile: './static-config.json',
-     *   outputPath: './dist/index.html'
-     * });
-     *
-     * @example
-     * // Generate with build trigger
-     * await UnderpostStatic.API.callback({
-     *   page: './src/client/ssr/body/DefaultSplashScreen.js',
-     *   outputPath: './public/index.html',
-     *   deployId: 'production-v1',
-     *   buildHost: 'example.com',
-     *   buildPath: '/',
-     *   build: true,
-     *   env: 'production'
-     * });
      */
-    async callback(options = {}) {
+    async callback(options = DefaultStaticGenerationOptions) {
+      // Handle config template generation
+      if (options.generateConfig) {
+        const configPath = typeof options.generateConfig === 'string' ? options.generateConfig : './static-config.json';
+        return UnderpostStatic.API.generateConfigTemplate(configPath);
+      }
+
+      // Parse comma-separated options
+      if (options.keywords) {
+        options.keywords = options.keywords.split(',').map((k) => k.trim());
+      }
+      if (options.headScripts) {
+        options.scripts = options.scripts || {};
+        options.scripts.head = options.headScripts.split(',').map((s) => ({ src: s.trim() }));
+      }
+      if (options.bodyScripts) {
+        options.scripts = options.scripts || {};
+        options.scripts.body = options.bodyScripts.split(',').map((s) => ({ src: s.trim() }));
+      }
+      if (options.styles) {
+        options.styles = options.styles.split(',').map((s) => ({ href: s.trim() }));
+      }
+      if (options.headComponents) {
+        options.headComponents = options.headComponents.split(',').map((c) => c.trim());
+      }
+      if (options.bodyComponents) {
+        options.bodyComponents = options.bodyComponents.split(',').map((c) => c.trim());
+      }
+
+      // Build metadata object from individual options
+      options.metadata = {
+        ...(options.title && { title: options.title }),
+        ...(options.description && { description: options.description }),
+        ...(options.keywords && { keywords: options.keywords }),
+        ...(options.author && { author: options.author }),
+        ...(options.themeColor && { themeColor: options.themeColor }),
+        ...(options.canonicalUrl && { canonicalURL: options.canonicalUrl }),
+        ...(options.thumbnail && { thumbnail: options.thumbnail }),
+        ...(options.locale && { locale: options.locale }),
+        ...(options.siteName && { siteName: options.siteName }),
+      };
+
+      // Build icons object
+      if (options.favicon || options.appleTouchIcon || options.manifest) {
+        options.icons = {
+          ...(options.favicon && { favicon: options.favicon }),
+          ...(options.appleTouchIcon && { appleTouchIcon: options.appleTouchIcon }),
+          ...(options.manifest && { manifest: options.manifest }),
+        };
+      }
+
       // Load config from file if specified
       if (options.configFile) {
         const fileConfig = ConfigLoader.load(options.configFile);
@@ -717,10 +626,6 @@ class UnderpostStatic {
      * @param {string} outputPath - Where to save the template config
      * @returns {void}
      * @memberof UnderpostStatic
-     *
-     * @example
-     * // Generate a template configuration file
-     * UnderpostStatic.API.generateConfigTemplate('./my-static-config.json');
      */
     generateConfigTemplate(outputPath = './static-config.json') {
       const template = {

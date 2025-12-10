@@ -68,7 +68,7 @@ underpost static \
 
 ```bash
 underpost static \
-  --page ./examples/ssr-components/CustomPage.js \
+  --page ./examples/static-page/ssr-components/CustomPage.js \
   --output-path ./dist/landing.html \
   --title "Welcome to My App" \
   --description "The best app for your needs" \
