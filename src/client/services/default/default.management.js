@@ -465,6 +465,13 @@ const DefaultManagement = {
               const selectedRows = AgGrid.grids[gridId].getSelectedRows();
               logger.info('selectedRows', selectedRows);
             },
+            onRowEditingStarted: async (...args) => {
+              // Show only save button when editing starts
+              s(`.management-table-btn-save-${id}`).classList.remove('hide');
+              if (permissions.add) s(`.management-table-btn-add-${id}`).classList.add('hide');
+              if (permissions.remove) s(`.management-table-btn-clean-${id}`).classList.add('hide');
+              if (permissions.reload) s(`.management-table-btn-reload-${id}`).classList.add('hide');
+            },
             onRowValueChanged: async (...args) => {
               const [event] = args;
               logger.info('onRowValueChanged', args);
