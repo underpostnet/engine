@@ -365,8 +365,6 @@ program
     '--pod-name <pod-name>',
     'Comma-separated list of pod names or patterns (supports wildcards like "mariadb-*").',
   )
-  .option('--node-name <node-name>', 'Comma-separated list of node names to filter pods by their node placement.')
-  .option('--label-selector <selector>', 'Kubernetes label selector for filtering pods (e.g., "app=mariadb").')
   .option('--all-pods', 'Target all matching pods instead of just the first one.')
   .option('--primary-pod', 'Automatically detect and use MongoDB primary pod (MongoDB only).')
   .option('--stats', 'Display database statistics (collection/table names with document/row counts).')

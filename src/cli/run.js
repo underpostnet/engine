@@ -446,7 +446,7 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     clean: (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
-      Underpost.repo.clean({ paths: path ? path.split(',') : ['/home/dd/engine', '/home/dd/engine-private'] });
+      Underpost.repo.clean({ paths: path ? path.split(',') : ['/home/dd/engine', '/home/dd/engine/engine-private'] });
     },
     /**
      * @method pull

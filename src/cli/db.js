@@ -31,7 +31,6 @@ const MAX_BACKUP_RETENTION = 5;
  * @property {boolean} [import=false] - Flag to import data from a backup
  * @property {boolean} [export=false] - Flag to export data to a backup
  * @property {string} [podName=''] - Comma-separated list of pod names or patterns
- * @property {string} [nodeName=''] - Comma-separated list of node names for pod filtering
  * @property {string} [ns='default'] - Kubernetes namespace
  * @property {string} [collections=''] - Comma-separated list of collections to include
  * @property {string} [outPath=''] - Output path for backup files
@@ -40,7 +39,6 @@ const MAX_BACKUP_RETENTION = 5;
  * @property {boolean} [git=false] - Flag to enable Git integration
  * @property {string} [hosts=''] - Comma-separated list of hosts to include
  * @property {string} [paths=''] - Comma-separated list of paths to include
- * @property {string} [labelSelector=''] - Kubernetes label selector for pods
  * @property {boolean} [allPods=false] - Flag to target all matching pods
  * @property {boolean} [primaryPod=false] - Flag to automatically detect and use MongoDB primary pod
  * @property {boolean} [stats=false] - Flag to display collection/table statistics
@@ -107,14 +105,12 @@ class UnderpostDB {
      * @private
      * @param {Object} criteria - Filter criteria
      * @param {string} [criteria.podNames] - Comma-separated pod name patterns
-     * @param {string} [criteria.nodeNames] - Comma-separated node names
      * @param {string} [criteria.namespace='default'] - Kubernetes namespace
-     * @param {string} [criteria.labelSelector] - Label selector
      * @param {string} [criteria.deployId] - Deployment ID pattern
      * @returns {Array<PodInfo>} Filtered pod list
      */
     _getFilteredPods(criteria = {}) {
-      const { podNames, nodeNames, namespace = 'default', labelSelector, deployId } = criteria;
+      const { podNames, namespace = 'default', deployId } = criteria;
 
       try {
         // Get all pods using UnderpostDeploy.API.get
@@ -130,25 +126,6 @@ class UnderpostDB {
               return regex.test(pod.NAME);
             });
           });
-        }
-
-        // Filter by node names if specified (only if NODE is not '<none>')
-        if (nodeNames) {
-          const nodes = nodeNames.split(',').map((n) => n.trim());
-          pods = pods.filter((pod) => {
-            // Skip filtering if NODE is '<none>' or undefined
-            if (!pod.NODE || pod.NODE === '<none>') {
-              return true;
-            }
-            return nodes.includes(pod.NODE);
-          });
-        }
-
-        // Filter by label selector if specified
-        if (labelSelector) {
-          // Note: UnderpostDeploy.API.get doesn't support label selectors directly
-          // This would require a separate kubectl command
-          logger.warn('Label selector filtering requires additional implementation');
         }
 
         logger.info(`Found ${pods.length} pod(s) matching criteria`, { criteria, podNames: pods.map((p) => p.NAME) });
@@ -762,7 +739,6 @@ class UnderpostDB {
      * @param {boolean} [options.import=false] - Whether to perform import operation
      * @param {boolean} [options.export=false] - Whether to perform export operation
      * @param {string} [options.podName=''] - Comma-separated pod name patterns to target
-     * @param {string} [options.nodeName=''] - Comma-separated node names to target
      * @param {string} [options.ns='default'] - Kubernetes namespace
      * @param {string} [options.collections=''] - Comma-separated MongoDB collections for export
      * @param {string} [options.outPath=''] - Output path for backups
@@ -771,7 +747,6 @@ class UnderpostDB {
      * @param {boolean} [options.git=false] - Whether to use Git for backup versioning
      * @param {string} [options.hosts=''] - Comma-separated list of hosts to filter databases
      * @param {string} [options.paths=''] - Comma-separated list of paths to filter databases
-     * @param {string} [options.labelSelector=''] - Label selector for pod filtering
      * @param {boolean} [options.allPods=false] - Whether to target all pods in deployment
      * @param {boolean} [options.primaryPod=false] - Whether to target MongoDB primary pod only
      * @param {boolean} [options.stats=false] - Whether to display database statistics
@@ -785,7 +760,6 @@ class UnderpostDB {
         import: false,
         export: false,
         podName: '',
-        nodeName: '',
         ns: 'default',
         collections: '',
         outPath: '',
@@ -794,7 +768,6 @@ class UnderpostDB {
         git: false,
         hosts: '',
         paths: '',
-        labelSelector: '',
         allPods: false,
         primaryPod: false,
         stats: false,
@@ -820,6 +793,11 @@ class UnderpostDB {
         export: options.export,
       });
 
+      // Track processed repositories to avoid duplicate Git operations
+      const processedRepos = new Set();
+      // Track processed host+path combinations to avoid duplicates
+      const processedHostPaths = new Set();
+
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
         if (!deployId) continue;
@@ -828,7 +806,7 @@ class UnderpostDB {
 
         /** @type {Object.<string, Object.<string, DatabaseConfig>>} */
         const dbs = {};
-        const repoName = `engine-${deployId.split('dd-')[1]}-cron-backups`;
+        const repoName = `engine-${deployId.includes('dd-') ? deployId.split('dd-')[1] : deployId}-cron-backups`;
 
         // Load server configuration
         const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
@@ -860,37 +838,57 @@ class UnderpostDB {
           }
         }
 
-        // Handle Git operations
-        if (options.git === true) {
-          UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
-          UnderpostDB.API._manageGitRepo({ repoName, operation: 'pull' });
-        }
-
-        if (options.macroRollbackExport) {
-          UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
-          UnderpostDB.API._manageGitRepo({ repoName, operation: 'pull' });
-
-          const nCommits = parseInt(options.macroRollbackExport);
-          const repoPath = `../${repoName}`;
-          const username = process.env.GITHUB_USERNAME;
-
-          if (fs.existsSync(repoPath) && username) {
-            logger.info('Executing macro rollback export', { repoName, nCommits });
-            shellExec(`cd ${repoPath} && underpost cmt . reset ${nCommits}`);
-            shellExec(`cd ${repoPath} && git reset`);
-            shellExec(`cd ${repoPath} && git checkout .`);
-            shellExec(`cd ${repoPath} && git clean -f -d`);
-            shellExec(`cd ${repoPath} && underpost push . ${username}/${repoName} -f`);
-          } else {
-            if (!username) logger.error('GITHUB_USERNAME environment variable not set');
-            logger.warn('Repository not found for macro rollback', { repoPath });
+        // Handle Git operations - execute only once per repository
+        if (!processedRepos.has(repoName)) {
+          logger.info('Processing Git operations for repository', { repoName, deployId });
+          if (options.git === true) {
+            UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
+            UnderpostDB.API._manageGitRepo({ repoName, operation: 'pull' });
           }
+
+          if (options.macroRollbackExport) {
+            // Only clone if not already done by git option above
+            if (options.git !== true) {
+              UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
+              UnderpostDB.API._manageGitRepo({ repoName, operation: 'pull' });
+            }
+
+            const nCommits = parseInt(options.macroRollbackExport);
+            const repoPath = `../${repoName}`;
+            const username = process.env.GITHUB_USERNAME;
+
+            if (fs.existsSync(repoPath) && username) {
+              logger.info('Executing macro rollback export', { repoName, nCommits });
+              shellExec(`cd ${repoPath} && underpost cmt . reset ${nCommits}`);
+              shellExec(`cd ${repoPath} && git reset`);
+              shellExec(`cd ${repoPath} && git checkout .`);
+              shellExec(`cd ${repoPath} && git clean -f -d`);
+              shellExec(`cd ${repoPath} && underpost push . ${username}/${repoName} -f`);
+            } else {
+              if (!username) logger.error('GITHUB_USERNAME environment variable not set');
+              logger.warn('Repository not found for macro rollback', { repoPath });
+            }
+          }
+
+          processedRepos.add(repoName);
+          logger.info('Repository marked as processed', { repoName });
+        } else {
+          logger.info('Skipping Git operations for already processed repository', { repoName, deployId });
         }
 
         // Process each database provider
         for (const provider of Object.keys(dbs)) {
           for (const dbName of Object.keys(dbs[provider])) {
             const { hostFolder, user, password, host, path } = dbs[provider][dbName];
+
+            // Create unique identifier for host+path combination
+            const hostPathKey = `${deployId}:${host}:${path}`;
+
+            // Skip if this host+path combination was already processed
+            if (processedHostPaths.has(hostPathKey)) {
+              logger.info('Skipping already processed host/path', { dbName, host, path, deployId });
+              continue;
+            }
 
             // Filter by hosts and paths if specified
             if (
@@ -914,7 +912,7 @@ class UnderpostDB {
               continue;
             }
 
-            logger.info('Processing database', { hostFolder, provider, dbName });
+            logger.info('Processing database', { hostFolder, provider, dbName, deployId });
 
             const backUpPath = `../${repoName}/${hostFolder}`;
             const backupInfo = UnderpostDB.API._manageBackupTimestamps(
@@ -946,16 +944,14 @@ class UnderpostDB {
             let targetPods = [];
             const podCriteria = {
               podNames: options.podName,
-              nodeNames: options.nodeName,
               namespace,
-              labelSelector: options.labelSelector,
               deployId: provider === 'mariadb' ? 'mariadb' : 'mongo',
             };
 
             targetPods = UnderpostDB.API._getFilteredPods(podCriteria);
 
             // Fallback to default if no custom pods specified
-            if (targetPods.length === 0 && !options.podName && !options.nodeName) {
+            if (targetPods.length === 0 && !options.podName) {
               const defaultPods = UnderpostDeploy.API.get(
                 provider === 'mariadb' ? 'mariadb' : 'mongo',
                 'pods',
@@ -1091,16 +1087,20 @@ class UnderpostDB {
                   break;
               }
             }
+
+            // Mark this host+path combination as processed
+            processedHostPaths.add(hostPathKey);
           }
         }
 
-        // Commit and push to Git if enabled
-        if (options.export === true && options.git === true) {
+        // Commit and push to Git if enabled - execute only once per repository
+        if (options.export === true && options.git === true && !processedRepos.has(`${repoName}-committed`)) {
           const commitMessage = `${new Date(newBackupTimestamp).toLocaleDateString()} ${new Date(
             newBackupTimestamp,
           ).toLocaleTimeString()}`;
           UnderpostDB.API._manageGitRepo({ repoName, operation: 'commit', message: commitMessage });
           UnderpostDB.API._manageGitRepo({ repoName, operation: 'push' });
+          processedRepos.add(`${repoName}-committed`);
         }
       }
 
