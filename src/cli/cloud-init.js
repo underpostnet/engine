@@ -159,12 +159,18 @@ echo "sudo cloud-init modules --mode=final"`,
           logger.info('Build', `${nfsHostToolsPath}/test.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/test.sh`,
-            `echo -e "\n=== Current date/time ==="
+            `echo -e "\necho -e "\n=== Registered users ==="
+cut -d: -f1 /etc/passwd
+=== Current date/time ==="
 date '+%Y-%m-%d %H:%M:%S'
+echo -e "\n=== Timezone Configuration ==="
+timedatectl status
+echo -e "\n=== Chrony Synchronization Status ==="
+chronyc tracking
+echo -e "\n=== Chrony Sources ==="
+chronyc sources
 echo -e "\n=== Keyboard layout ==="
-cat /etc/default/keyboard
-echo -e "\n=== Registered users ==="
-cut -d: -f1 /etc/passwd`,
+cat /etc/default/keyboard`,
             'utf8',
           );
 

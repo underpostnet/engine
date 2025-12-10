@@ -1045,6 +1045,8 @@ SOURCES`,
           `export DEBIAN_FRONTEND=noninteractive`, // Set non-interactive mode for Debian packages.
           `ln -fs /usr/share/zoneinfo/${timezone} /etc/localtime`, // Symlink timezone.
           `sudo dpkg-reconfigure --frontend noninteractive tzdata`, // Reconfigure timezone data.
+          `sudo timedatectl set-timezone ${timezone}`, // Set timezone using timedatectl.
+          `sudo timedatectl set-ntp true`, // Enable NTP synchronization.
 
           // Write the Chrony configuration file.
           `echo '
@@ -1093,6 +1095,11 @@ logdir /var/log/chrony
           // Enable, restart, and check status of Chrony service.
           `sudo systemctl enable --now ${alias}`,
           `sudo systemctl restart ${alias}`,
+
+          // Wait for chrony to synchronize
+          `echo "Waiting for chrony to synchronize..."`,
+          `for i in {1..30}; do chronyc tracking | grep -q "Leap status     : Normal" && break || sleep 2; done`,
+
           `sudo systemctl status ${alias}`,
 
           // Verify Chrony synchronization.
