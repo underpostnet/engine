@@ -748,30 +748,6 @@ const config = ConfigLoader.load('./config.json');
 ConfigLoader.save('./config.json', configObject);
 ```
 
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue: Component not found**
-```
-Error: Page component does not exist: ./src/client/ssr/body/Missing.js
-```
-**Solution:** Verify the path to your SSR component file.
-
-**Issue: Output directory doesn't exist**
-```
-Error: Output directory does not exist: ./dist/pages
-```
-**Solution:** Create the directory first or use a different output path.
-
-**Issue: Invalid JSON in config file**
-```
-Error: Error loading config file: Unexpected token
-```
-**Solution:** Validate your JSON syntax using a linter.
-
 ### Debug Mode
 
 Use `--dev` flag for development mode with additional logging:
@@ -779,29 +755,3 @@ Use `--dev` flag for development mode with additional logging:
 ```bash
 underpost static --config-file ./config.json --dev
 ```
-
----
-
-## Examples Repository
-
-See the `examples/` directory for complete working examples:
-
-- `static-config-example.json` - Comprehensive configuration example
-- Additional examples coming soon
-
----
-
-## Contributing
-
-To contribute improvements to the static generator:
-
-1. Add new features to `src/cli/static.js`
-2. Update this documentation
-3. Add examples to the `examples/` directory
-4. Include JSDoc comments for all new functions
-
----
-
-## License
-
-This is part of the Underpost framework. See main project license.

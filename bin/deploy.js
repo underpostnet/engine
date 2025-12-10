@@ -1034,15 +1034,15 @@ nvidia/gpu-operator \
     case 'update-static-guide': {
       fs.writeFileSync(
         `src/client/public/nexodev/docs/references/Static Site Generator Quick Reference.md`,
-        fs.readFileSync(`examples/QUICK-REFERENCE.md`, 'utf8'),
+        fs.readFileSync(`examples/static-page/QUICK-REFERENCE.md`, 'utf8'),
       );
       fs.writeFileSync(
         `src/client/public/nexodev/docs/references/Static Site Generator Examples.md`,
-        fs.readFileSync(`examples/README.md`, 'utf8'),
+        fs.readFileSync(`examples/static-page/README.md`, 'utf8'),
       );
       fs.writeFileSync(
         `src/client/public/nexodev/docs/references/Static Generator Guide.md`,
-        fs.readFileSync(`examples/STATIC-GENERATOR-GUIDE.md`, 'utf8'),
+        fs.readFileSync(`examples/static-page/STATIC-GENERATOR-GUIDE.md`, 'utf8'),
       );
       break;
     }

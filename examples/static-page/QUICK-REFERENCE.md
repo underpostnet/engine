@@ -479,21 +479,3 @@ underpost static --config-file ./config.json
   ]
 }
 ```
-
-## Documentation Links
-
-- [Complete Guide](./STATIC-GENERATOR-GUIDE.md)
-- [Example Config](./static-config-example.json)
-- [Custom Component Example](./ssr-components/CustomPage.js)
-- [Examples README](./README.md)
-
-## Tips
-
-✅ Use config files for complex setups
-✅ Minify in production
-✅ Use async/defer for scripts
-✅ Include structured data for SEO
-✅ Test on multiple devices
-✅ Validate your JSON configs
-✅ Use semantic HTML in components
-✅ Include accessibility attributes

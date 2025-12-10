@@ -5,19 +5,6 @@
  * @description
  * This is an example SSR component demonstrating best practices for creating
  * custom static pages with the Underpost Static Site Generator.
- *
- * @example
- * // Usage with static generator
- * underpost static \
- *   --page ./examples/ssr-components/CustomPage.js \
- *   --output-path ./dist/custom.html
- *
- * @example
- * // Usage in configuration file
- * {
- *   "page": "./examples/ssr-components/CustomPage.js",
- *   "outputPath": "./dist/custom.html"
- * }
  */
 
 /**

@@ -10,7 +10,7 @@ This directory contains comprehensive examples and documentation for the Underpo
 
 ### Configuration Examples
 
-- **[static-config-example.json](./static-config-example.json)** - Fully documented configuration file template with all available options
+- **[static-config-example.json](./static-page/static-config-example.json)** - Fully documented configuration file template with all available options
 
 ### SSR Component Examples
 
@@ -83,7 +83,7 @@ Use the provided `static-config-example.json`:
 
 ```bash
 # Copy the example
-cp ./examples/static-config-example.json ./my-config.json
+cp ./examples/static-page/static-config-example.json ./my-config.json
 
 # Edit with your settings
 nano ./my-config.json
@@ -404,44 +404,3 @@ for (const page of pages) {
   });
 }
 ```
-
-## Troubleshooting
-
-### Component Not Found
-
-**Error:** `Page component does not exist`
-
-**Solution:** Verify the path is correct and the file exists
-
-### Invalid JSON
-
-**Error:** `Error loading config file: Unexpected token`
-
-**Solution:** Validate your JSON using a linter or online validator
-
-### Missing Metadata
-
-**Warning:** No metadata generated
-
-**Solution:** Ensure metadata object is properly configured in your config
-
-## Getting Help
-
-- Read the [Complete Guide](./STATIC-GENERATOR-GUIDE.md)
-- Check the [example config](./static-config-example.json)
-- Review the [custom page example](./ssr-components/CustomPage.js)
-- Check the main project documentation
-
-## Contributing
-
-To add new examples:
-
-1. Create your example file
-2. Add comprehensive comments
-3. Update this README
-4. Test your example thoroughly
-5. Submit a pull request
-
-## License
-
-Part of the Underpost framework. See main project license.
