@@ -471,14 +471,6 @@ try {
       break;
     }
 
-    case 'private': {
-      shellExec(`node bin/deploy sync-deploy-envs`);
-      shellExec(`node bin/build dd conf`);
-      shellExec(`cd ./engine-private && git add . && node ../bin cmt . build`);
-      shellExec(`cd ./engine-private && node ../bin push . ${process.env.GITHUB_USERNAME}/engine-private`);
-      break;
-    }
-
     case 'version-deploy': {
       dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
       shellExec(
