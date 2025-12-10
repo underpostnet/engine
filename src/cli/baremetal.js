@@ -40,6 +40,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.controlServerUninstall=false] - Flag to uninstall the control server.
      * @param {boolean} [options.controlServerDbInstall=false] - Flag to install the control server's database.
      * @param {boolean} [options.controlServerDbUninstall=false] - Flag to uninstall the control server's database.
+     * @param {boolean} [options.cloudInitUpdate=false] - Flag to update cloud-init configuration on the baremetal machine.
      * @param {boolean} [options.commission=false] - Flag to commission the baremetal machine.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
      * @param {boolean} [options.nfsMount=false] - Flag to mount the NFS root filesystem.
