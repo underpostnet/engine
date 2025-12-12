@@ -181,6 +181,7 @@ program
   .argument('[key]', 'Optional: The specific configuration key to manage.')
   .argument('[value]', 'Optional: The value to set for the configuration key.')
   .option('--plain', 'Prints the configuration value in plain text.')
+  .option('--filter <keyword>', 'Filters the list by matching key or value (only for list operation).')
   .description(`Manages Underpost configurations using various operators.`)
   .action((...args) => Underpost.env[args[0]](args[1], args[2], args[3]));
 
