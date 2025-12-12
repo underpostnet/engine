@@ -25,10 +25,10 @@ packer version
 cd /home/dd/engine
 
 # Option 1: Build and Upload (recommended)
-node bin baremetal --dev --packer-maas-image-build Rocky9Amd64
+node bin baremetal --dev --packer-workflow-id Rocky9Amd64 --packer-maas-image-build
 
 # Option 2: Upload Only (skip rebuild, use existing artifact)
-node bin baremetal --dev --packer-maas-image-upload Rocky9Amd64
+node bin baremetal --dev --packer-workflow-id Rocky9Amd64 --packer-maas-image-upload
 
 # Option 3: Manual build
 cd packer/images/Rocky9Amd64
@@ -54,7 +54,7 @@ After successful build, upload happens automatically. To re-upload:
 
 ```bash
 # Option 1: Use the CLI (recommended, includes MAAS profile auto-detection)
-node bin baremetal --dev --packer-maas-image-upload Rocky9Amd64
+node bin baremetal --dev --packer-workflow-id Rocky9Amd64 --packer-maas-image-upload
 
 # Option 2: Use the upload script directly
 ./scripts/maas-upload-boot-resource.sh maas \

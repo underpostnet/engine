@@ -1,0 +1,13 @@
+{
+  "Rocky9Amd64": {
+    "dir": "packer/images/Rocky9Amd64",
+    "maas": {
+      "name": "custom/rocky9",
+      "title": "Rocky 9 Custom",
+      "architecture": "amd64/generic",
+      "base_image": "rhel/9",
+      "filetype": "tgz",
+      "content": "rocky9.tar.gz"
+    }
+  }
+}

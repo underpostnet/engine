@@ -615,8 +615,15 @@ program
     '--packer-maas-image-template <template-path>',
     'Creates a new image folder from canonical/packer-maas template path (requires workflow-id).',
   )
-  .option('--packer-maas-image-build <workflow-id>', 'Builds a MAAS image using Packer for the specified workflow ID.')
-  .option('--packer-maas-image-upload <workflow-id>', 'Uploads an existing MAAS image artifact without rebuilding.')
+  .option('--packer-workflow-id <workflow-id>', 'Specifies the workflow ID for Packer MAAS image operations.')
+  .option(
+    '--packer-maas-image-build',
+    'Builds a MAAS image using Packer for the workflow specified by --packer-workflow-id.',
+  )
+  .option(
+    '--packer-maas-image-upload',
+    'Uploads an existing MAAS image artifact without rebuilding for the workflow specified by --packer-workflow-id.',
+  )
   .option('--commission', 'Init workflow for commissioning a physical machine.')
   .option('--nfs-build', 'Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.')
   .option('--nfs-mount', 'Mounts the NFS root filesystem for a workflow id config architecture.')

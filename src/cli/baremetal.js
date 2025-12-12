@@ -4,12 +4,14 @@
  * @namespace UnderpostBaremetal
  */
 
+import { fileURLToPath } from 'url';
 import { getNpmRootPath, getUnderpostRootPath } from '../server/conf.js';
 import { openTerminal, pbcopy, shellExec } from '../server/process.js';
 import dotenv from 'dotenv';
 import { loggerFactory } from '../server/logger.js';
 import { getLocalIPv4Address } from '../server/dns.js';
 import fs from 'fs-extra';
+import path from 'path';
 import Downloader from '../server/downloader.js';
 import UnderpostCloudInit from './cloud-init.js';
 import UnderpostRepository from './repository.js';
@@ -57,8 +59,9 @@ class UnderpostBaremetal {
      * @param {boolean} [options.controlServerDbUninstall=false] - Flag to uninstall the control server's database.
      * @param {boolean} [options.installPacker=false] - Flag to install Packer CLI.
      * @param {string} [options.packerMaasImageTemplate] - Template path from canonical/packer-maas to extract (requires workflow-id).
-     * @param {string} [options.packerMaasImageBuild] - Workflow ID to build a Packer MAAS image.
-     * @param {string} [options.packerMaasImageUpload] - Workflow ID to upload a Packer MAAS image.
+     * @param {string} [options.packerWorkflowId] - Workflow ID for Packer MAAS image operations (used with --packer-maas-image-build or --packer-maas-image-upload).
+     * @param {boolean} [options.packerMaasImageBuild=false] - Flag to build a Packer MAAS image for the workflow specified by packerWorkflowId.
+     * @param {boolean} [options.packerMaasImageUpload=false] - Flag to upload a Packer MAAS image artifact without rebuilding for the workflow specified by packerWorkflowId.
      * @param {boolean} [options.cloudInitUpdate=false] - Flag to update cloud-init configuration on the baremetal machine.
      * @param {boolean} [options.commission=false] - Flag to commission the baremetal machine.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
@@ -81,6 +84,7 @@ class UnderpostBaremetal {
         controlServerDbUninstall: false,
         installPacker: false,
         packerMaasImageTemplate: false,
+        packerWorkflowId: '',
         packerMaasImageBuild: false,
         packerMaasImageUpload: false,
         cloudInitUpdate: false,
@@ -173,12 +177,15 @@ class UnderpostBaremetal {
             },
           };
 
+          const workflows = UnderpostBaremetal.API.loadPackerMaasImageBuildWorkflows();
+          workflows[workflowId] = workflowConfig;
+          UnderpostBaremetal.API.writePackerMaasImageBuildWorkflows(workflows);
+
           logger.info('\nTemplate extracted successfully!');
-          logger.info('\nAdd the following configuration to packerMaasImageBuildWorkflows in baremetal.js:');
-          logger.info(JSON.stringify({ [workflowId]: workflowConfig }, null, 2));
+          logger.info(`\nAdded configuration for ${workflowId} to engine/baremetal/packer-workflows.json`);
           logger.info('\nNext steps:');
           logger.info(`1. Review and customize the Packer template files in: ${targetDir}`);
-          logger.info(`2. Add the workflow configuration shown above to packerMaasImageBuildWorkflows`);
+          logger.info(`2. Review the workflow configuration in engine/baremetal/packer-workflows.json`);
           logger.info(
             `3. Build the image with: underpost baremetal ${workflowId} --packer-maas-image-build ${workflowId}`,
           );
@@ -190,14 +197,14 @@ class UnderpostBaremetal {
       }
 
       if (options.packerMaasImageBuild || options.packerMaasImageUpload) {
-        // Determine workflow ID
-        if (typeof options.packerMaasImageBuild === 'string') {
-          workflowId = options.packerMaasImageBuild;
-        } else if (typeof options.packerMaasImageUpload === 'string') {
-          workflowId = options.packerMaasImageUpload;
+        // Use the workflow ID from --packer-workflow-id option
+        if (!options.packerWorkflowId) {
+          throw new Error('Workflow ID is required. Please specify using --packer-workflow-id <workflow-id>');
         }
 
-        const workflow = UnderpostBaremetal.API.packerMaasImageBuildWorkflows[workflowId];
+        workflowId = options.packerWorkflowId;
+
+        const workflow = UnderpostBaremetal.API.loadPackerMaasImageBuildWorkflows()[workflowId];
         if (!workflow) {
           throw new Error(`Packer MAAS image build workflow not found: ${workflowId}`);
         }
@@ -309,7 +316,11 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle NFS shell access option.
       if (options.nfsSh === true) {
-        const { debootstrap } = UnderpostBaremetal.API.workflowsConfig[workflowId];
+        const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
+        if (!workflowsConfig[workflowId]) {
+          throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
+        }
+        const { debootstrap } = workflowsConfig[workflowId];
         // Copy the chroot command to the clipboard for easy execution.
         if (debootstrap.image.architecture !== callbackMetaData.runnerHost.architecture)
           switch (debootstrap.image.architecture) {
@@ -374,9 +385,14 @@ rm -rf ${artifacts.join(' ')}`);
         return;
       }
 
+      const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
+      if (!workflowsConfig[workflowId]) {
+        throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
+      }
+
       // Set debootstrap architecture.
       {
-        const { architecture } = UnderpostBaremetal.API.workflowsConfig[workflowId].debootstrap.image;
+        const { architecture } = workflowsConfig[workflowId].debootstrap.image;
         debootstrapArch = architecture;
       }
 
@@ -406,7 +422,7 @@ rm -rf ${artifacts.join(' ')}`);
 
         // Perform the first stage of debootstrap.
         {
-          const { architecture, name } = UnderpostBaremetal.API.workflowsConfig[workflowId].debootstrap.image;
+          const { architecture, name } = workflowsConfig[workflowId].debootstrap.image;
           shellExec(
             [
               `sudo debootstrap`,
@@ -451,7 +467,7 @@ rm -rf ${artifacts.join(' ')}`);
 
         // Apply system provisioning steps (base, user, timezone, keyboard).
         {
-          const { systemProvisioning, kernelLibVersion, chronyc } = UnderpostBaremetal.API.workflowsConfig[workflowId];
+          const { systemProvisioning, kernelLibVersion, chronyc } = workflowsConfig[workflowId];
           const { timezone, chronyConfPath } = chronyc;
 
           UnderpostBaremetal.API.crossArchRunner({
@@ -505,8 +521,7 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle commissioning tasks (placeholder for future implementation).
       if (options.commission === true) {
-        const { firmwares, networkInterfaceName, maas, netmask, menuentryStr } =
-          UnderpostBaremetal.API.workflowsConfig[workflowId];
+        const { firmwares, networkInterfaceName, maas, netmask, menuentryStr } = workflowsConfig[workflowId];
         const resource = resources.find(
           (o) => o.architecture === maas.image.architecture && o.name === maas.image.name,
         );
@@ -668,7 +683,7 @@ menuentry '${menuentryStr}' {
 
       // Final commissioning steps.
       if (options.commission === true || options.cloudInitUpdate === true) {
-        const { debootstrap, networkInterfaceName, chronyc, maas } = UnderpostBaremetal.API.workflowsConfig[workflowId];
+        const { debootstrap, networkInterfaceName, chronyc, maas } = workflowsConfig[workflowId];
         const { timezone, chronyConfPath } = chronyc;
 
         // Build cloud-init tools.
@@ -920,7 +935,7 @@ menuentry '${menuentryStr}' {
       // Install necessary packages for debootstrap and QEMU.
       shellExec(`sudo dnf install -y iptables-legacy`);
       shellExec(`sudo dnf install -y debootstrap`);
-      shellExec(`sudo dnf install kernel-modules-extra-$(uname -r)`);
+      shellExec(`sudo dnf install -y kernel-modules-extra-$(uname -r)`);
       // Reset QEMU user-static binfmt for proper cross-architecture execution.
       shellExec(`sudo podman run --rm --privileged docker.io/multiarch/qemu-user-static:latest --reset -p yes`);
       // Mount binfmt_misc filesystem.
@@ -1092,9 +1107,13 @@ EOF`);
      */
     nfsMountCallback({ hostname, workflowId, mount, unmount }) {
       let isMounted = false;
+      const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
+      if (!workflowsConfig[workflowId]) {
+        throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
+      }
       // Iterate through defined NFS mounts in the workflow configuration.
-      for (const mountCmd of Object.keys(UnderpostBaremetal.API.workflowsConfig[workflowId].nfs.mounts)) {
-        for (const mountPath of UnderpostBaremetal.API.workflowsConfig[workflowId].nfs.mounts[mountCmd]) {
+      for (const mountCmd of Object.keys(workflowsConfig[workflowId].nfs.mounts)) {
+        for (const mountPath of workflowsConfig[workflowId].nfs.mounts[mountCmd]) {
           const hostMountPath = `${process.env.NFS_EXPORT_PATH}/${hostname}${mountPath}`;
           // Check if the path is already mounted using `mountpoint` command.
           const isPathMounted = !shellExec(`mountpoint ${hostMountPath}`, { silent: true, stdout: true }).match(
@@ -1440,78 +1459,46 @@ GATEWAY=${gateway}`;
     },
 
     /**
-     * @property {object} workflowsConfig
-     * @description Configuration for different baremetal provisioning workflows.
+     * @method loadWorkflowsConfig
+     * @namespace UnderpostBaremetal.API
+     * @description Loads the commission workflows configuration from commission-workflows.json.
      * Each workflow defines specific parameters like system provisioning type,
      * kernel version, Chrony settings, debootstrap image details, and NFS mounts.     *
      * @memberof UnderpostBaremetal
      */
-    workflowsConfig: {
-      /**
-       * @property {object} rpi4mb
-       * @description Configuration for the Raspberry Pi 4 Model B workflow.
-       * @memberof UnderpostBaremetal.workflowsConfig
-       */
-      rpi4mb: {
-        menuentryStr: 'UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)',
-        systemProvisioning: 'ubuntu', // Specifies the system provisioning factory to use.
-        kernelLibVersion: `6.8.0-41-generic`, // The kernel library version for this workflow.
-        networkInterfaceName: 'enabcm6e4ei0', // The name of the primary network interface on the RPi4.
-        netmask: '255.255.255.0', // Subnet mask for the network.
-        firmwares: [
-          {
-            url: 'https://github.com/pftf/RPi4/releases/download/v1.41/RPi4_UEFI_Firmware_v1.41.zip',
-            gateway: '192.168.1.1',
-            subnet: '255.255.255.0',
-          },
-        ],
-        chronyc: {
-          timezone: 'America/New_York', // Timezone for Chrony configuration.
-          chronyConfPath: `/etc/chrony/chrony.conf`, // Path to Chrony configuration file.
-        },
-        debootstrap: {
-          image: {
-            architecture: 'arm64', // Architecture for the debootstrap image.
-            name: 'noble', // Codename of the Ubuntu release (e.g., 'noble' for 24.04 LTS).
-          },
-        },
-        maas: {
-          image: {
-            architecture: 'arm64/ga-24.04', // Architecture for MAAS image.
-            name: 'ubuntu/noble', // Name of the MAAS Ubuntu image.
-          },
-        },
-        nfs: {
-          mounts: {
-            // Define NFS mount points and their types (bind, rbind).
-            bind: ['/proc', '/sys', '/run'], // Standard bind mounts.
-            rbind: ['/dev'], // Recursive bind mount for /dev.
-          },
-        },
-      },
+    loadWorkflowsConfig() {
+      if (this._workflowsConfig) return this._workflowsConfig;
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
+      const configPath = path.resolve(__dirname, '../../baremetal/commission-workflows.json');
+      this._workflowsConfig = fs.readJsonSync(configPath);
+      return this._workflowsConfig;
     },
+
     /**
      * @property {object} packerMaasImageBuildWorkflows
      * @description Configuration for PACKe mass image workflows.
      * @memberof UnderpostBaremetal
      */
-    packerMaasImageBuildWorkflows: {
-      /**
-       * @property {object} Rocky9Amd64
-       * @description Configuration for the Rocky Linux 9 cloud image build workflow.
-       * @memberof UnderpostBaremetal.packerMaasImageBuildWorkflows
-       */
-      Rocky9Amd64: {
-        dir: 'packer/images/Rocky9Amd64',
-        maas: {
-          name: 'custom/rocky9',
-          title: 'Rocky 9 Custom',
-          architecture: 'amd64/generic',
-          base_image: 'rhel/9',
-          filetype: 'tgz',
-          content: 'rocky9.tar.gz',
-        },
-      },
+    loadPackerMaasImageBuildWorkflows() {
+      if (this._packerMaasImageBuildWorkflows) return this._packerMaasImageBuildWorkflows;
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
+      const configPath = path.resolve(__dirname, '../../baremetal/packer-workflows.json');
+      this._packerMaasImageBuildWorkflows = fs.readJsonSync(configPath);
+      return this._packerMaasImageBuildWorkflows;
+    },
+
+    /**
+     * Write Packer MAAS image build workflows configuration to file
+     * @param {object} workflows - The workflows configuration object
+     * @description Writes the Packer MAAS image build workflows to packer-workflows.json
+     * @memberof UnderpostBaremetal
+     */
+    writePackerMaasImageBuildWorkflows(workflows) {
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
+      const configPath = path.resolve(__dirname, '../../baremetal/packer-workflows.json');
+      fs.writeJsonSync(configPath, workflows, { spaces: 2 });
+      this._packerMaasImageBuildWorkflows = workflows;
+      return configPath;
     },
   };
 }

@@ -43,7 +43,7 @@ class UnderpostCloudInit {
     buildTools({ workflowId, nfsHostPath, hostname, callbackMetaData, dev }) {
       // Destructure workflow configuration for easier access.
       const { systemProvisioning, chronyc, networkInterfaceName, debootstrap } =
-        UnderpostBaremetal.API.workflowsConfig[workflowId];
+        UnderpostBaremetal.API.loadWorkflowsConfig()[workflowId];
       const { timezone, chronyConfPath } = chronyc;
       // Define the specific directory for underpost tools within the NFS host path.
       const nfsHostToolsPath = `${nfsHostPath}/underpost`;
