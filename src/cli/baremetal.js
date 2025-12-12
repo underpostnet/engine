@@ -56,6 +56,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.controlServerDbUninstall=false] - Flag to uninstall the control server's database.
      * @param {boolean} [options.installPacker=false] - Flag to install Packer CLI.
      * @param {string} [options.packerMaasImageBuild] - Workflow ID to build a Packer MAAS image.
+     * @param {string} [options.packerMaasImageUpload] - Workflow ID to upload a Packer MAAS image.
      * @param {boolean} [options.cloudInitUpdate=false] - Flag to update cloud-init configuration on the baremetal machine.
      * @param {boolean} [options.commission=false] - Flag to commission the baremetal machine.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
@@ -78,6 +79,7 @@ class UnderpostBaremetal {
         controlServerDbUninstall: false,
         installPacker: false,
         packerMaasImageBuild: false,
+        packerMaasImageUpload: false,
         cloudInitUpdate: false,
         commission: false,
         nfsBuild: false,
@@ -131,55 +133,93 @@ class UnderpostBaremetal {
         return;
       }
 
-      if (options.packerMaasImageBuild) {
-        if (shellExec('packer version', { silent: true }).code !== 0) {
-          throw new Error('Packer is not installed. Please install Packer to proceed.');
-        }
-
+      if (options.packerMaasImageBuild || options.packerMaasImageUpload) {
+        // Determine workflow ID
         if (typeof options.packerMaasImageBuild === 'string') {
           workflowId = options.packerMaasImageBuild;
+        } else if (typeof options.packerMaasImageUpload === 'string') {
+          workflowId = options.packerMaasImageUpload;
         }
+
         const workflow = UnderpostBaremetal.API.packerMaasImageBuildWorkflow[workflowId];
         if (!workflow) {
           throw new Error(`Packer MAAS image build workflow not found: ${workflowId}`);
         }
         const packerDir = `${underpostRoot}/${workflow.dir}`;
-        logger.info(`Building Packer image for ${workflowId} in ${packerDir}...`);
+        const tarballPath = `${packerDir}/${workflow.maas.content}`;
 
-        const init = spawnSync('packer', ['init', '.'], { stdio: 'inherit', cwd: packerDir });
-        if (init.status !== 0) {
-          throw new Error('Packer init failed');
-        }
+        // Build phase (skip if upload-only mode)
+        if (options.packerMaasImageBuild) {
+          if (shellExec('packer version', { silent: true }).code !== 0) {
+            throw new Error('Packer is not installed. Please install Packer to proceed.');
+          }
 
-        const build = spawnSync('packer', ['build', '.'], {
-          stdio: 'inherit',
-          cwd: packerDir,
-          env: { ...process.env, PACKER_LOG: '1' },
-        });
+          logger.info(`Building Packer image for ${workflowId} in ${packerDir}...`);
 
-        if (build.status !== 0) {
-          throw new Error('Packer build failed');
+          const init = spawnSync('packer', ['init', '.'], { stdio: 'inherit', cwd: packerDir });
+          if (init.status !== 0) {
+            throw new Error('Packer init failed');
+          }
+
+          const build = spawnSync('packer', ['build', '.'], {
+            stdio: 'inherit',
+            cwd: packerDir,
+            env: { ...process.env, PACKER_LOG: '1' },
+          });
+
+          if (build.status !== 0) {
+            throw new Error('Packer build failed');
+          }
+        } else {
+          // Upload-only mode: verify tarball exists
+          logger.info(`Upload-only mode: checking for existing build artifact...`);
+          if (!fs.existsSync(tarballPath)) {
+            throw new Error(
+              `Build artifact not found: ${tarballPath}\n` +
+                `Please build first with: --packer-maas-image-build ${workflowId}`,
+            );
+          }
+          const stats = fs.statSync(tarballPath);
+          logger.info(`Found existing artifact: ${tarballPath} (${(stats.size / 1024 / 1024 / 1024).toFixed(2)} GB)`);
         }
 
         logger.info(`Uploading image to MAAS...`);
 
         // Detect MAAS profile from 'maas list' output
-        const maasProfile = process.env.MAAS_PROFILE;
+        let maasProfile = process.env.MAAS_ADMIN_USERNAME;
+        if (!maasProfile) {
+          const profileList = shellExec('maas list', { silent: true, stdout: true });
+          if (profileList) {
+            const firstLine = profileList.trim().split('\n')[0];
+            const match = firstLine.match(/^(\S+)\s+http/);
+            if (match) {
+              maasProfile = match[1];
+              logger.info(`Detected MAAS profile: ${maasProfile}`);
+            }
+          }
+        }
 
         if (!maasProfile) {
           throw new Error(
-            'MAAS profile not found. Please run "maas login" first or set MAAS_PROFILE environment variable.',
+            'MAAS profile not found. Please run "maas login" first or set MAAS_ADMIN_USERNAME environment variable.',
           );
         }
 
         // Use the upload script to avoid MAAS CLI bugs
-        const tarballPath = `${packerDir}/${workflow.maas.content}`;
         const uploadScript = `${underpostRoot}/scripts/maas-upload-boot-resource.sh`;
         const uploadCmd = `${uploadScript} ${maasProfile} "${workflow.maas.name}" "${workflow.maas.title}" "${workflow.maas.architecture}" "${workflow.maas.base_image}" "${workflow.maas.filetype}" "${tarballPath}"`;
 
         logger.info(`Uploading to MAAS using: ${uploadScript}`);
-        if (shellExec(uploadCmd).code !== 0) {
-          throw new Error('MAAS upload failed');
+        const uploadResult = shellExec(uploadCmd);
+        if (uploadResult.code !== 0) {
+          logger.error(`Upload failed with exit code: ${uploadResult.code}`);
+          if (uploadResult.stdout) {
+            logger.error(`Upload output:\n${uploadResult.stdout}`);
+          }
+          if (uploadResult.stderr) {
+            logger.error(`Upload error output:\n${uploadResult.stderr}`);
+          }
+          throw new Error('MAAS upload failed - see output above for details');
         }
         logger.info(`Successfully uploaded ${workflow.maas.name} to MAAS!`);
         return;

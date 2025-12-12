@@ -58,7 +58,7 @@ ENDPOINT="${API_URL}boot-resources/"
 
 # Generate OAuth timestamp and nonce
 TIMESTAMP=$(date +%s)
-NONCE=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+NONCE=$(openssl rand -hex 16)
 
 # OAuth parameters
 OAUTH_VERSION="1.0"
@@ -74,8 +74,10 @@ echo "Base Image: $BASE_IMAGE"
 echo "Filetype: $FILETYPE"
 echo ""
 
-# Upload using curl with multipart form data
-RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
+# Upload using curl with multipart form data (with progress bar)
+echo "Uploading $(numfmt --to=iec-i --suffix=B $SIZE) to MAAS (this may take several minutes)..."
+RESPONSE=$(curl --progress-bar -w "\nHTTP_CODE:%{http_code}" \
+    --max-time 600 \
     -H "Authorization: OAuth oauth_version=\"${OAUTH_VERSION}\", oauth_signature_method=\"${OAUTH_SIGNATURE_METHOD}\", oauth_consumer_key=\"${CONSUMER_KEY}\", oauth_token=\"${TOKEN_KEY}\", oauth_signature=\"${OAUTH_SIGNATURE}\", oauth_timestamp=\"${TIMESTAMP}\", oauth_nonce=\"${NONCE}\"" \
     -F "name=${NAME}" \
     -F "title=${TITLE}" \
@@ -85,11 +87,11 @@ RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
     -F "sha256=${SHA256}" \
     -F "size=${SIZE}" \
     -F "content=@${FILE_PATH}" \
-    "${ENDPOINT}")
+    "${ENDPOINT}" 2>&1)
 
 # Extract HTTP status code
-HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
-BODY=$(echo "$RESPONSE" | grep -v "HTTP_CODE:")
+HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_CODE:" | tail -1 | cut -d: -f2)
+BODY=$(echo "$RESPONSE" | grep -v "HTTP_CODE:" | grep -v "^#" | grep -v "^$")
 
 if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "200" ]; then
     echo "✓ Successfully uploaded boot resource!"

@@ -24,10 +24,13 @@ packer version
 # From the engine root directory
 cd /home/dd/engine
 
-# Option 1: Use the CLI (recommended)
+# Option 1: Build and Upload (recommended)
 node bin baremetal --dev --packer-maas-image-build Rocky9Amd64
 
-# Option 2: Manual build
+# Option 2: Upload Only (skip rebuild, use existing artifact)
+node bin baremetal --dev --packer-maas-image-upload Rocky9Amd64
+
+# Option 3: Manual build
 cd packer/images/Rocky9Amd64
 packer init .
 PACKER_LOG=1 packer build .
@@ -43,14 +46,17 @@ PACKER_LOG=1 packer build .
 ## Output
 
 The build produces:
-- `rocky9.tar.gz` - The MAAS-ready image (~2-3GB)
+- `rocky9.tar.gz` - The MAAS-ready image (~1.2GB)
 
 ## Upload to MAAS
 
-After successful build:
+After successful build, upload happens automatically. To re-upload:
 
 ```bash
-# Use the upload script (MAAS CLI has bugs with file uploads)
+# Option 1: Use the CLI (recommended, includes MAAS profile auto-detection)
+node bin baremetal --dev --packer-maas-image-upload Rocky9Amd64
+
+# Option 2: Use the upload script directly
 ./scripts/maas-upload-boot-resource.sh maas \
   custom/rocky9 \
   "Rocky 9 Custom" \
@@ -59,6 +65,14 @@ After successful build:
   tgz \
   packer/images/Rocky9Amd64/rocky9.tar.gz
 ```
+
+### Upload-Only Flag Benefits
+
+The `--packer-maas-image-upload` flag allows you to:
+- ⚡ **Skip rebuild** - Saves 30-60 minutes
+- 💾 **Reuse artifacts** - Uses existing 1.2GB tarball
+- 🔄 **Retry uploads** - Re-upload if upload failed
+- 🎯 **Test uploads** - Upload to different MAAS instances
 
 ## Common Issues
 
