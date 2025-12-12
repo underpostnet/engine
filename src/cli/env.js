@@ -74,17 +74,38 @@ class UnderpostRootEnv {
     /**
      * @method list
      * @description Lists all environment variables in the underpost root environment.
+     * @param {string} key - Not used for list operation.
+     * @param {string} value - Not used for list operation.
+     * @param {object} options - Options for listing environment variables.
+     * @param {string} [options.filter] - Filter keyword to match against keys or values.
      * @memberof UnderpostEnv
      */
-    list() {
+    list(key, value, options = {}) {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
       if (!fs.existsSync(envPath)) {
         logger.warn(`Empty environment variables`);
         return {};
       }
-      const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-      logger.info('underpost root', env);
+      let env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+
+      // Apply filter if provided
+      if (options.filter) {
+        const filterKeyword = options.filter.toLowerCase();
+        const filtered = {};
+        for (const [envKey, envValue] of Object.entries(env)) {
+          const keyMatch = envKey.toLowerCase().includes(filterKeyword);
+          const valueMatch = String(envValue).toLowerCase().includes(filterKeyword);
+          if (keyMatch || valueMatch) {
+            filtered[envKey] = envValue;
+          }
+        }
+        env = filtered;
+        logger.info(`underpost root (filtered by: ${options.filter})`, env);
+      } else {
+        logger.info('underpost root', env);
+      }
+
       return env;
     },
     /**

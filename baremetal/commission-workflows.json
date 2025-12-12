@@ -1,0 +1,44 @@
+{
+  "rpi4mb": {
+    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)",
+    "systemProvisioning": "ubuntu",
+    "kernelLibVersion": "6.8.0-41-generic",
+    "networkInterfaceName": "enabcm6e4ei0",
+    "netmask": "255.255.255.0",
+    "firmwares": [
+      {
+        "url": "https://github.com/pftf/RPi4/releases/download/v1.41/RPi4_UEFI_Firmware_v1.41.zip",
+        "gateway": "192.168.1.1",
+        "subnet": "255.255.255.0"
+      }
+    ],
+    "chronyc": {
+      "timezone": "America/New_York",
+      "chronyConfPath": "/etc/chrony/chrony.conf"
+    },
+    "debootstrap": {
+      "image": {
+        "architecture": "arm64",
+        "name": "noble"
+      }
+    },
+    "maas": {
+      "image": {
+        "architecture": "arm64/ga-24.04",
+        "name": "ubuntu/noble"
+      }
+    },
+    "nfs": {
+      "mounts": {
+        "bind": [
+          "/proc",
+          "/sys",
+          "/run"
+        ],
+        "rbind": [
+          "/dev"
+        ]
+      }
+    }
+  }
+}

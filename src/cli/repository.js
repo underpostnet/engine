@@ -601,6 +601,170 @@ Prevent build private config repo.`,
         shellExec(`cd ${path} && git clean -f -d`, { silent: true });
       }
     },
+
+    /**
+     * Copies files recursively from a Git repository URL directory path.
+     * @param {object} options - Configuration options for copying files.
+     * @param {string} options.gitUrl - The GitHub repository URL (e.g., 'https://github.com/canonical/packer-maas').
+     * @param {string} options.directoryPath - The directory path within the repository to copy (e.g., 'rocky-9').
+     * @param {string} options.targetPath - The local target path where files should be copied.
+     * @param {string} [options.branch='main'] - The git branch to use (default: 'main').
+     * @param {boolean} [options.overwrite=false] - Whether to overwrite existing target directory.
+     * @returns {Promise<object>} A promise that resolves with copied files information.
+     * @memberof UnderpostRepository
+     */
+    async copyGitUrlDirectoryRecursive(options) {
+      const { gitUrl, directoryPath, targetPath, branch = 'main', overwrite = false } = options;
+
+      // Validate inputs
+      if (!gitUrl) {
+        throw new Error('gitUrl is required');
+      }
+      if (!directoryPath) {
+        throw new Error('directoryPath is required');
+      }
+      if (!targetPath) {
+        throw new Error('targetPath is required');
+      }
+
+      // Parse GitHub URL to extract owner and repo
+      const urlMatch = gitUrl.match(/github\.com\/([^\/]+)\/([^\/\.]+)/);
+      if (!urlMatch) {
+        throw new Error(`Invalid GitHub URL: ${gitUrl}`);
+      }
+      const [, owner, repo] = urlMatch;
+
+      logger.info(`Copying from ${owner}/${repo}/${directoryPath} to ${targetPath}`);
+
+      // Check if target directory exists
+      if (fs.existsSync(targetPath) && !overwrite) {
+        throw new Error(`Target directory already exists: ${targetPath}. Use overwrite option to replace.`);
+      }
+
+      // Create target directory
+      fs.mkdirSync(targetPath, { recursive: true });
+
+      // GitHub API base URL
+      const githubApiBase = 'https://api.github.com/repos';
+      const apiUrl = `${githubApiBase}/${owner}/${repo}/contents/${directoryPath}`;
+
+      logger.info(`Fetching directory contents from: ${apiUrl}`);
+
+      try {
+        // Fetch directory contents recursively
+        const copiedFiles = await this._fetchAndCopyGitHubDirectory({
+          apiUrl,
+          targetPath,
+          basePath: directoryPath,
+          branch,
+        });
+
+        logger.info(`Successfully copied ${copiedFiles.length} files to ${targetPath}`);
+
+        return {
+          success: true,
+          filesCount: copiedFiles.length,
+          files: copiedFiles,
+          targetPath,
+        };
+      } catch (error) {
+        // Clean up on error
+        if (fs.existsSync(targetPath)) {
+          fs.removeSync(targetPath);
+          logger.warn(`Cleaned up target directory after error: ${targetPath}`);
+        }
+        throw new Error(`Failed to copy directory: ${error.message}`);
+      }
+    },
+
+    /**
+     * Internal method to recursively fetch and copy files from GitHub API.
+     * @private
+     * @param {object} options - Fetch options.
+     * @param {string} options.apiUrl - The GitHub API URL.
+     * @param {string} options.targetPath - The local target path.
+     * @param {string} options.basePath - The base path in the repository.
+     * @param {string} options.branch - The git branch.
+     * @returns {Promise<array>} Array of copied file paths.
+     * @memberof UnderpostRepository
+     */
+    async _fetchAndCopyGitHubDirectory(options) {
+      const { apiUrl, targetPath, basePath, branch } = options;
+      const copiedFiles = [];
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'underpost-cli',
+        },
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        logger.error(`GitHub API request failed for: ${apiUrl}`);
+        logger.error(`Status: ${response.status} ${response.statusText}`);
+        logger.error(`Response: ${errorBody}`);
+        throw new Error(`GitHub API request failed: ${response.status} ${response.statusText} - ${errorBody}`);
+      }
+
+      const contents = await response.json();
+
+      if (!Array.isArray(contents)) {
+        logger.error(`Expected directory but got: ${typeof contents}`);
+        logger.error(`API URL: ${apiUrl}`);
+        logger.error(`Response keys: ${Object.keys(contents).join(', ')}`);
+        if (contents.message) {
+          logger.error(`GitHub message: ${contents.message}`);
+        }
+        throw new Error(
+          `Path is not a directory: ${basePath}. Response: ${JSON.stringify(contents).substring(0, 200)}`,
+        );
+      }
+
+      logger.info(`Found ${contents.length} items in directory: ${basePath}`);
+
+      // Process each item in the directory
+      for (const item of contents) {
+        const itemTargetPath = `${targetPath}/${item.name}`;
+
+        if (item.type === 'file') {
+          logger.info(`Downloading file: ${item.path}`);
+
+          // Download file content
+          const fileResponse = await fetch(item.download_url);
+          if (!fileResponse.ok) {
+            logger.error(`Failed to download: ${item.download_url}`);
+            throw new Error(`Failed to download file: ${item.path} (${fileResponse.status})`);
+          }
+
+          const fileContent = await fileResponse.text();
+          fs.writeFileSync(itemTargetPath, fileContent);
+
+          logger.info(`✓ Saved: ${itemTargetPath}`);
+          copiedFiles.push(itemTargetPath);
+        } else if (item.type === 'dir') {
+          logger.info(`📁 Processing directory: ${item.path}`);
+
+          // Create subdirectory
+          fs.mkdirSync(itemTargetPath, { recursive: true });
+
+          // Recursively process subdirectory
+          const subFiles = await this._fetchAndCopyGitHubDirectory({
+            apiUrl: item.url,
+            targetPath: itemTargetPath,
+            basePath: item.path,
+            branch,
+          });
+
+          copiedFiles.push(...subFiles);
+          logger.info(`✓ Completed directory: ${item.path} (${subFiles.length} files)`);
+        } else {
+          logger.warn(`Skipping unknown item type '${item.type}': ${item.path}`);
+        }
+      }
+
+      return copiedFiles;
+    },
   };
 }
 

@@ -181,6 +181,7 @@ program
   .argument('[key]', 'Optional: The specific configuration key to manage.')
   .argument('[value]', 'Optional: The value to set for the configuration key.')
   .option('--plain', 'Prints the configuration value in plain text.')
+  .option('--filter <keyword>', 'Filters the list by matching key or value (only for list operation).')
   .description(`Manages Underpost configurations using various operators.`)
   .action((...args) => Underpost.env[args[0]](args[1], args[2], args[3]));
 
@@ -610,6 +611,20 @@ program
   .option('--control-server-uninstall', 'Uninstalls the baremetal control server.')
   .option('--control-server-db-install', 'Installs up the database for the baremetal control server.')
   .option('--control-server-db-uninstall', 'Uninstalls the database for the baremetal control server.')
+  .option('--install-packer', 'Installs Packer CLI.')
+  .option(
+    '--packer-maas-image-template <template-path>',
+    'Creates a new image folder from canonical/packer-maas template path (requires workflow-id).',
+  )
+  .option('--packer-workflow-id <workflow-id>', 'Specifies the workflow ID for Packer MAAS image operations.')
+  .option(
+    '--packer-maas-image-build',
+    'Builds a MAAS image using Packer for the workflow specified by --packer-workflow-id.',
+  )
+  .option(
+    '--packer-maas-image-upload',
+    'Uploads an existing MAAS image artifact without rebuilding for the workflow specified by --packer-workflow-id.',
+  )
   .option('--commission', 'Init workflow for commissioning a physical machine.')
   .option('--nfs-build', 'Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.')
   .option('--nfs-mount', 'Mounts the NFS root filesystem for a workflow id config architecture.')
