@@ -155,6 +155,11 @@ class UnderpostBaremetal {
           }
 
           logger.info(`Building Packer image for ${workflowId} in ${packerDir}...`);
+          const artifacts = ['output-rocky9', 'packer_cache', 'x86_64_VARS.fd', 'rocky9.tar.gz'];
+          shellExec(`cd packer/images/${workflowId}
+rm -rf ${artifacts.join(' ')}`);
+          shellExec(`chmod +x ${underpostRoot}/scripts/packer-init-vars-file.sh`);
+          shellExec(`${underpostRoot}/scripts/packer-init-vars-file.sh`);
 
           const init = spawnSync('packer', ['init', '.'], { stdio: 'inherit', cwd: packerDir });
           if (init.status !== 0) {
