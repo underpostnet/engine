@@ -99,7 +99,18 @@ echo "Configuring DHCP for fabric-1 (untagged VLAN)..."
 SUBNET_CIDR="192.168.1.0/24"
 SUBNET_ID=$(maas "$MAAS_ADMIN_USERNAME" subnets read | jq -r '.[] | select(.cidr == "'"$SUBNET_CIDR"'") | .id')
 FABRIC_ID=$(maas "$MAAS_ADMIN_USERNAME" fabrics read | jq -r '.[] | select(.name == "fabric-1") | .id')
-RACK_CONTROLLER_ID=$(maas "$MAAS_ADMIN_USERNAME" rack-controllers read | jq -r '.[] | select(.ip_addresses[] == "'"$IP_ADDRESS"'") | .system_id')
+RACK_CONTROLLER_ID=$(maas "$MAAS_ADMIN_USERNAME" rack-controllers read | jq -r '[.[] | select(.ip_addresses[] == "'"$IP_ADDRESS"'") | .system_id] | .[0]')
+
+if [ -z "$RACK_CONTROLLER_ID" ] || [ "$RACK_CONTROLLER_ID" == "null" ]; then
+    echo "Warning: Could not find Rack Controller by IP $IP_ADDRESS. Attempting to use the first available Rack Controller..."
+    RACK_CONTROLLER_ID=$(maas "$MAAS_ADMIN_USERNAME" rack-controllers read | jq -r '.[0].system_id')
+fi
+
+if [ -z "$RACK_CONTROLLER_ID" ] || [ "$RACK_CONTROLLER_ID" == "null" ]; then
+    echo "Error: Could not find any Rack Controller."
+    exit 1
+fi
+
 START_IP="192.168.1.191"
 END_IP="192.168.1.254"
 
@@ -110,7 +121,7 @@ fi
 
 # Create a Dynamic IP Range for enlistment, commissioning, and deployment
 echo "Creating dynamic IP range from $START_IP to $END_IP..."
-maas "$MAAS_ADMIN_USERNAME" ipranges create type=dynamic start_ip="$START_IP" end_ip="$END_IP"
+maas "$MAAS_ADMIN_USERNAME" ipranges create type=dynamic start_ip="$START_IP" end_ip="$END_IP" || echo "Dynamic IP range likely already exists or conflicts. Proceeding..."
 
 # Enable DHCP on the untagged VLAN (VLAN tag 0)
 echo "Enabling DHCP on VLAN 0 for fabric-1 (ID: $FABRIC_ID)..."
