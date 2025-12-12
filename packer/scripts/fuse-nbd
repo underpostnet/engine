@@ -1,0 +1,64 @@
+#!/bin/bash -e
+# vi: ts=4 expandtab
+#
+# Script to mount a qcow2 image using NBD (Network Block Device)
+# This is part of the MAAS image build process
+
+OUTPUT_DIR="output-${SOURCE}"
+OUTPUT_QCOW2="${OUTPUT_DIR}/packer-${SOURCE}"
+
+if [ ! -f "${OUTPUT_QCOW2}" ]; then
+    echo "ERROR: ${OUTPUT_QCOW2} not found"
+    exit 1
+fi
+
+# Load NBD kernel module if not already loaded
+if ! lsmod | grep -q nbd; then
+    modprobe nbd
+fi
+
+# Find an available NBD device
+for i in {0..15}; do
+    if [ ! -e "/sys/class/block/nbd${i}/pid" ]; then
+        NBD_DEV="/dev/nbd${i}"
+        break
+    fi
+done
+
+if [ -z "${NBD_DEV}" ]; then
+    echo "ERROR: No available NBD devices found"
+    exit 1
+fi
+
+# Connect the QCOW2 image to the NBD device
+qemu-nbd -c "${NBD_DEV}" -f qcow2 -r "${OUTPUT_QCOW2}"
+
+# Wait for the device to be ready
+sleep 2
+udevadm settle
+
+# Find the root partition (usually the largest partition)
+ROOT_PART=""
+MAX_SIZE=0
+
+for part in "${NBD_DEV}"p*; do
+    if [ -b "${part}" ]; then
+        SIZE=$(blockdev --getsize64 "${part}" 2>/dev/null || echo 0)
+        if [ "${SIZE}" -gt "${MAX_SIZE}" ]; then
+            MAX_SIZE=${SIZE}
+            ROOT_PART="${part}"
+        fi
+    fi
+done
+
+if [ -z "${ROOT_PART}" ]; then
+    # If no partitions found, try the whole device
+    ROOT_PART="${NBD_DEV}"
+fi
+
+echo "Using NBD device: ${NBD_DEV}"
+echo "Root partition: ${ROOT_PART}"
+
+# Export variables for use in subsequent scripts
+export NBD_DEV
+export ROOT_PART

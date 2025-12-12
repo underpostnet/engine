@@ -1,0 +1,63 @@
+#!/bin/bash -e
+# vi: ts=4 expandtab
+#
+# Script to extract root filesystem from NBD device to tarball for MAAS
+# This is part of the MAAS image build process
+
+if [ -z "${NBD_DEV}" ]; then
+    echo "ERROR: NBD_DEV not set. Run fuse-nbd first."
+    exit 1
+fi
+
+if [ -z "${ROOT_PART}" ]; then
+    echo "ERROR: ROOT_PART not set. Run fuse-nbd first."
+    exit 1
+fi
+
+if [ -z "${OUTPUT}" ]; then
+    echo "ERROR: OUTPUT not set."
+    exit 1
+fi
+
+# Create temporary mount point
+MOUNT_POINT=$(mktemp -d /tmp/packer-maas-mount.XXXXXX)
+
+cleanup() {
+    echo "Cleaning up..."
+    if mountpoint -q "${MOUNT_POINT}"; then
+        umount "${MOUNT_POINT}" || true
+    fi
+    if [ -n "${NBD_DEV}" ] && [ -b "${NBD_DEV}" ]; then
+        qemu-nbd -d "${NBD_DEV}" || true
+    fi
+    if [ -d "${MOUNT_POINT}" ]; then
+        rmdir "${MOUNT_POINT}" || true
+    fi
+}
+
+trap cleanup EXIT
+
+# Mount the root partition
+echo "Mounting ${ROOT_PART} to ${MOUNT_POINT}..."
+mount -o ro "${ROOT_PART}" "${MOUNT_POINT}"
+
+# Create tarball from the mounted filesystem
+echo "Creating tarball ${OUTPUT}..."
+tar -czf "${OUTPUT}" -C "${MOUNT_POINT}" \
+    --exclude='./dev/*' \
+    --exclude='./proc/*' \
+    --exclude='./sys/*' \
+    --exclude='./tmp/*' \
+    --exclude='./run/*' \
+    --exclude='./mnt/*' \
+    --exclude='./media/*' \
+    --exclude='./lost+found' \
+    --exclude='./boot/efi/*' \
+    --numeric-owner \
+    .
+
+echo "Tarball created successfully: ${OUTPUT}"
+echo "Size: $(du -h "${OUTPUT}" | cut -f1)"
+
+# Cleanup will be called by trap
+exit 0

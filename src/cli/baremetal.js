@@ -146,18 +146,42 @@ class UnderpostBaremetal {
         const packerDir = `${underpostRoot}/${workflow.dir}`;
         logger.info(`Building Packer image for ${workflowId} in ${packerDir}...`);
 
-        spawnSync('packer', ['init', '.'], { stdio: 'inherit', cwd: packerDir });
+        const init = spawnSync('packer', ['init', '.'], { stdio: 'inherit', cwd: packerDir });
+        if (init.status !== 0) {
+          throw new Error('Packer init failed');
+        }
 
-        spawnSync('packer', ['build', '.'], {
+        const build = spawnSync('packer', ['build', '.'], {
           stdio: 'inherit',
           cwd: packerDir,
           env: { ...process.env, PACKER_LOG: '1' },
         });
 
+        if (build.status !== 0) {
+          throw new Error('Packer build failed');
+        }
+
         logger.info(`Uploading image to MAAS...`);
-        shellExec(
-          `maas ${process.env.MAAS_PROFILE || 'admin'} boot-resources create name='${workflow.maas.name}' title='${workflow.maas.title}' architecture='${workflow.maas.architecture}' base_image='${workflow.maas.base_image}' filetype='${workflow.maas.filetype}' content@=${packerDir}/${workflow.maas.content}`,
-        );
+
+        // Detect MAAS profile from 'maas list' output
+        const maasProfile = process.env.MAAS_PROFILE;
+
+        if (!maasProfile) {
+          throw new Error(
+            'MAAS profile not found. Please run "maas login" first or set MAAS_PROFILE environment variable.',
+          );
+        }
+
+        // Use the upload script to avoid MAAS CLI bugs
+        const tarballPath = `${packerDir}/${workflow.maas.content}`;
+        const uploadScript = `${underpostRoot}/scripts/maas-upload-boot-resource.sh`;
+        const uploadCmd = `${uploadScript} ${maasProfile} "${workflow.maas.name}" "${workflow.maas.title}" "${workflow.maas.architecture}" "${workflow.maas.base_image}" "${workflow.maas.filetype}" "${tarballPath}"`;
+
+        logger.info(`Uploading to MAAS using: ${uploadScript}`);
+        if (shellExec(uploadCmd).code !== 0) {
+          throw new Error('MAAS upload failed');
+        }
+        logger.info(`Successfully uploaded ${workflow.maas.name} to MAAS!`);
         return;
       }
 
@@ -1372,12 +1396,12 @@ GATEWAY=${gateway}`;
      */
     packerMaasImageBuildWorkflow: {
       /**
-       * @property {object} rocky9cloud
+       * @property {object} Rocky9Amd64
        * @description Configuration for the Rocky Linux 9 cloud image build workflow.
        * @memberof UnderpostBaremetal.packerMaasImageBuildWorkflow
        */
-      rocky9cloud: {
-        dir: 'packer/Rocky9',
+      Rocky9Amd64: {
+        dir: 'packer/images/Rocky9Amd64',
         maas: {
           name: 'custom/rocky9',
           title: 'Rocky 9 Custom',

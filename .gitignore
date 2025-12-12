@@ -18,7 +18,22 @@
 .cache
 .nyc_output
 *.tar
+*.tar.gz
 *.metals
 *scala-build
 _
 _.js
+
+init.hwm
+init.pwd
+init.pwi
+
+# Packer build artifacts and generated files
+packer/images/*/output-*
+packer/images/*/packer_cache
+packer/images/*/*.tar.gz
+packer/images/*/*.qcow2
+packer/images/*/*_VARS.fd
+packer/images/*/x86_64_VARS.fd
+packer/images/*/aarch64_VARS.fd
+packer/images/*/*.iso
