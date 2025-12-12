@@ -611,6 +611,10 @@ program
   .option('--control-server-db-install', 'Installs up the database for the baremetal control server.')
   .option('--control-server-db-uninstall', 'Uninstalls the database for the baremetal control server.')
   .option('--install-packer', 'Installs Packer CLI.')
+  .option(
+    '--packer-maas-image-template <template-path>',
+    'Creates a new image folder from canonical/packer-maas template path (requires workflow-id).',
+  )
   .option('--packer-maas-image-build <workflow-id>', 'Builds a MAAS image using Packer for the specified workflow ID.')
   .option('--packer-maas-image-upload <workflow-id>', 'Uploads an existing MAAS image artifact without rebuilding.')
   .option('--commission', 'Init workflow for commissioning a physical machine.')

@@ -12,6 +12,7 @@ import { getLocalIPv4Address } from '../server/dns.js';
 import fs from 'fs-extra';
 import Downloader from '../server/downloader.js';
 import UnderpostCloudInit from './cloud-init.js';
+import UnderpostRepository from './repository.js';
 import { s4, timer } from '../client/components/core/CommonJs.js';
 import { spawnSync } from 'child_process';
 
@@ -55,6 +56,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.controlServerDbInstall=false] - Flag to install the control server's database.
      * @param {boolean} [options.controlServerDbUninstall=false] - Flag to uninstall the control server's database.
      * @param {boolean} [options.installPacker=false] - Flag to install Packer CLI.
+     * @param {string} [options.packerMaasImageTemplate] - Template path from canonical/packer-maas to extract (requires workflow-id).
      * @param {string} [options.packerMaasImageBuild] - Workflow ID to build a Packer MAAS image.
      * @param {string} [options.packerMaasImageUpload] - Workflow ID to upload a Packer MAAS image.
      * @param {boolean} [options.cloudInitUpdate=false] - Flag to update cloud-init configuration on the baremetal machine.
@@ -78,6 +80,7 @@ class UnderpostBaremetal {
         controlServerDbInstall: false,
         controlServerDbUninstall: false,
         installPacker: false,
+        packerMaasImageTemplate: false,
         packerMaasImageBuild: false,
         packerMaasImageUpload: false,
         cloudInitUpdate: false,
@@ -130,6 +133,59 @@ class UnderpostBaremetal {
 
       if (options.installPacker) {
         await UnderpostBaremetal.API.installPacker(underpostRoot);
+        return;
+      }
+
+      if (options.packerMaasImageTemplate) {
+        if (!workflowId) {
+          throw new Error('workflow-id is required when using --packer-maas-image-template');
+        }
+
+        const templatePath = options.packerMaasImageTemplate;
+        const targetDir = `${underpostRoot}/packer/images/${workflowId}`;
+
+        logger.info(`Creating new Packer MAAS image template for workflow: ${workflowId}`);
+        logger.info(`Template path: ${templatePath}`);
+        logger.info(`Target directory: ${targetDir}`);
+
+        try {
+          // Use UnderpostRepository to copy files from GitHub
+          const result = await UnderpostRepository.API.copyGitUrlDirectoryRecursive({
+            gitUrl: 'https://github.com/canonical/packer-maas',
+            directoryPath: templatePath,
+            targetPath: targetDir,
+            branch: 'main',
+            overwrite: false,
+          });
+
+          logger.info(`\nSuccessfully copied ${result.filesCount} files`);
+
+          // Create empty workflow configuration entry
+          const workflowConfig = {
+            dir: `packer/images/${workflowId}`,
+            maas: {
+              name: `custom/${workflowId.toLowerCase()}`,
+              title: `${workflowId} Custom`,
+              architecture: 'amd64/generic',
+              base_image: 'ubuntu/22.04',
+              filetype: 'tgz',
+              content: `${workflowId.toLowerCase()}.tar.gz`,
+            },
+          };
+
+          logger.info('\nTemplate extracted successfully!');
+          logger.info('\nAdd the following configuration to packerMaasImageBuildWorkflow in baremetal.js:');
+          logger.info(JSON.stringify({ [workflowId]: workflowConfig }, null, 2));
+          logger.info('\nNext steps:');
+          logger.info(`1. Review and customize the Packer template files in: ${targetDir}`);
+          logger.info(`2. Add the workflow configuration shown above to packerMaasImageBuildWorkflow`);
+          logger.info(
+            `3. Build the image with: underpost baremetal ${workflowId} --packer-maas-image-build ${workflowId}`,
+          );
+        } catch (error) {
+          throw new Error(`Failed to extract template: ${error.message}`);
+        }
+
         return;
       }
 
