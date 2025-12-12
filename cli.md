@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.95.8
+## underpost ci/cd cli v2.96.0
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -268,14 +268,16 @@ Options:
 Manages Underpost configurations using various operators.
 
 Arguments:
-  operator    The configuration operation to perform. Options: set, delete,
-              get, list, clean.
-  key         Optional: The specific configuration key to manage.
-  value       Optional: The value to set for the configuration key.
+  operator            The configuration operation to perform. Options: set,
+                      delete, get, list, clean.
+  key                 Optional: The specific configuration key to manage.
+  value               Optional: The value to set for the configuration key.
 
 Options:
-  --plain     Prints the configuration value in plain text.
-  -h, --help  display help for command
+  --plain             Prints the configuration value in plain text.
+  --filter <keyword>  Filters the list by matching key or value (only for list
+                      operation).
+  -h, --help          display help for command
  
 ```
   
@@ -898,30 +900,25 @@ Manages baremetal server operations, including installation, database setup,
 commissioning, and user management.
 
 Options:
-  --control-server-install       Installs the baremetal control server.
-  --control-server-uninstall     Uninstalls the baremetal control server.
-  --control-server-db-install    Installs up the database for the baremetal
-                                 control server.
-  --control-server-db-uninstall  Uninstalls the database for the baremetal
-                                 control server.
-  --commission                   Init workflow for commissioning a physical
-                                 machine.
-  --nfs-build                    Builds an NFS root filesystem for a workflow
-                                 id config architecture using QEMU emulation.
-  --nfs-mount                    Mounts the NFS root filesystem for a workflow
-                                 id config architecture.
-  --nfs-unmount                  Unmounts the NFS root filesystem for a
-                                 workflow id config architecture.
-  --nfs-sh                       Copies QEMU emulation root entrypoint shell
-                                 command to the clipboard.
-  --cloud-init-update            Updates cloud init for a workflow id config
-                                 architecture.
-  --logs <log-id>                Displays logs for log id: dhcp, cloud,
-                                 machine, cloud-config.
-  --dev                          Sets the development context environment for
-                                 baremetal operations.
-  --ls                           Lists available boot resources and machines.
-  -h, --help                     display help for command
+  --control-server-install                      Installs the baremetal control server.
+  --control-server-uninstall                    Uninstalls the baremetal control server.
+  --control-server-db-install                   Installs up the database for the baremetal control server.
+  --control-server-db-uninstall                 Uninstalls the database for the baremetal control server.
+  --install-packer                              Installs Packer CLI.
+  --packer-maas-image-template <template-path>  Creates a new image folder from canonical/packer-maas template path (requires workflow-id).
+  --packer-workflow-id <workflow-id>            Specifies the workflow ID for Packer MAAS image operations.
+  --packer-maas-image-build                     Builds a MAAS image using Packer for the workflow specified by --packer-workflow-id.
+  --packer-maas-image-upload                    Uploads an existing MAAS image artifact without rebuilding for the workflow specified by --packer-workflow-id.
+  --commission                                  Init workflow for commissioning a physical machine.
+  --nfs-build                                   Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.
+  --nfs-mount                                   Mounts the NFS root filesystem for a workflow id config architecture.
+  --nfs-unmount                                 Unmounts the NFS root filesystem for a workflow id config architecture.
+  --nfs-sh                                      Copies QEMU emulation root entrypoint shell command to the clipboard.
+  --cloud-init-update                           Updates cloud init for a workflow id config architecture.
+  --logs <log-id>                               Displays logs for log id: dhcp, cloud, machine, cloud-config.
+  --dev                                         Sets the development context environment for baremetal operations.
+  --ls                                          Lists available boot resources and machines.
+  -h, --help                                    display help for command
  
 ```
   
