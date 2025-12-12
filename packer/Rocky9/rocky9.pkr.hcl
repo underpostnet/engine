@@ -48,6 +48,12 @@ variable "ovmf_suffix" {
   description = "Suffix for OVMF CODE and VARS files. Newer systems such as Noble use _4M."
 }
 
+variable "headless" {
+  type        = bool
+  default     = true
+  description = "Run packer in headless mode"
+}
+
 locals {
   qemu_arch = {
     "x86_64"  = "x86_64"
@@ -82,7 +88,7 @@ source "qemu" "rocky9" {
   communicator     = "none"
   disk_size        = "45G"
   format           = "qcow2"
-  headless         = true
+  headless         = var.headless
   iso_checksum     = "file:http://download.rockylinux.org/pub/rocky/9/isos/${var.architecture}/CHECKSUM"
   iso_url          = "http://download.rockylinux.org/pub/rocky/9/isos/${var.architecture}/Rocky-${var.architecture}-boot.iso"
   iso_target_path  = "packer_cache/Rocky-${var.architecture}-boot.iso"

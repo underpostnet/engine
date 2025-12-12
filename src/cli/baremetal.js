@@ -13,6 +13,7 @@ import fs from 'fs-extra';
 import Downloader from '../server/downloader.js';
 import UnderpostCloudInit from './cloud-init.js';
 import { s4, timer } from '../client/components/core/CommonJs.js';
+import { spawnSync } from 'child_process';
 
 const logger = loggerFactory(import.meta);
 
@@ -25,6 +26,19 @@ const logger = loggerFactory(import.meta);
  */
 class UnderpostBaremetal {
   static API = {
+    /**
+     * @method installPacker
+     * @description Installs Packer CLI.
+     * @memberof UnderpostBaremetal
+     * @returns {Promise<void>}
+     */
+    async installPacker(underpostRoot) {
+      const scriptPath = `${underpostRoot}/scripts/packer-setup.sh`;
+      logger.info(`Installing Packer using script: ${scriptPath}`);
+      shellExec(`sudo chmod +x ${scriptPath}`);
+      shellExec(`sudo ${scriptPath}`);
+    },
+
     /**
      * @method callback
      * @description Initiates a baremetal provisioning workflow based on the provided options.
@@ -40,7 +54,8 @@ class UnderpostBaremetal {
      * @param {boolean} [options.controlServerUninstall=false] - Flag to uninstall the control server.
      * @param {boolean} [options.controlServerDbInstall=false] - Flag to install the control server's database.
      * @param {boolean} [options.controlServerDbUninstall=false] - Flag to uninstall the control server's database.
-     * @param {boolean} [options.packerMaasImageBuild=false] - Flag to build a Packer MAAS image.
+     * @param {boolean} [options.installPacker=false] - Flag to install Packer CLI.
+     * @param {string} [options.packerMaasImageBuild] - Workflow ID to build a Packer MAAS image.
      * @param {boolean} [options.cloudInitUpdate=false] - Flag to update cloud-init configuration on the baremetal machine.
      * @param {boolean} [options.commission=false] - Flag to commission the baremetal machine.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
@@ -61,6 +76,7 @@ class UnderpostBaremetal {
         controlServerUninstall: false,
         controlServerDbInstall: false,
         controlServerDbUninstall: false,
+        installPacker: false,
         packerMaasImageBuild: false,
         cloudInitUpdate: false,
         commission: false,
@@ -110,19 +126,37 @@ class UnderpostBaremetal {
       // Log the initiation of the baremetal callback with relevant metadata.
       logger.info('Baremetal callback', callbackMetaData);
 
+      if (options.installPacker) {
+        await UnderpostBaremetal.API.installPacker(underpostRoot);
+        return;
+      }
+
       if (options.packerMaasImageBuild) {
-        workflowId = options.packerMaasImageBuild;
+        if (shellExec('packer version', { silent: true }).code !== 0) {
+          throw new Error('Packer is not installed. Please install Packer to proceed.');
+        }
+
+        if (typeof options.packerMaasImageBuild === 'string') {
+          workflowId = options.packerMaasImageBuild;
+        }
         const workflow = UnderpostBaremetal.API.packerMaasImageBuildWorkflow[workflowId];
         if (!workflow) {
           throw new Error(`Packer MAAS image build workflow not found: ${workflowId}`);
         }
         const packerDir = `${underpostRoot}/${workflow.dir}`;
         logger.info(`Building Packer image for ${workflowId} in ${packerDir}...`);
-        shellExec(`cd ${packerDir} && packer init . && PACKER_LOG=1 packer build .`);
+
+        spawnSync('packer', ['init', '.'], { stdio: 'inherit', cwd: packerDir });
+
+        spawnSync('packer', ['build', '.'], {
+          stdio: 'inherit',
+          cwd: packerDir,
+          env: { ...process.env, PACKER_LOG: '1' },
+        });
 
         logger.info(`Uploading image to MAAS...`);
         shellExec(
-          `maas admin boot-resources create name='${workflow.maas.name}' title='${workflow.maas.title}' architecture='${workflow.maas.architecture}' base_image='${workflow.maas.base_image}' filetype='${workflow.maas.filetype}' content@=${packerDir}/${workflow.maas.content}`,
+          `maas ${process.env.MAAS_PROFILE || 'admin'} boot-resources create name='${workflow.maas.name}' title='${workflow.maas.title}' architecture='${workflow.maas.architecture}' base_image='${workflow.maas.base_image}' filetype='${workflow.maas.filetype}' content@=${packerDir}/${workflow.maas.content}`,
         );
         return;
       }
