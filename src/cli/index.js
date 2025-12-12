@@ -610,6 +610,7 @@ program
   .option('--control-server-uninstall', 'Uninstalls the baremetal control server.')
   .option('--control-server-db-install', 'Installs up the database for the baremetal control server.')
   .option('--control-server-db-uninstall', 'Uninstalls the database for the baremetal control server.')
+  .option('--packer-maas-image-build <workflow-id>', 'Builds a MAAS image using Packer for the specified workflow ID.')
   .option('--commission', 'Init workflow for commissioning a physical machine.')
   .option('--nfs-build', 'Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.')
   .option('--nfs-mount', 'Mounts the NFS root filesystem for a workflow id config architecture.')
