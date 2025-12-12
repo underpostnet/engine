@@ -174,11 +174,11 @@ class UnderpostBaremetal {
           };
 
           logger.info('\nTemplate extracted successfully!');
-          logger.info('\nAdd the following configuration to packerMaasImageBuildWorkflow in baremetal.js:');
+          logger.info('\nAdd the following configuration to packerMaasImageBuildWorkflows in baremetal.js:');
           logger.info(JSON.stringify({ [workflowId]: workflowConfig }, null, 2));
           logger.info('\nNext steps:');
           logger.info(`1. Review and customize the Packer template files in: ${targetDir}`);
-          logger.info(`2. Add the workflow configuration shown above to packerMaasImageBuildWorkflow`);
+          logger.info(`2. Add the workflow configuration shown above to packerMaasImageBuildWorkflows`);
           logger.info(
             `3. Build the image with: underpost baremetal ${workflowId} --packer-maas-image-build ${workflowId}`,
           );
@@ -197,7 +197,7 @@ class UnderpostBaremetal {
           workflowId = options.packerMaasImageUpload;
         }
 
-        const workflow = UnderpostBaremetal.API.packerMaasImageBuildWorkflow[workflowId];
+        const workflow = UnderpostBaremetal.API.packerMaasImageBuildWorkflows[workflowId];
         if (!workflow) {
           throw new Error(`Packer MAAS image build workflow not found: ${workflowId}`);
         }
@@ -1491,15 +1491,15 @@ GATEWAY=${gateway}`;
       },
     },
     /**
-     * @property {object} packerMaasImageBuildWorkflow
+     * @property {object} packerMaasImageBuildWorkflows
      * @description Configuration for PACKe mass image workflows.
      * @memberof UnderpostBaremetal
      */
-    packerMaasImageBuildWorkflow: {
+    packerMaasImageBuildWorkflows: {
       /**
        * @property {object} Rocky9Amd64
        * @description Configuration for the Rocky Linux 9 cloud image build workflow.
-       * @memberof UnderpostBaremetal.packerMaasImageBuildWorkflow
+       * @memberof UnderpostBaremetal.packerMaasImageBuildWorkflows
        */
       Rocky9Amd64: {
         dir: 'packer/images/Rocky9Amd64',
