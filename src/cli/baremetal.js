@@ -141,8 +141,9 @@ class UnderpostBaremetal {
       }
 
       if (options.packerMaasImageTemplate) {
+        workflowId = options.packerWorkflowId;
         if (!workflowId) {
-          throw new Error('workflow-id is required when using --packer-maas-image-template');
+          throw new Error('--packer-workflow-id is required when using --packer-maas-image-template');
         }
 
         const templatePath = options.packerMaasImageTemplate;
