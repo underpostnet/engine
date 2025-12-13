@@ -9,5 +9,16 @@
       "filetype": "tgz",
       "content": "rocky9.tar.gz"
     }
+  },
+  "Rocky9Arm64": {
+    "dir": "packer/images/Rocky9Arm64",
+    "maas": {
+      "name": "custom/rocky9arm64",
+      "title": "Rocky9Arm64 Custom",
+      "architecture": "amd64/generic",
+      "base_image": "ubuntu/22.04",
+      "filetype": "tgz",
+      "content": "rocky9arm64.tar.gz"
+    }
   }
 }
