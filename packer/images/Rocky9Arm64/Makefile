@@ -1,11 +1,11 @@
 #!/usr/bin/make -f
 
-include ../scripts/check.mk
+include ../../scripts/check.mk
 
 PACKER ?= packer
 PACKER_LOG ?= 0
 TIMEOUT ?= 1h
-ARCH ?= x86_64
+ARCH ?= arm64
 
 # Detect if running on ARM host
 ifeq ($(shell uname -m),aarch64)
@@ -26,6 +26,9 @@ export PACKER_LOG
 ifeq ($(strip $(ARCH)),amd64)
 	ARCH = x86_64
 endif
+ifeq ($(strip $(ARCH)),arm64)
+	ARCH = aarch64
+endif
 
 .PHONY: all clean
 
@@ -40,8 +43,12 @@ lint:
 format:
 	packer fmt .
 
-OVMF_VARS.fd: /usr/share/OVMF/OVMF_VARS${OVMF_SFX}.fd
-	cp -v $< ${ARCH}_VARS.fd
+OVMF_VARS.fd:
+ifeq ($(strip $(ARCH)),aarch64)
+	cp -v /usr/share/AAVMF/AAVMF_VARS.fd ${ARCH}_VARS.fd
+else
+	cp -v /usr/share/OVMF/OVMF_VARS${OVMF_SFX}.fd ${ARCH}_VARS.fd
+endif
 
 SIZE_VARS.fd:
 ifeq ($(strip $(ARCH)),aarch64)

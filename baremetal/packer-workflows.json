@@ -13,12 +13,12 @@
   "Rocky9Arm64": {
     "dir": "packer/images/Rocky9Arm64",
     "maas": {
-      "name": "custom/rocky9arm64",
-      "title": "Rocky9Arm64 Custom",
-      "architecture": "amd64/generic",
-      "base_image": "ubuntu/22.04",
+      "name": "custom/rocky9-arm64",
+      "title": "Rocky 9 Arm64 Custom",
+      "architecture": "arm64/generic",
+      "base_image": "rhel/9",
       "filetype": "tgz",
-      "content": "rocky9arm64.tar.gz"
+      "content": "rocky9.tar.gz"
     }
   }
 }

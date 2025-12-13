@@ -219,7 +219,13 @@ class UnderpostBaremetal {
           }
 
           logger.info(`Building Packer image for ${workflowId} in ${packerDir}...`);
-          const artifacts = ['output-rocky9', 'packer_cache', 'x86_64_VARS.fd', 'rocky9.tar.gz'];
+          const artifacts = [
+            'output-rocky9',
+            'packer_cache',
+            'x86_64_VARS.fd',
+            'aarch64_VARS.fd',
+            workflow.maas.content,
+          ];
           shellExec(`cd packer/images/${workflowId}
 rm -rf ${artifacts.join(' ')}`);
           shellExec(`chmod +x ${underpostRoot}/scripts/packer-init-vars-file.sh`);
