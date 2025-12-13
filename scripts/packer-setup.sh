@@ -143,13 +143,20 @@ check_qemu_system_aarch64(){
   fi
 
   print "qemu-system-aarch64 found at $QBIN"
-  if $QBIN -machine help 2>/dev/null | grep -q '\bvirt\b'; then
-    print "qemu-system-aarch64 supports 'virt' -> good for full-system ARM emulation"
-    return 0
-  else
+  if ! $QBIN -machine help 2>/dev/null | grep -q '\bvirt\b'; then
     err "qemu-system-aarch64 present but 'virt' not listed -> may be missing aarch64 softmmu"
     return 2
   fi
+
+  # Check for user networking (slirp) support.
+  # We specify -machine virt to avoid "No machine specified" errors on some QEMU versions.
+  if ! $QBIN -machine virt -netdev help 2>&1 | grep -q '\buser\b'; then
+    err "qemu-system-aarch64 present but 'user' network backend not listed -> missing libslirp support"
+    return 3
+  fi
+
+  print "qemu-system-aarch64 supports 'virt' and 'user' network -> good for full-system ARM emulation"
+  return 0
 }
 
 if check_qemu_system_aarch64; then
@@ -177,6 +184,12 @@ else
     dnf groupinstall -y 'Development Tools' || true
     dnf install -y git libaio-devel libgcrypt-devel libfdt-devel glib2-devel zlib-devel pixman-devel libseccomp-devel libusb1-devel openssl-devel bison flex python3 python3-pip ninja-build || true
 
+    # Enforce libslirp-devel for user networking
+    if ! dnf install -y libslirp-devel; then
+        err "Failed to install libslirp-devel. User networking will not work."
+        exit 1
+    fi
+
     # Install required Python packages for QEMU build
     print "Installing Python dependencies for QEMU build"
     python3 -m pip install --upgrade pip || true
@@ -184,11 +197,12 @@ else
 
     TMPDIR=$(mktemp -d)
     print "Cloning QEMU source to $TMPDIR/qemu"
-    git clone --depth 1 https://gitlab.com/qemu-project/qemu.git "$TMPDIR/qemu"
+    # Use a stable release tag (v9.0.0) to ensure consistency
+    git clone --depth 1 --branch v9.0.0 https://gitlab.com/qemu-project/qemu.git "$TMPDIR/qemu"
     cd "$TMPDIR/qemu"
 
     print "Configuring QEMU build"
-    if ./configure --target-list=aarch64-softmmu --enable-virtfs; then
+    if ./configure --target-list=aarch64-softmmu --enable-virtfs --enable-slirp; then
       print "Configure successful, building QEMU..."
       if make -j"$(nproc)"; then
         print "Build successful, installing..."

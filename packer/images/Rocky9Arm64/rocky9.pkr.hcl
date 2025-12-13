@@ -63,6 +63,13 @@ locals {
   }
   iso_arch = lookup(local.iso_arch_map, var.architecture, "aarch64")
 
+  iso_checksum_map = {
+    "amd64"   = "sha256:3b5c87b2f9e62fdf0235d424d64c677906096965aad8a580e0e98fcb9f97f267"
+    "x86_64"  = "sha256:3b5c87b2f9e62fdf0235d424d64c677906096965aad8a580e0e98fcb9f97f267"
+    "arm64"   = "sha256:a9ba9ff1187300cecccfaea021eeac04b6408b1180071fb22ee73249f075485e"
+    "aarch64" = "sha256:a9ba9ff1187300cecccfaea021eeac04b6408b1180071fb22ee73249f075485e"
+  }
+
   qemu_arch = {
     "amd64"   = "x86_64"
     "x86_64"  = "x86_64"
@@ -107,7 +114,7 @@ source "qemu" "rocky9" {
   disk_size        = "45G"
   format           = "qcow2"
   headless         = var.headless
-  iso_checksum     = "file:https://download.rockylinux.org/pub/rocky/9/isos/${local.iso_arch}/CHECKSUM"
+  iso_checksum     = lookup(local.iso_checksum_map, var.architecture, "file:https://download.rockylinux.org/pub/rocky/9/isos/${local.iso_arch}/CHECKSUM")
   iso_urls         = [
     "https://download.rockylinux.org/pub/rocky/9/isos/${local.iso_arch}/Rocky-9-latest-${local.iso_arch}-boot.iso",
     "https://dl.rockylinux.org/pub/rocky/9/isos/${local.iso_arch}/Rocky-9-latest-${local.iso_arch}-boot.iso",

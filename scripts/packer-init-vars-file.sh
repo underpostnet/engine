@@ -14,15 +14,25 @@ for image_dir in "$PACKER_DIR"/*; do
         echo "Checking UEFI VARS files for $image_name..."
 
         # Create x86_64 VARS file if it doesn't exist
-        if [ -f /usr/share/edk2/ovmf/OVMF_VARS.fd ] && [ ! -f "$image_dir/x86_64_VARS.fd" ]; then
-            cp /usr/share/edk2/ovmf/OVMF_VARS.fd "$image_dir/x86_64_VARS.fd"
-            echo "Created $image_dir/x86_64_VARS.fd"
+        if [ ! -f "$image_dir/x86_64_VARS.fd" ]; then
+            for src in /usr/share/edk2/ovmf/OVMF_VARS.fd /usr/share/OVMF/OVMF_VARS.fd; do
+                if [ -f "$src" ]; then
+                    cp "$src" "$image_dir/x86_64_VARS.fd"
+                    echo "Created $image_dir/x86_64_VARS.fd from $src"
+                    break
+                fi
+            done
         fi
 
         # Create aarch64 VARS file if it doesn't exist
-        if [ -f /usr/share/edk2/aarch64/AAVMF_VARS.fd ] && [ ! -f "$image_dir/aarch64_VARS.fd" ]; then
-            cp /usr/share/edk2/aarch64/AAVMF_VARS.fd "$image_dir/aarch64_VARS.fd"
-            echo "Created $image_dir/aarch64_VARS.fd"
+        if [ ! -f "$image_dir/aarch64_VARS.fd" ]; then
+            for src in /usr/share/AAVMF/AAVMF_VARS.fd /usr/share/edk2/aarch64/AAVMF_VARS.fd /usr/share/edk2/aarch64/QEMU_VARS.fd; do
+                if [ -f "$src" ]; then
+                    cp "$src" "$image_dir/aarch64_VARS.fd"
+                    echo "Created $image_dir/aarch64_VARS.fd from $src"
+                    break
+                fi
+            done
         fi
     fi
 done
