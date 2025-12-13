@@ -188,7 +188,7 @@ class UnderpostBaremetal {
           logger.info(`1. Review and customize the Packer template files in: ${targetDir}`);
           logger.info(`2. Review the workflow configuration in engine/baremetal/packer-workflows.json`);
           logger.info(
-            `3. Build the image with: underpost baremetal ${workflowId} --packer-maas-image-build ${workflowId}`,
+            `3. Build the image with: underpost baremetal --packer-workflow-id ${workflowId} --packer-maas-image-build`,
           );
         } catch (error) {
           throw new Error(`Failed to extract template: ${error.message}`);
@@ -218,6 +218,27 @@ class UnderpostBaremetal {
             throw new Error('Packer is not installed. Please install Packer to proceed.');
           }
 
+          // Check for QEMU support if building for a different architecture
+          if (workflow.maas.architecture.startsWith('arm64') && process.arch !== 'arm64') {
+            if (shellExec('which qemu-system-aarch64', { silent: true }).code !== 0) {
+              throw new Error(
+                'qemu-system-aarch64 is not installed. Please install it to build ARM64 images on x86_64 hosts.\n' +
+                  'Try running: sudo dnf install -y qemu-system-aarch64',
+              );
+            }
+
+            // Verify that the installed qemu supports the 'virt' machine type (required for arm64)
+            // On some RHEL/Rocky systems, qemu-system-aarch64 might be a symlink to qemu-kvm which doesn't support arm64.
+            const machineHelp = shellExec('qemu-system-aarch64 -machine help', { silent: true }).stdout;
+            if (!machineHelp.includes('virt ')) {
+              throw new Error(
+                'The installed qemu-system-aarch64 does not support the "virt" machine type.\n' +
+                  'This usually happens if qemu-system-aarch64 is a symlink to qemu-kvm on x86_64.\n' +
+                  'Please install the proper qemu-system-aarch64 package: sudo dnf install -y qemu-system-aarch64',
+              );
+            }
+          }
+
           logger.info(`Building Packer image for ${workflowId} in ${packerDir}...`);
           const artifacts = [
             'output-rocky9',
@@ -236,7 +257,8 @@ rm -rf ${artifacts.join(' ')}`);
             throw new Error('Packer init failed');
           }
 
-          const build = spawnSync('packer', ['build', '.'], {
+          const isArm = process.arch === 'arm64';
+          const build = spawnSync('packer', ['build', '-var', `host_is_arm=${isArm}`, '.'], {
             stdio: 'inherit',
             cwd: packerDir,
             env: { ...process.env, PACKER_LOG: '1' },
@@ -251,7 +273,7 @@ rm -rf ${artifacts.join(' ')}`);
           if (!fs.existsSync(tarballPath)) {
             throw new Error(
               `Build artifact not found: ${tarballPath}\n` +
-                `Please build first with: --packer-maas-image-build ${workflowId}`,
+                `Please build first with: --packer-workflow-id ${workflowId} --packer-maas-image-build`,
             );
           }
           const stats = fs.statSync(tarballPath);

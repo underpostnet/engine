@@ -12,11 +12,17 @@ sudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashi
 sudo dnf clean all
 sudo dnf makecache --refresh
 
+# Cleanup incorrect symlink if it exists from previous runs
+if [ -L /usr/bin/qemu-system-aarch64 ]; then
+    echo "Removing incorrect symlink /usr/bin/qemu-system-aarch64"
+    sudo rm /usr/bin/qemu-system-aarch64
+fi
+
 # 2) Try to install packer from the repo
 sudo dnf install -y packer || echo "packer install from repo failed, try manual install (see below)"
 
 # 3) Install libvirt/qemu tooling then start the service
-sudo dnf install -y libvirt libvirt-daemon qemu-kvm qemu-img virt-install bridge-utils
+sudo dnf install -y libvirt libvirt-daemon qemu-kvm qemu-img virt-install bridge-utils qemu-system-aarch64
 sudo systemctl enable --now libvirtd
 sudo systemctl status libvirtd --no-pager
 
@@ -33,10 +39,7 @@ if [ -f /usr/libexec/qemu-kvm ] && [ ! -f /usr/bin/qemu-system-x86_64 ]; then
     sudo ln -sf /usr/libexec/qemu-kvm /usr/bin/qemu-system-x86_64
 fi
 
-if [ -f /usr/libexec/qemu-kvm ] && [ ! -f /usr/bin/qemu-system-aarch64 ]; then
-    echo "Creating symlink: /usr/bin/qemu-system-aarch64 -> /usr/libexec/qemu-kvm"
-    sudo ln -sf /usr/libexec/qemu-kvm /usr/bin/qemu-system-aarch64
-fi
+
 
 # 6) Create symlinks for OVMF/AAVMF firmware files in expected locations
 # Rocky/RHEL stores OVMF in /usr/share/edk2/ovmf, but Packer expects /usr/share/OVMF

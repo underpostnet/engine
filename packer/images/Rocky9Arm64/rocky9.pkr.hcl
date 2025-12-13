@@ -107,8 +107,12 @@ source "qemu" "rocky9" {
   disk_size        = "45G"
   format           = "qcow2"
   headless         = var.headless
-  iso_checksum     = "file:http://download.rockylinux.org/pub/rocky/9/isos/${local.iso_arch}/CHECKSUM"
-  iso_url          = "http://download.rockylinux.org/pub/rocky/9/isos/${local.iso_arch}/Rocky-9-latest-${local.iso_arch}-boot.iso"
+  iso_checksum     = "file:https://download.rockylinux.org/pub/rocky/9/isos/${local.iso_arch}/CHECKSUM"
+  iso_urls         = [
+    "https://download.rockylinux.org/pub/rocky/9/isos/${local.iso_arch}/Rocky-9-latest-${local.iso_arch}-boot.iso",
+    "https://dl.rockylinux.org/pub/rocky/9/isos/${local.iso_arch}/Rocky-9-latest-${local.iso_arch}-boot.iso",
+    "https://mirrors.edge.kernel.org/rocky/9/isos/${local.iso_arch}/Rocky-9-latest-${local.iso_arch}-boot.iso"
+  ]
   iso_target_path  = "packer_cache/Rocky-9-latest-${local.iso_arch}-boot.iso"
   memory           = 2048
   cores            = 4
