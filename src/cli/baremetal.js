@@ -248,10 +248,16 @@ rm -rf ${artifacts.join(' ')}`);
           }
 
           const isArm = process.arch === 'arm64';
+          // Add /usr/local/bin to PATH so Packer can find compiled QEMU binaries
+          const packerEnv = {
+            ...process.env,
+            PACKER_LOG: '1',
+            PATH: `/usr/local/bin:${process.env.PATH || '/usr/bin:/bin'}`,
+          };
           const build = spawnSync('packer', ['build', '-var', `host_is_arm=${isArm}`, '.'], {
             stdio: 'inherit',
             cwd: packerDir,
-            env: { ...process.env, PACKER_LOG: '1' },
+            env: packerEnv,
           });
 
           if (build.status !== 0) {
