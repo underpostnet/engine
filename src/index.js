@@ -193,6 +193,7 @@ export {
   UnderpostRootEnv,
   UnderpostFileStorage,
   UnderpostImage,
+  UnderpostStatic,
   UnderpostLxd,
   UnderpostMonitor,
   UnderpostRepository,
