@@ -625,6 +625,10 @@ program
     '--packer-maas-image-upload',
     'Uploads an existing MAAS image artifact without rebuilding for the workflow specified by --packer-workflow-id.',
   )
+  .option(
+    '--packer-maas-image-cached',
+    'Continue last build without removing artifacts (used with --packer-maas-image-build).',
+  )
   .option('--commission', 'Init workflow for commissioning a physical machine.')
   .option('--nfs-build', 'Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.')
   .option('--nfs-mount', 'Mounts the NFS root filesystem for a workflow id config architecture.')

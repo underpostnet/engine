@@ -87,6 +87,7 @@ class UnderpostBaremetal {
         packerWorkflowId: '',
         packerMaasImageBuild: false,
         packerMaasImageUpload: false,
+        packerMaasImageCached: false,
         cloudInitUpdate: false,
         commission: false,
         nfsBuild: false,
@@ -222,15 +223,22 @@ class UnderpostBaremetal {
           UnderpostBaremetal.API.checkQemuCrossArchSupport(workflow);
 
           logger.info(`Building Packer image for ${workflowId} in ${packerDir}...`);
-          const artifacts = [
-            'output-rocky9',
-            'packer_cache',
-            'x86_64_VARS.fd',
-            'aarch64_VARS.fd',
-            workflow.maas.content,
-          ];
-          shellExec(`cd packer/images/${workflowId}
+
+          // Only remove artifacts if not using cached mode
+          if (!options.packerMaasImageCached) {
+            const artifacts = [
+              'output-rocky9',
+              'packer_cache',
+              'x86_64_VARS.fd',
+              'aarch64_VARS.fd',
+              workflow.maas.content,
+            ];
+            shellExec(`cd packer/images/${workflowId}
 rm -rf ${artifacts.join(' ')}`);
+            logger.info('Removed previous build artifacts');
+          } else {
+            logger.info('Cached mode: Keeping existing artifacts for incremental build');
+          }
           shellExec(`chmod +x ${underpostRoot}/scripts/packer-init-vars-file.sh`);
           shellExec(`${underpostRoot}/scripts/packer-init-vars-file.sh`);
 
