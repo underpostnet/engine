@@ -1415,38 +1415,59 @@ udp-port = 32766
       // Check for QEMU support if building for a different architecture (validator bots case)
       if (workflow.maas.architecture.startsWith('arm64') && process.arch !== 'arm64') {
         // Building arm64/aarch64 on x86_64 host
-        if (shellExec('which qemu-system-aarch64', { silent: true }).code !== 0) {
+        // Check both /usr/local/bin (compiled) and system paths
+        let qemuAarch64Path = null;
+
+        if (shellExec('test -x /usr/local/bin/qemu-system-aarch64', { silent: true }).code === 0) {
+          qemuAarch64Path = '/usr/local/bin/qemu-system-aarch64';
+        } else if (shellExec('which qemu-system-aarch64', { silent: true }).code === 0) {
+          qemuAarch64Path = shellExec('which qemu-system-aarch64', { silent: true }).stdout.trim();
+        }
+
+        if (!qemuAarch64Path) {
           throw new Error(
             'qemu-system-aarch64 is not installed. Please install it to build ARM64 images on x86_64 hosts.\n' +
-              'Try running: sudo dnf install -y qemu-system-aarch64',
+              'Run: node bin baremetal --dev --install-packer',
           );
         }
 
+        logger.info(`Found qemu-system-aarch64 at: ${qemuAarch64Path}`);
+
         // Verify that the installed qemu supports the 'virt' machine type (required for arm64)
-        // On some RHEL/Rocky systems, qemu-system-aarch64 might be a symlink to qemu-kvm which doesn't support arm64.
-        const machineHelp = shellExec('qemu-system-aarch64 -machine help', { silent: true }).stdout;
-        if (!machineHelp.includes('virt ')) {
+        const machineHelp = shellExec(`${qemuAarch64Path} -machine help`, { silent: true }).stdout;
+        if (!machineHelp.includes('virt')) {
           throw new Error(
             'The installed qemu-system-aarch64 does not support the "virt" machine type.\n' +
               'This usually happens if qemu-system-aarch64 is a symlink to qemu-kvm on x86_64.\n' +
-              'Please install the proper qemu-system-aarch64 package: sudo dnf install -y qemu-system-aarch64',
+              'Run: node bin baremetal --dev --install-packer',
           );
         }
       } else if (workflow.maas.architecture.startsWith('amd64') && process.arch !== 'x64') {
         // Building amd64/x86_64 on aarch64 host
-        if (shellExec('which qemu-system-x86_64', { silent: true }).code !== 0) {
+        // Check both /usr/local/bin (compiled) and system paths
+        let qemuX86Path = null;
+
+        if (shellExec('test -x /usr/local/bin/qemu-system-x86_64', { silent: true }).code === 0) {
+          qemuX86Path = '/usr/local/bin/qemu-system-x86_64';
+        } else if (shellExec('which qemu-system-x86_64', { silent: true }).code === 0) {
+          qemuX86Path = shellExec('which qemu-system-x86_64', { silent: true }).stdout.trim();
+        }
+
+        if (!qemuX86Path) {
           throw new Error(
             'qemu-system-x86_64 is not installed. Please install it to build x86_64 images on aarch64 hosts.\n' +
-              'Try running: sudo dnf install -y qemu-system-x86_64 or sudo apt-get install -y qemu-system-x86',
+              'Run: node bin baremetal --dev --install-packer',
           );
         }
 
+        logger.info(`Found qemu-system-x86_64 at: ${qemuX86Path}`);
+
         // Verify that the installed qemu supports the 'pc' or 'q35' machine type (required for x86_64)
-        const machineHelp = shellExec('qemu-system-x86_64 -machine help', { silent: true }).stdout;
-        if (!machineHelp.includes('pc ') && !machineHelp.includes('q35')) {
+        const machineHelp = shellExec(`${qemuX86Path} -machine help`, { silent: true }).stdout;
+        if (!machineHelp.includes('pc') && !machineHelp.includes('q35')) {
           throw new Error(
             'The installed qemu-system-x86_64 does not support the "pc" or "q35" machine type.\n' +
-              'Please install the proper qemu-system-x86_64 package.',
+              'Run: node bin baremetal --dev --install-packer',
           );
         }
       }
