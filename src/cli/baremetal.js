@@ -218,26 +218,8 @@ class UnderpostBaremetal {
             throw new Error('Packer is not installed. Please install Packer to proceed.');
           }
 
-          // Check for QEMU support if building for a different architecture
-          if (workflow.maas.architecture.startsWith('arm64') && process.arch !== 'arm64') {
-            if (shellExec('which qemu-system-aarch64', { silent: true }).code !== 0) {
-              throw new Error(
-                'qemu-system-aarch64 is not installed. Please install it to build ARM64 images on x86_64 hosts.\n' +
-                  'Try running: sudo dnf install -y qemu-system-aarch64',
-              );
-            }
-
-            // Verify that the installed qemu supports the 'virt' machine type (required for arm64)
-            // On some RHEL/Rocky systems, qemu-system-aarch64 might be a symlink to qemu-kvm which doesn't support arm64.
-            const machineHelp = shellExec('qemu-system-aarch64 -machine help', { silent: true }).stdout;
-            if (!machineHelp.includes('virt ')) {
-              throw new Error(
-                'The installed qemu-system-aarch64 does not support the "virt" machine type.\n' +
-                  'This usually happens if qemu-system-aarch64 is a symlink to qemu-kvm on x86_64.\n' +
-                  'Please install the proper qemu-system-aarch64 package: sudo dnf install -y qemu-system-aarch64',
-              );
-            }
-          }
+          // Check for QEMU support if building for a different architecture (validator bots case)
+          UnderpostBaremetal.API.checkQemuCrossArchSupport(workflow);
 
           logger.info(`Building Packer image for ${workflowId} in ${packerDir}...`);
           const artifacts = [
@@ -1415,6 +1397,59 @@ udp-port = 32766
       logger.info('Restarting nfs-server service...');
       shellExec(`sudo systemctl restart nfs-server`);
       logger.info('NFS server restarted.');
+    },
+
+    /**
+     * @method checkQemuCrossArchSupport
+     * @description Checks for QEMU support when building for a different architecture.
+     * This is essential for validator bots that need to build images for architectures
+     * different from the host system (e.g., building arm64 on x86_64 or vice versa).
+     * @param {object} workflow - The workflow configuration object.
+     * @param {object} workflow.maas - The MAAS configuration.
+     * @param {string} workflow.maas.architecture - Target architecture (e.g., 'arm64/generic', 'amd64/generic').
+     * @memberof UnderpostBaremetal
+     * @throws {Error} If QEMU is not installed or doesn't support required machine types.
+     * @returns {void}
+     */
+    checkQemuCrossArchSupport(workflow) {
+      // Check for QEMU support if building for a different architecture (validator bots case)
+      if (workflow.maas.architecture.startsWith('arm64') && process.arch !== 'arm64') {
+        // Building arm64/aarch64 on x86_64 host
+        if (shellExec('which qemu-system-aarch64', { silent: true }).code !== 0) {
+          throw new Error(
+            'qemu-system-aarch64 is not installed. Please install it to build ARM64 images on x86_64 hosts.\n' +
+              'Try running: sudo dnf install -y qemu-system-aarch64',
+          );
+        }
+
+        // Verify that the installed qemu supports the 'virt' machine type (required for arm64)
+        // On some RHEL/Rocky systems, qemu-system-aarch64 might be a symlink to qemu-kvm which doesn't support arm64.
+        const machineHelp = shellExec('qemu-system-aarch64 -machine help', { silent: true }).stdout;
+        if (!machineHelp.includes('virt ')) {
+          throw new Error(
+            'The installed qemu-system-aarch64 does not support the "virt" machine type.\n' +
+              'This usually happens if qemu-system-aarch64 is a symlink to qemu-kvm on x86_64.\n' +
+              'Please install the proper qemu-system-aarch64 package: sudo dnf install -y qemu-system-aarch64',
+          );
+        }
+      } else if (workflow.maas.architecture.startsWith('amd64') && process.arch !== 'x64') {
+        // Building amd64/x86_64 on aarch64 host
+        if (shellExec('which qemu-system-x86_64', { silent: true }).code !== 0) {
+          throw new Error(
+            'qemu-system-x86_64 is not installed. Please install it to build x86_64 images on aarch64 hosts.\n' +
+              'Try running: sudo dnf install -y qemu-system-x86_64 or sudo apt-get install -y qemu-system-x86',
+          );
+        }
+
+        // Verify that the installed qemu supports the 'pc' or 'q35' machine type (required for x86_64)
+        const machineHelp = shellExec('qemu-system-x86_64 -machine help', { silent: true }).stdout;
+        if (!machineHelp.includes('pc ') && !machineHelp.includes('q35')) {
+          throw new Error(
+            'The installed qemu-system-x86_64 does not support the "pc" or "q35" machine type.\n' +
+              'Please install the proper qemu-system-x86_64 package.',
+          );
+        }
+      }
     },
 
     /**
