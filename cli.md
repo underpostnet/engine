@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.96.0
+## underpost ci/cd cli v2.96.1
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -909,6 +909,7 @@ Options:
   --packer-workflow-id <workflow-id>            Specifies the workflow ID for Packer MAAS image operations.
   --packer-maas-image-build                     Builds a MAAS image using Packer for the workflow specified by --packer-workflow-id.
   --packer-maas-image-upload                    Uploads an existing MAAS image artifact without rebuilding for the workflow specified by --packer-workflow-id.
+  --packer-maas-image-cached                    Continue last build without removing artifacts (used with --packer-maas-image-build).
   --commission                                  Init workflow for commissioning a physical machine.
   --nfs-build                                   Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.
   --nfs-mount                                   Mounts the NFS root filesystem for a workflow id config architecture.
