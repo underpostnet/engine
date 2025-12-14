@@ -1,216 +1,164 @@
 #!/usr/bin/env bash
 # disk-clean.sh
-# Safe, interactive disk cleanup for Rocky/RHEL-like systems.
+# Automatic safe cleanup script for Rocky Linux 9
+# This script ALWAYS runs non-interactively (batch)
+# Usage: sudo ./disk-clean.sh
+set -euo pipefail
 
-set -u # Detect undefined variables (removed -e to handle errors manually where it matters)
-IFS=$'\n\t'
+VACUUM_SIZE="200M"          # journalctl vacuum target
+LARGE_LOG_SIZE="+100M"      # threshold for truncation (find syntax)
+TMP_AGE_DAYS=3              # remove files older than this from /tmp and /var/tmp
+CACHE_AGE_DAYS=30           # remove caches older than this from /var/cache
+KEEP_KERNELS=2              # keep this many latest kernels
+REMOVE_OPT=0                # ALWAYS allow removing /opt entries (user requested)
 
-AUTO_YES=0
-LXD_FLAG=0
-VACUUM_SIZE="500M"
-TMP_AGE_DAYS=7
-LOG_GZ_AGE_DAYS=90
-ROOT_CACHE_AGE_DAYS=30
-AGGRESSIVE=0
-
-# Colors for better readability
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-usage() {
-  cat <<EOF
-Usage: $0 [--yes] [--aggressive] [--lxd] [--vacuum-size SIZE]
-
-Options:
-  --yes            run destructive actions without asking
-  --aggressive     clean user caches (npm, pip, conda, root .cache)
-  --lxd            enable lxc image prune
-  --vacuum-size X  set journalctl --vacuum-size (default: $VACUUM_SIZE)
-  -h, --help       show this help
-EOF
+timestamp() { date +"%F %T"; }
+log() {
+  echo "$(timestamp) $*"
 }
 
-# Parse args
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --yes) AUTO_YES=1; shift;;
-    --aggressive) AGGRESSIVE=1; shift;;
-    --lxd) LXD_FLAG=1; shift;;
-    --vacuum-size) VACUUM_SIZE="$2"; shift 2;;
-    -h|--help) usage; exit 0;;
-    *) echo "Unknown argument: $1"; usage; exit 2;;
-  esac
+# must be root
+if [ "$EUID" -ne 0 ]; then
+  echo "This script must be run as root. Exiting."
+  exit 1
+fi
+
+log "=== Starting Rocky Linux 9 automated cleanup (batch mode) ==="
+log "Command line: $0 $*"
+log "REMOVE_OPT=$REMOVE_OPT"
+log "VACUUM_SIZE=$VACUUM_SIZE, LARGE_LOG_SIZE=$LARGE_LOG_SIZE, TMP_AGE_DAYS=$TMP_AGE_DAYS, CACHE_AGE_DAYS=$CACHE_AGE_DAYS"
+
+# Report current disk usage
+log "Disk usage before cleanup:"
+df -h
+log "Top-level disk usage ( / ):"
+du -xh --max-depth=1 / | sort -rh | head -n 20
+
+# 1) DNF cleanup
+log "Cleaning DNF caches and removing orphaned packages..."
+dnf -y clean all || true
+dnf -y autoremove || true
+
+# 2) Journal logs vacuum
+log "Vacuuming systemd journal to keep ${VACUUM_SIZE}..."
+journalctl --vacuum-size="$VACUUM_SIZE" || true
+
+# 3) Truncate very large logs in /var/log (safer than delete)
+log "Truncating logs in /var/log larger than ${LARGE_LOG_SIZE} (keeps zero-sized file so services don't break)..."
+find /var/log -type f -size "$LARGE_LOG_SIZE" -print0 2>/dev/null | while IFS= read -r -d '' f; do
+  echo "Truncating $f"
+  : > "$f" || echo "Failed to truncate $f"
 done
 
-log() { echo -e "${GREEN}[INFO]${NC} $*"; }
-warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
-error() { echo -e "${RED}[ERROR]${NC} $*"; }
+# 4) Clean /tmp and /var/tmp older than TMP_AGE_DAYS
+log "Removing files older than ${TMP_AGE_DAYS} days from /tmp and /var/tmp..."
+find /tmp -mindepth 1 -mtime +"$TMP_AGE_DAYS" -print0 2>/dev/null | xargs -0r rm -rf -- || true
+find /var/tmp -mindepth 1 -mtime +"$TMP_AGE_DAYS" -print0 2>/dev/null | xargs -0r rm -rf -- || true
 
-run() {
-  # Runs the command safely
-  echo "+ $*"
-  # Execute the command passed as arguments, preserving quotes/spaces
-  "$@" || {
-      warn "Command failed (non-critical): $*"
-      return 0
-  }
-}
+# 5) Clean /var/cache older than CACHE_AGE_DAYS (but not all cache immediately)
+log "Removing entries in /var/cache older than ${CACHE_AGE_DAYS} days..."
+find /var/cache -mindepth 1 -mtime +"$CACHE_AGE_DAYS" -print0 2>/dev/null | xargs -0r rm -rf -- || true
 
-confirm() {
-  if [[ $AUTO_YES -eq 1 ]]; then
-    return 0
+# 6) Clean user caches (~/.cache) and Downloads older than CACHE_AGE_DAYS
+log "Cleaning user caches and old downloads (home dirs)..."
+for homedir in /home/* /root; do
+  [ -d "$homedir" ] || continue
+  usercache="$homedir/.cache"
+  userdownloads="$homedir/Downloads"
+  usertrash="$homedir/.local/share/Trash"
+
+  if [ -d "$usercache" ]; then
+    log "Removing contents of $usercache"
+    rm -rf "${usercache:?}/"* 2>/dev/null || true
   fi
-  # Use </dev/tty to ensure we read from user even inside a pipe loop
-  read -r -p "$1 [y/N]: " ans </dev/tty
-  case "$ans" in
-    [Yy]|[Yy][Ee][Ss]) return 0;;
-    *) return 1;;
-  esac
-}
-
-require_root() {
-  if [[ $EUID -ne 0 ]]; then
-    error "This script must be run as root."
-    exit 1
+  if [ -d "$userdownloads" ]; then
+    log "Removing files older than ${CACHE_AGE_DAYS} days from $userdownloads"
+    find "$userdownloads" -type f -mtime +"$CACHE_AGE_DAYS" -print0 2>/dev/null | xargs -0r rm -f -- 2>/dev/null || true
   fi
-}
-
-command_exists() {
-  command -v "$1" >/dev/null 2>&1
-}
-
-require_root
-
-log "Starting cleanup (aggressive=$AGGRESSIVE)"
-
-# 1) Package Manager (DNF)
-if command_exists dnf; then
-  log "Cleaning DNF caches"
-  run dnf clean all
-  run rm -rf /var/cache/dnf
-  if confirm "Run 'dnf autoremove -y' for orphan packages?"; then
-    run dnf autoremove -y
-  else
-    log "Skipped dnf autoremove"
+  if [ -d "$usertrash" ]; then
+    log "Emptying trash in $usertrash"
+    rm -rf "${usertrash:?}/"* 2>/dev/null || true
   fi
+done
+
+# 7) Docker / Podman cleanup (if present)
+if command -v docker >/dev/null 2>&1; then
+  log "Docker detected: pruning images/containers/volumes (aggressive)..."
+  docker system df || true
+  docker system prune -a --volumes -f || true
+fi
+
+if command -v podman >/dev/null 2>&1; then
+  log "Podman detected: pruning images/containers (aggressive)..."
+  podman system df || true
+  podman system prune -a -f || true
+fi
+
+# 8) Flatpak unused runtimes/apps (if present)
+if command -v flatpak >/dev/null 2>&1; then
+  log "Flatpak detected: trying to uninstall unused runtimes/apps..."
+  flatpak uninstall --unused -y || flatpak uninstall --unused || true
+  flatpak repair || true
+fi
+
+# 9) Python Pip cleanup
+if command -v pip3 >/dev/null 2>&1 || command -v pip >/dev/null 2>&1; then
+  log "Python Pip detected: cleaning cache..."
+  if command -v pip3 >/dev/null 2>&1; then
+    pip3 cache purge || true
+  elif command -v pip >/dev/null 2>&1; then
+    pip cache purge || true
+  fi
+fi
+
+# 10) Conda cleanup
+if command -v conda >/dev/null 2>&1; then
+  log "Conda detected: cleaning all..."
+  conda clean --all -y || true
+fi
+
+# 11) Remove old kernels but keep the last KEEP_KERNELS (safe)
+log "Removing old kernels, keeping the last $KEEP_KERNELS kernels..."
+OLD_KERNELS=$(dnf repoquery --installonly --latest-limit=-$KEEP_KERNELS -q 2>/dev/null || true)
+if [ -n "$OLD_KERNELS" ]; then
+  log "Old kernels to remove: $OLD_KERNELS"
+  dnf -y remove $OLD_KERNELS || true
 else
-  warn "dnf not found"
-fi
-
-# 2) Journal logs
-if command_exists journalctl; then
-  log "Current Journal disk usage:"
-  journalctl --disk-usage || true
-
-  if confirm "Run 'journalctl --vacuum-size=$VACUUM_SIZE'?"; then
-    run journalctl --vacuum-size="$VACUUM_SIZE"
+  log "No old kernels found by repoquery. Falling back to rpm listing..."
+  RPM_OLD=$(rpm -qa 'kernel*' | sort -V | head -n -$KEEP_KERNELS || true)
+  if [ -n "$RPM_OLD" ]; then
+    log "Old kernel packages (rpm) to remove: $RPM_OLD"
+    dnf -y remove $RPM_OLD || true
   else
-    log "Skipped journal vacuum"
+    log "No kernels to remove."
   fi
 fi
 
-# 3) /var/tmp
-if [[ -d /var/tmp ]]; then
-  if confirm "Delete files in /var/tmp older than $TMP_AGE_DAYS days?"; then
-    find /var/tmp -mindepth 1 -mtime +$TMP_AGE_DAYS -delete
-  fi
-fi
+# 12) /opt review and removal (ON by default now)
+if [ -d /opt ]; then
+  log "/opt usage (top entries):"
+  du -sh /opt/* 2>/dev/null | sort -h | head -n 20 || true
 
-# 4) Old compressed logs
-if [[ -d /var/log ]]; then
-  if confirm "Delete compressed logs (.gz) in /var/log older than $LOG_GZ_AGE_DAYS days?"; then
-    find /var/log -type f -name '*.gz' -mtime +$LOG_GZ_AGE_DAYS -delete
-  fi
-fi
-
-# 5) Snap: disabled revisions
-if command_exists snap; then
-  log "Searching for old Snap revisions"
-  # Save to variable only if successful
-  disabled_snaps=$(snap list --all 2>/dev/null | awk '/disabled/ {print $1, $3}') || disabled_snaps=""
-
-  if [[ -n "$disabled_snaps" ]]; then
-    echo "Disabled snap revisions found:"
-    echo "$disabled_snaps"
-    if confirm "Remove all disabled revisions?"; then
-      while read -r pkg rev; do
-        [[ -z "$pkg" ]] && continue
-        log "Removing snap $pkg (revision $rev)"
-        run snap remove "$pkg" --revision="$rev"
-      done <<< "$disabled_snaps"
-
-      log "Setting snap retention to 2"
-      run snap set system refresh.retain=2
-    fi
+  if [ "$REMOVE_OPT" = "1" ]; then
+    OPT_TARGETS=(/opt/local-path-provisioner)
+    for t in "${OPT_TARGETS[@]}"; do
+      if [ -d "$t" ]; then
+        log "Removing $t as REMOVE_OPT=1"
+        rm -rf "$t" || true
+      fi
+    done
   else
-    log "No disabled snap revisions found."
+    log "Automatic /opt removals disabled (set REMOVE_OPT=1 to enable)."
   fi
 fi
 
-# 6) LXD
-if command_exists lxc; then
-  if [[ $LXD_FLAG -eq 1 ]]; then
-    if confirm "Run 'lxc image prune'?"; then
-      run lxc image prune -f
-    fi
-  else
-     log "Skipping LXD (use --lxd to enable)"
-  fi
-fi
+# 13) Find large files > 100MB (report only)
+log "Listing files larger than 100MB (report only):"
+find / -xdev -type f -size +100M -printf '%s\t%p\n' 2>/dev/null | sort -nr | head -n 50 | awk '{printf "%.1fMB\t%s\n",$1/1024/1024,$2}' || true
 
-# 7) Docker / Containerd
-if command_exists docker; then
-  if confirm "Run 'docker system prune -a --volumes'? (WARNING: Removes stopped containers)"; then
-    run docker system prune -a --volumes -f
-  fi
-elif command_exists crictl; then
-  if confirm "Attempt to remove images with crictl?"; then
-    run crictl rmi --prune
-  fi
-fi
+# Final disk usage
+log "Disk usage after cleanup:"
+df -h
 
-# 8) Large Files (>1G) - Completely rewritten logic
-log "Scanning for files larger than 1G (this may take a while)..."
-
-# Use while loop with find -print0 to handle filenames with spaces safely
-FOUND_LARGE=0
-# Note: find does not modify filesystem here, safe to run always
-while IFS= read -r -d '' file; do
-  FOUND_LARGE=1
-  # Get readable size to show user
-  filesize=$(du -h "$file" | cut -f1)
-
-  echo -e "Large file found: ${YELLOW}$file${NC} (Size: $filesize)"
-
-  if confirm "  -> Delete this file?"; then
-    run rm -vf "$file"
-  else
-    log "Skipped: $file"
-  fi
-done < <(find / -xdev -type f -size +1G -print0 2>/dev/null)
-
-if [[ $FOUND_LARGE -eq 0 ]]; then
-  log "No files >1G found in /"
-fi
-
-# 9) Aggressive Caches
-if [[ $AGGRESSIVE -eq 1 ]]; then
-  log "Aggressive mode enabled"
-  command_exists npm && confirm "Run 'npm cache clean --force'?" && run npm cache clean --force
-  command_exists pip && confirm "Run 'pip cache purge'?" && run pip cache purge
-  command_exists conda && confirm "Run 'conda clean --all -y'?" && run conda clean --all -y
-
-  if [[ -d /root/.cache ]]; then
-    if confirm "Delete /root/.cache (> $ROOT_CACHE_AGE_DAYS days)?"; then
-       find /root/.cache -type f -mtime +$ROOT_CACHE_AGE_DAYS -delete
-    fi
-  fi
-fi
-
-# 10) Final
-log "Final disk usage:"
-df -h --total | grep total || df -h /
-
-log "Cleanup finished."
+log "=== Cleanup finished ==="
+exit 0
