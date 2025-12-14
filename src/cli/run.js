@@ -566,7 +566,7 @@ class UnderpostRun {
       const currentTraffic = isDeployRunnerContext(path, options)
         ? UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace })
         : '';
-      let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : '';
+      let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'green';
       if (targetTraffic) versions = targetTraffic;
 
       shellExec(
@@ -577,7 +577,7 @@ class UnderpostRun {
 
       if (isDeployRunnerContext(path, options)) {
         const cmdString = options.cmd
-          ? ` --cmd ${options.cmd.match('"') ? `"${options.cmd}"` : `'${options.cmd}'`}`
+          ? ` --cmd ${options.cmd.find((c) => c.match('"')) ? `"${options.cmd}"` : `'${options.cmd}'`}`
           : '';
         shellExec(
           `${baseCommand} deploy --kubeadm${cmdString} --replicas ${
@@ -1164,6 +1164,7 @@ EOF
      * @memberof UnderpostRun
      */
     cluster: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      const { underpostRoot } = options;
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
@@ -1175,10 +1176,10 @@ EOF
       await timer(5000);
       let [runtimeImage, deployList] = path.split(',')
         ? path.split(',')
-        : ['express', fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+')];
+        : ['express', fs.readFileSync(`${underpostRoot}/engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+')];
       shellExec(
         `${baseCommand} image${baseClusterCommand}${
-          runtimeImage ? ` --pull-base --path /home/dd/engine/src/runtime/${runtimeImage}` : ''
+          runtimeImage ? ` --pull-base --path ${underpostRoot}/src/runtime/${runtimeImage}` : ''
         } --${clusterType}`,
       );
       if (!deployList) {
@@ -1467,6 +1468,31 @@ EOF
       shellCd(`/home/dd/engine`);
       shellExec(`underpost cmt --empty . ci engine ' New engine release $(underpost --version)'`);
       shellExec(`underpost push . ${process.env.GITHUB_USERNAME}/engine`, { silent: true });
+    },
+
+    /**
+     * @method deploy-test
+     * @description Deploys a test deployment (`dd-test`) in either development or production mode, setting up necessary secrets and starting the deployment.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the deployment ID).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'deploy-test': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      // Note: use recomendation empty deploy cluster: node bin --dev cluster
+      const env = options.dev ? 'development' : 'production';
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseClusterCommand = options.dev ? ' --dev' : '';
+      const inputs = path ? path.split(',') : [];
+      const deployId = inputs[0] ? inputs[0] : 'dd-test';
+      const cmd = options.cmd
+        ? options.cmd
+        : [
+            `npm install -g npm@11.2.0`,
+            `npm install -g underpost`,
+            `${baseCommand} secret underpost --create-from-file /etc/config/.env.${env}`,
+            `${baseCommand} start --build --run ${deployId} ${env} --underpost-quickly-install`,
+          ];
+      shellExec(`node bin run sync${baseClusterCommand} --cron-jobs none dd-test --cmd "${cmd}"`);
     },
 
     /**
