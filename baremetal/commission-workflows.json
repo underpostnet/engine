@@ -1,4 +1,16 @@
 {
+  "Rocky9Arm64": {
+    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS Rocky Linux 9 commissioning (ARM64)",
+    "systemProvisioning": "rocky",
+    "networkInterfaceName": "enabcm6e4ei0",
+    "netmask": "255.255.255.0",
+    "maas": {
+      "image": {
+        "architecture": "arm64/generic",
+        "name": "rocky9-arm64"
+      }
+    }
+  },
   "rpi4mb": {
     "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)",
     "systemProvisioning": "ubuntu",
@@ -30,14 +42,8 @@
     },
     "nfs": {
       "mounts": {
-        "bind": [
-          "/proc",
-          "/sys",
-          "/run"
-        ],
-        "rbind": [
-          "/dev"
-        ]
+        "bind": ["/proc", "/sys", "/run"],
+        "rbind": ["/dev"]
       }
     }
   }

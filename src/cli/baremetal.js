@@ -62,6 +62,8 @@ class UnderpostBaremetal {
      * @param {string} [options.packerWorkflowId] - Workflow ID for Packer MAAS image operations (used with --packer-maas-image-build or --packer-maas-image-upload).
      * @param {boolean} [options.packerMaasImageBuild=false] - Flag to build a Packer MAAS image for the workflow specified by packerWorkflowId.
      * @param {boolean} [options.packerMaasImageUpload=false] - Flag to upload a Packer MAAS image artifact without rebuilding for the workflow specified by packerWorkflowId.
+     * @param {boolean} [options.packerMaasImageCached=false] - Flag to use cached artifacts when building the Packer MAAS image.
+     * @param {string} [options.removeMachines=''] - Comma-separated list of machine system IDs or '*' to remove existing machines from MAAS before commissioning.
      * @param {boolean} [options.cloudInitUpdate=false] - Flag to update cloud-init configuration on the baremetal machine.
      * @param {boolean} [options.commission=false] - Flag to commission the baremetal machine.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
@@ -88,6 +90,7 @@ class UnderpostBaremetal {
         packerMaasImageBuild: false,
         packerMaasImageUpload: false,
         packerMaasImageCached: false,
+        removeMachines: '',
         cloudInitUpdate: false,
         commission: false,
         nfsBuild: false,
@@ -371,7 +374,7 @@ rm -rf ${artifacts.join(' ')}`);
         shellExec(`chmod +x ${underpostRoot}/scripts/maas-setup.sh`);
         shellExec(`chmod +x ${underpostRoot}/scripts/nat-iptables.sh`);
         shellExec(`${underpostRoot}/scripts/maas-setup.sh`);
-        shellExec(`${underpostRoot}/scripts/nat-iptables.sh`);
+        shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
         return;
       }
 
@@ -544,9 +547,15 @@ rm -rf ${artifacts.join(' ')}`);
         console.table(machines);
       }
 
+      // Handle remove existing machines from MAAS.
+      if (options.removeMachines)
+        machines = UnderpostBaremetal.API.removeMachines({
+          machines: options.removeMachines === '*' ? machines : options.removeMachines.split(','),
+        });
+
       // Handle commissioning tasks (placeholder for future implementation).
       if (options.commission === true) {
-        const { firmwares, networkInterfaceName, maas, netmask, menuentryStr } = workflowsConfig[workflowId];
+        const { firmwares, networkInterfaceName, maas, netmask, menuentryStr, nfs } = workflowsConfig[workflowId];
         const resource = resources.find(
           (o) => o.architecture === maas.image.architecture && o.name === maas.image.name,
         );
@@ -587,9 +596,10 @@ rm -rf ${artifacts.join(' ')}`);
         }
 
         // Rebuild NFS server configuration.
-        UnderpostBaremetal.API.rebuildNfsServer({
-          nfsHostPath,
-        });
+        if (nfs)
+          UnderpostBaremetal.API.rebuildNfsServer({
+            nfsHostPath,
+          });
 
         // Configure GRUB for PXE boot.
         {
@@ -770,9 +780,6 @@ menuentry '${menuentryStr}' {
             }),
           ],
         });
-
-        // Remove existing machines from MAAS.
-        machines = UnderpostBaremetal.API.removeMachines({ machines });
 
         // Monitor commissioning process.
         UnderpostBaremetal.API.commissionMonitor({
