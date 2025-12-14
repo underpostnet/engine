@@ -567,6 +567,7 @@ program
   .option('--user <user>', 'Sets user context for the runner execution.')
   .option('--hosts <hosts>', 'Comma-separated list of hosts for the runner execution.')
   .option('--instance-id <instance-id>', 'Sets instance id context for the runner execution.')
+  .option('--pid <process-id>', 'Sets process id context for the runner execution.')
   .description('Runs specified scripts using various runners.')
   .action(UnderpostRun.API.callback);
 
