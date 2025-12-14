@@ -1174,11 +1174,15 @@ EOF
       await timer(5000);
       shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType}`);
       await timer(5000);
-      let [runtimeImage, deployList] = path.split(',')
-        ? path.split(',')
-        : ['express', fs.readFileSync(`${underpostRoot}/engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+')];
+      let [runtimeImage, deployList] =
+        path && path.trim() && path.split(',')
+          ? path.split(',')
+          : [
+              'express',
+              fs.readFileSync(`${underpostRoot}/engine-private/deploy/dd.router`, 'utf8').replaceAll(',', '+'),
+            ];
       shellExec(
-        `${baseCommand} image${baseClusterCommand}${
+        `${baseCommand} image${baseClusterCommand} --build ${
           runtimeImage ? ` --pull-base --path ${underpostRoot}/src/runtime/${runtimeImage}` : ''
         } --${clusterType}`,
       );
