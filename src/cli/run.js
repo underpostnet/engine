@@ -1246,7 +1246,7 @@ EOF
     'disk-clean': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       shellExec(`chmod +x ${underpostRoot}/scripts/disk-clean.sh`);
-      shellExec(`./scripts/disk-clean.sh --yes --aggressive`);
+      shellExec(`./scripts/disk-clean.sh`);
     },
 
     /**

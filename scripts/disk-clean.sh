@@ -124,14 +124,7 @@ if [ -n "$OLD_KERNELS" ]; then
   log "Old kernels to remove: $OLD_KERNELS"
   dnf -y remove $OLD_KERNELS || true
 else
-  log "No old kernels found by repoquery. Falling back to rpm listing..."
-  RPM_OLD=$(rpm -qa 'kernel*' | sort -V | head -n -$KEEP_KERNELS || true)
-  if [ -n "$RPM_OLD" ]; then
-    log "Old kernel packages (rpm) to remove: $RPM_OLD"
-    dnf -y remove $RPM_OLD || true
-  else
-    log "No kernels to remove."
-  fi
+  log "No old kernels found by DNF repoquery. Only $KEEP_KERNELS or fewer are currently installed."
 fi
 
 # 12) /opt review and removal (ON by default now)
