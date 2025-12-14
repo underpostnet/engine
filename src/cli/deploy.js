@@ -106,12 +106,13 @@ class UnderpostDeploy {
      * @memberof UnderpostDeploy
      */
     deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image, namespace, volumes, cmd }) {
+      const baseCommand = env === 'development' ? 'node bin' : 'underpost';
       if (!cmd)
         cmd = [
           `npm install -g npm@11.2.0`,
           `npm install -g underpost`,
-          `underpost secret underpost --create-from-file /etc/config/.env.${env}`,
-          `underpost start --build --run ${deployId} ${env}`,
+          `${baseCommand} secret underpost --create-from-file /etc/config/.env.${env}`,
+          `${baseCommand} start --build --run ${deployId} ${env}`,
         ];
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
       if (!volumes)
@@ -221,6 +222,7 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   replicas,
   image,
   namespace: options.namespace,
+  cmd: options.cmd ? options.cmd.split(',').map((c) => c.trim()) : undefined,
 }).replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;
         }
@@ -389,6 +391,7 @@ spec:
      * @param {string} [options.namespace] - Kubernetes namespace for the deployment.
      * @param {string} [options.kindType] - Type of Kubernetes resource to retrieve information for.
      * @param {number} [options.port] - Port number for exposing the deployment.
+     * @param {string} [options.cmd] - Custom initialization command for deploymentYamlPartsFactory (comma-separated commands).
      * @returns {Promise<void>} - Promise that resolves when the deployment process is complete.
      * @memberof UnderpostDeploy
      */
@@ -420,6 +423,7 @@ spec:
         namespace: '',
         kindType: '',
         port: 0,
+        cmd: '',
       },
     ) {
       const namespace = options.namespace ? options.namespace : 'default';

@@ -49,6 +49,7 @@ program
   )
   .option('--run', 'Starts application servers and monitors their health.')
   .option('--build', 'Triggers the client-side application build process.')
+  .option('--underpost-quickly-install', 'Uses Underpost Quickly Install for dependency installation.')
   .action(Underpost.start.callback)
   .description('Initiates application servers, build pipelines, or other defined services based on the deployment ID.');
 
@@ -295,6 +296,7 @@ program
   .option('--namespace <namespace>', 'Kubernetes namespace for deployment operations (defaults to "default").')
   .option('--kind-type <kind-type>', 'Specifies the Kind cluster type for deployment operations.')
   .option('--port <port>', 'Sets up port forwarding from local to remote ports.')
+  .option('--cmd <cmd>', 'Custom initialization command for deployment (comma-separated commands).')
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);
 

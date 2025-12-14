@@ -117,20 +117,27 @@ class UnderpostStartUp {
      * @param {Object} options - Options for the deployment.
      * @param {boolean} options.build - Whether to build the deployment.
      * @param {boolean} options.run - Whether to run the deployment.
+     * @param {boolean} options.underpostQuicklyInstall - Whether to use underpost quickly install.
      */
-    async callback(deployId = 'dd-default', env = 'development', options = { build: false, run: false }) {
+    async callback(
+      deployId = 'dd-default',
+      env = 'development',
+      options = { build: false, run: false, underpostQuicklyInstall: false },
+    ) {
       UnderpostRootEnv.API.set('container-status', `${deployId}-${env}-build-deployment`);
-      if (options.build === true) await UnderpostStartUp.API.build(deployId, env);
+      if (options.build === true) await UnderpostStartUp.API.build(deployId, env, options);
       UnderpostRootEnv.API.set('container-status', `${deployId}-${env}-initializing-deployment`);
-      if (options.run === true) await UnderpostStartUp.API.run(deployId, env);
+      if (options.run === true) await UnderpostStartUp.API.run(deployId, env, options);
     },
     /**
      * Run itc-scripts and builds client bundle.
      * @param {string} deployId - The ID of the deployment.
      * @param {string} env - The environment of the deployment.
+     * @param {Object} options - Options for the build.
+     * @param {boolean} options.underpostQuicklyInstall - Whether to use underpost quickly install.
      * @memberof UnderpostStartUp
      */
-    async build(deployId = 'dd-default', env = 'development') {
+    async build(deployId = 'dd-default', env = 'development', options = { underpostQuicklyInstall: false }) {
       const buildBasePath = `/home/dd`;
       const repoName = `engine-${deployId.split('-')[1]}`;
       shellExec(`cd ${buildBasePath} && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
@@ -140,7 +147,7 @@ class UnderpostStartUp {
       shellExec(`cd ${buildBasePath}/engine && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}-private`);
       shellExec(`cd ${buildBasePath}/engine && sudo mv ./${repoName}-private ./engine-private`);
       shellCd(`${buildBasePath}/engine`);
-      shellExec(`npm install`);
+      shellExec(options?.underpostQuicklyInstall ? `underpost install` : `npm install`);
       shellExec(`node bin/deploy conf ${deployId} ${env}`);
       if (fs.existsSync('./engine-private/itc-scripts')) {
         const itcScripts = await fs.readdir('./engine-private/itc-scripts');
@@ -153,9 +160,10 @@ class UnderpostStartUp {
      * Runs a deployment.
      * @param {string} deployId - The ID of the deployment.
      * @param {string} env - The environment of the deployment.
+     * @param {Object} options - Options for the run.
      * @memberof UnderpostStartUp
      */
-    async run(deployId = 'dd-default', env = 'development') {
+    async run(deployId = 'dd-default', env = 'development', options = {}) {
       const runCmd = env === 'production' ? 'run prod-img' : 'run dev-img';
       if (fs.existsSync(`./engine-private/replica`)) {
         const replicas = await fs.readdir(`./engine-private/replica`);
