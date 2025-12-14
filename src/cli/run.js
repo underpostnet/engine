@@ -57,6 +57,7 @@ class UnderpostRun {
    * @property {boolean} force - Whether to force the operation.
    * @property {boolean} reset - Whether to reset the operation.
    * @property {boolean} tls - Whether to use TLS.
+   * @property {string} cmd - The command to run in the container.
    * @property {string} tty - The TTY option for the container.
    * @property {string} stdin - The stdin option for the container.
    * @property {string} restartPolicy - The restart policy for the container.
@@ -104,6 +105,7 @@ class UnderpostRun {
     force: false,
     reset: false,
     tls: false,
+    cmd: '',
     tty: '',
     stdin: '',
     restartPolicy: '',
@@ -574,8 +576,13 @@ class UnderpostRun {
       );
 
       if (isDeployRunnerContext(path, options)) {
+        const cmdString = options.cmd
+          ? ` --cmd ${options.cmd.match('"') ? `"${options.cmd}"` : `'${options.cmd}'`}`
+          : '';
         shellExec(
-          `${baseCommand} deploy --kubeadm --disable-update-proxy ${deployId} ${env} --versions ${versions}${options.namespace ? ` --namespace ${options.namespace}` : ''}`,
+          `${baseCommand} deploy --kubeadm${cmdString} --replicas ${
+            replicas
+          } --disable-update-proxy ${deployId} ${env} --versions ${versions}${options.namespace ? ` --namespace ${options.namespace}` : ''}`,
         );
         if (!targetTraffic)
           targetTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
@@ -1597,7 +1604,7 @@ ${hostNetwork ? `  hostNetwork: ${hostNetwork}` : ''}
       imagePullPolicy: ${imagePullPolicy}
       tty: ${tty}
       stdin: ${stdin}
-      command: ${JSON.stringify(options.command ? options.command : ['/bin/bash', '-c'])}
+      command: ${JSON.stringify(options.cmd ? options.cmd : ['/bin/bash', '-c'])}
 ${
   args.length > 0
     ? `      args:
@@ -1649,7 +1656,7 @@ EOF`;
       try {
         const npmRoot = getNpmRootPath();
         const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
-        if (options.command) options.command = options.command.split(',');
+        if (options.cmd) options.cmd = options.cmd.split(',');
         if (options.args) options.args = options.args.split(',');
         if (!options.underpostRoot) options.underpostRoot = underpostRoot;
         if (!options.namespace) options.namespace = 'default';

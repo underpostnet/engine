@@ -510,7 +510,7 @@ program
   .command('run')
   .argument('<runner-id>', `The runner ID to run. Options: ${Object.keys(UnderpostRun.RUNNERS).join(', ')}.`)
   .argument('[path]', 'The input value, identifier, or path for the operation.')
-  .option('--command <command-array>', 'Array of commands to run.')
+  .option('--cmd <command-list>', 'Comma-separated list of commands to execute.')
   .option('--args <args-array>', 'Array of arguments to pass to the command.')
   .option('--dev', 'Sets the development context environment for the script.')
   .option('--build', 'Set builder context runner')
