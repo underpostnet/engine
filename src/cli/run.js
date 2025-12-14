@@ -1405,7 +1405,7 @@ EOF
         shellExec(
           `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''} --disable-update-deployment ${deployId} ${env} --versions ${versions}`,
         );
-      } else logger.error('Mongo Express deployment failed');
+      } else logger.error(`Service pod ${podToMonitor} failed to start in time.`);
       if (options.etcHosts === true) {
         const hostListenResult = UnderpostDeploy.API.etcHostFactory([host]);
         logger.info(hostListenResult.renderHosts);
