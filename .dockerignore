@@ -3,7 +3,6 @@
 /engine-private
 /conf
 /tmp
-/bkt
 /logs
 /build
 /.env
