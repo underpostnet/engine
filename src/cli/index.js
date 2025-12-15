@@ -361,7 +361,7 @@ program
 // 'db' command: Manage databases
 program
   .command('db')
-  .argument('<deploy-list>', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
+  .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
   .option('--import', 'Imports container backups from specified repositories.')
   .option('--export', 'Exports container backups to specified repositories.')
   .option(
@@ -370,6 +370,7 @@ program
   )
   .option('--all-pods', 'Target all matching pods instead of just the first one.')
   .option('--primary-pod', 'Automatically detect and use MongoDB primary pod (MongoDB only).')
+  .option('--primary-pod-ensure <pod-name>', 'Ensure setup of MongoDB replica set primary pod before operations.')
   .option('--stats', 'Display database statistics (collection/table names with document/row counts).')
   .option('--collections <collections>', 'Comma-separated list of database collections to operate on.')
   .option('--out-path <out-path>', 'Specifies a custom output path for backups.')
@@ -384,6 +385,10 @@ program
     '--macro-rollback-export <n-commits-reset>',
     'Exports a macro rollback script that reverts the last n commits (Git integration required).',
   )
+  .option('--dev', 'Sets the development cli context')
+  .option('--kubeadm', 'Enables the kubeadm context for database operations.')
+  .option('--kind', 'Enables the kind context for database operations.')
+  .option('--k3s', 'Enables the k3s context for database operations.')
   .description(
     'Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.',
   )
