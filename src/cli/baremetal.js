@@ -57,6 +57,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.controlServerUninstall=false] - Flag to uninstall the control server.
      * @param {boolean} [options.controlServerDbInstall=false] - Flag to install the control server's database.
      * @param {boolean} [options.controlServerDbUninstall=false] - Flag to uninstall the control server's database.
+     * @param {string} [options.mac=''] - MAC address of the baremetal machine.
      * @param {boolean} [options.installPacker=false] - Flag to install Packer CLI.
      * @param {string} [options.packerMaasImageTemplate] - Template path from canonical/packer-maas to extract (requires workflow-id).
      * @param {string} [options.packerWorkflowId] - Workflow ID for Packer MAAS image operations (used with --packer-maas-image-build or --packer-maas-image-upload).
@@ -84,6 +85,7 @@ class UnderpostBaremetal {
         controlServerUninstall: false,
         controlServerDbInstall: false,
         controlServerDbUninstall: false,
+        mac: '',
         installPacker: false,
         packerMaasImageTemplate: false,
         packerWorkflowId: '',
@@ -113,7 +115,7 @@ class UnderpostBaremetal {
       ipAddress = ipAddress ? ipAddress : '192.168.1.192';
 
       // Set default MAC address
-      let macAddress = '00:00:00:00:00:00';
+      let macAddress = options.mac ? options.mac : '00:00:00:00:00:00';
 
       // Define the debootstrap architecture.
       let debootstrapArch;
@@ -659,10 +661,7 @@ menuentry '${menuentryStr}' {
           );
         }
 
-        // Copy ARM64 EFI GRUB modules.
-        const arm64EfiPath = `${process.env.TFTP_ROOT}/grub/arm64-efi`;
-        if (fs.existsSync(arm64EfiPath)) shellExec(`sudo rm -rf ${arm64EfiPath}`);
-        shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${arm64EfiPath}`);
+        UnderpostBaremetal.API.efiGrubModulesFactory(maas);
 
         // Set ownership and permissions for TFTP root.
         shellExec(`sudo chown -R root:root ${process.env.TFTP_ROOT}`);
@@ -743,6 +742,29 @@ menuentry '${menuentryStr}' {
           maas,
           networkInterfaceName,
         });
+      }
+    },
+
+    /**
+     * @method efiGrubModulesFactory
+     * @description Copies the appropriate EFI GRUB modules to the TFTP root based on the image architecture.
+     * @param {object} options - Options for determining which GRUB modules to copy.
+     * @param {object} options.image - Image configuration object.
+     * @param {string} options.image.architecture - The architecture of the image ('amd64' or 'arm64').
+     * @memberof UnderpostBaremetal
+     * @returns {void}
+     */
+    efiGrubModulesFactory(options = { image: { architecture: 'amd64' } }) {
+      if (options.image.architecture.match('arm64')) {
+        // Copy ARM64 EFI GRUB modules.
+        const arm64EfiPath = `${process.env.TFTP_ROOT}/grub/arm64-efi`;
+        if (fs.existsSync(arm64EfiPath)) shellExec(`sudo rm -rf ${arm64EfiPath}`);
+        shellExec(`sudo cp -a /usr/lib/grub/arm64-efi ${arm64EfiPath}`);
+      } else {
+        // Copy AMD64 EFI GRUB modules.
+        const amd64EfiPath = `${process.env.TFTP_ROOT}/grub/x86_64-efi`;
+        if (fs.existsSync(amd64EfiPath)) shellExec(`sudo rm -rf ${amd64EfiPath}`);
+        shellExec(`sudo cp -a /usr/lib/grub/x86_64-efi ${amd64EfiPath}`);
       }
     },
 

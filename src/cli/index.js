@@ -614,6 +614,7 @@ program
   .option('--control-server-uninstall', 'Uninstalls the baremetal control server.')
   .option('--control-server-db-install', 'Installs up the database for the baremetal control server.')
   .option('--control-server-db-uninstall', 'Uninstalls the database for the baremetal control server.')
+  .option('--mac <mac>', 'Specifies the MAC address for baremetal machine operations.')
   .option('--install-packer', 'Installs Packer CLI.')
   .option(
     '--packer-maas-image-template <template-path>',
