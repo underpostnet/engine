@@ -1479,17 +1479,14 @@ EOF
 
     /**
      * @method ptls
-     * @description Displays listening TCP ports and associated processes, optionally filtering by a specified path or keyword.
+     * @description Set on ~/.bashrc alias: ports <port> Command to list listening ports that match the given keyword.
      * @param {string} path - The input value, identifier, or path for the operation (used as a keyword to filter listening ports).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     ptls: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
-      const out = shellExec(`ports${path ? ` ${path}` : ''}`, {
-        stdout: true,
-        silent: true,
-      });
-      console.log(out);
+      shellExec(`chmod +x ${options.underpostRoot}/scripts/ports-ls.sh`);
+      shellExec(`${options.underpostRoot}/scripts/ports-ls.sh`);
     },
     /**
      * @method release-cmt
