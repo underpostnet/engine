@@ -495,7 +495,7 @@ rm -rf ${artifacts.join(' ')}`);
 
         // Apply system provisioning steps (base, user, timezone, keyboard).
         {
-          const { systemProvisioning, kernelLibVersion, chronyc } = workflowsConfig[workflowId];
+          const { systemProvisioning, kernelLibVersion, chronyc, keyboard } = workflowsConfig[workflowId];
           const { timezone, chronyConfPath } = chronyc;
 
           UnderpostBaremetal.API.crossArchRunner({
@@ -511,7 +511,7 @@ rm -rf ${artifacts.join(' ')}`);
                 timezone,
                 chronyConfPath,
               }),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
             ],
           });
         }
@@ -825,6 +825,20 @@ menuentry '${menuentryStr}' {
           `systemd.mask=systemd-networkd.service`,
           `systemd.mask=systemd-fsck-root.service`,
           `systemd.mask=systemd-udev-trigger.service`,
+        ];
+      } else {
+        cmd = [
+          `console=serial0,115200`,
+          `console=tty1`,
+          `ip=${ipClient}:${ipHost}:${ipHost}:${netmask}:${hostname}:${networkInterfaceName}:static`,
+          `url=tftp://${ipHost}/pxe/squashfs`,
+          `root=/dev/ram0`,
+          `ds=nocloud-net;s=http://${ipHost}/`,
+          `cloud-config-url=http://${ipHost}/cloud-config`,
+          `boot=casper`,
+          `ro`,
+          `ignore_uuid`,
+          `autoinstall`,
         ];
       }
       return { cmd: cmd.join(' ') };
@@ -1380,16 +1394,98 @@ logdir /var/log/chrony
          * @method keyboard
          * @description Generates shell commands for configuring the keyboard layout.
          * This ensures correct input behavior on the provisioned system.
+         * @param {string} [keyCode='en'] - The keyboard layout code (e.g., 'en', 'es').
          * @memberof UnderpostBaremetal.systemProvisioningFactory.ubuntu
          * @returns {string[]} An array of shell commands.
          */
-        keyboard: () => [
-          `sudo locale-gen en_US.UTF-8`, // Generate the specified locale.
-          `sudo update-locale LANG=en_US.UTF-8`, // Update system locale.
-          `sudo sed -i 's/XKBLAYOUT="us"/XKBLAYOUT="es"/' /etc/default/keyboard`, // Change keyboard layout to Spanish.
-          `sudo dpkg-reconfigure --frontend noninteractive keyboard-configuration`, // Reconfigure keyboard non-interactively.
-          `sudo systemctl restart keyboard-setup.service`, // Restart keyboard setup service.
+        keyboard: (keyCode = 'en') => [
+          `sudo locale-gen en_US.UTF-8`,
+          `sudo update-locale LANG=en_US.UTF-8`,
+          `sudo sed -i 's/XKBLAYOUT="us"/XKBLAYOUT="${keyCode}"/' /etc/default/keyboard`,
+          `sudo dpkg-reconfigure --frontend noninteractive keyboard-configuration`,
+          `sudo systemctl restart keyboard-setup.service`,
         ],
+      },
+      /**
+       * @property {object} rocky
+       * @description Provisioning steps for Rocky Linux-based systems.
+       * @memberof UnderpostBaremetal.systemProvisioningFactory
+       * @namespace UnderpostBaremetal.systemProvisioningFactory.rocky
+       */
+      rocky: {
+        /**
+         * @method base
+         * @description Generates shell commands for basic Rocky (RHEL-family) system provisioning.
+         * Installs cloud-init, chrony and other tooling.
+         * @param {object} params - The parameters for the function.
+         * @param {string} params.kernelLibVersion - The specific kernel library version to install.
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
+         * @returns {string[]} An array of shell commands.
+         */
+        base: ({ kernelLibVersion }) => [`dnf -y upgrade --refresh`, `dnf -y install cloud-init`],
+
+        /**
+         * @method user
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
+         * @returns {string[]} An array of shell commands.
+         * @description Generates shell commands for creating a root user and configuring SSH access.
+         */
+        user: () => [
+          `useradd -m -s /bin/bash -G wheel root`, // Create a root user with bash shell and wheel privileges.
+          `echo 'root:root' | chpasswd`, // Set a default password for the root user.
+          `mkdir -p /home/root/.ssh`, // Create .ssh directory for authorized keys.
+          // Add the public SSH key to authorized_keys for passwordless login.
+          `echo '${fs.readFileSync(
+            `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
+            'utf8',
+          )}' > /home/root/.ssh/authorized_keys`,
+          `chown -R root /home/root/.ssh`, // Set ownership for security.
+          `chmod 700 /home/root/.ssh`, // Set permissions for the .ssh directory.
+          `chmod 600 /home/root/.ssh/authorized_keys`, // Set permissions for authorized_keys.
+        ],
+
+        /**
+         * @method timezone
+         * @param {object} params - The parameters for the function.
+         * @param {string} params.timezone - The timezone string (e.g., 'America/New_York').
+         * @param {string} params.chronyConfPath - The path to the Chrony configuration file.
+         * @param {string} [alias='chronyd'] - The alias for the chrony service.
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
+         * @returns {string[]} An array of shell commands.
+         * @description Configures timezone and chrony for Rocky-based systems.
+         */
+        timezone: ({ timezone, chronyConfPath }, alias = 'chronyd') => [
+          `timedatectl set-timezone ${timezone}`,
+          `timedatectl set-ntp true`,
+
+          `echo '
+# Use public servers from the pool.ntp.org project.
+server ${process.env.MAAS_NTP_SERVER} iburst
+driftfile /var/lib/chrony/drift
+rtcsync
+keyfile /etc/chrony.keys
+leapsectz right/UTC
+logdir /var/log/chrony
+' > ${chronyConfPath}`,
+
+          `systemctl enable --now ${alias}`,
+          `systemctl restart ${alias}`,
+
+          `echo "Waiting for chrony to synchronize..."`,
+
+          `for i in {1..30}; do chronyc tracking | grep -q "Leap status.*Normal" && break || sleep 2; done`,
+
+          `chronyc sources`,
+        ],
+
+        /**
+         * @method keyboard
+         * @param {string} [keyCode='en'] - The keyboard layout code (e.g., 'en', 'es').
+         * @description Configures keyboard layout for Rocky-based systems.
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
+         * @returns {string[]} An array of shell commands.
+         */
+        keyboard: (keyCode = 'en') => [`localectl set-keymap ${keyCode}`, `localectl set-x11-keymap ${keyCode}`],
       },
     },
 
