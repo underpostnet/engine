@@ -2010,6 +2010,7 @@ udp-port = 32766
      */
     bootConfFactory({ workflowId, tftpIp, tftpPrefixStr, macAddress, clientIp, subnet, gateway }) {
       switch (workflowId) {
+        case 'rpi4mb2Disk':
         case 'rpi4mb':
           return `[all]
 BOOT_UART=0
