@@ -564,7 +564,7 @@ rm -rf ${artifacts.join(' ')}`);
         const { firmwares, networkInterfaceName, maas, netmask, menuentryStr, nfs, systemProvisioning } =
           workflowsConfig[workflowId];
         // Use commissioning config (Ubuntu ephemeral) for PXE boot resources
-        const commissioningImage = maas.commissioning || maas.image;
+        const commissioningImage = maas.commissioning;
         const resource = resources.find(
           (o) => o.architecture === commissioningImage.architecture && o.name === commissioningImage.name,
         );
@@ -832,7 +832,7 @@ menuentry '${menuentryStr}' {
         }
 
         // Pass architecture from commissioning or deployment config
-        const grubArch = maas.commissioning?.architecture || maas.deployment?.architecture || maas.image?.architecture;
+        const grubArch = maas.commissioning?.architecture || maas.deployment?.architecture;
         UnderpostBaremetal.API.efiGrubModulesFactory({ image: { architecture: grubArch } });
 
         // Set ownership and permissions for TFTP root.
@@ -881,9 +881,8 @@ menuentry '${menuentryStr}' {
       } = workflowConfig;
       const { timezone, chronyConfPath } = chronyc;
       // Use deployment config if available (e.g., Rocky for final OS), otherwise fall back to image config
-      const deploymentConfig = maas.deployment || maas.image;
-      const architecture =
-        deploymentConfig.architecture || maas.commissioning?.architecture || maas.image?.architecture;
+      const deploymentConfig = maas.deployment || {};
+      const architecture = deploymentConfig.architecture || maas.commissioning?.architecture;
 
       logger.info('Starting disk-based commissioning (traditional MAAS PXE boot)');
       logger.info('Machine will be provisioned to the largest available disk');
@@ -1228,12 +1227,9 @@ menuentry '${menuentryStr}' {
         // Iterate through discoveries to find a matching MAC address.
         for (const discovery of discoveries) {
           const machine = {
-            architecture: (
-              maas.commissioning?.architecture ||
-              maas.deployment?.architecture ||
-              maas.image?.architecture ||
-              'arm64/generic'
-            ).match('amd')
+            architecture: (maas.commissioning?.architecture || maas.deployment?.architecture || 'arm64/generic').match(
+              'amd',
+            )
               ? 'amd64/generic'
               : 'arm64/generic',
             mac_address: discovery.mac_address,
@@ -1395,12 +1391,9 @@ menuentry '${menuentryStr}' {
         // Iterate through discoveries to find a matching MAC address.
         for (const discovery of discoveries) {
           const machine = {
-            architecture: (
-              maas.commissioning?.architecture ||
-              maas.deployment?.architecture ||
-              maas.image?.architecture ||
-              'arm64/generic'
-            ).match('amd')
+            architecture: (maas.commissioning?.architecture || maas.deployment?.architecture || 'arm64/generic').match(
+              'amd',
+            )
               ? 'amd64/generic'
               : 'arm64/generic',
             mac_address: discovery.mac_address,
