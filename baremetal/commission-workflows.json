@@ -1,11 +1,11 @@
 {
-  "rpi4mbRocky9Arm64": {
-    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS Rocky Linux 9 commissioning (ARM64)",
+  "rpi4mb2Disk": {
+    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 disk commissioning (ARM64)",
     "systemProvisioning": "ubuntu",
     "networkInterfaceName": "enabcm6e4ei0",
     "netmask": "255.255.255.0",
     "chronyc": {
-      "timezone": "UTC",
+      "timezone": "America/New_York",
       "chronyConfPath": "/etc/chrony/chrony.conf"
     },
     "firmwares": [
@@ -17,36 +17,16 @@
     ],
     "maas": {
       "commissioning": {
-        "architecture": "arm64/ga-24.04",
+        "architecture": "arm64/hwe-24.04",
         "name": "ubuntu/noble"
-      },
-      "deployment": {
-        "os": "rocky",
-        "release": "9",
-        "architecture": "arm64/generic"
       }
-    },
-    "cloud-init": {
-      "packages": [
-        "epel-release",
-        "git",
-        "htop",
-        "curl",
-        "wget",
-        "chrony",
-        "lldpd",
-        "lshw",
-        "smartmontools",
-        "net-tools",
-        "util-linux"
-      ]
     },
     "keyboard": {
       "layout": "es"
     }
   },
   "rpi4mb": {
-    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 commissioning (ARM64)",
+    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 nfs commissioning (ARM64)",
     "systemProvisioning": "ubuntu",
     "kernelLibVersion": "6.8.0-41-generic",
     "networkInterfaceName": "enabcm6e4ei0",
@@ -72,11 +52,6 @@
       "commissioning": {
         "architecture": "arm64/ga-24.04",
         "name": "ubuntu/noble"
-      },
-      "deployment": {
-        "os": "ubuntu",
-        "release": "noble",
-        "architecture": "arm64/ga-24.04"
       }
     },
     "nfs": {

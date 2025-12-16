@@ -49,8 +49,8 @@ class UnderpostBaremetal {
      * It handles NFS root filesystem building, control server installation/uninstallation,
      * and system-level provisioning tasks like timezone and keyboard configuration.
      * @param {string} [workflowId='rpi4mb'] - Identifier for the specific workflow configuration to use.
-     * @param {string} [hostname=workflowId] - The hostname of the target baremetal machine.
      * @param {string} [ipAddress=getLocalIPv4Address()] - The IP address of the control server or the local machine.
+     * @param {string} [hostname=workflowId] - The hostname of the target baremetal machine.
      * @param {object} [options] - An object containing boolean flags for various operations.
      * @param {boolean} [options.dev=false] - Development mode flag.
      * @param {boolean} [options.controlServerInstall=false] - Flag to install the control server (e.g., MAAS).
@@ -78,8 +78,8 @@ class UnderpostBaremetal {
      */
     async callback(
       workflowId,
-      hostname,
       ipAddress,
+      hostname,
       options = {
         dev: false,
         controlServerInstall: false,
@@ -114,7 +114,7 @@ class UnderpostBaremetal {
       // Set default values if not provided.
       workflowId = workflowId ? workflowId : 'rpi4mb';
       hostname = hostname ? hostname : workflowId;
-      ipAddress = ipAddress ? ipAddress : '192.168.1.192';
+      ipAddress = ipAddress ? ipAddress : '192.168.1.191';
 
       // Set default MAC address
       let macAddress = options.mac ? options.mac : '00:00:00:00:00:00';
@@ -871,14 +871,7 @@ menuentry '${menuentryStr}' {
      */
     async diskCommissionCallback(workflowId, workflowsConfig, hostname, macAddress, underpostRoot, ipAddress) {
       const workflowConfig = workflowsConfig[workflowId];
-      const {
-        maas,
-        networkInterfaceName,
-        chronyc,
-        keyboard,
-        systemProvisioning,
-        'cloud-init': cloudInitConfig,
-      } = workflowConfig;
+      const { maas, networkInterfaceName, chronyc, keyboard, systemProvisioning } = workflowConfig;
       const { timezone, chronyConfPath } = chronyc;
       // Use deployment config if available (e.g., Rocky for final OS), otherwise fall back to image config
       const deploymentConfig = maas.deployment || {};
@@ -906,7 +899,6 @@ menuentry '${menuentryStr}' {
         adminUsername: process.env.MAAS_ADMIN_USERNAME,
         systemProvisioning,
         architecture,
-        packages: cloudInitConfig?.packages || [],
       });
 
       // Save user-data for later use during deployment
@@ -1140,44 +1132,15 @@ menuentry '${menuentryStr}' {
           `systemd.mask=systemd-fsck-root.service`,
           `systemd.mask=systemd-udev-trigger.service`,
         ];
-      } else if (systemProvisioning === 'rocky') {
-        // Rocky Linux (Dracut) commissioning parameters
-        cmd = [
-          `console=serial0,115200`,
-          `console=ttyAMA0,115200`,
-          `console=tty1`,
-          `ip=dhcp`,
-          `rd.neednet=1`,
-          `root=live:http://${ipHost}/${hostname}/pxe/squashfs`,
-        ];
-      } else if (systemProvisioning === 'casper') {
-        // Ubuntu (Casper) commissioning parameters
-        cmd = [
-          `console=serial0,115200`,
-          `console=ttyAMA0,115200`,
-          `console=tty1`,
-          `ip=dhcp`,
-          `root=/dev/ram0`,
-          `boot=casper`,
-          `ignore_uuid`,
-          `url=http://${ipHost}/${hostname}/pxe/squashfs`,
-        ];
       } else {
-        // Disk-based MAAS commissioning parameters
-        // Absolute minimal parameters - let initramfs handle everything
-        // cmd = [`console=serial0,115200`, `console=tty1`, `console=ttyAMA0,115200`, `ip=dhcp`];
-        cmd = [
-          `console=serial0,115200`,
-          `console=ttyAMA0,115200`,
-          `console=tty1`,
-          `ip=dhcp`,
-          `root=UUID=4B45-751F`,
-          `rootfstype=vfat`,
-          `rootwait`,
-          `rw`,
-        ];
+        // Ubuntu ephemeral (MAAS commissioning) parameters
+        cmd = [`console=serial0,115200`, `console=tty1`, `ip=dhcp`, `boot=casper`];
       }
-      return { cmd: cmd.join(' ') };
+
+      const cmdStr = cmd.join(' ');
+      logger.info('Constructed kernel command line:');
+      console.log(cmdStr.bgRed.bold.white);
+      return { cmd: cmdStr };
     },
 
     /**
@@ -1245,7 +1208,12 @@ menuentry '${menuentryStr}' {
             ip: discovery.ip,
           };
           machine.hostname = machine.hostname.replaceAll(' ', '').replaceAll('.', ''); // Sanitize hostname.
-          console.log(macAddress, 'discovered:' + machine.mac_addresses, ipAddress, 'discovered:' + discovery.ip);
+          console.log(
+            'mac target:'.green + macAddress,
+            'mac discovered:'.green + machine.mac_addresses,
+            'ip target:'.green + ipAddress,
+            'ip discovered:'.green + discovery.ip,
+          );
           if (macAddress === machine.mac_addresses && discovery.ip === ipAddress)
             try {
               machine.hostname = hostname;
@@ -1293,26 +1261,6 @@ menuentry '${menuentryStr}' {
               shellExec(
                 `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-fixed ${newMachine.machine.boot_interface.system_id}`,
               );
-
-              logger.info('Starting MAAS commissioning with largest disk detection...');
-
-              // If deployment config exists, save it for post-commissioning deployment
-              if (maas.deployment) {
-                logger.info(`Deployment config`, {
-                  systemId: newMachine.machine.boot_interface.system_id,
-                  hostname,
-                  os: maas.deployment.os,
-                  release: maas.deployment.release,
-                  architecture: maas.deployment.architecture,
-                  userDataPath,
-                });
-                logger.info(`After commissioning completes, deploy with`);
-                console.log(
-                  `  maas ${process.env.MAAS_ADMIN_USERNAME} machine deploy ${newMachine.machine.boot_interface.system_id} \\`,
-                );
-                console.log(`    osystem=${maas.deployment.os} distro_series=${maas.deployment.release} \\`);
-                console.log(`    user_data@=${userDataPath}`);
-              }
 
               process.exit(0);
             } catch (error) {
@@ -1479,8 +1427,8 @@ menuentry '${menuentryStr}' {
               fs.writeFileSync(`${nfsHostPath}/underpost/token-secret`, token_secret, 'utf8');
 
               // Open new terminals for live cloud-init logs.
-              openTerminal(`node ${underpostRoot}/bin baremetal --logs cloud`);
-              openTerminal(`node ${underpostRoot}/bin baremetal --logs machine`);
+              openTerminal(`node ${underpostRoot}/bin baremetal --logs nfs-cloud`);
+              openTerminal(`node ${underpostRoot}/bin baremetal --logs nfs-machine`);
             } catch (error) {
               logger.error(error, error.stack);
             } finally {
@@ -1902,87 +1850,6 @@ logdir /var/log/chrony
           `sudo dpkg-reconfigure --frontend noninteractive keyboard-configuration`,
           `sudo systemctl restart keyboard-setup.service`,
         ],
-      },
-      /**
-       * @property {object} rocky
-       * @description Provisioning steps for Rocky Linux-based systems.
-       * @memberof UnderpostBaremetal.systemProvisioningFactory
-       * @namespace UnderpostBaremetal.systemProvisioningFactory.rocky
-       */
-      rocky: {
-        /**
-         * @method base
-         * @description Generates shell commands for basic Rocky (RHEL-family) system provisioning.
-         * Installs cloud-init, chrony and other tooling.
-         * @param {object} params - The parameters for the function.
-         * @param {string} params.kernelLibVersion - The specific kernel library version to install.
-         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
-         * @returns {string[]} An array of shell commands.
-         */
-        base: ({ kernelLibVersion }) => [`dnf -y upgrade --refresh`, `dnf -y install cloud-init`],
-
-        /**
-         * @method user
-         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
-         * @returns {string[]} An array of shell commands.
-         * @description Generates shell commands for creating a root user and configuring SSH access.
-         */
-        user: () => [
-          `useradd -m -s /bin/bash -G wheel root`, // Create a root user with bash shell and wheel privileges.
-          `echo 'root:root' | chpasswd`, // Set a default password for the root user.
-          `mkdir -p /home/root/.ssh`, // Create .ssh directory for authorized keys.
-          // Add the public SSH key to authorized_keys for passwordless login.
-          `echo '${fs.readFileSync(
-            `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
-            'utf8',
-          )}' > /home/root/.ssh/authorized_keys`,
-          `chown -R root /home/root/.ssh`, // Set ownership for security.
-          `chmod 700 /home/root/.ssh`, // Set permissions for the .ssh directory.
-          `chmod 600 /home/root/.ssh/authorized_keys`, // Set permissions for authorized_keys.
-        ],
-
-        /**
-         * @method timezone
-         * @param {object} params - The parameters for the function.
-         * @param {string} params.timezone - The timezone string (e.g., 'America/New_York').
-         * @param {string} params.chronyConfPath - The path to the Chrony configuration file.
-         * @param {string} [alias='chronyd'] - The alias for the chrony service.
-         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
-         * @returns {string[]} An array of shell commands.
-         * @description Configures timezone and chrony for Rocky-based systems.
-         */
-        timezone: ({ timezone, chronyConfPath }, alias = 'chronyd') => [
-          `timedatectl set-timezone ${timezone}`,
-          `timedatectl set-ntp true`,
-
-          `echo '
-# Use public servers from the pool.ntp.org project.
-server ${process.env.MAAS_NTP_SERVER} iburst
-driftfile /var/lib/chrony/drift
-rtcsync
-keyfile /etc/chrony.keys
-leapsectz right/UTC
-logdir /var/log/chrony
-' > ${chronyConfPath}`,
-
-          `systemctl enable --now ${alias}`,
-          `systemctl restart ${alias}`,
-
-          `echo "Waiting for chrony to synchronize..."`,
-
-          `for i in {1..30}; do chronyc tracking | grep -q "Leap status.*Normal" && break || sleep 2; done`,
-
-          `chronyc sources`,
-        ],
-
-        /**
-         * @method keyboard
-         * @param {string} [keyCode='en'] - The keyboard layout code (e.g., 'en', 'es').
-         * @description Configures keyboard layout for Rocky-based systems.
-         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
-         * @returns {string[]} An array of shell commands.
-         */
-        keyboard: (keyCode = 'en') => [`localectl set-keymap ${keyCode}`, `localectl set-x11-keymap ${keyCode}`],
       },
     },
 
