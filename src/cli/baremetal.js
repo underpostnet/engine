@@ -65,6 +65,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.packerMaasImageUpload=false] - Flag to upload a Packer MAAS image artifact without rebuilding for the workflow specified by packerWorkflowId.
      * @param {boolean} [options.packerMaasImageCached=false] - Flag to use cached artifacts when building the Packer MAAS image.
      * @param {string} [options.removeMachines=''] - Comma-separated list of machine system IDs or '*' to remove existing machines from MAAS before commissioning.
+     * @param {boolean} [options.clearDiscovered=false] - Flag to clear discovered machines from MAAS before commissioning.
      * @param {boolean} [options.cloudInitUpdate=false] - Flag to update cloud-init configuration on the baremetal machine.
      * @param {boolean} [options.commission=false] - Flag to commission the baremetal machine.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
@@ -93,6 +94,7 @@ class UnderpostBaremetal {
         packerMaasImageUpload: false,
         packerMaasImageCached: false,
         removeMachines: '',
+        clearDiscovered: false,
         cloudInitUpdate: false,
         commission: false,
         nfsBuild: false,
@@ -190,7 +192,7 @@ class UnderpostBaremetal {
 
           logger.info('\nTemplate extracted successfully!');
           logger.info(`\nAdded configuration for ${workflowId} to engine/baremetal/packer-workflows.json`);
-          logger.info('\nNext steps:');
+          logger.info('\nNext steps');
           logger.info(`1. Review and customize the Packer template files in: ${targetDir}`);
           logger.info(`2. Review the workflow configuration in engine/baremetal/packer-workflows.json`);
           logger.info(
@@ -329,17 +331,17 @@ rm -rf ${artifacts.join(' ')}`);
         return;
       }
 
-      if (options.logs === 'cloud') {
+      if (options.logs === 'nfs-cloud') {
         shellExec(`tail -f -n 900 ${nfsHostPath}/var/log/cloud-init.log`);
         return;
       }
 
-      if (options.logs === 'machine') {
+      if (options.logs === 'nfs-machine') {
         shellExec(`tail -f -n 900 ${nfsHostPath}/var/log/cloud-init-output.log`);
         return;
       }
 
-      if (options.logs === 'cloud-config') {
+      if (options.logs === 'nfs-cloud-config') {
         shellExec(`cat ${nfsHostPath}/etc/cloud/cloud.cfg.d/90_maas.cfg`);
         return;
       }
@@ -421,7 +423,7 @@ rm -rf ${artifacts.join(' ')}`);
       }
 
       // Set debootstrap architecture.
-      {
+      if (workflowsConfig[workflowId].nfs) {
         const { architecture } = workflowsConfig[workflowId].debootstrap.image;
         debootstrapArch = architecture;
       }
@@ -549,17 +551,22 @@ rm -rf ${artifacts.join(' ')}`);
         console.table(machines);
       }
 
+      if (options.clearDiscovered) UnderpostBaremetal.API.removeDiscoveredMachines();
+
       // Handle remove existing machines from MAAS.
       if (options.removeMachines)
         machines = UnderpostBaremetal.API.removeMachines({
-          machines: options.removeMachines === '*' ? machines : options.removeMachines.split(','),
+          machines: options.removeMachines === 'all' ? machines : options.removeMachines.split(','),
         });
 
       // Handle commissioning tasks (placeholder for future implementation).
       if (options.commission === true) {
-        const { firmwares, networkInterfaceName, maas, netmask, menuentryStr, nfs } = workflowsConfig[workflowId];
+        const { firmwares, networkInterfaceName, maas, netmask, menuentryStr, nfs, systemProvisioning } =
+          workflowsConfig[workflowId];
+        // Use commissioning config (Ubuntu ephemeral) for PXE boot resources
+        const commissioningImage = maas.commissioning || maas.image;
         const resource = resources.find(
-          (o) => o.architecture === maas.image.architecture && o.name === maas.image.name,
+          (o) => o.architecture === commissioningImage.architecture && o.name === commissioningImage.name,
         );
         logger.info('Commissioning resource', resource);
 
@@ -580,19 +587,16 @@ rm -rf ${artifacts.join(' ')}`);
             shellExec(`sudo cp -a ${path}/* ${tftpRootPath}`); // Copy firmware files to TFTP root.
 
             if (gateway && subnet) {
-              fs.writeFileSync(
-                `${tftpRootPath}/boot_${name}.conf`,
-                UnderpostBaremetal.API.bootConfFactory({
-                  workflowId,
-                  tftpIp: callbackMetaData.runnerHost.ip,
-                  tftpPrefixStr: hostname,
-                  macAddress,
-                  clientIp: ipAddress,
-                  subnet,
-                  gateway,
-                }),
-                'utf8',
-              );
+              const bootConfSrc = UnderpostBaremetal.API.bootConfFactory({
+                workflowId,
+                tftpIp: callbackMetaData.runnerHost.ip,
+                tftpPrefixStr: hostname,
+                macAddress,
+                clientIp: ipAddress,
+                subnet,
+                gateway,
+              });
+              if (bootConfSrc) fs.writeFileSync(`${tftpRootPath}/boot_${name}.conf`, bootConfSrc, 'utf8');
             }
           }
         }
@@ -612,15 +616,154 @@ rm -rf ${artifacts.join(' ')}`);
               disableLog: true,
             }),
           );
+
+          logger.info('Boot files info:', {
+            id: resourceData.id,
+            type: resourceData.type,
+            name: resourceData.name,
+            architecture: resourceData.architecture,
+            purpose: nfs ? 'NFS boot (target OS)' : 'Commissioning (ephemeral)',
+            note: 'MAAS uses content-addressable storage (hash-based IDs for files)',
+          });
+
           const bootFiles = resourceData.sets[Object.keys(resourceData.sets)[0]].files;
+
+          logger.info('Available boot files:', Object.keys(bootFiles));
           const suffix = resource.architecture.match('xgene') ? '.xgene' : '';
-          const resourcesPath = `/var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64`;
+          const arch = resource.architecture.split('/')[0];
+          const resourcesPath = `/var/snap/maas/common/maas/image-storage/bootloaders/uefi/${arch}`;
           const kernelPath = `/var/snap/maas/common/maas/image-storage`;
-          const kernelFilesPaths = {
-            'vmlinuz-efi': `${kernelPath}/${bootFiles['boot-kernel' + suffix].filename_on_disk}`,
-            'initrd.img': `${kernelPath}/${bootFiles['boot-initrd' + suffix].filename_on_disk}`,
-            squashfs: `${kernelPath}/${bootFiles['squashfs'].filename_on_disk}`,
-          };
+
+          // Handle different file structures for synced vs uploaded images
+          let kernelFilesPaths = {};
+
+          // Try standard synced image structure (Ubuntu, CentOS from MAAS repos)
+          if (bootFiles['boot-kernel' + suffix] && bootFiles['boot-initrd' + suffix] && bootFiles['squashfs']) {
+            kernelFilesPaths = {
+              'vmlinuz-efi': `${kernelPath}/${bootFiles['boot-kernel' + suffix].filename_on_disk}`,
+              'initrd.img': `${kernelPath}/${bootFiles['boot-initrd' + suffix].filename_on_disk}`,
+              squashfs: `${kernelPath}/${bootFiles['squashfs'].filename_on_disk}`,
+            };
+          }
+          // Try uploaded image structure (Packer-built images, custom uploads)
+          else if (bootFiles['boot-kernel'] && bootFiles['boot-initrd'] && bootFiles['root-tgz']) {
+            kernelFilesPaths = {
+              'vmlinuz-efi': `${kernelPath}/${bootFiles['boot-kernel'].filename_on_disk}`,
+              'initrd.img': `${kernelPath}/${bootFiles['boot-initrd'].filename_on_disk}`,
+              squashfs: `${kernelPath}/${bootFiles['root-tgz'].filename_on_disk}`,
+            };
+          }
+          // Try alternative uploaded structure with root-image-xz
+          else if (bootFiles['boot-kernel'] && bootFiles['boot-initrd'] && bootFiles['root-image-xz']) {
+            kernelFilesPaths = {
+              'vmlinuz-efi': `${kernelPath}/${bootFiles['boot-kernel'].filename_on_disk}`,
+              'initrd.img': `${kernelPath}/${bootFiles['boot-initrd'].filename_on_disk}`,
+              squashfs: `${kernelPath}/${bootFiles['root-image-xz'].filename_on_disk}`,
+            };
+          }
+          // Fallback: try to find any kernel, initrd, and root image
+          else {
+            logger.warn('Non-standard boot file structure detected. Available files:', Object.keys(bootFiles));
+
+            const rootArchiveKey = Object.keys(bootFiles).find(
+              (k) => k.includes('root') && (k.includes('tgz') || k.includes('tar.gz')),
+            );
+            const explicitKernel = Object.keys(bootFiles).find((k) => k.includes('kernel'));
+            const explicitInitrd = Object.keys(bootFiles).find((k) => k.includes('initrd'));
+
+            if (rootArchiveKey && (!explicitKernel || !explicitInitrd)) {
+              logger.info(`Root archive found (${rootArchiveKey}) and missing kernel/initrd. Attempting to extract.`);
+              const rootArchivePath = `${kernelPath}/${bootFiles[rootArchiveKey].filename_on_disk}`;
+              const tempExtractDir = `/tmp/maas-extract-${resource.id}`;
+              shellExec(`mkdir -p ${tempExtractDir}`);
+
+              // List files in archive to find kernel and initrd
+              const tarList = shellExec(`tar -tf ${rootArchivePath}`, { silent: true }).stdout.split('\n');
+
+              // Look for boot/vmlinuz* and boot/initrd* (handling potential leading ./)
+              // Skip rescue, kdump, and other special images
+              const vmlinuzPaths = tarList.filter(
+                (f) => f.match(/(\.\/)?boot\/vmlinuz-[0-9]/) && !f.includes('rescue') && !f.includes('kdump'),
+              );
+              const initrdPaths = tarList.filter(
+                (f) =>
+                  f.match(/(\.\/)?boot\/(initrd|initramfs)-[0-9]/) &&
+                  !f.includes('rescue') &&
+                  !f.includes('kdump') &&
+                  f.includes('.img'),
+              );
+
+              logger.info(`Found kernel candidates:`, { vmlinuzPaths, initrdPaths });
+
+              // Try to match kernel and initrd by version number
+              let vmlinuzPath = null;
+              let initrdPath = null;
+
+              if (vmlinuzPaths.length > 0 && initrdPaths.length > 0) {
+                // Extract version from kernel filename (e.g., "5.14.0-611.11.1.el9_7.aarch64")
+                for (const kernelPath of vmlinuzPaths.sort().reverse()) {
+                  const kernelVersion = kernelPath.match(/vmlinuz-(.+)$/)?.[1];
+                  if (kernelVersion) {
+                    // Look for matching initrd
+                    const matchingInitrd = initrdPaths.find((p) => p.includes(kernelVersion));
+                    if (matchingInitrd) {
+                      vmlinuzPath = kernelPath;
+                      initrdPath = matchingInitrd;
+                      logger.info(`Matched kernel and initrd by version: ${kernelVersion}`);
+                      break;
+                    }
+                  }
+                }
+              }
+
+              // Fallback: use newest versions if no match found
+              if (!vmlinuzPath && vmlinuzPaths.length > 0) {
+                vmlinuzPath = vmlinuzPaths.sort().pop();
+              }
+              if (!initrdPath && initrdPaths.length > 0) {
+                initrdPath = initrdPaths.sort().pop();
+              }
+
+              logger.info(`Selected kernel: ${vmlinuzPath}, initrd: ${initrdPath}`);
+
+              if (vmlinuzPath && initrdPath) {
+                // Extract specific files
+                // Extract all files in boot/ to ensure symlinks resolve
+                shellExec(`tar -xf ${rootArchivePath} -C ${tempExtractDir} --wildcards '*boot/*'`);
+
+                kernelFilesPaths = {
+                  'vmlinuz-efi': `${tempExtractDir}/${vmlinuzPath}`,
+                  'initrd.img': `${tempExtractDir}/${initrdPath}`,
+                  squashfs: rootArchivePath,
+                };
+                logger.info('Extracted kernel and initrd from root archive.');
+              } else {
+                logger.error(
+                  `Failed to find kernel/initrd in archive. Contents of boot/ directory:`,
+                  tarList.filter((f) => f.includes('boot/')),
+                );
+                throw new Error(`Could not find kernel or initrd in ${rootArchiveKey}`);
+              }
+            } else {
+              const kernelFile = Object.keys(bootFiles).find((k) => k.includes('kernel')) || Object.keys(bootFiles)[0];
+              const initrdFile = Object.keys(bootFiles).find((k) => k.includes('initrd')) || Object.keys(bootFiles)[1];
+              const rootFile =
+                Object.keys(bootFiles).find(
+                  (k) => k.includes('root') || k.includes('squashfs') || k.includes('tgz') || k.includes('xz'),
+                ) || Object.keys(bootFiles)[2];
+
+              if (kernelFile && initrdFile && rootFile) {
+                kernelFilesPaths = {
+                  'vmlinuz-efi': `${kernelPath}/${bootFiles[kernelFile].filename_on_disk}`,
+                  'initrd.img': `${kernelPath}/${bootFiles[initrdFile].filename_on_disk}`,
+                  squashfs: `${kernelPath}/${bootFiles[rootFile].filename_on_disk}`,
+                };
+                logger.info('Using detected files:', { kernel: kernelFile, initrd: initrdFile, root: rootFile });
+              } else {
+                throw new Error(`Cannot identify boot files. Available: ${Object.keys(bootFiles).join(', ')}`);
+              }
+            }
+          }
           const { cmd } = UnderpostBaremetal.API.kernelCmdBootParamsFactory({
             ipClient: ipAddress,
             ipHost: callbackMetaData.runnerHost.ip,
@@ -628,21 +771,25 @@ rm -rf ${artifacts.join(' ')}`);
             hostname,
             networkInterfaceName,
             nfsBoot: nfs ? true : false,
+            systemProvisioning,
           });
 
           // Copy EFI bootloaders to TFTP path.
-          for (const file of ['bootaa64.efi', 'grubaa64.efi']) {
-            shellExec(`sudo cp -a ${resourcesPath}/${file} ${tftpRootPath}/pxe/${file}`);
+          const efiFiles = arch === 'arm64' ? ['bootaa64.efi', 'grubaa64.efi'] : ['bootx64.efi', 'grubx64.efi'];
+          for (const file of efiFiles) {
+            shellExec(`sudo cp -L ${resourcesPath}/${file} ${tftpRootPath}/pxe/${file}`);
           }
           // Copy kernel and initrd images to TFTP path.
           for (const file of Object.keys(kernelFilesPaths)) {
-            shellExec(`sudo cp -a ${kernelFilesPaths[file]} ${tftpRootPath}/pxe/${file}`);
+            shellExec(`sudo cp -L ${kernelFilesPaths[file]} ${tftpRootPath}/pxe/${file}`);
+            // If the file is a kernel (vmlinuz-efi) and is gzipped, unzip it for GRUB compatibility on ARM64.
           }
 
           // Write GRUB configuration file.
-          fs.writeFileSync(
-            `${process.env.TFTP_ROOT}/grub/grub.cfg`,
-            `
+          if (nfs)
+            fs.writeFileSync(
+              `${process.env.TFTP_ROOT}/grub/grub.cfg`,
+              `
 insmod gzio
 insmod http
 insmod nfs
@@ -657,11 +804,36 @@ menuentry '${menuentryStr}' {
 }
 
     `,
-            'utf8',
-          );
+              'utf8',
+            );
+          else
+            fs.writeFileSync(
+              `${process.env.TFTP_ROOT}/grub/grub.cfg`,
+              `
+insmod gzio
+insmod http
+insmod tftp
+set timeout=5
+set default=0
+
+menuentry '${menuentryStr}' {
+  set root=(tftp,${callbackMetaData.runnerHost.ip})
+  echo "Loading kernel..."
+  linux /${hostname}/pxe/vmlinuz-efi ${cmd}
+  echo "Loading initrd..."
+  initrd /${hostname}/pxe/initrd.img
+  echo "Booting..."
+  boot
+}
+
+      `,
+              'utf8',
+            );
         }
 
-        UnderpostBaremetal.API.efiGrubModulesFactory(maas);
+        // Pass architecture from commissioning or deployment config
+        const grubArch = maas.commissioning?.architecture || maas.deployment?.architecture || maas.image?.architecture;
+        UnderpostBaremetal.API.efiGrubModulesFactory({ image: { architecture: grubArch } });
 
         // Set ownership and permissions for TFTP root.
         shellExec(`sudo chown -R root:root ${process.env.TFTP_ROOT}`);
@@ -672,36 +844,93 @@ menuentry '${menuentryStr}' {
       if (options.commission === true || options.cloudInitUpdate === true) {
         const { nfs } = workflowsConfig[workflowId];
         if (nfs) await UnderpostBaremetal.API.nfsCommissionCallback(workflowId, workflowsConfig, options);
-        else {
-          // flash most large disk available with maas provide image
-          // TODO:
-          // - cloud init Configuration
-          // - adapt commission monitor for non-nfs (simple only run enlistment init script and monitor via maas)
-          // if RHEL based image no neccesary build tools
-          await UnderpostBaremetal.API.diskCommissionCallback(workflowId, workflowsConfig, options);
-        }
+        else
+          await UnderpostBaremetal.API.diskCommissionCallback(
+            workflowId,
+            workflowsConfig,
+            hostname,
+            macAddress,
+            underpostRoot,
+            ipAddress,
+          );
       }
     },
 
     /**
      * @method diskCommissionCallback
      * @description Handles the commissioning process for a baremetal machine using disk-based provisioning.
-     * This method configures cloud-init, applies necessary disk settings,
-     * and monitors the commissioning status of the machine.
+     * This method uses traditional MAAS PXE boot to provision the machine to the largest available disk.
+     * For ARM64 RPi4, it relies on pftf/RPi4 UEFI firmware to enable PXE boot with GRUB.
      * @param {string} workflowId - The identifier for the workflow configuration to use.
      * @param {object} workflowsConfig - The complete set of workflow configurations.
-     * @param {object} [options] - Additional options for the commissioning process.
-     * @param {boolean} [options.cloudInitUpdate=false] - Flag indicating whether to update cloud-init configuration only.
+     * @param {string} hostname - The hostname for the machine.
+     * @param {string} macAddress - The MAC address of the machine.
+     * @param {string} underpostRoot - The root directory of the Underpost project.
      * @memberof UnderpostBaremetal
      * @returns {Promise<void>}
      */
-    async diskCommissionCallback(
-      workflowId,
-      workflowsConfig,
-      options = {
-        cloudInitUpdate,
-      },
-    ) {},
+    async diskCommissionCallback(workflowId, workflowsConfig, hostname, macAddress, underpostRoot, ipAddress) {
+      const workflowConfig = workflowsConfig[workflowId];
+      const {
+        maas,
+        networkInterfaceName,
+        chronyc,
+        keyboard,
+        systemProvisioning,
+        'cloud-init': cloudInitConfig,
+      } = workflowConfig;
+      const { timezone, chronyConfPath } = chronyc;
+      // Use deployment config if available (e.g., Rocky for final OS), otherwise fall back to image config
+      const deploymentConfig = maas.deployment || maas.image;
+      const architecture =
+        deploymentConfig.architecture || maas.commissioning?.architecture || maas.image?.architecture;
+
+      logger.info('Starting disk-based commissioning (traditional MAAS PXE boot)');
+      logger.info('Machine will be provisioned to the largest available disk');
+      logger.info(`System provisioning: ${systemProvisioning}, Architecture: ${architecture}`);
+      if (maas.deployment) {
+        logger.info(`Deployment OS: ${maas.deployment.os} ${maas.deployment.release}`);
+        logger.info(`Commissioning with: Ubuntu ephemeral (${maas.commissioning.name})`);
+        logger.info(`Will deploy: ${maas.deployment.os}/${maas.deployment.release} after commissioning`);
+      }
+
+      // Generate cloud-init user-data for post-deployment configuration
+      // This will be used by MAAS during the deployment phase (after commissioning)
+      const sshPublicKey = fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8').trim();
+      const userDataContent = UnderpostCloudInit.API.diskDeploymentUserDataFactory({
+        hostname,
+        timezone,
+        chronyConfPath,
+        ntpServer: process.env.MAAS_NTP_SERVER || '0.pool.ntp.org',
+        keyboardLayout: keyboard?.layout || 'us',
+        sshPublicKey,
+        adminUsername: process.env.MAAS_ADMIN_USERNAME,
+        systemProvisioning,
+        architecture,
+        packages: cloudInitConfig?.packages || [],
+      });
+
+      // Save user-data for later use during deployment
+      const userDataPath = `/tmp/maas-userdata-${hostname}.yaml`;
+      fs.writeFileSync(userDataPath, userDataContent, 'utf8');
+      logger.info(`Cloud-init user-data saved to: ${userDataPath}`);
+      logger.info('This will be applied by MAAS during deployment phase');
+
+      // For disk-based commissioning, we rely on MAAS's built-in PXE boot mechanism.
+      // The machine should already be configured to PXE boot via the GRUB configuration
+      // created in the commission section above.
+
+      // Monitor for the machine to appear in MAAS discoveries and initiate commissioning.
+      await UnderpostBaremetal.API.diskCommissionMonitor({
+        macAddress,
+        hostname,
+        maas,
+        networkInterfaceName,
+        underpostRoot,
+        userDataPath,
+        ipAddress,
+      });
+    },
 
     /**
      * @method nfsCommissionCallback
@@ -798,6 +1027,17 @@ menuentry '${menuentryStr}' {
     },
 
     /**
+     * @method removeDiscoveredMachines
+     * @description Removes all machines in the 'discovered' status from MAAS.
+     * @memberof UnderpostBaremetal
+     * @returns {void}
+     */
+    removeDiscoveredMachines() {
+      logger.info('Removing all discovered machines from MAAS...');
+      shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries clear all=true`);
+    },
+
+    /**
      * @method efiGrubModulesFactory
      * @description Copies the appropriate EFI GRUB modules to the TFTP root based on the image architecture.
      * @param {object} options - Options for determining which GRUB modules to copy.
@@ -841,10 +1081,11 @@ menuentry '${menuentryStr}' {
         hostname: '',
         networkInterfaceName: '',
         nfsBoot: false,
+        systemProvisioning: '',
       },
     ) {
       // Construct kernel command line arguments for NFS boot.
-      const { ipClient, ipHost, netmask, hostname, networkInterfaceName, nfsBoot } = options;
+      const { ipClient, ipHost, netmask, hostname, networkInterfaceName, nfsBoot, systemProvisioning } = options;
       let cmd = [];
       if (nfsBoot === true) {
         cmd = [
@@ -900,28 +1141,207 @@ menuentry '${menuentryStr}' {
           `systemd.mask=systemd-fsck-root.service`,
           `systemd.mask=systemd-udev-trigger.service`,
         ];
-      } else {
+      } else if (systemProvisioning === 'rocky') {
+        // Rocky Linux (Dracut) commissioning parameters
         cmd = [
           `console=serial0,115200`,
+          `console=ttyAMA0,115200`,
           `console=tty1`,
-          `ip=${ipClient}:${ipHost}:${ipHost}:${netmask}:${hostname}:${networkInterfaceName}:static`,
-          `url=tftp://${ipHost}/pxe/squashfs`,
+          `ip=dhcp`,
+          `rd.neednet=1`,
+          `root=live:http://${ipHost}/${hostname}/pxe/squashfs`,
+        ];
+      } else if (systemProvisioning === 'casper') {
+        // Ubuntu (Casper) commissioning parameters
+        cmd = [
+          `console=serial0,115200`,
+          `console=ttyAMA0,115200`,
+          `console=tty1`,
+          `ip=dhcp`,
           `root=/dev/ram0`,
-          `ds=nocloud-net;s=http://${ipHost}/`,
-          `cloud-config-url=http://${ipHost}/cloud-config`,
           `boot=casper`,
-          `ro`,
           `ignore_uuid`,
-          `autoinstall`,
+          `url=http://${ipHost}/${hostname}/pxe/squashfs`,
+        ];
+      } else {
+        // Disk-based MAAS commissioning parameters
+        // Absolute minimal parameters - let initramfs handle everything
+        // cmd = [`console=serial0,115200`, `console=tty1`, `console=ttyAMA0,115200`, `ip=dhcp`];
+        cmd = [
+          `console=serial0,115200`,
+          `console=ttyAMA0,115200`,
+          `console=tty1`,
+          `ip=dhcp`,
+          `root=UUID=4B45-751F`,
+          `rootfstype=vfat`,
+          `rootwait`,
+          `rw`,
         ];
       }
       return { cmd: cmd.join(' ') };
     },
 
     /**
+     * @method diskCommissionMonitor
+     * @description Monitors the MAAS discoveries and initiates machine creation and commissioning
+     * for disk-based provisioning (non-NFS). This is the traditional MAAS way where the machine
+     * PXE boots, gets added to MAAS, and is commissioned with an enlistment script.
+     * @param {object} params - The parameters for the function.
+     * @param {string} params.macAddress - The MAC address to monitor for.
+     * @param {string} params.underpostRoot - The root directory of the Underpost project.
+     * @param {string} params.hostname - The desired hostname for the new machine.
+     * @param {object} params.maas - MAAS configuration details.
+     * @param {string} params.networkInterfaceName - The name of the network interface.
+     * @param {string} params.userDataPath - The path to the cloud-init user-data file.
+     * @param {string} params.ipAddress - The IP address of the machine (used if MAC is all zeros).
+     * @returns {Promise<void>} A promise that resolves when commissioning is initiated or after a delay.
+     * @memberof UnderpostBaremetal
+     */
+    async diskCommissionMonitor({
+      macAddress,
+      underpostRoot,
+      hostname,
+      maas,
+      networkInterfaceName,
+      userDataPath,
+      ipAddress,
+    }) {
+      {
+        logger.info('Monitoring for machine discovery (disk-based commissioning)...', {
+          macAddress,
+          hostname,
+          maas,
+          networkInterfaceName,
+        });
+
+        // Query observed discoveries from MAAS.
+        const discoveries = JSON.parse(
+          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries read`, {
+            silent: true,
+            stdout: true,
+          }),
+        );
+
+        // Log discovered IPs for visibility.
+        // console.log('Discovered IPs:', discoveries.map((d) => d.ip).join(' | '));
+
+        // Iterate through discoveries to find a matching MAC address.
+        for (const discovery of discoveries) {
+          const machine = {
+            architecture: (
+              maas.commissioning?.architecture ||
+              maas.deployment?.architecture ||
+              maas.image?.architecture ||
+              'arm64/generic'
+            ).match('amd')
+              ? 'amd64/generic'
+              : 'arm64/generic',
+            mac_address: discovery.mac_address,
+            hostname: discovery.hostname
+              ? discovery.hostname
+              : discovery.mac_organization
+                ? discovery.mac_organization
+                : discovery.domain
+                  ? discovery.domain
+                  : `generic-host-${s4()}${s4()}`,
+            power_type: 'manual',
+            mac_addresses: discovery.mac_address,
+            ip: discovery.ip,
+          };
+          machine.hostname = machine.hostname.replaceAll(' ', '').replaceAll('.', ''); // Sanitize hostname.
+          console.log(macAddress, 'discovered:' + machine.mac_addresses, ipAddress, 'discovered:' + discovery.ip);
+          if (macAddress === machine.mac_addresses && discovery.ip === ipAddress)
+            try {
+              machine.hostname = hostname;
+              machine.mac_address = macAddress;
+
+              logger.info('Machine discovered! Creating in MAAS...', machine);
+
+              // Create a new machine in MAAS.
+              let newMachine = shellExec(
+                `maas ${process.env.MAAS_ADMIN_USERNAME} machines create ${Object.keys(machine)
+                  .map((k) => `${k}="${machine[k]}"`)
+                  .join(' ')}`,
+                {
+                  silent: true,
+                  stdout: true,
+                },
+              );
+              newMachine = { discovery, machine: JSON.parse(newMachine) };
+              logger.info('Machine created successfully:', newMachine.machine.system_id);
+
+              const discoverInterfaceName = 'eth0'; // Default interface name for discovery.
+
+              // Read interface data.
+              const interfaceData = JSON.parse(
+                shellExec(
+                  `maas ${process.env.MAAS_ADMIN_USERNAME} interface read ${newMachine.machine.boot_interface.system_id} ${discoverInterfaceName}`,
+                  {
+                    silent: true,
+                    stdout: true,
+                  },
+                ),
+              );
+
+              logger.info('Interface data:', interfaceData);
+
+              // Mark machine as broken, update interface name, then mark as fixed.
+              shellExec(
+                `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-broken ${newMachine.machine.boot_interface.system_id}`,
+              );
+
+              shellExec(
+                `maas ${process.env.MAAS_ADMIN_USERNAME} interface update ${newMachine.machine.boot_interface.system_id} ${interfaceData.id} name=${networkInterfaceName}`,
+              );
+
+              shellExec(
+                `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-fixed ${newMachine.machine.boot_interface.system_id}`,
+              );
+
+              logger.info('Starting MAAS commissioning with largest disk detection...');
+
+              // If deployment config exists, save it for post-commissioning deployment
+              if (maas.deployment) {
+                logger.info(`Deployment config`, {
+                  systemId: newMachine.machine.boot_interface.system_id,
+                  hostname,
+                  os: maas.deployment.os,
+                  release: maas.deployment.release,
+                  architecture: maas.deployment.architecture,
+                  userDataPath,
+                });
+                logger.info(`After commissioning completes, deploy with`);
+                console.log(
+                  `  maas ${process.env.MAAS_ADMIN_USERNAME} machine deploy ${newMachine.machine.boot_interface.system_id} \\`,
+                );
+                console.log(`    osystem=${maas.deployment.os} distro_series=${maas.deployment.release} \\`);
+                console.log(`    user_data@=${userDataPath}`);
+              }
+
+              process.exit(0);
+            } catch (error) {
+              logger.error('Error during machine commissioning:', error);
+              logger.error(error.stack);
+            }
+        }
+
+        await timer(1000);
+        UnderpostBaremetal.API.diskCommissionMonitor({
+          macAddress,
+          underpostRoot,
+          hostname,
+          maas,
+          networkInterfaceName,
+          userDataPath,
+          ipAddress,
+        });
+      }
+    },
+
+    /**
      * @method commissionMonitor
      * @description Monitors the MAAS discoveries and initiates machine creation and commissioning
-     * once a matching MAC address is found. It also opens terminal windows for live logs.
+     * once a matching MAC address is found (NFS-based). It also opens terminal windows for live logs.
      * @param {object} params - The parameters for the function.
      * @param {string} params.macAddress - The MAC address to monitor for.
      * @param {string} params.nfsHostPath - The NFS host path for storing system-id and auth tokens.
@@ -975,7 +1395,14 @@ menuentry '${menuentryStr}' {
         // Iterate through discoveries to find a matching MAC address.
         for (const discovery of discoveries) {
           const machine = {
-            architecture: maas.image.architecture.match('amd') ? 'amd64/generic' : 'arm64/generic',
+            architecture: (
+              maas.commissioning?.architecture ||
+              maas.deployment?.architecture ||
+              maas.image?.architecture ||
+              'arm64/generic'
+            ).match('amd')
+              ? 'amd64/generic'
+              : 'arm64/generic',
             mac_address: discovery.mac_address,
             hostname: discovery.hostname
               ? discovery.hostname
@@ -1113,7 +1540,10 @@ menuentry '${menuentryStr}' {
      */
     removeMachines({ machines }) {
       for (const machine of machines) {
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${machine.system_id}`);
+        // Handle both string system_ids and machine objects
+        const systemId = typeof machine === 'string' ? machine : machine.system_id;
+        logger.info(`Removing machine: ${systemId}`);
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${systemId}`);
       }
       return [];
     },
@@ -1617,7 +2047,7 @@ udp-port = 32766
       shellExec(`sudo exportfs -rav`);
 
       // Display the currently active NFS exports for verification.
-      logger.info('Displaying active NFS exports:');
+      logger.info('Displaying active NFS exports');
       shellExec(`sudo exportfs -s`);
 
       // Restart the nfs-server service to apply all configuration changes,
@@ -1767,7 +2197,7 @@ SUBNET=${subnet}
 GATEWAY=${gateway}`;
 
         default:
-          throw new Error('Boot conf factory invalid workflow ID:' + workflowId);
+          logger.warn(`No boot configuration factory defined for workflow ID: ${workflowId}`);
       }
     },
 

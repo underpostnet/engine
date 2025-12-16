@@ -1,7 +1,7 @@
 {
-  "Rocky9Arm64": {
+  "rpi4mbRocky9Arm64": {
     "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS Rocky Linux 9 commissioning (ARM64)",
-    "systemProvisioning": "rocky",
+    "systemProvisioning": "ubuntu",
     "networkInterfaceName": "enabcm6e4ei0",
     "netmask": "255.255.255.0",
     "chronyc": {
@@ -16,10 +16,30 @@
       }
     ],
     "maas": {
-      "image": {
-        "architecture": "arm64/generic",
-        "name": "rocky9-arm64"
+      "commissioning": {
+        "architecture": "arm64/ga-24.04",
+        "name": "ubuntu/noble"
+      },
+      "deployment": {
+        "os": "rocky",
+        "release": "9",
+        "architecture": "arm64/generic"
       }
+    },
+    "cloud-init": {
+      "packages": [
+        "epel-release",
+        "git",
+        "htop",
+        "curl",
+        "wget",
+        "chrony",
+        "lldpd",
+        "lshw",
+        "smartmontools",
+        "net-tools",
+        "util-linux"
+      ]
     },
     "keyboard": {
       "layout": "es"
@@ -49,9 +69,14 @@
       }
     },
     "maas": {
-      "image": {
+      "commissioning": {
         "architecture": "arm64/ga-24.04",
         "name": "ubuntu/noble"
+      },
+      "deployment": {
+        "os": "ubuntu",
+        "release": "noble",
+        "architecture": "arm64/ga-24.04"
       }
     },
     "nfs": {

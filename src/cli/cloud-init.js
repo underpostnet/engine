@@ -548,6 +548,186 @@ EOF_MAAS_CFG`;
       logger.info('Maas api token generated', { consumer_key, consumer_secret, token_key, token_secret });
       return { consumer_key, consumer_secret, token_key, token_secret };
     },
+
+    /**
+     * @method diskDeploymentUserDataFactory
+     * @description Generates cloud-init user-data configuration for MAAS disk-based deployments.
+     * This is used during the MAAS deployment phase (not commissioning) to configure
+     * the machine after the OS is installed to disk. MAAS injects this via its metadata service.
+     * Supports abstract configuration for any system provisioning type (ubuntu, rocky, etc.)
+     * and architecture (amd64, arm64, etc.).
+     * @param {object} params - The parameters for building the user-data.
+     * @param {string} params.hostname - The hostname for the deployed machine.
+     * @param {string} params.timezone - The timezone to configure.
+     * @param {string} params.chronyConfPath - Path to chrony configuration.
+     * @param {string} params.ntpServer - NTP server address.
+     * @param {string} params.keyboardLayout - Keyboard layout (e.g., 'es', 'us').
+     * @param {string} params.sshPublicKey - SSH public key for admin user.
+     * @param {string} params.adminUsername - Admin username for the system.
+     * @param {string} params.systemProvisioning - System provisioning type ('ubuntu', 'rocky', etc.).
+     * @param {string[]} params.packages - Array of package names to install (system-specific).
+     * @param {string} params.architecture - Architecture identifier (e.g., 'amd64', 'arm64/generic').
+     * @param {boolean} params.enlistment - Whether to perform MAAS enlistment after deployment.
+     * @param {object} params.maasConfig - MAAS configuration for enlistment.
+     * @returns {string} The cloud-init user-data YAML content.
+     * @memberof UnderpostCloudInit
+     */
+    diskDeploymentUserDataFactory({
+      hostname,
+      timezone = 'UTC',
+      chronyConfPath = '/etc/chrony/chrony.conf',
+      ntpServer = '0.pool.ntp.org',
+      keyboardLayout = 'us',
+      sshPublicKey,
+      adminUsername = 'admin',
+      systemProvisioning = 'ubuntu',
+      packages = [],
+      architecture = 'amd64',
+      enlistment = false,
+      maasConfig = {},
+    }) {
+      const { ip, systemId, consumerKey, tokenKey, tokenSecret } = maasConfig;
+
+      // Determine package manager and service names based on system provisioning type
+      const isRHELBased = systemProvisioning === 'rocky' || systemProvisioning === 'rhel';
+      const packageManager = isRHELBased ? 'dnf' : 'apt';
+      const chronySvcName = isRHELBased ? 'chronyd' : 'chrony';
+      const sshSvcName = isRHELBased ? 'sshd' : 'ssh';
+
+      // Build default package list if none provided
+      let finalPackages = packages && packages.length > 0 ? packages : this._getDefaultPackages(systemProvisioning);
+
+      // Build runcmd based on system type
+      let runCmds = [
+        `systemctl enable ${sshSvcName}`,
+        `systemctl start ${sshSvcName}`,
+        `systemctl enable lldpd`,
+        `systemctl start lldpd`,
+        `systemctl enable ${chronySvcName}`,
+        `systemctl restart ${chronySvcName}`,
+        `timedatectl set-timezone ${timezone}`,
+      ];
+
+      if (enlistment) {
+        runCmds.push(
+          `echo ">>> Starting MAAS machine commissioning for system_id: ${systemId} …"`,
+          `curl -X POST \\
+  --fail --location --verbose --include --raw --trace-ascii /dev/stdout\\
+  --header "Authorization:\\
+  OAuth oauth_version=1.0,\\
+  oauth_signature_method=PLAINTEXT,\\
+  oauth_consumer_key=${consumerKey},\\
+  oauth_token=${tokenKey},\\
+  oauth_signature=&${tokenSecret},\\
+  oauth_nonce=$(uuidgen),\\
+  oauth_timestamp=$(date +%s)"\\
+  -F "commissioning_scripts=20-maas-01-install-lldpd"\\
+  -F "enable_ssh=1"\\
+  -F "skip_bmc_config=1"\\
+  -F "skip_networking=1"\\
+  -F "skip_storage=1"\\
+  -F "testing_scripts=none"\\
+  http://${ip}:5240/MAAS/api/2.0/machines/${systemId}/op-commission`,
+        );
+      }
+
+      // Determine package update method
+      const packageUpdateBlock = isRHELBased
+        ? `package_update: true
+package_upgrade: true
+package_reboot_if_required: true`
+        : `package_update: true
+package_upgrade: true`;
+
+      return `#cloud-config
+# MAAS Disk-Based Deployment User-Data
+# This configuration is applied by MAAS after deploying the OS to disk
+# Generated for: ${hostname}
+# System: ${systemProvisioning} | Architecture: ${architecture}
+
+hostname: ${hostname}
+fqdn: ${hostname}.maas
+prefer_fqdn_over_hostname: true
+
+# User configuration
+users:
+  - name: ${adminUsername}
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    shell: /bin/bash
+    lock_passwd: false
+    groups: ${isRHELBased ? 'wheel,users,adm,systemd-journal' : 'sudo,users,admin,wheel,adm,systemd-journal'}
+    plain_text_passwd: '${adminUsername}'
+    ssh_authorized_keys:
+      - ${sshPublicKey}
+
+# Timezone configuration
+timezone: ${timezone}
+
+# NTP configuration
+ntp:
+  enabled: true
+  servers:
+    - ${ntpServer}
+    - 1.pool.ntp.org
+    - 2.pool.ntp.org
+  ntp_client: chrony
+  config:
+    confpath: ${chronyConfPath}
+
+# Keyboard layout
+keyboard:
+  layout: ${keyboardLayout}
+
+# SSH configuration
+ssh:
+  install-server: true
+  allow-pw: true
+ssh_pwauth: true
+
+# Package installation
+${packageUpdateBlock}
+packages:
+${finalPackages.map((pkg) => `  - ${pkg}`).join('\n')}
+
+# Enable services
+runcmd:
+${runCmds.map((cmd) => `  - ${cmd}`).join('\n')}
+
+# Final message
+final_message: "System deployment complete for ${hostname} at \$TIMESTAMP"
+`;
+    },
+
+    /**
+     * @method _getDefaultPackages
+     * @private
+     * @description Returns default package list based on system provisioning type.
+     * @param {string} systemProvisioning - The system provisioning type ('ubuntu', 'rocky', etc.).
+     * @memberof UnderpostCloudInit
+     * @returns {string[]} Array of package names.
+     */
+    _getDefaultPackages(systemProvisioning) {
+      const isRHELBased = systemProvisioning === 'rocky' || systemProvisioning === 'rhel';
+
+      const commonPackages = [
+        'git',
+        'htop',
+        'curl',
+        'wget',
+        'chrony',
+        'lldpd',
+        'lshw',
+        'smartmontools',
+        'net-tools',
+        'util-linux',
+      ];
+
+      if (isRHELBased) {
+        return ['epel-release', ...commonPackages];
+      }
+
+      return commonPackages;
+    },
   };
 }
 
