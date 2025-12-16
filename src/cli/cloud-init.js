@@ -385,7 +385,6 @@ package_upgrade: true
 packages:
   - git
   - htop
-  - snapd
   - chrony
   - lldpd
   - lshw
