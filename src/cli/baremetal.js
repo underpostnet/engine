@@ -843,7 +843,18 @@ menuentry '${menuentryStr}' {
       // Final commissioning steps.
       if (options.commission === true || options.cloudInitUpdate === true) {
         const { nfs } = workflowsConfig[workflowId];
-        if (nfs) await UnderpostBaremetal.API.nfsCommissionCallback(workflowId, workflowsConfig, options);
+        if (nfs)
+          await UnderpostBaremetal.API.nfsCommissionCallback(
+            workflowId,
+            workflowsConfig,
+            hostname,
+            macAddress,
+            underpostRoot,
+            ipAddress,
+            nfsHostPath,
+            options,
+            callbackMetaData,
+          );
         else
           await UnderpostBaremetal.API.diskCommissionCallback(
             workflowId,
@@ -930,19 +941,31 @@ menuentry '${menuentryStr}' {
      * and monitors the commissioning status of the machine.
      * @param {string} workflowId - The identifier for the workflow configuration to use.
      * @param {object} workflowsConfig - The complete set of workflow configurations.
+     * @param {string} hostname - The hostname for the machine.
+     * @param {string} macAddress - The MAC address of the machine.
+     * @param {string} underpostRoot - The root directory of the Underpost project.
+     * @param {string} ipAddress - The IP address assigned to the machine.
+     * @param {string} nfsHostPath - The NFS host path where the root filesystem is located.
      * @param {object} [options] - Additional options for the commissioning process.
      * @param {boolean} [options.cloudInitUpdate=false] - Flag indicating whether to update cloud-init configuration only.
+     * @param {object} callbackMetaData - Metadata about the callback environment.
      * @memberof UnderpostBaremetal
      * @returns {Promise<void>}
      */
     async nfsCommissionCallback(
       workflowId,
       workflowsConfig,
+      hostname,
+      macAddress,
+      underpostRoot,
+      ipAddress,
+      nfsHostPath,
       options = {
         cloudInitUpdate,
       },
+      callbackMetaData,
     ) {
-      const { debootstrap, networkInterfaceName, chronyc, maas, nfs, systemProvisioning } = workflowsConfig[workflowId];
+      const { debootstrap, networkInterfaceName, chronyc, maas, systemProvisioning } = workflowsConfig[workflowId];
       const { timezone, chronyConfPath } = chronyc;
 
       // If debian base Build cloud-init tools.
@@ -961,8 +984,6 @@ menuentry '${menuentryStr}' {
         debootstrapArch: debootstrap.image.architecture,
         callbackMetaData,
         steps: [
-          options.cloudInitUpdate === true ? '' : `/underpost/reset.sh`,
-          `chown root:root /usr/bin/sudo && chmod 4755 /usr/bin/sudo`,
           UnderpostCloudInit.API.configFactory({
             controlServerIp: callbackMetaData.runnerHost.ip,
             hostname,
@@ -1139,7 +1160,7 @@ menuentry '${menuentryStr}' {
 
       const cmdStr = cmd.join(' ');
       logger.info('Constructed kernel command line:');
-      console.log(cmdStr.bgRed.bold.white);
+      console.log(cmdStr.bgRed.bold.black);
       return { cmd: cmdStr };
     },
 

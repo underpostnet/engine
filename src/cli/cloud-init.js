@@ -42,7 +42,7 @@ class UnderpostCloudInit {
      */
     buildTools({ workflowId, nfsHostPath, hostname, callbackMetaData, dev }) {
       // Destructure workflow configuration for easier access.
-      const { systemProvisioning, chronyc, networkInterfaceName, debootstrap } =
+      const { systemProvisioning, chronyc, networkInterfaceName, debootstrap, keyboard } =
         UnderpostBaremetal.API.loadWorkflowsConfig()[workflowId];
       const { timezone, chronyConfPath } = chronyc;
       // Define the specific directory for underpost tools within the NFS host path.
@@ -78,7 +78,7 @@ class UnderpostCloudInit {
           fs.writeFileSync(
             `${nfsHostToolsPath}/keyboard.sh`,
             UnderpostBaremetal.API.stepsRender(
-              UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(),
+              UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
               false,
             ),
             'utf8',
