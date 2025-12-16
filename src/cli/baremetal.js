@@ -1003,10 +1003,10 @@ menuentry '${menuentryStr}' {
       shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
 
       // Wait for MAC address assignment.
-      logger.info('Waiting for MAC assignment...');
-      fs.removeSync(`${nfsHostPath}/underpost/mac`); // Clear previous MAC.
-      await UnderpostBaremetal.API.macMonitor({ nfsHostPath }); // Monitor for MAC file.
-      macAddress = fs.readFileSync(`${nfsHostPath}/underpost/mac`, 'utf8').trim(); // Read assigned MAC.
+      // logger.info('Waiting for MAC assignment...');
+      // fs.removeSync(`${nfsHostPath}/underpost/mac`); // Clear previous MAC.
+      // await UnderpostBaremetal.API.macMonitor({ nfsHostPath }); // Monitor for MAC file.
+      // macAddress = fs.readFileSync(`${nfsHostPath}/underpost/mac`, 'utf8').trim(); // Read assigned MAC.
 
       // Re-run cloud-init config factory with the newly assigned MAC address.
       UnderpostBaremetal.API.crossArchRunner({
