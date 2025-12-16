@@ -425,7 +425,15 @@ bootcmd:
   - echo "Init bootcmd"
   - echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 ${UnderpostBaremetal.API.stepsRender(
-  [`/underpost/dns.sh`, `/underpost/host.sh`, `/underpost/mac.sh`, `cat /underpost/mac`],
+  [
+    `/underpost/dns.sh`,
+    `/underpost/host.sh`,
+    `/underpost/mac.sh`,
+    `cat /underpost/mac`,
+    `/underpost/device_scan.sh`,
+    `/underpost/keyboard.sh`,
+    `/underpost/date.sh`,
+  ],
   true,
 )}
 runcmd:
