@@ -313,7 +313,7 @@ curl -X POST \\
     ) {
       const { consumer_key, consumer_secret, token_key, token_secret } = authCredentials;
       // Configure cloud-init for MAAS using a heredoc string.
-      return `cat <<EOF_MAAS_CFG > ${path}
+      const cloudConfigSrc = `cat <<EOF_MAAS_CFG > ${path}
 #cloud-config
 
 hostname: ${hostname}
@@ -333,7 +333,7 @@ datasource:
   MAAS:
     metadata_url: http://${controlServerIp}:5240/MAAS/metadata/
     ${
-      authCredentials?.consumerKey
+      authCredentials?.consumer_key
         ? `consumer_key: ${consumer_key}
     consumer_secret: ${consumer_secret}
     token_key: ${token_key}
@@ -498,6 +498,8 @@ cloud_final_modules:
   - final-message
   - power-state-change
 EOF_MAAS_CFG`;
+      console.log(cloudConfigSrc.yellow);
+      return cloudConfigSrc;
     },
 
     /**
