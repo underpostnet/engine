@@ -623,7 +623,9 @@ rm -rf ${artifacts.join(' ')}`);
           });
 
           // Copy EFI bootloaders to TFTP path.
-          const efiFiles = arch === 'arm64' ? ['bootaa64.efi', 'grubaa64.efi'] : ['bootx64.efi', 'grubx64.efi'];
+          const efiFiles = commissioningImage.architecture.match('arm64')
+            ? ['bootaa64.efi', 'grubaa64.efi']
+            : ['bootx64.efi', 'grubx64.efi'];
           for (const file of efiFiles) {
             shellExec(`sudo cp -L ${resourcesPath}/${file} ${tftpRootPath}/pxe/${file}`);
           }
@@ -648,7 +650,7 @@ menuentry '${menuentryStr}' {
   set root=(tftp,${callbackMetaData.runnerHost.ip})
   echo "Loading kernel..."
   linux /${hostname}/pxe/vmlinuz-efi ${cmd}
-  cho "Loading initrd..."
+  echo "Loading initrd..."
   initrd /${hostname}/pxe/initrd.img
   echo "Booting..."
   boot
@@ -994,25 +996,31 @@ menuentry '${menuentryStr}' {
       // Get MAAS credentials for cloud-init
       const authCredentials = UnderpostCloudInit.API.authCredentialsFactory();
 
+      const { cloudConfigPath, cloudConfigSrc } = UnderpostCloudInit.API.configFactory(
+        {
+          controlServerIp: callbackMetaData.runnerHost.ip,
+          hostname,
+          commissioningDeviceIp: ipAddress,
+          gatewayip: callbackMetaData.runnerHost.ip,
+          mac: macAddress, // Updated MAC address.
+          timezone,
+          chronyConfPath,
+          networkInterfaceName,
+        },
+        authCredentials,
+      );
+      logger.info('Generated cloud-init configuration for commissioning');
+      console.log(cloudConfigSrc.yellow);
+
       // Run cloud-init reset and configure cloud-init.
       UnderpostBaremetal.API.crossArchRunner({
         nfsHostPath,
         debootstrapArch: debootstrap.image.architecture,
         callbackMetaData,
         steps: [
-          UnderpostCloudInit.API.configFactory(
-            {
-              controlServerIp: callbackMetaData.runnerHost.ip,
-              hostname,
-              commissioningDeviceIp: ipAddress,
-              gatewayip: callbackMetaData.runnerHost.ip,
-              mac: macAddress, // Updated MAC address.
-              timezone,
-              chronyConfPath,
-              networkInterfaceName,
-            },
-            authCredentials,
-          ),
+          `cat <<EOF_MAAS_CFG > ${cloudConfigPath}
+${cloudConfigSrc}
+EOF_MAAS_CFG`,
         ],
       });
 
