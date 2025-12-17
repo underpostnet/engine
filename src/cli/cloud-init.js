@@ -498,7 +498,6 @@ cloud_final_modules:
   - final-message
   - power-state-change
 EOF_MAAS_CFG`;
-      console.log(cloudConfigSrc.yellow);
       return cloudConfigSrc;
     },
 

@@ -981,7 +981,7 @@ menuentry '${menuentryStr}' {
       const { debootstrap, networkInterfaceName, chronyc, maas, systemProvisioning } = workflowsConfig[workflowId];
       const { timezone, chronyConfPath } = chronyc;
 
-      // If debian base Build cloud-init tools.
+      // If debian based Build cloud-init tools.
       if (systemProvisioning === 'ubuntu')
         UnderpostCloudInit.API.buildTools({
           workflowId,
@@ -1006,7 +1006,7 @@ menuentry '${menuentryStr}' {
               hostname,
               commissioningDeviceIp: ipAddress,
               gatewayip: callbackMetaData.runnerHost.ip,
-              mac: macAddress, // Initial MAC, will be updated.
+              mac: macAddress, // Updated MAC address.
               timezone,
               chronyConfPath,
               networkInterfaceName,
@@ -1021,34 +1021,6 @@ menuentry '${menuentryStr}' {
       // Apply NAT iptables rules.
       shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
 
-      // Wait for MAC address assignment.
-      // logger.info('Waiting for MAC assignment...');
-      // fs.removeSync(`${nfsHostPath}/underpost/mac`); // Clear previous MAC.
-      // await UnderpostBaremetal.API.macMonitor({ nfsHostPath }); // Monitor for MAC file.
-      // macAddress = fs.readFileSync(`${nfsHostPath}/underpost/mac`, 'utf8').trim(); // Read assigned MAC.
-
-      // Re-run cloud-init config factory with the newly assigned MAC address.
-      UnderpostBaremetal.API.crossArchRunner({
-        nfsHostPath,
-        debootstrapArch: debootstrap.image.architecture,
-        callbackMetaData,
-        steps: [
-          UnderpostCloudInit.API.configFactory(
-            {
-              controlServerIp: callbackMetaData.runnerHost.ip,
-              hostname,
-              commissioningDeviceIp: ipAddress,
-              gatewayip: callbackMetaData.runnerHost.ip,
-              mac: macAddress, // Updated MAC address.
-              timezone,
-              chronyConfPath,
-              networkInterfaceName,
-            },
-            authCredentials,
-          ),
-        ],
-      });
-
       // Monitor commissioning process.
       UnderpostBaremetal.API.commissionMonitor({
         macAddress,
@@ -1058,6 +1030,8 @@ menuentry '${menuentryStr}' {
         maas,
         networkInterfaceName,
       });
+      openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs nfs-cloud`);
+      openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs nfs-machine`);
     },
 
     /**
@@ -1441,42 +1415,14 @@ menuentry '${menuentryStr}' {
               shellExec(
                 `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-fixed ${newMachine.machine.boot_interface.system_id}`,
               );
-
-              // commissioning_scripts=90-verify-user.sh
-              // shellExec(
-              //   `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission --debug --insecure ${newMachine.machine.boot_interface.system_id} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
-              //   {
-              //     silent: true,
-              //   },
-              // );
-
-              // Save system-id for enlistment.
-              logger.info('system-id', newMachine.machine.boot_interface.system_id);
-              fs.writeFileSync(
-                `${nfsHostPath}/underpost/system-id`,
-                newMachine.machine.boot_interface.system_id,
-                'utf8',
-              );
-
-              // Get and save MAAS authentication credentials.
-              const { consumer_key, token_key, token_secret } = UnderpostCloudInit.API.authCredentialsFactory();
-
-              fs.writeFileSync(`${nfsHostPath}/underpost/consumer-key`, consumer_key, 'utf8');
-              fs.writeFileSync(`${nfsHostPath}/underpost/token-key`, token_key, 'utf8');
-              fs.writeFileSync(`${nfsHostPath}/underpost/token-secret`, token_secret, 'utf8');
-
-              // Open new terminals for live cloud-init logs.
-              openTerminal(`node ${underpostRoot}/bin baremetal --logs nfs-cloud`);
-              openTerminal(`node ${underpostRoot}/bin baremetal --logs nfs-machine`);
-              shellExec(`node ${underpostRoot}/bin baremetal --logs nfs-cloud-config`);
             } catch (error) {
               logger.error(error, error.stack);
             } finally {
-              process.exit(0);
+              return;
             }
         }
         await timer(1000);
-        UnderpostBaremetal.API.commissionMonitor({
+        await UnderpostBaremetal.API.commissionMonitor({
           macAddress,
           nfsHostPath,
           underpostRoot,
