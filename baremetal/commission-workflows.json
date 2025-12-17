@@ -5,7 +5,7 @@
     "networkInterfaceName": "enabcm6e4ei0",
     "netmask": "255.255.255.0",
     "chronyc": {
-      "timezone": "America/New_York",
+      "timezone": "America/Santiago",
       "chronyConfPath": "/etc/chrony/chrony.conf"
     },
     "firmwares": [
@@ -39,7 +39,7 @@
       }
     ],
     "chronyc": {
-      "timezone": "America/New_York",
+      "timezone": "America/Santiago",
       "chronyConfPath": "/etc/chrony/chrony.conf"
     },
     "debootstrap": {
