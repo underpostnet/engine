@@ -609,161 +609,9 @@ rm -rf ${artifacts.join(' ')}`);
 
         // Configure GRUB for PXE boot.
         {
-          const resourceData = JSON.parse(
-            shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
-              stdout: true,
-              silent: true,
-              disableLog: true,
-            }),
-          );
+          // Fetch kernel and initrd paths from MAAS boot resource.
+          const { kernelFilesPaths, resourcesPath } = UnderpostBaremetal.API.kernelFactory({ resource });
 
-          logger.info('Boot files info:', {
-            id: resourceData.id,
-            type: resourceData.type,
-            name: resourceData.name,
-            architecture: resourceData.architecture,
-            purpose: nfs ? 'NFS boot (target OS)' : 'Commissioning (ephemeral)',
-            note: 'MAAS uses content-addressable storage (hash-based IDs for files)',
-          });
-
-          const bootFiles = resourceData.sets[Object.keys(resourceData.sets)[0]].files;
-
-          logger.info('Available boot files:', Object.keys(bootFiles));
-          const suffix = resource.architecture.match('xgene') ? '.xgene' : '';
-          const arch = resource.architecture.split('/')[0];
-          const resourcesPath = `/var/snap/maas/common/maas/image-storage/bootloaders/uefi/${arch}`;
-          const kernelPath = `/var/snap/maas/common/maas/image-storage`;
-
-          // Handle different file structures for synced vs uploaded images
-          let kernelFilesPaths = {};
-
-          // Try standard synced image structure (Ubuntu, CentOS from MAAS repos)
-          if (bootFiles['boot-kernel' + suffix] && bootFiles['boot-initrd' + suffix] && bootFiles['squashfs']) {
-            kernelFilesPaths = {
-              'vmlinuz-efi': `${kernelPath}/${bootFiles['boot-kernel' + suffix].filename_on_disk}`,
-              'initrd.img': `${kernelPath}/${bootFiles['boot-initrd' + suffix].filename_on_disk}`,
-              squashfs: `${kernelPath}/${bootFiles['squashfs'].filename_on_disk}`,
-            };
-          }
-          // Try uploaded image structure (Packer-built images, custom uploads)
-          else if (bootFiles['boot-kernel'] && bootFiles['boot-initrd'] && bootFiles['root-tgz']) {
-            kernelFilesPaths = {
-              'vmlinuz-efi': `${kernelPath}/${bootFiles['boot-kernel'].filename_on_disk}`,
-              'initrd.img': `${kernelPath}/${bootFiles['boot-initrd'].filename_on_disk}`,
-              squashfs: `${kernelPath}/${bootFiles['root-tgz'].filename_on_disk}`,
-            };
-          }
-          // Try alternative uploaded structure with root-image-xz
-          else if (bootFiles['boot-kernel'] && bootFiles['boot-initrd'] && bootFiles['root-image-xz']) {
-            kernelFilesPaths = {
-              'vmlinuz-efi': `${kernelPath}/${bootFiles['boot-kernel'].filename_on_disk}`,
-              'initrd.img': `${kernelPath}/${bootFiles['boot-initrd'].filename_on_disk}`,
-              squashfs: `${kernelPath}/${bootFiles['root-image-xz'].filename_on_disk}`,
-            };
-          }
-          // Fallback: try to find any kernel, initrd, and root image
-          else {
-            logger.warn('Non-standard boot file structure detected. Available files:', Object.keys(bootFiles));
-
-            const rootArchiveKey = Object.keys(bootFiles).find(
-              (k) => k.includes('root') && (k.includes('tgz') || k.includes('tar.gz')),
-            );
-            const explicitKernel = Object.keys(bootFiles).find((k) => k.includes('kernel'));
-            const explicitInitrd = Object.keys(bootFiles).find((k) => k.includes('initrd'));
-
-            if (rootArchiveKey && (!explicitKernel || !explicitInitrd)) {
-              logger.info(`Root archive found (${rootArchiveKey}) and missing kernel/initrd. Attempting to extract.`);
-              const rootArchivePath = `${kernelPath}/${bootFiles[rootArchiveKey].filename_on_disk}`;
-              const tempExtractDir = `/tmp/maas-extract-${resource.id}`;
-              shellExec(`mkdir -p ${tempExtractDir}`);
-
-              // List files in archive to find kernel and initrd
-              const tarList = shellExec(`tar -tf ${rootArchivePath}`, { silent: true }).stdout.split('\n');
-
-              // Look for boot/vmlinuz* and boot/initrd* (handling potential leading ./)
-              // Skip rescue, kdump, and other special images
-              const vmlinuzPaths = tarList.filter(
-                (f) => f.match(/(\.\/)?boot\/vmlinuz-[0-9]/) && !f.includes('rescue') && !f.includes('kdump'),
-              );
-              const initrdPaths = tarList.filter(
-                (f) =>
-                  f.match(/(\.\/)?boot\/(initrd|initramfs)-[0-9]/) &&
-                  !f.includes('rescue') &&
-                  !f.includes('kdump') &&
-                  f.includes('.img'),
-              );
-
-              logger.info(`Found kernel candidates:`, { vmlinuzPaths, initrdPaths });
-
-              // Try to match kernel and initrd by version number
-              let vmlinuzPath = null;
-              let initrdPath = null;
-
-              if (vmlinuzPaths.length > 0 && initrdPaths.length > 0) {
-                // Extract version from kernel filename (e.g., "5.14.0-611.11.1.el9_7.aarch64")
-                for (const kernelPath of vmlinuzPaths.sort().reverse()) {
-                  const kernelVersion = kernelPath.match(/vmlinuz-(.+)$/)?.[1];
-                  if (kernelVersion) {
-                    // Look for matching initrd
-                    const matchingInitrd = initrdPaths.find((p) => p.includes(kernelVersion));
-                    if (matchingInitrd) {
-                      vmlinuzPath = kernelPath;
-                      initrdPath = matchingInitrd;
-                      logger.info(`Matched kernel and initrd by version: ${kernelVersion}`);
-                      break;
-                    }
-                  }
-                }
-              }
-
-              // Fallback: use newest versions if no match found
-              if (!vmlinuzPath && vmlinuzPaths.length > 0) {
-                vmlinuzPath = vmlinuzPaths.sort().pop();
-              }
-              if (!initrdPath && initrdPaths.length > 0) {
-                initrdPath = initrdPaths.sort().pop();
-              }
-
-              logger.info(`Selected kernel: ${vmlinuzPath}, initrd: ${initrdPath}`);
-
-              if (vmlinuzPath && initrdPath) {
-                // Extract specific files
-                // Extract all files in boot/ to ensure symlinks resolve
-                shellExec(`tar -xf ${rootArchivePath} -C ${tempExtractDir} --wildcards '*boot/*'`);
-
-                kernelFilesPaths = {
-                  'vmlinuz-efi': `${tempExtractDir}/${vmlinuzPath}`,
-                  'initrd.img': `${tempExtractDir}/${initrdPath}`,
-                  squashfs: rootArchivePath,
-                };
-                logger.info('Extracted kernel and initrd from root archive.');
-              } else {
-                logger.error(
-                  `Failed to find kernel/initrd in archive. Contents of boot/ directory:`,
-                  tarList.filter((f) => f.includes('boot/')),
-                );
-                throw new Error(`Could not find kernel or initrd in ${rootArchiveKey}`);
-              }
-            } else {
-              const kernelFile = Object.keys(bootFiles).find((k) => k.includes('kernel')) || Object.keys(bootFiles)[0];
-              const initrdFile = Object.keys(bootFiles).find((k) => k.includes('initrd')) || Object.keys(bootFiles)[1];
-              const rootFile =
-                Object.keys(bootFiles).find(
-                  (k) => k.includes('root') || k.includes('squashfs') || k.includes('tgz') || k.includes('xz'),
-                ) || Object.keys(bootFiles)[2];
-
-              if (kernelFile && initrdFile && rootFile) {
-                kernelFilesPaths = {
-                  'vmlinuz-efi': `${kernelPath}/${bootFiles[kernelFile].filename_on_disk}`,
-                  'initrd.img': `${kernelPath}/${bootFiles[initrdFile].filename_on_disk}`,
-                  squashfs: `${kernelPath}/${bootFiles[rootFile].filename_on_disk}`,
-                };
-                logger.info('Using detected files:', { kernel: kernelFile, initrd: initrdFile, root: rootFile });
-              } else {
-                throw new Error(`Cannot identify boot files. Available: ${Object.keys(bootFiles).join(', ')}`);
-              }
-            }
-          }
           const { cmd } = UnderpostBaremetal.API.kernelCmdBootParamsFactory({
             ipClient: ipAddress,
             ipHost: callbackMetaData.runnerHost.ip,
@@ -798,8 +646,11 @@ set default=0
 
 menuentry '${menuentryStr}' {
   set root=(tftp,${callbackMetaData.runnerHost.ip})
+  echo "Loading kernel..."
   linux /${hostname}/pxe/vmlinuz-efi ${cmd}
+  cho "Loading initrd..."
   initrd /${hostname}/pxe/initrd.img
+  echo "Booting..."
   boot
 }
 
@@ -865,6 +716,179 @@ menuentry '${menuentryStr}' {
             ipAddress,
           );
       }
+    },
+
+    /**
+     * @method kernelFactory
+     * @description Retrieves kernel, initrd, and root filesystem paths from a MAAS boot resource.
+     * @param {object} params - Parameters for the method.
+     * @param {object} params.resource - The MAAS boot resource object.
+     * @returns {object} An object containing paths to the kernel, initrd, and root filesystem.
+     * @memberof UnderpostBaremetal.API
+     */
+    kernelFactory({ resource }) {
+      const resourceData = JSON.parse(
+        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
+          stdout: true,
+          silent: true,
+          disableLog: true,
+        }),
+      );
+      let kernelFilesPaths = {};
+      const bootFiles = resourceData.sets[Object.keys(resourceData.sets)[0]].files;
+      const arch = resource.architecture.split('/')[0];
+      const resourcesPath = `/var/snap/maas/common/maas/image-storage/bootloaders/uefi/${arch}`;
+      const kernelPath = `/var/snap/maas/common/maas/image-storage`;
+
+      logger.info('Available boot files', Object.keys(bootFiles));
+      logger.info('Boot files info', {
+        id: resourceData.id,
+        type: resourceData.type,
+        name: resourceData.name,
+        architecture: resourceData.architecture,
+        bootFiles,
+        arch,
+        resourcesPath,
+        kernelPath,
+      });
+
+      // Try standard synced image structure (Ubuntu, CentOS from MAAS repos)
+      const _suffix = resource.architecture.match('xgene') ? '.xgene' : '';
+      if (bootFiles['boot-kernel' + _suffix] && bootFiles['boot-initrd' + _suffix] && bootFiles['squashfs']) {
+        kernelFilesPaths = {
+          'vmlinuz-efi': `${kernelPath}/${bootFiles['boot-kernel' + _suffix].filename_on_disk}`,
+          'initrd.img': `${kernelPath}/${bootFiles['boot-initrd' + _suffix].filename_on_disk}`,
+          squashfs: `${kernelPath}/${bootFiles['squashfs'].filename_on_disk}`,
+        };
+      }
+      // Try uploaded image structure (Packer-built images, custom uploads)
+      else if (bootFiles['boot-kernel'] && bootFiles['boot-initrd'] && bootFiles['root-tgz']) {
+        kernelFilesPaths = {
+          'vmlinuz-efi': `${kernelPath}/${bootFiles['boot-kernel'].filename_on_disk}`,
+          'initrd.img': `${kernelPath}/${bootFiles['boot-initrd'].filename_on_disk}`,
+          squashfs: `${kernelPath}/${bootFiles['root-tgz'].filename_on_disk}`,
+        };
+      }
+      // Try alternative uploaded structure with root-image-xz
+      else if (bootFiles['boot-kernel'] && bootFiles['boot-initrd'] && bootFiles['root-image-xz']) {
+        kernelFilesPaths = {
+          'vmlinuz-efi': `${kernelPath}/${bootFiles['boot-kernel'].filename_on_disk}`,
+          'initrd.img': `${kernelPath}/${bootFiles['boot-initrd'].filename_on_disk}`,
+          squashfs: `${kernelPath}/${bootFiles['root-image-xz'].filename_on_disk}`,
+        };
+      }
+      // Fallback: try to find any kernel, initrd, and root image
+      else {
+        logger.warn('Non-standard boot file structure detected. Available files', Object.keys(bootFiles));
+
+        const rootArchiveKey = Object.keys(bootFiles).find(
+          (k) => k.includes('root') && (k.includes('tgz') || k.includes('tar.gz')),
+        );
+        const explicitKernel = Object.keys(bootFiles).find((k) => k.includes('kernel'));
+        const explicitInitrd = Object.keys(bootFiles).find((k) => k.includes('initrd'));
+
+        if (rootArchiveKey && (!explicitKernel || !explicitInitrd)) {
+          logger.info(`Root archive found (${rootArchiveKey}) and missing kernel/initrd. Attempting to extract.`);
+          const rootArchivePath = `${kernelPath}/${bootFiles[rootArchiveKey].filename_on_disk}`;
+          const tempExtractDir = `/tmp/maas-extract-${resource.id}`;
+          shellExec(`mkdir -p ${tempExtractDir}`);
+
+          // List files in archive to find kernel and initrd
+          const tarList = shellExec(`tar -tf ${rootArchivePath}`, { silent: true }).stdout.split('\n');
+
+          // Look for boot/vmlinuz* and boot/initrd* (handling potential leading ./)
+          // Skip rescue, kdump, and other special images
+          const vmlinuzPaths = tarList.filter(
+            (f) => f.match(/(\.\/)?boot\/vmlinuz-[0-9]/) && !f.includes('rescue') && !f.includes('kdump'),
+          );
+          const initrdPaths = tarList.filter(
+            (f) =>
+              f.match(/(\.\/)?boot\/(initrd|initramfs)-[0-9]/) &&
+              !f.includes('rescue') &&
+              !f.includes('kdump') &&
+              f.includes('.img'),
+          );
+
+          logger.info(`Found kernel candidates:`, { vmlinuzPaths, initrdPaths });
+
+          // Try to match kernel and initrd by version number
+          let vmlinuzPath = null;
+          let initrdPath = null;
+
+          if (vmlinuzPaths.length > 0 && initrdPaths.length > 0) {
+            // Extract version from kernel filename (e.g., "5.14.0-611.11.1.el9_7.aarch64")
+            for (const kernelPath of vmlinuzPaths.sort().reverse()) {
+              const kernelVersion = kernelPath.match(/vmlinuz-(.+)$/)?.[1];
+              if (kernelVersion) {
+                // Look for matching initrd
+                const matchingInitrd = initrdPaths.find((p) => p.includes(kernelVersion));
+                if (matchingInitrd) {
+                  vmlinuzPath = kernelPath;
+                  initrdPath = matchingInitrd;
+                  logger.info(`Matched kernel and initrd by version: ${kernelVersion}`);
+                  break;
+                }
+              }
+            }
+          }
+
+          // Fallback: use newest versions if no match found
+          if (!vmlinuzPath && vmlinuzPaths.length > 0) {
+            vmlinuzPath = vmlinuzPaths.sort().pop();
+          }
+          if (!initrdPath && initrdPaths.length > 0) {
+            initrdPath = initrdPaths.sort().pop();
+          }
+
+          logger.info(`Selected kernel: ${vmlinuzPath}, initrd: ${initrdPath}`);
+
+          if (vmlinuzPath && initrdPath) {
+            // Extract specific files
+            // Extract all files in boot/ to ensure symlinks resolve
+            shellExec(`tar -xf ${rootArchivePath} -C ${tempExtractDir} --wildcards '*boot/*'`);
+
+            kernelFilesPaths = {
+              'vmlinuz-efi': `${tempExtractDir}/${vmlinuzPath}`,
+              'initrd.img': `${tempExtractDir}/${initrdPath}`,
+              squashfs: rootArchivePath,
+            };
+            logger.info('Extracted kernel and initrd from root archive.');
+          } else {
+            logger.error(
+              `Failed to find kernel/initrd in archive. Contents of boot/ directory:`,
+              tarList.filter((f) => f.includes('boot/')),
+            );
+            throw new Error(`Could not find kernel or initrd in ${rootArchiveKey}`);
+          }
+        } else {
+          const kernelFile = Object.keys(bootFiles).find((k) => k.includes('kernel')) || Object.keys(bootFiles)[0];
+          const initrdFile = Object.keys(bootFiles).find((k) => k.includes('initrd')) || Object.keys(bootFiles)[1];
+          const rootFile =
+            Object.keys(bootFiles).find(
+              (k) => k.includes('root') || k.includes('squashfs') || k.includes('tgz') || k.includes('xz'),
+            ) || Object.keys(bootFiles)[2];
+
+          if (kernelFile && initrdFile && rootFile) {
+            kernelFilesPaths = {
+              'vmlinuz-efi': `${kernelPath}/${bootFiles[kernelFile].filename_on_disk}`,
+              'initrd.img': `${kernelPath}/${bootFiles[initrdFile].filename_on_disk}`,
+              squashfs: `${kernelPath}/${bootFiles[rootFile].filename_on_disk}`,
+            };
+            logger.info('Using detected files', { kernel: kernelFile, initrd: initrdFile, root: rootFile });
+          } else {
+            throw new Error(`Cannot identify boot files. Available: ${Object.keys(bootFiles).join(', ')}`);
+          }
+        }
+      }
+      return {
+        resource,
+        bootFiles,
+        arch,
+        resourcesPath,
+        kernelPath,
+        resourceData,
+        kernelFilesPaths,
+      };
     },
 
     /**
