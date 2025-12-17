@@ -610,7 +610,11 @@ rm -rf ${artifacts.join(' ')}`);
         // Configure GRUB for PXE boot.
         {
           // Fetch kernel and initrd paths from MAAS boot resource.
-          const { kernelFilesPaths, resourcesPath } = UnderpostBaremetal.API.kernelFactory({ resource });
+          // Both NFS and disk-based commissioning use MAAS boot resources.
+          const { kernelFilesPaths, resourcesPath } = UnderpostBaremetal.API.kernelFactory({
+            resource,
+            useLiveISO: false, // Always use MAAS boot resources for commissioning
+          });
 
           const { cmd } = UnderpostBaremetal.API.kernelCmdBootParamsFactory({
             ipClient: ipAddress,
@@ -701,6 +705,16 @@ menuentry '${menuentryStr}' {
         // Set ownership and permissions for TFTP root.
         shellExec(`sudo chown -R root:root ${process.env.TFTP_ROOT}`);
         shellExec(`sudo sudo chmod 755 ${process.env.TFTP_ROOT}`);
+
+        // Start HTTP server to serve squashfs (TFTP is unreliable for large files like 400MB squashfs)
+        // Kill any existing HTTP server on port 8888
+        shellExec(`sudo pkill -f 'python3 -m http.server 8888' || true`, { silent: true });
+        // Start Python HTTP server in background to serve TFTP root
+        shellExec(
+          `cd ${process.env.TFTP_ROOT} && nohup python3 -m http.server 8888 --bind 0.0.0.0 > /tmp/http-boot-server.log 2>&1 &`,
+          { silent: true, async: true },
+        );
+        logger.info(`Started HTTP server on port 8888 serving ${process.env.TFTP_ROOT} for squashfs fetching`);
       }
 
       // Final commissioning steps.
@@ -1346,19 +1360,22 @@ EOF_MAAS_CFG`,
           `systemd.mask=systemd-udev-trigger.service`,
         ];
       } else {
-        // Ubuntu ephemeral (MAAS commissioning) parameters
+        // MAAS commissioning parameters
         cmd = [
-          `console=ttyAMA0,115200`, // Standard PL011 UART for RPi4
+          `console=serial0,115200`,
           `console=tty1`,
-          `ip=dhcp`,
-          `boot=casper`,
-          `url=tftp://${ipHost}/${hostname}/pxe/squashfs`,
-          `nomodeset`, // Prevents conflict with UEFI framebuffer
-          `plymouth.enable=0`, // DISABLES graphical splash to prevent 0x200 panic during boot
-          `disable_splash`,
-          `cma=512M`, // Increased CMA for Ubuntu 24.04 kernel requirements on RPi4
-          `ignore_uuid`,
-          `systemd.unit=multi-user.target`, // Force text mode
+          `ip=${ipClient}:${ipHost}:${ipHost}:${netmask}:${hostname}:${networkInterfaceName}:static`,
+          'nomodeset',
+          `netboot=url`,
+          'ro',
+          `root=squash:=http://${ipHost}:8888/${hostname}/pxe/squashfs`,
+          `init=/sbin/init`,
+          `initrd=initrd.img`,
+          // `rw`,
+          `rootwait`,
+          `fixrtc`,
+          `overlayroot=tmpfs`,
+          `overlayroot_cfgdisk=disabled`,
         ];
       }
 
