@@ -633,6 +633,16 @@ rm -rf ${artifacts.join(' ')}`);
           for (const file of Object.keys(kernelFilesPaths)) {
             shellExec(`sudo cp -L ${kernelFilesPaths[file]} ${tftpRootPath}/pxe/${file}`);
             // If the file is a kernel (vmlinuz-efi) and is gzipped, unzip it for GRUB compatibility on ARM64.
+            // GRUB on ARM64 often crashes with synchronous exception (0x200) if handling large compressed kernels directly.
+            if (file === 'vmlinuz-efi') {
+              const kernelDest = `${tftpRootPath}/pxe/${file}`;
+              const fileType = shellExec(`file ${kernelDest}`, { silent: true }).stdout;
+              if (fileType.includes('gzip compressed data')) {
+                logger.info(`Decompressing kernel ${file} for ARM64 UEFI compatibility...`);
+                shellExec(`sudo mv ${kernelDest} ${kernelDest}.gz`);
+                shellExec(`sudo gunzip ${kernelDest}.gz`);
+              }
+            }
           }
 
           // Write GRUB configuration file.
@@ -1160,13 +1170,17 @@ EOF_MAAS_CFG`,
       } else {
         // Ubuntu ephemeral (MAAS commissioning) parameters
         cmd = [
-          `console=serial0,115200`,
+          `console=ttyAMA0,115200`, // Standard PL011 UART for RPi4
           `console=tty1`,
           `ip=dhcp`,
           `boot=casper`,
           `url=tftp://${ipHost}/${hostname}/pxe/squashfs`,
-          // `toram`,
-          // `ignore_uuid`,
+          `nomodeset`, // Prevents conflict with UEFI framebuffer
+          `plymouth.enable=0`, // DISABLES graphical splash to prevent 0x200 panic during boot
+          `disable_splash`,
+          `cma=512M`, // Increased CMA for Ubuntu 24.04 kernel requirements on RPi4
+          `ignore_uuid`,
+          `systemd.unit=multi-user.target`, // Force text mode
         ];
       }
 
@@ -1293,7 +1307,7 @@ EOF_MAAS_CFG`,
                 `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-fixed ${newMachine.machine.boot_interface.system_id}`,
               );
 
-              process.exit(0);
+              return;
             } catch (error) {
               logger.error('Error during machine commissioning:', error);
               logger.error(error.stack);
@@ -1301,7 +1315,7 @@ EOF_MAAS_CFG`,
         }
 
         await timer(1000);
-        UnderpostBaremetal.API.diskCommissionMonitor({
+        return UnderpostBaremetal.API.diskCommissionMonitor({
           macAddress,
           underpostRoot,
           hostname,
@@ -1860,7 +1874,7 @@ logdir /var/log/chrony
      * @description Configures and restarts the NFS server to export the specified path.
      * This is crucial for allowing baremetal machines to boot via NFS.
      * @param {object} params - The parameters for the function.
-     * @param {string} params.nfsHostPath - The path to be exported by the NFS server.
+     * @param {string} params.nfsHostPath - The path to the NFS server export.
      * @memberof UnderpostBaremetal
      * @param {string} [params.subnet='192.168.1.0/24'] - The subnet allowed to access the NFS export.
      * @returns {void}
