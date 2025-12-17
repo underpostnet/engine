@@ -726,7 +726,7 @@ menuentry '${menuentryStr}' {
      * @param {object} params - Parameters for the method.
      * @param {object} params.resource - The MAAS boot resource object.
      * @returns {object} An object containing paths to the kernel, initrd, and root filesystem.
-     * @memberof UnderpostBaremetal.API
+     * @memberof UnderpostBaremetal
      */
     kernelFactory({ resource }) {
       const resourceData = JSON.parse(
