@@ -731,14 +731,192 @@ menuentry '${menuentryStr}' {
     },
 
     /**
+     * @method downloadUbuntuLiveISO
+     * @description Downloads Ubuntu live ISO and extracts casper boot files for live boot.
+     * @param {object} params - Parameters for the method.
+     * @param {object} params.resource - The MAAS boot resource object.
+     * @param {string} params.architecture - The architecture (arm64 or amd64).
+     * @returns {object} An object containing paths to the extracted kernel, initrd, and squashfs.
+     * @memberof UnderpostBaremetal
+     */
+    downloadUbuntuLiveISO({ resource, architecture }) {
+      const arch = architecture || resource.architecture.split('/')[0];
+      const osName = resource.name.split('/')[1]; // e.g., "focal", "jammy", "noble"
+
+      // Map Ubuntu codenames to versions - different versions available for different architectures
+      // ARM64 ISOs are hosted on cdimage.ubuntu.com, AMD64 on releases.ubuntu.com
+      const versionMap = {
+        arm64: {
+          focal: '20.04.5', // ARM64 focal only up to 20.04.5 on cdimage
+          jammy: '22.04.5',
+          noble: '24.04.1',
+          bionic: '18.04.6',
+        },
+        amd64: {
+          focal: '20.04.6',
+          jammy: '22.04.5',
+          noble: '24.04.1',
+          bionic: '18.04.6',
+        },
+      };
+
+      const version = (versionMap[arch] && versionMap[arch][osName]) || '20.04.5';
+      const majorVersion = version.split('.').slice(0, 2).join('.');
+
+      // Determine ISO filename and URL based on architecture
+      // ARM64 ISOs are on cdimage.ubuntu.com, AMD64 on releases.ubuntu.com
+      let isoFilename;
+      let isoUrl;
+      if (arch === 'arm64') {
+        isoFilename = `ubuntu-${version}-live-server-arm64.iso`;
+        isoUrl = `https://cdimage.ubuntu.com/releases/${majorVersion}/release/${isoFilename}`;
+      } else {
+        isoFilename = `ubuntu-${version}-live-server-amd64.iso`;
+        isoUrl = `https://releases.ubuntu.com/${majorVersion}/${isoFilename}`;
+      }
+
+      const downloadDir = `/var/tmp/ubuntu-live-iso`;
+      const isoPath = `${downloadDir}/${isoFilename}`;
+      const extractDir = `${downloadDir}/${osName}-${arch}-extracted`;
+
+      shellExec(`mkdir -p ${downloadDir}`);
+      shellExec(`mkdir -p ${extractDir}`);
+
+      // Check if cached ISO exists and is valid (size > 100MB to ensure it's not empty/corrupt)
+      let needsDownload = true;
+      if (fs.existsSync(isoPath)) {
+        const stats = fs.statSync(isoPath);
+        const minValidSize = 100 * 1024 * 1024; // 100MB minimum
+        if (stats.size > minValidSize) {
+          logger.info(`Using cached ISO: ${isoPath} (${(stats.size / 1024 / 1024 / 1024).toFixed(2)} GB)`);
+          needsDownload = false;
+        } else {
+          logger.warn(`Cached ISO appears corrupt or incomplete (${stats.size} bytes), re-downloading...`);
+          shellExec(`rm -f ${isoPath}`);
+        }
+      }
+
+      if (needsDownload) {
+        logger.info(`Downloading Ubuntu ${version} live ISO for ${arch}...`);
+        logger.info(`URL: ${isoUrl}`);
+        logger.info(`This may take a while (typically 1-2 GB)...`);
+        shellExec(`wget --progress=bar:force -O ${isoPath} "${isoUrl}"`, { silent: false });
+        // Verify download by checking file existence and size (not exit code, which can be unreliable)
+        if (!fs.existsSync(isoPath)) {
+          throw new Error(`Failed to download ISO from ${isoUrl} - file not created`);
+        }
+        const stats = fs.statSync(isoPath);
+        if (stats.size < 100 * 1024 * 1024) {
+          shellExec(`rm -f ${isoPath}`);
+          throw new Error(`Downloaded ISO is too small (${stats.size} bytes), download may have failed`);
+        }
+        logger.info(`Downloaded ISO to ${isoPath} (${(stats.size / 1024 / 1024 / 1024).toFixed(2)} GB)`);
+      }
+
+      // Mount ISO and extract casper files
+      const mountPoint = `${downloadDir}/mnt-${osName}-${arch}`;
+      shellExec(`mkdir -p ${mountPoint}`);
+
+      // Ensure mount point is not already mounted
+      shellExec(`sudo umount ${mountPoint} 2>/dev/null || true`, { silent: true });
+
+      try {
+        // Mount the ISO
+        shellExec(`sudo mount -o loop,ro ${isoPath} ${mountPoint}`, { silent: false });
+        // Verify mount succeeded by checking if casper directory exists
+        if (!fs.existsSync(`${mountPoint}/casper`)) {
+          throw new Error(`Failed to mount ISO or casper directory not found: ${isoPath}`);
+        }
+        logger.info(`Mounted ISO at ${mountPoint}`);
+
+        // List casper directory to see what's available
+        logger.info(`Checking casper directory contents...`);
+        shellExec(`ls -la ${mountPoint}/casper/ 2>/dev/null || echo "casper directory not found"`, { silent: false });
+
+        // Extract casper files
+        const casperFiles = ['vmlinuz', 'initrd'];
+        for (const file of casperFiles) {
+          const sourcePath = `${mountPoint}/casper/${file}`;
+          if (fs.existsSync(sourcePath)) {
+            shellExec(`sudo cp ${sourcePath} ${extractDir}/${file}`);
+            shellExec(`sudo chown $(whoami):$(whoami) ${extractDir}/${file}`);
+            logger.info(`Extracted ${file} from ISO`);
+          } else {
+            logger.warn(`File not found in ISO: ${sourcePath}`);
+            // Try alternative names
+            const altNames =
+              file === 'vmlinuz' ? ['vmlinuz.efi', 'vmlinuz-*'] : ['initrd.lz', 'initrd.gz', 'initrd.img'];
+            for (const altName of altNames) {
+              const altResult = shellExec(`ls ${mountPoint}/casper/${altName} 2>/dev/null | head -1`, {
+                silent: true,
+                stdout: true,
+              });
+              if (altResult.stdout && altResult.stdout.trim()) {
+                const altPath = altResult.stdout.trim();
+                shellExec(`sudo cp ${altPath} ${extractDir}/${file}`);
+                shellExec(`sudo chown $(whoami):$(whoami) ${extractDir}/${file}`);
+                logger.info(`Extracted ${file} from ISO (using ${altPath})`);
+                break;
+              }
+            }
+          }
+        }
+
+        // Extract filesystem.squashfs
+        const squashfsSource = `${mountPoint}/casper/filesystem.squashfs`;
+        if (fs.existsSync(squashfsSource)) {
+          shellExec(`sudo cp ${squashfsSource} ${extractDir}/filesystem.squashfs`);
+          shellExec(`sudo chown $(whoami):$(whoami) ${extractDir}/filesystem.squashfs`);
+          logger.info(`Extracted filesystem.squashfs from ISO`);
+        } else {
+          logger.error(`filesystem.squashfs not found in ISO at ${squashfsSource}`);
+          // List what's in casper to help debug
+          shellExec(`ls -la ${mountPoint}/casper/`, { silent: false });
+          throw new Error(`filesystem.squashfs not found in ISO`);
+        }
+      } finally {
+        // Unmount ISO
+        shellExec(`sudo umount ${mountPoint}`, { silent: true });
+        logger.info(`Unmounted ISO`);
+      }
+
+      // Verify extracted files exist
+      const requiredFiles = ['vmlinuz', 'initrd', 'filesystem.squashfs'];
+      for (const file of requiredFiles) {
+        const filePath = `${extractDir}/${file}`;
+        if (!fs.existsSync(filePath)) {
+          throw new Error(`Required file not extracted: ${filePath}`);
+        }
+        const stats = fs.statSync(filePath);
+        logger.info(`Verified ${file}: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+      }
+
+      return {
+        'vmlinuz-efi': `${extractDir}/vmlinuz`,
+        'initrd.img': `${extractDir}/initrd`,
+        squashfs: `${extractDir}/filesystem.squashfs`,
+      };
+    },
+
+    /**
      * @method kernelFactory
      * @description Retrieves kernel, initrd, and root filesystem paths from a MAAS boot resource.
      * @param {object} params - Parameters for the method.
      * @param {object} params.resource - The MAAS boot resource object.
+     * @param {boolean} params.useLiveISO - Whether to use Ubuntu live ISO instead of MAAS boot resources.
      * @returns {object} An object containing paths to the kernel, initrd, and root filesystem.
      * @memberof UnderpostBaremetal
      */
-    kernelFactory({ resource }) {
+    kernelFactory({ resource, useLiveISO = false }) {
+      // For disk-based commissioning (casper), use Ubuntu live ISO files
+      if (useLiveISO) {
+        logger.info('Using Ubuntu live ISO for casper boot (disk-based commissioning)');
+        const arch = resource.architecture.split('/')[0];
+        const kernelFilesPaths = UnderpostBaremetal.API.downloadUbuntuLiveISO({ resource, architecture: arch });
+        const resourcesPath = `/var/snap/maas/common/maas/image-storage/bootloaders/uefi/${arch}`;
+        return { kernelFilesPaths, resourcesPath };
+      }
+
       const resourceData = JSON.parse(
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
           stdout: true,
