@@ -1159,7 +1159,15 @@ EOF_MAAS_CFG`,
         ];
       } else {
         // Ubuntu ephemeral (MAAS commissioning) parameters
-        cmd = [`console=serial0,115200`, `console=tty1`, `ip=dhcp`, `boot=casper`];
+        cmd = [
+          `console=serial0,115200`,
+          `console=tty1`,
+          `ip=dhcp`,
+          `boot=casper`,
+          `url=tftp://${ipHost}/${hostname}/pxe/squashfs`,
+          // `toram`,
+          // `ignore_uuid`,
+        ];
       }
 
       const cmdStr = cmd.join(' ');
