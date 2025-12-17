@@ -832,7 +832,7 @@ menuentry '${menuentryStr}' {
         }
 
         // Pass architecture from commissioning or deployment config
-        const grubArch = maas.commissioning?.architecture || maas.deployment?.architecture;
+        const grubArch = maas.commissioning.architecture;
         UnderpostBaremetal.API.efiGrubModulesFactory({ image: { architecture: grubArch } });
 
         // Set ownership and permissions for TFTP root.
@@ -884,18 +884,7 @@ menuentry '${menuentryStr}' {
       const workflowConfig = workflowsConfig[workflowId];
       const { maas, networkInterfaceName, chronyc, keyboard, systemProvisioning } = workflowConfig;
       const { timezone, chronyConfPath } = chronyc;
-      // Use deployment config if available (e.g., Rocky for final OS), otherwise fall back to image config
-      const deploymentConfig = maas.deployment || {};
-      const architecture = deploymentConfig.architecture || maas.commissioning?.architecture;
-
-      logger.info('Starting disk-based commissioning (traditional MAAS PXE boot)');
-      logger.info('Machine will be provisioned to the largest available disk');
-      logger.info(`System provisioning: ${systemProvisioning}, Architecture: ${architecture}`);
-      if (maas.deployment) {
-        logger.info(`Deployment OS: ${maas.deployment.os} ${maas.deployment.release}`);
-        logger.info(`Commissioning with: Ubuntu ephemeral (${maas.commissioning.name})`);
-        logger.info(`Will deploy: ${maas.deployment.os}/${maas.deployment.release} after commissioning`);
-      }
+      const architecture = maas.commissioning.architecture;
 
       // Generate cloud-init user-data for post-deployment configuration
       // This will be used by MAAS during the deployment phase (after commissioning)
@@ -1220,9 +1209,7 @@ menuentry '${menuentryStr}' {
         // Iterate through discoveries to find a matching MAC address.
         for (const discovery of discoveries) {
           const machine = {
-            architecture: (maas.commissioning?.architecture || maas.deployment?.architecture || 'arm64/generic').match(
-              'amd',
-            )
+            architecture: (maas.commissioning?.architecture || 'arm64/generic').match('amd')
               ? 'amd64/generic'
               : 'arm64/generic',
             mac_address: discovery.mac_address,
@@ -1369,9 +1356,7 @@ menuentry '${menuentryStr}' {
         // Iterate through discoveries to find a matching MAC address.
         for (const discovery of discoveries) {
           const machine = {
-            architecture: (maas.commissioning?.architecture || maas.deployment?.architecture || 'arm64/generic').match(
-              'amd',
-            )
+            architecture: (maas.commissioning?.architecture || 'arm64/generic').match('amd')
               ? 'amd64/generic'
               : 'arm64/generic',
             mac_address: discovery.mac_address,
