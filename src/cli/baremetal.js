@@ -978,22 +978,28 @@ menuentry '${menuentryStr}' {
           dev: options.dev,
         });
 
+      // Get MAAS credentials for cloud-init
+      const authCredentials = UnderpostCloudInit.API.authCredentialsFactory();
+
       // Run cloud-init reset and configure cloud-init.
       UnderpostBaremetal.API.crossArchRunner({
         nfsHostPath,
         debootstrapArch: debootstrap.image.architecture,
         callbackMetaData,
         steps: [
-          UnderpostCloudInit.API.configFactory({
-            controlServerIp: callbackMetaData.runnerHost.ip,
-            hostname,
-            commissioningDeviceIp: ipAddress,
-            gatewayip: callbackMetaData.runnerHost.ip,
-            mac: macAddress, // Initial MAC, will be updated.
-            timezone,
-            chronyConfPath,
-            networkInterfaceName,
-          }),
+          UnderpostCloudInit.API.configFactory(
+            {
+              controlServerIp: callbackMetaData.runnerHost.ip,
+              hostname,
+              commissioningDeviceIp: ipAddress,
+              gatewayip: callbackMetaData.runnerHost.ip,
+              mac: macAddress, // Initial MAC, will be updated.
+              timezone,
+              chronyConfPath,
+              networkInterfaceName,
+            },
+            authCredentials,
+          ),
         ],
       });
 
@@ -1014,16 +1020,19 @@ menuentry '${menuentryStr}' {
         debootstrapArch: debootstrap.image.architecture,
         callbackMetaData,
         steps: [
-          UnderpostCloudInit.API.configFactory({
-            controlServerIp: callbackMetaData.runnerHost.ip,
-            hostname,
-            commissioningDeviceIp: ipAddress,
-            gatewayip: callbackMetaData.runnerHost.ip,
-            mac: macAddress, // Updated MAC address.
-            timezone,
-            chronyConfPath,
-            networkInterfaceName,
-          }),
+          UnderpostCloudInit.API.configFactory(
+            {
+              controlServerIp: callbackMetaData.runnerHost.ip,
+              hostname,
+              commissioningDeviceIp: ipAddress,
+              gatewayip: callbackMetaData.runnerHost.ip,
+              mac: macAddress, // Updated MAC address.
+              timezone,
+              chronyConfPath,
+              networkInterfaceName,
+            },
+            authCredentials,
+          ),
         ],
       });
 
@@ -1450,6 +1459,7 @@ menuentry '${menuentryStr}' {
               // Open new terminals for live cloud-init logs.
               openTerminal(`node ${underpostRoot}/bin baremetal --logs nfs-cloud`);
               openTerminal(`node ${underpostRoot}/bin baremetal --logs nfs-machine`);
+              shellExec(`node ${underpostRoot}/bin baremetal --logs nfs-cloud-config`);
             } catch (error) {
               logger.error(error, error.stack);
             } finally {
