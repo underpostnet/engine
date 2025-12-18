@@ -641,6 +641,7 @@ program
   .option('--remove-machines <system-ids>', 'Removes baremetal machines by comma-separated system IDs, or use "all"')
   .option('--clear-discovered', 'Clears all discovered baremetal machines from the database.')
   .option('--commission', 'Init workflow for commissioning a physical machine.')
+  .option('--use-live-iso', 'Uses a live ISO image for baremetal machine commissioning.')
   .option('--nfs-build', 'Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.')
   .option('--nfs-mount', 'Mounts the NFS root filesystem for a workflow id config architecture.')
   .option('--nfs-unmount', 'Unmounts the NFS root filesystem for a workflow id config architecture.')

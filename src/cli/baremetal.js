@@ -68,6 +68,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.clearDiscovered=false] - Flag to clear discovered machines from MAAS before commissioning.
      * @param {boolean} [options.cloudInitUpdate=false] - Flag to update cloud-init configuration on the baremetal machine.
      * @param {boolean} [options.commission=false] - Flag to commission the baremetal machine.
+     * @param {boolean} [options.useLiveIso=false] - Flag to use Ubuntu live ISO for commissioning instead of disk-based image.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
      * @param {boolean} [options.nfsMount=false] - Flag to mount the NFS root filesystem.
      * @param {boolean} [options.nfsUnmount=false] - Flag to unmount the NFS root filesystem.
@@ -97,6 +98,7 @@ class UnderpostBaremetal {
         clearDiscovered: false,
         cloudInitUpdate: false,
         commission: false,
+        useLiveIso: false,
         nfsBuild: false,
         nfsMount: false,
         nfsUnmount: false,
@@ -613,7 +615,7 @@ rm -rf ${artifacts.join(' ')}`);
           // Both NFS and disk-based commissioning use MAAS boot resources.
           const { kernelFilesPaths, resourcesPath } = UnderpostBaremetal.API.kernelFactory({
             resource,
-            useLiveISO: false, // Always use MAAS boot resources for commissioning
+            useLiveIso: options.useLiveIso ? true : false,
           });
 
           const { cmd } = UnderpostBaremetal.API.kernelCmdBootParamsFactory({
@@ -917,13 +919,13 @@ menuentry '${menuentryStr}' {
      * @description Retrieves kernel, initrd, and root filesystem paths from a MAAS boot resource.
      * @param {object} params - Parameters for the method.
      * @param {object} params.resource - The MAAS boot resource object.
-     * @param {boolean} params.useLiveISO - Whether to use Ubuntu live ISO instead of MAAS boot resources.
+     * @param {boolean} params.useLiveIso - Whether to use Ubuntu live ISO instead of MAAS boot resources.
      * @returns {object} An object containing paths to the kernel, initrd, and root filesystem.
      * @memberof UnderpostBaremetal
      */
-    kernelFactory({ resource, useLiveISO = false }) {
+    kernelFactory({ resource, useLiveIso = false }) {
       // For disk-based commissioning (casper), use Ubuntu live ISO files
-      if (useLiveISO) {
+      if (useLiveIso) {
         logger.info('Using Ubuntu live ISO for casper boot (disk-based commissioning)');
         const arch = resource.architecture.split('/')[0];
         const kernelFilesPaths = UnderpostBaremetal.API.downloadUbuntuLiveISO({ resource, architecture: arch });
@@ -1369,9 +1371,9 @@ EOF_MAAS_CFG`,
           `ip=${ipClient}:${ipHost}:${ipHost}:${netmask}:${hostname}:${networkInterfaceName}:static`,
           'nomodeset',
           `rw`,
-          // `root=/dev/ram0`,
+          `root=/dev/ram0`,
           `ipv6.disable=1`,
-          // `boot=casper`,
+          `boot=casper`,
           `ignore_uuid`,
           `url=http://${ipHost}:8888/${hostname}/pxe/filesystem.squashfs`,
           // `url=http://${ipHost}:8888/${hostname}/pxe/squashfs`,
@@ -1379,7 +1381,7 @@ EOF_MAAS_CFG`,
           `cma=256M`,
           `rootwait`,
           // `netboot=url`,
-          `root=/dev/sda1`, // rpi4 usb port unit
+          // `root=/dev/sda1`, // rpi4 usb port unit
           // `fixrtc`,
           // `overlayroot=tmpfs`,
           // `overlayroot_cfgdisk=disabled`,
