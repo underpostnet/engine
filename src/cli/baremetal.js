@@ -908,7 +908,7 @@ menuentry '${menuentryStr}' {
       return {
         'vmlinuz-efi': `${extractDir}/vmlinuz`,
         'initrd.img': `${extractDir}/initrd`,
-        squashfs: `${extractDir}/filesystem.squashfs`,
+        'filesystem.squashfs': `${extractDir}/filesystem.squashfs`,
       };
     },
 
@@ -1364,18 +1364,26 @@ EOF_MAAS_CFG`,
         cmd = [
           `console=serial0,115200`,
           `console=tty1`,
+          `net.ifnames=0`,
+          `biosdevname=0`,
           `ip=${ipClient}:${ipHost}:${ipHost}:${netmask}:${hostname}:${networkInterfaceName}:static`,
           'nomodeset',
-          `netboot=url`,
-          'ro',
-          `root=squash:=http://${ipHost}:8888/${hostname}/pxe/squashfs`,
-          `init=/sbin/init`,
-          `initrd=initrd.img`,
-          // `rw`,
+          `rw`,
+          // `root=/dev/ram0`,
+          `ipv6.disable=1`,
+          // `boot=casper`,
+          `ignore_uuid`,
+          `url=http://${ipHost}:8888/${hostname}/pxe/filesystem.squashfs`,
+          // `url=http://${ipHost}:8888/${hostname}/pxe/squashfs`,
+          `ramdisk_size=2097152`,
+          `cma=256M`,
           `rootwait`,
-          `fixrtc`,
-          `overlayroot=tmpfs`,
-          `overlayroot_cfgdisk=disabled`,
+          // `netboot=url`,
+          `root=/dev/sda1`, // rpi4 usb port unit
+          // `fixrtc`,
+          // `overlayroot=tmpfs`,
+          // `overlayroot_cfgdisk=disabled`,
+          // `ds=nocloud-net;s=http://${ipHost}:8888/${hostname}/pxe/`,
         ];
       }
 

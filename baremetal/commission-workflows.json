@@ -17,8 +17,8 @@
     ],
     "maas": {
       "commissioning": {
-        "architecture": "arm64/ga-20.04",
-        "name": "ubuntu/focal"
+        "architecture": "arm64/ga-24.04",
+        "name": "ubuntu/noble"
       }
     },
     "keyboard": {
