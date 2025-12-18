@@ -280,7 +280,7 @@ EOF`);
             options.password = confNode.users[options.user].password;
             logger.info(`Using saved password for user ${options.user}`);
           }
-          options.port = confNode.users[options.user].port || options.port;
+          options.port = options.port || confNode.users[options.user].port || 22;
         }
       }
 
