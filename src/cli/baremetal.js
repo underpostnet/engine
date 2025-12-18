@@ -765,7 +765,7 @@ menuentry '${menuentryStr}' {
         arm64: {
           focal: '20.04.5', // ARM64 focal only up to 20.04.5 on cdimage
           jammy: '22.04.5',
-          noble: '24.04.1',
+          noble: '24.04.3', // ubuntu-24.04.3-live-server-arm64+largemem.iso
           bionic: '18.04.6',
         },
         amd64: {
@@ -784,12 +784,11 @@ menuentry '${menuentryStr}' {
       let isoFilename;
       let isoUrl;
       if (arch === 'arm64') {
-        isoFilename = `ubuntu-${version}-live-server-arm64.iso`;
-        isoUrl = `https://cdimage.ubuntu.com/releases/${majorVersion}/release/${isoFilename}`;
+        isoFilename = `ubuntu-${version}-live-server-arm64+largemem.iso`;
       } else {
         isoFilename = `ubuntu-${version}-live-server-amd64.iso`;
-        isoUrl = `https://releases.ubuntu.com/${majorVersion}/${isoFilename}`;
       }
+      isoUrl = `https://cdimage.ubuntu.com/releases/${majorVersion}/release/${isoFilename}`;
 
       const downloadDir = `/var/tmp/ubuntu-live-iso`;
       const isoPath = `${downloadDir}/${isoFilename}`;
@@ -878,14 +877,40 @@ menuentry '${menuentryStr}' {
           }
         }
 
-        // Extract filesystem.squashfs
-        const squashfsSource = `${mountPoint}/casper/filesystem.squashfs`;
+        // Extract rootfs squashfs
+        // Ubuntu 24.04+ live-server ISOs may not ship `casper/filesystem.squashfs` and instead use
+        // `ubuntu-server-minimal*.squashfs` (and sometimes other variants). Be resilient here.
+        let squashfsSource = `${mountPoint}/casper/filesystem.squashfs`;
+        if (!fs.existsSync(squashfsSource)) {
+          logger.warn(
+            `filesystem.squashfs not found at ${squashfsSource}; searching for alternative squashfs in casper...`,
+          );
+          // Prefer the minimal rootfs if present, otherwise pick the first squashfs file we find.
+          const candidates = shellExec(
+            `ls ${mountPoint}/casper/ubuntu-server-minimal*.squashfs ${mountPoint}/casper/*.squashfs 2>/dev/null | head -1`,
+            { silent: true, stdout: true },
+          );
+
+          // `shellExec()` may return either a string or an object with `.stdout`.
+          const candidatePath =
+            typeof candidates === 'string'
+              ? candidates.trim()
+              : candidates && typeof candidates.stdout === 'string'
+                ? candidates.stdout.trim()
+                : '';
+
+          if (candidatePath) {
+            squashfsSource = candidatePath;
+            logger.info(`Using squashfs rootfs from ISO: ${squashfsSource}`);
+          }
+        }
+
         if (fs.existsSync(squashfsSource)) {
           shellExec(`sudo cp ${squashfsSource} ${extractDir}/filesystem.squashfs`);
           shellExec(`sudo chown $(whoami):$(whoami) ${extractDir}/filesystem.squashfs`);
-          logger.info(`Extracted filesystem.squashfs from ISO`);
+          logger.info(`Extracted squashfs rootfs from ISO to ${extractDir}/filesystem.squashfs`);
         } else {
-          logger.error(`filesystem.squashfs not found in ISO at ${squashfsSource}`);
+          logger.error(`No usable squashfs rootfs found in ISO (last checked: ${squashfsSource})`);
           // List what's in casper to help debug
           shellExec(`ls -la ${mountPoint}/casper/`, { silent: false });
           throw new Error(`filesystem.squashfs not found in ISO`);
@@ -1368,19 +1393,19 @@ EOF_MAAS_CFG`,
           `console=tty1`,
           `net.ifnames=0`,
           `biosdevname=0`,
-          `ip=${ipClient}:${ipHost}:${ipHost}:${netmask}:${hostname}:${networkInterfaceName}:static`,
+          `ip=${ipClient}:${ipHost}:${ipHost}:${netmask}:${hostname}:${'eth0'}:static`,
           'nomodeset',
           `rw`,
           `root=/dev/ram0`,
           `ipv6.disable=1`,
           `boot=casper`,
           `ignore_uuid`,
+          `netboot=url`,
           `url=http://${ipHost}:8888/${hostname}/pxe/filesystem.squashfs`,
           // `url=http://${ipHost}:8888/${hostname}/pxe/squashfs`,
-          `ramdisk_size=2097152`,
-          `cma=256M`,
+          // `ramdisk_size=2097152`,
+          // `cma=256M`,
           `rootwait`,
-          // `netboot=url`,
           // `root=/dev/sda1`, // rpi4 usb port unit
           // `fixrtc`,
           // `overlayroot=tmpfs`,
