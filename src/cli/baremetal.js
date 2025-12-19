@@ -15,7 +15,7 @@ import path from 'path';
 import Downloader from '../server/downloader.js';
 import UnderpostCloudInit from './cloud-init.js';
 import UnderpostRepository from './repository.js';
-import { s4, timer } from '../client/components/core/CommonJs.js';
+import { newInstance, s4, timer } from '../client/components/core/CommonJs.js';
 import { spawnSync } from 'child_process';
 
 const logger = loggerFactory(import.meta);
@@ -51,6 +51,9 @@ class UnderpostBaremetal {
      * @param {string} [workflowId='rpi4mb'] - Identifier for the specific workflow configuration to use.
      * @param {string} [ipAddress=getLocalIPv4Address()] - The IP address of the control server or the local machine.
      * @param {string} [hostname=workflowId] - The hostname of the target baremetal machine.
+     * @param {string} [ipFileServer=getLocalIPv4Address()] - The IP address of the file server (NFS/TFTP).
+     * @param {string} [ipConfig=''] - IP configuration string for the baremetal machine.
+     * @param {string} [netmask=''] - Netmask of network
      * @param {object} [options] - An object containing boolean flags for various operations.
      * @param {boolean} [options.dev=false] - Development mode flag.
      * @param {boolean} [options.controlServerInstall=false] - Flag to install the control server (e.g., MAAS).
@@ -81,6 +84,9 @@ class UnderpostBaremetal {
       workflowId,
       ipAddress,
       hostname,
+      ipFileServer,
+      ipConfig,
+      netmask,
       options = {
         dev: false,
         controlServerInstall: false,
@@ -117,6 +123,16 @@ class UnderpostBaremetal {
       workflowId = workflowId ? workflowId : 'rpi4mb';
       hostname = hostname ? hostname : workflowId;
       ipAddress = ipAddress ? ipAddress : '192.168.1.191';
+      ipFileServer = ipFileServer ? ipFileServer : getLocalIPv4Address();
+      netmask = netmask ? netmask : '255.255.255.0';
+
+      // IpConfig options:
+      // dhcp - DHCP configuration
+      // dhpc6 - DHCP IPv6 configuration
+      // auto6 - automatic IPv6 configuration
+      // on, any - any protocol available in the kernel (default)
+      // none, off - no autoconfiguration, static network configuration
+      ipConfig = ipConfig ? ipConfig : 'none';
 
       // Set default MAC address
       let macAddress = options.mac ? options.mac : '00:00:00:00:00:00';
@@ -563,7 +579,7 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle commissioning tasks (placeholder for future implementation).
       if (options.commission === true) {
-        const { firmwares, networkInterfaceName, maas, netmask, menuentryStr, nfs, systemProvisioning } =
+        const { firmwares, networkInterfaceName, maas, menuentryStr, nfs, systemProvisioning } =
           workflowsConfig[workflowId];
         // Use commissioning config (Ubuntu ephemeral) for PXE boot resources
         const commissioningImage = maas.commissioning;
@@ -620,7 +636,9 @@ rm -rf ${artifacts.join(' ')}`);
 
           const { cmd } = UnderpostBaremetal.API.kernelCmdBootParamsFactory({
             ipClient: ipAddress,
-            ipHost: callbackMetaData.runnerHost.ip,
+            ipDhcpServer: callbackMetaData.runnerHost.ip,
+            ipConfig,
+            ipFileServer,
             netmask,
             hostname,
             networkInterfaceName,
@@ -716,6 +734,13 @@ menuentry '${menuentryStr}' {
           `cd ${process.env.TFTP_ROOT} && nohup python3 -m http.server 8888 --bind 0.0.0.0 > /tmp/http-boot-server.log 2>&1 &`,
           { silent: true, async: true },
         );
+        // Configure iptables to allow incoming LAN connections on port 8888
+        shellExec(
+          `sudo iptables -I INPUT 1 -p tcp -s 192.168.1.0/24 --dport 8888 -m conntrack --ctstate NEW -j ACCEPT`,
+        );
+        // Option for any host:
+        // sudo iptables -I INPUT 1 -p tcp --dport 8888 -m conntrack --ctstate NEW -j ACCEPT
+
         logger.info(`Started HTTP server on port 8888 serving ${process.env.TFTP_ROOT} for squashfs fetching`);
       }
 
@@ -1310,7 +1335,9 @@ EOF_MAAS_CFG`,
      * @description Constructs kernel command line parameters for NFS booting.
      * @param {object} options - Options for constructing the command line.
      * @param {string} options.ipClient - The IP address of the client.
-     * @param {string} options.ipHost - The IP address of the host.
+     * @param {string} options.ipDhcpServer - The IP address of the DHCP server.
+     * @param {string} options.ipFileServer - The IP address of the file server.
+     * @param {string} options.ipConfig - The IP configuration method (e.g., 'dhcp').
      * @param {string} options.netmask - The network mask.
      * @param {string} options.hostname - The hostname of the client.
      * @param {string} options.networkInterfaceName - The name of the network interface.
@@ -1321,7 +1348,9 @@ EOF_MAAS_CFG`,
     kernelCmdBootParamsFactory(
       options = {
         ipClient: '',
-        ipHost: '',
+        ipDhcpServer: '',
+        ipFileServer: '',
+        ipConfig: '',
         netmask: '',
         hostname: '',
         networkInterfaceName: '',
@@ -1330,7 +1359,17 @@ EOF_MAAS_CFG`,
       },
     ) {
       // Construct kernel command line arguments for NFS boot.
-      const { ipClient, ipHost, netmask, hostname, networkInterfaceName, nfsBoot, systemProvisioning } = options;
+      const {
+        ipClient,
+        ipDhcpServer,
+        ipFileServer,
+        ipConfig,
+        netmask,
+        hostname,
+        networkInterfaceName,
+        nfsBoot,
+        systemProvisioning,
+      } = options;
       let cmd = [];
       if (nfsBoot === true) {
         cmd = [
@@ -1364,7 +1403,7 @@ EOF_MAAS_CFG`,
             // 'nodev',
             // 'nosuid',
           ]}`,
-          `ip=${ipClient}:${ipHost}:${ipHost}:${netmask}:${hostname}:${networkInterfaceName}:static`,
+          `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}:${networkInterfaceName}:${ipConfig}`,
           `rootfstype=nfs`,
           `rw`,
           `rootwait`,
@@ -1389,23 +1428,27 @@ EOF_MAAS_CFG`,
       } else {
         // MAAS commissioning parameters
         cmd = [
-          `console=serial0,115200`,
-          `console=tty1`,
-          `net.ifnames=0`,
-          `biosdevname=0`,
-          `ip=${ipClient}:${ipHost}:${ipHost}:${netmask}:${hostname}:${'eth0'}:static`,
-          'nomodeset',
-          `rw`,
-          `root=/dev/ram0`,
-          `ipv6.disable=1`,
+          // `console=serial0,115200`,
+          // `console=tty1`,
+          // pxe parameters
+          // 'ip=dhcp',
+          `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}:${networkInterfaceName}:${ipConfig}`,
           `boot=casper`,
-          `ignore_uuid`,
-          `netboot=url`,
-          `url=http://${ipHost}:8888/${hostname}/pxe/filesystem.squashfs`,
-          // `url=http://${ipHost}:8888/${hostname}/pxe/squashfs`,
+          // `netboot=url`,
+          // `url=http://${ipHost}:8888/${hostname}/pxe/filesystem.squashfs`,
+          // `root=/dev/ram0`,
+          // kernel parameters
+          // `rw`,
+          // 'nomodeset',
+          // `rootwait`,
+          // `ignore_uuid`,
+          // 'nomodeset',
+          // `net.ifnames=0`,
+          // `biosdevname=0`,
+          // `ignore_uuid`,
+          // `ipv6.disable=1`,
           // `ramdisk_size=2097152`,
           // `cma=256M`,
-          `rootwait`,
           // `root=/dev/sda1`, // rpi4 usb port unit
           // `fixrtc`,
           // `overlayroot=tmpfs`,
@@ -1416,7 +1459,7 @@ EOF_MAAS_CFG`,
 
       const cmdStr = cmd.join(' ');
       logger.info('Constructed kernel command line:');
-      console.log(cmdStr.bgRed.bold.black);
+      console.log(newInstance(cmdStr).bgRed.bold.black);
       return { cmd: cmdStr };
     },
 

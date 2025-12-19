@@ -3,7 +3,6 @@
     "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 disk commissioning (ARM64)",
     "systemProvisioning": "ubuntu",
     "networkInterfaceName": "enabcm6e4ei0",
-    "netmask": "255.255.255.0",
     "chronyc": {
       "timezone": "America/Santiago",
       "chronyConfPath": "/etc/chrony/chrony.conf"
@@ -30,7 +29,6 @@
     "systemProvisioning": "ubuntu",
     "kernelLibVersion": "6.8.0-41-generic",
     "networkInterfaceName": "enabcm6e4ei0",
-    "netmask": "255.255.255.0",
     "firmwares": [
       {
         "url": "https://github.com/pftf/RPi4/releases/download/v1.41/RPi4_UEFI_Firmware_v1.41.zip",
