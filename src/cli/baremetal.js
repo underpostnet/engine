@@ -642,6 +642,7 @@ rm -rf ${artifacts.join(' ')}`);
             netmask,
             hostname,
             networkInterfaceName,
+            fileSystemUrl: kernelFilesPaths.isoUrl,
             nfsBoot: nfs ? true : false,
             systemProvisioning,
           });
@@ -961,6 +962,7 @@ menuentry '${menuentryStr}' {
         'vmlinuz-efi': `${extractDir}/vmlinuz`,
         'initrd.img': `${extractDir}/initrd`,
         'filesystem.squashfs': `${extractDir}/filesystem.squashfs`,
+        isoUrl,
       };
     },
 
@@ -1341,6 +1343,7 @@ EOF_MAAS_CFG`,
      * @param {string} options.netmask - The network mask.
      * @param {string} options.hostname - The hostname of the client.
      * @param {string} options.networkInterfaceName - The name of the network interface.
+     * @param {string} options.fileSystemUrl - The URL of the root filesystem.
      * @param {boolean} options.nfsBoot - Flag indicating if NFS boot is enabled.
      * @returns {object} An object containing the constructed command line string.
      * @memberof UnderpostBaremetal
@@ -1354,6 +1357,7 @@ EOF_MAAS_CFG`,
         netmask: '',
         hostname: '',
         networkInterfaceName: '',
+        fileSystemUrl: '',
         nfsBoot: false,
         systemProvisioning: '',
       },
@@ -1367,15 +1371,16 @@ EOF_MAAS_CFG`,
         netmask,
         hostname,
         networkInterfaceName,
+        fileSystemUrl,
         nfsBoot,
         systemProvisioning,
       } = options;
       let cmd = [];
       if (nfsBoot === true) {
         cmd = [
-          `console=serial0,115200`,
+          // `console=serial0,115200`,
           // `console=ttyAMA0,115200`,
-          `console=tty1`,
+          // `console=tty1`,
           // `initrd=-1`,
           // `net.ifnames=0`,
           // `dwc_otg.lpm_enable=0`,
@@ -1420,10 +1425,10 @@ EOF_MAAS_CFG`,
           // 'rd.break',
 
           // Disable services that not apply over nfs
-          `systemd.mask=systemd-network-generator.service`,
-          `systemd.mask=systemd-networkd.service`,
-          `systemd.mask=systemd-fsck-root.service`,
-          `systemd.mask=systemd-udev-trigger.service`,
+          // `systemd.mask=systemd-network-generator.service`,
+          // `systemd.mask=systemd-networkd.service`,
+          // `systemd.mask=systemd-fsck-root.service`,
+          // `systemd.mask=systemd-udev-trigger.service`,
         ];
       } else {
         // MAAS commissioning parameters
@@ -1431,28 +1436,26 @@ EOF_MAAS_CFG`,
           // `console=serial0,115200`,
           // `console=tty1`,
           // pxe parameters
-          // 'ip=dhcp',
           `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}:${networkInterfaceName}:${ipConfig}`,
           `boot=casper`,
-          // `netboot=url`,
+          `netboot=url`,
+          `url=${fileSystemUrl}`,
           // `url=http://${ipHost}:8888/${hostname}/pxe/filesystem.squashfs`,
           // `root=/dev/ram0`,
           // kernel parameters
-          // `rw`,
-          // 'nomodeset',
-          // `rootwait`,
-          // `ignore_uuid`,
-          // 'nomodeset',
+          `rw`,
+          'nomodeset',
+          `rootwait`,
+          `ignore_uuid`,
           // `net.ifnames=0`,
           // `biosdevname=0`,
-          // `ignore_uuid`,
-          // `ipv6.disable=1`,
-          // `ramdisk_size=2097152`,
-          // `cma=256M`,
+          `ipv6.disable=1`,
+          `ramdisk_size=3550000`,
+          `cma=120M`,
           // `root=/dev/sda1`, // rpi4 usb port unit
           // `fixrtc`,
-          // `overlayroot=tmpfs`,
-          // `overlayroot_cfgdisk=disabled`,
+          `overlayroot=tmpfs`,
+          `overlayroot_cfgdisk=disabled`,
           // `ds=nocloud-net;s=http://${ipHost}:8888/${hostname}/pxe/`,
         ];
       }
