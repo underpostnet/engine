@@ -72,7 +72,8 @@ class UnderpostBaremetal {
      * @param {boolean} [options.clearDiscovered=false] - Flag to clear discovered machines from MAAS before commissioning.
      * @param {boolean} [options.cloudInitUpdate=false] - Flag to update cloud-init configuration on the baremetal machine.
      * @param {boolean} [options.commission=false] - Flag to commission the baremetal machine.
-     * @param {boolean} [options.useLiveIso=false] - Flag to use Ubuntu live ISO for commissioning instead of disk-based image.
+     * @param {string} [options.isoUrl=''] - Uses a custom ISO URL for baremetal machine commissioning.
+     * @param {boolean} [options.buildUbuntuTools=false] - Builds ubuntu tools for chroot environment.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
      * @param {boolean} [options.nfsMount=false] - Flag to mount the NFS root filesystem.
      * @param {boolean} [options.nfsUnmount=false] - Flag to unmount the NFS root filesystem.
@@ -105,8 +106,10 @@ class UnderpostBaremetal {
         removeMachines: '',
         clearDiscovered: false,
         cloudInitUpdate: false,
+        cloudInit: false,
         commission: false,
-        useLiveIso: false,
+        isoUrl: '',
+        buildUbuntuTools: false,
         nfsBuild: false,
         nfsMount: false,
         nfsUnmount: false,
@@ -443,13 +446,13 @@ rm -rf ${artifacts.join(' ')}`);
       }
 
       // Set debootstrap architecture.
-      if (workflowsConfig[workflowId].nfs) {
+      if (workflowsConfig[workflowId].nfs || workflowsConfig[workflowId].type === 'chroot') {
         const { architecture } = workflowsConfig[workflowId].debootstrap.image;
         debootstrapArch = architecture;
       }
 
       // Handle NFS mount operation.
-      if (options.nfsMount === true) {
+      if (options.nfsMount === true || workflowsConfig[workflowId].type === 'chroot') {
         // Mount binfmt_misc filesystem.
         UnderpostBaremetal.API.mountBinfmtMisc();
         UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
@@ -516,7 +519,7 @@ rm -rf ${artifacts.join(' ')}`);
 
         // Apply system provisioning steps (base, user, timezone, keyboard).
         {
-          const { systemProvisioning, kernelLibVersion, chronyc, keyboard } = workflowsConfig[workflowId];
+          const { systemProvisioning, chronyc, keyboard } = workflowsConfig[workflowId];
           const { timezone, chronyConfPath } = chronyc;
 
           UnderpostBaremetal.API.crossArchRunner({
@@ -524,9 +527,7 @@ rm -rf ${artifacts.join(' ')}`);
             debootstrapArch,
             callbackMetaData,
             steps: [
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base({
-                kernelLibVersion,
-              }),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base(),
               ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].user(),
               ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
                 timezone,
@@ -578,7 +579,7 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle commissioning tasks (placeholder for future implementation).
       if (options.commission === true) {
-        const { firmwares, networkInterfaceName, maas, menuentryStr, nfs, systemProvisioning } =
+        const { firmwares, networkInterfaceName, maas, menuentryStr, nfs, systemProvisioning, type } =
           workflowsConfig[workflowId];
         // Use commissioning config (Ubuntu ephemeral) for PXE boot resources
         const commissioningImage = maas.commissioning;
@@ -630,8 +631,9 @@ rm -rf ${artifacts.join(' ')}`);
           // Both NFS and disk-based commissioning use MAAS boot resources.
           const { kernelFilesPaths, resourcesPath } = UnderpostBaremetal.API.kernelFactory({
             resource,
-            useLiveIso: options.useLiveIso ? true : false,
+            type,
             nfsHostPath,
+            isoUrl: options.isoUrl || workflowsConfig[workflowId].isoUrl,
           });
 
           const { cmd } = UnderpostBaremetal.API.kernelCmdBootParamsFactory({
@@ -646,6 +648,8 @@ rm -rf ${artifacts.join(' ')}`);
             fileSystemUrl: kernelFilesPaths.isoUrl,
             nfsBoot: nfs ? true : false,
             systemProvisioning,
+            type,
+            cloudInit: options.cloudInit,
           });
 
           // Copy EFI bootloaders to TFTP path.
@@ -747,6 +751,50 @@ menuentry '${menuentryStr}' {
         logger.info(`Started HTTP server on port 8888 serving ${process.env.TFTP_ROOT} for squashfs fetching`);
       }
 
+      if (options.cloudInit || options.cloudInitUpdate) {
+        const { chronyc, networkInterfaceName } = workflowsConfig[workflowId];
+        const { timezone, chronyConfPath } = chronyc;
+        const authCredentials = UnderpostCloudInit.API.authCredentialsFactory();
+        const { cloudConfigSrc } = UnderpostCloudInit.API.configFactory(
+          {
+            controlServerIp: callbackMetaData.runnerHost.ip,
+            hostname,
+            commissioningDeviceIp: ipAddress,
+            gatewayip: callbackMetaData.runnerHost.ip,
+            mac: macAddress,
+            timezone,
+            chronyConfPath,
+            networkInterfaceName,
+          },
+          authCredentials,
+        );
+
+        const cloudInitDir = `${tftpRootPath}/cloud-init`;
+        shellExec(`mkdir -p ${cloudInitDir}`);
+        fs.writeFileSync(`${cloudInitDir}/user-data`, `#cloud-config\n${cloudConfigSrc}`, 'utf8');
+        fs.writeFileSync(`${cloudInitDir}/meta-data`, `instance-id: ${hostname}\nlocal-hostname: ${hostname}`, 'utf8');
+        fs.writeFileSync(`${cloudInitDir}/vendor-data`, ``, 'utf8');
+
+        logger.info(`Cloud-init files written to ${cloudInitDir}`);
+      }
+
+      if (options.buildUbuntuTools && workflowsConfig[workflowId].type === 'chroot') {
+        UnderpostCloudInit.API.buildTools({
+          workflowId,
+          nfsHostPath,
+          hostname,
+          callbackMetaData,
+          dev: options.dev,
+        });
+
+        UnderpostBaremetal.API.crossArchRunner({
+          nfsHostPath,
+          debootstrapArch,
+          callbackMetaData,
+          steps: [`/underpost/test.sh`],
+        });
+      }
+
       shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
       // Rebuild NFS server configuration.
       UnderpostBaremetal.API.rebuildNfsServer({
@@ -755,8 +803,8 @@ menuentry '${menuentryStr}' {
 
       // Final commissioning steps.
       if (options.commission === true || options.cloudInitUpdate === true) {
-        const { nfs } = workflowsConfig[workflowId];
-        if (nfs)
+        const { type } = workflowsConfig[workflowId];
+        if (type === 'chroot' || type === 'iso-nfs')
           await UnderpostBaremetal.API.nfsCommissionCallback(
             workflowId,
             workflowsConfig,
@@ -790,7 +838,7 @@ menuentry '${menuentryStr}' {
      * @returns {object} An object containing paths to the extracted kernel, initrd, and squashfs.
      * @memberof UnderpostBaremetal
      */
-    downloadUbuntuLiveISO({ resource, architecture, nfsHostPath }) {
+    downloadUbuntuLiveISO({ resource, architecture, nfsHostPath, isoUrl }) {
       const arch = architecture || resource.architecture.split('/')[0];
       const osName = resource.name.split('/')[1]; // e.g., "focal", "jammy", "noble"
 
@@ -819,13 +867,13 @@ menuentry '${menuentryStr}' {
       // Determine ISO filename and URL based on architecture
       // ARM64 ISOs are on cdimage.ubuntu.com, AMD64 on releases.ubuntu.com
       let isoFilename;
-      let isoUrl;
       if (arch === 'arm64') {
         isoFilename = `ubuntu-${version}-live-server-arm64${osName === 'noble' ? '+largemem' : ''}.iso`;
       } else {
         isoFilename = `ubuntu-${version}-live-server-amd64.iso`;
       }
-      isoUrl = `https://cdimage.ubuntu.com/releases/${majorVersion}/release/${isoFilename}`;
+      if (!isoUrl) isoUrl = `https://cdimage.ubuntu.com/releases/${majorVersion}/release/${isoFilename}`;
+      else isoFilename = isoUrl.split('/').pop();
 
       const isoPath = `${nfsHostPath}/${isoFilename}`;
       const extractDir = `${nfsHostPath}/casper`;
@@ -886,84 +934,21 @@ menuentry '${menuentryStr}' {
         shellExec(`ls -la ${mountPoint}/casper/ 2>/dev/null || echo "casper directory not found"`, { silent: false });
 
         // Extract casper files
-        const casperFiles = ['vmlinuz', 'initrd'];
-        for (const file of casperFiles) {
-          const sourcePath = `${mountPoint}/casper/${file}`;
-          if (fs.existsSync(sourcePath)) {
-            shellExec(`sudo cp ${sourcePath} ${extractDir}/${file}`);
-            shellExec(`sudo chown $(whoami):$(whoami) ${extractDir}/${file}`);
-            logger.info(`Extracted ${file} from ISO`);
-          } else {
-            logger.warn(`File not found in ISO: ${sourcePath}`);
-            // Try alternative names
-            const altNames =
-              file === 'vmlinuz' ? ['vmlinuz.efi', 'vmlinuz-*'] : ['initrd.lz', 'initrd.gz', 'initrd.img'];
-            for (const altName of altNames) {
-              const altResult = shellExec(`ls ${mountPoint}/casper/${altName} 2>/dev/null | head -1`, {
-                silent: true,
-                stdout: true,
-              });
-              if (altResult.stdout && altResult.stdout.trim()) {
-                const altPath = altResult.stdout.trim();
-                shellExec(`sudo cp ${altPath} ${extractDir}/${file}`);
-                shellExec(`sudo chown $(whoami):$(whoami) ${extractDir}/${file}`);
-                logger.info(`Extracted ${file} from ISO (using ${altPath})`);
-                break;
-              }
-            }
-          }
+        shellExec(`sudo cp -a ${mountPoint}/casper/* ${extractDir}/`);
+        shellExec(`sudo chown -R $(whoami):$(whoami) ${extractDir}`);
+        logger.info(`Extracted casper files from ISO`);
+
+        // Rename kernel and initrd to standard names if needed
+        if (!fs.existsSync(`${extractDir}/vmlinuz`)) {
+          const vmlinuz = shellExec(`ls ${extractDir}/vmlinuz* | head -1`, {
+            silent: true,
+            stdout: true,
+          }).stdout.trim();
+          if (vmlinuz) shellExec(`mv ${vmlinuz} ${extractDir}/vmlinuz`);
         }
-
-        // Extract rootfs squashfs
-        // Ubuntu 24.04+ live-server ISOs may not ship `casper/filesystem.squashfs` and instead use
-        // `ubuntu-server-minimal*.squashfs` (and sometimes other variants). Be resilient here.
-        let squashfsSource = `${mountPoint}/casper/filesystem.squashfs`;
-        if (!fs.existsSync(squashfsSource)) {
-          logger.warn(
-            `filesystem.squashfs not found at ${squashfsSource}; searching for alternative squashfs in casper...`,
-          );
-          // Prefer the minimal rootfs if present, otherwise pick the first squashfs file we find.
-          const candidates = shellExec(
-            `ls ${mountPoint}/casper/ubuntu-server-minimal*.squashfs ${mountPoint}/casper/*.squashfs 2>/dev/null | head -1`,
-            { silent: true, stdout: true },
-          );
-
-          // `shellExec()` may return either a string or an object with `.stdout`.
-          const candidatePath =
-            typeof candidates === 'string'
-              ? candidates.trim()
-              : candidates && typeof candidates.stdout === 'string'
-                ? candidates.stdout.trim()
-                : '';
-
-          if (candidatePath) {
-            squashfsSource = candidatePath;
-            logger.info(`Using squashfs rootfs from ISO: ${squashfsSource}`);
-          }
-        }
-
-        if (fs.existsSync(squashfsSource)) {
-          // shellExec(`sudo cp ${squashfsSource} ${extractDir}/filesystem.squashfs`);
-          // shellExec(`sudo chown $(whoami):$(whoami) ${extractDir}/filesystem.squashfs`);
-          logger.info(`Copying all squashfs layers from ISO...`);
-          shellExec(`sudo cp ${mountPoint}/casper/*.squashfs ${extractDir}/`);
-          shellExec(`sudo chown $(whoami):$(whoami) ${extractDir}/*.squashfs`);
-
-          // Create filesystem.squashfs symlink if it doesn't exist (for newer ISOs with different naming)
-          const filesystemSquashfs = `${extractDir}/filesystem.squashfs`;
-          if (!fs.existsSync(filesystemSquashfs)) {
-            // Extract the basename from the squashfsSource path we found earlier
-            const squashfsBasename = squashfsSource.split('/').pop();
-            logger.info(`Creating filesystem.squashfs symlink to ${squashfsBasename}`);
-            shellExec(`ln -s ${squashfsBasename} ${filesystemSquashfs}`);
-          }
-
-          logger.info(`Extracted squashfs rootfs from ISO to ${extractDir}/filesystem.squashfs`);
-        } else {
-          logger.error(`No usable squashfs rootfs found in ISO (last checked: ${squashfsSource})`);
-          // List what's in casper to help debug
-          shellExec(`ls -la ${mountPoint}/casper/`, { silent: false });
-          throw new Error(`filesystem.squashfs not found in ISO`);
+        if (!fs.existsSync(`${extractDir}/initrd`)) {
+          const initrd = shellExec(`ls ${extractDir}/initrd* | head -1`, { silent: true, stdout: true }).stdout.trim();
+          if (initrd) shellExec(`mv ${initrd} ${extractDir}/initrd`);
         }
       } finally {
         // Unmount ISO
@@ -973,21 +958,9 @@ menuentry '${menuentryStr}' {
         shellExec(`rmdir ${mountPoint}`, { silent: true });
       }
 
-      // Verify extracted files exist
-      const requiredFiles = ['vmlinuz', 'initrd', 'filesystem.squashfs'];
-      for (const file of requiredFiles) {
-        const filePath = `${extractDir}/${file}`;
-        if (!fs.existsSync(filePath)) {
-          throw new Error(`Required file not extracted: ${filePath}`);
-        }
-        const stats = fs.statSync(filePath);
-        logger.info(`Verified ${file}: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
-      }
-
       return {
         'vmlinuz-efi': `${extractDir}/vmlinuz`,
         'initrd.img': `${extractDir}/initrd`,
-        'filesystem.squashfs': `${extractDir}/filesystem.squashfs`,
         isoUrl,
       };
     },
@@ -1002,15 +975,16 @@ menuentry '${menuentryStr}' {
      * @returns {object} An object containing paths to the kernel, initrd, and root filesystem.
      * @memberof UnderpostBaremetal
      */
-    kernelFactory({ resource, useLiveIso = false, nfsHostPath }) {
+    kernelFactory({ resource, type, nfsHostPath, isoUrl }) {
       // For disk-based commissioning (casper), use Ubuntu live ISO files
-      if (useLiveIso) {
+      if (type === 'iso-ram' || type === 'iso-nfs') {
         logger.info('Using Ubuntu live ISO for casper boot (disk-based commissioning)');
         const arch = resource.architecture.split('/')[0];
         const kernelFilesPaths = UnderpostBaremetal.API.downloadUbuntuLiveISO({
           resource,
           architecture: arch,
           nfsHostPath,
+          isoUrl,
         });
         const resourcesPath = `/var/snap/maas/common/maas/image-storage/bootloaders/uefi/${arch}`;
         return { kernelFilesPaths, resourcesPath };
@@ -1195,8 +1169,10 @@ menuentry '${menuentryStr}' {
      */
     async diskCommissionCallback(workflowId, workflowsConfig, hostname, macAddress, underpostRoot, ipAddress) {
       const workflowConfig = workflowsConfig[workflowId];
-      const { maas, networkInterfaceName, chronyc, keyboard, systemProvisioning } = workflowConfig;
+      let { maas, networkInterfaceName, chronyc, keyboard, systemProvisioning, type } = workflowConfig;
       const { timezone, chronyConfPath } = chronyc;
+
+      if (type === 'chroot') systemProvisioning = 'ubuntu';
       const architecture = maas.commissioning.architecture;
 
       // Generate cloud-init user-data for post-deployment configuration
@@ -1267,49 +1243,7 @@ menuentry '${menuentryStr}' {
       },
       callbackMetaData,
     ) {
-      const { debootstrap, networkInterfaceName, chronyc, maas, systemProvisioning } = workflowsConfig[workflowId];
-      const { timezone, chronyConfPath } = chronyc;
-
-      // If debian based Build cloud-init tools.
-      if (systemProvisioning === 'ubuntu')
-        UnderpostCloudInit.API.buildTools({
-          workflowId,
-          nfsHostPath,
-          hostname,
-          callbackMetaData,
-          dev: options.dev,
-        });
-
-      // Get MAAS credentials for cloud-init
-      const authCredentials = UnderpostCloudInit.API.authCredentialsFactory();
-
-      const { cloudConfigPath, cloudConfigSrc } = UnderpostCloudInit.API.configFactory(
-        {
-          controlServerIp: callbackMetaData.runnerHost.ip,
-          hostname,
-          commissioningDeviceIp: ipAddress,
-          gatewayip: callbackMetaData.runnerHost.ip,
-          mac: macAddress, // Updated MAC address.
-          timezone,
-          chronyConfPath,
-          networkInterfaceName,
-        },
-        authCredentials,
-      );
-      logger.info('Generated cloud-init configuration for commissioning');
-      console.log(cloudConfigSrc.yellow);
-
-      // Run cloud-init reset and configure cloud-init.
-      UnderpostBaremetal.API.crossArchRunner({
-        nfsHostPath,
-        debootstrapArch: debootstrap.image.architecture,
-        callbackMetaData,
-        steps: [
-          `cat <<EOF_MAAS_CFG > ${cloudConfigPath}
-${cloudConfigSrc}
-EOF_MAAS_CFG`,
-        ],
-      });
+      const { networkInterfaceName, maas } = workflowsConfig[workflowId];
 
       if (options.cloudInitUpdate === true) return;
 
@@ -1325,8 +1259,6 @@ EOF_MAAS_CFG`,
         maas,
         networkInterfaceName,
       });
-      openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs nfs-cloud`);
-      openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs nfs-machine`);
     },
 
     /**
@@ -1393,6 +1325,8 @@ EOF_MAAS_CFG`,
         fileSystemUrl: '',
         nfsBoot: false,
         systemProvisioning: '',
+        type: '',
+        cloudInit: false,
       },
     ) {
       // Construct kernel command line arguments for NFS boot.
@@ -1408,6 +1342,8 @@ EOF_MAAS_CFG`,
         fileSystemUrl,
         nfsBoot,
         systemProvisioning,
+        type,
+        cloudInit,
       } = options;
 
       const ipParam =
@@ -1441,51 +1377,29 @@ EOF_MAAS_CFG`,
 
       // https://manpages.ubuntu.com/manpages/noble/man7/casper.7.html
       const netBootParams = [`netboot=url`, `url=${fileSystemUrl.replace('https', 'http')}`];
-
-      // const fetchParams = [
-      //   `boot=casper`,
-      //   `netboot=http`,
-      //   `initrd=initrd`,
-      //   `fetch=http://${ipFileServer}:8888/${hostname}/pxe/filesystem.squashfs`,
-      //   'root=/dev/ram0',
-      // ];
-
       const nfsParams = [`boot=casper`, `netboot=nfs`];
-
-      const kernelParams = [
-        // `ro`,
-        `ignore_uuid`,
-        // `ipv6.disable=1`,
-        // `ramdisk_size=3550000`,
-        // `console=serial0,115200`,
-        // `console=tty1`,
-        // `boot=casper`,
-        // `casper-getty`,
-        // `layerfs-path=filesystem.squashfs`,
-        // `root=/dev/ram0`,
-        // `toram`,
-        // 'nomodeset',
-        // `rootwait`,
-        // `net.ifnames=0`, // only networkInterfaceName = eth0
-        // `biosdevname=0`, // only networkInterfaceName = eth0
-        // `editable_rootfs=tmpfs`,
-        // `cma=120M`,
-        // `root=/dev/sda1`, // rpi4 usb port unit
-        // `fixrtc`,
-        // `overlayroot=tmpfs`,
-        // `overlayroot_cfgdisk=disabled`,
-        // `ds=nocloud-net;s=http://${ipHost}:8888/${hostname}/pxe/`,
-      ];
-
       const qemuNfsRootParams = [`rootfstype=nfs`, `root=/dev/nfs`, 'initrd=initrd.img', `init=/sbin/init`];
 
+      const kernelParams = [`ignore_uuid`];
+
+      if (cloudInit) {
+        kernelParams.push(`ds=nocloud-net;s=http://${ipFileServer}:8888/${hostname}/cloud-init/`);
+      }
+
       let cmd = [];
-      if (nfsBoot === true) {
-        // QEMU NFS boot parameters
+      if (type === 'iso-ram') {
+        cmd = [ipParam, ...netBootParams, ...kernelParams];
+      } else if (type === 'chroot') {
         cmd = [ipParam, nfsRootParam, ...qemuNfsRootParams, ...kernelParams];
-      } else {
-        // MAAS commissioning parameters
+      } else if (type === 'iso-nfs') {
         cmd = [ipParam, nfsRootParam, ...nfsParams, ...kernelParams];
+      } else {
+        // Fallback or default behavior
+        if (nfsBoot === true) {
+          cmd = [ipParam, nfsRootParam, ...qemuNfsRootParams, ...kernelParams];
+        } else {
+          cmd = [ipParam, nfsRootParam, ...nfsParams, ...kernelParams];
+        }
       }
 
       const cmdStr = cmd.join(' ');
@@ -1932,9 +1846,19 @@ EOF`);
         throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
       }
       // Iterate through defined NFS mounts in the workflow configuration.
-      if (workflowsConfig[workflowId].nfs)
-        for (const mountCmd of Object.keys(workflowsConfig[workflowId].nfs.mounts)) {
-          for (const mountPath of workflowsConfig[workflowId].nfs.mounts[mountCmd]) {
+      let nfs = workflowsConfig[workflowId].nfs;
+      if (workflowsConfig[workflowId].type === 'chroot' && !nfs) {
+        nfs = {
+          mounts: {
+            bind: ['/proc', '/sys', '/run'],
+            rbind: ['/dev'],
+          },
+        };
+      }
+
+      if (nfs)
+        for (const mountCmd of Object.keys(nfs.mounts)) {
+          for (const mountPath of nfs.mounts[mountCmd]) {
             const hostMountPath = `${process.env.NFS_EXPORT_PATH}/${hostname}${mountPath}`;
             // Check if the path is already mounted using `mountpoint` command.
             const isPathMounted = !shellExec(`mountpoint ${hostMountPath}`, { silent: true, stdout: true }).match(
@@ -1999,11 +1923,10 @@ EOF`);
          * This includes updating package lists, installing essential build tools,
          * kernel modules, cloud-init, SSH server, and other core utilities.
          * @param {object} params - The parameters for the function.
-         * @param {string} params.kernelLibVersion - The specific kernel library version to install.
          * @memberof UnderpostBaremetal.systemProvisioningFactory.ubuntu
          * @returns {string[]} An array of shell commands.
          */
-        base: ({ kernelLibVersion }) => [
+        base: () => [
           // Configure APT sources for Ubuntu ports.
           `cat <<SOURCES | tee /etc/apt/sources.list
 deb http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
@@ -2017,12 +1940,9 @@ SOURCES`,
           // Install essential development and system utilities.
           `apt install -y build-essential xinput x11-xkb-utils usbutils uuid-runtime`,
           'apt install -y linux-image-generic',
-          // Install specific kernel modules.
-          `apt install -y linux-modules-${kernelLibVersion} linux-modules-extra-${kernelLibVersion}`,
 
-          `depmod -a ${kernelLibVersion}`, // Update kernel module dependencies.
           // Install cloud-init, systemd, SSH, sudo, locales, udev, and networking tools.
-          `apt install -y cloud-init systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
+          `apt install -y systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
           `ln -sf /lib/systemd/systemd /sbin/init`, // Ensure systemd is the init system.
 
           `apt-get update`,
