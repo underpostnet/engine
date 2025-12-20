@@ -587,6 +587,12 @@ rm -rf ${artifacts.join(' ')}`);
         );
         logger.info('Commissioning resource', resource);
 
+        if (!nfs) {
+          // Prepare NFS casper path if using NFS boot.
+          shellExec(`sudo rm -rf ${nfsHostPath}`);
+          shellExec(`mkdir -p ${nfsHostPath}/casper`);
+        }
+
         // Clean and create TFTP root path.
         shellExec(`sudo rm -rf ${tftpRootPath}`);
         shellExec(`mkdir -p ${tftpRootPath}/pxe`);
@@ -625,6 +631,7 @@ rm -rf ${artifacts.join(' ')}`);
           const { kernelFilesPaths, resourcesPath } = UnderpostBaremetal.API.kernelFactory({
             resource,
             useLiveIso: options.useLiveIso ? true : false,
+            nfsHostPath,
           });
 
           const { cmd } = UnderpostBaremetal.API.kernelCmdBootParamsFactory({
@@ -640,20 +647,18 @@ rm -rf ${artifacts.join(' ')}`);
             nfsBoot: nfs ? true : false,
             systemProvisioning,
           });
-          shellExec(`mkdir -p ${nfsHostPath}/casper`);
+
           // Copy EFI bootloaders to TFTP path.
           const efiFiles = commissioningImage.architecture.match('arm64')
             ? ['bootaa64.efi', 'grubaa64.efi']
             : ['bootx64.efi', 'grubx64.efi'];
           for (const file of efiFiles) {
-            shellExec(`sudo cp -L ${resourcesPath}/${file} ${tftpRootPath}/pxe/${file}`);
-            shellExec(`sudo cp -L ${resourcesPath}/${file} ${nfsHostPath}/casper/${file}`);
+            shellExec(`sudo cp -a ${resourcesPath}/${file} ${tftpRootPath}/pxe/${file}`);
           }
           // Copy kernel and initrd images to TFTP path.
           for (const file of Object.keys(kernelFilesPaths)) {
             if (file == 'isoUrl') continue; // Skip URL entries
-            shellExec(`sudo cp -L ${kernelFilesPaths[file]} ${tftpRootPath}/pxe/${file}`);
-            shellExec(`sudo cp -L ${kernelFilesPaths[file]} ${nfsHostPath}/casper/${file}`);
+            shellExec(`sudo cp -a ${kernelFilesPaths[file]} ${tftpRootPath}/pxe/${file}`);
             // If the file is a kernel (vmlinuz-efi) and is gzipped, unzip it for GRUB compatibility on ARM64.
             // GRUB on ARM64 often crashes with synchronous exception (0x200) if handling large compressed kernels directly.
             if (file === 'vmlinuz-efi') {
@@ -781,10 +786,11 @@ menuentry '${menuentryStr}' {
      * @param {object} params - Parameters for the method.
      * @param {object} params.resource - The MAAS boot resource object.
      * @param {string} params.architecture - The architecture (arm64 or amd64).
+     * @param {string} params.nfsHostPath - The NFS host path to store the ISO and extracted files.
      * @returns {object} An object containing paths to the extracted kernel, initrd, and squashfs.
      * @memberof UnderpostBaremetal
      */
-    downloadUbuntuLiveISO({ resource, architecture }) {
+    downloadUbuntuLiveISO({ resource, architecture, nfsHostPath }) {
       const arch = architecture || resource.architecture.split('/')[0];
       const osName = resource.name.split('/')[1]; // e.g., "focal", "jammy", "noble"
 
@@ -805,6 +811,8 @@ menuentry '${menuentryStr}' {
         },
       };
 
+      shellExec(`mkdir -p ${nfsHostPath}/casper`);
+
       const version = (versionMap[arch] && versionMap[arch][osName]) || '20.04.5';
       const majorVersion = version.split('.').slice(0, 2).join('.');
 
@@ -819,12 +827,12 @@ menuentry '${menuentryStr}' {
       }
       isoUrl = `https://cdimage.ubuntu.com/releases/${majorVersion}/release/${isoFilename}`;
 
-      const downloadDir = `/var/tmp/ubuntu-live-iso`;
-      const isoPath = `${downloadDir}/${isoFilename}`;
-      const extractDir = `${downloadDir}/${osName}-${arch}-extracted`;
+      const isoPath = `${nfsHostPath}/${isoFilename}`;
+      const extractDir = `${nfsHostPath}/casper`;
 
-      shellExec(`mkdir -p ${downloadDir}`);
-      shellExec(`mkdir -p ${extractDir}`);
+      if (fs.existsSync(`/var/tmp/ubuntu-live-iso/${isoFilename}`)) {
+        shellExec(`cp -a /var/tmp/ubuntu-live-iso/${isoFilename} ${isoPath}`);
+      }
 
       // Check if cached ISO exists and is valid (size > 100MB to ensure it's not empty/corrupt)
       let needsDownload = true;
@@ -858,7 +866,7 @@ menuentry '${menuentryStr}' {
       }
 
       // Mount ISO and extract casper files
-      const mountPoint = `${downloadDir}/mnt-${osName}-${arch}`;
+      const mountPoint = `${nfsHostPath}/mnt-${osName}-${arch}`;
       shellExec(`mkdir -p ${mountPoint}`);
 
       // Ensure mount point is not already mounted
@@ -935,8 +943,21 @@ menuentry '${menuentryStr}' {
         }
 
         if (fs.existsSync(squashfsSource)) {
-          shellExec(`sudo cp ${squashfsSource} ${extractDir}/filesystem.squashfs`);
-          shellExec(`sudo chown $(whoami):$(whoami) ${extractDir}/filesystem.squashfs`);
+          // shellExec(`sudo cp ${squashfsSource} ${extractDir}/filesystem.squashfs`);
+          // shellExec(`sudo chown $(whoami):$(whoami) ${extractDir}/filesystem.squashfs`);
+          logger.info(`Copying all squashfs layers from ISO...`);
+          shellExec(`sudo cp ${mountPoint}/casper/*.squashfs ${extractDir}/`);
+          shellExec(`sudo chown $(whoami):$(whoami) ${extractDir}/*.squashfs`);
+
+          // Create filesystem.squashfs symlink if it doesn't exist (for newer ISOs with different naming)
+          const filesystemSquashfs = `${extractDir}/filesystem.squashfs`;
+          if (!fs.existsSync(filesystemSquashfs)) {
+            // Extract the basename from the squashfsSource path we found earlier
+            const squashfsBasename = squashfsSource.split('/').pop();
+            logger.info(`Creating filesystem.squashfs symlink to ${squashfsBasename}`);
+            shellExec(`ln -s ${squashfsBasename} ${filesystemSquashfs}`);
+          }
+
           logger.info(`Extracted squashfs rootfs from ISO to ${extractDir}/filesystem.squashfs`);
         } else {
           logger.error(`No usable squashfs rootfs found in ISO (last checked: ${squashfsSource})`);
@@ -948,6 +969,8 @@ menuentry '${menuentryStr}' {
         // Unmount ISO
         shellExec(`sudo umount ${mountPoint}`, { silent: true });
         logger.info(`Unmounted ISO`);
+        // Clean up temporary mount point
+        shellExec(`rmdir ${mountPoint}`, { silent: true });
       }
 
       // Verify extracted files exist
@@ -975,15 +998,20 @@ menuentry '${menuentryStr}' {
      * @param {object} params - Parameters for the method.
      * @param {object} params.resource - The MAAS boot resource object.
      * @param {boolean} params.useLiveIso - Whether to use Ubuntu live ISO instead of MAAS boot resources.
+     * @param {string} params.nfsHostPath - The NFS host path for storing extracted files.
      * @returns {object} An object containing paths to the kernel, initrd, and root filesystem.
      * @memberof UnderpostBaremetal
      */
-    kernelFactory({ resource, useLiveIso = false }) {
+    kernelFactory({ resource, useLiveIso = false, nfsHostPath }) {
       // For disk-based commissioning (casper), use Ubuntu live ISO files
       if (useLiveIso) {
         logger.info('Using Ubuntu live ISO for casper boot (disk-based commissioning)');
         const arch = resource.architecture.split('/')[0];
-        const kernelFilesPaths = UnderpostBaremetal.API.downloadUbuntuLiveISO({ resource, architecture: arch });
+        const kernelFilesPaths = UnderpostBaremetal.API.downloadUbuntuLiveISO({
+          resource,
+          architecture: arch,
+          nfsHostPath,
+        });
         const resourcesPath = `/var/snap/maas/common/maas/image-storage/bootloaders/uefi/${arch}`;
         return { kernelFilesPaths, resourcesPath };
       }
@@ -1426,7 +1454,7 @@ EOF_MAAS_CFG`,
 
       const kernelParams = [
         // `ro`,
-        // `ignore_uuid`,
+        `ignore_uuid`,
         // `ipv6.disable=1`,
         // `ramdisk_size=3550000`,
         // `console=serial0,115200`,
