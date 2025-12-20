@@ -16,7 +16,7 @@
     ],
     "maas": {
       "commissioning": {
-        "architecture": "arm64/ga-24.04",
+        "architecture": "arm64/hwe-24.04-edge",
         "name": "ubuntu/noble"
       }
     },

@@ -54,6 +54,7 @@ class UnderpostBaremetal {
      * @param {string} [ipFileServer=getLocalIPv4Address()] - The IP address of the file server (NFS/TFTP).
      * @param {string} [ipConfig=''] - IP configuration string for the baremetal machine.
      * @param {string} [netmask=''] - Netmask of network
+     * @param {string} [dnsServer=''] - DNS server IP address.
      * @param {object} [options] - An object containing boolean flags for various operations.
      * @param {boolean} [options.dev=false] - Development mode flag.
      * @param {boolean} [options.controlServerInstall=false] - Flag to install the control server (e.g., MAAS).
@@ -87,6 +88,7 @@ class UnderpostBaremetal {
       ipFileServer,
       ipConfig,
       netmask,
+      dnsServer,
       options = {
         dev: false,
         controlServerInstall: false,
@@ -125,6 +127,7 @@ class UnderpostBaremetal {
       ipAddress = ipAddress ? ipAddress : '192.168.1.191';
       ipFileServer = ipFileServer ? ipFileServer : getLocalIPv4Address();
       netmask = netmask ? netmask : '255.255.255.0';
+      dnsServer = dnsServer ? dnsServer : '8.8.8.8';
 
       // IpConfig options:
       // dhcp - DHCP configuration
@@ -151,7 +154,7 @@ class UnderpostBaremetal {
 
       // Capture metadata for the callback execution, useful for logging and auditing.
       const callbackMetaData = {
-        args: { hostname, ipAddress, workflowId },
+        args: { workflowId, ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer },
         options,
         runnerHost: { architecture: UnderpostBaremetal.API.getHostArch().alias, ip: getLocalIPv4Address() },
         nfsHostPath,
@@ -641,6 +644,7 @@ rm -rf ${artifacts.join(' ')}`);
             ipFileServer,
             netmask,
             hostname,
+            dnsServer,
             networkInterfaceName,
             fileSystemUrl: kernelFilesPaths.isoUrl,
             nfsBoot: nfs ? true : false,
@@ -656,6 +660,7 @@ rm -rf ${artifacts.join(' ')}`);
           }
           // Copy kernel and initrd images to TFTP path.
           for (const file of Object.keys(kernelFilesPaths)) {
+            if (file == 'isoUrl') continue; // Skip URL entries
             shellExec(`sudo cp -L ${kernelFilesPaths[file]} ${tftpRootPath}/pxe/${file}`);
             // If the file is a kernel (vmlinuz-efi) and is gzipped, unzip it for GRUB compatibility on ARM64.
             // GRUB on ARM64 often crashes with synchronous exception (0x200) if handling large compressed kernels directly.
@@ -810,7 +815,7 @@ menuentry '${menuentryStr}' {
       let isoFilename;
       let isoUrl;
       if (arch === 'arm64') {
-        isoFilename = `ubuntu-${version}-live-server-arm64+largemem.iso`;
+        isoFilename = `ubuntu-${version}-live-server-arm64${osName === 'noble' ? '+largemem' : ''}.iso`;
       } else {
         isoFilename = `ubuntu-${version}-live-server-amd64.iso`;
       }
@@ -1342,6 +1347,7 @@ EOF_MAAS_CFG`,
      * @param {string} options.ipConfig - The IP configuration method (e.g., 'dhcp').
      * @param {string} options.netmask - The network mask.
      * @param {string} options.hostname - The hostname of the client.
+     * @param {string} options.dnsServer - The DNS server address.
      * @param {string} options.networkInterfaceName - The name of the network interface.
      * @param {string} options.fileSystemUrl - The URL of the root filesystem.
      * @param {boolean} options.nfsBoot - Flag indicating if NFS boot is enabled.
@@ -1356,6 +1362,7 @@ EOF_MAAS_CFG`,
         ipConfig: '',
         netmask: '',
         hostname: '',
+        dnsServer: '',
         networkInterfaceName: '',
         fileSystemUrl: '',
         nfsBoot: false,
@@ -1370,6 +1377,7 @@ EOF_MAAS_CFG`,
         ipConfig,
         netmask,
         hostname,
+        dnsServer,
         networkInterfaceName,
         fileSystemUrl,
         nfsBoot,
@@ -1386,7 +1394,7 @@ EOF_MAAS_CFG`,
           // `dwc_otg.lpm_enable=0`,
           // `elevator=deadline`,
           `root=/dev/nfs`,
-          `nfsroot=${ipHost}:${process.env.NFS_EXPORT_PATH}/rpi4mb,${[
+          `nfsroot=${ipHost}:${process.env.NFS_EXPORT_PATH}/${hostname},${[
             'tcp',
             'vers=3',
             'nfsvers=3',
@@ -1408,7 +1416,7 @@ EOF_MAAS_CFG`,
             // 'nodev',
             // 'nosuid',
           ]}`,
-          `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}:${networkInterfaceName}:${ipConfig}`,
+          `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}:${networkInterfaceName ? networkInterfaceName : 'eth0'}:${ipConfig}:${dnsServer}`,
           `rootfstype=nfs`,
           `rw`,
           `rootwait`,
@@ -1432,30 +1440,33 @@ EOF_MAAS_CFG`,
         ];
       } else {
         // MAAS commissioning parameters
+        // https://manpages.ubuntu.com/manpages/noble/man7/casper.7.html
         cmd = [
           // `console=serial0,115200`,
           // `console=tty1`,
-          // pxe parameters
-          `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}:${networkInterfaceName}:${ipConfig}`,
-          `boot=casper`,
+          `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}:${networkInterfaceName ? networkInterfaceName : 'eth0'}:${ipConfig}:${dnsServer}`,
+          // `boot=casper`,
           `netboot=url`,
-          `url=${fileSystemUrl}`,
-          // `url=http://${ipHost}:8888/${hostname}/pxe/filesystem.squashfs`,
+          `url=${fileSystemUrl.replace('https', 'http')}`,
+          // `url=https://cdimage.ubuntu.com/releases/focal/release/ubuntu-20.04.5-live-server-arm64.iso`,
+          // `casper-getty`,
+          // `layerfs-path=filesystem.squashfs`,
           // `root=/dev/ram0`,
-          // kernel parameters
           `rw`,
-          'nomodeset',
-          `rootwait`,
+          // `toram`,
+          // 'nomodeset',
+          // `rootwait`,
           `ignore_uuid`,
-          // `net.ifnames=0`,
-          // `biosdevname=0`,
+          // `net.ifnames=0`, // only networkInterfaceName = eth0
+          // `biosdevname=0`, // only networkInterfaceName = eth0
           `ipv6.disable=1`,
           `ramdisk_size=3550000`,
-          `cma=120M`,
+          // `editable_rootfs=tmpfs`,
+          // `cma=120M`,
           // `root=/dev/sda1`, // rpi4 usb port unit
           // `fixrtc`,
-          `overlayroot=tmpfs`,
-          `overlayroot_cfgdisk=disabled`,
+          // `overlayroot=tmpfs`,
+          // `overlayroot_cfgdisk=disabled`,
           // `ds=nocloud-net;s=http://${ipHost}:8888/${hostname}/pxe/`,
         ];
       }
@@ -1555,38 +1566,27 @@ EOF_MAAS_CFG`,
               newMachine = { discovery, machine: JSON.parse(newMachine) };
               logger.info('Machine created successfully:', newMachine.machine.system_id);
 
-              const discoverInterfaceName = 'eth0'; // Default interface name for discovery.
-
-              // Read interface data.
-              const interfaceData = JSON.parse(
-                shellExec(
+              for (const discoverInterfaceName of ['eth0' /* networkInterfaceName */]) {
+                const jsonInterfaceData = shellExec(
                   `maas ${process.env.MAAS_ADMIN_USERNAME} interface read ${newMachine.machine.boot_interface.system_id} ${discoverInterfaceName}`,
                   {
                     silent: true,
                     stdout: true,
                   },
-                ),
-              );
-
-              logger.info('Interface data:', interfaceData);
-
-              // Mark machine as broken, update interface name, then mark as fixed.
-              shellExec(
-                `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-broken ${newMachine.machine.boot_interface.system_id}`,
-              );
-
-              shellExec(
-                `maas ${process.env.MAAS_ADMIN_USERNAME} interface update ${newMachine.machine.boot_interface.system_id} ${interfaceData.id} name=${networkInterfaceName}`,
-              );
-
-              shellExec(
-                `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-fixed ${newMachine.machine.boot_interface.system_id}`,
-              );
-
-              return;
+                );
+                try {
+                  const interfaceData = JSON.parse(jsonInterfaceData);
+                  logger.info('Interface data:', { discoverInterfaceName, interfaceData });
+                } catch (error) {
+                  console.log(error);
+                  logger.error(error, { discoverInterfaceName, jsonInterfaceData });
+                }
+              }
             } catch (error) {
               logger.error('Error during machine commissioning:', error);
               logger.error(error.stack);
+            } finally {
+              return;
             }
         }
 
@@ -1708,19 +1708,6 @@ EOF_MAAS_CFG`,
               );
 
               logger.info('Interface', interfaceData);
-
-              // Mark machine as broken, update interface name, then mark as fixed.
-              shellExec(
-                `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-broken ${newMachine.machine.boot_interface.system_id}`,
-              );
-
-              shellExec(
-                `maas ${process.env.MAAS_ADMIN_USERNAME} interface update ${newMachine.machine.boot_interface.system_id} ${interfaceData.id} name=${networkInterfaceName}`,
-              );
-
-              shellExec(
-                `maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-fixed ${newMachine.machine.boot_interface.system_id}`,
-              );
             } catch (error) {
               logger.error(error, error.stack);
             } finally {
@@ -2304,6 +2291,12 @@ udp-port = 32766
       switch (workflowId) {
         case 'rpi4mb2Disk':
         case 'rpi4mb':
+          // Instructions: Flash sd with Raspberry Pi OS lite and update:
+          // EEPROM (Electrically Erasable Programmable Read-Only Memory) like microcontrollers
+          // sudo rpi-eeprom-config --apply /boot/firmware/boot.conf
+          // sudo reboot
+          // vcgencmd bootloader_config
+          // shutdown -h now
           return `[all]
 BOOT_UART=0
 WAKE_ON_GPIO=1
@@ -2356,7 +2349,6 @@ GATEWAY=${gateway}`;
 
     /**
      * @method loadWorkflowsConfig
-     * @namespace UnderpostBaremetal.API
      * @description Loads the commission workflows configuration from commission-workflows.json.
      * Each workflow defines specific parameters like system provisioning type,
      * kernel version, Chrony settings, debootstrap image details, and NFS mounts.     *

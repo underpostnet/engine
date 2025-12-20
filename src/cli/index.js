@@ -614,7 +614,7 @@ program
 
 // 'baremetal' command: Baremetal server management
 program
-  .command('baremetal [workflow-id] [ip-address] [hostname] [ip-file-server] [ip-config] [netmask]')
+  .command('baremetal [workflow-id] [ip-address] [hostname] [ip-file-server] [ip-config] [netmask] [dns-server]')
   .option('--control-server-install', 'Installs the baremetal control server.')
   .option('--control-server-uninstall', 'Uninstalls the baremetal control server.')
   .option('--control-server-db-install', 'Installs up the database for the baremetal control server.')
