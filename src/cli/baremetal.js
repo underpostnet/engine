@@ -805,6 +805,10 @@ rm -rf ${artifacts.join(' ')}`);
           userDataPath,
           ipAddress: monitorIpAddress,
         });
+        if (type === 'chroot' && options.cloudInit === true) {
+          openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs nfs-cloud`);
+          openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs nfs-machine`);
+        }
       }
     },
 
