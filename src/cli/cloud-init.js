@@ -42,7 +42,7 @@ class UnderpostCloudInit {
      */
     buildTools({ workflowId, nfsHostPath, hostname, callbackMetaData, dev }) {
       // Destructure workflow configuration for easier access.
-      const { systemProvisioning, chronyc, networkInterfaceName, debootstrap, keyboard } =
+      const { chronyc, networkInterfaceName, debootstrap, keyboard } =
         UnderpostBaremetal.API.loadWorkflowsConfig()[workflowId];
       const { timezone, chronyConfPath } = chronyc;
       // Define the specific directory for underpost tools within the NFS host path.
@@ -51,7 +51,7 @@ class UnderpostCloudInit {
       // Determine the root path for npm and underpost based on development mode.
       const npmRoot = getNpmRootPath();
       const underpostRoot = dev === true ? '.' : `${npmRoot}/underpost`;
-
+      const systemProvisioning = 'ubuntu';
       // Use a switch statement to handle different system provisioning types.
       switch (systemProvisioning) {
         case 'ubuntu': {
@@ -492,9 +492,7 @@ curl -X POST \\
      * @param {string} params.keyboardLayout - Keyboard layout (e.g., 'es', 'us').
      * @param {string} params.sshPublicKey - SSH public key for admin user.
      * @param {string} params.adminUsername - Admin username for the system.
-     * @param {string} params.systemProvisioning - System provisioning type ('ubuntu', 'rocky', etc.).
      * @param {string[]} params.packages - Array of package names to install (system-specific).
-     * @param {string} params.architecture - Architecture identifier (e.g., 'amd64', 'arm64/generic').
      * @param {boolean} params.enlistment - Whether to perform MAAS enlistment after deployment.
      * @param {object} params.maasConfig - MAAS configuration for enlistment.
      * @returns {string} The cloud-init user-data YAML content.
@@ -508,22 +506,20 @@ curl -X POST \\
       keyboardLayout = 'us',
       sshPublicKey,
       adminUsername = 'admin',
-      systemProvisioning = 'ubuntu',
       packages = [],
-      architecture = 'amd64',
       enlistment = false,
       maasConfig = {},
     }) {
       const { ip, systemId, consumerKey, tokenKey, tokenSecret } = maasConfig;
 
       // Determine package manager and service names based on system provisioning type
-      const isRHELBased = systemProvisioning === 'rocky' || systemProvisioning === 'rhel';
+      const isRHELBased = false;
       const packageManager = isRHELBased ? 'dnf' : 'apt';
       const chronySvcName = isRHELBased ? 'chronyd' : 'chrony';
       const sshSvcName = isRHELBased ? 'sshd' : 'ssh';
 
       // Build default package list if none provided
-      let finalPackages = packages && packages.length > 0 ? packages : this._getDefaultPackages(systemProvisioning);
+      let finalPackages = packages && packages.length > 0 ? packages : this._getDefaultPackages();
 
       // Build runcmd based on system type
       let runCmds = [
@@ -778,31 +774,11 @@ curl -X POST \\
      * @method _getDefaultPackages
      * @private
      * @description Returns default package list based on system provisioning type.
-     * @param {string} systemProvisioning - The system provisioning type ('ubuntu', 'rocky', etc.).
      * @memberof UnderpostCloudInit
      * @returns {string[]} Array of package names.
      */
-    _getDefaultPackages(systemProvisioning) {
-      const isRHELBased = systemProvisioning === 'rocky' || systemProvisioning === 'rhel';
-
-      const commonPackages = [
-        'git',
-        'htop',
-        'curl',
-        'wget',
-        'chrony',
-        'lldpd',
-        'lshw',
-        'smartmontools',
-        'net-tools',
-        'util-linux',
-      ];
-
-      if (isRHELBased) {
-        return ['epel-release', ...commonPackages];
-      }
-
-      return commonPackages;
+    _getDefaultPackages() {
+      return ['git', 'htop', 'curl', 'wget', 'chrony', 'lldpd', 'lshw', 'smartmontools', 'net-tools', 'util-linux'];
     },
   };
 }
