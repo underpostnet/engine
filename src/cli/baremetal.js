@@ -1349,7 +1349,31 @@ menuentry '${menuentryStr}' {
       const nfsParams = [`boot=casper`, `netboot=nfs`];
       const qemuNfsRootParams = [`rootfstype=nfs`, `root=/dev/nfs`, 'initrd=initrd.img', `init=/sbin/init`];
 
-      const kernelParams = [`ignore_uuid`];
+      const kernelParams = [
+        `ignore_uuid`,
+        // `ro`,
+        // `rw`,
+        // `ipv6.disable=1`,
+        // `ramdisk_size=3550000`,
+        // `console=serial0,115200`,
+        // `console=tty1`,
+        // `boot=casper`,
+        // `casper-getty`,
+        // `layerfs-path=filesystem.squashfs`,
+        // `root=/dev/ram0`,
+        // `toram`,
+        // 'nomodeset',
+        // `rootwait`,
+        // `net.ifnames=0`, // only networkInterfaceName = eth0
+        // `biosdevname=0`, // only networkInterfaceName = eth0
+        // `editable_rootfs=tmpfs`,
+        // `cma=120M`,
+        // `root=/dev/sda1`, // rpi4 usb port unit
+        // `fixrtc`,
+        // `overlayroot=tmpfs`,
+        // `overlayroot_cfgdisk=disabled`,
+        // `ds=nocloud-net;s=http://${ipHost}:8888/${hostname}/pxe/`,
+      ];
 
       if (cloudInit) {
         kernelParams.push(`ds=nocloud-net;s=http://${ipFileServer}:8888/${hostname}/cloud-init/`);
