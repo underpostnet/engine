@@ -762,49 +762,18 @@ rm -rf ${artifacts.join(' ')}`);
       if (options.commission === true) {
         const { type } = workflowsConfig[workflowId];
 
-        let userDataPath;
-        let monitorIpAddress;
-
-        if (type !== 'chroot' && type !== 'iso-nfs') {
-          const { maas, chronyc, keyboard, systemProvisioning: wfSystemProvisioning } = workflowsConfig[workflowId];
-          const systemProvisioning = wfSystemProvisioning;
-          const architecture = maas.commissioning.architecture;
-          const { timezone, chronyConfPath } = chronyc;
-
-          // Generate cloud-init user-data for post-deployment configuration
-          // This will be used by MAAS during the deployment phase (after commissioning)
-          const sshPublicKey = fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8').trim();
-          const userDataContent = UnderpostCloudInit.API.diskDeploymentUserDataFactory({
-            hostname,
-            timezone,
-            chronyConfPath,
-            ntpServer: process.env.MAAS_NTP_SERVER || '0.pool.ntp.org',
-            keyboardLayout: keyboard?.layout || 'us',
-            sshPublicKey,
-            adminUsername: process.env.MAAS_ADMIN_USERNAME,
-            systemProvisioning,
-            architecture,
-          });
-
-          // Save user-data for later use during deployment
-          userDataPath = `/tmp/maas-userdata-${hostname}.yaml`;
-          fs.writeFileSync(userDataPath, userDataContent, 'utf8');
-          logger.info(`Cloud-init user-data saved to: ${userDataPath}`);
-          logger.info('This will be applied by MAAS during deployment phase');
-
-          monitorIpAddress = ipAddress;
-        }
-
-        await UnderpostBaremetal.API.commissionMonitor({
+        const commissionMonitorPayload = {
           macAddress,
-          nfsHostPath,
           underpostRoot,
-          hostname,
           maas: workflowsConfig[workflowId].maas,
           networkInterfaceName: workflowsConfig[workflowId].networkInterfaceName,
-          userDataPath,
-          ipAddress: monitorIpAddress,
-        });
+          ipAddress,
+        };
+
+        logger.info('Waiting for commissioning...', commissionMonitorPayload);
+
+        await UnderpostBaremetal.API.commissionMonitor(commissionMonitorPayload);
+
         if (type === 'chroot' && options.cloudInit === true) {
           openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs nfs-cloud`);
           openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs nfs-machine`);
@@ -1402,38 +1371,15 @@ menuentry '${menuentryStr}' {
      * once a matching MAC address is found. It also opens terminal windows for live logs.
      * @param {object} params - The parameters for the function.
      * @param {string} params.macAddress - The MAC address to monitor for.
-     * @param {string} params.nfsHostPath - The NFS host path for storing system-id and auth tokens.
-     * @param {string} params.underpostRoot - The root directory of the Underpost project.
      * @param {string} params.hostname - The desired hostname for the new machine.
      * @param {object} params.maas - MAAS configuration details.
      * @param {string} params.networkInterfaceName - The name of the network interface.
-     * @param {string} params.userDataPath - The path to the cloud-init user-data file.
      * @param {string} params.ipAddress - The IP address of the machine (used if MAC is all zeros).
      * @returns {Promise<void>} A promise that resolves when commissioning is initiated or after a delay.
      * @memberof UnderpostBaremetal
      */
-    async commissionMonitor({
-      macAddress,
-      nfsHostPath,
-      underpostRoot,
-      hostname,
-      maas,
-      networkInterfaceName,
-      userDataPath,
-      ipAddress,
-    }) {
+    async commissionMonitor({ macAddress, hostname, maas, networkInterfaceName, ipAddress }) {
       {
-        logger.info('Waiting for commissioning...', {
-          macAddress,
-          nfsHostPath,
-          underpostRoot,
-          hostname,
-          maas,
-          networkInterfaceName,
-          userDataPath,
-          ipAddress,
-        });
-
         // Query observed discoveries from MAAS.
         const discoveries = JSON.parse(
           shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries read`, {
@@ -1518,12 +1464,9 @@ menuentry '${menuentryStr}' {
         await timer(1000);
         await UnderpostBaremetal.API.commissionMonitor({
           macAddress,
-          nfsHostPath,
-          underpostRoot,
           hostname,
           maas,
           networkInterfaceName,
-          userDataPath,
           ipAddress,
         });
       }
