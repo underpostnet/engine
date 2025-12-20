@@ -711,6 +711,7 @@ rm -rf ${artifacts.join(' ')}`);
         fs.writeFileSync(`${cloudInitDir}/vendor-data`, ``, 'utf8');
 
         logger.info(`Cloud-init files written to ${cloudInitDir}`);
+        if (options.cloudInitUpdate) return;
       }
 
       if (options.buildUbuntuTools && workflowsConfig[workflowId].type === 'chroot') {
@@ -758,29 +759,52 @@ rm -rf ${artifacts.join(' ')}`);
       });
 
       // Final commissioning steps.
-      if (options.commission === true || options.cloudInitUpdate === true) {
+      if (options.commission === true) {
         const { type } = workflowsConfig[workflowId];
-        if (type === 'chroot' || type === 'iso-nfs')
-          await UnderpostBaremetal.API.nfsCommissionCallback(
-            workflowId,
-            workflowsConfig,
+
+        let userDataPath;
+        let monitorIpAddress;
+
+        if (type !== 'chroot' && type !== 'iso-nfs') {
+          const { maas, chronyc, keyboard, systemProvisioning: wfSystemProvisioning } = workflowsConfig[workflowId];
+          const systemProvisioning = wfSystemProvisioning;
+          const architecture = maas.commissioning.architecture;
+          const { timezone, chronyConfPath } = chronyc;
+
+          // Generate cloud-init user-data for post-deployment configuration
+          // This will be used by MAAS during the deployment phase (after commissioning)
+          const sshPublicKey = fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8').trim();
+          const userDataContent = UnderpostCloudInit.API.diskDeploymentUserDataFactory({
             hostname,
-            macAddress,
-            underpostRoot,
-            ipAddress,
-            nfsHostPath,
-            options,
-            callbackMetaData,
-          );
-        else
-          await UnderpostBaremetal.API.diskCommissionCallback(
-            workflowId,
-            workflowsConfig,
-            hostname,
-            macAddress,
-            underpostRoot,
-            ipAddress,
-          );
+            timezone,
+            chronyConfPath,
+            ntpServer: process.env.MAAS_NTP_SERVER || '0.pool.ntp.org',
+            keyboardLayout: keyboard?.layout || 'us',
+            sshPublicKey,
+            adminUsername: process.env.MAAS_ADMIN_USERNAME,
+            systemProvisioning,
+            architecture,
+          });
+
+          // Save user-data for later use during deployment
+          userDataPath = `/tmp/maas-userdata-${hostname}.yaml`;
+          fs.writeFileSync(userDataPath, userDataContent, 'utf8');
+          logger.info(`Cloud-init user-data saved to: ${userDataPath}`);
+          logger.info('This will be applied by MAAS during deployment phase');
+
+          monitorIpAddress = ipAddress;
+        }
+
+        await UnderpostBaremetal.API.commissionMonitor({
+          macAddress,
+          nfsHostPath,
+          underpostRoot,
+          hostname,
+          maas: workflowsConfig[workflowId].maas,
+          networkInterfaceName: workflowsConfig[workflowId].networkInterfaceName,
+          userDataPath,
+          ipAddress: monitorIpAddress,
+        });
       }
     },
 
@@ -1111,113 +1135,6 @@ rm -rf ${artifacts.join(' ')}`);
     },
 
     /**
-     * @method diskCommissionCallback
-     * @description Handles the commissioning process for a baremetal machine using disk-based provisioning.
-     * This method uses traditional MAAS PXE boot to provision the machine to the largest available disk.
-     * For ARM64 RPi4, it relies on pftf/RPi4 UEFI firmware to enable PXE boot with GRUB.
-     * @param {string} workflowId - The identifier for the workflow configuration to use.
-     * @param {object} workflowsConfig - The complete set of workflow configurations.
-     * @param {string} hostname - The hostname for the machine.
-     * @param {string} macAddress - The MAC address of the machine.
-     * @param {string} underpostRoot - The root directory of the Underpost project.
-     * @memberof UnderpostBaremetal
-     * @returns {Promise<void>}
-     */
-    async diskCommissionCallback(workflowId, workflowsConfig, hostname, macAddress, underpostRoot, ipAddress) {
-      const workflowConfig = workflowsConfig[workflowId];
-      let { maas, networkInterfaceName, chronyc, keyboard, systemProvisioning, type } = workflowConfig;
-      const { timezone, chronyConfPath } = chronyc;
-
-      if (type === 'chroot') systemProvisioning = 'ubuntu';
-      const architecture = maas.commissioning.architecture;
-
-      // Generate cloud-init user-data for post-deployment configuration
-      // This will be used by MAAS during the deployment phase (after commissioning)
-      const sshPublicKey = fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8').trim();
-      const userDataContent = UnderpostCloudInit.API.diskDeploymentUserDataFactory({
-        hostname,
-        timezone,
-        chronyConfPath,
-        ntpServer: process.env.MAAS_NTP_SERVER || '0.pool.ntp.org',
-        keyboardLayout: keyboard?.layout || 'us',
-        sshPublicKey,
-        adminUsername: process.env.MAAS_ADMIN_USERNAME,
-        systemProvisioning,
-        architecture,
-      });
-
-      // Save user-data for later use during deployment
-      const userDataPath = `/tmp/maas-userdata-${hostname}.yaml`;
-      fs.writeFileSync(userDataPath, userDataContent, 'utf8');
-      logger.info(`Cloud-init user-data saved to: ${userDataPath}`);
-      logger.info('This will be applied by MAAS during deployment phase');
-
-      // For disk-based commissioning, we rely on MAAS's built-in PXE boot mechanism.
-      // The machine should already be configured to PXE boot via the GRUB configuration
-      // created in the commission section above.
-
-      // Monitor for the machine to appear in MAAS discoveries and initiate commissioning.
-      await UnderpostBaremetal.API.diskCommissionMonitor({
-        macAddress,
-        hostname,
-        maas,
-        networkInterfaceName,
-        underpostRoot,
-        userDataPath,
-        ipAddress,
-      });
-    },
-
-    /**
-     * @method nfsCommissionCallback
-     * @description Handles the commissioning process for a baremetal machine using NFS.
-     * This method configures cloud-init, applies necessary network settings,
-     * and monitors the commissioning status of the machine.
-     * @param {string} workflowId - The identifier for the workflow configuration to use.
-     * @param {object} workflowsConfig - The complete set of workflow configurations.
-     * @param {string} hostname - The hostname for the machine.
-     * @param {string} macAddress - The MAC address of the machine.
-     * @param {string} underpostRoot - The root directory of the Underpost project.
-     * @param {string} ipAddress - The IP address assigned to the machine.
-     * @param {string} nfsHostPath - The NFS host path where the root filesystem is located.
-     * @param {object} [options] - Additional options for the commissioning process.
-     * @param {boolean} [options.cloudInitUpdate=false] - Flag indicating whether to update cloud-init configuration only.
-     * @param {object} callbackMetaData - Metadata about the callback environment.
-     * @memberof UnderpostBaremetal
-     * @returns {Promise<void>}
-     */
-    async nfsCommissionCallback(
-      workflowId,
-      workflowsConfig,
-      hostname,
-      macAddress,
-      underpostRoot,
-      ipAddress,
-      nfsHostPath,
-      options = {
-        cloudInitUpdate,
-      },
-      callbackMetaData,
-    ) {
-      const { networkInterfaceName, maas } = workflowsConfig[workflowId];
-
-      if (options.cloudInitUpdate === true) return;
-
-      // Apply NAT iptables rules.
-      shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
-
-      // Monitor commissioning process.
-      UnderpostBaremetal.API.commissionMonitor({
-        macAddress,
-        nfsHostPath,
-        underpostRoot,
-        hostname,
-        maas,
-        networkInterfaceName,
-      });
-    },
-
-    /**
      * @method removeDiscoveredMachines
      * @description Removes all machines in the 'discovered' status from MAAS.
      * @memberof UnderpostBaremetal
@@ -1452,12 +1369,12 @@ menuentry '${menuentryStr}' {
     },
 
     /**
-     * @method diskCommissionMonitor
+     * @method commissionMonitor
      * @description Monitors the MAAS discoveries and initiates machine creation and commissioning
-     * for disk-based provisioning (non-NFS). This is the traditional MAAS way where the machine
-     * PXE boots, gets added to MAAS, and is commissioned with an enlistment script.
+     * once a matching MAC address is found. It also opens terminal windows for live logs.
      * @param {object} params - The parameters for the function.
      * @param {string} params.macAddress - The MAC address to monitor for.
+     * @param {string} params.nfsHostPath - The NFS host path for storing system-id and auth tokens.
      * @param {string} params.underpostRoot - The root directory of the Underpost project.
      * @param {string} params.hostname - The desired hostname for the new machine.
      * @param {object} params.maas - MAAS configuration details.
@@ -1467,8 +1384,9 @@ menuentry '${menuentryStr}' {
      * @returns {Promise<void>} A promise that resolves when commissioning is initiated or after a delay.
      * @memberof UnderpostBaremetal
      */
-    async diskCommissionMonitor({
+    async commissionMonitor({
       macAddress,
+      nfsHostPath,
       underpostRoot,
       hostname,
       maas,
@@ -1477,11 +1395,15 @@ menuentry '${menuentryStr}' {
       ipAddress,
     }) {
       {
-        logger.info('Monitoring for machine discovery (disk-based commissioning)...', {
+        logger.info('Waiting for commissioning...', {
           macAddress,
+          nfsHostPath,
+          underpostRoot,
           hostname,
           maas,
           networkInterfaceName,
+          userDataPath,
+          ipAddress,
         });
 
         // Query observed discoveries from MAAS.
@@ -1493,7 +1415,7 @@ menuentry '${menuentryStr}' {
         );
 
         // Log discovered IPs for visibility.
-        // console.log('Discovered IPs:', discoveries.map((d) => d.ip).join(' | '));
+        console.log(discoveries.map((d) => d.ip).join(' | '));
 
         // Iterate through discoveries to find a matching MAC address.
         for (const discovery of discoveries) {
@@ -1514,13 +1436,15 @@ menuentry '${menuentryStr}' {
             ip: discovery.ip,
           };
           machine.hostname = machine.hostname.replaceAll(' ', '').replaceAll('.', ''); // Sanitize hostname.
+
           console.log(
             'mac target:'.green + macAddress,
             'mac discovered:'.green + machine.mac_addresses,
             'ip target:'.green + ipAddress,
             'ip discovered:'.green + discovery.ip,
           );
-          if (macAddress === machine.mac_addresses && discovery.ip === ipAddress)
+
+          if (machine.mac_addresses === macAddress && (!ipAddress || discovery.ip === ipAddress))
             try {
               machine.hostname = hostname;
               machine.mac_address = macAddress;
@@ -1563,131 +1487,6 @@ menuentry '${menuentryStr}' {
               return;
             }
         }
-
-        await timer(1000);
-        return UnderpostBaremetal.API.diskCommissionMonitor({
-          macAddress,
-          underpostRoot,
-          hostname,
-          maas,
-          networkInterfaceName,
-          userDataPath,
-          ipAddress,
-        });
-      }
-    },
-
-    /**
-     * @method commissionMonitor
-     * @description Monitors the MAAS discoveries and initiates machine creation and commissioning
-     * once a matching MAC address is found (NFS-based). It also opens terminal windows for live logs.
-     * @param {object} params - The parameters for the function.
-     * @param {string} params.macAddress - The MAC address to monitor for.
-     * @param {string} params.nfsHostPath - The NFS host path for storing system-id and auth tokens.
-     * @param {string} params.underpostRoot - The root directory of the Underpost project.
-     * @param {string} params.hostname - The desired hostname for the new machine.
-     * @param {object} params.maas - MAAS configuration details.
-     * @param {string} params.networkInterfaceName - The name of the network interface.
-     * @returns {Promise<void>} A promise that resolves when commissioning is initiated or after a delay.
-     * @memberof UnderpostBaremetal
-     */
-    async commissionMonitor({ macAddress, nfsHostPath, underpostRoot, hostname, maas, networkInterfaceName }) {
-      {
-        logger.info('Waiting for commissioning...', {
-          macAddress,
-          nfsHostPath,
-          underpostRoot,
-          hostname,
-          maas,
-          networkInterfaceName,
-        });
-
-        // Query observed discoveries from MAAS.
-        const discoveries = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries read`, {
-            silent: true,
-            stdout: true,
-          }),
-        );
-
-        //   {
-        //     "discovery_id": "",
-        //     "ip": "192.168.1.189",
-        //     "mac_address": "00:00:00:00:00:00",
-        //     "last_seen": "2025-05-05T14:17:37.354",
-        //     "hostname": null,
-        //     "fabric_name": "",
-        //     "vid": null,
-        //     "mac_organization": "",
-        //     "observer": {
-        //         "system_id": "",
-        //         "hostname": "",
-        //         "interface_id": 1,
-        //         "interface_name": ""
-        //     },
-        //     "resource_uri": "/MAAS/api/2.0/discovery/MTkyLjE2OC4xLjE4OSwwMDowMDowMDowMDowMDowMA==/"
-        // },
-
-        // Log discovered IPs for visibility.
-        console.log(discoveries.map((d) => d.ip).join(' | '));
-
-        // Iterate through discoveries to find a matching MAC address.
-        for (const discovery of discoveries) {
-          const machine = {
-            architecture: (maas.commissioning?.architecture || 'arm64/generic').match('amd')
-              ? 'amd64/generic'
-              : 'arm64/generic',
-            mac_address: discovery.mac_address,
-            hostname: discovery.hostname
-              ? discovery.hostname
-              : discovery.mac_organization
-                ? discovery.mac_organization
-                : discovery.domain
-                  ? discovery.domain
-                  : `generic-host-${s4()}${s4()}`,
-            power_type: 'manual',
-            mac_addresses: discovery.mac_address,
-            ip: discovery.ip,
-          };
-          machine.hostname = machine.hostname.replaceAll(' ', '').replaceAll('.', ''); // Sanitize hostname.
-
-          if (machine.mac_addresses === macAddress)
-            try {
-              machine.hostname = hostname;
-              machine.mac_address = macAddress;
-              // Create a new machine in MAAS.
-              let newMachine = shellExec(
-                `maas ${process.env.MAAS_ADMIN_USERNAME} machines create ${Object.keys(machine)
-                  .map((k) => `${k}="${machine[k]}"`)
-                  .join(' ')}`,
-                {
-                  silent: true,
-                  stdout: true,
-                },
-              );
-              newMachine = { discovery, machine: JSON.parse(newMachine) };
-              console.log(newMachine);
-
-              const discoverInterfaceName = 'eth0'; // Default interface name for discovery.
-
-              // Read interface data.
-              const interfaceData = JSON.parse(
-                shellExec(
-                  `maas ${process.env.MAAS_ADMIN_USERNAME} interface read ${newMachine.machine.boot_interface.system_id} ${discoverInterfaceName}`,
-                  {
-                    silent: true,
-                    stdout: true,
-                  },
-                ),
-              );
-
-              logger.info('Interface', interfaceData);
-            } catch (error) {
-              logger.error(error, error.stack);
-            } finally {
-              return;
-            }
-        }
         await timer(1000);
         await UnderpostBaremetal.API.commissionMonitor({
           macAddress,
@@ -1696,6 +1495,8 @@ menuentry '${menuentryStr}' {
           hostname,
           maas,
           networkInterfaceName,
+          userDataPath,
+          ipAddress,
         });
       }
     },
