@@ -649,6 +649,8 @@ program
   .option('--cloud-init', 'Sets the kernel parameters and sets the necessary seed users on the HTTP server.')
   .option('--cloud-init-update', 'Updates cloud init for a workflow id config architecture.')
   .option('--build-ubuntu-tools', 'Builds ubuntu tools for chroot environment.')
+  .option('--bootcmd <bootcmd-list>', 'Comma-separated list of boot commands to execute.')
+  .option('--runcmd <runcmd-list>', 'Comma-separated list of run commands to execute.')
   .option('--logs <log-id>', 'Displays logs for log id: dhcp, cloud, machine, cloud-config.')
   .option('--dev', 'Sets the development context environment for baremetal operations.')
   .option('--ls', 'Lists available boot resources and machines.')
