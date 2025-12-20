@@ -450,7 +450,7 @@ rm -rf ${artifacts.join(' ')}`);
       }
 
       // Set debootstrap architecture.
-      if (workflowsConfig[workflowId].nfs || workflowsConfig[workflowId].type === 'chroot') {
+      if (workflowsConfig[workflowId].type === 'chroot') {
         const { architecture } = workflowsConfig[workflowId].debootstrap.image;
         debootstrapArch = architecture;
       }
@@ -520,8 +520,7 @@ rm -rf ${artifacts.join(' ')}`);
         if (!isMounted) {
           UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
         }
-
-        // Apply system provisioning steps (base, user, timezone, keyboard).
+        if (options.buildUbuntuTools) // Apply system provisioning steps (base, user, timezone, keyboard).
         {
           const { systemProvisioning, chronyc, keyboard } = workflowsConfig[workflowId];
           const { timezone, chronyConfPath } = chronyc;
@@ -583,7 +582,7 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle commissioning tasks (placeholder for future implementation).
       if (options.commission === true) {
-        const { firmwares, networkInterfaceName, maas, menuentryStr, nfs, systemProvisioning, type } =
+        let { firmwares, networkInterfaceName, maas, menuentryStr, systemProvisioning, type } =
           workflowsConfig[workflowId];
         // Use commissioning config (Ubuntu ephemeral) for PXE boot resources
         const commissioningImage = maas.commissioning;
@@ -592,7 +591,7 @@ rm -rf ${artifacts.join(' ')}`);
         );
         logger.info('Commissioning resource', resource);
 
-        if (!nfs) {
+        if (type === 'iso-nfs') {
           // Prepare NFS casper path if using NFS boot.
           shellExec(`sudo rm -rf ${nfsHostPath}`);
           shellExec(`mkdir -p ${nfsHostPath}/casper`);
@@ -650,83 +649,27 @@ rm -rf ${artifacts.join(' ')}`);
             dnsServer,
             networkInterfaceName,
             fileSystemUrl: kernelFilesPaths.isoUrl,
-            nfsBoot: nfs ? true : false,
             systemProvisioning,
             type,
             cloudInit: options.cloudInit,
           });
 
-          // Copy EFI bootloaders to TFTP path.
-          const efiFiles = commissioningImage.architecture.match('arm64')
-            ? ['bootaa64.efi', 'grubaa64.efi']
-            : ['bootx64.efi', 'grubx64.efi'];
-          for (const file of efiFiles) {
-            shellExec(`sudo cp -a ${resourcesPath}/${file} ${tftpRootPath}/pxe/${file}`);
-          }
-          // Copy kernel and initrd images to TFTP path.
-          for (const file of Object.keys(kernelFilesPaths)) {
-            if (file == 'isoUrl') continue; // Skip URL entries
-            shellExec(`sudo cp -a ${kernelFilesPaths[file]} ${tftpRootPath}/pxe/${file}`);
-            // If the file is a kernel (vmlinuz-efi) and is gzipped, unzip it for GRUB compatibility on ARM64.
-            // GRUB on ARM64 often crashes with synchronous exception (0x200) if handling large compressed kernels directly.
-            if (file === 'vmlinuz-efi') {
-              const kernelDest = `${tftpRootPath}/pxe/${file}`;
-              const fileType = shellExec(`file ${kernelDest}`, { silent: true }).stdout;
-              if (fileType.includes('gzip compressed data')) {
-                logger.info(`Decompressing kernel ${file} for ARM64 UEFI compatibility...`);
-                shellExec(`sudo mv ${kernelDest} ${kernelDest}.gz`);
-                shellExec(`sudo gunzip ${kernelDest}.gz`);
-              }
-            }
-          }
+          const grubCfg = UnderpostBaremetal.API.grubFactory({
+            menuentryStr,
+            kernelPath: `${hostname}/pxe/vmlinuz-efi`,
+            initrdPath: `${hostname}/pxe/initrd.img`,
+            cmd,
+            tftpIp: callbackMetaData.runnerHost.ip,
+          });
+          shellExec(`mkdir -p ${tftpRootPath}/pxe/grub`);
+          fs.writeFileSync(`${tftpRootPath}/pxe/grub/grub.cfg`, grubCfg, 'utf8');
 
-          // Write GRUB configuration file.
-          if (nfs)
-            fs.writeFileSync(
-              `${process.env.TFTP_ROOT}/grub/grub.cfg`,
-              `
-insmod gzio
-insmod http
-insmod nfs
-set timeout=5
-set default=0
-
-menuentry '${menuentryStr}' {
-  set root=(tftp,${callbackMetaData.runnerHost.ip})
-  echo "Loading kernel..."
-  linux /${hostname}/pxe/vmlinuz-efi ${cmd}
-  echo "Loading initrd..."
-  initrd /${hostname}/pxe/initrd.img
-  echo "Booting..."
-  boot
-}
-
-    `,
-              'utf8',
-            );
-          else
-            fs.writeFileSync(
-              `${process.env.TFTP_ROOT}/grub/grub.cfg`,
-              `
-insmod gzio
-insmod http
-insmod tftp
-set timeout=5
-set default=0
-
-menuentry '${menuentryStr}' {
-  set root=(tftp,${callbackMetaData.runnerHost.ip})
-  echo "Loading kernel..."
-  linux /${hostname}/pxe/vmlinuz-efi ${cmd}
-  echo "Loading initrd..."
-  initrd /${hostname}/pxe/initrd.img
-  echo "Booting..."
-  boot
-}
-
-      `,
-              'utf8',
-            );
+          UnderpostBaremetal.API.updateKernelFiles({
+            commissioningImage,
+            resourcesPath,
+            tftpRootPath,
+            kernelFilesPaths,
+          });
         }
 
         // Pass architecture from commissioning or deployment config
@@ -737,22 +680,7 @@ menuentry '${menuentryStr}' {
         shellExec(`sudo chown -R root:root ${process.env.TFTP_ROOT}`);
         shellExec(`sudo sudo chmod 755 ${process.env.TFTP_ROOT}`);
 
-        // Start HTTP server to serve squashfs (TFTP is unreliable for large files like 400MB squashfs)
-        // Kill any existing HTTP server on port 8888
-        shellExec(`sudo pkill -f 'python3 -m http.server 8888' || true`, { silent: true });
-        // Start Python HTTP server in background to serve TFTP root
-        shellExec(
-          `cd ${process.env.TFTP_ROOT} && nohup python3 -m http.server 8888 --bind 0.0.0.0 > /tmp/http-boot-server.log 2>&1 &`,
-          { silent: true, async: true },
-        );
-        // Configure iptables to allow incoming LAN connections on port 8888
-        shellExec(
-          `sudo iptables -I INPUT 1 -p tcp -s 192.168.1.0/24 --dport 8888 -m conntrack --ctstate NEW -j ACCEPT`,
-        );
-        // Option for any host:
-        // sudo iptables -I INPUT 1 -p tcp --dport 8888 -m conntrack --ctstate NEW -j ACCEPT
-
-        logger.info(`Started HTTP server on port 8888 serving ${process.env.TFTP_ROOT} for squashfs fetching`);
+        UnderpostBaremetal.API.httpBootServerRunnerFactory();
       }
 
       if (options.cloudInit || options.cloudInitUpdate) {
@@ -1324,6 +1252,101 @@ menuentry '${menuentryStr}' {
     },
 
     /**
+     * @method grubFactory
+     * @description Generates the GRUB configuration file content.
+     * @param {object} params - The parameters for generating the configuration.
+     * @param {string} params.menuentryStr - The title of the menu entry.
+     * @param {string} params.kernelPath - The path to the kernel file (relative to TFTP root).
+     * @param {string} params.initrdPath - The path to the initrd file (relative to TFTP root).
+     * @param {string} params.cmd - The kernel command line parameters.
+     * @param {string} params.tftpIp - The IP address of the TFTP server.
+     * @returns {string} The generated GRUB configuration content.
+     * @memberof UnderpostBaremetal
+     */
+    grubFactory({ menuentryStr, kernelPath, initrdPath, cmd, tftpIp }) {
+      return `
+set default="0"
+set timeout=10
+insmod nfs
+insmod gzio
+insmod http
+insmod tftp
+set root=(tftp,${tftpIp})
+
+menuentry '${menuentryStr}' {
+    echo "Loading kernel..."
+    linux /${kernelPath} ${cmd}
+    echo "Loading initrd..."
+    initrd /${initrdPath}
+    echo "Booting..."
+    boot
+}
+`;
+    },
+
+    /**
+     * @method httpBootServerRunnerFactory
+     * @description Starts a Python HTTP server to serve boot files (like squashfs) which are too large for TFTP.
+     * It also configures iptables to allow access.
+     * @memberof UnderpostBaremetal
+     * @returns {void}
+     */
+    httpBootServerRunnerFactory() {
+      // Start HTTP server to serve squashfs (TFTP is unreliable for large files like 400MB squashfs)
+      // Kill any existing HTTP server on port 8888
+      shellExec(`sudo pkill -f 'python3 -m http.server 8888' || true`, { silent: true });
+      // Start Python HTTP server in background to serve TFTP root
+      shellExec(
+        `cd ${process.env.TFTP_ROOT} && nohup python3 -m http.server 8888 --bind 0.0.0.0 > /tmp/http-boot-server.log 2>&1 &`,
+        { silent: true, async: true },
+      );
+      // Configure iptables to allow incoming LAN connections on port 8888
+      shellExec(`sudo iptables -I INPUT 1 -p tcp -s 192.168.1.0/24 --dport 8888 -m conntrack --ctstate NEW -j ACCEPT`);
+      // Option for any host:
+      // sudo iptables -I INPUT 1 -p tcp --dport 8888 -m conntrack --ctstate NEW -j ACCEPT
+
+      logger.info(`Started HTTP server on port 8888 serving ${process.env.TFTP_ROOT} for squashfs fetching`);
+    },
+
+    /**
+     * @method updateKernelFiles
+     * @description Copies EFI bootloaders, kernel, and initrd images to the TFTP root path.
+     * It also handles decompression of the kernel if necessary for ARM64 compatibility.
+     * @param {object} params - The parameters for the function.
+     * @param {object} params.commissioningImage - The commissioning image configuration.
+     * @param {string} params.resourcesPath - The path where resources are located.
+     * @param {string} params.tftpRootPath - The TFTP root path.
+     * @param {object} params.kernelFilesPaths - Paths to kernel files.
+     * @memberof UnderpostBaremetal
+     * @returns {void}
+     */
+    updateKernelFiles({ commissioningImage, resourcesPath, tftpRootPath, kernelFilesPaths }) {
+      // Copy EFI bootloaders to TFTP path.
+      const efiFiles = commissioningImage.architecture.match('arm64')
+        ? ['bootaa64.efi', 'grubaa64.efi']
+        : ['bootx64.efi', 'grubx64.efi'];
+      for (const file of efiFiles) {
+        shellExec(`sudo cp -a ${resourcesPath}/${file} ${tftpRootPath}/pxe/${file}`);
+      }
+      // Copy kernel and initrd images to TFTP path.
+      for (const file of Object.keys(kernelFilesPaths)) {
+        if (file == 'isoUrl') continue; // Skip URL entries
+        shellExec(`sudo cp -a ${kernelFilesPaths[file]} ${tftpRootPath}/pxe/${file}`);
+        // If the file is a kernel (vmlinuz-efi) and is gzipped, unzip it for GRUB compatibility on ARM64.
+        // GRUB on ARM64 often crashes with synchronous exception (0x200) if handling large compressed kernels directly.
+        if (file === 'vmlinuz-efi') {
+          const kernelDest = `${tftpRootPath}/pxe/${file}`;
+          const fileType = shellExec(`file ${kernelDest}`, { silent: true }).stdout;
+          if (fileType.includes('gzip compressed data')) {
+            logger.info(`Decompressing kernel ${file} for ARM64 UEFI compatibility...`);
+            shellExec(`sudo mv ${kernelDest} ${kernelDest}.gz`);
+            shellExec(`sudo gunzip ${kernelDest}.gz`);
+          }
+        }
+      }
+    },
+
+    /**
      * @method kernelCmdBootParamsFactory
      * @description Constructs kernel command line parameters for NFS booting.
      * @param {object} options - Options for constructing the command line.
@@ -1336,7 +1359,6 @@ menuentry '${menuentryStr}' {
      * @param {string} options.dnsServer - The DNS server address.
      * @param {string} options.networkInterfaceName - The name of the network interface.
      * @param {string} options.fileSystemUrl - The URL of the root filesystem.
-     * @param {boolean} options.nfsBoot - Flag indicating if NFS boot is enabled.
      * @returns {object} An object containing the constructed command line string.
      * @memberof UnderpostBaremetal
      */
@@ -1351,7 +1373,6 @@ menuentry '${menuentryStr}' {
         dnsServer: '',
         networkInterfaceName: '',
         fileSystemUrl: '',
-        nfsBoot: false,
         systemProvisioning: '',
         type: '',
         cloudInit: false,
@@ -1368,7 +1389,6 @@ menuentry '${menuentryStr}' {
         dnsServer,
         networkInterfaceName,
         fileSystemUrl,
-        nfsBoot,
         systemProvisioning,
         type,
         cloudInit,
@@ -1422,12 +1442,7 @@ menuentry '${menuentryStr}' {
       } else if (type === 'iso-nfs') {
         cmd = [ipParam, nfsRootParam, ...nfsParams, ...kernelParams];
       } else {
-        // Fallback or default behavior
-        if (nfsBoot === true) {
-          cmd = [ipParam, nfsRootParam, ...qemuNfsRootParams, ...kernelParams];
-        } else {
-          cmd = [ipParam, nfsRootParam, ...nfsParams, ...kernelParams];
-        }
+        cmd = [ipParam, nfsRootParam, ...nfsParams, ...kernelParams];
       }
 
       const cmdStr = cmd.join(' ');
@@ -1873,20 +1888,14 @@ EOF`);
       if (!workflowsConfig[workflowId]) {
         throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
       }
-      // Iterate through defined NFS mounts in the workflow configuration.
-      let nfs = workflowsConfig[workflowId].nfs;
-      if (workflowsConfig[workflowId].type === 'chroot' && !nfs) {
-        nfs = {
-          mounts: {
-            bind: ['/proc', '/sys', '/run'],
-            rbind: ['/dev'],
-          },
+      if (workflowsConfig[workflowId].type === 'chroot') {
+        const mounts = {
+          bind: ['/proc', '/sys', '/run'],
+          rbind: ['/dev'],
         };
-      }
 
-      if (nfs)
-        for (const mountCmd of Object.keys(nfs.mounts)) {
-          for (const mountPath of nfs.mounts[mountCmd]) {
+        for (const mountCmd of Object.keys(mounts)) {
+          for (const mountPath of mounts[mountCmd]) {
             const hostMountPath = `${process.env.NFS_EXPORT_PATH}/${hostname}${mountPath}`;
             // Check if the path is already mounted using `mountpoint` command.
             const isPathMounted = !shellExec(`mountpoint ${hostMountPath}`, { silent: true, stdout: true }).match(
@@ -1910,6 +1919,7 @@ EOF`);
             }
           }
         }
+      }
       return { isMounted };
     },
 
