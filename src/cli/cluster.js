@@ -352,7 +352,7 @@ EOF
         );
         shellExec(`sudo mkdir -p /mnt/data`);
         shellExec(`sudo chmod 777 /mnt/data`);
-        shellExec(`sudo chown -R root:root /mnt/data`);
+        shellExec(`sudo chown -R $(whoami):$(whoami) /mnt/data`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mysql -n ${options.namespace}`);
       }
       if (options.full === true || options.postgresql === true) {

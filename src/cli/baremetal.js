@@ -685,7 +685,7 @@ rm -rf ${artifacts.join(' ')}`);
         UnderpostBaremetal.API.efiGrubModulesFactory({ image: { architecture: grubArch } });
 
         // Set ownership and permissions for TFTP root.
-        shellExec(`sudo chown -R root:root ${process.env.TFTP_ROOT}`);
+        shellExec(`sudo chown -R $(whoami):$(whoami) ${process.env.TFTP_ROOT}`);
         shellExec(`sudo sudo chmod 755 ${process.env.TFTP_ROOT}`);
 
         UnderpostBaremetal.API.httpBootServerRunnerFactory();
@@ -1313,13 +1313,14 @@ menuentry '${menuentryStr}' {
         cloudInit,
       } = options;
 
-      const ipParam =
-        `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}` +
-        `:${networkInterfaceName ? networkInterfaceName : 'eth0'}:${ipConfig}:${dnsServer}`;
+      const ipParam = true
+        ? `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}` +
+          `:${networkInterfaceName ? networkInterfaceName : 'eth0'}:${ipConfig}:${dnsServer}`
+        : 'ip=dhcp';
+
       const nfsOptions = `${
         type === 'chroot'
           ? [
-              'rw',
               'tcp',
               'nfsvers=3',
               'nolock',
@@ -1347,14 +1348,11 @@ menuentry '${menuentryStr}' {
       // https://manpages.ubuntu.com/manpages/noble/man7/casper.7.html
       const netBootParams = [`netboot=url`];
       if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
-      const nfsParams = [`boot=casper`];
+      const nfsParams = [`netboot=nfs`];
       const baseQemuNfsRootParams = [`root=/dev/nfs`];
       const qemuNfsRootParams = [
         `rootfstype=nfs`,
-        `rootwait`,
-        `fixrtc`,
         `initrd=initrd.img`,
-        `netboot=nfs`,
         `init=/sbin/init`,
         // `systemd.mask=systemd-network-generator.service`,
         // `systemd.mask=systemd-networkd.service`,
@@ -1363,10 +1361,10 @@ menuentry '${menuentryStr}' {
       ];
 
       const kernelParams = [
-        `rw`,
-        // `ro`,
         `ignore_uuid`,
+        `rootwait`,
         `ipv6.disable=1`,
+        `fixrtc`,
         // `console=serial0,115200`,
         // `console=tty1`,
         // `casper-getty`,
@@ -1380,10 +1378,14 @@ menuentry '${menuentryStr}' {
         // `ramdisk_size=3550000`,
         // `cma=120M`,
         // `root=/dev/sda1`, // rpi4 usb port unit
-        // `fixrtc`,
         // `overlayroot=tmpfs`,
         // `overlayroot_cfgdisk=disabled`,
         // `ds=nocloud-net;s=http://${ipHost}:8888/${hostname}/pxe/`,
+      ];
+
+      const permissionsParams = [
+        `rw`,
+        // `ro`
       ];
 
       if (cloudInit) {
@@ -1392,13 +1394,21 @@ menuentry '${menuentryStr}' {
 
       let cmd = [];
       if (type === 'iso-ram') {
-        cmd = [ipParam, ...netBootParams, ...kernelParams];
+        cmd = [ipParam, ...netBootParams, ...permissionsParams, ...kernelParams];
       } else if (type === 'chroot') {
-        cmd = [...baseQemuNfsRootParams, nfsRootParam, ipParam, ...qemuNfsRootParams, ...kernelParams];
+        cmd = [
+          ipParam,
+          ...nfsParams,
+          ...baseQemuNfsRootParams,
+          nfsRootParam,
+          ...permissionsParams,
+          ...qemuNfsRootParams,
+          ...kernelParams,
+        ];
       } else if (type === 'iso-nfs') {
-        cmd = [ipParam, nfsRootParam, ...nfsParams, ...kernelParams];
+        cmd = [ipParam, ...nfsParams, nfsRootParam, ...permissionsParams, ...kernelParams];
       } else {
-        cmd = [ipParam, nfsRootParam, ...nfsParams, ...kernelParams];
+        cmd = [ipParam, ...nfsParams, nfsRootParam, ...permissionsParams, ...kernelParams];
       }
 
       const cmdStr = cmd.join(' ');
@@ -1431,9 +1441,6 @@ menuentry '${menuentryStr}' {
           }),
         );
 
-        // Log discovered IPs for visibility.
-        console.log(discoveries.map((d) => d.ip).join(' | '));
-
         // Iterate through discoveries to find a matching MAC address.
         for (const discovery of discoveries) {
           const machine = {
@@ -1462,7 +1469,7 @@ menuentry '${menuentryStr}' {
             'hostname:'.green + machine.hostname,
           );
 
-          if (machine.mac_addresses === macAddress && (!ipAddress || discovery.ip === ipAddress))
+          if (machine.mac_addresses === macAddress && discovery.ip === ipAddress)
             try {
               machine.hostname = `${hostname}`;
               machine.mac_address = macAddress;
