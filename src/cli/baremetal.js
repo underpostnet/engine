@@ -463,21 +463,23 @@ rm -rf ${artifacts.join(' ')}`);
       }
 
       // Handle NFS mount operation.
-      if (options.nfsMount === true || workflowsConfig[workflowId].type === 'chroot') {
-        // Mount binfmt_misc filesystem.
-        UnderpostBaremetal.API.mountBinfmtMisc();
-        UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
+      if (options.nfsMount === true) {
+        const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
+        logger.info('Is mount', isMounted);
+        return;
       }
 
       // Handle NFS unmount operation.
       if (options.nfsUnmount === true) {
-        UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, unmount: true });
+        const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, unmount: true });
+        logger.info('Is mount', isMounted);
+        return;
       }
 
       // Handle NFS root filesystem build operation.
       if (options.nfsBuild === true) {
-        // Check if NFS is already mounted to avoid redundant builds.
-        const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId });
+        const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
+        logger.info('Is mount', isMounted);
 
         // Clean and create the NFS host path.
         shellExec(`sudo rm -rf ${nfsHostPath}/*`);
@@ -522,31 +524,7 @@ rm -rf ${artifacts.join(' ')}`);
           callbackMetaData,
           steps: [`/debootstrap/debootstrap --second-stage`],
         });
-
-        // Mount NFS if it's not already mounted after the build.
-        if (!isMounted) {
-          UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
-        }
-        if (options.buildUbuntuTools) // Apply system provisioning steps (base, user, timezone, keyboard).
-        {
-          const { systemProvisioning, chronyc, keyboard } = workflowsConfig[workflowId];
-          const { timezone, chronyConfPath } = chronyc;
-
-          UnderpostBaremetal.API.crossArchRunner({
-            nfsHostPath,
-            debootstrapArch,
-            callbackMetaData,
-            steps: [
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base(),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].user(),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
-                timezone,
-                chronyConfPath,
-              }),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
-            ],
-          });
-        }
+        return;
       }
 
       // Fetch boot resources and machines if commissioning or listing.
@@ -760,13 +738,20 @@ rm -rf ${artifacts.join(' ')}`);
 
       shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
       // Rebuild NFS server configuration.
-      UnderpostBaremetal.API.rebuildNfsServer({
-        nfsHostPath,
-      });
+      if (type === 'iso-nfs' || type === 'chroot')
+        UnderpostBaremetal.API.rebuildNfsServer({
+          nfsHostPath,
+        });
 
       // Final commissioning steps.
       if (options.commission === true) {
         const { type } = workflowsConfig[workflowId];
+
+        if (type === 'chroot') {
+          const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
+          logger.info('Is mount', isMounted);
+          if (!isMounted) throw new Error('NFS root filesystem is not mounted');
+        }
 
         const commissionMonitorPayload = {
           workflowId,
@@ -1308,7 +1293,8 @@ menuentry '${menuentryStr}' {
       const nfsRootParam = `nfsroot=${ipFileServer}:${process.env.NFS_EXPORT_PATH}/${hostname}${nfsOptions ? `,${nfsOptions}` : ''}`;
 
       // https://manpages.ubuntu.com/manpages/noble/man7/casper.7.html
-      const netBootParams = [`netboot=url`, `url=${fileSystemUrl.replace('https', 'http')}`];
+      const netBootParams = [`netboot=url`];
+      if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
       const nfsParams = [`boot=casper`, `netboot=nfs`];
       const qemuNfsRootParams = [`rootfstype=nfs`, `root=/dev/nfs`, 'initrd=initrd.img', `init=/sbin/init`];
 
@@ -1649,6 +1635,8 @@ EOF`);
      * @returns {{isMounted: boolean}} An object indicating whether any NFS path is currently mounted.
      */
     nfsMountCallback({ hostname, workflowId, mount, unmount }) {
+      // Mount binfmt_misc filesystem.
+      if (mount) UnderpostBaremetal.API.mountBinfmtMisc();
       let isMounted = false;
       const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
       if (!workflowsConfig[workflowId]) {

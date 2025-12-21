@@ -291,11 +291,11 @@ curl -X POST \\
 
       if (buildUbuntuTools) {
         bootcmd = [
-          ...bootcmd,
           ...UnderpostBaremetal.API.stepsRender(
             [`/underpost/dns.sh`, `/underpost/host.sh`, `/underpost/mac.sh`, `cat /underpost/mac`],
             false,
           ).split('\n'),
+          ...bootcmd,
         ];
       }
 
