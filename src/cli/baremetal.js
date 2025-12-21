@@ -1316,28 +1316,30 @@ menuentry '${menuentryStr}' {
         `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}` +
         `:${networkInterfaceName ? networkInterfaceName : 'eth0'}:${ipConfig}:${dnsServer}`;
       const nfsOptions = `${
-        [
-          // 'tcp',
-          // 'nfsvers=3',
-          // 'nolock',
-          // 'rw',
-          // 'vers=3',
-          // 'protocol=tcp',
-          // 'hard=true',
-          // 'port=2049',
-          // 'sec=none',
-          // 'hard',
-          // 'intr',
-          // 'rsize=32768',
-          // 'wsize=32768',
-          // 'acregmin=0',
-          // 'acregmax=0',
-          // 'acdirmin=0',
-          // 'acdirmax=0',
-          // 'noac',
-          // 'nodev',
-          // 'nosuid',
-        ]
+        type === 'chroot'
+          ? [
+              'rw',
+              'tcp',
+              'nfsvers=3',
+              'nolock',
+              'vers=3',
+              // 'protocol=tcp',
+              // 'hard=true',
+              'port=2049',
+              // 'sec=none',
+              'hard',
+              'intr',
+              'rsize=32768',
+              'wsize=32768',
+              'acregmin=0',
+              'acregmax=0',
+              'acdirmin=0',
+              'acdirmax=0',
+              'noac',
+              // 'nodev',
+              // 'nosuid',
+            ]
+          : []
       }`;
       const nfsRootParam = `nfsroot=${ipFileServer}:${process.env.NFS_EXPORT_PATH}/${hostname}${nfsOptions ? `,${nfsOptions}` : ''}`;
 
@@ -1345,7 +1347,20 @@ menuentry '${menuentryStr}' {
       const netBootParams = [`netboot=url`];
       if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
       const nfsParams = [`boot=casper`, `netboot=nfs`];
-      const qemuNfsRootParams = [`rootfstype=nfs`, `root=/dev/nfs`, 'initrd=initrd.img', `init=/sbin/init`];
+      const qemuNfsRootParams = [
+        `root=/dev/nfs`,
+        `rootfstype=nfs`,
+        `rw`,
+        `rootwait`,
+        `fixrtc`,
+        `initrd=initrd.img`,
+        `netboot=nfs`,
+        `init=/sbin/init`,
+        `systemd.mask=systemd-network-generator.service`,
+        `systemd.mask=systemd-networkd.service`,
+        `systemd.mask=systemd-fsck-root.service`,
+        `systemd.mask=systemd-udev-trigger.service`,
+      ];
 
       const kernelParams = [
         `ignore_uuid`,
