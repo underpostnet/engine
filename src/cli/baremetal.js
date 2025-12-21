@@ -172,6 +172,9 @@ class UnderpostBaremetal {
       // Define the TFTP root prefix path based
       const tftpRootPath = `${process.env.TFTP_ROOT}/${tftpPrefix}`;
 
+      // Define the cloud-init directory path.
+      const cloudInitDir = `${tftpRootPath}/cloud-init`;
+
       // Capture metadata for the callback execution, useful for logging and auditing.
       const callbackMetaData = {
         args: { workflowId, ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer },
@@ -372,18 +375,20 @@ rm -rf ${artifacts.join(' ')}`);
         return;
       }
 
-      if (options.logs === 'nfs-cloud') {
+      if (options.logs === 'cloud-init') {
         shellExec(`tail -f -n 900 ${nfsHostPath}/var/log/cloud-init.log`);
         return;
       }
 
-      if (options.logs === 'nfs-machine') {
+      if (options.logs === 'cloud-init-machine') {
         shellExec(`tail -f -n 900 ${nfsHostPath}/var/log/cloud-init-output.log`);
         return;
       }
 
-      if (options.logs === 'nfs-cloud-config') {
-        shellExec(`cat ${nfsHostPath}/etc/cloud/cloud.cfg.d/90_maas.cfg`);
+      if (options.logs === 'cloud-init-config') {
+        shellExec(`cat ${cloudInitDir}/user-data`);
+        shellExec(`cat ${cloudInitDir}/meta-data`);
+        shellExec(`cat ${cloudInitDir}/vendor-data`);
         return;
       }
 
@@ -706,7 +711,6 @@ rm -rf ${artifacts.join(' ')}`);
           authCredentials,
         );
 
-        const cloudInitDir = `${tftpRootPath}/cloud-init`;
         shellExec(`mkdir -p ${cloudInitDir}`);
         fs.writeFileSync(`${cloudInitDir}/user-data`, `#cloud-config\n${cloudConfigSrc}`, 'utf8');
         fs.writeFileSync(`${cloudInitDir}/meta-data`, `instance-id: ${hostname}\nlocal-hostname: ${hostname}`, 'utf8');
@@ -778,8 +782,13 @@ rm -rf ${artifacts.join(' ')}`);
         await UnderpostBaremetal.API.commissionMonitor(commissionMonitorPayload);
 
         if (type === 'chroot' && options.cloudInit === true) {
-          openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs nfs-cloud`);
-          openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs nfs-machine`);
+          openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init`);
+          openTerminal(
+            `node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init-machine`,
+          );
+          shellExec(
+            `node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init-config`,
+          );
         }
       }
     },

@@ -190,10 +190,6 @@ cat /etc/default/keyboard`,
           logger.info('Build', `${nfsHostToolsPath}/device_scan.sh`);
           fs.copySync(`${underpostRoot}/scripts/device-scan.sh`, `${nfsHostToolsPath}/device_scan.sh`);
 
-          // Build and write the config path script.
-          logger.info('Build', `${nfsHostToolsPath}/config-path.sh`);
-          fs.writeFileSync(`${nfsHostToolsPath}/config-path.sh`, `echo "/etc/cloud/cloud.cfg.d/90_maas.cfg"`, 'utf8');
-
           // Build and write the MAAS enlistment script.
           logger.info('Build', `${nfsHostToolsPath}/enlistment.sh`);
           fs.writeFileSync(
@@ -250,7 +246,7 @@ curl -X POST \\
 
     /**
      * @method configFactory
-     * @description Generates the cloud-init configuration file (`90_maas.cfg`)
+     * @description Generates the cloud-init configuration file
      * for MAAS integration. This configuration includes hostname, network settings,
      * user accounts, SSH keys, timezone, NTP, and various cloud-init modules.
      * @param {object} params - The parameters for generating the configuration.
@@ -266,7 +262,6 @@ curl -X POST \\
      * @param {string} [params.bootcmd] - Optional custom commands to run during boot.
      * @param {string} [params.runcmd] - Optional custom commands to run during first boot.
      * @param {object} [authCredentials={}] - Optional MAAS authentication credentials.
-     * @param {string} [path='/etc/cloud/cloud.cfg.d/90_maas.cfg'] - The target path for the cloud-init configuration file.
      * @returns {object} The generated cloud-init configuration content.
      * @memberof UnderpostCloudInit
      */
@@ -285,7 +280,6 @@ curl -X POST \\
         runcmd: runcmdParam,
       },
       authCredentials = { consumer_key: '', consumer_secret: '', token_key: '', token_secret: '' },
-      path = '/etc/cloud/cloud.cfg.d/90_maas.cfg',
     ) {
       const { consumer_key, consumer_secret, token_key, token_secret } = authCredentials;
 
@@ -429,7 +423,7 @@ curl -X POST \\
         ],
       });
 
-      return { cloudConfigPath: path, cloudConfigSrc };
+      return { cloudConfigSrc };
     },
 
     /**
