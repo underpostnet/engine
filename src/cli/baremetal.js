@@ -809,6 +809,7 @@ rm -rf ${artifacts.join(' ')}`);
           maas: workflowsConfig[workflowId].maas,
           networkInterfaceName: workflowsConfig[workflowId].networkInterfaceName,
           ipAddress,
+          hostname,
         };
 
         logger.info('Waiting for commissioning...', commissionMonitorPayload);
@@ -1414,12 +1415,13 @@ menuentry '${menuentryStr}' {
      * @param {string} params.macAddress - The MAC address to monitor for.
      * @param {object} params.maas - MAAS configuration details.
      * @param {string} params.networkInterfaceName - The name of the network interface.
+     * @param {string} params.hostname - The desired hostname for the machine.
      * @param {string} params.ipAddress - The IP address of the machine (used if MAC is all zeros).
      * @param {string} params.workflowId - The workflow identifier for hostname prefixing.
      * @returns {Promise<void>} A promise that resolves when commissioning is initiated or after a delay.
      * @memberof UnderpostBaremetal
      */
-    async commissionMonitor({ macAddress, maas, networkInterfaceName, ipAddress, workflowId }) {
+    async commissionMonitor({ macAddress, maas, networkInterfaceName, hostname, ipAddress, workflowId }) {
       {
         // Query observed discoveries from MAAS.
         const discoveries = JSON.parse(
@@ -1457,11 +1459,12 @@ menuentry '${menuentryStr}' {
             'mac discovered:'.green + machine.mac_addresses,
             'ip target:'.green + ipAddress,
             'ip discovered:'.green + discovery.ip,
+            'hostname:'.green + machine.hostname,
           );
 
           if (machine.mac_addresses === macAddress && (!ipAddress || discovery.ip === ipAddress))
             try {
-              machine.hostname = `${workflowId}-${machine.hostname}`;
+              machine.hostname = `${hostname}`;
               machine.mac_address = macAddress;
 
               logger.info('Machine discovered! Creating in MAAS...', machine);
@@ -1505,6 +1508,7 @@ menuentry '${menuentryStr}' {
         await timer(1000);
         await UnderpostBaremetal.API.commissionMonitor({
           networkInterfaceName,
+          hostname,
           ipAddress,
           macAddress,
           maas,
