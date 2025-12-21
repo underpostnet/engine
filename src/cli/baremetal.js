@@ -474,21 +474,36 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle NFS mount operation.
       if (options.nfsMount === true) {
-        const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
+        const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({
+          hostname,
+          nfsHostPath,
+          workflowId,
+          mount: true,
+        });
         logger.info('Is mount', isMounted);
         return;
       }
 
       // Handle NFS unmount operation.
       if (options.nfsUnmount === true) {
-        const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, unmount: true });
+        const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({
+          hostname,
+          nfsHostPath,
+          workflowId,
+          unmount: true,
+        });
         logger.info('Is mount', isMounted);
         return;
       }
 
       // Handle NFS root filesystem build operation.
       if (options.nfsBuild === true) {
-        const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
+        const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({
+          hostname,
+          nfsHostPath,
+          workflowId,
+          mount: true,
+        });
         logger.info('Is mount', isMounted);
 
         // Clean and create the NFS host path.
@@ -777,7 +792,12 @@ rm -rf ${artifacts.join(' ')}`);
         const { type } = workflowsConfig[workflowId];
 
         if (type === 'chroot') {
-          const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({ hostname, workflowId, mount: true });
+          const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({
+            hostname,
+            nfsHostPath,
+            workflowId,
+            mount: true,
+          });
           logger.info('Is mount', isMounted);
           if (!isMounted) throw new Error('NFS root filesystem is not mounted');
         }
@@ -1657,16 +1677,18 @@ EOF`);
      * It checks the mount status and performs mount/unmount operations as requested.
      * @param {object} params - The parameters for the function.
      * @param {string} params.hostname - The hostname of the target machine.
+     * @param {string} params.nfsHostPath - The NFS host path for the target machine.
      * @param {string} params.workflowId - The identifier for the workflow configuration.
      * @param {boolean} [params.mount] - If true, attempts to mount the NFS paths.
      * @param {boolean} [params.unmount] - If true, attempts to unmount the NFS paths.
      * @memberof UnderpostBaremetal
      * @returns {{isMounted: boolean}} An object indicating whether any NFS path is currently mounted.
      */
-    nfsMountCallback({ hostname, workflowId, mount, unmount }) {
+    nfsMountCallback({ hostname, nfsHostPath, workflowId, mount, unmount }) {
       // Mount binfmt_misc filesystem.
       if (mount) UnderpostBaremetal.API.mountBinfmtMisc();
       let isMounted = false;
+      const mountCmds = [];
       const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
       if (!workflowsConfig[workflowId]) {
         throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
@@ -1690,18 +1712,26 @@ EOF`);
               logger.warn('Nfs path already mounted', mountPath);
               if (unmount === true) {
                 // Unmount if requested.
-                shellExec(`sudo umount ${hostMountPath}`);
+                mountCmds.push(`sudo umount ${hostMountPath}`);
               }
             } else {
               if (mount === true) {
                 // Mount if requested and not already mounted.
-                shellExec(`sudo mount --${mountCmd} ${mountPath} ${hostMountPath}`);
+                mountCmds.push(`sudo mount --${mountCmd} ${mountPath} ${hostMountPath}`);
               } else {
                 logger.warn('Nfs path not mounted', mountPath);
               }
             }
           }
         }
+
+        if (!isMounted) {
+          // if all path unmounted, set ownership and permissions for the NFS host path.
+          shellExec(`sudo chown -R $(whoami):$(whoami) ${nfsHostPath}`);
+          shellExec(`sudo chmod -R 755 ${nfsHostPath}`);
+        }
+        for (const mountCmd of mountCmds) shellExec(mountCmd);
+        if (mount) isMounted = true;
       }
       return { isMounted };
     },
@@ -1936,19 +1966,6 @@ udp-port = 32766
         'utf8',
       );
       logger.info('NFS configuration written.');
-
-      // Set ownership and permissions for the NFS host path.
-      // shellExec(`sudo chown -R root:root ${nfsHostPath}`);
-      // shellExec(`sudo chmod -R 755 ${nfsHostPath}`);
-
-      //       shellExec(`sudo find ${nfsHostPath} -type d -exec chmod 755 {} +`);
-      //       shellExec(`sudo find ${nfsHostPath} -type f -exec chmod 644 {} +`);
-
-      //       shellExec(`sudo iptables -I INPUT 1 -p tcp --dport 2049 -j ACCEPT
-      // sudo iptables -I INPUT 1 -p udp --dport 2049 -j ACCEPT
-      // sudo iptables -I INPUT 1 -p tcp --dport 111 -j ACCEPT
-      // sudo iptables -I INPUT 1 -p udp --dport 111 -j ACCEPT
-      // sudo iptables -I INPUT 1 -m state --state NEW -p tcp -m multiport --dports 2049,111,32765,32767 -j ACCEPT`);
 
       logger.info('Reloading NFS exports...');
       shellExec(`sudo exportfs -rav`);
