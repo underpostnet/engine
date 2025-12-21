@@ -379,6 +379,17 @@ rm -rf ${artifacts.join(' ')}`);
         return;
       }
 
+      if (options.logs === 'dhcp-lease') {
+        shellExec(`cat /var/snap/maas/common/maas/dhcp/dhcpd.leases`);
+        shellExec(`cat /var/snap/maas/common/maas/dhcp/dhcpd.pid`);
+        return;
+      }
+
+      if (options.logs === 'dhcp-lan') {
+        shellExec(`sudo tcpdump -l -n -i any -s0 -vv 'udp and (port 67 or 68)'`);
+        return;
+      }
+
       if (options.logs === 'cloud-init') {
         shellExec(`tail -f -n 900 ${nfsHostPath}/var/log/cloud-init.log`);
         return;
@@ -1346,9 +1357,9 @@ menuentry '${menuentryStr}' {
       const nfsRootParam = `nfsroot=${ipFileServer}:${process.env.NFS_EXPORT_PATH}/${hostname}${nfsOptions ? `,${nfsOptions}` : ''}`;
 
       // https://manpages.ubuntu.com/manpages/noble/man7/casper.7.html
-      const netBootParams = [`netboot=url`];
+      const netBootParams = [`boot=casper`, `netboot=url`];
       if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
-      const nfsParams = [`netboot=nfs`];
+      const nfsParams = [`boot=casper`, `netboot=nfs`];
       const baseQemuNfsRootParams = [`root=/dev/nfs`];
       const qemuNfsRootParams = [
         `rootfstype=nfs`,
