@@ -2,6 +2,7 @@
   "rpi4mbarm64-iso-ram": {
     "type": "iso-ram",
     "tftpPrefix": "rpi4mb",
+    "bootstrapHttpServerPort": 8888,
     "isoUrl": "",
     "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 ISO-RAM commissioning (ARM64)",
     "networkInterfaceName": "enabcm6e4ei0",
@@ -29,8 +30,8 @@
   "rpi4mbarm64-chroot": {
     "type": "chroot",
     "tftpPrefix": "rpi4mb",
+    "bootstrapHttpServerPort": 8888,
     "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 CHROOT commissioning (ARM64)",
-    "kernelLibVersion": "6.8.0-41-generic",
     "networkInterfaceName": "enabcm6e4ei0",
     "firmwares": [
       {
@@ -62,6 +63,7 @@
   "rpi4mbarm64-iso-nfs": {
     "type": "iso-nfs",
     "tftpPrefix": "rpi4mb",
+    "bootstrapHttpServerPort": 8888,
     "isoUrl": "",
     "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 ISO-NFS commissioning (ARM64)",
     "networkInterfaceName": "enabcm6e4ei0",

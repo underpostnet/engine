@@ -609,6 +609,14 @@ program
   .option('--remove-machines <system-ids>', 'Removes baremetal machines by comma-separated system IDs, or use "all"')
   .option('--clear-discovered', 'Clears all discovered baremetal machines from the database.')
   .option('--commission', 'Init workflow for commissioning a physical machine.')
+  .option(
+    '--bootstrap-http-server-path <path>',
+    'Sets a custom bootstrap HTTP server path for baremetal commissioning.',
+  )
+  .option(
+    '--bootstrap-http-server-port <port>',
+    'Sets a custom bootstrap HTTP server port for baremetal commissioning.',
+  )
   .option('--iso-url <url>', 'Uses a custom ISO URL for baremetal machine commissioning.')
   .option('--nfs-build', 'Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.')
   .option('--nfs-mount', 'Mounts the NFS root filesystem for a workflow id config architecture.')
