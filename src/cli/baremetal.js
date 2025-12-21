@@ -59,6 +59,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.dev=false] - Development mode flag.
      * @param {boolean} [options.controlServerInstall=false] - Flag to install the control server (e.g., MAAS).
      * @param {boolean} [options.controlServerUninstall=false] - Flag to uninstall the control server.
+     * @param {boolean} [options.controlServerRestart=false] - Flag to restart the control server.
      * @param {boolean} [options.controlServerDbInstall=false] - Flag to install the control server's database.
      * @param {boolean} [options.controlServerDbUninstall=false] - Flag to uninstall the control server's database.
      * @param {string} [options.mac=''] - MAC address of the baremetal machine.
@@ -97,6 +98,7 @@ class UnderpostBaremetal {
         dev: false,
         controlServerInstall: false,
         controlServerUninstall: false,
+        controlServerRestart: false,
         controlServerDbInstall: false,
         controlServerDbUninstall: false,
         mac: '',
@@ -444,6 +446,12 @@ rm -rf ${artifacts.join(' ')}`);
         shellExec(`sudo rm -rf /etc/maas`);
         shellExec(`sudo rm -rf /var/lib/maas`);
         shellExec(`sudo rm -rf /var/log/maas`);
+        return;
+      }
+
+      // Handle control server restart.
+      if (options.controlServerRestart === true) {
+        shellExec(`sudo snap restart maas`);
         return;
       }
 
