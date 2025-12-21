@@ -1346,40 +1346,37 @@ menuentry '${menuentryStr}' {
       // https://manpages.ubuntu.com/manpages/noble/man7/casper.7.html
       const netBootParams = [`netboot=url`];
       if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
-      const nfsParams = [`boot=casper`, `netboot=nfs`];
+      const nfsParams = [`boot=casper`];
+      const baseQemuNfsRootParams = [`root=/dev/nfs`];
       const qemuNfsRootParams = [
-        `root=/dev/nfs`,
         `rootfstype=nfs`,
-        `rw`,
         `rootwait`,
         `fixrtc`,
         `initrd=initrd.img`,
         `netboot=nfs`,
         `init=/sbin/init`,
-        `systemd.mask=systemd-network-generator.service`,
-        `systemd.mask=systemd-networkd.service`,
-        `systemd.mask=systemd-fsck-root.service`,
-        `systemd.mask=systemd-udev-trigger.service`,
+        // `systemd.mask=systemd-network-generator.service`,
+        // `systemd.mask=systemd-networkd.service`,
+        // `systemd.mask=systemd-fsck-root.service`,
+        // `systemd.mask=systemd-udev-trigger.service`,
       ];
 
       const kernelParams = [
-        `ignore_uuid`,
+        `rw`,
         // `ro`,
-        // `rw`,
-        // `ipv6.disable=1`,
-        // `ramdisk_size=3550000`,
+        `ignore_uuid`,
+        `ipv6.disable=1`,
         // `console=serial0,115200`,
         // `console=tty1`,
-        // `boot=casper`,
         // `casper-getty`,
         // `layerfs-path=filesystem.squashfs`,
         // `root=/dev/ram0`,
         // `toram`,
         // 'nomodeset',
-        // `rootwait`,
         // `net.ifnames=0`, // only networkInterfaceName = eth0
         // `biosdevname=0`, // only networkInterfaceName = eth0
         // `editable_rootfs=tmpfs`,
+        // `ramdisk_size=3550000`,
         // `cma=120M`,
         // `root=/dev/sda1`, // rpi4 usb port unit
         // `fixrtc`,
@@ -1396,7 +1393,7 @@ menuentry '${menuentryStr}' {
       if (type === 'iso-ram') {
         cmd = [ipParam, ...netBootParams, ...kernelParams];
       } else if (type === 'chroot') {
-        cmd = [ipParam, nfsRootParam, ...qemuNfsRootParams, ...kernelParams];
+        cmd = [...baseQemuNfsRootParams, nfsRootParam, ipParam, ...qemuNfsRootParams, ...kernelParams];
       } else if (type === 'iso-nfs') {
         cmd = [ipParam, nfsRootParam, ...nfsParams, ...kernelParams];
       } else {
@@ -1404,7 +1401,7 @@ menuentry '${menuentryStr}' {
       }
 
       const cmdStr = cmd.join(' ');
-      logger.info('Constructed kernel command line:');
+      logger.info('Constructed kernel command line');
       console.log(newInstance(cmdStr).bgRed.bold.black);
       return { cmd: cmdStr };
     },
