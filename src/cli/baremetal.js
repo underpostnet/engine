@@ -675,11 +675,13 @@ rm -rf ${artifacts.join(' ')}`);
 
           const grubCfg = UnderpostBaremetal.API.grubFactory({
             menuentryStr,
-            kernelPath: `${hostname}/pxe/vmlinuz-efi`,
-            initrdPath: `${hostname}/pxe/initrd.img`,
+            kernelPath: `/${tftpPrefix}/pxe/vmlinuz-efi`,
+            initrdPath: `/${tftpPrefix}/pxe/initrd.img`,
             cmd,
             tftpIp: callbackMetaData.runnerHost.ip,
           });
+          shellExec(`mkdir -p ${process.env.TFTP_ROOT}/grub`);
+          fs.writeFileSync(`${process.env.TFTP_ROOT}/grub/grub.cfg`, grubCfg, 'utf8');
           shellExec(`mkdir -p ${tftpRootPath}/pxe/grub`);
           fs.writeFileSync(`${tftpRootPath}/pxe/grub/grub.cfg`, grubCfg, 'utf8');
 
@@ -1477,13 +1479,13 @@ menuentry '${menuentryStr}' {
             'mac discovered:'.green + machine.mac_addresses,
             'ip target:'.green + ipAddress,
             'ip discovered:'.green + discovery.ip,
-            'hostname:'.green + machine.hostname,
+            'hostname:'.blue + machine.hostname,
           );
 
-          if (machine.mac_addresses === macAddress && discovery.ip === ipAddress)
+          if (discovery.ip === ipAddress)
             try {
               machine.hostname = `${hostname}`;
-              machine.mac_address = macAddress;
+              // machine.mac_address = macAddress;
 
               logger.info('Machine discovered! Creating in MAAS...', machine);
 
@@ -2147,7 +2149,7 @@ TFTP_PREFIX_STR=${tftpPrefixStr}/
 # Manually override Ethernet MAC address
 # ─────────────────────────────────────────────────────────────
 
-MAC_ADDRESS=${macAddress}
+#MAC_ADDRESS=${macAddress}
 
 # OTP MAC address override
 #MAC_ADDRESS_OTP=0,1
@@ -2155,7 +2157,7 @@ MAC_ADDRESS=${macAddress}
 # ─────────────────────────────────────────────────────────────
 # Static IP configuration (bypasses DHCP completely)
 # ─────────────────────────────────────────────────────────────
-CLIENT_IP=${clientIp}
+#CLIENT_IP=${clientIp}
 SUBNET=${subnet}
 GATEWAY=${gateway}`;
       } else logger.warn(`No boot configuration factory defined for workflow ID: ${workflowId}`);
