@@ -759,7 +759,7 @@ rm -rf ${artifacts.join(' ')}`);
 
       shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
       // Rebuild NFS server configuration.
-      if (type === 'iso-nfs' || type === 'chroot')
+      if (workflowsConfig[workflowId].type === 'iso-nfs' || workflowsConfig[workflowId].type === 'chroot')
         UnderpostBaremetal.API.rebuildNfsServer({
           nfsHostPath,
         });
@@ -1249,6 +1249,8 @@ menuentry '${menuentryStr}' {
      * @param {string} options.dnsServer - The DNS server address.
      * @param {string} options.networkInterfaceName - The name of the network interface.
      * @param {string} options.fileSystemUrl - The URL of the root filesystem.
+     * @param {string} options.type - The type of boot ('iso-ram', 'chroot', 'iso-nfs', etc.).
+     * @param {boolean} options.cloudInit - Whether to include cloud-init parameters.
      * @returns {object} An object containing the constructed command line string.
      * @memberof UnderpostBaremetal
      */
@@ -1928,8 +1930,8 @@ udp-port = 32766
       logger.info('NFS configuration written.');
 
       // Set ownership and permissions for the NFS host path.
-      shellExec(`sudo chown -R root:root ${nfsHostPath}`);
-      shellExec(`sudo chmod -R 755 ${nfsHostPath}`);
+      // shellExec(`sudo chown -R root:root ${nfsHostPath}`);
+      // shellExec(`sudo chmod -R 755 ${nfsHostPath}`);
 
       //       shellExec(`sudo find ${nfsHostPath} -type d -exec chmod 755 {} +`);
       //       shellExec(`sudo find ${nfsHostPath} -type f -exec chmod 644 {} +`);
