@@ -552,6 +552,14 @@ rm -rf ${artifacts.join(' ')}`);
         shellExec(`podman ps -a`);
         shellExec(`file ${nfsHostPath}/bin/bash`); // Verify the bash executable in the chroot.
 
+        // Mount necessary filesystems and register binfmt for the second stage.
+        UnderpostBaremetal.API.nfsMountCallback({
+          hostname,
+          nfsHostPath,
+          workflowId,
+          mount: true,
+        });
+
         // Perform the second stage of debootstrap within the chroot environment.
         UnderpostBaremetal.API.crossArchRunner({
           nfsHostPath,
