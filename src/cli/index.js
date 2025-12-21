@@ -10,7 +10,6 @@ import UnderpostRun from './run.js';
 import Dns from '../server/dns.js';
 import UnderpostStatic from './static.js';
 
-// Load environment variables from .env file
 const underpostRootPath = getUnderpostRootPath();
 fs.existsSync(`${underpostRootPath}/.env`)
   ? dotenv.config({ path: `${underpostRootPath}/.env`, override: true })
@@ -18,10 +17,8 @@ fs.existsSync(`${underpostRootPath}/.env`)
 
 const program = new Command();
 
-// Set up the main program information
 program.name('underpost').description(`underpost ci/cd cli ${Underpost.version}`).version(Underpost.version);
 
-// 'new' command: Create a new project
 program
   .command('new')
   .argument('[app-name]', 'The name of the new project.')
@@ -39,7 +36,6 @@ program
   .description('Initializes a new Underpost project, service, or configuration.')
   .action(Underpost.repo.new);
 
-// 'start' command: Start application servers, build pipelines, or services
 program
   .command('start')
   .argument('<deploy-id>', 'The unique identifier for the deployment configuration.')
@@ -53,7 +49,6 @@ program
   .action(Underpost.start.callback)
   .description('Initiates application servers, build pipelines, or other defined services based on the deployment ID.');
 
-// 'clone' command: Clone a GitHub repository
 program
   .command('clone')
   .argument(`<uri>`, 'The URI of the GitHub repository (e.g., "username/repository").')
@@ -62,7 +57,6 @@ program
   .description('Clones a specified GitHub repository into the current directory.')
   .action(Underpost.repo.clone);
 
-// 'pull' command: Pull updates from a GitHub repository
 program
   .command('pull')
   .argument('<path>', 'The absolute or relative directory path where the repository is located.')
@@ -71,7 +65,6 @@ program
   .option('-g8', 'Uses the g8 repository extension for pulling.')
   .action(Underpost.repo.pull);
 
-// 'cmt' command: Commit changes to a GitHub repository
 program
   .command('cmt')
   .argument('[path]', 'The absolute or relative directory path of the repository.')
@@ -93,7 +86,6 @@ program
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 
-// 'push' command: Push changes to a GitHub repository
 program
   .command('push')
   .argument('<path>', 'The absolute or relative directory path of the repository.')
@@ -103,7 +95,6 @@ program
   .description('Pushes committed changes from a local repository to a remote GitHub repository.')
   .action(Underpost.repo.push);
 
-// 'env' command: Manage environment variables
 program
   .command('env')
   .argument(
@@ -123,7 +114,6 @@ program
     loadConf(deployId, subConf);
   });
 
-// 'static' command: Manage static configurations
 program
   .command('static')
   .option('--page <ssr-component-path>', 'Build custom static pages.')
@@ -140,21 +130,17 @@ program
   .option('--locale <locale>', 'Page locale (default: en-US).')
   .option('--site-name <name>', 'Site name for Open Graph.')
 
-  // Script and style options
   .option('--head-scripts <paths>', 'Comma-separated paths to scripts for head section.')
   .option('--body-scripts <paths>', 'Comma-separated paths to scripts for body section.')
   .option('--styles <paths>', 'Comma-separated paths to stylesheets.')
 
-  // Icon options
   .option('--favicon <path>', 'Favicon path.')
   .option('--apple-touch-icon <path>', 'Apple touch icon path.')
   .option('--manifest <path>', 'Web manifest path.')
 
-  // Component options
   .option('--head-components <paths>', 'Comma-separated SSR head component paths.')
   .option('--body-components <paths>', 'Comma-separated SSR body component paths.')
 
-  // Build options
   .option('--deploy-id <deploy-id>', 'Build static assets for a specific deployment ID.')
   .option('--build', 'Triggers the static build process for the specified deployment ID.')
   .option('--build-host <build-host>', 'Sets a custom build host for static documents or assets.')
@@ -163,11 +149,9 @@ program
   .option('--minify', 'Minify HTML output (default: true for production).')
   .option('--no-minify', 'Disable HTML minification.')
 
-  // Config file options
   .option('--config-file <path>', 'Path to JSON configuration file.')
   .option('--generate-config [path]', 'Generate a template configuration file.')
 
-  // Other options
   .option('--lang <lang>', 'HTML lang attribute (default: en).')
   .option('--dir <dir>', 'HTML dir attribute (default: ltr).')
   .option('--dev', 'Sets the development cli context')
@@ -175,7 +159,6 @@ program
   .description(`Manages static build of page, bundles, and documentation with comprehensive customization options.`)
   .action(UnderpostStatic.API.callback);
 
-// 'config' command: Manage Underpost configurations
 program
   .command('config')
   .argument('operator', `The configuration operation to perform. Options: ${Object.keys(Underpost.env).join(', ')}.`)
@@ -186,7 +169,6 @@ program
   .description(`Manages Underpost configurations using various operators.`)
   .action((...args) => Underpost.env[args[0]](args[1], args[2], args[3]));
 
-// 'root' command: Get npm root path
 program
   .command('root')
   .description('Displays the root path of the npm installation.')
@@ -209,7 +191,6 @@ program
   .description('Displays the current public machine IP addresses.')
   .action(Dns.ipDispatcher);
 
-// 'cluster' command: Manage Kubernetes clusters
 program
   .command('cluster')
   .argument('[pod-name]', 'Optional: Filters information by a specific pod name.')
@@ -258,7 +239,6 @@ program
   .action(Underpost.cluster.init)
   .description('Manages Kubernetes clusters, defaulting to Kind cluster initialization.');
 
-// 'deploy' command: Manage deployments
 program
   .command('deploy')
   .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
@@ -300,7 +280,6 @@ program
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);
 
-// 'secret' command: Manage secrets
 program
   .command('secret')
   .argument('<platform>', `The secret management platform. Options: ${Object.keys(Underpost.secret).join(', ')}.`)
@@ -314,7 +293,6 @@ program
     if (args[1].init) return Underpost.secret[args[0]].init();
   });
 
-// 'image'
 program
   .command('image')
   .option(
@@ -350,7 +328,6 @@ program
       Underpost.image.pullDockerHubImage({ ...options, dockerhubImage: options.pullDockerhub });
   });
 
-// 'install' command: Fast import npm dependencies
 program
   .command('install')
   .description('Quickly imports Underpost npm dependencies by copying them.')
@@ -358,7 +335,6 @@ program
     fs.copySync(`${underpostRootPath}/node_modules`, './node_modules');
   });
 
-// 'db' command: Manage databases
 program
   .command('db')
   .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
@@ -408,7 +384,6 @@ program
   .description('Manages cluster metadata operations, including import and export.')
   .action(Underpost.db.clusterMetadataBackupCallback);
 
-// 'script' command: Execute scripts
 program
   .command('script')
   .argument('operator', `The script operation to perform. Options: ${Object.keys(Underpost.script).join(', ')}.`)
@@ -423,7 +398,6 @@ program
   )
   .action((...args) => Underpost.script[args[0]](args[1], args[2], args[3]));
 
-// 'cron' command: Manage cron jobs
 program
   .command('cron')
   .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
@@ -439,7 +413,6 @@ program
   .description('Manages cron jobs, including initialization, execution, and configuration updates.')
   .action(Underpost.cron.callback);
 
-// 'fs' command: File storage management
 program
   .command('fs')
   .argument('[path]', 'The absolute or relative directory path for file operations.')
@@ -453,7 +426,6 @@ program
   .description('Manages file storage, defaulting to file upload operations.')
   .action(Underpost.fs.callback);
 
-// 'test' command: Manage tests
 program
   .command('test')
   .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
@@ -466,7 +438,6 @@ program
   .option('--kind-type <kind-type>', 'Optional: Specifies the Kind cluster type for tests.')
   .action(Underpost.test.callback);
 
-// 'monitor' command: Monitor health server
 program
   .command('monitor')
   .argument('<deploy-id>', 'The deployment configuration ID to monitor.')
@@ -484,7 +455,6 @@ program
   .description('Manages health server monitoring for specified deployments.')
   .action(Underpost.monitor.callback);
 
-// 'ssh' command: SSH management
 program
   .command('ssh')
   .option('--deploy-id <deploy-id>', 'Sets deploy id context for ssh operations.')
@@ -510,7 +480,6 @@ program
   .option('--copy', 'Copies the connection URI to clipboard.')
   .action(Underpost.ssh.callback);
 
-// 'run' command: Run a script
 program
   .command('run')
   .argument('<runner-id>', `The runner ID to run. Options: ${Object.keys(UnderpostRun.RUNNERS).join(', ')}.`)
@@ -576,7 +545,6 @@ program
   .description('Runs specified scripts using various runners.')
   .action(UnderpostRun.API.callback);
 
-// 'lxd' command: LXD management
 program
   .command('lxd')
   .option('--init', 'Initializes LXD on the current machine.')
@@ -612,7 +580,6 @@ program
   .description('Manages LXD containers and virtual machines.')
   .action(UnderpostLxd.API.callback);
 
-// 'baremetal' command: Baremetal server management
 program
   .command('baremetal [workflow-id] [ip-address] [hostname] [ip-file-server] [ip-config] [netmask] [dns-server]')
   .option('--control-server-install', 'Installs the baremetal control server.')
