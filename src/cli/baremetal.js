@@ -1362,28 +1362,20 @@ menuentry '${menuentryStr}' {
             ]
           : []
       }`;
+
       const nfsRootParam = `nfsroot=${ipFileServer}:${process.env.NFS_EXPORT_PATH}/${hostname}${nfsOptions ? `,${nfsOptions}` : ''}`;
 
-      // https://manpages.ubuntu.com/manpages/noble/man7/casper.7.html
-      const netBootParams = [`boot=casper`, `netboot=url`];
-      if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
-      const nfsParams = [`boot=casper`, `netboot=nfs`];
-      const baseQemuNfsRootParams = [`root=/dev/nfs`];
-      const qemuNfsRootParams = [
-        `rootfstype=nfs`,
-        `initrd=initrd.img`,
-        `init=/sbin/init`,
-        // `systemd.mask=systemd-network-generator.service`,
-        // `systemd.mask=systemd-networkd.service`,
-        // `systemd.mask=systemd-fsck-root.service`,
-        // `systemd.mask=systemd-udev-trigger.service`,
+      const permissionsParams = [
+        `rw`,
+        // `ro`
       ];
 
       const kernelParams = [
+        ...permissionsParams,
         `ignore_uuid`,
-        `rootwait`,
-        `ipv6.disable=1`,
-        `fixrtc`,
+        // `rootwait`,
+        // `ipv6.disable=1`,
+        // `fixrtc`,
         // `console=serial0,115200`,
         // `console=tty1`,
         // `casper-getty`,
@@ -1402,10 +1394,7 @@ menuentry '${menuentryStr}' {
         // `ds=nocloud-net;s=http://${ipHost}:8888/${hostname}/pxe/`,
       ];
 
-      const permissionsParams = [
-        `rw`,
-        // `ro`
-      ];
+      const baseNfsParams = [`netboot=nfs`];
 
       if (cloudInit) {
         kernelParams.push(`ds=nocloud-net;s=http://${ipFileServer}:8888/${hostname}/cloud-init/`);
@@ -1413,21 +1402,25 @@ menuentry '${menuentryStr}' {
 
       let cmd = [];
       if (type === 'iso-ram') {
-        cmd = [ipParam, ...netBootParams, ...permissionsParams, ...kernelParams];
+        const netBootParams = [`netboot=url`];
+        if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
+        cmd = [ipParam, `boot=casper`, ...netBootParams, ...kernelParams];
       } else if (type === 'chroot') {
-        cmd = [
-          ipParam,
-          ...nfsParams,
-          ...baseQemuNfsRootParams,
-          nfsRootParam,
-          ...permissionsParams,
-          ...qemuNfsRootParams,
-          ...kernelParams,
+        const qemuNfsRootParams = [
+          `root=/dev/nfs`,
+          `rootfstype=nfs`,
+          `initrd=initrd.img`,
+          `init=/sbin/init`,
+          // `systemd.mask=systemd-network-generator.service`,
+          // `systemd.mask=systemd-networkd.service`,
+          // `systemd.mask=systemd-fsck-root.service`,
+          // `systemd.mask=systemd-udev-trigger.service`,
         ];
-      } else if (type === 'iso-nfs') {
-        cmd = [ipParam, ...nfsParams, nfsRootParam, ...permissionsParams, ...kernelParams];
+
+        cmd = [ipParam, ...baseNfsParams, ...qemuNfsRootParams, nfsRootParam, ...kernelParams];
       } else {
-        cmd = [ipParam, ...nfsParams, nfsRootParam, ...permissionsParams, ...kernelParams];
+        // 'iso-nfs'
+        cmd = [ipParam, ...baseNfsParams, nfsRootParam, ...kernelParams];
       }
 
       const cmdStr = cmd.join(' ');
