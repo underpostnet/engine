@@ -491,7 +491,6 @@ rm -rf ${artifacts.join(' ')}`);
           workflowId,
           mount: true,
         });
-        logger.info('Is mount', isMounted);
         return;
       }
 
@@ -503,7 +502,6 @@ rm -rf ${artifacts.join(' ')}`);
           workflowId,
           unmount: true,
         });
-        logger.info('Is mount', isMounted);
         return;
       }
 
@@ -513,9 +511,10 @@ rm -rf ${artifacts.join(' ')}`);
           hostname,
           nfsHostPath,
           workflowId,
-          mount: true,
+          unmount: true,
         });
-        logger.info('Is mount', isMounted);
+
+        if (isMounted) throw new Error(`NFS path ${nfsHostPath} is currently mounted. Please unmount before building.`);
 
         // Clean and create the NFS host path.
         shellExec(`sudo rm -rf ${nfsHostPath}/*`);
@@ -811,7 +810,6 @@ rm -rf ${artifacts.join(' ')}`);
             workflowId,
             mount: true,
           });
-          logger.info('Is mount', isMounted);
           if (!isMounted) throw new Error('NFS root filesystem is not mounted');
         }
 
@@ -1725,6 +1723,7 @@ EOF`);
       if (mount) UnderpostBaremetal.API.mountBinfmtMisc();
       let isMounted = false;
       const mountCmds = [];
+      const currentMounts = [];
       const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
       if (!workflowsConfig[workflowId]) {
         throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
@@ -1744,6 +1743,7 @@ EOF`);
             );
 
             if (isPathMounted) {
+              currentMounts.push(mountPath);
               if (!isMounted) isMounted = true; // Set overall mounted status.
               logger.warn('Nfs path already mounted', mountPath);
               if (unmount === true) {
@@ -1768,8 +1768,9 @@ EOF`);
         }
         for (const mountCmd of mountCmds) shellExec(mountCmd);
         if (mount) isMounted = true;
+        logger.info('Current mounts', currentMounts);
       }
-      return { isMounted };
+      return { isMounted, currentMounts };
     },
 
     /**
