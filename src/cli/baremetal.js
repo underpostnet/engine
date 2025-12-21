@@ -183,7 +183,7 @@ class UnderpostBaremetal {
       // Define the bootstrap HTTP server path.
       const bootstrapHttpServerPath = options.bootstrapHttpServerPath
         ? options.bootstrapHttpServerPath
-        : `./public/${hostname}`;
+        : `/tmp/bootstrap-http-server/${workflowId}`;
 
       // Capture metadata for the callback execution, useful for logging and auditing.
       const callbackMetaData = {
@@ -192,6 +192,7 @@ class UnderpostBaremetal {
         runnerHost: { architecture: UnderpostBaremetal.API.getHostArch().alias, ip: getLocalIPv4Address() },
         nfsHostPath,
         tftpRootPath,
+        bootstrapHttpServerPath,
       };
 
       // Log the initiation of the baremetal callback with relevant metadata.
@@ -407,9 +408,9 @@ rm -rf ${artifacts.join(' ')}`);
       }
 
       if (options.logs === 'cloud-init-config') {
-        shellExec(`cat ${bootstrapHttpServerPath}/user-data`);
-        shellExec(`cat ${bootstrapHttpServerPath}/meta-data`);
-        shellExec(`cat ${bootstrapHttpServerPath}/vendor-data`);
+        shellExec(`cat ${bootstrapHttpServerPath}/${hostname}/cloud-init/user-data`);
+        shellExec(`cat ${bootstrapHttpServerPath}/${hostname}/cloud-init/meta-data`);
+        shellExec(`cat ${bootstrapHttpServerPath}/${hostname}/cloud-init/vendor-data`);
         return;
       }
 
@@ -682,6 +683,8 @@ rm -rf ${artifacts.join(' ')}`);
             dnsServer,
             networkInterfaceName,
             fileSystemUrl: kernelFilesPaths.isoUrl,
+            bootstrapHttpServerPort:
+              options.bootstrapHttpServerPort || workflowsConfig[workflowId].bootstrapHttpServerPort || 8888,
             type,
             cloudInit: options.cloudInit,
           });
@@ -715,6 +718,7 @@ rm -rf ${artifacts.join(' ')}`);
         shellExec(`sudo sudo chmod 755 ${process.env.TFTP_ROOT}`);
 
         UnderpostBaremetal.API.httpBootstrapServerRunnerFactory({
+          hostname,
           bootstrapHttpServerPath,
           bootstrapHttpServerPort:
             options.bootstrapHttpServerPort || workflowsConfig[workflowId].bootstrapHttpServerPort,
@@ -743,13 +747,17 @@ rm -rf ${artifacts.join(' ')}`);
         );
 
         shellExec(`mkdir -p ${bootstrapHttpServerPath}`);
-        fs.writeFileSync(`${bootstrapHttpServerPath}/user-data`, `#cloud-config\n${cloudConfigSrc}`, 'utf8');
         fs.writeFileSync(
-          `${bootstrapHttpServerPath}/meta-data`,
+          `${bootstrapHttpServerPath}/${hostname}/cloud-init/user-data`,
+          `#cloud-config\n${cloudConfigSrc}`,
+          'utf8',
+        );
+        fs.writeFileSync(
+          `${bootstrapHttpServerPath}/${hostname}/cloud-init/meta-data`,
           `instance-id: ${hostname}\nlocal-hostname: ${hostname}`,
           'utf8',
         );
-        fs.writeFileSync(`${bootstrapHttpServerPath}/vendor-data`, ``, 'utf8');
+        fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/vendor-data`, ``, 'utf8');
 
         logger.info(`Cloud-init files written to ${bootstrapHttpServerPath}`);
         if (options.cloudInitUpdate) return;
@@ -1240,16 +1248,21 @@ menuentry '${menuentryStr}' {
      * @method httpBootstrapServerRunnerFactory
      * @description Starts a simple HTTP server to serve boot files for network booting.
      * @param {object} options - Options for the HTTP server.
+     * @param {string} hostname - The hostname of the client machine.
      * @param {string} options.bootstrapHttpServerPath - The path to serve files from (default: './public/localhost').
      * @param {number} options.bootstrapHttpServerPort - The port on which to start the HTTP server (default: 8888).
      * @memberof UnderpostBaremetal
      * @returns {void}
      */
     httpBootstrapServerRunnerFactory(
-      options = { bootstrapHttpServerPath: './public/localhost', bootstrapHttpServerPort: 8888 },
+      options = { hostname: 'localhost', bootstrapHttpServerPath: './public/localhost', bootstrapHttpServerPort: 8888 },
     ) {
       const port = options.bootstrapHttpServerPort || 8888;
       const bootstrapHttpServerPath = options.bootstrapHttpServerPath || './public/localhost';
+      const hostname = options.hostname || 'localhost';
+
+      shellExec(`mkdir -p ${bootstrapHttpServerPath}/${hostname}/cloud-init`);
+
       // Kill any existing HTTP server
       shellExec(`sudo pkill -f 'python3 -m http.server ${port}' || true`, { silent: true });
 
@@ -1321,6 +1334,7 @@ menuentry '${menuentryStr}' {
      * @param {string} options.dnsServer - The DNS server address.
      * @param {string} options.networkInterfaceName - The name of the network interface.
      * @param {string} options.fileSystemUrl - The URL of the root filesystem.
+     * @param {number} options.bootstrapHttpServerPort - The port of the bootstrap HTTP server.
      * @param {string} options.type - The type of boot ('iso-ram', 'chroot', 'iso-nfs', etc.).
      * @param {boolean} options.cloudInit - Whether to include cloud-init parameters.
      * @returns {object} An object containing the constructed command line string.
@@ -1337,6 +1351,7 @@ menuentry '${menuentryStr}' {
         dnsServer: '',
         networkInterfaceName: '',
         fileSystemUrl: '',
+        bootstrapHttpServerPort: 8888,
         type: '',
         cloudInit: false,
       },
@@ -1352,6 +1367,7 @@ menuentry '${menuentryStr}' {
         dnsServer,
         networkInterfaceName,
         fileSystemUrl,
+        bootstrapHttpServerPort,
         type,
         cloudInit,
       } = options;
@@ -1421,7 +1437,7 @@ menuentry '${menuentryStr}' {
       const baseNfsParams = [`netboot=nfs`];
 
       if (cloudInit) {
-        kernelParams.push(`ds=nocloud-net;s=http://${ipFileServer}:8888/${hostname}/cloud-init/`);
+        kernelParams.push(`ds=nocloud-net;s=http://${ipFileServer}:${bootstrapHttpServerPort}/${hostname}/cloud-init/`);
       }
 
       let cmd = [];

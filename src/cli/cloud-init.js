@@ -291,11 +291,11 @@ curl -X POST \\
 
       if (ubuntuToolsBuild) {
         bootcmd = [
+          ...bootcmd,
           ...UnderpostBaremetal.API.stepsRender(
             [`/underpost/dns.sh`, `/underpost/host.sh`, `/underpost/mac.sh`, `cat /underpost/mac`],
             false,
           ).split('\n'),
-          ...bootcmd,
         ];
       }
 
@@ -350,7 +350,18 @@ curl -X POST \\
         },
         package_update: true,
         package_upgrade: true,
-        packages: ['git', 'htop', 'chrony', 'lldpd', 'lshw'],
+        packages: [
+          'git',
+          'htop',
+          'curl',
+          'wget',
+          'chrony',
+          'lldpd',
+          'lshw',
+          'smartmontools',
+          'net-tools',
+          'util-linux',
+        ],
         resize_rootfs: false,
         growpart: { mode: 'off' },
         network: {
@@ -373,53 +384,62 @@ curl -X POST \\
         disable_root: true,
         preserve_hostname: false,
         cloud_init_modules: [
-          'migrator',
-          'seed_random',
-          'bootcmd',
-          'write-files',
-          'growpart',
-          'resizefs',
+          // minimal for commissioning
+          'bootcmd', // run very early commands (useful to inject things)
+          'write-files', // write files (commissioning scripts, helpers)
           'set_hostname',
           'update_hostname',
           'update_etc_hosts',
           'ca-certs',
-          'rsyslog',
-          'users-groups',
-          'ssh',
+          'rsyslog', // remote logging for diagnosis
+          'ssh', // enable/configure SSH for temporary access
+
+          // optional modules (commented out by default)
+          // 'migrator',
+          // 'seed_random',
+          // 'growpart',
+          // 'resizefs',
+          // 'users-groups',
         ],
         cloud_config_modules: [
-          'emit_upstart',
-          'disk_setup',
-          'mounts',
-          'ssh-import-id',
-          'locale',
-          'set-passwords',
-          'grub-dpkg',
-          'apt-pipelining',
-          'apt-configure',
-          'package-update-upgrade-install',
-          'landscape',
-          'timezone',
-          'puppet',
-          'chef',
-          'salt-minion',
-          'mcollective',
-          'disable-ec2-metadata',
-          'runcmd',
-          'byobu',
-          'ssh-import-id',
-          'ntp',
+          // minimal so MAAS can run commissioning scripts
+          'runcmd', // commissioning / final script execution
+          'mounts', // mount devices during commissioning if needed
+          // 'ntp',             // optional — enable if you want time sync
+
+          // typically not required for basic commissioning (commented)
+          // 'emit_upstart',
+          // 'disk_setup',
+          // 'ssh-import-id',
+          // 'locale',
+          // 'set-passwords',
+          // 'grub-dpkg',
+          // 'apt-pipelining',
+          // 'apt-configure',
+          // 'package-update-upgrade-install', // heavy; do NOT enable by default
+          // 'landscape',
+          // 'timezone',
+          // 'puppet',
+          // 'chef',
+          // 'salt-minion',
+          // 'mcollective',
+          // 'disable-ec2-metadata',
+          // 'byobu',
+          // 'ssh-import-id', // duplicate in original list
         ],
         cloud_final_modules: [
-          'rightscale_userdata',
-          'scripts-vendor',
-          'scripts-per-once',
-          'scripts-per-boot',
-          'scripts-user',
-          'ssh-authkey-fingerprints',
-          'keys-to-console',
-          'final-message',
-          'power-state-change',
+          // minimal suggestions so final scripts run and node reports status
+          'scripts-per-boot', // scripts to run each boot (useful for testing)
+          'final-message', // useful for logs/reporting
+
+          // optional / commented
+          // 'rightscale_userdata',
+          // 'scripts-vendor',
+          // 'scripts-per-once',
+          // 'scripts-user',
+          // 'ssh-authkey-fingerprints',
+          // 'keys-to-console',
+          // 'power-state-change', // use carefully (can poweroff/reboot)
         ],
       });
 
@@ -650,17 +670,6 @@ curl -X POST \\
       }
 
       return yaml.join('\n');
-    },
-
-    /**
-     * @method _getDefaultPackages
-     * @private
-     * @description Returns default package list based on system provisioning type.
-     * @memberof UnderpostCloudInit
-     * @returns {string[]} Array of package names.
-     */
-    _getDefaultPackages() {
-      return ['git', 'htop', 'curl', 'wget', 'chrony', 'lldpd', 'lshw', 'smartmontools', 'net-tools', 'util-linux'];
     },
   };
 }
