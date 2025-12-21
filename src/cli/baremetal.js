@@ -73,7 +73,8 @@ class UnderpostBaremetal {
      * @param {boolean} [options.cloudInitUpdate=false] - Flag to update cloud-init configuration on the baremetal machine.
      * @param {boolean} [options.commission=false] - Flag to commission the baremetal machine.
      * @param {string} [options.isoUrl=''] - Uses a custom ISO URL for baremetal machine commissioning.
-     * @param {boolean} [options.buildUbuntuTools=false] - Builds ubuntu tools for chroot environment.
+     * @param {boolean} [options.ubuntuToolsBuild=false] - Builds ubuntu tools for chroot environment.
+     * @param {boolean} [options.ubuntuToolsTest=false] - Tests ubuntu tools in chroot environment.
      * @param {string} [options.bootcmd=''] - Comma-separated list of boot commands to execute.
      * @param {string} [options.runcmd=''] - Comma-separated list of run commands to execute.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
@@ -111,7 +112,8 @@ class UnderpostBaremetal {
         cloudInit: false,
         commission: false,
         isoUrl: '',
-        buildUbuntuTools: false,
+        ubuntuToolsBuild: false,
+        ubuntuToolsTest: false,
         bootcmd: '',
         runcmd: '',
         nfsBuild: false,
@@ -567,8 +569,7 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle commissioning tasks (placeholder for future implementation).
       if (options.commission === true) {
-        let { firmwares, networkInterfaceName, maas, menuentryStr, systemProvisioning, type } =
-          workflowsConfig[workflowId];
+        let { firmwares, networkInterfaceName, maas, menuentryStr, type } = workflowsConfig[workflowId];
         // Use commissioning config (Ubuntu ephemeral) for PXE boot resources
         const commissioningImage = maas.commissioning;
         const resource = resources.find(
@@ -634,7 +635,6 @@ rm -rf ${artifacts.join(' ')}`);
             dnsServer,
             networkInterfaceName,
             fileSystemUrl: kernelFilesPaths.isoUrl,
-            systemProvisioning,
             type,
             cloudInit: options.cloudInit,
           });
@@ -682,7 +682,7 @@ rm -rf ${artifacts.join(' ')}`);
             timezone,
             chronyConfPath,
             networkInterfaceName,
-            buildUbuntuTools: options.buildUbuntuTools,
+            ubuntuToolsBuild: options.ubuntuToolsBuild,
             bootcmd: options.bootcmd,
             runcmd: options.runcmd,
           },
@@ -698,42 +698,63 @@ rm -rf ${artifacts.join(' ')}`);
         if (options.cloudInitUpdate) return;
       }
 
-      if (options.buildUbuntuTools && workflowsConfig[workflowId].type === 'chroot') {
-        UnderpostCloudInit.API.buildTools({
-          workflowId,
-          nfsHostPath,
-          hostname,
-          callbackMetaData,
-          dev: options.dev,
-        });
+      if (workflowsConfig[workflowId].type === 'chroot') {
+        if (options.ubuntuToolsBuild) {
+          UnderpostCloudInit.API.buildTools({
+            workflowId,
+            nfsHostPath,
+            hostname,
+            callbackMetaData,
+            dev: options.dev,
+          });
 
-        UnderpostBaremetal.API.crossArchRunner({
-          nfsHostPath,
-          debootstrapArch,
-          callbackMetaData,
-          steps: [
-            `chmod +x /underpost/date.sh`,
-            `chmod +x /underpost/keyboard.sh`,
-            `chmod +x /underpost/dns.sh`,
-            `chmod +x /underpost/help.sh`,
-            `chmod +x /underpost/config-path.sh`,
-            `chmod +x /underpost/host.sh`,
-            `chmod +x /underpost/test.sh`,
-            `chmod +x /underpost/start.sh`,
-            `chmod +x /underpost/reset.sh`,
-            `chmod +x /underpost/shutdown.sh`,
-            `chmod +x /underpost/device_scan.sh`,
-            `chmod +x /underpost/mac.sh`,
-            `chmod +x /underpost/enlistment.sh`,
-            `sudo chmod 700 ~/.ssh/`, // Set secure permissions for .ssh directory.
-            `sudo chmod 600 ~/.ssh/authorized_keys`, // Set secure permissions for authorized_keys.
-            `sudo chmod 644 ~/.ssh/known_hosts`, // Set permissions for known_hosts.
-            `sudo chmod 600 ~/.ssh/id_rsa`, // Set secure permissions for private key.
-            `sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`, // Set secure permissions for host key.
-            `chown -R root:root ~/.ssh`, // Ensure root owns the .ssh directory.
-            `/underpost/test.sh`,
-          ],
-        });
+          const { chronyc, keyboard } = workflowsConfig[workflowId];
+          const { timezone, chronyConfPath } = chronyc;
+          const systemProvisioning = 'ubuntu';
+
+          UnderpostBaremetal.API.crossArchRunner({
+            nfsHostPath,
+            debootstrapArch,
+            callbackMetaData,
+            steps: [
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base(),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].user(),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
+                timezone,
+                chronyConfPath,
+              }),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
+            ],
+          });
+        }
+
+        if (options.ubuntuToolsTest)
+          UnderpostBaremetal.API.crossArchRunner({
+            nfsHostPath,
+            debootstrapArch,
+            callbackMetaData,
+            steps: [
+              `chmod +x /underpost/date.sh`,
+              `chmod +x /underpost/keyboard.sh`,
+              `chmod +x /underpost/dns.sh`,
+              `chmod +x /underpost/help.sh`,
+              `chmod +x /underpost/host.sh`,
+              `chmod +x /underpost/test.sh`,
+              `chmod +x /underpost/start.sh`,
+              `chmod +x /underpost/reset.sh`,
+              `chmod +x /underpost/shutdown.sh`,
+              `chmod +x /underpost/device_scan.sh`,
+              `chmod +x /underpost/mac.sh`,
+              `chmod +x /underpost/enlistment.sh`,
+              `sudo chmod 700 ~/.ssh/`, // Set secure permissions for .ssh directory.
+              `sudo chmod 600 ~/.ssh/authorized_keys`, // Set secure permissions for authorized_keys.
+              `sudo chmod 644 ~/.ssh/known_hosts`, // Set permissions for known_hosts.
+              `sudo chmod 600 ~/.ssh/id_rsa`, // Set secure permissions for private key.
+              `sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`, // Set secure permissions for host key.
+              `chown -R root:root ~/.ssh`, // Ensure root owns the .ssh directory.
+              `/underpost/test.sh`,
+            ],
+          });
       }
 
       shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
@@ -1242,7 +1263,6 @@ menuentry '${menuentryStr}' {
         dnsServer: '',
         networkInterfaceName: '',
         fileSystemUrl: '',
-        systemProvisioning: '',
         type: '',
         cloudInit: false,
       },
@@ -1258,7 +1278,6 @@ menuentry '${menuentryStr}' {
         dnsServer,
         networkInterfaceName,
         fileSystemUrl,
-        systemProvisioning,
         type,
         cloudInit,
       } = options;

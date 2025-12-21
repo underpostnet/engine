@@ -258,7 +258,7 @@ curl -X POST \\
      * @param {string} params.timezone - The timezone to set for the machine.
      * @param {string} params.chronyConfPath - The path to the Chrony configuration file.
      * @param {string} params.networkInterfaceName - The name of the primary network interface.
-     * @param {boolean} params.buildUbuntuTools - Flag to determine if Ubuntu tools should be built.
+     * @param {boolean} params.ubuntuToolsBuild - Flag to determine if Ubuntu tools should be built.
      * @param {string} [params.bootcmd] - Optional custom commands to run during boot.
      * @param {string} [params.runcmd] - Optional custom commands to run during first boot.
      * @param {object} [authCredentials={}] - Optional MAAS authentication credentials.
@@ -275,7 +275,7 @@ curl -X POST \\
         timezone,
         chronyConfPath,
         networkInterfaceName,
-        buildUbuntuTools,
+        ubuntuToolsBuild,
         bootcmd: bootcmdParam,
         runcmd: runcmdParam,
       },
@@ -289,7 +289,7 @@ curl -X POST \\
         'echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"',
       ];
 
-      if (buildUbuntuTools) {
+      if (ubuntuToolsBuild) {
         bootcmd = [
           ...UnderpostBaremetal.API.stepsRender(
             [`/underpost/dns.sh`, `/underpost/host.sh`, `/underpost/mac.sh`, `cat /underpost/mac`],
