@@ -974,6 +974,28 @@ rm -rf ${artifacts.join(' ')}`);
           if (initrd) shellExec(`mv ${initrd} ${extractDir}/initrd`);
         }
       } finally {
+        // Ensure there is a md5sum file (casper expects it)
+        const possibleMd5Files = [
+          mountPoint + '/' + 'md5sum.txt',
+          mountPoint + '/' + 'MD5SUMS',
+          mountPoint + '/' + 'md5sums.txt',
+        ];
+
+        const foundMd5 = possibleMd5Files.find((p) => fs.existsSync(p));
+        if (!foundMd5) {
+          logger.info('No md5sum found in ISO; generating md5sum.txt inside casper directory.');
+          shellExec(`cd ${extractDir} && bash -c "md5sum * > md5sum.txt"`);
+        } else {
+          logger.info(`Copying existing md5sum file from ISO to casper directory.`);
+          shellExec(`cp ${foundMd5} ${extractDir}/${foundMd5.split('/').pop()}`);
+          shellExec(`cp ${foundMd5} ${nfsHostPath}/${foundMd5.split('/').pop()}`);
+          for (const alternativeMd5 of possibleMd5Files) {
+            shellExec(`cp ${foundMd5} ${extractDir}/${alternativeMd5.split('/').pop()}`);
+            shellExec(`cp ${foundMd5} ${nfsHostPath}/${alternativeMd5.split('/').pop()}`);
+          }
+        }
+        shellExec(`ls -la ${mountPoint}/`);
+
         // Unmount ISO
         shellExec(`sudo umount ${mountPoint}`, { silent: true });
         logger.info(`Unmounted ISO`);
@@ -1460,7 +1482,14 @@ menuentry '${menuentryStr}' {
         cmd = [ipParam, ...baseNfsParams, ...qemuNfsRootParams, nfsRootParam, ...kernelParams];
       } else {
         // 'iso-nfs'
-        cmd = [ipParam, ...baseNfsParams, nfsRootParam, ...kernelParams];
+        cmd = [
+          ipParam,
+          ...baseNfsParams,
+          nfsRootParam,
+          ...kernelParams,
+          `fsck.mode=skip`,
+          `systemd.mask=casper-md5check.service`,
+        ];
       }
 
       const cmdStr = cmd.join(' ');
