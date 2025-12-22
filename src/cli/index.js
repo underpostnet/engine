@@ -588,6 +588,7 @@ program
   .option('--control-server-restart', 'Restarts the baremetal control server.')
   .option('--control-server-db-install', 'Installs up the database for the baremetal control server.')
   .option('--control-server-db-uninstall', 'Uninstalls the database for the baremetal control server.')
+  .option('--create-machine', 'Creates a new baremetal machine entry in the database.')
   .option('--mac <mac>', 'Specifies the MAC address for baremetal machine operations.')
   .option('--install-packer', 'Installs Packer CLI.')
   .option(

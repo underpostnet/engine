@@ -24,7 +24,7 @@
     "prettier": "prettier --write .",
     "fix": "npm audit fix --force && npm audit",
     "update-template": "node bin/file update-template ./ ../pwa-microservices-template",
-    "baremetal": "node bin baremetal --dev --commission --clear-discovered --remove-machines all --ls"
+    "baremetal": "node bin baremetal --dev --commission --clear-discovered --remove-machines all --create-machine --ls"
   },
   "bin": {
     "underpost": "bin/index.js"
