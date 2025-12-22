@@ -157,9 +157,11 @@ class UnderpostBaremetal {
       // Set default MAC address
       let macAddress = options.mac
         ? options.mac
-        : ((options.mac = range(1, 6)
-            .map(() => s4().substring(0, 2))
-            .join(':')),
+        : (options.mac === 'random'
+            ? (options.mac = range(1, 6)
+                .map(() => s4().toLowerCase().substring(0, 2))
+                .join(':'))
+            : (options.mac = '00:00:00:00:00'),
           options.mac);
 
       const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
@@ -204,6 +206,18 @@ class UnderpostBaremetal {
 
       // Log the initiation of the baremetal callback with relevant metadata.
       logger.info('Baremetal callback', callbackMetaData);
+
+      if (options.createMachine === true) {
+        console.log(
+          UnderpostBaremetal.API.machineFactory({
+            hostname,
+            ipAddress,
+            macAddress,
+            maas: workflowsConfig[workflowId].maas,
+          }).machine,
+        );
+        return;
+      }
 
       if (options.installPacker) {
         await UnderpostBaremetal.API.installPacker(underpostRoot);
@@ -623,19 +637,9 @@ rm -rf ${artifacts.join(' ')}`);
         });
 
       // Handle commissioning tasks (placeholder for future implementation).
-      let machine, systemId;
+
       if (options.commission === true) {
         let { firmwares, networkInterfaceName, maas, menuentryStr, type } = workflowsConfig[workflowId];
-
-        if (options.createMachine === true) {
-          machine = UnderpostBaremetal.API.machineFactory({
-            hostname,
-            ipAddress,
-            macAddress,
-            maas: workflowsConfig[workflowId].maas,
-          }).machine;
-          systemId = machine.system_id;
-        }
 
         // Use commissioning config (Ubuntu ephemeral) for PXE boot resources
         const commissioningImage = maas.commissioning;
@@ -693,7 +697,6 @@ rm -rf ${artifacts.join(' ')}`);
           });
 
           const { cmd } = UnderpostBaremetal.API.kernelCmdBootParamsFactory({
-            systemId,
             ipClient: ipAddress,
             ipDhcpServer: callbackMetaData.runnerHost.ip,
             ipConfig,
@@ -720,7 +723,7 @@ rm -rf ${artifacts.join(' ')}`);
           fs.writeFileSync(`${process.env.TFTP_ROOT}/grub/grub.cfg`, grubCfg, 'utf8');
           shellExec(`mkdir -p ${tftpRootPath}/pxe/grub`);
           fs.writeFileSync(`${tftpRootPath}/pxe/grub/grub.cfg`, grubCfg, 'utf8');
-          console.log('System id:', ` ${systemId.bgBlue.bold.white} `);
+
           UnderpostBaremetal.API.updateKernelFiles({
             commissioningImage,
             resourcesPath,
@@ -1401,7 +1404,6 @@ menuentry '${menuentryStr}' {
      * @description Constructs kernel command line parameters for NFS booting.
      * @param {object} options - Options for constructing the command line.
      * @param {string} options.ipClient - The IP address of the client.
-     * @param {string} options.systemId - The system ID of the client.
      * @param {string} options.ipDhcpServer - The IP address of the DHCP server.
      * @param {string} options.ipFileServer - The IP address of the file server.
      * @param {string} options.ipConfig - The IP configuration method (e.g., 'dhcp').
@@ -1420,7 +1422,6 @@ menuentry '${menuentryStr}' {
     kernelCmdBootParamsFactory(
       options = {
         ipClient: '',
-        systemId: '',
         ipDhcpServer: '',
         ipFileServer: '',
         ipConfig: '',
@@ -1438,7 +1439,6 @@ menuentry '${menuentryStr}' {
       // Construct kernel command line arguments for NFS boot.
       const {
         ipClient,
-        systemId,
         ipDhcpServer,
         ipFileServer,
         ipConfig,
@@ -1558,7 +1558,7 @@ menuentry '${menuentryStr}' {
             `cloud-init=verbose`,
             `log_host=${ipDhcpServer}`,
             `log_port=5247`,
-            `cloud-config-url=http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${systemId}/?op=get_preseed`,
+            `cloud-config-url=http://${ipDhcpServer}:5248/MAAS/metadata/by-id/{{system-id}}/?op=get_preseed`,
             // `BOOTIF=${macAddress}`,
             `cc:{'datasource_list':['MAAS']}`,
           ]);
@@ -1609,6 +1609,9 @@ menuentry '${menuentryStr}' {
 
           if (discovery.ip === ipAddress) {
             logger.info('Machine discovered!', discovery);
+
+            // console.log('System id:', systemId.bgBlue.bold.white);
+
             return { discovery };
           }
         }
