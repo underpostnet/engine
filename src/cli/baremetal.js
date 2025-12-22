@@ -1481,11 +1481,6 @@ menuentry '${menuentryStr}' {
 
       const baseNfsParams = [`netboot=nfs`];
 
-      if (cloudInit) {
-        // kernelParams.push(`ds=nocloud-net;s=http://${ipFileServer}:${bootstrapHttpServerPort}/${hostname}/cloud-init/`);
-        kernelParams.push(`cloud-config-url=/dev/null`);
-      }
-
       let cmd = [];
       if (type === 'iso-ram') {
         const netBootParams = [`netboot=url`];
@@ -1497,8 +1492,16 @@ menuentry '${menuentryStr}' {
       } else {
         // 'iso-nfs'
         cmd = [ipParam, ...baseNfsParams, nfsRootParam, ...kernelParams, ...performanceParams];
+        if (cloudInit)
+          cmd = cmd.concat([
+            `ds=maas`,
+            `cloud-init=verbose`,
+            `log_host=${ipDhcpServer}`,
+            `log_port=5247`,
+            `cloud-config-url=http://${ipDhcpServer}:5240/MAAS/metadata/latest/enlist-preseed/?op=get_enlist_preseed`,
+          ]);
       }
-
+      cmd.push('---');
       const cmdStr = cmd.join(' ');
       logger.info('Constructed kernel command line');
       console.log(newInstance(cmdStr).bgRed.bold.black);
