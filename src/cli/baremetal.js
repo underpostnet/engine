@@ -982,10 +982,7 @@ rm -rf ${artifacts.join(' ')}`);
         ];
 
         const foundMd5 = possibleMd5Files.find((p) => fs.existsSync(p));
-        if (!foundMd5) {
-          logger.info('No md5sum found in ISO; generating md5sum.txt inside casper directory.');
-          shellExec(`cd ${extractDir} && bash -c "md5sum * > md5sum.txt"`);
-        } else {
+        if (foundMd5) {
           logger.info(`Copying existing md5sum file from ISO to casper directory.`);
           shellExec(`cp ${foundMd5} ${extractDir}/${foundMd5.split('/').pop()}`);
           shellExec(`cp ${foundMd5} ${nfsHostPath}/${foundMd5.split('/').pop()}`);
@@ -993,7 +990,8 @@ rm -rf ${artifacts.join(' ')}`);
             shellExec(`cp ${foundMd5} ${extractDir}/${alternativeMd5.split('/').pop()}`);
             shellExec(`cp ${foundMd5} ${nfsHostPath}/${alternativeMd5.split('/').pop()}`);
           }
-        }
+        } else logger.warn('No md5sum found in ISO');
+
         shellExec(`ls -la ${mountPoint}/`);
 
         // Unmount ISO
@@ -1468,17 +1466,7 @@ menuentry '${menuentryStr}' {
         if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
         cmd = [ipParam, `boot=casper`, ...netBootParams, ...kernelParams];
       } else if (type === 'chroot') {
-        const qemuNfsRootParams = [
-          `root=/dev/nfs`,
-          `rootfstype=nfs`,
-          `initrd=initrd.img`,
-          `init=/sbin/init`,
-          // `systemd.mask=systemd-network-generator.service`,
-          // `systemd.mask=systemd-networkd.service`,
-          // `systemd.mask=systemd-fsck-root.service`,
-          // `systemd.mask=systemd-udev-trigger.service`,
-        ];
-
+        const qemuNfsRootParams = [`root=/dev/nfs`, `rootfstype=nfs`, `initrd=initrd.img`, `init=/sbin/init`];
         cmd = [ipParam, ...baseNfsParams, ...qemuNfsRootParams, nfsRootParam, ...kernelParams];
       } else {
         // 'iso-nfs'
@@ -1488,7 +1476,11 @@ menuentry '${menuentryStr}' {
           nfsRootParam,
           ...kernelParams,
           `fsck.mode=skip`,
-          `systemd.mask=casper-md5check.service`,
+          `mitigations=off`,
+          `noprompt`,
+          `auto=true`,
+          `noeject`,
+          `nowatchdog`,
         ];
       }
 
