@@ -974,24 +974,6 @@ rm -rf ${artifacts.join(' ')}`);
           if (initrd) shellExec(`mv ${initrd} ${extractDir}/initrd`);
         }
       } finally {
-        // Ensure there is a md5sum file (casper expects it)
-        // const possibleMd5Files = [
-        //   mountPoint + '/' + 'md5sum.txt',
-        //   mountPoint + '/' + 'MD5SUMS',
-        //   mountPoint + '/' + 'md5sums.txt',
-        // ];
-
-        // const foundMd5 = possibleMd5Files.find((p) => fs.existsSync(p));
-        // if (foundMd5) {
-        //   logger.info(`Copying existing md5sum file from ISO to casper directory.`);
-        //   shellExec(`cp ${foundMd5} ${extractDir}/${foundMd5.split('/').pop()}`);
-        //   shellExec(`cp ${foundMd5} ${nfsHostPath}/${foundMd5.split('/').pop()}`);
-        //   for (const alternativeMd5 of possibleMd5Files) {
-        //     shellExec(`cp ${foundMd5} ${extractDir}/${alternativeMd5.split('/').pop()}`);
-        //     shellExec(`cp ${foundMd5} ${nfsHostPath}/${alternativeMd5.split('/').pop()}`);
-        //   }
-        // } else logger.warn('No md5sum found in ISO');
-
         shellExec(`ls -la ${mountPoint}/`);
 
         // Unmount ISO
@@ -1447,7 +1429,6 @@ menuentry '${menuentryStr}' {
         `editable_rootfs=tmpfs`,
         `ramdisk_size=3550000`,
         // `root=/dev/sda1`, // rpi4 usb port unit
-        // `ds=nocloud-net;s=http://${ipHost}:8888/${hostname}/pxe/`,
       ];
 
       const performanceParams = [
