@@ -15,7 +15,7 @@ import path from 'path';
 import Downloader from '../server/downloader.js';
 import UnderpostCloudInit from './cloud-init.js';
 import UnderpostRepository from './repository.js';
-import { newInstance, s4, timer } from '../client/components/core/CommonJs.js';
+import { newInstance, range, s4, timer } from '../client/components/core/CommonJs.js';
 import { spawnSync } from 'child_process';
 
 const logger = loggerFactory(import.meta);
@@ -153,7 +153,12 @@ class UnderpostBaremetal {
       ipConfig = ipConfig ? ipConfig : 'none';
 
       // Set default MAC address
-      let macAddress = options.mac ? options.mac : '00:00:00:00:00:00';
+      let macAddress = options.mac
+        ? options.mac
+        : ((options.mac = range(1, 6)
+            .map(() => s4().substring(0, 2))
+            .join(':')),
+          options.mac);
 
       const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
 
@@ -1338,6 +1343,7 @@ menuentry '${menuentryStr}' {
      * @param {string} options.fileSystemUrl - The URL of the root filesystem.
      * @param {number} options.bootstrapHttpServerPort - The port of the bootstrap HTTP server.
      * @param {string} options.type - The type of boot ('iso-ram', 'chroot', 'iso-nfs', etc.).
+     * @param {string} options.macAddress - The MAC address of the client.
      * @param {boolean} options.cloudInit - Whether to include cloud-init parameters.
      * @returns {object} An object containing the constructed command line string.
      * @memberof UnderpostBaremetal
@@ -1355,6 +1361,7 @@ menuentry '${menuentryStr}' {
         fileSystemUrl: '',
         bootstrapHttpServerPort: 8888,
         type: '',
+        macAddress: '',
         cloudInit: false,
       },
     ) {
@@ -1371,6 +1378,7 @@ menuentry '${menuentryStr}' {
         fileSystemUrl,
         bootstrapHttpServerPort,
         type,
+        macAddress,
         cloudInit,
       } = options;
 
@@ -1429,6 +1437,7 @@ menuentry '${menuentryStr}' {
         `editable_rootfs=tmpfs`,
         `ramdisk_size=3550000`,
         // `root=/dev/sda1`, // rpi4 usb port unit
+        'apparmor=0', // Disable AppArmor security
       ];
 
       const performanceParams = [
@@ -1475,11 +1484,12 @@ menuentry '${menuentryStr}' {
         cmd = [ipParam, ...baseNfsParams, nfsRootParam, ...kernelParams, ...performanceParams];
         if (cloudInit)
           cmd = cmd.concat([
-            `ds=maas`,
             `cloud-init=verbose`,
             `log_host=${ipDhcpServer}`,
             `log_port=5247`,
-            `cloud-config-url=http://${ipDhcpServer}:5240/MAAS/metadata/latest/enlist-preseed/?op=get_enlist_preseed`,
+            `cloud-config-url=http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${systemId}/?op=get_preseed`,
+            `BOOTIF=${macAddress}`,
+            `cc:{'datasource_list':['MAAS']}`,
           ]);
       }
       cmd.push('---');
