@@ -36,7 +36,9 @@ class Dns {
   static async getPublicIp() {
     return await new Promise(async (resolve) => {
       try {
-        return axios.get('https://api.ipify.org').then((response) => resolve(response.data));
+        return axios
+          .get(process.env.HTTP_PLAIN_IP_URL ? process.env.HTTP_PLAIN_IP_URL : 'https://api.ipify.org')
+          .then((response) => resolve(response.data));
       } catch (error) {
         logger.error('Error fetching public IP:', { error: error.message, stack: error.stack });
         return resolve(null);
@@ -403,6 +405,7 @@ class Dns {
    * @property {boolean} [options.banEgressClear=false] - Clear all banned egress IPs.
    * @property {boolean} [options.banBothAdd=false] - Ban IPs from both ingress and egress.
    * @property {boolean} [options.banBothRemove=false] - Unban IPs from both ingress and egress.
+   * @property {boolean} [options.dhcp=false] - Get local DHCP IP instead of public IP.
    * @property {boolean} [options.copy=false] - Copy the public IP to clipboard.
    * @return {Promise<string|void>} The public IP if no ban/unban action is taken.
    */
@@ -420,6 +423,7 @@ class Dns {
       banBothAdd: false,
       banBothRemove: false,
       copy: false,
+      dhcp: false,
     },
   ) {
     const ipList = ips
@@ -468,7 +472,9 @@ class Dns {
       });
     }
 
-    const ip = await Dns.getPublicIp();
+    let ip;
+    if (options.dhcp) ip = Dns.getLocalIPv4Address();
+    else ip = await Dns.getPublicIp();
     if (options.copy) return pbcopy(ip);
     console.log(ip);
     return ip;

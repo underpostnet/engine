@@ -177,6 +177,7 @@ program
 program
   .command('ip')
   .argument('[ips]', 'Optional args comma-separated list of IP to process.')
+  .option('--dhcp', 'Fetches and displays the current Dynamic Host Configuration Protocol server IP address.')
   .option('--copy', 'Copies the IP addresses to the clipboard.')
   .option('--ban-ingress-add', 'Adds IP addresses to banned ingress list.')
   .option('--ban-ingress-remove', 'Removes IP addresses from banned ingress list.')
