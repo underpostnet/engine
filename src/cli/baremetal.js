@@ -975,22 +975,22 @@ rm -rf ${artifacts.join(' ')}`);
         }
       } finally {
         // Ensure there is a md5sum file (casper expects it)
-        const possibleMd5Files = [
-          mountPoint + '/' + 'md5sum.txt',
-          mountPoint + '/' + 'MD5SUMS',
-          mountPoint + '/' + 'md5sums.txt',
-        ];
+        // const possibleMd5Files = [
+        //   mountPoint + '/' + 'md5sum.txt',
+        //   mountPoint + '/' + 'MD5SUMS',
+        //   mountPoint + '/' + 'md5sums.txt',
+        // ];
 
-        const foundMd5 = possibleMd5Files.find((p) => fs.existsSync(p));
-        if (foundMd5) {
-          logger.info(`Copying existing md5sum file from ISO to casper directory.`);
-          shellExec(`cp ${foundMd5} ${extractDir}/${foundMd5.split('/').pop()}`);
-          shellExec(`cp ${foundMd5} ${nfsHostPath}/${foundMd5.split('/').pop()}`);
-          for (const alternativeMd5 of possibleMd5Files) {
-            shellExec(`cp ${foundMd5} ${extractDir}/${alternativeMd5.split('/').pop()}`);
-            shellExec(`cp ${foundMd5} ${nfsHostPath}/${alternativeMd5.split('/').pop()}`);
-          }
-        } else logger.warn('No md5sum found in ISO');
+        // const foundMd5 = possibleMd5Files.find((p) => fs.existsSync(p));
+        // if (foundMd5) {
+        //   logger.info(`Copying existing md5sum file from ISO to casper directory.`);
+        //   shellExec(`cp ${foundMd5} ${extractDir}/${foundMd5.split('/').pop()}`);
+        //   shellExec(`cp ${foundMd5} ${nfsHostPath}/${foundMd5.split('/').pop()}`);
+        //   for (const alternativeMd5 of possibleMd5Files) {
+        //     shellExec(`cp ${foundMd5} ${extractDir}/${alternativeMd5.split('/').pop()}`);
+        //     shellExec(`cp ${foundMd5} ${nfsHostPath}/${alternativeMd5.split('/').pop()}`);
+        //   }
+        // } else logger.warn('No md5sum found in ISO');
 
         shellExec(`ls -la ${mountPoint}/`);
 
@@ -1433,31 +1433,57 @@ menuentry '${menuentryStr}' {
       const kernelParams = [
         ...permissionsParams,
         `ignore_uuid`,
-        // `rootwait`,
-        // `ipv6.disable=1`,
-        // `fixrtc`,
+        `rootwait`,
+        `ipv6.disable=1`,
+        `fixrtc`,
         // `console=serial0,115200`,
         // `console=tty1`,
-        // `casper-getty`,
         // `layerfs-path=filesystem.squashfs`,
         // `root=/dev/ram0`,
         // `toram`,
-        // 'nomodeset',
+        'nomodeset',
         // `net.ifnames=0`, // only networkInterfaceName = eth0
         // `biosdevname=0`, // only networkInterfaceName = eth0
-        // `editable_rootfs=tmpfs`,
-        // `ramdisk_size=3550000`,
-        // `cma=120M`,
+        `editable_rootfs=tmpfs`,
+        `ramdisk_size=3550000`,
         // `root=/dev/sda1`, // rpi4 usb port unit
-        // `overlayroot=tmpfs`,
-        // `overlayroot_cfgdisk=disabled`,
         // `ds=nocloud-net;s=http://${ipHost}:8888/${hostname}/pxe/`,
+      ];
+
+      const performanceParams = [
+        // --- Boot Automation & Stability ---
+        'auto=true', // Enable automated installation/configuration
+        'noeject', // Do not attempt to eject boot media on reboot
+        `casper-getty`, // Enable console login for live sessions
+        'nowatchdog', // Disable watchdog timers to prevent unexpected reboots
+        'noprompt', // Don't wait for "Press Enter" during boot/reboot
+
+        // --- CPU & System Performance ---
+        'mitigations=off', // Disable CPU security mitigations for maximum speed
+        'clocksource=tsc', // Use fastest available hardware clock
+        'tsc=reliable', // Trust CPU clock without extra verification
+        'hpet=disable', // Disable legacy slow timer
+        'nohz=on', // Reduce overhead by disabling timer ticks on idle CPUs
+
+        // --- Memory & Hardware Optimization ---
+        'cma=40M', // Reserve contiguous RAM for RPi hardware/video
+        'zswap.enabled=1', // Use compressed RAM cache (vital for NFS/SD)
+        'zswap.compressor=zstd', // Best balance of speed and compression
+        'zswap.max_pool_percent=30', // Use max 30% of RAM as compressed storage
+        'zswap.zpool=zsmalloc', // Efficient memory management for zswap
+        'fsck.mode=skip', // Skip disk checks to accelerate boot
+        'max_loop=255', // Ensure enough loop devices for squashfs/snaps
+
+        // --- Immutable Filesystem ---
+        'overlayroot=tmpfs', // Run entire OS in RAM to protect storage
+        'overlayroot_cfgdisk=disabled', // Ignore external overlay configurations
       ];
 
       const baseNfsParams = [`netboot=nfs`];
 
       if (cloudInit) {
-        kernelParams.push(`ds=nocloud-net;s=http://${ipFileServer}:${bootstrapHttpServerPort}/${hostname}/cloud-init/`);
+        // kernelParams.push(`ds=nocloud-net;s=http://${ipFileServer}:${bootstrapHttpServerPort}/${hostname}/cloud-init/`);
+        kernelParams.push(`cloud-config-url=/dev/null`);
       }
 
       let cmd = [];
@@ -1470,18 +1496,7 @@ menuentry '${menuentryStr}' {
         cmd = [ipParam, ...baseNfsParams, ...qemuNfsRootParams, nfsRootParam, ...kernelParams];
       } else {
         // 'iso-nfs'
-        cmd = [
-          ipParam,
-          ...baseNfsParams,
-          nfsRootParam,
-          ...kernelParams,
-          `fsck.mode=skip`,
-          `mitigations=off`,
-          `noprompt`,
-          `auto=true`,
-          `noeject`,
-          `nowatchdog`,
-        ];
+        cmd = [ipParam, ...baseNfsParams, nfsRootParam, ...kernelParams, ...performanceParams];
       }
 
       const cmdStr = cmd.join(' ');
