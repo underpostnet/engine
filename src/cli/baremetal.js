@@ -155,7 +155,7 @@ class UnderpostBaremetal {
       ipConfig = ipConfig ? ipConfig : 'none';
 
       // Set default MAC address
-      let macAddress = UnderpostBaremetal.API.macAddressFactory(options);
+      let macAddress = UnderpostBaremetal.API.macAddressFactory(options).mac;
       const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
 
       if (!workflowsConfig[workflowId]) {
@@ -886,16 +886,19 @@ rm -rf ${artifacts.join(' ')}`);
      * @memberof UnderpostBaremetal
      */
     macAddressFactory(options = { mac: '' }) {
-      let len = 6;
-      if (options)
-        if (options.mac === 'random')
-          return range(1, len)
-            .map(() => s4().toLowerCase().substring(0, 2))
-            .join(':');
-        else if (options.mac) return options.mac;
-      return range(1, len)
+      const len = 6;
+      const defaultMac = range(1, len)
         .map(() => '00')
         .join(':');
+      if (options) {
+        if (!options.mac) options.mac = defaultMac;
+        if (options.mac === 'random')
+          options.mac = range(1, len)
+            .map(() => s4().toLowerCase().substring(0, 2))
+            .join(':');
+      }
+      options.mac = defaultMac;
+      return options;
     },
 
     /**
@@ -1318,10 +1321,18 @@ insmod tftp
 set root=(tftp,${tftpIp})
 
 menuentry '${menuentryStr}' {
+    echo "${menuentryStr}"
+    echo "Date: ${new Date().toISOString()}"
+    echo "TFTP server: ${tftpIp}"
+    echo "Kernel path: ${kernelPath}"
+    echo "Initrd path: ${initrdPath}"
+    echo "Cmdline: ${cmd}"
+    echo " . . . "
+    echo "Starting boot process..."
     echo "Loading kernel..."
-    linux /${kernelPath} ${cmd}
+    linux ${kernelPath} ${cmd}
     echo "Loading initrd..."
-    initrd /${initrdPath}
+    initrd ${initrdPath}
     echo "Booting..."
     boot
 }
@@ -1566,7 +1577,7 @@ menuentry '${menuentryStr}' {
             `log_port=5247`,
             `cloud-config-url=http://${ipDhcpServer}:5248/MAAS/metadata/by-id/{{system-id}}/?op=get_preseed`,
             // `BOOTIF=${macAddress}`,
-            `cc:{'datasource_list':['MAAS']}`,
+            // `cc:{'datasource_list':['MAAS']}`,
           ]);
       }
       cmd.push('---');
@@ -1614,13 +1625,9 @@ menuentry '${menuentryStr}' {
                 ? discovery.domain
                 : `generic-host-${s4()}${s4()}`;
 
-          console.log(
-            'mac target:'.green + macAddress,
-            'mac discovered:'.green + discovery.mac_address,
-            'ip target:'.green + ipAddress,
-            'ip discovered:'.green + discovery.ip,
-            'hostname:'.blue + hostname,
-          );
+          console.log(hostname.bgBlue.bold.white);
+          console.log('ip target:'.green + ipAddress, 'ip discovered:'.green + discovery.ip);
+          console.log('mac target:'.green + macAddress, 'mac discovered:'.green + discovery.mac_address);
 
           if (discovery.ip === ipAddress) {
             logger.info('Machine discovered!', discovery);
@@ -1629,9 +1636,9 @@ menuentry '${menuentryStr}' {
               machine = UnderpostBaremetal.API.machineFactory({
                 ...commisionPayload,
                 ipAddress,
-                macAddress,
+                macAddress: discovery.mac_address,
               }).machine;
-              console.log('New machine system id:', machine.system_id.bgBlue.bold.white);
+              console.log('New machine system id:', machine.system_id.bgGreen.bold.white);
               const grubCfgPath = `${process.env.TFTP_ROOT}/grub/grub.cfg`;
               fs.writeFileSync(
                 grubCfgPath,
@@ -1644,10 +1651,13 @@ menuentry '${menuentryStr}' {
           }
         }
         await timer(1000);
-        return await UnderpostBaremetal.API.commissionMonitor({
-          ipAddress,
-          macAddress,
-        });
+        return await UnderpostBaremetal.API.commissionMonitor(
+          {
+            ipAddress,
+            macAddress,
+          },
+          commisionPayload,
+        );
       }
     },
 
