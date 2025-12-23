@@ -721,9 +721,6 @@ rm -rf ${artifacts.join(' ')}`);
           });
           shellExec(`mkdir -p ${process.env.TFTP_ROOT}/grub`);
           fs.writeFileSync(`${process.env.TFTP_ROOT}/grub/grub.cfg`, grubCfg, 'utf8');
-          shellExec(`mkdir -p ${tftpRootPath}/pxe/grub`);
-          fs.writeFileSync(`${tftpRootPath}/pxe/grub/grub.cfg`, grubCfg, 'utf8');
-
           UnderpostBaremetal.API.updateKernelFiles({
             commissioningImage,
             resourcesPath,
@@ -865,20 +862,16 @@ rm -rf ${artifacts.join(' ')}`);
           });
           if (!isMounted) throw new Error('NFS root filesystem is not mounted');
         }
-
-        const commissionMonitorPayload = {
-          workflowId,
-          macAddress,
-          underpostRoot,
-          maas: workflowsConfig[workflowId].maas,
-          networkInterfaceName: workflowsConfig[workflowId].networkInterfaceName,
-          ipAddress,
-          hostname,
-        };
-
+        const commissionMonitorPayload = [
+          {
+            macAddress,
+            ipAddress,
+          },
+          { hostname, maas: workflowsConfig[workflowId].maas },
+        ];
         logger.info('Waiting for commissioning...', commissionMonitorPayload);
 
-        const { discovery } = await UnderpostBaremetal.API.commissionMonitor(commissionMonitorPayload);
+        const { discovery } = await UnderpostBaremetal.API.commissionMonitor(...commissionMonitorPayload);
 
         if (type === 'chroot' && options.cloudInit === true) {
           openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init`);
@@ -1577,10 +1570,19 @@ menuentry '${menuentryStr}' {
      * @param {object} params - The parameters for the function.
      * @param {string} params.macAddress - The MAC address to monitor for.
      * @param {string} params.ipAddress - The IP address of the machine (used if MAC is all zeros).
+     * @param {object} commisionPayload - The payload for commissioning the machine.
+     * @param {string} commisionPayload.hostname - The hostname for the machine.
+     * @param {object} commisionPayload.maas - Additional MAAS-specific commissioning options.
      * @returns {Promise<void>} A promise that resolves when commissioning is initiated or after a delay.
      * @memberof UnderpostBaremetal
      */
-    async commissionMonitor({ macAddress, ipAddress }) {
+    async commissionMonitor(
+      { macAddress, ipAddress },
+      commisionPayload = {
+        hostname: '',
+        maas: {},
+      },
+    ) {
       {
         // Query observed discoveries from MAAS.
         const discoveries = JSON.parse(
@@ -1609,10 +1611,23 @@ menuentry '${menuentryStr}' {
 
           if (discovery.ip === ipAddress) {
             logger.info('Machine discovered!', discovery);
+            let machine;
+            if (commisionPayload && commisionPayload.hostname && commisionPayload.maas) {
+              machine = UnderpostBaremetal.API.machineFactory({
+                ...commisionPayload,
+                ipAddress,
+                macAddress,
+              }).machine;
+              console.log('New machine system id:', machine.system_id.bgBlue.bold.white);
+              const grubCfgPath = `${process.env.TFTP_ROOT}/grub/grub.cfg`;
+              fs.writeFileSync(
+                grubCfgPath,
+                fs.readFileSync(grubCfgPath, 'utf8').replace('{{system-id}}', machine.system_id),
+                'utf8',
+              );
+            }
 
-            // console.log('System id:', systemId.bgBlue.bold.white);
-
-            return { discovery };
+            return { discovery, machine };
           }
         }
         await timer(1000);
