@@ -155,15 +155,7 @@ class UnderpostBaremetal {
       ipConfig = ipConfig ? ipConfig : 'none';
 
       // Set default MAC address
-      let macAddress = options.mac
-        ? options.mac
-        : (options.mac === 'random'
-            ? (options.mac = range(1, 6)
-                .map(() => s4().toLowerCase().substring(0, 2))
-                .join(':'))
-            : (options.mac = '00:00:00:00:00'),
-          options.mac);
-
+      let macAddress = UnderpostBaremetal.API.macAddressFactory(options);
       const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
 
       if (!workflowsConfig[workflowId]) {
@@ -883,6 +875,27 @@ rm -rf ${artifacts.join(' ')}`);
           );
         }
       }
+    },
+
+    /**
+     * @method macAddressFactory
+     * @description Generates or returns a MAC address based on options.
+     * @param {object} options - Options for MAC address generation.
+     * @param {string} options.mac - 'random' for random MAC, specific MAC string, or empty for default.
+     * @returns {string} The generated or specified MAC address.
+     * @memberof UnderpostBaremetal
+     */
+    macAddressFactory(options = { mac: '' }) {
+      let len = 6;
+      if (options)
+        if (options.mac === 'random')
+          return range(1, len)
+            .map(() => s4().toLowerCase().substring(0, 2))
+            .join(':');
+        else if (options.mac) return options.mac;
+      return range(1, len)
+        .map(() => '00')
+        .join(':');
     },
 
     /**
