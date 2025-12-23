@@ -1615,17 +1615,21 @@ rm -rf ${artifacts.join(' ')}`);
       } else {
         // 'iso-nfs'
         cmd = [ipParam, ...baseNfsParams, nfsRootParam, ...kernelParams, ...performanceParams];
-        if (cloudInit)
+        if (cloudInit) {
+          const cloudInitPreseedUrl = `http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${options.machine?.system_id ? options.machine.system_id : 'system-id'}/?op=get_preseed`;
           cmd = cmd.concat([
-            `cloud-init=verbose`,
+            `cloud-init=enabled`,
+            'autoinstall',
+            `cloud-config-url=${cloudInitPreseedUrl}`,
+            `ds=nocloud-net;s=${cloudInitPreseedUrl}`,
             `log_host=${ipDhcpServer}`,
             `log_port=5247`,
-            `cloud-config-url=http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${options.machine?.system_id ? options.machine.system_id : 'system-id'}/?op=get_preseed`,
             // `BOOTIF=${macAddress}`,
-            // `cc:{'datasource_list':['MAAS']}`,
+            // `cc:{'datasource_list': ['MAAS']}end_cc`,
           ]);
+        }
       }
-      cmd.push('---');
+      // cmd.push('---');
       const cmdStr = cmd.join(' ');
       logger.info('Constructed kernel command line');
       console.log(newInstance(cmdStr).bgRed.bold.black);
