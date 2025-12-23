@@ -17,6 +17,7 @@ import UnderpostCloudInit from './cloud-init.js';
 import UnderpostRepository from './repository.js';
 import { newInstance, range, s4, timer } from '../client/components/core/CommonJs.js';
 import { spawnSync } from 'child_process';
+import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -704,15 +705,14 @@ rm -rf ${artifacts.join(' ')}`);
             cloudInit: options.cloudInit,
           });
 
-          const grubCfg = UnderpostBaremetal.API.grubFactory({
+          const { grubCfgSrc } = UnderpostBaremetal.API.grubFactory({
             menuentryStr,
             kernelPath: `/${tftpPrefix}/pxe/vmlinuz-efi`,
             initrdPath: `/${tftpPrefix}/pxe/initrd.img`,
             cmd,
             tftpIp: callbackMetaData.runnerHost.ip,
           });
-          shellExec(`mkdir -p ${process.env.TFTP_ROOT}/grub`);
-          fs.writeFileSync(`${process.env.TFTP_ROOT}/grub/grub.cfg`, grubCfg, 'utf8');
+          UnderpostBaremetal.API.writeGrubConfigToFile({ grubCfgSrc });
           UnderpostBaremetal.API.updateKernelFiles({
             commissioningImage,
             resourcesPath,
@@ -1265,6 +1265,31 @@ rm -rf ${artifacts.join(' ')}`);
     },
 
     /**
+     * @method writeGrubConfigToFile
+     * @description Writes the GRUB configuration content to the grub.cfg file in the TFTP root.
+     * @param {object} params - Parameters for the method.
+     * @param {string} params.grubCfgSrc - The GRUB configuration content to write.
+     * @memberof UnderpostBaremetal
+     * @returns {void}
+     */
+    writeGrubConfigToFile({ grubCfgSrc = '' }) {
+      shellExec(`mkdir -p ${process.env.TFTP_ROOT}/grub`);
+      return fs.writeFileSync(`${process.env.TFTP_ROOT}/grub/grub.cfg`, grubCfgSrc, 'utf8');
+    },
+
+    /**
+     * @method getGrubConfigFromFile
+     * @description Reads the GRUB configuration content from the grub.cfg file in the TFTP root.
+     * @memberof UnderpostBaremetal
+     * @returns {string} The GRUB configuration content.
+     */
+    getGrubConfigFromFile() {
+      const grubCfgPath = `${process.env.TFTP_ROOT}/grub/grub.cfg`;
+      const grubCfgSrc = fs.readFileSync(grubCfgPath, 'utf8');
+      return { grubCfgPath, grubCfgSrc };
+    },
+
+    /**
      * @method removeDiscoveredMachines
      * @description Removes all machines in the 'discovered' status from MAAS.
      * @memberof UnderpostBaremetal
@@ -1307,36 +1332,38 @@ rm -rf ${artifacts.join(' ')}`);
      * @param {string} params.initrdPath - The path to the initrd file (relative to TFTP root).
      * @param {string} params.cmd - The kernel command line parameters.
      * @param {string} params.tftpIp - The IP address of the TFTP server.
-     * @returns {string} The generated GRUB configuration content.
+     * @returns {object} An object containing 'grubCfgSrc' the GRUB configuration source string.
      * @memberof UnderpostBaremetal
      */
     grubFactory({ menuentryStr, kernelPath, initrdPath, cmd, tftpIp }) {
-      return `
-set default="0"
-set timeout=10
-insmod nfs
-insmod gzio
-insmod http
-insmod tftp
-set root=(tftp,${tftpIp})
+      return {
+        grubCfgSrc: `
+  set default="0"
+  set timeout=10
+  insmod nfs
+  insmod gzio
+  insmod http
+  insmod tftp
+  set root=(tftp,${tftpIp})
 
-menuentry '${menuentryStr}' {
-    echo "${menuentryStr}"
-    echo "Date: ${new Date().toISOString()}"
-    echo "TFTP server: ${tftpIp}"
-    echo "Kernel path: ${kernelPath}"
-    echo "Initrd path: ${initrdPath}"
-    echo "Cmdline: ${cmd}"
-    echo " . . . "
-    echo "Starting boot process..."
-    echo "Loading kernel..."
-    linux ${kernelPath} ${cmd}
-    echo "Loading initrd..."
-    initrd ${initrdPath}
-    echo "Booting..."
-    boot
-}
-`;
+  menuentry '${menuentryStr}' {
+      echo "${menuentryStr}"
+      echo " ${Underpost.version}"
+      echo "Date: ${new Date().toISOString()}"
+      ${cmd.match('/MAAS/metadata/by-id/') ? `echo "System ID: ${cmd.split('/MAAS/metadata/by-id/')[1].split('/')[0]}"` : ''}
+      echo "TFTP server: ${tftpIp}"
+      echo "Kernel path: ${kernelPath}"
+      echo "Initrd path: ${initrdPath}"
+      echo "Starting boot process..."
+      echo "Loading kernel..."
+      linux /${kernelPath} ${cmd}
+      echo "Loading initrd..."
+      initrd /${initrdPath}
+      echo "Booting..."
+      boot
+  }
+  `,
+      };
     },
 
     /**
@@ -1575,7 +1602,7 @@ menuentry '${menuentryStr}' {
             `cloud-init=verbose`,
             `log_host=${ipDhcpServer}`,
             `log_port=5247`,
-            `cloud-config-url=http://${ipDhcpServer}:5248/MAAS/metadata/by-id/{{system-id}}/?op=get_preseed`,
+            `cloud-config-url=http://${ipDhcpServer}:5248/MAAS/metadata/by-id/system-id/?op=get_preseed`,
             // `BOOTIF=${macAddress}`,
             // `cc:{'datasource_list':['MAAS']}`,
           ]);
@@ -1638,13 +1665,14 @@ menuentry '${menuentryStr}' {
                 ipAddress,
                 macAddress: discovery.mac_address,
               }).machine;
-              console.log('New machine system id:', machine.system_id.bgGreen.bold.white);
-              const grubCfgPath = `${process.env.TFTP_ROOT}/grub/grub.cfg`;
-              fs.writeFileSync(
-                grubCfgPath,
-                fs.readFileSync(grubCfgPath, 'utf8').replace('{{system-id}}', machine.system_id),
-                'utf8',
-              );
+              console.log('New machine system id:', machine.system_id.bgYellow.bold.black);
+
+              UnderpostBaremetal.API.writeGrubConfigToFile({
+                grubCfgSrc: UnderpostBaremetal.API.getGrubConfigFromFile().grubCfgSrc.replaceAll(
+                  'system-id',
+                  machine.system_id,
+                ),
+              });
             }
 
             return { discovery, machine };
