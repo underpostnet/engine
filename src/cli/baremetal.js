@@ -203,12 +203,20 @@ class UnderpostBaremetal {
       // Create a new machine in MAAS if the option is set.
       let machine;
       if (options.createMachine === true) {
-        machine = UnderpostBaremetal.API.machineFactory({
-          hostname,
-          ipAddress,
-          macAddress,
-          maas: workflowsConfig[workflowId].maas,
-        }).machine;
+        const [searhMachine] = JSON.parse(
+          shellExec(`maas maas machines read hostname=${hostname}`, {
+            stdout: true,
+            silent: true,
+          }),
+        );
+        machine = searhMachine
+          ? searhMachine
+          : UnderpostBaremetal.API.machineFactory({
+              hostname,
+              ipAddress,
+              macAddress,
+              maas: workflowsConfig[workflowId].maas,
+            }).machine;
       }
 
       if (options.installPacker) {
@@ -258,9 +266,9 @@ class UnderpostBaremetal {
           workflows[workflowId] = workflowConfig;
           UnderpostBaremetal.API.writePackerMaasImageBuildWorkflows(workflows);
 
-          logger.info('\nTemplate extracted successfully!');
-          logger.info(`\nAdded configuration for ${workflowId} to engine/baremetal/packer-workflows.json`);
-          logger.info('\nNext steps');
+          logger.info('Template extracted successfully!');
+          logger.info(`Added configuration for ${workflowId} to engine/baremetal/packer-workflows.json`);
+          logger.info('Next steps');
           logger.info(`1. Review and customize the Packer template files in: ${targetDir}`);
           logger.info(`2. Review the workflow configuration in engine/baremetal/packer-workflows.json`);
           logger.info(
@@ -864,7 +872,10 @@ rm -rf ${artifacts.join(' ')}`);
           maas: workflowsConfig[workflowId].maas,
           machine,
         };
-        logger.info('Waiting for commissioning...', commissionMonitorPayload);
+        logger.info('Waiting for commissioning...', {
+          ...commissionMonitorPayload,
+          machine: machine ? machine.system_id : null,
+        });
 
         const { discovery } = await UnderpostBaremetal.API.commissionMonitor(commissionMonitorPayload);
 
@@ -1673,6 +1684,44 @@ rm -rf ${artifacts.join(' ')}`);
                   machine.system_id,
                 ),
               });
+            } else {
+              const systemId = machine.system_id;
+              console.log('Using existing machine system id:', systemId.bgYellow.bold.black);
+              logger.info('Updating machine network interface MAC address to match discovery...');
+
+              shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-broken ${systemId}`, {
+                silent: true,
+              });
+
+              shellExec(
+                // name=${networkInterfaceName}
+                `maas ${process.env.MAAS_ADMIN_USERNAME} interface update ${systemId} ${machine.boot_interface.id}` +
+                  ` mac_address=${discovery.mac_address}`,
+                {
+                  silent: true,
+                },
+              );
+
+              shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-fixed ${systemId}`, {
+                silent: true,
+              });
+
+              // commissioning_scripts=90-verify-user.sh
+              machine = JSON.parse(
+                shellExec(
+                  `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission --debug --insecure ${systemId} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
+                  {
+                    silent: true,
+                  },
+                ),
+              );
+              logger.info('Machine resource uri', machine.resource_uri);
+              for (const iface of machine.interface_set)
+                logger.info('Interface info', {
+                  name: iface.name,
+                  mac_address: iface.mac_address,
+                  resource_uri: iface.resource_uri,
+                });
             }
 
             return { discovery, machine };
