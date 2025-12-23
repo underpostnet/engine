@@ -200,16 +200,15 @@ class UnderpostBaremetal {
       // Log the initiation of the baremetal callback with relevant metadata.
       logger.info('Baremetal callback', callbackMetaData);
 
+      // Create a new machine in MAAS if the option is set.
+      let machine;
       if (options.createMachine === true) {
-        console.log(
-          UnderpostBaremetal.API.machineFactory({
-            hostname,
-            ipAddress,
-            macAddress,
-            maas: workflowsConfig[workflowId].maas,
-          }).machine,
-        );
-        return;
+        machine = UnderpostBaremetal.API.machineFactory({
+          hostname,
+          ipAddress,
+          macAddress,
+          maas: workflowsConfig[workflowId].maas,
+        }).machine;
       }
 
       if (options.installPacker) {
@@ -627,6 +626,7 @@ rm -rf ${artifacts.join(' ')}`);
       if (options.removeMachines)
         machines = UnderpostBaremetal.API.removeMachines({
           machines: options.removeMachines === 'all' ? machines : options.removeMachines.split(','),
+          ignore: machine ? [machine.system_id] : [],
         });
 
       // Handle commissioning tasks (placeholder for future implementation).
@@ -703,6 +703,7 @@ rm -rf ${artifacts.join(' ')}`);
               options.bootstrapHttpServerPort || workflowsConfig[workflowId].bootstrapHttpServerPort || 8888,
             type,
             cloudInit: options.cloudInit,
+            machine,
           });
 
           const { grubCfgSrc } = UnderpostBaremetal.API.grubFactory({
@@ -712,7 +713,9 @@ rm -rf ${artifacts.join(' ')}`);
             cmd,
             tftpIp: callbackMetaData.runnerHost.ip,
           });
-          UnderpostBaremetal.API.writeGrubConfigToFile({ grubCfgSrc });
+          UnderpostBaremetal.API.writeGrubConfigToFile({
+            grubCfgSrc: machine ? grubCfgSrc.replaceAll('system-id', machine.system_id) : grubCfgSrc,
+          });
           UnderpostBaremetal.API.updateKernelFiles({
             commissioningImage,
             resourcesPath,
@@ -854,16 +857,16 @@ rm -rf ${artifacts.join(' ')}`);
           });
           if (!isMounted) throw new Error('NFS root filesystem is not mounted');
         }
-        const commissionMonitorPayload = [
-          {
-            macAddress,
-            ipAddress,
-          },
-          { hostname, maas: workflowsConfig[workflowId].maas },
-        ];
+        const commissionMonitorPayload = {
+          macAddress,
+          ipAddress,
+          hostname,
+          maas: workflowsConfig[workflowId].maas,
+          machine,
+        };
         logger.info('Waiting for commissioning...', commissionMonitorPayload);
 
-        const { discovery } = await UnderpostBaremetal.API.commissionMonitor(...commissionMonitorPayload);
+        const { discovery } = await UnderpostBaremetal.API.commissionMonitor(commissionMonitorPayload);
 
         if (type === 'chroot' && options.cloudInit === true) {
           openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init`);
@@ -1273,7 +1276,9 @@ rm -rf ${artifacts.join(' ')}`);
      * @returns {void}
      */
     writeGrubConfigToFile({ grubCfgSrc = '' }) {
-      shellExec(`mkdir -p ${process.env.TFTP_ROOT}/grub`);
+      shellExec(`mkdir -p ${process.env.TFTP_ROOT}/grub`, {
+        disableLog: true,
+      });
       return fs.writeFileSync(`${process.env.TFTP_ROOT}/grub/grub.cfg`, grubCfgSrc, 'utf8');
     },
 
@@ -1460,6 +1465,7 @@ rm -rf ${artifacts.join(' ')}`);
      * @param {string} options.type - The type of boot ('iso-ram', 'chroot', 'iso-nfs', etc.).
      * @param {string} options.macAddress - The MAC address of the client.
      * @param {boolean} options.cloudInit - Whether to include cloud-init parameters.
+     * @param {object} options.machine - The machine object containing system_id.
      * @returns {object} An object containing the constructed command line string.
      * @memberof UnderpostBaremetal
      */
@@ -1478,6 +1484,7 @@ rm -rf ${artifacts.join(' ')}`);
         type: '',
         macAddress: '',
         cloudInit: false,
+        machine: { system_id: '' },
       },
     ) {
       // Construct kernel command line arguments for NFS boot.
@@ -1602,7 +1609,7 @@ rm -rf ${artifacts.join(' ')}`);
             `cloud-init=verbose`,
             `log_host=${ipDhcpServer}`,
             `log_port=5247`,
-            `cloud-config-url=http://${ipDhcpServer}:5248/MAAS/metadata/by-id/system-id/?op=get_preseed`,
+            `cloud-config-url=http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${options.machine?.system_id ? options.machine.system_id : 'system-id'}/?op=get_preseed`,
             // `BOOTIF=${macAddress}`,
             // `cc:{'datasource_list':['MAAS']}`,
           ]);
@@ -1621,19 +1628,13 @@ rm -rf ${artifacts.join(' ')}`);
      * @param {object} params - The parameters for the function.
      * @param {string} params.macAddress - The MAC address to monitor for.
      * @param {string} params.ipAddress - The IP address of the machine (used if MAC is all zeros).
-     * @param {object} commisionPayload - The payload for commissioning the machine.
-     * @param {string} commisionPayload.hostname - The hostname for the machine.
-     * @param {object} commisionPayload.maas - Additional MAAS-specific commissioning options.
+     * @param {string} [params.hostname] - The hostname for the machine (optional).
+     * @param {object} [params.maas] - Additional MAAS-specific options (optional).
+     * @param {object} [params.machine] - Existing machine payload to use (optional).
      * @returns {Promise<void>} A promise that resolves when commissioning is initiated or after a delay.
      * @memberof UnderpostBaremetal
      */
-    async commissionMonitor(
-      { macAddress, ipAddress },
-      commisionPayload = {
-        hostname: '',
-        maas: {},
-      },
-    ) {
+    async commissionMonitor({ macAddress, ipAddress, hostname, maas, machine }) {
       {
         // Query observed discoveries from MAAS.
         const discoveries = JSON.parse(
@@ -1644,7 +1645,7 @@ rm -rf ${artifacts.join(' ')}`);
         );
 
         for (const discovery of discoveries) {
-          const hostname = discovery.hostname
+          const dicoverHostname = discovery.hostname
             ? discovery.hostname
             : discovery.mac_organization
               ? discovery.mac_organization
@@ -1652,21 +1653,20 @@ rm -rf ${artifacts.join(' ')}`);
                 ? discovery.domain
                 : `generic-host-${s4()}${s4()}`;
 
-          console.log(hostname.bgBlue.bold.white);
+          console.log(dicoverHostname.bgBlue.bold.white);
           console.log('ip target:'.green + ipAddress, 'ip discovered:'.green + discovery.ip);
           console.log('mac target:'.green + macAddress, 'mac discovered:'.green + discovery.mac_address);
 
           if (discovery.ip === ipAddress) {
             logger.info('Machine discovered!', discovery);
-            let machine;
-            if (commisionPayload && commisionPayload.hostname && commisionPayload.maas) {
+            if (!machine) {
               machine = UnderpostBaremetal.API.machineFactory({
-                ...commisionPayload,
                 ipAddress,
                 macAddress: discovery.mac_address,
+                hostname,
+                maas,
               }).machine;
               console.log('New machine system id:', machine.system_id.bgYellow.bold.black);
-
               UnderpostBaremetal.API.writeGrubConfigToFile({
                 grubCfgSrc: UnderpostBaremetal.API.getGrubConfigFromFile().grubCfgSrc.replaceAll(
                   'system-id',
@@ -1679,13 +1679,7 @@ rm -rf ${artifacts.join(' ')}`);
           }
         }
         await timer(1000);
-        return await UnderpostBaremetal.API.commissionMonitor(
-          {
-            ipAddress,
-            macAddress,
-          },
-          commisionPayload,
-        );
+        return await UnderpostBaremetal.API.commissionMonitor({ macAddress, ipAddress, hostname, maas, machine });
       }
     },
 
@@ -1714,13 +1708,15 @@ rm -rf ${artifacts.join(' ')}`);
      * @description Deletes all specified machines from MAAS.
      * @param {object} params - The parameters for the function.
      * @param {Array<object>} params.machines - An array of machine objects, each with a `system_id`.
+     * @param {Array<string>} [params.ignore] - An optional array of system IDs to ignore during deletion.
      * @memberof UnderpostBaremetal
      * @returns {Array<object>} An empty array after machines are removed.
      */
-    removeMachines({ machines }) {
+    removeMachines({ machines, ignore }) {
       for (const machine of machines) {
         // Handle both string system_ids and machine objects
         const systemId = typeof machine === 'string' ? machine : machine.system_id;
+        if (ignore && ignore.find((mId) => mId === systemId)) continue;
         logger.info(`Removing machine: ${systemId}`);
         shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${systemId}`);
       }
