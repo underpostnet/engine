@@ -410,6 +410,11 @@ const Panel = {
               </div>`,
             // disabled: true,
             // disabledEye: true,
+          })}
+          ${await BtnIcon.Render({
+            class: `inl section-mp btn-custom btn-${idPanel}-clean-file`,
+            label: html`<i class="fa-solid fa-file-circle-xmark"></i> ${Translate.Render('clear-file')}`,
+            type: 'button',
           })}`;
           break;
         default:
@@ -476,6 +481,15 @@ const Panel = {
       s(`.btn-${idPanel}-clean`).onclick = () => {
         Input.cleanValues(formData);
       };
+      s(`.btn-${idPanel}-clean-file`).onclick = () => {
+        // Clear file input specifically
+        const fileFormData = formData.find((f) => f.inputType === 'file');
+        if (fileFormData && s(`.${fileFormData.id}`)) {
+          s(`.${fileFormData.id}`).value = '';
+          s(`.${fileFormData.id}`).inputFiles = null;
+          htmls(`.file-name-render-${fileFormData.id}`, `${fileNameInputExtDefaultContent}`);
+        }
+      };
       s(`.btn-${idPanel}-close`).onclick = (e) => {
         e.preventDefault();
         s(`.${idPanel}-form-body`).style.opacity = 0;
@@ -494,10 +508,26 @@ const Panel = {
       };
       s(`.btn-${idPanel}-add`).onclick = async (e) => {
         e.preventDefault();
-        // s(`.btn-${idPanel}-clean`).click();
+
+        // Clean all form inputs and reset data scope
+        Input.cleanValues(formData);
+
+        // Clean file input specifically
+        const fileFormData = formData.find((f) => f.inputType === 'file');
+        if (fileFormData && s(`.${fileFormData.id}`)) {
+          s(`.${fileFormData.id}`).value = '';
+          s(`.${fileFormData.id}`).inputFiles = null;
+          htmls(`.file-name-render-${fileFormData.id}`, `${fileNameInputExtDefaultContent}`);
+        }
+
+        // Reset edit ID to ensure we're in "add" mode
         Panel.Tokens[idPanel].editId = undefined;
+
+        // Update button labels
         s(`.btn-${idPanel}-label-add`).classList.remove('hide');
         s(`.btn-${idPanel}-label-edit`).classList.add('hide');
+
+        // Scroll to top
         s(`.${scrollClassContainer}`).scrollTop = 0;
 
         openPanelForm();

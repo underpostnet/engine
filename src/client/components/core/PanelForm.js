@@ -182,6 +182,16 @@ const PanelForm = {
             s(`.modal-${options.route}`).scrollTo({ top: 0, behavior: 'smooth' });
           },
           initEdit: async function ({ data }) {
+            // Clear file input when entering edit mode
+            const fileFormData = formData.find((f) => f.inputType === 'file');
+            if (fileFormData && s(`.${fileFormData.id}`)) {
+              s(`.${fileFormData.id}`).value = '';
+              s(`.${fileFormData.id}`).inputFiles = null;
+              htmls(
+                `.file-name-render-${fileFormData.id}`,
+                `<div class="abs center"><i style="font-size: 25px" class="fa-solid fa-cloud"></i></div>`,
+              );
+            }
             s(`.modal-${options.route}`).scrollTo({ top: 0, behavior: 'smooth' });
           },
           noResultFound: async function () {

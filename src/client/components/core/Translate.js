@@ -520,6 +520,10 @@ const TranslateCore = {
       en: 'Data reloaded successfully.',
       es: 'Datos recargados con éxito.',
     };
+    Translate.Data['clear-file'] = {
+      en: 'Clear File',
+      es: 'Limpiar Archivos',
+    };
   },
 };
 
