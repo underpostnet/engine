@@ -162,7 +162,9 @@ const Input = {
           break;
         }
         case 'md':
-          RichText.Tokens[inputData.id].easyMDE.value('');
+          setTimeout(() => {
+            RichText.Tokens[inputData.id].easyMDE.value('');
+          });
           continue;
           break;
         case 'checkbox':

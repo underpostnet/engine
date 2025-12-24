@@ -99,6 +99,8 @@ const Panel = {
         );
         EventsUI.onClick(`.${idPanel}-btn-edit-${id}`, async () => {
           logger.warn('edit', obj);
+          const searchId = String(obj._id || obj.id);
+
           if (obj._id) Panel.Tokens[idPanel].editId = obj._id;
           else if (obj.id) Panel.Tokens[idPanel].editId = obj.id;
 
@@ -106,14 +108,11 @@ const Panel = {
           s(`.btn-${idPanel}-label-add`).classList.add('hide');
 
           openPanelForm();
-          // s(`.btn-${idPanel}-add`).click();
-          s(`.${scrollClassContainer}`).scrollTop = 0;
-
+          // s(`.${scrollClassContainer}`).scrollTop = 0;
           const originData = options.originData();
           const filesData = options.filesData();
 
           // Convert IDs to strings for comparison to handle ObjectId vs string issues
-          const searchId = String(obj._id || obj.id);
           const foundOrigin = originData.find((d) => String(d._id || d.id) === searchId);
           const foundFiles = filesData.find((d) => String(d._id || d.id) === searchId);
 
@@ -133,6 +132,8 @@ const Panel = {
             );
           }
 
+          // Clear previous form values then populate with the current item's data
+          Input.cleanValues(formData);
           Input.setValues(formData, obj, foundOrigin, foundFiles);
           if (options.on.initEdit) await options.on.initEdit({ data: obj });
         });
