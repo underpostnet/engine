@@ -770,7 +770,7 @@ rm -rf ${artifacts.join(' ')}`);
             // Create embedded boot script that does DHCP and chains to the main script
             const embeddedScript = UnderpostBaremetal.API.ipxeEmbeddedScriptFactory({
               tftpServer: callbackMetaData.runnerHost.ip,
-              scriptPath: `${tftpPrefix}/stable-id.ipxe`,
+              scriptPath: `/${tftpPrefix}/stable-id.ipxe`,
               macAddress: macAddress,
             });
             fs.writeFileSync(`${tftpRootPath}/boot.ipxe`, embeddedScript, 'utf8');
@@ -1474,9 +1474,8 @@ rm -rf ${artifacts.join(' ')}`);
           ? `
 # MAC Address Spoofing
 echo Spoofing MAC address to: ${macAddress}
-set mac ${macAddress}
-ifconf --mac \${mac} net0 || goto dhcp_normal
-echo MAC spoofed to: \${mac}
+set net0/mac ${macAddress} || goto dhcp_normal
+echo MAC spoofed to: \${net0/mac}
 goto dhcp_continue
 
 :dhcp_normal
@@ -1498,9 +1497,6 @@ echo ========================================
 echo TFTP Server: ${tftpServer}
 echo Script Path: ${scriptPath}
 echo ========================================
-
-# Configure console for debugging
-console --picture --left 100 --right 80
 
 ${macSpoofingBlock}
 :dhcp_continue
