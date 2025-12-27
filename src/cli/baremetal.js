@@ -217,7 +217,12 @@ class UnderpostBaremetal {
         if (searhMachine) {
           // Check if existing machine's MAC matches the specified MAC
           const existingMac = searhMachine.boot_interface?.mac_address || searhMachine.mac_address;
-          if (existingMac && existingMac !== macAddress) {
+
+          // If using hardware MAC (macAddress is null), skip MAC validation and use existing machine
+          if (macAddress === null) {
+            logger.info(`Using hardware MAC mode - keeping existing machine ${hostname} with MAC ${existingMac}`);
+            machine = searhMachine;
+          } else if (existingMac && existingMac !== macAddress) {
             logger.warn(`⚠ Machine ${hostname} exists with MAC ${existingMac}, but --mac specified ${macAddress}`);
             logger.info(`Deleting existing machine ${searhMachine.system_id} to recreate with correct MAC...`);
 
@@ -241,12 +246,18 @@ class UnderpostBaremetal {
           }
         } else {
           // No existing machine found, create new one
-          machine = UnderpostBaremetal.API.machineFactory({
-            hostname,
-            ipAddress,
-            macAddress,
-            maas: workflowsConfig[workflowId].maas,
-          }).machine;
+          // For hardware MAC mode (macAddress is null), we'll create machine after discovery
+          if (macAddress === null) {
+            logger.info(`Hardware MAC mode - machine will be created after discovery`);
+            machine = null;
+          } else {
+            machine = UnderpostBaremetal.API.machineFactory({
+              hostname,
+              ipAddress,
+              macAddress,
+              maas: workflowsConfig[workflowId].maas,
+            }).machine;
+          }
         }
       }
 
@@ -769,12 +780,17 @@ rm -rf ${artifacts.join(' ')}`);
               path: `${tftpRootPath}/stable-id.ipxe`,
               embeddedPath: `${tftpRootPath}/boot.ipxe`,
             });
-            logger.info('ℹ Machine registered in MAAS with MAC:', macAddress);
-            if (macAddress && macAddress !== '00:00:00:00:00:00') {
-              logger.info('ℹ MAAS will identify the machine by MAC:', macAddress);
+            if (macAddress === null) {
+              logger.info('ℹ Hardware MAC mode - device will use actual hardware MAC address');
+              logger.info('ℹ MAAS will identify the machine by its hardware MAC after discovery');
             } else {
-              logger.info('ℹ Device will boot with its actual hardware MAC address');
-              logger.info('ℹ MAAS will identify the machine by its hardware MAC');
+              logger.info('ℹ Machine registered in MAAS with MAC:', macAddress);
+              if (macAddress !== '00:00:00:00:00:00') {
+                logger.info('ℹ MAAS will identify the machine by MAC:', macAddress);
+              } else {
+                logger.info('ℹ Device will boot with its actual hardware MAC address');
+                logger.info('ℹ MAAS will identify the machine by its hardware MAC');
+              }
             }
 
             // Rebuild iPXE with embedded boot script if requested or if binary doesn't exist
@@ -993,8 +1009,8 @@ rm -rf ${artifacts.join(' ')}`);
      * @method macAddressFactory
      * @description Generates or returns a MAC address based on options.
      * @param {object} options - Options for MAC address generation.
-     * @param {string} options.mac - 'random' for random MAC, specific MAC string, or empty for default.
-     * @returns {string} The generated or specified MAC address.
+     * @param {string} options.mac - 'random' for random MAC, 'hardware' to use device's actual MAC, specific MAC string, or empty for default.
+     * @returns {object} Object with mac property - null for 'hardware', generated/specified MAC otherwise.
      * @memberof UnderpostBaremetal
      */
     macAddressFactory(options = { mac: '' }) {
@@ -1004,10 +1020,14 @@ rm -rf ${artifacts.join(' ')}`);
         .join(':');
       if (options) {
         if (!options.mac) options.mac = defaultMac;
-        if (options.mac === 'random')
+        if (options.mac === 'hardware') {
+          // Return null to indicate hardware MAC should be used (no spoofing)
+          options.mac = null;
+        } else if (options.mac === 'random') {
           options.mac = range(1, len)
             .map(() => s4().toLowerCase().substring(0, 2))
             .join(':');
+        }
       } else options = { mac: defaultMac };
       return options;
     },
@@ -1463,8 +1483,9 @@ goto dhcp_continue
 echo MAC spoofing not supported or failed, using hardware MAC
 `
           : `
-# Using hardware MAC address
-echo Using hardware MAC address
+# Using hardware MAC address (no spoofing)
+echo Using device hardware MAC address
+echo MAC spoofing disabled - device will identify with actual MAC
 `;
 
       return `#!ipxe
@@ -1960,6 +1981,11 @@ shell
           if (discovery.ip === ipAddress) {
             logger.info('Machine discovered!', discovery);
             if (!machine) {
+              logger.info('Creating new machine with discovered hardware MAC...', {
+                discoveredMAC: discovery.mac_address,
+                ipAddress,
+                hostname,
+              });
               machine = UnderpostBaremetal.API.machineFactory({
                 ipAddress,
                 macAddress: discovery.mac_address,
@@ -1978,9 +2004,10 @@ shell
               console.log('Using pre-registered machine system_id:', systemId.bgYellow.bold.black);
 
               // Update the boot interface MAC if hardware MAC differs from pre-registered MAC
-              if (macAddress !== discovery.mac_address) {
-                logger.info('Hardware MAC differs from pre-registered MAC - updating machine interface...', {
-                  preRegisteredMAC: macAddress,
+              // This handles both hardware mode (macAddress is null) and MAC mismatch scenarios
+              if (macAddress === null || macAddress !== discovery.mac_address) {
+                logger.info('Updating machine interface with discovered hardware MAC...', {
+                  preRegisteredMAC: macAddress || 'none (hardware mode)',
                   discoveredMAC: discovery.mac_address,
                 });
 

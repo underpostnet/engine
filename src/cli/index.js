@@ -589,7 +589,10 @@ program
   .option('--control-server-db-install', 'Installs up the database for the baremetal control server.')
   .option('--control-server-db-uninstall', 'Uninstalls the database for the baremetal control server.')
   .option('--create-machine', 'Creates a new baremetal machine entry in the database.')
-  .option('--mac <mac>', 'Specifies the MAC address for baremetal machine operations.')
+  .option(
+    '--mac <mac>',
+    'Specifies the MAC address for baremetal machine operations. Use "random" for random MAC, "hardware" to use device\'s actual MAC (no spoofing), or specify a MAC address.',
+  )
   .option('--ipxe', 'Chainloads iPXE to normalize identity before commissioning.')
   .option('--ipxe-rebuild', 'Forces rebuild of iPXE binary with embedded boot script.')
   .option('--install-packer', 'Installs Packer CLI.')
