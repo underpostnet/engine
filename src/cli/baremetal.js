@@ -760,6 +760,7 @@ rm -rf ${artifacts.join(' ')}`);
             const embeddedScript = UnderpostBaremetal.API.ipxeEmbeddedScriptFactory({
               tftpServer: callbackMetaData.runnerHost.ip,
               scriptPath: `${tftpPrefix}/stable-id.ipxe`,
+              macAddress: macAddress,
             });
             fs.writeFileSync(`${tftpRootPath}/boot.ipxe`, embeddedScript, 'utf8');
 
@@ -1439,13 +1440,33 @@ rm -rf ${artifacts.join(' ')}`);
      * @method ipxeEmbeddedScriptFactory
      * @description Generates the embedded iPXE boot script that performs DHCP and chains to the main script.
      * This script is embedded into the iPXE binary or loaded first by GRUB.
+     * Supports MAC address spoofing for baremetal commissioning workflows.
      * @param {object} params - The parameters for generating the script.
      * @param {string} params.tftpServer - The IP address of the TFTP server.
      * @param {string} params.scriptPath - The path to the main iPXE script on TFTP server.
+     * @param {string} [params.macAddress] - Optional MAC address to spoof for MAAS registration.
      * @returns {string} The embedded iPXE script content.
      * @memberof UnderpostBaremetal
      */
-    ipxeEmbeddedScriptFactory({ tftpServer, scriptPath }) {
+    ipxeEmbeddedScriptFactory({ tftpServer, scriptPath, macAddress = null }) {
+      const macSpoofingBlock =
+        macAddress && macAddress !== '00:00:00:00:00:00'
+          ? `
+# MAC Address Spoofing
+echo Spoofing MAC address to: ${macAddress}
+set mac ${macAddress}
+ifconf --mac \${mac} net0 || goto dhcp_normal
+echo MAC spoofed to: \${mac}
+goto dhcp_continue
+
+:dhcp_normal
+echo MAC spoofing not supported or failed, using hardware MAC
+`
+          : `
+# Using hardware MAC address
+echo Using hardware MAC address
+`;
+
       return `#!ipxe
 # Embedded iPXE Boot Script
 # This script performs DHCP configuration and chains to the main boot script
@@ -1453,6 +1474,57 @@ rm -rf ${artifacts.join(' ')}`);
 echo ========================================
 echo iPXE Embedded Boot Loader
 echo ========================================
+echo TFTP Server: ${tftpServer}
+echo Script Path: ${scriptPath}
+echo ========================================
+
+# Configure console for debugging
+console --picture --left 100 --right 80
+
+${macSpoofingBlock}
+:dhcp_continue
+
+# Show network interface info
+echo Network Interface Info:
+echo Interface: net0
+ifstat
+
+# Perform DHCP to get network configuration
+echo Performing DHCP configuration...
+dhcp net0 || goto dhcp_retry
+
+echo DHCP configuration successful
+echo IP Address: \${net0/ip}
+echo Netmask: \${net0/netmask}
+echo Gateway: \${net0/gateway}
+echo DNS: \${net0/dns}
+echo TFTP Server: \${next-server}
+
+# Chain to the main iPXE script
+echo ========================================
+echo Chainloading main boot script...
+echo Script: tftp://${tftpServer}${scriptPath}
+echo ========================================
+chain tftp://${tftpServer}${scriptPath} || goto chain_failed
+
+:dhcp_retry
+echo DHCP failed, retrying in 5 seconds...
+sleep 5
+goto dhcp_continue
+
+:chain_failed
+echo ========================================
+echo ERROR: Failed to chain to main script
+echo TFTP Server: ${tftpServer}
+echo Script Path: ${scriptPath}
+echo ========================================
+echo Retrying in 10 seconds...
+sleep 10
+goto dhcp_continue
+
+# Fallback: drop to iPXE shell
+echo Dropping to iPXE shell for manual debugging
+shell
 `;
     },
 
@@ -1467,10 +1539,67 @@ echo ========================================
      * @memberof UnderpostBaremetal
      */
     ipxeScriptFactory({ maasIp, macAddress, architecture }) {
+      const macInfo =
+        macAddress && macAddress !== '00:00:00:00:00:00'
+          ? `echo Registered MAC: ${macAddress}`
+          : `echo Using hardware MAC address`;
+
       return `#!ipxe
 echo ========================================
 echo iPXE Network Boot
 echo ========================================
+echo MAAS Server: ${maasIp}
+echo Architecture: ${architecture}
+${macInfo}
+echo ========================================
+
+# Show current network configuration
+echo Current Network Configuration:
+ifstat
+
+# Display MAC address information
+echo MAC Address: \${net0/mac}
+echo IP Address: \${net0/ip}
+echo Gateway: \${net0/gateway}
+echo DNS: \${net0/dns}
+
+# Set MAAS metadata URL for commissioning
+echo ========================================
+echo Chainloading MAAS bootloader...
+echo ========================================
+
+# Chainload MAAS bootloader via HTTP
+# MAAS expects to handle the boot process from here
+set maas-url http://${maasIp}:5248/MAAS/api/2.0
+echo MAAS URL: \${maas-url}
+
+# Chain to MAAS bootloader (UEFI for arm64/amd64)
+set boot-url http://${maasIp}:5248/images/bootloader
+echo Boot URL: \${boot-url}
+
+# Try to chain to MAAS UEFI bootloader
+chain \${boot-url}/uefi/${architecture}/bootx64.efi || chain \${boot-url}/uefi/${architecture}/bootaa64.efi || goto maas_pxe_fallback
+
+:maas_pxe_fallback
+echo UEFI chainload failed, trying PXE chainload...
+# Fallback to PXE chainload for MAAS
+chain tftp://${maasIp}/pxelinux.0 || goto error
+
+:error
+echo ========================================
+echo ERROR: Failed to chainload MAAS
+echo ========================================
+echo MAAS IP: ${maasIp}
+echo MAC: \${net0/mac}
+echo IP: \${net0/ip}
+echo ========================================
+echo Retrying in 10 seconds...
+sleep 10
+goto maas_pxe_fallback
+
+# Drop to shell for debugging
+echo Dropping to iPXE shell for manual intervention
+shell
 `;
     },
 
