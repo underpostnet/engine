@@ -473,10 +473,16 @@ const PanelForm = {
       const panelData = PanelForm.Data[idPanel];
       logger.warn('getPanelData called, isLoadMore:', isLoadMore);
       try {
-        if (panelData.loading || !panelData.hasMore) {
-          logger.warn('getPanelData early return - loading:', panelData.loading, 'hasMore:', panelData.hasMore);
-          return;
+        const cidQuery = getQueryParams().cid;
+
+        // When cid query exists, bypass pagination and loading checks
+        if (!cidQuery) {
+          if (panelData.loading || !panelData.hasMore) {
+            logger.warn('getPanelData early return - loading:', panelData.loading, 'hasMore:', panelData.hasMore);
+            return;
+          }
         }
+
         panelData.loading = true;
 
         if (!isLoadMore) {
@@ -485,13 +491,20 @@ const PanelForm = {
           panelData.hasMore = true;
         }
 
+        // When cid query exists, don't apply skip/limit pagination
+        const params = {
+          tags: prefixTags.join(','),
+          ...(cidQuery && { cid: cidQuery }),
+        };
+
+        // Only apply pagination when there's no cid query
+        if (!cidQuery) {
+          params.skip = panelData.skip;
+          params.limit = panelData.limit;
+        }
+
         const result = await DocumentService.get({
-          params: {
-            tags: prefixTags.join(','),
-            ...(getQueryParams().cid && { cid: getQueryParams().cid }),
-            skip: panelData.skip,
-            limit: panelData.limit,
-          },
+          params,
           id: 'public/',
         });
 
@@ -557,8 +570,15 @@ const PanelForm = {
             }
           }
 
-          panelData.skip += result.data.data.length;
-          panelData.hasMore = result.data.data.length === panelData.limit;
+          // Only update pagination when not using cid query
+          if (!cidQuery) {
+            panelData.skip += result.data.data.length;
+            panelData.hasMore = result.data.data.length === panelData.limit;
+          } else {
+            // When cid query is used, disable infinite scroll
+            panelData.hasMore = false;
+          }
+
           const lastItem = result.data.data[result.data.data.length - 1];
           if (result.data.data.length === 0 || (lastItem && lastItem._id === panelData.lasIdAvailable)) {
             LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
@@ -671,7 +691,8 @@ const PanelForm = {
             loading: false,
           };
 
-          if (cid) this.Data[idPanel].skip = 0;
+          // Always reset skip to 0 when reloading (whether cid exists or not)
+          this.Data[idPanel].skip = 0;
 
           const containerSelector = `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`;
           htmls(containerSelector, await renderSrrPanelData());
@@ -696,13 +717,16 @@ const PanelForm = {
 
           const scrollContainerSelector = `.modal-${options.route}`;
 
+          // Always remove old scroll event before setting new one
+          if (this.Data[idPanel].removeScrollEvent) {
+            this.Data[idPanel].removeScrollEvent();
+          }
+
           if (cid) {
             LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
             return;
           }
-          if (this.Data[idPanel].removeScrollEvent) {
-            this.Data[idPanel].removeScrollEvent();
-          }
+
           const { removeEvent } = Scroll.setEvent(scrollContainerSelector, async (payload) => {
             const panelData = PanelForm.Data[idPanel];
             if (!panelData) return;
