@@ -169,9 +169,112 @@ const PanelForm = {
                 html: status,
                 status,
               });
-              if (getQueryParams().cid === data.id) {
-                setQueryPath({ path: options.route, queryPath: '' });
-                if (PanelForm.Data[idPanel].updatePanel) await PanelForm.Data[idPanel].updatePanel();
+
+              // Handle cid query param update (supports comma-separated list)
+              if (status === 'success') {
+                const currentCid = getQueryParams().cid;
+
+                if (currentCid) {
+                  // Parse cid as comma-separated list
+                  const cidList = currentCid
+                    .split(',')
+                    .map((id) => id.trim())
+                    .filter((id) => id);
+
+                  // Remove the deleted panel's id from the list
+                  const updatedCidList = cidList.filter((id) => id !== data.id);
+
+                  if (updatedCidList.length !== cidList.length) {
+                    // Wait for DOM cleanup before updating query
+
+                    if (updatedCidList.length === 0) {
+                      // No cids remain, clear query and reload panels with limit
+                      logger.warn('All cids removed, clearing query');
+                      setQueryPath({ path: options.route, queryPath: '' });
+
+                      if (options.parentIdModal) Modal.Data[options.parentIdModal].query = window.location.search;
+                    } else {
+                      // Update query params with remaining cids only (without ?cid= prefix)
+                      const cidValue = updatedCidList.join(',');
+                      setQueryPath({ path: options.route, queryPath: cidValue });
+                      const actualQuery = window.location.search;
+                      if (options.parentIdModal) Modal.Data[options.parentIdModal].query = actualQuery;
+                    }
+                  }
+
+                  // Return early to skip smart deletion logic when cid is present
+                  return { status };
+                }
+              }
+
+              // Smart deletion: remove from arrays and intelligently load more if needed
+              if (status === 'success') {
+                const panelData = PanelForm.Data[idPanel];
+
+                // Remove the deleted item from all data arrays
+                const indexInOrigin = panelData.originData.findIndex((d) => d._id === data._id);
+                const indexInData = panelData.data.findIndex((d) => d._id === data._id);
+                const indexInFiles = panelData.filesData.findIndex((d) => d._id === data._id);
+
+                if (indexInOrigin > -1) panelData.originData.splice(indexInOrigin, 1);
+                if (indexInData > -1) panelData.data.splice(indexInData, 1);
+                if (indexInFiles > -1) panelData.filesData.splice(indexInFiles, 1);
+
+                // Adjust skip count since we removed an item
+                if (panelData.skip > 0) panelData.skip--;
+
+                // If panels are below limit and there might be more, load them
+                if (panelData.data.length < panelData.limit && panelData.hasMore && !panelData.loading) {
+                  const oldDataCount = panelData.data.length;
+                  const needed = panelData.limit - panelData.data.length; // Calculate exact number needed
+                  const originalLimit = panelData.limit;
+
+                  // Temporarily set limit to only fetch what's needed (1-to-1 replacement)
+                  panelData.limit = needed;
+                  await getPanelData(true); // Load only the needed items
+                  panelData.limit = originalLimit; // Restore original limit
+
+                  const newItems = panelData.data.slice(oldDataCount);
+
+                  if (oldDataCount === 0) {
+                    // List was empty, render all panels
+                    if (panelData.data.length > 0) {
+                      const containerSelector = `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`;
+                      htmls(
+                        containerSelector,
+                        html`
+                          <div class="in">${await panelRender({ data: panelData.data })}</div>
+                          <div class="in panel-placeholder-bottom panel-placeholder-bottom-${idPanel}"></div>
+                        `,
+                      );
+
+                      // Show spinner if there's potentially more data
+                      const lastOriginItem = panelData.originData[panelData.originData.length - 1];
+                      if (
+                        !panelData.lasIdAvailable ||
+                        !lastOriginItem ||
+                        panelData.lasIdAvailable !== lastOriginItem._id
+                      )
+                        LoadingAnimation.spinner.play(`.panel-placeholder-bottom-${idPanel}`, 'dual-ring-mini');
+                    } else {
+                      // No more data available, show empty state
+                      const containerSelector = `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`;
+                      htmls(
+                        containerSelector,
+                        html`
+                          <div class="in">${await panelRender({ data: [] })}</div>
+                          <div class="in panel-placeholder-bottom panel-placeholder-bottom-${idPanel}"></div>
+                        `,
+                      );
+                    }
+                  } else {
+                    // List had some panels, append new ones
+                    if (newItems.length > 0) {
+                      for (const item of newItems)
+                        append(`.${idPanel}-render`, await Panel.Tokens[idPanel].renderPanel(item));
+                    }
+                  }
+                }
               }
 
               return { status };
@@ -441,7 +544,8 @@ const PanelForm = {
 
           panelData.skip += result.data.data.length;
           panelData.hasMore = result.data.data.length === panelData.limit;
-          if (result.data.data.length === 0 || result.data.data.pop()._id === panelData.lasIdAvailable) {
+          const lastItem = result.data.data[result.data.data.length - 1];
+          if (result.data.data.length === 0 || (lastItem && lastItem._id === panelData.lasIdAvailable)) {
             LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
             panelData.hasMore = false;
           }
@@ -567,10 +671,11 @@ const PanelForm = {
             `,
           );
 
+          const lastOriginItem = this.Data[idPanel].originData[this.Data[idPanel].originData.length - 1];
           if (
             !this.Data[idPanel].lasIdAvailable ||
-            this.Data[idPanel].lasIdAvailable !==
-              this.Data[idPanel].originData[this.Data[idPanel].originData.length - 1]._id
+            !lastOriginItem ||
+            this.Data[idPanel].lasIdAvailable !== lastOriginItem._id
           )
             LoadingAnimation.spinner.play(`.panel-placeholder-bottom-${idPanel}`, 'dual-ring-mini');
 
