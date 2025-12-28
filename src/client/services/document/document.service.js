@@ -92,6 +92,25 @@ const DocumentService = {
           return reject(error);
         }),
     ),
+  patch: (options = { id: '', action: '' }) =>
+    new Promise((resolve, reject) =>
+      fetch(getApiBaseUrl({ id: `${options.id}/${options.action}`, endpoint }), {
+        method: 'PATCH',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    ),
 };
 
 export { DocumentService };

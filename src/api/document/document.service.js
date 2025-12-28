@@ -64,20 +64,39 @@ const DocumentService = {
       const lastDoc = await Document.findOne(queryPayload, '_id').sort({ createdAt: 1 });
       const lastId = lastDoc ? lastDoc._id : null;
 
+      // Add totalCopyShareLinkCount to each document
+      const dataWithCounts = data.map((doc) => {
+        const docObj = doc.toObject ? doc.toObject() : doc;
+        return {
+          ...docObj,
+          totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
+        };
+      });
+
       return {
-        data,
+        data: dataWithCounts,
         lastId,
       };
     }
 
     switch (req.params.id) {
-      default:
-        return await Document.find({
+      default: {
+        const data = await Document.find({
           userId: req.auth.user._id,
           ...(req.params.id ? { _id: req.params.id } : undefined),
         })
           .populate(DocumentDto.populate.file())
           .populate(DocumentDto.populate.mdFile());
+
+        // Add totalCopyShareLinkCount to each document
+        return data.map((doc) => {
+          const docObj = doc.toObject ? doc.toObject() : doc;
+          return {
+            ...docObj,
+            totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
+          };
+        });
+      }
     }
   },
   delete: async (req, res, options) => {
@@ -130,6 +149,45 @@ const DocumentService = {
         return await Document.findByIdAndUpdate(req.params.id, req.body);
       }
     }
+  },
+  patch: async (req, res, options) => {
+    /** @type {import('./document.model.js').DocumentModel} */
+    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
+
+    if (req.path.includes('/copy-share-link')) {
+      const document = await Document.findById(req.params.id);
+      if (!document) throw new Error('Document not found');
+
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1; // 0-indexed
+      const day = now.getDate();
+
+      // Find existing entry for this year/month/day
+      const existingEventIndex = document.share?.copyShareLinkEvent?.findIndex(
+        (event) => event.year === year && event.month === month && event.day === day,
+      );
+
+      if (existingEventIndex !== undefined && existingEventIndex >= 0) {
+        // Increment existing count
+        document.share.copyShareLinkEvent[existingEventIndex].count += 1;
+      } else {
+        // Create new entry
+        if (!document.share) document.share = {};
+        if (!document.share.copyShareLinkEvent) document.share.copyShareLinkEvent = [];
+        document.share.copyShareLinkEvent.push({
+          year,
+          month,
+          day,
+          count: 1,
+        });
+      }
+
+      await document.save();
+      return document;
+    }
+
+    throw new Error('Invalid patch endpoint');
   },
 };
 

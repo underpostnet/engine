@@ -27,6 +27,9 @@ const PanelForm = {
       route: 'home',
       htmlFormHeader: async () => '',
       firsUpdateEvent: async () => {},
+      share: {
+        copyLink: false,
+      },
     },
   ) {
     const { idPanel, defaultUrlImage, Elements } = options;
@@ -108,6 +111,7 @@ const PanelForm = {
         titleIcon,
         route: options.route,
         formContainerClass: 'session-in-log-in',
+        share: options.share,
         onClick: async function ({ payload }) {
           if (options.route) {
             setQueryPath({ path: options.route, queryPath: payload._id });
@@ -562,6 +566,7 @@ const PanelForm = {
                 fileId,
                 tools: Elements.Data.user.main.model.user._id === documentObject.userId._id,
                 _id: documentObject._id,
+                totalCopyShareLinkCount: documentObject.totalCopyShareLinkCount || 0,
               });
             } catch (fileError) {
               logger.error('Error fetching files for document:', documentObject._id, fileError);

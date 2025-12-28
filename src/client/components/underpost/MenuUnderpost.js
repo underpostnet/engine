@@ -184,6 +184,9 @@ const MenuUnderpost = {
           defaultUrlImage: `${getProxyPath()}assets/splash/apple-touch-icon-precomposed.png`,
           Elements: ElementsUnderpost,
           route: 'home',
+          share: {
+            copyLink: true,
+          },
         }),
     });
 

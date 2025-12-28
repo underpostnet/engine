@@ -3,7 +3,7 @@ import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Validator } from '../core/Validator.js';
 import { Input } from '../core/Input.js';
 import { darkTheme, ThemeEvents } from './Css.js';
-import { append, getDataFromInputFile, htmls, s } from './VanillaJs.js';
+import { append, copyData, getDataFromInputFile, htmls, s } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Translate } from './Translate.js';
 import { DropDown } from './DropDown.js';
@@ -14,6 +14,8 @@ import { RichText } from './RichText.js';
 import { loggerFactory } from './Logger.js';
 import { Badge } from './Badge.js';
 import { Content } from './Content.js';
+import { DocumentService } from '../../services/document/document.service.js';
+import { NotificationManager } from './NotificationManager.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -30,6 +32,9 @@ const Panel = {
       originData: () => [],
       filesData: () => [],
       onClick: () => {},
+      share: {
+        copyLink: false,
+      },
     },
   ) {
     const idPanel = options?.idPanel ? options.idPanel : getId(this.Tokens, `${idPanel}-`);
@@ -87,6 +92,62 @@ const Panel = {
               htmls(`.${idPanel}-cell-col-a-${id}`, render);
             },
           });
+        if (options.share && options.share.copyLink) {
+          EventsUI.onClick(
+            `.${idPanel}-btn-copy-share-${id}`,
+            async (e) => {
+              try {
+                const shareUrl = `${window.location.origin}${window.location.pathname}?cid=${obj._id}`;
+                await copyData(shareUrl);
+                await NotificationManager.Push({
+                  status: 'success',
+                  html: html`<div>${Translate.Render('link-copied')}</div>`,
+                });
+                // Track the copy share link event
+                await DocumentService.patch({ id: obj._id, action: 'copy-share-link' });
+                // Update the count in the UI - read current value from span first
+                const countSpan = s(`.${idPanel}-share-count-${id}`);
+                if (countSpan) {
+                  const currentCount = parseInt(countSpan.textContent) || 0;
+                  const newCount = currentCount + 1;
+                  htmls(`.${idPanel}-share-count-${id}`, newCount);
+                } else {
+                  // Create count badge if it didn't exist before (was 0)
+                  const btn = s(`.${idPanel}-btn-copy-share-${id}`);
+                  if (btn) {
+                    const countBadge = document.createElement('span');
+                    countBadge.className = `${idPanel}-share-count-${id}`;
+                    countBadge.style.cssText =
+                      'position: absolute; top: -4px; right: -4px; background: #666; color: white; border-radius: 10px; padding: 1px 5px; font-size: 10px; font-weight: bold; min-width: 16px; text-align: center;';
+                    countBadge.textContent = '1';
+                    btn.appendChild(countBadge);
+                  }
+                }
+              } catch (error) {
+                logger.error('Error copying share link:', error);
+                await NotificationManager.Push({
+                  status: 'error',
+                  html: html`<div>${Translate.Render('error-copying-link')}</div>`,
+                });
+              }
+            },
+            { context: 'modal' },
+          );
+
+          // Add tooltip hover effect
+          setTimeout(() => {
+            const btn = s(`.${idPanel}-btn-copy-share-${id}`);
+            const tooltip = s(`.${idPanel}-share-tooltip-${id}`);
+            if (btn && tooltip) {
+              btn.addEventListener('mouseenter', () => {
+                tooltip.style.opacity = '1';
+              });
+              btn.addEventListener('mouseleave', () => {
+                tooltip.style.opacity = '0';
+              });
+            }
+          });
+        }
         EventsUI.onClick(
           `.${idPanel}-btn-delete-${id}`,
           async (e) => {
@@ -147,19 +208,8 @@ const Panel = {
         };
       });
       if (s(`.${idPanel}-${id}`)) s(`.${idPanel}-${id}`).remove();
-      return html` <div class="in box-shadow ${idPanel} ${idPanel}-${id}">
+      return html` <div class="in box-shadow ${idPanel} ${idPanel}-${id}" style="position: relative;">
         <div class="fl ${idPanel}-tools session-fl-log-in  ${obj.tools ? '' : 'hide'}">
-          ${await BtnIcon.Render({
-            class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-edit-${id}`,
-            label: html`<div class="abs center"><i class="fas fa-edit"></i></div>`,
-            useVisibilityHover: true,
-            tooltipHtml: await Badge.Render({
-              id: `tooltip-${idPanel}-${id}`,
-              text: `${Translate.Render(`edit`)}`,
-              classList: '',
-              style: { top: `-22px`, left: '-5px' },
-            }),
-          })}
           ${await BtnIcon.Render({
             class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-delete-${id}`,
             label: html`<div class="abs center"><i class="fas fa-trash"></i></div>`,
@@ -169,6 +219,17 @@ const Panel = {
               text: `${Translate.Render(`delete`)}`,
               classList: '',
               style: { top: `-22px`, left: '-13px' },
+            }),
+          })}
+          ${await BtnIcon.Render({
+            class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-edit-${id}`,
+            label: html`<div class="abs center"><i class="fas fa-edit"></i></div>`,
+            useVisibilityHover: true,
+            tooltipHtml: await Badge.Render({
+              id: `tooltip-${idPanel}-${id}`,
+              text: `${Translate.Render(`edit`)}`,
+              classList: '',
+              style: { top: `-22px`, left: '-5px' },
             }),
           })}
         </div>
@@ -267,6 +328,32 @@ const Panel = {
             </div>
           </div>
         </div>
+        ${options.share && options.share.copyLink
+          ? html`<div
+              class="${idPanel}-share-btn-container ${idPanel}-share-btn-container-${id}"
+              style="position: absolute; bottom: 8px; right: 8px; z-index: 2;"
+            >
+              <button
+                class="btn-icon ${idPanel}-btn-copy-share-${id}"
+                style="background: transparent; color: #888; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: all 0.3s ease;"
+              >
+                <i class="fas fa-link" style="font-size: 20px;"></i>
+                ${obj.totalCopyShareLinkCount && obj.totalCopyShareLinkCount > 0
+                  ? html`<span
+                      class="${idPanel}-share-count-${id}"
+                      style="position: absolute; top: -4px; right: -4px; background: #666; color: white; border-radius: 10px; padding: 1px 5px; font-size: 10px; font-weight: bold; min-width: 16px; text-align: center;"
+                      >${obj.totalCopyShareLinkCount}</span
+                    >`
+                  : ''}
+              </button>
+              <div
+                class="${idPanel}-share-tooltip-${id}"
+                style="position: absolute; bottom: 50px; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 6px 10px; border-radius: 4px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;"
+              >
+                ${Translate.Render('copy-share-link')}
+              </div>
+            </div>`
+          : ''}
       </div>`;
     };
 
@@ -647,6 +734,34 @@ const Panel = {
         .${idPanel}-btn-tool:hover {
           color: #000000 !important;
           font-size: 17px !important;
+        }
+        .${idPanel}-share-btn-container button:hover {
+          background: transparent !important;
+          transform: scale(1.1);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4) !important;
+        }
+        .${idPanel}-share-btn-container button:focus {
+          outline: none;
+          background: transparent !important;
+        }
+        .${idPanel}-share-btn-container button:focus {
+          outline: none;
+          background: transparent !important;
+        }
+        .${idPanel}-share-btn-container button:active {
+          transform: scale(0.95);
+        }
+        .${idPanel}-share-btn-container span[class*='share-count'] {
+          animation: ${idPanel}-share-pulse 2s infinite;
+        }
+        @keyframes ${idPanel}-share-pulse {
+          0%,
+          100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.1);
+          }
         }
       </style>
       <style class="${idPanel}-styles"></style>

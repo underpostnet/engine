@@ -19,6 +19,16 @@ const DocumentSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'File',
     },
+    share: {
+      copyShareLinkEvent: [
+        {
+          year: { type: Number },
+          month: { type: Number },
+          day: { type: Number },
+          count: { type: Number, default: 0 },
+        },
+      ],
+    },
   },
   {
     timestamps: true,
@@ -52,6 +62,10 @@ const DocumentDto = {
         select: '_id email username',
       };
     },
+  },
+  getTotalCopyShareLinkCount: (document) => {
+    if (!document.share || !document.share.copyShareLinkEvent) return 0;
+    return document.share.copyShareLinkEvent.reduce((total, event) => total + (event.count || 0), 0);
   },
 };
 
