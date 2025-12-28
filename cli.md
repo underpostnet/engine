@@ -1,40 +1,40 @@
-## underpost ci/cd cli v2.96.1
+## underpost ci/cd cli v2.97.0
 
 ### Usage: `underpost [options] [command]`
   ```
  Options:
-  -V, --version                                              output the version number
-  -h, --help                                                 display help for command
+  -V, --version                                                                                                  output the version number
+  -h, --help                                                                                                     display help for command
 
 Commands:
-  new [options] [app-name]                                   Initializes a new Underpost project, service, or configuration.
-  start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
-  clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
-  pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
-  cmt [options] [path] [commit-type] [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
-  push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
-  env [deploy-id] [env] [subConf]                            Sets environment variables and configurations related to a specific deployment ID.
-  static [options]                                           Manages static build of page, bundles, and documentation with comprehensive customization options.
-  config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
-  root                                                       Displays the root path of the npm installation.
-  ip [options] [ips]                                         Displays the current public machine IP addresses.
-  cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
-  deploy [options] [deploy-list] [env]                       Manages application deployments, defaulting to deploying development pods.
-  secret [options] <platform>                                Manages secrets for various platforms.
-  image [options]                                            Manages Docker images, including building, saving, and loading into Kubernetes clusters.
-  install                                                    Quickly imports Underpost npm dependencies by copying them.
-  db [options] <deploy-list>                                 Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.
-  metadata [options] [deploy-id] [host] [path]               Manages cluster metadata operations, including import and export.
-  script [options] <operator> <script-name> [script-value]   Supports a variety of built-in Underpost global scripts, their preset lifecycle events, and arbitrary custom scripts.
-  cron [options] [deploy-list] [job-list]                    Manages cron jobs, including initialization, execution, and configuration updates.
-  fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
-  test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
-  monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
+  new [options] [app-name]                                                                                       Initializes a new Underpost project, service, or configuration.
+  start [options] <deploy-id> [env]                                                                              Initiates application servers, build pipelines, or other defined services based on the deployment ID.
+  clone [options] <uri>                                                                                          Clones a specified GitHub repository into the current directory.
+  pull [options] <path> <uri>                                                                                    Pulls the latest changes from a specified GitHub repository.
+  cmt [options] [path] [commit-type] [module-tag] [message]                                                      Manages commits to a GitHub repository, supporting various commit types and options.
+  push [options] <path> <uri>                                                                                    Pushes committed changes from a local repository to a remote GitHub repository.
+  env [deploy-id] [env] [subConf]                                                                                Sets environment variables and configurations related to a specific deployment ID.
+  static [options]                                                                                               Manages static build of page, bundles, and documentation with comprehensive customization options.
+  config [options] <operator> [key] [value]                                                                      Manages Underpost configurations using various operators.
+  root                                                                                                           Displays the root path of the npm installation.
+  ip [options] [ips]                                                                                             Displays the current public machine IP addresses.
+  cluster [options] [pod-name]                                                                                   Manages Kubernetes clusters, defaulting to Kind cluster initialization.
+  deploy [options] [deploy-list] [env]                                                                           Manages application deployments, defaulting to deploying development pods.
+  secret [options] <platform>                                                                                    Manages secrets for various platforms.
+  image [options]                                                                                                Manages Docker images, including building, saving, and loading into Kubernetes clusters.
+  install                                                                                                        Quickly imports Underpost npm dependencies by copying them.
+  db [options] [deploy-list]                                                                                     Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.
+  metadata [options] [deploy-id] [host] [path]                                                                   Manages cluster metadata operations, including import and export.
+  script [options] <operator> <script-name> [script-value]                                                       Supports a variety of built-in Underpost global scripts, their preset lifecycle events, and arbitrary custom scripts.
+  cron [options] [deploy-list] [job-list]                                                                        Manages cron jobs, including initialization, execution, and configuration updates.
+  fs [options] [path]                                                                                            Manages file storage, defaulting to file upload operations.
+  test [options] [deploy-list]                                                                                   Manages and runs tests, defaulting to the current Underpost default test suite.
+  monitor [options] <deploy-id> [env]                                                                            Manages health server monitoring for specified deployments.
   ssh [options]
-  run [options] <runner-id> [path]                           Runs specified scripts using various runners.
-  lxd [options]                                              Manages LXD containers and virtual machines.
-  baremetal [options] [workflow-id] [hostname] [ip-address]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
-  help [command]                                             display help for command
+  run [options] <runner-id> [path]                                                                               Runs specified scripts using various runners.
+  lxd [options]                                                                                                  Manages LXD containers and virtual machines.
+  baremetal [options] [workflow-id] [ip-address] [hostname] [ip-file-server] [ip-config] [netmask] [dns-server]  Manages baremetal server operations, including installation, database setup, commissioning, and user management.
+  help [command]                                                                                                 display help for command
  
 ```
 
@@ -82,14 +82,20 @@ Initiates application servers, build pipelines, or other defined services based
 on the deployment ID.
 
 Arguments:
-  deploy-id   The unique identifier for the deployment configuration.
-  env         Optional: The environment to start (e.g., "development",
-              "production"). Defaults to "development".
+  deploy-id                    The unique identifier for the deployment
+                               configuration.
+  env                          Optional: The environment to start (e.g.,
+                               "development", "production"). Defaults to
+                               "development".
 
 Options:
-  --run       Starts application servers and monitors their health.
-  --build     Triggers the client-side application build process.
-  -h, --help  display help for command
+  --run                        Starts application servers and monitors their
+                               health.
+  --build                      Triggers the client-side application build
+                               process.
+  --underpost-quickly-install  Uses Underpost Quickly Install for dependency
+                               installation.
+  -h, --help                   display help for command
  
 ```
   
@@ -304,6 +310,8 @@ Arguments:
   ips                   Optional args comma-separated list of IP to process.
 
 Options:
+  --dhcp                Fetches and displays the current Dynamic Host
+                        Configuration Protocol server IP address.
   --copy                Copies the IP addresses to the clipboard.
   --ban-ingress-add     Adds IP addresses to banned ingress list.
   --ban-ingress-remove  Removes IP addresses from banned ingress list.
@@ -461,6 +469,8 @@ Options:
                                      deployment operations.
   --port <port>                      Sets up port forwarding from local to
                                      remote ports.
+  --cmd <cmd>                        Custom initialization command for
+                                     deployment (comma-separated commands).
   -h, --help                         display help for command
  
 ```
@@ -553,7 +563,7 @@ Options:
 
 ### `db` :
 ```
- Usage: underpost db [options] <deploy-list>
+ Usage: underpost db [options] [deploy-list]
 
 Manages database operations with support for MariaDB and MongoDB, including
 import/export, multi-pod targeting, and Git integration.
@@ -567,6 +577,7 @@ Options:
   --pod-name <pod-name>                      Comma-separated list of pod names or patterns (supports wildcards like "mariadb-*").
   --all-pods                                 Target all matching pods instead of just the first one.
   --primary-pod                              Automatically detect and use MongoDB primary pod (MongoDB only).
+  --primary-pod-ensure <pod-name>            Ensure setup of MongoDB replica set primary pod before operations.
   --stats                                    Display database statistics (collection/table names with document/row counts).
   --collections <collections>                Comma-separated list of database collections to operate on.
   --out-path <out-path>                      Specifies a custom output path for backups.
@@ -578,6 +589,10 @@ Options:
   --paths <paths>                            Comma-separated list of paths to filter database operations.
   --ns <ns-name>                             Kubernetes namespace context for database operations (defaults to "default").
   --macro-rollback-export <n-commits-reset>  Exports a macro rollback script that reverts the last n commits (Git integration required).
+  --dev                                      Sets the development cli context
+  --kubeadm                                  Enables the kubeadm context for database operations.
+  --kind                                     Enables the kind context for database operations.
+  --k3s                                      Enables the k3s context for database operations.
   -h, --help                                 display help for command
  
 ```
@@ -785,11 +800,11 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, stop, ssh-deploy-stop, tz, cron, get-proxy, instance-promote, instance, ls-deployments, host-update, dd-container, ip-info, monitor, db-client, git-conf, promote, metrics, cluster, deploy, disk-clean, disk-usage, dev, service, sh, log, release-cmt, sync-replica, tf-vae-test, deploy-job.
+  runner-id                                       The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, stop, ssh-deploy-stop, tz, cron, get-proxy, instance-promote, instance, ls-deployments, host-update, dd-container, ip-info, monitor, db-client, git-conf, promote, metrics, cluster, deploy, disk-clean, disk-usage, dev, service, sh, log, ps, ptls, release-cmt, deploy-test, sync-replica, tf-vae-test, deploy-job.
   path                                            The input value, identifier, or path for the operation.
 
 Options:
-  --command <command-array>                       Array of commands to run.
+  --cmd <command-list>                            Comma-separated list of commands to execute.
   --args <args-array>                             Array of arguments to pass to the command.
   --dev                                           Sets the development context environment for the script.
   --build                                         Set builder context runner
@@ -837,6 +852,7 @@ Options:
   --user <user>                                   Sets user context for the runner execution.
   --hosts <hosts>                                 Comma-separated list of hosts for the runner execution.
   --instance-id <instance-id>                     Sets instance id context for the runner execution.
+  --pid <process-id>                              Sets process id context for the runner execution.
   -h, --help                                      display help for command
  
 ```
@@ -894,7 +910,7 @@ Options:
 
 ### `baremetal` :
 ```
- Usage: underpost baremetal [options] [workflow-id] [hostname] [ip-address]
+ Usage: underpost baremetal [options] [workflow-id] [ip-address] [hostname] [ip-file-server] [ip-config] [netmask] [dns-server]
 
 Manages baremetal server operations, including installation, database setup,
 commissioning, and user management.
@@ -902,20 +918,35 @@ commissioning, and user management.
 Options:
   --control-server-install                      Installs the baremetal control server.
   --control-server-uninstall                    Uninstalls the baremetal control server.
+  --control-server-restart                      Restarts the baremetal control server.
   --control-server-db-install                   Installs up the database for the baremetal control server.
   --control-server-db-uninstall                 Uninstalls the database for the baremetal control server.
+  --create-machine                              Creates a new baremetal machine entry in the database.
+  --mac <mac>                                   Specifies the MAC address for baremetal machine operations. Use "random" for random MAC, "hardware" to use device's actual MAC (no spoofing), or specify a MAC address.
+  --ipxe                                        Chainloads iPXE to normalize identity before commissioning.
+  --ipxe-rebuild                                Forces rebuild of iPXE binary with embedded boot script.
   --install-packer                              Installs Packer CLI.
   --packer-maas-image-template <template-path>  Creates a new image folder from canonical/packer-maas template path (requires workflow-id).
   --packer-workflow-id <workflow-id>            Specifies the workflow ID for Packer MAAS image operations.
   --packer-maas-image-build                     Builds a MAAS image using Packer for the workflow specified by --packer-workflow-id.
   --packer-maas-image-upload                    Uploads an existing MAAS image artifact without rebuilding for the workflow specified by --packer-workflow-id.
   --packer-maas-image-cached                    Continue last build without removing artifacts (used with --packer-maas-image-build).
+  --remove-machines <system-ids>                Removes baremetal machines by comma-separated system IDs, or use "all"
+  --clear-discovered                            Clears all discovered baremetal machines from the database.
   --commission                                  Init workflow for commissioning a physical machine.
+  --bootstrap-http-server-path <path>           Sets a custom bootstrap HTTP server path for baremetal commissioning.
+  --bootstrap-http-server-port <port>           Sets a custom bootstrap HTTP server port for baremetal commissioning.
+  --iso-url <url>                               Uses a custom ISO URL for baremetal machine commissioning.
   --nfs-build                                   Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.
   --nfs-mount                                   Mounts the NFS root filesystem for a workflow id config architecture.
   --nfs-unmount                                 Unmounts the NFS root filesystem for a workflow id config architecture.
   --nfs-sh                                      Copies QEMU emulation root entrypoint shell command to the clipboard.
+  --cloud-init                                  Sets the kernel parameters and sets the necessary seed users on the HTTP server.
   --cloud-init-update                           Updates cloud init for a workflow id config architecture.
+  --ubuntu-tools-build                          Builds ubuntu tools for chroot environment.
+  --ubuntu-tools-test                           Tests ubuntu tools in chroot environment.
+  --bootcmd <bootcmd-list>                      Comma-separated list of boot commands to execute.
+  --runcmd <runcmd-list>                        Comma-separated list of run commands to execute.
   --logs <log-id>                               Displays logs for log id: dhcp, cloud, machine, cloud-config.
   --dev                                         Sets the development context environment for baremetal operations.
   --ls                                          Lists available boot resources and machines.

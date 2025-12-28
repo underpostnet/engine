@@ -18,13 +18,13 @@ spec:
     spec:
       containers:
         - name: dd-test-development-blue
-          image: localhost/rockylinux9-underpost:v2.96.1
+          image: localhost/rockylinux9-underpost:v2.97.0
 
           command:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-test development
+              npm install -g npm@11.2.0 && npm install -g underpost && node bin secret underpost --create-from-file /etc/config/.env.development && node bin start --build --run dd-test development
 
     
           volumeMounts:
@@ -103,13 +103,13 @@ spec:
     spec:
       containers:
         - name: dd-test-development-green
-          image: localhost/rockylinux9-underpost:v2.96.1
+          image: localhost/rockylinux9-underpost:v2.97.0
 
           command:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-test development
+              npm install -g npm@11.2.0 && npm install -g underpost && node bin secret underpost --create-from-file /etc/config/.env.development && node bin start --build --run dd-test development
 
     
           volumeMounts:
