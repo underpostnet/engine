@@ -752,6 +752,7 @@ rm -rf ${artifacts.join(' ')}`);
             bootstrapHttpServerPort:
               options.bootstrapHttpServerPort || workflowsConfig[workflowId].bootstrapHttpServerPort || 8888,
             type,
+            macAddress,
             cloudInit: options.cloudInit,
             machine,
           });
@@ -764,6 +765,8 @@ rm -rf ${artifacts.join(' ')}`);
               maasIp: callbackMetaData.runnerHost.ip,
               macAddress,
               architecture: arch,
+              tftpPrefix,
+              kernelCmd: cmd,
             });
             fs.writeFileSync(`${tftpRootPath}/stable-id.ipxe`, ipxeScript, 'utf8');
 
@@ -1472,19 +1475,22 @@ rm -rf ${artifacts.join(' ')}`);
       const macSpoofingBlock =
         macAddress && macAddress !== '00:00:00:00:00:00'
           ? `
-# MAC Address Spoofing
-echo Spoofing MAC address to: ${macAddress}
-set net0/mac ${macAddress} || goto dhcp_normal
-echo MAC spoofed to: \${net0/mac}
-goto dhcp_continue
-
-:dhcp_normal
-echo MAC spoofing not supported or failed, using hardware MAC
+# MAC Address Information
+echo ========================================
+echo Target MAC for MAAS: ${macAddress}
+echo Hardware MAC: \${net0/mac}
+echo ========================================
+echo NOTE: iPXE MAC spoofing does NOT persist to kernel
+echo The kernel will receive MAC via ifname= parameter
+echo ========================================
 `
           : `
-# Using hardware MAC address (no spoofing)
+# Using hardware MAC address
+echo ========================================
 echo Using device hardware MAC address
-echo MAC spoofing disabled - device will identify with actual MAC
+echo Hardware MAC: \${net0/mac}
+echo MAC spoofing disabled - device uses actual MAC
+echo ========================================
 `;
 
       return `#!ipxe
@@ -1499,15 +1505,17 @@ echo Script Path: ${scriptPath}
 echo ========================================
 
 ${macSpoofingBlock}
-:dhcp_continue
 
-# Show network interface info
-echo Network Interface Info:
+# Show network interface info before DHCP
+echo Network Interface Info (before DHCP):
 echo Interface: net0
+echo MAC: \${net0/mac}
 ifstat
 
 # Perform DHCP to get network configuration
+echo ========================================
 echo Performing DHCP configuration...
+echo ========================================
 dhcp net0 || goto dhcp_retry
 
 echo DHCP configuration successful
@@ -1516,6 +1524,7 @@ echo Netmask: \${net0/netmask}
 echo Gateway: \${net0/gateway}
 echo DNS: \${net0/dns}
 echo TFTP Server: \${next-server}
+echo MAC used by DHCP: \${net0/mac}
 
 # Chain to the main iPXE script
 echo ========================================
@@ -1527,7 +1536,14 @@ chain tftp://${tftpServer}${scriptPath} || goto chain_failed
 :dhcp_retry
 echo DHCP failed, retrying in 5 seconds...
 sleep 5
-goto dhcp_continue
+dhcp net0 || goto dhcp_retry
+goto dhcp_success
+
+:dhcp_success
+echo DHCP retry successful
+echo IP Address: \${net0/ip}
+echo MAC: \${net0/mac}
+chain tftp://${tftpServer}${scriptPath} || goto chain_failed
 
 :chain_failed
 echo ========================================
@@ -1537,10 +1553,11 @@ echo Script Path: ${scriptPath}
 echo ========================================
 echo Retrying in 10 seconds...
 sleep 10
-goto dhcp_continue
+chain tftp://${tftpServer}${scriptPath} || goto shell_debug
 
-# Fallback: drop to iPXE shell
+:shell_debug
 echo Dropping to iPXE shell for manual debugging
+echo Try: chain tftp://${tftpServer}${scriptPath}
 shell
 `;
     },
@@ -1548,18 +1565,27 @@ shell
     /**
      * @method ipxeScriptFactory
      * @description Generates the iPXE script content for stable identity.
-     * This iPXE script only handles network boot and chainloading to MAAS.
+     * This iPXE script uses directly boots kernel/initrd via TFTP.
      * @param {object} params - The parameters for generating the script.
      * @param {string} params.maasIp - The IP address of the MAAS server.
      * @param {string} [params.macAddress] - The MAC address registered in MAAS (for display only).
+     * @param {string} params.architecture - The architecture (arm64/amd64).
+     * @param {string} params.tftpPrefix - The TFTP prefix path (e.g., 'rpi4mb').
+     * @param {string} params.kernelCmd - The kernel command line parameters.
      * @returns {string} The iPXE script content.
      * @memberof UnderpostBaremetal
      */
-    ipxeScriptFactory({ maasIp, macAddress, architecture }) {
+    ipxeScriptFactory({ maasIp, macAddress, architecture, tftpPrefix, kernelCmd }) {
       const macInfo =
         macAddress && macAddress !== '00:00:00:00:00:00'
           ? `echo Registered MAC: ${macAddress}`
           : `echo Using hardware MAC address`;
+
+      // Construct the full TFTP paths for kernel and initrd
+      const kernelPath = `${tftpPrefix}/pxe/vmlinuz-efi`;
+      const initrdPath = `${tftpPrefix}/pxe/initrd.img`;
+      const grubBootloader = architecture === 'arm64' ? 'grubaa64.efi' : 'grubx64.efi';
+      const grubPath = `${tftpPrefix}/pxe/${grubBootloader}`;
 
       return `#!ipxe
 echo ========================================
@@ -1579,42 +1605,61 @@ echo MAC Address: \${net0/mac}
 echo IP Address: \${net0/ip}
 echo Gateway: \${net0/gateway}
 echo DNS: \${net0/dns}
+${macAddress && macAddress !== '00:00:00:00:00:00' ? `echo Target MAC for kernel: ${macAddress}` : ''}
 
-# Set MAAS metadata URL for commissioning
+# Direct kernel/initrd boot via TFTP
+# Modern simplified approach: Direct kernel/initrd boot via TFTP
 echo ========================================
-echo Chainloading MAAS bootloader...
+echo Loading kernel and initrd via TFTP...
+echo Kernel: tftp://${maasIp}/${kernelPath}
+echo Initrd: tftp://${maasIp}/${initrdPath}
+${macAddress && macAddress !== '00:00:00:00:00:00' ? `echo Kernel will use MAC: ${macAddress} (via ifname parameter)` : 'echo Kernel will use hardware MAC'}
 echo ========================================
 
-# Chainload MAAS bootloader via HTTP
-# MAAS expects to handle the boot process from here
-set maas-url http://${maasIp}:5248/MAAS/api/2.0
-echo MAAS URL: \${maas-url}
+# Load kernel via TFTP
+kernel tftp://${maasIp}/${kernelPath} ${kernelCmd || 'console=ttyS0,115200'} || goto grub_fallback
+echo Kernel loaded successfully
 
-# Chain to MAAS bootloader (UEFI for arm64/amd64)
+# Load initrd via TFTP
+initrd tftp://${maasIp}/${initrdPath} || goto grub_fallback
+echo Initrd loaded successfully
+
+# Boot the kernel
+echo Booting kernel...
+boot
+
+:grub_fallback
+echo ========================================
+echo Direct kernel boot failed, falling back to GRUB chainload...
+echo TFTP Path: tftp://${maasIp}/${grubPath}
+echo ========================================
+
+# Fallback: Chain to GRUB via TFTP (avoids malformed HTTP bootloader issues)
+chain tftp://${maasIp}/${grubPath} || goto http_fallback
+
+:http_fallback
+echo TFTP GRUB chainload failed, trying HTTP fallback...
+echo ========================================
+
+# Fallback: Try MAAS HTTP bootloader (may have certificate issues)
 set boot-url http://${maasIp}:5248/images/bootloader
 echo Boot URL: \${boot-url}
-
-# Try to chain to MAAS UEFI bootloader
-chain \${boot-url}/uefi/${architecture}/bootx64.efi || chain \${boot-url}/uefi/${architecture}/bootaa64.efi || goto maas_pxe_fallback
-
-:maas_pxe_fallback
-echo UEFI chainload failed, trying PXE chainload...
-# Fallback to PXE chainload for MAAS
-chain tftp://${maasIp}/pxelinux.0 || goto error
+chain \${boot-url}/uefi/${architecture}/${grubBootloader === 'grubaa64.efi' ? 'bootaa64.efi' : 'bootx64.efi'} || goto error
 
 :error
 echo ========================================
-echo ERROR: Failed to chainload MAAS
+echo ERROR: All boot methods failed
 echo ========================================
 echo MAAS IP: ${maasIp}
+echo Architecture: ${architecture}
 echo MAC: \${net0/mac}
 echo IP: \${net0/ip}
 echo ========================================
-echo Retrying in 10 seconds...
+echo Retrying GRUB TFTP in 10 seconds...
 sleep 10
-goto maas_pxe_fallback
+chain tftp://${maasIp}/${grubPath} || goto shell_debug
 
-# Drop to shell for debugging
+:shell_debug
 echo Dropping to iPXE shell for manual intervention
 shell
 `;
@@ -1867,12 +1912,16 @@ shell
         // `root=/dev/ram0`,
         // `toram`,
         'nomodeset',
-        // 'net.ifnames=0', // Disable predictable network interface names
-        // 'biosdevname=0', // Disable BIOS device naming
         `editable_rootfs=tmpfs`,
         `ramdisk_size=3550000`,
         // `root=/dev/sda1`, // rpi4 usb port unit
         'apparmor=0', // Disable AppArmor security
+        ...(networkInterfaceName === 'eth0'
+          ? [
+              'net.ifnames=0', // Disable predictable network interface names
+              'biosdevname=0', // Disable BIOS device naming
+            ]
+          : []),
       ];
 
       const performanceParams = [
@@ -1917,6 +1966,9 @@ shell
       } else {
         // 'iso-nfs'
         cmd = [ipParam, ...baseNfsParams, nfsRootParam, ...kernelParams, ...performanceParams];
+
+        cmd.push(`ifname=${networkInterfaceName}:${macAddress}`);
+
         if (cloudInit) {
           const cloudInitPreseedUrl = `http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${options.machine?.system_id ? options.machine.system_id : 'system-id'}/?op=get_preseed`;
           cmd = cmd.concat([
