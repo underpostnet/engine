@@ -524,6 +524,10 @@ const TranslateCore = {
       en: 'Clear File',
       es: 'Limpiar Archivos',
     };
+    Translate.Data['require-title-and-content-or-file'] = {
+      en: 'Require title and content or file',
+      es: 'Requiere título y contenido o archivo',
+    };
   },
 };
 

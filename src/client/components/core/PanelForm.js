@@ -48,7 +48,7 @@ const PanelForm = {
         id: 'panel-title',
         model: 'title',
         inputType: 'text',
-        rules: [{ type: 'isEmpty' }],
+        rules: [],
         panel: { type: 'title' },
       },
       {
@@ -80,7 +80,7 @@ const PanelForm = {
         //     value: html``,
         //   },
         // },
-        rules: [{ type: 'isEmpty' }],
+        rules: [],
       },
       {
         id: 'panel-mdFileId',
@@ -193,6 +193,7 @@ const PanelForm = {
                       setQueryPath({ path: options.route, queryPath: '' });
 
                       if (options.parentIdModal) Modal.Data[options.parentIdModal].query = window.location.search;
+                      if (PanelForm.Data[idPanel].updatePanel) await PanelForm.Data[idPanel].updatePanel();
                     } else {
                       // Update query params with remaining cids only (without ?cid= prefix)
                       const cidValue = updatedCidList.join(',');
@@ -305,21 +306,35 @@ const PanelForm = {
             LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
           },
           add: async function ({ data, editId }) {
+            // Validate that either mdFileId has content OR fileId has files
+            const hasMdContent = data.mdFileId && data.mdFileId.trim().length > 0;
+            const hasFiles = data.fileId && data.fileId.length > 0;
+
+            if (!data.title || (!hasMdContent && !hasFiles)) {
+              NotificationManager.Push({
+                html: Translate.Render('require-title-and-content-or-file'),
+                status: 'error',
+              });
+              return { data: [], status: 'error', message: 'Must provide either content or attach a file' };
+            }
+
             let mdFileId;
             const mdFileName = `${getCapVariableName(data.title)}.md`;
             const location = `${prefixTags.join('/')}`;
             const blob = new Blob([data.mdFileId], { type: 'text/markdown' });
             const md = new File([blob], mdFileName, { type: 'text/markdown' });
-            const tags = uniqueArray(
-              data.tags
-                .replaceAll('/', ',')
-                .replaceAll('-', ',')
-                .replaceAll(' ', ',')
-                .split(',')
-                .map((t) => t.trim())
-                .filter((t) => t)
-                .concat(prefixTags),
-            );
+            const tags = data.tags
+              ? uniqueArray(
+                  data.tags
+                    .replaceAll('/', ',')
+                    .replaceAll('-', ',')
+                    .replaceAll(' ', ',')
+                    .split(',')
+                    .map((t) => t.trim())
+                    .filter((t) => t)
+                    .concat(prefixTags),
+                )
+              : prefixTags;
             let originObj, originFileObj, indexOriginObj;
             if (editId) {
               indexOriginObj = PanelForm.Data[idPanel].originData.findIndex((d) => d._id === editId);
