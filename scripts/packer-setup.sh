@@ -39,13 +39,13 @@ print "Distro detected: $PRETTY_NAME"
 # Enable helpful repos and install helpers
 print "Installing dnf-plugins-core and enabling CRB/PowerTools (if available)"
 set +e
-dnf install -y dnf-plugins-core >/dev/null 2>&1 || true
-dnf config-manager --set-enabled crb >/dev/null 2>&1 || true
-dnf config-manager --set-enabled powertools >/dev/null 2>&1 || true
+dnf install -y dnf-plugins-core >/dev/null 2>&1
+dnf config-manager --set-enabled crb >/dev/null 2>&1
+dnf config-manager --set-enabled powertools >/dev/null 2>&1
 # EPEL
 if ! rpm -q epel-release >/dev/null 2>&1; then
   print "Installing epel-release"
-  dnf install -y epel-release || true
+  dnf install -y epel-release
 fi
 set -e
 
@@ -86,7 +86,7 @@ done
 
 print "Enabling and starting libvirtd"
 systemctl enable --now libvirtd || err "Failed to enable/start libvirtd"
-systemctl status libvirtd --no-pager || true
+systemctl status libvirtd --no-pager
 
 # 3) Install NBD and filesystem tools required for MAAS image creation
 print "Installing NBD and filesystem tooling: libnbd, nbdkit, e2fsprogs, kmod packages (best-effort)"
@@ -125,7 +125,7 @@ if command -v podman >/dev/null 2>&1; then
       fi
     done
 
-    podman rm "$CONTAINER_ID" >/dev/null 2>&1 || true
+    podman rm "$CONTAINER_ID" >/dev/null 2>&1
   fi
 else
   print "podman not available. Install podman to register binfmt for container/chroot convenience."
@@ -181,8 +181,8 @@ else
     print "qemu-system-aarch64 now available after package install"
   else
     print "Compiling QEMU with aarch64-softmmu target. Installing build deps..."
-    dnf groupinstall -y 'Development Tools' || true
-    dnf install -y git libaio-devel libgcrypt-devel libfdt-devel glib2-devel zlib-devel pixman-devel libseccomp-devel libusb1-devel openssl-devel bison flex python3 python3-pip ninja-build || true
+    dnf groupinstall -y 'Development Tools'
+    dnf install -y git libaio-devel libgcrypt-devel libfdt-devel glib2-devel zlib-devel pixman-devel libseccomp-devel libusb1-devel openssl-devel bison flex python3 python3-pip ninja-build
 
     # Enforce libslirp-devel for user networking
     if ! dnf install -y libslirp-devel; then
@@ -192,8 +192,8 @@ else
 
     # Install required Python packages for QEMU build
     print "Installing Python dependencies for QEMU build"
-    python3 -m pip install --upgrade pip || true
-    python3 -m pip install tomli meson || true
+    python3 -m pip install --upgrade pip
+    python3 -m pip install tomli meson
 
     TMPDIR=$(mktemp -d)
     print "Cloning QEMU source to $TMPDIR/qemu"
@@ -209,7 +209,7 @@ else
         make install || err "QEMU install failed"
         # Update PATH to include /usr/local/bin where QEMU was installed
         export PATH="/usr/local/bin:$PATH"
-        hash -r || true
+        hash -r
       else
         err "QEMU build (make) failed"
       fi
@@ -224,7 +224,7 @@ else
     fi
 
     cd /
-    rm -rf "$TMPDIR" || true
+    rm -rf "$TMPDIR"
     print "Removed build directory $TMPDIR"
   fi
 fi
@@ -242,7 +242,7 @@ else
 fi
 if command -v qemu-aarch64-static >/dev/null 2>&1; then print "qemu-aarch64-static: $(command -v qemu-aarch64-static)"; else print "qemu-aarch64-static: NOT INSTALLED"; fi
 print "libvirtd status:"
-systemctl status libvirtd --no-pager || true
+systemctl status libvirtd --no-pager
 
 cat <<'EOF'
 

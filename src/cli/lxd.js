@@ -74,8 +74,8 @@ class UnderpostLxd {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       if (options.reset === true) {
-        shellExec(`sudo systemctl stop snap.lxd.daemon || true`);
-        shellExec(`sudo snap remove lxd --purge || true`);
+        shellExec(`sudo systemctl stop snap.lxd.daemon`);
+        shellExec(`sudo snap remove lxd --purge`);
       }
       if (options.install === true) shellExec(`sudo snap install lxd`);
       if (options.init === true) {
@@ -213,7 +213,7 @@ ipv6.address=none`);
         for (const port of ports.split(',')) {
           for (const protocol of protocols) {
             const deviceName = `${vmName}-${protocol}-port-${port}`;
-            shellExec(`lxc config device remove ${vmName} ${deviceName} || true`); // Use || true to prevent error if device doesn't exist
+            shellExec(`lxc config device remove ${vmName} ${deviceName}`); // Use to prevent error if device doesn't exist
             shellExec(
               `lxc config device add ${vmName} ${deviceName} proxy listen=${protocol}:${hostIp}:${port} connect=${protocol}:${vmIp}:${port} nat=true`,
             );

@@ -658,7 +658,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
         // Remove PostgreSQL 17 packages and repo
         shellExec(`sudo dnf remove -y postgresql17 postgresql17-server postgresql17-contrib`);
-        shellExec(`sudo rpm -e pgdg-redhat-repo-$(rpm -q pgdg-redhat-repo --qf '%{VERSION}-%{RELEASE}') || true`);
+        shellExec(`sudo rpm -e pgdg-redhat-repo-$(rpm -q pgdg-redhat-repo --qf '%{VERSION}-%{RELEASE}')`);
         shellExec(`sudo rm -f /etc/yum.repos.d/pgdg-redhat-*.repo`);
 
         // Clean up data, logs, config, and the postgres user

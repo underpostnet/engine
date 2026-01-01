@@ -126,8 +126,8 @@ sudo dnf -y update
 
 # Cleanup
 echo "[+] Cleanup: remove unnecessary packages and old metadata"
-sudo dnf -y autoremove || true
-sudo dnf clean all || true
+sudo dnf -y autoremove
+sudo dnf clean all
 
 cat <<EOF
 

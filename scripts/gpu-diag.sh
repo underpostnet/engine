@@ -2,7 +2,7 @@
 sudo lspci -nnk | egrep -i 'vga|3d' -A3
 
 # modules loaded relevant
-lsmod | egrep 'nvidia|nouveau|amdgpu' || true
+lsmod | egrep 'nvidia|nouveau|amdgpu'
 
 # if exists nvidia tool
 nvidia-smi 2>/dev/null || echo "nvidia-smi not found"
@@ -16,4 +16,4 @@ journalctl -b _COMM=gdm --no-pager | tail -n 200
 journalctl -b _COMM=Xorg --no-pager | tail -n 200
 
 # X log (if exists)
-sudo grep -E "(EE|WW|NVIDIA|nouveau|amdgpu)" /var/log/Xorg.0.log || true
+sudo grep -E "(EE|WW|NVIDIA|nouveau|amdgpu)" /var/log/Xorg.0.log

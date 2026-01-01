@@ -9,19 +9,19 @@ if [ "${EUID:-$(id -u)}" -ne 0 ]; then
 fi
 
 echo "1) Ensure dnf-plugins-core is available (for config-manager)"
-dnf -y install dnf-plugins-core || true
+dnf -y install dnf-plugins-core
 
 echo "2) Enable CodeReady / CRB (needed for some deps, e.g. ladspa)"
 # On RHEL you'd use subscription-manager; on CentOS/Rocky/Alma use config-manager
-dnf config-manager --set-enabled crb || true
+dnf config-manager --set-enabled crb
 
 echo "3) Install EPEL release (required by some ffmpeg deps)"
-dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm || true
+dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
 
 echo "4) Add RPM Fusion (free + nonfree) repositories"
 # Using mirrors.rpmfusion.org recommended links
 dnf -y install https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm \
-               https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-9.noarch.rpm || true
+               https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-9.noarch.rpm
 
 echo "5) Refresh metadata and update system"
 dnf -y makecache

@@ -77,39 +77,39 @@ for IP in "${IPS[@]}"; do
 " "$TARGET" "$IP"
 
   echo "-- REVERSE DNS --"
-  dig -x "$IP" +short || true
+  dig -x "$IP" +short
 
   echo "
 -- WHOIS --"
-  whois "$IP" | sed -n '1,80p' || true
+  whois "$IP" | sed -n '1,80p'
 
   echo "
 -- IPINFO (ipinfo.io) --"
-  curl -sS "https://ipinfo.io/$IP/json" | format || true
+  curl -sS "https://ipinfo.io/$IP/json" | format
 
   echo "
 -- IP-API (ip-api.com) --"
-  curl -sS "http://ip-api.com/json/$IP?fields=status,message,country,regionName,city,zip,lat,lon,timezone,isp,org,as,query" | format || true
+  curl -sS "http://ip-api.com/json/$IP?fields=status,message,country,regionName,city,zip,lat,lon,timezone,isp,org,as,query" | format
 
   echo "
 -- IPWHOIS (ipwhois.app) --"
-  curl -sS "https://ipwhois.app/json/$IP" | format || true
+  curl -sS "https://ipwhois.app/json/$IP" | format
 
   echo "
 -- GEOPLUGIN --"
-  curl -sS "http://www.geoplugin.net/json.gp?ip=$IP" | format || true
+  curl -sS "http://www.geoplugin.net/json.gp?ip=$IP" | format
 
   echo "
 -- TRACEROUTE --"
-  traceroute -m 20 "$IP" || true
+  traceroute -m 20 "$IP"
 
   if [[ "$TARGET" =~ [A-Za-z] ]]; then
     echo "
 -- DNS RECORDS for $TARGET --"
-    dig +short A "$TARGET" || true
-    dig +short AAAA "$TARGET" || true
-    dig +short MX "$TARGET" || true
-    dig +short TXT "$TARGET" || true
+    dig +short A "$TARGET"
+    dig +short AAAA "$TARGET"
+    dig +short MX "$TARGET"
+    dig +short TXT "$TARGET"
   fi
 
   echo "

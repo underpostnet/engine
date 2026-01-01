@@ -487,8 +487,8 @@ EOF
       shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
 
       // Enable and start Docker and Kubelet services
-      shellExec(`sudo systemctl enable --now docker || true`); // Docker might not be needed for K3s
-      shellExec(`sudo systemctl enable --now kubelet || true`); // Kubelet might not be needed for K3s (K3s uses its own agent)
+      shellExec(`sudo systemctl enable --now docker`); // Docker might not be needed for K3s
+      shellExec(`sudo systemctl enable --now kubelet`); // Kubelet might not be needed for K3s (K3s uses its own agent)
 
       // Configure containerd for SystemdCgroup and explicitly disable SELinux
       // This is crucial for kubelet/k3s to interact correctly with containerd
@@ -496,9 +496,9 @@ EOF
       shellExec(`sudo sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
       // Add a new line to disable SELinux for the runc runtime
       // shellExec(
-      //   `sudo sed -i '/SystemdCgroup = true/a       selinux_disabled = true' /etc/containerd/config.toml || true`,
+      //   `sudo sed -i '/SystemdCgroup = true/a       selinux_disabled = true' /etc/containerd/config.toml`,
       // );
-      shellExec(`sudo service docker restart || true`); // Restart docker after containerd config changes
+      shellExec(`sudo service docker restart`); // Restart docker after containerd config changes
       shellExec(`sudo systemctl enable --now containerd.service`);
       shellExec(`sudo systemctl restart containerd`); // Restart containerd to apply changes
 
@@ -533,8 +533,8 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
       shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
 
       // Disable firewalld (common cause of network issues in Kubernetes)
-      shellExec(`sudo systemctl stop firewalld || true`); // Stop if running
-      shellExec(`sudo systemctl disable firewalld || true`); // Disable from starting on boot
+      shellExec(`sudo systemctl stop firewalld`); // Stop if running
+      shellExec(`sudo systemctl disable firewalld`); // Disable from starting on boot
     },
 
     /**
@@ -563,7 +563,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
       } else if (clusterType === 'kind') {
         // For Kind, the kubeconfig is usually merged automatically or can be explicitly exported
         // This command ensures it's merged into the default kubeconfig
-        shellExec(`kind get kubeconfig > ~/.kube/config || true`);
+        shellExec(`kind get kubeconfig > ~/.kube/config`);
         shellExec(`sudo -E chown $(id -u):$(id -g) ~/.kube/config`);
       } else {
         logger.warn('No specific kubeconfig path defined for this cluster type, or it is managed automatically.');
@@ -622,7 +622,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
                 if (pv.spec.hostPath && pv.spec.hostPath.path) {
                   const hostPath = pv.spec.hostPath.path;
                   logger.info(`Removing data from host path for PV '${pv.metadata.name}': ${hostPath}`);
-                  shellExec(`sudo rm -rf ${hostPath}/* || true`);
+                  shellExec(`sudo rm -rf ${hostPath}/*`);
                 }
               }
             } else {
@@ -637,52 +637,52 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
         // Enable SELinux permissive mode and restore file contexts.
         logger.info('Phase 2/7: Stopping services and fixing SELinux...');
         logger.info('  -> Ensuring SELinux is in permissive mode...');
-        shellExec(`sudo setenforce 0 || true`);
-        shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config || true`);
+        shellExec(`sudo setenforce 0`);
+        shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
         logger.info('  -> Restoring SELinux contexts for container data directories...');
         // The 'restorecon' command corrects file system security contexts.
-        shellExec(`sudo restorecon -Rv /var/lib/containerd || true`);
-        shellExec(`sudo restorecon -Rv /var/lib/kubelet || true`);
+        shellExec(`sudo restorecon -Rv /var/lib/containerd`);
+        shellExec(`sudo restorecon -Rv /var/lib/kubelet`);
 
         logger.info('  -> Stopping kubelet, docker, and podman services...');
-        shellExec('sudo systemctl stop kubelet || true');
-        shellExec('sudo systemctl stop docker || true');
-        shellExec('sudo systemctl stop podman || true');
+        shellExec('sudo systemctl stop kubelet');
+        shellExec('sudo systemctl stop docker');
+        shellExec('sudo systemctl stop podman');
         // Safely unmount pod filesystems to avoid errors.
-        shellExec('sudo umount -f /var/lib/kubelet/pods/*/* || true');
+        shellExec('sudo umount -f /var/lib/kubelet/pods/*/*');
 
         // Phase 3: Execute official uninstallation commands
         logger.info('Phase 3/7: Executing official reset and uninstallation commands...');
         logger.info('  -> Executing kubeadm reset...');
-        shellExec('sudo kubeadm reset --force || true');
+        shellExec('sudo kubeadm reset --force');
         logger.info('  -> Executing K3s uninstallation script if it exists...');
-        shellExec('sudo /usr/local/bin/k3s-uninstall.sh || true');
+        shellExec('sudo /usr/local/bin/k3s-uninstall.sh');
         logger.info('  -> Deleting Kind clusters...');
-        shellExec('kind get clusters | xargs -r -t -n1 kind delete cluster || true');
+        shellExec('kind get clusters | xargs -r -t -n1 kind delete cluster');
 
         // Phase 4: File system cleanup
         logger.info('Phase 4/7: Cleaning up remaining file system artifacts...');
         // Remove any leftover configurations and data.
-        shellExec('sudo rm -rf /etc/kubernetes/* || true');
-        shellExec('sudo rm -rf /etc/cni/net.d/* || true');
-        shellExec('sudo rm -rf /var/lib/kubelet/* || true');
-        shellExec('sudo rm -rf /var/lib/cni/* || true');
-        shellExec('sudo rm -rf /var/lib/docker/* || true');
-        shellExec('sudo rm -rf /var/lib/containerd/* || true');
-        shellExec('sudo rm -rf /var/lib/containers/storage/* || true');
+        shellExec('sudo rm -rf /etc/kubernetes/*');
+        shellExec('sudo rm -rf /etc/cni/net.d/*');
+        shellExec('sudo rm -rf /var/lib/kubelet/*');
+        shellExec('sudo rm -rf /var/lib/cni/*');
+        shellExec('sudo rm -rf /var/lib/docker/*');
+        shellExec('sudo rm -rf /var/lib/containerd/*');
+        shellExec('sudo rm -rf /var/lib/containers/storage/*');
         // Clean up the current user's kubeconfig.
-        shellExec('rm -rf $HOME/.kube || true');
+        shellExec('rm -rf $HOME/.kube');
 
         // Phase 5: Host network cleanup
         logger.info('Phase 5/7: Cleaning up host network configurations...');
         // Remove iptables rules and CNI network interfaces.
-        shellExec('sudo iptables -F || true');
-        shellExec('sudo iptables -t nat -F || true');
+        shellExec('sudo iptables -F');
+        shellExec('sudo iptables -t nat -F');
         // Restore iptables rules
         shellExec(`chmod +x ${options.underpostRoot}/scripts/nat-iptables.sh`);
         shellExec(`${options.underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
-        shellExec('sudo ip link del cni0 || true');
-        shellExec('sudo ip link del flannel.1 || true');
+        shellExec('sudo ip link del cni0');
+        shellExec('sudo ip link del flannel.1');
 
         logger.info('Phase 6/7: Clean up images');
         shellExec(`podman rmi $(podman images -qa) --force`);
@@ -792,51 +792,49 @@ EOF`);
 
       // Remove Kind
       console.log('Removing Kind...');
-      shellExec(`sudo rm -f /bin/kind || true`);
+      shellExec(`sudo rm -f /bin/kind`);
 
       // Remove Helm
       console.log('Removing Helm...');
-      shellExec(`sudo rm -f /usr/local/bin/helm || true`);
-      shellExec(`sudo rm -f /usr/local/bin/helm.sh || true`); // clean up the install script if it exists
+      shellExec(`sudo rm -f /usr/local/bin/helm`);
+      shellExec(`sudo rm -f /usr/local/bin/helm.sh`); // clean up the install script if it exists
 
       // Remove Docker and its dependencies
       console.log('Removing Docker, containerd, and related packages...');
-      shellExec(
-        `sudo dnf -y remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || true`,
-      );
+      shellExec(`sudo dnf -y remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`);
 
       // Remove Podman
       console.log('Removing Podman...');
-      shellExec(`sudo dnf -y remove podman || true`);
+      shellExec(`sudo dnf -y remove podman`);
 
       // Remove Kubeadm, Kubelet, and Kubectl
       console.log('Removing Kubernetes tools...');
-      shellExec(`sudo yum remove -y kubelet kubeadm kubectl || true`);
+      shellExec(`sudo yum remove -y kubelet kubeadm kubectl`);
 
       // Remove Kubernetes repo file
       console.log('Removing Kubernetes repository configuration...');
-      shellExec(`sudo rm -f /etc/yum.repos.d/kubernetes.repo || true`);
+      shellExec(`sudo rm -f /etc/yum.repos.d/kubernetes.repo`);
 
       // Clean up Kubeadm config and data directories
       console.log('Cleaning up Kubernetes configuration directories...');
-      shellExec(`sudo rm -rf /etc/kubernetes/pki || true`);
-      shellExec(`sudo rm -rf ~/.kube || true`);
+      shellExec(`sudo rm -rf /etc/kubernetes/pki`);
+      shellExec(`sudo rm -rf ~/.kube`);
 
       // Stop and disable services
       console.log('Stopping and disabling services...');
-      shellExec(`sudo systemctl stop docker.service || true`);
-      shellExec(`sudo systemctl disable docker.service || true`);
-      shellExec(`sudo systemctl stop containerd.service || true`);
-      shellExec(`sudo systemctl disable containerd.service || true`);
-      shellExec(`sudo systemctl stop kubelet.service || true`);
-      shellExec(`sudo systemctl disable kubelet.service || true`);
+      shellExec(`sudo systemctl stop docker.service`);
+      shellExec(`sudo systemctl disable docker.service`);
+      shellExec(`sudo systemctl stop containerd.service`);
+      shellExec(`sudo systemctl disable containerd.service`);
+      shellExec(`sudo systemctl stop kubelet.service`);
+      shellExec(`sudo systemctl disable kubelet.service`);
 
       // Clean up config files
       console.log('Removing host configuration files...');
-      shellExec(`sudo rm -f /etc/containerd/config.toml || true`);
-      shellExec(`sudo rm -f /etc/sysctl.d/k8s.conf || true`);
-      shellExec(`sudo rm -f /etc/sysctl.d/99-k8s-ipforward.conf || true`);
-      shellExec(`sudo rm -f /etc/sysctl.d/99-k8s.conf || true`);
+      shellExec(`sudo rm -f /etc/containerd/config.toml`);
+      shellExec(`sudo rm -f /etc/sysctl.d/k8s.conf`);
+      shellExec(`sudo rm -f /etc/sysctl.d/99-k8s-ipforward.conf`);
+      shellExec(`sudo rm -f /etc/sysctl.d/99-k8s.conf`);
 
       // Restore SELinux to enforcing
       console.log('Restoring SELinux to enforcing mode...');

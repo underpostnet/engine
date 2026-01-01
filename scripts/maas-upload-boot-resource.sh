@@ -33,7 +33,7 @@ if ! command -v jq &> /dev/null; then
 fi
 
 # Get MAAS API URL and credentials from profile
-MAAS_INFO=$(maas list | grep "^${PROFILE}" || true)
+MAAS_INFO=$(maas list | grep "^${PROFILE}")
 if [ -z "$MAAS_INFO" ]; then
     echo "Error: MAAS profile '${PROFILE}' not found"
     echo "Available profiles:"

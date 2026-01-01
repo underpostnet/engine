@@ -515,9 +515,9 @@ rm -rf ${artifacts.join(' ')}`);
       // Handle control server uninstallation.
       if (options.controlServerUninstall === true) {
         // Stop and remove MAAS services, handling potential errors gracefully.
-        shellExec(`sudo snap stop maas.pebble || true`);
+        shellExec(`sudo snap stop maas.pebble`);
         shellExec(`sudo snap stop maas`);
-        shellExec(`sudo snap remove maas --purge || true`);
+        shellExec(`sudo snap remove maas --purge`);
 
         // Remove residual snap data to ensure a clean uninstall.
         shellExec(`sudo rm -rf /var/snap/maas`);
@@ -1107,7 +1107,7 @@ rm -rf ${artifacts.join(' ')}`);
       shellExec(`mkdir -p ${mountPoint}`);
 
       // Ensure mount point is not already mounted
-      shellExec(`sudo umount ${mountPoint} 2>/dev/null || true`, { silent: true });
+      shellExec(`sudo umount ${mountPoint} 2>/dev/null`, { silent: true });
 
       try {
         // Mount the ISO
@@ -1749,7 +1749,7 @@ shell
       shellExec(`mkdir -p ${bootstrapHttpServerPath}/${hostname}/cloud-init`);
 
       // Kill any existing HTTP server
-      shellExec(`sudo pkill -f 'python3 -m http.server ${port}' || true`, { silent: true });
+      shellExec(`sudo pkill -f 'python3 -m http.server ${port}'`, { silent: true });
 
       shellExec(
         `cd ${bootstrapHttpServerPath} && nohup python3 -m http.server ${port} --bind 0.0.0.0 > /tmp/http-boot-server.log 2>&1 &`,

@@ -48,7 +48,7 @@ info "Outputs: $CERT_FILE, $KEY_FILE, $FULLCHAIN_FILE, $ROOT_PEM"
 
 # Install prerequisites
 if ! command -v dnf >/dev/null 2>&1; then err "dnf not found. This script expects RHEL/Rocky with dnf."; exit 1; fi
-sudo dnf install -y curl nss-tools ca-certificates || true
+sudo dnf install -y curl nss-tools ca-certificates
 
 # Download and install mkcert binary (no 'go install')
 download_mkcert_binary() {
@@ -60,10 +60,10 @@ download_mkcert_binary() {
   esac
   info "Searching mkcert release for $ARCH_STR"
   ASSET_URL=$(curl -sS "https://api.github.com/repos/FiloSottile/mkcert/releases/latest" | \
-    grep -E '"browser_download_url":' | grep -i "$ARCH_STR" | head -n1 | sed -E 's/.*"(https:[^"]+)".*/\1/' || true)
+    grep -E '"browser_download_url":' | grep -i "$ARCH_STR" | head -n1 | sed -E 's/.*"(https:[^"]+)".*/\1/')
   if [[ -z "$ASSET_URL" ]]; then
     ASSET_URL=$(curl -sS "https://api.github.com/repos/FiloSottile/mkcert/releases/latest" | \
-      grep -E '"browser_download_url":' | grep -i 'linux' | grep -i 'amd64' | head -n1 | sed -E 's/.*"(https:[^"]+)".*/\1/' || true)
+      grep -E '"browser_download_url":' | grep -i 'linux' | grep -i 'amd64' | head -n1 | sed -E 's/.*"(https:[^"]+)".*/\1/')
   fi
   if [[ -z "$ASSET_URL" ]]; then err "Could not find mkcert asset for your arch"; return 1; fi
   TMP_BIN="$(mktemp -u /tmp/mkcert.XXXXXX)"
@@ -93,7 +93,7 @@ use_mkcert() {
   info "Generating cert+key with mkcert"
   if ! "$MKCERT_BIN" -cert-file "$CERT_FILE" -key-file "$KEY_FILE" "${MK_ARGS[@]}"; then err "mkcert failed to generate"; return 1; fi
   # copy root CA from mkcert CAROOT into TARGET_DIR
-  if ROOT_FROM_MKCERT="$($MKCERT_BIN -CAROOT 2>/dev/null || true)"; then
+  if ROOT_FROM_MKCERT="$($MKCERT_BIN -CAROOT 2>/dev/null)"; then
     if [[ -f "$ROOT_FROM_MKCERT/rootCA.pem" ]]; then
       cp "$ROOT_FROM_MKCERT/rootCA.pem" "$ROOT_PEM"
       info "Copied mkcert root CA to $ROOT_PEM"
@@ -135,11 +135,11 @@ use_openssl() {
     mv -f "$CSR_KEY" "$KEY_FILE"
     # create fullchain: leaf + root
     cat "$CERT_FILE" "$ROOT_PEM" > "$FULLCHAIN_FILE"
-    sudo cp "$ROOT_PEM" /etc/pki/ca-trust/source/anchors/ || true
-    sudo update-ca-trust extract || true
+    sudo cp "$ROOT_PEM" /etc/pki/ca-trust/source/anchors/
+    sudo update-ca-trust extract
     if command -v certutil >/dev/null 2>&1; then
       mkdir -p "$HOME/.pki/nssdb"
-      certutil -d sql:$HOME/.pki/nssdb -A -t "CT,C,C" -n "Local Dev Root CA" -i "$ROOT_PEM" || true
+      certutil -d sql:$HOME/.pki/nssdb -A -t "CT,C,C" -n "Local Dev Root CA" -i "$ROOT_PEM"
     fi
     info "OpenSSL created cert, key and fullchain"
     return 0

@@ -925,7 +925,7 @@ EOF
         shellExec(`docker exec -i kind-worker bash -c "mkdir -p ${volumeHostPath}"`);
         shellExec(`docker cp ${volumeHostPath}/engine kind-worker:${volumeHostPath}/engine`);
         shellExec(
-          `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${volumeHostPath} || true; chmod -R 755 ${volumeHostPath}"`,
+          `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${volumeHostPath}; chmod -R 755 ${volumeHostPath}"`,
         );
       } else {
         shellExec(`kubectl apply -f ${options.underpostRoot}/manifests/pv-pvc-dd.yaml -n ${options.namespace}`);

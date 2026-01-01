@@ -80,7 +80,7 @@ autocmd VimEnter * if argc() == 0 && !exists('s:std_in') | NvimTreeToggle | winc
 EOF
 
 # Fix permissions in case something was left owned by root (happens if you used sudo on these paths before)
-sudo chown -R "$USER":"$USER" ~/.config/nvim ~/.local/share/nvim 2>/dev/null || true
+sudo chown -R "$USER":"$USER" ~/.config/nvim ~/.local/share/nvim 2>/dev/null
 
 # Install plugins automatically (non-interactive)
 nvim +PlugInstall +qall

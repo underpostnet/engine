@@ -761,7 +761,7 @@ EOF`);
         // shellExec(`docker cp ${volume.volumeMountPath} kind-worker:${rootVolumeHostPath}`);
         shellExec(`tar -C ${volume.volumeMountPath} -c . | docker cp - kind-worker:${rootVolumeHostPath}`);
         shellExec(
-          `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${rootVolumeHostPath} || true; chmod -R 755 ${rootVolumeHostPath}"`,
+          `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${rootVolumeHostPath}; chmod -R 755 ${rootVolumeHostPath}"`,
         );
       }
       shellExec(`kubectl delete pvc ${pvcId} -n ${namespace} --ignore-not-found`);

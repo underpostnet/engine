@@ -25,13 +25,13 @@ MOUNT_POINT=$(mktemp -d /tmp/packer-maas-mount.XXXXXX)
 cleanup() {
     echo "Cleaning up..."
     if mountpoint -q "${MOUNT_POINT}"; then
-        umount "${MOUNT_POINT}" || true
+        umount "${MOUNT_POINT}"
     fi
     if [ -n "${NBD_DEV}" ] && [ -b "${NBD_DEV}" ]; then
-        qemu-nbd -d "${NBD_DEV}" || true
+        qemu-nbd -d "${NBD_DEV}"
     fi
     if [ -d "${MOUNT_POINT}" ]; then
-        rmdir "${MOUNT_POINT}" || true
+        rmdir "${MOUNT_POINT}"
     fi
 }
 
