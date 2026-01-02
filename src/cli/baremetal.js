@@ -168,13 +168,16 @@ class UnderpostBaremetal {
       }
 
       const tftpPrefix = workflowsConfig[workflowId].tftpPrefix || 'rpi4mb';
-      // Define the debootstrap architecture.
-      let debootstrapArch;
+      // Define the bootstrap architecture.
+      let bootstrapArch;
 
-      // Set debootstrap architecture.
+      // Set bootstrap architecture.
       if (workflowsConfig[workflowId].type === 'chroot') {
         const { architecture } = workflowsConfig[workflowId].debootstrap.image;
-        debootstrapArch = architecture;
+        bootstrapArch = architecture;
+      } else if (workflowsConfig[workflowId].type === 'chroot-container') {
+        const { architecture } = workflowsConfig[workflowId].container;
+        bootstrapArch = architecture;
       }
 
       // Define the database provider ID.
@@ -479,14 +482,9 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle NFS shell access option.
       if (options.nfsSh === true) {
-        const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
-        if (!workflowsConfig[workflowId]) {
-          throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
-        }
-        const { debootstrap } = workflowsConfig[workflowId];
         // Copy the chroot command to the clipboard for easy execution.
-        if (debootstrap.image.architecture !== callbackMetaData.runnerHost.architecture)
-          switch (debootstrap.image.architecture) {
+        if (bootstrapArch && bootstrapArch !== callbackMetaData.runnerHost.architecture)
+          switch (bootstrapArch) {
             case 'arm64':
               pbcopy(`sudo chroot ${nfsHostPath} /usr/bin/qemu-aarch64-static /bin/bash`);
               break;
@@ -591,7 +589,7 @@ rm -rf ${artifacts.join(' ')}`);
         shellExec(`mkdir -p ${nfsHostPath}`);
 
         // Perform the first stage of debootstrap.
-        {
+        if (workflowsConfig[workflowId].type === 'chroot') {
           const { architecture, name } = workflowsConfig[workflowId].debootstrap.image;
           shellExec(
             [
@@ -604,6 +602,12 @@ rm -rf ${artifacts.join(' ')}`);
               `http://ports.ubuntu.com/ubuntu-ports/`,
             ].join(' '),
           );
+        } else if (workflowsConfig[workflowId].type === 'chroot-container') {
+          const { image } = workflowsConfig[workflowId].container;
+          shellExec(`sudo podman pull --arch=${bootstrapArch} ${image}`);
+          shellExec(`sudo podman create --arch=${bootstrapArch} --name chroot-source ${image}`);
+          shellExec(`sudo podman export chroot-source | sudo tar -x -C ${nfsHostPath}`);
+          shellExec(`sudo podman rm chroot-source`);
         }
 
         // Create a podman container to extract QEMU static binaries.
@@ -611,10 +615,10 @@ rm -rf ${artifacts.join(' ')}`);
         shellExec(`podman ps -a`); // List all podman containers for verification.
 
         // If cross-architecture, copy the QEMU static binary into the chroot.
-        if (debootstrapArch !== callbackMetaData.runnerHost.architecture)
+        if (bootstrapArch !== callbackMetaData.runnerHost.architecture)
           UnderpostBaremetal.API.crossArchBinFactory({
             nfsHostPath,
-            debootstrapArch,
+            bootstrapArch,
           });
 
         // Clean up the temporary podman container.
@@ -631,12 +635,42 @@ rm -rf ${artifacts.join(' ')}`);
         });
 
         // Perform the second stage of debootstrap within the chroot environment.
-        UnderpostBaremetal.API.crossArchRunner({
-          nfsHostPath,
-          debootstrapArch,
-          callbackMetaData,
-          steps: [`/debootstrap/debootstrap --second-stage`],
-        });
+        if (workflowsConfig[workflowId].type === 'chroot') {
+          UnderpostBaremetal.API.crossArchRunner({
+            nfsHostPath,
+            bootstrapArch,
+            callbackMetaData,
+            steps: [`/debootstrap/debootstrap --second-stage`],
+          });
+        } else if (workflowsConfig[workflowId].type === 'chroot-container') {
+          // Copy resolv.conf to allow network access inside chroot
+          shellExec(`sudo cp /etc/resolv.conf ${nfsHostPath}/etc/resolv.conf`);
+
+          const { packages } = workflowsConfig[workflowId].container;
+          if (packages && packages.length > 0) {
+            UnderpostBaremetal.API.crossArchRunner({
+              nfsHostPath,
+              bootstrapArch,
+              callbackMetaData,
+              steps: [`dnf install -y --allowerasing findutils ${packages.join(' ')}`],
+            });
+          }
+          UnderpostBaremetal.API.crossArchRunner({
+            nfsHostPath,
+            bootstrapArch,
+            callbackMetaData,
+            steps: [
+              `ls -la /boot`,
+              `VMLINUZ=$(find /boot -name "vmlinuz*" | head -n 1)`,
+              `if [ -z "$VMLINUZ" ]; then VMLINUZ=$(find /lib/modules -name "vmlinuz*" | head -n 1); fi`,
+              `cp $VMLINUZ /boot/vmlinuz-efi`,
+              `INITRD=$(find /boot -name "initramfs*" | grep -v kdump | head -n 1)`,
+              `if [ -z "$INITRD" ]; then INITRD=$(find /lib/modules -name "initramfs*" | grep -v kdump | head -n 1); fi`,
+              `cp $INITRD /boot/initrd.img`,
+              `echo "root:root" | chpasswd`,
+            ],
+          });
+        }
         return;
       }
 
@@ -685,7 +719,10 @@ rm -rf ${artifacts.join(' ')}`);
         let { firmwares, networkInterfaceName, maas, menuentryStr, type } = workflowsConfig[workflowId];
 
         // Use commissioning config (Ubuntu ephemeral) for PXE boot resources
-        const commissioningImage = maas.commissioning;
+        const commissioningImage = maas?.commissioning || {
+          architecture: 'arm64/generic',
+          name: 'ubuntu/noble',
+        };
         const resource = resources.find(
           (o) => o.architecture === commissioningImage.architecture && o.name === commissioningImage.name,
         );
@@ -732,12 +769,24 @@ rm -rf ${artifacts.join(' ')}`);
         {
           // Fetch kernel and initrd paths from MAAS boot resource.
           // Both NFS and disk-based commissioning use MAAS boot resources.
-          const { kernelFilesPaths, resourcesPath } = UnderpostBaremetal.API.kernelFactory({
-            resource,
-            type,
-            nfsHostPath,
-            isoUrl: options.isoUrl || workflowsConfig[workflowId].isoUrl,
-          });
+          let kernelFilesPaths, resourcesPath;
+          if (workflowsConfig[workflowId].type === 'chroot-container') {
+            const arch = commissioningImage.architecture.split('/')[0];
+            resourcesPath = `/var/snap/maas/common/maas/image-storage/bootloaders/uefi/${arch}`;
+            kernelFilesPaths = {
+              'vmlinuz-efi': `${nfsHostPath}/boot/vmlinuz-efi`,
+              'initrd.img': `${nfsHostPath}/boot/initrd.img`,
+            };
+          } else {
+            const kf = UnderpostBaremetal.API.kernelFactory({
+              resource,
+              type,
+              nfsHostPath,
+              isoUrl: options.isoUrl || workflowsConfig[workflowId].isoUrl,
+            });
+            kernelFilesPaths = kf.kernelFilesPaths;
+            resourcesPath = kf.resourcesPath;
+          }
 
           const { cmd } = UnderpostBaremetal.API.kernelCmdBootParamsFactory({
             ipClient: ipAddress,
@@ -850,7 +899,7 @@ rm -rf ${artifacts.join(' ')}`);
         }
 
         // Pass architecture from commissioning or deployment config
-        const grubArch = maas.commissioning.architecture;
+        const grubArch = commissioningImage.architecture;
         UnderpostBaremetal.API.efiGrubModulesFactory({ image: { architecture: grubArch } });
 
         // Set ownership and permissions for TFTP root.
@@ -919,7 +968,7 @@ rm -rf ${artifacts.join(' ')}`);
 
           UnderpostBaremetal.API.crossArchRunner({
             nfsHostPath,
-            debootstrapArch,
+            bootstrapArch,
             callbackMetaData,
             steps: [
               ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base(),
@@ -936,7 +985,7 @@ rm -rf ${artifacts.join(' ')}`);
         if (options.ubuntuToolsTest)
           UnderpostBaremetal.API.crossArchRunner({
             nfsHostPath,
-            debootstrapArch,
+            bootstrapArch,
             callbackMetaData,
             steps: [
               `chmod +x /underpost/date.sh`,
@@ -964,7 +1013,11 @@ rm -rf ${artifacts.join(' ')}`);
 
       shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
       // Rebuild NFS server configuration.
-      if (workflowsConfig[workflowId].type === 'iso-nfs' || workflowsConfig[workflowId].type === 'chroot')
+      if (
+        workflowsConfig[workflowId].type === 'iso-nfs' ||
+        workflowsConfig[workflowId].type === 'chroot' ||
+        workflowsConfig[workflowId].type === 'chroot-container'
+      )
         UnderpostBaremetal.API.rebuildNfsServer({
           nfsHostPath,
         });
@@ -973,7 +1026,7 @@ rm -rf ${artifacts.join(' ')}`);
       if (options.commission === true) {
         const { type } = workflowsConfig[workflowId];
 
-        if (type === 'chroot') {
+        if (type === 'chroot' || type === 'chroot-container') {
           const { isMounted } = UnderpostBaremetal.API.nfsMountCallback({
             hostname,
             nfsHostPath,
@@ -986,7 +1039,11 @@ rm -rf ${artifacts.join(' ')}`);
           macAddress,
           ipAddress,
           hostname,
-          maas: workflowsConfig[workflowId].maas,
+          architecture:
+            workflowsConfig[workflowId].maas?.commissioning?.architecture ||
+            workflowsConfig[workflowId].container?.architecture ||
+            workflowsConfig[workflowId].debootstrap?.image?.architecture ||
+            'arm64/generic',
           machine,
         };
         logger.info('Waiting for commissioning...', {
@@ -996,7 +1053,7 @@ rm -rf ${artifacts.join(' ')}`);
 
         const { discovery } = await UnderpostBaremetal.API.commissionMonitor(commissionMonitorPayload);
 
-        if (type === 'chroot' && options.cloudInit === true) {
+        if ((type === 'chroot' || type === 'chroot-container') && options.cloudInit === true) {
           openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init`);
           openTerminal(
             `node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init-machine`,
@@ -1174,15 +1231,12 @@ rm -rf ${artifacts.join(' ')}`);
         hostname: '',
         ipAddress: '',
         powerType: 'manual',
-        maas: {},
+        architecture: 'arm64/generic',
       },
     ) {
       if (!options.powerType) options.powerType = 'manual';
-      const maas = options.maas || {};
       const payload = {
-        architecture: (maas.commissioning?.architecture || 'arm64/generic').match('arm')
-          ? 'arm64/generic'
-          : 'amd64/generic',
+        architecture: (options.architecture || 'arm64/generic').match('arm') ? 'arm64/generic' : 'amd64/generic',
         mac_address: options.macAddress,
         mac_addresses: options.macAddress,
         hostname: options.hostname,
@@ -1868,7 +1922,7 @@ shell
         : 'ip=dhcp';
 
       const nfsOptions = `${
-        type === 'chroot'
+        type === 'chroot' || type === 'chroot-container'
           ? [
               'tcp',
               'nfsvers=3',
@@ -1960,7 +2014,7 @@ shell
         const netBootParams = [`netboot=url`];
         if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
         cmd = [ipParam, `boot=casper`, ...netBootParams, ...kernelParams];
-      } else if (type === 'chroot') {
+      } else if (type === 'chroot' || type === 'chroot-container') {
         const qemuNfsRootParams = [`root=/dev/nfs`, `rootfstype=nfs`, `initrd=initrd.img`, `init=/sbin/init`];
         cmd = [ipParam, ...baseNfsParams, ...qemuNfsRootParams, nfsRootParam, ...kernelParams];
       } else {
@@ -1998,12 +2052,12 @@ shell
      * @param {string} params.macAddress - The MAC address to monitor for.
      * @param {string} params.ipAddress - The IP address of the machine (used if MAC is all zeros).
      * @param {string} [params.hostname] - The hostname for the machine (optional).
-     * @param {object} [params.maas] - Additional MAAS-specific options (optional).
+     * @param {string} [params.architecture] - The architecture of the machine (optional).
      * @param {object} [params.machine] - Existing machine payload to use (optional).
      * @returns {Promise<void>} A promise that resolves when commissioning is initiated or after a delay.
      * @memberof UnderpostBaremetal
      */
-    async commissionMonitor({ macAddress, ipAddress, hostname, maas, machine }) {
+    async commissionMonitor({ macAddress, ipAddress, hostname, architecture, machine }) {
       {
         // Query observed discoveries from MAAS.
         const discoveries = JSON.parse(
@@ -2038,7 +2092,7 @@ shell
                 ipAddress,
                 macAddress: discovery.mac_address,
                 hostname,
-                maas,
+                architecture,
               }).machine;
               console.log('New machine system id:', machine.system_id.bgYellow.bold.black);
               UnderpostBaremetal.API.writeGrubConfigToFile({
@@ -2079,14 +2133,6 @@ shell
                 logger.info('✓ Machine interface MAC address updated successfully');
 
                 // commissioning_scripts=90-verify-user.sh
-                machine = JSON.parse(
-                  shellExec(
-                    `maas ${process.env.MAAS_ADMIN_USERNAME} machine commission --debug --insecure ${systemId} enable_ssh=1 skip_bmc_config=1 skip_networking=1 skip_storage=1`,
-                    {
-                      silent: true,
-                    },
-                  ),
-                );
               }
               logger.info('Machine resource uri', machine.resource_uri);
               for (const iface of machine.interface_set)
@@ -2101,7 +2147,13 @@ shell
           }
         }
         await timer(1000);
-        return await UnderpostBaremetal.API.commissionMonitor({ macAddress, ipAddress, hostname, maas, machine });
+        return await UnderpostBaremetal.API.commissionMonitor({
+          macAddress,
+          ipAddress,
+          hostname,
+          architecture,
+          machine,
+        });
       }
     },
 
@@ -2189,8 +2241,8 @@ shell
      * @param {'arm64'|'amd64'} params.debootstrapArch - The target architecture of the debootstrap environment.
      * @returns {void}
      */
-    crossArchBinFactory({ nfsHostPath, debootstrapArch }) {
-      switch (debootstrapArch) {
+    crossArchBinFactory({ nfsHostPath, bootstrapArch }) {
+      switch (bootstrapArch) {
         case 'arm64':
           // Copy QEMU static binary for ARM64.
           shellExec(`sudo podman cp extract:/usr/bin/qemu-aarch64-static ${nfsHostPath}/usr/bin/`);
@@ -2201,7 +2253,7 @@ shell
           break;
         default:
           // Log a warning or throw an error for unsupported architectures.
-          logger.warn(`Unsupported debootstrap architecture: ${debootstrapArch}`);
+          logger.warn(`Unsupported bootstrap architecture: ${bootstrapArch}`);
           break;
       }
       // Install GRUB EFI modules for both architectures to ensure compatibility.
@@ -2221,14 +2273,14 @@ shell
      * @param {string[]} params.steps - An array of shell commands to execute.
      * @returns {void}
      */
-    crossArchRunner({ nfsHostPath, debootstrapArch, callbackMetaData, steps }) {
+    crossArchRunner({ nfsHostPath, bootstrapArch, callbackMetaData, steps }) {
       // Render the steps with logging for better visibility during execution.
       steps = UnderpostBaremetal.API.stepsRender(steps, false);
 
       let qemuCrossArchBash = '';
       // Determine if QEMU is needed for cross-architecture execution.
-      if (debootstrapArch !== callbackMetaData.runnerHost.architecture)
-        switch (debootstrapArch) {
+      if (bootstrapArch !== callbackMetaData.runnerHost.architecture)
+        switch (bootstrapArch) {
           case 'arm64':
             qemuCrossArchBash = '/usr/bin/qemu-aarch64-static ';
             break;
@@ -2300,7 +2352,7 @@ EOF`);
       if (!workflowsConfig[workflowId]) {
         throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
       }
-      if (workflowsConfig[workflowId].type === 'chroot') {
+      if (workflowsConfig[workflowId].type === 'chroot' || workflowsConfig[workflowId].type === 'chroot-container') {
         const mounts = {
           bind: ['/proc', '/sys', '/run'],
           rbind: ['/dev'],

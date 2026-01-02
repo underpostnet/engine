@@ -89,10 +89,10 @@
     }
   },
   "rpi4mbarm64-chroot-rocky9": {
-    "type": "chroot",
+    "type": "chroot-container",
     "tftpPrefix": "rpi4mb",
     "bootstrapHttpServerPort": 8888,
-    "menuentryStr": "UNDERPOST.NET RockyRpi CHROOT commissioning (Rocky 9 arm64)",
+    "menuentryStr": "UNDERPOST.NET Rocky9 Container CHROOT NFS (ARM64)",
     "networkInterfaceName": "enabcm6e4ei0",
     "firmwares": [
       {
@@ -109,15 +109,6 @@
       "image": "quay.io/rockylinux/rockylinux:9",
       "architecture": "arm64",
       "packages": ["sudo", "iproute", "tar", "wget", "curl", "vim-minimal", "kernel"]
-    },
-    "image": {
-      "name": "RockyRpiArm64",
-      "url": "https://dl.rockylinux.org/pub/sig/9/altarch/aarch64/images/RockyRpi_9.2.img.xz",
-      "type": "raw-image-xz",
-      "architecture": "arm64/generic",
-      "mountPoint": "/tmp/rockyrpi-mount",
-      "extractDir": "/tmp/rockyrpi-boot",
-      "imageDir": "/tmp/rockyrpi-image"
     },
     "keyboard": {
       "layout": "es"
