@@ -172,7 +172,7 @@ class UnderpostBaremetal {
       let bootstrapArch;
 
       // Set bootstrap architecture.
-      if (workflowsConfig[workflowId].type === 'chroot') {
+      if (workflowsConfig[workflowId].type === 'chroot-debootstrap') {
         const { architecture } = workflowsConfig[workflowId].debootstrap.image;
         bootstrapArch = architecture;
       } else if (workflowsConfig[workflowId].type === 'chroot-container') {
@@ -590,7 +590,7 @@ rm -rf ${artifacts.join(' ')}`);
         shellExec(`mkdir -p ${nfsHostPath}`);
 
         // Perform the first stage of debootstrap.
-        if (workflowsConfig[workflowId].type === 'chroot') {
+        if (workflowsConfig[workflowId].type === 'chroot-debootstrap') {
           const { architecture, name } = workflowsConfig[workflowId].debootstrap.image;
           shellExec(
             [
@@ -636,7 +636,7 @@ rm -rf ${artifacts.join(' ')}`);
         });
 
         // Perform the second stage of debootstrap within the chroot environment.
-        if (workflowsConfig[workflowId].type === 'chroot') {
+        if (workflowsConfig[workflowId].type === 'chroot-debootstrap') {
           UnderpostBaremetal.API.crossArchRunner({
             nfsHostPath,
             bootstrapArch,
@@ -841,6 +841,7 @@ rm -rf ${artifacts.join(' ')}`);
             cloudInit: options.cloudInit,
             machine,
             dev: options.dev,
+            osIdLike: workflowsConfig[workflowId].osIdLike || '',
           });
 
           // Check if iPXE mode is enabled AND the iPXE EFI binary exists
@@ -957,7 +958,7 @@ rm -rf ${artifacts.join(' ')}`);
         if (options.cloudInitUpdate) return;
       }
 
-      if (workflowsConfig[workflowId].type === 'chroot') {
+      if (workflowsConfig[workflowId].type === 'chroot-debootstrap') {
         if (options.ubuntuToolsBuild) {
           UnderpostCloudInit.API.buildTools({
             workflowId,
@@ -1020,7 +1021,7 @@ rm -rf ${artifacts.join(' ')}`);
       // Rebuild NFS server configuration.
       if (
         workflowsConfig[workflowId].type === 'iso-nfs' ||
-        workflowsConfig[workflowId].type === 'chroot' ||
+        workflowsConfig[workflowId].type === 'chroot-debootstrap' ||
         workflowsConfig[workflowId].type === 'chroot-container'
       )
         UnderpostBaremetal.API.rebuildNfsServer({
@@ -1031,7 +1032,7 @@ rm -rf ${artifacts.join(' ')}`);
       if (options.commission === true) {
         const { type } = workflowsConfig[workflowId];
 
-        if (type === 'chroot' || type === 'chroot-container')
+        if (type === 'chroot-debootstrap' || type === 'chroot-container')
           await UnderpostBaremetal.API.nfsMountCallback({
             hostname,
             nfsHostPath,
@@ -1057,7 +1058,7 @@ rm -rf ${artifacts.join(' ')}`);
 
         const { discovery } = await UnderpostBaremetal.API.commissionMonitor(commissionMonitorPayload);
 
-        if ((type === 'chroot' || type === 'chroot-container') && options.cloudInit === true) {
+        if ((type === 'chroot-debootstrap' || type === 'chroot-container') && options.cloudInit === true) {
           openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init`);
           openTerminal(
             `node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init-machine`,
@@ -1925,11 +1926,12 @@ shell
      * @param {string} options.networkInterfaceName - The name of the network interface.
      * @param {string} options.fileSystemUrl - The URL of the root filesystem.
      * @param {number} options.bootstrapHttpServerPort - The port of the bootstrap HTTP server.
-     * @param {string} options.type - The type of boot ('iso-ram', 'chroot', 'iso-nfs', etc.).
+     * @param {string} options.type - The type of boot ('iso-ram', 'chroot-debootstrap', 'chroot-container', 'iso-nfs', etc.).
      * @param {string} options.macAddress - The MAC address of the client.
      * @param {boolean} options.cloudInit - Whether to include cloud-init parameters.
      * @param {object} options.machine - The machine object containing system_id.
      * @param {boolean} [options.dev=false] - Whether to enable dev mode with dracut debugging parameters.
+     * @param {string} [options.osIdLike=''] - OS family identifier (e.g., 'rhel centos fedora' or 'debian ubuntu').
      * @returns {object} An object containing the constructed command line string.
      * @memberof UnderpostBaremetal
      */
@@ -1950,6 +1952,7 @@ shell
         cloudInit: false,
         machine: { system_id: '' },
         dev: false,
+        osIdLike: '',
       },
     ) {
       // Construct kernel command line arguments for NFS boot.
@@ -1967,6 +1970,7 @@ shell
         type,
         macAddress,
         cloudInit,
+        osIdLike,
       } = options;
 
       const ipParam = true
@@ -1975,7 +1979,7 @@ shell
         : 'ip=dhcp';
 
       const nfsOptions = `${
-        type === 'chroot' || type === 'chroot-container'
+        type === 'chroot-debootstrap' || type === 'chroot-container'
           ? [
               'tcp',
               'nfsvers=3',
@@ -2064,15 +2068,19 @@ shell
         const netBootParams = [`netboot=url`];
         if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
         cmd = [ipParam, `boot=casper`, ...netBootParams, ...kernelParams];
-      } else if (type === 'chroot' || type === 'chroot-container') {
+      } else if (type === 'chroot-debootstrap' || type === 'chroot-container') {
         let qemuNfsRootParams = [`root=/dev/nfs`, `rootfstype=nfs`];
 
-        // Add RHEL/Rocky based images specific parameters
-        if (hostname.match(/rocky|rhel|centos|alma/i)) {
+        // Determine OS family from osIdLike configuration
+        const isRhelBased = osIdLike && osIdLike.match(/rhel|centos|fedora|alma|rocky/i);
+        const isDebianBased = osIdLike && osIdLike.match(/debian|ubuntu/i);
+
+        // Add RHEL/Rocky/Fedora based images specific parameters
+        if (isRhelBased) {
           qemuNfsRootParams = qemuNfsRootParams.concat([`rd.neednet=1`, `rd.timeout=180`, `selinux=0`, `enforcing=0`]);
         }
-        // Debian/Ubuntu based images specific parameters
-        else {
+        // Add Debian/Ubuntu based images specific parameters
+        else if (isDebianBased) {
           qemuNfsRootParams = qemuNfsRootParams.concat([`initrd=initrd.img`, `init=/sbin/init`]);
         }
 
@@ -2419,7 +2427,10 @@ EOF`);
       if (!workflowsConfig[workflowId]) {
         throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
       }
-      if (workflowsConfig[workflowId].type === 'chroot' || workflowsConfig[workflowId].type === 'chroot-container') {
+      if (
+        workflowsConfig[workflowId].type === 'chroot-debootstrap' ||
+        workflowsConfig[workflowId].type === 'chroot-container'
+      ) {
         const mounts = {
           bind: ['/proc', '/sys', '/run'],
           rbind: ['/dev'],

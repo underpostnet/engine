@@ -1,6 +1,7 @@
 {
   "rpi4mbarm64-iso-ram": {
     "type": "iso-ram",
+    "osIdLike": "debian ubuntu",
     "tftpPrefix": "rpi4mb",
     "bootstrapHttpServerPort": 8888,
     "isoUrl": "",
@@ -28,7 +29,8 @@
     }
   },
   "rpi4mbarm64-chroot": {
-    "type": "chroot",
+    "type": "chroot-debootstrap",
+    "osIdLike": "debian ubuntu",
     "tftpPrefix": "rpi4mb",
     "bootstrapHttpServerPort": 8888,
     "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 CHROOT commissioning (ARM64)",
@@ -62,6 +64,7 @@
   },
   "rpi4mbarm64-iso-nfs": {
     "type": "iso-nfs",
+    "osIdLike": "debian ubuntu",
     "tftpPrefix": "rpi4mb",
     "bootstrapHttpServerPort": 8888,
     "isoUrl": "",
@@ -90,6 +93,7 @@
   },
   "rpi4mbarm64-chroot-rocky9": {
     "type": "chroot-container",
+    "osIdLike": "rhel centos fedora",
     "tftpPrefix": "rpi4mb",
     "bootstrapHttpServerPort": 8888,
     "menuentryStr": "UNDERPOST.NET Rocky9 Container CHROOT NFS (ARM64)",
