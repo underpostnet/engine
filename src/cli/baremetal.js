@@ -653,7 +653,7 @@ rm -rf ${artifacts.join(' ')}`);
               nfsHostPath,
               bootstrapArch,
               callbackMetaData,
-              steps: [`dnf install -y --allowerasing findutils ${packages.join(' ')}`],
+              steps: [`dnf install -y --allowerasing findutils systemd ${packages.join(' ')}`],
             });
           }
           UnderpostBaremetal.API.crossArchRunner({
@@ -760,7 +760,7 @@ rm -rf ${artifacts.join(' ')}`);
               const bootConfSrc = UnderpostBaremetal.API.bootConfFactory({
                 workflowId,
                 tftpIp: callbackMetaData.runnerHost.ip,
-                tftpPrefixStr: hostname,
+                tftpPrefixStr: tftpPrefix,
                 macAddress,
                 clientIp: ipAddress,
                 subnet,
@@ -810,6 +810,7 @@ rm -rf ${artifacts.join(' ')}`);
             macAddress,
             cloudInit: options.cloudInit,
             machine,
+            dev: options.dev,
           });
 
           // Check if iPXE mode is enabled AND the iPXE EFI binary exists
@@ -1834,7 +1835,8 @@ shell
     /**
      * @method updateKernelFiles
      * @description Copies EFI bootloaders, kernel, and initrd images to the TFTP root path.
-     * It also handles decompression of the kernel if necessary for ARM64 compatibility.
+     * It also handles decompression of the kernel if necessary for ARM64 compatibility,
+     * and extracts raw kernel images from PE32+ EFI wrappers (common in Rocky Linux ARM64).
      * @param {object} params - The parameters for the function.
      * @param {object} params.commissioningImage - The commissioning image configuration.
      * @param {string} params.resourcesPath - The path where resources are located.
@@ -1860,10 +1862,20 @@ shell
         if (file === 'vmlinuz-efi') {
           const kernelDest = `${tftpRootPath}/pxe/${file}`;
           const fileType = shellExec(`file ${kernelDest}`, { silent: true }).stdout;
+
+          // Handle gzip compressed kernels
           if (fileType.includes('gzip compressed data')) {
             logger.info(`Decompressing kernel ${file} for ARM64 UEFI compatibility...`);
             shellExec(`sudo mv ${kernelDest} ${kernelDest}.gz`);
             shellExec(`sudo gunzip ${kernelDest}.gz`);
+          }
+
+          // Handle PE32+ EFI wrapped kernels (common in Rocky Linux ARM64)
+          // Rocky Linux ARM64 kernels are distributed as PE32+ EFI executables, which
+          // are bootable directly via UEFI firmware. However, GRUB's 'linux' command
+          // expects a raw ARM64 Linux kernel Image format, not a PE32+ wrapper.
+          if (fileType.includes('PE32+') || fileType.includes('EFI application')) {
+            logger.warn('Detected PE32+ EFI wrapped kernel. Need to extract raw kernel image for GRUB.');
           }
         }
       }
@@ -1887,6 +1899,7 @@ shell
      * @param {string} options.macAddress - The MAC address of the client.
      * @param {boolean} options.cloudInit - Whether to include cloud-init parameters.
      * @param {object} options.machine - The machine object containing system_id.
+     * @param {boolean} [options.dev=false] - Whether to enable dev mode with dracut debugging parameters.
      * @returns {object} An object containing the constructed command line string.
      * @memberof UnderpostBaremetal
      */
@@ -1906,6 +1919,7 @@ shell
         macAddress: '',
         cloudInit: false,
         machine: { system_id: '' },
+        dev: false,
       },
     ) {
       // Construct kernel command line arguments for NFS boot.
@@ -2024,7 +2038,49 @@ shell
         if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
         cmd = [ipParam, `boot=casper`, ...netBootParams, ...kernelParams];
       } else if (type === 'chroot' || type === 'chroot-container') {
-        const qemuNfsRootParams = [`root=/dev/nfs`, `rootfstype=nfs`, `initrd=initrd.img`, `init=/sbin/init`];
+        let qemuNfsRootParams = [
+          `root=/dev/nfs`,
+          `rootfstype=nfs`,
+          `initrd=initrd.img`,
+          `init=/sbin/init`,
+          `rd.neednet=1`,
+          `rd.driver.pre=nfs`,
+          `rd.driver.pre=bcmgenet`,
+          `rd.driver.pre=genet`,
+          `rd.timeout=90`,
+          `rd.retry=10`,
+          `rd.net.timeout.carrier=60`,
+          `rd.net.timeout.ifup=60`,
+          `rd.net.timeout.iflink=60`,
+          `rd.nm=0`,
+          `rd.networkmanager=0`,
+          `rd.net.legacy`,
+          `rd.peerdns=0`,
+          `rd.iscsi.firmware=0`,
+        ];
+
+        // Add Rocky Linux / RHEL specific parameters
+        if (hostname.match(/rocky|rhel|centos|alma/i)) {
+          qemuNfsRootParams = qemuNfsRootParams.concat([
+            `selinux=0`,
+            `enforcing=0`,
+            `systemd.unified_cgroup_hierarchy=0`,
+            `systemd.mask=nm-wait-online-initrd.service`,
+            `systemd.mask=NetworkManager-wait-online.service`,
+          ]);
+        }
+
+        // Add debugging parameters in dev mode for dracut troubleshooting
+        if (options.dev) {
+          qemuNfsRootParams = qemuNfsRootParams.concat([
+            `rd.shell`,
+            `rd.debug`,
+            `rd.info`,
+            `systemd.log_level=debug`,
+            `systemd.log_target=console`,
+          ]);
+        }
+
         cmd = [ipParam, ...baseNfsParams, ...qemuNfsRootParams, nfsRootParam, ...kernelParams];
       } else {
         // 'iso-nfs'
