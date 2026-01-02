@@ -653,7 +653,10 @@ rm -rf ${artifacts.join(' ')}`);
               nfsHostPath,
               bootstrapArch,
               callbackMetaData,
-              steps: [`dnf install -y --allowerasing findutils systemd ${packages.join(' ')}`],
+              steps: [
+                `dnf install -y --allowerasing findutils systemd ${packages.join(' ')}`,
+                `dnf install -y dracut-network nfs-utils dracut-config-generic`,
+              ],
             });
           }
           UnderpostBaremetal.API.crossArchRunner({
@@ -661,13 +664,40 @@ rm -rf ${artifacts.join(' ')}`);
             bootstrapArch,
             callbackMetaData,
             steps: [
-              `ls -la /boot`,
-              `VMLINUZ=$(find /boot -name "vmlinuz*" | head -n 1)`,
-              `if [ -z "$VMLINUZ" ]; then VMLINUZ=$(find /lib/modules -name "vmlinuz*" | head -n 1); fi`,
-              `cp $VMLINUZ /boot/vmlinuz-efi`,
-              `INITRD=$(find /boot -name "initramfs*" | grep -v kdump | head -n 1)`,
-              `if [ -z "$INITRD" ]; then INITRD=$(find /lib/modules -name "initramfs*" | grep -v kdump | head -n 1); fi`,
-              `cp $INITRD /boot/initrd.img`,
+              `ls -la /boot /lib/modules/*/`,
+              // Install file and binutils for PE32+ detection
+              `dnf install -y file binutils kernel-modules-core 2>/dev/null || yum install -y file binutils kernel-modules-core 2>/dev/null || echo "Package install skipped"`,
+              // Search for bootable kernel in order of preference:
+              // 1. Raw ARM64 Image file (preferred for GRUB)
+              // 2. vmlinuz or vmlinux (may be PE32+ on Rocky Linux)
+              `echo "Searching for bootable kernel..."`,
+              `KERNEL_FILE=""`,
+              // First try to find raw Image file
+              `if [ -f /boot/Image ]; then KERNEL_FILE=/boot/Image; echo "Found raw ARM64 Image: $KERNEL_FILE"; fi`,
+              `if [ -z "$KERNEL_FILE" ]; then KERNEL_FILE=$(find /lib/modules -name "Image" -o -name "Image.gz" 2>/dev/null | head -n 1); test -n "$KERNEL_FILE" && echo "Found kernel Image in modules: $KERNEL_FILE"; fi`,
+              // Fallback to vmlinuz
+              `if [ -z "$KERNEL_FILE" ]; then KERNEL_FILE=$(find /boot -name "vmlinuz-*" 2>/dev/null | head -n 1); test -n "$KERNEL_FILE" && echo "Found vmlinuz: $KERNEL_FILE"; fi`,
+              `if [ -z "$KERNEL_FILE" ]; then KERNEL_FILE=$(find /lib/modules -name "vmlinuz" 2>/dev/null | head -n 1); test -n "$KERNEL_FILE" && echo "Found vmlinuz in modules: $KERNEL_FILE"; fi`,
+              // Last resort: any vmlinux
+              `if [ -z "$KERNEL_FILE" ]; then KERNEL_FILE=$(find /lib/modules -name "vmlinux" 2>/dev/null | head -n 1); test -n "$KERNEL_FILE" && echo "Found vmlinux: $KERNEL_FILE"; fi`,
+              `if [ -z "$KERNEL_FILE" ]; then echo "ERROR: No kernel found!"; exit 1; fi`,
+              // Copy and check kernel type
+              `cp "$KERNEL_FILE" /boot/vmlinuz-efi.tmp`,
+              // Decompress if gzipped
+              `if file /boot/vmlinuz-efi.tmp | grep -q gzip; then echo "Decompressing gzipped kernel..."; gunzip -c /boot/vmlinuz-efi.tmp > /boot/vmlinuz-efi && rm /boot/vmlinuz-efi.tmp; else mv /boot/vmlinuz-efi.tmp /boot/vmlinuz-efi; fi`,
+              `KERNEL_TYPE=$(file /boot/vmlinuz-efi 2>/dev/null)`,
+              `echo "Final kernel file type: $KERNEL_TYPE"`,
+              // Handle PE32+ if still present - use kernel directly without extraction since iPXE can boot it
+              `case "$KERNEL_TYPE" in *PE32+*|*EFI*application*) echo "WARNING: Kernel is PE32+ EFI executable"; echo "GRUB may fail to boot this - recommend using iPXE chainload or installing kernel-core package"; echo "Keeping PE32+ kernel as-is for now..."; ;; *ARM64*|*aarch64*|*Image*|*data*) echo "Kernel appears to be raw ARM64 format - suitable for GRUB"; ;; *) echo "Unknown kernel format - attempting to use anyway"; ;; esac`,
+              // Get kernel version for initramfs rebuild
+              `KVER=$(basename $(dirname "$KERNEL_FILE"))`,
+              `echo "Kernel version: $KVER"`,
+              // Rebuild initramfs with NFS support using network-legacy (no NetworkManager dependency)
+              `echo "Rebuilding initramfs with NFS and network support..."`,
+              `dracut --force --add "nfs network-legacy base" --add-drivers "nfs sunrpc" --omit "network-manager ifcfg" --kver $KVER /boot/initrd.img $KVER || echo "Initramfs rebuild failed"`,
+              // Fallback: if rebuild fails, use existing initramfs
+              `if [ ! -f /boot/initrd.img ]; then echo "Initramfs rebuild failed, using existing..."; INITRD=$(find /boot -name "initramfs*" | grep -v kdump | head -n 1); if [ -z "$INITRD" ]; then INITRD=$(find /lib/modules -name "initramfs*" | grep -v kdump | head -n 1); fi; cp $INITRD /boot/initrd.img; fi`,
+              `ls -la /boot/vmlinuz-efi /boot/initrd.img`,
               `echo "root:root" | chpasswd`,
             ],
           });
@@ -1950,7 +1980,6 @@ shell
               'tcp',
               'nfsvers=3',
               'nolock',
-              'vers=3',
               // 'protocol=tcp',
               // 'hard=true',
               'port=2049',
@@ -2030,61 +2059,32 @@ shell
         'overlayroot_cfgdisk=disabled', // Ignore external overlay configurations
       ];
 
-      const baseNfsParams = [`netboot=nfs`];
-
       let cmd = [];
       if (type === 'iso-ram') {
         const netBootParams = [`netboot=url`];
         if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
         cmd = [ipParam, `boot=casper`, ...netBootParams, ...kernelParams];
       } else if (type === 'chroot' || type === 'chroot-container') {
-        let qemuNfsRootParams = [
-          `root=/dev/nfs`,
-          `rootfstype=nfs`,
-          `initrd=initrd.img`,
-          `init=/sbin/init`,
-          `rd.neednet=1`,
-          `rd.driver.pre=nfs`,
-          `rd.driver.pre=bcmgenet`,
-          `rd.driver.pre=genet`,
-          `rd.timeout=90`,
-          `rd.retry=10`,
-          `rd.net.timeout.carrier=60`,
-          `rd.net.timeout.ifup=60`,
-          `rd.net.timeout.iflink=60`,
-          `rd.nm=0`,
-          `rd.networkmanager=0`,
-          `rd.net.legacy`,
-          `rd.peerdns=0`,
-          `rd.iscsi.firmware=0`,
-        ];
+        let qemuNfsRootParams = [`root=/dev/nfs`, `rootfstype=nfs`];
 
-        // Add Rocky Linux / RHEL specific parameters
+        // Add RHEL/Rocky based images specific parameters
         if (hostname.match(/rocky|rhel|centos|alma/i)) {
-          qemuNfsRootParams = qemuNfsRootParams.concat([
-            `selinux=0`,
-            `enforcing=0`,
-            `systemd.unified_cgroup_hierarchy=0`,
-            `systemd.mask=nm-wait-online-initrd.service`,
-            `systemd.mask=NetworkManager-wait-online.service`,
-          ]);
+          qemuNfsRootParams = qemuNfsRootParams.concat([`rd.neednet=1`, `rd.timeout=180`, `selinux=0`, `enforcing=0`]);
+        }
+        // Debian/Ubuntu based images specific parameters
+        else {
+          qemuNfsRootParams = qemuNfsRootParams.concat([`initrd=initrd.img`, `init=/sbin/init`]);
         }
 
         // Add debugging parameters in dev mode for dracut troubleshooting
         if (options.dev) {
-          qemuNfsRootParams = qemuNfsRootParams.concat([
-            `rd.shell`,
-            `rd.debug`,
-            `rd.info`,
-            `systemd.log_level=debug`,
-            `systemd.log_target=console`,
-          ]);
+          // qemuNfsRootParams = qemuNfsRootParams.concat([`rd.shell`, `rd.debug`]);
         }
 
-        cmd = [ipParam, ...baseNfsParams, ...qemuNfsRootParams, nfsRootParam, ...kernelParams];
+        cmd = [ipParam, ...qemuNfsRootParams, nfsRootParam, ...kernelParams];
       } else {
         // 'iso-nfs'
-        cmd = [ipParam, ...baseNfsParams, nfsRootParam, ...kernelParams, ...performanceParams];
+        cmd = [ipParam, `netboot=nfs`, nfsRootParam, ...kernelParams, ...performanceParams];
 
         cmd.push(`ifname=${networkInterfaceName}:${macAddress}`);
 
