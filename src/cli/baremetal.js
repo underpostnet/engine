@@ -87,6 +87,7 @@ class UnderpostBaremetal {
      * @param {string} [options.bootcmd=''] - Comma-separated list of boot commands to execute.
      * @param {string} [options.runcmd=''] - Comma-separated list of run commands to execute.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
+     * @param {boolean} [options.nfsBuildServer=false] - Flag to build the NFS server components.
      * @param {boolean} [options.nfsMount=false] - Flag to mount the NFS root filesystem.
      * @param {boolean} [options.nfsUnmount=false] - Flag to unmount the NFS root filesystem.
      * @param {boolean} [options.nfsSh=false] - Flag to chroot into the NFS environment for shell access.
@@ -134,6 +135,7 @@ class UnderpostBaremetal {
         bootcmd: '',
         runcmd: '',
         nfsBuild: false,
+        nfsBuildServer: false,
         nfsMount: false,
         nfsUnmount: false,
         nfsSh: false,
@@ -706,7 +708,6 @@ rm -rf ${artifacts.join(' ')}`);
             ],
           });
         }
-        return;
       }
 
       // Fetch boot resources and machines if commissioning or listing.
@@ -748,8 +749,155 @@ rm -rf ${artifacts.join(' ')}`);
           ignore: machine ? [machine.system_id] : [],
         });
 
-      // Handle commissioning tasks (placeholder for future implementation).
+      if (workflowsConfig[workflowId].type === 'chroot-debootstrap') {
+        if (options.ubuntuToolsBuild) {
+          UnderpostCloudInit.API.buildTools({
+            workflowId,
+            nfsHostPath,
+            hostname,
+            callbackMetaData,
+            dev: options.dev,
+          });
 
+          const { chronyc, keyboard } = workflowsConfig[workflowId];
+          const { timezone, chronyConfPath } = chronyc;
+          const systemProvisioning = 'ubuntu';
+
+          UnderpostBaremetal.API.crossArchRunner({
+            nfsHostPath,
+            bootstrapArch,
+            callbackMetaData,
+            steps: [
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base(),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].user(),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
+                timezone,
+                chronyConfPath,
+              }),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
+            ],
+          });
+        }
+
+        if (options.ubuntuToolsTest)
+          UnderpostBaremetal.API.crossArchRunner({
+            nfsHostPath,
+            bootstrapArch,
+            callbackMetaData,
+            steps: [
+              `chmod +x /underpost/date.sh`,
+              `chmod +x /underpost/keyboard.sh`,
+              `chmod +x /underpost/dns.sh`,
+              `chmod +x /underpost/help.sh`,
+              `chmod +x /underpost/host.sh`,
+              `chmod +x /underpost/test.sh`,
+              `chmod +x /underpost/start.sh`,
+              `chmod +x /underpost/reset.sh`,
+              `chmod +x /underpost/shutdown.sh`,
+              `chmod +x /underpost/device_scan.sh`,
+              `chmod +x /underpost/mac.sh`,
+              `chmod +x /underpost/enlistment.sh`,
+              `sudo chmod 700 ~/.ssh/`, // Set secure permissions for .ssh directory.
+              `sudo chmod 600 ~/.ssh/authorized_keys`, // Set secure permissions for authorized_keys.
+              `sudo chmod 644 ~/.ssh/known_hosts`, // Set permissions for known_hosts.
+              `sudo chmod 600 ~/.ssh/id_rsa`, // Set secure permissions for private key.
+              `sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`, // Set secure permissions for host key.
+              `chown -R root:root ~/.ssh`, // Ensure root owns the .ssh directory.
+              `/underpost/test.sh`,
+            ],
+          });
+      }
+
+      if (workflowsConfig[workflowId].type === 'chroot-container') {
+        if (options.rockyToolsBuild) {
+          const { chronyc, keyboard } = workflowsConfig[workflowId];
+          const { timezone } = chronyc;
+          const systemProvisioning = 'rocky';
+
+          UnderpostBaremetal.API.crossArchRunner({
+            nfsHostPath,
+            bootstrapArch,
+            callbackMetaData,
+            steps: [
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base(),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].user(),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
+                timezone,
+              }),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
+            ],
+          });
+        }
+
+        if (options.rockyToolsTest)
+          UnderpostBaremetal.API.crossArchRunner({
+            nfsHostPath,
+            bootstrapArch,
+            callbackMetaData,
+            steps: [
+              `node --version`,
+              `npm --version`,
+              `underpost --version`,
+              `timedatectl status`,
+              `localectl status`,
+              `id root`,
+              `ls -la /home/root/.ssh/`,
+              `cat /home/root/.ssh/authorized_keys`,
+              'underpost test',
+            ],
+          });
+      }
+
+      if (options.cloudInit || options.cloudInitUpdate) {
+        const { chronyc, networkInterfaceName } = workflowsConfig[workflowId];
+        const { timezone, chronyConfPath } = chronyc;
+        const authCredentials = UnderpostCloudInit.API.authCredentialsFactory();
+        const { cloudConfigSrc } = UnderpostCloudInit.API.configFactory(
+          {
+            controlServerIp: callbackMetaData.runnerHost.ip,
+            hostname,
+            commissioningDeviceIp: ipAddress,
+            gatewayip: callbackMetaData.runnerHost.ip,
+            mac: macAddress,
+            timezone,
+            chronyConfPath,
+            networkInterfaceName,
+            ubuntuToolsBuild: options.ubuntuToolsBuild,
+            bootcmd: options.bootcmd,
+            runcmd: options.runcmd,
+          },
+          authCredentials,
+        );
+
+        shellExec(`mkdir -p ${bootstrapHttpServerPath}`);
+        fs.writeFileSync(
+          `${bootstrapHttpServerPath}/${hostname}/cloud-init/user-data`,
+          `#cloud-config\n${cloudConfigSrc}`,
+          'utf8',
+        );
+        fs.writeFileSync(
+          `${bootstrapHttpServerPath}/${hostname}/cloud-init/meta-data`,
+          `instance-id: ${hostname}\nlocal-hostname: ${hostname}`,
+          'utf8',
+        );
+        fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/vendor-data`, ``, 'utf8');
+
+        logger.info(`Cloud-init files written to ${bootstrapHttpServerPath}`);
+      }
+
+      // Rebuild NFS server configuration.
+      if (
+        (options.nfsBuildServer === true || options.commission === true) &&
+        (workflowsConfig[workflowId].type === 'iso-nfs' ||
+          workflowsConfig[workflowId].type === 'chroot-debootstrap' ||
+          workflowsConfig[workflowId].type === 'chroot-container')
+      ) {
+        shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
+        UnderpostBaremetal.API.rebuildNfsServer({
+          nfsHostPath,
+        });
+      }
+      // Handle commissioning tasks
       if (options.commission === true) {
         let { firmwares, networkInterfaceName, maas, menuentryStr, type } = workflowsConfig[workflowId];
 
@@ -922,159 +1070,6 @@ rm -rf ${artifacts.join(' ')}`);
           bootstrapHttpServerPort:
             options.bootstrapHttpServerPort || workflowsConfig[workflowId].bootstrapHttpServerPort,
         });
-      }
-
-      if (options.cloudInit || options.cloudInitUpdate) {
-        const { chronyc, networkInterfaceName } = workflowsConfig[workflowId];
-        const { timezone, chronyConfPath } = chronyc;
-        const authCredentials = UnderpostCloudInit.API.authCredentialsFactory();
-        const { cloudConfigSrc } = UnderpostCloudInit.API.configFactory(
-          {
-            controlServerIp: callbackMetaData.runnerHost.ip,
-            hostname,
-            commissioningDeviceIp: ipAddress,
-            gatewayip: callbackMetaData.runnerHost.ip,
-            mac: macAddress,
-            timezone,
-            chronyConfPath,
-            networkInterfaceName,
-            ubuntuToolsBuild: options.ubuntuToolsBuild,
-            bootcmd: options.bootcmd,
-            runcmd: options.runcmd,
-          },
-          authCredentials,
-        );
-
-        shellExec(`mkdir -p ${bootstrapHttpServerPath}`);
-        fs.writeFileSync(
-          `${bootstrapHttpServerPath}/${hostname}/cloud-init/user-data`,
-          `#cloud-config\n${cloudConfigSrc}`,
-          'utf8',
-        );
-        fs.writeFileSync(
-          `${bootstrapHttpServerPath}/${hostname}/cloud-init/meta-data`,
-          `instance-id: ${hostname}\nlocal-hostname: ${hostname}`,
-          'utf8',
-        );
-        fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/vendor-data`, ``, 'utf8');
-
-        logger.info(`Cloud-init files written to ${bootstrapHttpServerPath}`);
-        if (options.cloudInitUpdate) return;
-      }
-
-      if (workflowsConfig[workflowId].type === 'chroot-debootstrap') {
-        if (options.ubuntuToolsBuild) {
-          UnderpostCloudInit.API.buildTools({
-            workflowId,
-            nfsHostPath,
-            hostname,
-            callbackMetaData,
-            dev: options.dev,
-          });
-
-          const { chronyc, keyboard } = workflowsConfig[workflowId];
-          const { timezone, chronyConfPath } = chronyc;
-          const systemProvisioning = 'ubuntu';
-
-          UnderpostBaremetal.API.crossArchRunner({
-            nfsHostPath,
-            bootstrapArch,
-            callbackMetaData,
-            steps: [
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base(),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].user(),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
-                timezone,
-                chronyConfPath,
-              }),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
-            ],
-          });
-        }
-
-        if (options.ubuntuToolsTest)
-          UnderpostBaremetal.API.crossArchRunner({
-            nfsHostPath,
-            bootstrapArch,
-            callbackMetaData,
-            steps: [
-              `chmod +x /underpost/date.sh`,
-              `chmod +x /underpost/keyboard.sh`,
-              `chmod +x /underpost/dns.sh`,
-              `chmod +x /underpost/help.sh`,
-              `chmod +x /underpost/host.sh`,
-              `chmod +x /underpost/test.sh`,
-              `chmod +x /underpost/start.sh`,
-              `chmod +x /underpost/reset.sh`,
-              `chmod +x /underpost/shutdown.sh`,
-              `chmod +x /underpost/device_scan.sh`,
-              `chmod +x /underpost/mac.sh`,
-              `chmod +x /underpost/enlistment.sh`,
-              `sudo chmod 700 ~/.ssh/`, // Set secure permissions for .ssh directory.
-              `sudo chmod 600 ~/.ssh/authorized_keys`, // Set secure permissions for authorized_keys.
-              `sudo chmod 644 ~/.ssh/known_hosts`, // Set permissions for known_hosts.
-              `sudo chmod 600 ~/.ssh/id_rsa`, // Set secure permissions for private key.
-              `sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`, // Set secure permissions for host key.
-              `chown -R root:root ~/.ssh`, // Ensure root owns the .ssh directory.
-              `/underpost/test.sh`,
-            ],
-          });
-      }
-
-      if (workflowsConfig[workflowId].type === 'chroot-container') {
-        if (options.rockyToolsBuild) {
-          const { chronyc, keyboard } = workflowsConfig[workflowId];
-          const { timezone } = chronyc;
-          const systemProvisioning = 'rocky';
-
-          UnderpostBaremetal.API.crossArchRunner({
-            nfsHostPath,
-            bootstrapArch,
-            callbackMetaData,
-            steps: [
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base(),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].user(),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
-                timezone,
-              }),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
-            ],
-          });
-        }
-
-        if (options.rockyToolsTest)
-          UnderpostBaremetal.API.crossArchRunner({
-            nfsHostPath,
-            bootstrapArch,
-            callbackMetaData,
-            steps: [
-              `node --version`,
-              `npm --version`,
-              `underpost --version`,
-              `timedatectl status`,
-              `localectl status`,
-              `id root`,
-              `ls -la /home/root/.ssh/`,
-              `cat /home/root/.ssh/authorized_keys`,
-              'underpost test',
-            ],
-          });
-      }
-
-      shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
-      // Rebuild NFS server configuration.
-      if (
-        workflowsConfig[workflowId].type === 'iso-nfs' ||
-        workflowsConfig[workflowId].type === 'chroot-debootstrap' ||
-        workflowsConfig[workflowId].type === 'chroot-container'
-      )
-        UnderpostBaremetal.API.rebuildNfsServer({
-          nfsHostPath,
-        });
-
-      // Final commissioning steps.
-      if (options.commission === true) {
-        const { type } = workflowsConfig[workflowId];
 
         if (type === 'chroot-debootstrap' || type === 'chroot-container')
           await UnderpostBaremetal.API.nfsMountCallback({
@@ -2171,7 +2166,7 @@ shell
      * @param {string} [params.hostname] - The hostname for the machine (optional).
      * @param {string} [params.architecture] - The architecture of the machine (optional).
      * @param {object} [params.machine] - Existing machine payload to use (optional).
-     * @returns {Promise<void>} A promise that resolves when commissioning is initiated or after a delay.
+     * @returns {Promise<void>} A promise object with machine and discovery details.
      * @memberof UnderpostBaremetal
      */
     async commissionMonitor({ macAddress, ipAddress, hostname, architecture, machine }) {

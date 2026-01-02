@@ -628,6 +628,7 @@ program
   .option('--nfs-build', 'Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.')
   .option('--nfs-mount', 'Mounts the NFS root filesystem for a workflow id config architecture.')
   .option('--nfs-unmount', 'Unmounts the NFS root filesystem for a workflow id config architecture.')
+  .option('--nfs-build-server', 'Builds the NFS server for a workflow id config architecture.')
   .option('--nfs-sh', 'Copies QEMU emulation root entrypoint shell command to the clipboard.')
   .option('--cloud-init', 'Sets the kernel parameters and sets the necessary seed users on the HTTP server.')
   .option('--cloud-init-update', 'Updates cloud init for a workflow id config architecture.')
