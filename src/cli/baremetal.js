@@ -189,6 +189,9 @@ class UnderpostBaremetal {
       // Define the TFTP root prefix path based
       const tftpRootPath = `${process.env.TFTP_ROOT}/${tftpPrefix}`;
 
+      // Define the iPXE cache directory to preserve builds across tftproot cleanups
+      const ipxeCacheDir = `/tmp/ipxe-cache/${tftpPrefix}`;
+
       // Define the bootstrap HTTP server path.
       const bootstrapHttpServerPath = options.bootstrapHttpServerPath
         ? options.bootstrapHttpServerPath
@@ -738,6 +741,11 @@ rm -rf ${artifacts.join(' ')}`);
         shellExec(`sudo rm -rf ${tftpRootPath}`);
         shellExec(`mkdir -p ${tftpRootPath}/pxe`);
 
+        // Restore iPXE build from cache if available and not forcing rebuild
+        if (fs.existsSync(`${ipxeCacheDir}/ipxe.efi`) && !options.ipxeRebuild) {
+          shellExec(`cp ${ipxeCacheDir}/ipxe.efi ${tftpRootPath}/ipxe.efi`);
+        }
+
         // Process firmwares for TFTP.
         for (const firmware of firmwares) {
           const { url, gateway, subnet } = firmware;
@@ -832,47 +840,15 @@ rm -rf ${artifacts.join(' ')}`);
               path: `${tftpRootPath}/stable-id.ipxe`,
               embeddedPath: `${tftpRootPath}/boot.ipxe`,
             });
-            if (macAddress === null) {
-              logger.info('ℹ Hardware MAC mode - device will use actual hardware MAC address');
-              logger.info('ℹ MAAS will identify the machine by its hardware MAC after discovery');
-            } else {
-              logger.info('ℹ Machine registered in MAAS with MAC:', macAddress);
-              if (macAddress !== '00:00:00:00:00:00') {
-                logger.info('ℹ MAAS will identify the machine by MAC:', macAddress);
-              } else {
-                logger.info('ℹ Device will boot with its actual hardware MAC address');
-                logger.info('ℹ MAAS will identify the machine by its hardware MAC');
-              }
-            }
 
-            // Rebuild iPXE with embedded boot script if requested or if binary doesn't exist
-            const embeddedScriptPath = `${tftpRootPath}/boot.ipxe`;
-            const shouldRebuild = options.ipxeRebuild || !fs.existsSync(`${tftpRootPath}/ipxe.efi`);
-
-            if (shouldRebuild && fs.existsSync(embeddedScriptPath)) {
-              logger.info('Rebuilding iPXE with embedded boot script...', {
-                embeddedScriptPath,
-                forced: options.ipxeRebuild,
-              });
-              shellExec(
-                `${underpostRoot}/scripts/ipxe-setup.sh ${tftpRootPath} --target-arch ${arch} --embed-script ${embeddedScriptPath} --rebuild`,
-              );
-            } else if (shouldRebuild) {
-              logger.warn('⚠ Embedded script not found, building without embedded script');
-              shellExec(`${underpostRoot}/scripts/ipxe-setup.sh ${tftpRootPath} --target-arch ${arch}`);
-            } else {
-              logger.info('ℹ Using existing iPXE binary (use --ipxe-rebuild to force rebuild)');
-            }
-
-            // Only use iPXE chainloading if the binary exists
-            if (fs.existsSync(`${tftpRootPath}/ipxe.efi`)) {
-              logger.info('✓ iPXE EFI binary found');
-            } else {
-              useIpxe = false;
-              logger.warn(`⚠ iPXE EFI binary not found at ${tftpRootPath}/ipxe.efi - falling back to direct GRUB boot`);
-              logger.warn('  The iPXE script was generated but cannot be used without the iPXE EFI binary.');
-              logger.warn('  Consider booting without --ipxe flag or providing the iPXE EFI binary.');
-            }
+            UnderpostBaremetal.API.ipxeEfiFactory({
+              tftpRootPath,
+              ipxeCacheDir,
+              arch,
+              underpostRoot,
+              embeddedScriptPath: `${tftpRootPath}/boot.ipxe`,
+              forceRebuild: options.ipxeRebuild,
+            });
           }
 
           const { grubCfgSrc } = UnderpostBaremetal.API.grubFactory({
@@ -1717,6 +1693,42 @@ chain tftp://${maasIp}/${grubPath} || goto shell_debug
 echo Dropping to iPXE shell for manual intervention
 shell
 `;
+    },
+
+    /**
+     * @method ipxeEfiFactory
+     * @description Manages iPXE EFI binary build with cache support.
+     * Checks cache, builds only if needed, saves to cache after build.
+     * @param {object} params - The parameters for iPXE build.
+     * @param {string} params.tftpRootPath - TFTP root directory path.
+     * @param {string} params.ipxeCacheDir - iPXE cache directory path.
+     * @param {string} params.arch - Target architecture (arm64/amd64).
+     * @param {string} params.underpostRoot - Underpost root directory.
+     * @param {string} [params.embeddedScriptPath] - Path to embedded boot script.
+     * @param {boolean} [params.forceRebuild=false] - Force rebuild regardless of cache.
+     * @returns {void}
+     * @memberof UnderpostBaremetal
+     */
+    ipxeEfiFactory({ tftpRootPath, ipxeCacheDir, arch, underpostRoot, embeddedScriptPath, forceRebuild = false }) {
+      const shouldRebuild =
+        forceRebuild || (!fs.existsSync(`${tftpRootPath}/ipxe.efi`) && !fs.existsSync(`${ipxeCacheDir}/ipxe.efi`));
+
+      if (!shouldRebuild) return;
+
+      if (embeddedScriptPath && fs.existsSync(embeddedScriptPath)) {
+        logger.info('Rebuilding iPXE with embedded boot script...', {
+          embeddedScriptPath,
+          forced: forceRebuild,
+        });
+        shellExec(
+          `${underpostRoot}/scripts/ipxe-setup.sh ${tftpRootPath} --target-arch ${arch} --embed-script ${embeddedScriptPath} --rebuild`,
+        );
+      } else if (shouldRebuild) {
+        shellExec(`${underpostRoot}/scripts/ipxe-setup.sh ${tftpRootPath} --target-arch ${arch}`);
+      }
+
+      shellExec(`mkdir -p ${ipxeCacheDir}`);
+      shellExec(`cp ${tftpRootPath}/ipxe.efi ${ipxeCacheDir}/ipxe.efi`);
     },
 
     /**
