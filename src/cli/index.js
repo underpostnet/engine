@@ -633,6 +633,8 @@ program
   .option('--cloud-init-update', 'Updates cloud init for a workflow id config architecture.')
   .option('--ubuntu-tools-build', 'Builds ubuntu tools for chroot environment.')
   .option('--ubuntu-tools-test', 'Tests ubuntu tools in chroot environment.')
+  .option('--rocky-tools-build', 'Builds rocky linux tools for chroot environment.')
+  .option('--rocky-tools-test', 'Tests rocky linux tools in chroot environment.')
   .option('--bootcmd <bootcmd-list>', 'Comma-separated list of boot commands to execute.')
   .option('--runcmd <runcmd-list>', 'Comma-separated list of run commands to execute.')
   .option('--logs <log-id>', 'Displays logs for log id: dhcp, cloud, machine, cloud-config.')

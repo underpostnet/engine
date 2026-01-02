@@ -82,6 +82,8 @@ class UnderpostBaremetal {
      * @param {string} [options.isoUrl=''] - Uses a custom ISO URL for baremetal machine commissioning.
      * @param {boolean} [options.ubuntuToolsBuild=false] - Builds ubuntu tools for chroot environment.
      * @param {boolean} [options.ubuntuToolsTest=false] - Tests ubuntu tools in chroot environment.
+     * @param {boolean} [options.rockyToolsBuild=false] - Builds rocky linux tools for chroot environment.
+     * @param {boolean} [options.rockyToolsTest=false] - Tests rocky linux tools in chroot environment.
      * @param {string} [options.bootcmd=''] - Comma-separated list of boot commands to execute.
      * @param {string} [options.runcmd=''] - Comma-separated list of run commands to execute.
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
@@ -127,6 +129,8 @@ class UnderpostBaremetal {
         isoUrl: '',
         ubuntuToolsBuild: false,
         ubuntuToolsTest: false,
+        rockyToolsBuild: false,
+        rockyToolsTest: false,
         bootcmd: '',
         runcmd: '',
         nfsBuild: false,
@@ -1013,6 +1017,46 @@ rm -rf ${artifacts.join(' ')}`);
               `sudo chmod 600 /etc/ssh/ssh_host_ed25519_key`, // Set secure permissions for host key.
               `chown -R root:root ~/.ssh`, // Ensure root owns the .ssh directory.
               `/underpost/test.sh`,
+            ],
+          });
+      }
+
+      if (workflowsConfig[workflowId].type === 'chroot-container') {
+        if (options.rockyToolsBuild) {
+          const { chronyc, keyboard } = workflowsConfig[workflowId];
+          const { timezone } = chronyc;
+          const systemProvisioning = 'rocky';
+
+          UnderpostBaremetal.API.crossArchRunner({
+            nfsHostPath,
+            bootstrapArch,
+            callbackMetaData,
+            steps: [
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base(),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].user(),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
+                timezone,
+              }),
+              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
+            ],
+          });
+        }
+
+        if (options.rockyToolsTest)
+          UnderpostBaremetal.API.crossArchRunner({
+            nfsHostPath,
+            bootstrapArch,
+            callbackMetaData,
+            steps: [
+              `node --version`,
+              `npm --version`,
+              `underpost --version`,
+              `timedatectl status`,
+              `localectl status`,
+              `id root`,
+              `ls -la /home/root/.ssh/`,
+              `cat /home/root/.ssh/authorized_keys`,
+              'underpost test',
             ],
           });
       }
@@ -2661,6 +2705,84 @@ logdir /var/log/chrony
           `sudo sed -i 's/XKBLAYOUT="us"/XKBLAYOUT="${keyCode}"/' /etc/default/keyboard`,
           `sudo dpkg-reconfigure --frontend noninteractive keyboard-configuration`,
           `sudo systemctl restart keyboard-setup.service`,
+        ],
+      },
+      /**
+       * @property {object} rocky
+       * @description Provisioning steps for Rocky Linux-based systems.
+       * @memberof UnderpostBaremetal.systemProvisioningFactory
+       * @namespace UnderpostBaremetal.systemProvisioningFactory.rocky
+       */
+      rocky: {
+        /**
+         * @method base
+         * @description Generates shell commands for basic Rocky Linux system provisioning.
+         * This includes installing Node.js, npm, and underpost CLI tools.
+         * @param {object} params - The parameters for the function.
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
+         * @returns {string[]} An array of shell commands.
+         */
+        base: () => [
+          `dnf -y update`,
+          `dnf -y install epel-release`,
+          `dnf -y install --allowerasing bzip2 sudo curl net-tools openssh-server nano vim-enhanced less openssl-devel wget git gnupg2 libnsl perl`,
+          `dnf clean all`,
+
+          // Install Node.js
+          `curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -`,
+          `dnf install nodejs -y`,
+          `dnf clean all`,
+
+          // Verify Node.js and npm versions
+          `node --version`,
+          `npm --version`,
+
+          // Install underpost ci/cd cli
+          `npm install -g underpost`,
+          `underpost --version`,
+        ],
+        /**
+         * @method user
+         * @description Generates shell commands for creating a root user and configuring SSH access on Rocky Linux.
+         * This is a critical security step for initial access to the provisioned system.
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
+         * @returns {string[]} An array of shell commands.
+         */
+        user: () => [
+          `useradd -m -s /bin/bash -G wheel root`, // Create a root user with bash shell and wheel group (sudo on RHEL)
+          `echo 'root:root' | chpasswd`, // Set a default password for the root user
+          `mkdir -p /home/root/.ssh`, // Create .ssh directory for authorized keys
+          // Add the public SSH key to authorized_keys for passwordless login
+          `echo '${fs.readFileSync(
+            `/home/dd/engine/engine-private/deploy/id_rsa.pub`,
+            'utf8',
+          )}' > /home/root/.ssh/authorized_keys`,
+          `chown -R root:root /home/root/.ssh`, // Set ownership for security
+          `chmod 700 /home/root/.ssh`, // Set permissions for the .ssh directory
+          `chmod 600 /home/root/.ssh/authorized_keys`, // Set permissions for authorized_keys
+        ],
+        /**
+         * @method timezone
+         * @description Generates shell commands for configuring the system timezone on Rocky Linux.
+         * @param {object} params - The parameters for the function.
+         * @param {string} params.timezone - The timezone string (e.g., 'America/Santiago').
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
+         * @returns {string[]} An array of shell commands.
+         */
+        timezone: ({ timezone }) => [`timedatectl set-timezone ${timezone}`, `timedatectl status`],
+        /**
+         * @method keyboard
+         * @description Generates shell commands for configuring the keyboard layout on Rocky Linux.
+         * This uses localectl to set the keyboard layout for both console and X11.
+         * @param {string} [keyCode='us'] - The keyboard layout code (e.g., 'us', 'es').
+         * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
+         * @returns {string[]} An array of shell commands.
+         */
+        keyboard: (keyCode = 'us') => [
+          `localectl set-locale LANG=en_US.UTF-8`,
+          `localectl set-keymap ${keyCode}`,
+          `localectl set-x11-keymap ${keyCode}`,
+          `localectl status`,
         ],
       },
     },
