@@ -2,9 +2,9 @@
   "rpi4mbarm64-iso-ram": {
     "type": "iso-ram",
     "osIdLike": "debian ubuntu",
+    "isoUrl": "https://cdimage.ubuntu.com/releases/24.04/release/ubuntu-24.04.3-live-server-arm64.iso",
     "tftpPrefix": "rpi4mb",
     "bootstrapHttpServerPort": 8888,
-    "isoUrl": "",
     "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 ISO-RAM commissioning (ARM64)",
     "networkInterfaceName": "enabcm6e4ei0",
     "chronyc": {
@@ -65,9 +65,9 @@
   "rpi4mbarm64-iso-nfs": {
     "type": "iso-nfs",
     "osIdLike": "debian ubuntu",
+    "isoUrl": "https://cdimage.ubuntu.com/releases/24.04/release/ubuntu-24.04.3-live-server-arm64.iso",
     "tftpPrefix": "rpi4mb",
     "bootstrapHttpServerPort": 8888,
-    "isoUrl": "",
     "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 ISO-NFS commissioning (ARM64)",
     "networkInterfaceName": "enabcm6e4ei0",
     "chronyc": {

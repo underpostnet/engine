@@ -869,20 +869,11 @@ rm -rf ${artifacts.join(' ')}`);
           authCredentials,
         );
 
-        shellExec(`mkdir -p ${bootstrapHttpServerPath}`);
-        fs.writeFileSync(
-          `${bootstrapHttpServerPath}/${hostname}/cloud-init/user-data`,
-          `#cloud-config\n${cloudConfigSrc}`,
-          'utf8',
-        );
-        fs.writeFileSync(
-          `${bootstrapHttpServerPath}/${hostname}/cloud-init/meta-data`,
-          `instance-id: ${hostname}\nlocal-hostname: ${hostname}`,
-          'utf8',
-        );
-        fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/vendor-data`, ``, 'utf8');
-
-        logger.info(`Cloud-init files written to ${bootstrapHttpServerPath}`);
+        UnderpostBaremetal.API.httpBootstrapServerStaticFactory({
+          bootstrapHttpServerPath,
+          hostname,
+          cloudConfigSrc,
+        });
       }
 
       // Rebuild NFS server configuration.
@@ -971,6 +962,7 @@ rm -rf ${artifacts.join(' ')}`);
               type,
               nfsHostPath,
               isoUrl: options.isoUrl || workflowsConfig[workflowId].isoUrl,
+              workflowId,
             });
             kernelFilesPaths = kf.kernelFilesPaths;
             resourcesPath = kf.resourcesPath;
@@ -1137,60 +1129,44 @@ rm -rf ${artifacts.join(' ')}`);
     },
 
     /**
-     * @method downloadUbuntuLiveISO
-     * @description Downloads Ubuntu live ISO and extracts casper boot files for live boot.
+     * @method downloadISO
+     * @description Downloads a generic ISO and extracts kernel boot files.
      * @param {object} params - Parameters for the method.
      * @param {object} params.resource - The MAAS boot resource object.
      * @param {string} params.architecture - The architecture (arm64 or amd64).
      * @param {string} params.nfsHostPath - The NFS host path to store the ISO and extracted files.
-     * @returns {object} An object containing paths to the extracted kernel, initrd, and squashfs.
+     * @param {string} params.isoUrl - The full URL to the ISO file to download.
+     * @param {string} params.osIdLike - OS family identifier (e.g., 'debian ubuntu' or 'rhel centos fedora').
+     * @returns {object} An object containing paths to the extracted kernel, initrd, and optionally squashfs.
      * @memberof UnderpostBaremetal
      */
-    downloadUbuntuLiveISO({ resource, architecture, nfsHostPath, isoUrl }) {
+    downloadISO({ resource, architecture, nfsHostPath, isoUrl, osIdLike }) {
       const arch = architecture || resource.architecture.split('/')[0];
-      const osName = resource.name.split('/')[1]; // e.g., "focal", "jammy", "noble"
 
-      // Map Ubuntu codenames to versions - different versions available for different architectures
-      // ARM64 ISOs are hosted on cdimage.ubuntu.com, AMD64 on releases.ubuntu.com
-      const versionMap = {
-        arm64: {
-          focal: '20.04.5', // ARM64 focal only up to 20.04.5 on cdimage
-          jammy: '22.04.5',
-          noble: '24.04.3', // ubuntu-24.04.3-live-server-arm64+largemem.iso
-          bionic: '18.04.6',
-        },
-        amd64: {
-          focal: '20.04.6',
-          jammy: '22.04.5',
-          noble: '24.04.1',
-          bionic: '18.04.6',
-        },
-      };
-
-      shellExec(`mkdir -p ${nfsHostPath}/casper`);
-
-      const version = (versionMap[arch] && versionMap[arch][osName]) || '20.04.5';
-      const majorVersion = version.split('.').slice(0, 2).join('.');
-
-      // Determine ISO filename and URL based on architecture
-      // ARM64 ISOs are on cdimage.ubuntu.com, AMD64 on releases.ubuntu.com
-      let isoFilename;
-      if (arch === 'arm64') {
-        isoFilename = `ubuntu-${version}-live-server-arm64${osName === 'noble' ? '+largemem' : ''}.iso`;
-      } else {
-        isoFilename = `ubuntu-${version}-live-server-amd64.iso`;
+      // Validate that isoUrl is provided
+      if (!isoUrl) {
+        throw new Error('isoUrl parameter is required. Please specify the full ISO URL in the workflow configuration.');
       }
-      if (!isoUrl) isoUrl = `https://cdimage.ubuntu.com/releases/${majorVersion}/release/${isoFilename}`;
-      else isoFilename = isoUrl.split('/').pop();
 
-      const isoPath = `/var/tmp/ubuntu-live-iso/${isoFilename}`;
-      const extractDir = `${nfsHostPath}/casper`;
+      // Extract ISO filename from URL
+      const isoFilename = isoUrl.split('/').pop();
+
+      // Determine OS family from osIdLike
+      const isDebianBased = osIdLike && osIdLike.match(/debian|ubuntu/i);
+      const isRhelBased = osIdLike && osIdLike.match(/rhel|centos|fedora|alma|rocky/i);
+
+      // Set extraction directory based on OS family
+      const extractDirName = isDebianBased ? 'casper' : 'iso-extract';
+      shellExec(`mkdir -p ${nfsHostPath}/${extractDirName}`);
+
+      const isoPath = `/var/tmp/live-iso/${isoFilename}`;
+      const extractDir = `${nfsHostPath}/${extractDirName}`;
 
       if (!fs.existsSync(isoPath)) {
-        logger.info(`Downloading Ubuntu ${version} live ISO for ${arch}...`);
+        logger.info(`Downloading ISO for ${arch}...`);
         logger.info(`URL: ${isoUrl}`);
-        logger.info(`This may take a while (typically 1-2 GB)...`);
-        shellExec(`wget --progress=bar:force -O ${isoPath} "${isoUrl}"`, { silent: false });
+        shellExec(`mkdir -p /var/tmp/live-iso`);
+        shellExec(`wget --progress=bar:force -O ${isoPath} "${isoUrl}"`);
         // Verify download by checking file existence and size (not exit code, which can be unreliable)
         if (!fs.existsSync(isoPath)) {
           throw new Error(`Failed to download ISO from ${isoUrl} - file not created`);
@@ -1203,8 +1179,8 @@ rm -rf ${artifacts.join(' ')}`);
         logger.info(`Downloaded ISO to ${isoPath} (${(stats.size / 1024 / 1024 / 1024).toFixed(2)} GB)`);
       }
 
-      // Mount ISO and extract casper files
-      const mountPoint = `${nfsHostPath}/mnt-${osName}-${arch}`;
+      // Mount ISO and extract boot files
+      const mountPoint = `${nfsHostPath}/mnt-iso-${arch}`;
       shellExec(`mkdir -p ${mountPoint}`);
 
       // Ensure mount point is not already mounted
@@ -1213,36 +1189,22 @@ rm -rf ${artifacts.join(' ')}`);
       try {
         // Mount the ISO
         shellExec(`sudo mount -o loop,ro ${isoPath} ${mountPoint}`, { silent: false });
-        // Verify mount succeeded by checking if casper directory exists
-        if (!fs.existsSync(`${mountPoint}/casper`)) {
-          throw new Error(`Failed to mount ISO or casper directory not found: ${isoPath}`);
-        }
         logger.info(`Mounted ISO at ${mountPoint}`);
 
-        // List casper directory to see what's available
-        logger.info(`Checking casper directory contents...`);
-        shellExec(`ls -la ${mountPoint}/casper/ 2>/dev/null || echo "casper directory not found"`, { silent: false });
-
-        // Extract casper files
-        shellExec(`sudo cp -a ${mountPoint}/casper/* ${extractDir}/`);
-        shellExec(`sudo chown -R $(whoami):$(whoami) ${extractDir}`);
-        logger.info(`Extracted casper files from ISO`);
-
-        // Rename kernel and initrd to standard names if needed
-        if (!fs.existsSync(`${extractDir}/vmlinuz`)) {
-          const vmlinuz = shellExec(`ls ${extractDir}/vmlinuz* | head -1`, {
-            silent: true,
-            stdout: true,
-          }).stdout.trim();
-          if (vmlinuz) shellExec(`mv ${vmlinuz} ${extractDir}/vmlinuz`);
-        }
-        if (!fs.existsSync(`${extractDir}/initrd`)) {
-          const initrd = shellExec(`ls ${extractDir}/initrd* | head -1`, { silent: true, stdout: true }).stdout.trim();
-          if (initrd) shellExec(`mv ${initrd} ${extractDir}/initrd`);
+        // Distribution-specific extraction logic
+        if (isDebianBased) {
+          // Ubuntu/Debian: Extract from casper directory
+          if (!fs.existsSync(`${mountPoint}/casper`)) {
+            throw new Error(`Failed to mount ISO or casper directory not found: ${isoPath}`);
+          }
+          logger.info(`Checking casper directory contents...`);
+          shellExec(`ls -la ${mountPoint}/casper/ 2>/dev/null || echo "casper directory not found"`);
+          shellExec(`sudo cp -a ${mountPoint}/casper/* ${extractDir}/`);
         }
       } finally {
         shellExec(`ls -la ${mountPoint}/`);
 
+        shellExec(`sudo chown -R $(whoami):$(whoami) ${extractDir}`);
         // Unmount ISO
         shellExec(`sudo umount ${mountPoint}`, { silent: true });
         logger.info(`Unmounted ISO`);
@@ -1312,21 +1274,25 @@ rm -rf ${artifacts.join(' ')}`);
      * @description Retrieves kernel, initrd, and root filesystem paths from a MAAS boot resource.
      * @param {object} params - Parameters for the method.
      * @param {object} params.resource - The MAAS boot resource object.
-     * @param {boolean} params.useLiveIso - Whether to use Ubuntu live ISO instead of MAAS boot resources.
-     * @param {string} params.nfsHostPath - The NFS host path for storing extracted files.
+     * @param {string} params.type - The type of boot (e.g., 'iso-ram', 'iso-nfs', etc.).
+     * @param {string} params.nfsHostPath - The NFS host path (used for ISO types).
+     * @param {string} params.isoUrl - The ISO URL (used for ISO types).
+     * @param {string} params.workflowId - The workflow identifier.
      * @returns {object} An object containing paths to the kernel, initrd, and root filesystem.
      * @memberof UnderpostBaremetal
      */
-    kernelFactory({ resource, type, nfsHostPath, isoUrl }) {
-      // For disk-based commissioning (casper), use Ubuntu live ISO files
+    kernelFactory({ resource, type, nfsHostPath, isoUrl, workflowId }) {
+      // For disk-based commissioning (casper/iso), use live ISO files
       if (type === 'iso-ram' || type === 'iso-nfs') {
-        logger.info('Using Ubuntu live ISO for casper boot (disk-based commissioning)');
+        logger.info('Using live ISO for boot (disk-based commissioning)');
         const arch = resource.architecture.split('/')[0];
-        const kernelFilesPaths = UnderpostBaremetal.API.downloadUbuntuLiveISO({
+        const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
+        const kernelFilesPaths = UnderpostBaremetal.API.downloadISO({
           resource,
           architecture: arch,
           nfsHostPath,
           isoUrl,
+          osIdLike: workflowsConfig[workflowId].osIdLike || '',
         });
         const resourcesPath = `/var/snap/maas/common/maas/image-storage/bootloaders/uefi/${arch}`;
         return { kernelFilesPaths, resourcesPath };
@@ -1861,6 +1827,45 @@ shell
   }
   `,
       };
+    },
+
+    /**
+     * @method httpBootstrapServerStaticFactory
+     * @description Creates static files for the bootstrap HTTP server including cloud-init configuration.
+     * @param {object} params - Parameters for creating static files.
+     * @param {string} params.bootstrapHttpServerPath - The path where static files will be created.
+     * @param {string} params.hostname - The hostname of the client machine.
+     * @param {string} params.cloudConfigSrc - The cloud-init configuration YAML source.
+     * @param {object} [params.metadata] - Optional metadata to include in meta-data file.
+     * @param {string} [params.vendorData] - Optional vendor-data content (default: empty string).
+     * @memberof UnderpostBaremetal
+     * @returns {void}
+     */
+    httpBootstrapServerStaticFactory({
+      bootstrapHttpServerPath,
+      hostname,
+      cloudConfigSrc,
+      metadata = {},
+      vendorData = '',
+    }) {
+      // Create directory structure
+      shellExec(`mkdir -p ${bootstrapHttpServerPath}/${hostname}/cloud-init`);
+
+      // Write user-data file
+      fs.writeFileSync(
+        `${bootstrapHttpServerPath}/${hostname}/cloud-init/user-data`,
+        `#cloud-config\n${cloudConfigSrc}`,
+        'utf8',
+      );
+
+      // Write meta-data file
+      const metaDataContent = `instance-id: ${metadata.instanceId || hostname}\nlocal-hostname: ${metadata.localHostname || hostname}`;
+      fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/meta-data`, metaDataContent, 'utf8');
+
+      // Write vendor-data file
+      fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/vendor-data`, vendorData, 'utf8');
+
+      logger.info(`Cloud-init files written to ${bootstrapHttpServerPath}/${hostname}/cloud-init`);
     },
 
     /**
