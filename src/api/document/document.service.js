@@ -24,6 +24,35 @@ const DocumentService = {
     /** @type {import('../user/user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
+    // High-query endpoint for typeahead search
+    if (req.path.startsWith('/public/high') && req.query['q']) {
+      const publisherUsers = await User.find({ $or: [{ role: 'admin' }, { role: 'moderator' }] });
+
+      const token = getBearerToken(req);
+      let user;
+      if (token) user = verifyJWT(token, options);
+
+      const searchQuery = req.query['q'];
+      const queryPayload = {
+        userId: {
+          $in: publisherUsers.map((p) => p._id).concat(user?.role && user.role !== 'guest' ? [user._id] : []),
+        },
+        tags: {
+          $in: ['public'],
+        },
+        $or: [{ title: { $regex: searchQuery, $options: 'i' } }],
+      };
+
+      const limit = req.query.limit ? parseInt(req.query.limit, 10) : 10;
+      const data = await Document.find(queryPayload)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .select('_id title tags createdAt')
+        .lean();
+
+      return { data };
+    }
+
     if (req.path.startsWith('/public') && req.query['tags']) {
       const publisherUsers = await User.find({ $or: [{ role: 'admin' }, { role: 'moderator' }] });
 

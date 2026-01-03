@@ -111,6 +111,29 @@ const DocumentService = {
           return reject(error);
         }),
     ),
+  high: (options = { params: {} }) =>
+    new Promise((resolve, reject) => {
+      const url = new URL(getApiBaseUrl({ id: 'public/high', endpoint }));
+      if (options.params) {
+        Object.keys(options.params).forEach((key) => url.searchParams.append(key, options.params[key]));
+      }
+      fetch(url, {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        });
+    }),
 };
 
 export { DocumentService };

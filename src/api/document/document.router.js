@@ -9,6 +9,7 @@ const DocumentRouter = (options) => {
   const authMiddleware = options.authMiddleware;
   router.post(`/:id`, authMiddleware, async (req, res) => await DocumentController.post(req, res, options));
   router.post(`/`, authMiddleware, async (req, res) => await DocumentController.post(req, res, options));
+  router.get(`/public/high`, async (req, res) => await DocumentController.get(req, res, options));
   router.get(`/public`, async (req, res) => await DocumentController.get(req, res, options));
   router.get(`/:id`, authMiddleware, async (req, res) => await DocumentController.get(req, res, options));
   router.get(`/`, authMiddleware, async (req, res) => await DocumentController.get(req, res, options));

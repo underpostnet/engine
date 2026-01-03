@@ -19,6 +19,8 @@ import { Badge } from '../core/Badge.js';
 import { SettingsUnderpost } from './SettingsUnderpost.js';
 import { Recover } from '../core/Recover.js';
 import { PanelForm } from '../core/PanelForm.js';
+import { SearchBox } from '../core/SearchBox.js';
+import { DocumentSearchProvider } from './DocumentSearchProvider.js';
 
 const MenuUnderpost = {
   Data: {},
@@ -178,8 +180,36 @@ const MenuUnderpost = {
       },
       mode: 'slide-menu',
       RouterInstance,
-      htmlMainBody: async () =>
-        await PanelForm.instance({
+      htmlMainBody: async () => {
+        // Register document search provider for enhanced search functionality
+        SearchBox.registerProvider({
+          ...DocumentSearchProvider,
+          onClick: (result, context) => {
+            // Custom click handler with RouterInstance context
+            DocumentSearchProvider.onClick(result, {
+              ...context,
+              RouterInstance,
+              currentRoute: 'home',
+              onDocumentSelect: (doc) => {
+                // Trigger panel update if needed
+                if (window.PanelFormUpdateEvent) {
+                  window.PanelFormUpdateEvent(doc.id);
+                }
+              },
+            });
+          },
+        });
+
+        // Inject document search styles
+        const styleId = 'document-search-provider-styles';
+        if (!s(`#${styleId}`)) {
+          const styleTag = document.createElement('style');
+          styleTag.id = styleId;
+          styleTag.textContent = DocumentSearchProvider.getStyles();
+          document.head.appendChild(styleTag);
+        }
+
+        return await PanelForm.instance({
           idPanel: 'underpost-panel',
           defaultUrlImage: `${getProxyPath()}assets/splash/apple-touch-icon-precomposed.png`,
           Elements: ElementsUnderpost,
@@ -187,7 +217,8 @@ const MenuUnderpost = {
           share: {
             copyLink: true,
           },
-        }),
+        });
+      },
     });
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {

@@ -34,6 +34,7 @@ import { Badge } from './Badge.js';
 import { Worker } from './Worker.js';
 import { Scroll } from './Scroll.js';
 import { windowGetH, windowGetW } from './windowGetDimensions.js';
+import { SearchBox } from './SearchBox.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
 
@@ -549,6 +550,9 @@ const Modal = {
             const inputInfoNode = s(`.input-info-${inputSearchBoxId}`).cloneNode(true);
             s(`.input-info-${inputSearchBoxId}`).remove();
             {
+              // Inject SearchBox base styles
+              SearchBox.injectStyles();
+
               const id = 'search-box-history';
               const searchBoxHistoryId = id;
               const formDataInfoNode = [
@@ -591,6 +595,7 @@ const Modal = {
 
               const renderSearchResult = async (results) => {
                 htmls(`.html-${searchBoxHistoryId}`, '');
+
                 if (results.length === 0) {
                   append(
                     `.html-${searchBoxHistoryId}`,
@@ -609,108 +614,53 @@ const Modal = {
                       }),
                     }),
                   );
+                  return;
                 }
-                let indexResult = -1;
-                for (const result of results) {
-                  indexResult++;
-                  const indexRender = indexResult;
-                  append(
-                    `.html-${searchBoxHistoryId}`,
-                    await BtnIcon.Render({
-                      label: `${
-                        result.fontAwesomeIcon
-                          ? html`<i class="${result.fontAwesomeIcon.classList.toString()}"></i> `
-                          : result.imgElement
-                            ? html`<img
-                                class="inl"
-                                src="${result.imgElement.src}"
-                                style="${renderCssAttr({ style: { width: '25px', height: '25px' } })}"
-                              />`
-                            : ''
-                      } ${Translate.Render(result.routerId)}`,
-                      class: `wfa search-result-btn-${result.routerId} ${
-                        indexResult === currentKeyBoardSearchBoxIndex ? 'main-btn-menu-active' : ''
-                      } search-result-btn-${indexResult}`,
-                      style: renderCssAttr({
-                        style: { padding: '3px', margin: '2px', 'text-align': 'left' },
-                      }),
-                    }),
-                  );
-                  s(`.search-result-btn-${result.routerId}`).onclick = () => {
-                    if (!s(`.html-${searchBoxHistoryId}`) || !s(`.html-${searchBoxHistoryId}`).hasChildNodes()) return;
-                    s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
-                      `main-btn-menu-active`,
-                    );
-                    currentKeyBoardSearchBoxIndex = indexRender;
-                    s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
-                      `main-btn-menu-active`,
-                    );
-                    setSearchValue(`.search-result-btn-${result.routerId}`);
-                  };
-                }
+
+                // Use SearchBox component for rendering results
+                const searchContext = {
+                  RouterInstance: Worker.RouterInstance,
+                  options: options,
+                  onResultClick: () => {
+                    // Dismiss search box on result click
+                    if (s(`.${searchBoxHistoryId}`)) {
+                      Modal.removeModal(searchBoxHistoryId);
+                    }
+                  },
+                };
+
+                SearchBox.renderResults(results, `html-${searchBoxHistoryId}`, searchContext);
               };
 
-              const getResultSearchBox = (validatorData) => {
-                if (!s(`.html-${searchBoxHistoryId}`) || !s(`.html-${searchBoxHistoryId}`).hasChildNodes()) return;
+              const getResultSearchBox = async (validatorData) => {
+                if (!s(`.html-${searchBoxHistoryId}`)) return;
                 const { model, id } = validatorData;
+
                 switch (model) {
                   case 'search-box':
                     {
-                      if (
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList
-                      )
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
-                          `main-btn-menu-active`,
-                        );
                       currentKeyBoardSearchBoxIndex = 0;
-                      if (
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList
-                      )
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
-                          `main-btn-menu-active`,
-                        );
                       results = [];
-                      const routerInstance = Worker.RouterInstance.Routes();
-                      for (const _routerId of Object.keys(routerInstance)) {
-                        const routerId = _routerId.slice(1);
-                        if (routerId) {
-                          if (
-                            s(`.main-btn-${routerId}`) &&
-                            (routerId.toLowerCase().match(s(`.${id}`).value.toLowerCase()) ||
-                              (Translate.Data[routerId] &&
-                                Object.keys(Translate.Data[routerId]).filter((keyLang) =>
-                                  Translate.Data[routerId][keyLang]
-                                    .toLowerCase()
-                                    .match(s(`.${id}`).value.toLowerCase()),
-                                ).length > 0))
-                          ) {
-                            const fontAwesomeIcon = getAllChildNodes(s(`.main-btn-${routerId}`)).find((e) => {
-                              return (
-                                e.classList &&
-                                Array.from(e.classList).find((e) => e.match('fa-') && !e.match('fa-grip-vertical'))
-                              );
-                            });
-                            const imgElement = getAllChildNodes(s(`.main-btn-${routerId}`)).find((e) => {
-                              return (
-                                e.classList &&
-                                Array.from(e.classList).find((e) =>
-                                  options.searchCustomImgClass
-                                    ? e.match(options.searchCustomImgClass)
-                                    : e.match('img-btn-square-menu'),
-                                )
-                              );
-                            });
-                            if (imgElement || fontAwesomeIcon) {
-                              results.push({
-                                routerId,
-                                fontAwesomeIcon: fontAwesomeIcon,
-                                imgElement,
-                              });
-                            }
+
+                      const query = s(`.${id}`) ? s(`.${id}`).value : '';
+
+                      // Use SearchBox component for extensible search
+                      const searchContext = {
+                        RouterInstance: Worker.RouterInstance,
+                        options: options,
+                        onResultClick: () => {
+                          // Dismiss search box on result click
+                          if (s(`.${searchBoxHistoryId}`)) {
+                            Modal.removeModal(searchBoxHistoryId);
                           }
-                        }
+                        },
+                      };
+
+                      if (query.trim()) {
+                        results = await SearchBox.search(query, searchContext);
+                        renderSearchResult(results);
+                      } else {
+                        renderSearchResult(historySearchBox);
                       }
                     }
                     break;
@@ -718,8 +668,6 @@ const Modal = {
                   default:
                     break;
                 }
-                if (s(`.${inputSearchBoxId}`).value.trim()) renderSearchResult(results);
-                else renderSearchResult(historySearchBox);
               };
 
               const searchBoxCallBack = async (validatorData) => {
@@ -745,25 +693,19 @@ const Modal = {
               const getDefaultSearchBoxSelector = () => `.search-result-btn-${currentKeyBoardSearchBoxIndex}`;
 
               const updateSearchBoxValue = (selector) => {
-                if (!selector) selector = getDefaultSearchBoxSelector();
-                // check exist childNodes
-                if (!s(selector) || !s(selector).hasChildNodes()) return;
-
-                if (s(selector).childNodes) {
-                  if (
-                    s(selector).childNodes[s(selector).childNodes.length - 1] &&
-                    s(selector).childNodes[s(selector).childNodes.length - 1].data &&
-                    s(selector).childNodes[s(selector).childNodes.length - 1].data.trim()
-                  ) {
-                    s(`.${inputSearchBoxId}`).value =
-                      s(selector).childNodes[s(selector).childNodes.length - 1].data.trim();
-                  } else if (
-                    s(selector).childNodes[s(selector).childNodes.length - 2] &&
-                    s(selector).childNodes[s(selector).childNodes.length - 2].outerText &&
-                    s(selector).childNodes[s(selector).childNodes.length - 2].outerText.trim()
-                  ) {
-                    s(`.${inputSearchBoxId}`).value =
-                      s(selector).childNodes[s(selector).childNodes.length - 2].outerText.trim();
+                if (!selector) {
+                  // Get the currently active search result item
+                  const activeItem = s(`.html-${searchBoxHistoryId} .search-result-item.active-search-result`);
+                  if (activeItem) {
+                    const titleEl = activeItem.querySelector('.search-result-title');
+                    if (titleEl && titleEl.textContent) {
+                      s(`.${inputSearchBoxId}`).value = titleEl.textContent.trim();
+                    }
+                  }
+                } else if (s(selector)) {
+                  const titleEl = s(selector).querySelector('.search-result-title');
+                  if (titleEl && titleEl.textContent) {
+                    s(`.${inputSearchBoxId}`).value = titleEl.textContent.trim();
                   }
                 }
                 checkHistoryBoxTitleStatus();
@@ -771,17 +713,29 @@ const Modal = {
               };
 
               const setSearchValue = (selector) => {
-                if (!selector) selector = getDefaultSearchBoxSelector();
+                // Get all search result items
+                const allItems = sa(`.html-${searchBoxHistoryId} .search-result-item`);
+                if (!allItems || allItems.length === 0) return;
 
-                // check exist childNodes
-                if (!s(selector) || !s(selector).hasChildNodes()) return;
+                const activeItem = allItems[currentKeyBoardSearchBoxIndex];
+                if (!activeItem) return;
 
-                historySearchBox = historySearchBox.filter(
-                  (h) => h.routerId !== results[currentKeyBoardSearchBoxIndex].routerId,
-                );
-                historySearchBox.unshift(results[currentKeyBoardSearchBoxIndex]);
-                updateSearchBoxValue(selector);
-                s(`.main-btn-${results[currentKeyBoardSearchBoxIndex].routerId}`).click();
+                const resultId = activeItem.getAttribute('data-result-id');
+                const resultType = activeItem.getAttribute('data-result-type');
+
+                if (resultType === 'route' && results[currentKeyBoardSearchBoxIndex]) {
+                  historySearchBox = historySearchBox.filter(
+                    (h) => h.routerId !== results[currentKeyBoardSearchBoxIndex].routerId,
+                  );
+                  historySearchBox.unshift(results[currentKeyBoardSearchBoxIndex]);
+                  updateSearchBoxValue();
+                  if (s(`.main-btn-${resultId}`)) {
+                    s(`.main-btn-${resultId}`).click();
+                  }
+                } else {
+                  // Trigger click on custom result
+                  activeItem.click();
+                }
                 Modal.removeModal(searchBoxHistoryId);
               };
               let boxHistoryDelayRender = 0;
@@ -879,27 +833,24 @@ const Modal = {
                 keys: ['ArrowUp'],
                 eventCallBack: () => {
                   if (s(`.${id}`)) {
-                    if (
-                      s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
-                      s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex - 1]
-                    ) {
-                      s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
-                        `main-btn-menu-active`,
-                      );
+                    const allItems = sa(`.html-${searchBoxHistoryId} .search-result-item`);
+                    if (!allItems || allItems.length === 0) return;
+
+                    // Remove active class from current
+                    if (allItems[currentKeyBoardSearchBoxIndex]) {
+                      allItems[currentKeyBoardSearchBoxIndex].classList.remove('active-search-result');
+                    }
+
+                    // Navigate up
+                    if (currentKeyBoardSearchBoxIndex > 0) {
                       currentKeyBoardSearchBoxIndex--;
-                      s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
-                        `main-btn-menu-active`,
-                      );
                     } else {
-                      if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
-                          `main-btn-menu-active`,
-                        );
-                      currentKeyBoardSearchBoxIndex = s(`.html-${searchBoxHistoryId}`).childNodes.length - 1;
-                      if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
-                          `main-btn-menu-active`,
-                        );
+                      currentKeyBoardSearchBoxIndex = allItems.length - 1;
+                    }
+
+                    // Add active class to new
+                    if (allItems[currentKeyBoardSearchBoxIndex]) {
+                      allItems[currentKeyBoardSearchBoxIndex].classList.add('active-search-result');
                     }
                     updateSearchBoxValue();
                   }
@@ -912,27 +863,24 @@ const Modal = {
                 keys: ['ArrowDown'],
                 eventCallBack: () => {
                   if (s(`.${id}`)) {
-                    if (
-                      s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
-                      s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex + 1]
-                    ) {
-                      s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
-                        `main-btn-menu-active`,
-                      );
+                    const allItems = sa(`.html-${searchBoxHistoryId} .search-result-item`);
+                    if (!allItems || allItems.length === 0) return;
+
+                    // Remove active class from current
+                    if (allItems[currentKeyBoardSearchBoxIndex]) {
+                      allItems[currentKeyBoardSearchBoxIndex].classList.remove('active-search-result');
+                    }
+
+                    // Navigate down
+                    if (currentKeyBoardSearchBoxIndex < allItems.length - 1) {
                       currentKeyBoardSearchBoxIndex++;
-                      s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
-                        `main-btn-menu-active`,
-                      );
                     } else {
-                      if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
-                          `main-btn-menu-active`,
-                        );
                       currentKeyBoardSearchBoxIndex = 0;
-                      if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
-                          `main-btn-menu-active`,
-                        );
+                    }
+
+                    // Add active class to new
+                    if (allItems[currentKeyBoardSearchBoxIndex]) {
+                      allItems[currentKeyBoardSearchBoxIndex].classList.add('active-search-result');
                     }
                     updateSearchBoxValue();
                   }
