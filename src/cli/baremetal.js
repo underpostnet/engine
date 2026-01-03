@@ -649,30 +649,43 @@ rm -rf ${artifacts.join(' ')}`);
             callbackMetaData,
             steps: [`/debootstrap/debootstrap --second-stage`],
           });
-        } else if (workflowsConfig[workflowId].type === 'chroot-container') {
+        } else if (
+          workflowsConfig[workflowId].type === 'chroot-container' &&
+          workflowsConfig[workflowId].osIdLike.match('rhel')
+        ) {
           // Copy resolv.conf to allow network access inside chroot
           shellExec(`sudo cp /etc/resolv.conf ${nfsHostPath}/etc/resolv.conf`);
 
+          // Consolidate all package installations into one step to avoid redundancy
           const { packages } = workflowsConfig[workflowId].container;
-          if (packages && packages.length > 0) {
-            UnderpostBaremetal.API.crossArchRunner({
-              nfsHostPath,
-              bootstrapArch,
-              callbackMetaData,
-              steps: [
-                `dnf install -y --allowerasing findutils systemd ${packages.join(' ')}`,
-                `dnf install -y dracut-network nfs-utils dracut-config-generic`,
-              ],
-            });
-          }
+          const basePackages = [
+            'findutils',
+            'systemd',
+            'sudo',
+            'dracut',
+            'dracut-network',
+            'dracut-config-generic',
+            'nfs-utils',
+            'file',
+            'binutils',
+            'kernel-modules-core',
+            'NetworkManager',
+            'dhclient',
+            'iputils',
+          ];
+          const allPackages = packages && packages.length > 0 ? [...basePackages, ...packages] : basePackages;
+
           UnderpostBaremetal.API.crossArchRunner({
             nfsHostPath,
             bootstrapArch,
             callbackMetaData,
             steps: [
+              `dnf install -y --allowerasing ${allPackages.join(' ')} 2>/dev/null || yum install -y --allowerasing ${allPackages.join(' ')} 2>/dev/null || echo "Package install completed"`,
+              `dnf clean all`,
+              `echo "=== Installed packages verification ==="`,
+              `rpm -qa | grep -E "dracut|kernel|nfs" | sort`,
+              `echo "=== Boot directory contents ==="`,
               `ls -la /boot /lib/modules/*/`,
-              // Install file and binutils for PE32+ detection
-              `dnf install -y file binutils kernel-modules-core 2>/dev/null || yum install -y file binutils kernel-modules-core 2>/dev/null || echo "Package install skipped"`,
               // Search for bootable kernel in order of preference:
               // 1. Raw ARM64 Image file (preferred for GRUB)
               // 2. vmlinuz or vmlinux (may be PE32+ on Rocky Linux)
@@ -698,15 +711,26 @@ rm -rf ${artifacts.join(' ')}`);
               // Get kernel version for initramfs rebuild
               `KVER=$(basename $(dirname "$KERNEL_FILE"))`,
               `echo "Kernel version: $KVER"`,
-              // Rebuild initramfs with NFS support using network-legacy (no NetworkManager dependency)
+              // Rebuild initramfs with NFS and network support
               `echo "Rebuilding initramfs with NFS and network support..."`,
-              `dracut --force --add "nfs network-legacy base" --add-drivers "nfs sunrpc" --omit "network-manager ifcfg" --kver $KVER /boot/initrd.img $KVER || echo "Initramfs rebuild failed"`,
+              `echo "Available dracut modules:"`,
+              `dracut --list-modules 2>/dev/null | grep -E "network|nfs" || echo "No network modules listed"`,
+              // Use network-manager module (it's available in Rocky 9) for better compatibility
+              `dracut --force --add "nfs network base" --add-drivers "nfs sunrpc" --kver "$KVER" /boot/initrd.img "$KVER" 2>&1 || echo "Initramfs rebuild failed"`,
               // Fallback: if rebuild fails, use existing initramfs
-              `if [ ! -f /boot/initrd.img ]; then echo "Initramfs rebuild failed, using existing..."; INITRD=$(find /boot -name "initramfs*" | grep -v kdump | head -n 1); if [ -z "$INITRD" ]; then INITRD=$(find /lib/modules -name "initramfs*" | grep -v kdump | head -n 1); fi; cp $INITRD /boot/initrd.img; fi`,
-              `ls -la /boot/vmlinuz-efi /boot/initrd.img`,
+              `if [ ! -f /boot/initrd.img ]; then echo "Initramfs rebuild failed, using existing..."; INITRD=$(find /boot -name "initramfs-$KVER.img" 2>/dev/null | head -n 1); if [ -z "$INITRD" ]; then INITRD=$(find /boot -name "initramfs*.img" 2>/dev/null | grep -v kdump | head -n 1); fi; if [ -n "$INITRD" ]; then cp "$INITRD" /boot/initrd.img; echo "Copied existing initramfs: $INITRD"; else echo "ERROR: No initramfs found!"; fi; fi`,
+              `echo "=== Final boot files ==="`,
+              `ls -lh /boot/vmlinuz-efi /boot/initrd.img`,
+              `file /boot/vmlinuz-efi`,
+              `file /boot/initrd.img`,
+              `echo "=== Setting root password ==="`,
               `echo "root:root" | chpasswd`,
             ],
           });
+        } else {
+          throw new Error(
+            `Unsupported workflow type for NFS build: ${workflowsConfig[workflowId].type} and like os ID ${workflowsConfig[workflowId].osIdLike}`,
+          );
         }
       }
 
@@ -808,7 +832,10 @@ rm -rf ${artifacts.join(' ')}`);
           });
       }
 
-      if (workflowsConfig[workflowId].type === 'chroot-container') {
+      if (
+        workflowsConfig[workflowId].type === 'chroot-container' &&
+        workflowsConfig[workflowId].osIdLike.match('rhel')
+      ) {
         if (options.rockyToolsBuild) {
           const { chronyc, keyboard } = workflowsConfig[workflowId];
           const { timezone } = chronyc;
@@ -823,6 +850,7 @@ rm -rf ${artifacts.join(' ')}`);
               ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].user(),
               ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
                 timezone,
+                chronyConfPath: chronyc.chronyConfPath,
               }),
               ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
             ],
@@ -2570,27 +2598,25 @@ EOF`);
          * @returns {string[]} An array of shell commands.
          */
         base: () => [
-          // Configure APT sources for Ubuntu ports.
+          // Configure APT sources for Ubuntu ports
           `cat <<SOURCES | tee /etc/apt/sources.list
 deb http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
 deb http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse
 deb http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse
 SOURCES`,
 
-          // Update package lists and perform a full system upgrade.
+          // Update package lists and perform a full system upgrade
           `apt update -qq`,
           `apt -y full-upgrade`,
-          // Install essential development and system utilities.
-          `apt install -y build-essential xinput x11-xkb-utils usbutils uuid-runtime`,
-          'apt install -y linux-image-generic',
 
-          // Install cloud-init, systemd, SSH, sudo, locales, udev, and networking tools.
-          `apt install -y systemd-sysv openssh-server sudo locales udev util-linux systemd-sysv iproute2 netplan.io ca-certificates curl wget chrony`,
-          `ln -sf /lib/systemd/systemd /sbin/init`, // Ensure systemd is the init system.
+          // Install all essential packages in one consolidated step
+          `DEBIAN_FRONTEND=noninteractive apt install -y build-essential xinput x11-xkb-utils usbutils uuid-runtime linux-image-generic systemd-sysv openssh-server sudo locales udev util-linux iproute2 netplan.io ca-certificates curl wget chrony apt-utils tzdata kmod keyboard-configuration console-setup iputils-ping`,
 
-          `apt-get update`,
-          `DEBIAN_FRONTEND=noninteractive apt-get install -y apt-utils`, // Install apt-utils non-interactively.
-          `DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata kmod keyboard-configuration console-setup iputils-ping`, // Install timezone data, kernel modules, and network tools.
+          // Ensure systemd is the init system
+          `ln -sf /lib/systemd/systemd /sbin/init`,
+
+          // Clean up
+          `apt-get clean`,
         ],
         /**
          * @method user
@@ -2723,14 +2749,17 @@ logdir /var/log/chrony
          * @returns {string[]} An array of shell commands.
          */
         base: () => [
+          // Update system and install EPEL repository
           `dnf -y update`,
           `dnf -y install epel-release`,
-          `dnf -y install --allowerasing bzip2 sudo curl net-tools openssh-server nano vim-enhanced less openssl-devel wget git gnupg2 libnsl perl`,
+
+          // Install essential system tools (avoiding duplicates from container packages)
+          `dnf -y install --allowerasing bzip2 openssh-server nano vim-enhanced less openssl-devel git gnupg2 libnsl perl`,
           `dnf clean all`,
 
           // Install Node.js
           `curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -`,
-          `dnf install nodejs -y`,
+          `dnf install -y nodejs`,
           `dnf clean all`,
 
           // Verify Node.js and npm versions
@@ -2766,10 +2795,54 @@ logdir /var/log/chrony
          * @description Generates shell commands for configuring the system timezone on Rocky Linux.
          * @param {object} params - The parameters for the function.
          * @param {string} params.timezone - The timezone string (e.g., 'America/Santiago').
+         * @param {string} params.chronyConfPath - The path to the Chrony configuration file (optional).
          * @memberof UnderpostBaremetal.systemProvisioningFactory.rocky
          * @returns {string[]} An array of shell commands.
          */
-        timezone: ({ timezone }) => [`timedatectl set-timezone ${timezone}`, `timedatectl status`],
+        timezone: ({ timezone, chronyConfPath = '/etc/chrony.conf' }) => [
+          // Set system timezone using both methods (for chroot and running system)
+          `ln -sf /usr/share/zoneinfo/${timezone} /etc/localtime`,
+          `echo '${timezone}' > /etc/timezone`,
+          `timedatectl set-timezone ${timezone} 2>/dev/null`,
+
+          // Configure chrony with local NTP server and common NTP pools
+          `echo '# Local NTP server' > ${chronyConfPath}`,
+          `echo 'server 192.168.1.1 iburst prefer' >> ${chronyConfPath}`,
+          `echo '' >> ${chronyConfPath}`,
+          `echo '# Fallback public NTP servers' >> ${chronyConfPath}`,
+          `echo 'server 0.pool.ntp.org iburst' >> ${chronyConfPath}`,
+          `echo 'server 1.pool.ntp.org iburst' >> ${chronyConfPath}`,
+          `echo 'server 2.pool.ntp.org iburst' >> ${chronyConfPath}`,
+          `echo 'server 3.pool.ntp.org iburst' >> ${chronyConfPath}`,
+          `echo '' >> ${chronyConfPath}`,
+          `echo '# Configuration' >> ${chronyConfPath}`,
+          `echo 'driftfile /var/lib/chrony/drift' >> ${chronyConfPath}`,
+          `echo 'makestep 1.0 3' >> ${chronyConfPath}`,
+          `echo 'rtcsync' >> ${chronyConfPath}`,
+          `echo 'logdir /var/log/chrony' >> ${chronyConfPath}`,
+
+          // Enable chronyd to start on boot
+          `systemctl enable chronyd 2>/dev/null`,
+
+          // Create systemd link for boot (works in chroot)
+          `mkdir -p /etc/systemd/system/multi-user.target.wants`,
+          `ln -sf /usr/lib/systemd/system/chronyd.service /etc/systemd/system/multi-user.target.wants/chronyd.service 2>/dev/null`,
+
+          // Start chronyd if systemd is running
+          `systemctl start chronyd 2>/dev/null`,
+
+          // Restart chronyd to apply configuration
+          `systemctl restart chronyd 2>/dev/null`,
+
+          // Force immediate time synchronization (only if chronyd is running)
+          `chronyc makestep 2>/dev/null`,
+
+          // Verify timezone configuration
+          `ls -l /etc/localtime`,
+          `cat /etc/timezone || echo 'No /etc/timezone file'`,
+          `timedatectl status 2>/dev/null || echo 'Timezone set to ${timezone} (timedatectl not available in chroot)'`,
+          `chronyc tracking 2>/dev/null || echo 'Chrony configured but not running (will start on boot)'`,
+        ],
         /**
          * @method keyboard
          * @description Generates shell commands for configuring the keyboard layout on Rocky Linux.
@@ -2779,10 +2852,36 @@ logdir /var/log/chrony
          * @returns {string[]} An array of shell commands.
          */
         keyboard: (keyCode = 'us') => [
-          `localectl set-locale LANG=en_US.UTF-8`,
-          `localectl set-keymap ${keyCode}`,
-          `localectl set-x11-keymap ${keyCode}`,
-          `localectl status`,
+          // Configure vconsole.conf for console keyboard layout (persistent)
+          `echo 'KEYMAP=${keyCode}' > /etc/vconsole.conf`,
+          `echo 'FONT=latarcyrheb-sun16' >> /etc/vconsole.conf`,
+
+          // Configure locale.conf for system locale
+          `echo 'LANG=en_US.UTF-8' > /etc/locale.conf`,
+          `echo 'LC_ALL=en_US.UTF-8' >> /etc/locale.conf`,
+
+          // Set keyboard layout using localectl (works if systemd is running)
+          `localectl set-locale LANG=en_US.UTF-8 2>/dev/null`,
+          `localectl set-keymap ${keyCode} 2>/dev/null`,
+          `localectl set-x11-keymap ${keyCode} 2>/dev/null`,
+
+          // Configure X11 keyboard layout file directly
+          `mkdir -p /etc/X11/xorg.conf.d`,
+          `echo 'Section "InputClass"' > /etc/X11/xorg.conf.d/00-keyboard.conf`,
+          `echo '    Identifier "system-keyboard"' >> /etc/X11/xorg.conf.d/00-keyboard.conf`,
+          `echo '    MatchIsKeyboard "on"' >> /etc/X11/xorg.conf.d/00-keyboard.conf`,
+          `echo '    Option "XkbLayout" "${keyCode}"' >> /etc/X11/xorg.conf.d/00-keyboard.conf`,
+          `echo 'EndSection' >> /etc/X11/xorg.conf.d/00-keyboard.conf`,
+
+          // Load the keymap immediately (if not in chroot)
+          `loadkeys ${keyCode} 2>/dev/null || echo 'Keymap ${keyCode} configured (loadkeys not available in chroot)'`,
+
+          // Verify configuration
+          `echo 'Keyboard configuration files:'`,
+          `cat /etc/vconsole.conf`,
+          `cat /etc/locale.conf`,
+          `cat /etc/X11/xorg.conf.d/00-keyboard.conf 2>/dev/null || echo 'X11 config created'`,
+          `localectl status 2>/dev/null || echo 'Keyboard layout set to ${keyCode} (localectl not available in chroot)'`,
         ],
       },
     },

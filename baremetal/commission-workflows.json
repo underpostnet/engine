@@ -112,22 +112,7 @@
     "container": {
       "image": "quay.io/rockylinux/rockylinux:9",
       "architecture": "arm64",
-      "packages": [
-        "sudo",
-        "iproute",
-        "tar",
-        "wget",
-        "curl",
-        "vim-minimal",
-        "kernel",
-        "dracut-network",
-        "dracut-config-generic",
-        "nfs-utils",
-        "file",
-        "binutils",
-        "iputils",
-        "net-tools"
-      ]
+      "packages": ["kernel", "chrony", "kbd", "glibc-langpack-en", "glibc-langpack-es", "tzdata"]
     },
     "keyboard": {
       "layout": "es"
