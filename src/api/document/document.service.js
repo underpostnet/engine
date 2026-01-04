@@ -111,6 +111,7 @@ const DocumentService = {
           .sort({ createdAt: -1 })
           .limit(limit)
           .select('_id title tags createdAt userId isPublic')
+          .populate(DocumentDto.populate.user())
           .lean();
 
         const sanitizedData = data.map((doc) => {
@@ -118,9 +119,23 @@ const DocumentService = {
             ...doc,
             tags: DocumentDto.filterPublicTag(doc.tags),
           };
+          // For unauthenticated users, only include user data if document is public AND creator is publisher
           if (!user || user.role === 'guest') {
-            const { userId, ...rest } = filteredDoc;
-            return rest;
+            const isPublisher = doc.userId && (doc.userId.role === 'admin' || doc.userId.role === 'moderator');
+            if (!doc.isPublic || !isPublisher) {
+              const { userId, ...rest } = filteredDoc;
+              return rest;
+            }
+            // Remove role field from userId before sending to client
+            if (filteredDoc.userId && filteredDoc.userId.role) {
+              const { role, ...userWithoutRole } = filteredDoc.userId;
+              filteredDoc.userId = userWithoutRole;
+            }
+          }
+          // Remove role field from userId before sending to client (authenticated users)
+          if (filteredDoc.userId && filteredDoc.userId.role) {
+            const { role, ...userWithoutRole } = filteredDoc.userId;
+            filteredDoc.userId = userWithoutRole;
           }
           return filteredDoc;
         });
@@ -233,18 +248,27 @@ const DocumentService = {
         .sort({ createdAt: -1 })
         .limit(limit)
         .select('_id title tags createdAt userId isPublic')
+        .populate(DocumentDto.populate.user())
         .lean();
 
-      // Sanitize response - remove userId for public users and filter 'public' from tags
+      // Sanitize response - include userId for public documents from publishers, filter 'public' from tags
       const sanitizedData = data.map((doc) => {
         const filteredDoc = {
           ...doc,
           tags: DocumentDto.filterPublicTag(doc.tags),
         };
+        // For unauthenticated users, only include user data if document is public AND creator is publisher
         if (!user || user.role === 'guest') {
-          // Remove userId from response for unauthenticated users
-          const { userId, ...rest } = filteredDoc;
-          return rest;
+          const isPublisher = doc.userId && (doc.userId.role === 'admin' || doc.userId.role === 'moderator');
+          if (!doc.isPublic || !isPublisher) {
+            const { userId, ...rest } = filteredDoc;
+            return rest;
+          }
+        }
+        // Remove role field from userId before sending to client (all users)
+        if (filteredDoc.userId && filteredDoc.userId.role) {
+          const { role, ...userWithoutRole } = filteredDoc.userId;
+          filteredDoc.userId = userWithoutRole;
         }
         return filteredDoc;
       });
@@ -330,16 +354,22 @@ const DocumentService = {
       } else {
         // Unauthenticated user: only public documents from publishers
         // If 'public' tag requested, it's redundant but handled by isPublic: true
-        queryPayload = {
-          userId: { $in: publisherUsers.map((p) => p._id) },
-          isPublic: true,
-          ...(requestedTags.length > 0 ? { tags: { $all: requestedTags } } : {}),
-        };
+        // When cid is provided, we relax the publisher filter and check in post-processing
+        const cidList = req.query.cid ? req.query.cid.split(',').filter((cid) => isValidObjectId(cid)) : null;
 
-        // Add cid filter if present
-        if (req.query.cid) {
-          queryPayload._id = {
-            $in: req.query.cid.split(',').filter((cid) => isValidObjectId(cid)),
+        if (cidList && cidList.length > 0) {
+          // For cid queries, just filter by public and tags, check publisher in post-processing
+          queryPayload = {
+            _id: { $in: cidList },
+            isPublic: true,
+            ...(requestedTags.length > 0 ? { tags: { $all: requestedTags } } : {}),
+          };
+        } else {
+          // For non-cid queries, filter by publisher at query level
+          queryPayload = {
+            userId: { $in: publisherUsers.map((p) => p._id) },
+            isPublic: true,
+            ...(requestedTags.length > 0 ? { tags: { $all: requestedTags } } : {}),
           };
         }
       }
@@ -358,13 +388,23 @@ const DocumentService = {
       // sort in descending (-1) order by length
       const sort = { createdAt: -1 };
 
+      // Populate user data for authenticated users OR for public documents from publishers
+      // This allows unauthenticated users to see creator profiles on public content
+      const shouldPopulateUser = user && user.role !== 'guest';
+      // Check if query contains public documents (either in $or array or flat query)
+      const hasPublicDocuments =
+        queryPayload.isPublic === true ||
+        queryPayload.$or?.some(
+          (condition) => condition.isPublic === true || (condition.userId && condition.isPublic === true),
+        );
+
       const data = await Document.find(queryPayload)
         .sort(sort)
         .limit(limit)
         .skip(skip)
         .populate(DocumentDto.populate.file())
         .populate(DocumentDto.populate.mdFile())
-        .populate(user && user.role !== 'guest' ? DocumentDto.populate.user() : null);
+        .populate(shouldPopulateUser || hasPublicDocuments ? DocumentDto.populate.user() : null);
 
       const lastDoc = await Document.findOne(queryPayload, '_id').sort({ createdAt: 1 });
       const lastId = lastDoc ? lastDoc._id : null;
@@ -372,8 +412,33 @@ const DocumentService = {
       // Add totalCopyShareLinkCount to each document and filter 'public' from tags
       const dataWithCounts = data.map((doc) => {
         const docObj = doc.toObject ? doc.toObject() : doc;
+
+        // For unauthenticated users, only include user data if:
+        // 1. Document is public AND
+        // 2. Creator is a publisher (admin/moderator)
+        let userInfo = docObj.userId;
+        if (!user || user.role === 'guest') {
+          const isPublisher = userInfo && (userInfo.role === 'admin' || userInfo.role === 'moderator');
+          if (!docObj.isPublic || !isPublisher) {
+            userInfo = undefined;
+          } else {
+            // Remove role field from userId before sending to client
+            if (userInfo && userInfo.role) {
+              const { role, ...userWithoutRole } = userInfo;
+              userInfo = userWithoutRole;
+            }
+          }
+        } else {
+          // Remove role field from userId before sending to client (authenticated users)
+          if (userInfo && userInfo.role) {
+            const { role, ...userWithoutRole } = userInfo;
+            userInfo = userWithoutRole;
+          }
+        }
+
         return {
           ...docObj,
+          userId: userInfo,
           tags: DocumentDto.filterPublicTag(docObj.tags),
           totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
         };
@@ -398,8 +463,17 @@ const DocumentService = {
         // Add totalCopyShareLinkCount to each document and filter 'public' from tags
         return data.map((doc) => {
           const docObj = doc.toObject ? doc.toObject() : doc;
+
+          // Remove role field from userId before sending to client
+          let userInfo = docObj.userId;
+          if (userInfo && userInfo.role) {
+            const { role, ...userWithoutRole } = userInfo;
+            userInfo = userWithoutRole;
+          }
+
           return {
             ...docObj,
+            userId: userInfo,
             tags: DocumentDto.filterPublicTag(docObj.tags),
             totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
           };

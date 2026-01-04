@@ -366,7 +366,7 @@ const PanelForm = {
             const baseNewDoc = newInstance(data);
             baseNewDoc.tags = tags.filter((t) => !prefixTags.includes(t));
             baseNewDoc.mdFileId = marked.parse(data.mdFileId);
-            baseNewDoc.userId = Elements.Data.user.main.model.user._id;
+            baseNewDoc.userId = Elements.Data.user?.main?.model?.user?._id;
             baseNewDoc.tools = true;
 
             const documents = [];
@@ -574,7 +574,10 @@ const PanelForm = {
                 // Backend filters 'public' tag automatically - it's converted to isPublic field
                 tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
                 mdFileId: marked.parse(mdFileId),
-                userId: documentObject.userId._id,
+                userId:
+                  documentObject.userId && typeof documentObject.userId === 'object'
+                    ? documentObject.userId._id
+                    : documentObject.userId,
                 userInfo:
                   documentObject.userId && typeof documentObject.userId === 'object'
                     ? {
@@ -585,7 +588,11 @@ const PanelForm = {
                       }
                     : null,
                 fileId,
-                tools: Elements.Data.user.main.model.user._id === documentObject.userId._id,
+                tools:
+                  documentObject.userId &&
+                  typeof documentObject.userId === 'object' &&
+                  Elements.Data.user?.main?.model?.user?._id &&
+                  Elements.Data.user.main.model.user._id === documentObject.userId._id,
                 _id: documentObject._id,
                 totalCopyShareLinkCount: documentObject.totalCopyShareLinkCount || 0,
                 isPublic: documentObject.isPublic || false,
@@ -694,7 +701,9 @@ const PanelForm = {
               cid,
               forceUpdate,
             },
-            JSON.stringify(Elements.Data.user.main.model.user, null, 4),
+            Elements.Data.user?.main?.model?.user
+              ? JSON.stringify(Elements.Data.user.main.model.user, null, 4)
+              : 'No user data',
           );
 
           // Normalize empty values for comparison (undefined, null, '' should all be treated as empty)
@@ -703,7 +712,9 @@ const PanelForm = {
 
           if (loadingGetData || (normalizedLastCid === normalizedCid && !forceUpdate)) return;
           loadingGetData = true;
-          lastUserId = newInstance(Elements.Data.user.main.model.user._id);
+          lastUserId = Elements.Data.user?.main?.model?.user?._id
+            ? newInstance(Elements.Data.user.main.model.user._id)
+            : null;
           lastCid = cid;
 
           logger.warn('Init render panel data');
