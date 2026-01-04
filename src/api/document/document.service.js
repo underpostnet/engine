@@ -25,10 +25,26 @@ const DocumentService = {
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
     // High-query endpoint for typeahead search
-    // Security Model:
+    // ============================================
+    // OPTIMIZATION GOAL: MAXIMIZE search results with MINIMUM match requirements
+    //
+    // Security Model (unchanged):
     // - Unauthenticated users: CAN see public-tagged documents from publishers (admin/moderator)
     // - Authenticated users: CAN see public-tagged documents from publishers + ALL their own documents (any tags)
     // - No user can see private documents from other users
+    //
+    // Search Optimization Strategy:
+    // 1. Case-insensitive matching ($options: 'i') - maximizes matches across case variations
+    // 2. Multi-term search - splits "hello world" into ["hello", "world"] and matches ANY term
+    // 3. Multi-field search - searches BOTH title AND tags array
+    // 4. OR logic - ANY term matching ANY field counts as a match
+    // 5. Minimum length: 1 character - allows maximum user flexibility
+    //
+    // Example: Query "javascript tutorial"
+    //   - Matches documents with title "JavaScript Guide" (term 1, case-insensitive)
+    //   - Matches documents with tag "tutorial" (term 2, tag match)
+    //   - Matches documents with both terms in different fields
+    //
     if (req.path.startsWith('/public/high') && req.query['q']) {
       // Input validation
       const rawQuery = req.query['q'];
@@ -38,6 +54,7 @@ const DocumentService = {
 
       // Sanitize and validate search query
       const searchQuery = rawQuery.trim();
+      // Minimum match requirement: allow 1 character for maximum results
       if (searchQuery.length < 1) {
         throw new Error('Search query too short');
       }
@@ -45,8 +62,16 @@ const DocumentService = {
         throw new Error('Search query too long (max 100 characters)');
       }
 
-      // Escape regex special characters to prevent ReDoS attacks
-      const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // OPTIMIZATION: Split search query into individual terms for multi-term matching
+      // This maximizes results by matching ANY term in ANY field
+      // Example: "react hooks" becomes ["react", "hooks"]
+      const searchTerms = searchQuery
+        .split(/\s+/)
+        .filter((term) => term.length > 0)
+        .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape each term for regex safety
+
+      // Fallback to original query if no terms (edge case)
+      const escapedQuery = searchTerms.length > 0 ? searchTerms[0] : searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
       const publisherUsers = await User.find({ $or: [{ role: 'admin' }, { role: 'moderator' }] });
 
@@ -72,36 +97,76 @@ const DocumentService = {
       }
 
       // Build query based on authentication status
+      // ============================================
+      // OPTIMIZED FOR MAXIMUM RESULTS:
+      // - Multi-term search: matches ANY term
+      // - Case-insensitive: $options: 'i' flag
+      // - Multi-field: searches title AND tags
+      // - Minimum match: ANY term in ANY field = result
+      //
+      // Example Query: "javascript react"
+      // Matches:
+      //   ✓ Document with title "JavaScript Tutorial" (term 1 in title)
+      //   ✓ Document with tag "react" (term 2 in tags)
+      //   ✓ Document with title "Learn React JS" (term 2 in title, case-insensitive)
+      //   ✓ Document with tags ["javascript", "tutorial"] (term 1 in tags)
+
+      // Build search conditions for maximum permissiveness
+      const buildSearchConditions = () => {
+        const conditions = [];
+
+        // For EACH search term, create conditions that match title OR tags
+        // This creates an OR chain: (title:term1 OR tags:term1 OR title:term2 OR tags:term2 ...)
+        searchTerms.forEach((term) => {
+          conditions.push({ title: { $regex: term, $options: 'i' } }); // Case-insensitive title match
+          conditions.push({ tags: { $in: [new RegExp(term, 'i')] } }); // Case-insensitive tag match
+        });
+
+        return conditions;
+      };
+
       let queryPayload;
 
       if (user && user.role && user.role !== 'guest') {
         // Authenticated user can see:
         // 1. ALL their own documents (public AND private - no tag restriction)
         // 2. Public-tagged documents from publishers (admin/moderator only)
-        // This correctly implements: user sees everything they own + public content from trusted sources
+        //
+        // MAXIMUM RESULTS STRATEGY:
+        // - Search by: ANY term matches title OR ANY tag
+        // - Case-insensitive matching
+        // - No minimum match threshold beyond 1 character
+        const searchConditions = buildSearchConditions();
+
         queryPayload = {
           $or: [
             {
               // Public documents from publishers (admin/moderator)
               userId: { $in: publisherUsers.map((p) => p._id) },
               tags: { $in: ['public'] },
-              title: { $regex: escapedQuery, $options: 'i' },
+              $or: searchConditions, // ANY term in title OR tags
             },
             {
               // User's OWN documents - NO TAG RESTRICTION
-              // This means ALL documents (public, private, any tags)
+              // User sees ALL their own content matching search
               userId: user._id,
-              title: { $regex: escapedQuery, $options: 'i' },
+              $or: searchConditions, // ANY term in title OR tags
             },
           ],
         };
       } else {
         // Public/unauthenticated user: ONLY public-tagged documents from publishers (admin/moderator)
-        // This is correct: anonymous users CAN see content from trusted publishers
+        //
+        // MAXIMUM RESULTS STRATEGY for public users:
+        // - Search by: ANY term matches title OR ANY tag
+        // - Case-insensitive matching
+        // - Still respects security: only public docs from trusted publishers
+        const searchConditions = buildSearchConditions();
+
         queryPayload = {
           userId: { $in: publisherUsers.map((p) => p._id) },
           tags: { $in: ['public'] },
-          title: { $regex: escapedQuery, $options: 'i' },
+          $or: searchConditions, // ANY term in title OR tags
         };
       }
 
@@ -112,8 +177,10 @@ const DocumentService = {
       }
 
       // Security audit logging
-      logger.info('High-query search', {
+      logger.info('High-query search (OPTIMIZED FOR MAX RESULTS)', {
         query: searchQuery.substring(0, 50), // Log only first 50 chars for privacy
+        terms: searchTerms.length, // Number of search terms
+        searchStrategy: 'multi-term OR matching, case-insensitive, title+tags',
         authenticated: !!user,
         userId: user?._id?.toString(),
         role: user?.role,
