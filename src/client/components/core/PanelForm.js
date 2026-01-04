@@ -30,6 +30,7 @@ const PanelForm = {
       share: {
         copyLink: false,
       },
+      showCreatorProfile: false,
     },
   ) {
     const { idPanel, defaultUrlImage, Elements } = options;
@@ -114,6 +115,7 @@ const PanelForm = {
         route: options.route,
         formContainerClass: 'session-in-log-in',
         share: options.share,
+        showCreatorProfile: options.showCreatorProfile,
         onClick: async function ({ payload }) {
           if (options.route) {
             setQueryPath({ path: options.route, queryPath: payload._id });
@@ -573,6 +575,15 @@ const PanelForm = {
                 tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
                 mdFileId: marked.parse(mdFileId),
                 userId: documentObject.userId._id,
+                userInfo:
+                  documentObject.userId && typeof documentObject.userId === 'object'
+                    ? {
+                        username: documentObject.userId.username,
+                        email: documentObject.userId.email,
+                        _id: documentObject.userId._id,
+                        profileImageId: documentObject.userId.profileImageId,
+                      }
+                    : null,
                 fileId,
                 tools: Elements.Data.user.main.model.user._id === documentObject.userId._id,
                 _id: documentObject._id,

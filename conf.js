@@ -65,6 +65,7 @@ const DefaultConf = /**/ {
           '500',
           'Pagination',
           'windowGetDimensions',
+          'SearchBox',
         ],
         default: [
           'MenuDefault',

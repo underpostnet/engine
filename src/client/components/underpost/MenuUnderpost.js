@@ -190,6 +190,7 @@ const MenuUnderpost = {
           share: {
             copyLink: true,
           },
+          showCreatorProfile: true,
         });
 
         // Store panel update function globally for search results

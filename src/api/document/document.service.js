@@ -392,7 +392,8 @@ const DocumentService = {
           ...(req.params.id ? { _id: req.params.id } : undefined),
         })
           .populate(DocumentDto.populate.file())
-          .populate(DocumentDto.populate.mdFile());
+          .populate(DocumentDto.populate.mdFile())
+          .populate(DocumentDto.populate.user());
 
         // Add totalCopyShareLinkCount to each document and filter 'public' from tags
         return data.map((doc) => {

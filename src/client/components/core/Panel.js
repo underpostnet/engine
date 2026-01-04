@@ -16,6 +16,7 @@ import { Badge } from './Badge.js';
 import { Content } from './Content.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { NotificationManager } from './NotificationManager.js';
+import { getApiBaseUrl } from '../../services/core/core.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -35,6 +36,7 @@ const Panel = {
       share: {
         copyLink: false,
       },
+      showCreatorProfile: false,
     },
   ) {
     const idPanel = options?.idPanel ? options.idPanel : getId(this.Tokens, `${idPanel}-`);
@@ -245,6 +247,31 @@ const Panel = {
           <div class="panel-visibility-icon">${visibilityIcon}</div>
           <div class="in ${idPanel}-head">
             <div class="in ${idPanel}-title">
+              ${options.showCreatorProfile && obj.userInfo
+                ? html`<div
+                    class="creator-profile-mini"
+                    style="display: inline-flex; align-items: center; margin-right: 10px; vertical-align: middle;"
+                  >
+                    ${obj.userInfo.profileImageId && obj.userInfo.profileImageId._id
+                      ? html`<img
+                          class="creator-avatar"
+                          src="${getApiBaseUrl({ id: obj.userInfo.profileImageId._id, endpoint: 'file/blob' })}"
+                          alt="${obj.userInfo.username || obj.userInfo.email}"
+                          style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 6px; border: 1px solid rgba(255,255,255,0.2);"
+                          title="${obj.userInfo.email || obj.userInfo.username}"
+                        />`
+                      : html`<div
+                          class="creator-avatar"
+                          style="width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: inline-flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px; margin-right: 6px;"
+                          title="${obj.userInfo.email || obj.userInfo.username}"
+                        >
+                          ${(obj.userInfo.username || obj.userInfo.email || 'U').charAt(0).toUpperCase()}
+                        </div>`}
+                    <span class="creator-username" style="font-size: 13px; opacity: 0.8; font-weight: 500;">
+                      ${obj.userInfo.username || obj.userInfo.email || 'Unknown'}
+                    </span>
+                  </div>`
+                : ''}
               ${options.titleIcon}
               <a href="?cid=${payload._id}" class="a-title-${idPanel} a-${payload._id}">
                 ${titleKey ? obj[titleKey] : ''}</a
