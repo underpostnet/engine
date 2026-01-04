@@ -333,28 +333,97 @@ const SearchBox = {
    * Uses direct scrollTop manipulation instead of smooth scrolling to reduce JS runtime overhead
    * This prevents browser animation overhead and ensures instant visibility
    */
+  /**
+   * Scrolls an element into view within a scrollable container if needed
+   *
+   * Algorithm:
+   * 1. Calculate element's absolute position within the container using offsetTop
+   * 2. Compare element position with container's current scroll position
+   * 3. If element is above visible area: scroll up to show it at top
+   * 4. If element is below visible area: scroll down to show it at bottom
+   * 5. If element is already visible: do nothing (performance optimization)
+   *
+   * This ensures keyboard navigation (ArrowUp/ArrowDown) always shows the active result
+   *
+   * @param {HTMLElement} element - The element to scroll into view
+   * @param {HTMLElement} container - The scrollable container
+   */
   scrollIntoViewIfNeeded: function (element, container) {
     if (!element || !container) return;
 
-    const elementRect = element.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
+    // CRITICAL FIX: Find the actual scrollable container
+    // The passed container might not be scrollable; we need to find the parent that is
+    let scrollableContainer = container;
 
-    // Calculate relative positions within container
-    const elementTop = elementRect.top - containerRect.top;
-    const elementBottom = elementRect.bottom - containerRect.top;
-    const containerHeight = containerRect.height;
+    // Check if current container is scrollable
+    const isScrollable = (el) => {
+      if (!el) return false;
+      const hasScroll = el.scrollHeight > el.clientHeight;
+      const overflowY = window.getComputedStyle(el).overflowY;
+      return hasScroll && (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay');
+    };
 
-    // Add small padding to avoid elements being exactly at edges
-    const padding = 5;
-
-    if (elementTop < padding) {
-      // Element is above visible area or too close to top - scroll up instantly
-      container.scrollTop += elementTop - padding;
-    } else if (elementBottom > containerHeight - padding) {
-      // Element is below visible area or too close to bottom - scroll down instantly
-      container.scrollTop += elementBottom - containerHeight + padding;
+    // If container is not scrollable, traverse up to find scrollable parent
+    if (!isScrollable(container)) {
+      let parent = container.parentElement;
+      while (parent && parent !== document.body) {
+        if (isScrollable(parent)) {
+          scrollableContainer = parent;
+          break;
+        }
+        parent = parent.parentElement;
+      }
     }
-    // If element is already comfortably visible, do nothing (no unnecessary reflows)
+
+    // ROBUST POSITION CALCULATION
+    // Get element's position relative to scrollable container using getBoundingClientRect
+    // This handles all edge cases including transformed elements, scrolled parents, etc.
+    const elementRect = element.getBoundingClientRect();
+    const containerRect = scrollableContainer.getBoundingClientRect();
+
+    // Calculate element position relative to container's visible area
+    const elementTopRelative = elementRect.top - containerRect.top;
+    const elementBottomRelative = elementRect.bottom - containerRect.top;
+    const containerVisibleHeight = scrollableContainer.clientHeight;
+
+    // Add padding to avoid elements being exactly at edges (better UX)
+    const padding = 10;
+
+    // Determine scroll adjustment needed
+    let scrollAdjustment = 0;
+
+    // Element is ABOVE visible area
+    if (elementTopRelative < padding) {
+      // Need to scroll up
+      scrollAdjustment = elementTopRelative - padding;
+    }
+    // Element is BELOW visible area
+    else if (elementBottomRelative > containerVisibleHeight - padding) {
+      // Need to scroll down
+      scrollAdjustment = elementBottomRelative - containerVisibleHeight + padding;
+    }
+
+    // Apply scroll adjustment if needed
+    if (scrollAdjustment !== 0) {
+      scrollableContainer.scrollTop += scrollAdjustment;
+    }
+
+    // FALLBACK: If custom scroll didn't work, use native scrollIntoView
+    // This ensures visibility even if our calculation fails
+    setTimeout(() => {
+      const rectCheck = element.getBoundingClientRect();
+      const containerRectCheck = scrollableContainer.getBoundingClientRect();
+      const stillAbove = rectCheck.top < containerRectCheck.top;
+      const stillBelow = rectCheck.bottom > containerRectCheck.bottom;
+
+      if (stillAbove || stillBelow) {
+        element.scrollIntoView({
+          behavior: 'auto',
+          block: stillAbove ? 'start' : 'end',
+          inline: 'nearest',
+        });
+      }
+    }, 0);
   },
 
   /**
