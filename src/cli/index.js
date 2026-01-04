@@ -22,7 +22,7 @@ program.name('underpost').description(`underpost ci/cd cli ${Underpost.version}`
 program
   .command('new')
   .argument('[app-name]', 'The name of the new project.')
-  .option('--deploy-id <deploy-id>', 'Crete deploy ID conf env files')
+  .option('--deploy-id <deploy-id>', 'Create deploy ID conf env files')
   .option('--sub-conf <sub-conf>', 'Create sub conf env files')
   .option('--cluster', 'Create deploy ID cluster files and sync to current cluster')
   .option('--build-repos', 'Create deploy ID repositories')

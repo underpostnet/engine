@@ -23,6 +23,7 @@ const DefaultConf = /**/ {
           'Keyboard',
           'Translate',
           'Modal',
+          'SearchBox',
           'BtnIcon',
           'Logger',
           'Css',
@@ -160,7 +161,7 @@ const DefaultConf = /**/ {
       '/': {
         client: 'default',
         runtime: 'nodejs',
-        apis: ['default', 'core', 'user', 'test', 'file'],
+        apis: ['default', 'core', 'user', 'test', 'file', 'document'],
         origins: ['https://stagging.nexodev.org'],
         minifyBuild: false,
         iconsBuild: false,
@@ -187,7 +188,7 @@ const DefaultConf = /**/ {
       '/': {
         client: 'default',
         runtime: 'nodejs',
-        apis: ['default', 'core', 'user', 'test', 'file'],
+        apis: ['default', 'core', 'user', 'test', 'file', 'document'],
         origins: [],
         apiBaseProxyPath: '/',
         apiBaseHost: 'test.nexodev.org',
@@ -215,7 +216,10 @@ const DefaultConf = /**/ {
   },
   cron: {
     records: { A: [{ host: 'example.com', dns: 'dondominio', api_key: '???', user: '???' }] },
-    jobs: { dns: { expression: '* * * * *', enabled: true }, backups: { expression: '0 1 * * *', enabled: true } },
+    jobs: {
+      dns: { expression: '* * * * *', enabled: true, instances: 1 },
+      backups: { expression: '0 1 * * *', enabled: true, instances: 1 },
+    },
   },
 }; /**/
 
