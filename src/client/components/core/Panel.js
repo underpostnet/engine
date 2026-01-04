@@ -208,6 +208,39 @@ const Panel = {
           e.preventDefault();
           // if (options.onClick) await options.onClick({ payload });
         };
+
+        // Add theme change handler for creator profile header
+        if (options.showCreatorProfile && obj.userInfo) {
+          const updateCreatorProfileTheme = () => {
+            const profileHeader = s(`.creator-profile-header-${id}`);
+            if (profileHeader) {
+              profileHeader.style.borderBottom = `1px solid ${darkTheme ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`;
+              profileHeader.style.background = `${darkTheme ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'}`;
+
+              // Update avatar border if it's an image
+              const avatarImg = profileHeader.querySelector('.creator-avatar');
+              if (avatarImg && avatarImg.tagName === 'IMG') {
+                avatarImg.style.border = `2px solid ${darkTheme ? 'rgba(102, 126, 234, 0.5)' : 'rgba(102, 126, 234, 0.3)'}`;
+              }
+
+              // Update username color
+              const username = profileHeader.querySelector('.creator-username');
+              if (username) {
+                username.style.color = `${darkTheme ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)'}`;
+              }
+
+              // Update "Creator" label color
+              const creatorLabel = username?.nextElementSibling;
+              if (creatorLabel) {
+                creatorLabel.style.color = `${darkTheme ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)'}`;
+              }
+            }
+          };
+
+          // Register theme change handler
+          const profileThemeHandlerId = `${id}-creator-profile-theme`;
+          ThemeEvents[profileThemeHandlerId] = updateCreatorProfileTheme;
+        }
       });
       if (s(`.${idPanel}-${id}`)) s(`.${idPanel}-${id}`).remove();
 
@@ -245,33 +278,52 @@ const Panel = {
         </div>
         <div class="in container-${idPanel}-${id}">
           <div class="panel-visibility-icon">${visibilityIcon}</div>
+          ${options.showCreatorProfile && obj.userInfo
+            ? html`<div
+                class="creator-profile-header creator-profile-header-${id}"
+                style="padding: 10px 12px; margin-bottom: 10px; border-bottom: 1px solid ${darkTheme
+                  ? 'rgba(255,255,255,0.1)'
+                  : 'rgba(0,0,0,0.08)'}; display: flex; align-items: center; gap: 10px; background: ${darkTheme
+                  ? 'rgba(255,255,255,0.02)'
+                  : 'rgba(0,0,0,0.02)'}; border-radius: 4px 4px 0 0;"
+              >
+                ${obj.userInfo.profileImageId && obj.userInfo.profileImageId._id
+                  ? html`<img
+                      class="creator-avatar"
+                      src="${getApiBaseUrl({ id: obj.userInfo.profileImageId._id, endpoint: 'file/blob' })}"
+                      alt="${obj.userInfo.username || obj.userInfo.email}"
+                      style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid ${darkTheme
+                        ? 'rgba(102, 126, 234, 0.5)'
+                        : 'rgba(102, 126, 234, 0.3)'}; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
+                      title="${obj.userInfo.email || obj.userInfo.username}"
+                    />`
+                  : html`<div
+                      class="creator-avatar"
+                      style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
+                      title="${obj.userInfo.email || obj.userInfo.username}"
+                    >
+                      ${(obj.userInfo.username || obj.userInfo.email || 'U').charAt(0).toUpperCase()}
+                    </div>`}
+                <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
+                  <span
+                    class="creator-username"
+                    style="font-size: 14px; font-weight: 600; color: ${darkTheme
+                      ? 'rgba(255,255,255,0.9)'
+                      : 'rgba(0,0,0,0.85)'}; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                  >
+                    ${obj.userInfo.username || obj.userInfo.email || 'Unknown'}
+                  </span>
+                  <span
+                    style="font-size: 11px; color: ${darkTheme
+                      ? 'rgba(255,255,255,0.5)'
+                      : 'rgba(0,0,0,0.45)'}; line-height: 1.3; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;"
+                    >Creator</span
+                  >
+                </div>
+              </div>`
+            : ''}
           <div class="in ${idPanel}-head">
             <div class="in ${idPanel}-title">
-              ${options.showCreatorProfile && obj.userInfo
-                ? html`<div
-                    class="creator-profile-mini"
-                    style="display: inline-flex; align-items: center; margin-right: 10px; vertical-align: middle;"
-                  >
-                    ${obj.userInfo.profileImageId && obj.userInfo.profileImageId._id
-                      ? html`<img
-                          class="creator-avatar"
-                          src="${getApiBaseUrl({ id: obj.userInfo.profileImageId._id, endpoint: 'file/blob' })}"
-                          alt="${obj.userInfo.username || obj.userInfo.email}"
-                          style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; margin-right: 6px; border: 1px solid rgba(255,255,255,0.2);"
-                          title="${obj.userInfo.email || obj.userInfo.username}"
-                        />`
-                      : html`<div
-                          class="creator-avatar"
-                          style="width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: inline-flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px; margin-right: 6px;"
-                          title="${obj.userInfo.email || obj.userInfo.username}"
-                        >
-                          ${(obj.userInfo.username || obj.userInfo.email || 'U').charAt(0).toUpperCase()}
-                        </div>`}
-                    <span class="creator-username" style="font-size: 13px; opacity: 0.8; font-weight: 500;">
-                      ${obj.userInfo.username || obj.userInfo.email || 'Unknown'}
-                    </span>
-                  </div>`
-                : ''}
               ${options.titleIcon}
               <a href="?cid=${payload._id}" class="a-title-${idPanel} a-${payload._id}">
                 ${titleKey ? obj[titleKey] : ''}</a
