@@ -201,6 +201,14 @@ const SearchBox = {
 
     // Attach click handlers
     this.attachClickHandlers(results, containerId, context);
+
+    // Call post-render callbacks from providers
+    results.forEach((result) => {
+      const provider = this.providers.find((p) => p.id === result.providerId);
+      if (provider && provider.attachTagHandlers) {
+        provider.attachTagHandlers();
+      }
+    });
   },
 
   /**
@@ -268,6 +276,24 @@ const SearchBox = {
         }
       };
     });
+  },
+
+  /**
+   * Scroll element into view if needed
+   */
+  scrollIntoViewIfNeeded: function (element, container) {
+    if (!element || !container) return;
+
+    const elementRect = element.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    if (elementRect.top < containerRect.top) {
+      // Element is above visible area
+      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else if (elementRect.bottom > containerRect.bottom) {
+      // Element is below visible area
+      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   },
 
   /**

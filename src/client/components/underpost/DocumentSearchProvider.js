@@ -1,7 +1,9 @@
 import { loggerFactory } from '../core/Logger.js';
 import { DocumentService } from '../../services/document/document.service.js';
-
+import { Translate } from '../core/Translate.js';
 import { getProxyPath } from '../core/Router.js';
+import { Css, ThemeEvents, darkTheme } from '../core/Css.js';
+import { s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -28,7 +30,7 @@ const DocumentSearchProvider = {
       const response = await DocumentService.high({
         params: {
           q: query.trim(),
-          limit: 5,
+          limit: 20,
         },
       });
 
@@ -62,11 +64,11 @@ const DocumentSearchProvider = {
     const tags = result.tags || [];
     const createdAt = result.createdAt ? new Date(result.createdAt).toLocaleDateString() : '';
 
-    // Build tags display
+    // Build tags display with data attributes for click handling
     const tagsHtml = tags
       .filter((tag) => tag !== 'public')
       .slice(0, 3)
-      .map((tag) => `<span class="document-search-tag">${tag}</span>`)
+      .map((tag) => `<span class="document-search-tag" data-tag-value="${tag}">${tag}</span>`)
       .join('');
 
     return html`
@@ -92,6 +94,36 @@ const DocumentSearchProvider = {
   },
 
   /**
+   * Attach tag click handlers after results are rendered
+   */
+  attachTagHandlers: () => {
+    setTimeout(() => {
+      const tagElements = document.querySelectorAll('.document-search-tag');
+      tagElements.forEach((tagEl) => {
+        tagEl.onclick = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+
+          const tagValue = tagEl.getAttribute('data-tag-value') || tagEl.textContent.trim();
+
+          // Find and populate search box
+          const searchBox = s('.top-bar-search-box');
+          if (searchBox) {
+            searchBox.value = tagValue;
+            searchBox.focus();
+
+            // Trigger input event to start search
+            const inputEvent = new Event('input', { bubbles: true });
+            searchBox.dispatchEvent(inputEvent);
+
+            logger.info(`Document search tag clicked: ${tagValue}`);
+          }
+        };
+      });
+    }, 50);
+  },
+
+  /**
    * Handle click on document result
    * Loads the document into the Underpost panel
    * @param {object} result - Search result
@@ -105,26 +137,39 @@ const DocumentSearchProvider = {
 
     logger.info(`Document clicked: ${result.id} - ${result.title}`);
 
-    // Navigate to the document by updating URL with CID
-    const path = getProxyPath();
-    const queryPath = `?cid=${result.id}`;
+    // Check if we're already on this document to prevent duplicate history
+    const currentUrl = new URL(window.location.href);
+    const currentCid = currentUrl.searchParams.get('cid');
 
-    // Update browser history
-    if (context.RouterInstance && context.RouterInstance.Navigate) {
-      context.RouterInstance.Navigate({
-        route: context.currentRoute || 'home',
-        path,
-        queryPath,
-      });
+    // Only update URL and history if cid is different
+    if (currentCid !== result.id) {
+      // SPA Navigation: Update panel without page reload
+      const path = getProxyPath();
+      const queryPath = `?cid=${result.id}`;
+
+      // Update browser history without reload
+      if (context.RouterInstance && context.RouterInstance.Navigate) {
+        context.RouterInstance.Navigate({
+          route: context.currentRoute || 'home',
+          path,
+          queryPath,
+        });
+      } else {
+        window.history.pushState({}, '', `${path}${queryPath}`);
+      }
+
+      // Trigger PanelForm update with the document CID
+      if (context.updatePanel) {
+        context.updatePanel(result.id);
+      } else if (window.PanelFormUpdateEvent) {
+        window.PanelFormUpdateEvent(result.id);
+      } else if (s('.underpost-panel')) {
+        // Direct panel update fallback
+        const event = new CustomEvent('panel-update', { detail: { cid: result.id } });
+        document.dispatchEvent(event);
+      }
     } else {
-      // Fallback: direct URL update
-      window.history.pushState({}, '', `${path}${queryPath}`);
-      window.location.reload();
-    }
-
-    // Trigger panel update event if available
-    if (context.onDocumentSelect) {
-      context.onDocumentSelect(result);
+      logger.info('Already on this document, not creating duplicate history');
     }
   },
 
@@ -133,28 +178,34 @@ const DocumentSearchProvider = {
    * @returns {string} CSS string
    */
   getStyles: () => css`
+    /* Unified with Panel card styles */
     .search-result-document {
-      padding: 10px;
-      margin: 4px 0;
-      border-radius: 6px;
+      padding: 8px;
+      margin: 2px 0;
+      border-radius: 4px;
       cursor: pointer;
       transition: all 0.2s ease;
       display: flex;
       align-items: flex-start;
-      gap: 12px;
-      border: 1px solid var(--border-color, #e0e0e0);
+      gap: 10px;
+      border: 1px solid ${darkTheme ? '#444' : '#ddd'};
+      background: ${darkTheme ? '#2a2a2a' : '#f9f9f9'};
+      text-align: left;
     }
 
     .search-result-document:hover {
-      background: var(--hover-bg, #f5f5f5);
-      border-color: var(--primary-color, #007bff);
-      transform: translateX(2px);
+      background: ${darkTheme ? '#333' : '#efefef'};
+      border-color: ${darkTheme ? '#0d6efd' : '#007bff'};
     }
 
     .search-result-document .search-result-icon {
-      font-size: 20px;
-      color: var(--icon-color, #666);
+      font-size: 18px;
+      color: ${darkTheme ? '#aaa' : '#666'};
       padding-top: 2px;
+      min-width: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .search-result-document .search-result-content {
@@ -165,7 +216,7 @@ const DocumentSearchProvider = {
     .search-result-document .search-result-title {
       font-weight: 500;
       font-size: 14px;
-      color: var(--text-color, #333);
+      color: ${darkTheme ? '#e0e0e0' : '#333'};
       margin-bottom: 4px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -181,7 +232,7 @@ const DocumentSearchProvider = {
 
     .search-result-document .search-result-date {
       font-size: 11px;
-      color: var(--muted-color, #888);
+      color: ${darkTheme ? '#999' : '#888'};
     }
 
     .search-result-document .search-result-tags {
@@ -194,36 +245,21 @@ const DocumentSearchProvider = {
       font-size: 10px;
       padding: 2px 6px;
       border-radius: 3px;
-      background: var(--tag-bg, #e3f2fd);
-      color: var(--tag-color, #1976d2);
+      background: ${darkTheme ? '#1e3a5f' : '#e3f2fd'};
+      color: ${darkTheme ? '#64b5f6' : '#1976d2'};
       font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s ease;
     }
 
-    /* Dark theme support */
-    [data-theme='dark'] .search-result-document {
-      border-color: #444;
+    .document-search-tag:hover {
+      background: ${darkTheme ? '#2a5080' : '#bbdefb'};
     }
 
-    [data-theme='dark'] .search-result-document:hover {
-      background: #2a2a2a;
-      border-color: #0d6efd;
-    }
-
-    [data-theme='dark'] .search-result-document .search-result-icon {
-      color: #aaa;
-    }
-
-    [data-theme='dark'] .search-result-document .search-result-title {
-      color: #e0e0e0;
-    }
-
-    [data-theme='dark'] .search-result-document .search-result-date {
-      color: #999;
-    }
-
-    [data-theme='dark'] .document-search-tag {
-      background: #1e3a5f;
-      color: #64b5f6;
+    .search-result-document.active-search-result,
+    .search-result-document.main-btn-menu-active {
+      background: ${darkTheme ? 'rgba(13, 110, 253, 0.2)' : 'rgba(0, 123, 255, 0.1)'};
+      border-color: ${darkTheme ? 'rgba(13, 110, 253, 0.5)' : 'rgba(0, 123, 255, 0.3)'};
     }
   `,
 };

@@ -851,6 +851,9 @@ const Modal = {
                     // Add active class to new
                     if (allItems[currentKeyBoardSearchBoxIndex]) {
                       allItems[currentKeyBoardSearchBoxIndex].classList.add('active-search-result');
+                      // Scroll into view if needed
+                      const container = s(`.html-${searchBoxHistoryId}`);
+                      SearchBox.scrollIntoViewIfNeeded(allItems[currentKeyBoardSearchBoxIndex], container);
                     }
                     updateSearchBoxValue();
                   }
@@ -881,6 +884,9 @@ const Modal = {
                     // Add active class to new
                     if (allItems[currentKeyBoardSearchBoxIndex]) {
                       allItems[currentKeyBoardSearchBoxIndex].classList.add('active-search-result');
+                      // Scroll into view if needed
+                      const container = s(`.html-${searchBoxHistoryId}`);
+                      SearchBox.scrollIntoViewIfNeeded(allItems[currentKeyBoardSearchBoxIndex], container);
                     }
                     updateSearchBoxValue();
                   }

@@ -181,35 +181,8 @@ const MenuUnderpost = {
       mode: 'slide-menu',
       RouterInstance,
       htmlMainBody: async () => {
-        // Register document search provider for enhanced search functionality
-        SearchBox.registerProvider({
-          ...DocumentSearchProvider,
-          onClick: (result, context) => {
-            // Custom click handler with RouterInstance context
-            DocumentSearchProvider.onClick(result, {
-              ...context,
-              RouterInstance,
-              currentRoute: 'home',
-              onDocumentSelect: (doc) => {
-                // Trigger panel update if needed
-                if (window.PanelFormUpdateEvent) {
-                  window.PanelFormUpdateEvent(doc.id);
-                }
-              },
-            });
-          },
-        });
-
-        // Inject document search styles
-        const styleId = 'document-search-provider-styles';
-        if (!s(`#${styleId}`)) {
-          const styleTag = document.createElement('style');
-          styleTag.id = styleId;
-          styleTag.textContent = DocumentSearchProvider.getStyles();
-          document.head.appendChild(styleTag);
-        }
-
-        return await PanelForm.instance({
+        // Create PanelForm instance first to get update function
+        const panelFormInstance = await PanelForm.instance({
           idPanel: 'underpost-panel',
           defaultUrlImage: `${getProxyPath()}assets/splash/apple-touch-icon-precomposed.png`,
           Elements: ElementsUnderpost,
@@ -218,6 +191,61 @@ const MenuUnderpost = {
             copyLink: true,
           },
         });
+
+        // Store panel update function globally for search results
+        const updatePanelWithCid = (cid) => {
+          const path = getProxyPath();
+          const queryPath = `?cid=${cid}`;
+
+          // Update router without reload
+          if (RouterInstance && RouterInstance.Navigate) {
+            RouterInstance.Navigate({
+              route: 'home',
+              path,
+              queryPath,
+            });
+          }
+
+          // Trigger panel update event
+          if (PanelForm.Data['underpost-panel'] && PanelForm.Data['underpost-panel'].updatePanel) {
+            PanelForm.Data['underpost-panel'].updatePanel();
+          }
+        };
+
+        // Register document search provider with SPA navigation
+        SearchBox.registerProvider({
+          ...DocumentSearchProvider,
+          onClick: (result, context) => {
+            DocumentSearchProvider.onClick(result, {
+              ...context,
+              RouterInstance,
+              currentRoute: 'home',
+              updatePanel: updatePanelWithCid,
+            });
+          },
+        });
+
+        // Inject and update document search styles with theme support
+        const updateDocumentSearchStyles = () => {
+          const styleId = 'document-search-provider-styles';
+          let styleTag = s(`#${styleId}`);
+
+          if (!styleTag) {
+            styleTag = document.createElement('style');
+            styleTag.id = styleId;
+            document.head.appendChild(styleTag);
+          }
+
+          styleTag.textContent = DocumentSearchProvider.getStyles();
+        };
+
+        // Initial style injection
+        updateDocumentSearchStyles();
+
+        // Register theme change handler for dynamic styling
+        ThemeEvents['documentSearchStyles'] = updateDocumentSearchStyles;
+
+        return panelFormInstance;
       },
     });
 

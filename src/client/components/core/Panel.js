@@ -3,7 +3,7 @@ import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Validator } from '../core/Validator.js';
 import { Input } from '../core/Input.js';
 import { darkTheme, ThemeEvents } from './Css.js';
-import { append, copyData, getDataFromInputFile, htmls, s } from './VanillaJs.js';
+import { append, copyData, getDataFromInputFile, htmls, s, sa } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Translate } from './Translate.js';
 import { DropDown } from './DropDown.js';
@@ -269,11 +269,37 @@ const Panel = {
                         tagRender += await Badge.Render({
                           text: tag,
                           style: { color: 'white' },
-                          classList: 'inl',
-                          style: { margin: '3px', background: `#a2a2a2` },
+                          classList: 'inl panel-tag-clickable',
+                          style: { margin: '3px', background: `#a2a2a2`, cursor: 'pointer' },
                         });
                       }
-                      if (s(`.tag-render-${id}`)) htmls(`.tag-render-${id}`, tagRender);
+                      if (s(`.tag-render-${id}`)) {
+                        htmls(`.tag-render-${id}`, tagRender);
+
+                        // Add click handlers to tags for search integration
+                        setTimeout(() => {
+                          const tagElements = sa(`.tag-render-${id} .panel-tag-clickable`);
+                          tagElements.forEach((tagEl) => {
+                            tagEl.onclick = (e) => {
+                              e.stopPropagation();
+                              const tagText = tagEl.textContent.trim();
+
+                              // Find and populate search box if it exists
+                              const searchBox = s('.top-bar-search-box');
+                              if (searchBox) {
+                                searchBox.value = tagText;
+                                searchBox.focus();
+
+                                // Trigger input event to start search
+                                const inputEvent = new Event('input', { bubbles: true });
+                                searchBox.dispatchEvent(inputEvent);
+
+                                logger.info(`Tag clicked: ${tagText} - search triggered`);
+                              }
+                            };
+                          });
+                        }, 100);
+                      }
                     });
                     return html``;
                   }
