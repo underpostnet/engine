@@ -865,9 +865,16 @@ const subThemeManager = {
       return html`<style>
         button:hover,
         .a-btn:hover,
-        .main-btn-menu-active {
+        .main-btn-menu-active,
+        .top-bar-search-box-container:hover {
           color: ${this.lightColor};
           background-color: ${lightenHex(this.lightColor, 0.8)};
+        }
+        .top-bar-search-box-container i {
+          color: #000;
+        }
+        .top-bar-search-box-container:hover i {
+          color: ${this.lightColor};
         }
         .main-sub-btn-active {
           color: ${this.lightColor};
@@ -887,9 +894,16 @@ const subThemeManager = {
       return html`<style>
         button:hover,
         .a-btn:hover,
-        .main-btn-menu-active {
+        .main-btn-menu-active,
+        .top-bar-search-box-container:hover {
           color: ${lightenHex(this.darkColor, 0.8)};
           background-color: ${darkenHex(this.darkColor, 0.75)};
+        }
+        .top-bar-search-box-container i {
+          color: #fff;
+        }
+        .top-bar-search-box-container:hover i {
+          color: ${lightenHex(this.darkColor, 0.8)};
         }
         .main-sub-btn-active {
           color: ${lightenHex(this.darkColor, 0.8)};

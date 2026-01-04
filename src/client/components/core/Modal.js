@@ -643,11 +643,13 @@ const Modal = {
                       results = [];
 
                       const query = s(`.${id}`) ? s(`.${id}`).value : '';
+                      const trimmedQuery = query.trim();
 
                       // Use SearchBox component for extensible search
                       const searchContext = {
                         RouterInstance: Worker.RouterInstance,
                         options: options,
+                        minQueryLength: options?.minSearchQueryLength || 1, // Allow single character search by default
                         onResultClick: () => {
                           // Dismiss search box on result click
                           if (s(`.${searchBoxHistoryId}`)) {
@@ -656,11 +658,17 @@ const Modal = {
                         },
                       };
 
-                      if (query.trim()) {
-                        results = await SearchBox.search(query, searchContext);
+                      // Check minimum query length (default: 1 character)
+                      const minLength = searchContext.minQueryLength;
+                      if (trimmedQuery.length >= minLength) {
+                        results = await SearchBox.search(trimmedQuery, searchContext);
                         renderSearchResult(results);
-                      } else {
+                      } else if (trimmedQuery.length === 0) {
+                        // Show history when query is empty
                         renderSearchResult(historySearchBox);
+                      } else {
+                        // Query is too short - show nothing or a hint
+                        renderSearchResult([]);
                       }
                     }
                     break;
@@ -848,12 +856,14 @@ const Modal = {
                       currentKeyBoardSearchBoxIndex = allItems.length - 1;
                     }
 
-                    // Add active class to new
+                    // Add active class to new and ensure visibility
                     if (allItems[currentKeyBoardSearchBoxIndex]) {
                       allItems[currentKeyBoardSearchBoxIndex].classList.add('active-search-result');
-                      // Scroll into view if needed
+                      // Use optimized scroll method to ensure item is always visible
                       const container = s(`.html-${searchBoxHistoryId}`);
-                      SearchBox.scrollIntoViewIfNeeded(allItems[currentKeyBoardSearchBoxIndex], container);
+                      if (container) {
+                        SearchBox.scrollIntoViewIfNeeded(allItems[currentKeyBoardSearchBoxIndex], container);
+                      }
                     }
                     updateSearchBoxValue();
                   }
@@ -881,12 +891,14 @@ const Modal = {
                       currentKeyBoardSearchBoxIndex = 0;
                     }
 
-                    // Add active class to new
+                    // Add active class to new and ensure visibility
                     if (allItems[currentKeyBoardSearchBoxIndex]) {
                       allItems[currentKeyBoardSearchBoxIndex].classList.add('active-search-result');
-                      // Scroll into view if needed
+                      // Use optimized scroll method to ensure item is always visible
                       const container = s(`.html-${searchBoxHistoryId}`);
-                      SearchBox.scrollIntoViewIfNeeded(allItems[currentKeyBoardSearchBoxIndex], container);
+                      if (container) {
+                        SearchBox.scrollIntoViewIfNeeded(allItems[currentKeyBoardSearchBoxIndex], container);
+                      }
                     }
                     updateSearchBoxValue();
                   }

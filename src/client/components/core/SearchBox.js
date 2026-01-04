@@ -1,7 +1,7 @@
 import { loggerFactory } from './Logger.js';
 import { s, getAllChildNodes, htmls } from './VanillaJs.js';
 import { Translate } from './Translate.js';
-import { darkTheme, ThemeEvents } from './Css.js';
+import { darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from './Css.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -63,12 +63,21 @@ const SearchBox = {
   },
 
   /**
-   * Default result renderer
+   * Default result renderer with support for tags/badges
    */
   defaultRenderResult: function (result) {
     const icon = result.icon || '<i class="fas fa-file"></i>';
     const title = result.title || result.id || 'Untitled';
     const subtitle = result.subtitle || '';
+    const tags = result.tags || [];
+
+    // Render tags if available
+    const tagsHtml =
+      tags.length > 0
+        ? `<div class="search-result-tags">
+             ${tags.map((tag) => `<span class="search-result-tag">${tag}</span>`).join('')}
+           </div>`
+        : '';
 
     return html`
       <div
@@ -80,10 +89,50 @@ const SearchBox = {
         <div class="search-result-icon">${icon}</div>
         <div class="search-result-content">
           <div class="search-result-title">${title}</div>
-          ${subtitle ? `<div class="search-result-subtitle">${subtitle}</div>` : ''}
+          ${subtitle ? `<div class="search-result-subtitle">${subtitle}</div>` : ''} ${tagsHtml}
         </div>
       </div>
     `;
+  },
+
+  /**
+   * Navigate through search results with keyboard (optimized for performance)
+   * Uses direct DOM manipulation and efficient scrolling
+   * @param {string} direction - 'up' or 'down'
+   * @param {string} containerId - ID of results container
+   * @param {number} currentIndex - Current active index
+   * @param {number} totalItems - Total number of items
+   * @returns {number} New index
+   */
+  navigateResults: function (direction, containerId, currentIndex, totalItems) {
+    if (!containerId || totalItems === 0) return currentIndex;
+
+    const container = s(`#${containerId}`) || s(`.${containerId}`);
+    const allItems = container ? container.querySelectorAll('.search-result-item') : [];
+
+    if (!allItems || allItems.length === 0) return currentIndex;
+
+    // Remove active class from current item (efficient DOM manipulation)
+    if (allItems[currentIndex]) {
+      allItems[currentIndex].classList.remove('active-search-result');
+    }
+
+    // Calculate new index with wrap-around
+    let newIndex = currentIndex;
+    if (direction === 'up') {
+      newIndex = currentIndex > 0 ? currentIndex - 1 : allItems.length - 1;
+    } else if (direction === 'down') {
+      newIndex = currentIndex < allItems.length - 1 ? currentIndex + 1 : 0;
+    }
+
+    // Add active class to new item and ensure visibility
+    if (allItems[newIndex]) {
+      allItems[newIndex].classList.add('active-search-result');
+      // Use optimized scroll method (no animation, instant positioning)
+      this.scrollIntoViewIfNeeded(allItems[newIndex], container);
+    }
+
+    return newIndex;
   },
 
   /**
@@ -280,7 +329,9 @@ const SearchBox = {
   },
 
   /**
-   * Scroll element into view if needed
+   * Scroll element into view if needed - optimized for performance
+   * Uses direct scrollTop manipulation instead of smooth scrolling to reduce JS runtime overhead
+   * This prevents browser animation overhead and ensures instant visibility
    */
   scrollIntoViewIfNeeded: function (element, container) {
     if (!element || !container) return;
@@ -288,13 +339,22 @@ const SearchBox = {
     const elementRect = element.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
 
-    if (elementRect.top < containerRect.top) {
-      // Element is above visible area
-      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    } else if (elementRect.bottom > containerRect.bottom) {
-      // Element is below visible area
-      element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Calculate relative positions within container
+    const elementTop = elementRect.top - containerRect.top;
+    const elementBottom = elementRect.bottom - containerRect.top;
+    const containerHeight = containerRect.height;
+
+    // Add small padding to avoid elements being exactly at edges
+    const padding = 5;
+
+    if (elementTop < padding) {
+      // Element is above visible area or too close to top - scroll up instantly
+      container.scrollTop += elementTop - padding;
+    } else if (elementBottom > containerHeight - padding) {
+      // Element is below visible area or too close to bottom - scroll down instantly
+      container.scrollTop += elementBottom - containerHeight + padding;
     }
+    // If element is already comfortably visible, do nothing (no unnecessary reflows)
   },
 
   /**
@@ -325,12 +385,17 @@ const SearchBox = {
     const debounceTime = context.debounceTime || 300;
 
     const performSearch = this.debounce(async (query) => {
-      if (!query || query.trim().length < (context.minQueryLength || 1)) {
+      const trimmedQuery = query ? query.trim() : '';
+      const minLength = context.minQueryLength !== undefined ? context.minQueryLength : 1;
+
+      // Support single character searches by default (minQueryLength: 1)
+      // Can be configured via context.minQueryLength for different use cases
+      if (trimmedQuery.length < minLength) {
         this.renderResults([], resultsContainerId, context);
         return;
       }
 
-      const results = await this.search(query.trim(), context);
+      const results = await this.search(trimmedQuery, context);
       this.renderResults(results, resultsContainerId, context);
     }, debounceTime);
 
@@ -364,36 +429,80 @@ const SearchBox = {
 
   /**
    * Get base CSS styles for SearchBox
+   * Uses subThemeManager colors for consistent theming across components
    * @returns {string} CSS string
    */
   getBaseStyles: () => {
-    const activeBg = darkTheme ? '#333' : '#e8e8e8';
-    const activeBorder = darkTheme ? '#555' : '#999';
-    const activeShadow = darkTheme ? '0 0 8px rgba(255, 255, 255, 0.1)' : '0 0 8px rgba(0, 0, 0, 0.1)';
-    const hoverBg = darkTheme ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+    // Get theme color from subThemeManager
+    const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+    const hasThemeColor = themeColor && themeColor !== null;
+
+    // Calculate theme-based colors
+    let activeBg, activeBorder, hoverBg, iconColor, tagBg, tagColor, tagBorder;
+
+    if (darkTheme) {
+      // Dark theme styling - solid white icons for better visibility
+      iconColor = '#ffffff';
+      if (hasThemeColor) {
+        activeBg = darkenHex(themeColor, 0.7);
+        activeBorder = lightenHex(themeColor, 0.4);
+        hoverBg = `${darkenHex(themeColor, 0.8)}33`; // 20% opacity
+        tagBg = darkenHex(themeColor, 0.6);
+        tagColor = lightenHex(themeColor, 0.7);
+        tagBorder = lightenHex(themeColor, 0.3);
+      } else {
+        activeBg = '#2a2a2a';
+        activeBorder = '#444';
+        hoverBg = 'rgba(255, 255, 255, 0.05)';
+        tagBg = '#333';
+        tagColor = '#aaa';
+        tagBorder = '#555';
+      }
+    } else {
+      // Light theme styling - solid black icons for better visibility
+      iconColor = '#000000';
+      if (hasThemeColor) {
+        activeBg = lightenHex(themeColor, 0.85);
+        activeBorder = lightenHex(themeColor, 0.5);
+        hoverBg = `${lightenHex(themeColor, 0.9)}33`; // 20% opacity
+        tagBg = lightenHex(themeColor, 0.8);
+        tagColor = darkenHex(themeColor, 0.3);
+        tagBorder = lightenHex(themeColor, 0.6);
+      } else {
+        activeBg = '#f0f0f0';
+        activeBorder = '#ccc';
+        hoverBg = 'rgba(0, 0, 0, 0.05)';
+        tagBg = '#e8e8e8';
+        tagColor = '#555';
+        tagBorder = '#d0d0d0';
+      }
+    }
 
     return css`
+      /* Search result items - simplified, consistent borders */
       .search-result-item {
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 8px;
+        padding: 8px 10px;
         margin: 4px 0;
         cursor: pointer;
         border-radius: 4px;
-        transition: all 0.2s ease;
+        transition: all 0.15s ease;
         border: 1px solid transparent;
+        background: transparent;
       }
 
       .search-result-item:hover {
         background: ${hoverBg};
+        border-color: ${activeBorder}44;
       }
 
       .search-result-item.active-search-result,
       .search-result-item.main-btn-menu-active {
-        background: ${activeBg};
-        border-color: ${activeBorder};
-        box-shadow: ${activeShadow};
+        background: ${activeBg} !important;
+        border: 1px solid ${activeBorder} !important;
+        box-shadow: 0 0 0 1px ${activeBorder}66 !important;
       }
 
       .search-result-route {
@@ -407,6 +516,18 @@ const SearchBox = {
         align-items: center;
         justify-content: center;
         min-width: 24px;
+        color: ${iconColor} !important;
+      }
+
+      .search-result-icon i {
+        color: ${iconColor} !important;
+      }
+
+      .search-result-icon .fa,
+      .search-result-icon .fas,
+      .search-result-icon .far,
+      .search-result-icon .fab {
+        color: ${iconColor} !important;
       }
 
       .search-result-icon img {
@@ -422,17 +543,42 @@ const SearchBox = {
       .search-result-title {
         font-size: 14px;
         font-weight: normal;
+        margin-bottom: 2px;
       }
 
       .search-result-subtitle {
         font-size: 12px;
-        color: #666;
+        color: ${darkTheme ? '#999' : '#666'};
         margin-top: 2px;
       }
 
-      /* Theme-specific text colors */
-      .search-result-subtitle {
-        color: ${darkTheme ? '#aaa' : '#666'};
+      /* Tags/Badges - themed with subThemeManager colors */
+      .search-result-tag,
+      .search-result-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        margin: 2px 4px 2px 0;
+        font-size: 11px;
+        border-radius: 3px;
+        background: ${tagBg};
+        color: ${tagColor};
+        border: 1px solid ${tagBorder};
+        white-space: nowrap;
+      }
+
+      .search-result-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
+      }
+
+      /* Active item tags have stronger accent */
+      .search-result-item.active-search-result .search-result-tag,
+      .search-result-item.active-search-result .search-result-badge {
+        background: ${hasThemeColor ? (darkTheme ? darkenHex(themeColor, 0.5) : lightenHex(themeColor, 0.75)) : tagBg};
+        border-color: ${activeBorder};
+        color: ${hasThemeColor ? (darkTheme ? lightenHex(themeColor, 0.8) : darkenHex(themeColor, 0.4)) : tagColor};
       }
     `;
   },
@@ -451,7 +597,7 @@ const SearchBox = {
       logger.info('Injected SearchBox base styles');
     }
 
-    // Always update styles (for theme changes)
+    // Always update styles (for theme changes and subThemeManager color changes)
     styleTag.textContent = this.getBaseStyles();
 
     // Register theme change handler if not already registered
@@ -460,6 +606,7 @@ const SearchBox = {
         const tag = document.getElementById(styleId);
         if (tag) {
           tag.textContent = this.getBaseStyles();
+          logger.info('Updated SearchBox styles for theme change');
         }
       };
     }

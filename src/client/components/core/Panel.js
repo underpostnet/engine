@@ -2,7 +2,7 @@ import { getId, isValidDate, newInstance } from './CommonJs.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Validator } from '../core/Validator.js';
 import { Input } from '../core/Input.js';
-import { darkTheme, ThemeEvents } from './Css.js';
+import { darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from './Css.js';
 import { append, copyData, getDataFromInputFile, htmls, s, sa } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Translate } from './Translate.js';
@@ -263,15 +263,34 @@ const Panel = {
                   }
 
                   if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'tags')) {
-                    setTimeout(async () => {
+                    // Function to render tags with current theme
+                    const renderTags = async () => {
                       let tagRender = html``;
                       for (const tag of obj[infoKey]) {
-                        const tagBg = darkTheme ? '#4a4a4a' : '#a2a2a2';
+                        // Use subThemeManager colors for consistent theming
+                        const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+                        const hasThemeColor = themeColor && themeColor !== null;
+
+                        let tagBg, tagColor;
+                        if (darkTheme) {
+                          tagBg = hasThemeColor ? darkenHex(themeColor, 0.6) : '#4a4a4a';
+                          tagColor = hasThemeColor ? lightenHex(themeColor, 0.7) : '#ffffff';
+                        } else {
+                          tagBg = hasThemeColor ? lightenHex(themeColor, 0.7) : '#a2a2a2';
+                          tagColor = hasThemeColor ? darkenHex(themeColor, 0.5) : '#ffffff';
+                        }
+
                         tagRender += await Badge.Render({
                           text: tag,
-                          style: { color: 'white' },
+                          style: { color: tagColor },
                           classList: 'inl panel-tag-clickable',
-                          style: { margin: '3px', background: tagBg, cursor: 'pointer', transition: 'all 0.2s ease' },
+                          style: {
+                            margin: '3px',
+                            background: tagBg,
+                            color: tagColor,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          },
                         });
                       }
                       if (s(`.tag-render-${id}`)) {
@@ -308,7 +327,15 @@ const Panel = {
                           });
                         }, 100);
                       }
-                    });
+                    };
+
+                    // Initial render
+                    setTimeout(renderTags);
+
+                    // Add theme change handler for this tag set
+                    const tagThemeHandlerId = `${id}-tags-${infoKey}-theme`;
+                    ThemeEvents[tagThemeHandlerId] = renderTags;
+
                     return html``;
                   }
                   {
@@ -696,6 +723,29 @@ const Panel = {
           ? getDarkStyles(idPanel, scrollClassContainer)
           : getLightStyles(idPanel, scrollClassContainer);
       }
+
+      // Update tag hover styles
+      const tagStyleElement = s(`.${idPanel}-tag-styles`);
+      if (tagStyleElement) {
+        const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+        const hasThemeColor = themeColor && themeColor !== null;
+        let hoverBg;
+        if (darkTheme) {
+          hoverBg = hasThemeColor ? darkenHex(themeColor, 0.5) : '#5a5a5a';
+        } else {
+          hoverBg = hasThemeColor ? lightenHex(themeColor, 0.6) : '#8a8a8a';
+        }
+
+        tagStyleElement.textContent = css`
+          .panel-tag-clickable:hover {
+            background: ${hoverBg} !important;
+            transform: scale(1.05);
+          }
+          .panel-tag-clickable:active {
+            transform: scale(0.98);
+          }
+        `;
+      }
     };
 
     // Add theme change listener
@@ -714,15 +764,39 @@ const Panel = {
           width: 100%;
         }
         .${idPanel}-title {
-          color: rgba(109, 104, 255, 1);
+          color: ${(() => {
+            const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+            const hasThemeColor = themeColor && themeColor !== null;
+            if (hasThemeColor) {
+              return darkTheme ? lightenHex(themeColor, 0.3) : darkenHex(themeColor, 0.2);
+            } else {
+              return darkTheme ? '#8a85ff' : 'rgba(109, 104, 255, 1)';
+            }
+          })()};
           font-size: 24px;
           padding: 5px;
         }
         .a-title-${idPanel} {
-          color: rgba(109, 104, 255, 1);
+          color: ${(() => {
+            const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+            const hasThemeColor = themeColor && themeColor !== null;
+            if (hasThemeColor) {
+              return darkTheme ? lightenHex(themeColor, 0.3) : darkenHex(themeColor, 0.2);
+            } else {
+              return darkTheme ? '#8a85ff' : 'rgba(109, 104, 255, 1)';
+            }
+          })()};
         }
         .a-title-${idPanel}:hover {
-          color: #e89f4c;
+          color: ${(() => {
+            const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+            const hasThemeColor = themeColor && themeColor !== null;
+            if (hasThemeColor) {
+              return darkTheme ? lightenHex(themeColor, 0.5) : lightenHex(themeColor, 0.3);
+            } else {
+              return darkTheme ? '#ffb74d' : '#e89f4c';
+            }
+          })()};
         }
         .${idPanel}-row {
           padding: 5px;
@@ -739,13 +813,7 @@ const Panel = {
           margin-left: 10px;
           top: -7px;
         }
-        .panel-tag-clickable:hover {
-          background: ${darkTheme ? '#5a5a5a' : '#8a8a8a'} !important;
-          transform: scale(1.05);
-        }
-        .panel-tag-clickable:active {
-          transform: scale(0.98);
-        }
+
         .${idPanel}-row-key {
         }
         .${idPanel}-row-value {
@@ -806,6 +874,23 @@ const Panel = {
         }
       </style>
       <style class="${idPanel}-styles"></style>
+      <style class="${idPanel}-tag-styles">
+        .panel-tag-clickable:hover {
+          background: ${(() => {
+            const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+            const hasThemeColor = themeColor && themeColor !== null;
+            if (darkTheme) {
+              return hasThemeColor ? darkenHex(themeColor, 0.5) : '#5a5a5a';
+            } else {
+              return hasThemeColor ? lightenHex(themeColor, 0.6) : '#8a8a8a';
+            }
+          })()} !important;
+          transform: scale(1.05);
+        }
+        .panel-tag-clickable:active {
+          transform: scale(0.98);
+        }
+      </style>
       <div class="${idPanel}-container">
         <div class="in modal ${idPanel}-form-container ${options.formContainerClass ? options.formContainerClass : ''}">
           <div class="in ${idPanel}-form-header">
@@ -913,15 +998,27 @@ function getLightStyles(idPanel, scrollClassContainer) {
       background: #ffffff;
     }
     .${idPanel}-title {
-      color: rgba(109, 104, 255, 1);
+      color: ${(() => {
+        const themeColor = subThemeManager.lightColor;
+        const hasThemeColor = themeColor && themeColor !== null;
+        return hasThemeColor ? darkenHex(themeColor, 0.2) : 'rgba(109, 104, 255, 1)';
+      })()};
       font-size: 24px;
       padding: 5px;
     }
     .a-title-${idPanel} {
-      color: rgba(109, 104, 255, 1);
+      color: ${(() => {
+        const themeColor = subThemeManager.lightColor;
+        const hasThemeColor = themeColor && themeColor !== null;
+        return hasThemeColor ? darkenHex(themeColor, 0.2) : 'rgba(109, 104, 255, 1)';
+      })()};
     }
     .a-title-${idPanel}:hover {
-      color: #e89f4c;
+      color: ${(() => {
+        const themeColor = subThemeManager.lightColor;
+        const hasThemeColor = themeColor && themeColor !== null;
+        return hasThemeColor ? lightenHex(themeColor, 0.3) : '#e89f4c';
+      })()};
     }
     .${idPanel}-row-pin-value {
       font-size: 20px;
@@ -951,15 +1048,27 @@ function getDarkStyles(idPanel, scrollClassContainer) {
       background: #3a3a3a;
     }
     .${idPanel}-title {
-      color: #8a85ff;
+      color: ${(() => {
+        const themeColor = subThemeManager.darkColor;
+        const hasThemeColor = themeColor && themeColor !== null;
+        return hasThemeColor ? lightenHex(themeColor, 0.3) : '#8a85ff';
+      })()};
       font-size: 24px;
       padding: 5px;
     }
     .a-title-${idPanel} {
-      color: #8a85ff;
+      color: ${(() => {
+        const themeColor = subThemeManager.darkColor;
+        const hasThemeColor = themeColor && themeColor !== null;
+        return hasThemeColor ? lightenHex(themeColor, 0.3) : '#8a85ff';
+      })()};
     }
     .a-title-${idPanel}:hover {
-      color: #ffb74d;
+      color: ${(() => {
+        const themeColor = subThemeManager.darkColor;
+        const hasThemeColor = themeColor && themeColor !== null;
+        return hasThemeColor ? lightenHex(themeColor, 0.5) : '#ffb74d';
+      })()};
     }
     .${idPanel}-row-pin-value {
       font-size: 20px;

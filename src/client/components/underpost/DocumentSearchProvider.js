@@ -2,7 +2,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath } from '../core/Router.js';
-import { Css, ThemeEvents, darkTheme } from '../core/Css.js';
+import { Css, ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
 import { s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
@@ -22,7 +22,8 @@ const DocumentSearchProvider = {
    * @returns {Promise<Array>} Array of search results
    */
   search: async (query, context) => {
-    if (!query || query.trim().length < 2) {
+    // Minimum match requirement: allow 1 character for maximum results
+    if (!query || query.trim().length < 1) {
       return [];
     }
 
@@ -30,7 +31,7 @@ const DocumentSearchProvider = {
       const response = await DocumentService.high({
         params: {
           q: query.trim(),
-          limit: 20,
+          limit: 7, // Increased limit for maximum results
         },
       });
 
@@ -70,6 +71,11 @@ const DocumentSearchProvider = {
       .slice(0, 3)
       .map((tag) => `<span class="document-search-tag" data-tag-value="${tag}">${tag}</span>`)
       .join('');
+
+    // Attach tag handlers after rendering
+    setTimeout(() => {
+      DocumentSearchProvider.attachTagHandlers();
+    }, 50);
 
     return html`
       <div
@@ -182,97 +188,176 @@ const DocumentSearchProvider = {
 
   /**
    * Get CSS styles for document search results
+   * Uses subThemeManager colors for consistent theming
    * @returns {string} CSS string
    */
-  getStyles: () => css`
-    /* Unified with Panel card styles */
-    .search-result-document {
-      padding: 8px;
-      margin: 2px 0;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      border: 1px solid ${darkTheme ? '#444' : '#ddd'};
-      background: ${darkTheme ? '#2a2a2a' : '#f9f9f9'};
-      text-align: left;
+  getStyles: () => {
+    // Get theme color from subThemeManager
+    const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+    const hasThemeColor = themeColor && themeColor !== null;
+
+    // Calculate theme-based colors
+    let borderColor, bgColor, hoverBg, hoverBorder, iconColor, textColor;
+    let tagBg, tagColor, tagHoverBg, activeBg, activeBorder;
+
+    if (darkTheme) {
+      // Dark theme styling
+      if (hasThemeColor) {
+        borderColor = darkenHex(themeColor, 0.75);
+        bgColor = darkenHex(themeColor, 0.85);
+        hoverBg = darkenHex(themeColor, 0.75);
+        hoverBorder = lightenHex(themeColor, 0.4);
+        iconColor = lightenHex(themeColor, 0.5);
+        textColor = lightenHex(themeColor, 0.8);
+        tagBg = darkenHex(themeColor, 0.6);
+        tagColor = lightenHex(themeColor, 0.7);
+        tagHoverBg = darkenHex(themeColor, 0.5);
+        activeBg = darkenHex(themeColor, 0.7);
+        activeBorder = lightenHex(themeColor, 0.3);
+      } else {
+        borderColor = '#444';
+        bgColor = '#2a2a2a';
+        hoverBg = '#333';
+        hoverBorder = '#0d6efd';
+        iconColor = '#aaa';
+        textColor = '#e0e0e0';
+        tagBg = '#4a4a4a';
+        tagColor = '#ffffff';
+        tagHoverBg = '#5a5a5a';
+        activeBg = '#333';
+        activeBorder = '#555';
+      }
+    } else {
+      // Light theme styling
+      if (hasThemeColor) {
+        borderColor = lightenHex(themeColor, 0.75);
+        bgColor = lightenHex(themeColor, 0.92);
+        hoverBg = lightenHex(themeColor, 0.85);
+        hoverBorder = lightenHex(themeColor, 0.5);
+        iconColor = darkenHex(themeColor, 0.3);
+        textColor = darkenHex(themeColor, 0.6);
+        tagBg = lightenHex(themeColor, 0.7);
+        tagColor = darkenHex(themeColor, 0.5);
+        tagHoverBg = lightenHex(themeColor, 0.6);
+        activeBg = lightenHex(themeColor, 0.85);
+        activeBorder = lightenHex(themeColor, 0.5);
+      } else {
+        borderColor = '#ddd';
+        bgColor = '#f9f9f9';
+        hoverBg = '#efefef';
+        hoverBorder = '#007bff';
+        iconColor = '#666';
+        textColor = '#333';
+        tagBg = '#a2a2a2';
+        tagColor = '#ffffff';
+        tagHoverBg = '#8a8a8a';
+        activeBg = '#e8e8e8';
+        activeBorder = '#999';
+      }
     }
 
-    .search-result-document:hover {
-      background: ${darkTheme ? '#333' : '#efefef'};
-      border-color: ${darkTheme ? '#0d6efd' : '#007bff'};
-    }
+    return css`
+      /* Unified with Panel card styles - theme consistent */
+      .search-result-document {
+        padding: 8px;
+        margin: 2px 0;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        border: 1px solid ${borderColor};
+        background: ${bgColor};
+        text-align: left;
+      }
 
-    .search-result-document .search-result-icon {
-      font-size: 18px;
-      color: ${darkTheme ? '#aaa' : '#666'};
-      padding-top: 2px;
-      min-width: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+      .search-result-document:hover {
+        background: ${hoverBg};
+        border-color: ${hoverBorder};
+      }
 
-    .search-result-document .search-result-content {
-      flex: 1;
-      min-width: 0;
-    }
+      .search-result-document .search-result-icon {
+        font-size: 18px;
+        color: ${iconColor};
+        padding-top: 2px;
+        min-width: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
-    .search-result-document .search-result-title {
-      font-weight: 500;
-      font-size: 14px;
-      color: ${darkTheme ? '#e0e0e0' : '#333'};
-      margin-bottom: 4px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+      .search-result-document .search-result-content {
+        flex: 1;
+        min-width: 0;
+      }
 
-    .search-result-document .search-result-meta {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+      .search-result-document .search-result-title {
+        font-weight: 500;
+        font-size: 14px;
+        color: ${textColor};
+        margin-bottom: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
 
-    .search-result-document .search-result-date {
-      font-size: 11px;
-      color: ${darkTheme ? '#999' : '#888'};
-    }
+      .search-result-document .search-result-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
 
-    .search-result-document .search-result-tags {
-      display: flex;
-      gap: 4px;
-      flex-wrap: wrap;
-    }
+      .search-result-document .search-result-date {
+        font-size: 11px;
+        color: ${darkTheme ? '#999' : '#888'};
+      }
 
-    .document-search-tag {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 3px;
-      background: ${darkTheme ? '#4a4a4a' : '#a2a2a2'};
-      color: white;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      margin: 3px;
-      display: inline-block;
-    }
+      .search-result-document .search-result-tags {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
 
-    .document-search-tag:hover {
-      background: ${darkTheme ? '#5a5a5a' : '#8a8a8a'};
-      transform: scale(1.05);
-    }
+      .document-search-tag {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        background: ${tagBg};
+        color: ${tagColor};
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin: 3px;
+        display: inline-block;
+        border: 1px solid
+          ${hasThemeColor ? (darkTheme ? lightenHex(themeColor, 0.3) : lightenHex(themeColor, 0.6)) : 'transparent'};
+      }
 
-    .search-result-document.active-search-result,
-    .search-result-document.main-btn-menu-active {
-      background: ${darkTheme ? '#333' : '#e8e8e8'};
-      border-color: ${darkTheme ? '#555' : '#999'};
-      box-shadow: ${darkTheme ? '0 0 8px rgba(255, 255, 255, 0.1)' : '0 0 8px rgba(0, 0, 0, 0.1)'};
-    }
-  `,
+      .document-search-tag:hover {
+        background: ${tagHoverBg};
+        transform: scale(1.05);
+      }
+
+      .document-search-tag:active {
+        transform: scale(0.98);
+      }
+
+      .search-result-document.active-search-result,
+      .search-result-document.main-btn-menu-active {
+        background: ${activeBg};
+        border-color: ${activeBorder};
+        box-shadow: 0 0 0 1px ${activeBorder}66;
+      }
+
+      /* Active document tags have stronger accent */
+      .search-result-document.active-search-result .document-search-tag {
+        background: ${hasThemeColor ? (darkTheme ? darkenHex(themeColor, 0.5) : lightenHex(themeColor, 0.65)) : tagBg};
+        border-color: ${activeBorder};
+      }
+    `;
+  },
 };
 
 export { DocumentSearchProvider };
