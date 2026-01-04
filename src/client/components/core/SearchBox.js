@@ -1,6 +1,7 @@
 import { loggerFactory } from './Logger.js';
 import { s, getAllChildNodes, htmls } from './VanillaJs.js';
 import { Translate } from './Translate.js';
+import { darkTheme, ThemeEvents } from './Css.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -365,90 +366,102 @@ const SearchBox = {
    * Get base CSS styles for SearchBox
    * @returns {string} CSS string
    */
-  getBaseStyles: () => `
-    .search-result-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px;
-      margin: 4px 0;
-      cursor: pointer;
-      border-radius: 4px;
-      transition: background 0.2s ease;
-      border: 1px solid transparent;
-    }
+  getBaseStyles: () => {
+    const activeBg = darkTheme ? '#333' : '#e8e8e8';
+    const activeBorder = darkTheme ? '#555' : '#999';
+    const activeShadow = darkTheme ? '0 0 8px rgba(255, 255, 255, 0.1)' : '0 0 8px rgba(0, 0, 0, 0.1)';
+    const hoverBg = darkTheme ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
 
-    .search-result-item:hover {
-      background: rgba(0, 0, 0, 0.05);
-    }
+    return css`
+      .search-result-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+        margin: 4px 0;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+      }
 
-    .search-result-item.active-search-result,
-    .search-result-item.main-btn-menu-active {
-      background: rgba(0, 123, 255, 0.1);
-      border-color: rgba(0, 123, 255, 0.3);
-    }
+      .search-result-item:hover {
+        background: ${hoverBg};
+      }
 
-    .search-result-route {
-      padding: 3px;
-      margin: 2px;
-      text-align: left;
-    }
+      .search-result-item.active-search-result,
+      .search-result-item.main-btn-menu-active {
+        background: ${activeBg};
+        border-color: ${activeBorder};
+        box-shadow: ${activeShadow};
+      }
 
-    .search-result-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 24px;
-    }
+      .search-result-route {
+        padding: 3px;
+        margin: 2px;
+        text-align: left;
+      }
 
-    .search-result-icon img {
-      width: 25px;
-      height: 25px;
-    }
+      .search-result-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+      }
 
-    .search-result-content {
-      flex: 1;
-      min-width: 0;
-    }
+      .search-result-icon img {
+        width: 25px;
+        height: 25px;
+      }
 
-    .search-result-title {
-      font-size: 14px;
-      font-weight: normal;
-    }
+      .search-result-content {
+        flex: 1;
+        min-width: 0;
+      }
 
-    .search-result-subtitle {
-      font-size: 12px;
-      color: #666;
-      margin-top: 2px;
-    }
+      .search-result-title {
+        font-size: 14px;
+        font-weight: normal;
+      }
 
-    /* Dark theme */
-    [data-theme="dark"] .search-result-item:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
+      .search-result-subtitle {
+        font-size: 12px;
+        color: #666;
+        margin-top: 2px;
+      }
 
-    [data-theme="dark"] .search-result-item.active-search-result,
-    [data-theme="dark"] .search-result-item.main-btn-menu-active {
-      background: rgba(13, 110, 253, 0.2);
-      border-color: rgba(13, 110, 253, 0.5);
-    }
-
-    [data-theme="dark"] .search-result-subtitle {
-      color: #aaa;
-    }
-  `,
+      /* Theme-specific text colors */
+      .search-result-subtitle {
+        color: ${darkTheme ? '#aaa' : '#666'};
+      }
+    `;
+  },
 
   /**
    * Inject base styles into document
    */
   injectStyles: function () {
     const styleId = 'search-box-base-styles';
-    if (!document.getElementById(styleId)) {
-      const styleTag = document.createElement('style');
+    let styleTag = document.getElementById(styleId);
+
+    if (!styleTag) {
+      styleTag = document.createElement('style');
       styleTag.id = styleId;
-      styleTag.textContent = this.getBaseStyles();
       document.head.appendChild(styleTag);
       logger.info('Injected SearchBox base styles');
+    }
+
+    // Always update styles (for theme changes)
+    styleTag.textContent = this.getBaseStyles();
+
+    // Register theme change handler if not already registered
+    if (typeof ThemeEvents !== 'undefined' && !ThemeEvents['searchBoxBaseStyles']) {
+      ThemeEvents['searchBoxBaseStyles'] = () => {
+        const tag = document.getElementById(styleId);
+        if (tag) {
+          tag.textContent = this.getBaseStyles();
+        }
+      };
     }
   },
 };

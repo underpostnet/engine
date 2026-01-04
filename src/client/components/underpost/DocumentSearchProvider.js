@@ -106,6 +106,13 @@ const DocumentSearchProvider = {
 
           const tagValue = tagEl.getAttribute('data-tag-value') || tagEl.textContent.trim();
 
+          // Open search bar if closed
+          if (
+            !s('.main-body-btn-ui-bar-custom-open').classList.contains('hide') ||
+            !s(`.main-body-btn-ui-open`).classList.contains('hide')
+          )
+            s('.main-body-btn-bar-custom').click();
+
           // Find and populate search box
           const searchBox = s('.top-bar-search-box');
           if (searchBox) {
@@ -245,21 +252,25 @@ const DocumentSearchProvider = {
       font-size: 10px;
       padding: 2px 6px;
       border-radius: 3px;
-      background: ${darkTheme ? '#1e3a5f' : '#e3f2fd'};
-      color: ${darkTheme ? '#64b5f6' : '#1976d2'};
+      background: ${darkTheme ? '#4a4a4a' : '#a2a2a2'};
+      color: white;
       font-weight: 500;
       cursor: pointer;
-      transition: background 0.2s ease;
+      transition: all 0.2s ease;
+      margin: 3px;
+      display: inline-block;
     }
 
     .document-search-tag:hover {
-      background: ${darkTheme ? '#2a5080' : '#bbdefb'};
+      background: ${darkTheme ? '#5a5a5a' : '#8a8a8a'};
+      transform: scale(1.05);
     }
 
     .search-result-document.active-search-result,
     .search-result-document.main-btn-menu-active {
-      background: ${darkTheme ? 'rgba(13, 110, 253, 0.2)' : 'rgba(0, 123, 255, 0.1)'};
-      border-color: ${darkTheme ? 'rgba(13, 110, 253, 0.5)' : 'rgba(0, 123, 255, 0.3)'};
+      background: ${darkTheme ? '#333' : '#e8e8e8'};
+      border-color: ${darkTheme ? '#555' : '#999'};
+      box-shadow: ${darkTheme ? '0 0 8px rgba(255, 255, 255, 0.1)' : '0 0 8px rgba(0, 0, 0, 0.1)'};
     }
   `,
 };

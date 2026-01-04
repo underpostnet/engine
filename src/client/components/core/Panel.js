@@ -266,11 +266,12 @@ const Panel = {
                     setTimeout(async () => {
                       let tagRender = html``;
                       for (const tag of obj[infoKey]) {
+                        const tagBg = darkTheme ? '#4a4a4a' : '#a2a2a2';
                         tagRender += await Badge.Render({
                           text: tag,
                           style: { color: 'white' },
                           classList: 'inl panel-tag-clickable',
-                          style: { margin: '3px', background: `#a2a2a2`, cursor: 'pointer' },
+                          style: { margin: '3px', background: tagBg, cursor: 'pointer', transition: 'all 0.2s ease' },
                         });
                       }
                       if (s(`.tag-render-${id}`)) {
@@ -283,6 +284,13 @@ const Panel = {
                             tagEl.onclick = (e) => {
                               e.stopPropagation();
                               const tagText = tagEl.textContent.trim();
+
+                              // Open search bar if closed
+                              if (
+                                !s('.main-body-btn-ui-bar-custom-open').classList.contains('hide') ||
+                                !s(`.main-body-btn-ui-open`).classList.contains('hide')
+                              )
+                                s('.main-body-btn-bar-custom').click();
 
                               // Find and populate search box if it exists
                               const searchBox = s('.top-bar-search-box');
@@ -730,6 +738,13 @@ const Panel = {
           font-size: 17px;
           margin-left: 10px;
           top: -7px;
+        }
+        .panel-tag-clickable:hover {
+          background: ${darkTheme ? '#5a5a5a' : '#8a8a8a'} !important;
+          transform: scale(1.05);
+        }
+        .panel-tag-clickable:active {
+          transform: scale(0.98);
         }
         .${idPanel}-row-key {
         }

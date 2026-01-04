@@ -239,11 +239,29 @@ const MenuUnderpost = {
           styleTag.textContent = DocumentSearchProvider.getStyles();
         };
 
+        // Update SearchBox base styles
+        const updateSearchBoxBaseStyles = () => {
+          const baseStyleId = 'search-box-base-styles';
+          let baseStyleTag = s(`#${baseStyleId}`);
+
+          if (!baseStyleTag) {
+            baseStyleTag = document.createElement('style');
+            baseStyleTag.id = baseStyleId;
+            document.head.appendChild(baseStyleTag);
+          }
+
+          baseStyleTag.textContent = SearchBox.getBaseStyles();
+        };
+
         // Initial style injection
         updateDocumentSearchStyles();
+        updateSearchBoxBaseStyles();
 
-        // Register theme change handler for dynamic styling
-        ThemeEvents['documentSearchStyles'] = updateDocumentSearchStyles;
+        // Register theme change handlers for dynamic styling
+        ThemeEvents['documentSearchStyles'] = () => {
+          updateDocumentSearchStyles();
+          updateSearchBoxBaseStyles();
+        };
 
         return panelFormInstance;
       },
