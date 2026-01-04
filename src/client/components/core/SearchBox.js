@@ -1,3 +1,11 @@
+/**
+ * Reusable search component with extensible plugin architecture.
+ * Provides typeahead search functionality with support for multiple search providers,
+ * custom rendering, keyboard navigation, and theme-aware styling.
+ * @module src/client/components/core/SearchBox.js
+ * @namespace SearchBoxClient
+ */
+
 import { loggerFactory } from './Logger.js';
 import { s, getAllChildNodes, htmls } from './VanillaJs.js';
 import { Translate } from './Translate.js';
@@ -6,32 +14,43 @@ import { darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from '
 const logger = loggerFactory(import.meta);
 
 /**
- * SearchBox - Reusable search component with plugin architecture
- *
- * Supports:
- * - Default menu/route search
- * - Pluggable search providers (async queries)
- * - Custom result renderers
- * - Custom click handlers
- * - Merge default + custom results
+ * SearchBox singleton object providing extensible search functionality.
+ * Supports default menu/route search and pluggable search providers with
+ * custom rendering, click handlers, and result merging.
+ * @memberof SearchBoxClient
  */
 const SearchBox = {
+  /**
+   * Internal data storage for search state and handlers.
+   * @type {object}
+   * @memberof SearchBoxClient.SearchBox
+   */
   Data: {},
 
   /**
-   * Plugin registry for search providers
-   * Each provider should implement:
-   * {
-   *   id: string,
-   *   search: async (query, context) => Promise<Array<{id, data, type}>>,
-   *   renderResult: (result, index) => string (HTML),
-   *   onClick: (result, context) => void
-   * }
+   * Registry of registered search provider plugins.
+   * Each provider implements the search provider interface:
+   * - id: Unique identifier string
+   * - search: async (query, context) => Promise<Array<result>>
+   * - renderResult: (result, index, context) => string (HTML)
+   * - onClick: (result, context) => void
+   * - priority: number (lower = higher priority)
+   * @type {Array<object>}
+   * @memberof SearchBoxClient.SearchBox
    */
   providers: [],
 
   /**
-   * Register a search provider plugin
+   * Registers a search provider plugin for extensible search functionality.
+   * Replaces any existing provider with the same ID.
+   * @memberof SearchBoxClient.SearchBox
+   * @param {object} provider - The search provider object to register.
+   * @param {string} provider.id - Unique identifier for the provider.
+   * @param {Function} provider.search - Async function: (query, context) => Promise<Array<result>>.
+   * @param {Function} [provider.renderResult] - Custom renderer: (result, index, context) => HTML string.
+   * @param {Function} [provider.onClick] - Click handler: (result, context) => void.
+   * @param {number} [provider.priority=50] - Priority for result ordering (lower = higher priority).
+   * @returns {void}
    */
   registerProvider: function (provider) {
     if (!provider.id || !provider.search) {
@@ -55,7 +74,10 @@ const SearchBox = {
   },
 
   /**
-   * Unregister a search provider
+   * Unregisters a search provider by its ID.
+   * @memberof SearchBoxClient.SearchBox
+   * @param {string} providerId - The ID of the provider to unregister.
+   * @returns {void}
    */
   unregisterProvider: function (providerId) {
     this.providers = this.providers.filter((p) => p.id !== providerId);
@@ -63,7 +85,18 @@ const SearchBox = {
   },
 
   /**
-   * Default result renderer with support for tags/badges
+   * Default result renderer with support for tags and badges.
+   * Used when a provider doesn't supply a custom renderResult function.
+   * @memberof SearchBoxClient.SearchBox
+   * @param {object} result - The search result object to render.
+   * @param {string} result.id - Result identifier.
+   * @param {string} [result.icon] - HTML for icon display.
+   * @param {string} [result.title] - Result title text.
+   * @param {string} [result.subtitle] - Result subtitle text.
+   * @param {Array<string>} [result.tags] - Array of tag strings.
+   * @param {string} result.type - Result type identifier.
+   * @param {string} result.providerId - Provider ID that generated this result.
+   * @returns {string} HTML string for the search result.
    */
   defaultRenderResult: function (result) {
     const icon = result.icon || '<i class="fas fa-file"></i>';
@@ -96,13 +129,15 @@ const SearchBox = {
   },
 
   /**
-   * Navigate through search results with keyboard (optimized for performance)
-   * Uses direct DOM manipulation and efficient scrolling
-   * @param {string} direction - 'up' or 'down'
-   * @param {string} containerId - ID of results container
-   * @param {number} currentIndex - Current active index
-   * @param {number} totalItems - Total number of items
-   * @returns {number} New index
+   * Navigates through search results using keyboard arrow keys.
+   * Optimized for performance with direct DOM manipulation and efficient scrolling.
+   * Supports wrap-around navigation (top to bottom and vice versa).
+   * @memberof SearchBoxClient.SearchBox
+   * @param {string} direction - Navigation direction: 'up' or 'down'.
+   * @param {string} containerId - Results container element ID or class name.
+   * @param {number} currentIndex - Current active result index (0-based).
+   * @param {number} totalItems - Total number of result items.
+   * @returns {number} New active index after navigation.
    */
   navigateResults: function (direction, containerId, currentIndex, totalItems) {
     if (!containerId || totalItems === 0) return currentIndex;
@@ -136,7 +171,16 @@ const SearchBox = {
   },
 
   /**
-   * Search through default routes (backward compatible with Modal.js)
+   * Searches through default application routes for matches.
+   * Backward compatible with Modal.js search functionality.
+   * Matches route IDs and translated route names against the query string.
+   * @memberof SearchBoxClient.SearchBox
+   * @param {string} query - The search query string.
+   * @param {object} context - Search context object.
+   * @param {object} [context.RouterInstance] - Router instance containing routes.
+   * @param {object} [context.options] - Additional search options.
+   * @param {string} [context.options.searchCustomImgClass] - Custom image class to search for.
+   * @returns {Array<object>} Array of route search results.
    */
   searchRoutes: function (query, context) {
     const results = [];
@@ -184,7 +228,12 @@ const SearchBox = {
   },
 
   /**
-   * Execute search across all providers
+   * Executes search across all registered providers and default routes.
+   * Combines results from multiple sources and sorts by priority.
+   * @memberof SearchBoxClient.SearchBox
+   * @param {string} query - The search query string.
+   * @param {object} [context={}] - Search context object passed to all providers.
+   * @returns {Promise<Array<object>>} Promise resolving to combined, priority-sorted results array.
    */
   search: async function (query, context = {}) {
     const allResults = [];
@@ -220,7 +269,14 @@ const SearchBox = {
   },
 
   /**
-   * Render search results
+   * Renders search results into a container element.
+   * Delegates rendering to provider-specific renderers or default route renderer.
+   * Automatically attaches click handlers and calls provider post-render hooks.
+   * @memberof SearchBoxClient.SearchBox
+   * @param {Array<object>} results - Array of search results to render.
+   * @param {string} containerId - Results container element ID or class name.
+   * @param {object} [context={}] - Render context passed to renderers and handlers.
+   * @returns {void}
    */
   renderResults: function (results, containerId, context = {}) {
     const container = s(`#${containerId}`) || s(`.${containerId}`);
@@ -262,7 +318,18 @@ const SearchBox = {
   },
 
   /**
-   * Default route result renderer (backward compatible with Modal.js)
+   * Renders a default route search result.
+   * Backward compatible with Modal.js search functionality.
+   * Displays route icon and translated route name.
+   * @memberof SearchBoxClient.SearchBox
+   * @param {object} result - The route result object to render.
+   * @param {string} result.routerId - Route identifier.
+   * @param {HTMLElement} [result.fontAwesomeIcon] - FontAwesome icon element.
+   * @param {HTMLElement} [result.imgElement] - Image icon element.
+   * @param {number} index - The index of this result in the results array.
+   * @param {object} [context={}] - Render context object.
+   * @param {object} [context.options] - Additional rendering options.
+   * @returns {string} HTML string for the route search result.
    */
   renderRouteResult: function (result, index, context = {}) {
     const { options = {} } = context;
@@ -296,7 +363,14 @@ const SearchBox = {
   },
 
   /**
-   * Attach click handlers to rendered results
+   * Attaches click event handlers to all rendered search results.
+   * Routes trigger menu button clicks; custom providers call their onClick handlers.
+   * @memberof SearchBoxClient.SearchBox
+   * @param {Array<object>} results - Array of search results.
+   * @param {string} containerId - Results container element ID or class name.
+   * @param {object} [context={}] - Context object with callbacks.
+   * @param {Function} [context.onResultClick] - Callback invoked after any result is clicked.
+   * @returns {void}
    */
   attachClickHandlers: function (results, containerId, context = {}) {
     results.forEach((result, index) => {
@@ -329,24 +403,27 @@ const SearchBox = {
   },
 
   /**
-   * Scroll element into view if needed - optimized for performance
-   * Uses direct scrollTop manipulation instead of smooth scrolling to reduce JS runtime overhead
-   * This prevents browser animation overhead and ensures instant visibility
-   */
-  /**
-   * Scrolls an element into view within a scrollable container if needed
+   * Scrolls an element into view within a scrollable container if needed.
+   * Performance-critical for keyboard navigation - uses direct scrollTop manipulation
+   * instead of smooth scrolling to reduce overhead and ensure instant visibility.
+   *
+   * ROBUST IMPLEMENTATION:
+   * - Auto-detects the actual scrollable parent container
+   * - Uses getBoundingClientRect() for accurate viewport-aware positioning
+   * - Handles complex DOM structures (modals, positioned elements, transforms)
+   * - Includes fallback to native scrollIntoView() if custom logic fails
    *
    * Algorithm:
-   * 1. Calculate element's absolute position within the container using offsetTop
-   * 2. Compare element position with container's current scroll position
-   * 3. If element is above visible area: scroll up to show it at top
-   * 4. If element is below visible area: scroll down to show it at bottom
-   * 5. If element is already visible: do nothing (performance optimization)
+   * 1. Find actual scrollable container (may be parent of passed container)
+   * 2. Calculate element position relative to container's visible area
+   * 3. Determine scroll adjustment needed (up, down, or none)
+   * 4. Apply scroll adjustment
+   * 5. Verify visibility and use native scrollIntoView as fallback if needed
    *
-   * This ensures keyboard navigation (ArrowUp/ArrowDown) always shows the active result
-   *
-   * @param {HTMLElement} element - The element to scroll into view
-   * @param {HTMLElement} container - The scrollable container
+   * @memberof SearchBoxClient.SearchBox
+   * @param {HTMLElement} element - The element to scroll into view.
+   * @param {HTMLElement} container - The scrollable container (or parent of scrollable).
+   * @returns {void}
    */
   scrollIntoViewIfNeeded: function (element, container) {
     if (!element || !container) return;
@@ -442,7 +519,15 @@ const SearchBox = {
   },
 
   /**
-   * Setup search input with auto-search
+   * Sets up a search input element with automatic search on typing.
+   * Attaches debounced input event handler and manages search lifecycle.
+   * @memberof SearchBoxClient.SearchBox
+   * @param {string} inputId - Input element ID or class name.
+   * @param {string} resultsContainerId - Results container element ID or class name.
+   * @param {object} [context={}] - Configuration context object.
+   * @param {number} [context.debounceTime=300] - Debounce delay in milliseconds.
+   * @param {number} [context.minQueryLength=1] - Minimum query length to trigger search.
+   * @returns {Function} Cleanup function to remove event listeners.
    */
   setupSearchInput: function (inputId, resultsContainerId, context = {}) {
     const input = s(`#${inputId}`) || s(`.${inputId}`);
@@ -489,7 +574,32 @@ const SearchBox = {
   },
 
   /**
-   * Clear all providers (useful for cleanup)
+   * Debounces a function call to reduce excessive invocations.
+   * Used for search input to prevent searching on every keystroke.
+   * @memberof SearchBoxClient.SearchBox
+   * @param {Function} func - The function to debounce.
+   * @param {number} wait - Delay in milliseconds before invoking the function.
+   * @returns {Function} Debounced function that delays invocation.
+   */
+  debounce: function (func, wait) {
+    let timeout;
+
+    const later = function (...args) {
+      timeout = null;
+      func(...args);
+    };
+
+    return function (...args) {
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => later(...args), wait);
+    };
+  },
+
+  /**
+   * Clears all registered search providers.
+   * Useful for cleanup or resetting search functionality.
+   * @memberof SearchBoxClient.SearchBox
+   * @returns {void}
    */
   clearProviders: function () {
     this.providers = [];
@@ -497,9 +607,11 @@ const SearchBox = {
   },
 
   /**
-   * Get base CSS styles for SearchBox
-   * Uses subThemeManager colors for consistent theming across components
-   * @returns {string} CSS string
+   * Gets base CSS styles for SearchBox with theme-aware styling.
+   * Uses subThemeManager colors for consistent theming across light and dark modes.
+   * Styles include search result items, icons, tags, and active states.
+   * @memberof SearchBoxClient.SearchBox
+   * @returns {string} CSS string containing all base SearchBox styles.
    */
   getBaseStyles: () => {
     // Get theme color from subThemeManager
@@ -653,7 +765,11 @@ const SearchBox = {
   },
 
   /**
-   * Inject base styles into document
+   * Injects base SearchBox styles into the document head.
+   * Creates a style tag if it doesn't exist, ensuring styles are loaded once.
+   * Automatically called when SearchBox is first used.
+   * @memberof SearchBoxClient.SearchBox
+   * @returns {void}
    */
   injectStyles: function () {
     const styleId = 'search-box-base-styles';

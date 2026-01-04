@@ -1,3 +1,11 @@
+/**
+ * Document search provider for the SearchBox component.
+ * Provides typeahead search functionality for documents with custom rendering,
+ * click handling, and theme-aware styling.
+ * @module src/client/components/underpost/DocumentSearchProvider.js
+ * @namespace DocumentSearchProviderClient
+ */
+
 import { loggerFactory } from '../core/Logger.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { Translate } from '../core/Translate.js';
@@ -8,18 +16,38 @@ import { s } from '../core/VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 /**
- * Document Search Provider for SearchBox
- * Provides typeahead search for documents with custom rendering and click handling
+ * Document Search Provider singleton object for SearchBox integration.
+ * Implements the SearchBox provider interface with document-specific search,
+ * rendering, and interaction logic.
+ * @memberof DocumentSearchProviderClient
  */
 const DocumentSearchProvider = {
+  /**
+   * Unique identifier for this search provider.
+   * @type {string}
+   * @memberof DocumentSearchProviderClient.DocumentSearchProvider
+   */
   id: 'document-search',
-  priority: 10, // Higher priority than default routes (50)
 
   /**
-   * Search documents using high-query endpoint
-   * @param {string} query - Search query
-   * @param {object} context - Search context
-   * @returns {Promise<Array>} Array of search results
+   * Priority level for search result ordering (lower number = higher priority).
+   * Higher priority than default routes (50).
+   * @type {number}
+   * @memberof DocumentSearchProviderClient.DocumentSearchProvider
+   */
+  priority: 10,
+
+  /**
+   * Searches documents using the high-query endpoint with optimized matching.
+   * Supports case-insensitive, multi-term, multi-field search for maximum results.
+   * Minimum query length: 1 character for maximum flexibility.
+   * @memberof DocumentSearchProviderClient.DocumentSearchProvider
+   * @param {string} query - The search query string.
+   * @param {object} context - Search context object containing RouterInstance and options.
+   * @param {object} [context.RouterInstance] - Router instance for navigation.
+   * @param {object} [context.options] - Additional search options.
+   * @returns {Promise<Array<object>>} Promise resolving to array of search result objects.
+   * @returns {Promise<Array<{id: string, type: string, title: string, tags: Array<string>, createdAt: string, data: object}>>}
    */
   search: async (query, context) => {
     // Minimum match requirement: allow 1 character for maximum results
@@ -54,16 +82,32 @@ const DocumentSearchProvider = {
   },
 
   /**
-   * Render custom result card for documents
-   * @param {object} result - Search result
-   * @param {number} index - Result index
-   * @param {object} context - Render context
-   * @returns {string} HTML string
+   * Renders a custom result card for a document search result.
+   * Generates HTML with title, tags, date, and click handlers.
+   * @memberof DocumentSearchProviderClient.DocumentSearchProvider
+   * @param {object} result - The search result object to render.
+   * @param {string} result.id - Document ID.
+   * @param {string} result.type - Result type (should be 'document').
+   * @param {string} result.title - Document title.
+   * @param {Array<string>} result.tags - Document tags array.
+   * @param {string} result.createdAt - Document creation date.
+   * @param {object} result.data - Full document data object.
+   * @param {number} index - The index of this result in the results array.
+   * @param {object} context - Render context object.
+   * @returns {string} HTML string for the search result card.
    */
   renderResult: (result, index, context) => {
     const title = result.title || 'Untitled';
     const tags = result.tags || [];
     const createdAt = result.createdAt ? new Date(result.createdAt).toLocaleDateString() : '';
+
+    // Check if document is public (from result.data.isPublic field)
+    const isPublic = result.data && result.data.isPublic === true;
+
+    // Visibility icon: globe for public, padlock for private
+    const visibilityIcon = isPublic
+      ? '<i class="fas fa-globe" title="Public document"></i>'
+      : '<i class="fas fa-lock" title="Private document"></i>';
 
     // Build tags display with data attributes for click handling
     const tagsHtml = tags
@@ -85,6 +129,7 @@ const DocumentSearchProvider = {
         data-result-index="${index}"
         data-provider-id="document-search"
       >
+        <div class="search-result-visibility-icon">${visibilityIcon}</div>
         <div class="search-result-icon">
           <i class="fas fa-file-alt"></i>
         </div>
@@ -100,7 +145,11 @@ const DocumentSearchProvider = {
   },
 
   /**
-   * Attach tag click handlers after results are rendered
+   * Attaches click event handlers to tag elements in search results.
+   * When a tag is clicked, it populates the search box with the tag value
+   * and triggers a new search for that tag.
+   * @memberof DocumentSearchProviderClient.DocumentSearchProvider
+   * @returns {void}
    */
   attachTagHandlers: () => {
     setTimeout(() => {
@@ -137,10 +186,18 @@ const DocumentSearchProvider = {
   },
 
   /**
-   * Handle click on document result
-   * Loads the document into the Underpost panel
-   * @param {object} result - Search result
-   * @param {object} context - Click context
+   * Handles click events on document search results.
+   * Loads the selected document into the Underpost panel using SPA navigation.
+   * Prevents duplicate history entries if already viewing the same document.
+   * @memberof DocumentSearchProviderClient.DocumentSearchProvider
+   * @param {object} result - The search result object that was clicked.
+   * @param {string} result.id - Document ID to load.
+   * @param {string} result.title - Document title for logging.
+   * @param {object} context - Click context object with navigation helpers.
+   * @param {object} [context.RouterInstance] - Router instance for SPA navigation.
+   * @param {string} [context.currentRoute] - Current route name (e.g., 'home').
+   * @param {Function} [context.updatePanel] - Function to update the panel with new document.
+   * @returns {void}
    */
   onClick: (result, context) => {
     if (!result || !result.id) {
@@ -187,9 +244,11 @@ const DocumentSearchProvider = {
   },
 
   /**
-   * Get CSS styles for document search results
-   * Uses subThemeManager colors for consistent theming
-   * @returns {string} CSS string
+   * Generates CSS styles for document search results with theme support.
+   * Uses subThemeManager colors for consistent theming across light and dark modes.
+   * Dynamically calculates colors based on current theme and subtheme settings.
+   * @memberof DocumentSearchProviderClient.DocumentSearchProvider
+   * @returns {string} CSS string containing all styles for document search results.
    */
   getStyles: () => {
     // Get theme color from subThemeManager
@@ -270,6 +329,7 @@ const DocumentSearchProvider = {
         border: 1px solid ${borderColor};
         background: ${bgColor};
         text-align: left;
+        position: relative;
       }
 
       .search-result-document:hover {
@@ -342,6 +402,26 @@ const DocumentSearchProvider = {
 
       .document-search-tag:active {
         transform: scale(0.98);
+      }
+
+      .search-result-visibility-icon {
+        position: absolute;
+        top: 35px;
+        left: 12px;
+        font-size: 12px;
+        opacity: 0.7;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      .search-result-visibility-icon .fa-globe,
+      .search-result-visibility-icon .fa-lock {
+        color: ${darkTheme ? '#999' : '#666'};
+      }
+
+      .search-result-document:hover .search-result-visibility-icon {
+        opacity: 1;
       }
 
       .search-result-document.active-search-result,

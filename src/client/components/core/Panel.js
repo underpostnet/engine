@@ -208,6 +208,14 @@ const Panel = {
         };
       });
       if (s(`.${idPanel}-${id}`)) s(`.${idPanel}-${id}`).remove();
+
+      // Check if document is public (from obj.isPublic field)
+      const isPublic = obj.isPublic === true;
+      // Visibility icon: globe for public, padlock for private
+      const visibilityIcon = isPublic
+        ? '<i class="fas fa-globe" title="Public document"></i>'
+        : '<i class="fas fa-lock" title="Private document"></i>';
+
       return html` <div class="in box-shadow ${idPanel} ${idPanel}-${id}" style="position: relative;">
         <div class="fl ${idPanel}-tools session-fl-log-in  ${obj.tools ? '' : 'hide'}">
           ${await BtnIcon.Render({
@@ -234,6 +242,7 @@ const Panel = {
           })}
         </div>
         <div class="in container-${idPanel}-${id}">
+          <div class="panel-visibility-icon">${visibilityIcon}</div>
           <div class="in ${idPanel}-head">
             <div class="in ${idPanel}-title">
               ${options.titleIcon}
@@ -982,6 +991,19 @@ function getBaseStyles(idPanel, scrollClassContainer) {
     .${idPanel}-dropdown {
       min-height: 100px;
     }
+    .panel-visibility-icon {
+      position: absolute;
+      top: 34px;
+      left: 0px;
+      font-size: 14px;
+      opacity: 0.7;
+      transition: opacity 0.2s ease;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .${idPanel}:hover .panel-visibility-icon {
+      opacity: 1;
+    }
   `;
 }
 
@@ -1032,6 +1054,10 @@ function getLightStyles(idPanel, scrollClassContainer) {
       color: #000000 !important;
       font-size: 17px !important;
     }
+    .panel-visibility-icon .fa-globe,
+    .panel-visibility-icon .fa-lock {
+      color: #666;
+    }
   `;
 }
 
@@ -1081,6 +1107,10 @@ function getDarkStyles(idPanel, scrollClassContainer) {
     .${idPanel}-btn-tool:hover {
       color: #ffffff !important;
       font-size: 17px !important;
+    }
+    .panel-visibility-icon .fa-globe,
+    .panel-visibility-icon .fa-lock {
+      color: #999;
     }
   `;
 }

@@ -15,6 +15,13 @@ const DocumentService = {
     switch (req.params.id) {
       default:
         req.body.userId = req.auth.user._id;
+
+        // Extract 'public' from tags and set isPublic field
+        // Filter 'public' tag to keep it out of the tags array
+        const { isPublic, tags } = DocumentDto.extractPublicFromTags(req.body.tags);
+        req.body.isPublic = isPublic;
+        req.body.tags = tags;
+
         return await new Document(req.body).save();
     }
   },
@@ -28,9 +35,9 @@ const DocumentService = {
     // ============================================
     // OPTIMIZATION GOAL: MAXIMIZE search results with MINIMUM match requirements
     //
-    // Security Model (unchanged):
-    // - Unauthenticated users: CAN see public-tagged documents from publishers (admin/moderator)
-    // - Authenticated users: CAN see public-tagged documents from publishers + ALL their own documents (any tags)
+    // Security Model:
+    // - Unauthenticated users: CAN see public documents (isPublic=true) from publishers (admin/moderator)
+    // - Authenticated users: CAN see public documents from publishers + ALL their own documents (public or private)
     // - No user can see private documents from other users
     //
     // Search Optimization Strategy:
@@ -62,17 +69,6 @@ const DocumentService = {
         throw new Error('Search query too long (max 100 characters)');
       }
 
-      // OPTIMIZATION: Split search query into individual terms for multi-term matching
-      // This maximizes results by matching ANY term in ANY field
-      // Example: "react hooks" becomes ["react", "hooks"]
-      const searchTerms = searchQuery
-        .split(/\s+/)
-        .filter((term) => term.length > 0)
-        .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape each term for regex safety
-
-      // Fallback to original query if no terms (edge case)
-      const escapedQuery = searchTerms.length > 0 ? searchTerms[0] : searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
       const publisherUsers = await User.find({ $or: [{ role: 'admin' }, { role: 'moderator' }] });
 
       const token = getBearerToken(req);
@@ -95,6 +91,50 @@ const DocumentService = {
         }
         limit = parsedLimit;
       }
+
+      // SPECIAL CASE: If user searches for exactly "public" (case-insensitive)
+      // Return only documents where isPublic === true (exact match behavior)
+      if (searchQuery.toLowerCase() === 'public') {
+        const queryPayload = {
+          isPublic: true,
+          userId: { $in: publisherUsers.map((p) => p._id) },
+        };
+
+        logger.info('Special "public" search query', {
+          authenticated: !!user,
+          userId: user?._id?.toString(),
+          role: user?.role,
+          limit,
+        });
+
+        const data = await Document.find(queryPayload)
+          .sort({ createdAt: -1 })
+          .limit(limit)
+          .select('_id title tags createdAt userId isPublic')
+          .lean();
+
+        const sanitizedData = data.map((doc) => {
+          const filteredDoc = {
+            ...doc,
+            tags: DocumentDto.filterPublicTag(doc.tags),
+          };
+          if (!user || user.role === 'guest') {
+            const { userId, ...rest } = filteredDoc;
+            return rest;
+          }
+          return filteredDoc;
+        });
+
+        return { data: sanitizedData };
+      }
+
+      // OPTIMIZATION: Split search query into individual terms for multi-term matching
+      // This maximizes results by matching ANY term in ANY field
+      // Example: "react hooks" becomes ["react", "hooks"]
+      const searchTerms = searchQuery
+        .split(/\s+/)
+        .filter((term) => term.length > 0)
+        .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape each term for regex safety
 
       // Build query based on authentication status
       // ============================================
@@ -143,7 +183,7 @@ const DocumentService = {
             {
               // Public documents from publishers (admin/moderator)
               userId: { $in: publisherUsers.map((p) => p._id) },
-              tags: { $in: ['public'] },
+              isPublic: true,
               $or: searchConditions, // ANY term in title OR tags
             },
             {
@@ -165,7 +205,7 @@ const DocumentService = {
 
         queryPayload = {
           userId: { $in: publisherUsers.map((p) => p._id) },
-          tags: { $in: ['public'] },
+          isPublic: true,
           $or: searchConditions, // ANY term in title OR tags
         };
       }
@@ -192,26 +232,30 @@ const DocumentService = {
       const data = await Document.find(queryPayload)
         .sort({ createdAt: -1 })
         .limit(limit)
-        .select('_id title tags createdAt userId')
+        .select('_id title tags createdAt userId isPublic')
         .lean();
 
-      // Sanitize response - remove userId for public users
+      // Sanitize response - remove userId for public users and filter 'public' from tags
       const sanitizedData = data.map((doc) => {
+        const filteredDoc = {
+          ...doc,
+          tags: DocumentDto.filterPublicTag(doc.tags),
+        };
         if (!user || user.role === 'guest') {
           // Remove userId from response for unauthenticated users
-          const { userId, ...rest } = doc;
+          const { userId, ...rest } = filteredDoc;
           return rest;
         }
-        return doc;
+        return filteredDoc;
       });
 
       return { data: sanitizedData };
     }
 
     // Standard public endpoint with tag filtering
-    // Security Model:
-    // - Unauthenticated users: CAN see public-tagged documents from publishers (admin/moderator)
-    // - Authenticated users: CAN see public-tagged documents from publishers + their own public-tagged documents
+    // Security Model (consistent with high-query search):
+    // - Unauthenticated users: CAN see public documents (isPublic=true) from publishers (admin/moderator)
+    // - Authenticated users: CAN see public documents from publishers + ALL their own documents (public AND private)
     if (req.path.startsWith('/public') && req.query['tags']) {
       const publisherUsers = await User.find({ $or: [{ role: 'admin' }, { role: 'moderator' }] });
 
@@ -231,27 +275,88 @@ const DocumentService = {
         }
       }
 
-      const queryPayload = {
-        userId: {
-          $in: publisherUsers.map((p) => p._id).concat(user?.role && user.role !== 'guest' ? [user._id] : []),
-        },
-        tags: {
-          // $in: uniqueArray(['public'].concat(req.query['tags'].split(','))),
-          $all: uniqueArray(['public'].concat(req.query['tags'].split(','))),
-        },
-        ...(req.query.cid
-          ? {
-              _id: {
-                $in: req.query.cid.split(',').filter((cid) => isValidObjectId(cid)),
-              },
-            }
-          : undefined),
-      };
-      logger.info('queryPayload', queryPayload);
-      // sort in descending (-1) order by length
-      const sort = { createdAt: -1 };
+      // Parse requested tags
+      const requestedTagsRaw = req.query['tags']
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag);
+
+      // SPECIAL CASE: If 'public' is in the requested tags (exact match)
+      // Filter to ONLY documents where isPublic === true
+      const hasPublicTag = requestedTagsRaw.some((tag) => tag.toLowerCase() === 'public');
+
+      // Remove 'public' from content tags (it's handled by isPublic field)
+      const requestedTags = requestedTagsRaw.filter((tag) => tag.toLowerCase() !== 'public');
+
+      // Parse pagination parameters
       const limit = req.query.limit ? parseInt(req.query.limit, 10) : 6;
       const skip = req.query.skip ? parseInt(req.query.skip, 10) : 0;
+
+      // Build query based on authentication status
+      // Authenticated users see ALL their own documents + public documents from publishers
+      // Unauthenticated users see only public documents from publishers
+      let queryPayload;
+
+      if (user && user.role && user.role !== 'guest') {
+        // Authenticated user can see:
+        // 1. Public documents from publishers (admin/moderator)
+        // 2. ALL their own documents (public AND private - matching tag filter)
+        const orConditions = [
+          {
+            // Public documents from publishers
+            userId: { $in: publisherUsers.map((p) => p._id) },
+            isPublic: true,
+            ...(requestedTags.length > 0 ? { tags: { $all: requestedTags } } : {}),
+          },
+          {
+            // User's OWN documents - public OR private (matching tag filter)
+            // UNLESS 'public' tag was explicitly requested (then only show isPublic: true)
+            userId: user._id,
+            ...(hasPublicTag ? { isPublic: true } : {}),
+            ...(requestedTags.length > 0 ? { tags: { $all: requestedTags } } : {}),
+          },
+        ];
+
+        queryPayload = {
+          $or: orConditions,
+        };
+
+        // Add cid filter outside $or block if present
+        if (req.query.cid) {
+          queryPayload._id = {
+            $in: req.query.cid.split(',').filter((cid) => isValidObjectId(cid)),
+          };
+        }
+      } else {
+        // Unauthenticated user: only public documents from publishers
+        // If 'public' tag requested, it's redundant but handled by isPublic: true
+        queryPayload = {
+          userId: { $in: publisherUsers.map((p) => p._id) },
+          isPublic: true,
+          ...(requestedTags.length > 0 ? { tags: { $all: requestedTags } } : {}),
+        };
+
+        // Add cid filter if present
+        if (req.query.cid) {
+          queryPayload._id = {
+            $in: req.query.cid.split(',').filter((cid) => isValidObjectId(cid)),
+          };
+        }
+      }
+      // Security audit logging
+      logger.info('Public tag search', {
+        authenticated: !!user,
+        userId: user?._id?.toString(),
+        role: user?.role,
+        requestedTags,
+        hasPublicTag,
+        hasCidFilter: !!req.query.cid,
+        limit,
+        skip,
+        publishersCount: publisherUsers.length,
+      });
+      // sort in descending (-1) order by length
+      const sort = { createdAt: -1 };
 
       const data = await Document.find(queryPayload)
         .sort(sort)
@@ -264,11 +369,12 @@ const DocumentService = {
       const lastDoc = await Document.findOne(queryPayload, '_id').sort({ createdAt: 1 });
       const lastId = lastDoc ? lastDoc._id : null;
 
-      // Add totalCopyShareLinkCount to each document
+      // Add totalCopyShareLinkCount to each document and filter 'public' from tags
       const dataWithCounts = data.map((doc) => {
         const docObj = doc.toObject ? doc.toObject() : doc;
         return {
           ...docObj,
+          tags: DocumentDto.filterPublicTag(docObj.tags),
           totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
         };
       });
@@ -288,11 +394,12 @@ const DocumentService = {
           .populate(DocumentDto.populate.file())
           .populate(DocumentDto.populate.mdFile());
 
-        // Add totalCopyShareLinkCount to each document
+        // Add totalCopyShareLinkCount to each document and filter 'public' from tags
         return data.map((doc) => {
           const docObj = doc.toObject ? doc.toObject() : doc;
           return {
             ...docObj,
+            tags: DocumentDto.filterPublicTag(docObj.tags),
             totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
           };
         });
@@ -346,7 +453,13 @@ const DocumentService = {
           const file = await File.findOne({ _id: document.fileId });
           if (file) await File.findByIdAndDelete(document.fileId);
         }
-        return await Document.findByIdAndUpdate(req.params.id, req.body);
+
+        // Extract 'public' from tags and set isPublic field on update
+        const { isPublic, tags } = DocumentDto.extractPublicFromTags(req.body.tags);
+        req.body.isPublic = isPublic;
+        req.body.tags = tags;
+
+        return await Document.findByIdAndUpdate(req.params.id, req.body, { new: true });
       }
     }
   },
