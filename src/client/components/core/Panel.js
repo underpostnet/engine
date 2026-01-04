@@ -317,7 +317,7 @@ const Panel = {
                     style="font-size: 11px; color: ${darkTheme
                       ? 'rgba(255,255,255,0.5)'
                       : 'rgba(0,0,0,0.45)'}; line-height: 1.3; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;"
-                    >Creator</span
+                    >Uploader</span
                   >
                 </div>
               </div>`
