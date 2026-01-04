@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.97.0
+## underpost ci/cd cli v2.97.1
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -51,7 +51,7 @@ Arguments:
   app-name                          The name of the new project.
 
 Options:
-  --deploy-id <deploy-id>           Crete deploy ID conf env files
+  --deploy-id <deploy-id>           Create deploy ID conf env files
   --sub-conf <sub-conf>             Create sub conf env files
   --cluster                         Create deploy ID cluster files and sync to
                                     current cluster
@@ -940,11 +940,14 @@ Options:
   --nfs-build                                   Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.
   --nfs-mount                                   Mounts the NFS root filesystem for a workflow id config architecture.
   --nfs-unmount                                 Unmounts the NFS root filesystem for a workflow id config architecture.
+  --nfs-build-server                            Builds the NFS server for a workflow id config architecture.
   --nfs-sh                                      Copies QEMU emulation root entrypoint shell command to the clipboard.
   --cloud-init                                  Sets the kernel parameters and sets the necessary seed users on the HTTP server.
   --cloud-init-update                           Updates cloud init for a workflow id config architecture.
   --ubuntu-tools-build                          Builds ubuntu tools for chroot environment.
   --ubuntu-tools-test                           Tests ubuntu tools in chroot environment.
+  --rocky-tools-build                           Builds rocky linux tools for chroot environment.
+  --rocky-tools-test                            Tests rocky linux tools in chroot environment.
   --bootcmd <bootcmd-list>                      Comma-separated list of boot commands to execute.
   --runcmd <runcmd-list>                        Comma-separated list of run commands to execute.
   --logs <log-id>                               Displays logs for log id: dhcp, cloud, machine, cloud-config.
