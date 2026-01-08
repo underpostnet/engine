@@ -179,6 +179,10 @@ const TranslateCore = {
       en: 'Error during user login. Please check your credentials and try again.',
       es: 'Error durante el inicio de sesión del usuario. Por favor, verifica tus credenciales e intenta nuevamente.',
     };
+    Translate.Data['error-user-not-authenticated'] = {
+      en: 'You must be logged in to perform this action.',
+      es: 'Debe iniciar sesión para realizar esta acción.',
+    };
     Translate.Data['confirm-logout'] = { en: 'Confirm Logout', es: 'Confirmar cierre de sesión' };
     Translate.Data['success-logout'] = { en: 'Successful session logout', es: 'Cierre de sesión exitoso' };
     Translate.Data['account'] = { en: 'Account', es: 'Cuenta' };
@@ -546,6 +550,34 @@ const TranslateCore = {
     Translate.Data['brief-description-cannot-be-empty'] = {
       en: 'Brief description cannot be empty',
       es: 'La descripción breve no puede estar vacía',
+    };
+    Translate.Data['user-not-found'] = {
+      en: 'User not found',
+      es: 'Usuario no encontrado',
+    };
+    Translate.Data['error-loading-profile'] = {
+      en: 'Error loading profile',
+      es: 'Error al cargar el perfil',
+    };
+    Translate.Data['profile-is-private'] = {
+      en: 'This profile is private',
+      es: 'Este perfil es privado',
+    };
+    Translate.Data['no-description'] = {
+      en: 'No description provided',
+      es: 'Sin descripción',
+    };
+    Translate.Data['member-since'] = {
+      en: 'Member since',
+      es: 'Miembro desde',
+    };
+    Translate.Data['followers'] = {
+      en: 'Followers',
+      es: 'Seguidores',
+    };
+    Translate.Data['following'] = {
+      en: 'Following',
+      es: 'Siguiendo',
     };
   },
 };

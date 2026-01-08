@@ -27,6 +27,8 @@ const LogIn = {
   Event: {},
   Trigger: async function (options) {
     const { user } = options;
+    if (user) this.Scope.user.main.model.user = { ...this.Scope.user.main.model.user, ...user };
+
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
     if (!user || user.role === 'guest') return;
     await Webhook.register({ user });

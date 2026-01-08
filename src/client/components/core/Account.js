@@ -70,7 +70,24 @@ const Account = {
         }
         let lastUser;
         const submit = async () => {
-          lastUser = newInstance(user);
+          // Always get the current user from LogIn.Scope to avoid stale closure references
+          const currentUser = LogIn.Scope.user.main.model.user;
+          if (!currentUser || !currentUser._id) {
+            NotificationManager.Push({
+              html: Translate.Render('error-user-not-authenticated'),
+              status: 'error',
+            });
+            return;
+          }
+          // Guest users cannot submit form
+          if (currentUser.role === 'guest') {
+            NotificationManager.Push({
+              html: Translate.Render('error-user-not-authenticated'),
+              status: 'error',
+            });
+            return;
+          }
+          lastUser = newInstance(currentUser);
           const { successKeys } = await validators();
           if (successKeys.length === 0) return;
           const body = {};
@@ -78,10 +95,10 @@ const Account = {
             if (!s(`.${inputData.id}`).value || s(`.${inputData.id}`).value === 'undefined') continue;
             if ('model' in inputData && successKeys.includes(inputData.id)) {
               body[inputData.model] = s(`.${inputData.id}`).value;
-              user[inputData.model] = s(`.${inputData.id}`).value;
+              currentUser[inputData.model] = s(`.${inputData.id}`).value;
             }
           }
-          const result = await UserService.put({ id: user._id, body });
+          const result = await UserService.put({ id: currentUser._id, body });
           NotificationManager.Push({
             html:
               result.status === 'error' && result.message
@@ -90,12 +107,18 @@ const Account = {
             status: result.status,
           });
           if (result.status === 'success') {
-            user = result.data;
-            accountInstance.triggerUpdateEvent({ user });
-            if (lastUser.emailConfirmed !== user.emailConfirmed) {
-              accountInstance.renderVerifyEmailStatus(user);
+            const updatedUser = result.data;
+            // Preserve profileImage from scope if it exists
+            const existingProfileImage = LogIn.Scope.user.main.model.user.profileImage;
+            LogIn.Scope.user.main.model.user = { ...updatedUser };
+            if (existingProfileImage && !updatedUser.profileImage) {
+              LogIn.Scope.user.main.model.user.profileImage = existingProfileImage;
             }
-            lastUser = newInstance(user);
+            accountInstance.triggerUpdateEvent({ user: updatedUser });
+            if (lastUser.emailConfirmed !== updatedUser.emailConfirmed) {
+              accountInstance.renderVerifyEmailStatus(updatedUser);
+            }
+            lastUser = newInstance(updatedUser);
           }
         };
         EventsUI.onClick(`.btn-account`, async (e) => {
@@ -110,6 +133,23 @@ const Account = {
         if (s(`.btn-confirm-email`))
           EventsUI.onClick(`.btn-confirm-email`, async (e) => {
             e.preventDefault();
+            // Check if user is authenticated
+            const currentUser = LogIn.Scope.user.main.model.user;
+            if (!currentUser || !currentUser._id) {
+              NotificationManager.Push({
+                html: Translate.Render('error-user-not-authenticated'),
+                status: 'error',
+              });
+              return;
+            }
+            // Guest users cannot verify email
+            if (currentUser.role === 'guest') {
+              NotificationManager.Push({
+                html: Translate.Render('error-user-not-authenticated'),
+                status: 'error',
+              });
+              return;
+            }
             const result = await UserService.post({
               id: 'mailer/verify-email',
               body: {
@@ -123,7 +163,8 @@ const Account = {
               status: result.status,
             });
           });
-        accountInstance.renderVerifyEmailStatus(user);
+        const currentUser = LogIn.Scope.user.main.model.user;
+        accountInstance.renderVerifyEmailStatus(currentUser || user);
 
         s(`.${waveAnimationId}`).style.cursor = 'pointer';
         s(`.${waveAnimationId}`).onclick = async (e) => {
@@ -137,17 +178,44 @@ const Account = {
             s(`.account-profile-image`).style.opacity = 0;
             const formFile = fileFormDataFactory(e, profileFileAccept);
 
+            // Always get the current user from LogIn.Scope
+            const currentUser = LogIn.Scope.user.main.model.user;
+            if (!currentUser || !currentUser._id) {
+              NotificationManager.Push({
+                html: Translate.Render('error-user-not-authenticated'),
+                status: 'error',
+              });
+              s(`.account-profile-image`).style.opacity = 1;
+              return;
+            }
+            // Guest users cannot upload profile images
+            if (currentUser.role === 'guest') {
+              NotificationManager.Push({
+                html: Translate.Render('error-user-not-authenticated'),
+                status: 'error',
+              });
+              s(`.account-profile-image`).style.opacity = 1;
+              return;
+            }
+
             const { status, data } = await UserService.put({
-              id: `profile-image/${user._id}`,
+              id: `profile-image/${currentUser._id}`,
               body: formFile,
               headerId: 'file',
             });
 
             if (status === 'success') {
-              user.profileImageId = data.profileImageId;
+              currentUser.profileImageId = data.profileImageId;
+              // Clear cached profileImage so LogIn.Trigger will reload it
               delete LogIn.Scope.user.main.model.user.profileImage;
-              await LogIn.Trigger({ user });
-              s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
+              await LogIn.Trigger({ user: currentUser });
+              // Ensure image is set after trigger
+              if (
+                LogIn.Scope.user.main.model.user.profileImage &&
+                LogIn.Scope.user.main.model.user.profileImage.imageSrc
+              ) {
+                s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
+              }
             } else {
               NotificationManager.Push({
                 html: Translate.Render('file-upload-failed'),
@@ -195,7 +263,24 @@ const Account = {
             });
             return;
           }
-          const result = await UserService.put({ id: user._id, body: { briefDescription: descriptionValue } });
+          // Always get the current user from LogIn.Scope
+          const currentUser = LogIn.Scope.user.main.model.user;
+          if (!currentUser || !currentUser._id) {
+            NotificationManager.Push({
+              html: Translate.Render('error-user-not-authenticated'),
+              status: 'error',
+            });
+            return;
+          }
+          // Guest users cannot update brief description
+          if (currentUser.role === 'guest') {
+            NotificationManager.Push({
+              html: Translate.Render('error-user-not-authenticated'),
+              status: 'error',
+            });
+            return;
+          }
+          const result = await UserService.put({ id: currentUser._id, body: { briefDescription: descriptionValue } });
           NotificationManager.Push({
             html:
               result.status === 'error' && result.message
@@ -204,8 +289,14 @@ const Account = {
             status: result.status,
           });
           if (result.status === 'success') {
-            user.briefDescription = descriptionValue;
-            accountInstance.triggerUpdateEvent({ user });
+            currentUser.briefDescription = descriptionValue;
+            // Preserve profileImage from scope
+            const existingProfileImage = LogIn.Scope.user.main.model.user.profileImage;
+            LogIn.Scope.user.main.model.user.briefDescription = descriptionValue;
+            if (existingProfileImage) {
+              LogIn.Scope.user.main.model.user.profileImage = existingProfileImage;
+            }
+            accountInstance.triggerUpdateEvent({ user: currentUser });
           }
         });
 
@@ -216,7 +307,24 @@ const Account = {
             ToggleSwitch.Tokens['account-public-profile'].click = async function () {
               originalClick.call(this);
               const isChecked = s(`.account-public-profile-checkbox`).checked;
-              const result = await UserService.put({ id: user._id, body: { publicProfile: isChecked } });
+              // Always get the current user from LogIn.Scope
+              const currentUser = LogIn.Scope.user.main.model.user;
+              if (!currentUser || !currentUser._id) {
+                NotificationManager.Push({
+                  html: Translate.Render('error-user-not-authenticated'),
+                  status: 'error',
+                });
+                return;
+              }
+              // Guest users cannot toggle public profile
+              if (currentUser.role === 'guest') {
+                NotificationManager.Push({
+                  html: Translate.Render('error-user-not-authenticated'),
+                  status: 'error',
+                });
+                return;
+              }
+              const result = await UserService.put({ id: currentUser._id, body: { publicProfile: isChecked } });
               NotificationManager.Push({
                 html:
                   result.status === 'error' && result.message
@@ -225,15 +333,36 @@ const Account = {
                 status: result.status,
               });
               if (result.status === 'success') {
-                user.publicProfile = isChecked;
-                accountInstance.triggerUpdateEvent({ user });
+                currentUser.publicProfile = isChecked;
+                // Preserve profileImage from scope
+                const existingProfileImage = LogIn.Scope.user.main.model.user.profileImage;
+                LogIn.Scope.user.main.model.user.publicProfile = isChecked;
+                if (existingProfileImage) {
+                  LogIn.Scope.user.main.model.user.profileImage = existingProfileImage;
+                }
+                accountInstance.triggerUpdateEvent({ user: currentUser });
               }
             };
+
+            // Override wrapper click handler to use our custom handler
+            const wrapperElement = s(`.toggle-form-container-account-public-profile`);
+            if (wrapperElement) {
+              wrapperElement.onclick = () => ToggleSwitch.Tokens['account-public-profile'].click();
+            }
           }
         });
         EventsUI.onClick(`.btn-account-delete`, async (e) => {
           e.preventDefault();
-          const result = await UserService.delete({ id: user._id });
+          // Always get the current user from LogIn.Scope
+          const currentUser = LogIn.Scope.user.main.model.user;
+          if (!currentUser || !currentUser._id) {
+            NotificationManager.Push({
+              html: Translate.Render('error-user-not-authenticated'),
+              status: 'error',
+            });
+            return;
+          }
+          const result = await UserService.delete({ id: currentUser._id });
           NotificationManager.Push({
             html: result.status === 'error' ? result.message : Translate.Render(`success-delete-account`),
             status: result.status,
@@ -392,13 +521,60 @@ const Account = {
   instanceModalUiEvents: async (user) => null,
   updateForm: async function (user) {
     if (!s(`.modal-account`)) return;
-    await this.instanceModalUiEvents({ user });
+
+    // Always sync the current user data into LogIn.Scope, preserving profileImage if it exists
+    if (user && user._id) {
+      const existingProfileImage = LogIn.Scope.user.main.model.user.profileImage;
+      LogIn.Scope.user.main.model.user = { ...user };
+      // Preserve existing profileImage if new user doesn't have one
+      if (existingProfileImage && !user.profileImage) {
+        LogIn.Scope.user.main.model.user.profileImage = existingProfileImage;
+      }
+    }
+
+    // Use the current user from scope to ensure we have the latest data
+    const currentUser = LogIn.Scope.user.main.model.user;
+    if (!currentUser || !currentUser._id) {
+      return;
+    }
+
+    await this.instanceModalUiEvents({ user: currentUser });
     s(`.account-profile-image`).style.opacity = 0;
     for (const inputData of this.formData)
-      if (s(`.${inputData.id}`)) s(`.${inputData.id}`).value = user[inputData.model];
-    if (LogIn.Scope.user.main.model.user.profileImage) {
-      s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
-      s(`.account-profile-image`).style.opacity = 1;
+      if (s(`.${inputData.id}`)) s(`.${inputData.id}`).value = currentUser[inputData.model];
+
+    // Update profile image if it exists in scope (skip for guest users who cannot upload)
+    if (currentUser.role !== 'guest') {
+      if (LogIn.Scope.user.main.model.user.profileImage && LogIn.Scope.user.main.model.user.profileImage.imageSrc) {
+        const profileImageElement = s(`.account-profile-image`);
+        if (profileImageElement) {
+          profileImageElement.src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
+          profileImageElement.style.opacity = 1;
+        }
+      } else {
+        // If no image in scope, try to load it via LogIn.Trigger (only for authenticated users)
+        await LogIn.Trigger({ user: currentUser });
+        if (LogIn.Scope.user.main.model.user.profileImage && LogIn.Scope.user.main.model.user.profileImage.imageSrc) {
+          const profileImageElement = s(`.account-profile-image`);
+          if (profileImageElement) {
+            profileImageElement.src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
+            profileImageElement.style.opacity = 1;
+          }
+        }
+      }
+    } else {
+      // Guest users: just hide the image, don't try to load
+      const profileImageElement = s(`.account-profile-image`);
+      if (profileImageElement) {
+        profileImageElement.style.opacity = 0;
+      }
+    }
+
+    // update public profile toggle
+    if (ToggleSwitch.Tokens['account-public-profile']) {
+      if (currentUser.publicProfile && !s(`.account-public-profile-checkbox`).checked) {
+        ToggleSwitch.Tokens['account-public-profile'].click();
+      }
     }
   },
 };

@@ -92,6 +92,18 @@ const UserDto = {
       return { _id: 1 };
     },
   },
+  public: {
+    get: () => {
+      return {
+        _id: 1,
+        username: 1,
+        profileImageId: 1,
+        publicProfile: 1,
+        briefDescription: 1,
+        createdAt: 1,
+      };
+    },
+  },
   auth: {
     payload: (user, jwtid, ip, userAgent, host, path) => {
       const tokenPayload = {

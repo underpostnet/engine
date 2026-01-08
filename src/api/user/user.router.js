@@ -78,28 +78,28 @@ const UserRouter = (options) => {
   })();
 
   router.post(`/mailer/:id`, authMiddleware, async (req, res) => {
-    /*  
+    /*
       #swagger.ignore = true
     */
     return await UserController.post(req, res, options);
   });
 
   router.get(`/mailer/:id`, async (req, res) => {
-    /*  
+    /*
       #swagger.ignore = true
     */
     return await UserController.get(req, res, options);
   });
 
   router.get(`/email/:email`, authMiddleware, async (req, res) => {
-    /*  
+    /*
       #swagger.ignore = true
     */
     return await UserController.get(req, res, options);
   });
 
   router.post(`/:id`, async (req, res) => {
-    /*  
+    /*
       #swagger.ignore = true
     */
     return await UserController.post(req, res, options);
@@ -125,11 +125,11 @@ const UserRouter = (options) => {
           'application/json': {
               schema: {
                   $ref: '#/components/schemas/userLogInRequest'
-              }  
+              }
           }
       }
     }
-    
+
     #swagger.responses[200] = {
       description: 'User created successfully',
       content: {
@@ -137,9 +137,9 @@ const UserRouter = (options) => {
               schema: {
                 $ref: '#/components/schemas/userResponse'
               }
-          }           
+          }
       }
-    }   
+    }
 
     #swagger.responses[400] = {
       description: 'Bad request. Please check the input data',
@@ -148,9 +148,9 @@ const UserRouter = (options) => {
               schema: {
                 $ref: '#/components/schemas/userBadRequestResponse'
               }
-          }           
+          }
       }
-    } 
+    }
   */
 
   // #swagger.end
@@ -174,11 +174,11 @@ const UserRouter = (options) => {
             'application/json': {
                 schema: {
                     $ref: '#/components/schemas/userRequest'
-                }  
+                }
             }
         }
       }
-      
+
       #swagger.responses[200] = {
         description: 'User created successfully',
         content: {
@@ -186,9 +186,9 @@ const UserRouter = (options) => {
                 schema: {
                   $ref: '#/components/schemas/userResponse'
                 }
-            }           
+            }
         }
-      }   
+      }
 
       #swagger.responses[400] = {
         description: 'Bad request. Please check the input data',
@@ -197,16 +197,59 @@ const UserRouter = (options) => {
                 schema: {
                   $ref: '#/components/schemas/userBadRequestResponse'
                 }
-            }           
+            }
         }
-      } 
+      }
     */
     return await UserController.post(req, res, options);
   });
 
   router.get(`/recover/:id`, async (req, res) => {
-    /*  
+    /*
       #swagger.ignore = true
+    */
+    return await UserController.get(req, res, options);
+  });
+
+  router.get(`/public/:username`, async (req, res) => {
+    /*
+      #swagger.auto = false
+      #swagger.tags = ['user']
+      #swagger.summary = 'Get public user profile'
+      #swagger.description = 'This endpoint gets public user profile data by username (no auth required)'
+      #swagger.path = '/user/public/{username}'
+      #swagger.method = 'get'
+      #swagger.produces = ['application/json']
+      #swagger.consumes = ['application/json']
+
+      #swagger.parameters['username'] = {
+          in: 'path',
+          description: 'User username',
+          required: true,
+          type: 'string'
+      }
+
+      #swagger.responses[200] = {
+        description: 'get public user profile successfully',
+        content: {
+            'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/userPublicResponse'
+                }
+            }
+        }
+      }
+
+      #swagger.responses[400] = {
+        description: 'Bad request. Please check the input data',
+        content: {
+            'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/userBadRequestResponse'
+                }
+            }
+        }
+      }
     */
     return await UserController.get(req, res, options);
   });
@@ -223,7 +266,7 @@ const UserRouter = (options) => {
       #swagger.consumes = ['application/json']
       #swagger.security = [{
         'bearerAuth': []
-      }] 
+      }]
 
       #swagger.parameters['id'] = {
           in: 'path',
@@ -239,9 +282,9 @@ const UserRouter = (options) => {
                 schema: {
                   $ref: '#/components/schemas/userGetResponse'
                 }
-            }           
+            }
         }
-      }   
+      }
 
       #swagger.responses[400] = {
         description: 'Bad request. Please check the input data',
@@ -250,26 +293,26 @@ const UserRouter = (options) => {
                 schema: {
                   $ref: '#/components/schemas/userBadRequestResponse'
                 }
-            }           
+            }
         }
-      } 
+      }
     */
     return await UserController.get(req, res, options);
   });
   router.get(`/`, authMiddleware, async (req, res) => {
-    /*  
+    /*
       #swagger.ignore = true
     */
     return await UserController.get(req, res, options);
   });
   router.put(`/recover/:id`, async (req, res) => {
-    /*  
+    /*
       #swagger.ignore = true
     */
     return await UserController.put(req, res, options);
   });
   router.put(`/profile-image/:id`, authMiddleware, async (req, res) => {
-    /*  
+    /*
       #swagger.ignore = true
     */
     return await UserController.put(req, res, options);
@@ -286,8 +329,8 @@ const UserRouter = (options) => {
       #swagger.consumes = ['application/json']
       #swagger.security = [{
         'bearerAuth': []
-      }] 
-      
+      }]
+
       #swagger.parameters['id'] = {
           in: 'path',
           description: 'User ID',
@@ -303,7 +346,7 @@ const UserRouter = (options) => {
             'application/json': {
                 schema: {
                   $ref: '#/components/schemas/userRequest'
-                }  
+                }
             }
         }
       }
@@ -315,9 +358,9 @@ const UserRouter = (options) => {
                 schema: {
                   $ref: '#/components/schemas/userUpdateResponse'
                 }
-            }           
+            }
         }
-      }   
+      }
 
       #swagger.responses[400] = {
         description: 'Bad request. Please check the input data',
@@ -326,14 +369,14 @@ const UserRouter = (options) => {
                 schema: {
                   $ref: '#/components/schemas/userBadRequestResponse'
                 }
-            }           
+            }
         }
-      } 
+      }
     */
     return await UserController.put(req, res, options);
   });
   router.put(`/`, authMiddleware, async (req, res) => {
-    /*  
+    /*
       #swagger.ignore = true
     */
     return await UserController.put(req, res, options);
@@ -351,7 +394,7 @@ const UserRouter = (options) => {
       #swagger.consumes = ['application/json']
       #swagger.security = [{
         'bearerAuth': []
-      }] 
+      }]
 
       #swagger.parameters['id'] = {
           in: 'path',
@@ -367,9 +410,9 @@ const UserRouter = (options) => {
                 schema: {
                   $ref: '#/components/schemas/userGetResponse'
                 }
-            }           
+            }
         }
-      }   
+      }
 
       #swagger.responses[400] = {
         description: 'Bad request. Please check the input data',
@@ -378,15 +421,15 @@ const UserRouter = (options) => {
                 schema: {
                   $ref: '#/components/schemas/userBadRequestResponse'
                 }
-            }           
+            }
         }
-      } 
+      }
     */
     return await UserController.delete(req, res, options);
   });
 
   router.delete(`/`, authMiddleware, async (req, res) => {
-    /*  
+    /*
       #swagger.ignore = true
     */
     return await UserController.delete(req, res, options);

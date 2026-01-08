@@ -20,6 +20,7 @@ import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { FileFactory } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
 import { selectDtoFactory, ValkeyAPI } from '../../server/valkey.js';
+import { timer } from '../../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -36,7 +37,11 @@ const UserService = {
         email: req.body.email,
       });
 
-      if (!user) throw new Error('Email address does not exist');
+      // Simulate success even if email doesn't exist to prevent email enumeration attacks
+      if (!user) {
+        await timer(3000);
+        return { message: 'email send successfully' };
+      }
 
       const token = jwtSign({ email: req.body.email }, options, 15);
       const payloadToken = jwtSign({ email: req.body.email }, options, 15);
@@ -239,6 +244,21 @@ const UserService = {
 
     /** @type {import('../file/file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+
+    if (req.path.startsWith('/public')) {
+      // First lookup user by username
+      const userByUsername = await User.findOne({
+        username: req.params.username,
+      });
+      if (!userByUsername) throw new Error('User not found');
+      if (!userByUsername.publicProfile) throw new Error('Public profile is private');
+
+      // Then fetch complete public data by ID
+      const user = await User.findOne({
+        _id: userByUsername._id,
+      }).select(UserDto.public.get());
+      return user;
+    }
 
     if (req.path.startsWith('/email')) {
       return await User.findOne({
