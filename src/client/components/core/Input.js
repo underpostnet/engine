@@ -8,6 +8,8 @@ import { RichText } from './RichText.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { Translate } from './Translate.js';
 import { htmls, htmlStrSanitize, s } from './VanillaJs.js';
+import { getApiBaseUrl } from '../../services/core/core.service.js';
+
 const logger = loggerFactory(import.meta);
 
 const fileFormDataFactory = (e, extensions) => {
@@ -22,14 +24,105 @@ const fileFormDataFactory = (e, extensions) => {
   return form;
 };
 
+/**
+ * Convert file data to File object
+ * Supports both legacy format (with buffer data) and new format (metadata only)
+ *
+ * Legacy format: { data: { data: [0, 1, 2, ...] }, mimetype: 'text/markdown', name: 'file.md' }
+ * New format: { _id: '...', mimetype: 'text/markdown', name: 'file.md' }
+ */
 const getFileFromFileData = (fileData) => {
-  const blob = new Blob([new Uint8Array(fileData.data.data)], { type: fileData.mimetype });
-  return new File([blob], fileData.name, { type: fileData.mimetype });
+  if (!fileData) {
+    logger.error('getFileFromFileData: fileData is undefined');
+    return null;
+  }
+
+  // Check if this is legacy format with buffer data
+  if (fileData.data?.data) {
+    try {
+      const blob = new Blob([new Uint8Array(fileData.data.data)], { type: fileData.mimetype });
+      return new File([blob], fileData.name, { type: fileData.mimetype });
+    } catch (error) {
+      logger.error('Error creating File from legacy buffer data:', error);
+      return null;
+    }
+  }
+
+  // New format - metadata only, cannot create File without content
+  // Return null and let caller fetch from blob endpoint if needed
+  if (fileData._id && !fileData.data?.data) {
+    logger.warn(
+      'getFileFromFileData: File is metadata-only, cannot create File object without content. File ID:',
+      fileData._id,
+    );
+    return null;
+  }
+
+  logger.error('getFileFromFileData: Invalid file data structure', fileData);
+  return null;
 };
 
+/**
+ * Fetch file content from blob endpoint and create File object
+ * Used for metadata-only format files during edit mode
+ */
+const getFileFromBlobEndpoint = async (fileData) => {
+  if (!fileData || !fileData._id) {
+    return null;
+  }
+
+  try {
+    const blobUrl = getApiBaseUrl({ id: fileData._id, endpoint: 'file/blob' });
+    const response = await fetch(blobUrl, { credentials: 'include' });
+    if (!response.ok) {
+      logger.error('Failed to fetch file from blob endpoint:', response.statusText);
+      return null;
+    }
+
+    const blob = await response.blob();
+    return new File([blob], fileData.name || 'file', { type: fileData.mimetype || blob.type });
+  } catch (error) {
+    logger.error('Error fetching file from blob endpoint:', error);
+    return null;
+  }
+};
+
+/**
+ * Get image/file source URL from file data
+ * Supports both legacy format (with buffer) and new format (metadata only)
+ *
+ * For new format, returns blob endpoint URL
+ */
 const getSrcFromFileData = (fileData) => {
-  const file = getFileFromFileData(fileData);
-  return URL.createObjectURL(file);
+  if (!fileData) {
+    logger.error('getSrcFromFileData: fileData is undefined');
+    return null;
+  }
+
+  // Legacy format with buffer data - create object URL
+  if (fileData.data?.data) {
+    try {
+      const file = getFileFromFileData(fileData);
+      if (file) {
+        return URL.createObjectURL(file);
+      }
+    } catch (error) {
+      logger.error('Error getting src from legacy buffer data:', error);
+    }
+  }
+
+  // New format - use blob endpoint
+  if (fileData._id) {
+    try {
+      return getApiBaseUrl({ id: fileData._id, endpoint: 'file/blob' });
+    } catch (error) {
+      logger.error('Error generating blob URL:', error);
+      return null;
+    }
+  }
+
+  logger.error('getSrcFromFileData: Cannot generate src, invalid file data:', fileData);
+  return null;
 };
 
 const Input = {
@@ -184,8 +277,8 @@ const Input = {
     }
     return obj;
   },
-  setValues: function (formData, obj, originObj, fileObj) {
-    setTimeout(() => {
+  setValues: async function (formData, obj, originObj, fileObj) {
+    setTimeout(async () => {
       for (const inputData of formData) {
         if (!s(`.${inputData.id}`)) continue;
 
@@ -194,11 +287,31 @@ const Input = {
             if (fileObj && fileObj[inputData.model] && s(`.${inputData.id}`)) {
               const dataTransfer = new DataTransfer();
 
-              if (fileObj[inputData.model].fileBlob)
-                dataTransfer.items.add(getFileFromFileData(fileObj[inputData.model].fileBlob));
+              if (fileObj[inputData.model].fileBlob) {
+                let fileBlobData = getFileFromFileData(fileObj[inputData.model].fileBlob);
 
-              if (fileObj[inputData.model].mdBlob)
-                dataTransfer.items.add(getFileFromFileData(fileObj[inputData.model].mdBlob));
+                // If fileBlob is metadata-only, try to fetch from blob endpoint
+                if (!fileBlobData && fileObj[inputData.model].fileBlob?._id) {
+                  fileBlobData = await getFileFromBlobEndpoint(fileObj[inputData.model].fileBlob);
+                }
+
+                if (fileBlobData) {
+                  dataTransfer.items.add(fileBlobData);
+                }
+              }
+
+              if (fileObj[inputData.model].mdBlob) {
+                let mdBlobData = getFileFromFileData(fileObj[inputData.model].mdBlob);
+
+                // If mdBlob is metadata-only, try to fetch from blob endpoint
+                if (!mdBlobData && fileObj[inputData.model].mdBlob?._id) {
+                  mdBlobData = await getFileFromBlobEndpoint(fileObj[inputData.model].mdBlob);
+                }
+
+                if (mdBlobData) {
+                  dataTransfer.items.add(mdBlobData);
+                }
+              }
 
               if (dataTransfer.files.length) {
                 s(`.${inputData.id}`).files = dataTransfer.files;
@@ -384,4 +497,12 @@ function isTextInputFocused() {
   return active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
 }
 
-export { Input, InputFile, fileFormDataFactory, getSrcFromFileData, getFileFromFileData, isTextInputFocused };
+export {
+  Input,
+  InputFile,
+  fileFormDataFactory,
+  getSrcFromFileData,
+  getFileFromFileData,
+  getFileFromBlobEndpoint,
+  isTextInputFocused,
+};

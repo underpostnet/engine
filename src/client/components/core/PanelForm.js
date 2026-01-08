@@ -13,8 +13,63 @@ import { closeModalRouteChangeEvents, listenQueryPathInstance, setQueryPath, get
 import { Scroll } from './Scroll.js';
 import { LoadingAnimation } from './LoadingAnimation.js';
 import { loggerFactory } from './Logger.js';
+import { getApiBaseUrl } from '../../services/core/core.service.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
+
+function sanitizeFilename(title, options = {}) {
+  const { replacement = '-', maxLength = 255, preserveExtension = true } = options;
+
+  if (typeof title !== 'string' || title.trim() === '') {
+    return 'untitled';
+  }
+
+  // 1) Extract extension (optional)
+  let name = title;
+  let ext = '';
+  if (preserveExtension) {
+    const match = title.match(/(\.[^.\s]{1,10})$/u);
+    if (match) {
+      ext = match[1];
+      name = title.slice(0, -ext.length);
+    }
+  }
+
+  // 2) Normalize Unicode and remove diacritics
+  name = name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+
+  // 3) Remove control characters and null bytes
+  name = name.replace(/[\x00-\x1f\x7f]/g, '');
+
+  // 4) Remove forbidden filename characters (Windows / POSIX)
+  name = name.replace(/[<>:"/\\|?*\u0000]/g, '');
+
+  // 5) Collapse whitespace and replace with separator
+  name = name.replace(/\s+/g, replacement);
+
+  // 6) Collapse multiple separators
+  const escaped = replacement.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+  name = name.replace(new RegExp(`${escaped}{2,}`, 'g'), replacement);
+
+  // 7) Trim dots and separators from edges
+  name = name.replace(new RegExp(`^[\\.${escaped}]+|[\\.${escaped}]+$`, 'g'), '');
+
+  // 8) Protect against Windows reserved names
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(name)) {
+    name = '_' + name;
+  }
+
+  // 9) Enforce max length
+  const maxNameLength = Math.max(1, maxLength - ext.length);
+  if (name.length > maxNameLength) {
+    name = name.slice(0, maxNameLength);
+  }
+
+  // 10) Fallback
+  if (!name) name = 'untitled';
+
+  return name + ext;
+}
 
 const PanelForm = {
   Data: {},
@@ -129,29 +184,40 @@ const PanelForm = {
               render: imageShimmer(),
             });
           }
-          if (!options.data.fileId)
-            return await options.htmlRender({
-              render: html`
-                <img
-                  class="abs center"
-                  style="${renderCssAttr({
-                    style: {
-                      width: '100px',
-                      height: '100px',
-                      opacity: 0.2,
-                    },
-                  })}"
-                  src="${defaultUrlImage}"
-                />
-              `,
+
+          // Get the filesData for this item
+          const filesDataItem = PanelForm.Data[idPanel].filesData.find((f) => f._id === options.data._id);
+
+          // Priority 1: Check if there's an actual file (not markdown content)
+          // fileId array defaults to [null] for batch upload logic
+          const fileBlob = filesDataItem?.fileId?.fileBlob;
+          if (fileBlob) {
+            return await options.fileRender({
+              file: fileBlob,
+              style: {
+                overflow: 'auto',
+                width: '100%',
+                height: 'auto',
+              },
             });
-          return await options.fileRender({
-            file: PanelForm.Data[idPanel].filesData.find((f) => f._id === options.data._id)?.fileId?.fileBlob,
-            style: {
-              overflow: 'auto',
-              width: '100%',
-              height: 'auto',
-            },
+          }
+
+          // Priority 2: If no actual file, show default image
+          // (Don't show markdown content in file area - mdFileId stays in content area)
+          return await options.htmlRender({
+            render: html`
+              <img
+                class="abs center"
+                style="${renderCssAttr({
+                  style: {
+                    width: '100px',
+                    height: '100px',
+                    opacity: 0.2,
+                  },
+                })}"
+                src="${defaultUrlImage}"
+              />
+            `,
           });
         },
         on: {
@@ -326,11 +392,34 @@ const PanelForm = {
               return { data: [], status: 'error', message: 'Must provide either content or attach a file' };
             }
 
+            // Sanitize title for filename - normalize UTF-8 string
+            // In browser, strings are already UTF-16, just ensure valid characters
+            const sanitizedTitle = sanitizeFilename(data.title);
+
             let mdFileId;
-            const mdFileName = `${getCapVariableName(data.title)}.md`;
+            const mdFileName = `${getCapVariableName(sanitizedTitle)}.md`;
             const location = `${prefixTags.join('/')}`;
-            const blob = new Blob([data.mdFileId], { type: 'text/markdown' });
-            const md = new File([blob], mdFileName, { type: 'text/markdown' });
+
+            // Only create markdown file if there's actual content
+            let md = null;
+            let mdBlob = null;
+            let mdPlain = null;
+
+            if (hasMdContent) {
+              // Markdown content is already UTF-16 in browser, use as-is
+              const blob = new Blob([data.mdFileId], { type: 'text/markdown' });
+              md = new File([blob], mdFileName, { type: 'text/markdown' });
+
+              mdBlob = {
+                data: {
+                  data: await getDataFromInputFile(md),
+                },
+                mimetype: md.type,
+                name: md.name,
+              };
+              mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(mdBlob.data.data, mdBlob.mimetype));
+            }
+
             // Parse and normalize tags
             // Note: 'public' tag is automatically extracted by the backend and converted to isPublic field
             // It will be filtered from the tags array to keep visibility control separate from content tags
@@ -355,18 +444,25 @@ const PanelForm = {
               }
             }
 
-            const mdBlob = {
-              data: {
-                data: await getDataFromInputFile(md),
-              },
-              mimetype: md.type,
-              name: md.name,
-            };
-            const mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(mdBlob.data.data, mdBlob.mimetype));
             const baseNewDoc = newInstance(data);
             baseNewDoc.tags = tags.filter((t) => !prefixTags.includes(t));
-            baseNewDoc.mdFileId = marked.parse(data.mdFileId);
+            baseNewDoc.mdFileId = hasMdContent ? marked.parse(data.mdFileId) : null;
             baseNewDoc.userId = Elements.Data.user?.main?.model?.user?._id;
+
+            // Ensure profileImageId is properly formatted as object with _id property
+            const profileImageIdValue = Elements.Data.user?.main?.model?.user?.profileImageId;
+            const formattedProfileImageId = profileImageIdValue
+              ? typeof profileImageIdValue === 'string'
+                ? { _id: profileImageIdValue }
+                : profileImageIdValue
+              : null;
+
+            baseNewDoc.userInfo = {
+              username: Elements.Data.user?.main?.model?.user?.username,
+              email: Elements.Data.user?.main?.model?.user?.email,
+              _id: Elements.Data.user?.main?.model?.user?._id,
+              profileImageId: formattedProfileImageId,
+            };
             baseNewDoc.tools = true;
 
             const documents = [];
@@ -378,29 +474,45 @@ const PanelForm = {
 
             for (const file of inputFiles) {
               indexFormDoc++;
-              let fileId;
+              let fileId = undefined; // Reset for each iteration - only set if user uploaded a file
 
               await (async () => {
                 const body = new FormData();
-                body.append('md', md);
+                // Only append md file if it was created (has content)
+                if (md) body.append('md', md);
                 if (file) body.append('file', file);
-                const { status, data } = await FileService.post({ body });
+                const { status, data: uploadedFiles } = await FileService.post({ body });
                 // await timer(3000);
                 NotificationManager.Push({
                   html: Translate.Render(`${status}-upload-file`),
                   status,
                 });
-                if (status === 'success') {
-                  // Identify files by comparing filename instead of just mimetype
-                  // This handles the case where an .md file is uploaded as the optional file
-                  // - mdFileId: matches the generated mdFileName from the title
-                  // - fileId: any other file (including other .md files)
-                  for (const uploadedFile of data) {
-                    if (uploadedFile.name === mdFileName) {
+                if (status === 'success' && uploadedFiles && Array.isArray(uploadedFiles)) {
+                  // CRITICAL DIFFERENTIATION:
+                  // - mdFileId: markdown file GENERATED FROM rich text editor content
+                  // - fileId: file UPLOADED BY USER (could be .md, .pdf, image, etc.)
+                  //
+                  // Both can be markdown files, but we must distinguish:
+                  // Rich text editor content → mdFileId
+                  // User-uploaded file → fileId
+
+                  for (const uploadedFile of uploadedFiles) {
+                    if (hasMdContent && uploadedFile.name === mdFileName) {
+                      // This is the markdown file created FROM rich text editor
                       mdFileId = uploadedFile._id;
-                    } else {
+                      logger.info(`Assigned rich text markdown to mdFileId: ${mdFileName}`);
+                    } else if (!hasMdContent || uploadedFile.name !== mdFileName) {
+                      // This is a file uploaded by user (even if it's an .md file)
                       fileId = uploadedFile._id;
+                      logger.info(`Assigned user-uploaded file to fileId: ${uploadedFile.name}`);
                     }
+                  }
+
+                  // Validation: mdFileId should exist only if rich text content was provided
+                  if (hasMdContent && !mdFileId) {
+                    logger.error(
+                      `ERROR: No markdown content file found. Expected: ${mdFileName}, Got: ${uploadedFiles.map((f) => f.name).join(', ')}`,
+                    );
                   }
                 }
               })();
@@ -431,6 +543,17 @@ const PanelForm = {
                 // Use server response data - backend has already processed tags and isPublic
                 isPublic: documentData.isPublic || false,
                 tags: (documentData.tags || []).filter((t) => !prefixTags.includes(t)),
+                // Ensure userInfo is present for profile header rendering
+                userInfo:
+                  baseNewDoc.userInfo ||
+                  (documentData.userId && typeof documentData.userId === 'object'
+                    ? {
+                        username: documentData.userId.username,
+                        email: documentData.userId.email,
+                        _id: documentData.userId._id,
+                        profileImageId: documentData.userId.profileImageId,
+                      }
+                    : null),
               };
 
               if (documentStatus === 'error') status = 'error';
@@ -439,7 +562,7 @@ const PanelForm = {
               const filesData = {
                 id: documentData._id,
                 _id: documentData._id,
-                mdFileId: { mdBlob, mdPlain },
+                mdFileId: mdBlob && mdPlain ? { mdBlob, mdPlain } : null,
                 fileId: {
                   fileBlob: file
                     ? {
@@ -537,29 +660,73 @@ const PanelForm = {
             let mdFileId, fileId;
             let mdBlob, fileBlob;
             let mdPlain, filePlain;
+            let parsedMarkdown = '';
 
             try {
-              {
-                const {
-                  data: [file],
-                } = await FileService.get({ id: documentObject.mdFileId._id });
+              // Safely check if mdFileId exists before trying to access ._id
+              if (documentObject.mdFileId) {
+                const mdFileIdValue = documentObject.mdFileId._id || documentObject.mdFileId;
+                try {
+                  const { data: fileArray } = await FileService.get({ id: mdFileIdValue });
+                  const file = fileArray && fileArray[0];
 
-                // const ext = file.name.split('.')[file.name.split('.').length - 1];
-                mdBlob = file;
-                mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
-                mdFileId = newInstance(mdPlain);
+                  if (file) {
+                    mdBlob = file;
+
+                    // Fetch the actual markdown content from blob endpoint
+                    try {
+                      const blobUrl = getApiBaseUrl({ id: mdFileIdValue, endpoint: 'file/blob' });
+                      const response = await fetch(blobUrl, { credentials: 'include' });
+                      if (response.ok) {
+                        mdPlain = await response.text();
+                        // Parse markdown with proper error handling
+                        try {
+                          parsedMarkdown = mdPlain ? marked.parse(mdPlain) : '';
+                        } catch (parseError) {
+                          logger.error('Error parsing markdown for document:', documentObject._id, parseError);
+                          parsedMarkdown = `<p><strong>Error rendering markdown:</strong> ${parseError.message}</p>`;
+                        }
+                      } else {
+                        logger.warn('Failed to fetch markdown blob content:', response.statusText);
+                        parsedMarkdown = '';
+                      }
+                    } catch (blobFetchError) {
+                      logger.warn('Could not fetch markdown blob content:', blobFetchError);
+                      parsedMarkdown = '';
+                    }
+                  } else {
+                    logger.warn('No file metadata found for mdFileId:', mdFileIdValue);
+                    parsedMarkdown = '';
+                  }
+                } catch (fetchError) {
+                  logger.error('Error fetching markdown file metadata:', mdFileIdValue, fetchError);
+                  parsedMarkdown = '';
+                }
+              } else {
+                logger.warn('Document has no mdFileId:', documentObject._id);
+                parsedMarkdown = '';
               }
+
+              // Handle optional fileId
               if (documentObject.fileId) {
-                const {
-                  data: [file],
-                } = await FileService.get({ id: documentObject.fileId._id });
+                const fileIdValue = documentObject.fileId._id || documentObject.fileId;
+                try {
+                  const { data: fileArray } = await FileService.get({ id: fileIdValue });
+                  const file = fileArray && fileArray[0];
 
-                // const ext = file.name.split('.')[file.name.split('.').length - 1];
-                fileBlob = file;
-                filePlain = undefined;
-                fileId = getSrcFromFileData(file);
+                  if (file) {
+                    fileBlob = file;
+                    filePlain = undefined;
+                    fileId = getSrcFromFileData(file);
+                  } else {
+                    logger.warn('No file metadata found for fileId:', fileIdValue);
+                  }
+                } catch (fetchError) {
+                  logger.error('Error fetching file metadata:', fileIdValue, fetchError);
+                }
               }
 
+              // Store file metadata and references
               panelData.filesData.push({
                 id: documentObject._id,
                 _id: documentObject._id,
@@ -567,13 +734,14 @@ const PanelForm = {
                 fileId: { fileBlob, filePlain },
               });
 
+              // Add to data array for display - use pre-parsed markdown
               panelData.data.push({
                 id: documentObject._id,
                 title: documentObject.title,
                 createdAt: documentObject.createdAt,
                 // Backend filters 'public' tag automatically - it's converted to isPublic field
                 tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
-                mdFileId: marked.parse(mdFileId),
+                mdFileId: parsedMarkdown,
                 userId:
                   documentObject.userId && typeof documentObject.userId === 'object'
                     ? documentObject.userId._id
@@ -592,15 +760,51 @@ const PanelForm = {
                   documentObject.userId &&
                   typeof documentObject.userId === 'object' &&
                   Elements.Data.user?.main?.model?.user?._id &&
-                  Elements.Data.user.main.model.user._id === documentObject.userId._id,
+                  documentObject.userId._id === Elements.Data.user.main.model.user._id,
                 _id: documentObject._id,
                 totalCopyShareLinkCount: documentObject.totalCopyShareLinkCount || 0,
                 isPublic: documentObject.isPublic || false,
               });
             } catch (fileError) {
-              logger.error('Error fetching files for document:', documentObject._id, fileError);
+              logger.error('Error processing files for document:', documentObject._id, fileError);
               // Still add the document to originData even if file fetching fails
-              // but skip adding to data and filesData arrays
+              // Add minimal data without file references
+              panelData.filesData.push({
+                id: documentObject._id,
+                _id: documentObject._id,
+                mdFileId: { mdBlob: null, mdPlain: '' },
+                fileId: { fileBlob: null, filePlain: undefined },
+              });
+
+              panelData.data.push({
+                id: documentObject._id,
+                title: documentObject.title,
+                createdAt: documentObject.createdAt,
+                tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
+                mdFileId: '',
+                userId:
+                  documentObject.userId && typeof documentObject.userId === 'object'
+                    ? documentObject.userId._id
+                    : documentObject.userId,
+                userInfo:
+                  documentObject.userId && typeof documentObject.userId === 'object'
+                    ? {
+                        username: documentObject.userId.username,
+                        email: documentObject.userId.email,
+                        _id: documentObject.userId._id,
+                        profileImageId: documentObject.userId.profileImageId,
+                      }
+                    : null,
+                fileId: null,
+                tools:
+                  documentObject.userId &&
+                  typeof documentObject.userId === 'object' &&
+                  Elements.Data.user?.main?.model?.user?._id &&
+                  documentObject.userId._id === Elements.Data.user.main.model.user._id,
+                _id: documentObject._id,
+                totalCopyShareLinkCount: documentObject.totalCopyShareLinkCount || 0,
+                isPublic: documentObject.isPublic || false,
+              });
             }
           }
 

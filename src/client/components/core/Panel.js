@@ -197,7 +197,7 @@ const Panel = {
 
           // Clear previous form values then populate with the current item's data
           Input.cleanValues(formData);
-          Input.setValues(formData, obj, foundOrigin, foundFiles);
+          await Input.setValues(formData, obj, foundOrigin, foundFiles);
           if (options.on.initEdit) await options.on.initEdit({ data: obj });
         });
         s(`.a-${payload._id}`).onclick = async (e) => {

@@ -1,15 +1,18 @@
-import { CoreService } from '../../services/core/core.service.js';
+import { CoreService, getApiBaseUrl } from '../../services/core/core.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { UserService } from '../../services/user/user.service.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { EventsUI } from './EventsUI.js';
 import { Input } from './Input.js';
+import { loggerFactory } from './Logger.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { htmls, s } from './VanillaJs.js';
 import { Webhook } from './Webhook.js';
+
+const logger = loggerFactory(import.meta);
 
 const LogIn = {
   Scope: {
@@ -52,26 +55,40 @@ const LogIn = {
         </style>`,
       );
     if (!this.Scope.user.main.model.user.profileImage) {
-      const resultFile = await FileService.get({ id: user.profileImageId });
-      if (resultFile && resultFile.status === 'success' && resultFile.data[0]) {
-        const imageData = resultFile.data[0];
+      try {
+        const resultFile = await FileService.get({ id: user.profileImageId });
+        if (resultFile && resultFile.status === 'success' && resultFile.data[0]) {
+          const imageData = resultFile.data[0];
+          let imageSrc = null;
 
-        const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+          try {
+            // Handle new metadata-only format
+            if (!imageData.data?.data && imageData._id) {
+              // Use blob endpoint for metadata-only format
+              imageSrc = getApiBaseUrl({ id: imageData._id, endpoint: 'file/blob' });
+            }
+            // Handle legacy format with buffer data
+            else if (imageData.data?.data) {
+              const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+              const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+              imageSrc = URL.createObjectURL(imageFile);
+            }
 
-        const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
-
-        const imageSrc = URL.createObjectURL(imageFile);
-
-        // const  rawSvg = await CoreService.getRaw({ url: imageSrc });
-        // rawSvg = rawSvg.replace(`<svg`, `<svg class="abs account-profile-image" `).replace(`#5f5f5f`, `#ffffffc8`);
-
-        this.Scope.user.main.model.user.profileImage = {
-          resultFile,
-          imageData,
-          imageBlob,
-          imageFile,
-          imageSrc,
-        };
+            if (imageSrc) {
+              this.Scope.user.main.model.user.profileImage = {
+                resultFile,
+                imageData,
+                imageSrc,
+              };
+            }
+          } catch (error) {
+            logger.warn('Error processing profile image:', error);
+            // Continue without profile image - not fatal
+          }
+        }
+      } catch (error) {
+        logger.warn('Error fetching profile image:', error);
+        // Continue without profile image - not fatal
       }
       htmls(
         `.action-btn-profile-log-in-render`,

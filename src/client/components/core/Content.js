@@ -39,20 +39,29 @@ const Content = {
           }
           documentObj = data[0];
         }
-        if (documentObj.fileId) {
+
+        // Get file metadata (does not include buffer data)
+        if (documentObj.fileId && documentObj.fileId._id) {
           const { data, status, message } = await FileService.get({ id: documentObj.fileId._id });
           if (status !== 'success' || !data || !data[0]) {
-            logger.error(message);
-            // throw new Error(`no-preview-available`);
+            logger.warn('File metadata not found:', message);
+            // Continue without file - not fatal
+          } else {
+            file = data[0];
           }
-          file = data[0];
         }
-        if (documentObj.mdFileId) {
-          const { data, status, message } = await FileService.get({ id: documentObj.mdFileId });
+
+        // Get markdown file metadata
+        if (documentObj.mdFileId && documentObj.mdFileId._id) {
+          const { data, status, message } = await FileService.get({ id: documentObj.mdFileId._id });
           if (status !== 'success' || !data || !data[0]) {
-            logger.error(message);
+            logger.error('Markdown file metadata not found:', message);
             throw new Error(`no-preview-available`);
-          } else md = data[0];
+          } else {
+            md = data[0];
+          }
+        } else {
+          throw new Error(`no-preview-available`);
         }
 
         htmls(
@@ -63,6 +72,8 @@ const Content = {
           })} `,
         );
         htmls(`.content-render-${idModal}`, ``);
+
+        // Pass file IDs to RenderFile - it will fetch blobs as needed
         if (md) await this.RenderFile({ idModal, file: md, id: md._id });
         if (file) await this.RenderFile({ idModal, file, id: file._id });
         Modal.Data[idModal].onObserverListener[`main-content-observer`]();
@@ -89,17 +100,54 @@ const Content = {
       </div>
       <div class="abs center error-${idModal} hide"></div>`;
   },
+
+  /**
+   * Helper function to get file content
+   * Supports both legacy format (with buffer data) and new format (metadata only)
+   * For new format, fetches content from blob endpoint
+   */
+  getFileContent: async function (file, options = {}) {
+    // If custom URL provided, use it
+    if (options.url) {
+      return await CoreService.getRaw({ url: options.url });
+    }
+
+    // If buffer data exists in file object (legacy format), use it
+    if (file.data?.data) {
+      return await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+    }
+
+    // Otherwise, fetch from blob endpoint (new metadata-only format)
+    if (file._id) {
+      try {
+        const blobUrl = getApiBaseUrl({ id: file._id, endpoint: 'file/blob' });
+        const response = await fetch(blobUrl, { credentials: 'include' });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file: ${response.statusText}`);
+        }
+        // Determine how to parse response based on content type
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          return await response.text();
+        }
+        return await response.text();
+      } catch (error) {
+        logger.error('Error fetching file content from blob endpoint:', error);
+        throw new Error('Could not load file content');
+      }
+    }
+
+    throw new Error('No file content available');
+  },
+
   RenderFile: async function (
     options = {
       file: {
         _id: '',
-        data: {
-          data: [0],
-        },
         mimetype: '',
         url: '',
         name: '',
-        cid: '', // TODO: IPFS env
+        cid: '',
       },
       idModal: '',
       style: {},
@@ -116,80 +164,95 @@ const Content = {
         border: 'none',
       };
     if (!options.class) options.class = ``;
+
     const { container, file } = options;
-    const ext = file.name.split('.')[file.name.split('.').length - 1];
+    const ext = (file.name || '').split('.').pop()?.toLowerCase() || '';
     let render = '';
 
-    switch (ext) {
-      case 'md':
-        {
-          const content = options.url
-            ? await CoreService.getRaw({ url: options.url })
-            : await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
-          render += html`<div class="${options.class}" ${styleFactory(options.style)}>${marked.parse(content)}</div>`;
+    try {
+      switch (ext) {
+        case 'md':
+          {
+            const content = await Content.getFileContent(file, options);
+            render += html`<div class="${options.class}" ${styleFactory(options.style)}>${marked.parse(content)}</div>`;
+          }
+          break;
+
+        case 'jpg':
+        case 'jpeg':
+        case 'webp':
+        case 'svg':
+        case 'gif':
+        case 'png': {
+          const url = Content.urlFactory(options);
+          const imgRender = html`<img
+            alt="${file.name ? file.name : `file ${s4()}`}"
+            class="in ${options.class}"
+            ${styleFactory(options.style, `${renderChessPattern(50)}`)}
+            src="${url}"
+          />`;
+          render += imgRender;
+          break;
         }
 
-        break;
+        case 'pdf': {
+          const url = Content.urlFactory(options);
+          render += html`<iframe
+            class="in ${options.class} iframe-${options.idModal}"
+            ${styleFactory(options.style)}
+            src="${url}"
+          ></iframe>`;
+          break;
+        }
 
-      case 'jpg':
-      case 'jpeg':
-      case 'webp':
-      case 'svg':
-      case 'gif':
-      case 'png': {
-        const url = Content.urlFactory(options);
-        const imgRender = html`<img
-          alt="${file.name ? file.name : `file ${s4()}`}"
-          class="in ${options.class}"
-          ${styleFactory(options.style, `${renderChessPattern(50)}`)}
-          src="${url}"
-        />`;
-        render += imgRender;
-        break;
+        case 'json':
+          {
+            const content = await Content.getFileContent(file, options);
+            render += html`<pre class="in ${options.class}" ${styleFactory(options.style)}>
+${JSON.stringify(JSON.parse(content), null, 4)}</pre
+            >`;
+          }
+          break;
+
+        default:
+          {
+            const content = await Content.getFileContent(file, options);
+            render += html`<div class="in ${options.class}" ${styleFactory(options.style)}>${content}</div>`;
+          }
+          break;
       }
-      case 'pdf': {
-        const url = Content.urlFactory(options);
-        render += html`<iframe
-          class="in ${options.class} iframe-${options.idModal}"
-          ${styleFactory(options.style)}
-          src="${url}"
-        ></iframe>`;
-        break;
-      }
-
-      case 'json':
-        render += html`<pre class="in ${options.class}" ${styleFactory(options.style)}>
-        ${JSON.stringify(
-            JSON.parse(
-              options.url
-                ? await CoreService.getRaw({ url: options.url })
-                : await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype)),
-            ),
-            null,
-            4,
-          )}</pre
-        >`;
-        break;
-
-      default:
-        render += html`<div class="in ${options.class}" ${styleFactory(options.style)}>
-          ${options.url
-            ? await CoreService.getRaw({ url: options.url })
-            : await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype))}
-        </div>`;
-        break;
+    } catch (error) {
+      logger.error('Error rendering file:', error);
+      render = html`<div class="in ${options.class}" ${styleFactory(options.style)}>
+        <p style="color: red;">Error loading file: ${error.message}</p>
+      </div>`;
     }
+
     if (options.raw) return render;
     append(container, render);
   },
+
+  /**
+   * Generate appropriate URL for file display
+   * Prefers blob endpoint for new metadata-only format
+   */
   urlFactory: function (options) {
-    return options.url
-      ? options.url
-      : options.file?.data?.data
-      ? URL.createObjectURL(getBlobFromUint8ArrayFile(options.file.data.data, options.file.mimetype))
-      : options.file._id
-      ? getApiBaseUrl({ id: options.file._id, endpoint: 'file/blob' })
-      : null;
+    // If custom URL provided, use it
+    if (options.url) {
+      return options.url;
+    }
+
+    // If buffer data exists (legacy), create object URL
+    if (options.file?.data?.data) {
+      return URL.createObjectURL(getBlobFromUint8ArrayFile(options.file.data.data, options.file.mimetype));
+    }
+
+    // Use blob endpoint for metadata-only format
+    if (options.file?._id) {
+      return getApiBaseUrl({ id: options.file._id, endpoint: 'file/blob' });
+    }
+
+    return null;
   },
 };
 
