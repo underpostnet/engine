@@ -12,6 +12,7 @@ import { Translate } from '../core/Translate.js';
 import { getProxyPath } from '../core/Router.js';
 import { Css, ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
 import { s } from '../core/VanillaJs.js';
+import { Modal } from '../core/Modal.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -129,12 +130,14 @@ const DocumentSearchProvider = {
         data-result-index="${index}"
         data-provider-id="document-search"
       >
-        <div class="search-result-visibility-icon">${visibilityIcon}</div>
         <div class="search-result-icon">
           <i class="fas fa-file-alt"></i>
         </div>
         <div class="search-result-content">
-          <div class="search-result-title">${title}</div>
+          <div class="search-result-title-row">
+            <span class="search-result-visibility-icon">${visibilityIcon}</span>
+            <span class="search-result-title">${title}</span>
+          </div>
           <div class="search-result-meta">
             ${createdAt ? `<span class="search-result-date">${createdAt}</span>` : ''}
             ${tagsHtml ? `<div class="search-result-tags">${tagsHtml}</div>` : ''}
@@ -199,13 +202,17 @@ const DocumentSearchProvider = {
    * @param {Function} [context.updatePanel] - Function to update the panel with new document.
    * @returns {void}
    */
-  onClick: (result, context) => {
+  onClick: async (result, context) => {
     if (!result || !result.id) {
       logger.warn('Invalid document result');
       return;
     }
 
     logger.info(`Document clicked: ${result.id} - ${result.title}`);
+
+    // Close any open modal views (like Settings, Account, etc.) before navigating
+    // This ensures we return to home view when clicking a search result
+    await Modal.onHomeRouterEvent();
 
     // Check if we're already on this document to prevent duplicate history
     const currentUrl = new URL(window.location.href);
@@ -330,6 +337,9 @@ const DocumentSearchProvider = {
         background: ${bgColor};
         text-align: left;
         position: relative;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 100%;
       }
 
       .search-result-document:hover {
@@ -404,15 +414,19 @@ const DocumentSearchProvider = {
         transform: scale(0.98);
       }
 
+      .search-result-title-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
       .search-result-visibility-icon {
-        position: absolute;
-        top: 35px;
-        left: 12px;
+        display: inline-flex;
+        align-items: center;
         font-size: 12px;
         opacity: 0.7;
         transition: opacity 0.2s ease;
-        pointer-events: none;
-        z-index: 2;
+        flex-shrink: 0;
       }
 
       .search-result-visibility-icon .fa-globe,
@@ -422,6 +436,10 @@ const DocumentSearchProvider = {
 
       .search-result-document:hover .search-result-visibility-icon {
         opacity: 1;
+      }
+
+      .search-result-title-row .search-result-title {
+        margin-bottom: 0;
       }
 
       .search-result-document.active-search-result,

@@ -592,8 +592,27 @@ const Modal = {
                 } else s(`.key-shortcut-container-info`).classList.add('hide');
               };
 
-              const renderSearchResult = async (results) => {
+              const renderSearchResult = async (results, isRecentHistory = false) => {
+                // Check if the search history modal still exists before rendering
+                if (!s(`.html-${searchBoxHistoryId}`)) return;
+
                 htmls(`.html-${searchBoxHistoryId}`, '');
+
+                // Show/hide clear-all button based on whether showing recent history
+                // Use setTimeout to ensure the button is in the DOM after modal renders
+                const updateClearAllBtn = () => {
+                  const clearAllBtn = s(`.btn-search-history-clear-all`);
+                  if (clearAllBtn) {
+                    if (isRecentHistory && results.length > 0) {
+                      clearAllBtn.style.display = 'flex';
+                    } else {
+                      clearAllBtn.style.display = 'none';
+                    }
+                  }
+                };
+                // Try immediately and also with a delay to handle timing
+                updateClearAllBtn();
+                setTimeout(updateClearAllBtn, 50);
 
                 if (results.length === 0) {
                   append(
@@ -620,6 +639,7 @@ const Modal = {
                 const searchContext = {
                   RouterInstance: Worker.RouterInstance,
                   options: options,
+                  isRecentHistory: isRecentHistory, // Flag for delete button visibility
                   onResultClick: () => {
                     // Dismiss search box on result click
                     if (s(`.${searchBoxHistoryId}`)) {
@@ -661,14 +681,14 @@ const Modal = {
                       const minLength = searchContext.minQueryLength;
                       if (trimmedQuery.length >= minLength) {
                         results = await SearchBox.search(trimmedQuery, searchContext);
-                        renderSearchResult(results);
+                        renderSearchResult(results, false); // Search results - no delete buttons
                       } else if (trimmedQuery.length === 0) {
                         // Show recent results from persistent history when query is empty
                         const recentResults = SearchBox.RecentResults.getAll();
-                        renderSearchResult(recentResults);
+                        renderSearchResult(recentResults, true); // Recent history - show delete buttons
                       } else {
                         // Query is too short - show nothing or a hint
-                        renderSearchResult([]);
+                        renderSearchResult([], false);
                       }
                     }
                     break;
@@ -764,21 +784,28 @@ const Modal = {
                   barConfig.buttons.restore.disabled = true;
                   barConfig.buttons.menu.disabled = true;
                   barConfig.buttons.close.disabled = false;
+
                   await Modal.Render({
                     id: searchBoxHistoryId,
                     barConfig,
-                    title: html`<div class="search-box-recent-title">
-                        ${renderViewTitle({
-                          icon: html`<i class="fas fa-history mini-title"></i>`,
-                          text: Translate.Render('recent'),
-                        })}
+                    title: html`<div
+                      style="display: flex; align-items: center; justify-content: space-between; width: 100%;"
+                    >
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="search-box-recent-title">
+                          ${renderViewTitle({
+                            icon: html`<i class="fas fa-history mini-title"></i>`,
+                            text: Translate.Render('recent'),
+                          })}
+                        </div>
+                        <div class="search-box-result-title hide">
+                          ${renderViewTitle({
+                            icon: html`<i class="far fa-list-alt mini-title"></i>`,
+                            text: Translate.Render('results'),
+                          })}
+                        </div>
                       </div>
-                      <div class="search-box-result-title hide">
-                        ${renderViewTitle({
-                          icon: html`<i class="far fa-list-alt mini-title"></i>`,
-                          text: Translate.Render('results'),
-                        })}
-                      </div>`,
+                    </div>`,
                     html: () => html``,
                     titleClass: 'mini-title',
                     style: {
@@ -790,6 +817,7 @@ const Modal = {
                           : '300px !important',
                       'z-index': 7,
                     },
+                    class: 'search-history-modal',
                     dragDisabled: true,
                     maximize: true,
                     barMode: options.barMode,
@@ -806,6 +834,63 @@ const Modal = {
                   Modal.Data[id].onCloseListener[`unbind-doc-${id}`] = () => unbindDocSearch && unbindDocSearch();
 
                   Modal.MoveTitleToBar(id);
+
+                  // Add styles for inline button layout in the search history modal bar
+                  const styleId = 'search-history-modal-bar-styles';
+                  if (!s(`#${styleId}`)) {
+                    const styleTag = document.createElement('style');
+                    styleTag.id = styleId;
+                    styleTag.textContent = `
+                      .search-history-modal .btn-bar-modal-container .bar-default-modal {
+                        display: flex;
+                        flex-direction: row-reverse;
+                        align-items: center;
+                      }
+                      .search-history-modal .btn-bar-modal-container .btn-modal-default {
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        float: none;
+                      }
+                      .search-history-modal .html-${searchBoxHistoryId} {
+                        overflow-x: hidden;
+                        box-sizing: border-box;
+                      }
+                      .search-history-modal .html-${searchBoxHistoryId} .search-result-item,
+                      .search-history-modal .html-${searchBoxHistoryId} .search-result-history-item {
+                        box-sizing: border-box;
+                        max-width: 100%;
+                      }
+                    `;
+                    document.head.appendChild(styleTag);
+                  }
+
+                  // Add clear all button to the bar area, before the close button
+                  const clearAllBtnHtml = await BtnIcon.Render({
+                    class: `btn-search-history-clear-all btn-modal-default btn-modal-default-${searchBoxHistoryId}`,
+                    label: html`<i class="fas fa-trash-alt"></i>`,
+                    attrs: `title="Clear all recent items"`,
+                    style: 'padding: 4px 8px; font-size: 12px; display: none;',
+                  });
+
+                  // Insert before close button in the bar (with flex row-reverse, inserting after close button places our button to its left visually)
+                  const closeBtn = s(`.btn-close-${searchBoxHistoryId}`);
+                  if (closeBtn) {
+                    closeBtn.insertAdjacentHTML('afterend', clearAllBtnHtml);
+                  }
+
+                  // Add click handler for clear all history button
+                  const clearAllBtn = s(`.btn-search-history-clear-all`);
+                  if (clearAllBtn) {
+                    clearAllBtn.onclick = (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // Clear all history from persistent storage
+                      SearchBox.RecentResults.clear();
+                      // Re-render to show empty history (with isRecentHistory true to hide button)
+                      renderSearchResult([], true);
+                    };
+                  }
 
                   prepend(`.btn-bar-modal-container-${id}`, html`<div class="hide">${inputInfoNode.outerHTML}</div>`);
                 }

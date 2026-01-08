@@ -41,7 +41,7 @@ const SearchBox = {
   providers: [],
 
   /**
-   * Recent search results manager with persistent localStorage caching.
+   * Recent search results manager with localStorage persistence.
    * Tracks clicked results from all providers (routes and custom).
    * Maintains order of most-recent-first results across sessions.
    * @type {object}
@@ -89,6 +89,7 @@ const SearchBox = {
     /**
      * Add a result to recent history (moves to front if duplicate)
      * Removes duplicates and maintains max size limit.
+     * Only stores serializable data (excludes DOM elements).
      * @param {object} result - Result object to add (must have id and providerId/routerId)
      */
     add: function (result) {
@@ -97,27 +98,40 @@ const SearchBox = {
         return;
       }
 
+      // Create a clean copy excluding DOM elements (fontAwesomeIcon, imgElement)
+      const cleanResult = {
+        id: result.id,
+        routerId: result.routerId,
+        type: result.type,
+        providerId: result.providerId,
+        title: result.title,
+        subtitle: result.subtitle,
+        tags: result.tags,
+        createdAt: result.createdAt,
+        data: result.data,
+      };
+
       const recent = this.getAll();
 
       // Remove duplicate if it exists (based on id and providerId/routerId)
       const filteredRecent = recent.filter((r) => {
-        if (result.providerId && r.providerId) {
-          return !(r.id === result.id && r.providerId === result.providerId);
-        } else if (result.routerId && r.routerId) {
-          return r.routerId !== result.routerId;
+        if (cleanResult.providerId && r.providerId) {
+          return !(r.id === cleanResult.id && r.providerId === cleanResult.providerId);
+        } else if (cleanResult.routerId && r.routerId) {
+          return r.routerId !== cleanResult.routerId;
         }
         return true;
       });
 
       // Add new result to front
-      filteredRecent.unshift(result);
+      filteredRecent.unshift(cleanResult);
 
       // Save to localStorage
       this.saveAll(filteredRecent);
     },
 
     /**
-     * Clear all recent results
+     * Clear all recent results from localStorage
      */
     clear: function () {
       try {
@@ -125,6 +139,25 @@ const SearchBox = {
       } catch (error) {
         logger.warn('Error clearing search history:', error);
       }
+    },
+
+    /**
+     * Remove a single result from recent history by ID and provider
+     * @param {string} resultId - Result ID to remove
+     * @param {string} [providerId] - Provider ID of the result (optional, for routes use null)
+     */
+    remove: function (resultId, providerId) {
+      const recent = this.getAll();
+      const filtered = recent.filter((r) => {
+        // Match by ID and providerId (or routerId for routes)
+        if (providerId) {
+          return !(r.id === resultId && r.providerId === providerId);
+        } else {
+          // For routes (providerId is null), match by routerId instead
+          return !(r.routerId === resultId);
+        }
+      });
+      this.saveAll(filtered);
     },
   },
 
@@ -378,23 +411,55 @@ const SearchBox = {
       return;
     }
 
-    let html = '';
+    // Check if this is rendering recently clicked items (not search results)
+    // context.isRecentHistory is set when rendering from history, not from search query
+    const isRecentHistory = context.isRecentHistory === true;
+
+    let htmlContent = '';
     results.forEach((result, index) => {
       const provider = this.providers.find((p) => p.id === result.providerId);
 
+      let resultHtml = '';
       if (result.type === 'route' || !provider) {
         // Default route rendering (backward compatible)
-        html += this.renderRouteResult(result, index, context);
+        resultHtml = this.renderRouteResult(result, index, context);
       } else {
         // Custom provider rendering
-        html += provider.renderResult(result, index, context);
+        resultHtml = provider.renderResult(result, index, context);
+      }
+
+      // Only add delete button for recently clicked items (not search results)
+      if (isRecentHistory) {
+        // Wrapper with relative position for absolute delete button
+        htmlContent += `
+          <div class="search-result-wrapper search-result-history-item" data-result-id="${result.id || result.routerId}" data-provider-id="${result.providerId || 'default-routes'}">
+            ${resultHtml}
+            <button
+              class="search-result-delete-btn"
+              data-result-id="${result.id || result.routerId}"
+              data-provider-id="${result.providerId || 'default-routes'}"
+              title="Remove from history"
+              aria-label="Remove from history"
+            >
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
+        `;
+      } else {
+        // Search results: no delete button, no wrapper overhead
+        htmlContent += resultHtml;
       }
     });
 
-    container.innerHTML = html;
+    container.innerHTML = htmlContent;
 
     // Attach click handlers
     this.attachClickHandlers(results, containerId, context);
+
+    // Only attach delete handlers for recently clicked items
+    if (isRecentHistory) {
+      this.attachDeleteHandlers(container, results, containerId, context);
+    }
 
     // Call post-render callbacks from providers
     results.forEach((result) => {
@@ -402,6 +467,68 @@ const SearchBox = {
       if (provider && provider.attachTagHandlers) {
         provider.attachTagHandlers();
       }
+    });
+  },
+
+  /**
+   * Attaches delete event handlers to result delete buttons within a specific container.
+   * Removes only the clicked result from history with smooth animation feedback.
+   * Only affects delete buttons within the specified container.
+   * @memberof SearchBoxClient.SearchBox
+   * @param {HTMLElement} container - The container element to search within.
+   * @param {Array<object>} results - Array of search results.
+   * @param {string} containerId - Results container element ID or class name.
+   * @param {object} [context={}] - Context object.
+   * @returns {void}
+   */
+  attachDeleteHandlers: function (container, results, containerId, context = {}) {
+    // Only select delete buttons within this specific container
+    const deleteButtons = container.querySelectorAll('.search-result-delete-btn');
+    deleteButtons.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const resultId = btn.getAttribute('data-result-id');
+        const providerId = btn.getAttribute('data-provider-id');
+
+        // Animate removal
+        const wrapper = btn.closest('.search-result-history-item');
+        if (wrapper) {
+          wrapper.classList.add('search-result-removing');
+          setTimeout(() => {
+            // Remove only this specific result from history storage
+            if (providerId === 'default-routes') {
+              this.RecentResults.remove(resultId, null);
+            } else {
+              this.RecentResults.remove(resultId, providerId);
+            }
+
+            // Filter out only the deleted result from the array
+            const remaining = results.filter((r) => {
+              if (providerId === 'default-routes') {
+                // For routes, match by routerId
+                return r.routerId !== resultId;
+              } else {
+                // For providers, match by id and providerId
+                return !(r.id === resultId && r.providerId === providerId);
+              }
+            });
+
+            // Re-render with remaining results (context.isRecentHistory should stay true)
+            if (remaining.length > 0) {
+              this.renderResults(remaining, containerId, context);
+            } else {
+              // If no results left, clear container and hide clear-all button
+              container.innerHTML = '';
+              const clearAllBtn = document.querySelector('.btn-search-history-clear-all');
+              if (clearAllBtn) {
+                clearAllBtn.style.display = 'none';
+              }
+            }
+          }, 200);
+        }
+      });
     });
   },
 
@@ -426,10 +553,35 @@ const SearchBox = {
     const imgElement = result.imgElement;
 
     let iconHtml = '';
-    if (imgElement) {
-      iconHtml = imgElement.outerHTML;
-    } else if (fontAwesomeIcon) {
-      iconHtml = fontAwesomeIcon.outerHTML;
+
+    // For route results from history, reconstruct icons from DOM
+    if (!fontAwesomeIcon && !imgElement && routerId) {
+      const routeBtn = s(`.main-btn-${routerId}`);
+      if (routeBtn) {
+        const icon = getAllChildNodes(routeBtn).find((e) => {
+          return e.classList && Array.from(e.classList).find((e) => e.match('fa-') && !e.match('fa-grip-vertical'));
+        });
+        const img = getAllChildNodes(routeBtn).find((e) => {
+          return (
+            e.classList &&
+            Array.from(e.classList).find((e) =>
+              options.searchCustomImgClass ? e.match(options.searchCustomImgClass) : e.match('img-btn-square-menu'),
+            )
+          );
+        });
+        if (img) {
+          iconHtml = img.outerHTML;
+        } else if (icon) {
+          iconHtml = icon.outerHTML;
+        }
+      }
+    } else {
+      // For fresh search results, use provided DOM elements
+      if (imgElement) {
+        iconHtml = imgElement.outerHTML;
+      } else if (fontAwesomeIcon) {
+        iconHtml = fontAwesomeIcon.outerHTML;
+      }
     }
 
     const translatedText = Translate.Render(routerId);
@@ -763,13 +915,17 @@ const SearchBox = {
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 8px 10px;
+        padding: 12px 14px;
         margin: 4px 0;
         cursor: pointer;
         border-radius: 4px;
         transition: all 0.15s ease;
         border: 1px solid transparent;
         background: transparent;
+        min-height: 44px;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 100%;
       }
 
       .search-result-item:hover {
@@ -785,16 +941,19 @@ const SearchBox = {
       }
 
       .search-result-route {
-        padding: 3px;
+        padding: 10px 12px;
         margin: 2px;
         text-align: left;
+        min-height: 40px;
       }
 
       .search-result-icon {
         display: flex;
         align-items: center;
         justify-content: center;
-        min-width: 24px;
+        min-width: 28px;
+        min-height: 28px;
+        font-size: 16px;
         color: ${iconColor} !important;
       }
 
@@ -821,8 +980,9 @@ const SearchBox = {
 
       .search-result-title {
         font-size: 14px;
-        font-weight: normal;
+        font-weight: 500;
         margin-bottom: 2px;
+        line-height: 1.4;
       }
 
       .search-result-subtitle {
@@ -858,6 +1018,64 @@ const SearchBox = {
         background: ${hasThemeColor ? (darkTheme ? darkenHex(themeColor, 0.5) : lightenHex(themeColor, 0.75)) : tagBg};
         border-color: ${activeBorder};
         color: ${hasThemeColor ? (darkTheme ? lightenHex(themeColor, 0.8) : darkenHex(themeColor, 0.4)) : tagColor};
+      }
+
+      /* Wrapper for history items with delete button - maintains original width */
+      .search-result-history-item {
+        position: relative;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .search-result-history-item .search-result-item {
+        width: 100%;
+        box-sizing: border-box;
+        padding-right: 30px; /* Make room for delete button */
+      }
+
+      /* Delete button - absolute positioned in top-right corner */
+      .search-result-delete-btn {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        background: none;
+        border: none;
+        color: #999;
+        cursor: pointer;
+        padding: 3px 6px;
+        border-radius: 3px;
+        transition: all 0.2s ease;
+        opacity: 0;
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        z-index: 5;
+      }
+
+      .search-result-history-item:hover .search-result-delete-btn {
+        opacity: 1;
+        color: ${darkTheme ? '#ff8a8a' : '#e53935'};
+        background: ${darkTheme ? 'rgba(255, 107, 107, 0.2)' : 'rgba(211, 47, 47, 0.15)'};
+      }
+
+      .search-result-delete-btn:hover {
+        background: ${darkTheme ? 'rgba(255, 107, 107, 0.35)' : 'rgba(211, 47, 47, 0.25)'};
+        transform: scale(1.1);
+      }
+
+      .search-result-delete-btn:active {
+        transform: scale(0.95);
+      }
+
+      /* Animation for removal */
+      .search-result-history-item.search-result-removing {
+        opacity: 0;
+        transform: translateX(20px);
+        transition: all 0.2s ease;
       }
     `;
   },

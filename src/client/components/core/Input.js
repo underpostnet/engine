@@ -1,3 +1,11 @@
+/**
+ * Input component module for form controls and file handling utilities.
+ * Provides input rendering, file data conversion, and blob endpoint integration.
+ *
+ * @module src/client/components/core/Input.js
+ * @namespace InputClient
+ */
+
 import { AgGrid } from './AgGrid.js';
 import { BtnIcon } from './BtnIcon.js';
 import { isValidDate } from './CommonJs.js';
@@ -10,8 +18,23 @@ import { Translate } from './Translate.js';
 import { htmls, htmlStrSanitize, s } from './VanillaJs.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 
+/**
+ * Logger instance for this module.
+ * @type {Function}
+ * @memberof InputClient
+ * @private
+ */
 const logger = loggerFactory(import.meta);
 
+/**
+ * Creates a FormData object from file input event.
+ * Filters files by extension if provided.
+ * @function fileFormDataFactory
+ * @memberof InputClient
+ * @param {Event} e - The input change event containing files.
+ * @param {string[]} [extensions] - Optional array of allowed MIME types.
+ * @returns {FormData} FormData object containing the valid files.
+ */
 const fileFormDataFactory = (e, extensions) => {
   const form = new FormData();
   for (const keyFile of Object.keys(e.target.files)) {
@@ -25,11 +48,21 @@ const fileFormDataFactory = (e, extensions) => {
 };
 
 /**
- * Convert file data to File object
- * Supports both legacy format (with buffer data) and new format (metadata only)
+ * Convert file data to File object.
+ * Supports both legacy format (with buffer data) and new format (metadata only).
  *
- * Legacy format: { data: { data: [0, 1, 2, ...] }, mimetype: 'text/markdown', name: 'file.md' }
- * New format: { _id: '...', mimetype: 'text/markdown', name: 'file.md' }
+ * Legacy format: `{ data: { data: [0, 1, 2, ...] }, mimetype: 'text/markdown', name: 'file.md' }`
+ * New format: `{ _id: '...', mimetype: 'text/markdown', name: 'file.md' }`
+ *
+ * @function getFileFromFileData
+ * @memberof InputClient
+ * @param {Object} fileData - File data object in legacy or new format.
+ * @param {Object} [fileData.data] - Legacy format data container.
+ * @param {Array<number>} [fileData.data.data] - Legacy format byte array.
+ * @param {string} [fileData._id] - New format file ID.
+ * @param {string} fileData.mimetype - MIME type of the file.
+ * @param {string} fileData.name - Name of the file.
+ * @returns {File|null} File object if legacy format, null if metadata-only or invalid.
  */
 const getFileFromFileData = (fileData) => {
   if (!fileData) {
@@ -63,8 +96,17 @@ const getFileFromFileData = (fileData) => {
 };
 
 /**
- * Fetch file content from blob endpoint and create File object
- * Used for metadata-only format files during edit mode
+ * Fetch file content from blob endpoint and create File object.
+ * Used for metadata-only format files during edit mode.
+ *
+ * @async
+ * @function getFileFromBlobEndpoint
+ * @memberof InputClient
+ * @param {Object} fileData - File metadata object with _id.
+ * @param {string} fileData._id - File ID for blob endpoint lookup.
+ * @param {string} [fileData.name] - Optional file name.
+ * @param {string} [fileData.mimetype] - Optional MIME type.
+ * @returns {Promise<File|null>} File object from blob endpoint, or null on error.
  */
 const getFileFromBlobEndpoint = async (fileData) => {
   if (!fileData || !fileData._id) {
@@ -88,10 +130,18 @@ const getFileFromBlobEndpoint = async (fileData) => {
 };
 
 /**
- * Get image/file source URL from file data
- * Supports both legacy format (with buffer) and new format (metadata only)
+ * Get image/file source URL from file data.
+ * Supports both legacy format (with buffer) and new format (metadata only).
+ * For new format, returns blob endpoint URL.
  *
- * For new format, returns blob endpoint URL
+ * @function getSrcFromFileData
+ * @memberof InputClient
+ * @param {Object} fileData - File data object in legacy or new format.
+ * @param {Object} [fileData.data] - Legacy format data container.
+ * @param {Array<number>} [fileData.data.data] - Legacy format byte array.
+ * @param {string} [fileData._id] - New format file ID for blob endpoint.
+ * @param {string} fileData.mimetype - MIME type of the file.
+ * @returns {string|null} Object URL for legacy format, blob endpoint URL for new format, or null on error.
  */
 const getSrcFromFileData = (fileData) => {
   if (!fileData) {
@@ -125,7 +175,28 @@ const getSrcFromFileData = (fileData) => {
   return null;
 };
 
+/**
+ * Input component for rendering various form input types.
+ * Supports text, password, file, color, date, dropdown, toggle, rich text, and grid inputs.
+ * @namespace InputClient.Input
+ * @memberof InputClient
+ */
 const Input = {
+  /**
+   * Renders an input element based on the provided options.
+   * @async
+   * @function Render
+   * @memberof InputClient.Input
+   * @param {Object} options - Input configuration options.
+   * @param {string} options.id - Unique identifier for the input.
+   * @param {string} [options.type] - Input type (text, password, file, color, datetime-local, etc.).
+   * @param {string} [options.placeholder] - Placeholder text.
+   * @param {string} [options.label] - Label text for the input.
+   * @param {string} [options.containerClass] - CSS class for the container.
+   * @param {string} [options.inputClass] - CSS class for the input element.
+   * @param {boolean} [options.disabled] - Whether the input is disabled.
+   * @returns {Promise<string>} HTML string for the input component.
+   */
   Render: async function (options) {
     const { id } = options;
     options?.placeholder

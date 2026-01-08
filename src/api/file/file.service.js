@@ -1,19 +1,38 @@
+/**
+ * File service module for handling file uploads, retrieval, and deletion.
+ * Provides REST API handlers for file operations with MongoDB storage.
+ *
+ * @module src/api/file/file.service.js
+ * @namespace FileServiceServer
+ */
+
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import crypto from 'crypto';
 
+/**
+ * Logger instance for this module.
+ * @type {Function}
+ * @memberof FileServiceServer
+ * @private
+ */
 const logger = loggerFactory(import.meta);
 
 /**
- * File Data Transfer Object (DTO)
- * Provides methods for transforming file documents for API responses
+ * File Data Transfer Object (DTO) for the service layer.
+ * Provides API-specific transformation methods for file documents including
+ * metadata selection queries and response formatting for REST endpoints.
+ * @namespace FileServiceServer.FileServiceDto
+ * @memberof FileServiceServer
  */
-const FileDto = {
+const FileServiceDto = {
   /**
-   * Returns file metadata only (no buffer data)
-   * Used for list responses and API integration
-   * @param {Object} file - File document from database
-   * @returns {Object} - File metadata object
+   * Returns file metadata only (no buffer data).
+   * Used for list responses and API integration.
+   * @function toMetadata
+   * @memberof FileServiceServer.FileServiceDto
+   * @param {Object} file - File document from database.
+   * @returns {Object|null} File metadata object, or null if file is falsy.
    */
   toMetadata: (file) => {
     if (!file) return null;
@@ -30,20 +49,24 @@ const FileDto = {
   },
 
   /**
-   * Transforms array of files to metadata only
-   * @param {Array} files - Array of file documents
-   * @returns {Array} - Array of file metadata objects
+   * Transforms array of files to metadata only.
+   * @function toMetadataArray
+   * @memberof FileServiceServer.FileServiceDto
+   * @param {Array} files - Array of file documents.
+   * @returns {Array} Array of file metadata objects.
    */
   toMetadataArray: (files) => {
     if (!Array.isArray(files)) return [];
-    return files.map((file) => FileDto.toMetadata(file));
+    return files.map((file) => FileServiceDto.toMetadata(file));
   },
 
   /**
-   * Ensures UTF-8 encoding for filenames
-   * Fixes issues with special characters (e.g., ñ, é, ü)
-   * @param {string} filename - Raw filename from upload
-   * @returns {string} - UTF-8 encoded filename
+   * Ensures UTF-8 encoding for filenames.
+   * Fixes issues with special characters (e.g., ñ, é, ü).
+   * @function normalizeFilename
+   * @memberof FileServiceServer.FileServiceDto
+   * @param {string} filename - Raw filename from upload.
+   * @returns {string} UTF-8 encoded filename.
    */
   normalizeFilename: (filename) => {
     if (!filename) return '';
@@ -55,18 +78,30 @@ const FileDto = {
   },
 
   /**
-   * Get select fields for metadata-only queries
-   * Excludes the 'data' buffer field
+   * Get select fields for metadata-only queries.
+   * Excludes the 'data' buffer field.
+   * @function metadataSelect
+   * @memberof FileServiceServer.FileServiceDto
+   * @returns {string} Space-separated list of field names for metadata selection.
    */
   metadataSelect: () => {
     return '_id name mimetype size encoding md5 cid createdAt updatedAt';
   },
 };
 
+/**
+ * File Factory for file extraction, upload, and creation utilities.
+ * @namespace FileServiceServer.FileFactory
+ * @memberof FileServiceServer
+ */
 const FileFactory = {
   /**
-   * Extract files from request
-   * Handles both standard 'file' field and custom fields
+   * Extract files from request.
+   * Handles both standard 'file' field and custom fields.
+   * @function filesExtract
+   * @memberof FileServiceServer.FileFactory
+   * @param {Object} req - Express request object with files.
+   * @returns {Array} Array of extracted file objects.
    */
   filesExtract: (req) => {
     const files = [];
@@ -105,7 +140,13 @@ const FileFactory = {
   },
 
   /**
-   * Upload files to database with UTF-8 encoding
+   * Upload files to database with UTF-8 encoding.
+   * @async
+   * @function upload
+   * @memberof FileServiceServer.FileFactory
+   * @param {Object} req - Express request object with files.
+   * @param {import('mongoose').Model} File - Mongoose File model.
+   * @returns {Promise<Array>} Array of uploaded file metadata objects.
    */
   upload: async function (req, File) {
     const results = FileFactory.filesExtract(req);
@@ -113,7 +154,7 @@ const FileFactory = {
 
     for (let file of results) {
       // Normalize filename to ensure UTF-8 encoding
-      file.name = FileDto.normalizeFilename(file.name);
+      file.name = FileServiceDto.normalizeFilename(file.name);
       file.encoding = 'utf-8';
 
       // Save file to database
@@ -123,7 +164,7 @@ const FileFactory = {
       // Retrieve metadata-only response
       const [result] = await File.find({
         _id: file._id,
-      }).select(FileDto.metadataSelect());
+      }).select(FileServiceDto.metadataSelect());
 
       results[index] = result;
     }
@@ -132,14 +173,22 @@ const FileFactory = {
   },
 
   /**
-   * Convert string to hexadecimal
+   * Convert string to hexadecimal.
+   * @function hex
+   * @memberof FileServiceServer.FileFactory
+   * @param {string} [raw=''] - Raw string to convert.
+   * @returns {string} Hexadecimal representation of the string.
    */
   hex: (raw = '') => {
     return Buffer.from(raw, 'utf8').toString('hex');
   },
 
   /**
-   * Get MIME type from file path
+   * Get MIME type from file path based on extension.
+   * @function getMymeTypeFromPath
+   * @memberof FileServiceServer.FileFactory
+   * @param {string} path - File path or filename with extension.
+   * @returns {string} MIME type string.
    */
   getMymeTypeFromPath: (path) => {
     const ext = String(path || '')
@@ -162,10 +211,15 @@ const FileFactory = {
   },
 
   /**
-   * Create file object with proper encoding
+   * Create file object with proper encoding.
+   * @function create
+   * @memberof FileServiceServer.FileFactory
+   * @param {Buffer} [data=Buffer.from([])] - File data buffer.
+   * @param {string} [name=''] - File name.
+   * @returns {Object} File object with name, data, size, encoding, mimetype, and md5.
    */
   create: (data = Buffer.from([]), name = '') => {
-    const normalizedName = FileDto.normalizeFilename(name);
+    const normalizedName = FileServiceDto.normalizeFilename(name);
 
     return {
       name: normalizedName,
@@ -181,23 +235,43 @@ const FileFactory = {
   },
 };
 
+/**
+ * File Service for handling REST API file operations.
+ * @namespace FileServiceServer.FileService
+ * @memberof FileServiceServer
+ */
 const FileService = {
   /**
-   * POST - Upload files
-   * Returns metadata-only response (no buffer data)
+   * POST - Upload files.
+   * Returns metadata-only response (no buffer data).
+   * @async
+   * @function post
+   * @memberof FileServiceServer.FileService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Array>} Array of uploaded file metadata objects.
    */
   post: async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 
     const uploadedFiles = await FileFactory.upload(req, File);
-    return FileDto.toMetadataArray(uploadedFiles);
+    return FileServiceDto.toMetadataArray(uploadedFiles);
   },
 
   /**
-   * GET - Retrieve files
-   * Returns metadata-only for regular GET
-   * Returns buffer data for /blob endpoint
+   * GET - Retrieve files.
+   * Returns metadata-only for regular GET.
+   * Returns buffer data for /blob endpoint.
+   * @async
+   * @function get
+   * @memberof FileServiceServer.FileService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Array|Buffer>} Array of file metadata objects or Buffer for blob endpoint.
+   * @throws {Error} If file not found for blob endpoint.
    */
   get: async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
@@ -223,22 +297,30 @@ const FileService = {
     // Handle regular GET - return metadata only
     switch (req.params.id) {
       case 'all': {
-        const files = await File.find().select(FileDto.metadataSelect());
-        return FileDto.toMetadataArray(files);
+        const files = await File.find().select(FileServiceDto.metadataSelect());
+        return FileServiceDto.toMetadataArray(files);
       }
 
       default: {
         const files = await File.find({
           _id: req.params.id,
-        }).select(FileDto.metadataSelect());
+        }).select(FileServiceDto.metadataSelect());
 
-        return FileDto.toMetadataArray(files);
+        return FileServiceDto.toMetadataArray(files);
       }
     }
   },
 
   /**
-   * DELETE - Remove files
+   * DELETE - Remove files.
+   * @async
+   * @function delete
+   * @memberof FileServiceServer.FileService
+   * @param {Object} req - Express request object.
+   * @param {Object} res - Express response object.
+   * @param {Object} options - Request options containing host and path.
+   * @returns {Promise<Object>} Deleted file metadata object.
+   * @throws {Error} If file not found.
    */
   delete: async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
@@ -250,8 +332,8 @@ const FileService = {
       throw new Error('File not found');
     }
 
-    return FileDto.toMetadata(result);
+    return FileServiceDto.toMetadata(result);
   },
 };
 
-export { FileService, FileFactory, FileDto };
+export { FileService, FileFactory, FileServiceDto };
