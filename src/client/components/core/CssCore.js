@@ -491,7 +491,7 @@ const CssCoreDark = {
         }
         .toggle-form-container,
         .dropdown-option {
-          width: 238px;
+          width: 255px;
           font-size: 20px;
           padding: 10px;
         }
@@ -503,7 +503,7 @@ const CssCoreDark = {
           background: #232323;
         }
         .form-button {
-          width: 260px;
+          width: 278px;
           font-size: 20px;
           padding: 10px;
           text-align: center;
@@ -599,10 +599,14 @@ const CssCoreLight = {
         }
 
         .box-shadow {
-          box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+          box-shadow:
+            0 4px 8px 0 rgba(0, 0, 0, 0.2),
+            0 6px 20px 0 rgba(0, 0, 0, 0.19);
         }
         .box-shadow:hover {
-          box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+          box-shadow:
+            0 8px 16px 0 rgba(0, 0, 0, 0.2),
+            0 10px 30px 0 rgba(0, 0, 0, 0.3);
         }
         .box-content-border {
           border: 2px solid #bbb;
@@ -805,7 +809,7 @@ const CssCoreLight = {
         }
         .toggle-form-container,
         .dropdown-option {
-          width: 238px;
+          width: 255px;
           font-size: 20px;
           padding: 10px;
         }
@@ -817,7 +821,7 @@ const CssCoreLight = {
           background: #e4e4e4;
         }
         .form-button {
-          width: 260px;
+          width: 278px;
           font-size: 20px;
           padding: 10px;
           text-align: center;

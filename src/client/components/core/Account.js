@@ -8,6 +8,7 @@ import { fileFormDataFactory, Input } from './Input.js';
 import { LogIn } from './LogIn.js';
 import { Modal } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
+import { ToggleSwitch } from './ToggleSwitch.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { append, htmls, s } from './VanillaJs.js';
@@ -49,11 +50,17 @@ const Account = {
           id: `account-password`,
           rules: [{ type: 'isStrongPassword' }],
         },
+        {
+          model: 'briefDescription',
+          id: `account-brief-description`,
+          rules: [{ type: 'isLength', options: { min: 0, max: 200 } }],
+        },
       ];
 
       this.formData = formData;
 
       this.instanceModalUiEvents = async ({ user }) => {
+        const accountInstance = this;
         const validators = await Validator.instance(formData);
 
         for (const inputData of formData) {
@@ -83,9 +90,9 @@ const Account = {
           });
           if (result.status === 'success') {
             user = result.data;
-            this.triggerUpdateEvent({ user });
+            accountInstance.triggerUpdateEvent({ user });
             if (lastUser.emailConfirmed !== user.emailConfirmed) {
-              this.renderVerifyEmailStatus(user);
+              accountInstance.renderVerifyEmailStatus(user);
             }
             lastUser = newInstance(user);
           }
@@ -115,7 +122,7 @@ const Account = {
               status: result.status,
             });
           });
-        this.renderVerifyEmailStatus(user);
+        accountInstance.renderVerifyEmailStatus(user);
 
         s(`.${waveAnimationId}`).style.cursor = 'pointer';
         s(`.${waveAnimationId}`).onclick = async (e) => {
@@ -177,6 +184,52 @@ const Account = {
           },
           { context: 'modal' },
         );
+        EventsUI.onClick(`.btn-brief-description-update`, async (e) => {
+          e.preventDefault();
+          const descriptionValue = s(`.account-brief-description`).value;
+          if (!descriptionValue || descriptionValue === 'undefined' || descriptionValue.trim() === '') {
+            NotificationManager.Push({
+              html: Translate.Render('brief-description-cannot-be-empty'),
+              status: 'error',
+            });
+            return;
+          }
+          const result = await UserService.put({ id: user._id, body: { briefDescription: descriptionValue } });
+          NotificationManager.Push({
+            html:
+              result.status === 'error' && result.message
+                ? result.message
+                : Translate.Render(`${result.status}-update-user`),
+            status: result.status,
+          });
+          if (result.status === 'success') {
+            user.briefDescription = descriptionValue;
+            accountInstance.triggerUpdateEvent({ user });
+          }
+        });
+
+        // Setup public profile toggle handler
+        setTimeout(() => {
+          if (ToggleSwitch.Tokens['account-public-profile']) {
+            const originalClick = ToggleSwitch.Tokens['account-public-profile'].click;
+            ToggleSwitch.Tokens['account-public-profile'].click = async function () {
+              originalClick.call(this);
+              const isChecked = s(`.account-public-profile-checkbox`).checked;
+              const result = await UserService.put({ id: user._id, body: { publicProfile: isChecked } });
+              NotificationManager.Push({
+                html:
+                  result.status === 'error' && result.message
+                    ? result.message
+                    : Translate.Render(`${result.status}-update-user`),
+                status: result.status,
+              });
+              if (result.status === 'success') {
+                user.publicProfile = isChecked;
+                accountInstance.triggerUpdateEvent({ user });
+              }
+            };
+          }
+        });
         EventsUI.onClick(`.btn-account-delete`, async (e) => {
           e.preventDefault();
           const result = await UserService.delete({ id: user._id });
@@ -233,16 +286,17 @@ const Account = {
             autocomplete: 'email',
             disabled: user.emailConfirmed,
             extension: !(options && options.disabled && options.disabled.includes('emailConfirm'))
-              ? async () => html`<div class="in verify-email-status"></div>
-                  ${await BtnIcon.Render({
-                    class: `in wfa btn-input-extension btn-confirm-email`,
-                    type: 'button',
-                    style: 'text-align: left',
-                    label: html`<div class="in">
-                      <i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
-                      ${Translate.Render('verify-email')}
-                    </div> `,
-                  })}`
+              ? async () =>
+                  html`<div class="in verify-email-status"></div>
+                    ${await BtnIcon.Render({
+                      class: `in wfa btn-input-extension btn-confirm-email`,
+                      type: 'button',
+                      style: 'text-align: left',
+                      label: html`<div class="in">
+                        <i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
+                        ${Translate.Render('verify-email')}
+                      </div> `,
+                    })}`
               : undefined,
           })}
         </div>
@@ -263,6 +317,31 @@ const Account = {
                 style: 'text-align: left',
                 label: html`${Translate.Render(`change-password`)}`,
               })}`,
+          })}
+        </div>
+        <div class="in">
+          ${await Input.Render({
+            id: `account-brief-description`,
+            label: html`<i class="fa-solid fa-pen-fancy"></i> ${Translate.Render('brief-description')}`,
+            containerClass: 'inl section-mp width-mini-box input-container',
+            placeholder: true,
+            rows: 4,
+            extension: async () =>
+              html`${await BtnIcon.Render({
+                class: `in wfa btn-input-extension btn-brief-description-update`,
+                type: 'button',
+                style: 'text-align: left',
+                label: html`${Translate.Render(`update`)}`,
+              })}`,
+          })}
+        </div>
+        <div class="in section-mp">
+          ${await ToggleSwitch.Render({
+            wrapper: true,
+            wrapperLabel: html`<i class="fa-solid fa-globe"></i> ${Translate.Render('public-profile')}`,
+            id: 'account-public-profile',
+            disabledOnClick: false,
+            checked: user.publicProfile || false,
           })}
         </div>
         ${options?.bottomRender ? await options.bottomRender() : ``}
@@ -319,6 +398,13 @@ const Account = {
     if (LogIn.Scope.user.main.model.user.profileImage) {
       s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
       s(`.account-profile-image`).style.opacity = 1;
+    }
+    if (ToggleSwitch.Tokens['account-public-profile']) {
+      if (user.publicProfile && !s(`.account-public-profile-checkbox`).checked) {
+        ToggleSwitch.Tokens['account-public-profile'].click();
+      } else if (!user.publicProfile && s(`.account-public-profile-checkbox`).checked) {
+        ToggleSwitch.Tokens['account-public-profile'].click();
+      }
     }
   },
 };

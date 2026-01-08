@@ -435,7 +435,9 @@ const CssCyberiaDark = {
             width: 175px;
             height: 175px;
             z-index: 3;
-            cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
+            cursor:
+              url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30,
+              auto !important;
           }
           .main-skill-slot {
             /* border: 2px solid blue; */
@@ -463,7 +465,9 @@ const CssCyberiaDark = {
             height: 50%;
           }
           .dynamic-joystick-container-cyberia-joystick {
-            cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
+            cursor:
+              url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30,
+              auto !important;
           }
           .main-skill-cooldown {
             width: 60%;
@@ -479,7 +483,9 @@ const CssCyberiaDark = {
           .PointAndClickMovementCyberia-container {
             z-index: 2;
             top: 54px;
-            cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
+            cursor:
+              url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30,
+              auto !important;
           }
           .bag-slot-img {
             width: 80%;
@@ -732,7 +738,7 @@ const CssCyberiaDark = {
             /* color: #ffcc00; */
           }
           .form-button {
-            width: 260px;
+            width: 278px;
             font-size: 20px;
             padding: 10px;
             text-align: center;

@@ -60,6 +60,8 @@ const UserSchema = new Schema(
         context: [{ type: String, enum: ['client', 'supplier', 'employee', 'owner'] }],
       },
     ],
+    publicProfile: { type: Boolean, default: false },
+    briefDescription: { type: String, default: '' },
   },
   {
     timestamps: true,
@@ -80,6 +82,8 @@ const UserDto = {
         role: 1,
         emailConfirmed: 1,
         profileImageId: 1,
+        publicProfile: 1,
+        briefDescription: 1,
         createdAt: 1,
         updatedAt: 1,
       };
