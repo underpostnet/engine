@@ -572,7 +572,6 @@ const Modal = {
               });
               let currentKeyBoardSearchBoxIndex = 0;
               let results = [];
-              let historySearchBox = [];
 
               const checkHistoryBoxTitleStatus = () => {
                 if (s(`.search-box-result-title`) && s(`.search-box-result-title`).classList) {
@@ -664,8 +663,9 @@ const Modal = {
                         results = await SearchBox.search(trimmedQuery, searchContext);
                         renderSearchResult(results);
                       } else if (trimmedQuery.length === 0) {
-                        // Show history when query is empty
-                        renderSearchResult(historySearchBox);
+                        // Show recent results from persistent history when query is empty
+                        const recentResults = SearchBox.RecentResults.getAll();
+                        renderSearchResult(recentResults);
                       } else {
                         // Query is too short - show nothing or a hint
                         renderSearchResult([]);
@@ -732,15 +732,18 @@ const Modal = {
                 const resultType = activeItem.getAttribute('data-result-type');
 
                 if (resultType === 'route' && results[currentKeyBoardSearchBoxIndex]) {
-                  historySearchBox = historySearchBox.filter(
-                    (h) => h.routerId !== results[currentKeyBoardSearchBoxIndex].routerId,
-                  );
-                  historySearchBox.unshift(results[currentKeyBoardSearchBoxIndex]);
+                  const result = results[currentKeyBoardSearchBoxIndex];
+                  // Track in persistent history
+                  SearchBox.RecentResults.add(result);
                   updateSearchBoxValue();
                   if (s(`.main-btn-${resultId}`)) {
                     s(`.main-btn-${resultId}`).click();
                   }
                 } else {
+                  // Track custom provider result in persistent history
+                  if (results[currentKeyBoardSearchBoxIndex]) {
+                    SearchBox.RecentResults.add(results[currentKeyBoardSearchBoxIndex]);
+                  }
                   // Trigger click on custom result
                   activeItem.click();
                 }

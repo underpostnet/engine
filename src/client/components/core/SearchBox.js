@@ -34,11 +34,99 @@ const SearchBox = {
    * - search: async (query, context) => Promise<Array<result>>
    * - renderResult: (result, index, context) => string (HTML)
    * - onClick: (result, context) => void
-   * - priority: number (lower = higher priority)
+   * - priority: number (lower number = higher priority)
    * @type {Array<object>}
    * @memberof SearchBoxClient.SearchBox
    */
   providers: [],
+
+  /**
+   * Recent search results manager with persistent localStorage caching.
+   * Tracks clicked results from all providers (routes and custom).
+   * Maintains order of most-recent-first results across sessions.
+   * @type {object}
+   * @memberof SearchBoxClient.SearchBox
+   */
+  RecentResults: {
+    /**
+     * Storage key for localStorage persistence
+     * @type {string}
+     */
+    storageKey: 'searchbox_recent_results',
+
+    /**
+     * Maximum number of recent results to keep in history
+     * @type {number}
+     */
+    maxResults: 20,
+
+    /**
+     * Get all cached recent results from localStorage
+     * @returns {Array<object>} Array of recent result objects
+     */
+    getAll: function () {
+      try {
+        const stored = localStorage.getItem(this.storageKey);
+        return stored ? JSON.parse(stored) : [];
+      } catch (error) {
+        logger.warn('Error reading search history from localStorage:', error);
+        return [];
+      }
+    },
+
+    /**
+     * Save recent results to localStorage
+     * @param {Array<object>} results - Array of results to save
+     */
+    saveAll: function (results) {
+      try {
+        localStorage.setItem(this.storageKey, JSON.stringify(results.slice(0, this.maxResults)));
+      } catch (error) {
+        logger.warn('Error saving search history to localStorage:', error);
+      }
+    },
+
+    /**
+     * Add a result to recent history (moves to front if duplicate)
+     * Removes duplicates and maintains max size limit.
+     * @param {object} result - Result object to add (must have id and providerId/routerId)
+     */
+    add: function (result) {
+      if (!result || (!result.id && !result.routerId)) {
+        logger.warn('SearchBox.RecentResults.add: Invalid result, missing id or routerId');
+        return;
+      }
+
+      const recent = this.getAll();
+
+      // Remove duplicate if it exists (based on id and providerId/routerId)
+      const filteredRecent = recent.filter((r) => {
+        if (result.providerId && r.providerId) {
+          return !(r.id === result.id && r.providerId === result.providerId);
+        } else if (result.routerId && r.routerId) {
+          return r.routerId !== result.routerId;
+        }
+        return true;
+      });
+
+      // Add new result to front
+      filteredRecent.unshift(result);
+
+      // Save to localStorage
+      this.saveAll(filteredRecent);
+    },
+
+    /**
+     * Clear all recent results
+     */
+    clear: function () {
+      try {
+        localStorage.removeItem(this.storageKey);
+      } catch (error) {
+        logger.warn('Error clearing search history:', error);
+      }
+    },
+  },
 
   /**
    * Registers a search provider plugin for extensible search functionality.
@@ -381,6 +469,9 @@ const SearchBox = {
         e.preventDefault();
         e.stopPropagation();
 
+        // Track result in persistent history for all result types
+        this.RecentResults.add(result);
+
         const provider = this.providers.find((p) => p.id === result.providerId);
 
         if (result.type === 'route') {
@@ -541,6 +632,13 @@ const SearchBox = {
     const performSearch = this.debounce(async (query) => {
       const trimmedQuery = query ? query.trim() : '';
       const minLength = context.minQueryLength !== undefined ? context.minQueryLength : 1;
+
+      // Show recent results when query is empty
+      if (trimmedQuery.length === 0) {
+        const recentResults = this.RecentResults.getAll();
+        this.renderResults(recentResults, resultsContainerId, context);
+        return;
+      }
 
       // Support single character searches by default (minQueryLength: 1)
       // Can be configured via context.minQueryLength for different use cases
