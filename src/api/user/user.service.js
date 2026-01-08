@@ -176,15 +176,18 @@ const UserService = {
                   runValidators: true,
                 },
               );
-              setTimeout(async () => {
-                await User.findByIdAndUpdate(
-                  _id,
-                  { failedLoginAttempts: 0 },
-                  {
-                    runValidators: true,
-                  },
-                );
-              }, 60 * 1000 * 15);
+              setTimeout(
+                async () => {
+                  await User.findByIdAndUpdate(
+                    _id,
+                    { failedLoginAttempts: 0 },
+                    {
+                      runValidators: true,
+                    },
+                  );
+                },
+                60 * 1000 * 15,
+              );
               throw new Error(`Account locked. Please try again in: 15 min.`);
             } else if (user.failedLoginAttempts < 0 && getMinutesRemaining() > 0) {
               throw new Error(accountLocketMessage());
@@ -479,14 +482,13 @@ const UserService = {
             const _id = req.auth.user._id;
             if (_id !== req.params.id) throw new Error(`Invalid token user id`);
             const user = await User.findOne({ _id });
-            await User.findByIdAndUpdate(
-              _id,
-              {
-                email: req.body.email && !user.emailConfirmed ? req.body.email : user.email,
-                username: req.body.username,
-              },
-              { runValidators: true },
-            );
+            const updateData = {
+              email: req.body.email && !user.emailConfirmed ? req.body.email : user.email,
+              username: req.body.username,
+            };
+            if (req.body.publicProfile !== undefined) updateData.publicProfile = req.body.publicProfile;
+            if (req.body.briefDescription !== undefined) updateData.briefDescription = req.body.briefDescription;
+            await User.findByIdAndUpdate(_id, updateData, { runValidators: true });
             return await User.findOne({
               _id,
             }).select(UserDto.select.get());

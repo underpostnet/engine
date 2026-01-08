@@ -53,6 +53,7 @@ const Account = {
         {
           model: 'briefDescription',
           id: `account-brief-description`,
+          defaultValue: 'Uploader',
           rules: [{ type: 'isLength', options: { min: 0, max: 200 } }],
         },
       ];
@@ -340,8 +341,8 @@ const Account = {
             wrapper: true,
             wrapperLabel: html`<i class="fa-solid fa-globe"></i> ${Translate.Render('public-profile')}`,
             id: 'account-public-profile',
-            disabledOnClick: false,
-            checked: user.publicProfile || false,
+            disabledOnClick: true,
+            checked: user.publicProfile ? true : false,
           })}
         </div>
         ${options?.bottomRender ? await options.bottomRender() : ``}
@@ -398,13 +399,6 @@ const Account = {
     if (LogIn.Scope.user.main.model.user.profileImage) {
       s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
       s(`.account-profile-image`).style.opacity = 1;
-    }
-    if (ToggleSwitch.Tokens['account-public-profile']) {
-      if (user.publicProfile && !s(`.account-public-profile-checkbox`).checked) {
-        ToggleSwitch.Tokens['account-public-profile'].click();
-      } else if (!user.publicProfile && s(`.account-public-profile-checkbox`).checked) {
-        ToggleSwitch.Tokens['account-public-profile'].click();
-      }
     }
   },
 };

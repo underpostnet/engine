@@ -139,13 +139,15 @@ const sanitizeRoute = (route) =>
  * @memberof PwaRouter
  */
 const setDocTitle = (route) => {
-  const _route = sanitizeRoute(route);
+  let _route = sanitizeRoute(route);
   // logger.warn('setDocTitle', _route);
   const title = titleFormatted(_route);
   htmls('title', html`${title}${title.match(Worker.title.toLowerCase()) ? '' : ` | ${Worker.title}`}`);
-  if (s(`.main-btn-${_route}`)) {
+
+  const btnSelector = _route === 'u' ? 'public-profile' : _route;
+  if (s(`.main-btn-${btnSelector}`)) {
     if (s(`.main-btn-menu-active`)) s(`.main-btn-menu-active`).classList.remove(`main-btn-menu-active`);
-    if (s(`.main-btn-${_route}`)) s(`.main-btn-${_route}`).classList.add(`main-btn-menu-active`);
+    if (s(`.main-btn-${btnSelector}`)) s(`.main-btn-${btnSelector}`).classList.add(`main-btn-menu-active`);
   }
 };
 

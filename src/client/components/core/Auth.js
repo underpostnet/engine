@@ -310,6 +310,7 @@ class Auth {
     s(`.main-btn-sign-up`).style.display = 'none';
     s(`.main-btn-log-out`).style.display = null;
     s(`.main-btn-account`).style.display = null;
+    if (s(`.main-btn-public-profile`)) s(`.main-btn-public-profile`).style.display = null;
     setTimeout(() => {
       // Close any open login/signup modals
       if (s(`.modal-log-in`)) s(`.btn-close-modal-log-in`).click();
@@ -328,6 +329,7 @@ class Auth {
     s(`.main-btn-sign-up`).style.display = null;
     s(`.main-btn-log-out`).style.display = 'none';
     s(`.main-btn-account`).style.display = 'none';
+    if (s(`.main-btn-public-profile`)) s(`.main-btn-public-profile`).style.display = 'none';
     setTimeout(() => {
       // Close any open logout/account modals
       if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();

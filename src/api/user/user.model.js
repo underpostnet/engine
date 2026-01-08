@@ -61,7 +61,7 @@ const UserSchema = new Schema(
       },
     ],
     publicProfile: { type: Boolean, default: false },
-    briefDescription: { type: String, default: '' },
+    briefDescription: { type: String, default: 'Uploader' },
   },
   {
     timestamps: true,

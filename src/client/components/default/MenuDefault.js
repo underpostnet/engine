@@ -1,16 +1,7 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import {
-  borderChar,
-  boxShadow,
-  Css,
-  darkTheme,
-  extractBackgroundImageUrl,
-  renderCssAttr,
-  ThemeEvents,
-  Themes,
-} from '../core/Css.js';
+import { Css, darkTheme, ThemeEvents, Themes } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -24,13 +15,13 @@ import Sortable from 'sortablejs';
 import { RouterDefault, BannerAppTemplate } from './RoutesDefault.js';
 import { SettingsDefault } from './SettingsDefault.js';
 import { Badge } from '../core/Badge.js';
-import { Docs } from '../core/Docs.js';
 import { Recover } from '../core/Recover.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { Page500 } from '../core/500.js';
 import { Page404 } from '../core/404.js';
 import { PanelForm } from '../core/PanelForm.js';
 import { Chat } from '../core/Chat.js';
+import { PublicProfile } from '../core/PublicProfile.js';
 
 const MenuDefault = {
   Data: {},
@@ -110,6 +101,19 @@ const MenuDefault = {
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-public-profile',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<i class="fas fa-user-tag"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('public-profile')}</span>`,
+            }),
+            style: 'display: none',
+            attrs: `data-id="public-profile"`,
+            tabHref: `${getProxyPath()}u`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('public-profile')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-settings',
@@ -549,6 +553,29 @@ const MenuDefault = {
             idModal: 'modal-account',
             user: ElementsDefault.Data.user.main.model.user,
             disabled: [],
+          }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-public-profile`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-public-profile',
+        route: 'u',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fas fa-user-circle"></i>`,
+          text: Translate.Render('public-profile'),
+        }),
+        html: async () =>
+          await PublicProfile.Render({
+            idModal: 'modal-public-profile',
+            user: ElementsDefault.Data.user.main.model.user,
           }),
         handleType: 'bar',
         maximize: true,

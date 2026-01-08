@@ -404,9 +404,7 @@ const CssCoreDark = {
           color: #fff;
           background: #313131;
         }
-        .input-container {
-          width: 256px;
-        }
+
         .btn-eye-password {
           text-align: center;
           background: #1a1a1a;
@@ -480,7 +478,7 @@ const CssCoreDark = {
           cursor: pointer;
         }
         .btn-custom {
-          width: 260px;
+          width: 278px;
           font-size: 20px;
           padding: 10px;
           min-height: 45px;
@@ -719,7 +717,6 @@ const CssCoreLight = {
           border-radius: 5px;
           border: 2px solid #bbb;
           transition: 0.3s;
-          width: 256px;
         }
         .input-container:hover {
           color: #1a1a1a;
@@ -797,7 +794,7 @@ const CssCoreLight = {
           cursor: pointer;
         }
         .btn-custom {
-          width: 260px;
+          width: 278px;
           font-size: 20px;
           padding: 10px;
           min-height: 45px;

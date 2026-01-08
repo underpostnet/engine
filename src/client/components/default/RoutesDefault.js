@@ -34,6 +34,7 @@ const RoutesDefault = () => {
       title: 'default-management',
       render: () => s(`.main-btn-default-management`).click(),
     },
+    '/u': { title: 'public-profile', render: () => s(`.main-btn-public-profile`).click() },
     '/404': { title: '404 Not Found', render: () => s(`.main-btn-404`).click() },
     '/500': { title: '500 Server Error', render: () => s(`.main-btn-500`).click() },
   };

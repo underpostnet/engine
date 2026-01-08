@@ -145,6 +145,9 @@ const CssCommonCyberia = async () => {
       .main-btn-menu {
         font-size: 20px;
       }
+      .input-container {
+        width: 278px;
+      }
     </style>
 
     <div class="ag-grid-style"></div>`;

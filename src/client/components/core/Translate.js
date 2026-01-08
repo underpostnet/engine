@@ -531,6 +531,22 @@ const TranslateCore = {
       en: 'Require title and content or file',
       es: 'Requiere título y contenido o archivo',
     };
+    Translate.Data['public-profile'] = {
+      en: 'Public Profile',
+      es: 'Perfil Público',
+    };
+    Translate.Data['private-profile'] = {
+      en: 'Private Profile',
+      es: 'Perfil Privado',
+    };
+    Translate.Data['brief-description'] = {
+      en: 'Brief Description',
+      es: 'Descripción Breve',
+    };
+    Translate.Data['brief-description-cannot-be-empty'] = {
+      en: 'Brief description cannot be empty',
+      es: 'La descripción breve no puede estar vacía',
+    };
   },
 };
 
