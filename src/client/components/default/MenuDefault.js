@@ -568,10 +568,11 @@ const MenuDefault = {
         id: 'modal-public-profile',
         route: 'u',
         barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-user-circle"></i>`,
-          text: Translate.Render('public-profile'),
-        }),
+        title: '',
+        //   renderViewTitle({
+        //   icon: html`<i class="fas fa-user-circle"></i>`,
+        //   text: Translate.Render('public-profile'),
+        // }),
         html: async () =>
           await PublicProfile.Render({
             idModal: 'modal-public-profile',
@@ -582,6 +583,7 @@ const MenuDefault = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
+        observer: true,
       });
     });
 
