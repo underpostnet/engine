@@ -718,15 +718,16 @@ const Panel = {
       s(`.btn-${idPanel}-clean`).onclick = () => {
         Input.cleanValues(formData);
       };
-      s(`.btn-${idPanel}-clean-file`).onclick = () => {
-        // Clear file input specifically
-        const fileFormData = formData.find((f) => f.inputType === 'file');
-        if (fileFormData && s(`.${fileFormData.id}`)) {
-          s(`.${fileFormData.id}`).value = '';
-          s(`.${fileFormData.id}`).inputFiles = null;
-          htmls(`.file-name-render-${fileFormData.id}`, `${fileNameInputExtDefaultContent}`);
-        }
-      };
+      if (s(`.btn-${idPanel}-clean-file`))
+        s(`.btn-${idPanel}-clean-file`).onclick = () => {
+          // Clear file input specifically
+          const fileFormData = formData.find((f) => f.inputType === 'file');
+          if (fileFormData && s(`.${fileFormData.id}`)) {
+            s(`.${fileFormData.id}`).value = '';
+            s(`.${fileFormData.id}`).inputFiles = null;
+            htmls(`.file-name-render-${fileFormData.id}`, `${fileNameInputExtDefaultContent}`);
+          }
+        };
       s(`.btn-${idPanel}-close`).onclick = (e) => {
         e.preventDefault();
         s(`.${idPanel}-form-body`).style.opacity = 0;
