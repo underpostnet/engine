@@ -231,7 +231,6 @@ const LoadRouter = function (RouterInstance) {
  * @param {string} [options.queryPath=''] - The query parameter value.
  * @param {string} [queryKey='cid'] - The query parameter key.
  * @param {object} [pathOptions={}] - Additional options for setPath function.
- * @param {boolean} [pathOptions.skipCleanUrl=false] - Skip clean URL update for public profiles.
  * @memberof PwaRouter
  */
 const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid', pathOptions = {}) => {
@@ -248,14 +247,6 @@ const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid', p
 
   if (currentUri !== newUri && currentUri !== `${newUri}/`) {
     setPath(newUri, { force: shouldForce, ...pathOptions }, '');
-
-    // For public profile paths, schedule a clean URL update after data loading
-    if (path === 'u' && queryPath && !pathOptions.skipCleanUrl) {
-      // Use a timeout to allow data fetching to complete first
-      setTimeout(() => {
-        updatePublicProfileHistory(queryPath, { replace: true });
-      }, 100);
-    }
   }
 };
 
@@ -273,16 +264,10 @@ const setPublicProfilePath = (username, options = {}) => {
 
   const currentParams = getQueryParams();
   const currentCid = currentParams.cid;
-  const currentPath = window.location.pathname;
-
-  // Check if we're already on the correct clean URL path
-  const cleanPath = `${getProxyPath()}u/${username}`;
-  const isAlreadyOnCleanPath = currentPath === cleanPath.replace(/\/$/, '');
 
   // Only navigate if the username is different
-  if (currentCid !== username || !isAlreadyOnCleanPath) {
-    // First, use query params for internal data fetching
-    setQueryPath({ path: 'u', queryPath: username }, 'cid', { ...options, skipCleanUrl: true });
+  if (currentCid !== username) {
+    setQueryPath({ path: 'u', queryPath: username }, 'cid', options);
   }
 };
 
@@ -337,7 +322,7 @@ const handleCleanProfileUrl = (pathname = window.location.pathname) => {
     const queryParams = getQueryParams();
     if (queryParams.cid !== username) {
       // Use internal navigation without updating clean URL again
-      setQueryPath({ path: 'u', queryPath: username }, 'cid', { skipCleanUrl: true, replace: true });
+      setQueryPath({ path: 'u', queryPath: username }, 'cid', { replace: true });
       return true;
     }
   }

@@ -111,6 +111,30 @@ const TranslateCore = {
         es: 'Este campo no cumple con los requisitos específicos',
         en: 'This field does not meet specific requirements',
       },
+      'error-username-invalid': {
+        es: 'Nombre de usuario no válido. Debe contener solo letras, números y guiones bajos.',
+        en: 'Invalid username. Must contain only letters, numbers, and underscores.',
+      },
+      'error-email-invalid': {
+        es: 'Dirección de correo electrónico no válida.',
+        en: 'Invalid email address.',
+      },
+      'error-password-invalid': {
+        es: 'Contraseña no válida. Debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas, números y símbolos.',
+        en: 'Invalid password. Must be at least 8 characters long and include uppercase, lowercase, numbers, and symbols.',
+      },
+      'error-username-taken': {
+        es: 'Este nombre de usuario ya está en uso. Por favor, elige otro.',
+        en: 'This username is already taken. Please choose another one.',
+      },
+      'error-email-taken': {
+        es: 'Esta dirección de correo electrónico ya está registrada.',
+        en: 'This email address is already registered.',
+      },
+      'error-register-user': {
+        es: 'Error al registrar el usuario. Por favor, intenta nuevamente.',
+        en: 'Error registering user. Please try again.',
+      },
     };
     Translate.Data['isMobilePhone'] = {
       en: 'Invalid mobile phone number. Please check the format and try again.',

@@ -43,23 +43,42 @@ const SignUp = {
           if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
         }
         const result = await UserService.post({ body });
+        const handleSignUpError = (data) => {
+          let error = '';
+          if (data.message) {
+            if (data.message.match('duplicate')) {
+              if (data.message.match('username')) error += Translate.Render('error-username-taken');
+              if (data.message.match('email')) error += Translate.Render('error-email-taken');
+            } else {
+              if (data.message.match('username')) error += Translate.Render('error-username-invalid');
+              if (data.message.match('email')) error += Translate.Render('error-email-invalid');
+              if (data.message.match('password')) error += Translate.Render('error-password-invalid');
+            }
+            return error;
+          }
+          return Translate.Render('error-register-user');
+        };
         NotificationManager.Push({
           html:
             typeof result.data === 'string'
               ? result.data
               : result.status === 'success'
                 ? Translate.Render(`success-register-user`)
-                : Translate.Render(`no-valid-register`),
+                : handleSignUpError(result),
           status: result.status,
         });
         if (result.status === 'success') {
           await Auth.sessionIn(result);
-          s(`.btn-close-${options.idModal}`).click();
+          setTimeout(() => {
+            if (s(`.btn-close-${options.idModal}`)) s(`.btn-close-${options.idModal}`).click();
+          });
         }
       });
-      s(`.btn-sign-up-i-have-account`).onclick = () => {
-        s(`.main-btn-log-in`).click();
-      };
+      setTimeout(() => {
+        s(`.btn-sign-up-i-have-account`).onclick = () => {
+          s(`.main-btn-log-in`).click();
+        };
+      });
     });
     return html`
       ${await BtnIcon.Render({

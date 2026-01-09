@@ -10,6 +10,199 @@ import { updatePublicProfileHistory } from './Router.js';
 const PublicProfile = {
   Data: {},
 
+  Update: async function (options = { idModal: '', user: {} }) {
+    const { idModal, user } = options;
+    const username = user.username || 'Unknown User';
+
+    // Check if modal exists and is registered in Modal.Data
+    if (!Modal.Data[idModal]) {
+      return await this.Render(options);
+    }
+
+    try {
+      // Update modal title to show current username
+      const modal = s(`#${idModal}`);
+      if (modal) {
+        const modalTitle = modal.querySelector('.modal-title');
+        if (modalTitle) {
+          modalTitle.innerHTML = `<i class="fas fa-user-circle"></i> @${username}`;
+        }
+      }
+
+      // Ensure modal is in correct state
+      this._ensureModalState(idModal);
+
+      // Show loading state using Modal.writeHTML
+      const loadingHtml = this._getLoadingHtml(username);
+      Modal.writeHTML({ idModal, html: loadingHtml });
+
+      // Clean up existing profile data to avoid conflicts
+      this._cleanupProfileData();
+
+      // Re-render the profile content with new user
+      const newContent = await this.Render(options);
+
+      // Update modal content using Modal.writeHTML with smooth transition
+      Modal.writeHTML({ idModal, html: newContent });
+      this._addTransitionEffect(idModal);
+
+      // Update document title and browser history
+      this._updateDocumentTitle(username);
+
+      return newContent;
+    } catch (error) {
+      console.error('Error updating profile:', error);
+
+      // Show error state using Modal.writeHTML
+      const errorHtml = this._getErrorHtml(username, error.message);
+      Modal.writeHTML({ idModal, html: errorHtml });
+
+      throw error;
+    }
+  },
+
+  _getLoadingHtml: function (username) {
+    return html`
+      <div class="profile-loading-container">
+        <div class="profile-loading-spinner"></div>
+        <p class="profile-loading-text">Loading profile for @${username}...</p>
+        <style>
+          .profile-loading-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+            flex-direction: column;
+            gap: 20px;
+          }
+          .profile-loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: profile-spin 1s linear infinite;
+          }
+          .profile-loading-text {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+          }
+          @keyframes profile-spin {
+            0% {
+              transform: rotate(0deg);
+            }
+            100% {
+              transform: rotate(360deg);
+            }
+          }
+        </style>
+      </div>
+    `;
+  },
+
+  _addTransitionEffect: function (idModal) {
+    // Add smooth transition effect to modal content
+    const modalContent = s(`.html-${idModal}`);
+    if (modalContent) {
+      modalContent.style.transition = 'opacity 0.3s ease-in-out';
+      modalContent.style.opacity = '0';
+
+      // Fade in after a brief delay
+      setTimeout(() => {
+        modalContent.style.opacity = '1';
+      }, 50);
+    }
+  },
+
+  _getErrorHtml: function (username, errorMessage) {
+    return html`
+      <div class="profile-error-container">
+        <div class="profile-error-icon">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <h3 class="profile-error-title">Failed to load profile</h3>
+        <p class="profile-error-message">Could not load profile for @${username}</p>
+        <p class="profile-error-details">${errorMessage}</p>
+        <button class="profile-error-retry btn-retry-profile" onclick="location.reload()">
+          <i class="fas fa-redo"></i> Retry
+        </button>
+        <style>
+          .profile-error-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+            flex-direction: column;
+            gap: 15px;
+            text-align: center;
+            padding: 20px;
+          }
+          .profile-error-icon {
+            font-size: 48px;
+            color: #e74c3c;
+          }
+          .profile-error-title {
+            margin: 0;
+            color: #333;
+            font-size: 18px;
+          }
+          .profile-error-message {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+          }
+          .profile-error-details {
+            margin: 0;
+            color: #999;
+            font-size: 12px;
+            font-style: italic;
+          }
+          .profile-error-retry {
+            padding: 8px 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+          }
+          .profile-error-retry:hover {
+            background: #2980b9;
+          }
+        </style>
+      </div>
+    `;
+  },
+
+  _cleanupProfileData: function () {
+    const oldProfileIds = Object.keys(this.Data).filter((key) => key.startsWith('profile-'));
+    oldProfileIds.forEach((id) => {
+      if (this.Data[id]) {
+        // Clean up theme events
+        if (ThemeEvents[`profile-${id}`]) delete ThemeEvents[`profile-${id}`];
+        if (ThemeEvents[`error-state-${id}`]) delete ThemeEvents[`error-state-${id}`];
+        delete this.Data[id];
+      }
+    });
+  },
+
+  _updateDocumentTitle: function (username) {
+    if (document.title.includes('Public Profile') || document.title.includes('@')) {
+      document.title = `@${username} - Public Profile`;
+    }
+  },
+
+  _ensureModalState: function (idModal) {
+    // Ensure modal is in the correct state for content updates
+    if (Modal.Data[idModal]) {
+      // Reset any modal-specific states that might interfere
+      Modal.Data[idModal].updated = true;
+      Modal.Data[idModal].lastUpdated = Date.now();
+    }
+  },
+
   Render: async function (
     options = {
       idModal: '',

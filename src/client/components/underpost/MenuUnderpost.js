@@ -471,6 +471,24 @@ const MenuUnderpost = {
         }
       }
 
+      // Check if public profile modal is already open
+      const existingModal = s('.modal-public-profile');
+      if (existingModal && Modal.Data['modal-public-profile']) {
+        // Modal already exists, update it with new username
+        const { PublicProfile } = await import('../core/PublicProfile.js');
+        await PublicProfile.Update({
+          idModal: 'modal-public-profile',
+          user: { username: cid },
+        });
+
+        // Ensure the modal is visible and focused
+        if (!existingModal.classList.contains('show')) {
+          existingModal.classList.add('show');
+        }
+
+        return;
+      }
+
       await Modal.Render({
         id: 'modal-public-profile',
         route: 'u',
@@ -496,13 +514,21 @@ const MenuUnderpost = {
 
     listenQueryParamsChange({
       id: 'menu-underpost-query-params',
-      event: (params) => {
+      event: async (params) => {
         const currentRoute = window.location.pathname.split('/').pop() || 'home';
+
         if (currentRoute === 'u' && params.cid) {
-          console.log('Query params changed for public profile:', params);
-          // Only trigger if we're on the public profile route and have a cid
-          const currentModal = s('#modal-public-profile');
+          // Check if the public profile modal is already open
+          const currentModal = s('.modal-public-profile');
           if (currentModal) {
+            // Modal is already open, update the profile content dynamically
+            const { PublicProfile } = await import('../core/PublicProfile.js');
+            await PublicProfile.Update({
+              idModal: 'modal-public-profile',
+              user: { username: params.cid },
+            });
+          } else {
+            // Modal is not open, open it normally
             s('.main-btn-public-profile').click();
           }
         }

@@ -2108,6 +2108,34 @@ const Modal = {
   },
   mobileModal: () => windowGetW() < 600 || windowGetH() < 600,
   writeHTML: ({ idModal, html }) => htmls(`.html-${idModal}`, html),
+  updateModal: async function ({ idModal, html, title }) {
+    if (!this.Data[idModal] || !s(`.${idModal}`)) {
+      console.warn(`Modal ${idModal} not found for update`);
+      return false;
+    }
+
+    // Update modal content
+    if (html) {
+      this.writeHTML({ idModal, html });
+    }
+
+    // Update modal title if provided
+    if (title) {
+      const titleElement = s(`.${idModal} .modal-title`);
+      if (titleElement) {
+        titleElement.innerHTML = title;
+      }
+    }
+
+    // Trigger reload listeners
+    if (this.Data[idModal].onReloadModalListener) {
+      for (const event of Object.keys(this.Data[idModal].onReloadModalListener)) {
+        await this.Data[idModal].onReloadModalListener[event]();
+      }
+    }
+
+    return true;
+  },
   viewModalOpen: function () {
     return Object.keys(this.Data).find((idModal) => s(`.${idModal}`) && this.Data[idModal].options.mode === 'view');
   },

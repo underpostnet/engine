@@ -18,6 +18,7 @@ import { DocumentService } from '../../services/document/document.service.js';
 import { NotificationManager } from './NotificationManager.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { getProxyPath, setPublicProfilePath } from './Router.js';
+import { PublicProfile } from './PublicProfile.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -246,10 +247,23 @@ const Panel = {
           setTimeout(() => {
             const links = sa(`.creator-profile-link-${id}`);
             links.forEach((link) => {
-              link.onclick = (e) => {
+              link.onclick = async (e) => {
                 e.preventDefault();
-                setPublicProfilePath(link.getAttribute('data-id'));
-                if (s('.main-btn-public-profile')) s('.main-btn-public-profile').click();
+                const username = link.getAttribute('data-id');
+
+                // Check if public profile modal is already open
+                const currentModal = s('.modal-public-profile');
+                if (currentModal) {
+                  // Modal is already open, update the profile content dynamically
+                  await PublicProfile.Update({
+                    idModal: 'modal-public-profile',
+                    user: { username },
+                  });
+                } else {
+                  // Modal is not open, open it normally
+                  setPublicProfilePath(username);
+                  if (s('.main-btn-public-profile')) s('.main-btn-public-profile').click();
+                }
               };
             });
           });
