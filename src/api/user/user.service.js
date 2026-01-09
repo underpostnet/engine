@@ -245,7 +245,7 @@ const UserService = {
     /** @type {import('../file/file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 
-    if (req.path.startsWith('/public')) {
+    if (req.path.startsWith('/u/')) {
       // First lookup user by username
       const userByUsername = await User.findOne({
         username: req.params.username,

@@ -211,13 +211,13 @@ const UserRouter = (options) => {
     return await UserController.get(req, res, options);
   });
 
-  router.get(`/public/:username`, async (req, res) => {
+  router.get(`/u/:username`, async (req, res) => {
     /*
       #swagger.auto = false
       #swagger.tags = ['user']
       #swagger.summary = 'Get public user profile'
       #swagger.description = 'This endpoint gets public user profile data by username (no auth required)'
-      #swagger.path = '/user/public/{username}'
+      #swagger.path = '/user/u/{username}'
       #swagger.method = 'get'
       #swagger.produces = ['application/json']
       #swagger.consumes = ['application/json']

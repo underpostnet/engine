@@ -9,7 +9,13 @@ import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } 
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { getProxyPath } from '../core/Router.js';
+import {
+  getProxyPath,
+  getQueryParams,
+  listenQueryParamsChange,
+  setPublicProfilePath,
+  extractUsernameFromPath,
+} from '../core/Router.js';
 import { ElementsUnderpost } from './ElementsUnderpost.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost, BannerAppTemplate } from './RoutesUnderpost.js';
@@ -452,6 +458,19 @@ const MenuUnderpost = {
 
     EventsUI.onClick(`.main-btn-public-profile`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
+      const queryParams = getQueryParams();
+      let cid = queryParams.cid;
+      const defaultUser = ElementsUnderpost.Data.user.main.model.user;
+
+      // Check if we have a username from clean URL path
+      if (!cid) {
+        const usernameFromPath = extractUsernameFromPath();
+        cid = usernameFromPath || defaultUser.username;
+        if (!usernameFromPath) {
+          setPublicProfilePath(defaultUser.username);
+        }
+      }
+
       await Modal.Render({
         id: 'modal-public-profile',
         route: 'u',
@@ -464,7 +483,7 @@ const MenuUnderpost = {
         html: async () =>
           await PublicProfile.Render({
             idModal: 'modal-public-profile',
-            user: ElementsUnderpost.Data.user.main.model.user,
+            user: { username: cid },
           }),
         handleType: 'bar',
         maximize: true,
@@ -473,6 +492,21 @@ const MenuUnderpost = {
         RouterInstance,
         observer: true,
       });
+    });
+
+    listenQueryParamsChange({
+      id: 'menu-underpost-query-params',
+      event: (params) => {
+        const currentRoute = window.location.pathname.split('/').pop() || 'home';
+        if (currentRoute === 'u' && params.cid) {
+          console.log('Query params changed for public profile:', params);
+          // Only trigger if we're on the public profile route and have a cid
+          const currentModal = s('#modal-public-profile');
+          if (currentModal) {
+            s('.main-btn-public-profile').click();
+          }
+        }
+      },
     });
 
     EventsUI.onClick(`.main-btn-settings`, async () => {

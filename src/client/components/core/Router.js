@@ -55,17 +55,24 @@ const getProxyPath = () => {
 
 /**
  * Sets the browser's path using the History API. It sanitizes the path, handles query strings and hashes,
- * and prevents pushing the same state twice.
+ * and prevents pushing the same state twice unless forced or using replace mode.
  * @param {string} [path='/'] - The new path to set. Can include query strings and hashes.
- * @param {object} [options={ removeSearch: false, removeHash: false }] - Options for path manipulation.
+ * @param {object} [options={ removeSearch: false, removeHash: false, replace: false, force: false }] - Options for path manipulation.
  * @param {boolean} [options.removeSearch=false] - If true, removes the search part of the URL.
  * @param {boolean} [options.removeHash=false] - If true, removes the hash part of the URL. Defaults to `false`.
+ * @param {boolean} [options.replace=false] - If true, uses replaceState instead of pushState.
+ * @param {boolean} [options.force=false] - If true, allows navigation to the same path (useful for query param changes).
  * @param {object} [stateStorage={}] - State object to associate with the history entry.
  * @param {string} [title=''] - The title for the new history entry.
  * @memberof PwaRouter
- * @returns {void | undefined} Returns `undefined` if the new path is the same as the current path, otherwise `void` (result of `history.pushState`).
+ * @returns {void | undefined} Returns `undefined` if the new path is the same as the current path and not forced, otherwise `void` (result of `history.pushState` or `history.replaceState`).
  */
-const setPath = (path = '/', options = { removeSearch: false, removeHash: false }, stateStorage = {}, title = '') => {
+const setPath = (
+  path = '/',
+  options = { removeSearch: false, removeHash: false, replace: false, force: false },
+  stateStorage = {},
+  title = '',
+) => {
   // logger.warn(`Set path input`, `${path}`);
   if (!path) path = '/';
 
@@ -94,11 +101,16 @@ const setPath = (path = '/', options = { removeSearch: false, removeHash: false 
   //   currentFullPath,
   //   newFullPath,
   // });
-  if (currentFullPath === newFullPath) {
+  if (currentFullPath === newFullPath && !options.force) {
     // logger.warn('Prevent overwriting same path', { currentFullPath, newFullPath });
     return;
   }
-  return history.pushState.call(history, stateStorage, title, newFullPath);
+
+  if (options.replace) {
+    return history.replaceState.call(history, stateStorage, title, newFullPath);
+  } else {
+    return history.pushState.call(history, stateStorage, title, newFullPath);
+  }
 };
 
 /**
@@ -170,11 +182,19 @@ const Router = function (options = { Routes: () => {}, e: new PopStateEvent() })
     let pushPath = `${proxyPath}${route}`;
 
     if (path[path.length - 1] !== '/') path = `${path}/`;
+    // Handle clean profile URLs: match /u/username with /u route
+    let matchPath = path;
+    if (route === 'u' && path.startsWith(`${proxyPath}u/`) && path !== `${proxyPath}u/`) {
+      handleCleanProfileUrl(path);
+      matchPath = `${proxyPath}u/`;
+    }
+
+    if (matchPath[matchPath.length - 1] !== '/') matchPath = `${matchPath}/`;
     if (pushPath[pushPath.length - 1] !== '/') pushPath = `${pushPath}/`;
 
-    const routerEvent = { path, pushPath, route };
+    const routerEvent = { path: matchPath, pushPath, route };
 
-    if (path === pushPath) {
+    if (matchPath === pushPath) {
       for (const event of Object.keys(RouterEvents)) RouterEvents[event](routerEvent);
       subMenuHandler(Object.keys(Routes()), route);
       setDocTitle(route);
@@ -208,15 +228,120 @@ const LoadRouter = function (RouterInstance) {
  * This function constructs a new URI based on the proxy path, a given path, and an optional query parameter.
  * @param {object} [options={ path: '', queryPath: '' }] - The path options.
  * @param {string} [options.path=''] - The base path segment.
+ * @param {string} [options.queryPath=''] - The query parameter value.
+ * @param {string} [queryKey='cid'] - The query parameter key.
+ * @param {object} [pathOptions={}] - Additional options for setPath function.
+ * @param {boolean} [pathOptions.skipCleanUrl=false] - Skip clean URL update for public profiles.
  * @memberof PwaRouter
  */
-const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid') => {
+const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid', pathOptions = {}) => {
   const { queryPath, path } = options;
-  const newUri = `${getProxyPath()}${path === 'home' ? '' : `${path}/`}${
+  const newUri = `${getProxyPath()}${path === 'home' ? '' : `${path}`}${
     typeof queryPath === 'string' && queryPath ? `?${queryKey}=${queryPath}` : ''
   }`;
   const currentUri = `${window.location.pathname}${location.search}`;
-  if (currentUri !== newUri && currentUri !== `${newUri}/`) setPath(newUri, {}, '');
+
+  // For query parameter changes on the same path, force the navigation to ensure proper history
+  const isSamePath = window.location.pathname === new URL(newUri, window.location.origin).pathname;
+  const isDifferentQuery = window.location.search !== new URL(newUri, window.location.origin).search;
+  const shouldForce = isSamePath && isDifferentQuery;
+
+  if (currentUri !== newUri && currentUri !== `${newUri}/`) {
+    setPath(newUri, { force: shouldForce, ...pathOptions }, '');
+
+    // For public profile paths, schedule a clean URL update after data loading
+    if (path === 'u' && queryPath && !pathOptions.skipCleanUrl) {
+      // Use a timeout to allow data fetching to complete first
+      setTimeout(() => {
+        updatePublicProfileHistory(queryPath, { replace: true });
+      }, 100);
+    }
+  }
+};
+
+/**
+ * Sets a public profile path with proper history management for SPA navigation.
+ * Uses query params internally for data fetching but maintains clean URLs in browser history.
+ * @param {string} username - The username for the public profile.
+ * @param {object} [options={}] - Navigation options.
+ * @param {boolean} [options.replace=false] - Whether to replace current history entry.
+ * @param {boolean} [options.skipHistoryUpdate=false] - Skip updating to clean URL (for internal use).
+ * @memberof PwaRouter
+ */
+const setPublicProfilePath = (username, options = {}) => {
+  if (!username) return;
+
+  const currentParams = getQueryParams();
+  const currentCid = currentParams.cid;
+  const currentPath = window.location.pathname;
+
+  // Check if we're already on the correct clean URL path
+  const cleanPath = `${getProxyPath()}u/${username}`;
+  const isAlreadyOnCleanPath = currentPath === cleanPath.replace(/\/$/, '');
+
+  // Only navigate if the username is different
+  if (currentCid !== username || !isAlreadyOnCleanPath) {
+    // First, use query params for internal data fetching
+    setQueryPath({ path: 'u', queryPath: username }, 'cid', { ...options, skipCleanUrl: true });
+  }
+};
+
+/**
+ * Extracts username from clean public profile URLs like /u/username.
+ * @param {string} [pathname] - The pathname to extract from (defaults to current pathname).
+ * @returns {string|null} The username if found, null otherwise.
+ * @memberof PwaRouter
+ */
+const extractUsernameFromPath = (pathname = window.location.pathname) => {
+  const proxyPath = getProxyPath();
+  const cleanPathPrefix = `${proxyPath}u/`.replace(/\/+/g, '/');
+
+  if (pathname.startsWith(cleanPathPrefix)) {
+    const username = pathname.slice(cleanPathPrefix.length).split('/')[0];
+    return username || null;
+  }
+  return null;
+};
+
+/**
+ * Updates the browser history to show clean public profile URLs after data is loaded.
+ * This is called after successful data fetch to replace query param URLs with clean ones.
+ * @param {string} username - The username for the public profile.
+ * @param {object} [options={}] - Navigation options.
+ * @param {boolean} [options.replace=true] - Whether to replace current history entry (default: true).
+ * @memberof PwaRouter
+ */
+const updatePublicProfileHistory = (username, options = { replace: true }) => {
+  if (!username) return;
+
+  const cleanPath = `${getProxyPath()}u/${username}`;
+  const currentFullPath = `${window.location.pathname}${location.search}${location.hash}`;
+
+  // Only update if we're not already on the clean path
+  if (!currentFullPath.startsWith(cleanPath)) {
+    setPath(cleanPath, { replace: options.replace }, {}, '');
+  }
+};
+
+/**
+ * Handles direct navigation to clean public profile URLs.
+ * Converts clean URLs like /u/username to internal query format for SPA.
+ * @param {string} [pathname] - The pathname to handle (defaults to current pathname).
+ * @returns {boolean} True if this was a public profile URL that was handled.
+ * @memberof PwaRouter
+ */
+const handleCleanProfileUrl = (pathname = window.location.pathname) => {
+  const username = extractUsernameFromPath(pathname);
+  if (username) {
+    // Convert clean URL to internal query format for data fetching
+    const queryParams = getQueryParams();
+    if (queryParams.cid !== username) {
+      // Use internal navigation without updating clean URL again
+      setQueryPath({ path: 'u', queryPath: username }, 'cid', { skipCleanUrl: true, replace: true });
+      return true;
+    }
+  }
+  return false;
 };
 
 /**
@@ -356,6 +481,10 @@ export {
   setDocTitle,
   LoadRouter,
   setQueryPath,
+  setPublicProfilePath,
+  updatePublicProfileHistory,
+  extractUsernameFromPath,
+  handleCleanProfileUrl,
   listenQueryPathInstance,
   closeModalRouteChangeEvent,
   handleModalViewRoute,

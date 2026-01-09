@@ -180,6 +180,13 @@ class ExpressService {
 
       // Database and Valkey connections
       if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
+
+      // Username public profile redirect
+      if (apis && apis.includes('user'))
+        app.get(`${path === '/' ? '' : path}/u/:username`, async (req, res, next) =>
+          res.redirect(`${path === '/' ? '' : path}/u?cid=${req.params.username}`),
+        );
+
       if (valkey) await createValkeyConnection({ host, path }, valkey);
 
       // Mailer setup

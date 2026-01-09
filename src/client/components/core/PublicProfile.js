@@ -5,6 +5,7 @@ import { UserService } from '../../services/user/user.service.js';
 import { ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from './Css.js';
 import { Modal } from './Modal.js';
 import { getId } from './CommonJs.js';
+import { updatePublicProfileHistory } from './Router.js';
 
 const PublicProfile = {
   Data: {},
@@ -275,7 +276,7 @@ const PublicProfile = {
       `;
     };
 
-    if (!userId) {
+    if (!userId && !username) {
       return renderErrorState(
         Translate.Render('user-not-found'),
         'fa-user-slash',
@@ -286,7 +287,7 @@ const PublicProfile = {
     // Fetch public user data
     let userData = null;
     try {
-      const result = await UserService.get({ id: `public/${username}` });
+      const result = await UserService.get({ id: `u/${username}` });
       setTimeout(() => {
         Modal.Data[idModal].onObserverListener['profile-card-observer'] = () => {
           const modalHeight = s(`.${idModal}`).offsetHeight;
@@ -300,6 +301,11 @@ const PublicProfile = {
       if (result.status === 'success') {
         userData = result.data;
         PublicProfile.Data[profileId].userData = userData;
+
+        // Update browser history to show clean URL after successful data fetch
+        if (userData.username) {
+          updatePublicProfileHistory(userData.username, { replace: true });
+        }
       } else {
         return renderErrorState(
           Translate.Render('user-not-found'),

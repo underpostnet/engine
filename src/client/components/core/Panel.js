@@ -17,6 +17,7 @@ import { Content } from './Content.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { NotificationManager } from './NotificationManager.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { getProxyPath, setPublicProfilePath } from './Router.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -240,6 +241,18 @@ const Panel = {
           // Register theme change handler
           const profileThemeHandlerId = `${id}-creator-profile-theme`;
           ThemeEvents[profileThemeHandlerId] = updateCreatorProfileTheme;
+
+          // Add click handlers for public profile links
+          setTimeout(() => {
+            const links = sa(`.creator-profile-link-${id}`);
+            links.forEach((link) => {
+              link.onclick = (e) => {
+                e.preventDefault();
+                setPublicProfilePath(link.getAttribute('data-id'));
+                if (s('.main-btn-public-profile')) s('.main-btn-public-profile').click();
+              };
+            });
+          });
         }
       });
       if (s(`.${idPanel}-${id}`)) s(`.${idPanel}-${id}`).remove();
@@ -287,32 +300,41 @@ const Panel = {
                   ? 'rgba(255,255,255,0.02)'
                   : 'rgba(0,0,0,0.02)'}; border-radius: 4px 4px 0 0;"
               >
-                ${obj.userInfo.profileImageId && obj.userInfo.profileImageId._id
-                  ? html`<img
-                      class="creator-avatar"
-                      src="${getApiBaseUrl({ id: obj.userInfo.profileImageId._id, endpoint: 'file/blob' })}"
-                      alt="${obj.userInfo.username || obj.userInfo.email}"
-                      style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid ${darkTheme
-                        ? 'rgba(102, 126, 234, 0.5)'
-                        : 'rgba(102, 126, 234, 0.3)'}; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
-                      title="${obj.userInfo.email || obj.userInfo.username}"
-                    />`
-                  : html`<div
-                      class="creator-avatar"
-                      style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
-                      title="${obj.userInfo.email || obj.userInfo.username}"
-                    >
-                      ${(obj.userInfo.username || obj.userInfo.email || 'U').charAt(0).toUpperCase()}
-                    </div>`}
+                <a
+                  href="${getProxyPath()}u/${obj.userInfo.username}"
+                  class="creator-profile-link-${id}"
+                  data-id="${obj.userInfo.username}"
+                  style="display: flex;"
+                >
+                  ${obj.userInfo.profileImageId && obj.userInfo.profileImageId._id
+                    ? html`<img
+                        class="creator-avatar"
+                        src="${getApiBaseUrl({ id: obj.userInfo.profileImageId._id, endpoint: 'file/blob' })}"
+                        alt="${obj.userInfo.username || obj.userInfo.email}"
+                        style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid ${darkTheme
+                          ? 'rgba(102, 126, 234, 0.5)'
+                          : 'rgba(102, 126, 234, 0.3)'}; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
+                        title="${obj.userInfo.email || obj.userInfo.username}"
+                      />`
+                    : html`<div
+                        class="creator-avatar"
+                        style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
+                        title="${obj.userInfo.email || obj.userInfo.username}"
+                      >
+                        ${(obj.userInfo.username || obj.userInfo.email || 'U').charAt(0).toUpperCase()}
+                      </div>`}
+                </a>
                 <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
-                  <span
-                    class="creator-username"
+                  <a
+                    href="${getProxyPath()}u/${obj.userInfo.username}"
+                    class="creator-username creator-profile-link-${id}"
+                    data-id="${obj.userInfo.username}"
                     style="font-size: 14px; font-weight: 600; color: ${darkTheme
                       ? 'rgba(255,255,255,0.9)'
                       : 'rgba(0,0,0,0.85)'}; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
                   >
                     ${obj.userInfo.username || obj.userInfo.email || 'Unknown'}
-                  </span>
+                  </a>
                   <span
                     style="font-size: 11px; color: ${darkTheme
                       ? 'rgba(255,255,255,0.5)'
