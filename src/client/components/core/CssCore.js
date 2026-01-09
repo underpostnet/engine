@@ -232,6 +232,9 @@ const CssCommonCore = async () => {
         width: 40px;
         text-align: center;
       }
+      .input-container {
+        width: 275px;
+      }
     </style>
     ${boxShadow({ selector: '.account-profile-image' })}
     <div class="ag-grid-style"></div>`;

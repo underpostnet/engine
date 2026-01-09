@@ -29,6 +29,7 @@ const RoutesUnderpost = () => {
       title: 'account',
       render: () => s(`.main-btn-account`).click(),
     },
+    '/u': { title: 'public-profile', render: () => s(`.main-btn-public-profile`).click() },
     '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click() },
     '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click() },
   };
