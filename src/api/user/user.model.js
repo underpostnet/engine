@@ -20,7 +20,28 @@ const UserSchema = new Schema(
     lastLoginDate: { type: Date },
     failedLoginAttempts: { type: Number, default: 0 },
     password: { type: String, trim: true, required: 'Password is required' },
-    username: { type: String, trim: true, unique: true, required: 'Username is required' },
+    username: {
+      type: String,
+      trim: true,
+      unique: true,
+      required: 'Username is required',
+      validate: [
+        {
+          validator: function (username) {
+            // Allow only alphanumeric characters, hyphens, and underscores (URI-safe)
+            return /^[a-zA-Z0-9_-]+$/.test(username);
+          },
+          message: 'Username can only contain letters, numbers, hyphens, and underscores',
+        },
+        {
+          validator: function (username) {
+            // Length validation
+            return username && username.length >= 2 && username.length <= 20;
+          },
+          message: 'Username must be between 2 and 20 characters',
+        },
+      ],
+    },
     role: { type: String, enum: userRoleEnum, default: 'guest' },
     activeSessions: {
       type: [

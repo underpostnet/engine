@@ -221,7 +221,7 @@ const authMiddlewareFactory = (options = { host: '', path: '' }) => {
 
       if (payload.userAgent && payload.userAgent !== req.headers['user-agent']) {
         logger.warn(`UA mismatch for ${payload._id}`);
-        return res.status(401).json({ status: 'error', message: 'unauthorized: user-agent mismatch' });
+        return res.status(401).json({ status: 'error', message: 'unauthorized device' });
       }
 
       // Non-guest verify session exists
@@ -247,7 +247,7 @@ const authMiddlewareFactory = (options = { host: '', path: '' }) => {
         // check session userAgent
         if (session.userAgent !== req.headers['user-agent']) {
           logger.warn(`UA mismatch for ${payload._id}`);
-          return res.status(401).json({ status: 'error', message: 'unauthorized: user-agent mismatch' });
+          return res.status(401).json({ status: 'error', message: 'unauthorized device' });
         }
 
         // compare payload host and path with session host and path

@@ -245,7 +245,7 @@ const PublicProfile = {
               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px ${colors.buttonShadow}';"
             >
               <i class="fa-solid fa-home"></i>
-              Go Home
+              ${Translate.Render('go-home')}
             </a>
             <a
               href="javascript:history.back()"
@@ -268,7 +268,7 @@ const PublicProfile = {
               onmouseout="this.style.background='transparent'; this.style.borderColor='${colors.primaryColor}40';"
             >
               <i class="fa-solid fa-arrow-left"></i>
-              Go Back
+              ${Translate.Render('go-back')}
             </a>
           </div>
         </div>

@@ -74,7 +74,7 @@ const Modal = {
     const minWidth = width;
     const heightDefaultTopBar = 50;
     const heightDefaultBottomBar = 0;
-    const idModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
+    const idModal = options.id ? options.id : getId(this.Data, 'modal-');
     this.Data[idModal] = {
       options,
       onCloseListener: {},

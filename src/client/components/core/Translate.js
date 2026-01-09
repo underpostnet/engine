@@ -579,6 +579,22 @@ const TranslateCore = {
       en: 'Following',
       es: 'Siguiendo',
     };
+    Translate.Data['invalid-username-format'] = {
+      en: 'Username can only contain letters, numbers, hyphens, and underscores',
+      es: 'El nombre de usuario solo puede contener letras, números, guiones e guiones bajos',
+    };
+    Translate.Data['go-home'] = {
+      en: 'Go Home',
+      es: 'Ir a Inicio',
+    };
+    Translate.Data['go-back'] = {
+      en: 'Go Back',
+      es: 'Volver',
+    };
+    Translate.Data['public-profile'] = {
+      en: 'Public Profile',
+      es: 'Perfil Público',
+    };
   },
 };
 

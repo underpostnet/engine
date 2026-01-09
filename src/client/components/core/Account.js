@@ -41,7 +41,7 @@ const Account = {
         {
           model: 'username',
           id: `account-username`,
-          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
+          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }, { type: 'isValidUsername' }],
         },
         { model: 'email', id: `account-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
         {
@@ -88,14 +88,20 @@ const Account = {
             return;
           }
           lastUser = newInstance(currentUser);
-          const { successKeys } = await validators();
-          if (successKeys.length === 0) return;
+          const { successKeys, errorKeys, errorMessage } = await validators();
+          if (errorMessage) {
+            NotificationManager.Push({
+              html: `${errorKeys.map((e) => Translate.Render(e.replace('account-', '')))} ${errorMessage}`,
+            });
+            return;
+          }
           const body = {};
           for (const inputData of formData) {
-            if (!s(`.${inputData.id}`).value || s(`.${inputData.id}`).value === 'undefined') continue;
+            const value = s(`.${inputData.id}`).value;
+            if (!value || value === 'undefined') continue;
             if ('model' in inputData && successKeys.includes(inputData.id)) {
-              body[inputData.model] = s(`.${inputData.id}`).value;
-              currentUser[inputData.model] = s(`.${inputData.id}`).value;
+              body[inputData.model] = value;
+              currentUser[inputData.model] = value;
             }
           }
           const result = await UserService.put({ id: currentUser._id, body });

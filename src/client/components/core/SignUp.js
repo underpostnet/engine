@@ -19,7 +19,7 @@ const SignUp = {
         {
           model: 'username',
           id: `sign-up-username`,
-          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
+          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }, { type: 'isValidUsername' }],
         },
         { model: 'email', id: `sign-up-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
         {
@@ -48,8 +48,8 @@ const SignUp = {
             typeof result.data === 'string'
               ? result.data
               : result.status === 'success'
-              ? Translate.Render(`success-register-user`)
-              : Translate.Render(`no-valid-register`),
+                ? Translate.Render(`success-register-user`)
+                : Translate.Render(`no-valid-register`),
           status: result.status,
         });
         if (result.status === 'success') {

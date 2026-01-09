@@ -66,6 +66,21 @@ const Validator = {
 
                 break;
               }
+              case 'isValidUsername': {
+                const username = s(`.${validatorData.id}`).value;
+                // Check if username is empty or only whitespace
+                if (!username || username.trim() === '') {
+                  errorMessage += this.renderErrorMessage(undefined, Translate.Render('invalid-username-format'));
+                  break;
+                }
+                // Check if username contains only valid characters (no spaces or special chars)
+                const usernameRegex = /^[a-zA-Z0-9_-]+$/;
+                if (!usernameRegex.test(username)) {
+                  errorMessage += this.renderErrorMessage(undefined, Translate.Render('invalid-username-format'));
+                }
+
+                break;
+              }
               default:
                 if (
                   validator[rule.type] &&
