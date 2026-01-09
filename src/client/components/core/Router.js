@@ -230,10 +230,9 @@ const LoadRouter = function (RouterInstance) {
  * @param {string} [options.path=''] - The base path segment.
  * @param {string} [options.queryPath=''] - The query parameter value.
  * @param {string} [queryKey='cid'] - The query parameter key.
- * @param {object} [pathOptions={}] - Additional options for setPath function.
  * @memberof PwaRouter
  */
-const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid', pathOptions = {}) => {
+const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid') => {
   const { queryPath, path } = options;
   const newUri = `${getProxyPath()}${path === 'home' ? '' : `${path}`}${
     typeof queryPath === 'string' && queryPath ? `?${queryKey}=${queryPath}` : ''
@@ -246,7 +245,7 @@ const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid', p
   const shouldForce = isSamePath && isDifferentQuery;
 
   if (currentUri !== newUri && currentUri !== `${newUri}/`) {
-    setPath(newUri, { force: shouldForce, ...pathOptions }, '');
+    setPath(newUri, { force: shouldForce }, '');
   }
 };
 
