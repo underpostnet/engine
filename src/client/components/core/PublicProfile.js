@@ -9,10 +9,16 @@ import { setPath, getProxyPath, getQueryParams, extractUsernameFromPath } from '
 
 const PublicProfile = {
   Data: {},
+  currentUsername: null, // Track the currently displayed username for back/forward navigation
 
   Update: async function (options = { idModal: '', user: {} }) {
     const { idModal, user } = options;
     const username = user.username || 'Unknown User';
+
+    // Skip update if already showing this profile (prevents loops during back/forward navigation)
+    if (this.currentUsername === username) {
+      return;
+    }
 
     // Check if modal exists and is registered in Modal.Data
     if (!Modal.Data[idModal]) {
@@ -20,6 +26,9 @@ const PublicProfile = {
     }
 
     try {
+      // Track the username we're updating to
+      this.currentUsername = username;
+
       // Ensure modal is in correct state
       this._ensureModalState(idModal);
 
@@ -485,6 +494,9 @@ const PublicProfile = {
       if (result.status === 'success') {
         userData = result.data;
         PublicProfile.Data[profileId].userData = userData;
+
+        // Track the currently displayed username for back/forward navigation
+        PublicProfile.currentUsername = userData.username || username;
 
         // Update browser history to show clean URL after successful data fetch
         if (userData.username) {

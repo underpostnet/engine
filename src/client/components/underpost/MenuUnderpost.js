@@ -9,7 +9,13 @@ import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } 
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { extractUsernameFromPath, getProxyPath, getQueryParams } from '../core/Router.js';
+import {
+  extractUsernameFromPath,
+  getProxyPath,
+  getQueryParams,
+  RouterEvents,
+  listenQueryParamsChange,
+} from '../core/Router.js';
 import { ElementsUnderpost } from './ElementsUnderpost.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost, BannerAppTemplate } from './RoutesUnderpost.js';
@@ -450,21 +456,59 @@ const MenuUnderpost = {
       });
     });
 
+    // Register RouterEvents listener for back/forward navigation between profiles
+    // This ensures the profile updates when the user navigates through browser history
+    // Note: route id is 'u', modal id is 'modal-public-profile', button class is 'main-btn-public-profile'
+    RouterEvents['public-profile-navigation'] = async ({ route }) => {
+      if (route === 'u') {
+        const idModal = 'modal-public-profile';
+        const usernameFromPath = extractUsernameFromPath();
+        const queryParams = getQueryParams();
+        const cid = usernameFromPath || queryParams.cid;
+
+        if (!cid) return;
+
+        // Check if modal exists (could be behind another view modal like settings)
+        if (s(`.${idModal}`) && Modal.Data[idModal]) {
+          // Modal exists - bring to front and update if username changed
+          const currentUsername = PublicProfile.currentUsername;
+          if (currentUsername !== cid) {
+            await PublicProfile.Update({
+              idModal,
+              user: { username: cid },
+            });
+          }
+          // Always bring modal to front when navigating back to /u route
+          Modal.zIndexSync({ idModal });
+        } else {
+          // Modal doesn't exist - open it
+          if (s('.main-btn-public-profile')) {
+            s('.main-btn-public-profile').click();
+          }
+        }
+      }
+    };
+
     EventsUI.onClick(`.main-btn-public-profile`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       const idModal = 'modal-public-profile';
-      const user = ElementsUnderpost.Data.user.main.model.user;
+      const loggedInUser = ElementsUnderpost.Data.user.main.model.user;
+
+      // Determine the target username: prefer URL path/query over logged-in user
+      const usernameFromPath = extractUsernameFromPath();
+      const queryParams = getQueryParams();
+      const targetUsername = usernameFromPath || queryParams.cid || loggedInUser.username || null;
+
+      // Create user object with the target username for rendering
+      const targetUser = targetUsername ? { username: targetUsername } : loggedInUser;
 
       // Check if modal already exists
       const existingModal = s(`.${idModal}`);
       if (existingModal) {
-        const usernameFromPath = extractUsernameFromPath();
-        const queryParams = getQueryParams();
-        const cid = usernameFromPath || queryParams.cid || user.username || null;
-        if (cid) {
+        if (targetUsername) {
           await PublicProfile.Update({
             idModal: 'modal-public-profile',
-            user: { username: cid },
+            user: { username: targetUsername },
           });
           return;
         }
@@ -482,7 +526,7 @@ const MenuUnderpost = {
         html: async () =>
           await PublicProfile.Render({
             idModal,
-            user,
+            user: targetUser,
           }),
         handleType: 'bar',
         maximize: true,

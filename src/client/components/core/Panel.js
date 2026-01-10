@@ -17,7 +17,7 @@ import { Content } from './Content.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { NotificationManager } from './NotificationManager.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
-import { getProxyPath, setQueryPath } from './Router.js';
+import { getProxyPath, setQueryPath, navigateToProfile } from './Router.js';
 import { PublicProfile } from './PublicProfile.js';
 
 const logger = loggerFactory(import.meta);
@@ -254,13 +254,15 @@ const Panel = {
                 const currentModal = s('.modal-public-profile');
                 if (currentModal) {
                   // Modal is already open, update the profile content dynamically
+                  // Navigate to clean URL without intermediate ?cid= in history
+                  navigateToProfile(username, { replace: false });
                   await PublicProfile.Update({
                     idModal: 'modal-public-profile',
                     user: { username },
                   });
                 } else {
-                  // Modal is not open, open it normally
-                  setQueryPath({ path: 'u', queryPath: username }, 'cid', { replace: false });
+                  // Modal is not open, navigate to clean URL and open modal
+                  navigateToProfile(username, { replace: false });
                   if (s('.main-btn-public-profile')) s('.main-btn-public-profile').click();
                 }
               };

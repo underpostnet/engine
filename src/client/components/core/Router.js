@@ -232,8 +232,9 @@ const LoadRouter = function (RouterInstance) {
  * @param {string} [queryKey='cid'] - The query parameter key.
  * @memberof PwaRouter
  */
-const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid') => {
+const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid', navOptions = {}) => {
   const { queryPath, path } = options;
+  const { replace = false } = navOptions;
   const newUri = `${getProxyPath()}${path === 'home' ? '' : `${path}`}${
     typeof queryPath === 'string' && queryPath ? `?${queryKey}=${queryPath}` : ''
   }`;
@@ -245,7 +246,7 @@ const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid') =
   const shouldForce = isSamePath && isDifferentQuery;
 
   if (currentUri !== newUri && currentUri !== `${newUri}/`) {
-    setPath(newUri, { force: shouldForce }, '');
+    setPath(newUri, { force: shouldForce, replace }, '');
   }
 };
 
@@ -277,14 +278,31 @@ const handleCleanProfileUrl = (pathname = window.location.pathname) => {
   const username = extractUsernameFromPath(pathname);
   if (username) {
     // Convert clean URL to internal query format for data fetching
-    const queryParams = getQueryParams();
-    if (queryParams.cid !== username) {
-      // Use internal navigation without updating clean URL again
-      setQueryPath({ path: 'u', queryPath: username }, 'cid', { replace: true });
-      return true;
-    }
+    // Don't modify history - just return the username for the caller to use
+    return username;
   }
-  return false;
+  return null;
+};
+
+/**
+ * Navigates to a public profile URL without adding intermediate query URLs to history.
+ * This ensures clean back/forward navigation between profiles.
+ * @param {string} username - The username to navigate to.
+ * @param {object} [options={}] - Navigation options.
+ * @param {boolean} [options.replace=false] - If true, replaces current history entry instead of pushing.
+ * @memberof PwaRouter
+ */
+const navigateToProfile = (username, options = {}) => {
+  const { replace = false } = options;
+  if (!username) return;
+
+  const cleanPath = `${getProxyPath()}u/${username}`;
+  const currentPath = window.location.pathname;
+
+  // If we're already on this profile's clean URL, no navigation needed
+  if (currentPath === cleanPath) return;
+  // Navigate directly to clean URL, avoiding intermediate ?cid= URLs in history
+  setPath(cleanPath, { replace });
 };
 
 /**
@@ -374,7 +392,12 @@ const handleModalViewRoute = (options = { RouterInstance: { Routes: () => {} }, 
   const newPath = `${proxyPath}${route}`;
   if (RouterInstance && RouterInstance.Routes) subMenuHandler(Object.keys(RouterInstance.Routes()), route);
 
-  if (path !== newPath) {
+  // Check if we're already on this route or a sub-path of it (e.g., /u/username for route 'u')
+  // Don't push to history if already on the route or its sub-path
+  const routeBasePath = `${proxyPath}${route}`;
+  const isOnRouteOrSubPath = path === newPath || path.startsWith(`${routeBasePath}/`);
+
+  if (!isOnRouteOrSubPath) {
     setPath(newPath);
     setDocTitle(newPath);
   }
@@ -418,6 +441,7 @@ const setQueryParams = (newParams, options = { replace: true }) => {
 
 export {
   RouterEvents,
+  navigateToProfile,
   closeModalRouteChangeEvents,
   coreUI,
   Router,
