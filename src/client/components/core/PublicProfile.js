@@ -584,7 +584,7 @@ const PublicProfile = {
     setTimeout(async () => {
       if (userData.profileImageId) {
         try {
-          const imageSrc = `/api/file/blob/${userData.profileImageId}`;
+          const imageSrc = `${getProxyPath()}api/file/blob/${userData.profileImageId}`;
           const imgElement = s(`.${profileImageClass}`);
           if (imgElement) {
             imgElement.src = imageSrc;

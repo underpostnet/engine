@@ -27,7 +27,7 @@ const getApiBaseUrl = (options = { id: '', endpoint: '', proxyPath: '' }) =>
     options?.id ? `/${options.id}` : ''
   }`;
 
-const getWsBasePath = () => (getProxyPath() !== '/' ? `${getProxyPath()}socket.io/` : undefined);
+const getWsBasePath = () => (getProxyPath() !== '/' ? `${getProxyPath()}socket.io/` : '/socket.io/');
 
 const getWsBaseUrl = (options = { id: '', endpoint: '', wsBasePath: '' }) =>
   `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${getBaseHost()}${
