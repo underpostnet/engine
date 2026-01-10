@@ -32,8 +32,6 @@ const DocumentService = {
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
     // High-query endpoint for typeahead search
-    // ============================================
-    // OPTIMIZATION GOAL: MAXIMIZE search results with MINIMUM match requirements
     //
     // Security Model:
     // - Unauthenticated users: CAN see public documents (isPublic=true) from publishers (admin/moderator)
@@ -409,43 +407,22 @@ const DocumentService = {
       const lastDoc = await Document.findOne(queryPayload, '_id').sort({ createdAt: 1 });
       const lastId = lastDoc ? lastDoc._id : null;
 
-      // Add totalCopyShareLinkCount to each document and filter 'public' from tags
-      const dataWithCounts = data.map((doc) => {
-        const docObj = doc.toObject ? doc.toObject() : doc;
-
-        // For unauthenticated users, only include user data if:
-        // 1. Document is public AND
-        // 2. Creator is a publisher (admin/moderator)
-        let userInfo = docObj.userId;
-        if (!user || user.role === 'guest') {
-          const isPublisher = userInfo && (userInfo.role === 'admin' || userInfo.role === 'moderator');
-          if (!docObj.isPublic || !isPublisher) {
-            userInfo = undefined;
-          } else {
-            // Remove role field from userId before sending to client
-            if (userInfo && userInfo.role) {
-              const { role, ...userWithoutRole } = userInfo;
-              userInfo = userWithoutRole;
-            }
-          }
-        } else {
-          // Remove role field from userId before sending to client (authenticated users)
-          if (userInfo && userInfo.role) {
-            const { role, ...userWithoutRole } = userInfo;
-            userInfo = userWithoutRole;
-          }
-        }
-
-        return {
-          ...docObj,
-          userId: userInfo,
-          tags: DocumentDto.filterPublicTag(docObj.tags),
-          totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
-        };
-      });
-
       return {
-        data: dataWithCounts,
+        data: data.map((doc) => {
+          const docObj = doc.toObject ? doc.toObject() : doc;
+          let userInfo = docObj.userId;
+          const isPublisher = userInfo && (userInfo.role === 'admin' || userInfo.role === 'moderator');
+          const isOwnDoc = user && user._id.toString() === docObj.userId._id.toString();
+          if ((!docObj.isPublic || !isPublisher) && !isOwnDoc) userInfo = undefined;
+          return {
+            ...docObj,
+            role: undefined,
+            email: undefined,
+            userId: userInfo,
+            tags: DocumentDto.filterPublicTag(docObj.tags),
+            totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
+          };
+        }),
         lastId,
       };
     }

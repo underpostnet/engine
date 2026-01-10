@@ -9,7 +9,7 @@ import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } 
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { getProxyPath } from '../core/Router.js';
+import { extractUsernameFromPath, getProxyPath, getQueryParams } from '../core/Router.js';
 import { ElementsDefault } from './ElementsDefault.js';
 import Sortable from 'sortablejs';
 import { RouterDefault, BannerAppTemplate } from './RoutesDefault.js';
@@ -564,8 +564,26 @@ const MenuDefault = {
 
     EventsUI.onClick(`.main-btn-public-profile`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
+      const idModal = 'modal-public-profile';
+      const user = ElementsDefault.Data.user.main.model.user;
+
+      // Check if modal already exists
+      const existingModal = s(`.${idModal}`);
+      if (existingModal) {
+        const usernameFromPath = extractUsernameFromPath();
+        const queryParams = getQueryParams();
+        const cid = usernameFromPath || queryParams.cid || user.username || null;
+        if (cid) {
+          await PublicProfile.Update({
+            idModal: 'modal-public-profile',
+            user: { username: cid },
+          });
+          return;
+        }
+      }
+
       await Modal.Render({
-        id: 'modal-public-profile',
+        id: idModal,
         route: 'u',
         barConfig,
         title: '',
@@ -575,8 +593,8 @@ const MenuDefault = {
         // }),
         html: async () =>
           await PublicProfile.Render({
-            idModal: 'modal-public-profile',
-            user: ElementsDefault.Data.user.main.model.user,
+            idModal,
+            user,
           }),
         handleType: 'bar',
         maximize: true,

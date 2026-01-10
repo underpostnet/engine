@@ -250,27 +250,6 @@ const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid') =
 };
 
 /**
- * Sets a public profile path with proper history management for SPA navigation.
- * Uses query params internally for data fetching but maintains clean URLs in browser history.
- * @param {string} username - The username for the public profile.
- * @param {object} [options={}] - Navigation options.
- * @param {boolean} [options.replace=false] - Whether to replace current history entry.
- * @param {boolean} [options.skipHistoryUpdate=false] - Skip updating to clean URL (for internal use).
- * @memberof PwaRouter
- */
-const setPublicProfilePath = (username, options = {}) => {
-  if (!username) return;
-
-  const currentParams = getQueryParams();
-  const currentCid = currentParams.cid;
-
-  // Only navigate if the username is different
-  if (currentCid !== username) {
-    setQueryPath({ path: 'u', queryPath: username }, 'cid', options);
-  }
-};
-
-/**
  * Extracts username from clean public profile URLs like /u/username.
  * @param {string} [pathname] - The pathname to extract from (defaults to current pathname).
  * @returns {string|null} The username if found, null otherwise.
@@ -285,26 +264,6 @@ const extractUsernameFromPath = (pathname = window.location.pathname) => {
     return username || null;
   }
   return null;
-};
-
-/**
- * Updates the browser history to show clean public profile URLs after data is loaded.
- * This is called after successful data fetch to replace query param URLs with clean ones.
- * @param {string} username - The username for the public profile.
- * @param {object} [options={}] - Navigation options.
- * @param {boolean} [options.replace=true] - Whether to replace current history entry (default: true).
- * @memberof PwaRouter
- */
-const updatePublicProfileHistory = (username, options = { replace: true }) => {
-  if (!username) return;
-
-  const cleanPath = `${getProxyPath()}u/${username}`;
-  const currentFullPath = `${window.location.pathname}${location.search}${location.hash}`;
-
-  // Only update if we're not already on the clean path
-  if (!currentFullPath.startsWith(cleanPath)) {
-    setPath(cleanPath, { replace: options.replace }, {}, '');
-  }
 };
 
 /**
@@ -465,8 +424,6 @@ export {
   setDocTitle,
   LoadRouter,
   setQueryPath,
-  setPublicProfilePath,
-  updatePublicProfileHistory,
   extractUsernameFromPath,
   handleCleanProfileUrl,
   listenQueryPathInstance,

@@ -5,7 +5,7 @@ import { UserService } from '../../services/user/user.service.js';
 import { ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from './Css.js';
 import { Modal } from './Modal.js';
 import { getId } from './CommonJs.js';
-import { updatePublicProfileHistory } from './Router.js';
+import { setPath, getProxyPath, getQueryParams, extractUsernameFromPath } from './Router.js';
 
 const PublicProfile = {
   Data: {},
@@ -20,15 +20,6 @@ const PublicProfile = {
     }
 
     try {
-      // Update modal title to show current username
-      const modal = s(`#${idModal}`);
-      if (modal) {
-        const modalTitle = modal.querySelector('.modal-title');
-        if (modalTitle) {
-          modalTitle.innerHTML = `<i class="fas fa-user-circle"></i> @${username}`;
-        }
-      }
-
       // Ensure modal is in correct state
       this._ensureModalState(idModal);
 
@@ -37,18 +28,16 @@ const PublicProfile = {
       Modal.writeHTML({ idModal, html: loadingHtml });
 
       // Clean up existing profile data to avoid conflicts
-      this._cleanupProfileData();
+      this._cleanupProfileData({ idModal });
 
       // Re-render the profile content with new user
-      const newContent = await this.Render(options);
+      const newContent = await this.Render({ ...options, disableUpdate: true });
 
       // Update modal content using Modal.writeHTML with smooth transition
       Modal.writeHTML({ idModal, html: newContent });
+      Modal.zIndexSync({ idModal });
+
       this._addTransitionEffect(idModal);
-
-      // Update document title and browser history
-      this._updateDocumentTitle(username);
-
       return newContent;
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -176,22 +165,10 @@ const PublicProfile = {
     `;
   },
 
-  _cleanupProfileData: function () {
-    const oldProfileIds = Object.keys(this.Data).filter((key) => key.startsWith('profile-'));
-    oldProfileIds.forEach((id) => {
-      if (this.Data[id]) {
-        // Clean up theme events
-        if (ThemeEvents[`profile-${id}`]) delete ThemeEvents[`profile-${id}`];
-        if (ThemeEvents[`error-state-${id}`]) delete ThemeEvents[`error-state-${id}`];
-        delete this.Data[id];
-      }
-    });
-  },
-
-  _updateDocumentTitle: function (username) {
-    if (document.title.includes('Public Profile') || document.title.includes('@')) {
-      document.title = `@${username} - Public Profile`;
-    }
+  _cleanupProfileData: function ({ idModal }) {
+    delete ThemeEvents[`error-state-${idModal}`];
+    delete ThemeEvents[`profile-${idModal}`];
+    delete this.Data[idModal];
   },
 
   _ensureModalState: function (idModal) {
@@ -209,7 +186,7 @@ const PublicProfile = {
       user: {},
     },
   ) {
-    const {
+    let {
       user: { _id: userId, username },
     } = options;
     const idModal = options.idModal || getId();
@@ -219,13 +196,27 @@ const PublicProfile = {
     const profileContainerId = `${profileId}-container`;
     const cardId = `${profileId}-card`;
 
+    if (!options.disableUpdate) {
+      const queryParams = getQueryParams();
+      const usernameFromPath = extractUsernameFromPath();
+      const cid = usernameFromPath || queryParams.cid || username;
+      const existingModal = s(`.${idModal}`);
+      if (existingModal && Modal.Data[idModal]) {
+        await PublicProfile.Update({
+          idModal,
+          user: { username: cid },
+        });
+        return;
+      } else username = cid;
+    }
+
     // Initialize data structure (Modal.Data pattern)
     if (!PublicProfile.Data[profileId]) {
       PublicProfile.Data[profileId] = {
-        userId,
-        username,
         userData: null,
         colors: {},
+        updated: true,
+        lastUpdated: Date.now(),
       };
     } // Setup observer callback using Modal.Data pattern
 
@@ -337,7 +328,7 @@ const PublicProfile = {
     };
 
     // Register theme change handler
-    ThemeEvents[`error-state-${profileId}`] = updateErrorStateTheme;
+    ThemeEvents[`error-state-${idModal}`] = updateErrorStateTheme;
     setTimeout(updateErrorStateTheme);
 
     const renderErrorState = (message, icon = 'fa-exclamation-circle', description = '') => {
@@ -497,14 +488,22 @@ const PublicProfile = {
 
         // Update browser history to show clean URL after successful data fetch
         if (userData.username) {
-          updatePublicProfileHistory(userData.username, { replace: true });
+          const cleanPath = `${getProxyPath()}u/${username}`;
+          setPath(cleanPath, { replace: true });
         }
       } else {
-        return renderErrorState(
-          Translate.Render('user-not-found'),
-          'fa-user-slash',
-          'This user profile does not exist or has been removed. Please verify the username.',
-        );
+        if (result.message && result.message.toLowerCase().match('private'))
+          return renderErrorState(
+            Translate.Render('profile-is-private'),
+            'fa-lock',
+            'This user has chosen to keep their profile private. Respect their privacy and check back later if they change their settings.',
+          );
+        else
+          return renderErrorState(
+            Translate.Render('user-not-found'),
+            'fa-user-slash',
+            'This user profile does not exist or has been removed. Please verify the username.',
+          );
       }
     } catch (error) {
       console.error('Error fetching public profile:', error);
@@ -579,7 +578,7 @@ const PublicProfile = {
     };
 
     // Register theme change listener
-    ThemeEvents[`profile-${userId}`] = updateProfileCardTheme;
+    ThemeEvents[`profile-${idModal}`] = updateProfileCardTheme;
 
     // Schedule rendering of profile image after DOM is ready
     setTimeout(async () => {

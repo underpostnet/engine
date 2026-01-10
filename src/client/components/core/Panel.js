@@ -17,7 +17,7 @@ import { Content } from './Content.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { NotificationManager } from './NotificationManager.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
-import { getProxyPath, setPublicProfilePath } from './Router.js';
+import { getProxyPath, setQueryPath } from './Router.js';
 import { PublicProfile } from './PublicProfile.js';
 
 const logger = loggerFactory(import.meta);
@@ -250,7 +250,6 @@ const Panel = {
               link.onclick = async (e) => {
                 e.preventDefault();
                 const username = link.getAttribute('data-id');
-
                 // Check if public profile modal is already open
                 const currentModal = s('.modal-public-profile');
                 if (currentModal) {
@@ -261,7 +260,7 @@ const Panel = {
                   });
                 } else {
                   // Modal is not open, open it normally
-                  setPublicProfilePath(username);
+                  setQueryPath({ path: 'u', queryPath: username }, 'cid', { replace: false });
                   if (s('.main-btn-public-profile')) s('.main-btn-public-profile').click();
                 }
               };
@@ -324,18 +323,18 @@ const Panel = {
                     ? html`<img
                         class="creator-avatar"
                         src="${getApiBaseUrl({ id: obj.userInfo.profileImageId._id, endpoint: 'file/blob' })}"
-                        alt="${obj.userInfo.username || obj.userInfo.email}"
+                        alt="${obj.userInfo.username}"
                         style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid ${darkTheme
                           ? 'rgba(102, 126, 234, 0.5)'
                           : 'rgba(102, 126, 234, 0.3)'}; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
-                        title="${obj.userInfo.email || obj.userInfo.username}"
+                        title="${obj.userInfo.username}"
                       />`
                     : html`<div
                         class="creator-avatar"
                         style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
-                        title="${obj.userInfo.email || obj.userInfo.username}"
+                        title="${obj.userInfo.username}"
                       >
-                        ${(obj.userInfo.username || obj.userInfo.email || 'U').charAt(0).toUpperCase()}
+                        ${(obj.userInfo.username || 'U').charAt(0).toUpperCase()}
                       </div>`}
                 </a>
                 <div style="display: flex; flex-direction: column; min-width: 0; flex: 1;">
@@ -353,7 +352,7 @@ const Panel = {
                     style="font-size: 11px; color: ${darkTheme
                       ? 'rgba(255,255,255,0.5)'
                       : 'rgba(0,0,0,0.45)'}; line-height: 1.3; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;"
-                    >Uploader</span
+                    >${obj.userInfo.briefDescription || 'Uploader'}</span
                   >
                 </div>
               </div>`

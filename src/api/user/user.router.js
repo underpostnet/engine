@@ -435,6 +435,11 @@ const UserRouter = (options) => {
     return await UserController.delete(req, res, options);
   });
 
+  // Username public profile redirect
+  options.app.get(`${options.path === '/' ? '' : options.path}/u/:username`, async (req, res, next) =>
+    res.redirect(`${options.path === '/' ? '' : options.path}/u?cid=${req.params.username}`),
+  );
+
   return router;
 };
 

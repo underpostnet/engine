@@ -181,12 +181,6 @@ class ExpressService {
       // Database and Valkey connections
       if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
 
-      // Username public profile redirect
-      if (apis && apis.includes('user'))
-        app.get(`${path === '/' ? '' : path}/u/:username`, async (req, res, next) =>
-          res.redirect(`${path === '/' ? '' : path}/u?cid=${req.params.username}`),
-        );
-
       if (valkey) await createValkeyConnection({ host, path }, valkey);
 
       // Mailer setup
@@ -209,7 +203,7 @@ class ExpressService {
         for (const api of apis) {
           logger.info(`Build api server`, `${host}${apiPath}/${api}`);
           const { ApiRouter } = await import(`../../api/${api}/${api}.router.js`);
-          const router = ApiRouter({ host, path, apiPath, mailer, db, authMiddleware, origins });
+          const router = ApiRouter({ app, host, path, apiPath, mailer, db, authMiddleware, origins });
           app.use(`${apiPath}/${api}`, router);
         }
       }

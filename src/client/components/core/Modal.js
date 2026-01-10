@@ -718,8 +718,6 @@ const Modal = {
                 });
               };
 
-              const getDefaultSearchBoxSelector = () => `.search-result-btn-${currentKeyBoardSearchBoxIndex}`;
-
               const updateSearchBoxValue = (selector) => {
                 if (!selector) {
                   // Get the currently active search result item

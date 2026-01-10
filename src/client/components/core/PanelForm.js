@@ -71,6 +71,14 @@ function sanitizeFilename(title, options = {}) {
   return name + ext;
 }
 
+const userInfoFactory = (userDoc) => ({
+  username: userDoc.userId.username,
+  email: userDoc.userId.email,
+  _id: userDoc.userId._id,
+  profileImageId: userDoc.userId.profileImageId,
+  briefDescription: userDoc.userId.briefDescription,
+});
+
 const PanelForm = {
   Data: {},
   instance: async function (
@@ -547,12 +555,7 @@ const PanelForm = {
                 userInfo:
                   baseNewDoc.userInfo ||
                   (documentData.userId && typeof documentData.userId === 'object'
-                    ? {
-                        username: documentData.userId.username,
-                        email: documentData.userId.email,
-                        _id: documentData.userId._id,
-                        profileImageId: documentData.userId.profileImageId,
-                      }
+                    ? userInfoFactory(documentData)
                     : null),
               };
 
@@ -748,12 +751,7 @@ const PanelForm = {
                     : documentObject.userId,
                 userInfo:
                   documentObject.userId && typeof documentObject.userId === 'object'
-                    ? {
-                        username: documentObject.userId.username,
-                        email: documentObject.userId.email,
-                        _id: documentObject.userId._id,
-                        profileImageId: documentObject.userId.profileImageId,
-                      }
+                    ? userInfoFactory(documentObject)
                     : null,
                 fileId,
                 tools:
@@ -788,12 +786,7 @@ const PanelForm = {
                     : documentObject.userId,
                 userInfo:
                   documentObject.userId && typeof documentObject.userId === 'object'
-                    ? {
-                        username: documentObject.userId.username,
-                        email: documentObject.userId.email,
-                        _id: documentObject.userId._id,
-                        profileImageId: documentObject.userId.profileImageId,
-                      }
+                    ? userInfoFactory(documentObject)
                     : null,
                 fileId: null,
                 tools:

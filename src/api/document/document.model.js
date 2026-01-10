@@ -60,7 +60,7 @@ const DocumentDto = {
       return {
         path: 'userId',
         model: 'User',
-        select: '_id email username profileImageId role',
+        select: '_id email username profileImageId role briefDescription',
         populate: {
           path: 'profileImageId',
           model: 'File',
