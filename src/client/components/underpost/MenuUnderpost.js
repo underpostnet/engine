@@ -9,13 +9,7 @@ import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } 
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import {
-  extractUsernameFromPath,
-  getProxyPath,
-  getQueryParams,
-  RouterEvents,
-  listenQueryParamsChange,
-} from '../core/Router.js';
+import { extractUsernameFromPath, getProxyPath, getQueryParams } from '../core/Router.js';
 import { ElementsUnderpost } from './ElementsUnderpost.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost, BannerAppTemplate } from './RoutesUnderpost.js';
@@ -456,38 +450,7 @@ const MenuUnderpost = {
       });
     });
 
-    // Register RouterEvents listener for back/forward navigation between profiles
-    // This ensures the profile updates when the user navigates through browser history
-    // Note: route id is 'u', modal id is 'modal-public-profile', button class is 'main-btn-public-profile'
-    RouterEvents['public-profile-navigation'] = async ({ route }) => {
-      if (route === 'u') {
-        const idModal = 'modal-public-profile';
-        const usernameFromPath = extractUsernameFromPath();
-        const queryParams = getQueryParams();
-        const cid = usernameFromPath || queryParams.cid;
-
-        if (!cid) return;
-
-        // Check if modal exists (could be behind another view modal like settings)
-        if (s(`.${idModal}`) && Modal.Data[idModal]) {
-          // Modal exists - bring to front and update if username changed
-          const currentUsername = PublicProfile.currentUsername;
-          if (currentUsername !== cid) {
-            await PublicProfile.Update({
-              idModal,
-              user: { username: cid },
-            });
-          }
-          // Always bring modal to front when navigating back to /u route
-          Modal.zIndexSync({ idModal });
-        } else {
-          // Modal doesn't exist - open it
-          if (s('.main-btn-public-profile')) {
-            s('.main-btn-public-profile').click();
-          }
-        }
-      }
-    };
+    PublicProfile.Router();
 
     EventsUI.onClick(`.main-btn-public-profile`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();

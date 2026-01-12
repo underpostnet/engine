@@ -5,7 +5,7 @@ import { UserService } from '../../services/user/user.service.js';
 import { ThemeEvents, darkTheme, subThemeManager, lightenHex, darkenHex } from './Css.js';
 import { Modal } from './Modal.js';
 import { getId } from './CommonJs.js';
-import { setPath, getProxyPath, getQueryParams, extractUsernameFromPath } from './Router.js';
+import { setPath, getProxyPath, getQueryParams, extractUsernameFromPath, RouterEvents } from './Router.js';
 
 const PublicProfile = {
   Data: {},
@@ -17,6 +17,7 @@ const PublicProfile = {
 
     // Skip update if already showing this profile (prevents loops during back/forward navigation)
     if (this.currentUsername === username) {
+      Modal.zIndexSync({ idModal });
       return;
     }
 
@@ -853,6 +854,38 @@ const PublicProfile = {
         </div>
       </div>
     `;
+  },
+
+  Router: async function (options = { idModal: '' }) {
+    const idModal = options.idModal || 'modal-public-profile';
+    // Register RouterEvents listener for back/forward navigation between profiles
+    // This ensures the profile updates when the user navigates through browser history
+    // Note: route id is 'u', modal id is 'modal-public-profile', button class is 'main-btn-public-profile'
+    RouterEvents[`${idModal}-navigation`] = async ({ route }) => {
+      if (route === 'u') {
+        const usernameFromPath = extractUsernameFromPath();
+        const queryParams = getQueryParams();
+        const cid = usernameFromPath || queryParams.cid;
+
+        if (!cid) return;
+
+        // Check if modal exists (could be behind another view modal like settings)
+        if (s(`.${idModal}`) && Modal.Data[idModal]) {
+          // Modal exists - bring to front and update if username changed
+          const currentUsername = PublicProfile.currentUsername;
+          if (currentUsername !== cid)
+            await PublicProfile.Update({
+              idModal,
+              user: { username: cid },
+            });
+        } else {
+          // Modal doesn't exist - open it
+          if (s('.main-btn-public-profile')) {
+            s('.main-btn-public-profile').click();
+          }
+        }
+      }
+    };
   },
 };
 
