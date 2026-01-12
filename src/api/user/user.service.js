@@ -141,14 +141,6 @@ const UserService = {
           const { _id } = user;
           const validPassword = await verifyPassword(req.body.password, user.password);
           if (validPassword === true) {
-            if (!user.profileImageId)
-              await User.findByIdAndUpdate(
-                user._id,
-                { profileImageId: await options.getDefaultProfileImageId(File) },
-                {
-                  runValidators: true,
-                },
-              );
             {
               if (getMinutesRemaining() <= 0 || user.failedLoginAttempts >= 0) {
                 const user = await User.findOne({
@@ -354,18 +346,6 @@ const UserService = {
           });
 
         if (!user) throw new Error('user not found');
-
-        const file = await File.findOne({ _id: user.profileImageId });
-
-        if (!file && !(await ValkeyAPI.getValkeyObject(options, req.auth.user.email))) {
-          await User.findByIdAndUpdate(
-            user._id,
-            { profileImageId: await options.getDefaultProfileImageId(File) },
-            {
-              runValidators: true,
-            },
-          );
-        }
 
         const guestUser = await ValkeyAPI.getValkeyObject(options, req.auth.user.email);
         if (guestUser)

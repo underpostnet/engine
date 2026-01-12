@@ -99,7 +99,10 @@ const LogIn = {
             class="abs center top-box-profile-img"
             ${this.Scope.user.main.model.user.profileImage
               ? `src="${this.Scope.user.main.model.user.profileImage.imageSrc}"`
-              : ``}
+              : getApiBaseUrl({
+                  id: 'assets/avatar',
+                  endpoint: 'user',
+                })}
           />
         </div>`,
       );

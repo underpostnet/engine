@@ -13,6 +13,7 @@ import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { append, htmls, s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
+import { getApiBaseUrl } from '../../services/core/core.service.js';
 
 const Account = {
   UpdateEvent: {},
@@ -31,7 +32,10 @@ const Account = {
               style="opacity: 1"
               ${LogIn.Scope.user.main.model.user.profileImage
                 ? `src="${LogIn.Scope.user.main.model.user.profileImage.imageSrc}"`
-                : ''}
+                : getApiBaseUrl({
+                    id: 'assets/avatar',
+                    endpoint: 'user',
+                  })}
             />
           </div>
           <div class="abs center account-profile-image-loading" style="color: white"></div>`,
@@ -550,31 +554,11 @@ const Account = {
       if (s(`.${inputData.id}`)) s(`.${inputData.id}`).value = currentUser[inputData.model];
 
     // Update profile image if it exists in scope (skip for guest users who cannot upload)
-    if (currentUser.role !== 'guest') {
-      if (LogIn.Scope.user.main.model.user.profileImage && LogIn.Scope.user.main.model.user.profileImage.imageSrc) {
-        const profileImageElement = s(`.account-profile-image`);
-        if (profileImageElement) {
-          profileImageElement.src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
-          profileImageElement.style.opacity = 1;
-        }
-      } else {
-        // If no image in scope, try to load it via LogIn.Trigger (only for authenticated users)
-        await LogIn.Trigger({ user: currentUser });
-        if (LogIn.Scope.user.main.model.user.profileImage && LogIn.Scope.user.main.model.user.profileImage.imageSrc) {
-          const profileImageElement = s(`.account-profile-image`);
-          if (profileImageElement) {
-            profileImageElement.src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
-            profileImageElement.style.opacity = 1;
-          }
-        }
-      }
-    } else {
-      // Guest users: just hide the image, don't try to load
-      const profileImageElement = s(`.account-profile-image`);
-      if (profileImageElement) {
-        profileImageElement.style.opacity = 0;
-      }
-    }
+    const profileImageElement = s(`.account-profile-image`);
+    if (currentUser.role !== 'guest' && profileImageElement) {
+      profileImageElement.src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
+      profileImageElement.style.opacity = 1;
+    } else if (profileImageElement) profileImageElement.style.opacity = 0;
 
     // update public profile toggle
     if (ToggleSwitch.Tokens['account-public-profile']) {

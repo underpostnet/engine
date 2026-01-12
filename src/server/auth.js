@@ -441,22 +441,19 @@ async function logoutSession(User, req, res) {
  * @param {import('express').Request} req The Express request object.
  * @param {import('express').Response} res The Express response object.
  * @param {import('mongoose').Model} User The Mongoose User model.
- * @param {import('mongoose').Model} File The Mongoose File model.
  * @param {object} [options={}] Additional options.
- * @param {Function} options.getDefaultProfileImageId Function to get the default profile image ID.
  * @param {string} options.host The host name.
  * @param {string} options.path The path name.
  * @returns {Promise<{token: string, user: object}>} The access token and user object.
  * @throws {Error} If password validation fails.
  * @memberof Auth
  */
-async function createUserAndSession(req, res, User, File, options = { host: '', path: '' }) {
+async function createUserAndSession(req, res, User, options = { host: '', path: '' }) {
   const pwdCheck = validatePasswordMiddleware(req);
   if (pwdCheck.status === 'error') throw new Error(pwdCheck.message);
 
   req.body.password = await hashPassword(req.body.password);
   req.body.role = req.body.role === 'guest' ? 'guest' : 'user';
-  req.body.profileImageId = await options.getDefaultProfileImageId(File);
 
   const saved = await new User(req.body).save();
   const user = await User.findOne({ _id: saved._id }).select(UserDto.select.get());
