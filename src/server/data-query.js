@@ -1,32 +1,23 @@
 /**
- * Data Query Helper
- *
- * Parses AG Grid filter and sort models from request query parameters
- * and converts them to Mongoose-compatible query objects.
- *
- * Supports:
- * - AG Grid filterModel (text, number, date, set filters)
- * - AG Grid sortModel (multi-column sorting)
- * - Simple sort params (sort=fieldName&asc=1)
- * - Pagination (page, limit)
- *
- * @example
- * // In your API service:
- * import { DataQuery } from '../../server/data-query.js';
- *
- * const get = async (req, res, options) => {
- *   const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
- *   const [data, total] = await Promise.all([
- *     Model.find(query).sort(sort).limit(limit).skip(skip),
- *     Model.countDocuments(query),
- *   ]);
- *   return { data, total, page, totalPages: Math.ceil(total / limit) };
- * };
+ * Module for parsing data query parameters into Mongoose query options.
+ * Supports AG Grid filterModel/sortModel as well as simple legacy parameters.
+ * @module src/server/data-query.js
+ * @namespace DataQuery
  */
+
 export const DataQuery = {
   /**
    * Parse request query parameters into Mongoose query options
    * @param {Object} params - The request query parameters (req.query)
+   * @param {string|Object} [params.filterModel] - AG Grid filterModel as JSON string or object
+   * @param {string|Object} [params.sortModel] - AG Grid sortModel as JSON string or object
+   * @param {number|string} [params.page=1] - Page number for pagination
+   * @param {number|string} [params.limit=10] - Items per page for pagination
+   * @param {string} [params.sort] - Simple sort field (legacy)
+   * @param {string|boolean} [params.asc] - Simple sort direction (legacy, '1'/'true' for asc)
+   * @param {string} [params.order] - Simple order string, e.g. "field1:asc,field2:desc" (legacy)
+   * @param {Object} [params.query] - Default query object to merge with filters
+   * @memberof DataQuery
    * @returns {Object} { query, sort, skip, limit, page }
    */
   parse: (params = {}) => {
@@ -49,6 +40,12 @@ export const DataQuery = {
   /**
    * Parse sort parameters from AG Grid sortModel or simple sort params
    * @private
+   * @param {string|Object} sortModel - AG Grid sortModel as JSON string or object
+   * @param {string} sortParam - Simple sort field (legacy)
+   * @param {string|boolean} asc - Simple sort direction (legacy)
+   * @param {string} order - Simple order string (legacy)
+   * @return {Object} sort object for Mongoose
+   * @memberof DataQuery
    */
   _parseSort: (sortModel, sortParam, asc, order) => {
     const sort = {};
@@ -98,6 +95,10 @@ export const DataQuery = {
   /**
    * Parse filter parameters from AG Grid filterModel
    * @private
+   * @param {string|Object} filterModel - AG Grid filterModel as JSON string or object
+   * @param {Object} defaultQuery - Default query object to merge with filters
+   * @return {Object} query object for Mongoose
+   * @memberof DataQuery
    */
   _parseFilter: (filterModel, defaultQuery) => {
     let query = defaultQuery ? { ...defaultQuery } : {};
@@ -131,6 +132,10 @@ export const DataQuery = {
   /**
    * Parse a single field filter
    * @private
+   * @param {string} field - The field name
+   * @param {Object} filter - The filter object
+   * @return {Object|null} query condition for the field or null if invalid
+   * @memberof DataQuery
    */
   _parseFieldFilter: (field, filter) => {
     if (!filter || !filter.filterType) {
@@ -158,6 +163,10 @@ export const DataQuery = {
   /**
    * Parse text filter
    * @private
+   * @param {string} field - The field name
+   * @param {Object} filter - The filter object
+   * @return {Object|null} query condition for the text field or null if invalid
+   * @memberof DataQuery
    */
   _parseTextFilter: (field, filter) => {
     const { type, filter: filterValue } = filter;
@@ -215,6 +224,10 @@ export const DataQuery = {
   /**
    * Parse number filter
    * @private
+   * @param {string} field - The field name
+   * @param {Object} filter - The filter object
+   * @return {Object|null} query condition for the number field or null if invalid
+   * @memberof DataQuery
    */
   _parseNumberFilter: (field, filter) => {
     const { type, filter: filterValue, filterTo } = filter;
@@ -273,6 +286,10 @@ export const DataQuery = {
   /**
    * Parse date filter
    * @private
+   * @param {string} field - The field name
+   * @param {Object} filter - The filter object
+   * @return {Object|null} query condition for the date field or null if invalid
+   * @memberof DataQuery
    */
   _parseDateFilter: (field, filter) => {
     const { type, dateFrom, dateTo } = filter;
@@ -379,6 +396,10 @@ export const DataQuery = {
   /**
    * Parse set filter
    * @private
+   * @param {string} field - The field name
+   * @param {Object} filter - The filter object
+   * @return {Object|null} query condition for the set field or null if invalid
+   * @memberof DataQuery
    */
   _parseSetFilter: (field, filter) => {
     const { values } = filter;
@@ -393,6 +414,10 @@ export const DataQuery = {
   /**
    * Parse multi filter (combines multiple filters with AND/OR)
    * @private
+   * @param {string} field - The field name
+   * @param {Object} filter - The multi filter object
+   * @return {Object|null} query condition for the multi filter or null if invalid
+   * @memberof DataQuery
    */
   _parseMultiFilter: (field, filter) => {
     const { filterModels, operator } = filter;
