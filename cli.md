@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.97.1
+## underpost ci/cd cli v2.97.5
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -589,6 +589,8 @@ Options:
   --paths <paths>                            Comma-separated list of paths to filter database operations.
   --ns <ns-name>                             Kubernetes namespace context for database operations (defaults to "default").
   --macro-rollback-export <n-commits-reset>  Exports a macro rollback script that reverts the last n commits (Git integration required).
+  --clean-fs-collection                      Cleans orphaned File documents from collections that are not referenced by any models.
+  --clean-fs-dry-run                         Dry run mode - shows what would be deleted without actually deleting (use with --clean-fs-collection).
   --dev                                      Sets the development cli context
   --kubeadm                                  Enables the kubeadm context for database operations.
   --kind                                     Enables the kind context for database operations.
