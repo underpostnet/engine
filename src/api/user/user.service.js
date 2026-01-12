@@ -1,4 +1,5 @@
 import { loggerFactory } from '../../server/logger.js';
+import { DataQuery } from '../../server/data-query.js';
 import {
   hashPassword,
   verifyPassword,
@@ -334,12 +335,16 @@ const UserService = {
     switch (req.params.id) {
       case 'all': {
         if (req.auth.user.role === 'admin') {
-          const page = parseInt(req.query.page) || 1;
-          const limit = parseInt(req.query.limit) || 10;
-          const skip = (page - 1) * limit;
+          // Use DataQuery.parse for filtering, sorting, and pagination
+          const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
 
-          const data = await User.find().select(UserDto.select.get()).skip(skip).limit(limit);
-          const total = await User.countDocuments();
+          // Apply default sort if no sort was specified
+          const finalSort = Object.keys(sort).length > 0 ? sort : { updatedAt: -1 };
+
+          const [data, total] = await Promise.all([
+            User.find(query).select(UserDto.select.get()).sort(finalSort).skip(skip).limit(limit),
+            User.countDocuments(query),
+          ]);
 
           return {
             data,

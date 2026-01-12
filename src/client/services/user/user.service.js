@@ -1,6 +1,6 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
-import { getApiBaseUrl, headersFactory, payloadFactory } from '../core/core.service.js';
+import { getApiBaseUrl, headersFactory, payloadFactory, buildQueryUrl } from '../core/core.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -37,15 +37,19 @@ const UserService = {
           return reject(error);
         }),
     ),
-  get: (options = { id: '', page: 1, limit: 10 }) => {
-    const { id = '', page, limit } = options;
-    const query = new URLSearchParams();
-    if (page) query.set('page', page);
-    if (limit) query.set('limit', limit);
-    const queryString = query.toString();
-    const url = `${getApiBaseUrl({ id, endpoint })}${queryString ? (id.includes('?') ? '&' : '?') + queryString : ''}`;
+  get: (options = {}) => {
+    const { id, page, limit, filterModel, sortModel, sort, asc, order } = options;
+    const url = buildQueryUrl(getApiBaseUrl({ id, endpoint }), {
+      page,
+      limit,
+      filterModel,
+      sortModel,
+      sort,
+      asc,
+      order,
+    });
     return new Promise((resolve, reject) =>
-      fetch(url, {
+      fetch(url.toString(), {
         method: 'GET',
         headers: headersFactory(),
         credentials: 'include',

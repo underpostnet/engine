@@ -1,5 +1,6 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
+import { DataQuery } from '../../server/data-query.js';
 import { InstanceDto } from './instance.model.js';
 
 const logger = loggerFactory(import.meta);
@@ -30,25 +31,29 @@ const InstanceService = {
         }
       }
       default:
-        const { page = 1, limit = 10, sort = { updatedAt: -1 } } = req.query;
-        const skip = (page - 1) * limit;
+        // Use DataQuery.parse for filtering, sorting, and pagination
+        const defaultSort = { updatedAt: -1 };
+        const baseQuery = user.role === 'admin' ? {} : { userId: req.auth.user._id };
+        const { query, sort, skip, limit, page } = DataQuery.parse({
+          ...req.query,
+          query: baseQuery,
+        });
+
+        // Apply default sort if no sort was specified
+        const finalSort = Object.keys(sort).length > 0 ? sort : defaultSort;
 
         switch (user.role) {
           case 'admin':
             if (req.params.id) return await Instance.findById(req.params.id);
             const [dataAdmin, totalAdmin] = await Promise.all([
-              Instance.find({}).sort(sort).limit(limit).skip(skip).populate(InstanceDto.populate.get()),
-              Instance.countDocuments({}),
+              Instance.find(query).sort(finalSort).limit(limit).skip(skip).populate(InstanceDto.populate.get()),
+              Instance.countDocuments(query),
             ]);
             return { data: dataAdmin, total: totalAdmin, page, totalPages: Math.ceil(totalAdmin / limit) };
           default:
             const [dataUser, totalUser] = await Promise.all([
-              Instance.find({ userId: req.auth.user._id })
-                .sort(sort)
-                .limit(limit)
-                .skip(skip)
-                .populate(InstanceDto.populate.get()),
-              Instance.countDocuments({ userId: req.auth.user._id }),
+              Instance.find(query).sort(finalSort).limit(limit).skip(skip).populate(InstanceDto.populate.get()),
+              Instance.countDocuments(query),
             ]);
             return { data: dataUser, total: totalUser, page, totalPages: Math.ceil(totalUser / limit) };
         }

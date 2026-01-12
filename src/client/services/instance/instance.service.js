@@ -1,6 +1,6 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
-import { getApiBaseUrl, headersFactory, payloadFactory } from '../core/core.service.js';
+import { getApiBaseUrl, headersFactory, payloadFactory, buildQueryUrl } from '../core/core.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -49,10 +49,25 @@ const InstanceService = {
           return reject(error);
         }),
     ),
-  get: (options = { id: '', body: {}, page: 1, limit: 10 }) => {
-    const url = new URL(getApiBaseUrl({ id: options.id, endpoint }));
-    if (options.page) url.searchParams.set('page', options.page);
-    if (options.limit) url.searchParams.set('limit', options.limit);
+  get: (
+    options = {
+      id: '',
+      page: 1,
+      limit: 10,
+      filterModel: undefined,
+      sortModel: undefined,
+      sort: undefined,
+      asc: undefined,
+    },
+  ) => {
+    const url = buildQueryUrl(getApiBaseUrl({ id: options.id, endpoint }), {
+      page: options.page,
+      limit: options.limit,
+      filterModel: options.filterModel,
+      sortModel: options.sortModel,
+      sort: options.sort,
+      asc: options.asc,
+    });
     return new Promise((resolve, reject) =>
       fetch(url.toString(), {
         method: 'GET',
