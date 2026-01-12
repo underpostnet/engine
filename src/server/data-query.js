@@ -39,7 +39,7 @@ export const DataQuery = {
 
   /**
    * Parse sort parameters from AG Grid sortModel or simple sort params
-   * @private
+   * @method
    * @param {string|Object} sortModel - AG Grid sortModel as JSON string or object
    * @param {string} sortParam - Simple sort field (legacy)
    * @param {string|boolean} asc - Simple sort direction (legacy)
@@ -94,7 +94,7 @@ export const DataQuery = {
 
   /**
    * Parse filter parameters from AG Grid filterModel
-   * @private
+   * @method
    * @param {string|Object} filterModel - AG Grid filterModel as JSON string or object
    * @param {Object} defaultQuery - Default query object to merge with filters
    * @return {Object} query object for Mongoose
@@ -131,7 +131,7 @@ export const DataQuery = {
 
   /**
    * Parse a single field filter
-   * @private
+   * @method
    * @param {string} field - The field name
    * @param {Object} filter - The filter object
    * @return {Object|null} query condition for the field or null if invalid
@@ -162,7 +162,7 @@ export const DataQuery = {
 
   /**
    * Parse text filter
-   * @private
+   * @method
    * @param {string} field - The field name
    * @param {Object} filter - The filter object
    * @return {Object|null} query condition for the text field or null if invalid
@@ -223,7 +223,7 @@ export const DataQuery = {
 
   /**
    * Parse number filter
-   * @private
+   * @method
    * @param {string} field - The field name
    * @param {Object} filter - The filter object
    * @return {Object|null} query condition for the number field or null if invalid
@@ -285,7 +285,7 @@ export const DataQuery = {
 
   /**
    * Parse date filter
-   * @private
+   * @method
    * @param {string} field - The field name
    * @param {Object} filter - The filter object
    * @return {Object|null} query condition for the date field or null if invalid
@@ -395,7 +395,7 @@ export const DataQuery = {
 
   /**
    * Parse set filter
-   * @private
+   * @method
    * @param {string} field - The field name
    * @param {Object} filter - The filter object
    * @return {Object|null} query condition for the set field or null if invalid
@@ -413,7 +413,7 @@ export const DataQuery = {
 
   /**
    * Parse multi filter (combines multiple filters with AND/OR)
-   * @private
+   * @method
    * @param {string} field - The field name
    * @param {Object} filter - The multi filter object
    * @return {Object|null} query condition for the multi filter or null if invalid

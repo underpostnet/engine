@@ -22,7 +22,7 @@ class UnderpostSSH {
   static API = {
     /**
      * Loads configuration node from disk or returns default empty config.
-     * @private
+     * @method
      * @function loadConfigNode
      * @memberof UnderpostSSH
      * @param {string} deployId - Deployment ID for the config path
@@ -37,7 +37,7 @@ class UnderpostSSH {
 
     /**
      * Saves configuration node to disk.
-     * @private
+     * @method
      * @function saveConfigNode
      * @memberof UnderpostSSH
      * @param {string} confNodePath - Path to the configuration file
@@ -50,7 +50,7 @@ class UnderpostSSH {
 
     /**
      * Checks if a system user exists.
-     * @private
+     * @method
      * @function checkUserExists
      * @memberof UnderpostSSH
      * @param {string} username - Username to check
@@ -66,7 +66,7 @@ class UnderpostSSH {
 
     /**
      * Gets the home directory for a given user.
-     * @private
+     * @method
      * @function getUserHome
      * @memberof UnderpostSSH
      * @param {string} username - Username to get home directory for
@@ -81,7 +81,7 @@ class UnderpostSSH {
 
     /**
      * Creates a system user with password and groups.
-     * @private
+     * @method
      * @function createSystemUser
      * @memberof UnderpostSSH
      * @param {string} username - Username to create
@@ -101,7 +101,7 @@ class UnderpostSSH {
 
     /**
      * Ensures SSH directory exists with proper permissions.
-     * @private
+     * @method
      * @function ensureSSHDirectory
      * @memberof UnderpostSSH
      * @param {string} sshDir - Path to SSH directory
@@ -116,7 +116,7 @@ class UnderpostSSH {
 
     /**
      * Sets proper permissions on SSH files.
-     * @private
+     * @method
      * @function setSSHFilePermissions
      * @memberof UnderpostSSH
      * @param {string} sshDir - SSH directory path
@@ -135,7 +135,7 @@ class UnderpostSSH {
 
     /**
      * Configures authorized_keys for a user.
-     * @private
+     * @method
      * @function configureAuthorizedKeys
      * @memberof UnderpostSSH
      * @param {string} sshDir - SSH directory path
@@ -155,7 +155,7 @@ EOF`);
 
     /**
      * Configures known_hosts with SSH server keys.
-     * @private
+     * @method
      * @function configureKnownHosts
      * @memberof UnderpostSSH
      * @param {string} sshDir - SSH directory path
@@ -171,7 +171,7 @@ EOF`);
 
     /**
      * Configures sudoers for passwordless sudo or sets user password.
-     * @private
+     * @method
      * @function configureSudoAccess
      * @memberof UnderpostSSH
      * @param {string} username - Username to configure

@@ -20,7 +20,7 @@ const logger = loggerFactory(import.meta);
  */
 class LamppService {
   /**
-   * @private
+   * @method
    * @type {string | undefined}
    * @description Stores the accumulated Apache virtual host configuration (router definition).
    * @memberof LamppService
@@ -273,7 +273,7 @@ Listen ${port}
   ErrorDocument 504 ${path === '/' ? '' : path}/500.html
 
 </VirtualHost>
-            
+
 `);
 
     return { disabled: false };

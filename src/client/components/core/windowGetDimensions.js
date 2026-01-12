@@ -53,7 +53,7 @@ export class PwaWindowDimensions {
   // --- Private Static Getters (Encapsulating browser APIs) ---
 
   /**
-   * @private
+   * @method
    * @static
    * Try visualViewport values (most accurate for "what's actually visible").
    * @returns {{height: number|null, width: number|null}}
@@ -68,7 +68,7 @@ export class PwaWindowDimensions {
   }
 
   /**
-   * @private
+   * @method
    * @static
    * Try layout viewport (doctype-root) measurements.
    * document.documentElement.clientHeight/clientWidth are stable and widely used.
@@ -84,7 +84,7 @@ export class PwaWindowDimensions {
   }
 
   /**
-   * @private
+   * @method
    * @static
    * Try window.* measurements (innerHeight/innerWidth are widely supported).
    * @returns {{height: number|null, width: number|null}}
@@ -98,7 +98,7 @@ export class PwaWindowDimensions {
   }
 
   /**
-   * @private
+   * @method
    * @static
    * Try body measurements (less reliable, used as a fallback).
    * @returns {{height: number|null, width: number|null}}
@@ -112,7 +112,7 @@ export class PwaWindowDimensions {
   }
 
   /**
-   * @private
+   * @method
    * @static
    * Try screen measurements (physical screen/last-resort fallback).
    * @returns {{height: number|null, width: number|null}}
@@ -130,7 +130,7 @@ export class PwaWindowDimensions {
   }
 
   /**
-   * @private
+   * @method
    * @static
    * Try outer dimensions (less reliable, sometimes available fallback).
    * @returns {{height: number|null, width: number|null}}

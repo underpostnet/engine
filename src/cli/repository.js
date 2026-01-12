@@ -679,7 +679,7 @@ Prevent build private config repo.`,
 
     /**
      * Internal method to recursively fetch and copy files from GitHub API.
-     * @private
+     * @method
      * @param {object} options - Fetch options.
      * @param {string} options.apiUrl - The GitHub API URL.
      * @param {string} options.targetPath - The local target path.

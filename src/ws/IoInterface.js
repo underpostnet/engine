@@ -28,7 +28,7 @@ const logger = loggerFactory(import.meta);
  */
 class IoChannel {
   /**
-   * @private
+   * @method
    * @type {ChannelInterface}
    */
   #IoInterface;
@@ -86,7 +86,7 @@ class IoChannel {
   /**
    * Handles incoming messages on the channel.
    *
-   * @private
+   * @method
    * @param {Socket} socket - The Socket.IO socket object.
    * @param {any[]} args - The raw arguments received from the socket event.
    * @param {string} wsManagementId - Unique identifier for the WebSocket management context.

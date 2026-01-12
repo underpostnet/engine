@@ -78,7 +78,7 @@ class UnderpostDB {
   static API = {
     /**
      * Helper: Gets filtered pods based on criteria
-     * @private
+     * @method
      * @param {Object} criteria - Filter criteria
      * @param {string} [criteria.podNames] - Comma-separated pod name patterns
      * @param {string} [criteria.namespace='default'] - Kubernetes namespace
@@ -114,7 +114,7 @@ class UnderpostDB {
 
     /**
      * Helper: Executes kubectl command with error handling
-     * @private
+     * @method
      * @param {string} command - kubectl command to execute
      * @param {Object} options - Execution options
      * @param {string} [options.context=''] - Command context for logging
@@ -134,7 +134,7 @@ class UnderpostDB {
 
     /**
      * Helper: Copies file to pod
-     * @private
+     * @method
      * @param {Object} params - Copy parameters
      * @param {string} params.sourcePath - Source file path
      * @param {string} params.podName - Target pod name
@@ -155,7 +155,7 @@ class UnderpostDB {
 
     /**
      * Helper: Copies file from pod
-     * @private
+     * @method
      * @param {Object} params - Copy parameters
      * @param {string} params.podName - Source pod name
      * @param {string} params.namespace - Pod namespace
@@ -176,7 +176,7 @@ class UnderpostDB {
 
     /**
      * Helper: Executes command in pod
-     * @private
+     * @method
      * @param {Object} params - Execution parameters
      * @param {string} params.podName - Pod name
      * @param {string} params.namespace - Pod namespace
@@ -195,7 +195,7 @@ class UnderpostDB {
 
     /**
      * Helper: Manages Git repository for backups
-     * @private
+     * @method
      * @param {Object} params - Git parameters
      * @param {string} params.repoName - Repository name
      * @param {string} params.operation - Operation (clone, pull, commit, push)
@@ -264,7 +264,7 @@ class UnderpostDB {
 
     /**
      * Helper: Manages backup timestamps and cleanup
-     * @private
+     * @method
      * @param {string} backupPath - Backup directory path
      * @param {number} newTimestamp - New backup timestamp
      * @param {boolean} shouldCleanup - Whether to cleanup old backups
@@ -312,7 +312,7 @@ class UnderpostDB {
 
     /**
      * Helper: Performs MariaDB import operation
-     * @private
+     * @method
      * @param {Object} params - Import parameters
      * @param {PodInfo} params.pod - Target pod
      * @param {string} params.namespace - Namespace
@@ -368,7 +368,7 @@ class UnderpostDB {
 
     /**
      * Helper: Performs MariaDB export operation
-     * @private
+     * @method
      * @param {Object} params - Export parameters
      * @param {PodInfo} params.pod - Source pod
      * @param {string} params.namespace - Namespace
@@ -423,7 +423,7 @@ class UnderpostDB {
 
     /**
      * Helper: Performs MongoDB import operation
-     * @private
+     * @method
      * @param {Object} params - Import parameters
      * @param {PodInfo} params.pod - Target pod
      * @param {string} params.namespace - Namespace
@@ -475,7 +475,7 @@ class UnderpostDB {
 
     /**
      * Helper: Performs MongoDB export operation
-     * @private
+     * @method
      * @param {Object} params - Export parameters
      * @param {PodInfo} params.pod - Source pod
      * @param {string} params.namespace - Namespace
@@ -532,7 +532,7 @@ class UnderpostDB {
 
     /**
      * Helper: Gets MongoDB collection statistics
-     * @private
+     * @method
      * @param {Object} params - Parameters
      * @param {string} params.podName - Pod name
      * @param {string} params.namespace - Namespace
@@ -590,7 +590,7 @@ class UnderpostDB {
 
     /**
      * Helper: Gets MariaDB table statistics
-     * @private
+     * @method
      * @param {Object} params - Parameters
      * @param {string} params.podName - Pod name
      * @param {string} params.namespace - Namespace
@@ -628,7 +628,7 @@ class UnderpostDB {
 
     /**
      * Helper: Displays database statistics in table format
-     * @private
+     * @method
      * @param {Object} params - Parameters
      * @param {string} params.provider - Database provider
      * @param {string} params.dbName - Database name

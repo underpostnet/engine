@@ -24,21 +24,21 @@ class Auth {
   /**
    * The current user access token (JWT).
    * @type {string}
-   * @private
+   * @method
    */
   #token = '';
 
   /**
    * The token for anonymous guest sessions.
    * @type {string}
-   * @private
+   * @method
    */
   #guestToken = '';
 
   /**
    * Timeout ID for the token refresh schedule.
    * @type {number | undefined}
-   * @private
+   * @method
    */
   #refreshTimeout;
 

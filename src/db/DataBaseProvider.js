@@ -20,7 +20,7 @@ class DataBaseProviderService {
   /**
    * Internal storage for database connection instances, keyed by host+path.
    * @type {object.<string, object>}
-   * @private
+   * @method
    */
   #instance = {};
 
