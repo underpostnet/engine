@@ -9,6 +9,7 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import crypto from 'crypto';
+import { Types } from 'mongoose';
 
 /**
  * Logger instance for this module.
@@ -264,6 +265,7 @@ const FileService = {
    * GET - Retrieve files.
    * Returns metadata-only for regular GET.
    * Returns buffer data for /blob endpoint.
+   * Authorization: Check if file belongs to a public document or user owns the document.
    * @async
    * @function get
    * @memberof FileServiceServer.FileService
@@ -271,14 +273,45 @@ const FileService = {
    * @param {Object} res - Express response object.
    * @param {Object} options - Request options containing host and path.
    * @returns {Promise<Array|Buffer>} Array of file metadata objects or Buffer for blob endpoint.
-   * @throws {Error} If file not found for blob endpoint.
+   * @throws {Error} If file not found or user not authorized.
    */
   get: async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+    /** @type {import('../document/document.model.js').DocumentModel} */
+    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
+
+    const isFileAuthorized = async (fileId) => {
+      try {
+        // Find document that references this file
+        const doc = await Document.findOne({
+          $or: [{ fileId: new Types.ObjectId(fileId) }, { mdFileId: new Types.ObjectId(fileId) }],
+        });
+
+        // If file not in any document, allow access
+        if (!doc) return true;
+
+        // If document has 'public' tag, allow all access
+        if (doc.tags && doc.tags.includes('public')) return true;
+
+        // Otherwise, user must be authenticated and own the document
+        if (!req.auth || !req.auth.user) return false;
+
+        return doc.userId.toString() === req.auth.user._id.toString();
+      } catch (err) {
+        logger.error('Authorization check failed:', err);
+        return false;
+      }
+    };
 
     // Handle blob endpoint - return raw buffer data
     if (req.path.startsWith('/blob') && req.params.id) {
+      // Check authorization
+      const authorized = await isFileAuthorized(req.params.id);
+      if (!authorized) {
+        throw new Error('Unauthorized');
+      }
+
       const file = await File.findOne({ _id: req.params.id });
 
       if (!file) {
@@ -302,6 +335,12 @@ const FileService = {
       }
 
       default: {
+        // Check authorization
+        const authorized = await isFileAuthorized(req.params.id);
+        if (!authorized) {
+          throw new Error('Unauthorized');
+        }
+
         const files = await File.find({
           _id: req.params.id,
         }).select(FileServiceDto.metadataSelect());
