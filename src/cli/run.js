@@ -313,6 +313,7 @@ class UnderpostRun {
       console.log('Loading fordward services...');
       await timer(5000);
       shellExec(`node bin metadata --generate ${path}`);
+      shellExec(`node bin db --dev --clean-fs-collection dd`);
       shellExec(`node bin run kill '${ports}'`);
     },
 

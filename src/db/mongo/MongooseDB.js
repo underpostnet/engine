@@ -28,7 +28,7 @@ class MongooseDBService {
    */
   async connect(host, name) {
     const uri = `${host}/${name}`;
-    logger.info('MongooseDB connect', { host, name, uri });
+    // logger.info('MongooseDB connect', { host, name, uri });
     return await mongoose
       .createConnection(uri, {
         serverSelectionTimeoutMS: 5000,

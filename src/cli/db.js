@@ -1384,7 +1384,7 @@ class UnderpostDB {
               continue;
             }
 
-            logger.info('Processing host+path with file api', { host, path, db: db.name });
+            // logger.info('Processing host+path with file api', { host, path, db: db.name });
 
             try {
               // Connect to database

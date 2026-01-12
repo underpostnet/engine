@@ -13,7 +13,7 @@ jobs:
     # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-cyberia-repo-build)')
     name: Update github repo package Jobs
     env:
-      SYNC: ${{ startsWith(github.event.workflow_run.head_commit.message, 'ci(package-pwa-microservices-template-sync-dd-cyberia)') }}
+      SYNC: ${{ startsWith(github.event.workflow_run.head_commit.message, 'ci(package-pwa-microservices-template-sync-engine-cyberia)') }}
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
