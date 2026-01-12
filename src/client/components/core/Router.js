@@ -424,6 +424,12 @@ const setQueryParams = (newParams, options = { replace: true }) => {
   });
 
   const newPath = url.pathname + url.search + url.hash;
+  const currentPath = window.location.pathname + window.location.search + window.location.hash;
+
+  // Only update history and trigger listeners if the URL actually changed
+  if (newPath === currentPath) {
+    return;
+  }
 
   if (options.replace) {
     history.replaceState(history.state, '', newPath);
