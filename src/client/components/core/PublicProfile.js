@@ -41,6 +41,8 @@ const PublicProfile = {
       Modal.writeHTML({ idModal, html: newContent });
       Modal.zIndexSync({ idModal });
 
+      if (Modal.mobileModal()) setTimeout(() => s(`.btn-close-modal-menu`).click());
+
       this._addTransitionEffect(idModal);
       return newContent;
     } catch (error) {
