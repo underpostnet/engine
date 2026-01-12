@@ -4,6 +4,7 @@ import { DocumentDto } from './document.model.js';
 import { uniqueArray } from '../../client/components/core/CommonJs.js';
 import { getBearerToken, verifyJWT } from '../../server/auth.js';
 import { isValidObjectId } from 'mongoose';
+import { FileCleanup } from '../file/file.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -471,15 +472,12 @@ const DocumentService = {
 
         if (document.userId.toString() !== req.auth.user._id) throw new Error('invalid user');
 
-        if (document.mdFileId) {
-          const file = await File.findOne({ _id: document.mdFileId });
-          if (file) await File.findByIdAndDelete(document.mdFileId);
-        }
-
-        if (document.fileId) {
-          const file = await File.findOne({ _id: document.fileId });
-          if (file) await File.findByIdAndDelete(document.fileId);
-        }
+        // Clean up all associated files
+        await FileCleanup.deleteDocumentFiles({
+          doc: document,
+          fileFields: ['fileId', 'mdFileId'],
+          File,
+        });
 
         return await Document.findByIdAndDelete(req.params.id);
       }
@@ -496,15 +494,13 @@ const DocumentService = {
         const document = await Document.findOne({ _id: req.params.id });
         if (!document) throw new Error(`Document not found`);
 
-        if (document.mdFileId) {
-          const file = await File.findOne({ _id: document.mdFileId });
-          if (file) await File.findByIdAndDelete(document.mdFileId);
-        }
-
-        if (document.fileId) {
-          const file = await File.findOne({ _id: document.fileId });
-          if (file) await File.findByIdAndDelete(document.fileId);
-        }
+        // Clean up old files if they are being replaced
+        await FileCleanup.cleanupReplacedFiles({
+          oldDoc: document,
+          newData: req.body,
+          fileFields: ['fileId', 'mdFileId'],
+          File,
+        });
 
         // Extract 'public' from tags and set isPublic field on update
         const { isPublic, tags } = DocumentDto.extractPublicFromTags(req.body.tags);

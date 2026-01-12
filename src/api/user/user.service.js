@@ -18,7 +18,7 @@ import { CoreWsEmit } from '../../ws/core/core.ws.emit.js';
 import { CoreWsMailerChannel } from '../../ws/core/channels/core.ws.mailer.js';
 import validator from 'validator';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-import { FileFactory } from '../file/file.service.js';
+import { FileFactory, FileCleanup } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
 import { selectDtoFactory, ValkeyAPI } from '../../server/valkey.js';
 import { timer } from '../../client/components/core/CommonJs.js';
@@ -450,8 +450,18 @@ const UserService = {
         _id,
       });
       if (!user) throw new Error(`User not found`);
-      if (user.profileImageId) await File.findByIdAndDelete(user.profileImageId);
+
       const [imageFile] = await FileFactory.upload(req, File);
+
+      // Clean up old profile image if being replaced
+      if (user.profileImageId && imageFile) {
+        await FileCleanup.cleanupReplacedFiles({
+          oldDoc: user,
+          newData: { profileImageId: imageFile._id.toString() },
+          fileFields: ['profileImageId'],
+          File,
+        });
+      }
       if (!imageFile) throw new Error('invalid file');
       await User.findByIdAndUpdate(
         _id,

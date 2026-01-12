@@ -238,6 +238,90 @@ const FileFactory = {
 };
 
 /**
+ * File cleanup utilities for preventing orphaned files.
+ * These utilities help maintain database integrity by automatically removing
+ * orphaned file records when references are changed or deleted in documents.
+ * @namespace FileServiceServer.FileCleanup
+ * @memberof FileServiceServer
+ */
+const FileCleanup = {
+  /**
+   * Clean up old file references when document fields are updated.
+   * Deletes old files that are being replaced by new file IDs.
+   * @async
+   * @function cleanupReplacedFiles
+   * @memberof FileServiceServer.FileCleanup
+   * @param {Object} options - Cleanup options.
+   * @param {Object} options.oldDoc - Original document with old file references.
+   * @param {Object} options.newData - New data containing updated file references.
+   * @param {Array<string>} options.fileFields - Array of field names that contain file IDs (e.g., ['fileId', 'mdFileId']).
+   * @param {import('mongoose').Model} options.File - Mongoose File model.
+   * @returns {Promise<Array>} Array of deleted file IDs.
+   */
+  cleanupReplacedFiles: async ({ oldDoc, newData, fileFields, File }) => {
+    const deletedFileIds = [];
+
+    for (const field of fileFields) {
+      const oldFileId = oldDoc[field];
+      const newFileId = newData[field];
+
+      // If field has old file and new data changes or removes it
+      if (oldFileId && newFileId !== undefined && String(oldFileId) !== String(newFileId)) {
+        try {
+          const file = await File.findOne({ _id: oldFileId });
+          if (file) {
+            await File.findByIdAndDelete(oldFileId);
+            deletedFileIds.push(oldFileId);
+            logger.info(`Cleaned up orphaned file: ${oldFileId} from field: ${field}`);
+          }
+        } catch (err) {
+          logger.error(`Failed to cleanup file ${oldFileId} from field ${field}:`, err);
+        }
+      }
+    }
+
+    return deletedFileIds;
+  },
+
+  /**
+   * Delete all files referenced in a document.
+   * Used when deleting an entire document.
+   * This method removes all files associated with the document before
+   * the document itself is deleted, preventing orphaned file records.
+   * @async
+   * @function deleteDocumentFiles
+   * @memberof FileServiceServer.FileCleanup
+   * @param {Object} options - Deletion options.
+   * @param {Object} options.doc - Document containing file references.
+   * @param {Array<string>} options.fileFields - Array of field names that contain file IDs.
+   * @param {import('mongoose').Model} options.File - Mongoose File model.
+   * @returns {Promise<Array>} Array of deleted file IDs.
+   */
+  deleteDocumentFiles: async ({ doc, fileFields, File }) => {
+    const deletedFileIds = [];
+
+    for (const field of fileFields) {
+      const fileId = doc[field];
+
+      if (fileId) {
+        try {
+          const file = await File.findOne({ _id: fileId });
+          if (file) {
+            await File.findByIdAndDelete(fileId);
+            deletedFileIds.push(fileId);
+            logger.info(`Deleted file: ${fileId} from field: ${field}`);
+          }
+        } catch (err) {
+          logger.error(`Failed to delete file ${fileId} from field ${field}:`, err);
+        }
+      }
+    }
+
+    return deletedFileIds;
+  },
+};
+
+/**
  * File Service for handling REST API file operations.
  * @namespace FileServiceServer.FileService
  * @memberof FileServiceServer
@@ -387,4 +471,4 @@ const FileService = {
   },
 };
 
-export { FileService, FileFactory, FileServiceDto };
+export { FileService, FileFactory, FileServiceDto, FileCleanup };
