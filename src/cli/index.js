@@ -362,6 +362,14 @@ program
     '--macro-rollback-export <n-commits-reset>',
     'Exports a macro rollback script that reverts the last n commits (Git integration required).',
   )
+  .option(
+    '--clean-fs-collection',
+    'Cleans orphaned File documents from collections that are not referenced by any models.',
+  )
+  .option(
+    '--clean-fs-dry-run',
+    'Dry run mode - shows what would be deleted without actually deleting (use with --clean-fs-collection).',
+  )
   .option('--dev', 'Sets the development cli context')
   .option('--kubeadm', 'Enables the kubeadm context for database operations.')
   .option('--kind', 'Enables the kind context for database operations.')

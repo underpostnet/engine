@@ -89,7 +89,7 @@ class UnderpostDB {
     /**
      * Helper: Gets filtered pods based on criteria.
      * @method _getFilteredPods
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} criteria - Filter criteria.
      * @param {string} [criteria.podNames] - Comma-separated pod name patterns.
      * @param {string} [criteria.namespace='default'] - Kubernetes namespace.
@@ -126,7 +126,7 @@ class UnderpostDB {
     /**
      * Helper: Executes kubectl command with error handling.
      * @method _executeKubectl
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {string} command - kubectl command to execute.
      * @param {Object} [options={}] - Execution options.
      * @param {string} [options.context=''] - Command context for logging.
@@ -147,7 +147,7 @@ class UnderpostDB {
     /**
      * Helper: Copies file to pod.
      * @method _copyToPod
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} params - Copy parameters.
      * @param {string} params.sourcePath - Source file path.
      * @param {string} params.podName - Target pod name.
@@ -169,7 +169,7 @@ class UnderpostDB {
     /**
      * Helper: Copies file from pod.
      * @method _copyFromPod
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} params - Copy parameters.
      * @param {string} params.podName - Source pod name.
      * @param {string} params.namespace - Pod namespace.
@@ -191,7 +191,7 @@ class UnderpostDB {
     /**
      * Helper: Executes command in pod.
      * @method _execInPod
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} params - Execution parameters.
      * @param {string} params.podName - Pod name.
      * @param {string} params.namespace - Pod namespace.
@@ -211,7 +211,7 @@ class UnderpostDB {
     /**
      * Helper: Manages Git repository for backups.
      * @method _manageGitRepo
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} params - Git parameters.
      * @param {string} params.repoName - Repository name.
      * @param {string} params.operation - Operation (clone, pull, commit, push).
@@ -281,7 +281,7 @@ class UnderpostDB {
     /**
      * Helper: Manages backup timestamps and cleanup.
      * @method _manageBackupTimestamps
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {string} backupPath - Backup directory path.
      * @param {number} newTimestamp - New backup timestamp.
      * @param {boolean} shouldCleanup - Whether to cleanup old backups.
@@ -330,7 +330,7 @@ class UnderpostDB {
     /**
      * Helper: Performs MariaDB import operation.
      * @method _importMariaDB
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} params - Import parameters.
      * @param {PodInfo} params.pod - Target pod.
      * @param {string} params.namespace - Namespace.
@@ -387,7 +387,7 @@ class UnderpostDB {
     /**
      * Helper: Performs MariaDB export operation.
      * @method _exportMariaDB
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} params - Export parameters.
      * @param {PodInfo} params.pod - Source pod.
      * @param {string} params.namespace - Namespace.
@@ -443,7 +443,7 @@ class UnderpostDB {
     /**
      * Helper: Performs MongoDB import operation.
      * @method _importMongoDB
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} params - Import parameters.
      * @param {PodInfo} params.pod - Target pod.
      * @param {string} params.namespace - Namespace.
@@ -496,7 +496,7 @@ class UnderpostDB {
     /**
      * Helper: Performs MongoDB export operation.
      * @method _exportMongoDB
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} params - Export parameters.
      * @param {PodInfo} params.pod - Source pod.
      * @param {string} params.namespace - Namespace.
@@ -554,7 +554,7 @@ class UnderpostDB {
     /**
      * Helper: Gets MongoDB collection statistics.
      * @method _getMongoStats
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} params - Parameters.
      * @param {string} params.podName - Pod name.
      * @param {string} params.namespace - Namespace.
@@ -613,7 +613,7 @@ class UnderpostDB {
     /**
      * Helper: Gets MariaDB table statistics.
      * @method _getMariaDBStats
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} params - Parameters.
      * @param {string} params.podName - Pod name.
      * @param {string} params.namespace - Namespace.
@@ -652,7 +652,7 @@ class UnderpostDB {
     /**
      * Helper: Displays database statistics in table format.
      * @method _displayStats
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} params - Parameters.
      * @param {string} params.provider - Database provider.
      * @param {string} params.dbName - Database name.
@@ -690,7 +690,7 @@ class UnderpostDB {
     /**
      * Gets MongoDB primary pod name from replica set status.
      * @method getMongoPrimaryPodName
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {Object} [options={}] - Options for getting primary pod.
      * @param {string} [options.namespace='default'] - Kubernetes namespace.
      * @param {string} [options.podName='mongodb-0'] - Initial pod name to query replica set status.
@@ -735,7 +735,7 @@ class UnderpostDB {
      * database connections, backup storage, and optional Git integration for version control.
      * Supports targeting multiple specific pods, nodes, and namespaces with advanced filtering.
      * @method callback
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {string} [deployList='default'] - Comma-separated list of deployment IDs.
      * @param {Object} [options={}] - Backup options.
      * @param {boolean} [options.import=false] - Whether to perform import operation.
@@ -755,6 +755,8 @@ class UnderpostDB {
      * @param {boolean} [options.stats=false] - Whether to display database statistics.
      * @param {number} [options.macroRollbackExport=1] - Number of commits to rollback in macro export.
      * @param {boolean} [options.forceClone=false] - Whether to force re-clone Git repository.
+     * @param {boolean} [options.cleanFsCollection=false] - Clean orphaned File documents flag.
+     * @param {boolean} [options.cleanFsDryRun=false] - Dry run mode flag (use with cleanFsCollection).
      * @param {boolean} [options.dev=false] - Development mode flag.
      * @param {boolean} [options.k3s=false] - k3s cluster flag.
      * @param {boolean} [options.kubeadm=false] - kubeadm cluster flag.
@@ -781,6 +783,8 @@ class UnderpostDB {
         stats: false,
         macroRollbackExport: 1,
         forceClone: false,
+        cleanFsCollection: false,
+        cleanFsDryRun: false,
         dev: false,
         k3s: false,
         kubeadm: false,
@@ -791,6 +795,17 @@ class UnderpostDB {
       const namespace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
 
       if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
+
+      // Handle clean-fs-collection operation
+      if (options.cleanFsCollection || options.cleanFsDryRun) {
+        logger.info('Starting File collection cleanup operation', { deployList });
+        await UnderpostDB.API.cleanFsCollection(deployList, {
+          hosts: options.hosts,
+          paths: options.paths,
+          dryRun: options.cleanFsDryRun,
+        });
+        return;
+      }
 
       logger.info('Starting database operation', {
         deployList,
@@ -1129,7 +1144,7 @@ class UnderpostDB {
      * Loads database configuration and initializes cluster metadata including
      * instances and cron jobs. This method populates the database with deployment information.
      * @method clusterMetadataFactory
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {string} [deployId=process.env.DEFAULT_DEPLOY_ID] - The deployment ID.
      * @param {string} [host=process.env.DEFAULT_DEPLOY_HOST] - The host identifier.
      * @param {string} [path=process.env.DEFAULT_DEPLOY_PATH] - The path identifier.
@@ -1297,11 +1312,229 @@ class UnderpostDB {
     },
 
     /**
+     * Cleans orphaned File references from database collections.
+     * Iterates over all deploy-ids and checks if File documents are actually referenced
+     * by other collections. Removes File documents that are not referenced anywhere.
+     * @method cleanFsCollection
+     * @memberof UnderpostDB
+     * @param {string} [deployList='dd'] - Comma-separated list of deployment IDs.
+     * @param {Object} [options={}] - Clean operation options.
+     * @param {string} [options.hosts=''] - Comma-separated list of hosts to filter.
+     * @param {string} [options.paths=''] - Comma-separated list of paths to filter.
+     * @param {boolean} [options.dryRun=false] - If true, only reports what would be deleted.
+     * @return {Promise<void>} Resolves when clean operation is complete.
+     */
+    async cleanFsCollection(
+      deployList = 'dd',
+      options = {
+        hosts: '',
+        paths: '',
+        dryRun: false,
+      },
+    ) {
+      if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
+
+      logger.info('Starting File collection cleanup', { deployList, options });
+
+      // Load file.ref.json to know which models reference File
+      const fileRefPath = './src/api/file/file.ref.json';
+      if (!fs.existsSync(fileRefPath)) {
+        logger.error('file.ref.json not found', { path: fileRefPath });
+        return;
+      }
+
+      const fileRefData = JSON.parse(fs.readFileSync(fileRefPath, 'utf8'));
+      logger.info('Loaded file reference configuration', { apis: fileRefData.length });
+
+      // Filter hosts and paths if specified
+      const filterHosts = options.hosts ? options.hosts.split(',').map((h) => h.trim()) : [];
+      const filterPaths = options.paths ? options.paths.split(',').map((p) => p.trim()) : [];
+
+      // Track all connections to close them at the end
+      const connectionsToClose = [];
+
+      for (const _deployId of deployList.split(',')) {
+        const deployId = _deployId.trim();
+        if (!deployId) continue;
+
+        logger.info('Processing deployment for File cleanup', { deployId });
+
+        // Load server configuration
+        const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+        if (!fs.existsSync(confServerPath)) {
+          logger.error('Configuration file not found', { path: confServerPath });
+          continue;
+        }
+
+        const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
+
+        // Process each host+path combination
+        for (const host of Object.keys(confServer)) {
+          if (filterHosts.length > 0 && !filterHosts.includes(host)) continue;
+
+          for (const path of Object.keys(confServer[host])) {
+            if (filterPaths.length > 0 && !filterPaths.includes(path)) continue;
+
+            const { db, apis } = confServer[host][path];
+            if (!db || !apis) continue;
+
+            // Check if 'file' api is in the apis list
+            if (!apis.includes('file')) {
+              logger.info('Skipping - no file api in configuration', { host, path });
+              continue;
+            }
+
+            logger.info('Processing host+path with file api', { host, path, db: db.name });
+
+            try {
+              // Connect to database
+              const dbProvider = await DataBaseProvider.load({ apis, host, path, db });
+              if (!dbProvider || !dbProvider.models) {
+                logger.error('Failed to load database provider', { host, path });
+                continue;
+              }
+
+              const { models } = dbProvider;
+
+              // Track this connection for cleanup
+              connectionsToClose.push({ host, path, dbProvider });
+
+              // Check if File model exists
+              if (!models.File) {
+                logger.warn('File model not loaded', { host, path });
+                continue;
+              }
+
+              // Get all File documents
+              const allFiles = await models.File.find({}, '_id').lean();
+              logger.info('Found File documents', { count: allFiles.length, host, path });
+
+              if (allFiles.length === 0) continue;
+
+              // Track which File IDs are referenced
+              const referencedFileIds = new Set();
+
+              // Check each API from file.ref.json
+              for (const refConfig of fileRefData) {
+                const { api, model: modelFields } = refConfig;
+
+                // Check if this API is loaded in current context
+                const modelName = api
+                  .split('-')
+                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                  .join('');
+                const Model = models[modelName];
+
+                if (!Model) {
+                  logger.debug('Model not loaded in current context', { api, modelName, host, path });
+                  continue;
+                }
+
+                logger.info('Checking references in model', { api, modelName });
+
+                // Helper function to recursively check field references
+                const checkFieldReferences = async (fieldPath, fieldConfig) => {
+                  for (const [fieldName, fieldValue] of Object.entries(fieldConfig)) {
+                    const currentPath = fieldPath ? `${fieldPath}.${fieldName}` : fieldName;
+
+                    if (fieldValue === true) {
+                      // This is a File reference field
+                      const query = {};
+                      query[currentPath] = { $exists: true, $ne: null };
+
+                      const docs = await Model.find(query, currentPath).lean();
+
+                      for (const doc of docs) {
+                        // Navigate to the nested field
+                        const parts = currentPath.split('.');
+                        let value = doc;
+                        for (const part of parts) {
+                          value = value?.[part];
+                        }
+
+                        if (value) {
+                          if (Array.isArray(value)) {
+                            value.forEach((id) => id && referencedFileIds.add(id.toString()));
+                          } else {
+                            referencedFileIds.add(value.toString());
+                          }
+                        }
+                      }
+
+                      logger.info('Found references', {
+                        model: modelName,
+                        field: currentPath,
+                        count: docs.length,
+                      });
+                    } else if (typeof fieldValue === 'object') {
+                      // Nested object, recurse
+                      await checkFieldReferences(currentPath, fieldValue);
+                    }
+                  }
+                };
+
+                await checkFieldReferences('', modelFields);
+              }
+
+              logger.info('Total referenced File IDs', { count: referencedFileIds.size, host, path });
+
+              // Find orphaned files
+              const orphanedFiles = allFiles.filter((file) => !referencedFileIds.has(file._id.toString()));
+
+              if (orphanedFiles.length === 0) {
+                logger.info('No orphaned files found', { host, path });
+              } else {
+                logger.info('Found orphaned files', { count: orphanedFiles.length, host, path });
+
+                if (options.dryRun) {
+                  logger.info('Dry run - would delete files', {
+                    count: orphanedFiles.length,
+                    ids: orphanedFiles.map((f) => f._id.toString()),
+                  });
+                } else {
+                  const orphanedIds = orphanedFiles.map((f) => f._id);
+                  const deleteResult = await models.File.deleteMany({ _id: { $in: orphanedIds } });
+                  logger.info('Deleted orphaned files', {
+                    deletedCount: deleteResult.deletedCount,
+                    host,
+                    path,
+                  });
+                }
+              }
+            } catch (error) {
+              logger.error('Error processing host+path', {
+                host,
+                path,
+                error: error.message,
+                stack: error.stack,
+              });
+            }
+          }
+        }
+      }
+
+      // Close all connections
+      logger.info('Closing all database connections', { count: connectionsToClose.length });
+      for (const { host, path, dbProvider } of connectionsToClose) {
+        try {
+          if (dbProvider && dbProvider.close) {
+            await dbProvider.close();
+            logger.info('Connection closed', { host, path });
+          }
+        } catch (error) {
+          logger.error('Error closing connection', { host, path, error: error.message });
+        }
+      }
+
+      logger.info('File collection cleanup completed');
+    },
+
+    /**
      * Handles backup of cluster metadata.
      * Orchestrates backup and restore operations for cluster metadata including
      * instances and cron jobs. Supports import/export and metadata generation.
      * @method clusterMetadataBackupCallback
-     * @memberof UnderpostDB.API
+     * @memberof UnderpostDB
      * @param {string} [deployId=process.env.DEFAULT_DEPLOY_ID] - The deployment ID.
      * @param {string} [host=process.env.DEFAULT_DEPLOY_HOST] - The host identifier.
      * @param {string} [path=process.env.DEFAULT_DEPLOY_PATH] - The path identifier.
