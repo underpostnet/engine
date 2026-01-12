@@ -5,7 +5,7 @@ import { s4 } from './CommonJs.js';
 import { Translate } from './Translate.js';
 import { Modal, renderViewTitle } from './Modal.js';
 import { DocumentService } from '../../services/document/document.service.js';
-import { CoreService, getApiBaseUrl } from '../../services/core/core.service.js';
+import { CoreService, getApiBaseUrl, headersFactory } from '../../services/core/core.service.js';
 import { loggerFactory } from './Logger.js';
 import { imageShimmer, renderChessPattern, renderCssAttr, styleFactory } from './Css.js';
 import { getQueryParams } from './Router.js';
@@ -51,16 +51,19 @@ const Content = {
           }
         }
 
-        // Get markdown file metadata
+        // Get markdown file metadata (optional)
         if (documentObj.mdFileId && documentObj.mdFileId._id) {
           const { data, status, message } = await FileService.get({ id: documentObj.mdFileId._id });
           if (status !== 'success' || !data || !data[0]) {
-            logger.error('Markdown file metadata not found:', message);
-            throw new Error(`no-preview-available`);
+            logger.warn('Markdown file metadata not found:', message);
+            // Continue without markdown - try to render file instead
           } else {
             md = data[0];
           }
-        } else {
+        }
+
+        // Check if we have at least one file to render
+        if (!md && !file) {
           throw new Error(`no-preview-available`);
         }
 
@@ -121,7 +124,10 @@ const Content = {
     if (file._id) {
       try {
         const blobUrl = getApiBaseUrl({ id: file._id, endpoint: 'file/blob' });
-        const response = await fetch(blobUrl, { credentials: 'include' });
+        const response = await fetch(blobUrl, {
+          credentials: 'include',
+          headers: headersFactory(),
+        });
         if (!response.ok) {
           throw new Error(`Failed to fetch file: ${response.statusText}`);
         }
@@ -184,23 +190,43 @@ const Content = {
         case 'svg':
         case 'gif':
         case 'png': {
-          const url = Content.urlFactory(options);
-          const imgRender = html`<img
-            alt="${file.name ? file.name : `file ${s4()}`}"
-            class="in ${options.class}"
-            ${styleFactory(options.style, `${renderChessPattern(50)}`)}
-            src="${url}"
-          />`;
-          render += imgRender;
+          // For images, fetch blob directly and create object URL for proper rendering
+          try {
+            const blobUrl = getApiBaseUrl({ id: file._id, endpoint: 'file/blob' });
+            const response = await fetch(blobUrl, {
+              credentials: 'include',
+              headers: headersFactory(),
+            });
+
+            if (!response.ok) {
+              throw new Error(`Failed to fetch image: ${response.statusText}`);
+            }
+
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+
+            const imgRender = html`<img
+              alt="${file.name ? file.name : `file ${s4()}`}"
+              class="in ${options.class}"
+              ${styleFactory(options.style, `${renderChessPattern(50)}`)}
+              src="${objectUrl}"
+            />`;
+            render += imgRender;
+          } catch (error) {
+            logger.error('Error loading image:', error);
+            render = html`<div class="in ${options.class}" ${styleFactory(options.style)}>
+              <p style="color: red;">Error loading image: ${error.message}</p>
+            </div>`;
+          }
           break;
         }
 
         case 'pdf': {
-          const url = Content.urlFactory(options);
+          const blobUrl = getApiBaseUrl({ id: file._id, endpoint: 'file/blob' });
           render += html`<iframe
             class="in ${options.class} iframe-${options.idModal}"
             ${styleFactory(options.style)}
-            src="${url}"
+            src="${blobUrl}"
           ></iframe>`;
           break;
         }

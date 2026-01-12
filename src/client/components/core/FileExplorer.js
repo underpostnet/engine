@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { getApiBaseUrl, headersFactory } from '../../services/core/core.service.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from './AgGrid.js';
@@ -315,13 +315,21 @@ const FileExplorer = {
 
           EventsUI.onClick(`.btn-file-download-${params.data._id}`, async (e) => {
             e.preventDefault();
-            console.log(params);
-            const {
-              data: [file],
-              status,
-            } = await FileService.get({ id: params.data.fileId });
+            try {
+              const fileBlob = await fetch(getApiBaseUrl({ id: params.data.fileId, endpoint: 'file/blob' }), {
+                method: 'GET',
+                headers: headersFactory(),
+                credentials: 'include',
+              }).then((res) => res.blob());
 
-            downloadFile(new Blob([new Uint8Array(file.data.data)], { type: params.data.mimetype }), params.data.name);
+              downloadFile(fileBlob, params.data.name);
+            } catch (error) {
+              logger.error('Download failed:', error);
+              NotificationManager.Push({
+                html: 'Download failed',
+                status: 'error',
+              });
+            }
           });
           EventsUI.onClick(
             `.btn-file-delete-${params.data._id}`,
