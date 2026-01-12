@@ -666,63 +666,40 @@ const PanelForm = {
             let parsedMarkdown = '';
 
             try {
-              // Safely check if mdFileId exists before trying to access ._id
+              // Fetch markdown content if mdFileId exists
               if (documentObject.mdFileId) {
                 const mdFileIdValue = documentObject.mdFileId._id || documentObject.mdFileId;
                 try {
-                  const { data: fileArray } = await FileService.get({ id: mdFileIdValue });
-                  const file = fileArray && fileArray[0];
-
-                  if (file) {
-                    mdBlob = file;
-
-                    // Fetch the actual markdown content from blob endpoint
+                  // Get markdown content from blob endpoint using FileService
+                  const { data: blobArray, status } = await FileService.get({ id: `blob/${mdFileIdValue}` });
+                  if (status === 'success' && blobArray && blobArray[0]) {
+                    mdPlain = await blobArray[0].text();
+                    // Parse markdown with proper error handling
                     try {
-                      const blobUrl = getApiBaseUrl({ id: mdFileIdValue, endpoint: 'file/blob' });
-                      const response = await fetch(blobUrl, { credentials: 'include' });
-                      if (response.ok) {
-                        mdPlain = await response.text();
-                        // Parse markdown with proper error handling
-                        try {
-                          parsedMarkdown = mdPlain ? marked.parse(mdPlain) : '';
-                        } catch (parseError) {
-                          logger.error('Error parsing markdown for document:', documentObject._id, parseError);
-                          parsedMarkdown = `<p><strong>Error rendering markdown:</strong> ${parseError.message}</p>`;
-                        }
-                      } else {
-                        logger.warn('Failed to fetch markdown blob content:', response.statusText);
-                        parsedMarkdown = '';
-                      }
-                    } catch (blobFetchError) {
-                      logger.warn('Could not fetch markdown blob content:', blobFetchError);
-                      parsedMarkdown = '';
+                      parsedMarkdown = mdPlain ? marked.parse(mdPlain) : '';
+                    } catch (parseError) {
+                      logger.error('Error parsing markdown for document:', documentObject._id, parseError);
+                      parsedMarkdown = `<p><strong>Error rendering markdown:</strong> ${parseError.message}</p>`;
                     }
                   } else {
-                    logger.warn('No file metadata found for mdFileId:', mdFileIdValue);
+                    logger.warn('Failed to fetch markdown blob content');
                     parsedMarkdown = '';
                   }
                 } catch (fetchError) {
-                  logger.error('Error fetching markdown file metadata:', mdFileIdValue, fetchError);
+                  logger.error('Error fetching markdown content:', mdFileIdValue, fetchError);
                   parsedMarkdown = '';
                 }
-              } else {
-                logger.warn('Document has no mdFileId:', documentObject._id);
-                parsedMarkdown = '';
               }
 
               // Handle optional fileId
               if (documentObject.fileId) {
                 const fileIdValue = documentObject.fileId._id || documentObject.fileId;
                 try {
+                  // Get file metadata for display
                   const { data: fileArray } = await FileService.get({ id: fileIdValue });
-                  const file = fileArray && fileArray[0];
-
-                  if (file) {
-                    fileBlob = file;
-                    filePlain = undefined;
-                    fileId = getSrcFromFileData(file);
-                  } else {
-                    logger.warn('No file metadata found for fileId:', fileIdValue);
+                  if (fileArray && fileArray[0]) {
+                    fileBlob = fileArray[0];
+                    fileId = getSrcFromFileData(fileArray[0]);
                   }
                 } catch (fetchError) {
                   logger.error('Error fetching file metadata:', fileIdValue, fetchError);

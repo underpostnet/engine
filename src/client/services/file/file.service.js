@@ -29,24 +29,51 @@ const FileService = {
         }),
     ),
   get: (options = { id: '' }) =>
-    new Promise((resolve, reject) =>
-      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
-        method: 'GET',
-        headers: headersFactory(),
-        credentials: 'include',
-      })
-        .then(async (res) => {
-          return await res.json();
+    new Promise((resolve, reject) => {
+      // Handle blob endpoint - fetch binary data directly
+      if (options.id && options.id.startsWith('blob/')) {
+        const blobId = options.id.substring(5); // Remove 'blob/' prefix
+        fetch(getApiBaseUrl({ id: blobId, endpoint: 'file/blob' }), {
+          method: 'GET',
+          headers: headersFactory(),
+          credentials: 'include',
         })
-        .then((res) => {
-          logger.info(res);
-          return resolve(res);
+          .then(async (res) => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            return await res.blob();
+          })
+          .then((blob) => {
+            logger.info('Blob fetched successfully');
+            return resolve({
+              status: 'success',
+              data: [blob],
+            });
+          })
+          .catch((error) => {
+            logger.error(error);
+            return reject(error);
+          });
+      } else {
+        // Handle regular metadata endpoint - fetch JSON
+        fetch(getApiBaseUrl({ id: options.id, endpoint }), {
+          method: 'GET',
+          headers: headersFactory(),
+          credentials: 'include',
         })
-        .catch((error) => {
-          logger.error(error);
-          return reject(error);
-        }),
-    ),
+          .then(async (res) => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            return await res.json();
+          })
+          .then((res) => {
+            logger.info(res);
+            return resolve(res);
+          })
+          .catch((error) => {
+            logger.error(error);
+            return reject(error);
+          });
+      }
+    }),
   delete: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {

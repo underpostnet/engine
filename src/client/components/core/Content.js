@@ -123,20 +123,11 @@ const Content = {
     // Otherwise, fetch from blob endpoint (new metadata-only format)
     if (file._id) {
       try {
-        const blobUrl = getApiBaseUrl({ id: file._id, endpoint: 'file/blob' });
-        const response = await fetch(blobUrl, {
-          credentials: 'include',
-          headers: headersFactory(),
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to fetch file: ${response.statusText}`);
+        const { data: blobArray, status } = await FileService.get({ id: `blob/${file._id}` });
+        if (status === 'success' && blobArray && blobArray[0]) {
+          return await blobArray[0].text();
         }
-        // Determine how to parse response based on content type
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-          return await response.text();
-        }
-        return await response.text();
+        throw new Error('Failed to fetch file content');
       } catch (error) {
         logger.error('Error fetching file content from blob endpoint:', error);
         throw new Error('Could not load file content');
@@ -268,16 +259,11 @@ ${JSON.stringify(JSON.parse(content), null, 4)}</pre
     // Use blob endpoint for metadata-only format with proper authentication
     if (options.file?._id) {
       try {
-        const blobUrl = getApiBaseUrl({ id: options.file._id, endpoint: 'file/blob' });
-        const response = await fetch(blobUrl, {
-          credentials: 'include',
-          headers: headersFactory(),
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to fetch file: ${response.statusText}`);
+        const { data: blobArray, status } = await FileService.get({ id: `blob/${options.file._id}` });
+        if (status === 'success' && blobArray && blobArray[0]) {
+          return URL.createObjectURL(blobArray[0]);
         }
-        const blob = await response.blob();
-        return URL.createObjectURL(blob);
+        throw new Error('Failed to fetch file blob');
       } catch (error) {
         logger.error('Error fetching file blob:', error);
         return null;

@@ -7,6 +7,7 @@
  */
 
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { getBearerToken, jwtVerify } from '../../server/auth.js';
 import { loggerFactory } from '../../server/logger.js';
 import crypto from 'crypto';
 import { Types } from 'mongoose';
@@ -280,6 +281,8 @@ const FileService = {
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
     /** @type {import('../document/document.model.js').DocumentModel} */
     const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
+    /** @type {import('../user/user.model.js').User} */
+    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
     const isFileAuthorized = async (fileId) => {
       try {
@@ -292,13 +295,17 @@ const FileService = {
         if (!doc) return true;
 
         // If document has 'public' tag, allow all access
-        if (doc.tags && doc.tags.includes('public')) return true;
+        if (doc.isPublic) return true;
 
         // Otherwise, user must be authenticated and own the document
-        if (!req.auth || !req.auth.user) return false;
-
-        return doc.userId.toString() === req.auth.user._id.toString();
+        const token = getBearerToken(req);
+        if (!token) false;
+        const payload = jwtVerify(token, options);
+        const user = await User.findOne({ _id: payload._id }).lean();
+        if (!user) return false;
+        return String(doc.userId) === String(user._id);
       } catch (err) {
+        console.log(err);
         logger.error('Authorization check failed:', err);
         return false;
       }

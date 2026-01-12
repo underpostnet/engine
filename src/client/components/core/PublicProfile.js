@@ -15,12 +15,6 @@ const PublicProfile = {
     const { idModal, user } = options;
     const username = user.username || 'Unknown User';
 
-    // Skip update if already showing this profile (prevents loops during back/forward navigation)
-    if (this.currentUsername === username) {
-      Modal.zIndexSync({ idModal });
-      return;
-    }
-
     // Check if modal exists and is registered in Modal.Data
     if (!Modal.Data[idModal]) {
       return await this.Render(options);

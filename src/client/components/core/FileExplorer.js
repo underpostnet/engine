@@ -1,4 +1,4 @@
-import { getApiBaseUrl, headersFactory } from '../../services/core/core.service.js';
+import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from './AgGrid.js';
@@ -316,13 +316,13 @@ const FileExplorer = {
           EventsUI.onClick(`.btn-file-download-${params.data._id}`, async (e) => {
             e.preventDefault();
             try {
-              const fileBlob = await fetch(getApiBaseUrl({ id: params.data.fileId, endpoint: 'file/blob' }), {
-                method: 'GET',
-                headers: headersFactory(),
-                credentials: 'include',
-              }).then((res) => res.blob());
-
-              downloadFile(fileBlob, params.data.name);
+              // Use FileService with blob/ prefix for centralized blob fetching
+              const { data: blobArray, status } = await FileService.get({ id: `blob/${params.data.fileId}` });
+              if (status === 'success' && blobArray && blobArray[0]) {
+                downloadFile(blobArray[0], params.data.name);
+              } else {
+                throw new Error('Failed to fetch file blob');
+              }
             } catch (error) {
               logger.error('Download failed:', error);
               NotificationManager.Push({

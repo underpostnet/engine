@@ -17,6 +17,7 @@ import { ToggleSwitch } from './ToggleSwitch.js';
 import { Translate } from './Translate.js';
 import { htmls, htmlStrSanitize, s } from './VanillaJs.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { FileService } from '../../services/file/file.service.js';
 
 /**
  * Logger instance for this module.
@@ -98,6 +99,7 @@ const getFileFromFileData = (fileData) => {
 /**
  * Fetch file content from blob endpoint and create File object.
  * Used for metadata-only format files during edit mode.
+ * Uses FileService with blob/ prefix for centralized blob fetching.
  *
  * @async
  * @function getFileFromBlobEndpoint
@@ -114,14 +116,13 @@ const getFileFromBlobEndpoint = async (fileData) => {
   }
 
   try {
-    const blobUrl = getApiBaseUrl({ id: fileData._id, endpoint: 'file/blob' });
-    const response = await fetch(blobUrl, { credentials: 'include' });
-    if (!response.ok) {
-      logger.error('Failed to fetch file from blob endpoint:', response.statusText);
+    const { data: blobArray, status } = await FileService.get({ id: `blob/${fileData._id}` });
+    if (status !== 'success' || !blobArray || !blobArray[0]) {
+      logger.error('Failed to fetch file from blob endpoint');
       return null;
     }
 
-    const blob = await response.blob();
+    const blob = blobArray[0];
     return new File([blob], fileData.name || 'file', { type: fileData.mimetype || blob.type });
   } catch (error) {
     logger.error('Error fetching file from blob endpoint:', error);
