@@ -519,6 +519,17 @@ const DocumentService = {
     /** @type {import('./document.model.js').DocumentModel} */
     const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
 
+    if (req.path.includes('/toggle-public')) {
+      const document = await Document.findById(req.params.id);
+      if (!document) throw new Error('Document not found');
+
+      // Toggle the isPublic field
+      document.isPublic = !document.isPublic;
+      await document.save();
+
+      return { _id: document._id, isPublic: document.isPublic };
+    }
+
     if (req.path.includes('/copy-share-link')) {
       const document = await Document.findById(req.params.id);
       if (!document) throw new Error('Document not found');

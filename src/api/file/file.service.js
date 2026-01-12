@@ -255,6 +255,11 @@ const FileService = {
    * @returns {Promise<Array>} Array of uploaded file metadata objects.
    */
   post: async (req, res, options) => {
+    // Check that user is authenticated and not a guest
+    if (!req.auth || !req.auth.user || req.auth.user.role === 'guest') {
+      throw new Error('Authentication required. Guest users cannot upload files.');
+    }
+
     /** @type {import('./file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 

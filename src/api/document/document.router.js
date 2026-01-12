@@ -16,6 +16,11 @@ const DocumentRouter = (options) => {
   router.put(`/:id`, authMiddleware, async (req, res) => await DocumentController.put(req, res, options));
   router.put(`/`, authMiddleware, async (req, res) => await DocumentController.put(req, res, options));
   router.patch(`/:id/copy-share-link`, async (req, res) => await DocumentController.patch(req, res, options));
+  router.patch(
+    `/:id/toggle-public`,
+    authMiddleware,
+    async (req, res) => await DocumentController.patch(req, res, options),
+  );
   router.delete(`/:id`, authMiddleware, async (req, res) => await DocumentController.delete(req, res, options));
   router.delete(`/`, authMiddleware, async (req, res) => await DocumentController.delete(req, res, options));
   return router;

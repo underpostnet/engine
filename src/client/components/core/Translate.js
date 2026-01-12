@@ -165,6 +165,16 @@ const TranslateCore = {
     Translate.Data['download'] = { en: 'download', es: 'Descargar' };
     Translate.Data['delete'] = { en: 'delete', es: 'Eliminar' };
     Translate.Data['success-delete'] = { en: 'success delete item', es: 'Item eliminado con exito' };
+    Translate.Data['document-now-public'] = { en: 'Document is now public', es: 'El documento ahora es público' };
+    Translate.Data['document-now-private'] = { en: 'Document is now private', es: 'El documento ahora es privado' };
+    Translate.Data['error-toggle-public'] = {
+      en: 'Failed to toggle public status',
+      es: 'Error al cambiar estado público',
+    };
+    Translate.Data['confirm-make-public'] = {
+      en: 'Are you sure you want to make this document public?',
+      es: '¿Estás seguro de que deseas hacer público este documento?',
+    };
     Translate.Data['invalid-data'] = { en: 'Invalid data', es: 'Datos invalidos' };
     Translate.Data['upload'] = { en: 'upload', es: 'Subir' };
     Translate.Data['load'] = { en: 'load', es: 'Cargar' };

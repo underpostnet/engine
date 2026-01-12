@@ -156,6 +156,15 @@ const FileExplorer = {
 
       EventsUI.onClick(`.btn-input-file-explorer`, async (e) => {
         e.preventDefault();
+
+        // Check authentication before upload
+        if (!Auth.getToken()) {
+          return NotificationManager.Push({
+            html: Translate.Render(`error-user-not-authenticated`),
+            status: 'error',
+          });
+        }
+
         const { errorMessage } = await validators();
         if (!formBodyFiles)
           return NotificationManager.Push({
@@ -166,6 +175,12 @@ const FileExplorer = {
         let fileData;
         {
           const { status, data } = await FileService.post({ body: formBodyFiles });
+          if (status === 'error' || !data) {
+            return NotificationManager.Push({
+              html: Translate.Render(`error-upload-file`),
+              status: 'error',
+            });
+          }
           fileData = data;
         }
         {
@@ -259,6 +274,8 @@ const FileExplorer = {
         // params.data._id
 
         this.eGui = document.createElement('div');
+        const isPublic = params.data.isPublic;
+        const toggleId = `toggle-public-${params.data._id}`;
         this.eGui.innerHTML = html`
           <div class="fl">
             ${await BtnIcon.Render({
@@ -279,6 +296,13 @@ const FileExplorer = {
             ${await BtnIcon.Render({
               class: `in fll management-table-btn-mini btn-file-copy-content-link-${params.data._id}`,
               label: html`<i class="fas fa-copy"></i>`,
+              type: 'button',
+            })}
+            ${await BtnIcon.Render({
+              class: `in fll management-table-btn-mini ${toggleId}`,
+              label: isPublic
+                ? html`<i class="fas fa-globe" style="color: #4caf50;"></i>`
+                : html`<i class="fas fa-lock" style="color: #9e9e9e;"></i>`,
               type: 'button',
             })}
           </div>
@@ -376,6 +400,80 @@ const FileExplorer = {
               // const selectedData = gridApi.getSelectedRows();
               AgGrid.grids[gridFileId].applyTransaction({ remove: [params.data] });
               AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+            },
+            { context: 'modal' },
+          );
+
+          // Toggle public/private status
+          EventsUI.onClick(
+            `.${toggleId}`,
+            async (e) => {
+              e.preventDefault();
+
+              // If document is currently private, show confirmation before making public
+              if (!params.data.isPublic) {
+                const confirmResult = await Modal.RenderConfirm({
+                  html: async () => {
+                    return html`
+                      <div class="in section-mp" style="text-align: center">
+                        ${Translate.Render('confirm-make-public')}
+                        <br />
+                        "${params.data.title}"
+                      </div>
+                    `;
+                  },
+                  id: `confirm-toggle-public-${params.data._id}`,
+                });
+                if (confirmResult.status !== 'confirm') return;
+              }
+
+              try {
+                const { data, status } = await DocumentService.patch({
+                  id: params.data._id,
+                  action: 'toggle-public',
+                });
+
+                if (status === 'success') {
+                  // Update local data
+                  params.data.isPublic = data.isPublic;
+
+                  // Update documentInstance
+                  const docIndex = documentInstance.findIndex((d) => d._id === params.data._id);
+                  if (docIndex !== -1) {
+                    documentInstance[docIndex].isPublic = data.isPublic;
+                  }
+
+                  // Update button icon
+                  const btnElement = s(`.${toggleId}`);
+                  if (btnElement) {
+                    const iconElement = btnElement.querySelector('i');
+                    if (iconElement) {
+                      if (data.isPublic) {
+                        iconElement.className = 'fas fa-globe';
+                        iconElement.style.color = '#4caf50';
+                      } else {
+                        iconElement.className = 'fas fa-lock';
+                        iconElement.style.color = '#9e9e9e';
+                      }
+                    }
+                  }
+
+                  NotificationManager.Push({
+                    html: data.isPublic
+                      ? Translate.Render('document-now-public')
+                      : Translate.Render('document-now-private'),
+                    status: 'success',
+                  });
+                } else {
+                  throw new Error('Failed to toggle public status');
+                }
+              } catch (error) {
+                logger.error('Toggle public failed:', error);
+                NotificationManager.Push({
+                  html: Translate.Render('error-toggle-public'),
+                  status: 'error',
+                });
+              }
             },
             { context: 'modal' },
           );
@@ -626,7 +724,7 @@ const FileExplorer = {
                   columnDefs: [
                     { field: 'name', flex: 2, headerName: 'Name', cellRenderer: LoadFileNameRenderer },
                     { field: 'mimetype', flex: 1, headerName: 'Type' },
-                    { headerName: '', width: 80, cellRenderer: LoadFileActionsRenderer },
+                    { headerName: '', width: 120, cellRenderer: LoadFileActionsRenderer },
                   ],
                 },
               })}
@@ -688,6 +786,7 @@ const FileExplorer = {
         fileId: f.fileId._id,
         _id: f._id,
         title: f.title,
+        isPublic: f.isPublic || false,
       };
     });
     let documentId = document._id;
