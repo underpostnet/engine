@@ -190,44 +190,36 @@ const Content = {
         case 'svg':
         case 'gif':
         case 'png': {
-          // For images, fetch blob directly and create object URL for proper rendering
-          try {
-            const blobUrl = getApiBaseUrl({ id: file._id, endpoint: 'file/blob' });
-            const response = await fetch(blobUrl, {
-              credentials: 'include',
-              headers: headersFactory(),
-            });
-
-            if (!response.ok) {
-              throw new Error(`Failed to fetch image: ${response.statusText}`);
-            }
-
-            const blob = await response.blob();
-            const objectUrl = URL.createObjectURL(blob);
-
+          const url = await Content.urlFactory(options);
+          if (url) {
             const imgRender = html`<img
               alt="${file.name ? file.name : `file ${s4()}`}"
               class="in ${options.class}"
               ${styleFactory(options.style, `${renderChessPattern(50)}`)}
-              src="${objectUrl}"
+              src="${url}"
             />`;
             render += imgRender;
-          } catch (error) {
-            logger.error('Error loading image:', error);
+          } else {
             render = html`<div class="in ${options.class}" ${styleFactory(options.style)}>
-              <p style="color: red;">Error loading image: ${error.message}</p>
+              <p style="color: red;">Error loading image</p>
             </div>`;
           }
           break;
         }
 
         case 'pdf': {
-          const blobUrl = getApiBaseUrl({ id: file._id, endpoint: 'file/blob' });
-          render += html`<iframe
-            class="in ${options.class} iframe-${options.idModal}"
-            ${styleFactory(options.style)}
-            src="${blobUrl}"
-          ></iframe>`;
+          const url = await Content.urlFactory(options);
+          if (url) {
+            render += html`<iframe
+              class="in ${options.class} iframe-${options.idModal}"
+              ${styleFactory(options.style)}
+              src="${url}"
+            ></iframe>`;
+          } else {
+            render = html`<div class="in ${options.class}" ${styleFactory(options.style)}>
+              <p style="color: red;">Error loading PDF</p>
+            </div>`;
+          }
           break;
         }
 
@@ -262,7 +254,7 @@ ${JSON.stringify(JSON.parse(content), null, 4)}</pre
    * Generate appropriate URL for file display
    * Prefers blob endpoint for new metadata-only format
    */
-  urlFactory: function (options) {
+  urlFactory: async function (options) {
     // If custom URL provided, use it
     if (options.url) {
       return options.url;
@@ -273,9 +265,23 @@ ${JSON.stringify(JSON.parse(content), null, 4)}</pre
       return URL.createObjectURL(getBlobFromUint8ArrayFile(options.file.data.data, options.file.mimetype));
     }
 
-    // Use blob endpoint for metadata-only format
+    // Use blob endpoint for metadata-only format with proper authentication
     if (options.file?._id) {
-      return getApiBaseUrl({ id: options.file._id, endpoint: 'file/blob' });
+      try {
+        const blobUrl = getApiBaseUrl({ id: options.file._id, endpoint: 'file/blob' });
+        const response = await fetch(blobUrl, {
+          credentials: 'include',
+          headers: headersFactory(),
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file: ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
+      } catch (error) {
+        logger.error('Error fetching file blob:', error);
+        return null;
+      }
     }
 
     return null;
