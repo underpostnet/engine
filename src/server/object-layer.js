@@ -4,7 +4,6 @@
  * @namespace CyberiaObjectLayer
  */
 
-import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import { PNG } from 'pngjs';
 import sharp from 'sharp';
@@ -15,8 +14,6 @@ import { random } from '../client/components/core/CommonJs.js';
 import { loggerFactory } from '../server/logger.js';
 
 const logger = loggerFactory(import.meta);
-
-dotenv.config({ path: `./engine-private/conf/dd-cyberia/.env.production`, override: true });
 
 /**
  * @typedef {Object} ObjectLayerCallbackPayload
