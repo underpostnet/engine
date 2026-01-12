@@ -74,16 +74,27 @@ const MAX_BACKUP_RETENTION = 5;
  * Provides comprehensive database management including import/export, multi-pod targeting,
  * Git integration, and cluster metadata management.
  */
+/**
+ * UnderpostDB class for managing database operations and backups.
+ * @class UnderpostDB
+ * @memberof UnderpostDB
+ */
 class UnderpostDB {
+  /**
+   * Static API object containing all database operation methods.
+   * @static
+   * @memberof UnderpostDB
+   */
   static API = {
     /**
-     * Helper: Gets filtered pods based on criteria
-     * @method
-     * @param {Object} criteria - Filter criteria
-     * @param {string} [criteria.podNames] - Comma-separated pod name patterns
-     * @param {string} [criteria.namespace='default'] - Kubernetes namespace
-     * @param {string} [criteria.deployId] - Deployment ID pattern
-     * @returns {Array<PodInfo>} Filtered pod list
+     * Helper: Gets filtered pods based on criteria.
+     * @method _getFilteredPods
+     * @memberof UnderpostDB.API
+     * @param {Object} criteria - Filter criteria.
+     * @param {string} [criteria.podNames] - Comma-separated pod name patterns.
+     * @param {string} [criteria.namespace='default'] - Kubernetes namespace.
+     * @param {string} [criteria.deployId] - Deployment ID pattern.
+     * @return {Array<PodInfo>} Filtered pod list.
      */
     _getFilteredPods(criteria = {}) {
       const { podNames, namespace = 'default', deployId } = criteria;
@@ -113,12 +124,13 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Executes kubectl command with error handling
-     * @method
-     * @param {string} command - kubectl command to execute
-     * @param {Object} options - Execution options
-     * @param {string} [options.context=''] - Command context for logging
-     * @returns {string|null} Command output or null on error
+     * Helper: Executes kubectl command with error handling.
+     * @method _executeKubectl
+     * @memberof UnderpostDB.API
+     * @param {string} command - kubectl command to execute.
+     * @param {Object} [options={}] - Execution options.
+     * @param {string} [options.context=''] - Command context for logging.
+     * @return {string|null} Command output or null on error.
      */
     _executeKubectl(command, options = {}) {
       const { context = '' } = options;
@@ -133,14 +145,15 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Copies file to pod
-     * @method
-     * @param {Object} params - Copy parameters
-     * @param {string} params.sourcePath - Source file path
-     * @param {string} params.podName - Target pod name
-     * @param {string} params.namespace - Pod namespace
-     * @param {string} params.destPath - Destination path in pod
-     * @returns {boolean} Success status
+     * Helper: Copies file to pod.
+     * @method _copyToPod
+     * @memberof UnderpostDB.API
+     * @param {Object} params - Copy parameters.
+     * @param {string} params.sourcePath - Source file path.
+     * @param {string} params.podName - Target pod name.
+     * @param {string} params.namespace - Pod namespace.
+     * @param {string} params.destPath - Destination path in pod.
+     * @return {boolean} Success status.
      */
     _copyToPod({ sourcePath, podName, namespace, destPath }) {
       try {
@@ -154,14 +167,15 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Copies file from pod
-     * @method
-     * @param {Object} params - Copy parameters
-     * @param {string} params.podName - Source pod name
-     * @param {string} params.namespace - Pod namespace
-     * @param {string} params.sourcePath - Source path in pod
-     * @param {string} params.destPath - Destination file path
-     * @returns {boolean} Success status
+     * Helper: Copies file from pod.
+     * @method _copyFromPod
+     * @memberof UnderpostDB.API
+     * @param {Object} params - Copy parameters.
+     * @param {string} params.podName - Source pod name.
+     * @param {string} params.namespace - Pod namespace.
+     * @param {string} params.sourcePath - Source path in pod.
+     * @param {string} params.destPath - Destination file path.
+     * @return {boolean} Success status.
      */
     _copyFromPod({ podName, namespace, sourcePath, destPath }) {
       try {
@@ -175,13 +189,14 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Executes command in pod
-     * @method
-     * @param {Object} params - Execution parameters
-     * @param {string} params.podName - Pod name
-     * @param {string} params.namespace - Pod namespace
-     * @param {string} params.command - Command to execute
-     * @returns {string|null} Command output or null
+     * Helper: Executes command in pod.
+     * @method _execInPod
+     * @memberof UnderpostDB.API
+     * @param {Object} params - Execution parameters.
+     * @param {string} params.podName - Pod name.
+     * @param {string} params.namespace - Pod namespace.
+     * @param {string} params.command - Command to execute.
+     * @return {string|null} Command output or null.
      */
     _execInPod({ podName, namespace, command }) {
       try {
@@ -194,14 +209,15 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Manages Git repository for backups
-     * @method
-     * @param {Object} params - Git parameters
-     * @param {string} params.repoName - Repository name
-     * @param {string} params.operation - Operation (clone, pull, commit, push)
-     * @param {string} [params.message=''] - Commit message
-     * @param {boolean} [params.forceClone=false] - Force remove and re-clone repository
-     * @returns {boolean} Success status
+     * Helper: Manages Git repository for backups.
+     * @method _manageGitRepo
+     * @memberof UnderpostDB.API
+     * @param {Object} params - Git parameters.
+     * @param {string} params.repoName - Repository name.
+     * @param {string} params.operation - Operation (clone, pull, commit, push).
+     * @param {string} [params.message=''] - Commit message.
+     * @param {boolean} [params.forceClone=false] - Force remove and re-clone repository.
+     * @return {boolean} Success status.
      */
     _manageGitRepo({ repoName, operation, message = '', forceClone = false }) {
       try {
@@ -263,12 +279,13 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Manages backup timestamps and cleanup
-     * @method
-     * @param {string} backupPath - Backup directory path
-     * @param {number} newTimestamp - New backup timestamp
-     * @param {boolean} shouldCleanup - Whether to cleanup old backups
-     * @returns {Object} Backup info with current and removed timestamps
+     * Helper: Manages backup timestamps and cleanup.
+     * @method _manageBackupTimestamps
+     * @memberof UnderpostDB.API
+     * @param {string} backupPath - Backup directory path.
+     * @param {number} newTimestamp - New backup timestamp.
+     * @param {boolean} shouldCleanup - Whether to cleanup old backups.
+     * @return {Object} Backup info with current and removed timestamps.
      */
     _manageBackupTimestamps(backupPath, newTimestamp, shouldCleanup) {
       try {
@@ -311,16 +328,17 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Performs MariaDB import operation
-     * @method
-     * @param {Object} params - Import parameters
-     * @param {PodInfo} params.pod - Target pod
-     * @param {string} params.namespace - Namespace
-     * @param {string} params.dbName - Database name
-     * @param {string} params.user - Database user
-     * @param {string} params.password - Database password
-     * @param {string} params.sqlPath - SQL file path
-     * @returns {boolean} Success status
+     * Helper: Performs MariaDB import operation.
+     * @method _importMariaDB
+     * @memberof UnderpostDB.API
+     * @param {Object} params - Import parameters.
+     * @param {PodInfo} params.pod - Target pod.
+     * @param {string} params.namespace - Namespace.
+     * @param {string} params.dbName - Database name.
+     * @param {string} params.user - Database user.
+     * @param {string} params.password - Database password.
+     * @param {string} params.sqlPath - SQL file path.
+     * @return {boolean} Success status.
      */
     _importMariaDB({ pod, namespace, dbName, user, password, sqlPath }) {
       try {
@@ -367,16 +385,17 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Performs MariaDB export operation
-     * @method
-     * @param {Object} params - Export parameters
-     * @param {PodInfo} params.pod - Source pod
-     * @param {string} params.namespace - Namespace
-     * @param {string} params.dbName - Database name
-     * @param {string} params.user - Database user
-     * @param {string} params.password - Database password
-     * @param {string} params.outputPath - Output file path
-     * @returns {boolean} Success status
+     * Helper: Performs MariaDB export operation.
+     * @method _exportMariaDB
+     * @memberof UnderpostDB.API
+     * @param {Object} params - Export parameters.
+     * @param {PodInfo} params.pod - Source pod.
+     * @param {string} params.namespace - Namespace.
+     * @param {string} params.dbName - Database name.
+     * @param {string} params.user - Database user.
+     * @param {string} params.password - Database password.
+     * @param {string} params.outputPath - Output file path.
+     * @return {Promise<boolean>} A promise that resolves with success status.
      */
     async _exportMariaDB({ pod, namespace, dbName, user, password, outputPath }) {
       try {
@@ -422,16 +441,17 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Performs MongoDB import operation
-     * @method
-     * @param {Object} params - Import parameters
-     * @param {PodInfo} params.pod - Target pod
-     * @param {string} params.namespace - Namespace
-     * @param {string} params.dbName - Database name
-     * @param {string} params.bsonPath - BSON directory path
-     * @param {boolean} params.drop - Whether to drop existing database
-     * @param {boolean} params.preserveUUID - Whether to preserve UUIDs
-     * @returns {boolean} Success status
+     * Helper: Performs MongoDB import operation.
+     * @method _importMongoDB
+     * @memberof UnderpostDB.API
+     * @param {Object} params - Import parameters.
+     * @param {PodInfo} params.pod - Target pod.
+     * @param {string} params.namespace - Namespace.
+     * @param {string} params.dbName - Database name.
+     * @param {string} params.bsonPath - BSON directory path.
+     * @param {boolean} params.drop - Whether to drop existing database.
+     * @param {boolean} params.preserveUUID - Whether to preserve UUIDs.
+     * @return {boolean} Success status.
      */
     _importMongoDB({ pod, namespace, dbName, bsonPath, drop, preserveUUID }) {
       try {
@@ -474,15 +494,16 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Performs MongoDB export operation
-     * @method
-     * @param {Object} params - Export parameters
-     * @param {PodInfo} params.pod - Source pod
-     * @param {string} params.namespace - Namespace
-     * @param {string} params.dbName - Database name
-     * @param {string} params.outputPath - Output directory path
-     * @param {string} [params.collections=''] - Comma-separated collection list
-     * @returns {boolean} Success status
+     * Helper: Performs MongoDB export operation.
+     * @method _exportMongoDB
+     * @memberof UnderpostDB.API
+     * @param {Object} params - Export parameters.
+     * @param {PodInfo} params.pod - Source pod.
+     * @param {string} params.namespace - Namespace.
+     * @param {string} params.dbName - Database name.
+     * @param {string} params.outputPath - Output directory path.
+     * @param {string} [params.collections=''] - Comma-separated collection list.
+     * @return {boolean} Success status.
      */
     _exportMongoDB({ pod, namespace, dbName, outputPath, collections = '' }) {
       try {
@@ -531,13 +552,14 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Gets MongoDB collection statistics
-     * @method
-     * @param {Object} params - Parameters
-     * @param {string} params.podName - Pod name
-     * @param {string} params.namespace - Namespace
-     * @param {string} params.dbName - Database name
-     * @returns {Object|null} Collection statistics or null on error
+     * Helper: Gets MongoDB collection statistics.
+     * @method _getMongoStats
+     * @memberof UnderpostDB.API
+     * @param {Object} params - Parameters.
+     * @param {string} params.podName - Pod name.
+     * @param {string} params.namespace - Namespace.
+     * @param {string} params.dbName - Database name.
+     * @return {Object|null} Collection statistics or null on error.
      */
     _getMongoStats({ podName, namespace, dbName }) {
       try {
@@ -589,15 +611,16 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Gets MariaDB table statistics
-     * @method
-     * @param {Object} params - Parameters
-     * @param {string} params.podName - Pod name
-     * @param {string} params.namespace - Namespace
-     * @param {string} params.dbName - Database name
-     * @param {string} params.user - Database user
-     * @param {string} params.password - Database password
-     * @returns {Object|null} Table statistics or null on error
+     * Helper: Gets MariaDB table statistics.
+     * @method _getMariaDBStats
+     * @memberof UnderpostDB.API
+     * @param {Object} params - Parameters.
+     * @param {string} params.podName - Pod name.
+     * @param {string} params.namespace - Namespace.
+     * @param {string} params.dbName - Database name.
+     * @param {string} params.user - Database user.
+     * @param {string} params.password - Database password.
+     * @return {Object|null} Table statistics or null on error.
      */
     _getMariaDBStats({ podName, namespace, dbName, user, password }) {
       try {
@@ -627,12 +650,14 @@ class UnderpostDB {
     },
 
     /**
-     * Helper: Displays database statistics in table format
-     * @method
-     * @param {Object} params - Parameters
-     * @param {string} params.provider - Database provider
-     * @param {string} params.dbName - Database name
-     * @param {Array<Object>} params.stats - Statistics array
+     * Helper: Displays database statistics in table format.
+     * @method _displayStats
+     * @memberof UnderpostDB.API
+     * @param {Object} params - Parameters.
+     * @param {string} params.provider - Database provider.
+     * @param {string} params.dbName - Database name.
+     * @param {Array<Object>} params.stats - Statistics array.
+     * @return {void}
      */
     _displayStats({ provider, dbName, stats }) {
       if (!stats || stats.length === 0) {
@@ -663,13 +688,13 @@ class UnderpostDB {
     },
 
     /**
-     * Public API: Gets MongoDB primary pod name
-     * @public
-     * @param {Object} options - Options for getting primary pod
-     * @param {string} [options.namespace='default'] - Kubernetes namespace
-     * @param {string} [options.podName='mongodb-0'] - Initial pod name to query replica set status
-     * @returns {string|null} Primary pod name or null if not found
-     * @memberof UnderpostDB
+     * Gets MongoDB primary pod name from replica set status.
+     * @method getMongoPrimaryPodName
+     * @memberof UnderpostDB.API
+     * @param {Object} [options={}] - Options for getting primary pod.
+     * @param {string} [options.namespace='default'] - Kubernetes namespace.
+     * @param {string} [options.podName='mongodb-0'] - Initial pod name to query replica set status.
+     * @return {string|null} Primary pod name or null if not found.
      */
     getMongoPrimaryPodName(options = { namespace: 'default', podName: 'mongodb-0' }) {
       const { namespace = 'default', podName = 'mongodb-0' } = options;
@@ -705,36 +730,36 @@ class UnderpostDB {
     },
 
     /**
-     * Main callback: Initiates database backup workflow
-     * @method callback
-     * @description Orchestrates the backup process for multiple deployments, handling
+     * Main callback: Initiates database backup workflow.
+     * Orchestrates the backup process for multiple deployments, handling
      * database connections, backup storage, and optional Git integration for version control.
      * Supports targeting multiple specific pods, nodes, and namespaces with advanced filtering.
-     * @param {string} [deployList='default'] - Comma-separated list of deployment IDs
-     * @param {Object} options - Backup options
-     * @param {boolean} [options.import=false] - Whether to perform import operation
-     * @param {boolean} [options.export=false] - Whether to perform export operation
-     * @param {string} [options.podName=''] - Comma-separated pod name patterns to target
-     * @param {string} [options.ns='default'] - Kubernetes namespace
-     * @param {string} [options.collections=''] - Comma-separated MongoDB collections for export
-     * @param {string} [options.outPath=''] - Output path for backups
-     * @param {boolean} [options.drop=false] - Whether to drop existing database on import
-     * @param {boolean} [options.preserveUUID=false] - Whether to preserve UUIDs on MongoDB import
-     * @param {boolean} [options.git=false] - Whether to use Git for backup versioning
-     * @param {string} [options.hosts=''] - Comma-separated list of hosts to filter databases
-     * @param {string} [options.paths=''] - Comma-separated list of paths to filter databases
-     * @param {boolean} [options.allPods=false] - Whether to target all pods in deployment
-     * @param {boolean} [options.primaryPod=false] - Whether to target MongoDB primary pod only
-     * @param {string} [options.primaryPodEnsure=''] - Pod name to ensure MongoDB primary pod is running
-     * @param {boolean} [options.stats=false] - Whether to display database statistics
-     * @param {number} [options.macroRollbackExport=1] - Number of commits to rollback in macro export
-     * @param {boolean} [options.forceClone=false] - Whether to force re-clone Git repository
-     * @param {boolean} [options.dev=false] - Development mode flag
-     * @param {boolean} [options.k3s=false] - k3s cluster flag
-     * @param {boolean} [options.kubeadm=false] - kubeadm cluster flag
-     * @param {boolean} [options.kind=false] - kind cluster flag
-     * @returns {Promise<void>} Resolves when operation is complete
-     * @memberof UnderpostDB
+     * @method callback
+     * @memberof UnderpostDB.API
+     * @param {string} [deployList='default'] - Comma-separated list of deployment IDs.
+     * @param {Object} [options={}] - Backup options.
+     * @param {boolean} [options.import=false] - Whether to perform import operation.
+     * @param {boolean} [options.export=false] - Whether to perform export operation.
+     * @param {string} [options.podName=''] - Comma-separated pod name patterns to target.
+     * @param {string} [options.ns='default'] - Kubernetes namespace.
+     * @param {string} [options.collections=''] - Comma-separated MongoDB collections for export.
+     * @param {string} [options.outPath=''] - Output path for backups.
+     * @param {boolean} [options.drop=false] - Whether to drop existing database on import.
+     * @param {boolean} [options.preserveUUID=false] - Whether to preserve UUIDs on MongoDB import.
+     * @param {boolean} [options.git=false] - Whether to use Git for backup versioning.
+     * @param {string} [options.hosts=''] - Comma-separated list of hosts to filter databases.
+     * @param {string} [options.paths=''] - Comma-separated list of paths to filter databases.
+     * @param {boolean} [options.allPods=false] - Whether to target all pods in deployment.
+     * @param {boolean} [options.primaryPod=false] - Whether to target MongoDB primary pod only.
+     * @param {string} [options.primaryPodEnsure=''] - Pod name to ensure MongoDB primary pod is running.
+     * @param {boolean} [options.stats=false] - Whether to display database statistics.
+     * @param {number} [options.macroRollbackExport=1] - Number of commits to rollback in macro export.
+     * @param {boolean} [options.forceClone=false] - Whether to force re-clone Git repository.
+     * @param {boolean} [options.dev=false] - Development mode flag.
+     * @param {boolean} [options.k3s=false] - k3s cluster flag.
+     * @param {boolean} [options.kubeadm=false] - kubeadm cluster flag.
+     * @param {boolean} [options.kind=false] - kind cluster flag.
+     * @return {Promise<void>} Resolves when operation is complete.
      */
     async callback(
       deployList = 'default',
@@ -1100,16 +1125,16 @@ class UnderpostDB {
     },
 
     /**
-     * Creates cluster metadata for the specified deployment
-     * @method clusterMetadataFactory
-     * @description Loads database configuration and initializes cluster metadata including
+     * Creates cluster metadata for the specified deployment.
+     * Loads database configuration and initializes cluster metadata including
      * instances and cron jobs. This method populates the database with deployment information.
-     * @param {string} [deployId=process.env.DEFAULT_DEPLOY_ID] - The deployment ID
-     * @param {string} [host=process.env.DEFAULT_DEPLOY_HOST] - The host identifier
-     * @param {string} [path=process.env.DEFAULT_DEPLOY_PATH] - The path identifier
-     * @returns {Promise<void>}
-     * @memberof UnderpostDB
-     * @throws {Error} If database configuration is invalid or connection fails
+     * @method clusterMetadataFactory
+     * @memberof UnderpostDB.API
+     * @param {string} [deployId=process.env.DEFAULT_DEPLOY_ID] - The deployment ID.
+     * @param {string} [host=process.env.DEFAULT_DEPLOY_HOST] - The host identifier.
+     * @param {string} [path=process.env.DEFAULT_DEPLOY_PATH] - The path identifier.
+     * @return {Promise<void>} Resolves when metadata creation is complete.
+     * @throws {Error} If database configuration is invalid or connection fails.
      */
     async clusterMetadataFactory(
       deployId = process.env.DEFAULT_DEPLOY_ID,
@@ -1272,22 +1297,22 @@ class UnderpostDB {
     },
 
     /**
-     * Handles backup of cluster metadata
-     * @method clusterMetadataBackupCallback
-     * @description Orchestrates backup and restore operations for cluster metadata including
+     * Handles backup of cluster metadata.
+     * Orchestrates backup and restore operations for cluster metadata including
      * instances and cron jobs. Supports import/export and metadata generation.
-     * @param {string} [deployId=process.env.DEFAULT_DEPLOY_ID] - The deployment ID
-     * @param {string} [host=process.env.DEFAULT_DEPLOY_HOST] - The host identifier
-     * @param {string} [path=process.env.DEFAULT_DEPLOY_PATH] - The path identifier
-     * @param {Object} [options] - Backup operation options
-     * @param {boolean} [options.generate=false] - Generate cluster metadata
-     * @param {boolean} [options.itc=false] - Execute in container context
-     * @param {boolean} [options.import=false] - Import metadata from backup
-     * @param {boolean} [options.export=false] - Export metadata to backup
-     * @param {boolean} [options.instances=false] - Process instances collection
-     * @param {boolean} [options.crons=false] - Process crons collection
-     * @returns {void}
-     * @memberof UnderpostDB
+     * @method clusterMetadataBackupCallback
+     * @memberof UnderpostDB.API
+     * @param {string} [deployId=process.env.DEFAULT_DEPLOY_ID] - The deployment ID.
+     * @param {string} [host=process.env.DEFAULT_DEPLOY_HOST] - The host identifier.
+     * @param {string} [path=process.env.DEFAULT_DEPLOY_PATH] - The path identifier.
+     * @param {Object} [options={}] - Backup operation options.
+     * @param {boolean} [options.generate=false] - Generate cluster metadata.
+     * @param {boolean} [options.itc=false] - Execute in container context.
+     * @param {boolean} [options.import=false] - Import metadata from backup.
+     * @param {boolean} [options.export=false] - Export metadata to backup.
+     * @param {boolean} [options.instances=false] - Process instances collection.
+     * @param {boolean} [options.crons=false] - Process crons collection.
+     * @return {Promise<void>} Resolves when backup operation is complete.
      */
     async clusterMetadataBackupCallback(
       deployId = process.env.DEFAULT_DEPLOY_ID,
