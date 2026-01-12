@@ -146,6 +146,18 @@ const UserService = {
                 const user = await User.findOne({
                   _id,
                 }).select(UserDto.select.get());
+
+                // Check if profileImageId exists, if not set to null explicitly
+                if (!user.profileImageId) {
+                  user.profileImageId = null;
+                } else {
+                  const fileExists = await File.findById(user.profileImageId);
+                  if (!fileExists) {
+                    await User.findByIdAndUpdate(_id, { profileImageId: null }, { runValidators: true });
+                    user.profileImageId = null;
+                  }
+                }
+
                 await User.findByIdAndUpdate(
                   _id,
                   { lastLoginDate: new Date(), failedLoginAttempts: 0 },
@@ -225,9 +237,8 @@ const UserService = {
         };
       }
 
-      default: {
-        return await createUserAndSession(req, res, User, File, options);
-      }
+      default:
+        return await createUserAndSession(req, res, User, options);
     }
   },
   get: async (req, res, options) => {
@@ -250,6 +261,11 @@ const UserService = {
         _id: userByUsername._id,
       }).select(UserDto.public.get());
       return user;
+    }
+
+    if (req.path.startsWith('/assets')) {
+      options.png.header(res);
+      return options.png.buffer[req.params.id];
     }
 
     if (req.path.startsWith('/email')) {

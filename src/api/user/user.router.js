@@ -4,8 +4,6 @@ import { loggerFactory } from '../../server/logger.js';
 import { UserController } from './user.controller.js';
 import express from 'express';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-import { FileFactory } from '../file/file.service.js';
-import { s4 } from '../../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -68,8 +66,7 @@ const UserRouter = (options) => {
     /*
       #swagger.ignore = true
     */
-    options.png.header(res);
-    return options.png.buffer[req.params.id];
+    return await UserController.get(req, res, options);
   });
 
   router.get(`/mailer/:id`, async (req, res) => {

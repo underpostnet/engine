@@ -204,6 +204,8 @@ class Auth {
           // A valid user token was found/refreshed
           this.setToken(data.token);
           localStorage.setItem('jwt', data.token);
+          // Clear cached profile image to ensure fresh load for new user
+          LogIn.Scope.user.main.model.user = {};
           this.renderSessionUI();
           await LogIn.Trigger({ user: data.user });
           await Account.updateForm(data.user);
@@ -235,6 +237,8 @@ class Auth {
           // Guest token is valid and refreshed
           this.setGuestToken(data.token);
           localStorage.setItem('jwt.g', data.token);
+          // Clear cached profile image for fresh guest session
+          LogIn.Scope.user.main.model.user = {};
           await LogIn.Trigger(data);
           await Account.updateForm(data.user);
           return data;

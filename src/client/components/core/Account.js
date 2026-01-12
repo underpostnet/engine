@@ -1,4 +1,5 @@
 import { UserService } from '../../services/user/user.service.js';
+import { FileService } from '../../services/file/file.service.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { newInstance, s4 } from './CommonJs.js';
@@ -14,6 +15,9 @@ import { Validator } from './Validator.js';
 import { append, htmls, s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { loggerFactory } from './Logger.js';
+
+const logger = loggerFactory(import.meta);
 
 const Account = {
   UpdateEvent: {},
@@ -32,10 +36,10 @@ const Account = {
               style="opacity: 1"
               ${LogIn.Scope.user.main.model.user.profileImage
                 ? `src="${LogIn.Scope.user.main.model.user.profileImage.imageSrc}"`
-                : getApiBaseUrl({
+                : `src="${getApiBaseUrl({
                     id: 'assets/avatar',
                     endpoint: 'user',
-                  })}
+                  })}"`}
             />
           </div>
           <div class="abs center account-profile-image-loading" style="color: white"></div>`,
@@ -216,19 +220,51 @@ const Account = {
 
             if (status === 'success') {
               currentUser.profileImageId = data.profileImageId;
-              // Clear cached profileImage so LogIn.Trigger will reload it
+              LogIn.Scope.user.main.model.user = { ...currentUser };
               delete LogIn.Scope.user.main.model.user.profileImage;
-              await LogIn.Trigger({ user: currentUser });
-              // Ensure image is set after trigger
-              if (
-                LogIn.Scope.user.main.model.user.profileImage &&
-                LogIn.Scope.user.main.model.user.profileImage.imageSrc
-              ) {
-                s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
+
+              const defaultAvatarUrl = getApiBaseUrl({
+                id: 'assets/avatar',
+                endpoint: 'user',
+              });
+
+              // Fetch the new image immediately
+              let newImageSrc = defaultAvatarUrl;
+              try {
+                const resultFile = await FileService.get({ id: data.profileImageId });
+                if (resultFile && resultFile.status === 'success' && resultFile.data[0]) {
+                  const imageData = resultFile.data[0];
+
+                  if (!imageData.data?.data && imageData._id) {
+                    newImageSrc = getApiBaseUrl({ id: imageData._id, endpoint: 'file/blob' });
+                  } else if (imageData.data?.data) {
+                    const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+                    const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+                    newImageSrc = URL.createObjectURL(imageFile);
+                  }
+
+                  LogIn.Scope.user.main.model.user.profileImage = {
+                    resultFile,
+                    imageData,
+                    imageSrc: newImageSrc,
+                  };
+                }
+              } catch (error) {
+                logger.warn('Error fetching new profile image:', error);
               }
+
+              // Update both images immediately
+              s(`.account-profile-image`).src = newImageSrc;
+              const topbarImg = s(`.top-box-profile-img`);
+              if (topbarImg) topbarImg.src = newImageSrc;
+
+              NotificationManager.Push({
+                html: Translate.Render('success-update-user'),
+                status: 'success',
+              });
             } else {
               NotificationManager.Push({
-                html: Translate.Render('file-upload-failed'),
+                html: data?.message || Translate.Render('file-upload-failed'),
                 status: 'error',
               });
             }
@@ -553,12 +589,21 @@ const Account = {
     for (const inputData of this.formData)
       if (s(`.${inputData.id}`)) s(`.${inputData.id}`).value = currentUser[inputData.model];
 
-    // Update profile image if it exists in scope (skip for guest users who cannot upload)
+    // Update profile image - always show default avatar as fallback (skip for guest users)
     const profileImageElement = s(`.account-profile-image`);
+    const defaultAvatarUrl = getApiBaseUrl({
+      id: 'assets/avatar',
+      endpoint: 'user',
+    });
+
     if (currentUser.role !== 'guest' && profileImageElement) {
-      profileImageElement.src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
+      // Show custom image if available, otherwise default avatar
+      const customImageSrc = LogIn.Scope.user.main.model.user.profileImage?.imageSrc;
+      profileImageElement.src = customImageSrc || defaultAvatarUrl;
       profileImageElement.style.opacity = 1;
-    } else if (profileImageElement) profileImageElement.style.opacity = 0;
+    } else if (profileImageElement) {
+      profileImageElement.style.opacity = 0;
+    }
 
     // update public profile toggle
     if (ToggleSwitch.Tokens['account-public-profile']) {

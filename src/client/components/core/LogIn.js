@@ -57,40 +57,40 @@ const LogIn = {
         </style>`,
       );
     if (!this.Scope.user.main.model.user.profileImage) {
-      try {
-        const resultFile = await FileService.get({ id: user.profileImageId });
-        if (resultFile && resultFile.status === 'success' && resultFile.data[0]) {
-          const imageData = resultFile.data[0];
-          let imageSrc = null;
+      // Try to load profile image only if profileImageId exists
+      if (!this.Scope.user.main.model.user.profileImage && user?.profileImageId) {
+        try {
+          const resultFile = await FileService.get({ id: user.profileImageId });
+          if (resultFile && resultFile.status === 'success' && resultFile.data[0]) {
+            const imageData = resultFile.data[0];
+            let imageSrc = null;
 
-          try {
-            // Handle new metadata-only format
-            if (!imageData.data?.data && imageData._id) {
-              // Use blob endpoint for metadata-only format
-              imageSrc = getApiBaseUrl({ id: imageData._id, endpoint: 'file/blob' });
-            }
-            // Handle legacy format with buffer data
-            else if (imageData.data?.data) {
-              const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
-              const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
-              imageSrc = URL.createObjectURL(imageFile);
-            }
+            try {
+              // Handle new metadata-only format
+              if (!imageData.data?.data && imageData._id) {
+                imageSrc = getApiBaseUrl({ id: imageData._id, endpoint: 'file/blob' });
+              }
+              // Handle legacy format with buffer data
+              else if (imageData.data?.data) {
+                const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+                const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+                imageSrc = URL.createObjectURL(imageFile);
+              }
 
-            if (imageSrc) {
-              this.Scope.user.main.model.user.profileImage = {
-                resultFile,
-                imageData,
-                imageSrc,
-              };
+              if (imageSrc) {
+                this.Scope.user.main.model.user.profileImage = {
+                  resultFile,
+                  imageData,
+                  imageSrc,
+                };
+              }
+            } catch (error) {
+              logger.warn('Error processing profile image:', error);
             }
-          } catch (error) {
-            logger.warn('Error processing profile image:', error);
-            // Continue without profile image - not fatal
           }
+        } catch (error) {
+          logger.warn('Error fetching profile image:', error);
         }
-      } catch (error) {
-        logger.warn('Error fetching profile image:', error);
-        // Continue without profile image - not fatal
       }
       htmls(
         `.action-btn-profile-log-in-render`,
@@ -99,10 +99,10 @@ const LogIn = {
             class="abs center top-box-profile-img"
             ${this.Scope.user.main.model.user.profileImage
               ? `src="${this.Scope.user.main.model.user.profileImage.imageSrc}"`
-              : getApiBaseUrl({
+              : `src="${getApiBaseUrl({
                   id: 'assets/avatar',
                   endpoint: 'user',
-                })}
+                })}"`}
           />
         </div>`,
       );
