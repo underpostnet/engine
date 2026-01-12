@@ -691,19 +691,31 @@ const DefaultManagement = {
               if (this.Tokens[id].isInitializing) return;
               DefaultManagement.loadTable(id);
             },
-            editType: 'fullRow',
+            editType: 'fullRow', // Keep fullRow for add new row, but cells will auto-save
             // rowData: [],
             onCellValueChanged: async (...args) => {
-              console.log('onCellValueChanged', args);
-              // field: event.colDef.field,
-              // body[event.colDef.field] = event.newValue;
-              // NotificationManager.Push({
-              //   html:
-              //     result.status === 'error'
-              //       ? result.message
-              //       : `${Translate.Render('field')} ${event.colDef.headerName} ${Translate.Render('success-updated')}`,
-              //   status: result.status,
-              // });
+              const [event] = args;
+              // Only auto-save for existing rows (with _id), not new rows
+              if (event.data && event.data._id) {
+                logger.info('onCellValueChanged - auto-saving', args);
+                const body = event.data ? event.data : {};
+                const result = await ServiceProvider.put({ id: event.data._id, body });
+                NotificationManager.Push({
+                  html: result.status === 'error' ? result.message : `${Translate.Render('success-update-item')}`,
+                  status: result.status,
+                });
+                if (result.status === 'success') {
+                  AgGrid.grids[gridId].applyTransaction({
+                    update: [event.data],
+                  });
+                  // Restore default buttons after save
+                  s(`.management-table-btn-save-${id}`).classList.add('hide');
+                  if (permissions.add) s(`.management-table-btn-add-${id}`).classList.remove('hide');
+                  if (permissions.remove) s(`.management-table-btn-clean-${id}`).classList.remove('hide');
+                  if (permissions.reload) s(`.management-table-btn-reload-${id}`).classList.remove('hide');
+                  DefaultManagement.loadTable(id, { reload: false });
+                }
+              }
             },
             rowSelection: 'single',
             onSelectionChanged: async (...args) => {
@@ -712,8 +724,18 @@ const DefaultManagement = {
               const selectedRows = AgGrid.grids[gridId].getSelectedRows();
               logger.info('selectedRows', selectedRows);
             },
+            onCellEditingStarted: async (...args) => {
+              const [event] = args;
+              // Only show save button for new rows (without _id)
+              if (event.data && !event.data._id) {
+                s(`.management-table-btn-save-${id}`).classList.remove('hide');
+                if (permissions.add) s(`.management-table-btn-add-${id}`).classList.add('hide');
+                if (permissions.remove) s(`.management-table-btn-clean-${id}`).classList.add('hide');
+                if (permissions.reload) s(`.management-table-btn-reload-${id}`).classList.add('hide');
+              }
+            },
             onRowEditingStarted: async (...args) => {
-              // Show only save button when editing starts
+              // Show only save button when editing starts (for new rows)
               s(`.management-table-btn-save-${id}`).classList.remove('hide');
               if (permissions.add) s(`.management-table-btn-add-${id}`).classList.add('hide');
               if (permissions.remove) s(`.management-table-btn-clean-${id}`).classList.add('hide');
