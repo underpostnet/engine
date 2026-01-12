@@ -1,5 +1,6 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
+import { DataQuery } from '../../server/data-query.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -13,12 +14,13 @@ const DefaultService = {
     /** @type {import('./default.model.js').DefaultModel} */
     const Default = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Default;
     if (req.params.id) return await Default.findById(req.params.id);
-    const { query, page = 1, limit = 10, sort = { updatedAt: -1 } } = req.query;
-    const queryPayload = query ? JSON.parse(query) : {};
-    const skip = (page - 1) * limit;
+
+    // Parse query parameters using DataQuery helper
+    const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
+
     const [data, total] = await Promise.all([
-      Default.find(queryPayload).sort(sort).limit(limit).skip(skip),
-      Default.countDocuments(queryPayload),
+      Default.find(query).sort(sort).limit(limit).skip(skip),
+      Default.countDocuments(query),
     ]);
 
     const totalPages = Math.ceil(total / limit);

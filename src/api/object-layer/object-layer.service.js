@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { ObjectLayerDto } from './object-layer.model.js';
 import { ObjectLayerEngine } from '../../server/object-layer.js';
 import { shellExec } from '../../server/process.js';
+import { DataQuery } from '../../server/data-query.js';
 const logger = loggerFactory(import.meta);
 
 const ObjectLayerService = {
@@ -223,31 +224,15 @@ const ObjectLayerService = {
     }
 
     // GET / - Get paginated list of object layers
-    // Validate and sanitize pagination parameters
-    const allowedLimits = [10, 25, 50, 100, 200];
-    let requestedPage = parseInt(req.query.page, 10) || 1;
-    let requestedLimit = parseInt(req.query.limit, 10) || 10;
-
-    // Validate page number
-    const page = requestedPage < 1 ? 1 : requestedPage;
-
-    // Validate limit against allowed values
-    let limit = allowedLimits.includes(requestedLimit) ? requestedLimit : 10;
-
-    // Additional safety check: limit should be between 1 and 200
-    if (limit < 1) limit = 10;
-    if (limit > 200) limit = 200;
-
-    const sort = req.query.sort || { updatedAt: -1 };
-    const skip = (page - 1) * limit;
+    const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
 
     const [data, total] = await Promise.all([
-      ObjectLayer.find() // { userId: req.auth.user._id }
+      ObjectLayer.find(query) // { userId: req.auth.user._id }
         .sort(sort)
         .limit(limit)
         .skip(skip)
         .select(ObjectLayerDto.select.get()),
-      ObjectLayer.countDocuments(), // { userId: req.auth.user._id }
+      ObjectLayer.countDocuments(query), // { userId: req.auth.user._id }
     ]);
     return { data, total, page, totalPages: Math.ceil(total / limit) };
   },

@@ -49,11 +49,34 @@ const DefaultService = {
           return reject(error);
         }),
     ),
-  get: (options = { id: '', body: {}, page: 1, limit: 10 }) => {
-    const { id, page, limit } = options;
+  get: (options = {}) => {
+    const { id, page, limit, filterModel, sortModel, sort, asc } = options;
     const url = new URL(getApiBaseUrl({ id, endpoint }));
-    url.searchParams.append('page', page);
-    url.searchParams.append('limit', limit);
+
+    // Add pagination params
+    if (page !== undefined) url.searchParams.set('page', page);
+    if (limit !== undefined) url.searchParams.set('limit', limit);
+
+    // Add filter model (AG Grid format) - send as JSON string
+    if (filterModel) {
+      const filterStr = typeof filterModel === 'string' ? filterModel : JSON.stringify(filterModel);
+      if (filterStr && filterStr !== '{}' && filterStr !== 'null') {
+        url.searchParams.set('filterModel', filterStr);
+      }
+    }
+
+    // Add sort model (AG Grid format) - send as JSON string
+    if (sortModel) {
+      const sortStr = typeof sortModel === 'string' ? sortModel : JSON.stringify(sortModel);
+      if (sortStr && sortStr !== '[]' && sortStr !== 'null') {
+        url.searchParams.set('sortModel', sortStr);
+      }
+    }
+
+    // Add simple sort params for backwards compatibility
+    if (sort) url.searchParams.set('sort', sort);
+    if (asc !== undefined) url.searchParams.set('asc', asc);
+
     return new Promise((resolve, reject) =>
       fetch(url.toString(), {
         method: 'GET',

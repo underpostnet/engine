@@ -49,10 +49,34 @@ const ObjectLayerService = {
           return reject(error);
         }),
     ),
-  get: (options = { id: '', body: {} }) => {
+  get: (options = { id: '', page: 1, limit: 10 }) => {
     const url = new URL(getApiBaseUrl({ id: options.id, endpoint }));
+
+    // Pagination params
     if (options.page) url.searchParams.set('page', options.page);
     if (options.limit) url.searchParams.set('limit', options.limit);
+
+    // AG Grid filter model (JSON string or object)
+    if (options.filterModel) {
+      const filterStr =
+        typeof options.filterModel === 'string' ? options.filterModel : JSON.stringify(options.filterModel);
+      if (filterStr && filterStr !== '{}' && filterStr !== 'null') {
+        url.searchParams.set('filterModel', filterStr);
+      }
+    }
+
+    // AG Grid sort model (JSON string or array)
+    if (options.sortModel) {
+      const sortStr = typeof options.sortModel === 'string' ? options.sortModel : JSON.stringify(options.sortModel);
+      if (sortStr && sortStr !== '[]' && sortStr !== 'null') {
+        url.searchParams.set('sortModel', sortStr);
+      }
+    }
+
+    // Legacy simple sort support (field name + direction)
+    if (options.sort) url.searchParams.set('sort', options.sort);
+    if (options.asc !== undefined) url.searchParams.set('asc', options.asc);
+
     return new Promise((resolve, reject) =>
       fetch(url.toString(), {
         method: 'GET',

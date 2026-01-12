@@ -34,6 +34,7 @@ const AgGrid = {
             return params.data && params.data._new;
           },
         },
+        onGridReady: options?.onGridReady,
         // Cell rendering events
         onFirstDataRendered: options?.onFirstDataRendered,
         onViewportChanged: options?.onViewportChanged,
@@ -46,6 +47,8 @@ const AgGrid = {
         onCellMouseOver: options?.onCellMouseOver,
         onCellMouseOut: options?.onCellMouseOut,
         onCellValueChanged: options?.onCellValueChanged,
+        onFilterChanged: options?.onFilterChanged,
+        onSortChanged: options?.onSortChanged,
         // set background colour on every row, this is probably bad, should be using CSS classes
         // rowStyle: { background: 'black' },
 

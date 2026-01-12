@@ -53,48 +53,131 @@ const columnDefFormatter = (obj, columnDefs, customFormat) => {
 const DefaultManagement = {
   Tokens: {},
   loadTable: async function (id, options = { reload: true, force: true }) {
-    const { serviceId, columnDefs, customFormat } = this.Tokens[id];
+    try {
+      const { serviceId, columnDefs, customFormat, gridId } = this.Tokens[id];
 
-    let _page = this.Tokens[id].page;
-    let _limit = this.Tokens[id].limit;
-    let _id = this.Tokens[id].serviceOptions?.get?.id ?? undefined;
-    if (!options.force && this.Tokens[id].lastOptions) {
-      if (
-        _page === this.Tokens[id].lastOptions.page &&
-        _limit === this.Tokens[id].lastOptions.limit &&
-        _id === this.Tokens[id].lastOptions.id
-      ) {
-        logger.warn(`DefaultManagement loadTable ${serviceId} - Skipping load, options unchanged`);
-        return;
+      let _page = this.Tokens[id].page;
+      let _limit = this.Tokens[id].limit;
+      let _id = this.Tokens[id].serviceOptions?.get?.id ?? undefined;
+
+      let filterModel = this.Tokens[id].filterModel || {};
+      let sortModel = this.Tokens[id].sortModel || [];
+
+      const gridApi = this.Tokens[id].gridApi || AgGrid.grids[gridId];
+
+      if (gridApi) {
+        filterModel = gridApi.getFilterModel() || {};
+        const columnState = gridApi.getColumnState();
+        if (columnState) {
+          sortModel = columnState
+            .filter((col) => col.sort)
+            .map((col) => ({ colId: col.colId, sort: col.sort, sortIndex: col.sortIndex }))
+            .sort((a, b) => (a.sortIndex || 0) - (b.sortIndex || 0));
+        }
       }
-    }
-    this.Tokens[id].lastOptions = {
-      page: _page,
-      limit: _limit,
-      id: _id,
-    };
 
-    const result = await this.Tokens[id].ServiceProvider.get({
-      page: _page,
-      limit: _limit,
-      id: _id,
-    });
-    if (result.status === 'success') {
-      const { data, total, page, totalPages } = result.data;
-      this.Tokens[id].total = total;
-      this.Tokens[id].page = page;
-      this.Tokens[id].totalPages = totalPages;
-      const rowDataScope = data.map((row) => columnDefFormatter(row, columnDefs, customFormat));
-      if (options.reload) AgGrid.grids[this.Tokens[id].gridId].setGridOption('rowData', rowDataScope);
-      const paginationComp = s(`#ag-pagination-${this.Tokens[id].gridId}`);
-      paginationComp.setAttribute('current-page', this.Tokens[id].page);
-      paginationComp.setAttribute('total-pages', this.Tokens[id].totalPages);
-      paginationComp.setAttribute('total-items', this.Tokens[id].total);
-      setTimeout(async () => {
-        if (DefaultManagement.Tokens[id].readyRowDataEvent)
-          for (const event of Object.keys(DefaultManagement.Tokens[id].readyRowDataEvent))
-            await DefaultManagement.Tokens[id].readyRowDataEvent[event](rowDataScope);
-      }, 1);
+      // Clean up filterModel and sortModel for URL params
+      const filterModelStr = Object.keys(filterModel).length > 0 ? JSON.stringify(filterModel) : null;
+      const sortModelStr = sortModel.length > 0 ? JSON.stringify(sortModel) : null;
+
+      // Update URL parameters to reflect current grid state
+      setQueryParams(
+        {
+          page: _page,
+          limit: _limit,
+          filterModel: filterModelStr,
+          sortModel: sortModelStr,
+        },
+        { replace: true },
+      );
+
+      if (!options.force && this.Tokens[id].lastOptions) {
+        const last = this.Tokens[id].lastOptions;
+        if (
+          _page === last.page &&
+          _limit === last.limit &&
+          _id === last.id &&
+          JSON.stringify(filterModel) === JSON.stringify(last.filterModel) &&
+          JSON.stringify(sortModel) === JSON.stringify(last.sortModel)
+        ) {
+          logger.warn(`DefaultManagement loadTable ${serviceId} - Skipping load, options unchanged`);
+          return;
+        }
+      }
+      this.Tokens[id].lastOptions = {
+        page: _page,
+        limit: _limit,
+        id: _id,
+        filterModel,
+        sortModel,
+      };
+
+      // Update tokens with current state
+      this.Tokens[id].filterModel = filterModel;
+      this.Tokens[id].sortModel = sortModel;
+
+      const queryOptions = {
+        page: _page,
+        limit: _limit,
+      };
+
+      if (_id) {
+        queryOptions.id = _id;
+      }
+
+      if (filterModel && Object.keys(filterModel).length > 0) {
+        queryOptions.filterModel = filterModel;
+      }
+
+      if (sortModel && sortModel.length > 0) {
+        queryOptions.sortModel = sortModel;
+        // Legacy simple sort support
+        if (sortModel.length === 1) {
+          queryOptions.sort = sortModel[0].colId;
+          queryOptions.asc = sortModel[0].sort === 'asc' ? '1' : '0';
+        }
+      }
+
+      logger.info(`Loading table ${serviceId}`, {
+        page: _page,
+        limit: _limit,
+        hasFilters: Object.keys(filterModel).length > 0,
+      });
+
+      const result = await this.Tokens[id].ServiceProvider.get(queryOptions);
+      if (result.status === 'success') {
+        const { data, total, page, totalPages } = result.data;
+        this.Tokens[id].total = total;
+        this.Tokens[id].page = page;
+        this.Tokens[id].totalPages = totalPages;
+        const rowDataScope = data.map((row) => columnDefFormatter(row, columnDefs, customFormat));
+        if (options.reload) {
+          const grid = AgGrid.grids[this.Tokens[id].gridId];
+          if (grid && grid.setGridOption) {
+            grid.setGridOption('rowData', rowDataScope);
+          } else {
+            logger.warn(`Grid ${gridId} not found or not ready for setGridOption`);
+          }
+        }
+        const paginationComp = s(`#ag-pagination-${this.Tokens[id].gridId}`);
+        if (paginationComp) {
+          paginationComp.setAttribute('current-page', this.Tokens[id].page);
+          paginationComp.setAttribute('total-pages', this.Tokens[id].totalPages);
+          paginationComp.setAttribute('total-items', this.Tokens[id].total);
+        } else {
+          logger.warn(`Pagination component not found for grid ${gridId}`);
+        }
+        setTimeout(async () => {
+          if (DefaultManagement.Tokens[id].readyRowDataEvent)
+            for (const event of Object.keys(DefaultManagement.Tokens[id].readyRowDataEvent))
+              await DefaultManagement.Tokens[id].readyRowDataEvent[event](rowDataScope);
+        }, 1);
+      } else {
+        logger.error(`Failed to load table ${serviceId}:`, result);
+      }
+    } catch (error) {
+      logger.error(`Error in loadTable for ${id}:`, error);
+      throw error;
     }
   },
   refreshTable: async function (id) {
@@ -119,9 +202,94 @@ const DefaultManagement = {
     const page = parseInt(queryParams.page) || 1;
     const defaultLimit = paginationOptions?.limitOptions?.[0] || 10;
     const limit = parseInt(queryParams.limit) || defaultLimit;
-    this.Tokens[id] = { ...this.Tokens[id], ...options, gridId, page, limit, total: 0, totalPages: 1 };
 
-    setQueryParams({ page, limit });
+    let filterModel = {};
+    let sortModel = [];
+    try {
+      if (queryParams.filterModel) filterModel = JSON.parse(queryParams.filterModel);
+      if (queryParams.sortModel) sortModel = JSON.parse(queryParams.sortModel);
+    } catch (e) {
+      logger.warn('Error parsing filter/sort model from URL', e);
+    }
+
+    // Enhance column definitions for Date filtering and ensure colId
+    const enhancedColumnDefs = columnDefs.map((col) => {
+      const enhancedCol = {
+        ...col,
+        colId: col.field, // Ensure colId matches field
+      };
+
+      if (enhancedCol.cellDataType === 'date' || enhancedCol.filter === 'agDateColumnFilter') {
+        enhancedCol.filter = 'agDateColumnFilter';
+
+        // Value getter to ensure date is properly parsed
+        if (!enhancedCol.valueGetter) {
+          enhancedCol.valueGetter = (params) => {
+            const value = params.data?.[enhancedCol.field];
+            if (!value) return null;
+            const date = new Date(value);
+            return isNaN(date.getTime()) ? null : date;
+          };
+        }
+
+        // Value formatter for display
+        if (!enhancedCol.valueFormatter) {
+          enhancedCol.valueFormatter = (params) => {
+            if (!params.value) return '';
+            const date = new Date(params.value);
+            if (isNaN(date.getTime())) return '';
+            return date.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            });
+          };
+        }
+
+        enhancedCol.filterParams = {
+          comparator: (filterLocalDateAtMidnight, cellValue) => {
+            if (cellValue == null) return -1;
+            const cellDate = new Date(cellValue);
+            if (isNaN(cellDate.getTime())) return -1;
+            // Compare dates (ignoring time)
+            const cellTime = new Date(cellDate).setHours(0, 0, 0, 0);
+            const filterTime = filterLocalDateAtMidnight.getTime();
+            if (filterTime === cellTime) return 0;
+            if (cellTime < filterTime) return -1;
+            if (cellTime > filterTime) return 1;
+            return 0;
+          },
+          browserDatePicker: true,
+          minValidYear: 2000,
+          maxValidYear: 2100,
+          inRangeInclusive: true,
+          debounceMs: 500,
+          ...enhancedCol.filterParams,
+        };
+      }
+      return enhancedCol;
+    });
+
+    this.Tokens[id] = {
+      ...this.Tokens[id],
+      ...options,
+      columnDefs: enhancedColumnDefs, // Use enhanced definitions
+      gridId,
+      page,
+      limit,
+      total: 0,
+      totalPages: 1,
+      filterModel,
+      sortModel,
+      isInitializing: true, // Flag to prevent double loading during grid ready
+    };
+
+    setQueryParams({
+      page,
+      limit,
+      filterModel: Object.keys(filterModel).length > 0 ? JSON.stringify(filterModel) : null,
+      sortModel: sortModel.length > 0 ? JSON.stringify(sortModel) : null,
+    });
     setTimeout(async () => {
       // https://www.ag-grid.com/javascript-data-grid/data-update-transactions/
 
@@ -203,7 +371,7 @@ const DefaultManagement = {
 
       AgGrid.grids[gridId].setGridOption(
         'columnDefs',
-        columnDefs.concat(
+        enhancedColumnDefs.concat(
           permissions.remove
             ? [
                 {
@@ -217,7 +385,7 @@ const DefaultManagement = {
             : [],
         ),
       );
-      DefaultManagement.loadTable(id);
+      // Initial loadTable is now called in onGridReady after grid is fully initialized
       // {
       //   const result = await ServiceProvider.get();
       //   if (result.status === 'success') {
@@ -383,14 +551,61 @@ const DefaultManagement = {
         const queryParams = getQueryParams();
         const page = parseInt(queryParams.page) || 1;
         const limit = parseInt(queryParams.limit) || 10;
-        const token = DefaultManagement.Tokens[id];
+        let filterModel = {};
+        let sortModel = [];
+        try {
+          if (queryParams.filterModel) filterModel = JSON.parse(queryParams.filterModel);
+          if (queryParams.sortModel) sortModel = JSON.parse(queryParams.sortModel);
+        } catch (e) {}
 
-        // Check if the pagination state in the URL is different from the current state
-        if (token.page !== page || token.limit !== limit) {
+        const token = DefaultManagement.Tokens[id];
+        if (!token) {
+          // Token doesn't exist yet, table hasn't been initialized
+          return;
+        }
+
+        // Check if state in URL is different from current state
+        const isPaginationChanged = token.page !== page || token.limit !== limit;
+        const isFilterChanged = JSON.stringify(token.filterModel || {}) !== JSON.stringify(filterModel);
+        const isSortChanged = JSON.stringify(token.sortModel || []) !== JSON.stringify(sortModel);
+
+        if (isPaginationChanged || isFilterChanged || isSortChanged) {
           token.page = page;
           token.limit = limit;
-          // Reload the table with the new pagination state from the URL
-          await DefaultManagement.loadTable(id);
+          token.filterModel = filterModel;
+          token.sortModel = sortModel;
+
+          // If grid is active, we should update its state to match URL
+          const gridApi = AgGrid.grids[gridId];
+          if (gridApi && gridApi.setFilterModel && gridApi.applyColumnState) {
+            // Updating filter/sort on grid will trigger onFilterChanged/onSortChanged -> loadTable
+            // But we must ensure it happens.
+            if (isFilterChanged) {
+              try {
+                gridApi.setFilterModel(filterModel);
+              } catch (e) {
+                console.warn('Failed to set filter model:', e);
+              }
+            }
+            if (isSortChanged) {
+              try {
+                gridApi.applyColumnState({
+                  state: sortModel,
+                  defaultState: { sort: null },
+                });
+              } catch (e) {
+                console.warn('Failed to apply column state:', e);
+              }
+            }
+            // If only pagination changed, we must load manually because no grid event triggers
+            if (isPaginationChanged && !isFilterChanged && !isSortChanged) {
+              await DefaultManagement.loadTable(id);
+            }
+          } else if (!gridApi) {
+            // Grid doesn't exist yet, just load the table data when it's ready
+            // The onGridReady event will handle applying the initial state
+            logger.warn(`Grid not ready for ${gridId}, state will be applied on grid ready`);
+          }
         }
       };
     }, 1);
@@ -443,6 +658,38 @@ const DefaultManagement = {
               minWidth: 100,
               filter: true,
               autoHeight: true,
+            },
+            onGridReady: (params) => {
+              this.Tokens[id].gridApi = params.api;
+              // Apply initial state from URL
+              const { filterModel, sortModel } = this.Tokens[id];
+              if (filterModel && Object.keys(filterModel).length > 0) {
+                params.api.setFilterModel(filterModel);
+              }
+              if (sortModel && sortModel.length > 0) {
+                params.api.applyColumnState({
+                  state: sortModel,
+                  defaultState: { sort: null },
+                });
+              }
+              // Load initial data now that grid is ready
+              // Filter/sort state has been applied, this will fetch data from server
+              DefaultManagement.loadTable(id).finally(() => {
+                // Mark initialization complete to allow future filter/sort events
+                this.Tokens[id].isInitializing = false;
+              });
+            },
+            onFilterChanged: () => {
+              // Skip if still initializing (state being applied in onGridReady)
+              if (this.Tokens[id].isInitializing) return;
+              // Reset to page 1 on filter change
+              this.Tokens[id].page = 1;
+              DefaultManagement.loadTable(id);
+            },
+            onSortChanged: () => {
+              // Skip if still initializing (state being applied in onGridReady)
+              if (this.Tokens[id].isInitializing) return;
+              DefaultManagement.loadTable(id);
             },
             editType: 'fullRow',
             // rowData: [],
