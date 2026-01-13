@@ -38,21 +38,7 @@ const DocumentService = {
     // - Unauthenticated users: CAN see public documents (isPublic=true) from publishers (admin/moderator)
     // - Authenticated users: CAN see public documents from publishers + ALL their own documents (public or private)
     // - No user can see private documents from other users
-    //
-    // Search Optimization Strategy:
-    // 1. Case-insensitive matching ($options: 'i') - maximizes matches across case variations
-    // 2. Multi-term search - splits "hello world" into ["hello", "world"] and matches ANY term
-    // 3. Multi-field search - searches BOTH title AND tags array
-    // 4. OR logic - ANY term matching ANY field counts as a match
-    // 5. Minimum length: 1 character - allows maximum user flexibility
-    //
-    // Example: Query "javascript tutorial"
-    //   - Matches documents with title "JavaScript Guide" (term 1, case-insensitive)
-    //   - Matches documents with tag "tutorial" (term 2, tag match)
-    //   - Matches documents with both terms in different fields
-    //
     if (req.path.startsWith('/public/high') && req.query['q']) {
-      // Input validation
       const rawQuery = req.query['q'];
       if (!rawQuery || typeof rawQuery !== 'string') {
         throw new Error('Invalid search query');
@@ -99,13 +85,6 @@ const DocumentService = {
           userId: { $in: publisherUsers.map((p) => p._id) },
         };
 
-        logger.info('Special "public" search query', {
-          authenticated: !!user,
-          userId: user?._id?.toString(),
-          role: user?.role,
-          limit,
-        });
-
         const data = await Document.find(queryPayload)
           .sort({ createdAt: -1 })
           .limit(limit)
@@ -139,7 +118,7 @@ const DocumentService = {
           return filteredDoc;
         });
 
-        return { data: sanitizedData };
+        return { data: sanitizedData.map((d) => (d.userId.role = undefined)) };
       }
 
       // OPTIMIZATION: Split search query into individual terms for multi-term matching
@@ -151,21 +130,7 @@ const DocumentService = {
         .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape each term for regex safety
 
       // Build query based on authentication status
-      // ============================================
-      // OPTIMIZED FOR MAXIMUM RESULTS:
-      // - Multi-term search: matches ANY term
-      // - Case-insensitive: $options: 'i' flag
-      // - Multi-field: searches title AND tags
-      // - Minimum match: ANY term in ANY field = result
-      //
-      // Example Query: "javascript react"
-      // Matches:
-      //   ✓ Document with title "JavaScript Tutorial" (term 1 in title)
-      //   ✓ Document with tag "react" (term 2 in tags)
-      //   ✓ Document with title "Learn React JS" (term 2 in title, case-insensitive)
-      //   ✓ Document with tags ["javascript", "tutorial"] (term 1 in tags)
-
-      // Build search conditions for maximum permissiveness
+      // and search conditions for maximum permissiveness
       const buildSearchConditions = () => {
         const conditions = [];
 
@@ -185,11 +150,7 @@ const DocumentService = {
         // Authenticated user can see:
         // 1. ALL their own documents (public AND private - no tag restriction)
         // 2. Public-tagged documents from publishers (admin/moderator only)
-        //
-        // MAXIMUM RESULTS STRATEGY:
-        // - Search by: ANY term matches title OR ANY tag
-        // - Case-insensitive matching
-        // - No minimum match threshold beyond 1 character
+
         const searchConditions = buildSearchConditions();
 
         queryPayload = {
@@ -210,11 +171,7 @@ const DocumentService = {
         };
       } else {
         // Public/unauthenticated user: ONLY public-tagged documents from publishers (admin/moderator)
-        //
-        // MAXIMUM RESULTS STRATEGY for public users:
-        // - Search by: ANY term matches title OR ANY tag
-        // - Case-insensitive matching
-        // - Still respects security: only public docs from trusted publishers
+
         const searchConditions = buildSearchConditions();
 
         queryPayload = {
@@ -229,19 +186,6 @@ const DocumentService = {
         logger.warn('No publishers found and user not authenticated - returning empty results');
         return { data: [] };
       }
-
-      // Security audit logging
-      logger.info('High-query search (OPTIMIZED FOR MAX RESULTS)', {
-        query: searchQuery.substring(0, 50), // Log only first 50 chars for privacy
-        terms: searchTerms.length, // Number of search terms
-        searchStrategy: 'multi-term OR matching, case-insensitive, title+tags',
-        authenticated: !!user,
-        userId: user?._id?.toString(),
-        role: user?.role,
-        limit,
-        publishersCount: publisherUsers.length,
-        timestamp: new Date().toISOString(),
-      });
 
       const data = await Document.find(queryPayload)
         .sort({ createdAt: -1 })
@@ -265,10 +209,7 @@ const DocumentService = {
           }
         }
         // Remove role field from userId before sending to client (all users)
-        if (filteredDoc.userId && filteredDoc.userId.role) {
-          const { role, ...userWithoutRole } = filteredDoc.userId;
-          filteredDoc.userId = userWithoutRole;
-        }
+        delete filteredDoc.userId.role;
         return filteredDoc;
       });
 
@@ -372,18 +313,7 @@ const DocumentService = {
           };
         }
       }
-      // Security audit logging
-      logger.info('Public tag search', {
-        authenticated: !!user,
-        userId: user?._id?.toString(),
-        role: user?.role,
-        requestedTags,
-        hasPublicTag,
-        hasCidFilter: !!req.query.cid,
-        limit,
-        skip,
-        publishersCount: publisherUsers.length,
-      });
+
       // sort in descending (-1) order by length
       const sort = { createdAt: -1 };
 
@@ -417,9 +347,11 @@ const DocumentService = {
           if ((!docObj.isPublic || !isPublisher) && !isOwnDoc) userInfo = undefined;
           return {
             ...docObj,
-            role: undefined,
-            email: undefined,
-            userId: userInfo,
+            userId: {
+              ...userInfo,
+              role: undefined,
+              email: undefined,
+            },
             tags: DocumentDto.filterPublicTag(docObj.tags),
             totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
           };
@@ -443,15 +375,10 @@ const DocumentService = {
           const docObj = doc.toObject ? doc.toObject() : doc;
 
           // Remove role field from userId before sending to client
-          let userInfo = docObj.userId;
-          if (userInfo && userInfo.role) {
-            const { role, ...userWithoutRole } = userInfo;
-            userInfo = userWithoutRole;
-          }
-
+          delete docObj.userId.role;
           return {
             ...docObj,
-            userId: userInfo,
+            userId: docObj.userId,
             tags: DocumentDto.filterPublicTag(docObj.tags),
             totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
           };

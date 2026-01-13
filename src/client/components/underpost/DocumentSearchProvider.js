@@ -225,26 +225,10 @@ const DocumentSearchProvider = {
       const queryPath = `?cid=${result.id}`;
 
       // Update browser history without reload
-      if (context.RouterInstance && context.RouterInstance.Navigate) {
-        context.RouterInstance.Navigate({
-          route: context.currentRoute || 'home',
-          path,
-          queryPath,
-        });
-      } else {
-        window.history.pushState({}, '', `${path}${queryPath}`);
-      }
+      window.history.pushState({}, '', `${path}${queryPath}`);
 
       // Trigger PanelForm update with the document CID
-      if (context.updatePanel) {
-        context.updatePanel(result.id);
-      } else if (window.PanelFormUpdateEvent) {
-        window.PanelFormUpdateEvent(result.id);
-      } else if (s('.underpost-panel')) {
-        // Direct panel update fallback
-        const event = new CustomEvent('panel-update', { detail: { cid: result.id } });
-        document.dispatchEvent(event);
-      }
+      if (context.updatePanel) context.updatePanel(result.id);
     } else {
       logger.info('Already on this document, not creating duplicate history');
     }

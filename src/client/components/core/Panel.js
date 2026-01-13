@@ -348,7 +348,7 @@ const Panel = {
                       ? 'rgba(255,255,255,0.9)'
                       : 'rgba(0,0,0,0.85)'}; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
                   >
-                    ${obj.userInfo.username || obj.userInfo.email || 'Unknown'}
+                    ${obj.userInfo.username || 'Unknown'}
                   </a>
                   <span
                     style="font-size: 11px; color: ${darkTheme

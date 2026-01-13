@@ -207,26 +207,6 @@ const MenuUnderpost = {
           showCreatorProfile: true,
         });
 
-        // Store panel update function globally for search results
-        const updatePanelWithCid = (cid) => {
-          const path = getProxyPath();
-          const queryPath = `?cid=${cid}`;
-
-          // Update router without reload
-          if (RouterInstance && RouterInstance.Navigate) {
-            RouterInstance.Navigate({
-              route: 'home',
-              path,
-              queryPath,
-            });
-          }
-
-          // Trigger panel update event
-          if (PanelForm.Data['underpost-panel'] && PanelForm.Data['underpost-panel'].updatePanel) {
-            PanelForm.Data['underpost-panel'].updatePanel();
-          }
-        };
-
         // Register document search provider with SPA navigation
         SearchBox.registerProvider({
           ...DocumentSearchProvider,
@@ -235,7 +215,7 @@ const MenuUnderpost = {
               ...context,
               RouterInstance,
               currentRoute: 'home',
-              updatePanel: updatePanelWithCid,
+              updatePanel: PanelForm.Data['underpost-panel'].updatePanel,
             });
           },
         });
