@@ -46,13 +46,21 @@ const Responsive = {
     // alternative option
     // this.Observer = new ResizeObserver(this.resizeCallback);
     // this.Observer.observe(document.documentElement);
-    screen.orientation.addEventListener('change', (event) => {
-      const type = event.target.type; // landscape-primary | portrait-primary
-      const angle = event.target.angle; // 90 degrees.
-      logger.info(`ScreenOrientation change: ${type}, ${angle} degrees.`);
-      setTimeout(() => window.onresize({}, true));
-      Responsive.triggerEventsOrientation();
-    });
+
+    // Check if screen.orientation is available before adding event listener
+    if (
+      typeof screen !== 'undefined' &&
+      screen.orientation &&
+      typeof screen.orientation.addEventListener === 'function'
+    ) {
+      screen.orientation.addEventListener('change', (event) => {
+        const type = event.target.type; // landscape-primary | portrait-primary
+        const angle = event.target.angle; // 90 degrees.
+        logger.info(`ScreenOrientation change: ${type}, ${angle} degrees.`);
+        setTimeout(() => window.onresize({}, true));
+        Responsive.triggerEventsOrientation();
+      });
+    }
     Responsive.matchMediaOrientationInstance = matchMedia('screen and (orientation:portrait)');
 
     Responsive.matchMediaOrientationInstance.onchange = (e) => {
