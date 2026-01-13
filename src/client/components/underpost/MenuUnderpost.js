@@ -207,9 +207,16 @@ const MenuUnderpost = {
           showCreatorProfile: true,
         });
 
-        // Register document search provider with SPA navigation
+        // Register document search provider with SPA navigation and panel context
         SearchBox.registerProvider({
           ...DocumentSearchProvider,
+          search: async (query, context) => {
+            // Add idPanel to context to filter documents by panel tag
+            return DocumentSearchProvider.search(query, {
+              ...context,
+              idPanel: 'underpost-panel', // Filter documents by panel tag
+            });
+          },
           onClick: (result, context) => {
             DocumentSearchProvider.onClick(result, {
               ...context,

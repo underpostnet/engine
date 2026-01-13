@@ -38,6 +38,7 @@ const DocumentService = {
     // - Unauthenticated users: CAN see public documents (isPublic=true) from publishers (admin/moderator)
     // - Authenticated users: CAN see public documents from publishers + ALL their own documents (public or private)
     // - No user can see private documents from other users
+    // - PANEL FILTER: Only documents with idPanel tag are returned (prevents out-of-panel context results)
     if (req.path.startsWith('/public/high') && req.query['q']) {
       const rawQuery = req.query['q'];
       if (!rawQuery || typeof rawQuery !== 'string') {
@@ -52,6 +53,13 @@ const DocumentService = {
       }
       if (searchQuery.length > 100) {
         throw new Error('Search query too long (max 100 characters)');
+      }
+
+      // Get idPanel filter to prevent out-of-panel context results
+      const idPanel = req.query['idPanel'];
+      if (!idPanel || typeof idPanel !== 'string') {
+        logger.warn('Missing idPanel parameter for high-query search');
+        return { data: [] };
       }
 
       const publisherUsers = await User.find({ $or: [{ role: 'admin' }, { role: 'moderator' }] });
@@ -83,6 +91,7 @@ const DocumentService = {
         const queryPayload = {
           isPublic: true,
           userId: { $in: publisherUsers.map((p) => p._id) },
+          tags: { $in: [idPanel] }, // Filter by idPanel to prevent out-of-panel context results (tags is array)
         };
 
         const data = await Document.find(queryPayload)
@@ -154,6 +163,7 @@ const DocumentService = {
         const searchConditions = buildSearchConditions();
 
         queryPayload = {
+          tags: { $in: [idPanel] }, // Filter by idPanel to prevent out-of-panel context results (tags is array)
           $or: [
             {
               // Public documents from publishers (admin/moderator)
@@ -175,6 +185,7 @@ const DocumentService = {
         const searchConditions = buildSearchConditions();
 
         queryPayload = {
+          tags: { $in: [idPanel] }, // Filter by idPanel to prevent out-of-panel context results (tags is array)
           userId: { $in: publisherUsers.map((p) => p._id) },
           isPublic: true,
           $or: searchConditions, // ANY term in title OR tags

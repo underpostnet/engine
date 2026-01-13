@@ -42,11 +42,13 @@ const DocumentSearchProvider = {
    * Searches documents using the high-query endpoint with optimized matching.
    * Supports case-insensitive, multi-term, multi-field search for maximum results.
    * Minimum query length: 1 character for maximum flexibility.
+   * Filters by idPanel tag to prevent out-of-panel context results.
    * @memberof DocumentSearchProviderClient.DocumentSearchProvider
    * @param {string} query - The search query string.
    * @param {object} context - Search context object containing RouterInstance and options.
    * @param {object} [context.RouterInstance] - Router instance for navigation.
    * @param {object} [context.options] - Additional search options.
+   * @param {string} [context.idPanel] - Panel ID to filter documents by tag.
    * @returns {Promise<Array<object>>} Promise resolving to array of search result objects.
    * @returns {Promise<Array<{id: string, type: string, title: string, tags: Array<string>, createdAt: string, data: object}>>}
    */
@@ -60,6 +62,7 @@ const DocumentSearchProvider = {
       const response = await DocumentService.high({
         params: {
           q: query.trim(),
+          idPanel: context.idPanel, // Filter by panel tag to prevent out-of-panel context results
           limit: 7, // Increased limit for maximum results
         },
       });
