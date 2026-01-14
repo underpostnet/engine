@@ -467,8 +467,14 @@ const FileExplorer = {
             status,
           });
           if (status === 'success') {
-            s(`.btn-input-home-directory`).click();
+            // Clear the file input
             s(`.btn-clear-input-file-${idDropFileInput}`).click();
+            // Switch to explorer view with the uploaded location
+            setQueryParams({ tab: null, location: location }, { replace: false });
+            // Show explorer view, hide upload view
+            s(`.file-explorer-nav`).style.display = 'block';
+            s(`.file-explorer-uploader`).style.display = 'none';
+            s(`.file-explorer-query-nav`).value = location;
           }
         }
       });
