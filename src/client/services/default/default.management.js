@@ -910,18 +910,9 @@ const DefaultManagement = {
                   s(`.management-table-btn-save-${id}`).click();
                 }
               } else {
-                const body = event.data ? event.data : {};
-                result = await ServiceProvider.put({ id: event.data._id, body });
-                NotificationManager.Push({
-                  html: result.status === 'error' ? result.message : `${Translate.Render('success-update-item')}`,
-                  status: result.status,
-                });
-                if (result.status === 'success') {
-                  AgGrid.grids[gridId].applyTransaction({
-                    update: [event.data],
-                  });
-                  DefaultManagement.loadTable(id, { reload: false });
-                }
+                // Skip update here - onCellValueChanged already handles auto-save for existing rows
+                // This prevents duplicate notifications and API calls
+                return;
               }
             },
             ...(options.gridOptions ? options.gridOptions : undefined),
