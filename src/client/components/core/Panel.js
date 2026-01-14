@@ -644,6 +644,7 @@ const Panel = {
           break;
         case 'file':
           setTimeout(() => {
+            if (!s(`.${modelData.id}`)) return;
             s(`.${modelData.id}`).fileNameInputExtDefaultContent = fileNameInputExtDefaultContent;
             s(`.${modelData.id}`).onchange = async (e) => {
               if (!Object.keys(e.target.files).length) return;

@@ -5,7 +5,7 @@ import { AgGrid } from './AgGrid.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { getSubpaths, uniqueArray } from './CommonJs.js';
-import { darkTheme, renderCssAttr } from './Css.js';
+import { darkTheme, dynamicCol, renderCssAttr } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { fileFormDataFactory, Input, InputFile } from './Input.js';
 import { loggerFactory } from './Logger.js';
@@ -15,7 +15,7 @@ import { RouterEvents } from './Router.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { copyData, downloadFile, s } from './VanillaJs.js';
-import { getProxyPath, getQueryParams, setPath } from './Router.js';
+import { getProxyPath, getQueryParams, setPath, setQueryParams, listenQueryParamsChange } from './Router.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -94,6 +94,22 @@ const FileExplorer = {
     const query = getQueryParams();
     let location = query?.location ? this.locationFormat({ f: query }) : '/';
     let files, folders, documentId, documentInstance;
+
+    // Simple pagination state
+    const PAGE_SIZE = 5;
+    let currentPage = query?.page ? parseInt(query.page) - 1 : 0;
+    if (currentPage < 0) currentPage = 0;
+    let displayedFiles = [];
+
+    // Search filter state - initialize from URL query param
+    let searchFilters = {
+      title: query?.title || '',
+      mdFile: query?.mdFile || '',
+      file: query?.file || '',
+    };
+    let filteredFiles = [];
+    let isProcessingQueryChange = false; // Prevent recursion during URL sync
+    const queryParamsListenerId = `file-explorer-${idModal}`;
     const cleanData = () => {
       files = [];
       folders = [];
@@ -101,27 +117,89 @@ const FileExplorer = {
       documentInstance = [];
     };
     cleanData();
+    const applySearchFilter = () => {
+      filteredFiles = files;
+    };
+
+    const updatePaginationUI = () => {
+      const paginationInfo = s(`.file-explorer-pagination-info`);
+      const prevBtn = s(`.file-explorer-prev-btn`);
+      const nextBtn = s(`.file-explorer-next-btn`);
+      if (paginationInfo) {
+        const totalPages = Math.ceil(filteredFiles.length / PAGE_SIZE);
+        const showing =
+          searchFilters.title || searchFilters.mdFile || searchFilters.file
+            ? `${filteredFiles.length}/${files.length}`
+            : `${files.length}`;
+        paginationInfo.textContent = `${currentPage + 1} / ${totalPages || 1} (${showing} files)`;
+      }
+      if (prevBtn) {
+        prevBtn.disabled = currentPage === 0;
+        prevBtn.style.opacity = currentPage === 0 ? '0.5' : '1';
+        prevBtn.style.cursor = currentPage === 0 ? 'not-allowed' : 'pointer';
+      }
+      if (nextBtn) {
+        const isDisabled = (currentPage + 1) * PAGE_SIZE >= filteredFiles.length;
+        nextBtn.disabled = isDisabled;
+        nextBtn.style.opacity = isDisabled ? '0.5' : '1';
+        nextBtn.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
+      }
+    };
+
+    const getPagedFiles = () => {
+      const start = currentPage * PAGE_SIZE;
+      const end = start + PAGE_SIZE;
+      return filteredFiles.slice(start, end);
+    };
+
     FileExplorer.Api[idModal].displayList = async () => {
       if (!s(`.${idModal}`)) return;
       const query = getQueryParams();
       location = query?.location ? this.locationFormat({ f: query }) : '/';
       s(`.file-explorer-query-nav`).value = location;
-      const format = this.documentDataFormat({ document: documentInstance, location });
+
+      // Sync search filters from URL
+      searchFilters = {
+        title: query?.title || '',
+        mdFile: query?.mdFile || '',
+        file: query?.file || '',
+      };
+
+      if (s(`.file-explorer-search-title`)) s(`.file-explorer-search-title`).value = searchFilters.title;
+      if (s(`.file-explorer-search-md-file`)) s(`.file-explorer-search-md-file`).value = searchFilters.mdFile;
+      if (s(`.file-explorer-search-file`)) s(`.file-explorer-search-file`).value = searchFilters.file;
+
+      const format = this.documentDataFormat({ document: documentInstance, location, searchFilters });
       files = format.files;
       folders = format.folders;
-      AgGrid.grids[gridFileId].setGridOption('rowData', files);
+      applySearchFilter();
+      const queryPage = query?.page ? parseInt(query.page) - 1 : 0;
+      currentPage = queryPage >= 0 ? queryPage : 0;
+      displayedFiles = getPagedFiles();
+      AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
       AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+      updatePaginationUI();
     };
     FileExplorer.Api[idModal].updateData = async (optionsUpdate = { display: false }) => {
       if (!s(`.${idModal}`)) return;
       if (Auth.getToken()) {
         try {
-          const { status, data: document } = await DocumentService.get();
-          const format = this.documentDataFormat({ document, location });
+          const { status, data: responseData } = await DocumentService.get({
+            params: {
+              searchTitle: searchFilters.title,
+              searchMdFile: searchFilters.mdFile,
+              searchFile: searchFilters.file,
+              location,
+            },
+          });
+          // Handle both old format (array) and new format with pagination
+          const document = Array.isArray(responseData) ? responseData : responseData.data || [];
+          const format = this.documentDataFormat({ document, location, searchFilters });
           files = format.files;
           documentId = format.documentId;
           folders = format.folders;
           documentInstance = document;
+          applySearchFilter();
         } catch (error) {
           logger.error(error);
           NotificationManager.Push({
@@ -142,6 +220,180 @@ const FileExplorer = {
           await FileExplorer.Api[idModal].displayList();
         });
     };
+
+    // Listen for query param changes (browser back/forward navigation)
+    listenQueryParamsChange({
+      id: queryParamsListenerId,
+      event: async (queryParams) => {
+        if (!s(`.${idModal}`)) return;
+        if (isProcessingQueryChange) return;
+
+        const tab = queryParams?.tab || '';
+        if (tab === 'upload') {
+          s(`.file-explorer-nav`).style.display = 'none';
+          s(`.file-explorer-uploader`).style.display = 'block';
+        } else {
+          s(`.file-explorer-nav`).style.display = 'block';
+          s(`.file-explorer-uploader`).style.display = 'none';
+        }
+
+        const page = queryParams?.page ? parseInt(queryParams.page) - 1 : 0;
+        if (page !== currentPage) {
+          currentPage = page >= 0 ? page : 0;
+          displayedFiles = getPagedFiles();
+          if (AgGrid.grids[gridFileId]) {
+            AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
+          }
+          updatePaginationUI();
+        }
+
+        const newFilters = {
+          title: queryParams?.title || '',
+          mdFile: queryParams?.mdFile || '',
+          file: queryParams?.file || '',
+        };
+
+        if (
+          newFilters.title !== searchFilters.title ||
+          newFilters.mdFile !== searchFilters.mdFile ||
+          newFilters.file !== searchFilters.file
+        ) {
+          isProcessingQueryChange = true;
+          searchFilters = newFilters;
+
+          if (s(`.file-explorer-search-title`)) s(`.file-explorer-search-title`).value = searchFilters.title;
+          if (s(`.file-explorer-search-md-file`)) s(`.file-explorer-search-md-file`).value = searchFilters.mdFile;
+          if (s(`.file-explorer-search-file`)) s(`.file-explorer-search-file`).value = searchFilters.file;
+
+          await FileExplorer.Api[idModal].updateData({ display: true });
+
+          setTimeout(() => {
+            isProcessingQueryChange = false;
+          }, 100);
+        }
+      },
+    });
+
+    // Pagination button event handlers
+    setTimeout(() => {
+      EventsUI.onClick(`.file-explorer-prev-btn`, (e) => {
+        e.preventDefault();
+        if (currentPage > 0) {
+          setQueryParams({ page: currentPage }, { replace: false });
+        }
+      });
+
+      EventsUI.onClick(`.file-explorer-next-btn`, (e) => {
+        e.preventDefault();
+        if ((currentPage + 1) * PAGE_SIZE < filteredFiles.length) {
+          setQueryParams({ page: currentPage + 2 }, { replace: false });
+        }
+      });
+
+      // Search input handlers
+      let searchTimeout;
+
+      const setupSearchInput = (selector, key) => {
+        const el = s(selector);
+        if (el) {
+          if (searchFilters[key]) el.value = searchFilters[key];
+          el.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+              const val = e.target.value.trim();
+              if (val === searchFilters[key]) return;
+
+              isProcessingQueryChange = true;
+              searchFilters[key] = val;
+              await FileExplorer.Api[idModal].updateData({ display: true });
+
+              const queryParams = {};
+              if (searchFilters.title) queryParams.title = searchFilters.title;
+              if (searchFilters.mdFile) queryParams.mdFile = searchFilters.mdFile;
+              if (searchFilters.file) queryParams.file = searchFilters.file;
+
+              if (!searchFilters.title) queryParams.title = null;
+              if (!searchFilters.mdFile) queryParams.mdFile = null;
+              if (!searchFilters.file) queryParams.file = null;
+
+              queryParams.page = 1;
+
+              setQueryParams(queryParams, { replace: false });
+
+              setTimeout(() => {
+                isProcessingQueryChange = false;
+              }, 100);
+            }, 300);
+          });
+          el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') e.preventDefault();
+          });
+        }
+      };
+
+      setupSearchInput(`.file-explorer-search-title`, 'title');
+      setupSearchInput(`.file-explorer-search-md-file`, 'mdFile');
+      setupSearchInput(`.file-explorer-search-file`, 'file');
+
+      // Submit search button
+      EventsUI.onClick(`.file-explorer-search-submit`, async (e) => {
+        e.preventDefault();
+        clearTimeout(searchTimeout);
+
+        const titleVal = s(`.file-explorer-search-title`)?.value.trim() || '';
+        const mdFileVal = s(`.file-explorer-search-md-file`)?.value.trim() || '';
+        const fileVal = s(`.file-explorer-search-file`)?.value.trim() || '';
+
+        searchFilters = { title: titleVal, mdFile: mdFileVal, file: fileVal };
+
+        isProcessingQueryChange = true;
+
+        const queryParams = {};
+        if (searchFilters.title) queryParams.title = searchFilters.title;
+        if (searchFilters.mdFile) queryParams.mdFile = searchFilters.mdFile;
+        if (searchFilters.file) queryParams.file = searchFilters.file;
+
+        if (!searchFilters.title) queryParams.title = null;
+        if (!searchFilters.mdFile) queryParams.mdFile = null;
+        if (!searchFilters.file) queryParams.file = null;
+
+        queryParams.page = 1;
+
+        setQueryParams(queryParams, { replace: false });
+
+        await FileExplorer.Api[idModal].updateData({ display: true });
+
+        setTimeout(() => {
+          isProcessingQueryChange = false;
+        }, 100);
+      });
+
+      // Clear search button
+      EventsUI.onClick(`.file-explorer-search-clear`, (e) => {
+        e.preventDefault();
+
+        if (!searchFilters.title && !searchFilters.mdFile && !searchFilters.file) return;
+
+        isProcessingQueryChange = true;
+        if (s(`.file-explorer-search-title`)) s(`.file-explorer-search-title`).value = '';
+        if (s(`.file-explorer-search-md-file`)) s(`.file-explorer-search-md-file`).value = '';
+        if (s(`.file-explorer-search-file`)) s(`.file-explorer-search-file`).value = '';
+
+        searchFilters = { title: '', mdFile: '', file: '' };
+
+        applySearchFilter();
+        currentPage = 0;
+        displayedFiles = getPagedFiles();
+        AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
+        updatePaginationUI();
+
+        setQueryParams({ title: null, mdFile: null, file: null, page: 1 }, { replace: false });
+
+        setTimeout(() => {
+          isProcessingQueryChange = false;
+        }, 100);
+      });
+    });
 
     setTimeout(async () => {
       FileExplorer.Api[idModal].updateData({ display: true });
@@ -204,8 +456,12 @@ const FileExplorer = {
           const format = this.documentDataFormat({ document: documentInstance, location });
           files = format.files;
           folders = format.folders;
-          AgGrid.grids[gridFileId].setGridOption('rowData', files);
+          applySearchFilter();
+          currentPage = 0;
+          displayedFiles = getPagedFiles();
+          AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
           AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+          updatePaginationUI();
           NotificationManager.Push({
             html: Translate.Render(`${status}-upload-file`),
             status,
@@ -229,19 +485,26 @@ const FileExplorer = {
       });
       EventsUI.onClick(`.btn-input-home-directory`, async (e) => {
         e.preventDefault();
+
+        if (getQueryParams()?.tab === 'upload') {
+          setQueryParams({ tab: null }, { replace: false });
+          return;
+        }
+
         let newLocation = '/';
-        if (s(`.file-explorer-uploader`).style.display !== 'none') {
-          s(`.file-explorer-uploader`).style.display = 'none';
-          s(`.file-explorer-nav`).style.display = 'block';
-        } else if (newLocation === location) return;
-        else location = newLocation;
+        if (newLocation === location) return;
+        location = newLocation;
         setPath(`${window.location.pathname}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
         const format = this.documentDataFormat({ document: documentInstance, location });
         files = format.files;
         folders = format.folders;
-        AgGrid.grids[gridFileId].setGridOption('rowData', files);
+        applySearchFilter();
+        currentPage = 0;
+        displayedFiles = getPagedFiles();
+        AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
         AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+        updatePaginationUI();
       });
       EventsUI.onClick(`.btn-input-copy-directory`, async (e) => {
         e.preventDefault();
@@ -261,8 +524,7 @@ const FileExplorer = {
       });
       EventsUI.onClick(`.btn-input-upload-file`, async (e) => {
         e.preventDefault();
-        s(`.file-explorer-nav`).style.display = 'none';
-        s(`.file-explorer-uploader`).style.display = 'block';
+        setQueryParams({ tab: 'upload' }, { replace: false });
       });
     });
 
@@ -313,7 +575,10 @@ const FileExplorer = {
           const url = `${window.location.origin}${uri}`;
 
           const originObj = documentInstance.find((d) => d._id === params.data._id);
-          const blobUri = originObj ? getApiBaseUrl({ id: originObj.fileId._id, endpoint: 'file/blob' }) : undefined;
+          const blobUri =
+            originObj && originObj.fileId
+              ? getApiBaseUrl({ id: originObj.fileId._id, endpoint: 'file/blob' })
+              : undefined;
 
           if (!originObj) {
             s(`.btn-file-view-${params.data._id}`).classList.add('hide');
@@ -396,10 +661,12 @@ const FileExplorer = {
               const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
               files = format.files;
               folders = format.folders;
+              applySearchFilter();
               // AgGrid.grids[gridFileId].setGridOption('rowData', files);
               // const selectedData = gridApi.getSelectedRows();
               AgGrid.grids[gridFileId].applyTransaction({ remove: [params.data] });
               AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+              updatePaginationUI();
             },
             { context: 'modal' },
           );
@@ -552,8 +819,12 @@ const FileExplorer = {
               const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
               files = format.files;
               folders = format.folders;
-              AgGrid.grids[gridFileId].setGridOption('rowData', files);
+              applySearchFilter();
+              currentPage = 0;
+              displayedFiles = getPagedFiles();
+              AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
               AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+              updatePaginationUI();
             },
             { context: 'modal' },
           );
@@ -620,6 +891,57 @@ const FileExplorer = {
             value: location,
           })}
         </div>
+        ${dynamicCol({
+          containerSelector: 'file-explorer-search-container',
+          id: 'file-explorer-search',
+          type: 'search-inputs',
+        })}
+        <div class="fl file-explorer-search-container">
+          <div class="in fll file-explorer-search-col-a">
+            ${await Input.Render({
+              id: `file-explorer-search-title`,
+              type: 'text',
+              label: html`<i class="fas fa-search"></i> ${Translate.Render('doc-title')}`,
+              containerClass: 'in section-mp input-container-width',
+              placeholder: true,
+            })}
+          </div>
+          <div class="in fll file-explorer-search-col-b">
+            ${await Input.Render({
+              id: `file-explorer-search-md-file`,
+              type: 'text',
+              label: html`<i class="fas fa-file-code"></i> ${Translate.Render('md-file-name')}`,
+              containerClass: 'in section-mp input-container-width',
+              placeholder: true,
+            })}
+          </div>
+          <div class="in fll file-explorer-search-col-c">
+            ${await Input.Render({
+              id: `file-explorer-search-file`,
+              type: 'text',
+              label: html`<i class="fas fa-file"></i> ${Translate.Render('generic-file-name')}`,
+              containerClass: 'in section-mp input-container-width',
+              placeholder: true,
+            })}
+          </div>
+          <div
+            class="in fll file-explorer-search-col-d"
+            style="display: flex; align-items: center; justify-content: center; height: 100%;"
+          >
+            ${await BtnIcon.Render({
+              class: 'in management-table-btn-mini file-explorer-search-submit',
+              label: html`<i class="fas fa-search"></i>`,
+              type: 'button',
+              style: 'top: 10px; margin-right: 5px;',
+            })}
+            ${await BtnIcon.Render({
+              class: 'in management-table-btn-mini file-explorer-search-clear',
+              label: html`<i class="fas fa-broom"></i>`,
+              type: 'button',
+              style: 'top: 10px',
+            })}
+          </div>
+        </div>
       </form>
       <div class="fl file-explorer-nav">
         <div class="in fll explorer-file-col">
@@ -659,8 +981,12 @@ const FileExplorer = {
                         const format = this.documentDataFormat({ document: documentInstance, location });
                         files = format.files;
                         folders = format.folders;
-                        AgGrid.grids[gridFileId].setGridOption('rowData', files);
+                        applySearchFilter();
+                        currentPage = 0;
+                        displayedFiles = getPagedFiles();
+                        AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
                         AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+                        updatePaginationUI();
                       },
                     },
                     {
@@ -694,8 +1020,12 @@ const FileExplorer = {
                       const format = this.documentDataFormat({ document: documentInstance, location });
                       files = format.files;
                       folders = format.folders;
-                      AgGrid.grids[gridFileId].setGridOption('rowData', files);
+                      applySearchFilter();
+                      currentPage = 0;
+                      displayedFiles = getPagedFiles();
+                      AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
                       AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+                      updatePaginationUI();
                     }
                   },
                 },
@@ -722,12 +1052,37 @@ const FileExplorer = {
                   // rowData: files,
                   rowData: undefined,
                   columnDefs: [
-                    { field: 'name', flex: 2, headerName: 'Name', cellRenderer: LoadFileNameRenderer },
+                    { field: 'name', flex: 2, headerName: 'Title', cellRenderer: LoadFileNameRenderer },
+                    { field: 'mdFileName', flex: 1, headerName: 'MD File Name' },
+                    { field: 'fileName', flex: 1, headerName: 'Generic File Name' },
                     { field: 'mimetype', flex: 1, headerName: 'Type' },
                     { headerName: '', width: 120, cellRenderer: LoadFileActionsRenderer },
                   ],
                 },
               })}
+            </div>
+            <div class="fl file-explorer-pagination" style="padding: 5px 0;">
+              <div class="in fll" style="width: 33.33%;">
+                ${await BtnIcon.Render({
+                  class: 'in wfa file-explorer-prev-btn',
+                  label: html`<i class="fa-solid fa-chevron-left"></i> ${Translate.Render('previous')}`,
+                  type: 'button',
+                })}
+              </div>
+              <div class="in fll" style="width: 33.33%; text-align: center;">
+                <span
+                  class="file-explorer-pagination-info"
+                  style="display: inline-block; padding: 8px 0; min-width: 100px;"
+                  >1 / 1 (0 files)</span
+                >
+              </div>
+              <div class="in fll" style="width: 33.33%;">
+                ${await BtnIcon.Render({
+                  class: 'in wfa file-explorer-next-btn',
+                  label: html`${Translate.Render('next')} <i class="fa-solid fa-chevron-right"></i>`,
+                  type: 'button',
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -771,19 +1126,20 @@ const FileExplorer = {
     if (f.location !== '/' && f.location[f.location.length - 1] === '/') f.location = f.location.slice(0, -1);
     return f.location;
   },
-  documentDataFormat: function ({ document, location }) {
+  documentDataFormat: function ({ document, location, searchFilters }) {
     let files = document.map((f) => {
-      if (!f.fileId)
-        f.fileId = {
-          name: f.title + '.md',
-          mimetype: 'text/markdown',
-          _id: f.mdFileId,
-        };
+      const fileId = f.fileId || {
+        name: f.title + '.md',
+        mimetype: 'text/markdown',
+        _id: f.mdFileId,
+      };
       return {
         location: this.locationFormat({ f }),
-        name: f.fileId.name,
-        mimetype: f.fileId.mimetype,
-        fileId: f.fileId._id,
+        name: f.title,
+        mdFileName: f.mdFileId ? f.mdFileId.name : '',
+        fileName: f.fileId ? f.fileId.name : '',
+        mimetype: fileId.mimetype,
+        fileId: fileId._id,
         _id: f._id,
         title: f.title,
         isPublic: f.isPublic || false,
@@ -799,14 +1155,26 @@ const FileExplorer = {
         locationId: `loc-${i}`,
       };
     });
-    files = files.filter((f) => f.location === location);
-    folders = folders
-      .filter((f) => f.location.startsWith(location))
-      .map((f) => {
-        f.fileCount = document.filter((file) => file.location === f.location).length;
-        return f;
-      })
-      .filter((f) => f.fileCount > 0);
+
+    const isSearching = searchFilters && (searchFilters.title || searchFilters.mdFile || searchFilters.file);
+
+    if (!isSearching) {
+      files = files.filter((f) => f.location === location);
+      folders = folders
+        .filter((f) => f.location.startsWith(location))
+        .map((f) => {
+          f.fileCount = document.filter((file) => file.location === f.location).length;
+          return f;
+        })
+        .filter((f) => f.fileCount > 0);
+    } else {
+      folders = folders
+        .map((f) => {
+          f.fileCount = files.filter((file) => file.location === f.location).length;
+          return f;
+        })
+        .filter((f) => f.fileCount > 0);
+    }
     return { files, documentId, folders };
   },
 };

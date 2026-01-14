@@ -32,7 +32,8 @@ const Content = {
         if (!queryParams.cid) throw new Error(`no-result-found`);
 
         {
-          const { data, status, message } = await DocumentService.get({ id: queryParams.cid });
+          const { data: responseData, status, message } = await DocumentService.get({ id: queryParams.cid });
+          const data = Array.isArray(responseData) ? responseData : responseData?.data || [];
           if (status !== 'success' || !data || !data[0]) {
             logger.error(message);
             throw new Error(`no-result-found`);
@@ -81,7 +82,6 @@ const Content = {
         if (file) await this.RenderFile({ idModal, file, id: file._id });
         Modal.Data[idModal].onObserverListener[`main-content-observer`]();
       } catch (error) {
-        logger.error(error);
         htmls(`.content-render-${idModal}`, '');
         htmls(`.error-${idModal}`, html`<i class="fas fa-exclamation-circle"></i> ${Translate.Render(error.message)}`);
         s(`.error-${idModal}`).classList.remove('hide');

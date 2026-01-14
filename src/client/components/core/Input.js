@@ -43,7 +43,9 @@ const fileFormDataFactory = (e, extensions) => {
       logger.error('Invalid file extension', e.target.files[keyFile]);
       continue;
     }
-    form.append(e.target.files[keyFile].name, e.target.files[keyFile]);
+    // form.append(e.target.files[keyFile].name, e.target.files[keyFile]);
+    // Use standard 'file' field name for all files - server expects this format
+    form.append('file', e.target.files[keyFile]);
   }
   return form;
 };

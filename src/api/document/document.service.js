@@ -31,6 +31,8 @@ const DocumentService = {
     const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
     /** @type {import('../user/user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
+    /** @type {import('../file/file.model.js').FileModel} */
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 
     // High-query endpoint for typeahead search
     //
@@ -373,27 +375,65 @@ const DocumentService = {
 
     switch (req.params.id) {
       default: {
-        const data = await Document.find({
+        // Simple pagination support for FileExplorer
+        const limit = req.query.limit ? parseInt(req.query.limit, 10) : 50;
+        const skip = req.query.skip ? parseInt(req.query.skip, 10) : 0;
+
+        // Search filter parameters
+        const searchTitle = req.query.searchTitle ? req.query.searchTitle.trim() : '';
+        const searchMdFile = req.query.searchMdFile ? req.query.searchMdFile.trim() : '';
+        const searchFile = req.query.searchFile ? req.query.searchFile.trim() : '';
+
+        const query = {
           userId: req.auth.user._id,
           ...(req.params.id ? { _id: req.params.id } : undefined),
-        })
+        };
+
+        // Filter by title
+        if (searchTitle) {
+          const searchRegex = searchTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          query.title = { $regex: searchRegex, $options: 'i' };
+        }
+
+        // Filter by markdown file name
+        if (searchMdFile) {
+          const searchRegex = searchMdFile.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const files = await File.find({ name: { $regex: searchRegex, $options: 'i' } }).select('_id');
+          query.mdFileId = { $in: files.map((f) => f._id) };
+        }
+
+        // Filter by generic file name
+        if (searchFile) {
+          const searchRegex = searchFile.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const files = await File.find({ name: { $regex: searchRegex, $options: 'i' } }).select('_id');
+          query.fileId = { $in: files.map((f) => f._id) };
+        }
+
+        // Get total count for pagination
+        const totalCount = await Document.countDocuments(query);
+
+        const data = await Document.find(query)
+          .sort({ createdAt: -1 })
+          .limit(limit)
+          .skip(skip)
           .populate(DocumentDto.populate.file())
           .populate(DocumentDto.populate.mdFile())
           .populate(DocumentDto.populate.user());
 
-        // Add totalCopyShareLinkCount to each document and filter 'public' from tags
-        return data.map((doc) => {
-          const docObj = doc.toObject ? doc.toObject() : doc;
-
-          // Remove role field from userId before sending to client
-          delete docObj.userId.role;
-          return {
-            ...docObj,
-            userId: docObj.userId,
-            tags: DocumentDto.filterPublicTag(docObj.tags),
-            totalCopyShareLinkCount: DocumentDto.getTotalCopyShareLinkCount(doc),
-          };
-        });
+        return {
+          data,
+          pagination: {
+            totalCount,
+            limit,
+            skip,
+            hasMore: skip + data.length < totalCount,
+            search: {
+              title: searchTitle,
+              mdFile: searchMdFile,
+              file: searchFile,
+            },
+          },
+        };
       }
     }
   },

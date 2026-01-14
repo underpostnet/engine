@@ -340,6 +340,36 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
               );
             break;
 
+          case 'search-inputs':
+            if (s(`.${containerSelector}`).offsetWidth < limitCol)
+              htmls(
+                `.style-${id}-col`,
+                css`
+                  .${id}-col-a, .${id}-col-b, .${id}-col-c, .${id}-col-d {
+                    width: 100%;
+                  }
+                `,
+              );
+            else
+              htmls(
+                `.style-${id}-col`,
+                css`
+                  .${id}-col-a {
+                    width: 30%;
+                  }
+                  .${id}-col-b {
+                    width: 30%;
+                  }
+                  .${id}-col-c {
+                    width: 30%;
+                  }
+                  .${id}-col-d {
+                    width: 10%;
+                  }
+                `,
+              );
+            break;
+
           default:
             if (s(`.${containerSelector}`).offsetWidth < 900)
               htmls(
