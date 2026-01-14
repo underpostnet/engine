@@ -764,6 +764,9 @@ const FileExplorer = {
               const hasMdFile = !!(originDoc && originDoc.mdFileId);
               const hasGenericFile = !!(originDoc && originDoc.fileId);
 
+              const mdFileMimetype = hasMdFile ? originDoc.mdFileId.mimetype : '';
+              const genericFileMimetype = hasGenericFile ? originDoc.fileId.mimetype : '';
+
               const editFormHtml = async () => {
                 return html`
                   <div class="in edit-document-form" style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -795,7 +798,8 @@ const FileExplorer = {
                         ? await Input.Render({
                             id: `edit-doc-md-file-${params.data._id}`,
                             type: 'text',
-                            label: html`<i class="fas fa-file-code"></i> ${Translate.Render('md-file-name')}`,
+                            label: html`<i class="fas fa-file-code"></i> ${Translate.Render('md-file-name')}
+                              <span style="font-size: 11px; color: #888; margin-left: 8px;">(${mdFileMimetype})</span>`,
                             containerClass: 'in section-mp input-container-width',
                             placeholder: true,
                             value: params.data.mdFileName || '',
@@ -820,7 +824,10 @@ const FileExplorer = {
                         ? await Input.Render({
                             id: `edit-doc-file-${params.data._id}`,
                             type: 'text',
-                            label: html`<i class="fas fa-file"></i> ${Translate.Render('generic-file-name')}`,
+                            label: html`<i class="fas fa-file"></i> ${Translate.Render('generic-file-name')}
+                              <span style="font-size: 11px; color: #888; margin-left: 8px;"
+                                >(${genericFileMimetype})</span
+                              >`,
                             containerClass: 'in section-mp input-container-width',
                             placeholder: true,
                             value: params.data.fileName || '',
@@ -969,13 +976,6 @@ const FileExplorer = {
                           }
                         }
 
-                        // If location changed, navigate to the new location
-                        if (locationChanged) {
-                          location = formattedLocation;
-                          setPath(`${window.location.pathname}?location=${location}`);
-                          s(`.file-explorer-query-nav`).value = location;
-                        }
-
                         // Refresh the grid with new location
                         const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
                         files = format.files;
@@ -991,6 +991,16 @@ const FileExplorer = {
                           html: Translate.Render('success-update-document'),
                           status: 'success',
                         });
+
+                        // If location changed, navigate to the new location
+                        if (!s(`.file-explorer-query-nav`)) s(`.main-btn-cloud`).click();
+
+                        if (locationChanged)
+                          setTimeout(() => {
+                            location = formattedLocation;
+                            setPath(`${window.location.pathname}?location=${location}`);
+                            s(`.file-explorer-query-nav`).value = location;
+                          });
 
                         Modal.removeModal(editModalId);
                       } else {
@@ -1331,7 +1341,6 @@ const FileExplorer = {
                     { field: 'name', flex: 2, headerName: 'Title', cellRenderer: LoadFileNameRenderer },
                     { field: 'mdFileName', flex: 1, headerName: 'MD File Name' },
                     { field: 'fileName', flex: 1, headerName: 'Generic File Name' },
-                    { field: 'mimetype', flex: 1, headerName: 'Type' },
                     { headerName: '', width: 150, cellRenderer: LoadFileActionsRenderer },
                   ],
                 },
@@ -1404,15 +1413,11 @@ const FileExplorer = {
   },
   documentDataFormat: function ({ document, location, searchFilters }) {
     let files = document.map((f) => {
-      // Determine mimetype from available files (prefer generic file, fallback to md file)
-      const mimetype = f.fileId?.mimetype || f.mdFileId?.mimetype || 'application/octet-stream';
-
       return {
         location: this.locationFormat({ f }),
         name: f.title,
         mdFileName: f.mdFileId?.name || '',
         fileName: f.fileId?.name || '',
-        mimetype: mimetype,
         // Use the actual file ID for operations (prefer generic file, fallback to md file)
         fileId: f.fileId?._id || f.mdFileId?._id || null,
         _id: f._id,
