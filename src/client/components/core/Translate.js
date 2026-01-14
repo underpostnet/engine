@@ -411,6 +411,42 @@ const TranslateCore = {
       en: 'Generic File Name',
       es: 'Nombre de archivo genérico',
     };
+    Translate.Data['edit-document'] = {
+      en: 'Edit Document',
+      es: 'Editar documento',
+    };
+    Translate.Data['location'] = {
+      en: 'Location',
+      es: 'Ubicación',
+    };
+    Translate.Data['save'] = {
+      en: 'Save',
+      es: 'Guardar',
+    };
+    Translate.Data['success-update-document'] = {
+      en: 'Document updated successfully.',
+      es: 'Documento actualizado con éxito.',
+    };
+    Translate.Data['error-update-document'] = {
+      en: 'Error updating document.',
+      es: 'Error al actualizar el documento.',
+    };
+    Translate.Data['error-title-required'] = {
+      en: 'Title is required.',
+      es: 'El título es obligatorio.',
+    };
+    Translate.Data['editing'] = {
+      en: 'Editing',
+      es: 'Editando',
+    };
+    Translate.Data['no-md-file-attached'] = {
+      en: 'No markdown file attached to this document',
+      es: 'No hay archivo markdown adjunto a este documento',
+    };
+    Translate.Data['no-generic-file-attached'] = {
+      en: 'No generic file attached to this document',
+      es: 'No hay archivo genérico adjunto a este documento',
+    };
     Translate.Data['success-delete-account'] = {
       en: 'Account deleted successfully.',
       es: 'Cuenta borrada con éxito.',

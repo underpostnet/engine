@@ -5,11 +5,11 @@ import { AgGrid } from './AgGrid.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { getSubpaths, uniqueArray } from './CommonJs.js';
-import { darkTheme, dynamicCol, renderCssAttr } from './Css.js';
+import { Css, darkTheme, dynamicCol, renderCssAttr, Themes } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { fileFormDataFactory, Input, InputFile } from './Input.js';
 import { loggerFactory } from './Logger.js';
-import { Modal } from './Modal.js';
+import { Modal, renderViewTitle } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
 import { RouterEvents } from './Router.js';
 import { Translate } from './Translate.js';
@@ -561,6 +561,11 @@ const FileExplorer = {
               type: 'button',
             })}
             ${await BtnIcon.Render({
+              class: `in fll management-table-btn-mini btn-file-edit-${params.data._id}`,
+              label: html`<i class="fas fa-edit"></i>`,
+              type: 'button',
+            })}
+            ${await BtnIcon.Render({
               class: `in fll management-table-btn-mini ${toggleId}`,
               label: isPublic
                 ? html`<i class="fas fa-globe" style="color: #4caf50;"></i>`
@@ -741,6 +746,277 @@ const FileExplorer = {
                   status: 'error',
                 });
               }
+            },
+            { context: 'modal' },
+          );
+
+          // Edit document button
+          EventsUI.onClick(
+            `.btn-file-edit-${params.data._id}`,
+            async (e) => {
+              e.preventDefault();
+
+              // Get the original document data from documentInstance
+              const originDoc = documentInstance.find((d) => d._id === params.data._id);
+              const editModalId = `edit-doc-${params.data._id}`;
+
+              // Check file existence for proper UX
+              const hasMdFile = !!(originDoc && originDoc.mdFileId);
+              const hasGenericFile = !!(originDoc && originDoc.fileId);
+
+              const editFormHtml = async () => {
+                return html`
+                  <div class="in edit-document-form" style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <!-- Header -->
+                    <div
+                      class="in"
+                      style="text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid rgba(128,128,128,0.3);"
+                    >
+                      <p style="color: #888; font-size: 14px; margin: 0;">
+                        ${Translate.Render('editing')}: <strong style="color: inherit;">${params.data.title}</strong>
+                      </p>
+                    </div>
+
+                    <!-- Document Title -->
+                    <div class="in section-mp" style="margin-bottom: 20px;">
+                      ${await Input.Render({
+                        id: `edit-doc-title-${params.data._id}`,
+                        type: 'text',
+                        label: html`<i class="fas fa-heading"></i> ${Translate.Render('doc-title')}`,
+                        containerClass: 'in section-mp input-container-width',
+                        placeholder: true,
+                        value: params.data.title || '',
+                      })}
+                    </div>
+
+                    <!-- MD File Name -->
+                    <div class="in section-mp" style="margin-bottom: 20px;">
+                      ${hasMdFile
+                        ? await Input.Render({
+                            id: `edit-doc-md-file-${params.data._id}`,
+                            type: 'text',
+                            label: html`<i class="fas fa-file-code"></i> ${Translate.Render('md-file-name')}`,
+                            containerClass: 'in section-mp input-container-width',
+                            placeholder: true,
+                            value: params.data.mdFileName || '',
+                          })
+                        : html`
+                            <div class="in section-mp input-container-width" style="opacity: 0.6;">
+                              <label style="display: block; margin-bottom: 5px;">
+                                <i class="fas fa-file-code"></i> ${Translate.Render('md-file-name')}
+                              </label>
+                              <div
+                                style="padding: 10px 12px; border: 1px dashed rgba(128,128,128,0.5); border-radius: 4px; color: #888; font-style: italic;"
+                              >
+                                <i class="fas fa-info-circle"></i> ${Translate.Render('no-md-file-attached')}
+                              </div>
+                            </div>
+                          `}
+                    </div>
+
+                    <!-- Generic File Name -->
+                    <div class="in section-mp" style="margin-bottom: 20px;">
+                      ${hasGenericFile
+                        ? await Input.Render({
+                            id: `edit-doc-file-${params.data._id}`,
+                            type: 'text',
+                            label: html`<i class="fas fa-file"></i> ${Translate.Render('generic-file-name')}`,
+                            containerClass: 'in section-mp input-container-width',
+                            placeholder: true,
+                            value: params.data.fileName || '',
+                          })
+                        : html`
+                            <div class="in section-mp input-container-width" style="opacity: 0.6;">
+                              <label style="display: block; margin-bottom: 5px;">
+                                <i class="fas fa-file"></i> ${Translate.Render('generic-file-name')}
+                              </label>
+                              <div
+                                style="padding: 10px 12px; border: 1px dashed rgba(128,128,128,0.5); border-radius: 4px; color: #888; font-style: italic;"
+                              >
+                                <i class="fas fa-info-circle"></i> ${Translate.Render('no-generic-file-attached')}
+                              </div>
+                            </div>
+                          `}
+                    </div>
+
+                    <!-- Location -->
+                    <div class="in section-mp" style="margin-bottom: 25px;">
+                      ${await Input.Render({
+                        id: `edit-doc-location-${params.data._id}`,
+                        type: 'text',
+                        label: html`<i class="fas fa-folder"></i> ${Translate.Render('location')}`,
+                        containerClass: 'in section-mp input-container-width',
+                        placeholder: true,
+                        value: params.data.location || '/',
+                      })}
+                    </div>
+
+                    <!-- Buttons -->
+                    <div
+                      class="fl"
+                      style="margin-top: 30px; border-top: 1px solid rgba(128,128,128,0.3); padding-top: 20px;"
+                    >
+                      <div class="in fll" style="width: 50%; padding: 5px;">
+                        ${await BtnIcon.Render({
+                          class: `in wfa btn-edit-doc-cancel-${params.data._id}`,
+                          label: html`<i class="fas fa-times"></i> ${Translate.Render('cancel')}`,
+                          type: 'button',
+                        })}
+                      </div>
+                      <div class="in fll" style="width: 50%; padding: 5px;">
+                        ${await BtnIcon.Render({
+                          class: `in wfa btn-edit-doc-submit-${params.data._id}`,
+                          label: html`<i class="fas fa-save"></i> ${Translate.Render('save')}`,
+                          type: 'button',
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                `;
+              };
+
+              const { barConfig } = await Themes[Css.currentTheme]();
+
+              await Modal.Render({
+                id: editModalId,
+                barConfig,
+                title: renderViewTitle({
+                  icon: html`<i class="fas fa-edit"></i>`,
+                  text: Translate.Render('edit-document'),
+                }),
+                html: editFormHtml,
+                handleType: 'bar',
+                maximize: true,
+                mode: 'view',
+                slideMenu: 'modal-menu',
+                RouterInstance: Modal.Data[options.idModal].options.RouterInstance,
+                barMode: Modal.Data[options.idModal].options.barMode,
+              });
+
+              // Handle submit button
+              setTimeout(() => {
+                EventsUI.onClick(
+                  `.btn-edit-doc-submit-${params.data._id}`,
+                  async (ev) => {
+                    ev.preventDefault();
+
+                    const newTitle = s(`.edit-doc-title-${params.data._id}`).value.trim();
+                    const newLocation = s(`.edit-doc-location-${params.data._id}`).value.trim();
+
+                    // Get file names only if files exist
+                    const newMdFileName = hasMdFile ? s(`.edit-doc-md-file-${params.data._id}`)?.value.trim() : null;
+                    const newFileName = hasGenericFile ? s(`.edit-doc-file-${params.data._id}`)?.value.trim() : null;
+
+                    if (!newTitle) {
+                      NotificationManager.Push({
+                        html: Translate.Render('error-title-required'),
+                        status: 'error',
+                      });
+                      return;
+                    }
+
+                    const formattedLocation = FileExplorer.locationFormat({ f: { location: newLocation || '/' } });
+
+                    try {
+                      const updateBody = {
+                        title: newTitle,
+                        location: formattedLocation,
+                      };
+
+                      // Preserve existing fields from the original document
+                      if (originDoc) {
+                        if (originDoc.fileId) updateBody.fileId = originDoc.fileId._id || originDoc.fileId;
+                        if (originDoc.mdFileId) updateBody.mdFileId = originDoc.mdFileId._id || originDoc.mdFileId;
+                        if (originDoc.tags) updateBody.tags = originDoc.tags;
+                        if (typeof originDoc.isPublic !== 'undefined') updateBody.isPublic = originDoc.isPublic;
+                      }
+
+                      // Include file name updates if files exist and names changed
+                      if (hasMdFile && newMdFileName && newMdFileName !== params.data.mdFileName) {
+                        updateBody.mdFileName = newMdFileName;
+                      }
+                      if (hasGenericFile && newFileName && newFileName !== params.data.fileName) {
+                        updateBody.fileName = newFileName;
+                      }
+
+                      const { data, status } = await DocumentService.put({
+                        id: params.data._id,
+                        body: updateBody,
+                      });
+
+                      if (status === 'success') {
+                        // Check if location changed
+                        const locationChanged = formattedLocation !== params.data.location;
+
+                        // Update local data
+                        params.data.title = newTitle;
+                        params.data.name = newTitle;
+                        params.data.location = formattedLocation;
+                        if (hasMdFile && newMdFileName) params.data.mdFileName = newMdFileName;
+                        if (hasGenericFile && newFileName) params.data.fileName = newFileName;
+
+                        // Update documentInstance
+                        const docIndex = documentInstance.findIndex((d) => d._id === params.data._id);
+                        if (docIndex !== -1) {
+                          documentInstance[docIndex].title = newTitle;
+                          documentInstance[docIndex].location = formattedLocation;
+                          // Update file names in the referenced file objects
+                          if (hasMdFile && newMdFileName && documentInstance[docIndex].mdFileId) {
+                            documentInstance[docIndex].mdFileId.name = newMdFileName;
+                          }
+                          if (hasGenericFile && newFileName && documentInstance[docIndex].fileId) {
+                            documentInstance[docIndex].fileId.name = newFileName;
+                          }
+                        }
+
+                        // If location changed, navigate to the new location
+                        if (locationChanged) {
+                          location = formattedLocation;
+                          setPath(`${window.location.pathname}?location=${location}`);
+                          s(`.file-explorer-query-nav`).value = location;
+                        }
+
+                        // Refresh the grid with new location
+                        const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
+                        files = format.files;
+                        folders = format.folders;
+                        applySearchFilter();
+                        currentPage = 0;
+                        displayedFiles = getPagedFiles();
+                        AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
+                        AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+                        updatePaginationUI();
+
+                        NotificationManager.Push({
+                          html: Translate.Render('success-update-document'),
+                          status: 'success',
+                        });
+
+                        Modal.removeModal(editModalId);
+                      } else {
+                        throw new Error('Failed to update document');
+                      }
+                    } catch (error) {
+                      logger.error('Update document failed:', error);
+                      NotificationManager.Push({
+                        html: Translate.Render('error-update-document'),
+                        status: 'error',
+                      });
+                    }
+                  },
+                  { context: 'modal' },
+                );
+
+                // Handle cancel button
+                EventsUI.onClick(
+                  `.btn-edit-doc-cancel-${params.data._id}`,
+                  async (ev) => {
+                    ev.preventDefault();
+                    Modal.removeModal(editModalId);
+                  },
+                  { context: 'modal' },
+                );
+              });
             },
             { context: 'modal' },
           );
@@ -1056,7 +1332,7 @@ const FileExplorer = {
                     { field: 'mdFileName', flex: 1, headerName: 'MD File Name' },
                     { field: 'fileName', flex: 1, headerName: 'Generic File Name' },
                     { field: 'mimetype', flex: 1, headerName: 'Type' },
-                    { headerName: '', width: 120, cellRenderer: LoadFileActionsRenderer },
+                    { headerName: '', width: 150, cellRenderer: LoadFileActionsRenderer },
                   ],
                 },
               })}
@@ -1128,21 +1404,23 @@ const FileExplorer = {
   },
   documentDataFormat: function ({ document, location, searchFilters }) {
     let files = document.map((f) => {
-      const fileId = f.fileId || {
-        name: f.title + '.md',
-        mimetype: 'text/markdown',
-        _id: f.mdFileId,
-      };
+      // Determine mimetype from available files (prefer generic file, fallback to md file)
+      const mimetype = f.fileId?.mimetype || f.mdFileId?.mimetype || 'application/octet-stream';
+
       return {
         location: this.locationFormat({ f }),
         name: f.title,
-        mdFileName: f.mdFileId ? f.mdFileId.name : '',
-        fileName: f.fileId ? f.fileId.name : '',
-        mimetype: fileId.mimetype,
-        fileId: fileId._id,
+        mdFileName: f.mdFileId?.name || '',
+        fileName: f.fileId?.name || '',
+        mimetype: mimetype,
+        // Use the actual file ID for operations (prefer generic file, fallback to md file)
+        fileId: f.fileId?._id || f.mdFileId?._id || null,
         _id: f._id,
         title: f.title,
         isPublic: f.isPublic || false,
+        // Track file existence for edit form
+        hasMdFile: !!f.mdFileId,
+        hasGenericFile: !!f.fileId,
       };
     });
     let documentId = document._id;

@@ -480,6 +480,18 @@ const DocumentService = {
           File,
         });
 
+        // Update file names if provided
+        if (req.body.mdFileName && document.mdFileId) {
+          await File.findByIdAndUpdate(document.mdFileId, { name: req.body.mdFileName });
+        }
+        if (req.body.fileName && document.fileId) {
+          await File.findByIdAndUpdate(document.fileId, { name: req.body.fileName });
+        }
+
+        // Remove file name fields from body as they are not part of Document schema
+        delete req.body.mdFileName;
+        delete req.body.fileName;
+
         // Extract 'public' from tags and set isPublic field on update
         const { isPublic, tags } = DocumentDto.extractPublicFromTags(req.body.tags);
         req.body.isPublic = isPublic;
