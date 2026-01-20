@@ -118,26 +118,26 @@ export class ObjectLayerEngine {
         image = new Jimp(png);
       }
 
-      const mazeFactor = parseInt(image.bitmap.height / 24);
-      let _y = -1;
+      const cellSize = parseInt(image.bitmap.height / 24);
+      let matrixY = -1;
       for (const y of range(0, image.bitmap.height - 1)) {
-        if (y % mazeFactor === 0) {
-          _y++;
-          if (!frame[_y]) frame[_y] = [];
+        if (y % cellSize === 0) {
+          matrixY++;
+          if (!frame[matrixY]) frame[matrixY] = [];
         }
-        let _x = -1;
+        let matrixX = -1;
         for (const x of range(0, image.bitmap.width - 1)) {
           const rgba = Object.values(intToRGBA(image.getPixelColor(x, y)));
-          if (y % mazeFactor === 0 && x % mazeFactor === 0) {
-            _x++;
-            const indexColor = colors.findIndex(
+          if (y % cellSize === 0 && x % cellSize === 0) {
+            matrixX++;
+            const colorIndex = colors.findIndex(
               (c) => c[0] === rgba[0] && c[1] === rgba[1] && c[2] === rgba[2] && c[3] === rgba[3],
             );
-            if (indexColor === -1) {
+            if (colorIndex === -1) {
               colors.push(rgba);
-              frame[_y][_x] = colors.length - 1;
+              frame[matrixY][matrixX] = colors.length - 1;
             } else {
-              frame[_y][_x] = indexColor;
+              frame[matrixY][matrixX] = colorIndex;
             }
           }
         }
@@ -195,41 +195,44 @@ export class ObjectLayerEngine {
    * @description Processes an image file through frameFactory and adds the resulting frame to the render data structure.
    * Updates the color palette and pushes the frame to all keyframe directions corresponding to the given direction code.
    * Initializes colors array, frames object, and direction arrays if they don't exist.
-   * @param {Object} renderData - The render data object containing frames and colors.
+   * @param {Object} objectLayerRenderFramesData - The render data object containing frames and colors.
    * @param {string} imagePath - The path to the image file to process.
    * @param {string} directionCode - The numerical direction code (e.g., '08', '14').
    * @returns {Promise<Object>} - The updated render data object.
    * @memberof CyberiaObjectLayer
    */
-  static async processAndPushFrame(renderData, imagePath, directionCode) {
+  static async processAndPushFrame(objectLayerRenderFramesData, imagePath, directionCode) {
     // Initialize colors array if it doesn't exist
-    if (!renderData.colors) {
-      renderData.colors = [];
+    if (!objectLayerRenderFramesData.colors) {
+      objectLayerRenderFramesData.colors = [];
     }
 
     // Initialize frames object if it doesn't exist
-    if (!renderData.frames) {
-      renderData.frames = {};
+    if (!objectLayerRenderFramesData.frames) {
+      objectLayerRenderFramesData.frames = {};
     }
 
     // Process the image and extract frame matrix and updated colors
-    const frameFactoryResult = await ObjectLayerEngine.frameFactory(imagePath, renderData.colors);
+    const processedObjectLayerRenderFramesData = await ObjectLayerEngine.frameFactory(
+      imagePath,
+      objectLayerRenderFramesData.colors,
+    );
 
     // Update the colors palette
-    renderData.colors = frameFactoryResult.colors;
+    objectLayerRenderFramesData.colors = processedObjectLayerRenderFramesData.colors;
 
     // Get all keyframe directions for this direction code
     const keyframeDirections = ObjectLayerEngine.getKeyFramesDirectionsFromNumberFolderDirection(directionCode);
 
     // Push the frame to all corresponding directions
     for (const keyframeDirection of keyframeDirections) {
-      if (!renderData.frames[keyframeDirection]) {
-        renderData.frames[keyframeDirection] = [];
+      if (!objectLayerRenderFramesData.frames[keyframeDirection]) {
+        objectLayerRenderFramesData.frames[keyframeDirection] = [];
       }
-      renderData.frames[keyframeDirection].push(frameFactoryResult.frame);
+      objectLayerRenderFramesData.frames[keyframeDirection].push(processedObjectLayerRenderFramesData.frame);
     }
 
-    return renderData;
+    return objectLayerRenderFramesData;
   }
 
   /**
@@ -255,16 +258,16 @@ export class ObjectLayerEngine {
     },
   ) {
     const { tile, imagePath, cellPixelDim } = options;
-    const mainMatrix = tile.frame_matrix;
-    if (!mainMatrix || mainMatrix.length === 0 || mainMatrix[0].length === 0) {
+    const frameMatrix = tile.frame_matrix;
+    if (!frameMatrix || frameMatrix.length === 0 || frameMatrix[0].length === 0) {
       logger.error(`Cannot build image from empty or invalid frame_matrix for path: ${imagePath}`);
       return;
     }
 
     const sharpOptions = {
       create: {
-        width: cellPixelDim * mainMatrix[0].length,
-        height: cellPixelDim * mainMatrix.length,
+        width: cellPixelDim * frameMatrix[0].length,
+        height: cellPixelDim * frameMatrix.length,
         channels: 4,
         background: { r: 0, g: 0, b: 0, alpha: 0 }, // transparent background
       },
@@ -274,9 +277,9 @@ export class ObjectLayerEngine {
     fs.writeFileSync(imagePath, image);
     image = await Jimp.read(imagePath);
 
-    for (let y = 0; y < mainMatrix.length; y++) {
-      for (let x = 0; x < mainMatrix[y].length; x++) {
-        const colorIndex = mainMatrix[y][x];
+    for (let y = 0; y < frameMatrix.length; y++) {
+      for (let x = 0; x < frameMatrix[y].length; x++) {
+        const colorIndex = frameMatrix[y][x];
         if (colorIndex === null || colorIndex === undefined) continue;
 
         const color = tile.map_color[colorIndex];

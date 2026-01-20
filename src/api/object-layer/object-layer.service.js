@@ -3,6 +3,7 @@ import { loggerFactory } from '../../server/logger.js';
 import { FileFactory } from '../file/file.service.js';
 import fs from 'fs-extra';
 import crypto from 'crypto';
+import stringify from 'fast-json-stable-stringify';
 import { ObjectLayerDto } from './object-layer.model.js';
 import { ObjectLayerEngine } from '../../server/object-layer.js';
 import { shellExec } from '../../server/process.js';
@@ -99,17 +100,21 @@ const ObjectLayerService = {
 
       // Create object layer from PNG saved and metadata
       const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+      const ObjectLayerRenderFrames =
+        DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
+
+      const objectLayerRenderFramesData = {
+        frame_duration: req.body.objectLayerRenderFramesData.frame_duration,
+        is_stateless: req.body.objectLayerRenderFramesData.is_stateless,
+        frames: {},
+        colors: [],
+      };
 
       const objectLayerData = {
         data: {
-          render: {
-            frame_duration: req.body.data.render.frame_duration,
-            is_stateless: req.body.data.render.is_stateless,
-            frames: {},
-            colors: [],
-          },
           item: req.body.data.item,
           stats: req.body.data.stats,
+          seed: crypto.randomUUID(),
         },
       };
 
@@ -133,12 +138,18 @@ const ObjectLayerService = {
           const framePath = `${directionPath}/${frameFile}`;
 
           // Process image and push frame to render data with color palette management
-          await ObjectLayerEngine.processAndPushFrame(objectLayerData.data.render, framePath, directionCode);
+          await ObjectLayerEngine.processAndPushFrame(objectLayerRenderFramesData, framePath, directionCode);
         }
       }
 
-      // Generate SHA256 hash
-      objectLayerData.sha256 = crypto.createHash('sha256').update(JSON.stringify(objectLayerData.data)).digest('hex');
+      // Create ObjectLayerRenderFrames document
+      const objectLayerRenderFramesDoc = await ObjectLayerRenderFrames.create(objectLayerRenderFramesData);
+
+      // Add reference to render frames (top-level, not in data)
+      objectLayerData.objectLayerRenderFramesId = objectLayerRenderFramesDoc._id;
+
+      // Generate SHA256 hash using fast-json-stable-stringify (seed is part of data)
+      objectLayerData.sha256 = crypto.createHash('sha256').update(stringify(objectLayerData.data)).digest('hex');
 
       // Save to MongoDB
       try {
@@ -158,6 +169,8 @@ const ObjectLayerService = {
 
     // create object layer from body
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+    const ObjectLayerRenderFrames =
+      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
     return await new ObjectLayer(req.body).save();
   },
   get: async (req, res, options) => {
@@ -166,7 +179,9 @@ const ObjectLayerService = {
 
     // GET /frame-counts/:id - Get frame counts for each direction using numeric codes
     if (req.path.startsWith('/frame-counts/')) {
-      const objectLayer = await ObjectLayer.findById(req.params.id).select(ObjectLayerDto.select.getMetadata());
+      const objectLayer = await ObjectLayer.findById(req.params.id)
+        .select(ObjectLayerDto.select.getMetadata())
+        .populate('objectLayerRenderFramesId');
       if (!objectLayer) {
         throw new Error('ObjectLayer not found');
       }
@@ -200,18 +215,24 @@ const ObjectLayerService = {
         _id: objectLayer._id,
         itemType,
         itemId,
-        frameDuration: objectLayer.data.render.frame_duration,
+        frameDuration: objectLayer.objectLayerRenderFramesId?.frame_duration || 250,
         frameCounts,
       };
     }
 
     // GET /render/:id - Get only render data for specific object layer
     if (req.path.startsWith('/render/')) {
-      const objectLayer = await ObjectLayer.findById(req.params.id).select(ObjectLayerDto.select.getRender());
+      const objectLayer = await ObjectLayer.findById(req.params.id)
+        .select(ObjectLayerDto.select.getRender())
+        .populate('objectLayerRenderFramesId');
       if (!objectLayer) {
         throw new Error('ObjectLayer not found');
       }
-      return objectLayer;
+      // Return the populated render frames data with consistent naming
+      return {
+        _id: objectLayer._id,
+        objectLayerRenderFramesId: objectLayer.objectLayerRenderFramesId,
+      };
     }
 
     // GET /metadata/:id - Get only metadata (no render frames/colors) for specific object layer
@@ -275,10 +296,12 @@ const ObjectLayerService = {
       const objectLayer = await ObjectLayer.findOne({
         'data.item.type': itemType,
         'data.item.id': itemId,
-      }).select(ObjectLayerDto.select.getMetadata());
+      })
+        .select(ObjectLayerDto.select.getMetadata())
+        .populate('objectLayerRenderFramesId');
 
-      if (objectLayer && objectLayer.data.render.frame_duration) {
-        frameDuration = objectLayer.data.render.frame_duration;
+      if (objectLayer && objectLayer.objectLayerRenderFramesId?.frame_duration) {
+        frameDuration = objectLayer.objectLayerRenderFramesId.frame_duration;
         logger.info(`Using frame duration from object layer: ${frameDuration}ms`);
       } else {
         logger.warn(`Object layer not found or no frame_duration set, using default: ${frameDuration}ms`);
@@ -447,16 +470,21 @@ const ObjectLayerService = {
       fs.writeFileSync(`${folder}/metadata.json`, metadataContent);
       fs.writeFileSync(`${publicFolder}/metadata.json`, metadataContent);
 
+      const ObjectLayerRenderFrames =
+        DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
+
+      const objectLayerRenderFramesData = {
+        frame_duration: req.body.objectLayerRenderFramesData.frame_duration,
+        is_stateless: req.body.objectLayerRenderFramesData.is_stateless,
+        frames: {},
+        colors: [],
+      };
+
       const objectLayerData = {
         data: {
-          render: {
-            frame_duration: req.body.data.render.frame_duration,
-            is_stateless: req.body.data.render.is_stateless,
-            frames: {},
-            colors: [],
-          },
           item: req.body.data.item,
           stats: req.body.data.stats,
+          seed: req.body.data.seed || crypto.randomUUID(),
         },
       };
 
@@ -488,14 +516,29 @@ const ObjectLayerService = {
           const framePath = `${directionPath}/${frameFile}`;
 
           // Process image and push frame to render data with color palette management
-          await ObjectLayerEngine.processAndPushFrame(objectLayerData.data.render, framePath, directionCode);
+          await ObjectLayerEngine.processAndPushFrame(objectLayerRenderFramesData, framePath, directionCode);
         }
       }
 
-      // Generate SHA256 hash
-      objectLayerData.sha256 = crypto.createHash('sha256').update(JSON.stringify(objectLayerData.data)).digest('hex');
+      // Update or create ObjectLayerRenderFrames document
+      const existingObjectLayer = await ObjectLayer.findById(objectLayerId);
+      if (existingObjectLayer && existingObjectLayer.objectLayerRenderFramesId) {
+        // Update existing render frames
+        await ObjectLayerRenderFrames.findByIdAndUpdate(
+          existingObjectLayer.objectLayerRenderFramesId,
+          objectLayerRenderFramesData,
+        );
+        objectLayerData.objectLayerRenderFramesId = existingObjectLayer.objectLayerRenderFramesId;
+      } else {
+        // Create new render frames document
+        const objectLayerRenderFramesDoc = await ObjectLayerRenderFrames.create(objectLayerRenderFramesData);
+        objectLayerData.objectLayerRenderFramesId = objectLayerRenderFramesDoc._id;
+      }
 
-      // Update MongoDB
+      // Generate SHA256 hash using fast-json-stable-stringify (seed is part of data)
+      objectLayerData.sha256 = crypto.createHash('sha256').update(stringify(objectLayerData.data)).digest('hex');
+
+      // Save to MongoDB
       try {
         const updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(objectLayerId, objectLayerData, { new: true });
         if (!updatedObjectLayer) {

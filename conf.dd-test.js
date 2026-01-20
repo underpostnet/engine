@@ -40,6 +40,7 @@ const DefaultConf = /**/ {
           'LogOut',
           'Router',
           'Account',
+          'PublicProfile',
           'Auth',
           'FullScreen',
           'RichText',

@@ -717,7 +717,7 @@ const ObjectLayerEngineViewer = {
 
     const itemType = objectLayer.data.item.type;
     const itemId = objectLayer.data.item.id;
-    const frameDuration = objectLayer.data.render.frame_duration || 100;
+    const frameDuration = objectLayer.objectLayerRenderFramesId?.frame_duration || 100;
 
     this.Data.isGenerating = true;
     this.showLoading(true);

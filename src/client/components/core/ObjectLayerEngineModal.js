@@ -139,9 +139,11 @@ const ObjectLayerEngineModal = {
       }
 
       // Load render data separately (heavy)
-      const { status: renderStatus, data: renderData } = await ObjectLayerService.getRender({ id: objectLayerId });
+      const { status: renderStatus, data: objectLayerRenderFramesData } = await ObjectLayerService.getRender({
+        id: objectLayerId,
+      });
 
-      if (renderStatus !== 'success' || !renderData) {
+      if (renderStatus !== 'success' || !objectLayerRenderFramesData) {
         NotificationManager.Push({
           html: `Failed to load object layer render data`,
           status: 'error',
@@ -149,7 +151,7 @@ const ObjectLayerEngineModal = {
         return null;
       }
 
-      return { metadata, renderData };
+      return { metadata, objectLayerRenderFramesId: objectLayerRenderFramesData.objectLayerRenderFramesId };
     } catch (error) {
       console.error('Error loading object layer from database:', error);
       NotificationManager.Push({
@@ -288,7 +290,7 @@ const ObjectLayerEngineModal = {
       loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.cid);
 
       if (loadedData) {
-        const { metadata, renderData } = loadedData;
+        const { metadata, objectLayerRenderFramesId } = loadedData;
 
         // Set form values from metadata
         if (metadata.data) {
@@ -301,9 +303,9 @@ const ObjectLayerEngineModal = {
               itemTypes.push(selectItemType);
             }
           }
-          if (metadata.data.render) {
-            renderIsStateless = metadata.data.render.is_stateless || false;
-            renderFrameDuration = metadata.data.render.frame_duration || 100;
+          if (objectLayerRenderFramesId) {
+            renderIsStateless = objectLayerRenderFramesId.is_stateless || false;
+            renderFrameDuration = objectLayerRenderFramesId.frame_duration || 100;
           }
         }
       }
@@ -568,7 +570,7 @@ const ObjectLayerEngineModal = {
               console.log(`Loading frames for direction code: ${currentDirectionCode}, directions:`, directions);
 
               // Check if frames exist for any direction mapped to this direction code
-              const { frames } = loadedData.renderData.data.render;
+              const { frames } = loadedData.objectLayerRenderFramesId;
               for (const direction of directions) {
                 if (frames[direction] && frames[direction].length > 0) {
                   // Track this direction code as having original data
@@ -698,14 +700,16 @@ const ObjectLayerEngineModal = {
           return;
         }
 
+        // Separate render frames data from objectLayer.data
+        const objectLayerRenderFramesData = {
+          frames: {},
+          colors: [],
+          frame_duration: renderFrameDuration,
+          is_stateless: renderIsStateless,
+        };
+
         const objectLayer = {
           data: {
-            render: {
-              frames: {},
-              color: [],
-              frame_duration: 0,
-              is_stateless: false,
-            },
             stats: {},
             item: {},
           },
@@ -713,7 +717,7 @@ const ObjectLayerEngineModal = {
         for (const directionCode of directionCodes) {
           const directions = ObjectLayerEngineModal.getDirectionsFromDirectionCode(directionCode);
           for (const direction of directions) {
-            if (!objectLayer.data.render.frames[direction]) objectLayer.data.render.frames[direction] = [];
+            if (!objectLayerRenderFramesData.frames[direction]) objectLayerRenderFramesData.frames[direction] = [];
 
             if (!(directionCode in ObjectLayerEngineModal.ObjectLayerData)) {
               console.warn('No set directionCodeBarFrameData for directionCode', directionCode);
@@ -730,23 +734,23 @@ const ObjectLayerEngineModal = {
                 let indexCol = -1;
                 for (const value of row) {
                   indexCol++;
-                  let colorIndex = objectLayer.data.render.color.findIndex(
+                  let colorIndex = objectLayerRenderFramesData.colors.findIndex(
                     (color) =>
                       color[0] === value[0] && color[1] === value[1] && color[2] === value[2] && color[3] === value[3],
                   );
                   if (colorIndex === -1) {
-                    objectLayer.data.render.color.push(value);
-                    colorIndex = objectLayer.data.render.color.length - 1;
+                    objectLayerRenderFramesData.colors.push(value);
+                    colorIndex = objectLayerRenderFramesData.colors.length - 1;
                   }
                   frameIndexColorMatrix[indexRow][indexCol] = colorIndex;
                 }
               }
-              objectLayer.data.render.frames[direction].push(frameIndexColorMatrix);
+              objectLayerRenderFramesData.frames[direction].push(frameIndexColorMatrix);
             }
           }
         }
-        objectLayer.data.render.frame_duration = parseInt(s(`.ol-input-render-frame-duration`).value);
-        objectLayer.data.render.is_stateless = renderIsStateless;
+        objectLayerRenderFramesData.frame_duration = parseInt(s(`.ol-input-render-frame-duration`).value);
+        objectLayerRenderFramesData.is_stateless = renderIsStateless;
         objectLayer.data.stats = {
           effect: parseInt(s(`.ol-input-item-stats-effect`).value),
           resistance: parseInt(s(`.ol-input-item-stats-resistance`).value),
@@ -849,8 +853,11 @@ const ObjectLayerEngineModal = {
 
         // Upload metadata
         {
-          delete objectLayer.data.render.frames;
-          delete objectLayer.data.render.color;
+          // Send objectLayerRenderFramesData as top-level field (not in data)
+          const requestBody = {
+            data: objectLayer.data,
+            objectLayerRenderFramesData: objectLayerRenderFramesData,
+          };
 
           let response;
           if (existingObjectLayerId) {
@@ -861,13 +868,13 @@ const ObjectLayerEngineModal = {
             );
             response = await ObjectLayerService.put({
               id: `${existingObjectLayerId}/metadata/${objectLayer.data.item.type}/${objectLayer.data.item.id}`,
-              body: objectLayer,
+              body: requestBody,
             });
           } else {
             // CREATE new object layer
             response = await ObjectLayerService.post({
               id: `metadata/${objectLayer.data.item.type}/${objectLayer.data.item.id}`,
-              body: objectLayer,
+              body: requestBody,
             });
           }
 
