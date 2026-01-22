@@ -52,13 +52,32 @@ const columnDefFormatter = (obj, columnDefs, customFormat) => {
 
 const DefaultManagement = {
   Tokens: {},
-  loadTable: async function (id, options = { reload: true, force: true, createHistory: false, skipUrlUpdate: false }) {
+  // Helper functions for managing serviceOptions ID filter
+  setIdFilter: function (id, itemId) {
+    if (!this.Tokens[id].serviceOptions) {
+      this.Tokens[id].serviceOptions = {};
+    }
+    if (!this.Tokens[id].serviceOptions.get) {
+      this.Tokens[id].serviceOptions.get = {};
+    }
+    this.Tokens[id].serviceOptions.get.id = itemId;
+  },
+  clearIdFilter: function (id) {
+    if (this.Tokens[id]?.serviceOptions?.get?.id) {
+      delete this.Tokens[id].serviceOptions.get.id;
+    }
+  },
+  getIdFilter: function (id) {
+    return this.Tokens[id]?.serviceOptions?.get?.id ?? undefined;
+  },
+  loadTable: async function (id, options = {}) {
+    options = { reload: true, force: true, createHistory: false, skipUrlUpdate: false, ...options };
     try {
       const { serviceId, columnDefs, customFormat, gridId } = this.Tokens[id];
 
       let _page = this.Tokens[id].page;
       let _limit = this.Tokens[id].limit;
-      let _id = this.Tokens[id].serviceOptions?.get?.id ?? undefined;
+      let _id = this.getIdFilter(id);
 
       let filterModel = this.Tokens[id].filterModel || {};
       let sortModel = this.Tokens[id].sortModel || [];
@@ -84,15 +103,16 @@ const DefaultManagement = {
       // Use pushState (createHistory) for filter/sort changes to enable browser back/forward
       // Skip URL update when handling browser navigation to avoid interfering with history
       if (!options.skipUrlUpdate) {
-        setQueryParams(
-          {
-            page: _page,
-            limit: _limit,
-            filterModel: filterModelStr,
-            sortModel: sortModelStr,
-          },
-          { replace: !options.createHistory },
-        );
+        const urlParams = {
+          page: _page,
+          limit: _limit,
+          filterModel: filterModelStr,
+          sortModel: sortModelStr,
+        };
+        if (_id) {
+          urlParams.id = _id;
+        }
+        setQueryParams(urlParams, { replace: !options.createHistory });
       }
 
       if (!options.force && this.Tokens[id].lastOptions) {
@@ -150,7 +170,20 @@ const DefaultManagement = {
 
       const result = await this.Tokens[id].ServiceProvider.get(queryOptions);
       if (result.status === 'success') {
-        const { data, total, page, totalPages } = result.data;
+        let data, total, page, totalPages;
+
+        // Handle both single object (when querying by ID) and paginated array responses
+        if (queryOptions.id && result.data && !Array.isArray(result.data.data)) {
+          // Single object response when filtering by ID
+          data = [result.data];
+          total = 1;
+          page = 1;
+          totalPages = 1;
+        } else {
+          // Paginated array response
+          ({ data, total, page, totalPages } = result.data);
+        }
+
         this.Tokens[id].total = total;
         this.Tokens[id].page = page;
         this.Tokens[id].totalPages = totalPages;
@@ -207,6 +240,7 @@ const DefaultManagement = {
     const page = parseInt(queryParams.page) || 1;
     const defaultLimit = paginationOptions?.limitOptions?.[0] || 10;
     const limit = parseInt(queryParams.limit) || defaultLimit;
+    const urlId = queryParams.id || undefined;
 
     let filterModel = {};
     let sortModel = [];
@@ -289,6 +323,11 @@ const DefaultManagement = {
       isInitializing: true, // Flag to prevent double loading during grid ready
       isProcessingQueryChange: false, // Flag to prevent listener recursion
     };
+
+    // Initialize ID filter from query params if present
+    if (urlId) {
+      this.setIdFilter(id, urlId);
+    }
 
     setQueryParams({
       page,
@@ -536,8 +575,20 @@ const DefaultManagement = {
           const newLimit = parseInt(queryParams.limit, 10) || this.Tokens[id].limit || 10;
           const newFilterModel = queryParams.filterModel;
           const newSortModel = queryParams.sortModel;
+          const newId = queryParams.id || undefined;
 
           let shouldReload = false;
+
+          // Check if id parameter changed
+          const currentId = this.getIdFilter(id);
+          if (newId !== currentId) {
+            if (newId) {
+              this.setIdFilter(id, newId);
+            } else {
+              this.clearIdFilter(id);
+            }
+            shouldReload = true;
+          }
 
           // Check if page or limit changed
           if (newPage !== this.Tokens[id].page || newLimit !== this.Tokens[id].limit) {
@@ -663,6 +714,7 @@ const DefaultManagement = {
         const queryParams = getQueryParams();
         const page = parseInt(queryParams.page) || 1;
         const limit = parseInt(queryParams.limit) || 10;
+        const urlId = queryParams.id || undefined;
         let filterModel = {};
         let sortModel = [];
         try {
@@ -671,17 +723,27 @@ const DefaultManagement = {
         } catch (e) {}
 
         const token = DefaultManagement.Tokens[id];
+
         if (!token) {
           // Token doesn't exist yet, table hasn't been initialized
           return;
         }
 
         // Check if state in URL is different from current state
+        const currentId = DefaultManagement.getIdFilter(id);
+        const isIdChanged = currentId !== urlId;
         const isPaginationChanged = token.page !== page || token.limit !== limit;
         const isFilterChanged = JSON.stringify(token.filterModel || {}) !== JSON.stringify(filterModel);
         const isSortChanged = JSON.stringify(token.sortModel || []) !== JSON.stringify(sortModel);
 
-        if (isPaginationChanged || isFilterChanged || isSortChanged) {
+        if (isPaginationChanged || isFilterChanged || isSortChanged || isIdChanged) {
+          // Update ID filter from query params
+          if (urlId) {
+            DefaultManagement.setIdFilter(id, urlId);
+          } else {
+            DefaultManagement.clearIdFilter(id);
+          }
+
           token.page = page;
           token.limit = limit;
           token.filterModel = filterModel;
@@ -709,8 +771,8 @@ const DefaultManagement = {
                 console.warn('Failed to apply column state:', e);
               }
             }
-            // If only pagination changed, we must load manually because no grid event triggers
-            if (isPaginationChanged && !isFilterChanged && !isSortChanged) {
+            // If pagination or ID changed, and no grid-level filter/sort changed, we must load manually
+            if ((isPaginationChanged || isIdChanged) && !isFilterChanged && !isSortChanged) {
               await DefaultManagement.loadTable(id);
             }
           } else if (!gridApi) {
@@ -881,33 +943,25 @@ const DefaultManagement = {
                   status: result.status,
                 });
                 if (result.status === 'success') {
-                  this.Tokens[id].page = 1;
-                  await DefaultManagement.loadTable(id);
-                  // const newItemId = result.data?.[entity]?._id || result.data?._id;
-                  // The `event.node.id` is the temporary ID assigned by AG Grid.
-                  // const rowNode = AgGrid.grids[gridId].getRowNode(event.node.id);
-                  setQueryParams({ page: 1, limit: this.Tokens[id].limit });
+                  // Filter by the newly created row's ID
+                  const newItemId = result.data._id;
 
-                  let rowNode;
-                  AgGrid.grids[gridId].forEachLeafNode((_rowNode) => {
-                    if (_rowNode.data._id === result.data._id) {
-                      rowNode = _rowNode;
-                    }
+                  // Update UI buttons first
+                  s(`.management-table-btn-save-${id}`).classList.add('hide');
+                  if (permissions.add) s(`.management-table-btn-add-${id}`).classList.remove('hide');
+                  if (permissions.remove) s(`.management-table-btn-clean-${id}`).classList.remove('hide');
+                  if (permissions.reload) s(`.management-table-btn-reload-${id}`).classList.remove('hide');
+
+                  // Stop editing to avoid triggering other events
+                  AgGrid.grids[gridId].stopEditing();
+
+                  // Set ID filter and reload
+                  this.Tokens[id].page = 1;
+                  this.setIdFilter(id, newItemId);
+
+                  setTimeout(async () => {
+                    await DefaultManagement.loadTable(id, { force: true, createHistory: true });
                   });
-                  if (rowNode) {
-                    const newRow = columnDefFormatter(result.data, columnDefs, options.customFormat);
-                    // Add a temporary flag to the new row data.
-                    newRow._new = true;
-                    // Update the row data with the data from the server, which includes the new permanent `_id`.
-                    rowNode.setData(newRow);
-                    // The `rowClassRules` will automatically apply the 'row-new-highlight' class.
-                    // Now, remove the flag after a delay to remove the highlight.
-                    // setTimeout(() => {
-                    //   delete newRow._new;
-                    //   rowNode.setData(newRow);
-                    // }, 2000);
-                  }
-                  s(`.management-table-btn-save-${id}`).click();
                 }
               } else {
                 // Skip update here - onCellValueChanged already handles auto-save for existing rows
