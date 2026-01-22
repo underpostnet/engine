@@ -1,15 +1,15 @@
-import { loggerFactory } from './Logger.js';
-import { getProxyPath, listenQueryPathInstance, setPath, setQueryParams } from './Router.js';
+import { loggerFactory } from '../core/Logger.js';
+import { getProxyPath, listenQueryPathInstance, setPath, setQueryParams } from '../core/Router.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
-import { NotificationManager } from './NotificationManager.js';
-import { htmls, s } from './VanillaJs.js';
+import { NotificationManager } from '../core/NotificationManager.js';
+import { htmls, s } from '../core/VanillaJs.js';
 
-import { darkTheme, ThemeEvents } from './Css.js';
+import { darkTheme, ThemeEvents } from '../core/Css.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 import { ObjectLayerEngineModal } from './ObjectLayerEngineModal.js';
-import { Modal } from './Modal.js';
+import { Modal } from '../core/Modal.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
-import { AgGrid } from './AgGrid.js';
+import { AgGrid } from '../core/AgGrid.js';
 
 const logger = loggerFactory(import.meta);
 

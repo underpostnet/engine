@@ -171,7 +171,14 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       );
       delete packageJson.bin.underpost;
       packageJson.bin.cyberia = 'bin/index.js';
-      packageJson.keywords = ['cyberia', 'object-layer', 'game-engine', 'assets-management', 'web3'];
+      packageJson.keywords = [
+        'cyberia',
+        'object-layer',
+        'game-engine',
+        'assets-management',
+        'web3',
+        'atlas-sprite-sheet',
+      ];
       packageJson.description = 'Cyberia Engine - Object Layer and Assets Management Microservice';
       packageJson.dependencies['maxrects-packer'] = '^2.7.3';
       packageJson.dependencies['pngjs'] = '^7.0.0';
@@ -179,10 +186,13 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       fs.copyFileSync(`./src/api/object-layer/README.md`, `${basePath}/README.md`);
       fs.copySync(`./hardhat`, `${basePath}/hardhat`);
       fs.copySync(`./hardhat/white-paper.md`, `${basePath}/white-paper.md`);
-      fs.copySync(
-        `./src/client/ssr/pages/CyberiaServerMetrics.js`,
-        `${basePath}/src/client/ssr/pages/CyberiaServerMetrics.js`,
-      );
+      for (const path of [
+        '/src/client/ssr/pages/CyberiaServerMetrics.js',
+        '/src/server/object-layer.js',
+        '/src/server/atlas-sprite-sheet-generator.js',
+      ])
+        fs.copySync(`.${path}`, `${basePath}${path}`);
+
     default:
       break;
   }

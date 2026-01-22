@@ -1,6 +1,5 @@
-import { darkTheme, renderChessPattern } from './Css.js';
-import { append, htmls } from './VanillaJs.js';
-import { NotificationManager } from './NotificationManager.js';
+import { darkTheme, renderChessPattern } from '../core/Css.js';
+import { NotificationManager } from '../core/NotificationManager.js';
 
 class ObjectLayerEngineElement extends HTMLElement {
   constructor() {

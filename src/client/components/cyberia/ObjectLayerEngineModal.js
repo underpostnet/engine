@@ -1,23 +1,21 @@
 import { CoreService } from '../../services/core/core.service.js';
-import { BtnIcon } from './BtnIcon.js';
-import { borderChar, dynamicCol } from './Css.js';
-import { DropDown } from './DropDown.js';
-import { EventsUI } from './EventsUI.js';
-import { Translate } from './Translate.js';
-import { s, append, hexToRgbA } from './VanillaJs.js';
-import { getProxyPath, getQueryParams, setPath, setQueryParams, RouterEvents } from './Router.js';
-import { s4 } from './CommonJs.js';
-import { Input } from './Input.js';
-import { ToggleSwitch } from './ToggleSwitch.js';
+import { BtnIcon } from '../core/BtnIcon.js';
+import { borderChar, dynamicCol } from '../core/Css.js';
+import { DropDown } from '../core/DropDown.js';
+import { EventsUI } from '../core/EventsUI.js';
+import { Translate } from '../core/Translate.js';
+import { s, append, hexToRgbA } from '../core/VanillaJs.js';
+import { getProxyPath, getQueryParams, setPath, setQueryParams, RouterEvents } from '../core/Router.js';
+import { s4 } from '../core/CommonJs.js';
+import { Input } from '../core/Input.js';
+import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
-import { NotificationManager } from './NotificationManager.js';
-import { AgGrid } from './AgGrid.js';
-import { Modal } from './Modal.js';
-import { loggerFactory } from './Logger.js';
-import { LoadingAnimation } from './LoadingAnimation.js';
+import { NotificationManager } from '../core/NotificationManager.js';
+import { AgGrid } from '../core/AgGrid.js';
+import { Modal } from '../core/Modal.js';
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
-
-const logger = loggerFactory(import.meta, { trace: true });
+import * as _ from '../cyberia/ObjectLayerEngine.js';
 
 const ObjectLayerEngineModal = {
   templates: [
@@ -166,8 +164,7 @@ const ObjectLayerEngineModal = {
     ObjectLayerEngineModal.clearData();
 
     const { Elements } = options;
-    await import(`${getProxyPath()}components/core/ObjectLayerEngine.js`);
-    // await import(`${getProxyPath()}components/core/WebComponent.js`);
+
     const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
     const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor'];
     const statTypes = ['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility'];

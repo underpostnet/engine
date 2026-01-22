@@ -4,10 +4,10 @@
   "explorer.compactFolders": false,
   "javascript.preferences.importModuleSpecifierEnding": "js",
   "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
   },
   "[python]": {
-    "editor.defaultFormatter": "ms-python.python"
+    "editor.defaultFormatter": "ms-python.python",
   },
   "cSpell.words": [
     "adminer",
@@ -40,7 +40,6 @@
     "htmls",
     "inet",
     "inlt",
-    "ipfs",
     "Itemledger",
     "jsonld",
     "lampp",
@@ -72,16 +71,16 @@
     "webroot",
     "xampp",
     "xfwd",
-    "youtu"
+    "youtu",
   ],
   "[php]": {
-    "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
+    "editor.defaultFormatter": "bmewburn.vscode-intelephense-client",
   },
   "[xml]": {
-    "editor.defaultFormatter": "redhat.vscode-xml"
+    "editor.defaultFormatter": "redhat.vscode-xml",
   },
 
   "files.watcherExclude": {
-    "**/target": true
-  }
+    "**/target": true,
+  },
 }

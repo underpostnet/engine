@@ -210,11 +210,11 @@ class UnderpostRun {
      * @memberof UnderpostRun
      */
     secret: (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      shellExec(
-        `underpost secret underpost --create-from-file ${
-          path ? path : `/home/dd/engine/engine-private/conf/dd-cron/.env.production`
-        }`,
-      );
+      const secretPath = path ? path : `/home/dd/engine/engine-private/conf/dd-cron/.env.production`;
+      const command = options.dev
+        ? `node bin secret underpost --create-from-file ${secretPath}`
+        : `underpost secret underpost --create-from-file ${secretPath}`;
+      shellExec(command);
     },
     /**
      * @method underpost-config
