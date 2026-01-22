@@ -43,35 +43,45 @@ class Underpost {
    * @type {UnderpostRepository.API}
    * @memberof Underpost
    */
-  static repo = UnderpostRepository.API;
+  static get repo() {
+    return UnderpostRepository.API;
+  }
   /**
    * Root Env cli API
    * @static
    * @type {UnderpostRootEnv.API}
    * @memberof Underpost
    */
-  static env = UnderpostRootEnv.API;
+  static get env() {
+    return UnderpostRootEnv.API;
+  }
   /**
    * Test cli API
    * @static
    * @type {UnderpostTest.API}
    * @memberof Underpost
    */
-  static test = UnderpostTest.API;
+  static get test() {
+    return UnderpostTest.API;
+  }
   /**
    * Underpost Start Up cli API
    * @static
    * @type {UnderpostStartUp.API}
    * @memberof Underpost
    */
-  static start = UnderpostStartUp.API;
+  static get start() {
+    return UnderpostStartUp.API;
+  }
   /**
    * Static cli API
    * @static
    * @type {UnderpostStatic.API}
    * @memberof Underpost
    */
-  static static = UnderpostStatic.API;
+  static get static() {
+    return UnderpostStatic.API;
+  }
 
   /**
    * Cluster cli API
@@ -79,77 +89,99 @@ class Underpost {
    * @type {UnderpostCluster.API}
    * @memberof Underpost
    */
-  static cluster = UnderpostCluster.API;
+  static get cluster() {
+    return UnderpostCluster.API;
+  }
   /**
    * Image cli API
    * @static
    * @type {UnderpostImage.API}
    * @memberof Underpost
    */
-  static image = UnderpostImage.API;
+  static get image() {
+    return UnderpostImage.API;
+  }
   /**
    * Secrets cli API
    * @static
    * @type {UnderpostSecret.API}
    * @memberof Underpost
    */
-  static secret = UnderpostSecret.API;
+  static get secret() {
+    return UnderpostSecret.API;
+  }
   /**
    * Scripts cli API
    * @static
    * @type {UnderpostScript.API}
    * @memberof Underpost
    */
-  static script = UnderpostScript.API;
+  static get script() {
+    return UnderpostScript.API;
+  }
   /**
    * Database cli API
    * @static
    * @type {UnderpostDB.API}
    * @memberof Underpost
    */
-  static db = UnderpostDB.API;
+  static get db() {
+    return UnderpostDB.API;
+  }
   /**
    * Deployment cli API
    * @static
    * @type {UnderpostDeploy.API}
    * @memberof Underpost
    */
-  static deploy = UnderpostDeploy.API;
+  static get deploy() {
+    return UnderpostDeploy.API;
+  }
   /**
    * Cron cli API
    * @static
    * @type {UnderpostCron.API}
    * @memberof Underpost
    */
-  static cron = UnderpostCron.API;
+  static get cron() {
+    return UnderpostCron.API;
+  }
   /**
    * File Storage cli API
    * @static
    * @type {UnderpostFileStorage.API}
    * @memberof Underpost
    */
-  static fs = UnderpostFileStorage.API;
+  static get fs() {
+    return UnderpostFileStorage.API;
+  }
   /**
    * Monitor cli API
    * @static
    * @type {UnderpostMonitor.API}
    * @memberof Underpost
    */
-  static monitor = UnderpostMonitor.API;
+  static get monitor() {
+    return UnderpostMonitor.API;
+  }
   /**
    * SSH cli API
    * @static
    * @type {UnderpostSSH.API}
    * @memberof Underpost
    */
-  static ssh = UnderpostSSH.API;
+  static get ssh() {
+    return UnderpostSSH.API;
+  }
   /**
    * LXD cli API
    * @static
    * @type {UnderpostLxd.API}
    * @memberof Underpost
    */
-  static lxd = UnderpostLxd.API;
+  static get lxd() {
+    return UnderpostLxd.API;
+  }
 
   /**
    * Cloud Init cli API
@@ -157,7 +189,9 @@ class Underpost {
    * @type {UnderpostCloudInit.API}
    * @memberof Underpost
    */
-  static cloudInit = UnderpostCloudInit.API;
+  static get cloudInit() {
+    return UnderpostCloudInit.API;
+  }
 
   /**
    * Run cli API
@@ -165,7 +199,9 @@ class Underpost {
    * @type {UnderpostRun.API}
    * @memberof Underpost
    */
-  static run = UnderpostRun.API;
+  static get run() {
+    return UnderpostRun.API;
+  }
 
   /**
    * Baremetal cli API
@@ -173,7 +209,9 @@ class Underpost {
    * @type {UnderpostBaremetal.API}
    * @memberof Underpost
    */
-  static baremetal = UnderpostBaremetal.API;
+  static get baremetal() {
+    return UnderpostBaremetal.API;
+  }
 }
 
 const up = Underpost;
