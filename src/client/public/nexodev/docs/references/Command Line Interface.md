@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.98.0
+## underpost ci/cd cli v2.98.1
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -802,7 +802,7 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, stop, ssh-deploy-stop, tz, cron, get-proxy, instance-promote, instance, ls-deployments, host-update, dd-container, ip-info, monitor, db-client, git-conf, promote, metrics, cluster, deploy, disk-clean, disk-usage, dev, service, sh, log, ps, ptls, release-cmt, deploy-test, sync-replica, tf-vae-test, deploy-job.
+  runner-id                                       The runner ID to run. Options: dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, stop, ssh-deploy-stop, tz, cron, get-proxy, instance-promote, instance, ls-deployments, host-update, dd-container, ip-info, monitor, db-client, git-conf, promote, metrics, cluster, deploy, disk-clean, disk-usage, dev, service, sh, log, ps, ptls, release-cmt, deploy-test, sync-replica, tf-vae-test, spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, deploy-job.
   path                                            The input value, identifier, or path for the operation.
 
 Options:

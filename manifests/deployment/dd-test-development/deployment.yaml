@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: dd-test-development-blue
-          image: localhost/rockylinux9-underpost:v2.98.0
+          image: localhost/rockylinux9-underpost:v2.98.1
 
           command:
             - /bin/sh
@@ -103,7 +103,7 @@ spec:
     spec:
       containers:
         - name: dd-test-development-green
-          image: localhost/rockylinux9-underpost:v2.98.0
+          image: localhost/rockylinux9-underpost:v2.98.1
 
           command:
             - /bin/sh
