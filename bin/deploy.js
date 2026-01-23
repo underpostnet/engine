@@ -462,6 +462,7 @@ try {
           `./engine-private/conf/${deployId}/build/development/proxy.yaml`,
           `./manifests/deployment/${deployId}-development/proxy.yaml`,
         );
+        shellExec(`node bin new --dev --default-conf --deploy-id ${deployId}`);
       }
       shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
       shellExec(`node bin new --deploy-id dd-default`);
