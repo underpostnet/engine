@@ -147,111 +147,6 @@ class UnderpostRun {
    */
   static RUNNERS = {
     /**
-     * @method spark-template
-     * @description Creates a new Spark template project using `sbt new` in `/home/dd/spark-template`, initializes a Git repository, and runs `replace_params.sh` and `build.sh`.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'spark-template': (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const dir = '/home/dd/spark-template';
-      shellExec(`sudo rm -rf ${dir}`);
-      shellCd('/home/dd');
-
-      // pbcopy(`cd /home/dd && sbt new ${process.env.GITHUB_USERNAME}/spark-template.g8`);
-      // await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
-      shellExec(`cd /home/dd && sbt new ${process.env.GITHUB_USERNAME}/spark-template.g8 '--name=spark-template'`);
-
-      shellCd(dir);
-
-      shellExec(`git init && git add . && git commit -m "Base implementation"`);
-      shellExec(`chmod +x ./replace_params.sh`);
-      shellExec(`chmod +x ./build.sh`);
-
-      shellExec(`./replace_params.sh`);
-      shellExec(`./build.sh`);
-
-      shellCd('/home/dd/engine');
-    },
-    /**
-     * @method rmi
-     * @description Forces the removal of all local Podman images (`podman rmi $(podman images -qa) --force`).
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    rmi: (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      shellExec(`podman rmi $(podman images -qa) --force`);
-    },
-    /**
-     * @method kill
-     * @description Kills processes listening on the specified port(s). If the `path` contains a `+`, it treats it as a range of ports to kill.
-     * @param {string} path - The input value, identifier, or path for the operation (used as the port number).
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    kill: (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
-      if (options.pid) return shellExec(`sudo kill -9 ${options.pid}`);
-      for (const _path of path.split(',')) {
-        if (_path.split('+')[1]) {
-          let [port, sumPortOffSet] = _path.split('+');
-          port = parseInt(port);
-          sumPortOffSet = parseInt(sumPortOffSet);
-          for (const sumPort of range(0, sumPortOffSet))
-            shellExec(`sudo kill -9 $(lsof -t -i:${parseInt(port) + parseInt(sumPort)})`);
-        } else shellExec(`sudo kill -9 $(lsof -t -i:${_path})`);
-      }
-    },
-    /**
-     * @method secret
-     * @description Creates an Underpost secret named 'underpost' from a file, defaulting to `/home/dd/engine/engine-private/conf/dd-cron/.env.production` if no path is provided.
-     * @param {string} path - The input value, identifier, or path for the operation (used as the optional path to the secret file).
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    secret: (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const secretPath = path ? path : `/home/dd/engine/engine-private/conf/dd-cron/.env.production`;
-      const command = options.dev
-        ? `node bin secret underpost --create-from-file ${secretPath}`
-        : `underpost secret underpost --create-from-file ${secretPath}`;
-      shellExec(command);
-    },
-    /**
-     * @method underpost-config
-     * @description Calls `UnderpostDeploy.API.configMap` to create a Kubernetes ConfigMap, defaulting to the 'production' environment.
-     * @param {string} path - The input value, identifier, or path for the operation (used as the optional configuration name/environment).
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'underpost-config': (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
-      UnderpostDeploy.API.configMap(path ? path : 'production', options.namespace);
-    },
-    /**
-     * @method gpu-env
-     * @description Sets up a dedicated GPU development environment cluster, resetting and then setting up the cluster with `--dedicated-gpu` and monitoring the pods.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'gpu-env': (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      shellExec(
-        `node bin cluster --dev --reset && node bin cluster --dev --dedicated-gpu --kubeadm && kubectl get pods --all-namespaces -o wide -w`,
-      );
-    },
-    /**
-     * @method tf-gpu-test
-     * @description Deletes existing `tf-gpu-test-script` ConfigMap and `tf-gpu-test-pod`, and applies the test manifest from `manifests/deployment/tensorflow/tf-gpu-test.yaml`.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'tf-gpu-test': (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      const { underpostRoot, namespace } = options;
-      shellExec(`kubectl delete configmap tf-gpu-test-script -n ${namespace} --ignore-not-found`);
-      shellExec(`kubectl delete pod tf-gpu-test-pod -n ${namespace} --ignore-not-found`);
-      shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/tensorflow/tf-gpu-test.yaml -n ${namespace}`);
-    },
-    /**
      * @method dev-cluster
      * @description Resets and deploys a full development cluster including MongoDB, Valkey, exposes services, and updates `/etc/hosts` for local access.
      * @param {string} path - The input value, identifier, or path for the operation.
@@ -1600,6 +1495,113 @@ EOF
         ],
       });
     },
+
+    /**
+     * @method spark-template
+     * @description Creates a new Spark template project using `sbt new` in `/home/dd/spark-template`, initializes a Git repository, and runs `replace_params.sh` and `build.sh`.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'spark-template': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const dir = '/home/dd/spark-template';
+      shellExec(`sudo rm -rf ${dir}`);
+      shellCd('/home/dd');
+
+      // pbcopy(`cd /home/dd && sbt new ${process.env.GITHUB_USERNAME}/spark-template.g8`);
+      // await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
+      shellExec(`cd /home/dd && sbt new ${process.env.GITHUB_USERNAME}/spark-template.g8 '--name=spark-template'`);
+
+      shellCd(dir);
+
+      shellExec(`git init && git add . && git commit -m "Base implementation"`);
+      shellExec(`chmod +x ./replace_params.sh`);
+      shellExec(`chmod +x ./build.sh`);
+
+      shellExec(`./replace_params.sh`);
+      shellExec(`./build.sh`);
+
+      shellCd('/home/dd/engine');
+    },
+    /**
+     * @method rmi
+     * @description Forces the removal of all local Podman images (`podman rmi $(podman images -qa) --force`).
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    rmi: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(`podman rmi $(podman images -qa) --force`);
+    },
+    /**
+     * @method kill
+     * @description Kills processes listening on the specified port(s). If the `path` contains a `+`, it treats it as a range of ports to kill.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the port number).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    kill: (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      if (options.pid) return shellExec(`sudo kill -9 ${options.pid}`);
+      for (const _path of path.split(',')) {
+        if (_path.split('+')[1]) {
+          let [port, sumPortOffSet] = _path.split('+');
+          port = parseInt(port);
+          sumPortOffSet = parseInt(sumPortOffSet);
+          for (const sumPort of range(0, sumPortOffSet))
+            shellExec(`sudo kill -9 $(lsof -t -i:${parseInt(port) + parseInt(sumPort)})`);
+        } else shellExec(`sudo kill -9 $(lsof -t -i:${_path})`);
+      }
+    },
+    /**
+     * @method secret
+     * @description Creates an Underpost secret named 'underpost' from a file, defaulting to `/home/dd/engine/engine-private/conf/dd-cron/.env.production` if no path is provided.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the optional path to the secret file).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    secret: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const secretPath = path ? path : `/home/dd/engine/engine-private/conf/dd-cron/.env.production`;
+      const command = options.dev
+        ? `node bin secret underpost --create-from-file ${secretPath}`
+        : `underpost secret underpost --create-from-file ${secretPath}`;
+      shellExec(command);
+    },
+    /**
+     * @method underpost-config
+     * @description Calls `UnderpostDeploy.API.configMap` to create a Kubernetes ConfigMap, defaulting to the 'production' environment.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the optional configuration name/environment).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'underpost-config': (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+      UnderpostDeploy.API.configMap(path ? path : 'production', options.namespace);
+    },
+    /**
+     * @method gpu-env
+     * @description Sets up a dedicated GPU development environment cluster, resetting and then setting up the cluster with `--dedicated-gpu` and monitoring the pods.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'gpu-env': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      shellExec(
+        `node bin cluster --dev --reset && node bin cluster --dev --dedicated-gpu --kubeadm && kubectl get pods --all-namespaces -o wide -w`,
+      );
+    },
+    /**
+     * @method tf-gpu-test
+     * @description Deletes existing `tf-gpu-test-script` ConfigMap and `tf-gpu-test-pod`, and applies the test manifest from `manifests/deployment/tensorflow/tf-gpu-test.yaml`.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'tf-gpu-test': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+      const { underpostRoot, namespace } = options;
+      shellExec(`kubectl delete configmap tf-gpu-test-script -n ${namespace} --ignore-not-found`);
+      shellExec(`kubectl delete pod tf-gpu-test-pod -n ${namespace} --ignore-not-found`);
+      shellExec(`kubectl apply -f ${underpostRoot}/manifests/deployment/tensorflow/tf-gpu-test.yaml -n ${namespace}`);
+    },
+
     /**
      * @method deploy-job
      * @description Creates and applies a custom Kubernetes Pod manifest (Job) for running arbitrary commands inside a container image (defaulting to a TensorFlow/NVIDIA image).
