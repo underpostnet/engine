@@ -37,7 +37,7 @@ class UnderpostRepository {
      * @memberof UnderpostRepository
      */
     clone(gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`, options = { bare: false, g8: false }) {
-      const gExtension = options.g8 === true ? '.g8' : '.git';
+      const gExtension = options.G8 === true ? '.g8' : '.git';
       const repoName = gitUri.split('/').pop();
       if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
       shellExec(
@@ -62,7 +62,7 @@ class UnderpostRepository {
       gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`,
       options = { g8: false },
     ) {
-      const gExtension = options.g8 === true ? '.g8' : '.git';
+      const gExtension = options.G8 === true ? '.g8' : '.git';
       shellExec(
         `cd ${repoPath} && git pull https://${
           process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
@@ -211,7 +211,7 @@ class UnderpostRepository {
       gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`,
       options = { f: false, g8: false },
     ) {
-      const gExtension = options.g8 === true || options.G8 === true ? '.g8' : '.git';
+      const gExtension = options.G8 === true ? '.g8' : '.git';
       shellExec(
         `cd ${repoPath} && git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}${gExtension}${
           options?.f === true ? ' --force' : ''
