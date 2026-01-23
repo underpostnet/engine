@@ -1134,6 +1134,15 @@ nvidia/gpu-operator \
       }
       break;
     }
+
+    case 'cyberia': {
+      const { CyberiaDependencies } = await import(`../src/client/components/cyberia-portal/CommonCyberiaPortal.js`);
+      for (const dep of Object.keys(CyberiaDependencies)) {
+        const ver = CyberiaDependencies[dep];
+        shellExec(`npm install ${dep}@${ver}`);
+      }
+      break;
+    }
   }
 } catch (error) {
   logger.error(error, error.stack);
