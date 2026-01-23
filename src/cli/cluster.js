@@ -249,15 +249,11 @@ class UnderpostCluster {
         } else {
           // Kind cluster initialization (if not using kubeadm or k3s)
           logger.info('Initializing Kind cluster...');
-          if (options.full === true || options.dedicatedGpu === true) {
-            shellExec(`cd ${underpostRoot}/manifests && kind create cluster --config kind-config-cuda.yaml`);
-          } else {
-            shellExec(
-              `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${
-                options?.dev === true ? '-dev' : ''
-              }.yaml`,
-            );
-          }
+          shellExec(
+            `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${
+              options?.dev === true ? '-dev' : ''
+            }.yaml`,
+          );
           UnderpostCluster.API.chown('kind'); // Pass 'kind' to chown
         }
       } else if (options.worker === true) {
