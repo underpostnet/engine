@@ -1,5 +1,4 @@
 import fs from 'fs-extra';
-import si from 'systeminformation';
 import * as dir from 'path';
 
 import { loggerFactory } from '../src/server/logger.js';
@@ -19,22 +18,6 @@ try {
       console.log(fs.readFileSync(process.argv[3], 'utf8'));
       break;
 
-    case 'system-info':
-      await (async () => {
-        for (const infoKey of Object.keys(si)) {
-          if (typeof si[infoKey] === 'function') {
-            //  'dockerInfo', 'vboxInfo'
-            if (!['osInfo', 'graphics', 'cpu'].includes(infoKey)) continue;
-            try {
-              const infoInstance = await si[infoKey]();
-              logger.info(infoKey, infoInstance);
-            } catch (error) {
-              logger.info('Not valid info function', infoKey);
-            }
-          }
-        }
-      })();
-      break;
     case 'delete-empty-folder':
       function cleanEmptyFoldersRecursively(folder) {
         if (!fs.existsSync(folder)) {

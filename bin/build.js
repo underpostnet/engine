@@ -182,6 +182,8 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       packageJson.description = 'Cyberia Engine - Object Layer and Assets Management Microservice';
       packageJson.dependencies['maxrects-packer'] = '^2.7.3';
       packageJson.dependencies['pngjs'] = '^7.0.0';
+      packageJson.dependencies['jimp'] = '^1.6.0';
+      packageJson.dependencies['sharp'] = '^0.32.5';
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
       fs.copyFileSync(`./src/api/object-layer/README.md`, `${basePath}/README.md`);
       fs.copySync(`./hardhat`, `${basePath}/hardhat`);
