@@ -719,6 +719,18 @@ const ObjectLayerEngineModal = {
           return;
         }
 
+        // Validate that direction 08 (down idle) has at least 1 frame (frame index 0)
+        if (
+          !ObjectLayerEngineModal.ObjectLayerData['08'] ||
+          ObjectLayerEngineModal.ObjectLayerData['08'].length === 0
+        ) {
+          NotificationManager.Push({
+            html: 'Direction 08 (down idle) must have at least 1 frame (frame index 0)',
+            status: 'error',
+          });
+          return;
+        }
+
         // Separate render frames data from objectLayer.data
         const objectLayerRenderFramesData = {
           frames: {},
@@ -842,10 +854,10 @@ const ObjectLayerEngineModal = {
 
             // Send all frames for this direction in one request (even if empty, to remove frames)
             try {
-              if (existingObjectLayerId) {
+              if (ObjectLayerEngineModal.existingObjectLayerId) {
                 // UPDATE: use PUT endpoint with object layer ID
                 const { status, data } = await ObjectLayerService.put({
-                  id: `${existingObjectLayerId}/frame-image/${objectLayer.data.item.type}/${objectLayer.data.item.id}/${directionCode}`,
+                  id: `${ObjectLayerEngineModal.existingObjectLayerId}/frame-image/${objectLayer.data.item.type}/${objectLayer.data.item.id}/${directionCode}`,
                   body: form,
                   headerId: 'file',
                 });
@@ -883,14 +895,14 @@ const ObjectLayerEngineModal = {
           };
 
           let response;
-          if (existingObjectLayerId) {
+          if (ObjectLayerEngineModal.existingObjectLayerId) {
             // UPDATE existing object layer
             console.warn(
               'PUT path:',
-              `${existingObjectLayerId}/metadata/${objectLayer.data.item.type}/${objectLayer.data.item.id}`,
+              `${ObjectLayerEngineModal.existingObjectLayerId}/metadata/${objectLayer.data.item.type}/${objectLayer.data.item.id}`,
             );
             response = await ObjectLayerService.put({
-              id: `${existingObjectLayerId}/metadata/${objectLayer.data.item.type}/${objectLayer.data.item.id}`,
+              id: `${ObjectLayerEngineModal.existingObjectLayerId}/metadata/${objectLayer.data.item.type}/${objectLayer.data.item.id}`,
               body: requestBody,
             });
           } else {

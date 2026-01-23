@@ -119,8 +119,23 @@ const ObjectLayerManagement = {
         const { type, id } = data.data.item;
         const imagePath = `${getProxyPath()}assets/${type}/${id}/08/0.png`;
 
+        // Container with both image and fallback
         this.eGui.innerHTML = html`
-          <img class="inl" src="${imagePath}" style="width: 100px; height: 100px;" alt="Frame 08" />
+          <div style="position: relative; width: 100px; height: 100px;">
+            <img
+              class="inl frame-08-preview"
+              src="${imagePath}"
+              style="width: 100px; height: 100px; display: block;"
+              alt="Frame 08"
+              onload="this.style.display='block'; this.nextElementSibling.style.display='none';"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <div
+              style="position: absolute; top: 0; left: 0; width: 100px; height: 100px; display: none; align-items: center; justify-content: center; "
+            >
+              <i class="fas fa-image" style="font-size: 48px; color: #999;"></i>
+            </div>
+          </div>
         `;
       }
 
