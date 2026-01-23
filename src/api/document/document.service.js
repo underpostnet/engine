@@ -129,7 +129,7 @@ const DocumentService = {
           return filteredDoc;
         });
 
-        return { data: sanitizedData.map((d) => (d.userId.role = undefined)) };
+        return { data: sanitizedData };
       }
 
       // OPTIMIZATION: Split search query into individual terms for multi-term matching
