@@ -50,6 +50,9 @@ const ObjectLayerEngineViewer = {
   Render: async function ({ Elements }) {
     const id = 'object-layer-engine-viewer';
 
+    // Reset currentCid when modal is rendered to ensure Reload triggers properly
+    this.Data.currentCid = undefined;
+
     Modal.Data[`modal-${id}`].onReloadModalListener[id] = async () => {
       ObjectLayerEngineViewer.Reload({ Elements });
     };
@@ -91,16 +94,25 @@ const ObjectLayerEngineViewer = {
     // Clear current cid when rendering empty state
     this.Data.currentCid = null;
 
-    // Check if the management table grid already exists
+    // Check if the management table grid already exists AND its DOM is still present
     // If it does, don't re-render (just let DefaultManagement's RouterEvents handle URL changes)
     const gridId = `object-layer-engine-management-grid-${idModal}`;
-    if (AgGrid.grids[gridId]) {
-      // Grid already exists, no need to destroy and recreate it
+    const gridExists = AgGrid.grids[gridId];
+    const gridDomExists = s(`.${gridId}`);
+
+    if (gridExists && gridDomExists) {
+      // Grid already exists with DOM intact, no need to destroy and recreate it
       // The DefaultManagement RouterEvents listener will handle pagination/filter updates
       return;
     }
 
-    // Grid doesn't exist yet, render it for the first time
+    // Grid doesn't exist or its DOM was destroyed, render/re-render it
+    if (gridExists && !gridDomExists) {
+      // Clean up orphaned grid reference
+      AgGrid.grids[gridId].destroy();
+      delete AgGrid.grids[gridId];
+    }
+
     htmls(
       `#${id}`,
       await ObjectLayerManagement.RenderTable({
@@ -694,9 +706,9 @@ const ObjectLayerEngineViewer = {
     const listBtn = s('#return-to-list-btn');
     if (listBtn) {
       listBtn.addEventListener('click', () => {
-        setPath(`${getProxyPath()}object-layer-engine-viewer`);
-        setQueryParams({ cid: null });
-        ObjectLayerEngineViewer.renderEmpty({ Elements });
+        // Clear the cid parameter to return to list view
+        setQueryParams({ cid: null }, { replace: false });
+        // The listener will detect the change and call renderEmpty()
       });
     }
 
@@ -889,13 +901,27 @@ const ObjectLayerEngineViewer = {
     const queryParams = getQueryParams();
     const cid = queryParams.cid || null;
 
-    // Update current cid and reload
-    this.Data.currentCid = cid;
+    // Only reload if cid actually changed (same logic as listener)
+    if (cid !== this.Data.currentCid) {
+      this.Data.currentCid = cid;
 
-    if (cid) {
-      await this.loadObjectLayer(cid, Elements);
-    } else {
-      this.renderEmpty({ Elements });
+      if (cid) {
+        await this.loadObjectLayer(cid, Elements);
+      } else {
+        await this.renderEmpty({ Elements });
+      }
+    } else if (!cid && this.Data.currentCid === null) {
+      // Special case: if we're already in empty state but DOM might have been reset
+      // (e.g., modal reopened), force render the table if DOM is missing
+      const id = 'object-layer-engine-viewer';
+      const idModal = 'modal-object-layer-engine-viewer';
+      const gridId = `object-layer-engine-management-grid-${idModal}`;
+      const gridDomExists = s(`.${gridId}`);
+
+      if (!gridDomExists) {
+        // DOM was reset (e.g., modal HTML reloaded), re-render the table
+        await this.renderEmpty({ Elements });
+      }
     }
   },
 };
