@@ -159,6 +159,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       recursive: true,
     });
 
+  const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
   const packageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
   packageJson.name = repoName.replace('engine-', '');
 
@@ -180,6 +181,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         'atlas-sprite-sheet',
       ];
       packageJson.description = 'Cyberia Engine - Object Layer and Assets Management Microservice';
+      packageJson.dependencies = originPackageJson.dependencies;
       packageJson.dependencies['maxrects-packer'] = '^2.7.3';
       packageJson.dependencies['pngjs'] = '^7.0.0';
       packageJson.dependencies['jimp'] = '^1.6.0';
