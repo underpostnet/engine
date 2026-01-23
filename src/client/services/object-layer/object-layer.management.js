@@ -34,8 +34,9 @@ const ObjectLayerManagement = {
         })}`;
 
         setTimeout(() => {
-          if (s(`.btn-view-object-layer-${data._id}`))
-            s(`.btn-view-object-layer-${data._id}`).onclick = async () =>
+          const btn = this.eGui.querySelector(`.btn-view-object-layer-${data._id}`);
+          if (btn)
+            btn.onclick = async () =>
               setTimeout(async () => {
                 // Navigate to viewer route first
                 setPath(`${getProxyPath()}object-layer-engine-viewer`);
@@ -79,8 +80,9 @@ const ObjectLayerManagement = {
         })}`;
 
         setTimeout(() => {
-          if (s(`.btn-edit-object-layer-${data._id}`))
-            s(`.btn-edit-object-layer-${data._id}`).onclick = async () =>
+          const btn = this.eGui.querySelector(`.btn-edit-object-layer-${data._id}`);
+          if (btn)
+            btn.onclick = async () =>
               setTimeout(async () => {
                 // Navigate to editor route first
                 setPath(`${getProxyPath()}object-layer-engine`);
@@ -143,7 +145,6 @@ const ObjectLayerManagement = {
         field: 'data.item.id',
         headerName: 'Item ID',
         editable: role === 'user',
-        cellClassRules: { 'row-new-highlight': (params) => true },
       },
       { field: 'data.item.type', headerName: 'Item Type', editable: role === 'user' },
       { field: 'data.item.description', headerName: 'Description', flex: 1, editable: role === 'user' },

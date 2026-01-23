@@ -18,6 +18,12 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import * as _ from '../cyberia/ObjectLayerEngine.js';
 
 const ObjectLayerEngineModal = {
+  selectItemType: 'skin',
+  itemActivable: false,
+  renderIsStateless: false,
+  renderFrameDuration: 100,
+  existingObjectLayerId: null,
+  originalDirectionCodes: [],
   templates: [
     {
       label: 'empty',
@@ -83,6 +89,19 @@ const ObjectLayerEngineModal = {
   clearData: function () {
     // Clear all cached object layer data to prevent contamination between sessions
     this.ObjectLayerData = {};
+    this.selectItemType = 'skin';
+    this.itemActivable = false;
+    this.renderIsStateless = false;
+    this.renderFrameDuration = 100;
+    this.existingObjectLayerId = null;
+    this.originalDirectionCodes = [];
+    this.templates = [
+      {
+        label: 'empty',
+        id: 'empty',
+        data: [],
+      },
+    ];
 
     // Clear the canvas if it exists
     const ole = s('object-layer-engine');
@@ -122,6 +141,13 @@ const ObjectLayerEngineModal = {
       const statInput = s(`#ol-input-item-stats-${stat}`);
       if (statInput) statInput.value = '0';
     }
+
+    // Clear DropDown displays
+    const templateDropdownCurrent = s(`.dropdown-current-ol-dropdown-template`);
+    if (templateDropdownCurrent) templateDropdownCurrent.innerHTML = '';
+
+    const itemTypeDropdownCurrent = s(`.dropdown-current-ol-dropdown-item-type`);
+    if (itemTypeDropdownCurrent) itemTypeDropdownCurrent.innerHTML = 'skin';
   },
   loadFromDatabase: async (objectLayerId) => {
     try {
@@ -168,16 +194,10 @@ const ObjectLayerEngineModal = {
     const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
     const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor'];
     const statTypes = ['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility'];
-    let selectItemType = itemTypes[0];
-    let itemActivable = false;
-    let renderIsStateless = false;
-    let renderFrameDuration = 100;
 
     // Check if we have a 'cid' query parameter to load existing object layer
     const queryParams = getQueryParams();
     let loadedData = null;
-    let existingObjectLayerId = null; // Track the _id for updates
-    let originalDirectionCodes = []; // Track original direction codes for update mode
 
     // Track frame editing state
     let editingFrameId = null;
@@ -283,7 +303,7 @@ const ObjectLayerEngineModal = {
     };
 
     if (queryParams.cid) {
-      existingObjectLayerId = queryParams.cid;
+      ObjectLayerEngineModal.existingObjectLayerId = queryParams.cid;
       loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.cid);
 
       if (loadedData) {
@@ -292,32 +312,34 @@ const ObjectLayerEngineModal = {
         // Set form values from metadata
         if (metadata.data) {
           if (metadata.data.item) {
-            selectItemType = metadata.data.item.type || itemTypes[0];
-            itemActivable = metadata.data.item.activable || false;
+            ObjectLayerEngineModal.selectItemType = metadata.data.item.type || itemTypes[0];
+            ObjectLayerEngineModal.itemActivable = metadata.data.item.activable || false;
 
             // Add loaded item type to itemTypes array if it doesn't exist
-            if (selectItemType && !itemTypes.includes(selectItemType)) {
-              itemTypes.push(selectItemType);
+            if (ObjectLayerEngineModal.selectItemType && !itemTypes.includes(ObjectLayerEngineModal.selectItemType)) {
+              itemTypes.push(ObjectLayerEngineModal.selectItemType);
             }
           }
           if (objectLayerRenderFramesId) {
-            renderIsStateless = objectLayerRenderFramesId.is_stateless || false;
-            renderFrameDuration = objectLayerRenderFramesId.frame_duration || 100;
+            ObjectLayerEngineModal.renderIsStateless = objectLayerRenderFramesId.is_stateless || false;
+            ObjectLayerEngineModal.renderFrameDuration = objectLayerRenderFramesId.frame_duration || 100;
           }
         }
       }
     }
 
-    for (const url of [
-      `${getProxyPath()}assets/templates/item-skin-08.json`,
-      `${getProxyPath()}assets/templates/item-skin-06.json`,
-    ]) {
-      const id = url.split('/').pop().replace('.json', '');
-      ObjectLayerEngineModal.templates.push({
-        label: id,
-        id,
-        data: JSON.parse(await CoreService.getRaw({ url })).color,
-      });
+    if (ObjectLayerEngineModal.templates.length === 1) {
+      for (const url of [
+        `${getProxyPath()}assets/templates/item-skin-08.json`,
+        `${getProxyPath()}assets/templates/item-skin-06.json`,
+      ]) {
+        const id = url.split('/').pop().replace('.json', '');
+        ObjectLayerEngineModal.templates.push({
+          label: id,
+          id,
+          data: JSON.parse(await CoreService.getRaw({ url })).color,
+        });
+      }
     }
 
     const cells = 26;
@@ -571,8 +593,8 @@ const ObjectLayerEngineModal = {
               for (const direction of directions) {
                 if (frames[direction] && frames[direction].length > 0) {
                   // Track this direction code as having original data
-                  if (!originalDirectionCodes.includes(currentDirectionCode)) {
-                    originalDirectionCodes.push(currentDirectionCode);
+                  if (!ObjectLayerEngineModal.originalDirectionCodes.includes(currentDirectionCode)) {
+                    ObjectLayerEngineModal.originalDirectionCodes.push(currentDirectionCode);
                   }
                   // Load frames from static PNG URLs sequentially to avoid race conditions
                   const frameCount = frames[direction].length;
@@ -701,8 +723,8 @@ const ObjectLayerEngineModal = {
         const objectLayerRenderFramesData = {
           frames: {},
           colors: [],
-          frame_duration: renderFrameDuration,
-          is_stateless: renderIsStateless,
+          frame_duration: ObjectLayerEngineModal.renderFrameDuration,
+          is_stateless: ObjectLayerEngineModal.renderIsStateless,
         };
 
         const objectLayer = {
@@ -747,7 +769,7 @@ const ObjectLayerEngineModal = {
           }
         }
         objectLayerRenderFramesData.frame_duration = parseInt(s(`.ol-input-render-frame-duration`).value);
-        objectLayerRenderFramesData.is_stateless = renderIsStateless;
+        objectLayerRenderFramesData.is_stateless = ObjectLayerEngineModal.renderIsStateless;
         objectLayer.data.stats = {
           effect: parseInt(s(`.ol-input-item-stats-effect`).value),
           resistance: parseInt(s(`.ol-input-item-stats-resistance`).value),
@@ -757,18 +779,22 @@ const ObjectLayerEngineModal = {
           utility: parseInt(s(`.ol-input-item-stats-utility`).value),
         };
         objectLayer.data.item = {
-          type: selectItemType,
-          activable: itemActivable,
+          type: ObjectLayerEngineModal.selectItemType,
+          activable: ObjectLayerEngineModal.itemActivable,
           id: s(`.ol-input-item-id`).value,
           description: s(`.ol-input-item-description`).value,
         };
 
         // Add _id if we're updating an existing object layer
-        if (existingObjectLayerId) {
-          objectLayer._id = existingObjectLayerId;
+        if (ObjectLayerEngineModal.existingObjectLayerId) {
+          objectLayer._id = ObjectLayerEngineModal.existingObjectLayerId;
         }
 
-        console.warn('objectLayer', objectLayer, existingObjectLayerId ? '(UPDATE MODE)' : '(CREATE MODE)');
+        console.warn(
+          'objectLayer',
+          objectLayer,
+          ObjectLayerEngineModal.existingObjectLayerId ? '(UPDATE MODE)' : '(CREATE MODE)',
+        );
 
         if (Elements.Data.user.main.model.user.role === 'guest') {
           NotificationManager.Push({
@@ -784,14 +810,14 @@ const ObjectLayerEngineModal = {
           const directionCodesToUpload = Object.keys(ObjectLayerEngineModal.ObjectLayerData);
 
           // In UPDATE mode, also include original direction codes that may have been cleared
-          const allDirectionCodes = existingObjectLayerId
-            ? [...new Set([...directionCodesToUpload, ...originalDirectionCodes])]
+          const allDirectionCodes = ObjectLayerEngineModal.existingObjectLayerId
+            ? [...new Set([...directionCodesToUpload, ...ObjectLayerEngineModal.originalDirectionCodes])]
             : directionCodesToUpload;
 
           console.warn(
             `Uploading frames for ${allDirectionCodes.length} directions:`,
             allDirectionCodes,
-            existingObjectLayerId ? '(UPDATE MODE)' : '(CREATE MODE)',
+            ObjectLayerEngineModal.existingObjectLayerId ? '(UPDATE MODE)' : '(CREATE MODE)',
           );
 
           for (const directionCode of allDirectionCodes) {
@@ -879,13 +905,17 @@ const ObjectLayerEngineModal = {
 
           if (status === 'success') {
             NotificationManager.Push({
-              html: `Object layer "${objectLayer.data.item.id}" ${existingObjectLayerId ? 'updated' : 'created'} successfully!`,
+              html: `Object layer "${objectLayer.data.item.id}" ${
+                ObjectLayerEngineModal.existingObjectLayerId ? 'updated' : 'created'
+              } successfully!`,
               status: 'success',
             });
-            ObjectLayerEngineModal.toManagement();
+            ObjectLayerEngineModal.toManagement(data?._id || ObjectLayerEngineModal.existingObjectLayerId);
           } else {
             NotificationManager.Push({
-              html: `Error ${existingObjectLayerId ? 'updating' : 'creating'} object layer: ${message}`,
+              html: `Error ${
+                ObjectLayerEngineModal.existingObjectLayerId ? 'updating' : 'creating'
+              } object layer: ${message}`,
               status: 'error',
             });
           }
@@ -1038,6 +1068,7 @@ const ObjectLayerEngineModal = {
           <div class="in fll ${idSectionA}-col-a">
             <div class="in section-mp">
               ${await DropDown.Render({
+                id: 'ol-dropdown-template',
                 value: ObjectLayerEngineModal.templates[0].id,
                 label: html`${Translate.Render('select-template')}`,
                 data: ObjectLayerEngineModal.templates.map((template) => {
@@ -1064,7 +1095,7 @@ const ObjectLayerEngineModal = {
                 min: 100,
                 max: 1000,
                 placeholder: true,
-                value: renderFrameDuration,
+                value: ObjectLayerEngineModal.renderFrameDuration,
               })}
             </div>
             <div class="in section-mp">
@@ -1073,15 +1104,15 @@ const ObjectLayerEngineModal = {
                 wrapper: true,
                 wrapperLabel: html`${Translate.Render('is-stateless')}`,
                 disabledOnClick: true,
-                checked: renderIsStateless,
+                checked: ObjectLayerEngineModal.renderIsStateless,
                 on: {
                   unchecked: () => {
-                    renderIsStateless = false;
-                    console.warn('renderIsStateless', renderIsStateless);
+                    ObjectLayerEngineModal.renderIsStateless = false;
+                    console.warn('renderIsStateless', ObjectLayerEngineModal.renderIsStateless);
                   },
                   checked: () => {
-                    renderIsStateless = true;
-                    console.warn('renderIsStateless', renderIsStateless);
+                    ObjectLayerEngineModal.renderIsStateless = true;
+                    console.warn('renderIsStateless', ObjectLayerEngineModal.renderIsStateless);
                   },
                 },
               })}
@@ -1112,7 +1143,8 @@ const ObjectLayerEngineModal = {
             })}
             <div class="in section-mp">
               ${await DropDown.Render({
-                value: selectItemType,
+                id: 'ol-dropdown-item-type',
+                value: ObjectLayerEngineModal.selectItemType,
                 label: html`${Translate.Render('select-item-type')}`,
                 data: itemTypes.map((itemType) => {
                   return {
@@ -1120,7 +1152,7 @@ const ObjectLayerEngineModal = {
                     display: html`${itemType}`,
                     onClick: async () => {
                       console.warn('itemType click', itemType);
-                      selectItemType = itemType;
+                      ObjectLayerEngineModal.selectItemType = itemType;
                     },
                   };
                 }),
@@ -1132,15 +1164,15 @@ const ObjectLayerEngineModal = {
                 wrapper: true,
                 wrapperLabel: html`${Translate.Render('item-activable')}`,
                 disabledOnClick: true,
-                checked: itemActivable,
+                checked: ObjectLayerEngineModal.itemActivable,
                 on: {
                   unchecked: () => {
-                    itemActivable = false;
-                    console.warn('itemActivable', itemActivable);
+                    ObjectLayerEngineModal.itemActivable = false;
+                    console.warn('itemActivable', ObjectLayerEngineModal.itemActivable);
                   },
                   checked: () => {
-                    itemActivable = true;
-                    console.warn('itemActivable', itemActivable);
+                    ObjectLayerEngineModal.itemActivable = true;
+                    console.warn('itemActivable', ObjectLayerEngineModal.itemActivable);
                   },
                 },
               })}
@@ -1200,39 +1232,34 @@ const ObjectLayerEngineModal = {
 
     return objectLayerFrameDirections;
   },
-  toManagement: async () => {
+  toManagement: async (id = null) => {
     await ObjectLayerEngineModal.clearData();
-    const subModalId = 'viewer' || 'management';
+    const subModalId = 'management';
     const modalId = `modal-object-layer-engine-${subModalId}`;
-    const queryParams = getQueryParams();
-    queryParams.cid = '';
-    queryParams.page = 1;
-    setQueryParams(queryParams);
-    const managerComponent = DefaultManagement.Tokens[modalId];
-    if (managerComponent) {
-      managerComponent.page = 1;
-      if (!managerComponent.readyRowDataEvent) managerComponent.readyRowDataEvent = {};
-      let readyLoad = false;
-      const gridId = `object-layer-engine-management-grid-${modalId}`;
-      managerComponent.readyRowDataEvent[`object-layer-engine-${subModalId}`] = async () => {
-        if (readyLoad) {
-          AgGrid.grids[gridId].setGridOption('getRowClass', null);
-          return delete managerComponent.readyRowDataEvent[`object-layer-engine-${subModalId}`];
-        }
+    await DefaultManagement.runIsolated(modalId, async () => {
+      setPath(`${getProxyPath()}object-layer-engine-management`);
+      const queryParams = getQueryParams();
+      queryParams.id = id ? id : '';
+      queryParams.cid = '';
+      queryParams.page = 1;
+      setQueryParams(queryParams, { replace: true });
 
-        AgGrid.grids[gridId].setGridOption('getRowClass', (params) => {
-          if (params.node.rowIndex === 0) {
-            return 'row-new-highlight';
-          }
-        });
-        readyLoad = true;
-      };
-    }
+      if (id) {
+        DefaultManagement.setIdFilter(modalId, id);
+      } else {
+        DefaultManagement.clearIdFilter(modalId);
+      }
 
-    const _s = s(` .management-table-btn-reload-${modalId}`);
-    if (_s) _s.click();
+      const managerComponent = DefaultManagement.Tokens[modalId];
+      if (managerComponent) {
+        managerComponent.page = 1;
+      }
 
-    s(`.main-btn-object-layer-engine-${subModalId}`).click();
+      s(`.main-btn-object-layer-engine-${subModalId}`).click();
+
+      await DefaultManagement.waitGridReady(modalId);
+      await DefaultManagement.loadTable(modalId, { force: true, reload: true });
+    });
   },
   Reload: async function () {
     // Clear data before reload to prevent contamination

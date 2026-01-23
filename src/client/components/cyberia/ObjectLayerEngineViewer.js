@@ -76,18 +76,13 @@ const ObjectLayerEngineViewer = {
   renderEmpty: async function ({ Elements }) {
     const id = 'object-layer-engine-viewer';
     const idModal = 'modal-object-layer-engine-viewer';
-    const serviceId = 'object-layer-engine-management';
-    const gridId = `${serviceId}-grid-${idModal}`;
-    if (s(`.${serviceId}-grid-${idModal}`) && AgGrid.grids[gridId])
-      await DefaultManagement.loadTable(idModal, { reload: true });
-    else
-      htmls(
-        `#${id}`,
-        await ObjectLayerManagement.RenderTable({
-          Elements,
-          idModal,
-        }),
-      );
+    htmls(
+      `#${id}`,
+      await ObjectLayerManagement.RenderTable({
+        Elements,
+        idModal,
+      }),
+    );
   },
 
   loadObjectLayer: async function (objectLayerId, Elements) {

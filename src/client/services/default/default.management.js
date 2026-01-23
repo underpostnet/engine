@@ -54,6 +54,9 @@ const DefaultManagement = {
   Tokens: {},
   // Helper functions for managing serviceOptions ID filter
   setIdFilter: function (id, itemId) {
+    if (!this.Tokens[id]) {
+      this.Tokens[id] = {};
+    }
     if (!this.Tokens[id].serviceOptions) {
       this.Tokens[id].serviceOptions = {};
     }
@@ -70,9 +73,34 @@ const DefaultManagement = {
   getIdFilter: function (id) {
     return this.Tokens[id]?.serviceOptions?.get?.id ?? undefined;
   },
+  waitGridReady: function (id) {
+    return new Promise((resolve) => {
+      if (this.Tokens[id]?.gridApi) {
+        return resolve(this.Tokens[id].gridApi);
+      }
+      if (!this.Tokens[id].readyGridEvent) this.Tokens[id].readyGridEvent = {};
+      this.Tokens[id].readyGridEvent['waitGridReady'] = (params) => {
+        delete this.Tokens[id].readyGridEvent['waitGridReady'];
+        resolve(params.api);
+      };
+    });
+  },
+  runIsolated: async function (id, callback) {
+    if (!this.Tokens[id]) return await callback();
+    this.Tokens[id].isProcessingQueryChange = true;
+    try {
+      return await callback();
+    } finally {
+      this.Tokens[id].isProcessingQueryChange = false;
+    }
+  },
   loadTable: async function (id, options = {}) {
     options = { reload: true, force: true, createHistory: false, skipUrlUpdate: false, ...options };
     try {
+      if (!this.Tokens[id]) {
+        logger.warn(`DefaultManagement loadTable - Token not found for id: ${id}`);
+        return;
+      }
       const { serviceId, columnDefs, customFormat, gridId } = this.Tokens[id];
 
       let _page = this.Tokens[id].page;
@@ -108,10 +136,8 @@ const DefaultManagement = {
           limit: _limit,
           filterModel: filterModelStr,
           sortModel: sortModelStr,
+          id: _id ? _id : '',
         };
-        if (_id) {
-          urlParams.id = _id;
-        }
         setQueryParams(urlParams, { replace: !options.createHistory });
       }
 
@@ -163,10 +189,17 @@ const DefaultManagement = {
       }
 
       logger.info(`Loading table ${serviceId}`, {
+        id,
+        idFilter: _id,
         page: _page,
         limit: _limit,
         hasFilters: Object.keys(filterModel).length > 0,
       });
+
+      if (!this.Tokens[id] || !this.Tokens[id].ServiceProvider) {
+        logger.warn(`DefaultManagement loadTable ${serviceId} - ServiceProvider not found for token ${id}`);
+        return;
+      }
 
       const result = await this.Tokens[id].ServiceProvider.get(queryOptions);
       if (result.status === 'success') {
@@ -181,7 +214,7 @@ const DefaultManagement = {
           totalPages = 1;
         } else {
           // Paginated array response
-          ({ data, total, page, totalPages } = result.data);
+          ({ data = [], total = 0, page = 1, totalPages = 1 } = result.data || {});
         }
 
         this.Tokens[id].total = total;
@@ -309,10 +342,102 @@ const DefaultManagement = {
       return enhancedCol;
     });
 
+    class RemoveActionGridRenderer {
+      eGui;
+      tokens;
+
+      async init(params) {
+        this.eGui = document.createElement('div');
+        this.tokens = {};
+        const { rowIndex } = params;
+        const { createdAt, updatedAt } = params.data;
+
+        const cellRenderId = getId(this.tokens, `${serviceId}-`);
+        this.tokens[cellRenderId] = {};
+
+        this.eGui.innerHTML = html` ${await BtnIcon.Render({
+          label: html`<div class="abs center">
+            <i class="fas fa-times"></i>
+          </div> `,
+          class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${cellRenderId} ${
+            !params.data._id ? 'hide' : ''
+          }`,
+        })}`;
+        setTimeout(() => {
+          EventsUI.onClick(
+            `.management-table-btn-remove-${id}-${cellRenderId}`,
+            async () => {
+              const confirmResult = await Modal.RenderConfirm({
+                html: async () => {
+                  return html`
+                    <div class="in section-mp" style="text-align: center">
+                      ${Translate.Render('confirm-delete-item')}
+                      ${Object.keys(params.data).length > 0
+                        ? html`<br />
+                            "${options.defaultColKeyFocus
+                              ? getValueFromJoinString(params.data, options.defaultColKeyFocus)
+                              : params.data[Object.keys(params.data)[0]]}"`
+                        : ''}
+                    </div>
+                  `;
+                },
+                id: `delete-${params.data._id}`,
+              });
+              if (confirmResult.status !== 'confirm') return;
+              let result;
+              if (params.data._id) result = await ServiceProvider.delete({ id: params.data._id });
+              else result = { status: 'success' };
+
+              NotificationManager.Push({
+                html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
+                status: result.status,
+              });
+              if (result.status === 'success') {
+                AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
+                const token = DefaultManagement.Tokens[id];
+                // if we are on the last page and we delete the last item, go to the previous page
+                const newTotal = token.total - 1;
+                const newTotalPages = Math.ceil(newTotal / token.limit);
+                if (token.page > newTotalPages && newTotalPages > 0) {
+                  token.page = newTotalPages;
+                }
+
+                // reload the current page
+                await DefaultManagement.loadTable(id, { reload: false });
+              }
+            },
+            { context: 'modal' },
+          );
+        });
+      }
+
+      getGui() {
+        return this.eGui;
+      }
+
+      refresh(params) {
+        return true;
+      }
+    }
+
+    const finalColumnDefs = (enhancedColumnDefs || []).concat(
+      permissions.remove
+        ? [
+            {
+              field: 'remove-action',
+              headerName: '',
+              width: 100,
+              cellRenderer: RemoveActionGridRenderer,
+              editable: false,
+            },
+          ]
+        : [],
+    );
+
     this.Tokens[id] = {
       ...this.Tokens[id],
       ...options,
-      columnDefs: enhancedColumnDefs, // Use enhanced definitions
+      columnDefs: finalColumnDefs, // Use enhanced definitions including actions
       gridId,
       page,
       limit,
@@ -332,104 +457,14 @@ const DefaultManagement = {
     setQueryParams({
       page,
       limit,
+      id: urlId ? urlId : '',
       filterModel: Object.keys(filterModel).length > 0 ? JSON.stringify(filterModel) : null,
       sortModel: sortModel.length > 0 ? JSON.stringify(sortModel) : null,
     });
+
     setTimeout(async () => {
       // https://www.ag-grid.com/javascript-data-grid/data-update-transactions/
 
-      class RemoveActionGridRenderer {
-        eGui;
-        tokens;
-
-        async init(params) {
-          this.eGui = document.createElement('div');
-          this.tokens = {};
-          const { rowIndex } = params;
-          const { createdAt, updatedAt } = params.data;
-
-          const cellRenderId = getId(this.tokens, `${serviceId}-`);
-          this.tokens[cellRenderId] = {};
-
-          this.eGui.innerHTML = html` ${await BtnIcon.Render({
-            label: html`<div class="abs center">
-              <i class="fas fa-times"></i>
-            </div> `,
-            class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${cellRenderId} ${!params.data._id ? 'hide' : ''}`,
-          })}`;
-          setTimeout(() => {
-            EventsUI.onClick(
-              `.management-table-btn-remove-${id}-${cellRenderId}`,
-              async () => {
-                const confirmResult = await Modal.RenderConfirm({
-                  html: async () => {
-                    return html`
-                      <div class="in section-mp" style="text-align: center">
-                        ${Translate.Render('confirm-delete-item')}
-                        ${Object.keys(params.data).length > 0
-                          ? html`<br />
-                              "${options.defaultColKeyFocus
-                                ? getValueFromJoinString(params.data, options.defaultColKeyFocus)
-                                : params.data[Object.keys(params.data)[0]]}"`
-                          : ''}
-                      </div>
-                    `;
-                  },
-                  id: `delete-${params.data._id}`,
-                });
-                if (confirmResult.status !== 'confirm') return;
-                let result;
-                if (params.data._id) result = await ServiceProvider.delete({ id: params.data._id });
-                else result = { status: 'success' };
-
-                NotificationManager.Push({
-                  html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
-                  status: result.status,
-                });
-                if (result.status === 'success') {
-                  AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
-                  const token = DefaultManagement.Tokens[id];
-                  // if we are on the last page and we delete the last item, go to the previous page
-                  const newTotal = token.total - 1;
-                  const newTotalPages = Math.ceil(newTotal / token.limit);
-                  if (token.page > newTotalPages && newTotalPages > 0) {
-                    token.page = newTotalPages;
-                  }
-
-                  // reload the current page
-                  await DefaultManagement.loadTable(id, { reload: false });
-                }
-              },
-              { context: 'modal' },
-            );
-          });
-        }
-
-        getGui() {
-          return this.eGui;
-        }
-
-        refresh(params) {
-          return true;
-        }
-      }
-
-      AgGrid.grids[gridId].setGridOption(
-        'columnDefs',
-        enhancedColumnDefs.concat(
-          permissions.remove
-            ? [
-                {
-                  field: 'remove-action',
-                  headerName: '',
-                  width: 100,
-                  cellRenderer: RemoveActionGridRenderer,
-                  editable: false,
-                },
-              ]
-            : [],
-        ),
-      );
       // Initial loadTable is now called in onGridReady after grid is fully initialized
       // {
       //   const result = await ServiceProvider.get();
@@ -822,9 +857,21 @@ const DefaultManagement = {
           parentModal: options.idModal,
           usePagination: true,
           paginationOptions,
-          customHeightOffset: !permissions.add && !permissions.remove && !permissions.reload ? 50 : 0,
-          darkTheme,
+          customHeightOffset:
+            options.customHeightOffset !== undefined
+              ? options.customHeightOffset
+              : !permissions.add && !permissions.remove && !permissions.reload
+                ? 50
+                : 0,
+          darkTheme: typeof darkTheme !== 'undefined' ? darkTheme : false,
           gridOptions: {
+            columnDefs: finalColumnDefs,
+            getRowClass: (params) => {
+              const idFilter = DefaultManagement.getIdFilter(id);
+              if (idFilter && params.data && params.data._id === idFilter) {
+                return 'row-new-highlight';
+              }
+            },
             defaultColDef: {
               flex: 1,
               editable: true,
@@ -833,8 +880,16 @@ const DefaultManagement = {
               filter: true,
               autoHeight: true,
             },
-            onGridReady: (params) => {
+            onGridReady: async (params) => {
               this.Tokens[id].gridApi = params.api;
+
+              if (this.Tokens[id].readyGridEvent) {
+                for (const key of Object.keys(this.Tokens[id].readyGridEvent)) {
+                  await this.Tokens[id].readyGridEvent[key](params);
+                }
+              }
+
+              params.api.setGridOption('columnDefs', finalColumnDefs);
               // Apply initial state from URL
               const { filterModel, sortModel } = this.Tokens[id];
               if (filterModel && Object.keys(filterModel).length > 0) {

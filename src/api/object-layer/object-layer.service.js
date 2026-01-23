@@ -245,6 +245,21 @@ const ObjectLayerService = {
     }
 
     // GET / - Get paginated list of object layers
+    const id = req.params.id || req.query.id;
+    logger.info(`ObjectLayerService.get - filtering check - id: ${id}`);
+    if (id && id !== 'undefined' && !['render', 'metadata', 'frame-counts'].includes(id)) {
+      try {
+        const objectLayer = await ObjectLayer.findById(id).select(ObjectLayerDto.select.get());
+        if (objectLayer) {
+          logger.info(`ObjectLayerService.get - found record by id: ${id}`);
+          return { data: [objectLayer], total: 1, page: 1, totalPages: 1 };
+        }
+        logger.warn(`ObjectLayerService.get - record NOT found for id: ${id}`);
+      } catch (e) {
+        logger.warn(`Invalid ID format or not found: ${id}`);
+      }
+    }
+
     const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
 
     const [data, total] = await Promise.all([
