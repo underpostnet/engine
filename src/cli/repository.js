@@ -31,12 +31,12 @@ class UnderpostRepository {
     /**
      * Clones a Git repository from GitHub.
      * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template`] - The URI of the GitHub repository (e.g., "username/repository").
-     * @param {object} [options={ bare: false, g8: false }] - Cloning options.
+     * @param {object} [options={ bare: false, G8: false }] - Cloning options.
      * @param {boolean} [options.bare=false] - If true, performs a bare clone.
      * @param {boolean} [options.g8=false] - If true, uses the .g8 extension.
      * @memberof UnderpostRepository
      */
-    clone(gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`, options = { bare: false, g8: false }) {
+    clone(gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`, options = { bare: false, G8: false }) {
       const gExtension = options.G8 === true ? '.g8' : '.git';
       const repoName = gitUri.split('/').pop();
       if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
@@ -53,14 +53,14 @@ class UnderpostRepository {
      * Pulls updates from a GitHub repository.
      * @param {string} [repoPath='./'] - The local path to the repository.
      * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template`] - The URI of the GitHub repository.
-     * @param {object} [options={ g8: false }] - Pulling options.
+     * @param {object} [options={ G8: false }] - Pulling options.
      * @param {boolean} [options.g8=false] - If true, uses the .g8 extension.
      * @memberof UnderpostRepository
      */
     pull(
       repoPath = './',
       gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`,
-      options = { g8: false },
+      options = { G8: false },
     ) {
       const gExtension = options.G8 === true ? '.g8' : '.git';
       shellExec(
@@ -201,7 +201,7 @@ class UnderpostRepository {
      * Pushes commits to a remote GitHub repository.
      * @param {string} [repoPath='./'] - The local path to the repository.
      * @param {string} [gitUri=`${process.env.GITHUB_USERNAME}/pwa-microservices-template`] - The URI of the GitHub repository.
-     * @param {object} [options={ f: false, g8: false }] - Push options.
+     * @param {object} [options={ f: false, G8: false }] - Push options.
      * @param {boolean} [options.f=false] - If true, forces the push.
      * @param {boolean} [options.g8=false] - If true, uses the .g8 extension.
      * @memberof UnderpostRepository
@@ -209,7 +209,7 @@ class UnderpostRepository {
     push(
       repoPath = './',
       gitUri = `${process.env.GITHUB_USERNAME}/pwa-microservices-template`,
-      options = { f: false, g8: false },
+      options = { f: false, G8: false },
     ) {
       const gExtension = options.G8 === true ? '.g8' : '.git';
       shellExec(
