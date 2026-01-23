@@ -1,5 +1,12 @@
 import { loggerFactory } from '../core/Logger.js';
-import { getProxyPath, listenQueryPathInstance, setPath, setQueryParams } from '../core/Router.js';
+import {
+  getProxyPath,
+  listenQueryPathInstance,
+  listenQueryParamsChange,
+  getQueryParams,
+  setPath,
+  setQueryParams,
+} from '../core/Router.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { htmls, s } from '../core/VanillaJs.js';
@@ -21,6 +28,7 @@ const ObjectLayerEngineViewer = {
     currentMode: 'idle',
     webp: null,
     isGenerating: false,
+    currentCid: undefined, // Track current loaded cid to prevent unnecessary reloads
   },
 
   // Map user-friendly direction/mode to numeric direction codes
@@ -46,21 +54,24 @@ const ObjectLayerEngineViewer = {
       ObjectLayerEngineViewer.Reload({ Elements });
     };
 
-    // Listen for cid query parameter
-    listenQueryPathInstance(
-      {
-        id: `${id}-query-listener`,
-        routeId: 'object-layer-engine-viewer',
-        event: async (cid) => {
+    // Listen for query parameter changes for smooth navigation
+    listenQueryParamsChange({
+      id: `${id}-query-listener`,
+      event: async (queryParams) => {
+        const cid = queryParams.cid || null;
+
+        // Only reload if cid actually changed (normalize undefined to null for comparison)
+        if (cid !== this.Data.currentCid) {
+          this.Data.currentCid = cid;
+
           if (cid) {
             await this.loadObjectLayer(cid, Elements);
           } else {
             this.renderEmpty({ Elements });
           }
-        },
+        }
       },
-      'cid',
-    );
+    });
 
     return html`
       <div class="fl">
@@ -76,6 +87,20 @@ const ObjectLayerEngineViewer = {
   renderEmpty: async function ({ Elements }) {
     const id = 'object-layer-engine-viewer';
     const idModal = 'modal-object-layer-engine-viewer';
+
+    // Clear current cid when rendering empty state
+    this.Data.currentCid = null;
+
+    // Check if the management table grid already exists
+    // If it does, don't re-render (just let DefaultManagement's RouterEvents handle URL changes)
+    const gridId = `object-layer-engine-management-grid-${idModal}`;
+    if (AgGrid.grids[gridId]) {
+      // Grid already exists, no need to destroy and recreate it
+      // The DefaultManagement RouterEvents listener will handle pagination/filter updates
+      return;
+    }
+
+    // Grid doesn't exist yet, render it for the first time
     htmls(
       `#${id}`,
       await ObjectLayerManagement.RenderTable({
@@ -861,8 +886,11 @@ const ObjectLayerEngineViewer = {
   },
 
   Reload: async function ({ Elements }) {
-    const queryParams = new URLSearchParams(window.location.search);
-    const cid = queryParams.get('cid');
+    const queryParams = getQueryParams();
+    const cid = queryParams.cid || null;
+
+    // Update current cid and reload
+    this.Data.currentCid = cid;
 
     if (cid) {
       await this.loadObjectLayer(cid, Elements);
