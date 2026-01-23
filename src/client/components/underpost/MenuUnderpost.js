@@ -203,6 +203,7 @@ const MenuUnderpost = {
           route: 'home',
           share: {
             copyLink: true,
+            copySourceMd: true,
           },
           showCreatorProfile: true,
         });

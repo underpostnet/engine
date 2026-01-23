@@ -37,6 +37,7 @@ const Panel = {
       onClick: () => {},
       share: {
         copyLink: false,
+        copySourceMd: false,
       },
       showCreatorProfile: false,
     },
@@ -142,6 +143,51 @@ const Panel = {
           setTimeout(() => {
             const btn = s(`.${idPanel}-btn-copy-share-${id}`);
             const tooltip = s(`.${idPanel}-share-tooltip-${id}`);
+            if (btn && tooltip) {
+              btn.addEventListener('mouseenter', () => {
+                tooltip.style.opacity = '1';
+              });
+              btn.addEventListener('mouseleave', () => {
+                tooltip.style.opacity = '0';
+              });
+            }
+          });
+        }
+        if (options.share && options.share.copySourceMd) {
+          EventsUI.onClick(
+            `.${idPanel}-btn-copy-source-md-${id}`,
+            async (e) => {
+              try {
+                const filesData = options.filesData();
+                const foundFiles = filesData.find((d) => String(d._id || d.id) === String(obj._id || obj.id));
+
+                if (foundFiles && foundFiles.mdFileId && foundFiles.mdFileId.mdPlain) {
+                  await copyData(foundFiles.mdFileId.mdPlain);
+                  await NotificationManager.Push({
+                    status: 'success',
+                    html: html`<div>${Translate.Render('markdown-source-copied')}</div>`,
+                  });
+                } else {
+                  await NotificationManager.Push({
+                    status: 'warning',
+                    html: html`<div>No markdown source available</div>`,
+                  });
+                }
+              } catch (error) {
+                logger.error('Error copying markdown source:', error);
+                await NotificationManager.Push({
+                  status: 'error',
+                  html: html`<div>${Translate.Render('error-copying-markdown')}</div>`,
+                });
+              }
+            },
+            { context: 'modal' },
+          );
+
+          // Add tooltip hover effect
+          setTimeout(() => {
+            const btn = s(`.${idPanel}-btn-copy-source-md-${id}`);
+            const tooltip = s(`.${idPanel}-source-md-tooltip-${id}`);
             if (btn && tooltip) {
               btn.addEventListener('mouseenter', () => {
                 tooltip.style.opacity = '1';
@@ -514,30 +560,50 @@ const Panel = {
             </div>
           </div>
         </div>
-        ${options.share && options.share.copyLink
+        ${options.share && (options.share.copyLink || options.share.copySourceMd)
           ? html`<div
               class="${idPanel}-share-btn-container ${idPanel}-share-btn-container-${id}"
-              style="position: absolute; bottom: 8px; right: 8px; z-index: 2;"
+              style="position: absolute; bottom: 8px; right: 8px; z-index: 2; display: flex; gap: 8px;"
             >
-              <button
-                class="btn-icon ${idPanel}-btn-copy-share-${id}"
-                style="background: transparent; color: #888; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: all 0.3s ease;"
-              >
-                <i class="fas fa-link" style="font-size: 20px;"></i>
-                ${obj.totalCopyShareLinkCount && obj.totalCopyShareLinkCount > 0
-                  ? html`<span
-                      class="${idPanel}-share-count-${id}"
-                      style="position: absolute; top: -4px; right: -4px; background: #666; color: white; border-radius: 10px; padding: 1px 5px; font-size: 10px; font-weight: bold; min-width: 16px; text-align: center;"
-                      >${obj.totalCopyShareLinkCount}</span
-                    >`
-                  : ''}
-              </button>
-              <div
-                class="${idPanel}-share-tooltip-${id}"
-                style="position: absolute; bottom: 50px; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 6px 10px; border-radius: 4px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;"
-              >
-                ${Translate.Render('copy-share-link')}
-              </div>
+              ${options.share.copyLink
+                ? html`<div style="position: relative;">
+                    <button
+                      class="btn-icon ${idPanel}-btn-copy-share-${id}"
+                      style="background: transparent; color: #888; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: all 0.3s ease;"
+                    >
+                      <i class="fas fa-link" style="font-size: 20px;"></i>
+                      ${obj.totalCopyShareLinkCount && obj.totalCopyShareLinkCount > 0
+                        ? html`<span
+                            class="${idPanel}-share-count-${id}"
+                            style="position: absolute; top: -4px; right: -4px; background: #666; color: white; border-radius: 10px; padding: 1px 5px; font-size: 10px; font-weight: bold; min-width: 16px; text-align: center;"
+                            >${obj.totalCopyShareLinkCount}</span
+                          >`
+                        : ''}
+                    </button>
+                    <div
+                      class="${idPanel}-share-tooltip-${id}"
+                      style="position: absolute; bottom: 50px; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 6px 10px; border-radius: 4px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;"
+                    >
+                      ${Translate.Render('copy-share-link')}
+                    </div>
+                  </div>`
+                : ''}
+              ${options.share.copySourceMd
+                ? html`<div style="position: relative;">
+                    <button
+                      class="btn-icon ${idPanel}-btn-copy-source-md-${id}"
+                      style="background: transparent; color: #888; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: all 0.3s ease;"
+                    >
+                      <i class="fas fa-code" style="font-size: 20px;"></i>
+                    </button>
+                    <div
+                      class="${idPanel}-source-md-tooltip-${id}"
+                      style="position: absolute; bottom: 50px; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 6px 10px; border-radius: 4px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;"
+                    >
+                      Copy Source MD
+                    </div>
+                  </div>`
+                : ''}
             </div>`
           : ''}
       </div>`;

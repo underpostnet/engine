@@ -92,6 +92,7 @@ const PanelForm = {
       firsUpdateEvent: async () => {},
       share: {
         copyLink: false,
+        copySourceMd: false,
       },
       showCreatorProfile: false,
     },
