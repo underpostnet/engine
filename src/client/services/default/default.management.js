@@ -242,12 +242,35 @@ const DefaultManagement = {
             for (const event of Object.keys(DefaultManagement.Tokens[id].readyRowDataEvent))
               await DefaultManagement.Tokens[id].readyRowDataEvent[event](rowDataScope);
         }, 1);
+        // Update clear filter button visibility
+        this.updateClearFilterButtonVisibility(id);
       } else {
         logger.error(`Failed to load table ${serviceId}:`, result);
       }
     } catch (error) {
       logger.error(`Error in loadTable for ${id}:`, error);
       throw error;
+    }
+  },
+  hasActiveFilters: function (id) {
+    const gridId = this.Tokens[id]?.gridId;
+    if (!gridId) return false;
+
+    const gridApi = AgGrid.grids[gridId];
+    const filterModel = gridApi ? gridApi.getFilterModel() : {};
+    const idFilter = this.getIdFilter(id);
+    const sortModel = this.Tokens[id]?.sortModel || [];
+
+    return Object.keys(filterModel).length > 0 || !!idFilter || sortModel.length > 0;
+  },
+  updateClearFilterButtonVisibility: function (id) {
+    const clearFilterBtn = s(`.management-table-btn-clear-filter-${id}`);
+    if (!clearFilterBtn) return;
+
+    if (this.hasActiveFilters(id)) {
+      clearFilterBtn.classList.remove('hide');
+    } else {
+      clearFilterBtn.classList.add('hide');
     }
   },
   refreshTable: async function (id) {
@@ -712,6 +735,47 @@ const DefaultManagement = {
         },
       });
 
+      EventsUI.onClick(`.management-table-btn-clear-filter-${id}`, async () => {
+        try {
+          const gridApi = AgGrid.grids[gridId];
+
+          // Clear all filters
+          DefaultManagement.clearIdFilter(id);
+          if (gridApi) {
+            gridApi.setFilterModel({});
+            gridApi.applyColumnState({ defaultState: { sort: null } });
+          }
+
+          // Clear token state
+          if (DefaultManagement.Tokens[id]) {
+            DefaultManagement.Tokens[id].filterModel = {};
+            DefaultManagement.Tokens[id].sortModel = [];
+          }
+
+          // Update URL - keep only page and limit
+          const queryParams = getQueryParams();
+          setQueryParams({
+            page: queryParams.page || 1,
+            limit: queryParams.limit || DefaultManagement.Tokens[id]?.limit || 10,
+            filterModel: null,
+            sortModel: null,
+            id: null,
+          });
+
+          // Reload table
+          await DefaultManagement.loadTable(id, { force: true, reload: true });
+
+          NotificationManager.Push({
+            html: Translate.Render('success-clear-filter') || 'Filters cleared',
+            status: 'success',
+          });
+        } catch (error) {
+          NotificationManager.Push({
+            html: error.message || 'Error clearing filters',
+            status: 'error',
+          });
+        }
+      });
       EventsUI.onClick(`.management-table-btn-reload-${id}`, async () => {
         try {
           // Reload data from server
@@ -844,6 +908,15 @@ const DefaultManagement = {
           type: 'button',
         })}
         ${await BtnIcon.Render({
+          class: `in fll section-mp management-table-btn-mini management-table-btn-clear-filter-${id} ${
+            Object.keys(filterModel).length > 0 || sortModel.length > 0 || urlId ? '' : 'hide'
+          }`,
+          label: html`<div class="abs center btn-clear-filter-${id}-label">
+            <i class="fa-solid fa-filter-circle-xmark"></i>
+          </div> `,
+          type: 'button',
+        })}
+        ${await BtnIcon.Render({
           class: `in fll section-mp management-table-btn-mini management-table-btn-reload-${id} ${
             permissions.reload ? '' : 'hide'
           }`,
@@ -915,6 +988,10 @@ const DefaultManagement = {
               if (this.Tokens[id].isProcessingQueryChange) return;
               // Reset to page 1 on filter change
               this.Tokens[id].page = 1;
+
+              // Update clear filter button visibility
+              DefaultManagement.updateClearFilterButtonVisibility(id);
+
               // Create history entry for filter changes
               DefaultManagement.loadTable(id, { reload: true, force: true, createHistory: true });
             },
@@ -923,6 +1000,8 @@ const DefaultManagement = {
               if (this.Tokens[id].isInitializing) return;
               // Skip if we're processing a query change from browser navigation
               if (this.Tokens[id].isProcessingQueryChange) return;
+              // Update clear filter button visibility
+              DefaultManagement.updateClearFilterButtonVisibility(id);
               // Create history entry for sort changes
               DefaultManagement.loadTable(id, { reload: true, force: true, createHistory: true });
             },
