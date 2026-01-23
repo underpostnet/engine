@@ -455,7 +455,9 @@ const PanelForm = {
 
             const baseNewDoc = newInstance(data);
             baseNewDoc.tags = tags.filter((t) => !prefixTags.includes(t));
-            baseNewDoc.mdFileId = hasMdContent ? marked.parse(data.mdFileId) : null;
+            baseNewDoc.mdFileId = hasMdContent
+              ? `<div class="markdown-content">${marked.parse(data.mdFileId)}</div>`
+              : null;
             baseNewDoc.userId = Elements.Data.user?.main?.model?.user?._id;
 
             // Ensure profileImageId is properly formatted as object with _id property
@@ -677,7 +679,7 @@ const PanelForm = {
                     mdPlain = await blobArray[0].text();
                     // Parse markdown with proper error handling
                     try {
-                      parsedMarkdown = mdPlain ? marked.parse(mdPlain) : '';
+                      parsedMarkdown = mdPlain ? `<div class="markdown-content">${marked.parse(mdPlain)}</div>` : '';
                     } catch (parseError) {
                       logger.error('Error parsing markdown for document:', documentObject._id, parseError);
                       parsedMarkdown = `<p><strong>Error rendering markdown:</strong> ${parseError.message}</p>`;

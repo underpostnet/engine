@@ -8,50 +8,50 @@ import { DocumentService } from '../../services/document/document.service.js';
 import { CoreService, getApiBaseUrl, headersFactory } from '../../services/core/core.service.js';
 import { loggerFactory } from './Logger.js';
 import { imageShimmer, renderChessPattern, renderCssAttr, styleFactory } from './Css.js';
-import { getQueryParams } from './Router.js';
+import { getQueryParams, setPath } from './Router.js';
 
 const logger = loggerFactory(import.meta);
 
 const attachMarkdownLinkHandlers = (containerSelector) => {
-  const links = sa(`${containerSelector} a[href]`);
-  links.forEach((link) => {
-    link.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const href = link.getAttribute('href');
+  const container = s(containerSelector);
+  if (!container || container.dataset.mdLinkHandler) return;
+  container.dataset.mdLinkHandler = 'true';
 
-      // Check if link is external
-      const isExternal = href.startsWith('http://') || href.startsWith('https://');
+  container.addEventListener('click', async (e) => {
+    const link = e.target.closest('.markdown-content a[href]');
+    if (!link) return;
 
-      if (isExternal) {
-        // Show warning modal for external links
-        const result = await Modal.RenderConfirm({
-          id: `external-link-${s4()}`,
-          html: async () => html`
-            <div class="in section-mp" style="text-align: center; padding: 20px;">
-              <p>${Translate.Render('external-link-warning')}</p>
-              <p style="word-break: break-all; margin-top: 10px;"><strong>${href}</strong></p>
-            </div>
-          `,
-          icon: html`<i class="fas fa-external-link-alt"></i>`,
-          style: {
-            width: '350px',
-            height: '500px',
-            overflow: 'auto',
-            'z-index': '11',
-            resize: 'none',
-          },
-        });
+    const href = link.getAttribute('href');
+    if (!href || href.startsWith('#')) return;
 
-        // Only open link if user confirmed (not cancelled or closed)
-        if (result && result.status === 'confirm') {
-          window.open(href, '_blank', 'noopener,noreferrer');
-        }
-        // If cancelled, do nothing - don't navigate
-      } else {
-        // Internal link - navigate normally
-        window.location.href = href;
+    e.preventDefault();
+    const isExternal = href.startsWith('http://') || href.startsWith('https://');
+
+    if (isExternal) {
+      const result = await Modal.RenderConfirm({
+        id: `external-link-${s4()}`,
+        html: async () => html`
+          <div class="in section-mp" style="text-align: center; padding: 20px;">
+            <p>${Translate.Render('external-link-warning')}</p>
+            <p style="word-break: break-all; margin-top: 10px;"><strong>${href}</strong></p>
+          </div>
+        `,
+        icon: html`<i class="fas fa-external-link-alt"></i>`,
+        style: {
+          width: '350px',
+          height: '500px',
+          overflow: 'auto',
+          'z-index': '11',
+          resize: 'none',
+        },
+      });
+
+      if (result && result.status === 'confirm') {
+        window.open(href, '_blank', 'noopener,noreferrer');
       }
-    });
+    } else {
+      setPath(href);
+    }
   });
 };
 
@@ -214,7 +214,9 @@ const Content = {
         case 'md':
           {
             const content = await Content.getFileContent(file, options);
-            render += html`<div class="${options.class}" ${styleFactory(options.style)}>${marked.parse(content)}</div>`;
+            render += html`<div class="${options.class} markdown-content" ${styleFactory(options.style)}>
+              ${marked.parse(content)}
+            </div>`;
           }
           break;
 
