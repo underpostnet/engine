@@ -1,6 +1,6 @@
 import { marked } from 'marked';
 import { FileService } from '../../services/file/file.service.js';
-import { append, getBlobFromUint8ArrayFile, getRawContentFile, htmls, s } from './VanillaJs.js';
+import { append, getBlobFromUint8ArrayFile, getRawContentFile, htmls, s, sa } from './VanillaJs.js';
 import { s4 } from './CommonJs.js';
 import { Translate } from './Translate.js';
 import { Modal, renderViewTitle } from './Modal.js';
@@ -11,6 +11,49 @@ import { imageShimmer, renderChessPattern, renderCssAttr, styleFactory } from '.
 import { getQueryParams } from './Router.js';
 
 const logger = loggerFactory(import.meta);
+
+const attachMarkdownLinkHandlers = (containerSelector) => {
+  const links = sa(`${containerSelector} a[href]`);
+  links.forEach((link) => {
+    link.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const href = link.getAttribute('href');
+
+      // Check if link is external
+      const isExternal = href.startsWith('http://') || href.startsWith('https://');
+
+      if (isExternal) {
+        // Show warning modal for external links
+        const result = await Modal.RenderConfirm({
+          id: `external-link-${s4()}`,
+          html: async () => html`
+            <div class="in section-mp" style="text-align: center; padding: 20px;">
+              <p>${Translate.Render('external-link-warning')}</p>
+              <p style="word-break: break-all; margin-top: 10px;"><strong>${href}</strong></p>
+            </div>
+          `,
+          icon: html`<i class="fas fa-external-link-alt"></i>`,
+          style: {
+            width: '350px',
+            height: '500px',
+            overflow: 'auto',
+            'z-index': '11',
+            resize: 'none',
+          },
+        });
+
+        // Only open link if user confirmed (not cancelled or closed)
+        if (result && result.status === 'confirm') {
+          window.open(href, '_blank', 'noopener,noreferrer');
+        }
+        // If cancelled, do nothing - don't navigate
+      } else {
+        // Internal link - navigate normally
+        window.location.href = href;
+      }
+    });
+  });
+};
 
 const Content = {
   Render: async function (options = { idModal: '' }) {
@@ -239,6 +282,11 @@ ${JSON.stringify(JSON.parse(content), null, 4)}</pre
 
     if (options.raw) return render;
     append(container, render);
+
+    // Scrape and handle markdown links after DOM insertion
+    if (ext === 'md') {
+      attachMarkdownLinkHandlers(container);
+    }
   },
 
   /**
@@ -274,4 +322,4 @@ ${JSON.stringify(JSON.parse(content), null, 4)}</pre
   },
 };
 
-export { Content };
+export { Content, attachMarkdownLinkHandlers };

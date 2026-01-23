@@ -13,7 +13,7 @@ import { ToggleSwitch } from './ToggleSwitch.js';
 import { RichText } from './RichText.js';
 import { loggerFactory } from './Logger.js';
 import { Badge } from './Badge.js';
-import { Content } from './Content.js';
+import { Content, attachMarkdownLinkHandlers } from './Content.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { NotificationManager } from './NotificationManager.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
@@ -748,6 +748,8 @@ const Panel = {
             append(`.${idPanel}-render`, await renderPanel(doc));
           }
         } else htmls(`.${idPanel}-render`, await renderPanel({ ...obj, ...documents }));
+
+        attachMarkdownLinkHandlers(`.${idPanel}-render`);
         Input.cleanValues(formData);
         s(`.btn-${idPanel}-close`).click();
         s(`.${scrollClassContainer}`).scrollTop = 0;
@@ -810,6 +812,7 @@ const Panel = {
         if (options.on.initAdd) await options.on.initAdd();
       };
       if (s(`.${scrollClassContainer}`)) s(`.${scrollClassContainer}`).style.overflow = 'auto';
+      attachMarkdownLinkHandlers(`.${idPanel}-render`);
     });
 
     if (data.length > 0) for (const obj of data) render += await renderPanel(obj);

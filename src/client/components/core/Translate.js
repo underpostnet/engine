@@ -679,6 +679,10 @@ const TranslateCore = {
       en: 'Public Profile',
       es: 'Perfil Público',
     };
+    Translate.Data['external-link-warning'] = {
+      en: 'You are about to open an external link. Do you want to continue?',
+      es: 'Está a punto de abrir un enlace externo. ¿Desea continuar?',
+    };
   },
 };
 
