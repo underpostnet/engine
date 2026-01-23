@@ -794,7 +794,7 @@ EOF
     'host-update': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
       // const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`chmod +x ${options.underpostRoot}/scripts/rocky-setup.sh`);
-      shellExec(`${options.underpostRoot}/scripts/rocky-setup.sh --yes${options.dev ? ' --install-dev' : ``}`);
+      shellExec(`${options.underpostRoot}/scripts/rocky-setup.sh${options.dev ? ' --install-dev' : ``}`);
     },
 
     /**

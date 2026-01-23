@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-
 # Script to install a recommended base package set on Rocky Linux.
 # Usage examples:
-#   sudo ./scripts/rocky-setup.sh                # interactive (will prompt about Development Tools)
-#   sudo ./scripts/rocky-setup.sh --install-dev  # non-interactive: install Development Tools
+#   sudo ./scripts/rocky-setup.sh                # install base packages
+#   sudo ./scripts/rocky-setup.sh --install-dev  # install base packages + Development Tools
 #   INSTALL_DEV=1 sudo ./scripts/rocky-setup.sh  # same as --install-dev
-#   sudo ./scripts/rocky-setup.sh --yes          # skip prompts and assume defaults
 
 PACKAGES=(
   dnf-plugins-core
@@ -39,7 +37,6 @@ PACKAGES=(
 
 # Defaults
 INSTALL_DEV=0
-ASSUME_YES=0
 
 # Parse CLI args (simple)
 while [[ $# -gt 0 ]]; do
@@ -52,10 +49,6 @@ while [[ $# -gt 0 ]]; do
       INSTALL_DEV=0
       shift
       ;;
-    --yes|-y|--assume-yes)
-      ASSUME_YES=1
-      shift
-      ;;
     --help|-h)
       cat <<EOF
 Usage: sudo ./scripts/rocky-setup.sh [options]
@@ -63,7 +56,6 @@ Usage: sudo ./scripts/rocky-setup.sh [options]
 Options:
   --install-dev, --yes-dev    Install Development Tools group (gcc, make, etc.)
   --no-install-dev            Explicitly skip Development Tools
-  --yes, -y, --assume-yes     Assume defaults / non-interactive
   --help, -h                  Show this help and exit
 
 You can also set the environment variable INSTALL_DEV=1 to enable development tools.
@@ -82,52 +74,34 @@ if [[ "${INSTALL_DEV:-}" =~ ^(1|y|yes|true)$ ]]; then
   INSTALL_DEV=1
 fi
 
-# Helper: prompt unless ASSUME_YES
-prompt_install_dev() {
-  if [[ $ASSUME_YES -eq 1 ]]; then
-    return 1  # means do NOT prompt (we treat ASSUME_YES as 'no' for optional install unless INSTALL_DEV set)
-  fi
-
-  read -r -p "Do you want to install the 'Development Tools' group (gcc, make, etc.)? [y/N]: " answer
-  if [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]; then
-    return 0
-  fi
-  return 1
-}
-
 # Refresh cache and install basic packages
 echo "[+] Refreshing DNF cache..."
-sudo dnf makecache --refresh
+dnf makecache --refresh -y
 
 echo "[+] Installing dnf-plugins-core and epel-release (if not present)..."
-sudo dnf -y install dnf-plugins-core epel-release
+dnf install dnf-plugins-core epel-release -y
 
 echo "[+] Refreshing DNF cache after enabling repositories..."
-sudo dnf makecache --refresh
+dnf makecache --refresh -y
 
 echo "[+] Installing base packages: ${#PACKAGES[@]} packages"
-sudo dnf -y install "${PACKAGES[@]}"
+dnf install "${PACKAGES[@]}" -y
 
 # Decide on Development Tools
 if [[ $INSTALL_DEV -eq 1 ]]; then
-  echo "[+] Installing Development Tools (requested)..."
-  sudo dnf -y groupinstall "Development Tools"
+  echo "[+] Installing Development Tools..."
+  dnf groupinstall "Development Tools" -y
 else
-  if prompt_install_dev; then
-    echo "[+] Installing Development Tools (prompt confirmed)..."
-    sudo dnf -y groupinstall "Development Tools"
-  else
-    echo "[+] Skipping Development Tools. To auto-enable, run with --install-dev or set INSTALL_DEV=1"
-  fi
+  echo "[+] Skipping Development Tools. To enable, run with --install-dev or set INSTALL_DEV=1"
 fi
 
 echo "[+] Updating all packages to latest versions..."
-sudo dnf -y update
+dnf update -y --skip-broken --nobest
 
 # Cleanup
 echo "[+] Cleanup: remove unnecessary packages and old metadata"
-sudo dnf -y autoremove
-sudo dnf clean all
+dnf autoremove -y
+dnf clean all
 
 cat <<EOF
 
@@ -139,7 +113,6 @@ Installation complete.
 Examples:
   sudo ./scripts/rocky-setup.sh --install-dev
   INSTALL_DEV=1 sudo ./scripts/rocky-setup.sh
-  sudo ./scripts/rocky-setup.sh --yes
 
 Customize PACKAGES=(...) inside this script according to your needs (docker, podman, kube, mssql-tools, etc.).
 EOF
