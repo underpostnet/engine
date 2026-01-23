@@ -174,52 +174,103 @@ const disableOptionsClick = (element, types) => {
 
 /**
  * The function `checkFullScreen` checks if the document is in full screen mode and returns a boolean
- * value accordingly.
- * @returns The function `checkFullScreen` is returning `true` if `document.fullscreenElement` is
- * truthy, otherwise it returns `false`.
+ * value accordingly. Checks all vendor-prefixed APIs for maximum compatibility.
+ * @returns The function `checkFullScreen` is returning `true` if any fullscreen API indicates
+ * fullscreen mode is active, otherwise it returns `false`.
  * @memberof VanillaJS
  */
 const checkFullScreen = () => {
-  // !(!window.screenTop && !window.screenY) ||
-  return document.fullscreenElement ? true : false;
+  return !!(
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    document.msFullscreenElement ||
+    document.fullscreen ||
+    document.webkitIsFullScreen ||
+    document.mozFullScreen
+  );
 };
 
 /**
  * The function `fullScreenOut` is used to exit full screen mode in a web browser.
+ * Handles all vendor-prefixed APIs and returns a promise for better control flow.
+ * @returns {Promise<boolean>} Promise that resolves to true if exit was attempted
  * @memberof VanillaJS
  */
 const fullScreenOut = () => {
-  if (document.exitFullscreen) {
-    document.exitFullscreen();
-  } else if (document.mozCancelFullScreen) {
-    document.mozCancelFullScreen();
-  } else if (document.webkitExitFullscreen) {
-    document.webkitExitFullscreen();
-  } else if (document.msExitFullscreen) {
-    window.top.document.msExitFullscreen();
-  }
+  return new Promise((resolve) => {
+    if (!checkFullScreen()) {
+      resolve(true);
+      return;
+    }
+
+    try {
+      if (document.exitFullscreen) {
+        document
+          .exitFullscreen()
+          .then(() => resolve(true))
+          .catch(() => resolve(false));
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+        setTimeout(() => resolve(true), 100);
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+        setTimeout(() => resolve(true), 100);
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+        setTimeout(() => resolve(true), 100);
+      } else {
+        resolve(false);
+      }
+    } catch (err) {
+      console.warn('Fullscreen exit error:', err);
+      resolve(false);
+    }
+  });
 };
 
 /**
  * The `fullScreenIn` function is used to request full screen mode in a web browser using different
- * vendor-specific methods.
+ * vendor-specific methods. Returns a promise for better control flow.
+ * @returns {Promise<boolean>} Promise that resolves to true if fullscreen was requested
  * @memberof VanillaJS
  */
 const fullScreenIn = () => {
-  const elem = document.documentElement;
-  if (elem.requestFullscreen) {
-    elem.requestFullscreen();
-  } else if (elem.mozRequestFullScreen) {
-    /* Firefox */
-    elem.mozRequestFullScreen();
-  } else if (elem.webkitRequestFullscreen) {
-    /* Chrome, Safari & Opera */
-    elem.webkitRequestFullscreen();
-  } else if (elem.msRequestFullscreen) {
-    /* IE/Edge */
-    elem = window.top.document.body; //To break out of frame in IE
-    elem.msRequestFullscreen();
-  }
+  return new Promise((resolve) => {
+    if (checkFullScreen()) {
+      resolve(true);
+      return;
+    }
+
+    const elem = document.documentElement;
+
+    try {
+      if (elem.requestFullscreen) {
+        elem
+          .requestFullscreen()
+          .then(() => resolve(true))
+          .catch(() => resolve(false));
+      } else if (elem.webkitRequestFullscreen) {
+        /* Chrome, Safari & Opera */
+        elem.webkitRequestFullscreen();
+        setTimeout(() => resolve(true), 100);
+      } else if (elem.mozRequestFullScreen) {
+        /* Firefox */
+        elem.mozRequestFullScreen();
+        setTimeout(() => resolve(true), 100);
+      } else if (elem.msRequestFullscreen) {
+        /* IE/Edge */
+        const msElem = window.top.document.body;
+        msElem.msRequestFullscreen();
+        setTimeout(() => resolve(true), 100);
+      } else {
+        resolve(false);
+      }
+    } catch (err) {
+      console.warn('Fullscreen request error:', err);
+      resolve(false);
+    }
+  });
 };
 
 /**
