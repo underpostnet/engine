@@ -63,6 +63,11 @@ const ObjectLayerEngineViewer = {
       event: async (queryParams) => {
         const cid = queryParams.cid || null;
 
+        if (!s(`.modal-${id}`) || !s(`#${id}`)) {
+          logger.warn('ObjectLayerEngineViewer DOM not ready for query param change');
+          return;
+        }
+
         // Only reload if cid actually changed (normalize undefined to null for comparison)
         if (cid !== this.Data.currentCid) {
           this.Data.currentCid = cid;
@@ -90,6 +95,12 @@ const ObjectLayerEngineViewer = {
   renderEmpty: async function ({ Elements }) {
     const id = 'object-layer-engine-viewer';
     const idModal = 'modal-object-layer-engine-viewer';
+
+    // Check if DOM element exists
+    if (!s(`#${id}`)) {
+      logger.warn('ObjectLayerEngineViewer DOM not ready for renderEmpty');
+      return;
+    }
 
     // Clear current cid when rendering empty state
     this.Data.currentCid = null;
@@ -124,6 +135,12 @@ const ObjectLayerEngineViewer = {
 
   loadObjectLayer: async function (objectLayerId, Elements) {
     const id = 'object-layer-engine-viewer';
+
+    // Check if DOM element exists
+    if (!s(`#${id}`)) {
+      logger.warn('ObjectLayerEngineViewer DOM not ready for loadObjectLayer');
+      return;
+    }
 
     try {
       // Load metadata first
@@ -181,6 +198,12 @@ const ObjectLayerEngineViewer = {
     const { objectLayer, frameCounts } = this.Data;
 
     if (!objectLayer || !frameCounts) return;
+
+    // Check if DOM element exists
+    if (!s(`#${id}`)) {
+      logger.warn('ObjectLayerEngineViewer DOM not ready for renderViewer');
+      return;
+    }
 
     const itemType = objectLayer.data.item.type;
     const itemId = objectLayer.data.item.id;

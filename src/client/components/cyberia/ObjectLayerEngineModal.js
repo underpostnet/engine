@@ -354,6 +354,11 @@ const ObjectLayerEngineModal = {
       // Capture directionCode in a local variable to ensure proper closure
       const capturedDirectionCode = directionCode;
 
+      if (!s(`.frames-${capturedDirectionCode}`)) {
+        logger.warn(`Frames container for direction code ${capturedDirectionCode} not found`);
+        return;
+      }
+
       append(
         `.frames-${capturedDirectionCode}`,
         html`
@@ -476,7 +481,7 @@ const ObjectLayerEngineModal = {
       let loader = s('object-layer-png-loader');
 
       if (!ole || !loader) {
-        console.error('object-layer-engine or object-layer-png-loader component not found after retries');
+        logger.warn('object-layer-engine or object-layer-png-loader component not found after retries');
         return;
       }
 
