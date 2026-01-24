@@ -31,10 +31,10 @@ class ObjectLayerEngineElement extends HTMLElement {
           line-height: 0;
           position: relative;
           background: transparent;
+          image-rendering: pixelated;
         }
         canvas.canvas-layer {
           display: block;
-          image-rendering: pixelated;
           touch-action: none;
           cursor: crosshair;
         }

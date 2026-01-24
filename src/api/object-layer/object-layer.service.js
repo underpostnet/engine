@@ -8,6 +8,8 @@ import { ObjectLayerDto } from './object-layer.model.js';
 import { ObjectLayerEngine } from '../../server/object-layer.js';
 import { shellExec } from '../../server/process.js';
 import { DataQuery } from '../../server/data-query.js';
+import { AtlasSpriteSheetService } from '../atlas-sprite-sheet/atlas-sprite-sheet.service.js';
+
 const logger = loggerFactory(import.meta);
 
 const ObjectLayerService = {
@@ -156,10 +158,33 @@ const ObjectLayerService = {
         const existingObjectLayer = await ObjectLayer.findOne({ sha256: objectLayerData.sha256 });
         if (existingObjectLayer) {
           logger.info(`ObjectLayer with sha256 ${objectLayerData.sha256} already exists, updating...`);
-          return await ObjectLayer.findByIdAndUpdate(existingObjectLayer._id, objectLayerData, { new: true });
+          const updated = await ObjectLayer.findByIdAndUpdate(existingObjectLayer._id, objectLayerData, {
+            new: true,
+          }).populate('objectLayerRenderFramesId');
+
+          // Update atlas sprite sheet
+          try {
+            await AtlasSpriteSheetService.generate({ params: { id: updated._id }, objectLayer: updated }, res, options);
+          } catch (atlasError) {
+            logger.error('Failed to auto-update atlas for ObjectLayer:', atlasError);
+          }
+
+          return updated;
         }
-        const newObjectLayer = await ObjectLayer.create(objectLayerData);
+        const newObjectLayer = await (await ObjectLayer.create(objectLayerData)).populate('objectLayerRenderFramesId');
         logger.info(`ObjectLayer created successfully with id: ${newObjectLayer._id}`);
+
+        // Generate atlas sprite sheet
+        try {
+          await AtlasSpriteSheetService.generate(
+            { params: { id: newObjectLayer._id }, objectLayer: newObjectLayer },
+            res,
+            options,
+          );
+        } catch (atlasError) {
+          logger.error('Failed to auto-generate atlas for new ObjectLayer:', atlasError);
+        }
+
         return newObjectLayer;
       } catch (error) {
         logger.error('Error creating ObjectLayer:', error);
@@ -171,7 +196,16 @@ const ObjectLayerService = {
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
     const ObjectLayerRenderFrames =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
-    return await new ObjectLayer(req.body).save();
+    const newObjectLayer = await new ObjectLayer(req.body).save();
+
+    // Generate atlas sprite sheet
+    try {
+      await AtlasSpriteSheetService.generate({ params: { id: newObjectLayer._id } }, res, options);
+    } catch (atlasError) {
+      logger.error('Failed to auto-generate atlas for new ObjectLayer:', atlasError);
+    }
+
+    return newObjectLayer;
   },
   get: async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
@@ -555,11 +589,25 @@ const ObjectLayerService = {
 
       // Save to MongoDB
       try {
-        const updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(objectLayerId, objectLayerData, { new: true });
+        const updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(objectLayerId, objectLayerData, {
+          new: true,
+        }).populate('objectLayerRenderFramesId');
         if (!updatedObjectLayer) {
           throw new Error('ObjectLayer not found for update');
         }
         logger.info(`ObjectLayer updated successfully with id: ${objectLayerId}`);
+
+        // Update atlas sprite sheet
+        try {
+          await AtlasSpriteSheetService.generate(
+            { params: { id: objectLayerId }, objectLayer: updatedObjectLayer },
+            res,
+            options,
+          );
+        } catch (atlasError) {
+          logger.error('Failed to auto-update atlas for ObjectLayer:', atlasError);
+        }
+
         return updatedObjectLayer;
       } catch (error) {
         logger.error('Error updating ObjectLayer:', error);
@@ -568,13 +616,31 @@ const ObjectLayerService = {
     }
 
     // PUT /:id - Standard update
-    return await ObjectLayer.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
+    if (updatedObjectLayer) {
+      // Update atlas sprite sheet
+      try {
+        await AtlasSpriteSheetService.generate({ params: { id: req.params.id } }, res, options);
+      } catch (atlasError) {
+        logger.error('Failed to auto-update atlas for ObjectLayer:', atlasError);
+      }
+    }
+
+    return updatedObjectLayer;
   },
   delete: async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
-    if (req.params.id) return await ObjectLayer.findByIdAndDelete(req.params.id);
-    else return await ObjectLayer.deleteMany();
+    if (req.params.id) {
+      // Clean up atlas and associated files
+      try {
+        await AtlasSpriteSheetService.deleteByObjectLayerId(req, res, options);
+      } catch (atlasError) {
+        logger.error('Failed to clean up atlas during ObjectLayer deletion:', atlasError);
+      }
+      return await ObjectLayer.findByIdAndDelete(req.params.id);
+    } else return await ObjectLayer.deleteMany();
   },
 };
 

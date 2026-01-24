@@ -123,4 +123,18 @@ const AtlasSpriteSheetModel = model('AtlasSpriteSheet', AtlasSpriteSheetSchema);
 
 const ProviderSchema = AtlasSpriteSheetSchema;
 
-export { AtlasSpriteSheetSchema, AtlasSpriteSheetModel, ProviderSchema };
+const AtlasSpriteSheetDto = {
+  select: {
+    get: () => {
+      return {
+        _id: 1,
+        fileId: 1,
+        metadata: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      };
+    },
+  },
+};
+
+export { AtlasSpriteSheetSchema, AtlasSpriteSheetModel, ProviderSchema, AtlasSpriteSheetDto };

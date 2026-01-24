@@ -9,6 +9,44 @@ logger.info('Load service');
 const endpoint = 'atlas-sprite-sheet';
 
 const AtlasSpriteSheetService = {
+  generateAtlas: (options = { id: '' }) =>
+    new Promise((resolve, reject) =>
+      fetch(`${getApiBaseUrl({ endpoint })}/generate/${options.id}`, {
+        method: 'POST',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    ),
+  deleteByObjectLayerId: (options = { id: '' }) =>
+    new Promise((resolve, reject) =>
+      fetch(`${getApiBaseUrl({ endpoint })}/object-layer/${options.id}`, {
+        method: 'DELETE',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    ),
   post: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {

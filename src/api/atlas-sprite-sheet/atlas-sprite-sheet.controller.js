@@ -4,6 +4,36 @@ import { AtlasSpriteSheetService } from './atlas-sprite-sheet.service.js';
 const logger = loggerFactory(import.meta);
 
 const AtlasSpriteSheetController = {
+  generate: async (req, res, options) => {
+    try {
+      const result = await AtlasSpriteSheetService.generate(req, res, options);
+      return res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error) {
+      logger.error('AtlasSpriteSheetController.generate error:', error);
+      return res.status(500).json({
+        status: 'error',
+        message: error.message,
+      });
+    }
+  },
+  deleteByObjectLayerId: async (req, res, options) => {
+    try {
+      const result = await AtlasSpriteSheetService.deleteByObjectLayerId(req, res, options);
+      return res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error) {
+      logger.error('AtlasSpriteSheetController.deleteByObjectLayerId error:', error);
+      return res.status(500).json({
+        status: 'error',
+        message: error.message,
+      });
+    }
+  },
   post: async (req, res, options) => {
     try {
       const result = await AtlasSpriteSheetService.post(req, res, options);

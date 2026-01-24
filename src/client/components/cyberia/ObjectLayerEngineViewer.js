@@ -8,6 +8,7 @@ import {
   setQueryParams,
 } from '../core/Router.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
+import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { htmls, s } from '../core/VanillaJs.js';
 
@@ -17,6 +18,7 @@ import { ObjectLayerEngineModal } from './ObjectLayerEngineModal.js';
 import { Modal } from '../core/Modal.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { AgGrid } from '../core/AgGrid.js';
+import { EventsUI } from '../core/EventsUI.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -29,6 +31,9 @@ const ObjectLayerEngineViewer = {
     webp: null,
     isGenerating: false,
     currentCid: undefined, // Track current loaded cid to prevent unnecessary reloads
+    atlasSpriteSheet: null,
+    isGeneratingAtlas: false,
+    webpMetadata: null,
   },
 
   // Map user-friendly direction/mode to numeric direction codes
@@ -70,13 +75,7 @@ const ObjectLayerEngineViewer = {
 
         // Only reload if cid actually changed (normalize undefined to null for comparison)
         if (cid !== this.Data.currentCid) {
-          this.Data.currentCid = cid;
-
-          if (cid) {
-            await this.loadObjectLayer(cid, Elements);
-          } else {
-            this.renderEmpty({ Elements });
-          }
+          await this.Reload({ Elements });
         }
       },
     });
@@ -133,7 +132,8 @@ const ObjectLayerEngineViewer = {
     );
   },
 
-  loadObjectLayer: async function (objectLayerId, Elements) {
+  loadObjectLayer: async function (objectLayerId, Elements, options = {}) {
+    const { skipWebp = false } = options;
     const id = 'object-layer-engine-viewer';
 
     // Check if DOM element exists
@@ -151,6 +151,17 @@ const ObjectLayerEngineViewer = {
       }
 
       this.Data.objectLayer = metadata;
+
+      if (metadata.atlasSpriteSheetId) {
+        const { status: atlasStatus, data: atlasData } = await AtlasSpriteSheetService.get({
+          id: metadata.atlasSpriteSheetId,
+        });
+        if (atlasStatus === 'success') {
+          this.Data.atlasSpriteSheet = atlasData;
+        }
+      } else {
+        this.Data.atlasSpriteSheet = null;
+      }
 
       // Load frame counts for all directions
       const { status: frameStatus, data: frameData } = await ObjectLayerService.getFrameCounts({ id: objectLayerId });
@@ -171,7 +182,9 @@ const ObjectLayerEngineViewer = {
       await this.renderViewer({ Elements });
 
       // Generate WebP
-      await this.generateWebp();
+      if (!skipWebp) {
+        await this.generateWebp();
+      }
     } catch (error) {
       logger.error('Error loading object layer:', error);
       NotificationManager.Push({
@@ -229,6 +242,61 @@ const ObjectLayerEngineViewer = {
       htmls(
         `.style-${id}`,
         html` <style>
+          .background-confirm-modal-remove-atlas-confirm {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+          }
+          .atlas-preview-container {
+            margin-bottom: 10px;
+            width: 100%;
+          }
+          .atlas-img-wrapper {
+            width: 100%;
+            overflow: auto;
+            border: 1px solid ${darkTheme ? '#444' : '#ddd'};
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+          }
+          .atlas-img-preview {
+            width: 100%;
+          }
+          .atlas-metadata-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            opacity: 0.9;
+          }
+          .atlas-actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            width: 100%;
+          }
+          .webp-placeholder {
+            text-align: center;
+            color: ${darkTheme ? '#aaa' : '#666'};
+          }
+          .webp-placeholder i {
+            font-size: 48px;
+            opacity: 0.3;
+            margin-bottom: 16px;
+          }
+          .webp-placeholder p {
+            margin: 0;
+            font-size: 14px;
+          }
           .object-layer-viewer-container {
             max-width: 800px;
             margin: 0 auto;
@@ -275,7 +343,6 @@ const ObjectLayerEngineViewer = {
 
           .webp-canvas-container canvas,
           .webp-canvas-container img {
-            image-rendering: pixelated;
             image-rendering: -moz-crisp-edges;
             image-rendering: crisp-edges;
             -ms-interpolation-mode: nearest-neighbor;
@@ -451,7 +518,8 @@ const ObjectLayerEngineViewer = {
             .webp-canvas-container canvas,
             .webp-canvas-container img {
               max-width: 100%;
-              max-height: 440px;
+              max-height: 540px;
+              object-fit: contain;
             }
           }
 
@@ -516,174 +584,305 @@ const ObjectLayerEngineViewer = {
         <div class="hide style-${id}"></div>
 
         <div class="object-layer-viewer-container">
-          <!-- Item Data Section -->
-          <div class="control-group" style="margin-bottom: 20px;">
-            <h4><i class="fa-solid fa-cube"></i> Item Data</h4>
-            <div
-              style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; padding: 10px 0;"
-            >
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <span class="item-data-key-label">Item ID</span>
-                <span style="font-weight: 600;">${itemId}</span>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <span class="item-data-key-label">Type</span>
-                <span style="font-weight: 600;">${itemType}</span>
-              </div>
-              ${itemDescription
-                ? html`<div style="display: flex; flex-direction: column; gap: 4px;">
-                    <span class="item-data-key-label">Description</span>
-                    <span style="font-weight: 600;">${itemDescription}</span>
-                  </div>`
-                : ''}
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <span class="item-data-key-label">Activable</span>
-                <span style="font-weight: 600;">${itemActivable ? 'Yes' : 'No'}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Stats Data Section -->
-          <div class="control-group" style="margin-bottom: 20px;">
-            <h4><i class="fa-solid fa-chart-bar"></i> Stats Data</h4>
-            <div
-              style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; padding: 10px 0;"
-            >
-              ${Object.keys(stats).length > 0
-                ? Object.entries(stats)
-                    .map(([statKey, statValue]) => {
-                      const statInfo = ObjectLayerEngineModal.statDescriptions[statKey];
-                      if (!statInfo) return '';
-                      return html`
-                        <div class="item-stat-entry">
-                          <div style="display: flex; align-items: center; gap: 8px;">
-                            <i class="${statInfo.icon}" id="stat-icon-${statKey}-${id}"></i>
-                            <span class="item-data-key-label">${statInfo.title}</span>
-                          </div>
-                          <span class="item-data-value-label">${statValue}</span>
-                        </div>
-                      `;
-                    })
-                    .join('')
-                : html`<div class="no-data-container">No stats data available</div>`}
-            </div>
-          </div>
-
-          <div class="webp-display-area">
-            <div class="webp-canvas-container" id="webp-canvas-container">
-              <div style="text-align: center; color: ${darkTheme ? '#aaa' : '#666'};">
-                <i class="fa-solid fa-image" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
-                <p style="margin: 0; font-size: 14px;">WebP preview will appear here</p>
-              </div>
-              <div id="webp-loading-overlay" class="loading-overlay" style="display: none;">
-                <div>
-                  <i class="fa-solid fa-spinner fa-spin"></i>
-                  <span style="margin-left: 10px;">Generating WebP...</span>
+          ${this.Data.isGeneratingAtlas
+            ? html`
+                <div
+                  style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 500px; gap: 20px; text-align: center;"
+                >
+                  <i class="fa-solid fa-spinner fa-spin" style="font-size: 30px;"></i>
+                  Generating Atlas Sprite Sheet
                 </div>
-              </div>
-            </div>
-          </div>
+              `
+            : html`
+                <!-- Item Data Section -->
+                <div class="control-group" style="margin-bottom: 20px;">
+                  <h4><i class="fa-solid fa-cube"></i> Item Data</h4>
+                  <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; padding: 10px 0;"
+                  >
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                      <span class="item-data-key-label">Item ID</span>
+                      <span style="font-weight: 600;">${itemId}</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                      <span class="item-data-key-label">Type</span>
+                      <span style="font-weight: 600;">${itemType}</span>
+                    </div>
+                    ${itemDescription
+                      ? html`<div style="display: flex; flex-direction: column; gap: 4px;">
+                          <span class="item-data-key-label">Description</span>
+                          <span style="font-weight: 600;">${itemDescription}</span>
+                        </div>`
+                      : ''}
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                      <span class="item-data-key-label">Activable</span>
+                      <span style="font-weight: 600;">${itemActivable ? 'Yes' : 'No'}</span>
+                    </div>
+                  </div>
+                </div>
 
-          <div class="controls-container">
-            <div class="control-group">
-              <h4><i class="fa-solid fa-compass"></i> Direction</h4>
-              <div class="button-group">
-                <button
-                  class="control-btn ${this.Data.currentDirection === 'up' ? 'active' : ''}"
-                  data-direction="up"
-                  ${!hasFrames('up', this.Data.currentMode) ? 'disabled' : ''}
-                >
-                  <i class="fa-solid fa-arrow-up"></i>
-                  <span>Up</span>
-                  ${hasFrames('up', this.Data.currentMode)
-                    ? html`<span class="frame-count">(${getFrameCount('up', this.Data.currentMode)})</span>`
-                    : ''}
-                </button>
-                <button
-                  class="control-btn ${this.Data.currentDirection === 'down' ? 'active' : ''}"
-                  data-direction="down"
-                  ${!hasFrames('down', this.Data.currentMode) ? 'disabled' : ''}
-                >
-                  <i class="fa-solid fa-arrow-down"></i>
-                  <span>Down</span>
-                  ${hasFrames('down', this.Data.currentMode)
-                    ? html`<span class="frame-count">(${getFrameCount('down', this.Data.currentMode)})</span>`
-                    : ''}
-                </button>
-                <button
-                  class="control-btn ${this.Data.currentDirection === 'left' ? 'active' : ''}"
-                  data-direction="left"
-                  ${!hasFrames('left', this.Data.currentMode) ? 'disabled' : ''}
-                >
-                  <i class="fa-solid fa-arrow-left"></i>
-                  <span>Left</span>
-                  ${hasFrames('left', this.Data.currentMode)
-                    ? html`<span class="frame-count">(${getFrameCount('left', this.Data.currentMode)})</span>`
-                    : ''}
-                </button>
-                <button
-                  class="control-btn ${this.Data.currentDirection === 'right' ? 'active' : ''}"
-                  data-direction="right"
-                  ${!hasFrames('right', this.Data.currentMode) ? 'disabled' : ''}
-                >
-                  <i class="fa-solid fa-arrow-right"></i>
-                  <span>Right</span>
-                  ${hasFrames('right', this.Data.currentMode)
-                    ? html`<span class="frame-count">(${getFrameCount('right', this.Data.currentMode)})</span>`
-                    : ''}
-                </button>
-              </div>
-            </div>
+                <!-- Stats Data Section -->
+                <div class="control-group" style="margin-bottom: 20px;">
+                  <h4><i class="fa-solid fa-chart-bar"></i> Stats Data</h4>
+                  <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; padding: 10px 0;"
+                  >
+                    ${Object.keys(stats).length > 0
+                      ? Object.entries(stats)
+                          .map(([statKey, statValue]) => {
+                            const statInfo = ObjectLayerEngineModal.statDescriptions[statKey];
+                            if (!statInfo) return '';
+                            return html`
+                              <div class="item-stat-entry">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                  <i class="${statInfo.icon}" id="stat-icon-${statKey}-${id}"></i>
+                                  <span class="item-data-key-label">${statInfo.title}</span>
+                                </div>
+                                <span class="item-data-value-label">${statValue}</span>
+                              </div>
+                            `;
+                          })
+                          .join('')
+                      : html`<div class="no-data-container">No stats data available</div>`}
+                  </div>
+                </div>
 
-            <div class="control-group">
-              <h4><i class="fa-solid fa-person-running"></i> Mode</h4>
-              <div class="button-group">
-                <button
-                  class="control-btn ${this.Data.currentMode === 'idle' ? 'active' : ''}"
-                  data-mode="idle"
-                  ${!hasFrames(this.Data.currentDirection, 'idle') ? 'disabled' : ''}
-                >
-                  <i class="fa-solid fa-user"></i>
-                  <span>Idle</span>
-                  ${hasFrames(this.Data.currentDirection, 'idle')
-                    ? html`<span class="frame-count">(${getFrameCount(this.Data.currentDirection, 'idle')})</span>`
-                    : ''}
-                </button>
-                <button
-                  class="control-btn ${this.Data.currentMode === 'walking' ? 'active' : ''}"
-                  data-mode="walking"
-                  ${!hasFrames(this.Data.currentDirection, 'walking') ? 'disabled' : ''}
-                >
-                  <i class="fa-solid fa-person-walking"></i>
-                  <span>Walking</span>
-                  ${hasFrames(this.Data.currentDirection, 'walking')
-                    ? html`<span class="frame-count">(${getFrameCount(this.Data.currentDirection, 'walking')})</span>`
-                    : ''}
-                </button>
-              </div>
-            </div>
-          </div>
+                <div class="webp-display-area">
+                  <div class="webp-canvas-container chess in" id="webp-canvas-container">
+                    ${!this.Data.webp
+                      ? html`
+                          <div class="webp-placeholder">
+                            <i class="fa-solid fa-image"></i>
+                            <p>WebP preview will appear here</p>
+                          </div>
+                        `
+                      : ''}
+                    <div id="webp-loading-overlay" class="loading-overlay" style="display: none;">
+                      <div>
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <span style="margin-left: 10px;">Generating WebP...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-          <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button class="default-viewer-btn" id="return-to-list-btn">
-              <i class="fa-solid fa-arrow-left"></i>
-              <span>Return to List</span>
-            </button>
-            <button class="default-viewer-btn" id="download-webp-btn">
-              <i class="fa-solid fa-download"></i>
-              <span>Download WebP</span>
-            </button>
-            <button class="default-viewer-btn edit-btn" id="edit-object-layer-btn">
-              <i class="fa-solid fa-edit"></i>
-              <span>Edit</span>
-            </button>
-          </div>
+                <div class="controls-container">
+                  <div class="control-group">
+                    <h4><i class="fa-solid fa-compass"></i> Direction</h4>
+                    <div class="button-group">
+                      <button
+                        class="control-btn ${this.Data.currentDirection === 'up' ? 'active' : ''}"
+                        data-direction="up"
+                        ${!hasFrames('up', this.Data.currentMode) ? 'disabled' : ''}
+                      >
+                        <i class="fa-solid fa-arrow-up"></i>
+                        <span>Up</span>
+                        ${hasFrames('up', this.Data.currentMode)
+                          ? html`<span class="frame-count">(${getFrameCount('up', this.Data.currentMode)})</span>`
+                          : ''}
+                      </button>
+                      <button
+                        class="control-btn ${this.Data.currentDirection === 'down' ? 'active' : ''}"
+                        data-direction="down"
+                        ${!hasFrames('down', this.Data.currentMode) ? 'disabled' : ''}
+                      >
+                        <i class="fa-solid fa-arrow-down"></i>
+                        <span>Down</span>
+                        ${hasFrames('down', this.Data.currentMode)
+                          ? html`<span class="frame-count">(${getFrameCount('down', this.Data.currentMode)})</span>`
+                          : ''}
+                      </button>
+                      <button
+                        class="control-btn ${this.Data.currentDirection === 'left' ? 'active' : ''}"
+                        data-direction="left"
+                        ${!hasFrames('left', this.Data.currentMode) ? 'disabled' : ''}
+                      >
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>Left</span>
+                        ${hasFrames('left', this.Data.currentMode)
+                          ? html`<span class="frame-count">(${getFrameCount('left', this.Data.currentMode)})</span>`
+                          : ''}
+                      </button>
+                      <button
+                        class="control-btn ${this.Data.currentDirection === 'right' ? 'active' : ''}"
+                        data-direction="right"
+                        ${!hasFrames('right', this.Data.currentMode) ? 'disabled' : ''}
+                      >
+                        <i class="fa-solid fa-arrow-right"></i>
+                        <span>Right</span>
+                        ${hasFrames('right', this.Data.currentMode)
+                          ? html`<span class="frame-count">(${getFrameCount('right', this.Data.currentMode)})</span>`
+                          : ''}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="control-group">
+                    <h4><i class="fa-solid fa-person-running"></i> Mode</h4>
+                    <div class="button-group">
+                      <button
+                        class="control-btn ${this.Data.currentMode === 'idle' ? 'active' : ''}"
+                        data-mode="idle"
+                        ${!hasFrames(this.Data.currentDirection, 'idle') ? 'disabled' : ''}
+                      >
+                        <i class="fa-solid fa-user"></i>
+                        <span>Idle</span>
+                        ${hasFrames(this.Data.currentDirection, 'idle')
+                          ? html`<span class="frame-count"
+                              >(${getFrameCount(this.Data.currentDirection, 'idle')})</span
+                            >`
+                          : ''}
+                      </button>
+                      <button
+                        class="control-btn ${this.Data.currentMode === 'walking' ? 'active' : ''}"
+                        data-mode="walking"
+                        ${!hasFrames(this.Data.currentDirection, 'walking') ? 'disabled' : ''}
+                      >
+                        <i class="fa-solid fa-person-walking"></i>
+                        <span>Walking</span>
+                        ${hasFrames(this.Data.currentDirection, 'walking')
+                          ? html`<span class="frame-count"
+                              >(${getFrameCount(this.Data.currentDirection, 'walking')})</span
+                            >`
+                          : ''}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="control-group">
+                    <h4><i class="fa-solid fa-file-image"></i> Atlas Sprite Sheet</h4>
+                    <div class="button-group" style="flex-direction: column; align-items: flex-start;">
+                      ${this.Data.atlasSpriteSheet
+                        ? html`
+                        <div class="atlas-preview-container">
+                          <div class="atlas-img-wrapper">
+                            <img
+                              src="${getProxyPath()}api/file/blob/${
+                                this.Data.atlasSpriteSheet.fileId._id || this.Data.atlasSpriteSheet.fileId
+                              }"
+                              class="in atlas-img-preview"
+                            />
+                          </div>
+                          <div class="atlas-metadata-grid">
+                            <div>
+                              <p style="padding: 2px"><strong class="item-data-key-label">ID:</strong></p>
+                              <p style="padding: 2px" font-size: 12px;">${this.Data.atlasSpriteSheet._id}</p>
+                            </div>
+                            <div>
+                              <p style="padding: 2px"><strong class="item-data-key-label">Dimensions:</strong></p>
+                              <p style="padding: 2px">
+                                ${this.Data.atlasSpriteSheet.metadata.atlasWidth}x${
+                                  this.Data.atlasSpriteSheet.metadata.atlasHeight
+                                }
+                              </p>
+                            </div>
+                            <div>
+                                <p style="padding: 2px"><strong class="item-data-key-label">Cell Dim:</strong></p>
+                              <p style="padding: 2px">${this.Data.atlasSpriteSheet.metadata.cellPixelDim}px</p>
+                            </div>
+                            <div>
+                                <p style="padding: 2px"><strong class="item-data-key-label">Item Key:</strong></p>
+                              <p style="padding: 2px">${this.Data.atlasSpriteSheet.metadata.itemKey}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="atlas-actions-grid">
+                          <button class="default-viewer-btn" id="generate-atlas-btn">
+                            <i class="fa-solid fa-sync"></i>
+                            <span>Update</span>
+                          </button>
+                          <button class="default-viewer-btn" id="download-atlas-png-btn">
+                            <i class="fa-solid fa-download"></i>
+                            <span>PNG</span>
+                          </button>
+                          <button class="default-viewer-btn" id="download-atlas-json-btn">
+                            <i class="fa-solid fa-code"></i>
+                            <span>JSON</span>
+                          </button>
+                          <button class="default-viewer-btn" id="remove-atlas-btn" style="background: #dc3545;">
+                            <i class="fa-solid fa-trash"></i>
+                            <span>Remove</span>
+                          </button>
+                        </div>
+                      `
+                        : html`
+                            <p>No atlas sprite sheet associated with this object layer.</p>
+                            <button class="default-viewer-btn" id="generate-atlas-btn">
+                              <i class="fa-solid fa-wand-magic-sparkles"></i>
+                              <span>Generate Atlas</span>
+                            </button>
+                          `}
+                    </div>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                  <button class="default-viewer-btn" id="return-to-list-btn">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Return to List</span>
+                  </button>
+                  <button class="default-viewer-btn" id="download-webp-btn">
+                    <i class="fa-solid fa-download"></i>
+                    <span>Download WebP</span>
+                  </button>
+                  <button class="default-viewer-btn edit-btn" id="edit-object-layer-btn">
+                    <i class="fa-solid fa-edit"></i>
+                    <span>Edit</span>
+                  </button>
+                </div>
+              `}
         </div>
       `,
     );
     ThemeEvents[id]();
     // Attach event listeners
     this.attachEventListeners({ Elements });
+
+    // If we already have a webp loaded, display it without re-generating
+    if (this.Data.webp) {
+      this.displayWebp();
+    }
+  },
+
+  displayWebp: async function () {
+    const { webp, webpMetadata } = this.Data;
+    if (!webp || !webpMetadata) return;
+
+    const { frameCount, frameDuration, currentDirection, currentMode, numericCode } = webpMetadata;
+
+    const container = s('#webp-canvas-container');
+    if (container) {
+      // Clear container
+      container.innerHTML = '';
+
+      // Create and append image
+      const img = document.createElement('img');
+      img.src = webp;
+      img.alt = 'WebP Animation';
+      container.appendChild(img);
+
+      // Create and append info badge
+      const infoBadge = document.createElement('div');
+      infoBadge.className = 'webp-info-badge';
+      infoBadge.innerHTML = html`
+        <span class="info-label" style="margin-left: 8px;">Frames:</span>
+        <span>${frameCount}</span><br />
+        <span class="info-label" style="margin-left: 8px;">Duration:</span>
+        <span>${frameDuration}ms</span><br />
+        <span class="info-label" style="margin-left: 8px;">Direction:</span>
+        <span>${currentDirection}</span><br />
+        <span class="info-label" style="margin-left: 8px;">Mode:</span>
+        <span>${currentMode}</span><br />
+        <span class="info-label" style="margin-left: 8px;">Code:</span>
+        <span>${numericCode}</span>
+      `;
+      const displayArea = s('.webp-display-area');
+      if (displayArea) {
+        // Remove old badge if exists
+        const oldBadge = s('.webp-info-badge');
+        if (oldBadge) oldBadge.remove();
+        displayArea.appendChild(infoBadge);
+      }
+    }
   },
 
   attachEventListeners: function ({ Elements }) {
@@ -742,6 +941,121 @@ const ObjectLayerEngineViewer = {
         this.toEngine();
       });
     }
+
+    // Atlas buttons
+    if (s('#generate-atlas-btn')) {
+      EventsUI.onClick('#generate-atlas-btn', async () => {
+        await this.generateAtlas({ Elements });
+      });
+    }
+
+    const removeAtlasBtn = s('#remove-atlas-btn');
+    if (removeAtlasBtn) {
+      removeAtlasBtn.addEventListener('click', async () => {
+        await this.removeAtlas({ Elements });
+      });
+    }
+
+    const downloadAtlasPngBtn = s('#download-atlas-png-btn');
+    if (downloadAtlasPngBtn) {
+      downloadAtlasPngBtn.addEventListener('click', () => {
+        const url = `${getProxyPath()}api/file/blob/${this.Data.atlasSpriteSheet.fileId._id || this.Data.atlasSpriteSheet.fileId}`;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${this.Data.atlasSpriteSheet.metadata.itemKey}-atlas.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      });
+    }
+
+    const downloadAtlasJsonBtn = s('#download-atlas-json-btn');
+    if (downloadAtlasJsonBtn) {
+      downloadAtlasJsonBtn.addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify(this.Data.atlasSpriteSheet.metadata, null, 2)], {
+          type: 'application/json',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${this.Data.atlasSpriteSheet.metadata.itemKey}-atlas-metadata.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+    }
+  },
+
+  generateAtlas: async function ({ Elements } = {}) {
+    const objectLayerId = this.Data.objectLayer._id;
+    this.Data.isGeneratingAtlas = true;
+    await this.renderViewer({ Elements });
+
+    try {
+      const { status, data, message } = await AtlasSpriteSheetService.generateAtlas({ id: objectLayerId });
+
+      if (status === 'success') {
+        NotificationManager.Push({
+          html: 'Atlas sprite sheet generated successfully',
+          status: 'success',
+        });
+        await this.Reload({ Elements, force: true, skipWebp: true });
+      } else {
+        throw new Error(message || 'Failed to generate atlas');
+      }
+    } catch (error) {
+      logger.error('Error generating atlas:', error);
+      NotificationManager.Push({
+        html: `Failed to generate atlas: ${error.message}`,
+        status: 'error',
+      });
+    } finally {
+      this.Data.isGeneratingAtlas = false;
+      await this.renderViewer({ Elements });
+    }
+  },
+
+  removeAtlas: async function ({ Elements } = {}) {
+    const confirmResult = await Modal.RenderConfirm({
+      id: 'remove-atlas-confirm',
+      html: async () => html`
+        <div class="in section-mp" style="text-align: center">
+          <p>Are you sure you want to remove the atlas sprite sheet?</p>
+        </div>
+      `,
+    });
+
+    if (confirmResult.status !== 'confirm') {
+      return;
+    }
+
+    const objectLayerId = this.Data.objectLayer._id;
+    this.Data.isGeneratingAtlas = true;
+    await this.renderViewer({ Elements });
+
+    try {
+      const { status, message } = await AtlasSpriteSheetService.deleteByObjectLayerId({ id: objectLayerId });
+
+      if (status === 'success') {
+        NotificationManager.Push({
+          html: 'Atlas sprite sheet removed successfully',
+          status: 'success',
+        });
+        await this.Reload({ Elements, force: true, skipWebp: true });
+      } else {
+        throw new Error(message || 'Failed to remove atlas');
+      }
+    } catch (error) {
+      logger.error('Error removing atlas:', error);
+      NotificationManager.Push({
+        html: `Failed to remove atlas: ${error.message}`,
+        status: 'error',
+      });
+    } finally {
+      this.Data.isGeneratingAtlas = false;
+      await this.renderViewer({ Elements });
+    }
   },
 
   generateWebp: async function () {
@@ -775,17 +1089,7 @@ const ObjectLayerEngineViewer = {
     const frameDuration = objectLayer.objectLayerRenderFramesId?.frame_duration || 100;
 
     this.Data.isGenerating = true;
-    this.showLoading(true);
-
-    // Update loading overlay text
-    const loadingOverlay = s('#webp-loading-overlay');
-    if (loadingOverlay) {
-      const loadingText = loadingOverlay.querySelector('span');
-      if (loadingText) {
-        loadingText.textContent = `Loading WebP animation for ${currentDirection} ${currentMode}...`;
-      }
-    }
-
+    this.showLoading(true, 'Generating WebP...');
     try {
       // Call the WebP generation API endpoint
       const { status, data } = await ObjectLayerService.generateWebp({
@@ -795,41 +1099,18 @@ const ObjectLayerEngineViewer = {
       });
 
       if (status === 'success' && data) {
-        // Store the blob URL
+        // Store the blob URL and metadata
         this.Data.webp = data;
+        this.Data.webpMetadata = {
+          frameCount,
+          frameDuration,
+          currentDirection,
+          currentMode,
+          numericCode,
+        };
 
         // Display the WebP in the viewer
-        const container = s('#webp-canvas-container');
-        if (container) {
-          // Clear container
-          container.innerHTML = '';
-
-          // Create and append image
-          const img = document.createElement('img');
-          img.src = data;
-          img.alt = 'WebP Animation';
-          container.appendChild(img);
-
-          // Create and append info badge
-          const infoBadge = document.createElement('div');
-          infoBadge.className = 'webp-info-badge';
-          infoBadge.innerHTML = html`
-            <span class="info-label" style="margin-left: 8px;">Frames:</span>
-            <span>${frameCount}</span><br />
-            <span class="info-label" style="margin-left: 8px;">Duration:</span>
-            <span>${frameDuration}ms</span><br />
-            <span class="info-label" style="margin-left: 8px;">Direction:</span>
-            <span>${currentDirection}</span><br />
-            <span class="info-label" style="margin-left: 8px;">Mode:</span>
-            <span>${currentMode}</span><br />
-            <span class="info-label" style="margin-left: 8px;">Code:</span>
-            <span>${numericCode}</span>
-          `;
-          const displayArea = s('.webp-display-area');
-          if (displayArea) {
-            displayArea.appendChild(infoBadge);
-          }
-        }
+        await this.displayWebp();
 
         // NotificationManager.Push({
         //   html: `WebP generated successfully (${frameCount} frames, ${frameDuration}ms duration)`,
@@ -852,16 +1133,13 @@ const ObjectLayerEngineViewer = {
     }
   },
 
-  showLoading: function (show) {
+  showLoading: function (show, message = 'Generating WebP...') {
     const overlay = s('#webp-loading-overlay');
     if (overlay) {
       overlay.style.display = show ? 'flex' : 'none';
-      if (!show) {
-        // Reset loading text when hiding
-        const loadingText = overlay.querySelector('span');
-        if (loadingText) {
-          loadingText.textContent = 'Generating WebP...';
-        }
+      const loadingText = overlay.querySelector('span');
+      if (loadingText) {
+        loadingText.textContent = message;
       }
     }
 
@@ -920,20 +1198,25 @@ const ObjectLayerEngineViewer = {
     }
   },
 
-  Reload: async function ({ Elements }) {
+  Reload: async function (options = {}) {
+    const { Elements, force = false, skipWebp = false } = options;
     const queryParams = getQueryParams();
     const cid = queryParams.cid || null;
 
-    // Only reload if cid actually changed (same logic as listener)
-    if (cid !== this.Data.currentCid) {
+    // Only reload if cid actually changed (same logic as listener) or forced
+    if (cid !== this.Data.currentCid || force) {
+      if (cid !== this.Data.currentCid && !skipWebp) {
+        this.Data.webp = null;
+        this.Data.webpMetadata = null;
+      }
       this.Data.currentCid = cid;
 
       if (cid) {
-        await this.loadObjectLayer(cid, Elements);
+        await this.loadObjectLayer(cid, Elements, { skipWebp });
       } else {
         await this.renderEmpty({ Elements });
       }
-    } else if (!cid && this.Data.currentCid === null) {
+    } else if (!cid && (this.Data.currentCid === null || force)) {
       // Special case: if we're already in empty state but DOM might have been reset
       // (e.g., modal reopened), force render the table if DOM is missing
       const id = 'object-layer-engine-viewer';
