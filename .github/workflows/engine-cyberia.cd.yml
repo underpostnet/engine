@@ -59,4 +59,4 @@ jobs:
             echo "Starting remote sync and deploy"
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
-            sudo -n -- /bin/bash -lc "node bin run sync --cron-jobs none dd-cyberia,1,,localhost/rockylinux9-underpost:v2.8.846"
+            sudo -n -- /bin/bash -lc "node bin run sync --cron-jobs none --timeout-response 300000ms dd-cyberia,1,,localhost/rockylinux9-underpost:v2.8.846"

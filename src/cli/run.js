@@ -52,6 +52,10 @@ class UnderpostRun {
    * @property {string} imageName - The name of the image to run.
    * @property {string} containerName - The name of the container to run.
    * @property {string} namespace - The namespace to run in.
+   * @property {string} timeoutResponse - The response timeout duration.
+   * @property {string} timeoutIdle - The idle timeout duration.
+   * @property {string} retryCount - The number of retries.
+   * @property {string} retryPerTryTimeout - The timeout duration per retry.
    * @property {boolean} build - Whether to build the image.
    * @property {number} replicas - The number of replicas to run.
    * @property {boolean} force - Whether to force the operation.
@@ -89,6 +93,7 @@ class UnderpostRun {
    * @property {string} instanceId - The instance ID.
    * @property {string} user - The user to run as.
    * @property {string} pid - The process ID.
+   * @property {boolean} disablePrivateConfUpdate - Whether to disable private configuration updates.
    * @memberof UnderpostRun
    */
   static DEFAULT_OPTION = {
@@ -101,6 +106,10 @@ class UnderpostRun {
     imageName: '',
     containerName: '',
     namespace: 'default',
+    timeoutResponse: '',
+    timeoutIdle: '',
+    retryCount: '',
+    retryPerTryTimeout: '',
     build: false,
     replicas: 1,
     force: false,
@@ -138,6 +147,7 @@ class UnderpostRun {
     instanceId: '',
     user: '',
     pid: '',
+    disablePrivateConfUpdate: false,
   };
   /**
    * @static
@@ -456,8 +466,10 @@ class UnderpostRun {
       node = node ? node : defaultPath[4];
       shellExec(`${baseCommand} cluster --ns-use ${options.namespace}`);
       if (isDeployRunnerContext(path, options)) {
-        const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
-        if (!validVersion) throw new Error('Version mismatch');
+        if (!options.disablePrivateConfUpdate) {
+          const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
+          if (!validVersion) throw new Error('Version mismatch');
+        }
         if (options.timezone !== 'none') shellExec(`${baseCommand} run${baseClusterCommand} tz`);
         if (options.cronJobs !== 'none') shellExec(`${baseCommand} run${baseClusterCommand} cron`);
       }
@@ -468,10 +480,16 @@ class UnderpostRun {
       let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'green';
       if (targetTraffic) versions = targetTraffic;
 
+      const timeoutFlags =
+        `${options.timeoutResponse ? ` --timeout-response ${options.timeoutResponse}` : ''}` +
+        `${options.timeoutIdle ? ` --timeout-idle ${options.timeoutIdle}` : ''}` +
+        `${options.retryCount || options.retryCount === 0 ? ` --retry-count ${options.retryCount}` : ''}` +
+        `${options.retryPerTryTimeout ? ` --retry-per-try-timeout ${options.retryPerTryTimeout}` : ''}`;
+
       shellExec(
         `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
           replicas
-        } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''}${options.namespace ? ` --namespace ${options.namespace}` : ''} dd ${env}`,
+        } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''}${options.namespace ? ` --namespace ${options.namespace}` : ''}${timeoutFlags} dd ${env}`,
       );
 
       if (isDeployRunnerContext(path, options)) {
@@ -481,12 +499,12 @@ class UnderpostRun {
         shellExec(
           `${baseCommand} deploy --kubeadm${cmdString} --replicas ${
             replicas
-          } --disable-update-proxy ${deployId} ${env} --versions ${versions}${options.namespace ? ` --namespace ${options.namespace}` : ''}`,
+          } --disable-update-proxy ${deployId} ${env} --versions ${versions}${options.namespace ? ` --namespace ${options.namespace}` : ''}${timeoutFlags}`,
         );
         if (!targetTraffic)
           targetTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
         await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic, [], options.namespace, 'underpost');
-        UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic, replicas, options.namespace);
+        UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic, replicas, options.namespace, options);
       } else
         logger.info(
           'current traffic',

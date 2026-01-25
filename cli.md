@@ -471,6 +471,10 @@ Options:
                                      remote ports.
   --cmd <cmd>                        Custom initialization command for
                                      deployment (comma-separated commands).
+  --timeout-response <duration>      Sets HTTPProxy per-route response timeout (e.g., "1s", "300ms", "infinity").
+  --timeout-idle <duration>          Sets HTTPProxy per-route idle timeout (e.g., "10s", "infinity").
+  --retry-count <count>              Sets HTTPProxy per-route retry count (integer).
+  --retry-per-try-timeout <duration> Sets HTTPProxy per-route retry per-try timeout (e.g., "150ms").
   -h, --help                         display help for command
  
 ```

@@ -2213,7 +2213,7 @@ shell
         );
 
         for (const discovery of discoveries) {
-          const dicoverHostname = discovery.hostname
+          const discoverHostname = discovery.hostname
             ? discovery.hostname
             : discovery.mac_organization
               ? discovery.mac_organization
@@ -2221,7 +2221,7 @@ shell
                 ? discovery.domain
                 : `generic-host-${s4()}${s4()}`;
 
-          console.log(dicoverHostname.bgBlue.bold.white);
+          console.log(discoverHostname.bgBlue.bold.white);
           console.log('ip target:'.green + ipAddress, 'ip discovered:'.green + discovery.ip);
           console.log('mac target:'.green + macAddress, 'mac discovered:'.green + discovery.mac_address);
 

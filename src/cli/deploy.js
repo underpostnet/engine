@@ -59,12 +59,24 @@ class UnderpostDeploy {
      * @param {string} env - Environment for which the service is being created.
      * @param {number} port - Port number for the service.
      * @param {Array<string>} deploymentVersions - List of deployment versions.
+     * @param {string} serviceId - Custom service name (optional).
+     * @param {Array} pathRewritePolicy - Path rewrite policy (optional).
+     * @param {object} timeoutPolicy - Timeout policy (optional).
+     * @param {object} retryPolicy - Retry policy (optional).
      * @returns {string} - YAML service configuration for the specified deployment.
-     * @param {string} [serviceId] - Custom service name (optional).
-     * @param {Array} [pathRewritePolicy] - Path rewrite policy (optional).
      * @memberof UnderpostDeploy
      */
-    deploymentYamlServiceFactory({ deployId, path, env, port, deploymentVersions, serviceId, pathRewritePolicy }) {
+    deploymentYamlServiceFactory({
+      deployId,
+      path,
+      env,
+      port,
+      deploymentVersions,
+      serviceId,
+      pathRewritePolicy,
+      timeoutPolicy,
+      retryPolicy,
+    }) {
       return `
     - conditions:
         - prefix: ${path}
@@ -79,12 +91,25 @@ class UnderpostDeploy {
           ).join(`
 `)}`
           : ''
+      }${
+        timeoutPolicy
+          ? `\n      timeoutPolicy:\n${timeoutPolicy.response ? `        response: ${timeoutPolicy.response}\n` : ''}${
+              timeoutPolicy.idle ? `        idle: ${timeoutPolicy.idle}\n` : ''
+            }`
+          : ''
+      }${
+        retryPolicy
+          ? `\n      retryPolicy:\n${retryPolicy.count !== undefined ? `        count: ${retryPolicy.count}\n` : ''}${
+              retryPolicy.perTryTimeout ? `        perTryTimeout: ${retryPolicy.perTryTimeout}\n` : ''
+            }`
+          : ''
       }
       enableWebsockets: true
       services:
     ${deploymentVersions
       .map(
-        (version, i) => `    - name: ${serviceId ? serviceId : `${deployId}-${env}-${version}-service`}
+        (version, i) =>
+          `    - name: ${serviceId ? serviceId : `${deployId}-${env}-${version}-service`}
           port: ${port}
           weight: ${i === 0 ? 100 : 0}
     `,
@@ -111,8 +136,8 @@ class UnderpostDeploy {
         cmd = [
           `npm install -g npm@11.2.0`,
           `npm install -g underpost`,
-          `${baseCommand} secret underpost --create-from-file /etc/config/.env.${env}`,
-          `${baseCommand} start --build --run ${deployId} ${env}`,
+          `underpost secret underpost --create-from-file /etc/config/.env.${env}`,
+          `underpost start --build --run ${deployId} ${env}`,
         ];
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
       if (!volumes)
@@ -188,6 +213,14 @@ spec:
      * @param {string} options.replicas - Number of replicas for each deployment.
      * @param {string} options.image - Docker image for the deployment.
      * @param {string} options.namespace - Kubernetes namespace for the deployment.
+     * @param {string} [options.versions] - Comma-separated list of versions to deploy.
+     * @param {string} [options.cmd] - Custom initialization command for deploymentYamlPartsFactory (comma-separated commands).
+     * @param {string} [options.timeoutResponse] - Timeout response setting for the deployment.
+     * @param {string} [options.timeoutIdle] - Timeout idle setting for the deployment.
+     * @param {string} [options.retryCount] - Retry count setting for the deployment.
+     * @param {string} [options.retryPerTryTimeout] - Retry per-try timeout setting for the deployment.
+     * @param {boolean} [options.disableDeploymentProxy] - Whether to disable deployment proxy.
+     * @param {string} [options.traffic] - Traffic status for the deployment.
      * @returns {Promise<void>} - Promise that resolves when the manifest is built.
      * @memberof UnderpostDeploy
      */
@@ -244,6 +277,23 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
           const deploymentVersions =
             options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',') : ['blue'];
           let proxyRoutes = '';
+          const globalTimeoutPolicy =
+            (options.timeoutResponse && options.timeoutResponse !== '') ||
+            (options.timeoutIdle && options.timeoutIdle !== '')
+              ? {
+                  response: options.timeoutResponse,
+                  idle: options.timeoutIdle,
+                }
+              : undefined;
+          const globalRetryPolicy =
+            options.retryCount ||
+            options.retryCount === 0 ||
+            (options.retryPerTryTimeout && options.retryPerTryTimeout !== '')
+              ? {
+                  count: options.retryCount,
+                  perTryTimeout: options.retryPerTryTimeout,
+                }
+              : undefined;
           if (!options.disableDeploymentProxy)
             for (const conditionObj of pathPortAssignment) {
               const { path, port } = conditionObj;
@@ -253,10 +303,20 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
                 env,
                 port,
                 deploymentVersions,
+                timeoutPolicy: globalTimeoutPolicy,
+                retryPolicy: globalRetryPolicy,
               });
             }
           for (const customService of customServices) {
-            const { path: _path, port, serviceId, host: _host, pathRewritePolicy } = customService;
+            const {
+              path: _path,
+              port,
+              serviceId,
+              host: _host,
+              pathRewritePolicy,
+              timeoutPolicy: _timeoutPolicy,
+              retryPolicy: _retryPolicy,
+            } = customService;
             if (host === _host) {
               proxyRoutes += UnderpostDeploy.API.deploymentYamlServiceFactory({
                 path: _path,
@@ -264,6 +324,8 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
                 serviceId,
                 deploymentVersions,
                 pathRewritePolicy,
+                timeoutPolicy: _timeoutPolicy ? _timeoutPolicy : globalTimeoutPolicy,
+                retryPolicy: _retryPolicy ? _retryPolicy : globalRetryPolicy,
               });
             }
           }
@@ -389,6 +451,10 @@ spec:
      * @param {boolean} options.etcHosts - Whether to display the /etc/hosts file.
      * @param {boolean} options.disableUpdateUnderpostConfig - Whether to disable Underpost config updates.
      * @param {string} [options.namespace] - Kubernetes namespace for the deployment.
+     * @param {string} [options.timeoutResponse] - Timeout response setting for the deployment.
+     * @param {string} [options.timeoutIdle] - Timeout idle setting for the deployment.
+     * @param {string} [options.retryCount] - Retry count setting for the deployment.
+     * @param {string} [options.retryPerTryTimeout] - Retry per-try timeout setting for the deployment.
      * @param {string} [options.kindType] - Type of Kubernetes resource to retrieve information for.
      * @param {number} [options.port] - Port number for exposing the deployment.
      * @param {string} [options.cmd] - Custom initialization command for deploymentYamlPartsFactory (comma-separated commands).
@@ -421,6 +487,10 @@ spec:
         etcHosts: false,
         disableUpdateUnderpostConfig: false,
         namespace: '',
+        timeoutResponse: '',
+        timeoutIdle: '',
+        retryCount: '',
+        retryPerTryTimeout: '',
         kindType: '',
         port: 0,
         cmd: '',
@@ -711,13 +781,38 @@ EOF`);
      * @param {string} targetTraffic - Target traffic status for the deployment.
      * @param {number} replicas - Number of replicas for the deployment.
      * @param {string} [namespace='default'] - Kubernetes namespace for the deployment.
+     * @param {object} options - Options for the traffic switch.
+     * @param {string} options.timeoutResponse - Timeout response setting for the deployment.
+     * @param {string} options.timeoutIdle - Timeout idle setting for the deployment.
+     * @param {string} options.retryCount - Retry count setting for the deployment.
+     * @param {string} options.retryPerTryTimeout - Retry per-try timeout setting for the deployment.
      * @memberof UnderpostDeploy
      */
-    switchTraffic(deployId, env, targetTraffic, replicas = 1, namespace = 'default') {
+    switchTraffic(
+      deployId,
+      env,
+      targetTraffic,
+      replicas = 1,
+      namespace = 'default',
+      options = {
+        timeoutResponse: '',
+        timeoutIdle: '',
+        retryCount: '',
+        retryPerTryTimeout: '',
+      },
+    ) {
       UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, targetTraffic);
+
+      const timeoutFlags =
+        `${options.timeoutResponse ? ` --timeout-response ${options.timeoutResponse}` : ''}` +
+        `${options.timeoutIdle ? ` --timeout-idle ${options.timeoutIdle}` : ''}` +
+        `${options.retryCount || options.retryCount === 0 ? ` --retry-count ${options.retryCount}` : ''}` +
+        `${options.retryPerTryTimeout ? ` --retry-per-try-timeout ${options.retryPerTryTimeout}` : ''}`;
+
       shellExec(
-        `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${replicas} --namespace ${namespace} ${deployId} ${env}`,
+        `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${replicas} --namespace ${namespace}${timeoutFlags} ${deployId} ${env}`,
       );
+
       shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml -n ${namespace}`);
     },
 

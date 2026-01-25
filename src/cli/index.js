@@ -262,6 +262,13 @@ program
   .option('--image <image>', 'Sets a custom image for deployments.')
   .option('--versions <deployment-versions>', 'A comma-separated list of custom deployment versions.')
   .option('--traffic <traffic-versions>', 'A comma-separated list of custom deployment traffic weights.')
+  .option(
+    '--timeout-response <duration>',
+    'Sets HTTPProxy per-route response timeout (e.g., "1s", "300ms", "infinity").',
+  )
+  .option('--timeout-idle <duration>', 'Sets HTTPProxy per-route idle timeout (e.g., "10s", "infinity").')
+  .option('--retry-count <count>', 'Sets HTTPProxy per-route retry count (e.g., 3).')
+  .option('--retry-per-try-timeout <duration>', 'Sets HTTPProxy retry per-try timeout (e.g., "150ms").')
   .option('--disable-update-deployment', 'Disables updates to deployments.')
   .option('--disable-update-proxy', 'Disables updates to proxies.')
   .option('--disable-deployment-proxy', 'Disables proxies of deployments.')
@@ -551,6 +558,14 @@ program
   .option('--hosts <hosts>', 'Comma-separated list of hosts for the runner execution.')
   .option('--instance-id <instance-id>', 'Sets instance id context for the runner execution.')
   .option('--pid <process-id>', 'Sets process id context for the runner execution.')
+  .option(
+    '--timeout-response <duration>',
+    'Sets HTTPProxy per-route response timeout (e.g., "1s", "300ms", "infinity").',
+  )
+  .option('--timeout-idle <duration>', 'Sets HTTPProxy per-route idle timeout (e.g., "10s", "infinity").')
+  .option('--retry-count <count>', 'Sets HTTPProxy per-route retry count (e.g., 3).')
+  .option('--retry-per-try-timeout <duration>', 'Sets HTTPProxy retry per-try timeout (e.g., "150ms").')
+  .option('--disable-private-conf-update', 'Disables updates to private configuration during execution.')
   .description('Runs specified scripts using various runners.')
   .action(UnderpostRun.API.callback);
 
