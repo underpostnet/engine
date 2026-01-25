@@ -27,7 +27,6 @@ const logger = loggerFactory(import.meta);
 
 export class ObjectLayerEngine {
   /**
-   * @memberof CyberiaObjectLayer
    * @static
    * @description Iterates through the directory structure of object layer PNG assets for a given type.
    * @param {string} [objectLayerType='skin'] - The type of object layer to iterate over (e.g., 'skin', 'floor').
@@ -62,7 +61,6 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * @memberof CyberiaObjectLayer
    * @static
    * @description Asynchronously reads a PNG file and resolves with its raw bitmap data, width, and height.
    * @param {string} filePath - The path to the PNG file.
@@ -89,7 +87,6 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * @memberof CyberiaObjectLayer
    * @static
    * @description Processes an image file (PNG or GIF) to generate a frame matrix and a color palette (map_color).
    * It quantizes the image based on a factor derived from image height (mazeFactor).
@@ -149,7 +146,6 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * @memberof CyberiaObjectLayer
    * @static
    * @description Converts a numerical folder direction (e.g., '08', '14') into an array of corresponding keyframe names (e.g., 'down_idle', 'left_walking').
    * @param {string} direction - The numerical direction string.
@@ -190,7 +186,6 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * @memberof CyberiaObjectLayer
    * @static
    * @description Processes an image file through frameFactory and adds the resulting frame to the render data structure.
    * Updates the color palette and pushes the frame to all keyframe directions corresponding to the given direction code.
@@ -236,7 +231,6 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * @memberof CyberiaObjectLayer
    * @static
    * @description Builds a PNG image file from a tile matrix and color map using Jimp and Sharp.
    * @param {Object} options - Options object.
@@ -301,7 +295,6 @@ export class ObjectLayerEngine {
   }
 
   /**
-   * @memberof CyberiaObjectLayer
    * @static
    * @description Generates a random set of character statistics for an item, with values between 0 and 10.
    * @returns {{effect: number, resistance: number, agility: number, range: number, intelligence: number, utility: number}} - The random stats object.
@@ -320,7 +313,6 @@ export class ObjectLayerEngine {
 }
 
 /**
- * @memberof CyberiaObjectLayer
  * @constant
  * @description Mapping of item type names to numerical IDs.
  * @type {{floor: number, skin: number, weapon: number, skill: number, coin: number}}
