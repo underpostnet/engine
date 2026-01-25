@@ -468,6 +468,7 @@ program
   .option('--type <type>', 'Sets a custom monitor type.')
   .option('--sync', 'Synchronizes with current proxy deployments and traffic configurations.')
   .option('--namespace <namespace>', 'Sets the Kubernetes namespace for the deployment. Defaults to "default".')
+  .option('--timeout-response <duration>', 'Sets HTTPProxy per-route response timeout (e.g., "5s").')
   .option('--timeout-idle <duration>', 'Sets HTTPProxy per-route idle timeout (e.g., "10s", "infinity").')
   .option('--retry-count <count>', 'Sets HTTPProxy per-route retry count (e.g., 3).')
   .option('--retry-per-try-timeout <duration>', 'Sets HTTPProxy retry per-try timeout (e.g., "150ms").')
