@@ -479,11 +479,7 @@ class UnderpostRun {
       let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'green';
       if (targetTraffic) versions = targetTraffic;
 
-      const timeoutFlags =
-        `${options.timeoutResponse ? ` --timeout-response ${options.timeoutResponse}` : ''}` +
-        `${options.timeoutIdle ? ` --timeout-idle ${options.timeoutIdle}` : ''}` +
-        `${options.retryCount || options.retryCount === 0 ? ` --retry-count ${options.retryCount}` : ''}` +
-        `${options.retryPerTryTimeout ? ` --retry-per-try-timeout ${options.retryPerTryTimeout}` : ''}`;
+      const timeoutFlags = UnderpostDeploy.API.timeoutFlagsFactory(options);
 
       shellExec(
         `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
@@ -1339,10 +1335,11 @@ EOF
       if (success) {
         const versions = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';
         if (!node) node = os.hostname();
+        const timeoutFlags = UnderpostDeploy.API.timeoutFlagsFactory(options);
         shellExec(
           `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''} --build-manifest --sync --info-router --replicas ${
             replicas
-          } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''} dd ${env}`,
+          } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''}${timeoutFlags} dd ${env}`,
         );
         shellExec(
           `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''} --disable-update-deployment ${deployId} ${env} --versions ${versions}`,

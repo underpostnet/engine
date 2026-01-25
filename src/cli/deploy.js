@@ -801,11 +801,7 @@ EOF`);
         retryPerTryTimeout: '',
       },
     ) {
-      const timeoutFlags =
-        `${options.timeoutResponse ? ` --timeout-response ${options.timeoutResponse}` : ''}` +
-        `${options.timeoutIdle ? ` --timeout-idle ${options.timeoutIdle}` : ''}` +
-        `${options.retryCount || options.retryCount === 0 ? ` --retry-count ${options.retryCount}` : ''}` +
-        `${options.retryPerTryTimeout ? ` --retry-per-try-timeout ${options.retryPerTryTimeout}` : ''}`;
+      const timeoutFlags = UnderpostDeploy.API.timeoutFlagsFactory(options);
 
       shellExec(
         `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${replicas} --namespace ${namespace}${timeoutFlags} ${deployId} ${env}`,
@@ -1246,6 +1242,25 @@ ${renderHosts}`,
           };
       }
       return undefined;
+    },
+
+    /**
+     * Generates timeout flags string for deployment commands.
+     * @param {object} options - Options containing timeout settings.
+     * @param {string|number} [options.timeoutResponse] - Timeout response value.
+     * @param {string|number} [options.timeoutIdle] - Timeout idle value.
+     * @param {string|number} [options.retryCount] - Retry count value.
+     * @param {string|number} [options.retryPerTryTimeout] - Retry per try timeout value.
+     * @returns {string} The timeout flags string.
+     * @memberof UnderpostDeploy
+     */
+    timeoutFlagsFactory: (options = {}) => {
+      return (
+        `${options.timeoutResponse ? ` --timeout-response ${options.timeoutResponse}` : ''}` +
+        `${options.timeoutIdle ? ` --timeout-idle ${options.timeoutIdle}` : ''}` +
+        `${options.retryCount || options.retryCount === 0 ? ` --retry-count ${options.retryCount}` : ''}` +
+        `${options.retryPerTryTimeout ? ` --retry-per-try-timeout ${options.retryPerTryTimeout}` : ''}`
+      );
     },
   };
 }
