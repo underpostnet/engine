@@ -96,6 +96,7 @@ try {
         if (options.drop) {
           await ObjectLayer.deleteMany();
           await ObjectLayerRenderFrames.deleteMany();
+          shellExec(`cd src/client/public/cyberia && underpost run clean .`);
         }
 
         const storage = options.storageFilePath ? JSON.parse(fs.readFileSync(options.storageFilePath, 'utf8')) : null;
