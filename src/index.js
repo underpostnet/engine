@@ -17,7 +17,6 @@ import UnderpostLxd from './cli/lxd.js';
 import UnderpostMonitor from './cli/monitor.js';
 import UnderpostRepository from './cli/repository.js';
 import UnderpostRun from './cli/run.js';
-import UnderpostScript from './cli/script.js';
 import UnderpostSecret from './cli/secrets.js';
 import UnderpostSSH from './cli/ssh.js';
 import UnderpostStatic from './cli/static.js';
@@ -109,15 +108,6 @@ class Underpost {
    */
   static get secret() {
     return UnderpostSecret.API;
-  }
-  /**
-   * Scripts cli API
-   * @static
-   * @type {UnderpostScript.API}
-   * @memberof Underpost
-   */
-  static get script() {
-    return UnderpostScript.API;
   }
   /**
    * Database cli API
@@ -236,7 +226,6 @@ export {
   UnderpostMonitor,
   UnderpostRepository,
   UnderpostRun,
-  UnderpostScript,
   UnderpostSecret,
   UnderpostSSH,
   UnderpostTest,

@@ -401,20 +401,6 @@ program
   .action(Underpost.db.clusterMetadataBackupCallback);
 
 program
-  .command('script')
-  .argument('operator', `The script operation to perform. Options: ${Object.keys(Underpost.script).join(', ')}.`)
-  .argument('<script-name>', 'The name of the script to execute.')
-  .argument('[script-value]', 'Optional: A literal command or a path to a script file.')
-  .option('--itc', 'Executes the script within the container execution context.')
-  .option('--itc-path', 'Specifies container path options for script execution.')
-  .option('--ns <ns-name>', 'Optional: Specifies the namespace context for script execution.')
-  .option('--pod-name <pod-name>', 'Optional: Specifies the pod name for script execution.')
-  .description(
-    'Supports a variety of built-in Underpost global scripts, their preset lifecycle events, and arbitrary custom scripts.',
-  )
-  .action((...args) => Underpost.script[args[0]](args[1], args[2], args[3]));
-
-program
   .command('cron')
   .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
   .argument(
