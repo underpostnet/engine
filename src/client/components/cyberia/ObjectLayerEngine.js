@@ -1504,7 +1504,9 @@ class ObjectLayerPngLoader extends HTMLElement {
 
 customElements.define('object-layer-png-loader', ObjectLayerPngLoader);
 
-/* Example wiring (NOT code repeated in canvas):
+/*
+
+Example usage:
 
 // HTML
 <object-layer-engine id="editor"></object-layer-engine>
