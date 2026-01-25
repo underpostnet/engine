@@ -10,7 +10,6 @@ import {
   buildKindPorts,
   Config,
   getNpmRootPath,
-  getUnderpostRootPath,
   isDeployRunnerContext,
   writeEnv,
 } from '../server/conf.js';
@@ -1048,12 +1047,26 @@ EOF
         for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
           const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
           const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
-          UnderpostDeploy.API.switchTraffic(deployId, inputEnv, targetTraffic, inputReplicas, options.namespace);
+          UnderpostDeploy.API.switchTraffic(
+            deployId,
+            inputEnv,
+            targetTraffic,
+            inputReplicas,
+            options.namespace,
+            options,
+          );
         }
       } else {
         const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(inputDeployId, { namespace: options.namespace });
         const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
-        UnderpostDeploy.API.switchTraffic(inputDeployId, inputEnv, targetTraffic, inputReplicas, options.namespace);
+        UnderpostDeploy.API.switchTraffic(
+          inputDeployId,
+          inputEnv,
+          targetTraffic,
+          inputReplicas,
+          options.namespace,
+          options,
+        );
       }
     },
     /**
@@ -1162,7 +1175,7 @@ EOF
         'underpost',
       );
 
-      UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic, options.replicas, options.namespace);
+      UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic, options.replicas, options.namespace, options);
     },
 
     /**

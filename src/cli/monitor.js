@@ -40,6 +40,10 @@ class UnderpostMonitor {
      * @param {string} [options.replicas='1'] - Number of replicas for the deployment. Defaults to 1.
      * @param {boolean} [options.sync=false] - Synchronize traffic switching with the deployment.
      * @param {string} [options.namespace='default'] - Kubernetes namespace for the deployment. Defaults to 'default'.
+     * @param {string} [options.timeoutResponse=''] - Timeout for server response checks.
+     * @param {string} [options.timeoutIdle=''] - Timeout for idle connections.
+     * @param {string} [options.retryCount=''] - Number of retry attempts for health checks.
+     * @param {string} [options.retryPerTryTimeout=''] - Timeout per retry attempt.
      * @param {object} [commanderOptions] - Options passed from the command line interface.
      * @param {object} [auxRouter] - Optional router configuration for the deployment.
      * @memberof UnderpostMonitor
@@ -55,6 +59,10 @@ class UnderpostMonitor {
         replicas: '1',
         sync: false,
         namespace: 'default',
+        timeoutResponse: '',
+        timeoutIdle: '',
+        retryCount: '',
+        retryPerTryTimeout: '',
       },
       commanderOptions,
       auxRouter,
@@ -102,17 +110,12 @@ class UnderpostMonitor {
         traffic,
       });
 
-      const switchTraffic = () => {
-        if (traffic === 'blue') traffic = 'green';
-        else traffic = 'blue';
-        UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, traffic);
-        const namespace = options.namespace;
-        shellExec(
-          `node bin deploy --info-router --build-manifest --traffic ${traffic} --replicas ${
-            options.replicas
-          } --namespace ${namespace} ${deployId} ${env}`,
-        );
-        shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml -n ${namespace}`);
+      const switchTraffic = (targetTraffic) => {
+        const nextTraffic = targetTraffic ?? (traffic === 'blue' ? 'green' : 'blue');
+        // Delegate traffic switching to centralized deploy implementation so behavior is consistent
+        UnderpostDeploy.API.switchTraffic(deployId, env, nextTraffic, options.replicas, options.namespace, options);
+        // Keep local traffic in sync with the environment
+        traffic = nextTraffic;
       };
 
       const monitor = async (reject) => {

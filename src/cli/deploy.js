@@ -801,8 +801,6 @@ EOF`);
         retryPerTryTimeout: '',
       },
     ) {
-      UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, targetTraffic);
-
       const timeoutFlags =
         `${options.timeoutResponse ? ` --timeout-response ${options.timeoutResponse}` : ''}` +
         `${options.timeoutIdle ? ` --timeout-idle ${options.timeoutIdle}` : ''}` +
@@ -814,6 +812,8 @@ EOF`);
       );
 
       shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml -n ${namespace}`);
+
+      UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, targetTraffic);
     },
 
     /**
