@@ -243,27 +243,23 @@ class UnderpostMonitor {
               default:
                 break;
             }
-            for (const monitorStatus of [
-              { key: `monitor-input`, value: Underpost.env.get(`monitor-input`) },
-              {
-                key: `${deployId}-${env}-monitor-input`,
-                value: Underpost.env.get(`${deployId}-${env}-monitor-input`),
-              },
-            ])
-              switch (monitorStatus.value) {
-                case 'pause':
-                  monitorCallBack(resolve, reject);
-                  return;
-                case 'restart':
-                  Underpost.env.delete(monitorStatus.key);
-                  return reject();
-                case 'stop':
-                  Underpost.env.delete(monitorStatus.key);
-                  return resolve();
-                case 'blue-green-switch':
-                  Underpost.env.delete(monitorStatus.key);
-                  switchTraffic();
-              }
+            const monitorKey = `${deployId}-${env}-monitor-input`;
+            const monitorValue = Underpost.env.get(monitorKey);
+            switch (monitorValue) {
+              case 'pause':
+                monitorCallBack(resolve, reject);
+                return;
+              case 'restart':
+              case 'stop':
+              case 'blue-green-switch':
+                Underpost.env.delete(monitorKey);
+              case 'restart':
+                return reject();
+              case 'stop':
+                return resolve();
+              case 'blue-green-switch':
+                switchTraffic();
+            }
             await monitor(reject);
             monitorCallBack(resolve, reject);
             return;
