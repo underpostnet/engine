@@ -10,12 +10,9 @@ import { mergeFile, splitFileFactory } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
-import os from 'os';
-import UnderpostDeploy from './deploy.js';
-import UnderpostCron from './cron.js';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { loadReplicas, pathPortAssignmentFactory } from '../server/conf.js';
-
+import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 
 /**
@@ -100,8 +97,8 @@ class UnderpostDB {
       const { podNames, namespace = 'default', deployId } = criteria;
 
       try {
-        // Get all pods using UnderpostDeploy.API.get
-        let pods = UnderpostDeploy.API.get(deployId || '', 'pods', namespace);
+        // Get all pods using Underpost.deploy.get
+        let pods = Underpost.deploy.get(deployId || '', 'pods', namespace);
 
         // Filter by pod names if specified
         if (podNames) {
@@ -158,7 +155,7 @@ class UnderpostDB {
     _copyToPod({ sourcePath, podName, namespace, destPath }) {
       try {
         const command = `sudo kubectl cp ${sourcePath} ${namespace}/${podName}:${destPath}`;
-        UnderpostDB.API._executeKubectl(command, { context: `copy to pod ${podName}` });
+        Underpost.db._executeKubectl(command, { context: `copy to pod ${podName}` });
         return true;
       } catch (error) {
         logger.error('Failed to copy file to pod', { sourcePath, podName, destPath, error: error.message });
@@ -180,7 +177,7 @@ class UnderpostDB {
     _copyFromPod({ podName, namespace, sourcePath, destPath }) {
       try {
         const command = `sudo kubectl cp ${namespace}/${podName}:${sourcePath} ${destPath}`;
-        UnderpostDB.API._executeKubectl(command, { context: `copy from pod ${podName}` });
+        Underpost.db._executeKubectl(command, { context: `copy from pod ${podName}` });
         return true;
       } catch (error) {
         logger.error('Failed to copy file from pod', { podName, sourcePath, destPath, error: error.message });
@@ -201,7 +198,7 @@ class UnderpostDB {
     _execInPod({ podName, namespace, command }) {
       try {
         const kubectlCmd = `sudo kubectl exec -n ${namespace} -i ${podName} -- sh -c "${command}"`;
-        return UnderpostDB.API._executeKubectl(kubectlCmd, { context: `exec in pod ${podName}` });
+        return Underpost.db._executeKubectl(kubectlCmd, { context: `exec in pod ${podName}` });
       } catch (error) {
         logger.error('Failed to execute command in pod', { podName, command, error: error.message });
         throw error;
@@ -348,7 +345,7 @@ class UnderpostDB {
         logger.info('Importing MariaDB database', { podName, dbName });
 
         // Remove existing SQL file in container
-        UnderpostDB.API._execInPod({
+        Underpost.db._execInPod({
           podName,
           namespace,
           command: `rm -rf ${containerSqlPath}`,
@@ -356,7 +353,7 @@ class UnderpostDB {
 
         // Copy SQL file to pod
         if (
-          !UnderpostDB.API._copyToPod({
+          !Underpost.db._copyToPod({
             sourcePath: sqlPath,
             podName,
             namespace,
@@ -367,14 +364,14 @@ class UnderpostDB {
         }
 
         // Create database if it doesn't exist
-        UnderpostDB.API._executeKubectl(
+        Underpost.db._executeKubectl(
           `kubectl exec -n ${namespace} -i ${podName} -- mariadb -p${password} -e 'CREATE DATABASE IF NOT EXISTS ${dbName};'`,
           { context: `create database ${dbName}` },
         );
 
         // Import SQL file
         const importCmd = `mariadb -u ${user} -p${password} ${dbName} < ${containerSqlPath}`;
-        UnderpostDB.API._execInPod({ podName, namespace, command: importCmd });
+        Underpost.db._execInPod({ podName, namespace, command: importCmd });
 
         logger.info('Successfully imported MariaDB database', { podName, dbName });
         return true;
@@ -405,7 +402,7 @@ class UnderpostDB {
         logger.info('Exporting MariaDB database', { podName, dbName });
 
         // Remove existing SQL file in container
-        UnderpostDB.API._execInPod({
+        Underpost.db._execInPod({
           podName,
           namespace,
           command: `rm -rf ${containerSqlPath}`,
@@ -413,11 +410,11 @@ class UnderpostDB {
 
         // Dump database
         const dumpCmd = `mariadb-dump --user=${user} --password=${password} --lock-tables ${dbName} > ${containerSqlPath}`;
-        UnderpostDB.API._execInPod({ podName, namespace, command: dumpCmd });
+        Underpost.db._execInPod({ podName, namespace, command: dumpCmd });
 
         // Copy SQL file from pod
         if (
-          !UnderpostDB.API._copyFromPod({
+          !Underpost.db._copyFromPod({
             podName,
             namespace,
             sourcePath: containerSqlPath,
@@ -461,7 +458,7 @@ class UnderpostDB {
         logger.info('Importing MongoDB database', { podName, dbName });
 
         // Remove existing BSON directory in container
-        UnderpostDB.API._execInPod({
+        Underpost.db._execInPod({
           podName,
           namespace,
           command: `rm -rf ${containerBsonPath}`,
@@ -469,7 +466,7 @@ class UnderpostDB {
 
         // Copy BSON directory to pod
         if (
-          !UnderpostDB.API._copyToPod({
+          !Underpost.db._copyToPod({
             sourcePath: bsonPath,
             podName,
             namespace,
@@ -483,7 +480,7 @@ class UnderpostDB {
         const restoreCmd = `mongorestore -d ${dbName} ${containerBsonPath}${drop ? ' --drop' : ''}${
           preserveUUID ? ' --preserveUUID' : ''
         }`;
-        UnderpostDB.API._execInPod({ podName, namespace, command: restoreCmd });
+        Underpost.db._execInPod({ podName, namespace, command: restoreCmd });
 
         logger.info('Successfully imported MongoDB database', { podName, dbName });
         return true;
@@ -513,7 +510,7 @@ class UnderpostDB {
         logger.info('Exporting MongoDB database', { podName, dbName, collections });
 
         // Remove existing BSON directory in container
-        UnderpostDB.API._execInPod({
+        Underpost.db._execInPod({
           podName,
           namespace,
           command: `rm -rf ${containerBsonPath}`,
@@ -524,16 +521,16 @@ class UnderpostDB {
           const collectionList = collections.split(',').map((c) => c.trim());
           for (const collection of collectionList) {
             const dumpCmd = `mongodump -d ${dbName} --collection ${collection} -o /`;
-            UnderpostDB.API._execInPod({ podName, namespace, command: dumpCmd });
+            Underpost.db._execInPod({ podName, namespace, command: dumpCmd });
           }
         } else {
           const dumpCmd = `mongodump -d ${dbName} -o /`;
-          UnderpostDB.API._execInPod({ podName, namespace, command: dumpCmd });
+          Underpost.db._execInPod({ podName, namespace, command: dumpCmd });
         }
 
         // Copy BSON directory from pod
         if (
-          !UnderpostDB.API._copyFromPod({
+          !Underpost.db._copyFromPod({
             podName,
             namespace,
             sourcePath: containerBsonPath,
@@ -799,7 +796,7 @@ class UnderpostDB {
       // Handle clean-fs-collection operation
       if (options.cleanFsCollection || options.cleanFsDryRun) {
         logger.info('Starting File collection cleanup operation', { deployList });
-        await UnderpostDB.API.cleanFsCollection(deployList, {
+        await Underpost.db.cleanFsCollection(deployList, {
           hosts: options.hosts,
           paths: options.paths,
           dryRun: options.cleanFsDryRun,
@@ -815,7 +812,7 @@ class UnderpostDB {
       });
 
       if (options.primaryPodEnsure) {
-        const primaryPodName = UnderpostDB.API.getMongoPrimaryPodName({ namespace, podName: options.primaryPodEnsure });
+        const primaryPodName = Underpost.db.getMongoPrimaryPodName({ namespace, podName: options.primaryPodEnsure });
         if (!primaryPodName) {
           const baseCommand = options.dev ? 'node bin' : 'underpost';
           const baseClusterCommand = options.dev ? ' --dev' : '';
@@ -874,15 +871,15 @@ class UnderpostDB {
         if (!processedRepos.has(repoName)) {
           logger.info('Processing Git operations for repository', { repoName, deployId });
           if (options.git === true) {
-            UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
-            UnderpostDB.API._manageGitRepo({ repoName, operation: 'pull' });
+            Underpost.db._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
+            Underpost.db._manageGitRepo({ repoName, operation: 'pull' });
           }
 
           if (options.macroRollbackExport) {
             // Only clone if not already done by git option above
             if (options.git !== true) {
-              UnderpostDB.API._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
-              UnderpostDB.API._manageGitRepo({ repoName, operation: 'pull' });
+              Underpost.db._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
+              Underpost.db._manageGitRepo({ repoName, operation: 'pull' });
             }
 
             const nCommits = parseInt(options.macroRollbackExport);
@@ -947,7 +944,7 @@ class UnderpostDB {
             logger.info('Processing database', { hostFolder, provider, dbName, deployId });
 
             const backUpPath = `../${repoName}/${hostFolder}`;
-            const backupInfo = UnderpostDB.API._manageBackupTimestamps(
+            const backupInfo = Underpost.db._manageBackupTimestamps(
               backUpPath,
               newBackupTimestamp,
               options.export === true,
@@ -980,15 +977,11 @@ class UnderpostDB {
               deployId: provider === 'mariadb' ? 'mariadb' : 'mongo',
             };
 
-            targetPods = UnderpostDB.API._getFilteredPods(podCriteria);
+            targetPods = Underpost.db._getFilteredPods(podCriteria);
 
             // Fallback to default if no custom pods specified
             if (targetPods.length === 0 && !options.podName) {
-              const defaultPods = UnderpostDeploy.API.get(
-                provider === 'mariadb' ? 'mariadb' : 'mongo',
-                'pods',
-                namespace,
-              );
+              const defaultPods = Underpost.deploy.get(provider === 'mariadb' ? 'mariadb' : 'mongo', 'pods', namespace);
               console.log('defaultPods', defaultPods);
               targetPods = defaultPods;
             }
@@ -1007,7 +1000,7 @@ class UnderpostDB {
                 podsToProcess = [];
               } else {
                 const firstPod = targetPods[0].NAME;
-                const primaryPodName = UnderpostDB.API.getMongoPrimaryPodName({ namespace, podName: firstPod });
+                const primaryPodName = Underpost.db.getMongoPrimaryPodName({ namespace, podName: firstPod });
 
                 if (primaryPodName) {
                   const primaryPod = targetPods.find((p) => p.NAME === primaryPodName);
@@ -1040,7 +1033,7 @@ class UnderpostDB {
               switch (provider) {
                 case 'mariadb': {
                   if (options.stats === true) {
-                    const stats = UnderpostDB.API._getMariaDBStats({
+                    const stats = Underpost.db._getMariaDBStats({
                       podName: pod.NAME,
                       namespace,
                       dbName,
@@ -1048,12 +1041,12 @@ class UnderpostDB {
                       password,
                     });
                     if (stats) {
-                      UnderpostDB.API._displayStats({ provider, dbName, stats });
+                      Underpost.db._displayStats({ provider, dbName, stats });
                     }
                   }
 
                   if (options.import === true) {
-                    UnderpostDB.API._importMariaDB({
+                    Underpost.db._importMariaDB({
                       pod,
                       namespace,
                       dbName,
@@ -1065,7 +1058,7 @@ class UnderpostDB {
 
                   if (options.export === true) {
                     const outputPath = options.outPath || toNewSqlPath;
-                    await UnderpostDB.API._exportMariaDB({
+                    await Underpost.db._exportMariaDB({
                       pod,
                       namespace,
                       dbName,
@@ -1079,19 +1072,19 @@ class UnderpostDB {
 
                 case 'mongoose': {
                   if (options.stats === true) {
-                    const stats = UnderpostDB.API._getMongoStats({
+                    const stats = Underpost.db._getMongoStats({
                       podName: pod.NAME,
                       namespace,
                       dbName,
                     });
                     if (stats) {
-                      UnderpostDB.API._displayStats({ provider, dbName, stats });
+                      Underpost.db._displayStats({ provider, dbName, stats });
                     }
                   }
 
                   if (options.import === true) {
                     const bsonPath = options.outPath || toBsonPath;
-                    UnderpostDB.API._importMongoDB({
+                    Underpost.db._importMongoDB({
                       pod,
                       namespace,
                       dbName,
@@ -1103,7 +1096,7 @@ class UnderpostDB {
 
                   if (options.export === true) {
                     const outputPath = options.outPath || toNewBsonPath;
-                    UnderpostDB.API._exportMongoDB({
+                    Underpost.db._exportMongoDB({
                       pod,
                       namespace,
                       dbName,
@@ -1130,8 +1123,8 @@ class UnderpostDB {
           const commitMessage = `${new Date(newBackupTimestamp).toLocaleDateString()} ${new Date(
             newBackupTimestamp,
           ).toLocaleTimeString()}`;
-          UnderpostDB.API._manageGitRepo({ repoName, operation: 'commit', message: commitMessage });
-          UnderpostDB.API._manageGitRepo({ repoName, operation: 'push' });
+          Underpost.db._manageGitRepo({ repoName, operation: 'commit', message: commitMessage });
+          Underpost.db._manageGitRepo({ repoName, operation: 'push' });
           processedRepos.add(`${repoName}-committed`);
         }
       }
@@ -1202,7 +1195,7 @@ class UnderpostDB {
           }
 
           const confServer = loadReplicas(deployId, JSON.parse(fs.readFileSync(confServerPath, 'utf8')));
-          const router = await UnderpostDeploy.API.routerFactory(deployId, env);
+          const router = await Underpost.deploy.routerFactory(deployId, env);
           const pathPortAssignmentData = await pathPortAssignmentFactory(deployId, router, confServer);
 
           for (const host of Object.keys(confServer)) {
@@ -1296,7 +1289,7 @@ class UnderpostDB {
         for (const jobId of Object.keys(confCron.jobs)) {
           const body = {
             jobId,
-            deployId: UnderpostCron.API.getRelatedDeployIdList(jobId),
+            deployId: Underpost.cron.getRelatedDeployIdList(jobId),
             expression: confCron.jobs[jobId].expression,
             enabled: confCron.jobs[jobId].enabled,
           };
@@ -1573,7 +1566,7 @@ class UnderpostDB {
 
       if (options.generate === true) {
         logger.info('Generating cluster metadata');
-        await UnderpostDB.API.clusterMetadataFactory(deployId, host, path);
+        await Underpost.db.clusterMetadataFactory(deployId, host, path);
       }
 
       if (options.instances === true) {

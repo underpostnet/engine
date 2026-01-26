@@ -2,17 +2,17 @@
  * Provides a comprehensive set of DNS and IP management utilities,
  * primarily focused on dynamic DNS (DDNS) updates and network checks.
  * @module src/server/dns.js
- * @namespace DnsManager
+ * @namespace UnderpostDns
  */
 import axios from 'axios';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import validator from 'validator';
 import { loggerFactory } from './logger.js';
-import UnderpostRootEnv from '../cli/env.js';
 import dns from 'node:dns';
 import os from 'node:os';
 import { shellExec, pbcopy } from './process.js';
+import Underpost from '../index.js';
 
 dotenv.config();
 
@@ -23,14 +23,14 @@ const logger = loggerFactory(import.meta);
  * All utility methods are implemented as static to serve as a namespace container.
  * @class Dns
  * @augments Dns
- * @memberof DnsManager
+ * @memberof UnderpostDns
  */
 class Dns {
   /**
    * Retrieves the current public IP address (IPv4 or IPv6).
    * @async
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @returns {Promise<string>} The public IP address.
    */
   static async getPublicIp() {
@@ -49,7 +49,7 @@ class Dns {
   /**
    * Checks for active internet connection by performing a DNS lookup on a specified domain.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @param {string} [domain='google.com'] The domain to check the connection against.
    * @returns {Promise<boolean>} True if connected, false otherwise.
    */
@@ -61,9 +61,9 @@ class Dns {
    * Determines the default network interface name using shell command.
    * This method is primarily intended for Linux environments.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @returns {string} The default network interface name.
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    */
   static getDefaultNetworkInterface() {
     return shellExec(`ip route | grep default | cut -d ' ' -f 5`, {
@@ -77,7 +77,7 @@ class Dns {
    * Gets the local device's IPv4 address by determining the active network interface.
    * This relies on shell execution (`ip route`) and is primarily intended for Linux environments.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @returns {string} The local IPv4 address.
    */
   static getLocalIPv4Address() {
@@ -105,7 +105,7 @@ class Dns {
   /**
    * Setup nftables tables and chains if they don't exist.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    */
   static setupNftables() {
     shellExec(`sudo nft add table inet filter 2>/dev/null`, { silent: true });
@@ -126,7 +126,7 @@ class Dns {
   /**
    * Bans an IP address from ingress traffic.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @param {string} ip - The IP address to ban.
    */
   static banIngress(ip) {
@@ -142,7 +142,7 @@ class Dns {
   /**
    * Bans an IP address from egress traffic.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @param {string} ip - The IP address to ban.
    */
   static banEgress(ip) {
@@ -159,7 +159,7 @@ class Dns {
   /**
    * Helper to get nftables rule handles for a specific IP and chain.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @param {string} chain - The chain name (input, output, forward).
    * @param {string} ip - The IP address.
    * @param {string} type - The type (saddr or daddr).
@@ -184,7 +184,7 @@ class Dns {
   /**
    * Unbans an IP address from ingress traffic.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @param {string} ip - The IP address to unban.
    */
   static unbanIngress(ip) {
@@ -198,7 +198,7 @@ class Dns {
   /**
    * Unbans an IP address from egress traffic.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @param {string} ip - The IP address to unban.
    */
   static unbanEgress(ip) {
@@ -216,7 +216,7 @@ class Dns {
   /**
    * Lists all banned ingress IPs.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    */
   static listBannedIngress() {
     const output = shellExec(`sudo nft list chain inet filter input`, { stdout: true, silent: true });
@@ -226,7 +226,7 @@ class Dns {
   /**
    * Lists all banned egress IPs.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    */
   static listBannedEgress() {
     console.log('--- Output Chain ---');
@@ -238,7 +238,7 @@ class Dns {
   /**
    * Clears all banned ingress IPs.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    */
   static clearBannedIngress() {
     shellExec(`sudo nft flush chain inet filter input`, { silent: true });
@@ -248,7 +248,7 @@ class Dns {
   /**
    * Clears all banned egress IPs.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    */
   static clearBannedEgress() {
     shellExec(`sudo nft flush chain inet filter output`, { silent: true });
@@ -261,7 +261,7 @@ class Dns {
    * It checks if the public IP has changed and, if so, updates the configured DNS records.
    * @async
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @param {string} deployList Comma-separated string of deployment IDs to process.
    * @returns {Promise<void>}
    */
@@ -278,11 +278,11 @@ class Dns {
       logger.error(error, { testIp, stack: error.stack });
     }
 
-    const currentIp = UnderpostRootEnv.API.get('ip');
+    const currentIp = Underpost.env.get('ip');
 
     if (validator.isIP(testIp) && currentIp !== testIp) {
       logger.info(`New IP detected`, testIp);
-      UnderpostRootEnv.API.set('monitor-input', 'pause');
+      Underpost.env.set('monitor-input', 'pause');
 
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
@@ -326,8 +326,8 @@ class Dns {
           logger.info(ipUrlTest + ' verify ip', verifyIp);
           if (verifyIp === testIp) {
             logger.info('IP updated successfully and verified', testIp);
-            UnderpostRootEnv.API.set('ip', testIp);
-            UnderpostRootEnv.API.delete('monitor-input');
+            Underpost.env.set('ip', testIp);
+            Underpost.env.delete('monitor-input');
           } else {
             logger.error('IP not updated or verification failed', { expected: testIp, received: verifyIp });
           }
@@ -345,14 +345,14 @@ class Dns {
   /**
    * Internal collection of external DNS service update functions.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @property {object} updateIp - Functions keyed by DNS provider name to update A/AAAA records.
    */
   static services = {
     updateIp: {
       /**
        * Updates the IP address for a dondominio.com DNS record.
-       * @memberof DnsManager
+       * @memberof UnderpostDns
        * @param {object} options
        * @param {string} options.user - The dondominio DDNS username.
        * @param {string} options.api_key - The dondominio DDNS password/API key.
@@ -392,7 +392,7 @@ class Dns {
   /**
    * Dispatcher for IP ban/unban/list/clear operations based on CLI options.
    * @static
-   * @memberof DnsManager
+   * @memberof UnderpostDns
    * @param {string} [ips=''] Comma-separated string of IPs to process.
    * @param {object} options - Options indicating which action to perform.
    * @property {boolean} [options.banIngressAdd=false] - Ban IPs from ingress.
@@ -483,7 +483,7 @@ class Dns {
 
 /**
  * @function isInternetConnection
- * @memberof DnsManager
+ * @memberof UnderpostDns
  * @description Exported function for backward compatibility.
  * @param {string} [domain='google.com']
  * @returns {Promise<boolean>}
@@ -492,13 +492,21 @@ const isInternetConnection = Dns.isInternetConnection;
 
 /**
  * @function getLocalIPv4Address
- * @memberof DnsManager
+ * @memberof UnderpostDns
  * @description Exported function for backward compatibility.
  * @returns {string}
  */
 const getLocalIPv4Address = Dns.getLocalIPv4Address;
 
-// Export the class as default and all original identifiers for backward compatibility.
-export default Dns;
+/**
+ * Main UnderpostDns class exposing the Dns API.
+ * @class UnderpostDns
+ * @memberof UnderpostDns
+ */
+class UnderpostDns {
+  static API = Dns;
+}
+
+export default UnderpostDns;
 
 export { Dns, isInternetConnection, getLocalIPv4Address };

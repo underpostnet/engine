@@ -5,11 +5,10 @@
  */
 
 import { generateRandomPasswordSelection } from '../client/components/core/CommonJs.js';
-import Dns from '../server/dns.js';
 import { pbcopy, shellExec } from '../server/process.js';
 import { loggerFactory } from '../server/logger.js';
 import fs from 'fs-extra';
-import UnderpostRootEnv from './env.js';
+import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -252,17 +251,17 @@ EOF`);
 
       // Set defaults
       if (!options.user) options.user = 'root';
-      if (!options.host) options.host = await Dns.getPublicIp();
+      if (!options.host) options.host = await Underpost.dns.getPublicIp();
       if (!options.password) options.password = options.disablePassword ? '' : generateRandomPasswordSelection(16);
       if (!options.groups) options.groups = 'wheel';
       if (!options.port) options.port = 22; // Handle connect uri
 
-      const userHome = UnderpostSSH.API.getUserHome(options.user);
+      const userHome = Underpost.ssh.getUserHome(options.user);
       options.userHome = userHome;
 
       // Load config and override password and host if user exists in config
       if (options.deployId) {
-        const config = UnderpostSSH.API.loadConfigNode(options.deployId);
+        const config = Underpost.ssh.loadConfigNode(options.deployId);
         confNode = config.confNode;
         confNodePath = config.confNodePath;
 
@@ -335,7 +334,7 @@ EOF`);
         // Remove the private key copy folder and update config only if deployId is provided
         if (options.deployId) {
           if (!confNode) {
-            const config = UnderpostSSH.API.loadConfigNode(options.deployId);
+            const config = Underpost.ssh.loadConfigNode(options.deployId);
             confNode = config.confNode;
             confNodePath = config.confNodePath;
           }
@@ -347,7 +346,7 @@ EOF`);
           }
 
           delete confNode.users[options.user];
-          UnderpostSSH.API.saveConfigNode(confNodePath, confNode);
+          Underpost.ssh.saveConfigNode(confNodePath, confNode);
         }
 
         logger.info(`User removed`);
@@ -362,7 +361,7 @@ EOF`);
         // If deployId is provided, check for existing config and backup keys
         if (options.deployId) {
           if (!confNode) {
-            const config = UnderpostSSH.API.loadConfigNode(options.deployId);
+            const config = Underpost.ssh.loadConfigNode(options.deployId);
             confNode = config.confNode;
             confNodePath = config.confNodePath;
           }
@@ -378,14 +377,14 @@ EOF`);
             logger.info(`User ${options.user} already exists in config. Importing existing keys...`);
 
             // Create system user if it doesn't exist
-            const userExists = UnderpostSSH.API.checkUserExists(options.user);
+            const userExists = Underpost.ssh.checkUserExists(options.user);
             if (!userExists) {
-              UnderpostSSH.API.createSystemUser(options.user, options.password, options.groups);
+              Underpost.ssh.createSystemUser(options.user, options.password, options.groups);
             }
 
-            const userHome = UnderpostSSH.API.getUserHome(options.user);
+            const userHome = Underpost.ssh.getUserHome(options.user);
             const sshDir = `${userHome}/.ssh`;
-            UnderpostSSH.API.ensureSSHDirectory(sshDir);
+            Underpost.ssh.ensureSSHDirectory(sshDir);
 
             const userKeyPath = `${sshDir}/id_rsa`;
             const userPubKeyPath = `${sshDir}/id_rsa.pub`;
@@ -394,10 +393,10 @@ EOF`);
             fs.copyFileSync(privateKeyPath, userKeyPath);
             fs.copyFileSync(publicKeyPath, userPubKeyPath);
 
-            UnderpostSSH.API.configureAuthorizedKeys(sshDir, userPubKeyPath, options.disablePassword);
-            UnderpostSSH.API.configureSudoAccess(options.user, options.password, options.disablePassword);
-            UnderpostSSH.API.configureKnownHosts(sshDir, options.port, options.host);
-            UnderpostSSH.API.setSSHFilePermissions(sshDir, options.user, userKeyPath, userPubKeyPath);
+            Underpost.ssh.configureAuthorizedKeys(sshDir, userPubKeyPath, options.disablePassword);
+            Underpost.ssh.configureSudoAccess(options.user, options.password, options.disablePassword);
+            Underpost.ssh.configureKnownHosts(sshDir, options.port, options.host);
+            Underpost.ssh.setSSHFilePermissions(sshDir, options.user, userKeyPath, userPubKeyPath);
 
             logger.info(`Keys imported from ${privateCopyDir} to ${sshDir}`);
             logger.info(`User added with existing keys`);
@@ -406,11 +405,11 @@ EOF`);
         }
 
         // New user or no existing keys - create new user and generate keys
-        UnderpostSSH.API.createSystemUser(options.user, options.password, options.groups);
+        Underpost.ssh.createSystemUser(options.user, options.password, options.groups);
 
-        const userHome = UnderpostSSH.API.getUserHome(options.user);
+        const userHome = Underpost.ssh.getUserHome(options.user);
         const sshDir = `${userHome}/.ssh`;
-        UnderpostSSH.API.ensureSSHDirectory(sshDir);
+        Underpost.ssh.ensureSSHDirectory(sshDir);
 
         const keyPath = `${sshDir}/id_rsa`;
         const pubKeyPath = `${sshDir}/id_rsa.pub`;
@@ -421,10 +420,10 @@ EOF`);
           );
         }
 
-        UnderpostSSH.API.configureAuthorizedKeys(sshDir, pubKeyPath, options.disablePassword);
-        UnderpostSSH.API.configureSudoAccess(options.user, options.password, options.disablePassword);
-        UnderpostSSH.API.configureKnownHosts(sshDir, options.port, options.host);
-        UnderpostSSH.API.setSSHFilePermissions(sshDir, options.user, keyPath, pubKeyPath);
+        Underpost.ssh.configureAuthorizedKeys(sshDir, pubKeyPath, options.disablePassword);
+        Underpost.ssh.configureSudoAccess(options.user, options.password, options.disablePassword);
+        Underpost.ssh.configureKnownHosts(sshDir, options.port, options.host);
+        Underpost.ssh.setSSHFilePermissions(sshDir, options.user, keyPath, pubKeyPath);
 
         // Save a copy of the keys to the private folder only if deployId is provided
         if (options.deployId) {
@@ -447,7 +446,7 @@ EOF`);
             privateKeyCopyPath,
             publicKeyCopyPath,
           };
-          UnderpostSSH.API.saveConfigNode(confNodePath, confNode);
+          Underpost.ssh.saveConfigNode(confNodePath, confNode);
         }
 
         logger.info(`User added`);
@@ -457,7 +456,7 @@ EOF`);
       // Handle config user listing (only with deployId)
       if (options.deployId) {
         if (!confNode) {
-          const config = UnderpostSSH.API.loadConfigNode(options.deployId);
+          const config = Underpost.ssh.loadConfigNode(options.deployId);
           confNode = config.confNode;
           confNodePath = config.confNodePath;
         }
@@ -472,7 +471,7 @@ EOF`);
 
       // Handle generate root keys
       if (options.generate)
-        UnderpostSSH.API.generateKeys({ user: options.user, password: options.password, host: options.host });
+        Underpost.ssh.generateKeys({ user: options.user, password: options.password, host: options.host });
 
       // Handle list operations
       if (options.keysList) shellExec(`cat ${userHome}/.ssh/authorized_keys`);
@@ -489,8 +488,8 @@ EOF`);
 
       // Handle start server
       if (options.start) {
-        UnderpostSSH.API.chmod({ user: options.user });
-        UnderpostSSH.API.initService({ port: options.port });
+        Underpost.ssh.chmod({ user: options.user });
+        Underpost.ssh.initService({ port: options.port });
       }
 
       // Handle status server
@@ -512,10 +511,10 @@ EOF`);
       if (fs.existsSync(confNodePath)) {
         const { users } = JSON.parse(fs.readFileSync(confNodePath, 'utf8'));
         const { user, host, keyPath, port } = users[options.user];
-        UnderpostRootEnv.API.set('DEFAULT_SSH_USER', user);
-        UnderpostRootEnv.API.set('DEFAULT_SSH_HOST', host);
-        UnderpostRootEnv.API.set('DEFAULT_SSH_KEY_PATH', keyPath);
-        UnderpostRootEnv.API.set('DEFAULT_SSH_PORT', port);
+        Underpost.env.set('DEFAULT_SSH_USER', user);
+        Underpost.env.set('DEFAULT_SSH_HOST', host);
+        Underpost.env.set('DEFAULT_SSH_KEY_PATH', keyPath);
+        Underpost.env.set('DEFAULT_SSH_PORT', port);
       } else logger.warn(`No SSH config found at ${confNodePath}`);
     },
 

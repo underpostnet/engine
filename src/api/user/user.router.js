@@ -198,43 +198,7 @@ const UserRouter = (options) => {
 
   router.get(`/u/:username`, async (req, res) => {
     /*
-      #swagger.auto = false
-      #swagger.tags = ['user']
-      #swagger.summary = 'Get public user profile'
-      #swagger.description = 'This endpoint gets public user profile data by username (no auth required)'
-      #swagger.path = '/user/u/{username}'
-      #swagger.method = 'get'
-      #swagger.produces = ['application/json']
-      #swagger.consumes = ['application/json']
-
-      #swagger.parameters['username'] = {
-          in: 'path',
-          description: 'User username',
-          required: true,
-          type: 'string'
-      }
-
-      #swagger.responses[200] = {
-        description: 'get public user profile successfully',
-        content: {
-            'application/json': {
-                schema: {
-                  $ref: '#/components/schemas/userPublicResponse'
-                }
-            }
-        }
-      }
-
-      #swagger.responses[400] = {
-        description: 'Bad request. Please check the input data',
-        content: {
-            'application/json': {
-                schema: {
-                  $ref: '#/components/schemas/userBadRequestResponse'
-                }
-            }
-        }
-      }
+      #swagger.ignore = true
     */
     return await UserController.get(req, res, options);
   });
@@ -421,9 +385,12 @@ const UserRouter = (options) => {
   });
 
   // Username public profile redirect
-  options.app.get(`${options.path === '/' ? '' : options.path}/u/:username`, async (req, res, next) =>
-    res.redirect(`${options.path === '/' ? '' : options.path}/u?cid=${req.params.username}`),
-  );
+  options.app.get(`${options.path === '/' ? '' : options.path}/u/:username`, async (req, res, next) => {
+    /*
+      #swagger.ignore = true
+    */
+    return res.redirect(`${options.path === '/' ? '' : options.path}/u?cid=${req.params.username}`);
+  });
 
   return router;
 };

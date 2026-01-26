@@ -221,7 +221,7 @@ PM2 instances allow parallel job execution:
 Jobs can target different deploy-id lists from deployment files:
 
 ```javascript
-// src/cli/cron.js
+// src/server/cron.js
 getRelatedDeployIdList(jobId) {
   const deployFilePath = jobId === 'backup' 
     ? './engine-private/deploy/dd.router'  // Contains: "dd-core,dd-default"
@@ -339,7 +339,7 @@ await Dns.callback('dd-cron', { git: false });
    export default MyJob;
    ```
 
-2. **Register Job** (`src/cli/cron.js`)
+2. **Register Job** (`src/server/cron.js`)
    ```javascript
    static JOB = {
      dns: Dns,

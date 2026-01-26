@@ -43,5 +43,15 @@ class BackUp {
     }
   };
 }
+/**
+ * Main UnderpostBakcup class for backup operations.
+ * @class UnderpostBakcup
+ * @memberof UnderpostBakcup
+ */
+class UnderpostBakcUp {
+  static API = BackUp;
+}
 
-export default BackUp;
+export default UnderpostBakcUp;
+
+export { BackUp, UnderpostBakcUp };

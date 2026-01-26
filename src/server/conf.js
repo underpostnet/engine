@@ -22,7 +22,7 @@ import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import { DefaultConf } from '../../conf.js';
 import splitFile from 'split-file';
-import UnderpostRootEnv from '../cli/env.js';
+import Underpost from '../index.js';
 
 colors.enable();
 
@@ -59,7 +59,7 @@ const Config = {
     if (!subConf && process.argv[3] && typeof process.argv[3] === 'string') subConf = process.argv[3];
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`);
     if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
-    UnderpostRootEnv.API.set('await-deploy', new Date().toISOString());
+    Underpost.env.set('await-deploy', new Date().toISOString());
     if (deployContext.startsWith('dd-')) loadConf(deployContext, subConf);
     if (deployContext === 'proxy') await Config.buildProxy(deployList, subConf);
   },
@@ -1050,9 +1050,9 @@ const validateTemplatePath = (absolutePath = '') => {
  * @memberof ServerConfBuilder
  */
 const awaitDeployMonitor = async (init = false, deltaMs = 1000) => {
-  if (init) UnderpostRootEnv.API.set('await-deploy', new Date().toISOString());
+  if (init) Underpost.env.set('await-deploy', new Date().toISOString());
   await timer(deltaMs);
-  if (UnderpostRootEnv.API.get('await-deploy')) return await awaitDeployMonitor();
+  if (Underpost.env.get('await-deploy')) return await awaitDeployMonitor();
 };
 
 /**

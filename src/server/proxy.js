@@ -12,11 +12,12 @@ import dotenv from 'dotenv';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { buildPortProxyRouter, buildProxyRouter, getTlsHosts, isDevProxyContext, isTlsDevProxy } from './conf.js';
-import UnderpostStartUp from './start.js';
-import UnderpostDeploy from '../cli/deploy.js';
+
 import { SSL_BASE, TLS } from './tls.js';
 import { shellExec } from './process.js';
 import fs from 'fs-extra';
+
+import Underpost from '../index.js';
 
 dotenv.config();
 
@@ -85,12 +86,12 @@ class ProxyService {
             case 443:
               // For port 443 (HTTPS), create the SSL server
               const { ServerSSL } = await TLS.createSslServer(app, hosts);
-              await UnderpostStartUp.API.listenPortController(ServerSSL, port, runningData);
+              await Underpost.start.listenPortController(ServerSSL, port, runningData);
               break;
 
             default:
               // For other ports in production, use standard HTTP
-              await UnderpostStartUp.API.listenPortController(app, port, runningData);
+              await Underpost.start.listenPortController(app, port, runningData);
               break;
           }
           break;
@@ -108,18 +109,18 @@ class ProxyService {
                 }
               }
               const { ServerSSL } = await TLS.createSslServer(app, tlsHosts);
-              await UnderpostStartUp.API.listenPortController(ServerSSL, port, runningData);
+              await Underpost.start.listenPortController(ServerSSL, port, runningData);
               break;
             }
             default: // In non-production, always use standard HTTP listener
-              await UnderpostStartUp.API.listenPortController(app, port, runningData);
+              await Underpost.start.listenPortController(app, port, runningData);
               break;
           }
       }
       logger.info('Proxy running', { port, options });
       if (process.env.NODE_ENV === 'development')
         logger.info(
-          UnderpostDeploy.API.etcHostFactory(Object.keys(options.router), {
+          Underpost.deploy.etcHostFactory(Object.keys(options.router), {
             append: true,
           }).renderHosts,
         );

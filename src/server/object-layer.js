@@ -316,6 +316,7 @@ export class ObjectLayerEngine {
  * @constant
  * @description Mapping of item type names to numerical IDs.
  * @type {{floor: number, skin: number, weapon: number, skill: number, coin: number}}
+ * @memberof CyberiaObjectLayer
  */
 export const itemTypes = { floor: 0, skin: 1, weapon: 2, skill: 3, coin: 4 };
 

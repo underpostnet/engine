@@ -11,7 +11,7 @@ import shell from 'shelljs';
 import dotenv from 'dotenv';
 import { loggerFactory } from './logger.js';
 import clipboard from 'clipboardy';
-import UnderpostRootEnv from '../cli/env.js';
+import Underpost from '../index.js';
 
 dotenv.config();
 
@@ -83,7 +83,7 @@ const ProcessController = {
       this.logger.info(`process on exit`, args);
     });
     this.onSigListen();
-    UnderpostRootEnv.API.delete('await-deploy');
+    Underpost.env.delete('await-deploy');
   },
 };
 

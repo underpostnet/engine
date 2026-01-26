@@ -10,7 +10,7 @@
 import { PeerServer } from 'peer';
 import dotenv from 'dotenv';
 import { loggerFactory } from './logger.js';
-import UnderpostStartUp from './start.js';
+import Underpost from '../index.js';
 
 dotenv.config();
 
@@ -61,7 +61,7 @@ const createPeerServer = async ({ port, origins, path }) => {
   };
 
   // Use the framework's factory to listen on the server, ensuring graceful startup/shutdown
-  const peerServer = UnderpostStartUp.API.listenServerFactory(async () => PeerServer(options));
+  const peerServer = Underpost.start.listenServerFactory(async () => PeerServer(options));
 
   return { options, peerServer, meta: import.meta };
 };

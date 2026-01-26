@@ -7,7 +7,6 @@
 import UnderpostBaremetal from './cli/baremetal.js';
 import UnderpostCloudInit from './cli/cloud-init.js';
 import UnderpostCluster from './cli/cluster.js';
-import UnderpostCron from './cli/cron.js';
 import UnderpostDB from './cli/db.js';
 import UnderpostDeploy from './cli/deploy.js';
 import UnderpostRootEnv from './cli/env.js';
@@ -21,6 +20,10 @@ import UnderpostSecret from './cli/secrets.js';
 import UnderpostSSH from './cli/ssh.js';
 import UnderpostStatic from './cli/static.js';
 import UnderpostTest from './cli/test.js';
+
+import UnderpostDns from './server/dns.js';
+import UnderpostBackup from './server/backup.js';
+import UnderpostCron from './server/cron.js';
 import UnderpostStartUp from './server/start.js';
 
 /**
@@ -63,15 +66,7 @@ class Underpost {
   static get test() {
     return UnderpostTest.API;
   }
-  /**
-   * Underpost Start Up cli API
-   * @static
-   * @type {UnderpostStartUp.API}
-   * @memberof Underpost
-   */
-  static get start() {
-    return UnderpostStartUp.API;
-  }
+
   /**
    * Static cli API
    * @static
@@ -126,15 +121,6 @@ class Underpost {
    */
   static get deploy() {
     return UnderpostDeploy.API;
-  }
-  /**
-   * Cron cli API
-   * @static
-   * @type {UnderpostCron.API}
-   * @memberof Underpost
-   */
-  static get cron() {
-    return UnderpostCron.API;
   }
   /**
    * File Storage cli API
@@ -202,6 +188,46 @@ class Underpost {
   static get baremetal() {
     return UnderpostBaremetal.API;
   }
+
+  /**
+   * Dns cli API
+   * @static
+   * @type {UnderpostDns.API}
+   * @memberof Underpost
+   */
+  static get dns() {
+    return UnderpostDns.API;
+  }
+
+  /**
+   * BackUp cli API
+   * @static
+   * @type {UnderpostBackup.API}
+   * @memberof Underpost
+   */
+  static get backup() {
+    return UnderpostBackup.API;
+  }
+
+  /**
+   * Cron cli API
+   * @static
+   * @type {UnderpostCron.API}
+   * @memberof Underpost
+   */
+  static get cron() {
+    return UnderpostCron.API;
+  }
+
+  /**
+   * Start Up cli API
+   * @static
+   * @type {UnderpostStartUp.API}
+   * @memberof Underpost
+   */
+  static get start() {
+    return UnderpostStartUp.API;
+  }
 }
 
 const up = Underpost;
@@ -215,7 +241,6 @@ export {
   UnderpostBaremetal,
   UnderpostCloudInit,
   UnderpostCluster,
-  UnderpostCron,
   UnderpostDB,
   UnderpostDeploy,
   UnderpostRootEnv,
@@ -229,6 +254,9 @@ export {
   UnderpostSecret,
   UnderpostSSH,
   UnderpostTest,
+  UnderpostDns,
+  UnderpostBackup,
+  UnderpostCron,
   UnderpostStartUp,
 };
 

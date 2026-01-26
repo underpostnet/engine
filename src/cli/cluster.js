@@ -7,11 +7,9 @@
 import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
-import UnderpostBaremetal from './baremetal.js';
-import UnderpostDeploy from './deploy.js';
-import UnderpostTest from './test.js';
 import os from 'os';
 import fs from 'fs-extra';
+import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -103,21 +101,21 @@ class UnderpostCluster {
       },
     ) {
       // Handles initial host setup (installing docker, podman, kind, kubeadm, helm)
-      if (options.initHost === true) return UnderpostCluster.API.initHost();
+      if (options.initHost === true) return Underpost.cluster.initHost();
 
       // Handles initial host setup (installing docker, podman, kind, kubeadm, helm)
-      if (options.uninstallHost === true) return UnderpostCluster.API.uninstallHost();
+      if (options.uninstallHost === true) return Underpost.cluster.uninstallHost();
 
       // Applies general host configuration (SELinux, containerd, sysctl)
-      if (options.config === true) return UnderpostCluster.API.config();
+      if (options.config === true) return Underpost.cluster.config();
 
       // Sets up kubectl configuration for the current user
-      if (options.chown === true) return UnderpostCluster.API.chown();
+      if (options.chown === true) return Underpost.cluster.chown();
 
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
 
-      if (options.listPods === true) return console.table(UnderpostDeploy.API.get(podName ?? undefined));
+      if (options.listPods === true) return console.table(Underpost.deploy.get(podName ?? undefined));
       // Set default namespace if not specified
       if (!options.namespace) options.namespace = 'default';
 
@@ -143,22 +141,22 @@ class UnderpostCluster {
 
       // Reset Kubernetes cluster components (Kind/Kubeadm/K3s) and container runtimes
       if (options.reset === true)
-        return await UnderpostCluster.API.safeReset({
+        return await Underpost.cluster.safeReset({
           underpostRoot,
           removeVolumeHostPaths: options.removeVolumeHostPaths,
         });
 
       // Check if a cluster (Kind, Kubeadm, or K3s) is already initialized
-      const alreadyKubeadmCluster = UnderpostDeploy.API.get('calico-kube-controllers')[0];
-      const alreadyKindCluster = UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0];
+      const alreadyKubeadmCluster = Underpost.deploy.get('calico-kube-controllers')[0];
+      const alreadyKindCluster = Underpost.deploy.get('kube-apiserver-kind-control-plane')[0];
       // K3s pods often contain 'svclb-traefik' in the kube-system namespace
-      const alreadyK3sCluster = UnderpostDeploy.API.get('svclb-traefik')[0];
+      const alreadyK3sCluster = Underpost.deploy.get('svclb-traefik')[0];
 
       // --- Kubeadm/Kind/K3s Cluster Initialization ---
       // This block handles the initial setup of the Kubernetes cluster (control plane or worker).
       // It prevents re-initialization if a cluster is already detected.
       if (!options.worker && !alreadyKubeadmCluster && !alreadyKindCluster && !alreadyK3sCluster) {
-        UnderpostCluster.API.config();
+        Underpost.cluster.config();
         if (options.k3s === true) {
           logger.info('Initializing K3s control plane...');
           // Install K3s
@@ -173,7 +171,7 @@ class UnderpostCluster {
 
           // Configure kubectl for the current user for K3s *before* checking readiness
           // This ensures kubectl can find the K3s kubeconfig immediately after K3s installation.
-          UnderpostCluster.API.chown('k3s');
+          Underpost.cluster.chown('k3s');
 
           // Wait for K3s to be ready
           logger.info('Waiting for K3s to be ready...');
@@ -226,7 +224,7 @@ class UnderpostCluster {
             `sudo kubeadm init --pod-network-cidr=${podNetworkCidr} --control-plane-endpoint="${controlPlaneEndpoint}"`,
           );
           // Configure kubectl for the current user
-          UnderpostCluster.API.chown('kubeadm'); // Pass 'kubeadm' to chown
+          Underpost.cluster.chown('kubeadm'); // Pass 'kubeadm' to chown
 
           // Install Calico CNI
           logger.info('Installing Calico CNI...');
@@ -254,7 +252,7 @@ class UnderpostCluster {
               options?.dev === true ? '-dev' : ''
             }.yaml`,
           );
-          UnderpostCluster.API.chown('kind'); // Pass 'kind' to chown
+          Underpost.cluster.chown('kind'); // Pass 'kind' to chown
         }
       } else if (options.worker === true) {
         // Worker node specific configuration (kubeadm join command needs to be executed separately)
@@ -321,7 +319,7 @@ EOF
         }
         shellExec(`kubectl delete statefulset valkey-service -n ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey -n ${options.namespace}`);
-        await UnderpostTest.API.statusMonitor('valkey-service', 'Running', 'pods', 1000, 60);
+        await Underpost.test.statusMonitor('valkey-service', 'Running', 'pods', 1000, 60);
       }
       if (options.full === true || options.mariadb === true) {
         shellExec(
@@ -380,7 +378,7 @@ EOF
 
         const deploymentName = 'mongodb-deployment';
 
-        const successInstance = await UnderpostTest.API.statusMonitor(deploymentName);
+        const successInstance = await Underpost.test.statusMonitor(deploymentName);
 
         if (successInstance) {
           if (!options.mongoDbHost) options.mongoDbHost = 'mongodb-service';
@@ -389,7 +387,7 @@ EOF
             members: [{ _id: 0, host: `${options.mongoDbHost}:27017` }],
           };
 
-          const [pod] = UnderpostDeploy.API.get(deploymentName);
+          const [pod] = Underpost.deploy.get(deploymentName);
 
           shellExec(
             `sudo kubectl exec -i ${pod.NAME} -- mongo --quiet \
@@ -416,7 +414,7 @@ EOF
         shellExec(`kubectl apply -f ${underpostRoot}/manifests/mongodb/storage-class.yaml -n ${options.namespace}`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb -n ${options.namespace}`);
 
-        const successInstance = await UnderpostTest.API.statusMonitor('mongodb-0', 'Running', 'pods', 1000, 60 * 10);
+        const successInstance = await Underpost.test.statusMonitor('mongodb-0', 'Running', 'pods', 1000, 60 * 10);
 
         if (successInstance) {
           if (!options.mongoDbHost) options.mongoDbHost = 'mongodb-0.mongodb-service';
@@ -449,7 +447,7 @@ EOF
       }
 
       if (options.full === true || options.certManager === true) {
-        if (!UnderpostDeploy.API.get('cert-manager').find((p) => p.STATUS === 'Running')) {
+        if (!Underpost.deploy.get('cert-manager').find((p) => p.STATUS === 'Running')) {
           shellExec(`helm repo add jetstack https://charts.jetstack.io --force-update`);
           shellExec(
             `helm install cert-manager jetstack/cert-manager \
@@ -686,7 +684,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
         // Phase 6: Reload daemon and finalize
         logger.info('Phase 7/7: Reloading the system daemon and finalizing...');
         // shellExec('sudo systemctl daemon-reload');
-        UnderpostCluster.API.config();
+        Underpost.cluster.config();
         logger.info('Safe and complete reset finished. The system is ready for a new cluster initialization.');
       } catch (error) {
         logger.error(`Error during reset: ${error.message}`);
@@ -705,7 +703,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
       const resources = {};
       const nodeName = node
         ? node
-        : UnderpostDeploy.API.get('kind-control-plane', 'node').length > 0
+        : Underpost.deploy.get('kind-control-plane', 'node').length > 0
           ? 'kind-control-plane'
           : os.hostname();
       const info = shellExec(`kubectl describe node ${nodeName} | grep -E '(Allocatable:|Capacity:)' -A 6`, {
@@ -738,7 +736,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
      * @memberof UnderpostCluster
      */
     initHost() {
-      const archData = UnderpostBaremetal.API.getHostArch();
+      const archData = Underpost.baremetal.getHostArch();
       logger.info('Installing essential host-level prerequisites for Kubernetes...', archData);
 
       // Install base rocky setup and updates

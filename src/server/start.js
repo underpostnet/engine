@@ -4,13 +4,11 @@
  * @namespace UnderpostStartUp
  */
 
-import UnderpostDeploy from '../cli/deploy.js';
 import fs from 'fs-extra';
 import { awaitDeployMonitor } from './conf.js';
 import { actionInitLog, loggerFactory } from './logger.js';
 import { shellCd, shellExec } from './process.js';
-import UnderpostRootEnv from '../cli/env.js';
-
+import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 
 /**
@@ -19,17 +17,32 @@ const logger = loggerFactory(import.meta);
  * @memberof UnderpostStartUp
  */
 class UnderpostStartUp {
+  /**
+   * Holds the NETWORK configuration.
+   * @memberof UnderpostStartUp
+   * @type {Object}
+   * @static
+   */
+  static NETWORK = {};
   static API = {
     /**
-     * Logs the runtime network configuration.
+     * Gets the current NETWORK configuration.
+     * @memberof UnderpostStartUp
+     * @returns {Object} The current NETWORK configuration.
+     */
+    get NETWORK() {
+      return UnderpostStartUp.NETWORK;
+    },
+    /**
+     * Logs the runtime this.NETWORK configuration.
      * @memberof UnderpostStartUp
      */
     logRuntimeRouter: () => {
       const displayLog = {};
 
-      for (const host of Object.keys(UnderpostDeploy.NETWORK))
-        for (const path of Object.keys(UnderpostDeploy.NETWORK[host]))
-          displayLog[UnderpostDeploy.NETWORK[host][path].publicHost] = UnderpostDeploy.NETWORK[host][path].local;
+      for (const host of Object.keys(this.NETWORK))
+        for (const path of Object.keys(this.NETWORK[host]))
+          displayLog[this.NETWORK[host][path].publicHost] = this.NETWORK[host][path].local;
 
       logger.info('Runtime network', displayLog);
     },
@@ -85,8 +98,8 @@ class UnderpostStartUp {
           if (error.length > 0) throw new Error('Listen port controller requires values: ' + error.join(', '));
 
           server.listen(port, () => {
-            if (!UnderpostDeploy.NETWORK[host]) UnderpostDeploy.NETWORK[host] = {};
-            UnderpostDeploy.NETWORK[host][path] = {
+            if (!this.NETWORK[host]) this.NETWORK[host] = {};
+            this.NETWORK[host][path] = {
               meta,
               client,
               runtime,
@@ -124,10 +137,10 @@ class UnderpostStartUp {
       env = 'development',
       options = { build: false, run: false, underpostQuicklyInstall: false },
     ) {
-      UnderpostRootEnv.API.set('container-status', `${deployId}-${env}-build-deployment`);
-      if (options.build === true) await UnderpostStartUp.API.build(deployId, env, options);
-      UnderpostRootEnv.API.set('container-status', `${deployId}-${env}-initializing-deployment`);
-      if (options.run === true) await UnderpostStartUp.API.run(deployId, env, options);
+      Underpost.env.set('container-status', `${deployId}-${env}-build-deployment`);
+      if (options.build === true) await Underpost.start.build(deployId, env, options);
+      Underpost.env.set('container-status', `${deployId}-${env}-initializing-deployment`);
+      if (options.run === true) await Underpost.start.run(deployId, env, options);
     },
     /**
      * Run itc-scripts and builds client bundle.
@@ -177,7 +190,7 @@ class UnderpostStartUp {
       shellExec(`node bin/deploy conf ${deployId} ${env}`);
       shellExec(`npm ${runCmd} ${deployId}`, { async: true });
       await awaitDeployMonitor(true);
-      UnderpostRootEnv.API.set('container-status', `${deployId}-${env}-running-deployment`);
+      Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
     },
   };
 }
@@ -188,7 +201,7 @@ class UnderpostStartUp {
  * @returns
  */
 const createKeepAliveProcess = async () =>
-  await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), ':');
+  await Underpost.start.listenPortController(Underpost.start.listenServerFactory(), ':');
 
 export default UnderpostStartUp;
 

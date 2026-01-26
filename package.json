@@ -12,7 +12,6 @@
     "dev": "env-cmd -f .env.development nodemon src/server",
     "dev-img": "env-cmd -f .env.development node src/server",
     "prod-img": "env-cmd -f .env.production node src/server",
-    "monitor": "pm2 start src/monitor.js --name monitor -- dd production",
     "monitor-dev": "pm2 start src/monitor.js --name monitor -- dd development",
     "dev-api": "env-cmd -f .env.development nodemon --watch src --ignore src/client src/api",
     "dev-client": "env-cmd -f .env.development node src/client.dev",

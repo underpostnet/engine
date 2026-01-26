@@ -6,12 +6,10 @@
 
 import { loadReplicas, pathPortAssignmentFactory } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
-import UnderpostDeploy from './deploy.js';
 import axios from 'axios';
-import UnderpostRootEnv from './env.js';
 import fs from 'fs-extra';
 import { shellExec } from '../server/process.js';
-import { isInternetConnection } from '../server/dns.js';
+import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -71,17 +69,17 @@ class UnderpostMonitor {
       if (!options.replicas) options.replicas = '1';
       if (deployId === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`)) {
         for (const _deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(','))
-          UnderpostMonitor.API.callback(
+          Underpost.monitor.callback(
             _deployId.trim(),
             env,
             options,
             commanderOptions,
-            await UnderpostDeploy.API.routerFactory(_deployId, env),
+            await Underpost.deploy.routerFactory(_deployId, env),
           );
         return;
       }
 
-      const router = auxRouter ?? (await UnderpostDeploy.API.routerFactory(deployId, env));
+      const router = auxRouter ?? (await Underpost.deploy.routerFactory(deployId, env));
 
       const confServer = loadReplicas(
         deployId,
@@ -92,10 +90,10 @@ class UnderpostMonitor {
 
       let errorPayloads = [];
       if (options.sync === true) {
-        const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
-        if (currentTraffic) UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, currentTraffic);
+        const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
+        if (currentTraffic) Underpost.env.set(`${deployId}-${env}-traffic`, currentTraffic);
       }
-      let traffic = UnderpostRootEnv.API.get(`${deployId}-${env}-traffic`) ?? 'blue';
+      let traffic = Underpost.env.get(`${deployId}-${env}-traffic`) ?? 'blue';
       const maxAttempts = parseInt(
         Object.keys(pathPortAssignmentData)
           .map((host) => pathPortAssignmentData[host].length)
@@ -113,14 +111,14 @@ class UnderpostMonitor {
       const switchTraffic = (targetTraffic) => {
         const nextTraffic = targetTraffic ?? (traffic === 'blue' ? 'green' : 'blue');
         // Delegate traffic switching to centralized deploy implementation so behavior is consistent
-        UnderpostDeploy.API.switchTraffic(deployId, env, nextTraffic, options.replicas, options.namespace, options);
+        Underpost.deploy.switchTraffic(deployId, env, nextTraffic, options.replicas, options.namespace, options);
         // Keep local traffic in sync with the environment
         traffic = nextTraffic;
       };
 
       const monitor = async (reject) => {
-        if (UnderpostRootEnv.API.get(`monitor-init-callback-script`))
-          shellExec(UnderpostRootEnv.API.get(`monitor-init-callback-script`));
+        if (Underpost.env.get(`monitor-init-callback-script`))
+          shellExec(Underpost.env.get(`monitor-init-callback-script`));
         const currentTimestamp = new Date().getTime();
         errorPayloads = errorPayloads.filter((e) => currentTimestamp - e.timestamp < 60 * 1000 * 5);
         logger.info(`[${deployId}-${env}] Check server health`);
@@ -168,7 +166,7 @@ class UnderpostMonitor {
                         );
 
                         const namespace = options.namespace;
-                        UnderpostDeploy.API.configMap(env, namespace);
+                        Underpost.deploy.configMap(env, namespace);
 
                         for (const host of Object.keys(confServer)) {
                           shellExec(`sudo kubectl delete HTTPProxy ${host} -n ${namespace} --ignore-not-found`);
@@ -204,10 +202,10 @@ class UnderpostMonitor {
       let monitorTrafficName;
       let monitorPodName;
       const monitorCallBack = (resolve, reject) => {
-        const envMsTimeout = UnderpostRootEnv.API.get(`${deployId}-${env}-monitor-ms`);
+        const envMsTimeout = Underpost.env.get(`${deployId}-${env}-monitor-ms`);
         setTimeout(
           async () => {
-            const isOnline = await isInternetConnection();
+            const isOnline = await Underpost.dns.isInternetConnection();
             if (!isOnline) {
               logger.warn('No internet connection');
               monitorCallBack(resolve, reject);
@@ -221,7 +219,7 @@ class UnderpostMonitor {
                     monitorPodName = undefined;
                   }
                   const checkDeploymentReadyStatus = async () => {
-                    const { ready, notReadyPods, readyPods } = await UnderpostDeploy.API.checkDeploymentReadyStatus(
+                    const { ready, notReadyPods, readyPods } = await Underpost.deploy.checkDeploymentReadyStatus(
                       deployId,
                       env,
                       traffic,
@@ -246,10 +244,10 @@ class UnderpostMonitor {
                 break;
             }
             for (const monitorStatus of [
-              { key: `monitor-input`, value: UnderpostRootEnv.API.get(`monitor-input`) },
+              { key: `monitor-input`, value: Underpost.env.get(`monitor-input`) },
               {
                 key: `${deployId}-${env}-monitor-input`,
-                value: UnderpostRootEnv.API.get(`${deployId}-${env}-monitor-input`),
+                value: Underpost.env.get(`${deployId}-${env}-monitor-input`),
               },
             ])
               switch (monitorStatus.value) {
@@ -257,13 +255,13 @@ class UnderpostMonitor {
                   monitorCallBack(resolve, reject);
                   return;
                 case 'restart':
-                  UnderpostRootEnv.API.delete(monitorStatus.key);
+                  Underpost.env.delete(monitorStatus.key);
                   return reject();
                 case 'stop':
-                  UnderpostRootEnv.API.delete(monitorStatus.key);
+                  Underpost.env.delete(monitorStatus.key);
                   return resolve();
                 case 'blue-green-switch':
-                  UnderpostRootEnv.API.delete(monitorStatus.key);
+                  Underpost.env.delete(monitorStatus.key);
                   switchTraffic();
               }
             await monitor(reject);

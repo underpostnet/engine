@@ -10,13 +10,14 @@ import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import * as promClient from 'prom-client';
 
-import UnderpostStartUp from './start.js';
 import { loggerFactory } from './logger.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
 import { Lampp } from '../runtime/lampp/Lampp.js';
 import { getInstanceContext } from './conf.js';
 
 import ExpressService from '../runtime/express/Express.js';
+
+import Underpost from '../index.js';
 
 dotenv.config();
 
@@ -142,11 +143,7 @@ const buildRuntime = async () => {
               resetRouter: currentPort === initPort,
             });
             if (disabled) continue;
-            await UnderpostStartUp.API.listenPortController(
-              UnderpostStartUp.API.listenServerFactory(),
-              port,
-              runningData,
-            );
+            await Underpost.start.listenPortController(Underpost.start.listenServerFactory(), port, runningData);
           }
           break;
         default:
@@ -159,7 +156,7 @@ const buildRuntime = async () => {
 
   if (Lampp.enabled() && Lampp.router) Lampp.initService();
 
-  UnderpostStartUp.API.logRuntimeRouter();
+  Underpost.start.logRuntimeRouter();
 };
 
 export { buildRuntime };

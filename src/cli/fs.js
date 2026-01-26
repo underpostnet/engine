@@ -11,8 +11,8 @@ import AdmZip from 'adm-zip';
 import * as dir from 'path';
 import fs from 'fs-extra';
 import Downloader from '../server/downloader.js';
-import UnderpostRepository from './repository.js';
 import { shellExec } from '../server/process.js';
+import Underpost from '../index.js';
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
@@ -93,12 +93,12 @@ class UnderpostFileStorage {
         storageFilePath: '',
       },
     ) {
-      const { storage, storageConf } = UnderpostFileStorage.API.getStorageConf(options);
-      const deleteFiles = options.pull === true ? [] : UnderpostRepository.API.getDeleteFiles(path);
+      const { storage, storageConf } = Underpost.fs.getStorageConf(options);
+      const deleteFiles = options.pull === true ? [] : Underpost.repo.getDeleteFiles(path);
       for (const relativePath of deleteFiles) {
         const _path = path + '/' + relativePath;
         if (_path in storage) {
-          await UnderpostFileStorage.API.delete(_path);
+          await Underpost.fs.delete(_path);
           delete storage[_path];
         }
       }
@@ -106,27 +106,25 @@ class UnderpostFileStorage {
         for (const _path of Object.keys(storage)) {
           if (!fs.existsSync(_path) || options.force === true) {
             if (options.force === true && fs.existsSync(_path)) fs.removeSync(_path);
-            await UnderpostFileStorage.API.pull(_path, options);
+            await Underpost.fs.pull(_path, options);
           } else logger.warn(`Pull path already exists`, _path);
         }
         shellExec(`cd ${path} && git init && git add . && git commit -m "Base pull state"`);
       } else {
         const files =
-          options.git === true
-            ? UnderpostRepository.API.getChangedFiles(path)
-            : await fs.readdir(path, { recursive: true });
+          options.git === true ? Underpost.repo.getChangedFiles(path) : await fs.readdir(path, { recursive: true });
         for (const relativePath of files) {
           const _path = path + '/' + relativePath;
           if (fs.statSync(_path).isDirectory()) {
             if (options.pull === true && !fs.existsSync(_path)) fs.mkdirSync(_path, { recursive: true });
             continue;
           } else if (!(_path in storage) || options.force === true) {
-            await UnderpostFileStorage.API.upload(_path, options);
+            await Underpost.fs.upload(_path, options);
             if (storage) storage[_path] = {};
           } else logger.warn('File already exists', _path);
         }
       }
-      UnderpostFileStorage.API.writeStorageConf(storage, storageConf);
+      Underpost.fs.writeStorageConf(storage, storageConf);
       if (options.git === true) {
         shellExec(`cd ${path} && git add .`);
         shellExec(`underpost cmt ${path} feat`);
@@ -152,10 +150,10 @@ class UnderpostFileStorage {
       options = { rm: false, recursive: false, deployId: '', force: false, pull: false, git: false },
     ) {
       if (options.recursive === true || options.git === true)
-        return await UnderpostFileStorage.API.recursiveCallback(path, options);
-      if (options.pull === true) return await UnderpostFileStorage.API.pull(path, options);
-      if (options.rm === true) return await UnderpostFileStorage.API.delete(path, options);
-      return await UnderpostFileStorage.API.upload(path, options);
+        return await Underpost.fs.recursiveCallback(path, options);
+      if (options.pull === true) return await Underpost.fs.pull(path, options);
+      if (options.rm === true) return await Underpost.fs.delete(path, options);
+      return await Underpost.fs.upload(path, options);
     },
     /**
      * @method upload
@@ -171,9 +169,9 @@ class UnderpostFileStorage {
       path,
       options = { rm: false, recursive: false, deployId: '', force: false, pull: false, storageFilePath: '' },
     ) {
-      UnderpostFileStorage.API.cloudinaryConfig();
-      const { storage, storageConf } = UnderpostFileStorage.API.getStorageConf(options);
-      // path = UnderpostFileStorage.API.file2Zip(path);
+      Underpost.fs.cloudinaryConfig();
+      const { storage, storageConf } = Underpost.fs.getStorageConf(options);
+      // path = Underpost.fs.file2Zip(path);
       const uploadResult = await cloudinary.uploader
         .upload(path, {
           public_id: path,
@@ -185,7 +183,7 @@ class UnderpostFileStorage {
         });
       logger.info('upload result', uploadResult);
       if (storage) storage[path] = {};
-      UnderpostFileStorage.API.writeStorageConf(storage, storageConf);
+      Underpost.fs.writeStorageConf(storage, storageConf);
       return uploadResult;
     },
     /**
@@ -196,7 +194,7 @@ class UnderpostFileStorage {
      * @memberof UnderpostFileStorage
      */
     async pull(path) {
-      UnderpostFileStorage.API.cloudinaryConfig();
+      Underpost.fs.cloudinaryConfig();
       const folder = dir.dirname(path);
       if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
       const downloadResult = await cloudinary.utils.download_archive_url({
@@ -205,11 +203,11 @@ class UnderpostFileStorage {
       });
       logger.info('download result', downloadResult);
       await Downloader.downloadFile(downloadResult, path + '.zip');
-      path = UnderpostFileStorage.API.zip2File(path + '.zip');
+      path = Underpost.fs.zip2File(path + '.zip');
       fs.removeSync(path + '.zip');
     },
     async delete(path) {
-      UnderpostFileStorage.API.cloudinaryConfig();
+      Underpost.fs.cloudinaryConfig();
       const deleteResult = await cloudinary.api
         .delete_resources([path], { type: 'upload', resource_type: 'raw' })
         .catch((error) => {

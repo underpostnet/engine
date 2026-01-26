@@ -9,12 +9,9 @@ import { getNpmRootPath, getUnderpostRootPath } from '../server/conf.js';
 import { openTerminal, pbcopy, shellExec } from '../server/process.js';
 import dotenv from 'dotenv';
 import { loggerFactory } from '../server/logger.js';
-import { getLocalIPv4Address } from '../server/dns.js';
 import fs from 'fs-extra';
 import path from 'path';
 import Downloader from '../server/downloader.js';
-import UnderpostCloudInit from './cloud-init.js';
-import UnderpostRepository from './repository.js';
 import { newInstance, range, s4, timer } from '../client/components/core/CommonJs.js';
 import { spawnSync } from 'child_process';
 import Underpost from '../index.js';
@@ -153,7 +150,7 @@ class UnderpostBaremetal {
       workflowId = workflowId ? workflowId : 'rpi4mbarm64-iso-ram';
       hostname = hostname ? hostname : workflowId;
       ipAddress = ipAddress ? ipAddress : '192.168.1.191';
-      ipFileServer = ipFileServer ? ipFileServer : getLocalIPv4Address();
+      ipFileServer = ipFileServer ? ipFileServer : Underpost.dns.getLocalIPv4Address();
       netmask = netmask ? netmask : '255.255.255.0';
       dnsServer = dnsServer ? dnsServer : '8.8.8.8';
 
@@ -166,8 +163,8 @@ class UnderpostBaremetal {
       ipConfig = ipConfig ? ipConfig : 'none';
 
       // Set default MAC address
-      let macAddress = UnderpostBaremetal.API.macAddressFactory(options).mac;
-      const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
+      let macAddress = Underpost.baremetal.macAddressFactory(options).mac;
+      const workflowsConfig = Underpost.baremetal.loadWorkflowsConfig();
 
       if (!workflowsConfig[workflowId]) {
         throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
@@ -207,7 +204,7 @@ class UnderpostBaremetal {
       const callbackMetaData = {
         args: { workflowId, ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer },
         options,
-        runnerHost: { architecture: UnderpostBaremetal.API.getHostArch().alias, ip: getLocalIPv4Address() },
+        runnerHost: { architecture: Underpost.baremetal.getHostArch().alias, ip: getLocalIPv4Address() },
         nfsHostPath,
         tftpRootPath,
         bootstrapHttpServerPath,
@@ -244,7 +241,7 @@ class UnderpostBaremetal {
             });
 
             // Create new machine with correct MAC
-            machine = UnderpostBaremetal.API.machineFactory({
+            machine = Underpost.baremetal.machineFactory({
               hostname,
               ipAddress,
               macAddress,
@@ -263,7 +260,7 @@ class UnderpostBaremetal {
             logger.info(`Hardware MAC mode - machine will be created after discovery`);
             machine = null;
           } else {
-            machine = UnderpostBaremetal.API.machineFactory({
+            machine = Underpost.baremetal.machineFactory({
               hostname,
               ipAddress,
               macAddress,
@@ -274,7 +271,7 @@ class UnderpostBaremetal {
       }
 
       if (options.installPacker) {
-        await UnderpostBaremetal.API.installPacker(underpostRoot);
+        await Underpost.baremetal.installPacker(underpostRoot);
         return;
       }
 
@@ -292,8 +289,8 @@ class UnderpostBaremetal {
         logger.info(`Target directory: ${targetDir}`);
 
         try {
-          // Use UnderpostRepository to copy files from GitHub
-          const result = await UnderpostRepository.API.copyGitUrlDirectoryRecursive({
+          // Use Underpost.repo to copy files from GitHub
+          const result = await Underpost.repo.copyGitUrlDirectoryRecursive({
             gitUrl: 'https://github.com/canonical/packer-maas',
             directoryPath: templatePath,
             targetPath: targetDir,
@@ -316,9 +313,9 @@ class UnderpostBaremetal {
             },
           };
 
-          const workflows = UnderpostBaremetal.API.loadPackerMaasImageBuildWorkflows();
+          const workflows = Underpost.baremetal.loadPackerMaasImageBuildWorkflows();
           workflows[workflowId] = workflowConfig;
-          UnderpostBaremetal.API.writePackerMaasImageBuildWorkflows(workflows);
+          Underpost.baremetal.writePackerMaasImageBuildWorkflows(workflows);
 
           logger.info('Template extracted successfully!');
           logger.info(`Added configuration for ${workflowId} to engine/baremetal/packer-workflows.json`);
@@ -343,7 +340,7 @@ class UnderpostBaremetal {
 
         workflowId = options.packerWorkflowId;
 
-        const workflow = UnderpostBaremetal.API.loadPackerMaasImageBuildWorkflows()[workflowId];
+        const workflow = Underpost.baremetal.loadPackerMaasImageBuildWorkflows()[workflowId];
         if (!workflow) {
           throw new Error(`Packer MAAS image build workflow not found: ${workflowId}`);
         }
@@ -357,7 +354,7 @@ class UnderpostBaremetal {
           }
 
           // Check for QEMU support if building for a different architecture (validator bots case)
-          UnderpostBaremetal.API.checkQemuCrossArchSupport(workflow);
+          Underpost.baremetal.checkQemuCrossArchSupport(workflow);
 
           logger.info(`Building Packer image for ${workflowId} in ${packerDir}...`);
 
@@ -562,7 +559,7 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle NFS mount operation.
       if (options.nfsMount === true) {
-        await UnderpostBaremetal.API.nfsMountCallback({
+        await Underpost.baremetal.nfsMountCallback({
           hostname,
           nfsHostPath,
           workflowId,
@@ -573,7 +570,7 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle NFS unmount operation.
       if (options.nfsUnmount === true) {
-        await UnderpostBaremetal.API.nfsMountCallback({
+        await Underpost.baremetal.nfsMountCallback({
           hostname,
           nfsHostPath,
           workflowId,
@@ -584,7 +581,7 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Handle NFS root filesystem build operation.
       if (options.nfsBuild === true) {
-        await UnderpostBaremetal.API.nfsMountCallback({
+        await Underpost.baremetal.nfsMountCallback({
           hostname,
           nfsHostPath,
           workflowId,
@@ -623,7 +620,7 @@ rm -rf ${artifacts.join(' ')}`);
 
         // If cross-architecture, copy the QEMU static binary into the chroot.
         if (bootstrapArch !== callbackMetaData.runnerHost.architecture)
-          UnderpostBaremetal.API.crossArchBinFactory({
+          Underpost.baremetal.crossArchBinFactory({
             nfsHostPath,
             bootstrapArch,
           });
@@ -634,7 +631,7 @@ rm -rf ${artifacts.join(' ')}`);
         shellExec(`file ${nfsHostPath}/bin/bash`); // Verify the bash executable in the chroot.
 
         // Mount necessary filesystems and register binfmt for the second stage.
-        await UnderpostBaremetal.API.nfsMountCallback({
+        await Underpost.baremetal.nfsMountCallback({
           hostname,
           nfsHostPath,
           workflowId,
@@ -643,7 +640,7 @@ rm -rf ${artifacts.join(' ')}`);
 
         // Perform the second stage of debootstrap within the chroot environment.
         if (workflowsConfig[workflowId].type === 'chroot-debootstrap') {
-          UnderpostBaremetal.API.crossArchRunner({
+          Underpost.baremetal.crossArchRunner({
             nfsHostPath,
             bootstrapArch,
             callbackMetaData,
@@ -675,7 +672,7 @@ rm -rf ${artifacts.join(' ')}`);
           ];
           const allPackages = packages && packages.length > 0 ? [...basePackages, ...packages] : basePackages;
 
-          UnderpostBaremetal.API.crossArchRunner({
+          Underpost.baremetal.crossArchRunner({
             nfsHostPath,
             bootstrapArch,
             callbackMetaData,
@@ -764,18 +761,18 @@ rm -rf ${artifacts.join(' ')}`);
         console.table(machines);
       }
 
-      if (options.clearDiscovered) UnderpostBaremetal.API.removeDiscoveredMachines();
+      if (options.clearDiscovered) Underpost.baremetal.removeDiscoveredMachines();
 
       // Handle remove existing machines from MAAS.
       if (options.removeMachines)
-        machines = UnderpostBaremetal.API.removeMachines({
+        machines = Underpost.baremetal.removeMachines({
           machines: options.removeMachines === 'all' ? machines : options.removeMachines.split(','),
           ignore: machine ? [machine.system_id] : [],
         });
 
       if (workflowsConfig[workflowId].type === 'chroot-debootstrap') {
         if (options.ubuntuToolsBuild) {
-          UnderpostCloudInit.API.buildTools({
+          Underpost.cloudInit.buildTools({
             workflowId,
             nfsHostPath,
             hostname,
@@ -787,24 +784,24 @@ rm -rf ${artifacts.join(' ')}`);
           const { timezone, chronyConfPath } = chronyc;
           const systemProvisioning = 'ubuntu';
 
-          UnderpostBaremetal.API.crossArchRunner({
+          Underpost.baremetal.crossArchRunner({
             nfsHostPath,
             bootstrapArch,
             callbackMetaData,
             steps: [
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base(),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].user(),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
+              ...Underpost.baremetal.systemProvisioningFactory[systemProvisioning].base(),
+              ...Underpost.baremetal.systemProvisioningFactory[systemProvisioning].user(),
+              ...Underpost.baremetal.systemProvisioningFactory[systemProvisioning].timezone({
                 timezone,
                 chronyConfPath,
               }),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
+              ...Underpost.baremetal.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
             ],
           });
         }
 
         if (options.ubuntuToolsTest)
-          UnderpostBaremetal.API.crossArchRunner({
+          Underpost.baremetal.crossArchRunner({
             nfsHostPath,
             bootstrapArch,
             callbackMetaData,
@@ -841,24 +838,24 @@ rm -rf ${artifacts.join(' ')}`);
           const { timezone } = chronyc;
           const systemProvisioning = 'rocky';
 
-          UnderpostBaremetal.API.crossArchRunner({
+          Underpost.baremetal.crossArchRunner({
             nfsHostPath,
             bootstrapArch,
             callbackMetaData,
             steps: [
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].base(),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].user(),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
+              ...Underpost.baremetal.systemProvisioningFactory[systemProvisioning].base(),
+              ...Underpost.baremetal.systemProvisioningFactory[systemProvisioning].user(),
+              ...Underpost.baremetal.systemProvisioningFactory[systemProvisioning].timezone({
                 timezone,
                 chronyConfPath: chronyc.chronyConfPath,
               }),
-              ...UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
+              ...Underpost.baremetal.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
             ],
           });
         }
 
         if (options.rockyToolsTest)
-          UnderpostBaremetal.API.crossArchRunner({
+          Underpost.baremetal.crossArchRunner({
             nfsHostPath,
             bootstrapArch,
             callbackMetaData,
@@ -879,8 +876,8 @@ rm -rf ${artifacts.join(' ')}`);
       if (options.cloudInit || options.cloudInitUpdate) {
         const { chronyc, networkInterfaceName } = workflowsConfig[workflowId];
         const { timezone, chronyConfPath } = chronyc;
-        const authCredentials = UnderpostCloudInit.API.authCredentialsFactory();
-        const { cloudConfigSrc } = UnderpostCloudInit.API.configFactory(
+        const authCredentials = Underpost.cloudInit.authCredentialsFactory();
+        const { cloudConfigSrc } = Underpost.cloudInit.configFactory(
           {
             controlServerIp: callbackMetaData.runnerHost.ip,
             hostname,
@@ -897,7 +894,7 @@ rm -rf ${artifacts.join(' ')}`);
           authCredentials,
         );
 
-        UnderpostBaremetal.API.httpBootstrapServerStaticFactory({
+        Underpost.baremetal.httpBootstrapServerStaticFactory({
           bootstrapHttpServerPath,
           hostname,
           cloudConfigSrc,
@@ -912,7 +909,7 @@ rm -rf ${artifacts.join(' ')}`);
           workflowsConfig[workflowId].type === 'chroot-container')
       ) {
         shellExec(`${underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
-        UnderpostBaremetal.API.rebuildNfsServer({
+        Underpost.baremetal.rebuildNfsServer({
           nfsHostPath,
         });
       }
@@ -958,7 +955,7 @@ rm -rf ${artifacts.join(' ')}`);
             shellExec(`sudo cp -a ${path}/* ${tftpRootPath}`); // Copy firmware files to TFTP root.
 
             if (gateway && subnet) {
-              const bootConfSrc = UnderpostBaremetal.API.bootConfFactory({
+              const bootConfSrc = Underpost.baremetal.bootConfFactory({
                 workflowId,
                 tftpIp: callbackMetaData.runnerHost.ip,
                 tftpPrefixStr: tftpPrefix,
@@ -985,7 +982,7 @@ rm -rf ${artifacts.join(' ')}`);
               'initrd.img': `${nfsHostPath}/boot/initrd.img`,
             };
           } else {
-            const kf = UnderpostBaremetal.API.kernelFactory({
+            const kf = Underpost.baremetal.kernelFactory({
               resource,
               type,
               nfsHostPath,
@@ -996,7 +993,7 @@ rm -rf ${artifacts.join(' ')}`);
             resourcesPath = kf.resourcesPath;
           }
 
-          const { cmd } = UnderpostBaremetal.API.kernelCmdBootParamsFactory({
+          const { cmd } = Underpost.baremetal.kernelCmdBootParamsFactory({
             ipClient: ipAddress,
             ipDhcpServer: callbackMetaData.runnerHost.ip,
             ipConfig,
@@ -1020,7 +1017,7 @@ rm -rf ${artifacts.join(' ')}`);
           let useIpxe = options.ipxe;
           if (options.ipxe) {
             const arch = commissioningImage.architecture.split('/')[0];
-            const ipxeScript = UnderpostBaremetal.API.ipxeScriptFactory({
+            const ipxeScript = Underpost.baremetal.ipxeScriptFactory({
               maasIp: callbackMetaData.runnerHost.ip,
               macAddress,
               architecture: arch,
@@ -1030,7 +1027,7 @@ rm -rf ${artifacts.join(' ')}`);
             fs.writeFileSync(`${tftpRootPath}/stable-id.ipxe`, ipxeScript, 'utf8');
 
             // Create embedded boot script that does DHCP and chains to the main script
-            const embeddedScript = UnderpostBaremetal.API.ipxeEmbeddedScriptFactory({
+            const embeddedScript = Underpost.baremetal.ipxeEmbeddedScriptFactory({
               tftpServer: callbackMetaData.runnerHost.ip,
               scriptPath: `/${tftpPrefix}/stable-id.ipxe`,
               macAddress: macAddress,
@@ -1043,7 +1040,7 @@ rm -rf ${artifacts.join(' ')}`);
               embeddedPath: `${tftpRootPath}/boot.ipxe`,
             });
 
-            UnderpostBaremetal.API.ipxeEfiFactory({
+            Underpost.baremetal.ipxeEfiFactory({
               tftpRootPath,
               ipxeCacheDir,
               arch,
@@ -1053,7 +1050,7 @@ rm -rf ${artifacts.join(' ')}`);
             });
           }
 
-          const { grubCfgSrc } = UnderpostBaremetal.API.grubFactory({
+          const { grubCfgSrc } = Underpost.baremetal.grubFactory({
             menuentryStr,
             kernelPath: `/${tftpPrefix}/pxe/vmlinuz-efi`,
             initrdPath: `/${tftpPrefix}/pxe/initrd.img`,
@@ -1062,13 +1059,13 @@ rm -rf ${artifacts.join(' ')}`);
             ipxe: useIpxe,
             ipxePath: `/${tftpPrefix}/ipxe.efi`,
           });
-          UnderpostBaremetal.API.writeGrubConfigToFile({
+          Underpost.baremetal.writeGrubConfigToFile({
             grubCfgSrc: machine ? grubCfgSrc.replaceAll('system-id', machine.system_id) : grubCfgSrc,
           });
           if (machine) {
             logger.info('✓ GRUB config written with system_id', { system_id: machine.system_id });
           }
-          UnderpostBaremetal.API.updateKernelFiles({
+          Underpost.baremetal.updateKernelFiles({
             commissioningImage,
             resourcesPath,
             tftpRootPath,
@@ -1078,13 +1075,13 @@ rm -rf ${artifacts.join(' ')}`);
 
         // Pass architecture from commissioning or deployment config
         const grubArch = commissioningImage.architecture;
-        UnderpostBaremetal.API.efiGrubModulesFactory({ image: { architecture: grubArch } });
+        Underpost.baremetal.efiGrubModulesFactory({ image: { architecture: grubArch } });
 
         // Set ownership and permissions for TFTP root.
         shellExec(`sudo chown -R $(whoami):$(whoami) ${process.env.TFTP_ROOT}`);
         shellExec(`sudo sudo chmod 755 ${process.env.TFTP_ROOT}`);
 
-        UnderpostBaremetal.API.httpBootstrapServerRunnerFactory({
+        Underpost.baremetal.httpBootstrapServerRunnerFactory({
           hostname,
           bootstrapHttpServerPath,
           bootstrapHttpServerPort:
@@ -1092,7 +1089,7 @@ rm -rf ${artifacts.join(' ')}`);
         });
 
         if (type === 'chroot-debootstrap' || type === 'chroot-container')
-          await UnderpostBaremetal.API.nfsMountCallback({
+          await Underpost.baremetal.nfsMountCallback({
             hostname,
             nfsHostPath,
             workflowId,
@@ -1115,7 +1112,7 @@ rm -rf ${artifacts.join(' ')}`);
           machine: machine ? machine.system_id : null,
         });
 
-        const { discovery } = await UnderpostBaremetal.API.commissionMonitor(commissionMonitorPayload);
+        const { discovery } = await Underpost.baremetal.commissionMonitor(commissionMonitorPayload);
 
         if ((type === 'chroot-debootstrap' || type === 'chroot-container') && options.cloudInit === true) {
           openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init`);
@@ -1314,8 +1311,8 @@ rm -rf ${artifacts.join(' ')}`);
       if (type === 'iso-ram' || type === 'iso-nfs') {
         logger.info('Using live ISO for boot (disk-based commissioning)');
         const arch = resource.architecture.split('/')[0];
-        const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
-        const kernelFilesPaths = UnderpostBaremetal.API.downloadISO({
+        const workflowsConfig = Underpost.baremetal.loadWorkflowsConfig();
+        const kernelFilesPaths = Underpost.baremetal.downloadISO({
           resource,
           architecture: arch,
           nfsHostPath,
@@ -2233,15 +2230,15 @@ shell
                 ipAddress,
                 hostname,
               });
-              machine = UnderpostBaremetal.API.machineFactory({
+              machine = Underpost.baremetal.machineFactory({
                 ipAddress,
                 macAddress: discovery.mac_address,
                 hostname,
                 architecture,
               }).machine;
               console.log('New machine system id:', machine.system_id.bgYellow.bold.black);
-              UnderpostBaremetal.API.writeGrubConfigToFile({
-                grubCfgSrc: UnderpostBaremetal.API.getGrubConfigFromFile().grubCfgSrc.replaceAll(
+              Underpost.baremetal.writeGrubConfigToFile({
+                grubCfgSrc: Underpost.baremetal.getGrubConfigFromFile().grubCfgSrc.replaceAll(
                   'system-id',
                   machine.system_id,
                 ),
@@ -2292,7 +2289,7 @@ shell
           }
         }
         await timer(1000);
-        return await UnderpostBaremetal.API.commissionMonitor({
+        return await Underpost.baremetal.commissionMonitor({
           macAddress,
           ipAddress,
           hostname,
@@ -2373,7 +2370,7 @@ shell
         return;
       }
       await timer(1000);
-      await UnderpostBaremetal.API.macMonitor({ nfsHostPath });
+      await Underpost.baremetal.macMonitor({ nfsHostPath });
     },
 
     /**
@@ -2420,7 +2417,7 @@ shell
      */
     crossArchRunner({ nfsHostPath, bootstrapArch, callbackMetaData, steps }) {
       // Render the steps with logging for better visibility during execution.
-      steps = UnderpostBaremetal.API.stepsRender(steps, false);
+      steps = Underpost.baremetal.stepsRender(steps, false);
 
       let qemuCrossArchBash = '';
       // Determine if QEMU is needed for cross-architecture execution.
@@ -2491,10 +2488,10 @@ EOF`);
      */
     async nfsMountCallback({ hostname, nfsHostPath, workflowId, mount, unmount }, currentRecall = 0, maxRecalls = 5) {
       // Mount binfmt_misc filesystem.
-      if (mount) UnderpostBaremetal.API.mountBinfmtMisc();
+      if (mount) Underpost.baremetal.mountBinfmtMisc();
       const unMountCmds = [];
       const mountCmds = [];
-      const workflowsConfig = UnderpostBaremetal.API.loadWorkflowsConfig();
+      const workflowsConfig = Underpost.baremetal.loadWorkflowsConfig();
       let recall = false;
       if (!workflowsConfig[workflowId]) {
         throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
@@ -2542,7 +2539,7 @@ EOF`);
           }
           logger.info(`nfsMountCallback recall attempt ${currentRecall + 1}/${maxRecalls} for hostname: ${hostname}`);
           await timer(1000);
-          return await UnderpostBaremetal.API.nfsMountCallback(
+          return await Underpost.baremetal.nfsMountCallback(
             { hostname, nfsHostPath, workflowId, mount, unmount },
             currentRecall + 1,
             maxRecalls,

@@ -5,10 +5,10 @@
  */
 
 import { getNpmRootPath } from '../server/conf.js';
-import { getLocalIPv4Address } from '../server/dns.js';
 import { pbcopy, shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import { loggerFactory } from '../server/logger.js';
+import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -83,7 +83,7 @@ class UnderpostLxd {
         shellExec(`sudo systemctl status snap.lxd.daemon`);
         const lxdPressedContent = fs
           .readFileSync(`${underpostRoot}/manifests/lxd/lxd-preseed.yaml`, 'utf8')
-          .replaceAll(`127.0.0.1`, getLocalIPv4Address());
+          .replaceAll(`127.0.0.1`, Underpost.dns.getLocalIPv4Address());
         shellExec(`echo "${lxdPressedContent}" | lxd init --preseed`);
         shellExec(`lxc cluster list`);
       }
@@ -129,7 +129,7 @@ ipv6.address=none`);
             // Default to kubeadm if not K3s
             flag = ' -s -- --kubeadm';
           }
-          await UnderpostLxd.API.runWorkflow({
+          await Underpost.lxd.runWorkflow({
             workflowId: 'engine',
             vmName: options.initVm,
           });
@@ -147,7 +147,7 @@ ipv6.address=none`);
       }
 
       if (options.workflowId) {
-        await UnderpostLxd.API.runWorkflow({
+        await Underpost.lxd.runWorkflow({
           workflowId: options.workflowId,
           vmName: options.vmId,
           deployId: options.deployId,
@@ -201,7 +201,7 @@ ipv6.address=none`);
         const [vmName, ports] = options.expose.split(':');
         console.log({ vmName, ports });
         const protocols = ['tcp']; // udp
-        const hostIp = getLocalIPv4Address();
+        const hostIp = Underpost.dns.getLocalIPv4Address();
         const vmIp = shellExec(
           `lxc list ${vmName} --format json | jq -r '.[0].state.network.enp5s0.addresses[] | select(.family=="inet") | .address'`,
           { stdout: true },

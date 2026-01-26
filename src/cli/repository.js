@@ -12,6 +12,7 @@ import fs from 'fs-extra';
 import { getNpmRootPath } from '../server/conf.js';
 import { Config } from '../server/conf.js';
 import { DefaultConf } from '../../conf.js';
+import Underpost from '../index.js';
 
 dotenv.config();
 
@@ -134,8 +135,8 @@ class UnderpostRepository {
       }
       if (options.lastMsg) {
         if (options.copy) {
-          pbcopy(UnderpostRepository.API.getLastCommitMsg(options.lastMsg - 1));
-        } else console.log(UnderpostRepository.API.getLastCommitMsg(options.lastMsg - 1));
+          pbcopy(Underpost.repo.getLastCommitMsg(options.lastMsg - 1));
+        } else console.log(Underpost.repo.getLastCommitMsg(options.lastMsg - 1));
         return;
       }
       if (options.diff) {
@@ -145,7 +146,7 @@ class UnderpostRepository {
         return;
       }
       if (options.log) {
-        const history = UnderpostRepository.API.getHistory(options.log);
+        const history = Underpost.repo.getHistory(options.log);
         const chainCmd = history
           .reverse()
           .map((commitData, i) => `${i === 0 ? '' : ' && '}git ${diffCmd} ${commitData.hash}`)
@@ -174,7 +175,7 @@ class UnderpostRepository {
         return;
       }
       if (commitType === 'reset') {
-        if (options.copy) pbcopy(UnderpostRepository.API.getLastCommitMsg());
+        if (options.copy) pbcopy(Underpost.repo.getLastCommitMsg());
         shellExec(`cd ${repoPath} && git reset --soft HEAD~${isNaN(parseInt(subModule)) ? 1 : parseInt(subModule)}`);
         return;
       }
@@ -283,7 +284,7 @@ class UnderpostRepository {
 
           // Handle defaultConf operation
           if (options.defaultConf) {
-            UnderpostRepository.API.updateDefaultConf(options);
+            Underpost.repo.updateDefaultConf(options);
             return resolve(true);
           }
 
@@ -439,7 +440,7 @@ class UnderpostRepository {
       const commandUntrack = `cd ${path} && git ls-files --others --exclude-standard`;
       const diffOutput = shellExec(command, { stdout: true, silent: true });
       const diffUntrackOutput = shellExec(commandUntrack, { stdout: true, silent: true });
-      const deleteFiles = UnderpostRepository.API.getDeleteFiles(path);
+      const deleteFiles = Underpost.repo.getDeleteFiles(path);
       return diffOutput
         .toString()
         .split('\n')

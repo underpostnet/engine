@@ -4,7 +4,7 @@
  * @namespace UnderpostRun
  */
 
-import { daemonProcess, getTerminalPid, openTerminal, pbcopy, shellCd, shellExec } from '../server/process.js';
+import { daemonProcess, getTerminalPid, openTerminal, shellCd, shellExec } from '../server/process.js';
 import {
   awaitDeployMonitor,
   buildKindPorts,
@@ -14,18 +14,127 @@ import {
   writeEnv,
 } from '../server/conf.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
-import UnderpostTest from './test.js';
+
 import fs from 'fs-extra';
 import { range, setPad, timer } from '../client/components/core/CommonJs.js';
-import UnderpostDeploy from './deploy.js';
-import UnderpostDB from './db.js';
-import UnderpostRootEnv from './env.js';
-import UnderpostRepository from './repository.js';
+
 import os from 'os';
-import Underpost, { UnderpostSSH } from '../index.js';
+import Underpost from '../index.js';
 import dotenv from 'dotenv';
 
 const logger = loggerFactory(import.meta);
+
+/**
+ * @constant DEFAULT_OPTION
+ * @description Default options for the UnderpostRun class.
+ * @type {Object}
+ * @property {boolean} dev - Whether to run in development mode.
+ * @property {string} podName - The name of the pod to run.
+ * @property {string} nodeName - The name of the node to run.
+ * @property {number} port - Custom port to use.
+ * @property {boolean} etcHosts - Whether to modify /etc/hosts.
+ * @property {string} volumeHostPath - The host path for the volume.
+ * @property {string} volumeMountPath - The mount path for the volume.
+ * @property {string} imageName - The name of the image to run.
+ * @property {string} containerName - The name of the container to run.
+ * @property {string} namespace - The namespace to run in.
+ * @property {string} timeoutResponse - The response timeout duration.
+ * @property {string} timeoutIdle - The idle timeout duration.
+ * @property {string} retryCount - The number of retries.
+ * @property {string} retryPerTryTimeout - The timeout duration per retry.
+ * @property {boolean} build - Whether to build the image.
+ * @property {number} replicas - The number of replicas to run.
+ * @property {boolean} force - Whether to force the operation.
+ * @property {boolean} reset - Whether to reset the operation.
+ * @property {boolean} tls - Whether to use TLS.
+ * @property {string} cmd - The command to run in the container.
+ * @property {string} tty - The TTY option for the container.
+ * @property {string} stdin - The stdin option for the container.
+ * @property {string} restartPolicy - The restart policy for the container.
+ * @property {string} runtimeClassName - The runtime class name for the container.
+ * @property {string} imagePullPolicy - The image pull policy for the container.
+ * @property {string} apiVersion - The API version for the container.
+ * @property {string} claimName - The claim name for the volume.
+ * @property {string} kindType - The kind of resource to create.
+ * @property {boolean} terminal - Whether to open a terminal.
+ * @property {number} devProxyPortOffset - The port offset for the development proxy.
+ * @property {boolean} hostNetwork - Whether to use host networking.
+ * @property {string} requestsMemory - The memory request for the container.
+ * @property {string} requestsCpu - The CPU request for the container.
+ * @property {string} limitsMemory - The memory limit for the container.
+ * @property {string} limitsCpu - The CPU limit for the container.
+ * @property {string} resourceTemplateId - The resource template ID.
+ * @property {boolean} expose - Whether to expose the service.
+ * @property {boolean} etcHosts - Whether to modify /etc/hosts.
+ * @property {string} confServerPath - The configuration server path.
+ * @property {string} underpostRoot - The root path of the Underpost installation.
+ * @property {string} cronJobs - The cron jobs to run.
+ * @property {string} timezone - The timezone to set.
+ * @property {boolean} kubeadm - Whether to run in kubeadm mode.
+ * @property {boolean} kind - Whether to run in kind mode.
+ * @property {boolean} k3s - Whether to run in k3s mode.
+ * @property {string} logType - The type of log to generate.
+ * @property {string} hosts - The hosts to use.
+ * @property {string} deployId - The deployment ID.
+ * @property {string} instanceId - The instance ID.
+ * @property {string} user - The user to run as.
+ * @property {string} pid - The process ID.
+ * @property {boolean} disablePrivateConfUpdate - Whether to disable private configuration updates.
+ * @memberof UnderpostRun
+ */
+const DEFAULT_OPTION = {
+  dev: false,
+  podName: '',
+  nodeName: '',
+  port: 0,
+  volumeHostPath: '',
+  volumeMountPath: '',
+  imageName: '',
+  containerName: '',
+  namespace: 'default',
+  timeoutResponse: '',
+  timeoutIdle: '',
+  retryCount: '',
+  retryPerTryTimeout: '',
+  build: false,
+  replicas: 1,
+  force: false,
+  reset: false,
+  tls: false,
+  cmd: '',
+  tty: '',
+  stdin: '',
+  restartPolicy: '',
+  runtimeClassName: '',
+  imagePullPolicy: '',
+  apiVersion: '',
+  claimName: '',
+  kindType: '',
+  terminal: false,
+  devProxyPortOffset: 0,
+  hostNetwork: false,
+  requestsMemory: '',
+  requestsCpu: '',
+  limitsMemory: '',
+  limitsCpu: '',
+  resourceTemplateId: '',
+  expose: false,
+  etcHosts: false,
+  confServerPath: '',
+  underpostRoot: '',
+  cronJobs: '',
+  timezone: '',
+  kubeadm: false,
+  kind: false,
+  k3s: false,
+  logType: '',
+  hosts: '',
+  deployId: '',
+  instanceId: '',
+  user: '',
+  pid: '',
+  disablePrivateConfUpdate: false,
+};
 
 /**
  * @class UnderpostRun
@@ -37,117 +146,6 @@ const logger = loggerFactory(import.meta);
  * @memberof UnderpostRun
  */
 class UnderpostRun {
-  /**
-   * @static
-   * @description Default options for the UnderpostRun class.
-   * @type {Object}
-   * @property {boolean} dev - Whether to run in development mode.
-   * @property {string} podName - The name of the pod to run.
-   * @property {string} nodeName - The name of the node to run.
-   * @property {number} port - Custom port to use.
-   * @property {boolean} etcHosts - Whether to modify /etc/hosts.
-   * @property {string} volumeHostPath - The host path for the volume.
-   * @property {string} volumeMountPath - The mount path for the volume.
-   * @property {string} imageName - The name of the image to run.
-   * @property {string} containerName - The name of the container to run.
-   * @property {string} namespace - The namespace to run in.
-   * @property {string} timeoutResponse - The response timeout duration.
-   * @property {string} timeoutIdle - The idle timeout duration.
-   * @property {string} retryCount - The number of retries.
-   * @property {string} retryPerTryTimeout - The timeout duration per retry.
-   * @property {boolean} build - Whether to build the image.
-   * @property {number} replicas - The number of replicas to run.
-   * @property {boolean} force - Whether to force the operation.
-   * @property {boolean} reset - Whether to reset the operation.
-   * @property {boolean} tls - Whether to use TLS.
-   * @property {string} cmd - The command to run in the container.
-   * @property {string} tty - The TTY option for the container.
-   * @property {string} stdin - The stdin option for the container.
-   * @property {string} restartPolicy - The restart policy for the container.
-   * @property {string} runtimeClassName - The runtime class name for the container.
-   * @property {string} imagePullPolicy - The image pull policy for the container.
-   * @property {string} apiVersion - The API version for the container.
-   * @property {string} claimName - The claim name for the volume.
-   * @property {string} kindType - The kind of resource to create.
-   * @property {boolean} terminal - Whether to open a terminal.
-   * @property {number} devProxyPortOffset - The port offset for the development proxy.
-   * @property {boolean} hostNetwork - Whether to use host networking.
-   * @property {string} requestsMemory - The memory request for the container.
-   * @property {string} requestsCpu - The CPU request for the container.
-   * @property {string} limitsMemory - The memory limit for the container.
-   * @property {string} limitsCpu - The CPU limit for the container.
-   * @property {string} resourceTemplateId - The resource template ID.
-   * @property {boolean} expose - Whether to expose the service.
-   * @property {boolean} etcHosts - Whether to modify /etc/hosts.
-   * @property {string} confServerPath - The configuration server path.
-   * @property {string} underpostRoot - The root path of the Underpost installation.
-   * @property {string} cronJobs - The cron jobs to run.
-   * @property {string} timezone - The timezone to set.
-   * @property {boolean} kubeadm - Whether to run in kubeadm mode.
-   * @property {boolean} kind - Whether to run in kind mode.
-   * @property {boolean} k3s - Whether to run in k3s mode.
-   * @property {string} logType - The type of log to generate.
-   * @property {string} hosts - The hosts to use.
-   * @property {string} deployId - The deployment ID.
-   * @property {string} instanceId - The instance ID.
-   * @property {string} user - The user to run as.
-   * @property {string} pid - The process ID.
-   * @property {boolean} disablePrivateConfUpdate - Whether to disable private configuration updates.
-   * @memberof UnderpostRun
-   */
-  static DEFAULT_OPTION = {
-    dev: false,
-    podName: '',
-    nodeName: '',
-    port: 0,
-    volumeHostPath: '',
-    volumeMountPath: '',
-    imageName: '',
-    containerName: '',
-    namespace: 'default',
-    timeoutResponse: '',
-    timeoutIdle: '',
-    retryCount: '',
-    retryPerTryTimeout: '',
-    build: false,
-    replicas: 1,
-    force: false,
-    reset: false,
-    tls: false,
-    cmd: '',
-    tty: '',
-    stdin: '',
-    restartPolicy: '',
-    runtimeClassName: '',
-    imagePullPolicy: '',
-    apiVersion: '',
-    claimName: '',
-    kindType: '',
-    terminal: false,
-    devProxyPortOffset: 0,
-    hostNetwork: false,
-    requestsMemory: '',
-    requestsCpu: '',
-    limitsMemory: '',
-    limitsCpu: '',
-    resourceTemplateId: '',
-    expose: false,
-    etcHosts: false,
-    confServerPath: '',
-    underpostRoot: '',
-    cronJobs: '',
-    timezone: '',
-    kubeadm: false,
-    kind: false,
-    k3s: false,
-    logType: '',
-    hosts: '',
-    deployId: '',
-    instanceId: '',
-    user: '',
-    pid: '',
-    disablePrivateConfUpdate: false,
-  };
   /**
    * @static
    * @description Collection of runners for executing specific commands.
@@ -162,7 +160,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'dev-cluster': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'dev-cluster': (path, options = DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const mongoHosts = ['mongodb-0.mongodb-service'];
       if (!options.expose) {
@@ -181,7 +179,7 @@ class UnderpostRun {
         // Detect MongoDB primary pod using centralized method
         let primaryMongoHost = 'mongodb-0.mongodb-service';
         try {
-          const primaryPodName = UnderpostDB.API.getMongoPrimaryPodName({
+          const primaryPodName = Underpost.db.getMongoPrimaryPodName({
             namespace: options.namespace,
             podName: 'mongodb-0',
           });
@@ -198,7 +196,7 @@ class UnderpostRun {
           });
         }
 
-        const hostListenResult = UnderpostDeploy.API.etcHostFactory([primaryMongoHost]);
+        const hostListenResult = Underpost.deploy.etcHostFactory([primaryMongoHost]);
         logger.info(hostListenResult.renderHosts);
       }
     },
@@ -210,7 +208,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    metadata: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    metadata: async (path, options = DEFAULT_OPTION) => {
       const ports = '6379,27017';
       shellExec(`node bin run kill '${ports}'`);
       shellExec(`node bin run dev-cluster --dev --expose --namespace ${options.namespace}`, { async: true });
@@ -228,7 +226,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'svc-ls': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'svc-ls': (path, options = DEFAULT_OPTION) => {
       const log = shellExec(`systemctl list-units --type=service${path ? ` | grep ${path}` : ''}`, {
         silent: true,
         stdout: true,
@@ -248,7 +246,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'svc-rm': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'svc-rm': (path, options = DEFAULT_OPTION) => {
       shellExec(`sudo systemctl stop ${path}`);
       shellExec(`sudo systemctl disable --now ${path}`);
       shellExec(`sudo dnf remove -y ${path}*`);
@@ -263,9 +261,9 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'ssh-cluster-info': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'ssh-cluster-info': async (path, options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
-      if (options.deployId && options.user) await UnderpostSSH.API.setDefautlSshCredentials(options);
+      if (options.deployId && options.user) await Underpost.ssh.setDefautlSshCredentials(options);
       shellExec(`chmod +x ${underpostRoot}/scripts/ssh-cluster-info.sh`);
       shellExec(`${underpostRoot}/scripts/ssh-cluster-info.sh`);
     },
@@ -277,7 +275,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'dev-hosts-expose': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'dev-hosts-expose': (path, options = DEFAULT_OPTION) => {
       shellExec(
         `node bin deploy ${path} development --disable-update-deployment --disable-update-proxy --kubeadm --etc-hosts`,
       );
@@ -290,7 +288,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'dev-hosts-restore': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'dev-hosts-restore': (path, options = DEFAULT_OPTION) => {
       shellExec(`node bin deploy --restore-hosts`);
     },
 
@@ -301,7 +299,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'cluster-build': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'cluster-build': (path, options = DEFAULT_OPTION) => {
       const nodeOptions = options.nodeName ? ` --node-name ${options.nodeName}` : '';
       shellExec(`node bin run clean`);
       shellExec(`node bin run --dev sync-replica template-deploy${nodeOptions}`);
@@ -321,16 +319,20 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'template-deploy': (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    'template-deploy': (path = '', options = DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`${baseCommand} run clean`);
       shellExec(
-        `${baseCommand} push ./engine-private ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine-private`,
+        `${baseCommand} push ./engine-private ${options.force ? '-f ' : ''}${
+          process.env.GITHUB_USERNAME
+        }/engine-private`,
       );
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
       shellExec(
-        `${baseCommand} cmt . --empty ci package-pwa-microservices-template${path.startsWith('sync') ? `-${path}` : ''}`,
+        `${baseCommand} cmt . --empty ci package-pwa-microservices-template${
+          path.startsWith('sync') ? `-${path}` : ''
+        }`,
       );
       shellExec(`${baseCommand} push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`);
     },
@@ -342,10 +344,12 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'template-deploy-image': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'template-deploy-image': (path, options = DEFAULT_OPTION) => {
       // const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(
-        `cd /home/dd/engine && git reset && underpost cmt . --empty ci docker-image 'underpost-engine:${Underpost.version}' && underpost push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`,
+        `cd /home/dd/engine && git reset && underpost cmt . --empty ci docker-image 'underpost-engine:${
+          Underpost.version
+        }' && underpost push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`,
       );
     },
     /**
@@ -355,7 +359,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    clean: (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    clean: (path = '', options = DEFAULT_OPTION) => {
       Underpost.repo.clean({ paths: path ? path.split(',') : ['/home/dd/engine', '/home/dd/engine/engine-private'] });
     },
     /**
@@ -365,7 +369,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    pull: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    pull: (path, options = DEFAULT_OPTION) => {
       if (!fs.existsSync(`/home/dd`) || !fs.existsSync(`/home/dd/engine`)) {
         fs.mkdirSync(`/home/dd`, { recursive: true });
         shellExec(`cd /home/dd && underpost clone ${process.env.GITHUB_USERNAME}/engine`, {
@@ -396,7 +400,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'release-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'release-deploy': (path, options = DEFAULT_OPTION) => {
       actionInitLog();
       shellExec(`underpost --version`);
       shellCd(`/home/dd/engine`);
@@ -412,7 +416,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'ssh-deploy': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'ssh-deploy': (path, options = DEFAULT_OPTION) => {
       actionInitLog();
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellCd('/home/dd/engine');
@@ -428,7 +432,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    ide: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    ide: (path, options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       if (path === 'install') {
         shellExec(`sudo curl -f https://zed.dev/install.sh | sh`);
@@ -445,7 +449,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    sync: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    sync: async (path, options = DEFAULT_OPTION) => {
       // Dev usage: node bin run --dev --build sync dd-default
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
@@ -466,7 +470,7 @@ class UnderpostRun {
       shellExec(`${baseCommand} cluster --ns-use ${options.namespace}`);
       if (isDeployRunnerContext(path, options)) {
         if (!options.disablePrivateConfUpdate) {
-          const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
+          const { validVersion } = Underpost.repo.privateConfUpdate(deployId);
           if (!validVersion) throw new Error('Version mismatch');
         }
         if (options.timezone !== 'none') shellExec(`${baseCommand} run${baseClusterCommand} tz`);
@@ -474,17 +478,19 @@ class UnderpostRun {
       }
 
       const currentTraffic = isDeployRunnerContext(path, options)
-        ? UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace })
+        ? Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace })
         : '';
       let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'green';
       if (targetTraffic) versions = targetTraffic;
 
-      const timeoutFlags = UnderpostDeploy.API.timeoutFlagsFactory(options);
+      const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
 
       shellExec(
-        `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${
-          replicas
-        } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''}${options.namespace ? ` --namespace ${options.namespace}` : ''}${timeoutFlags} dd ${env}`,
+        `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
+          image ? ` --image ${image}` : ''
+        }${versions ? ` --versions ${versions}` : ''}${
+          options.namespace ? ` --namespace ${options.namespace}` : ''
+        }${timeoutFlags} dd ${env}`,
       );
 
       if (isDeployRunnerContext(path, options)) {
@@ -492,19 +498,16 @@ class UnderpostRun {
           ? ` --cmd ${options.cmd.find((c) => c.match('"')) ? `"${options.cmd}"` : `'${options.cmd}'`}`
           : '';
         shellExec(
-          `${baseCommand} deploy --kubeadm${cmdString} --replicas ${
-            replicas
-          } --disable-update-proxy ${deployId} ${env} --versions ${versions}${options.namespace ? ` --namespace ${options.namespace}` : ''}${timeoutFlags}`,
+          `${baseCommand} deploy --kubeadm${cmdString} --replicas ${replicas} --disable-update-proxy ${deployId} ${env} --versions ${versions}${
+            options.namespace ? ` --namespace ${options.namespace}` : ''
+          }${timeoutFlags}`,
         );
         if (!targetTraffic)
-          targetTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
-        await UnderpostDeploy.API.monitorReadyRunner(deployId, env, targetTraffic, [], options.namespace, 'underpost');
-        UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic, replicas, options.namespace, options);
+          targetTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
+        await Underpost.deploy.monitorReadyRunner(deployId, env, targetTraffic, [], options.namespace, 'underpost');
+        Underpost.deploy.switchTraffic(deployId, env, targetTraffic, replicas, options.namespace, options);
       } else
-        logger.info(
-          'current traffic',
-          UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace }),
-        );
+        logger.info('current traffic', Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }));
     },
 
     /**
@@ -514,8 +517,8 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    stop: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
-      let currentTraffic = UnderpostDeploy.API.getCurrentTraffic(options.deployId, {
+    stop: async (path = '', options = DEFAULT_OPTION) => {
+      let currentTraffic = Underpost.deploy.getCurrentTraffic(options.deployId, {
         namespace: options.namespace,
         hostTest: options.hosts,
       });
@@ -523,7 +526,9 @@ class UnderpostRun {
 
       if (!path.match('current')) currentTraffic === 'blue' ? (currentTraffic = 'green') : (currentTraffic = 'blue');
       const [_deployId] = path.split(',');
-      const deploymentId = `${_deployId ? _deployId : options.deployId}${options.instanceId ? `-${options.instanceId}` : ''}-${env}-${currentTraffic}`;
+      const deploymentId = `${_deployId ? _deployId : options.deployId}${
+        options.instanceId ? `-${options.instanceId}` : ''
+      }-${env}-${currentTraffic}`;
 
       shellExec(`kubectl delete deployment ${deploymentId} -n ${options.namespace}`);
       shellExec(`kubectl delete svc ${deploymentId}-service -n ${options.namespace}`);
@@ -536,11 +541,11 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'ssh-deploy-stop': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'ssh-deploy-stop': async (path, options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
-      await UnderpostSSH.API.setDefautlSshCredentials(options);
+      await Underpost.ssh.setDefautlSshCredentials(options);
       shellExec(`#!/usr/bin/env bash
 set -euo pipefail
 
@@ -569,14 +574,14 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    tz: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    tz: (path, options = DEFAULT_OPTION) => {
       const tz =
         options.timezone && options.timezone !== 'none'
           ? options.timezone
           : path
             ? path
-            : UnderpostRootEnv.API.get('TIME_ZONE', undefined, { disableLog: true })
-              ? UnderpostRootEnv.API.get('TIME_ZONE')
+            : Underpost.env.get('TIME_ZONE', undefined, { disableLog: true })
+              ? Underpost.env.get('TIME_ZONE')
               : process.env.TIME_ZONE
                 ? process.env.TIME_ZONE
                 : 'America/New_York';
@@ -590,7 +595,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    cron: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    cron: (path, options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       shellExec(`node bin env ${path ? path : 'dd-cron'} ${env}`);
       shellExec(`npm start`);
@@ -604,7 +609,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'get-proxy': async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    'get-proxy': async (path = '', options = DEFAULT_OPTION) => {
       console.log(
         shellExec(`kubectl get HTTPProxy -n ${options.namespace} ${path} -o yaml`, {
           silent: true,
@@ -621,7 +626,7 @@ EOF
       );
     },
 
-    'instance-promote': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'instance-promote': async (path, options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
@@ -643,14 +648,14 @@ EOF
         } = instance;
         if (id !== _id) continue;
         const _deployId = `${deployId}-${_id}`;
-        const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(_deployId, {
+        const currentTraffic = Underpost.deploy.getCurrentTraffic(_deployId, {
           hostTest: _host,
           namespace: options.namespace,
         });
         const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
         let proxyYaml =
-          UnderpostDeploy.API.baseProxyYamlFactory({ host: _host, env: options.tls ? 'production' : env, options }) +
-          UnderpostDeploy.API.deploymentYamlServiceFactory({
+          Underpost.deploy.baseProxyYamlFactory({ host: _host, env: options.tls ? 'production' : env, options }) +
+          Underpost.deploy.deploymentYamlServiceFactory({
             path: _path,
             port: _fromPort,
             // serviceId: deployId,
@@ -661,7 +666,7 @@ EOF
           });
         if (options.tls) {
           shellExec(`sudo kubectl delete Certificate ${_host} -n ${options.namespace} --ignore-not-found`);
-          proxyYaml += UnderpostDeploy.API.buildCertManagerCertificate({ ...options, host: _host });
+          proxyYaml += Underpost.deploy.buildCertManagerCertificate({ ...options, host: _host });
         }
         // console.log(proxyYaml);
         shellExec(`kubectl delete HTTPProxy ${_host} --namespace ${options.namespace} --ignore-not-found`);
@@ -681,7 +686,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    instance: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    instance: async (path = '', options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
@@ -719,20 +724,20 @@ EOF
           shellExec(`sudo kind load docker-image ${_image}`);
         }
 
-        const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(_deployId, {
+        const currentTraffic = Underpost.deploy.getCurrentTraffic(_deployId, {
           hostTest: _host,
           namespace: options.namespace,
         });
 
         const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
         const podId = `${_deployId}-${env}-${targetTraffic}`;
-        const ignorePods = UnderpostDeploy.API.get(podId, 'pods', options.namespace).map((p) => p.NAME);
-        UnderpostDeploy.API.configMap(env, options.namespace);
+        const ignorePods = Underpost.deploy.get(podId, 'pods', options.namespace).map((p) => p.NAME);
+        Underpost.deploy.configMap(env, options.namespace);
         shellExec(`kubectl delete service ${podId}-service --namespace ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl delete deployment ${podId} --namespace ${options.namespace} --ignore-not-found`);
         for (const _volume of _volumes)
           if (_volume.claimName)
-            UnderpostDeploy.API.deployVolume(_volume, {
+            Underpost.deploy.deployVolume(_volume, {
               namespace: options.namespace,
               deployId: _deployId,
               env,
@@ -740,17 +745,19 @@ EOF
               nodeName: options.nodeName,
             });
         let deploymentYaml = `---
-${UnderpostDeploy.API.deploymentYamlPartsFactory({
-  deployId: _deployId,
-  env,
-  suffix: targetTraffic,
-  resources: UnderpostDeploy.API.resourcesFactory(options),
-  replicas,
-  image: _image,
-  namespace: options.namespace,
-  volumes: _volumes,
-  cmd: _cmd[env],
-}).replace('{{ports}}', buildKindPorts(_fromPort, _toPort))}
+${Underpost.deploy
+  .deploymentYamlPartsFactory({
+    deployId: _deployId,
+    env,
+    suffix: targetTraffic,
+    resources: Underpost.deploy.resourcesFactory(options),
+    replicas,
+    image: _image,
+    namespace: options.namespace,
+    volumes: _volumes,
+    cmd: _cmd[env],
+  })
+  .replace('{{ports}}', buildKindPorts(_fromPort, _toPort))}
 `;
         // console.log(deploymentYaml);
         shellExec(
@@ -760,7 +767,7 @@ EOF
 `,
           { disableLog: true },
         );
-        const { ready, readyPods } = await UnderpostDeploy.API.monitorReadyRunner(
+        const { ready, readyPods } = await Underpost.deploy.monitorReadyRunner(
           _deployId,
           env,
           targetTraffic,
@@ -781,20 +788,20 @@ EOF
         );
       }
       if (options.etcHosts) {
-        const hostListenResult = UnderpostDeploy.API.etcHostFactory(etcHosts);
+        const hostListenResult = Underpost.deploy.etcHostFactory(etcHosts);
         logger.info(hostListenResult.renderHosts);
       }
     },
 
     /**
      * @method ls-deployments
-     * @description Retrieves and logs a table of Kubernetes deployments using `UnderpostDeploy.API.get`.
+     * @description Retrieves and logs a table of Kubernetes deployments using `Underpost.deploy.get`.
      * @param {string} path - The input value, identifier, or path for the operation (used as an optional deployment name filter).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'ls-deployments': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
-      console.table(await UnderpostDeploy.API.get(path, 'deployments', options.namespace));
+    'ls-deployments': async (path, options = DEFAULT_OPTION) => {
+      console.table(await Underpost.deploy.get(path, 'deployments', options.namespace));
     },
 
     /**
@@ -804,7 +811,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'host-update': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'host-update': async (path, options = DEFAULT_OPTION) => {
       // const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`chmod +x ${options.underpostRoot}/scripts/rocky-setup.sh`);
       shellExec(`${options.underpostRoot}/scripts/rocky-setup.sh${options.dev ? ' --install-dev' : ``}`);
@@ -817,14 +824,14 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'dd-container': async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    'dd-container': async (path = '', options = DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const currentImage = options.imageName
         ? options.imageName
-        : UnderpostDeploy.API.getCurrentLoadedImages(options.nodeName ? options.nodeName : 'kind-worker', false).find(
-            (o) => o.IMAGE.match('underpost'),
-          );
+        : Underpost.deploy
+            .getCurrentLoadedImages(options.nodeName ? options.nodeName : 'kind-worker', false)
+            .find((o) => o.IMAGE.match('underpost'));
       const podName = options.podName || `underpost-dev-container`;
       const volumeHostPath = options.claimName || '/home/dd';
       const claimName = options.claimName || `pvc-dd`;
@@ -864,7 +871,7 @@ EOF
         args: [daemonProcess(path ? path : `cd /home/dd/engine && npm install && npm run test`)],
       };
 
-      await UnderpostRun.RUNNERS['deploy-job'](path, payload);
+      await Underpost.run.RUNNERS['deploy-job'](path, payload);
     },
 
     /**
@@ -874,7 +881,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'ip-info': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'ip-info': (path, options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       shellExec(`chmod +x ${underpostRoot}/scripts/ip-info.sh`);
       shellExec(`${underpostRoot}/scripts/ip-info.sh ${path}`);
@@ -887,12 +894,12 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    monitor: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    monitor: (path, options = DEFAULT_OPTION) => {
       const pid = getTerminalPid();
       logger.info('monitor pid', pid);
       const checkPath = '/await';
       const _monitor = async () => {
-        const result = UnderpostDeploy.API.existsContainerFile({ podName: path, path: checkPath });
+        const result = Underpost.deploy.existsContainerFile({ podName: path, path: checkPath });
         logger.info('monitor', result);
         if (result === true) {
           switch (path) {
@@ -929,7 +936,7 @@ EOF
                   const checkPath = `/latent_space_plot.png`;
                   const outsPaths = [];
                   logger.info('monitor', checkPath);
-                  while (!UnderpostDeploy.API.existsContainerFile({ podName, path: `/home/dd/docs${checkPath}` }))
+                  while (!Underpost.deploy.existsContainerFile({ podName, path: `/home/dd/docs${checkPath}` }))
                     await timer(1000);
 
                   {
@@ -967,7 +974,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'db-client': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'db-client': async (path, options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
 
       const image = 'adminer:4.7.6-standalone';
@@ -982,7 +989,7 @@ EOF
 
       shellExec(`kubectl delete deployment adminer -n ${options.namespace} --ignore-not-found`);
       shellExec(`kubectl apply -k ${underpostRoot}/manifests/deployment/adminer/. -n ${options.namespace}`);
-      const successInstance = await UnderpostTest.API.statusMonitor('adminer', 'Running', 'pods', 1000, 60 * 10);
+      const successInstance = await Underpost.test.statusMonitor('adminer', 'Running', 'pods', 1000, 60 * 10);
 
       if (successInstance) {
         shellExec(`underpost deploy --expose adminer --namespace ${options.namespace}`);
@@ -996,16 +1003,16 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'git-conf': (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
-      const defaultUsername = UnderpostRootEnv.API.get('GITHUB_USERNAME');
-      const defaultEmail = UnderpostRootEnv.API.get('GITHUB_EMAIL');
+    'git-conf': (path = '', options = DEFAULT_OPTION) => {
+      const defaultUsername = Underpost.env.get('GITHUB_USERNAME');
+      const defaultEmail = Underpost.env.get('GITHUB_EMAIL');
       const validPath = path && path.split(',').length;
       const [username, email] = validPath ? path.split(',') : [defaultUsername, defaultEmail];
       if (validPath) {
-        UnderpostRootEnv.API.set('GITHUB_USERNAME', username);
-        UnderpostRootEnv.API.set('GITHUB_EMAIL', email);
-        UnderpostRootEnv.API.get('GITHUB_USERNAME');
-        UnderpostRootEnv.API.get('GITHUB_EMAIL');
+        Underpost.env.set('GITHUB_USERNAME', username);
+        Underpost.env.set('GITHUB_EMAIL', email);
+        Underpost.env.get('GITHUB_USERNAME');
+        Underpost.env.get('GITHUB_EMAIL');
       }
       shellExec(
         `git config --global credential.helper "" && ` +
@@ -1035,27 +1042,20 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    promote: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    promote: async (path, options = DEFAULT_OPTION) => {
       let [inputDeployId, inputEnv, inputReplicas] = path.split(',');
       if (!inputEnv) inputEnv = 'production';
       if (!inputReplicas) inputReplicas = 1;
       if (inputDeployId === 'dd') {
         for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
-          const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
+          const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
           const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
-          UnderpostDeploy.API.switchTraffic(
-            deployId,
-            inputEnv,
-            targetTraffic,
-            inputReplicas,
-            options.namespace,
-            options,
-          );
+          Underpost.deploy.switchTraffic(deployId, inputEnv, targetTraffic, inputReplicas, options.namespace, options);
         }
       } else {
-        const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(inputDeployId, { namespace: options.namespace });
+        const currentTraffic = Underpost.deploy.getCurrentTraffic(inputDeployId, { namespace: options.namespace });
         const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
-        UnderpostDeploy.API.switchTraffic(
+        Underpost.deploy.switchTraffic(
           inputDeployId,
           inputEnv,
           targetTraffic,
@@ -1072,7 +1072,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    metrics: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    metrics: async (path, options = DEFAULT_OPTION) => {
       const deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',');
       let hosts = [];
       for (const deployId of deployList) {
@@ -1089,7 +1089,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    cluster: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    cluster: async (path = '', options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
@@ -1149,20 +1149,20 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    deploy: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    deploy: async (path, options = DEFAULT_OPTION) => {
       const deployId = path;
-      const { validVersion } = UnderpostRepository.API.privateConfUpdate(deployId);
+      const { validVersion } = Underpost.repo.privateConfUpdate(deployId);
       if (!validVersion) throw new Error('Version mismatch');
-      const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace });
+      const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
       const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
       const env = 'production';
-      const ignorePods = UnderpostDeploy.API.get(`${deployId}-${env}-${targetTraffic}`, 'pods', options.namespace).map(
-        (p) => p.NAME,
-      );
+      const ignorePods = Underpost.deploy
+        .get(`${deployId}-${env}-${targetTraffic}`, 'pods', options.namespace)
+        .map((p) => p.NAME);
 
       shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${targetTraffic} -n ${options.namespace}`);
 
-      await UnderpostDeploy.API.monitorReadyRunner(
+      await Underpost.deploy.monitorReadyRunner(
         deployId,
         env,
         targetTraffic,
@@ -1171,7 +1171,7 @@ EOF
         'underpost',
       );
 
-      UnderpostDeploy.API.switchTraffic(deployId, env, targetTraffic, options.replicas, options.namespace, options);
+      Underpost.deploy.switchTraffic(deployId, env, targetTraffic, options.replicas, options.namespace, options);
     },
 
     /**
@@ -1181,7 +1181,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'disk-clean': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'disk-clean': async (path, options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       shellExec(`chmod +x ${underpostRoot}/scripts/disk-clean.sh`);
       shellExec(`./scripts/disk-clean.sh`);
@@ -1194,7 +1194,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'disk-usage': async (path = '/', options = UnderpostRun.DEFAULT_OPTION) => {
+    'disk-usage': async (path = '/', options = DEFAULT_OPTION) => {
       if (!path) path = '/';
       logger.info('Mount filesystem');
       shellExec(`df -h${path === '/' ? '' : ` ${path}`}`);
@@ -1209,7 +1209,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    dev: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    dev: async (path = '', options = DEFAULT_OPTION) => {
       let [deployId, subConf, host, _path, clientHostPort] = path.split(',');
       if (options.confServerPath) {
         const confServer = JSON.parse(fs.readFileSync(options.confServerPath, 'utf8'));
@@ -1243,7 +1243,9 @@ EOF
       }
       shellExec(`node bin run dev-cluster --expose --namespace ${options.namespace}`, { async: true });
       {
-        const cmd = `npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}${options.tls ? ' tls' : ''}`;
+        const cmd = `npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort}${
+          options.tls ? ' tls' : ''
+        }`;
         options.terminal ? openTerminal(cmd) : shellExec(cmd, { async: true });
       }
       await awaitDeployMonitor(true);
@@ -1266,7 +1268,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    service: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    service: async (path = '', options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
@@ -1331,22 +1333,26 @@ EOF
           break;
         }
       }
-      const success = await UnderpostTest.API.statusMonitor(podToMonitor);
+      const success = await Underpost.test.statusMonitor(podToMonitor);
       if (success) {
-        const versions = UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';
+        const versions = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';
         if (!node) node = os.hostname();
-        const timeoutFlags = UnderpostDeploy.API.timeoutFlagsFactory(options);
+        const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
         shellExec(
-          `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''} --build-manifest --sync --info-router --replicas ${
-            replicas
-          } --node ${node}${image ? ` --image ${image}` : ''}${versions ? ` --versions ${versions}` : ''}${timeoutFlags} dd ${env}`,
+          `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${
+            options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''
+          } --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
+            image ? ` --image ${image}` : ''
+          }${versions ? ` --versions ${versions}` : ''}${timeoutFlags} dd ${env}`,
         );
         shellExec(
-          `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''} --disable-update-deployment ${deployId} ${env} --versions ${versions}`,
+          `${baseCommand} deploy${options.dev ? '' : ' --kubeadm'}${
+            options.devProxyPortOffset ? ' --disable-deployment-proxy' : ''
+          } --disable-update-deployment ${deployId} ${env} --versions ${versions}`,
         );
       } else logger.error(`Service pod ${podToMonitor} failed to start in time.`);
       if (options.etcHosts === true) {
-        const hostListenResult = UnderpostDeploy.API.etcHostFactory([host]);
+        const hostListenResult = Underpost.deploy.etcHostFactory([host]);
         logger.info(hostListenResult.renderHosts);
       }
     },
@@ -1358,11 +1364,13 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    sh: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    sh: async (path = '', options = DEFAULT_OPTION) => {
       let [operator, arg0, arg1] = path.split(',');
       if (operator == 'copy') {
         shellExec(
-          `kitty @ get-text ${arg0 === 'all' ? '--match all' : '--self'} --extent all${arg1 === 'ansi' ? ' --ansi yes' : ''} | kitty +kitten clipboard`,
+          `kitty @ get-text ${arg0 === 'all' ? '--match all' : '--self'} --extent all${
+            arg1 === 'ansi' ? ' --ansi yes' : ''
+          } | kitty +kitten clipboard`,
         );
         return;
       }
@@ -1376,7 +1384,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    log: async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    log: async (path, options = DEFAULT_OPTION) => {
       const [filePath, keywords, lines] = path.split(',');
       let result = shellExec(`grep -i -E ${lines ? `-C ${lines} ` : ''}'${keywords}' ${filePath}`, {
         stdout: true,
@@ -1393,7 +1401,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    ps: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    ps: async (path = '', options = DEFAULT_OPTION) => {
       const out = shellExec(`ps aux${path ? `| grep '${path}' | grep -v grep` : ''}`, {
         stdout: true,
         silent: true,
@@ -1408,7 +1416,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    ptls: async (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    ptls: async (path = '', options = DEFAULT_OPTION) => {
       shellExec(`chmod +x ${options.underpostRoot}/scripts/ports-ls.sh`);
       shellExec(`${options.underpostRoot}/scripts/ports-ls.sh`);
     },
@@ -1419,7 +1427,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'release-cmt': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'release-cmt': async (path, options = DEFAULT_OPTION) => {
       shellExec(`underpost run pull`);
       shellExec(`underpost run secret`);
       shellCd(`/home/dd/engine`);
@@ -1434,7 +1442,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'deploy-test': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'deploy-test': async (path, options = DEFAULT_OPTION) => {
       // Note: use recomendation empty deploy cluster: node bin --dev cluster
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
@@ -1459,7 +1467,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'sync-replica': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'sync-replica': async (path, options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
 
@@ -1490,10 +1498,10 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'tf-vae-test': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'tf-vae-test': async (path, options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
       const podName = 'tf-vae-test';
-      await UnderpostRun.RUNNERS['deploy-job']('', {
+      await Underpost.run.CALL('deploy-job', '', {
         podName,
         // volumeMountPath: '/custom_images',
         // volumeHostPath: '/home/dd/engine/src/client/public/cyberia/assets/skin',
@@ -1531,7 +1539,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'spark-template': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'spark-template': (path, options = DEFAULT_OPTION) => {
       const dir = '/home/dd/spark-template';
       shellExec(`sudo rm -rf ${dir}`);
       shellCd('/home/dd');
@@ -1558,7 +1566,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    rmi: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    rmi: (path, options = DEFAULT_OPTION) => {
       shellExec(`podman rmi $(podman images -qa) --force`);
     },
     /**
@@ -1568,7 +1576,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    kill: (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
+    kill: (path = '', options = DEFAULT_OPTION) => {
       if (options.pid) return shellExec(`sudo kill -9 ${options.pid}`);
       for (const _path of path.split(',')) {
         if (_path.split('+')[1]) {
@@ -1587,7 +1595,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    secret: (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    secret: (path, options = DEFAULT_OPTION) => {
       const secretPath = path ? path : `/home/dd/engine/engine-private/conf/dd-cron/.env.production`;
       const command = options.dev
         ? `node bin secret underpost --create-from-file ${secretPath}`
@@ -1596,13 +1604,13 @@ EOF
     },
     /**
      * @method underpost-config
-     * @description Calls `UnderpostDeploy.API.configMap` to create a Kubernetes ConfigMap, defaulting to the 'production' environment.
+     * @description Calls `Underpost.deploy.configMap` to create a Kubernetes ConfigMap, defaulting to the 'production' environment.
      * @param {string} path - The input value, identifier, or path for the operation (used as the optional configuration name/environment).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'underpost-config': (path = '', options = UnderpostRun.DEFAULT_OPTION) => {
-      UnderpostDeploy.API.configMap(path ? path : 'production', options.namespace);
+    'underpost-config': (path = '', options = DEFAULT_OPTION) => {
+      Underpost.deploy.configMap(path ? path : 'production', options.namespace);
     },
     /**
      * @method gpu-env
@@ -1611,7 +1619,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'gpu-env': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'gpu-env': (path, options = DEFAULT_OPTION) => {
       shellExec(
         `node bin cluster --dev --reset && node bin cluster --dev --dedicated-gpu --kubeadm && kubectl get pods --all-namespaces -o wide -w`,
       );
@@ -1623,7 +1631,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'tf-gpu-test': (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'tf-gpu-test': (path, options = DEFAULT_OPTION) => {
       const { underpostRoot, namespace } = options;
       shellExec(`kubectl delete configmap tf-gpu-test-script -n ${namespace} --ignore-not-found`);
       shellExec(`kubectl delete pod tf-gpu-test-pod -n ${namespace} --ignore-not-found`);
@@ -1637,7 +1645,7 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'deploy-job': async (path, options = UnderpostRun.DEFAULT_OPTION) => {
+    'deploy-job': async (path, options = DEFAULT_OPTION) => {
       const podName = options.podName || 'deploy-job';
       const volumeName = `${podName}-volume`;
       if (typeof options.args === 'string') options.args = options.args.split(',');
@@ -1674,7 +1682,7 @@ EOF
           ? 'Directory'
           : 'File';
 
-      const envs = UnderpostRootEnv.API.list();
+      const envs = Underpost.env.list();
 
       const cmd = `kubectl apply -f - <<EOF
 apiVersion: ${apiVersion}
@@ -1717,14 +1725,14 @@ ${Object.keys(envs)
   .join('\n')}`}
 ${
   enableVolumeMount
-    ? UnderpostDeploy.API.volumeFactory([{ volumeMountPath, volumeName, volumeHostPath, volumeType, claimName }]).render
+    ? Underpost.deploy.volumeFactory([{ volumeMountPath, volumeName, volumeHostPath, volumeType, claimName }]).render
     : ''
 }
 EOF`;
       shellExec(`kubectl delete pod ${podName} -n ${namespace} --ignore-not-found`);
       console.log(cmd);
       shellExec(cmd, { disableLog: true });
-      const successInstance = await UnderpostTest.API.statusMonitor(podName);
+      const successInstance = await Underpost.test.statusMonitor(podName);
       if (successInstance) {
         options.on?.init ? await options.on.init() : null;
         shellExec(`kubectl logs -f ${podName} -n ${namespace}`);
@@ -1734,6 +1742,39 @@ EOF`;
 
   static API = {
     /**
+     * @method DEFAULT_OPTION
+     * @description The default options for Underpost runners, including development mode, namespace, replicas, and underpost root path.
+     * @memberof UnderpostRun
+     * @static
+     * @returns {Object} The default options object.
+     */
+    get DEFAULT_OPTION() {
+      return DEFAULT_OPTION;
+    },
+    /**
+     * @method RUNNERS
+     * @description Retrieves the list of available runner IDs from the UnderpostRun class.
+     * @memberof UnderpostRun
+     * @returns {string[]} An array of runner IDs.
+     */
+    get RUNNERS() {
+      return Object.keys(UnderpostRun.RUNNERS);
+    },
+
+    /**
+     * @method CALL
+     * @description Executes a specified runner function from the UnderpostRun class with the provided path and options.
+     * @param {string} runner - The name of the runner to execute.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     * @returns {Promise<any>} The result of the runner execution.
+     */
+    async CALL(runner = '', path = '', options = DEFAULT_OPTION) {
+      return await UnderpostRun.RUNNERS[runner](path, options);
+    },
+
+    /**
      * @method callback
      * @description Initiates the execution of a specified CLI command (runner) with the given input value (`path`) and processed options.
      * @param {string} runner - The name of the runner to execute.
@@ -1742,7 +1783,7 @@ EOF`;
      * @memberof UnderpostRun
      * @returns {Promise<any>} The result of the callback execution.
      */
-    async callback(runner, path, options = UnderpostRun.DEFAULT_OPTION) {
+    async callback(runner, path, options = DEFAULT_OPTION) {
       try {
         const npmRoot = getNpmRootPath();
         const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
@@ -1754,8 +1795,8 @@ EOF`;
           options.replicas = 1;
         options.npmRoot = npmRoot;
         logger.info('callback', { path, options });
-        if (!(runner in UnderpostRun.RUNNERS)) throw new Error(`Runner not found: ${runner}`);
-        const result = await UnderpostRun.RUNNERS[runner](path, options);
+        if (!Underpost.run.RUNNERS.includes(runner)) throw new Error(`Runner not found: ${runner}`);
+        const result = await Underpost.run.CALL(runner, path, options);
         return result;
       } catch (error) {
         console.log(error);

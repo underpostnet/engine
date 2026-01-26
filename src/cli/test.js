@@ -9,8 +9,7 @@ import { MariaDB } from '../db/mariadb/MariaDB.js';
 import { getNpmRootPath } from '../server/conf.js';
 import { actionInitLog, loggerFactory, setUpInfo } from '../server/logger.js';
 import { pbcopy, shellExec } from '../server/process.js';
-import UnderpostDeploy from './deploy.js';
-
+import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 
 /**
@@ -67,10 +66,10 @@ class UnderpostTest {
         options.podStatus &&
         typeof options.podStatus === 'string'
       )
-        return await UnderpostTest.API.statusMonitor(options.podName, options.podStatus, options.kindType);
+        return await Underpost.test.statusMonitor(options.podName, options.podStatus, options.kindType);
 
       if (options.sh === true || options.logs === true) {
-        const [pod] = UnderpostDeploy.API.get(deployList);
+        const [pod] = Underpost.deploy.get(deployList);
         if (pod) {
           if (options.sh) return pbcopy(`sudo kubectl exec -it ${pod.NAME} -- sh`);
           if (options.logs) return shellExec(`sudo kubectl logs -f ${pod.NAME}`);
@@ -104,7 +103,7 @@ class UnderpostTest {
                 break;
             }
           else {
-            const pods = UnderpostDeploy.API.get(deployId);
+            const pods = Underpost.deploy.get(deployId);
             if (pods.length > 0)
               for (const deployData of pods) {
                 const { NAME } = deployData;
@@ -115,7 +114,7 @@ class UnderpostTest {
             else logger.warn(`Couldn't find pods in deployment`, { deployId });
           }
         }
-      } else return UnderpostTest.API.run();
+      } else return Underpost.test.run();
     },
     /**
      * @method statusMonitor
@@ -134,7 +133,7 @@ class UnderpostTest {
         logger.info(`Loading instance`, { podName, status, kindType, deltaMs, maxAttempts });
         const _monitor = async () => {
           await timer(deltaMs);
-          const pods = UnderpostDeploy.API.get(podName, kindType);
+          const pods = Underpost.deploy.get(podName, kindType);
           let result = pods.find((p) => p.STATUS === status || (status === 'Running' && p.STATUS === 'Completed'));
           logger.info(
             `Testing pod ${podName}... ${result ? 1 : 0}/1 - elapsed time ${deltaMs * (index + 1)}s - attempt ${

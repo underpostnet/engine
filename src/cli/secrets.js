@@ -7,7 +7,7 @@
 import dotenv from 'dotenv';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
-import UnderpostRootEnv from './env.js';
+import Underpost from '../index.js';
 
 dotenv.config();
 
@@ -41,7 +41,7 @@ class UnderpostSecret {
       createFromEnvFile(envPath) {
         const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
         for (const key of Object.keys(envObj)) {
-          UnderpostSecret.API.docker.set(key, envObj[key]);
+          Underpost.secret.docker.set(key, envObj[key]);
         }
       },
       set(key, value) {
@@ -61,7 +61,7 @@ class UnderpostSecret {
       createFromEnvFile(envPath) {
         const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
         for (const key of Object.keys(envObj)) {
-          UnderpostRootEnv.API.set(key, envObj[key]);
+          Underpost.env.set(key, envObj[key]);
         }
       },
     },

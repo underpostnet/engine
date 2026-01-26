@@ -1,15 +1,14 @@
 /**
- * UnderpostCron CLI index module
- * @module src/cli/cron.js
+ * UnderpostCron server module
+ * @module src/server/cron.js
  * @namespace UnderpostCron
  */
 
-import BackUp from '../server/backup.js';
-import { Cmd } from '../server/conf.js';
-import Dns from '../server/dns.js';
-import { loggerFactory } from '../server/logger.js';
-import { shellExec } from '../server/process.js';
+import { Cmd } from './conf.js';
+import { loggerFactory } from './logger.js';
+import { shellExec } from './process.js';
 import fs from 'fs-extra';
+import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -19,22 +18,30 @@ const logger = loggerFactory(import.meta);
  * @memberof UnderpostCron
  */
 class UnderpostCron {
-  static JOB = {
-    /**
-     * DNS cli API
-     * @static
-     * @type {Dns}
-     * @memberof UnderpostCron
-     */
-    dns: Dns,
-    /**
-     * BackUp cli API
-     * @static
-     * @type {BackUp}
-     * @memberof UnderpostCron
-     */
-    backup: BackUp,
-  };
+  /**
+   * Get the JOB static member
+   * @static
+   * @type {Object}
+   * @memberof UnderpostCron
+   */
+  static get JOB() {
+    return {
+      /**
+       * DNS cli API
+       * @static
+       * @type {Dns}
+       * @memberof UnderpostCron
+       */
+      dns: Underpost.dns,
+      /**
+       * BackUp cli API
+       * @static
+       * @type {BackUp}
+       * @memberof UnderpostCron
+       */
+      backup: Underpost.backup,
+    };
+  }
 
   static API = {
     /**
@@ -48,25 +55,25 @@ class UnderpostCron {
      */
     callback: async function (
       deployList = 'default',
-      jobList = Object.keys(UnderpostCron.JOB).join(','),
+      jobList = Object.keys(Underpost.cron.JOB).join(','),
       options = { initPm2Cronjobs: false, git: false, updatePackageScripts: false },
     ) {
       if (options.updatePackageScripts === true) {
-        await UnderpostCron.API.updatePackageScripts(deployList);
+        await Underpost.cron.updatePackageScripts(deployList);
         return;
       }
 
       if (options.initPm2Cronjobs === true) {
-        await UnderpostCron.API.initCronJobs(options);
+        await Underpost.cron.initCronJobs(options);
         return;
       }
 
       // Execute the requested jobs
       for (const _jobId of jobList.split(',')) {
         const jobId = _jobId.trim();
-        if (UnderpostCron.JOB[jobId]) {
+        if (Underpost.cron.JOB[jobId]) {
           logger.info(`Executing cron job: ${jobId}`);
-          await UnderpostCron.JOB[jobId].callback(deployList, options);
+          await Underpost.cron.JOB[jobId].callback(deployList, options);
         } else {
           logger.warn(`Unknown cron job: ${jobId}`);
         }
@@ -115,7 +122,7 @@ class UnderpostCron {
         }
 
         const name = `${jobDeployId}-${job}`;
-        const deployIdList = UnderpostCron.API.getRelatedDeployIdList(job);
+        const deployIdList = Underpost.cron.getRelatedDeployIdList(job);
         const expression = jobConfig.expression || '0 0 * * *'; // Default: daily at midnight
         const instances = jobConfig.instances || 1; // Default: 1 instance
 
@@ -220,6 +227,26 @@ class UnderpostCron {
 
       // Return the deploy-id list from the file (may be single or comma-separated)
       return fs.readFileSync(deployFilePath, 'utf8').trim();
+    },
+
+    /**
+     * Get the JOB static object
+     * @static
+     * @type {Object}
+     * @memberof UnderpostCron
+     */
+    get JOB() {
+      return UnderpostCron.JOB;
+    },
+
+    /**
+     * Get the list of available job IDs
+     * @static
+     * @return {Array<String>} List of job IDs
+     * @memberof UnderpostCron
+     */
+    getJobsIDs: function () {
+      return Object.keys(UnderpostCron.JOB);
     },
   };
 }

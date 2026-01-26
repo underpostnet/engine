@@ -12,7 +12,6 @@ import swaggerUi from 'swagger-ui-express';
 import compression from 'compression';
 import { createServer } from 'http';
 
-import UnderpostStartUp from '../../server/start.js';
 import { loggerFactory, loggerMiddleware } from '../../server/logger.js';
 import { getCapVariableName, newInstance } from '../../client/components/core/CommonJs.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
@@ -24,6 +23,8 @@ import { ssrMiddlewareFactory } from '../../server/ssr.js';
 import { TLS } from '../../server/tls.js';
 import { shellExec } from '../../server/process.js';
 import { devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/conf.js';
+
+import Underpost from '../../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -143,7 +144,7 @@ class ExpressService {
         }
         return next();
       });
-      await UnderpostStartUp.API.listenPortController(app, port, runningData);
+      await Underpost.start.listenPortController(app, port, runningData);
       return { portsUsed };
     }
 
@@ -214,7 +215,7 @@ class ExpressService {
         const { options, meta, ioServer } = await createIoServer(server, { host, path, db, port, origins });
 
         // Listen on the main port for the WS server
-        await UnderpostStartUp.API.listenPortController(ioServer, port, {
+        await Underpost.start.listenPortController(ioServer, port, {
           runtime: 'nodejs',
           client: null,
           host,
@@ -232,7 +233,7 @@ class ExpressService {
           origins,
           path,
         });
-        await UnderpostStartUp.API.listenPortController(peerServer, peerPort, {
+        await Underpost.start.listenPortController(peerServer, peerPort, {
           runtime: 'nodejs',
           client: null,
           host,
@@ -250,8 +251,8 @@ class ExpressService {
     if (useLocalSsl && process.env.NODE_ENV === 'development') {
       if (!TLS.validateSecureContext()) shellExec(`node bin/deploy tls`);
       const { ServerSSL } = await TLS.createSslServer(app);
-      await UnderpostStartUp.API.listenPortController(ServerSSL, port, runningData);
-    } else await UnderpostStartUp.API.listenPortController(server, port, runningData);
+      await Underpost.start.listenPortController(ServerSSL, port, runningData);
+    } else await Underpost.start.listenPortController(server, port, runningData);
 
     return { portsUsed };
   }

@@ -8,9 +8,9 @@
 import dotenv from 'dotenv';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
-import UnderpostBaremetal from './baremetal.js';
 import { loggerFactory } from '../server/logger.js';
 import { getNpmRootPath } from '../server/conf.js';
+import Underpost from '../index.js';
 
 dotenv.config();
 
@@ -43,7 +43,7 @@ class UnderpostCloudInit {
     buildTools({ workflowId, nfsHostPath, hostname, callbackMetaData, dev }) {
       // Destructure workflow configuration for easier access.
       const { chronyc, networkInterfaceName, debootstrap, keyboard } =
-        UnderpostBaremetal.API.loadWorkflowsConfig()[workflowId];
+        Underpost.baremetal.loadWorkflowsConfig()[workflowId];
       const { timezone, chronyConfPath } = chronyc;
       // Define the specific directory for underpost tools within the NFS host path.
       const nfsHostToolsPath = `${nfsHostPath}/underpost`;
@@ -63,8 +63,8 @@ class UnderpostCloudInit {
           logger.info('Build', `${nfsHostToolsPath}/date.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/date.sh`,
-            UnderpostBaremetal.API.stepsRender(
-              UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].timezone({
+            Underpost.baremetal.stepsRender(
+              Underpost.baremetal.systemProvisioningFactory[systemProvisioning].timezone({
                 timezone,
                 chronyConfPath,
               }),
@@ -77,8 +77,8 @@ class UnderpostCloudInit {
           logger.info('Build', `${nfsHostToolsPath}/keyboard.sh`);
           fs.writeFileSync(
             `${nfsHostToolsPath}/keyboard.sh`,
-            UnderpostBaremetal.API.stepsRender(
-              UnderpostBaremetal.API.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
+            Underpost.baremetal.stepsRender(
+              Underpost.baremetal.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
               false,
             ),
             'utf8',
@@ -109,7 +109,7 @@ ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf`,
             `#!/bin/bash
 set -x
 # sudo cloud-init --all-stages
-${UnderpostBaremetal.API.stepsRender(
+${Underpost.baremetal.stepsRender(
   [
     `/underpost/date.sh`,
     `sleep 3`,
@@ -292,10 +292,9 @@ curl -X POST \\
       if (ubuntuToolsBuild) {
         bootcmd = [
           ...bootcmd,
-          ...UnderpostBaremetal.API.stepsRender(
-            [`/underpost/dns.sh`, `/underpost/host.sh`, `/underpost/mac.sh`, `cat /underpost/mac`],
-            false,
-          ).split('\n'),
+          ...Underpost.baremetal
+            .stepsRender([`/underpost/dns.sh`, `/underpost/host.sh`, `/underpost/mac.sh`, `cat /underpost/mac`], false)
+            .split('\n'),
         ];
       }
 
@@ -313,7 +312,7 @@ curl -X POST \\
         runcmd = [...runcmd, ...runcmdParam.split(',')];
       }
 
-      const cloudConfigSrc = UnderpostCloudInit.API.generateCloudConfig({
+      const cloudConfigSrc = Underpost.cloudInit.generateCloudConfig({
         hostname,
         fqdn: `${hostname}.maas`,
         datasource_list: ['MAAS'],

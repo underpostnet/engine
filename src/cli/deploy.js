@@ -18,12 +18,9 @@ import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import UnderpostRootEnv from './env.js';
-import UnderpostCluster from './cluster.js';
 import { timer } from '../client/components/core/CommonJs.js';
 import os from 'node:os';
-import Dns, { getLocalIPv4Address } from '../server/dns.js';
-import UnderpostBaremetal from './baremetal.js';
+import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -35,7 +32,6 @@ const logger = loggerFactory(import.meta);
  * @memberof UnderpostDeploy
  */
 class UnderpostDeploy {
-  static NETWORK = {};
   static API = {
     /**
      * Creates a router configuration for a list of deployments.
@@ -131,7 +127,6 @@ class UnderpostDeploy {
      * @memberof UnderpostDeploy
      */
     deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image, namespace, volumes, cmd }) {
-      const baseCommand = env === 'development' ? 'node bin' : 'underpost';
       if (!cmd)
         cmd = [
           `npm install -g npm@11.2.0`,
@@ -189,7 +184,8 @@ ${
             - >
               ${cmd.join(` && `)}
 
-${UnderpostDeploy.API.volumeFactory(volumes.map((v) => ((v.version = `${deployId}-${env}-${suffix}`), v)))
+${Underpost.deploy
+  .volumeFactory(volumes.map((v) => ((v.version = `${deployId}-${env}-${suffix}`), v)))
   .render.split(`\n`)
   .map((l) => '    ' + l)
   .join(`\n`)}
@@ -236,7 +232,7 @@ spec:
           deployId,
           JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
         );
-        const router = await UnderpostDeploy.API.routerFactory(deployId, env);
+        const router = await Underpost.deploy.routerFactory(deployId, env);
         const pathPortAssignmentData = await pathPortAssignmentFactory(deployId, router, confServer);
         const { fromPort, toPort } = deployRangePortFactory(router);
         const deploymentVersions = options.versions.split(',');
@@ -248,15 +244,17 @@ spec:
         let deploymentYamlParts = '';
         for (const deploymentVersion of deploymentVersions) {
           deploymentYamlParts += `---
-${UnderpostDeploy.API.deploymentYamlPartsFactory({
-  deployId,
-  env,
-  suffix: deploymentVersion,
-  replicas,
-  image,
-  namespace: options.namespace,
-  cmd: options.cmd ? options.cmd.split(',').map((c) => c.trim()) : undefined,
-}).replace('{{ports}}', buildKindPorts(fromPort, toPort))}
+${Underpost.deploy
+  .deploymentYamlPartsFactory({
+    deployId,
+    env,
+    suffix: deploymentVersion,
+    replicas,
+    image,
+    namespace: options.namespace,
+    cmd: options.cmd ? options.cmd.split(',').map((c) => c.trim()) : undefined,
+  })
+  .replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;
         }
         fs.writeFileSync(`./engine-private/conf/${deployId}/build/${env}/deployment.yaml`, deploymentYamlParts, 'utf8');
@@ -269,11 +267,11 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
 
         for (const host of Object.keys(confServer)) {
           if (env === 'production')
-            secretYaml += UnderpostDeploy.API.buildCertManagerCertificate({ host, namespace: options.namespace });
+            secretYaml += Underpost.deploy.buildCertManagerCertificate({ host, namespace: options.namespace });
 
           const pathPortAssignment = pathPortAssignmentData[host];
           // logger.info('', { host, pathPortAssignment });
-          let _proxyYaml = UnderpostDeploy.API.baseProxyYamlFactory({ host, env, options });
+          let _proxyYaml = Underpost.deploy.baseProxyYamlFactory({ host, env, options });
           const deploymentVersions =
             options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',') : ['blue'];
           let proxyRoutes = '';
@@ -297,7 +295,7 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
           if (!options.disableDeploymentProxy)
             for (const conditionObj of pathPortAssignment) {
               const { path, port } = conditionObj;
-              proxyRoutes += UnderpostDeploy.API.deploymentYamlServiceFactory({
+              proxyRoutes += Underpost.deploy.deploymentYamlServiceFactory({
                 path,
                 deployId,
                 env,
@@ -318,7 +316,7 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
               retryPolicy: _retryPolicy,
             } = customService;
             if (host === _host) {
-              proxyRoutes += UnderpostDeploy.API.deploymentYamlServiceFactory({
+              proxyRoutes += Underpost.deploy.deploymentYamlServiceFactory({
                 path: _path,
                 port,
                 serviceId,
@@ -500,7 +498,7 @@ spec:
       if (!deployList && options.certHosts) {
         for (const host of options.certHosts.split(',')) {
           shellExec(`sudo kubectl apply -f - -n ${namespace} <<EOF
-${UnderpostDeploy.API.buildCertManagerCertificate({ host, namespace })}
+${Underpost.deploy.buildCertManagerCertificate({ host, namespace })}
 EOF`);
         }
         return;
@@ -523,26 +521,26 @@ EOF`);
                 path: instance.path,
                 fromPort: instance.fromPort,
                 toPort: instance.toPort,
-                traffic: UnderpostDeploy.API.getCurrentTraffic(_deployId, { namespace, hostTest: instance.host }),
+                traffic: Underpost.deploy.getCurrentTraffic(_deployId, { namespace, hostTest: instance.host }),
               });
             }
           }
           logger.info('', {
             deployId,
             env,
-            traffic: UnderpostDeploy.API.getCurrentTraffic(deployId, { namespace }),
-            router: await UnderpostDeploy.API.routerFactory(deployId, env),
-            pods: await UnderpostDeploy.API.get(deployId),
+            traffic: Underpost.deploy.getCurrentTraffic(deployId, { namespace }),
+            router: await Underpost.deploy.routerFactory(deployId, env),
+            pods: await Underpost.deploy.get(deployId),
             instances,
           });
         }
-        const interfaceName = Dns.getDefaultNetworkInterface();
+        const interfaceName = Underpost.dns.getDefaultNetworkInterface();
         logger.info('Machine', {
           hostname: os.hostname(),
-          arch: UnderpostBaremetal.API.getHostArch(),
-          ipv4Public: await Dns.getPublicIp(),
-          ipv4Local: getLocalIPv4Address(),
-          resources: UnderpostCluster.API.getResourcesCapacity(options.node),
+          arch: Underpost.baremetal.getHostArch(),
+          ipv4Public: await Underpost.dns.getPublicIp(),
+          ipv4Local: Underpost.dns.getLocalIPv4Address(),
+          resources: Underpost.cluster.getResourcesCapacity(options.node),
           defaultInterfaceName: interfaceName,
           defaultInterfaceInfo: os.networkInterfaces()[interfaceName],
         });
@@ -554,16 +552,16 @@ EOF`);
         getDataDeploy({
           buildSingleReplica: true,
         });
-      if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env, options);
+      if (options.buildManifest === true) await Underpost.deploy.buildManifest(deployList, env, options);
       if (options.infoRouter === true || options.buildManifest === true) {
-        logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
+        logger.info('router', await Underpost.deploy.routerFactory(deployList, env));
         return;
       }
-      if (!options.disableUpdateUnderpostConfig) UnderpostDeploy.API.configMap(env);
+      if (!options.disableUpdateUnderpostConfig) Underpost.deploy.configMap(env);
       let renderHosts = '';
       let etcHosts = [];
       if (options.restoreHosts === true) {
-        const factoryResult = UnderpostDeploy.API.etcHostFactory(etcHosts);
+        const factoryResult = Underpost.deploy.etcHostFactory(etcHosts);
         renderHosts = factoryResult.renderHosts;
         logger.info(renderHosts);
         return;
@@ -574,7 +572,7 @@ EOF`);
         if (!deployId) continue;
         if (options.expose === true) {
           const kindType = options.kindType ? options.kindType : 'svc';
-          const svc = UnderpostDeploy.API.get(deployId, kindType)[0];
+          const svc = Underpost.deploy.get(deployId, kindType)[0];
           const port = options.port
             ? options.port
             : kindType !== 'svc'
@@ -605,7 +603,7 @@ EOF`);
             );
             if (!options.disableUpdateVolume)
               for (const volume of confVolume)
-                UnderpostDeploy.API.deployVolume(volume, {
+                Underpost.deploy.deployVolume(volume, {
                   deployId,
                   env,
                   version,
@@ -617,7 +615,7 @@ EOF`);
         for (const host of Object.keys(confServer)) {
           if (!options.disableUpdateProxy) {
             shellExec(`sudo kubectl delete HTTPProxy ${host} -n ${namespace} --ignore-not-found`);
-            if (UnderpostDeploy.API.isValidTLSContext({ host, env, options }))
+            if (Underpost.deploy.isValidTLSContext({ host, env, options }))
               shellExec(`sudo kubectl delete Certificate ${host} -n ${namespace} --ignore-not-found`);
           }
           if (!options.remove) etcHosts.push(host);
@@ -634,12 +632,12 @@ EOF`);
           if (!options.disableUpdateProxy)
             shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml -n ${namespace}`);
 
-          if (UnderpostDeploy.API.isValidTLSContext({ host: Object.keys(confServer)[0], env, options }))
+          if (Underpost.deploy.isValidTLSContext({ host: Object.keys(confServer)[0], env, options }))
             shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml -n ${namespace}`);
         }
       }
       if (options.etcHosts === true) {
-        const factoryResult = UnderpostDeploy.API.etcHostFactory(etcHosts);
+        const factoryResult = Underpost.deploy.etcHostFactory(etcHosts);
         renderHosts = factoryResult.renderHosts;
       }
       if (renderHosts)
@@ -737,7 +735,7 @@ EOF`);
      */
     async checkDeploymentReadyStatus(deployId, env, traffic, ignoresNames = [], namespace = 'default') {
       const cmd = `underpost config get container-status`;
-      const pods = UnderpostDeploy.API.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
+      const pods = Underpost.deploy.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
       const readyPods = [];
       const notReadyPods = [];
       for (const pod of pods) {
@@ -801,7 +799,7 @@ EOF`);
         retryPerTryTimeout: '',
       },
     ) {
-      const timeoutFlags = UnderpostDeploy.API.timeoutFlagsFactory(options);
+      const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
 
       shellExec(
         `node bin deploy --info-router --build-manifest --traffic ${targetTraffic} --replicas ${replicas} --namespace ${namespace}${timeoutFlags} ${deployId} ${env}`,
@@ -809,7 +807,7 @@ EOF`);
 
       shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml -n ${namespace}`);
 
-      UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, targetTraffic);
+      Underpost.env.set(`${deployId}-${env}-traffic`, targetTraffic);
     },
 
     /**
@@ -858,7 +856,7 @@ EOF`);
       shellExec(`kubectl delete pvc ${pvcId} -n ${namespace} --ignore-not-found`);
       shellExec(`kubectl delete pv ${pvId} --ignore-not-found`);
       shellExec(`kubectl apply -f - -n ${namespace} <<EOF
-${UnderpostDeploy.API.persistentVolumeFactory({
+${Underpost.deploy.persistentVolumeFactory({
   hostPath: rootVolumeHostPath,
   pvcId,
 })}
@@ -1025,13 +1023,7 @@ ${renderHosts}`,
           );
           break;
         }
-        result = await UnderpostDeploy.API.checkDeploymentReadyStatus(
-          deployId,
-          env,
-          targetTraffic,
-          ignorePods,
-          namespace,
-        );
+        result = await Underpost.deploy.checkDeploymentReadyStatus(deployId, env, targetTraffic, ignorePods, namespace);
         if (result.ready === true) {
           readyOk++;
           logger.info(`${iteratorTag} | Deployment ready. Verification number: ${readyOk}`);
@@ -1228,7 +1220,7 @@ ${renderHosts}`,
     ) => {
       if (resources) {
         if (resources.resourceTemplateId)
-          return UnderpostDeploy.API.resourcesTemplate[resources.resourceTemplateId].resources;
+          return Underpost.deploy.resourcesTemplate[resources.resourceTemplateId].resources;
         if (resources.requestsMemory && resources.requestsCpu && resources.limitsMemory && resources.limitsCpu)
           return {
             requests: {

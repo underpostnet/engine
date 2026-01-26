@@ -1,16 +1,14 @@
 import dotenv from 'dotenv';
-import { Command } from 'commander';
-import Underpost, { UnderpostRootEnv } from '../index.js';
-import { getNpmRootPath, getUnderpostRootPath, loadConf } from '../server/conf.js';
 import fs from 'fs-extra';
+
+import { Command } from 'commander';
+import { getNpmRootPath, getUnderpostRootPath, loadConf } from '../server/conf.js';
 import { commitData } from '../client/components/core/CommonJs.js';
-import UnderpostLxd from './lxd.js';
-import UnderpostBaremetal from './baremetal.js';
-import UnderpostRun from './run.js';
-import Dns from '../server/dns.js';
-import UnderpostStatic from './static.js';
+
+import Underpost from '../index.js';
 
 const underpostRootPath = getUnderpostRootPath();
+
 fs.existsSync(`${underpostRootPath}/.env`)
   ? dotenv.config({ path: `${underpostRootPath}/.env`, override: true })
   : dotenv.config();
@@ -108,9 +106,8 @@ program
     if (fs.existsSync(`./engine-private/conf/${deployId}/.env.${env}`))
       dotenv.config({ path: `./engine-private/conf/${deployId}/.env.${env}`, override: true });
     else if (deployId === 'root') {
-      deployId = UnderpostRootEnv.API.get('DEPLOY_ID');
+      deployId = Underpost.env.get('DEPLOY_ID');
     } else dotenv.config({ path: `./.env`, override: true });
-
     loadConf(deployId, subConf);
   });
 
@@ -157,7 +154,7 @@ program
   .option('--dev', 'Sets the development cli context')
 
   .description(`Manages static build of page, bundles, and documentation with comprehensive customization options.`)
-  .action(UnderpostStatic.API.callback);
+  .action(Underpost.static.callback);
 
 program
   .command('config')
@@ -190,7 +187,7 @@ program
   .option('--ban-both-add', 'Adds IP addresses to both banned ingress and egress lists.')
   .option('--ban-both-remove', 'Removes IP addresses from both banned ingress and egress lists.')
   .description('Displays the current public machine IP addresses.')
-  .action(Dns.ipDispatcher);
+  .action(Underpost.dns.ipDispatcher);
 
 program
   .command('cluster')
@@ -405,9 +402,7 @@ program
   .argument('[deploy-list]', 'A comma-separated list of deployment IDs (e.g., "default-a,default-b").')
   .argument(
     '[job-list]',
-    `A comma-separated list of job IDs. Options: ${Object.keys(Underpost.cron).join(
-      ', ',
-    )}. Defaults to all available jobs.`,
+    `A comma-separated list of job IDs. Options: ${Underpost.cron.getJobsIDs()}. Defaults to all available jobs.`,
   )
   .option('--init-pm2-cronjobs', 'Initializes PM2 cron jobs from configuration for the specified deployment IDs.')
   .option('--git', 'Uploads cron job configurations to GitHub.')
@@ -489,7 +484,7 @@ program
 
 program
   .command('run')
-  .argument('<runner-id>', `The runner ID to run. Options: ${Object.keys(UnderpostRun.RUNNERS).join(', ')}.`)
+  .argument('<runner-id>', `The runner ID to run. Options: ${Underpost.run.RUNNERS}.`)
   .argument('[path]', 'The input value, identifier, or path for the operation.')
   .option('--cmd <command-list>', 'Comma-separated list of commands to execute.')
   .option('--args <args-array>', 'Array of arguments to pass to the command.')
@@ -558,7 +553,7 @@ program
   .option('--retry-per-try-timeout <duration>', 'Sets HTTPProxy retry per-try timeout (e.g., "150ms").')
   .option('--disable-private-conf-update', 'Disables updates to private configuration during execution.')
   .description('Runs specified scripts using various runners.')
-  .action(UnderpostRun.API.callback);
+  .action(Underpost.run.callback);
 
 program
   .command('lxd')
@@ -593,7 +588,7 @@ program
   .option('--deploy-id <deploy-id>', 'Sets the deployment ID context for LXD operations.')
   .option('--namespace <namespace>', 'Kubernetes namespace for LXD operations (defaults to "default").')
   .description('Manages LXD containers and virtual machines.')
-  .action(UnderpostLxd.API.callback);
+  .action(Underpost.lxd.callback);
 
 program
   .command('baremetal [workflow-id] [ip-address] [hostname] [ip-file-server] [ip-config] [netmask] [dns-server]')
@@ -658,6 +653,6 @@ program
   .description(
     'Manages baremetal server operations, including installation, database setup, commissioning, and user management.',
   )
-  .action(UnderpostBaremetal.API.callback);
+  .action(Underpost.baremetal.callback);
 
 export { program };

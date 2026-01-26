@@ -412,7 +412,7 @@ class UnderpostStatic {
       // Handle config template generation
       if (options.generateConfig) {
         const configPath = typeof options.generateConfig === 'string' ? options.generateConfig : './static-config.json';
-        return UnderpostStatic.API.generateConfigTemplate(configPath);
+        return Underpost.static.generateConfigTemplate(configPath);
       }
 
       // Parse comma-separated options
