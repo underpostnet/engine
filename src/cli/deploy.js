@@ -132,7 +132,7 @@ class UnderpostDeploy {
           `npm install -g npm@11.2.0`,
           `npm install -g underpost`,
           `underpost secret underpost --create-from-file /etc/config/.env.${env}`,
-          `underpost start --build --run ${deployId} ${env}`,
+          `underpost start --build --run --underpost-quickly-install ${deployId} ${env}`,
         ];
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
       if (!volumes)
