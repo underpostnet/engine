@@ -117,8 +117,6 @@ class UnderpostMonitor {
       };
 
       const monitor = async (reject) => {
-        if (Underpost.env.get(`monitor-init-callback-script`))
-          shellExec(Underpost.env.get(`monitor-init-callback-script`));
         const currentTimestamp = new Date().getTime();
         errorPayloads = errorPayloads.filter((e) => currentTimestamp - e.timestamp < 60 * 1000 * 5);
         logger.info(`[${deployId}-${env}] Check server health`);
