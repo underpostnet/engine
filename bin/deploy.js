@@ -754,7 +754,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
     case 'create-ports': {
       const cmd = [];
-      const commissioningDeviceIp = getLocalIPv4Address();
+      const commissioningDeviceIp = Underpost.dns.getLocalIPv4Address();
       for (const port of ['5240']) {
         const name = 'maas';
         cmd.push(`${name}:${port}-${port}:${commissioningDeviceIp}`);

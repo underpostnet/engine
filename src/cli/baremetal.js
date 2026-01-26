@@ -204,7 +204,7 @@ class UnderpostBaremetal {
       const callbackMetaData = {
         args: { workflowId, ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer },
         options,
-        runnerHost: { architecture: Underpost.baremetal.getHostArch().alias, ip: getLocalIPv4Address() },
+        runnerHost: { architecture: Underpost.baremetal.getHostArch().alias, ip: Underpost.dns.getLocalIPv4Address() },
         nfsHostPath,
         tftpRootPath,
         bootstrapHttpServerPath,
@@ -2238,10 +2238,9 @@ shell
               }).machine;
               console.log('New machine system id:', machine.system_id.bgYellow.bold.black);
               Underpost.baremetal.writeGrubConfigToFile({
-                grubCfgSrc: Underpost.baremetal.getGrubConfigFromFile().grubCfgSrc.replaceAll(
-                  'system-id',
-                  machine.system_id,
-                ),
+                grubCfgSrc: Underpost.baremetal
+                  .getGrubConfigFromFile()
+                  .grubCfgSrc.replaceAll('system-id', machine.system_id),
               });
             } else {
               const systemId = machine.system_id;

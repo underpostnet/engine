@@ -509,4 +509,4 @@ class UnderpostDns {
 
 export default UnderpostDns;
 
-export { Dns, isInternetConnection, getLocalIPv4Address };
+export { Dns, isInternetConnection, getLocalIPv4Address, UnderpostDns };
