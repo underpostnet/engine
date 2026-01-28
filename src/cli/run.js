@@ -1402,10 +1402,15 @@ EOF
      * @memberof UnderpostRun
      */
     ps: async (path = '', options = DEFAULT_OPTION) => {
-      const out = shellExec(`ps aux${path ? `| grep '${path}' | grep -v grep` : ''}`, {
-        stdout: true,
-        silent: true,
-      });
+      const out = shellExec(
+        path.startsWith('top-consumers')
+          ? `ps -eo pid,%cpu,%mem,rss,cmd --sort=-%cpu | head -n ${path.split('top-consumers')[1] || 15}`
+          : `ps aux${path ? `| grep '${path}' | grep -v grep` : ''}`,
+        {
+          stdout: true,
+          silent: true,
+        },
+      );
       console.log(path ? out.replaceAll(path, path.bgYellow.black.bold) : out);
     },
 
