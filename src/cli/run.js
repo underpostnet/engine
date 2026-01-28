@@ -1404,14 +1404,19 @@ EOF
     ps: async (path = '', options = DEFAULT_OPTION) => {
       const out = shellExec(
         path.startsWith('top-consumers')
-          ? `ps -eo pid,%cpu,%mem,rss,cmd --sort=-%cpu | head -n ${path.split('top-consumers')[1] || 15}`
-          : `ps aux${path ? `| grep '${path}' | grep -v grep` : ''}`,
+          ? `ps -eo pid,%cpu,%mem,rss,cmd --sort=-%cpu | head -n ${path.split(',')[1] || 15}`
+          : path
+            ? `(ps -eo pid,%cpu,%mem,rss,cmd -ww | head -n1; ps -eo pid,%cpu,%mem,rss,cmd -ww | tail -n +2 | grep -F ${path})`
+            : `ps -eo pid,%cpu,%mem,rss,cmd -ww`,
         {
           stdout: true,
           silent: true,
         },
       );
-      console.log(path ? out.replaceAll(path, path.bgYellow.black.bold) : out);
+
+      console.log(
+        path ? out.replaceAll(path.split(',')[2] || path, (path.split(',')[2] || path).bgYellow.black.bold) : out,
+      );
     },
 
     /**
