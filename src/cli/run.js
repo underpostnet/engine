@@ -443,6 +443,16 @@ class UnderpostRun {
       } else shellExec(`node ${underpostRoot}/bin/zed ${path}`);
     },
     /**
+     * @method crypto-policy
+     * @description Sets the system's crypto policies to `DEFAULT:SHA1` using `update-crypto-policies` command.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'crypto-policy': (path, options = DEFAULT_OPTION) => {
+      shellExec(`sudo update-crypto-policies --set DEFAULT:SHA1`);
+    },
+    /**
      * @method sync
      * @description Cleans up, and then runs a deployment synchronization command (`underpost deploy --kubeadm --build-manifest --sync...`) using parameters parsed from `path` (deployId, replicas, versions, image, node).
      * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated string containing deploy parameters).
