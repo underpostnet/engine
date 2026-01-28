@@ -319,7 +319,7 @@ EOF
         }
         shellExec(`kubectl delete statefulset valkey-service -n ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey -n ${options.namespace}`);
-        await Underpost.test.statusMonitor('valkey-service', 'Running', 'pods', 1000, 60);
+        await Underpost.test.statusMonitor('valkey-service', 'Running', 'pods', 1000, 60 * 10);
       }
       if (options.full === true || options.mariadb === true) {
         shellExec(
