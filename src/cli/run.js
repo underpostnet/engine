@@ -1165,7 +1165,7 @@ EOF
       if (!validVersion) throw new Error('Version mismatch');
       const currentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
       const targetTraffic = currentTraffic === 'blue' ? 'green' : 'blue';
-      const env = 'production';
+      const env = options.dev ? 'development' : 'production';
       const ignorePods = Underpost.deploy
         .get(`${deployId}-${env}-${targetTraffic}`, 'pods', options.namespace)
         .map((p) => p.NAME);
