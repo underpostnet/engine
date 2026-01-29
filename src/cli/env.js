@@ -25,15 +25,30 @@ class UnderpostRootEnv {
      * @description Sets an environment variable in the underpost root environment.
      * @param {string} key - The key of the environment variable to set.
      * @param {string} value - The value of the environment variable to set.
+     * @param {object} options - Options for setting the environment variable.
+     * @param {string} [options.deployId=''] - Deployment ID associated with the environment variable.
+     * @param {boolean} [options.build=false] - If true, triggers a build after setting the environment variable.
      * @memberof UnderpostEnv
      */
-    set(key, value) {
+    set(key, value, options = { deployId: '', build: false }) {
+      const _set = (envPath, key, value) => {
+        let env = {};
+        if (fs.existsSync(envPath)) env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+        env[key] = value;
+        writeEnv(envPath, env);
+      };
+      if (options.build) {
+        const deployIdList = options.deployId
+          ? [options.deployId]
+          : fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',');
+        for (const deployId of deployIdList)
+          for (const envFile of ['test', 'development', 'production'])
+            _set(`./engine-private/conf/${deployId}/.env.${envFile}`, key, value);
+        return;
+      }
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
-      let env = {};
-      if (fs.existsSync(envPath)) env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-      env[key] = value;
-      writeEnv(envPath, env);
+      _set(envPath, key, value);
     },
     /**
      * @method delete

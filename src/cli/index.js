@@ -163,6 +163,8 @@ program
   .argument('[value]', 'Optional: The value to set for the configuration key.')
   .option('--plain', 'Prints the configuration value in plain text.')
   .option('--filter <keyword>', 'Filters the list by matching key or value (only for list operation).')
+  .option('--deploy-id <deploy-id>', 'Sets the deployment configuration ID for the operation context.')
+  .option('--build', 'Sets the build context for the operation.')
   .description(`Manages Underpost configurations using various operators.`)
   .action((...args) => Underpost.env[args[0]](args[1], args[2], args[3]));
 
