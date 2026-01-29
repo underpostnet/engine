@@ -559,19 +559,6 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    /**
-     * @method ssh-deploy-stop
-     * @description Stops a remote deployment via SSH by executing the appropriate Underpost command on the remote server.
-     * @param {string} path - The input value, identifier, or path for the operation (used to determine which traffic to stop).
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @param {string} options.deployId - The deployment identifier
-     * @param {string} options.user - The SSH user for credential lookup
-     * @param {boolean} options.dev - Development mode flag
-     * @param {string} [options.instanceId] - Optional instance identifier
-     * @param {string} [options.namespace] - Kubernetes namespace
-     * @param {string} [options.hosts] - Target hosts specification
-     * @memberof UnderpostRun
-     */
     'ssh-deploy-stop': async (path, options = DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
@@ -593,7 +580,7 @@ class UnderpostRun {
     },
 
     /**
-     * @method ssh-deploy-db-roollback
+     * @method ssh-deploy-db-rollback
      * @description Performs a database rollback on remote deployment via SSH.
      * @param {string} path - Comma-separated deployId and optional number of commits to reset (format: "deployId,nCommits")
      * @param {Object} options - The default underpost runner options for customizing workflow
@@ -602,12 +589,12 @@ class UnderpostRun {
      * @param {boolean} options.dev - Development mode flag
      * @memberof UnderpostRun
      */
-    'ssh-deploy-db-roollback': async (path = '', options = DEFAULT_OPTION) => {
+    'ssh-deploy-db-rollback': async (path = '', options = DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       let [deployId, nCommitsReset] = path.split(',');
       if (!nCommitsReset) nCommitsReset = 1;
 
-      const remoteCommand = `${baseCommand} db ${deployId} --git --kubeadm --primary-pod --force-clone --macro-rollback-export ${nCommitsReset}`;
+      const remoteCommand = `${baseCommand} db ${deployId} --git --kubeadm --primary-pod --force-clone --macro-rollback-export ${nCommitsReset}${options.namespace ? ` --ns ${options.namespace}` : ''}`;
 
       await Underpost.ssh.sshRemoteRunner(remoteCommand, {
         deployId: options.deployId,
@@ -632,7 +619,7 @@ class UnderpostRun {
     'ssh-deploy-db': async (path, options = DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
 
-      const remoteCommand = `${baseCommand} db ${path} --import --drop --preserveUUID --git --kubeadm --primary-pod --force-clone`;
+      const remoteCommand = `${baseCommand} db ${path} --import --drop --preserveUUID --git --kubeadm --primary-pod --force-clone${options.namespace ? ` --ns ${options.namespace}` : ''}`;
 
       await Underpost.ssh.sshRemoteRunner(remoteCommand, {
         deployId: options.deployId,
@@ -642,6 +629,52 @@ class UnderpostRun {
         useSudo: true,
         cd: '/home/dd/engine',
       });
+    },
+
+    /**
+     * @method ssh-deploy-db-status
+     * @description Retrieves database status/stats for a deployment (or all deployments from dd.router) via SSH.
+     * @param {string} path - Comma-separated deployId(s) or 'dd' to use the dd.router list.
+     * @param {Object} options - Runner options (uses options.deployId for SSH host lookup).
+     * @param {string} options.deployId - Deployment identifier used for SSH config lookup.
+     * @param {string} options.user - SSH user for credential lookup.
+     * @param {boolean} options.dev - Development mode flag.
+     * @param {string} [options.namespace] - Kubernetes namespace to pass to the db check.
+     * @memberof UnderpostRun
+     */
+    'ssh-deploy-db-status': async (path = '', options = DEFAULT_OPTION) => {
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
+
+      let deployList = [];
+      if (!path || path === 'dd') {
+        if (!fs.existsSync('./engine-private/deploy/dd.router')) {
+          logger.warn('dd.router not found; nothing to run');
+          return;
+        }
+        deployList = fs
+          .readFileSync('./engine-private/deploy/dd.router', 'utf8')
+          .split(',')
+          .map((d) => d.trim())
+          .filter(Boolean);
+      } else {
+        deployList = path
+          .split(',')
+          .map((d) => d.trim())
+          .filter(Boolean);
+      }
+
+      for (const deployId of deployList) {
+        const remoteCommand = `${baseCommand} db ${deployId} --stats --kubeadm --primary-pod${options.namespace ? ` --ns ${options.namespace}` : ''}`;
+
+        await Underpost.ssh.sshRemoteRunner(remoteCommand, {
+          deployId: options.deployId,
+          user: options.user,
+          dev: options.dev,
+          remote: true,
+          useSudo: true,
+          cd: '/home/dd/engine',
+        });
+      }
     },
 
     /**
@@ -1201,7 +1234,9 @@ EOF
       }
       await timer(5000);
       for (const deployId of deployList) {
-        shellExec(`${baseCommand} db ${deployId} --import --git --drop --preserveUUID --primary-pod`);
+        shellExec(
+          `${baseCommand} db ${deployId} --import --git --drop --preserveUUID --primary-pod${options.namespace ? ` --ns ${options.namespace}` : ''}`,
+        );
       }
       await timer(5000);
       shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType} --pull-image --valkey`);
@@ -1215,7 +1250,7 @@ EOF
         shellExec(
           `${baseCommand} deploy ${deployId} ${env} --${clusterType}${env === 'production' ? ' --cert' : ''}${
             env === 'development' ? ' --etc-hosts' : ''
-          }`,
+          }${options.namespace ? ` --namespace ${options.namespace}` : ''}`,
         );
       }
     },
