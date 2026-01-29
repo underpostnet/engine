@@ -502,19 +502,19 @@ class UnderpostRun {
       if (targetTraffic) versions = versions ? versions : targetTraffic;
 
       const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
+      const cmdString = options.cmd
+        ? ' --cmd ' + (options.cmd.find((c) => c.match('"')) ? '"' + options.cmd + '"' : "'" + options.cmd + "'")
+        : '';
 
       shellExec(
         `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
           image ? ` --image ${image}` : ''
         }${versions ? ` --versions ${versions}` : ''}${
           options.namespace ? ` --namespace ${options.namespace}` : ''
-        }${timeoutFlags} dd ${env}`,
+        }${timeoutFlags}${cmdString} dd ${env}`,
       );
 
       if (isDeployRunnerContext(path, options)) {
-        const cmdString = options.cmd
-          ? ` --cmd ${options.cmd.find((c) => c.match('"')) ? `"${options.cmd}"` : `'${options.cmd}'`}`
-          : '';
         shellExec(
           `${baseCommand} deploy --kubeadm${cmdString} --replicas ${replicas} --disable-update-proxy ${deployId} ${env} --versions ${versions}${
             options.namespace ? ` --namespace ${options.namespace}` : ''
