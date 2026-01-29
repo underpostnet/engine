@@ -44,7 +44,7 @@ class UnderpostMonitor {
      * @param {string} [options.retryPerTryTimeout=''] - Timeout per retry attempt.
      * @param {boolean} [options.promote=false] - Promote the deployment after monitoring.
      * @param {boolean} [options.readyDeployment=false] - Monitor until the deployment is ready.
-     * @param {string} [options.version=''] - Specific version of the deployment to monitor.
+     * @param {string} [options.versions=''] - Specific version of the deployment to monitor.
      * @param {object} [commanderOptions] - Options passed from the command line interface.
      * @param {object} [auxRouter] - Optional router configuration for the deployment.
      * @memberof UnderpostMonitor
@@ -66,7 +66,7 @@ class UnderpostMonitor {
         retryPerTryTimeout: '',
         promote: false,
         readyDeployment: false,
-        version: '',
+        versions: '',
       },
       commanderOptions,
       auxRouter,
@@ -86,9 +86,13 @@ class UnderpostMonitor {
       }
 
       if (options.readyDeployment) {
-        await Underpost.deploy.monitorReadyRunner(deployId, env, options.version, [], options.namespace, 'underpost');
-        if (options.promote)
-          Underpost.deploy.switchTraffic(deployId, env, options.version, options.replicas, options.namespace, options);
+        for (const version of options.versions.split(',')) {
+          (async () => {
+            await Underpost.deploy.monitorReadyRunner(deployId, env, version, [], options.namespace, 'underpost');
+            if (options.promote)
+              Underpost.deploy.switchTraffic(deployId, env, version, options.replicas, options.namespace, options);
+          })();
+        }
         return;
       }
 

@@ -62,7 +62,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run sync --cron-jobs none --timeout-response 300000ms dd-cyberia,1,,localhost/rockylinux9-underpost:v2.98.3"
   init:
     if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-init-engine-cyberia)')
-    name: Remote SSH sync and deploy
+    name: Remote SSH init deployment
     runs-on: ubuntu-latest
     steps:
       - name: Run remote deploy via SSH
@@ -88,4 +88,4 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --sync --build-manifest --image 'localhost/rockylinux9-underpost:v2.98.3' --timeout-response 300000ms --versions green --replicas 1 --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-file /etc/config/.env.production,underpost start --build --run dd-cyberia production'"
             sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --disable-update-proxy"
-            sudo -n -- /bin/bash -lc "node bin monitor dd-cyberia production --ready-deployment --promote --timeout-response 300000ms --version green --replicas 1"
+            sudo -n -- /bin/bash -lc "node bin monitor dd-cyberia production --ready-deployment --promote --timeout-response 300000ms --versions green --replicas 1"
