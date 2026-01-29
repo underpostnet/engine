@@ -166,7 +166,7 @@ spec:
     spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
-          image: ${image ?? `localhost/rockylinux9-underpost:v${packageJson.version}`}
+          image: ${image ? image : `localhost/rockylinux9-underpost:v${packageJson.version}`}
 ${
   resources
     ? `          resources:
