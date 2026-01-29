@@ -491,7 +491,7 @@ class UnderpostRun {
         ? Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace })
         : '';
       let targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'green';
-      if (targetTraffic) versions = targetTraffic;
+      if (targetTraffic) versions = versions ? versions : targetTraffic;
 
       const timeoutFlags = Underpost.deploy.timeoutFlagsFactory(options);
 
