@@ -1368,6 +1368,25 @@ EOF
     },
 
     /**
+     * @method etc-hosts
+     * @description Generates and logs the contents for the `/etc/hosts` file based on provided hosts or deployment configurations.
+     * @param {string} path - The input value, identifier, or path for the operation (used as a comma-separated list of hosts).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'etc-hosts': async (path = '', options = DEFAULT_OPTION) => {
+      const hosts = path ? path.split(',') : [];
+      if (options.deployId) {
+        const confServer = JSON.parse(
+          fs.readFileSync(`./engine-private/conf/${options.deployId}/conf.server.json`, 'utf8'),
+        );
+        hosts.push(...Object.keys(confServer));
+      }
+      const hostListenResult = Underpost.deploy.etcHostFactory(hosts);
+      logger.info(hostListenResult.renderHosts);
+    },
+
+    /**
      * @method sh
      * @description Enables remote control for the Kitty terminal emulator.
      * @param {string} path - The input value, identifier, or path for the operation.
