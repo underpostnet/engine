@@ -275,6 +275,49 @@ const ObjectLayerService = {
       if (!objectLayer) {
         throw new Error('ObjectLayer not found');
       }
+
+      // If object layer references an atlas sprite sheet, validate that the atlas and its file actually exist.
+      // If the atlas or its file is missing, clear the reference so the UI can offer to generate a new atlas.
+      if (objectLayer.atlasSpriteSheetId) {
+        try {
+          const AtlasSpriteSheet =
+            DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.AtlasSpriteSheet;
+          const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+
+          const atlasDoc = await AtlasSpriteSheet.findById(objectLayer.atlasSpriteSheetId);
+
+          // If the atlas doc is gone, clear the reference
+          if (!atlasDoc) {
+            logger.warn(
+              `ObjectLayer ${objectLayer._id} referenced missing AtlasSpriteSheet ${objectLayer.atlasSpriteSheetId} - clearing reference`,
+            );
+            objectLayer.atlasSpriteSheetId = undefined;
+            await objectLayer.save();
+          } else if (!atlasDoc.fileId) {
+            // Atlas exists but has no fileId - remove atlas and clear reference
+            logger.warn(
+              `AtlasSpriteSheet ${atlasDoc._id} has no fileId - deleting atlas and clearing ObjectLayer reference`,
+            );
+            await AtlasSpriteSheet.findByIdAndDelete(atlasDoc._id);
+            objectLayer.atlasSpriteSheetId = undefined;
+            await objectLayer.save();
+          } else {
+            // Atlas has a fileId - verify the File exists
+            const fileDoc = await File.findById(atlasDoc.fileId);
+            if (!fileDoc) {
+              logger.warn(
+                `AtlasSpriteSheet ${atlasDoc._id} references missing File ${atlasDoc.fileId} - deleting atlas and clearing reference on ObjectLayer ${objectLayer._id}`,
+              );
+              await AtlasSpriteSheet.findByIdAndDelete(atlasDoc._id);
+              objectLayer.atlasSpriteSheetId = undefined;
+              await objectLayer.save();
+            }
+          }
+        } catch (err) {
+          logger.warn('Error validating atlas sprite sheet reference:', err);
+        }
+      }
+
       return objectLayer;
     }
 
