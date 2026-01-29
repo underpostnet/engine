@@ -18,13 +18,13 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-blue
-          image: localhost/rockylinux9-underpost:v2.98.3
+          image: localhost/rockylinux9-underpost:v2.99.0
 
           command:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && node bin secret underpost --create-from-file /etc/config/.env.development && node bin start --build --run dd-cyberia development
+              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run --underpost-quickly-install dd-cyberia development
 
     
           volumeMounts:
@@ -156,13 +156,13 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-green
-          image: localhost/rockylinux9-underpost:v2.98.3
+          image: localhost/rockylinux9-underpost:v2.99.0
 
           command:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && node bin secret underpost --create-from-file /etc/config/.env.development && node bin start --build --run dd-cyberia development
+              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run --underpost-quickly-install dd-cyberia development
 
     
           volumeMounts:

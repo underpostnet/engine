@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.98.3
+## underpost ci/cd cli v2.99.0
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -25,7 +25,6 @@ Commands:
   install                                                                                                        Quickly imports Underpost npm dependencies by copying them.
   db [options] [deploy-list]                                                                                     Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.
   metadata [options] [deploy-id] [host] [path]                                                                   Manages cluster metadata operations, including import and export.
-  script [options] <operator> <script-name> [script-value]                                                       Supports a variety of built-in Underpost global scripts, their preset lifecycle events, and arbitrary custom scripts.
   cron [options] [deploy-list] [job-list]                                                                        Manages cron jobs, including initialization, execution, and configuration updates.
   fs [options] [path]                                                                                            Manages file storage, defaulting to file upload operations.
   test [options] [deploy-list]                                                                                   Manages and runs tests, defaulting to the current Underpost default test suite.
@@ -274,16 +273,20 @@ Options:
 Manages Underpost configurations using various operators.
 
 Arguments:
-  operator            The configuration operation to perform. Options: set,
-                      delete, get, list, clean.
-  key                 Optional: The specific configuration key to manage.
-  value               Optional: The value to set for the configuration key.
+  operator                 The configuration operation to perform. Options:
+                           set, delete, get, list, clean.
+  key                      Optional: The specific configuration key to manage.
+  value                    Optional: The value to set for the configuration
+                           key.
 
 Options:
-  --plain             Prints the configuration value in plain text.
-  --filter <keyword>  Filters the list by matching key or value (only for list
-                      operation).
-  -h, --help          display help for command
+  --plain                  Prints the configuration value in plain text.
+  --filter <keyword>       Filters the list by matching key or value (only for
+                           list operation).
+  --deploy-id <deploy-id>  Sets the deployment configuration ID for the
+                           operation context.
+  --build                  Sets the build context for the operation.
+  -h, --help               display help for command
  
 ```
   
@@ -417,65 +420,69 @@ Options:
 Manages application deployments, defaulting to deploying development pods.
 
 Arguments:
-  deploy-list                        A comma-separated list of deployment IDs
-                                     (e.g., "default-a,default-b").
-  env                                Optional: The environment for deployment
-                                     (e.g., "development", "production").
-                                     Defaults to "development".
+  deploy-list                         A comma-separated list of deployment IDs
+                                      (e.g., "default-a,default-b").
+  env                                 Optional: The environment for deployment
+                                      (e.g., "development", "production").
+                                      Defaults to "development".
 
 Options:
-  --remove                           Deletes specified deployments and their
-                                     associated services.
-  --sync                             Synchronizes deployment environment
-                                     variables, ports, and replica counts.
-  --info-router                      Displays the current router structure and
-                                     configuration.
-  --expose                           Exposes services matching the provided
-                                     deployment ID list.
-  --cert                             Resets TLS/SSL certificate secrets for
-                                     deployments.
-  --cert-hosts <hosts>               Resets TLS/SSL certificate secrets for
-                                     specified hosts.
-  --node <node>                      Sets optional node for deployment
-                                     operations.
-  --build-manifest                   Builds Kubernetes YAML manifests,
-                                     including deployments, services, proxies,
-                                     and secrets.
-  --replicas <replicas>              Sets a custom number of replicas for
-                                     deployments.
-  --image <image>                    Sets a custom image for deployments.
-  --versions <deployment-versions>   A comma-separated list of custom
-                                     deployment versions.
-  --traffic <traffic-versions>       A comma-separated list of custom
-                                     deployment traffic weights.
-  --disable-update-deployment        Disables updates to deployments.
-  --disable-update-proxy             Disables updates to proxies.
-  --disable-deployment-proxy         Disables proxies of deployments.
-  --disable-update-volume            Disables updates to volume mounts during
-                                     deployment.
-  --status                           Retrieves current network traffic data
-                                     from resource deployments and the host
-                                     machine network configuration.
-  --kubeadm                          Enables the kubeadm context for deployment
-                                     operations.
-  --etc-hosts                        Enables the etc-hosts context for
-                                     deployment operations.
-  --restore-hosts                    Restores default `/etc/hosts` entries.
-  --disable-update-underpost-config  Disables updates to Underpost
-                                     configuration during deployment.
-  --namespace <namespace>            Kubernetes namespace for deployment
-                                     operations (defaults to "default").
-  --kind-type <kind-type>            Specifies the Kind cluster type for
-                                     deployment operations.
-  --port <port>                      Sets up port forwarding from local to
-                                     remote ports.
-  --cmd <cmd>                        Custom initialization command for
-                                     deployment (comma-separated commands).
-  --timeout-response <duration>      Sets HTTPProxy per-route response timeout (e.g., "1s", "300ms", "infinity").
-  --timeout-idle <duration>          Sets HTTPProxy per-route idle timeout (e.g., "10s", "infinity").
-  --retry-count <count>              Sets HTTPProxy per-route retry count (integer).
-  --retry-per-try-timeout <duration> Sets HTTPProxy per-route retry per-try timeout (e.g., "150ms").
-  -h, --help                         display help for command
+  --remove                            Deletes specified deployments and their
+                                      associated services.
+  --sync                              Synchronizes deployment environment
+                                      variables, ports, and replica counts.
+  --info-router                       Displays the current router structure and
+                                      configuration.
+  --expose                            Exposes services matching the provided
+                                      deployment ID list.
+  --cert                              Resets TLS/SSL certificate secrets for
+                                      deployments.
+  --cert-hosts <hosts>                Resets TLS/SSL certificate secrets for
+                                      specified hosts.
+  --node <node>                       Sets optional node for deployment
+                                      operations.
+  --build-manifest                    Builds Kubernetes YAML manifests,
+                                      including deployments, services, proxies,
+                                      and secrets.
+  --replicas <replicas>               Sets a custom number of replicas for
+                                      deployments.
+  --image <image>                     Sets a custom image for deployments.
+  --versions <deployment-versions>    A comma-separated list of custom
+                                      deployment versions.
+  --traffic <traffic-versions>        A comma-separated list of custom
+                                      deployment traffic weights.
+  --timeout-response <duration>       Sets HTTPProxy per-route response timeout
+                                      (e.g., "1s", "300ms", "infinity").
+  --timeout-idle <duration>           Sets HTTPProxy per-route idle timeout
+                                      (e.g., "10s", "infinity").
+  --retry-count <count>               Sets HTTPProxy per-route retry count
+                                      (e.g., 3).
+  --retry-per-try-timeout <duration>  Sets HTTPProxy retry per-try timeout
+                                      (e.g., "150ms").
+  --disable-update-deployment         Disables updates to deployments.
+  --disable-update-proxy              Disables updates to proxies.
+  --disable-deployment-proxy          Disables proxies of deployments.
+  --disable-update-volume             Disables updates to volume mounts during
+                                      deployment.
+  --status                            Retrieves current network traffic data
+                                      from resource deployments and the host
+                                      machine network configuration.
+  --kubeadm                           Enables the kubeadm context for
+                                      deployment operations.
+  --etc-hosts                         Enables the etc-hosts context for
+                                      deployment operations.
+  --restore-hosts                     Restores default `/etc/hosts` entries.
+  --disable-update-underpost-config   Disables updates to Underpost
+                                      configuration during deployment.
+  --namespace <namespace>             Kubernetes namespace for deployment
+                                      operations (defaults to "default").
+  --kind-type <kind-type>             Specifies the Kind cluster type for
+                                      deployment operations.
+  --port <port>                       Sets up port forwarding from local to
+                                      remote ports.
+  --cmd <cmd>                         Custom initialization command for
+                                      deployment (comma-separated commands).
+  -h, --help                          display help for command
  
 ```
   
@@ -627,32 +634,6 @@ Options:
 ```
   
 
-### `script` :
-```
- Usage: underpost script [options] <operator> <script-name> [script-value]
-
-Supports a variety of built-in Underpost global scripts, their preset lifecycle
-events, and arbitrary custom scripts.
-
-Arguments:
-  operator               The script operation to perform. Options: set, run,
-                         get.
-  script-name            The name of the script to execute.
-  script-value           Optional: A literal command or a path to a script
-                         file.
-
-Options:
-  --itc                  Executes the script within the container execution
-                         context.
-  --itc-path             Specifies container path options for script execution.
-  --ns <ns-name>         Optional: Specifies the namespace context for script
-                         execution.
-  --pod-name <pod-name>  Optional: Specifies the pod name for script execution.
-  -h, --help             display help for command
- 
-```
-  
-
 ### `cron` :
 ```
  Usage: underpost cron [options] [deploy-list] [job-list]
@@ -664,9 +645,7 @@ Arguments:
   deploy-list               A comma-separated list of deployment IDs (e.g.,
                             "default-a,default-b").
   job-list                  A comma-separated list of job IDs. Options:
-                            callback, initCronJobs, updatePackageScripts,
-                            getRelatedDeployIdList. Defaults to all available
-                            jobs.
+                            dns,backup. Defaults to all available jobs.
 
 Options:
   --init-pm2-cronjobs       Initializes PM2 cron jobs from configuration for
@@ -734,25 +713,36 @@ Options:
 Manages health server monitoring for specified deployments.
 
 Arguments:
-  deploy-id                    The deployment configuration ID to monitor.
-  env                          Optional: The environment to monitor (e.g.,
-                               "development", "production"). Defaults to
-                               "development".
+  deploy-id                           The deployment configuration ID to
+                                      monitor.
+  env                                 Optional: The environment to monitor
+                                      (e.g., "development", "production").
+                                      Defaults to "development".
 
 Options:
-  --ms-interval <ms-interval>  Sets a custom millisecond interval for
-                               monitoring checks.
-  --now                        Executes the monitor script immediately.
-  --single                     Disables recurrence, running the monitor script
-                               only once.
-  --replicas <replicas>        Sets a custom number of replicas for monitoring.
-                               Defaults to 1.
-  --type <type>                Sets a custom monitor type.
-  --sync                       Synchronizes with current proxy deployments and
-                               traffic configurations.
-  --namespace <namespace>      Sets the Kubernetes namespace for the
-                               deployment. Defaults to "default".
-  -h, --help                   display help for command
+  --ms-interval <ms-interval>         Sets a custom millisecond interval for
+                                      monitoring checks.
+  --now                               Executes the monitor script immediately.
+  --single                            Disables recurrence, running the monitor
+                                      script only once.
+  --replicas <replicas>               Sets a custom number of replicas for
+                                      monitoring. Defaults to 1.
+  --type <type>                       Sets a custom monitor type.
+  --sync                              Synchronizes with current proxy
+                                      deployments and traffic configurations.
+  --namespace <namespace>             Sets the Kubernetes namespace for the
+                                      deployment. Defaults to "default".
+  --timeout-response <duration>       Sets HTTPProxy per-route response timeout
+                                      (e.g., "5s").
+  --timeout-idle <duration>           Sets HTTPProxy per-route idle timeout
+                                      (e.g., "10s", "infinity").
+  --retry-count <count>               Sets HTTPProxy per-route retry count
+                                      (e.g., 3).
+  --retry-per-try-timeout <duration>  Sets HTTPProxy retry per-try timeout
+                                      (e.g., "150ms").
+  --disable-private-conf-update       Disables updates to private configuration
+                                      during execution.
+  -h, --help                          display help for command
  
 ```
   
@@ -806,7 +796,7 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: dev-cluster, metadata, svc-ls, svc-rm, ssh-cluster-info, dev-hosts-expose, dev-hosts-restore, cluster-build, template-deploy, template-deploy-image, clean, pull, release-deploy, ssh-deploy, ide, sync, stop, ssh-deploy-stop, tz, cron, get-proxy, instance-promote, instance, ls-deployments, host-update, dd-container, ip-info, monitor, db-client, git-conf, promote, metrics, cluster, deploy, disk-clean, disk-usage, dev, service, sh, log, ps, ptls, release-cmt, deploy-test, sync-replica, tf-vae-test, spark-template, rmi, kill, secret, underpost-config, gpu-env, tf-gpu-test, deploy-job.
+  runner-id                                       The runner ID to run. Options: dev-cluster,metadata,svc-ls,svc-rm,ssh-cluster-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,tz,cron,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,monitor,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-usage,dev,service,etc-hosts,sh,log,ps,ptls,release-cmt,deploy-test,sync-replica,tf-vae-test,spark-template,rmi,kill,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
   path                                            The input value, identifier, or path for the operation.
 
 Options:
@@ -859,6 +849,11 @@ Options:
   --hosts <hosts>                                 Comma-separated list of hosts for the runner execution.
   --instance-id <instance-id>                     Sets instance id context for the runner execution.
   --pid <process-id>                              Sets process id context for the runner execution.
+  --timeout-response <duration>                   Sets HTTPProxy per-route response timeout (e.g., "1s", "300ms", "infinity").
+  --timeout-idle <duration>                       Sets HTTPProxy per-route idle timeout (e.g., "10s", "infinity").
+  --retry-count <count>                           Sets HTTPProxy per-route retry count (e.g., 3).
+  --retry-per-try-timeout <duration>              Sets HTTPProxy retry per-try timeout (e.g., "150ms").
+  --disable-private-conf-update                   Disables updates to private configuration during execution.
   -h, --help                                      display help for command
  
 ```
