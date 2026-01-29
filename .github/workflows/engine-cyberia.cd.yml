@@ -59,7 +59,7 @@ jobs:
             echo "Starting remote sync and deploy"
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
-            sudo -n -- /bin/bash -lc "node bin run sync --cron-jobs none --timeout-response 300000ms dd-cyberia,1,,localhost/rockylinux9-underpost:v2.98.3"
+            sudo -n -- /bin/bash -lc "node bin run sync --cron-jobs none --timeout-response 300000ms dd-cyberia,1,,localhost/rockylinux9-underpost:v2.98.3 --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-file /etc/config/.env.production,underpost start --build --run dd-cyberia production'"
   init:
     if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-init-engine-cyberia)')
     name: Remote SSH init deployment
