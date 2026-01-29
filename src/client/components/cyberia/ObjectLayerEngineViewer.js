@@ -755,14 +755,23 @@ const ObjectLayerEngineViewer = {
                       ${this.Data.atlasSpriteSheet
                         ? html`
                         <div class="atlas-preview-container">
-                          <div class="atlas-img-wrapper">
-                            <img
-                              src="${getProxyPath()}api/file/blob/${
-                                this.Data.atlasSpriteSheet.fileId._id || this.Data.atlasSpriteSheet.fileId
-                              }"
-                              class="in atlas-img-preview"
-                            />
-                          </div>
+                          ${
+                            this.Data.atlasSpriteSheet.fileId
+                              ? html`
+                                  <div class="atlas-img-wrapper">
+                                    <img
+                                      src="${getProxyPath()}api/file/blob/${this.Data.atlasSpriteSheet.fileId._id ||
+                                      this.Data.atlasSpriteSheet.fileId}"
+                                      class="in atlas-img-preview"
+                                    />
+                                  </div>
+                                `
+                              : html`
+                                  <div class="atlas-img-wrapper">
+                                    <div class="atlas-img-placeholder">Atlas image not available</div>
+                                  </div>
+                                `
+                          }
                           <div class="atlas-metadata-grid">
                             <div>
                               <p style="padding: 2px"><strong class="item-data-key-label">ID:</strong></p>
@@ -959,7 +968,18 @@ const ObjectLayerEngineViewer = {
     const downloadAtlasPngBtn = s('#download-atlas-png-btn');
     if (downloadAtlasPngBtn) {
       downloadAtlasPngBtn.addEventListener('click', () => {
-        const url = `${getProxyPath()}api/file/blob/${this.Data.atlasSpriteSheet.fileId._id || this.Data.atlasSpriteSheet.fileId}`;
+        const fileId =
+          this.Data && this.Data.atlasSpriteSheet && this.Data.atlasSpriteSheet.fileId
+            ? this.Data.atlasSpriteSheet.fileId._id || this.Data.atlasSpriteSheet.fileId
+            : null;
+        if (!fileId) {
+          NotificationManager.Push({
+            html: 'Atlas PNG file is missing. Please generate the atlas first.',
+            status: 'error',
+          });
+          return;
+        }
+        const url = `${getProxyPath()}api/file/blob/${fileId}`;
         const a = document.createElement('a');
         a.href = url;
         a.download = `${this.Data.atlasSpriteSheet.metadata.itemKey}-atlas.png`;
