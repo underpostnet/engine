@@ -349,7 +349,12 @@ const cookieOptionsFactory = (req, host) => {
     secure,
     sameSite,
     path: '/',
-    domain: process.env.NODE_ENV === 'production' || isDevProxyContext() ? host : 'localhost',
+    domain:
+      process.env.NODE_ENV === 'production' ||
+      isDevProxyContext() ||
+      (req.headers.host && req.headers.host.toLocaleLowerCase().match(host))
+        ? host
+        : 'localhost',
     maxAge,
   };
 
