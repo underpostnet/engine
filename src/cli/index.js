@@ -456,6 +456,9 @@ program
   .option('--retry-count <count>', 'Sets HTTPProxy per-route retry count (e.g., 3).')
   .option('--retry-per-try-timeout <duration>', 'Sets HTTPProxy retry per-try timeout (e.g., "150ms").')
   .option('--disable-private-conf-update', 'Disables updates to private configuration during execution.')
+  .option('--version <version>', 'Specifies the deployment version to monitor. eg. "blue", "green"')
+  .option('--ready-deployment', 'Run in ready deployment monitor mode.')
+  .option('--promote', 'Promotes the deployment after monitoring.')
   .description('Manages health server monitoring for specified deployments.')
   .action(Underpost.monitor.callback);
 

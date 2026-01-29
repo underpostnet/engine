@@ -42,6 +42,9 @@ class UnderpostMonitor {
      * @param {string} [options.timeoutIdle=''] - Timeout for idle connections.
      * @param {string} [options.retryCount=''] - Number of retry attempts for health checks.
      * @param {string} [options.retryPerTryTimeout=''] - Timeout per retry attempt.
+     * @param {boolean} [options.promote=false] - Promote the deployment after monitoring.
+     * @param {boolean} [options.readyDeployment=false] - Monitor until the deployment is ready.
+     * @param {string} [options.version=''] - Specific version of the deployment to monitor.
      * @param {object} [commanderOptions] - Options passed from the command line interface.
      * @param {object} [auxRouter] - Optional router configuration for the deployment.
      * @memberof UnderpostMonitor
@@ -61,6 +64,9 @@ class UnderpostMonitor {
         timeoutIdle: '',
         retryCount: '',
         retryPerTryTimeout: '',
+        promote: false,
+        readyDeployment: false,
+        version: '',
       },
       commanderOptions,
       auxRouter,
@@ -76,6 +82,13 @@ class UnderpostMonitor {
             commanderOptions,
             await Underpost.deploy.routerFactory(_deployId, env),
           );
+        return;
+      }
+
+      if (options.readyDeployment) {
+        await Underpost.deploy.monitorReadyRunner(deployId, env, options.version, [], options.namespace, 'underpost');
+        if (options.promote)
+          Underpost.deploy.switchTraffic(deployId, env, options.version, options.replicas, options.namespace, options);
         return;
       }
 

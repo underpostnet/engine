@@ -60,3 +60,32 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "node bin run sync --cron-jobs none --timeout-response 300000ms dd-cyberia,1,,localhost/rockylinux9-underpost:v2.98.3"
+  init:
+    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-init-engine-cyberia)')
+    name: Remote SSH sync and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run remote deploy via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          # Remote host (secret)
+          host: ${{ secrets.SSH_HOST }}
+          # Remote user (secret)
+          username: ${{ secrets.SSH_USERNAME }}
+          # Private key (secret) — the PEM contents (not a path)
+          key: ${{ secrets.SSH_PRIV_KEY }}
+          # Remote port (optional)
+          port: ${{ secrets.SSH_PORT }}
+          # Optional: increase timeout for long-running commands
+          command_timeout: 60m
+          # Optional: if your private key has a passphrase, add:
+          # passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
+          # Commands to run on the remote VM
+          script: |
+            set -e
+            echo "Starting init deploy"
+            cd /home/dd/engine
+            sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --sync --build-manifest --image 'localhost/rockylinux9-underpost:v2.98.3' --timeout-response 300000ms --versions green --replicas 1 --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-file /etc/config/.env.production,underpost start --build --run dd-cyberia production'"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --disable-update-proxy"
+            sudo -n -- /bin/bash -lc "node bin monitor dd-cyberia production --ready-deployment --promote --timeout-response 300000ms --version green --replicas 1"
