@@ -60,3 +60,32 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "node bin run sync --cron-jobs none dd-test,1,,localhost/rockylinux9-underpost:v2.98.3"
+  init:
+    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-init-engine-test)')
+    name: Remote SSH init deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run remote deploy via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          # Remote host (secret)
+          host: ${{ secrets.SSH_HOST }}
+          # Remote user (secret)
+          username: ${{ secrets.SSH_USERNAME }}
+          # Private key (secret) — the PEM contents (not a path)
+          key: ${{ secrets.SSH_PRIV_KEY }}
+          # Remote port (optional)
+          port: ${{ secrets.SSH_PORT }}
+          # Optional: increase timeout for long-running commands
+          command_timeout: 60m
+          # Optional: if your private key has a passphrase, add:
+          # passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
+          # Commands to run on the remote VM
+          script: |
+            set -e
+            echo "Starting init deploy"
+            cd /home/dd/engine
+            sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --sync --build-manifest --image 'localhost/rockylinux9-underpost:v2.98.3' --versions green --replicas 1"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --disable-update-proxy"
+            sudo -n -- /bin/bash -lc "node bin monitor dd-test production --ready-deployment --promote --versions green --replicas 1"
