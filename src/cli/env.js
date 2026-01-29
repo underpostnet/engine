@@ -27,7 +27,7 @@ class UnderpostRootEnv {
      * @param {string} value - The value of the environment variable to set.
      * @param {object} options - Options for setting the environment variable.
      * @param {string} [options.deployId=''] - Deployment ID associated with the environment variable.
-     * @param {boolean} [options.build=false] - If true, triggers a build after setting the environment variable.
+     * @param {boolean} [options.build=false] - If true, sets the environment variable using custom --deploy-id or all dd.router deploy ids configured.
      * @memberof UnderpostEnv
      */
     set(key, value, options = { deployId: '', build: false }) {
