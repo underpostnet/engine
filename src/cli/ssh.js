@@ -497,6 +497,55 @@ EOF`);
     },
 
     /**
+     * Generic SSH remote command runner that centralizes SSH execution logic.
+     * Executes arbitrary shell commands on a remote server via SSH with proper credential handling.
+     * @async
+     * @function sshRemoteRunner
+     * @param {string} remoteCommand - The command to execute on the remote server
+     * @param {Object} options - Configuration options for SSH execution
+     * @param {string} [options.deployId] - Deployment ID for credential lookup
+     * @param {string} [options.user] - SSH user for credential lookup
+     * @param {boolean} [options.dev=false] - Development mode flag
+     * @param {string} [options.cd='/home/dd/engine'] - Working directory on remote server
+     * @param {boolean} [options.useSudo=true] - Whether to use sudo for command execution
+     * @param {boolean} [options.remote=true] - Whether to execute as remote command (if false, runs locally)
+     * @returns {Promise<string>} Output from the shell execution
+     * @memberof UnderpostSSH
+     */
+    sshRemoteRunner: async (remoteCommand, options = {}) => {
+      const { deployId = '', user = '', dev = false, cd = '/home/dd/engine', useSudo = true, remote = true } = options;
+
+      // If not executing remotely, just run locally
+      if (!remote) {
+        return shellExec(remoteCommand);
+      }
+
+      // Set up SSH credentials from config
+      if (deployId && user) {
+        await Underpost.ssh.setDefautlSshCredentials({ deployId, user });
+      }
+
+      // Build the complete SSH command
+      const sshScript = `#!/usr/bin/env bash
+set -euo pipefail
+
+REMOTE_USER=$(node bin config get --plain DEFAULT_SSH_USER)
+REMOTE_HOST=$(node bin config get --plain DEFAULT_SSH_HOST)
+REMOTE_PORT=$(node bin config get --plain DEFAULT_SSH_PORT)
+SSH_KEY=$(node bin config get --plain DEFAULT_SSH_KEY_PATH)
+
+chmod 600 "$SSH_KEY"
+
+ssh -i "$SSH_KEY" -o BatchMode=yes "$REMOTE_USER@$REMOTE_HOST" -p $REMOTE_PORT sh <<EOF
+${cd ? `cd ${cd}` : ''}
+${useSudo ? `sudo -n -- /bin/bash -lc "${remoteCommand}"` : remoteCommand}
+EOF
+`;
+
+      return shellExec(sshScript, { stdout: true });
+    },
+
+    /**
      * Loads saved SSH credentials from config and sets them in the UnderpostRootEnv API.
      * @async
      * @function setDefautlSshCredentials
