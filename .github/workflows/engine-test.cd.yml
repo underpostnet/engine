@@ -87,5 +87,5 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --sync --build-manifest --image 'localhost/rockylinux9-underpost:v2.98.3' --versions green --replicas 1"
-            sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --disable-update-proxy"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-test production --kubeadm --disable-update-proxy --cert"
             sudo -n -- /bin/bash -lc "node bin monitor dd-test production --ready-deployment --promote --versions green --replicas 1"
