@@ -63,6 +63,7 @@ const DefaultConf = /**/ {
           'Recover',
           'Panel',
           'PanelForm',
+          'Polyhedron',
         ],
         underpost: [
           'MenuUnderpost',
@@ -92,6 +93,7 @@ const DefaultConf = /**/ {
         { path: '/account', client: 'Underpost', ssr: 'Underpost' },
         { path: '/u', client: 'Underpost', ssr: 'Underpost' },
         { path: '/recover', client: 'Underpost', ssr: 'Underpost' },
+        { path: '/polyhedron', client: 'Underpost', ssr: 'Underpost' },
       ],
       dists: [
         {

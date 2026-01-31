@@ -22,6 +22,7 @@ import { PanelForm } from '../core/PanelForm.js';
 import { SearchBox } from '../core/SearchBox.js';
 import { DocumentSearchProvider } from './DocumentSearchProvider.js';
 import { PublicProfile } from '../core/PublicProfile.js';
+import { Polyhedron } from '../core/Polyhedron.js';
 
 const MenuUnderpost = {
   Data: {},
@@ -163,6 +164,18 @@ const MenuUnderpost = {
             tabHref: `${getProxyPath()}recover`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-polyhedron',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-cube"></i>`,
+              text: html`<span class="menu-label-text">Polyhedron</span>`,
+            }),
+            attrs: `data-id="polyhedron"`,
+            tabHref: `${getProxyPath()}polyhedron`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('polyhedron')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-github',
@@ -520,6 +533,36 @@ const MenuUnderpost = {
         }),
         html: async () =>
           await Recover.Render({ idModal: 'modal-recover', user: ElementsUnderpost.Data.user.main.model.user }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-polyhedron`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-polyhedron',
+        route: 'polyhedron',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-cube"></i>`,
+          text: 'Polyhedron',
+        }),
+        html: async () =>
+          await Polyhedron.Render({
+            idModal: 'modal-polyhedron',
+            style: {
+              scene: { background: '#111' },
+              face: {
+                background: 'rgba(255,255,255,.08)',
+                border: '1px solid rgba(255,255,255,.18)',
+                color: '#fff',
+              },
+            },
+          }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
