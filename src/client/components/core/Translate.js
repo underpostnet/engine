@@ -687,6 +687,10 @@ const TranslateCore = {
       en: 'Markdown source copied to clipboard',
       es: 'Fuente de Markdown copiada al portapapeles',
     };
+    Translate.Data['success-clear-filter'] = {
+      en: 'Filter cleared successfully',
+      es: 'Filtro limpiado con éxito',
+    };
   },
 };
 
