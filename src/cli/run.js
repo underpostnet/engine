@@ -1008,86 +1008,6 @@ EOF
     },
 
     /**
-     * @method monitor
-     * @description Monitors a specific pod (identified by `path`) for the existence of a file (`/await`), and performs conditional actions (like file copying and opening Firefox) when the file is removed.
-     * @param {string} path - The input value, identifier, or path for the operation (used as the name of the pod to monitor).
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    monitor: (path, options = DEFAULT_OPTION) => {
-      const pid = getTerminalPid();
-      logger.info('monitor pid', pid);
-      const checkPath = '/await';
-      const _monitor = async () => {
-        const result = Underpost.deploy.existsContainerFile({ podName: path, path: checkPath });
-        logger.info('monitor', result);
-        if (result === true) {
-          switch (path) {
-            case 'tf-vae-test':
-              {
-                const nameSpace = options.namespace;
-                const podName = path;
-                const basePath = '/home/dd';
-                const scriptPath = '/site/en/tutorials/generative/cvae.py';
-                // shellExec(
-                //   `sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${scriptPath} ${basePath}/lab/src/${scriptPath
-                //     .split('/')
-                //     .pop()}`,
-                // );
-                // const file = fs.readFileSync(`${basePath}/lab/src/${scriptPath.split('/').pop()}`, 'utf8');
-                //                 fs.writeFileSync(
-                //                   `${basePath}/lab/src/${scriptPath.split('/').pop()}`,
-                //                   file.replace(
-                //                     `import time`,
-                //                     `import time
-                // print('=== SCRIPT UPDATE TEST ===')`,
-                //                   ),
-                //                   'utf8',
-                //                 );
-                shellExec(
-                  `sudo kubectl cp ${basePath}/lab/src/${scriptPath
-                    .split('/')
-                    .pop()} ${nameSpace}/${podName}:${basePath}/docs${scriptPath}`,
-                );
-                // shellExec(`sudo kubectl exec -i ${podName} -- sh -c "ipython ${basePath}/docs${scriptPath}"`);
-                shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf ${checkPath}"`);
-
-                {
-                  const checkPath = `/latent_space_plot.png`;
-                  const outsPaths = [];
-                  logger.info('monitor', checkPath);
-                  while (!Underpost.deploy.existsContainerFile({ podName, path: `/home/dd/docs${checkPath}` }))
-                    await timer(1000);
-
-                  {
-                    const toPath = `${basePath}/lab${checkPath}`;
-                    outsPaths.push(toPath);
-                    shellExec(`sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${checkPath} ${toPath}`);
-                  }
-
-                  for (let i of range(1, 10)) {
-                    i = `/image_at_epoch_${setPad(i, '0', 4)}.png`;
-                    const toPath = `${basePath}/lab/${i}`;
-                    outsPaths.push(toPath);
-                    shellExec(`sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${i} ${toPath}`);
-                  }
-                  openTerminal(`firefox ${outsPaths.join(' ')}`, { single: true });
-                }
-                shellExec(`sudo kill -9 ${pid}`);
-              }
-              break;
-
-            default:
-              break;
-          }
-          return;
-        }
-        await timer(1000);
-        _monitor();
-      };
-      _monitor();
-    },
-    /**
      * @method db-client
      * @description Deploys and exposes the Adminer database client application (using `adminer:4.7.6-standalone` image) on the cluster.
      * @param {string} path - The input value, identifier, or path for the operation.
@@ -1650,15 +1570,74 @@ EOF
      * @memberof UnderpostRun
      */
     'tf-vae-test': async (path, options = DEFAULT_OPTION) => {
-      const { underpostRoot } = options;
       const podName = 'tf-vae-test';
       await Underpost.run.CALL('deploy-job', '', {
+        logs: options.logs,
         podName,
         // volumeMountPath: '/custom_images',
         // volumeHostPath: '/home/dd/engine/src/client/public/cyberia/assets/skin',
         on: {
           init: async () => {
-            openTerminal(`node bin run --dev monitor ${podName}`);
+            // const pid = getTerminalPid();
+            // shellExec(`sudo kill -9 ${pid}`);
+            (async () => {
+              const nameSpace = options.namespace;
+              const basePath = '/home/dd';
+              const scriptPath = '/site/en/tutorials/generative/cvae.py';
+
+              const { close } = await (async () => {
+                const checkAwaitPath = '/await';
+                while (!Underpost.deploy.existsContainerFile({ podName, path: checkAwaitPath })) {
+                  logger.info('monitor', checkAwaitPath);
+                  await timer(1000);
+                }
+
+                return {
+                  close: () => shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf ${checkAwaitPath}"`),
+                };
+              })();
+
+              const localScriptPath = `${basePath}/lab/src/${scriptPath.split('/').pop()}`;
+              if (!fs.existsSync(localScriptPath)) {
+                throw new Error(`Local override script not found: ${localScriptPath}`);
+              }
+
+              shellExec(`sudo kubectl cp ${localScriptPath} ${nameSpace}/${podName}:${basePath}/docs${scriptPath}`);
+
+              close();
+
+              {
+                const checkPath = `/latent_space_plot.png`;
+                const outsPaths = [];
+                const labDir = `${basePath}/lab`;
+
+                logger.info('monitor', checkPath);
+                {
+                  const checkAwaitPath = `/home/dd/docs${checkPath}`;
+                  while (!Underpost.deploy.existsContainerFile({ podName, path: checkAwaitPath })) {
+                    logger.info('waiting for', checkAwaitPath);
+                    await timer(1000);
+                  }
+                }
+
+                {
+                  const toPath = `${labDir}${checkPath}`;
+                  outsPaths.push(toPath);
+                  shellExec(`sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${checkPath} ${toPath}`);
+                }
+
+                for (let i of range(1, 10)) {
+                  const fileName = `image_at_epoch_${setPad(i, '0', 4)}.png`;
+                  const fromPath = `/${fileName}`;
+                  const toPath = `${labDir}/${fileName}`;
+                  outsPaths.push(toPath);
+                  shellExec(`sudo kubectl cp ${nameSpace}/${podName}:${basePath}/docs${fromPath} ${toPath}`);
+                }
+
+                openTerminal(`firefox ${outsPaths.join(' ')}`, { single: true });
+                process.exit(0);
+              }
+            })();
           },
         },
         args: [

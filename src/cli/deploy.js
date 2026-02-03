@@ -694,11 +694,12 @@ EOF`);
      * @param {object} options - Options for the check.
      * @param {string} options.podName - Name of the pod to check.
      * @param {string} options.path - Path to the container file to check.
+     * @param {boolean} [useKindDockerPod=false] - Whether to use Kind Docker pod for the check.
      * @returns {boolean} - True if the container file exists, false otherwise.
      * @memberof UnderpostDeploy
      */
-    existsContainerFile({ podName, path }) {
-      if (podName === 'kind-worker') {
+    existsContainerFile({ podName, path }, useKindDockerPod = false) {
+      if (useKindDockerPod) {
         const isFile = JSON.parse(
           shellExec(`docker exec ${podName} sh -c 'test -f "$1" && echo true || echo false' sh ${path}`, {
             stdout: true,
