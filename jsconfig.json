@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
-    "target": "ES6",
+    "module": "ESNext",
+    "target": "ESNext",
+    "moduleResolution": "Node",
     "checkJs": true
   },
   "exclude": ["node_modules", "public", "engine-private", "volume"]

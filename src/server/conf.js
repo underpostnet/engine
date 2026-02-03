@@ -66,7 +66,7 @@ const Config = {
   /**
    * @method deployIdFactory
    * @description Creates a new deploy ID.
-   * @param {string} [deployId='dd-default
+   * @param {string} [deployId='dd-default']
    * @param {object} [options={ subConf: '', cluster: false }] - The options.
    * @memberof ServerConfBuilder
    */
@@ -842,8 +842,10 @@ const buildPortProxyRouter = (
 
   if (options.devProxyContext === true && process.env.NODE_ENV === 'development') {
     const confDevApiServer = JSON.parse(
-      fs.readFileSync(`./engine-private/conf/${process.argv[3]}/conf.server.dev.${process.argv[4]}-dev-api.json`),
-      'utf8',
+      fs.readFileSync(
+        `./engine-private/conf/${process.argv[3]}/conf.server.dev.${process.argv[4]}-dev-api.json`,
+        'utf8',
+      ),
     );
     let devApiHosts = [];
     let origins = [];
@@ -899,7 +901,7 @@ const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1
  * @description Gets the data deploy.
  * @param {object} options - The options.
  * @param {boolean} [options.buildSingleReplica=false] - The build single replica.
- * @param {string} options.deployId - The deploy ID.
+ * @param {string} [options.deployId] - The deploy ID.
  * @param {boolean} [options.disableSyncEnvPort=false] - The disable sync env port.
  * @returns {object} - The data deploy.
  * @memberof ServerConfBuilder

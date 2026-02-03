@@ -241,7 +241,7 @@ try {
       for (const relativePath of files) {
         const filePah = `./engine-private/conf/${relativePath.replaceAll(`\\`, '/')}`;
         if (filePah.split('/').pop() === 'package.json') {
-          const deployPackage = JSON.parse(fs.readFileSync(filePah), 'utf8');
+          const deployPackage = JSON.parse(fs.readFileSync(filePah, 'utf8'));
           deployPackage.dependencies = originPackage.dependencies;
           deployPackage.devDependencies = originPackage.devDependencies;
           fs.writeFileSync(filePah, JSON.stringify(deployPackage, null, 4), 'utf8');
