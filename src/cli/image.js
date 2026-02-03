@@ -8,7 +8,7 @@ import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import { loggerFactory } from '../server/logger.js';
 import Underpost from '../index.js';
-import { getUnderpostRootPath } from '../server/conf.js';
+import { getNpmRootPath, getUnderpostRootPath } from '../server/conf.js';
 import { shellExec } from '../server/process.js';
 
 dotenv.config();
@@ -32,7 +32,7 @@ class UnderpostImage {
      * @param {boolean} [options.kind=false] - If true, load image into Kind cluster.
      * @param {boolean} [options.kubeadm=false] - If true, load image into Kubeadm cluster.
      * @param {boolean} [options.k3s=false] - If true, load image into K3s cluster.
-     * @param {string} [options.path=false] - Path to the Dockerfile context.
+     * @param {string} [options.path=''] - Path to the Dockerfile context.
      * @param {boolean} [options.dev=false] - If true, use development mode.
      * @param {string} [options.version=''] - Version tag for the image.
      * @param {string} [options.imageName=''] - Custom name for the image.
@@ -43,7 +43,7 @@ class UnderpostImage {
         kind: false,
         kubeadm: false,
         k3s: false,
-        path: false,
+        path: '',
         dev: false,
         version: '',
         imageName: '',
@@ -137,7 +137,7 @@ class UnderpostImage {
           ),
         );
         for (const key of Object.keys(envObj)) {
-          secretsInput += ` && export ${key}="${envObj[key]}" `; // Example: $(cat gitlab-token.txt)
+          secretsInput += ` && export ${key}="${envObj[key]}" `;
           secretDockerInput += ` --secret id=${key},env=${key} \ `;
         }
       }

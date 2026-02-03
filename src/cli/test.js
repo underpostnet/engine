@@ -59,7 +59,19 @@ class UnderpostTest {
      * @param {number} options.maxAttempts - The maximum number of attempts.
      * @memberof UnderpostTest
      */
-    async callback(deployList = '', options = { itc: false, sh: false, logs: false }) {
+    async callback(
+      deployList = '',
+      options = {
+        itc: false,
+        sh: false,
+        logs: false,
+        podName: '',
+        podStatus: '',
+        kindType: '',
+        deltaMs: 1000,
+        maxAttempts: 60 * 5,
+      },
+    ) {
       if (
         options.podName &&
         typeof options.podName === 'string' &&
