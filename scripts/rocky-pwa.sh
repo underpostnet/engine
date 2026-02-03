@@ -141,7 +141,7 @@ if [[ -z "$FOUND_ICON" ]]; then
         fi
 
         echo ">>> Downloading icon from $ICON_URL..."
-        wget -q -O "$BUILD_TMP/downloaded_icon" "$ICON_URL" || true
+        wget -q -O "$BUILD_TMP/downloaded_icon" "$ICON_URL"
         if [[ -s "$BUILD_TMP/downloaded_icon" ]]; then
             FOUND_ICON="$BUILD_TMP/downloaded_icon"
         fi
@@ -174,7 +174,7 @@ EOF
 
 # Update cache
 if command -v update-desktop-database &> /dev/null; then
-    update-desktop-database /usr/share/applications || true
+    update-desktop-database /usr/share/applications
 fi
 
 # ------------------------------------------------------------------------------
