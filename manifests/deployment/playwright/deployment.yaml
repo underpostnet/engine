@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: playwright-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: playwright-server
+  template:
+    metadata:
+      labels:
+        app: playwright-server
+    spec:
+      containers:
+        - name: playwright
+          image: mcr.microsoft.com/playwright:v1.58.1-jammy
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo "[startup] Checking injected JS script..."
+              if [ -f /app/script.js ]; then
+                echo "[startup] Running /app/script.js"
+                cd /app
+                curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+                \. "$HOME/.nvm/nvm.sh"
+                nvm install 24
+                nvm use 24
+                npm init -y
+                npm pkg set type=module
+                npm pkg set main=script.js
+                npm pkg set scripts.start="node script.js"
+                npm install playwright
+                npm start
+              else
+                echo "[startup] No script found, skipping"
+              fi
+              exec npx -y playwright@latest run-server --port 3000
+          env:
+            - name: PLAYWRIGHT_HEADLESS
+              value: '1'
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+            - name: js-script
+              mountPath: /app/script.js
+              subPath: script.js
+      volumes:
+        - name: js-script
+          configMap:
+            name: playwright-script

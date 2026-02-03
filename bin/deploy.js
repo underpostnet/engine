@@ -1143,6 +1143,52 @@ nvidia/gpu-operator \
       }
       break;
     }
+
+    case 'pw': {
+      const help = `node bin/deploy pw <script-path> <from-path-in-pod> [to-path-on-local]`;
+      const scriptPath = process.argv[3];
+      const fromPath = process.argv[4];
+      const toPath = process.argv[5] ? process.argv[5] : fromPath ? `./${fromPath.split('/').pop()}` : '';
+      if (scriptPath === 'help') {
+        logger.info(help);
+        break;
+      }
+      if (fs.existsSync(toPath)) fs.removeSync(toPath);
+      shellExec(`node bin/deploy pw-conf ${scriptPath}`);
+      shellExec(`kubectl delete deployment playwright-server --ignore-not-found`);
+      while (Underpost.deploy.get('playwright-server').length > 0) {
+        logger.info(`Waiting for playwright-server deployment to be deleted...`);
+        await timer(1000);
+      }
+      shellExec(`kubectl apply -f manifests/deployment/playwright/deployment.yaml`);
+      const id = 'playwright-server';
+      await Underpost.test.statusMonitor(id);
+      const nameSpace = 'default';
+      const [pod] = Underpost.deploy.get(id);
+      const podName = pod.NAME;
+      shellExec(`kubectl logs -f ${podName} -n ${nameSpace}`, {
+        async: true,
+      });
+      (async () => {
+        while (!Underpost.deploy.existsContainerFile({ podName, path: fromPath })) {
+          await timer(1000);
+          logger.info(`Waiting for file ${fromPath} in pod ${podName}...`);
+        }
+        shellExec(`sudo kubectl cp ${nameSpace}/${podName}:${fromPath} ${toPath}`);
+        if (toPath.match('.png') && fs.existsSync(toPath)) shellExec(`firefox ${toPath}`);
+      })();
+      break;
+    }
+
+    case 'pw-conf': {
+      const scriptPath = process.argv[3];
+      shellExec(`kubectl delete configmap playwright-script`);
+      shellExec(`kubectl create configmap playwright-script \
+  --from-file=script.js=${scriptPath} \
+  --dry-run=client -o yaml | kubectl apply -f -
+`);
+      break;
+    }
   }
 } catch (error) {
   logger.error(error, error.stack);
