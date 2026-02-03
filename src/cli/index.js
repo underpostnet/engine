@@ -557,6 +557,20 @@ program
   .option('--retry-count <count>', 'Sets HTTPProxy per-route retry count (e.g., 3).')
   .option('--retry-per-try-timeout <duration>', 'Sets HTTPProxy retry per-try timeout (e.g., "150ms").')
   .option('--disable-private-conf-update', 'Disables updates to private configuration during execution.')
+  .option('--logs', 'Streams logs during the runner execution.')
+  .option('--monitor-status <status>', 'Sets the status to monitor for pod/resource (default: "Running").')
+  .option(
+    '--monitor-status-kind-type <kind-type>',
+    'Sets the Kubernetes resource kind type to monitor (default: "pods").',
+  )
+  .option(
+    '--monitor-status-delta-ms <milliseconds>',
+    'Sets the polling interval in milliseconds for status monitoring (default: 1000).',
+  )
+  .option(
+    '--monitor-status-max-attempts <attempts>',
+    'Sets the maximum number of status check attempts (default: 600).',
+  )
   .description('Runs specified scripts using various runners.')
   .action(Underpost.run.callback);
 

@@ -80,6 +80,11 @@ const logger = loggerFactory(import.meta);
  * @property {string} user - The user to run as.
  * @property {string} pid - The process ID.
  * @property {boolean} disablePrivateConfUpdate - Whether to disable private configuration updates.
+ * @property {string} monitorStatus - The monitor status option.
+ * @property {string} monitorStatusKindType - The monitor status kind type option.
+ * @property {string} monitorStatusDeltaMs - The monitor status delta in milliseconds.
+ * @property {string} monitorStatusMaxAttempts - The maximum number of attempts for monitor status.
+ * @property {boolean} logs - Whether to enable logs.
  * @memberof UnderpostRun
  */
 const DEFAULT_OPTION = {
@@ -134,6 +139,11 @@ const DEFAULT_OPTION = {
   user: '',
   pid: '',
   disablePrivateConfUpdate: false,
+  monitorStatus: '',
+  monitorStatusKindType: '',
+  monitorStatusDeltaMs: '',
+  monitorStatusMaxAttempts: '',
+  logs: false,
 };
 
 /**
@@ -1873,10 +1883,16 @@ EOF`;
       shellExec(`kubectl delete pod ${podName} -n ${namespace} --ignore-not-found`);
       console.log(cmd);
       shellExec(cmd, { disableLog: true });
-      const successInstance = await Underpost.test.statusMonitor(podName);
+      const successInstance = await Underpost.test.statusMonitor(
+        podName,
+        options.monitorStatus || 'Running',
+        options.monitorStatusKindType || 'pods',
+        options.monitorStatusDeltaMs || 1000,
+        options.monitorStatusMaxAttempts || 600,
+      );
       if (successInstance) {
         options.on?.init ? await options.on.init() : null;
-        shellExec(`kubectl logs -f ${podName} -n ${namespace}`);
+        if (options.logs) shellExec(`kubectl logs -f ${podName} -n ${namespace}`, { async: true });
       }
     },
   };
