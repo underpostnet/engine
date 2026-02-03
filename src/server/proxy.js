@@ -101,7 +101,7 @@ class ProxyService {
               if (isDevProxyContext() && isTlsDevProxy()) {
                 tlsHosts = {};
                 for (const tlsHost of getTlsHosts(hosts)) {
-                  if (fs.existsSync(SSL_BASE(tlsHost))) fs.removeSync(SSL_BASE(tlsHost));
+                  if (fs.existsSync(Underpost.tls.SSL_BASE(tlsHost))) fs.removeSync(Underpost.tls.SSL_BASE(tlsHost));
                   if (!Underpost.tls.validateSecureContext(tlsHost)) shellExec(`node bin/deploy tls "${tlsHost}"`);
                   tlsHosts[tlsHost] = {};
                 }

@@ -1305,7 +1305,11 @@ EOF
             });
       }
       await awaitDeployMonitor(true);
-      shellExec(`npm run dev-proxy ${deployId} ${subConf} ${host} ${_path}${options.tls ? ' tls' : ''}`);
+      shellExec(
+        `./node_modules/.bin/env-cmd -f .env.development node src/proxy proxy ${deployId} ${subConf} ${host} ${_path}${
+          options.tls ? ' tls' : ''
+        }`,
+      );
     },
 
     /**
