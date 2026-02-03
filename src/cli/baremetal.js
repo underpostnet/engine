@@ -47,13 +47,13 @@ class UnderpostBaremetal {
      * It handles NFS root filesystem building, control server installation/uninstallation,
      * and system-level provisioning tasks like timezone and keyboard configuration.
      * @param {string} [workflowId='rpi4mb'] - Identifier for the specific workflow configuration to use.
-     * @param {string} [ipAddress=getLocalIPv4Address()] - The IP address of the control server or the local machine.
-     * @param {string} [hostname=workflowId] - The hostname of the target baremetal machine.
-     * @param {string} [ipFileServer=getLocalIPv4Address()] - The IP address of the file server (NFS/TFTP).
-     * @param {string} [ipConfig=''] - IP configuration string for the baremetal machine.
-     * @param {string} [netmask=''] - Netmask of network
-     * @param {string} [dnsServer=''] - DNS server IP address.
      * @param {object} [options] - An object containing boolean flags for various operations.
+     * @param {string} [options.ipAddress=getLocalIPv4Address()] - The IP address of the control server or the local machine.
+     * @param {string} [options.hostname=workflowId] - The hostname of the target baremetal machine.
+     * @param {string} [options.ipFileServer=getLocalIPv4Address()] - The IP address of the file server (NFS/TFTP).
+     * @param {string} [options.ipConfig=''] - IP configuration string for the baremetal machine.
+     * @param {string} [options.netmask=''] - Netmask of network
+     * @param {string} [options.dnsServer=''] - DNS server IP address.
      * @param {boolean} [options.dev=false] - Development mode flag.
      * @param {boolean} [options.controlServerInstall=false] - Flag to install the control server (e.g., MAAS).
      * @param {boolean} [options.controlServerUninstall=false] - Flag to uninstall the control server.
@@ -94,13 +94,13 @@ class UnderpostBaremetal {
      */
     async callback(
       workflowId,
-      ipAddress,
-      hostname,
-      ipFileServer,
-      ipConfig,
-      netmask,
-      dnsServer,
       options = {
+        ipAddress: undefined,
+        hostname: undefined,
+        ipFileServer: undefined,
+        ipConfig: undefined,
+        netmask: undefined,
+        dnsServer: undefined,
         dev: false,
         controlServerInstall: false,
         controlServerUninstall: false,
@@ -139,6 +139,8 @@ class UnderpostBaremetal {
         logs: '',
       },
     ) {
+      let { ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer } = options;
+
       // Load environment variables from .env file, overriding existing ones if present.
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
 
