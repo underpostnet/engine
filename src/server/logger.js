@@ -98,7 +98,7 @@ const setUpInfo = async (logger = new winston.Logger()) => {
  * messages.
  * @param meta - The `meta` parameter in the `loggerFactory` function is used to extract the last part
  * of a URL and use it to create log files in a specific directory.
- * @returns {winston.Logger} The `loggerFactory` function returns a logger instance created using Winston logger
+ * @returns {underpostLogger} The `loggerFactory` function returns a logger instance created using Winston logger
  * library. The logger instance is configured with various transports for printing out messages to
  * different destinations such as the terminal, error.log file, and all.log file. The logger instance
  * also has a method `setUpInfo` attached to it for setting up additional information.
@@ -133,9 +133,16 @@ const loggerFactory = (meta = { url: '' }) => {
     // rejectionHandlers: [new winston.transports.File({ filename: 'rejections.log' })],
     // exitOnError: false,
   });
-  logger.setUpInfo = async () => {
-    await setUpInfo(logger);
-  };
+  /**
+   * The returned logger is a real Winston logger instance with an extra `setUpInfo` method.
+   *
+   * @memberof Logger
+   * @typedef {winston.Logger & {
+   *  setUpInfo: (logger?: winston.Logger) => Promise<void>
+   * }} underpostLogger
+   */
+  logger.setUpInfo = () => setUpInfo(logger);
+
   return logger;
 };
 
