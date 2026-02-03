@@ -131,13 +131,31 @@ const shellCd = (cd, options = { disableLog: false }) => {
  * @returns {void}
  */
 const openTerminal = (cmd, options = { single: false }) => {
+  // Find the graphical user's UID from /run/user (prefer non-root UID, usually 1000)
+  const IDS = shellExec(`ls -1 /run/user`, { stdout: true, silent: true })
+    .split('\n')
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  const nonRootIds = IDS.filter((id) => id !== '0');
+  const ID = nonRootIds.length > 0 ? nonRootIds[0] : IDS[0];
+
+  // Run the terminal as the graphical user and use THAT user's runtime dir/bus.
+  const confCmd = `USER_GRAPHICAL=$(getent passwd "${ID}" | cut -d: -f1); \
+sudo -u "$USER_GRAPHICAL" env DISPLAY="$DISPLAY" \
+XDG_RUNTIME_DIR="/run/user/${ID}" \
+DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${ID}/bus" \
+`;
+
   if (options.single === true) {
     // Run as a single session process
-    shellExec(`setsid gnome-terminal -- bash -ic "${cmd}; exec bash" >/dev/null 2>&1 &`);
+    shellExec(`${confCmd} setsid gnome-terminal -- bash -ic '${cmd}; exec bash' >/dev/null 2>&1 &`, {
+      async: true,
+    });
     return;
   }
   // Run asynchronously and disown
-  shellExec(`gnome-terminal -- bash -c "${cmd}; exec bash" & disown`, {
+  shellExec(`${confCmd} gnome-terminal -- bash -c '${cmd}; exec bash' >/dev/null 2>&1 & disown`, {
     async: true,
     stdout: true,
   });
