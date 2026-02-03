@@ -1148,7 +1148,7 @@ nvidia/gpu-operator \
       const help = `node bin/deploy pw <script-path> <from-path-in-pod> [to-path-on-local]`;
       const scriptPath = process.argv[3];
       const fromPath = process.argv[4];
-      const toPath = process.argv[5] ? process.argv[5] : fromPath ? `./${fromPath.split('/').pop()}` : '';
+      const toPath = process.argv[5] ? process.argv[5] : fromPath ? `/tmp/${fromPath.split('/').pop()}` : '';
       if (scriptPath === 'help') {
         logger.info(help);
         break;
