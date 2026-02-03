@@ -39,9 +39,19 @@ const DefaultOptions = {
 const columnDefFormatter = (obj, columnDefs, customFormat) => {
   for (const colDef of columnDefs)
     switch (colDef.cellDataType) {
-      case 'date':
-        obj[colDef.field] = obj[colDef.field] ? new Date(obj[colDef.field]) : new Date();
+      case 'date': {
+        const value = obj[colDef.field];
+
+        // Do NOT default missing/blank dates to "now" — render as empty instead.
+        if (value === null || value === undefined || value === '') {
+          obj[colDef.field] = null;
+          break;
+        }
+
+        const date = new Date(value);
+        obj[colDef.field] = isNaN(date.getTime()) ? null : date;
         break;
+      }
       case 'boolean':
         if (obj[colDef.field] !== true && obj[colDef.field] !== false) obj[colDef.field] = false;
       default:

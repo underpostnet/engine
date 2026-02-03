@@ -122,6 +122,7 @@ const UserDto = {
         publicProfile: 1,
         briefDescription: 1,
         createdAt: 1,
+        updatedAt: 1,
       };
     },
   },
