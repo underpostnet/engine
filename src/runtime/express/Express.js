@@ -20,7 +20,7 @@ import { createPeerServer } from '../../server/peer.js';
 import { createValkeyConnection } from '../../server/valkey.js';
 import { applySecurity, authMiddlewareFactory } from '../../server/auth.js';
 import { ssrMiddlewareFactory } from '../../server/ssr.js';
-import { TLS } from '../../server/tls.js';
+
 import { shellExec } from '../../server/process.js';
 import { devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/conf.js';
 
@@ -249,8 +249,8 @@ class ExpressService {
 
     // Start listening on the main port
     if (useLocalSsl && process.env.NODE_ENV === 'development') {
-      if (!TLS.validateSecureContext()) shellExec(`node bin/deploy tls`);
-      const { ServerSSL } = await TLS.createSslServer(app);
+      if (!Underpost.tls.validateSecureContext()) shellExec(`node bin/deploy tls`);
+      const { ServerSSL } = await Underpost.tls.createSslServer(app);
       await Underpost.start.listenPortController(ServerSSL, port, runningData);
     } else await Underpost.start.listenPortController(server, port, runningData);
 

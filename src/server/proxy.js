@@ -13,10 +13,8 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { buildPortProxyRouter, buildProxyRouter, getTlsHosts, isDevProxyContext, isTlsDevProxy } from './conf.js';
 
-import { SSL_BASE, TLS } from './tls.js';
 import { shellExec } from './process.js';
 import fs from 'fs-extra';
-
 import Underpost from '../index.js';
 
 dotenv.config();
@@ -85,7 +83,7 @@ class ProxyService {
           switch (port) {
             case 443:
               // For port 443 (HTTPS), create the SSL server
-              const { ServerSSL } = await TLS.createSslServer(app, hosts);
+              const { ServerSSL } = await Underpost.tls.createSslServer(app, hosts);
               await Underpost.start.listenPortController(ServerSSL, port, runningData);
               break;
 
@@ -104,11 +102,11 @@ class ProxyService {
                 tlsHosts = {};
                 for (const tlsHost of getTlsHosts(hosts)) {
                   if (fs.existsSync(SSL_BASE(tlsHost))) fs.removeSync(SSL_BASE(tlsHost));
-                  if (!TLS.validateSecureContext(tlsHost)) shellExec(`node bin/deploy tls "${tlsHost}"`);
+                  if (!Underpost.tls.validateSecureContext(tlsHost)) shellExec(`node bin/deploy tls "${tlsHost}"`);
                   tlsHosts[tlsHost] = {};
                 }
               }
-              const { ServerSSL } = await TLS.createSslServer(app, tlsHosts);
+              const { ServerSSL } = await Underpost.tls.createSslServer(app, tlsHosts);
               await Underpost.start.listenPortController(ServerSSL, port, runningData);
               break;
             }

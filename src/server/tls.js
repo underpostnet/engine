@@ -1,8 +1,7 @@
 /**
- * Provides utilities for managing, building, and serving SSL/TLS contexts,
- * primarily using Certbot files and creating HTTPS servers.
- * @module src/server/tls.js
- * @namespace TransportLayerSecurity
+ * @class UnderpostTls
+ * @description TLS/SSL utilities for Underpost.
+ * @memberof UnderpostTls
  */
 
 import fs from 'fs-extra';
@@ -43,7 +42,7 @@ class TLS {
    * It attempts to be permissive: accepts cert-only, cert+ca, or fullchain.
    * @param {string} host
    * @returns {{key?:string, cert?:string, fullchain?:string, ca?:string, dir:string}}
-   * @memberof TransportLayerSecurity
+   * @memberof UnderpostTls
    */
   static locateSslFiles(host = DEFAULT_HOST) {
     const dir = SSL_BASE(host);
@@ -103,7 +102,7 @@ class TLS {
    * Validate that a secure context can be built for host (key + cert or fullchain present)
    * @param {string} host
    * @returns {boolean}
-   * @memberof TransportLayerSecurity
+   * @memberof UnderpostTls
    */
   static validateSecureContext(host = DEFAULT_HOST) {
     const files = TLS.locateSslFiles(host);
@@ -116,7 +115,7 @@ class TLS {
    * If separate cert + ca are found, they will be used accordingly.
    * @param {string} host
    * @returns {{key:string, cert:string, ca?:string}} options
-   * @memberof TransportLayerSecurity
+   * @memberof UnderpostTls
    */
   static buildSecureContext(host = DEFAULT_HOST) {
     const files = TLS.locateSslFiles(host);
@@ -142,7 +141,7 @@ class TLS {
    * The function will copy existing discovered files to: key.key, crt.crt, ca_bundle.crt when possible.
    * @param {string} host
    * @returns {boolean} true if at least key+cert exist after operation
-   * @memberof TransportLayerSecurity
+   * @memberof UnderpostTls
    */
   static async buildLocalSSL(host = DEFAULT_HOST) {
     const dir = SSL_BASE(host);
@@ -177,19 +176,16 @@ class TLS {
    * @param {import('express').Application} app
    * @param {Object<string, any>} hosts
    * @returns {{ServerSSL?: https.Server}}
-   * @memberof TransportLayerSecurity
+   * @memberof UnderpostTls
    */
   static async createSslServer(app, hosts = { [DEFAULT_HOST]: {} }) {
     let server;
     for (const host of Object.keys(hosts)) {
       // ensure canonical files exist (copies where possible)
       await TLS.buildLocalSSL(host);
-      if (!TLS.validate_secure_context_check(host)) {
-        // backward compatibility: some callers expect validateSecureContext
-        if (!TLS.validateSecureContext(host)) {
-          logger.error('Invalid SSL context, skipping host', { host });
-          continue;
-        }
+      if (!TLS.validateSecureContext(host)) {
+        logger.error('Invalid SSL context, skipping host', { host });
+        continue;
       }
 
       // build secure context options
@@ -218,7 +214,7 @@ class TLS {
    * @param {number} port
    * @param {Object<string, any>} proxyRouter
    * @returns {import('express').RequestHandler}
-   * @memberof TransportLayerSecurity
+   * @memberof UnderpostTls
    */
   static sslRedirectMiddleware(req, res, port = 80, proxyRouter = {}) {
     const sslRedirectUrl = `https://${req.headers.host}${req.url}`;
@@ -238,14 +234,23 @@ class TLS {
   }
 }
 
-// small helper for internal backward compatibility check name typo in older code
-TLS.validate_secure_context_check = TLS.validateSecureContext;
+/**
+ * @class UnderpostTls
+ * @description TLS/SSL utilities for Underpost.
+ * @memberof UnderpostTls
+ */
+class UnderpostTls {
+  static API = {
+    TLS,
+    SSL_BASE,
+    locateSslFiles: TLS.locateSslFiles,
+    validateSecureContext: TLS.validateSecureContext,
+    buildSecureContext: TLS.buildSecureContext,
+    buildLocalSSL: TLS.buildLocalSSL,
+    createSslServer: TLS.createSslServer,
+    sslRedirectMiddleware: TLS.sslRedirectMiddleware,
+  };
+}
 
-// Backward compatibility exports
-const buildSSL = TLS.buildLocalSSL;
-const buildSecureContext = TLS.buildSecureContext;
-const validateSecureContext = TLS.validateSecureContext;
-const createSslServer = TLS.createSslServer;
-const sslRedirectMiddleware = TLS.sslRedirectMiddleware;
-
-export { TLS, SSL_BASE, buildSSL, buildSecureContext, validateSecureContext, createSslServer, sslRedirectMiddleware };
+export { TLS, SSL_BASE, UnderpostTls };
+export default UnderpostTls;
