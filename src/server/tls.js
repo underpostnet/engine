@@ -1,7 +1,7 @@
 /**
- * @class UnderpostTls
- * @description TLS/SSL utilities for Underpost.
- * @memberof UnderpostTls
+ * Transport Layer Security (TLS) / SSL utilities and HTTPS server creation and management.
+ * @module
+ * @namespace UnderpostTLS
  */
 
 import fs from 'fs-extra';
@@ -42,7 +42,7 @@ class TLS {
    * It attempts to be permissive: accepts cert-only, cert+ca, or fullchain.
    * @param {string} host
    * @returns {{key?:string, cert?:string, fullchain?:string, ca?:string, dir:string}}
-   * @memberof UnderpostTls
+   * @memberof UnderpostTLS
    */
   static locateSslFiles(host = DEFAULT_HOST) {
     const dir = SSL_BASE(host);
@@ -102,7 +102,7 @@ class TLS {
    * Validate that a secure context can be built for host (key + cert or fullchain present)
    * @param {string} host
    * @returns {boolean}
-   * @memberof UnderpostTls
+   * @memberof UnderpostTLS
    */
   static validateSecureContext(host = DEFAULT_HOST) {
     const files = TLS.locateSslFiles(host);
@@ -115,7 +115,7 @@ class TLS {
    * If separate cert + ca are found, they will be used accordingly.
    * @param {string} host
    * @returns {{key:string, cert:string, ca?:string}} options
-   * @memberof UnderpostTls
+   * @memberof UnderpostTLS
    */
   static buildSecureContext(host = DEFAULT_HOST) {
     const files = TLS.locateSslFiles(host);
@@ -141,7 +141,7 @@ class TLS {
    * The function will copy existing discovered files to: key.key, crt.crt, ca_bundle.crt when possible.
    * @param {string} host
    * @returns {boolean} true if at least key+cert exist after operation
-   * @memberof UnderpostTls
+   * @memberof UnderpostTLS
    */
   static async buildLocalSSL(host = DEFAULT_HOST) {
     const dir = SSL_BASE(host);
@@ -176,7 +176,7 @@ class TLS {
    * @param {import('express').Application} app
    * @param {Object<string, any>} hosts
    * @returns {{ServerSSL?: https.Server}}
-   * @memberof UnderpostTls
+   * @memberof UnderpostTLS
    */
   static async createSslServer(app, hosts = { [DEFAULT_HOST]: {} }) {
     let server;
@@ -214,7 +214,7 @@ class TLS {
    * @param {number} port
    * @param {Object<string, any>} proxyRouter
    * @returns {import('express').RequestHandler}
-   * @memberof UnderpostTls
+   * @memberof UnderpostTLS
    */
   static sslRedirectMiddleware(req, res, port = 80, proxyRouter = {}) {
     const sslRedirectUrl = `https://${req.headers.host}${req.url}`;
@@ -235,11 +235,11 @@ class TLS {
 }
 
 /**
- * @class UnderpostTls
+ * @class UnderpostTLS
  * @description TLS/SSL utilities for Underpost.
- * @memberof UnderpostTls
+ * @memberof UnderpostTLS
  */
-class UnderpostTls {
+class UnderpostTLS {
   static API = {
     TLS,
     SSL_BASE,
@@ -252,5 +252,5 @@ class UnderpostTls {
   };
 }
 
-export { TLS, SSL_BASE, UnderpostTls };
-export default UnderpostTls;
+export { TLS, SSL_BASE, UnderpostTLS };
+export default UnderpostTLS;
