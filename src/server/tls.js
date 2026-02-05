@@ -1,6 +1,6 @@
 /**
  * Transport Layer Security (TLS) / SSL utilities and HTTPS server creation and management.
- * @module
+ * @module src/server/tls.js
  * @namespace UnderpostTLS
  */
 
