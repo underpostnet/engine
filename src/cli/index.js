@@ -165,6 +165,7 @@ program
   .option('--filter <keyword>', 'Filters the list by matching key or value (only for list operation).')
   .option('--deploy-id <deploy-id>', 'Sets the deployment configuration ID for the operation context.')
   .option('--build', 'Sets the build context for the operation.')
+  .option('--copy', 'Copies the configuration value to the clipboard (only for get operation).')
   .description(`Manages Underpost configurations using various operators.`)
   .action((...args) => Underpost.env[args[0]](args[1], args[2], args[3]));
 

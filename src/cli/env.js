@@ -8,6 +8,7 @@ import { getNpmRootPath, writeEnv } from '../server/conf.js';
 import fs from 'fs-extra';
 import { loggerFactory } from '../server/logger.js';
 import dotenv from 'dotenv';
+import { pbcopy } from '../server/process.js';
 
 dotenv.config();
 
@@ -72,9 +73,10 @@ class UnderpostRootEnv {
      * @param {object} options - Options for getting the environment variable.
      * @param {boolean} [options.plain=false] - If true, returns the environment variable value as a string.
      * @param {boolean} [options.disableLog=false] - If true, disables logging of the environment variable value.
+     * @param {boolean} [options.copy=false] - If true, copies the environment variable value to the clipboard.
      * @memberof UnderpostEnv
      */
-    get(key, value, options = { plain: false, disableLog: false }) {
+    get(key, value, options = { plain: false, disableLog: false, copy: false }) {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
       if (!fs.existsSync(envPath)) {
@@ -84,6 +86,7 @@ class UnderpostRootEnv {
       const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
       if (!options.disableLog)
         options?.plain === true ? console.log(env[key]) : logger.info(`${key}(${typeof env[key]})`, env[key]);
+      if (options.copy === true) pbcopy(env[key]);
       return env[key];
     },
     /**
