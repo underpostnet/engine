@@ -468,7 +468,7 @@ try {
       shellExec(`node bin new --deploy-id dd-default`);
       console.log(fs.existsSync(`./engine-private/conf/dd-default`));
       shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
-      shellExec(`node bin/deploy build-env`);
+      shellExec(`node bin/deploy build-envs`);
       break;
     }
 
@@ -477,7 +477,7 @@ try {
       shellExec(
         `underpost secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
       );
-      shellExec(`node bin/deploy sync-deploy-envs`);
+      shellExec(`node bin/deploy sync-envs`);
       shellExec(`node bin/build dd conf`);
       shellExec(`git add . && cd ./engine-private && git add .`);
       shellExec(`node bin cmt . ci package-pwa-microservices-template 'New release v:${process.argv[3]}'`);
@@ -535,45 +535,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           break;
       }
 
-      break;
-    }
-    case 'build-env': {
-      const buildEnv = (privateEnvPath, originEnv, env) => {
-        const privateEnv = dotenv.parse(fs.readFileSync(privateEnvPath, 'utf8'));
-        for (const key of Object.keys(privateEnv)) {
-          if (key in env) {
-            console.warn(`Key ${key} already exists in origin env`);
-            continue;
-          }
-          if (key in originEnv) {
-            console.warn(`Key ${key} already exists in origin env`);
-            env[key] = originEnv[key];
-            continue;
-          }
-          env[key] =
-            `${key}`.toUpperCase().match('API') ||
-            `${key}`.toUpperCase().match('KEY') ||
-            `${key}`.toUpperCase().match('SECRET') ||
-            `${key}`.toUpperCase().match('TOKEN') ||
-            `${key}`.toUpperCase().match('PASSWORD') ||
-            `${key}`.toUpperCase().match('MAC')
-              ? 'changethis'
-              : isNaN(parseFloat(privateEnv[key]))
-                ? `${privateEnv[key]}`.match(`@`)
-                  ? 'admin@default.net'
-                  : 'changethis'
-                : privateEnv[key];
-        }
-        return env;
-      };
-      for (let envPath of ['.env.development', '.env.production', '.env.test']) {
-        const originEnv = dotenv.parse(fs.readFileSync(`./${envPath}`, 'utf8'));
-
-        let env = {};
-        env = buildEnv(`./engine-private/conf/dd-cron/${envPath}`, originEnv, env);
-        env = buildEnv(`./engine-private/conf/dd-core/${envPath}`, originEnv, env);
-        writeEnv(envPath, env);
-      }
       break;
     }
 
@@ -1121,17 +1082,64 @@ nvidia/gpu-operator \
       break;
     }
 
-    case 'sync-deploy-envs': {
-      const envObj = dotenv.parse(fs.readFileSync(`./engine-private/conf/dd-cron/.env.production`));
+    case 'build-envs': {
+      const buildEnv = (privateEnvPath, originEnv, env) => {
+        const privateEnv = dotenv.parse(fs.readFileSync(privateEnvPath, 'utf8'));
+        for (const key of Object.keys(privateEnv)) {
+          if (key in env) {
+            console.warn(`Key ${key} already exists in origin env`);
+            continue;
+          }
+          if (key in originEnv) {
+            console.warn(`Key ${key} already exists in origin env`);
+            env[key] = originEnv[key];
+            continue;
+          }
+          env[key] =
+            `${key}`.toUpperCase().match('API') ||
+            `${key}`.toUpperCase().match('KEY') ||
+            `${key}`.toUpperCase().match('SECRET') ||
+            `${key}`.toUpperCase().match('TOKEN') ||
+            `${key}`.toUpperCase().match('PASSWORD') ||
+            `${key}`.toUpperCase().match('MAC')
+              ? 'changethis'
+              : isNaN(parseFloat(privateEnv[key]))
+                ? `${privateEnv[key]}`.match(`@`)
+                  ? 'admin@default.net'
+                  : 'changethis'
+                : privateEnv[key];
+        }
+        return env;
+      };
+      for (let envPath of ['.env.development', '.env.production', '.env.test']) {
+        const originEnv = dotenv.parse(fs.readFileSync(`./${envPath}`, 'utf8'));
+
+        let env = {};
+        env = buildEnv(`./engine-private/conf/dd-cron/${envPath}`, originEnv, env);
+        env = buildEnv(`./engine-private/conf/dd-core/${envPath}`, originEnv, env);
+        writeEnv(envPath, env);
+      }
+      break;
+    }
+
+    case 'sync-envs': {
       for (const deployId of ['dd-cron'].concat(
         fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(','),
       )) {
         for (const env of ['production', 'development', 'test']) {
           const _envObj = dotenv.parse(fs.readFileSync(`./engine-private/conf/${deployId}/.env.${env}`, 'utf8'));
-          _envObj.GITHUB_TOKEN = envObj.GITHUB_TOKEN;
+          for (const env of []) {
+            delete _envObj[env];
+          }
           writeEnv(`./engine-private/conf/${deployId}/.env.${env}`, _envObj);
         }
       }
+      break;
+    }
+
+    case 'envs': {
+      shellExec(`node bin/deploy sync-envs`);
+      shellExec(`node bin/deploy build-envs`);
       break;
     }
 
