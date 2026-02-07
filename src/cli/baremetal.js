@@ -2136,23 +2136,9 @@ shell
       } else {
         // 'iso-nfs'
         cmd = [ipParam, `netboot=nfs`, nfsRootParam, ...kernelParams, ...performanceParams];
-
         cmd.push(`ifname=${networkInterfaceName}:${macAddress}`);
-
-        if (cloudInit) {
-          const cloudInitPreseedUrl = `http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${options.machine?.system_id ? options.machine.system_id : 'system-id'}/?op=get_preseed`;
-          cmd = cmd.concat([
-            `cloud-init=enabled`,
-            'autoinstall',
-            `cloud-config-url=${cloudInitPreseedUrl}`,
-            `ds=nocloud-net;s=${cloudInitPreseedUrl}`,
-            `log_host=${ipDhcpServer}`,
-            `log_port=5247`,
-            // `BOOTIF=${macAddress}`,
-            // `cc:{'datasource_list': ['MAAS']}end_cc`,
-          ]);
-        }
       }
+      if (cloudInit) cmd = Underpost.cloudInit.kernelParamsFactory(cmd, options);
       // cmd.push('---');
       const cmdStr = cmd.join(' ');
       logger.info('Constructed kernel command line');
