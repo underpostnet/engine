@@ -218,12 +218,7 @@ class UnderpostBaremetal {
       // Create a new machine in MAAS if the option is set.
       let machine;
       if (options.createMachine === true) {
-        const [searhMachine] = JSON.parse(
-          shellExec(`maas maas machines read hostname=${hostname}`, {
-            stdout: true,
-            silent: true,
-          }),
-        );
+        const [searhMachine] = Underpost.baremetal.maasCliExec(`machines read hostname=${hostname}`);
 
         if (searhMachine) {
           // Check if existing machine's MAC matches the specified MAC
@@ -238,9 +233,7 @@ class UnderpostBaremetal {
             logger.info(`Deleting existing machine ${searhMachine.system_id} to recreate with correct MAC...`);
 
             // Delete the existing machine
-            shellExec(`maas maas machine delete ${searhMachine.system_id}`, {
-              silent: true,
-            });
+            Underpost.baremetal.maasCliExec(`machine delete ${searhMachine.system_id}`);
 
             // Create new machine with correct MAC
             machine = Underpost.baremetal.machineFactory({
@@ -735,12 +728,7 @@ rm -rf ${artifacts.join(' ')}`);
 
       // Fetch boot resources and machines if commissioning or listing.
 
-      let resources = JSON.parse(
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resources read`, {
-          silent: true,
-          stdout: true,
-        }),
-      ).map((o) => ({
+      let resources = Underpost.baremetal.maasCliExec(`boot-resources read`).map((o) => ({
         id: o.id,
         name: o.name,
         architecture: o.architecture,
@@ -748,12 +736,7 @@ rm -rf ${artifacts.join(' ')}`);
       if (options.ls === true) {
         console.table(resources);
       }
-      let machines = JSON.parse(
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machines read`, {
-          stdout: true,
-          silent: true,
-        }),
-      ).map((m) => ({
+      let machines = Underpost.baremetal.maasCliExec(`machines read`).map((m) => ({
         system_id: m.interface_set[0].system_id,
         mac_address: m.interface_set[0].mac_address,
         hostname: m.hostname,
@@ -878,7 +861,7 @@ rm -rf ${artifacts.join(' ')}`);
       if (options.cloudInit || options.cloudInitUpdate) {
         const { chronyc, networkInterfaceName } = workflowsConfig[workflowId];
         const { timezone, chronyConfPath } = chronyc;
-        const authCredentials = Underpost.cloudInit.authCredentialsFactory();
+        const authCredentials = Underpost.baremetal.maasAuthCredentialsFactory();
         const { cloudConfigSrc } = Underpost.cloudInit.configFactory(
           {
             controlServerIp: callbackMetaData.runnerHost.ip,
@@ -1277,18 +1260,13 @@ rm -rf ${artifacts.join(' ')}`);
         ip: options.ipAddress,
       };
       logger.info('Creating MAAS machine', payload);
-      const machine = shellExec(
-        `maas ${process.env.MAAS_ADMIN_USERNAME} machines create ${Object.keys(payload)
+      const machine = Underpost.baremetal.maasCliExec(
+        `machines create ${Object.keys(payload)
           .map((k) => `${k}="${payload[k]}"`)
           .join(' ')}`,
-        {
-          silent: true,
-          stdout: true,
-        },
       );
-      // console.log(machine);
       try {
-        return { machine: JSON.parse(machine) };
+        return { machine };
       } catch (error) {
         console.log(error);
         logger.error(error);
@@ -1325,13 +1303,7 @@ rm -rf ${artifacts.join(' ')}`);
         return { kernelFilesPaths, resourcesPath };
       }
 
-      const resourceData = JSON.parse(
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} boot-resource read ${resource.id}`, {
-          stdout: true,
-          silent: true,
-          disableLog: true,
-        }),
-      );
+      const resourceData = Underpost.baremetal.maasCliExec(`boot-resource read ${resource.id}`);
       let kernelFilesPaths = {};
       const bootFiles = resourceData.sets[Object.keys(resourceData.sets)[0]].files;
       const arch = resource.architecture.split('/')[0];
@@ -1524,7 +1496,7 @@ rm -rf ${artifacts.join(' ')}`);
      */
     removeDiscoveredMachines() {
       logger.info('Removing all discovered machines from MAAS...');
-      shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries clear all=true`);
+      Underpost.baremetal.maasCliExec(`discoveries clear all=true`);
     },
 
     /**
@@ -2204,12 +2176,7 @@ shell
     async commissionMonitor({ macAddress, ipAddress, hostname, architecture, machine }) {
       {
         // Query observed discoveries from MAAS.
-        const discoveries = JSON.parse(
-          shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries read`, {
-            silent: true,
-            stdout: true,
-          }),
-        );
+        const discoveries = Underpost.baremetal.maasCliExec(`discoveries read`);
 
         for (const discovery of discoveries) {
           const discoverHostname = discovery.hostname
@@ -2256,22 +2223,13 @@ shell
                   discoveredMAC: discovery.mac_address,
                 });
 
-                shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-broken ${systemId}`, {
-                  silent: true,
-                });
+                Underpost.baremetal.maasCliExec(`machine mark-broken ${systemId}`);
 
-                shellExec(
-                  // name=${networkInterfaceName}
-                  `maas ${process.env.MAAS_ADMIN_USERNAME} interface update ${systemId} ${machine.boot_interface.id}` +
-                    ` mac_address=${discovery.mac_address}`,
-                  {
-                    silent: true,
-                  },
+                Underpost.baremetal.maasCliExec(
+                  `interface update ${systemId} ${machine.boot_interface.id}` + ` mac_address=${discovery.mac_address}`,
                 );
 
-                shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine mark-fixed ${systemId}`, {
-                  silent: true,
-                });
+                Underpost.baremetal.maasCliExec(`machine mark-fixed ${systemId}`);
 
                 logger.info('✓ Machine interface MAC address updated successfully');
 
@@ -2298,6 +2256,73 @@ shell
           machine,
         });
       }
+    },
+
+    /**
+     * @method maasCliExec
+     * @description Executes a MAAS CLI command and returns the parsed JSON output.
+     * This method abstracts the execution of MAAS CLI commands, ensuring that the output is captured and parsed correctly.
+     * @param {string} cmd - The MAAS CLI command to execute (e.g., 'machines read').
+     * @returns {object|null} The parsed JSON output from the MAAS CLI command, or null if there is no output.
+     * @memberof UnderpostBaremetal
+     */
+    maasCliExec(cmd) {
+      const output = shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} ${cmd}`, {
+        stdout: true,
+        silent: true,
+      }).trim();
+      try {
+        return output ? JSON.parse(output) : null;
+      } catch (error) {
+        console.log('output', output);
+        logger.error(error);
+        throw error;
+      }
+    },
+
+    /**
+     * @method maasAuthCredentialsFactory
+     * @description Retrieves MAAS API key credentials from the MAAS CLI.
+     * This method parses the output of `maas apikey` to extract the consumer key,
+     * consumer secret, token key, and token secret.
+     * @returns {object} An object containing the MAAS authentication credentials.
+     * @memberof UnderpostBaremetal
+     * @throws {Error} If the MAAS API key format is invalid.
+     */
+    maasAuthCredentialsFactory() {
+      // Expected formats:
+      // <consumer_key>:<consumer_token>:<secret> (older format)
+      // <consumer_key>:<consumer_secret>:<token_key>:<token_secret> (newer format)
+      // Commands used to generate API keys:
+      // maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}
+      // maas ${process.env.MAAS_ADMIN_USERNAME} account create-authorisation-token
+      // maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}
+      // Reference: https://github.com/CanonicalLtd/maas-docs/issues/647
+
+      const parts = shellExec(`maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}`, {
+        stdout: true,
+      })
+        .trim()
+        .split(`\n`)[0] // Take only the first line of output.
+        .split(':'); // Split by colon to get individual parts.
+
+      let consumer_key, consumer_secret, token_key, token_secret;
+
+      // Determine the format of the API key and assign parts accordingly.
+      if (parts.length === 4) {
+        [consumer_key, consumer_secret, token_key, token_secret] = parts;
+      } else if (parts.length === 3) {
+        // Handle older 3-part format, setting consumer_secret as empty.
+        [consumer_key, token_key, token_secret] = parts;
+        consumer_secret = '""';
+        token_secret = token_secret.split(' MAAS consumer')[0].trim(); // Clean up token secret.
+      } else {
+        // Throw an error if the format is not recognized.
+        throw new Error('Invalid token format');
+      }
+
+      logger.info('Maas api token generated', { consumer_key, consumer_secret, token_key, token_secret });
+      return { consumer_key, consumer_secret, token_key, token_secret };
     },
 
     /**
@@ -2335,7 +2360,7 @@ shell
         const systemId = typeof machine === 'string' ? machine : machine.system_id;
         if (ignore && ignore.find((mId) => mId === systemId)) continue;
         logger.info(`Removing machine: ${systemId}`);
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} machine delete ${systemId}`);
+        Underpost.baremetal.maasCliExec(`machine delete ${systemId}`);
       }
       return [];
     },
@@ -2349,9 +2374,9 @@ shell
      * @returns {void}
      */
     clearDiscoveries({ force }) {
-      shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries clear all=true`);
+      Underpost.baremetal.maasCliExec(`discoveries clear all=true`);
       if (force === true) {
-        shellExec(`maas ${process.env.MAAS_ADMIN_USERNAME} discoveries scan force=true`);
+        Underpost.baremetal.maasCliExec(`discoveries scan force=true`);
       }
     },
 

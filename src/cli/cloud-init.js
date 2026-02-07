@@ -446,51 +446,6 @@ curl -X POST \\
     },
 
     /**
-     * @method authCredentialsFactory
-     * @description Retrieves MAAS API key credentials from the MAAS CLI.
-     * This method parses the output of `maas apikey` to extract the consumer key,
-     * consumer secret, token key, and token secret.
-     * @returns {object} An object containing the MAAS authentication credentials.
-     * @memberof UnderpostCloudInit
-     * @throws {Error} If the MAAS API key format is invalid.
-     */
-    authCredentialsFactory() {
-      // Expected formats:
-      // <consumer_key>:<consumer_token>:<secret> (older format)
-      // <consumer_key>:<consumer_secret>:<token_key>:<token_secret> (newer format)
-      // Commands used to generate API keys:
-      // maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}
-      // maas ${process.env.MAAS_ADMIN_USERNAME} account create-authorisation-token
-      // maas apikey --generate --username ${process.env.MAAS_ADMIN_USERNAME}
-      // Reference: https://github.com/CanonicalLtd/maas-docs/issues/647
-
-      const parts = shellExec(`maas apikey --with-names --username ${process.env.MAAS_ADMIN_USERNAME}`, {
-        stdout: true,
-      })
-        .trim()
-        .split(`\n`)[0] // Take only the first line of output.
-        .split(':'); // Split by colon to get individual parts.
-
-      let consumer_key, consumer_secret, token_key, token_secret;
-
-      // Determine the format of the API key and assign parts accordingly.
-      if (parts.length === 4) {
-        [consumer_key, consumer_secret, token_key, token_secret] = parts;
-      } else if (parts.length === 3) {
-        // Handle older 3-part format, setting consumer_secret as empty.
-        [consumer_key, token_key, token_secret] = parts;
-        consumer_secret = '""';
-        token_secret = token_secret.split(' MAAS consumer')[0].trim(); // Clean up token secret.
-      } else {
-        // Throw an error if the format is not recognized.
-        throw new Error('Invalid token format');
-      }
-
-      logger.info('Maas api token generated', { consumer_key, consumer_secret, token_key, token_secret });
-      return { consumer_key, consumer_secret, token_key, token_secret };
-    },
-
-    /**
      * @method generateCloudConfig
      * @description Generates a generic cloud-init configuration string.
      * @param {object} config - Configuration object.
