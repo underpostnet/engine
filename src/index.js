@@ -40,6 +40,15 @@ class Underpost {
    * @memberof Underpost
    */
   static version = 'v2.99.4';
+
+  /**
+   * Required Node.js major version
+   * @static
+   * @type {String}
+   * @memberof Underpost
+   */
+  static majorNodejsVersion = 'v24';
+
   /**
    * Repository cli API
    * @static
@@ -240,6 +249,11 @@ class Underpost {
     return UnderpostTLS.API;
   }
 }
+
+if (!process.version || !process.version.startsWith(`${Underpost.majorNodejsVersion}.`))
+  console.warn(
+    `${`Underpost Warning: Required Node.js version is `.red}${`${Underpost.majorNodejsVersion}.x`.bgBlue.bold.white}${`, you are using `.red}${process.version.bgRed.bold.white}`,
+  );
 
 const up = Underpost;
 
