@@ -673,7 +673,17 @@ program
   .option('--rocky-tools-test', 'Tests rocky linux tools in chroot environment.')
   .option('--bootcmd <bootcmd-list>', 'Comma-separated list of boot commands to execute.')
   .option('--runcmd <runcmd-list>', 'Comma-separated list of run commands to execute.')
-  .option('--logs <log-id>', 'Displays logs for log id: dhcp, cloud, machine, cloud-config.')
+  .option(
+    '--logs <log-id>',
+    `Displays logs for log id: ${[
+      'dhcp',
+      'dhcp-lease',
+      'dhcp-lan',
+      'cloud-init',
+      'cloud-init-machine',
+      'cloud-init-config',
+    ]}`,
+  )
   .option('--dev', 'Sets the development context environment for baremetal operations.')
   .option('--ls', 'Lists available boot resources and machines.')
   .description(

@@ -240,7 +240,7 @@ class UnderpostBaremetal {
               hostname,
               ipAddress,
               macAddress,
-              maas: workflowsConfig[workflowId].maas,
+              architecture: workflowsConfig[workflowId].architecture,
             }).machine;
 
             logger.info(`✓ Machine recreated with MAC ${macAddress}`);
@@ -259,7 +259,7 @@ class UnderpostBaremetal {
               hostname,
               ipAddress,
               macAddress,
-              maas: workflowsConfig[workflowId].maas,
+              architecture: workflowsConfig[workflowId].architecture,
             }).machine;
           }
         }
@@ -1085,11 +1085,7 @@ rm -rf ${artifacts.join(' ')}`);
           macAddress,
           ipAddress,
           hostname,
-          architecture:
-            workflowsConfig[workflowId].maas?.commissioning?.architecture ||
-            workflowsConfig[workflowId].container?.architecture ||
-            workflowsConfig[workflowId].debootstrap?.image?.architecture ||
-            'arm64/generic',
+          architecture: Underpost.baremetal.fallbackArchitecture(workflowsConfig[workflowId]),
           machine,
         };
         logger.info('Waiting for commissioning...', {
@@ -1109,6 +1105,22 @@ rm -rf ${artifacts.join(' ')}`);
           );
         }
       }
+    },
+
+    /**
+     * @method fallbackArchitecture
+     * @description Determines the architecture to use for boot resources, with a fallback mechanism.
+     * @param {object} workflowsConfig - The configuration object for the current workflow.
+     * @returns {string} The architecture string (e.g., 'arm64', 'amd64') to use for boot resources.
+     * @memberof UnderpostBaremetal
+     */
+    fallbackArchitecture(workflowsConfig) {
+      return (
+        workflowsConfig.architecture ||
+        workflowsConfig.maas?.commissioning?.architecture ||
+        workflowsConfig.container?.architecture ||
+        workflowsConfig.debootstrap?.image?.architecture
+      );
     },
 
     /**
@@ -1236,8 +1248,8 @@ rm -rf ${artifacts.join(' ')}`);
      * @param {string} options.macAddress - The MAC address of the machine.
      * @param {string} options.hostname - The hostname for the machine.
      * @param {string} options.ipAddress - The IP address for the machine.
+     * @param {string} options.architecture - The architecture for the machine (default is 'arm64').
      * @param {string} options.powerType - The power type for the machine (default is 'manual').
-     * @param {object} options.maas - Additional MAAS-specific options.
      * @returns {object} An object containing the created machine details.
      * @memberof UnderpostBaremetal
      */
@@ -1246,13 +1258,13 @@ rm -rf ${artifacts.join(' ')}`);
         macAddress: '',
         hostname: '',
         ipAddress: '',
+        architecture: 'arm64',
         powerType: 'manual',
-        architecture: 'arm64/generic',
       },
     ) {
       if (!options.powerType) options.powerType = 'manual';
       const payload = {
-        architecture: (options.architecture || 'arm64/generic').match('arm') ? 'arm64/generic' : 'amd64/generic',
+        architecture: options.architecture.match('arm') ? 'arm64/generic' : 'amd64/generic',
         mac_address: options.macAddress,
         mac_addresses: options.macAddress,
         hostname: options.hostname,
