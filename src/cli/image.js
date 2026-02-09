@@ -79,8 +79,6 @@ class UnderpostImage {
      * @param {boolean} [options.kind=false] - If true, load the image archive into a Kind cluster.
      * @param {boolean} [options.kubeadm=false] - If true, load the image archive into a Kubeadm cluster (uses 'ctr').
      * @param {boolean} [options.k3s=false] - If true, load the image archive into a K3s cluster (uses 'k3s ctr').
-     * @param {boolean} [options.secrets=false] - If true, load secrets from the .env file for the build.
-     * @param {string} [options.secretsPath=''] - Custom path to the .env file for secrets.
      * @param {boolean} [options.reset=false] - If true, perform a no-cache build.
      * @param {boolean} [options.dev=false] - If true, use development mode.
      * @memberof UnderpostImage
@@ -96,27 +94,11 @@ class UnderpostImage {
         kind: false,
         kubeadm: false,
         k3s: false,
-        secrets: false,
-        secretsPath: '',
         reset: false,
         dev: false,
       },
     ) {
-      let {
-        path,
-        imageName,
-        version,
-        imagePath,
-        dockerfileName,
-        podmanSave,
-        secrets,
-        secretsPath,
-        kind,
-        kubeadm,
-        k3s,
-        reset,
-        dev,
-      } = options;
+      let { path, imageName, version, imagePath, dockerfileName, podmanSave, kind, kubeadm, k3s, reset, dev } = options;
       if (!path) path = '.';
       if (!imageName) imageName = `rockylinux9-underpost:${Underpost.version}`;
       if (!imagePath) imagePath = '.';
@@ -126,25 +108,14 @@ class UnderpostImage {
       if (imagePath && typeof imagePath === 'string' && !fs.existsSync(imagePath))
         fs.mkdirSync(imagePath, { recursive: true });
       const tarFile = `${imagePath}/${imageName.replace(':', '_')}.tar`;
-      let secretsInput = ' ';
+
       let secretDockerInput = '';
       let cache = '';
-      if (secrets === true) {
-        const envObj = dotenv.parse(
-          fs.readFileSync(
-            secretsPath && typeof secretsPath === 'string' ? secretsPath : `${getNpmRootPath()}/underpost/.env`,
-            'utf8',
-          ),
-        );
-        for (const key of Object.keys(envObj)) {
-          secretsInput += ` && export ${key}="${envObj[key]}" `;
-          secretDockerInput += ` --secret id=${key},env=${key} \ `;
-        }
-      }
+
       if (reset === true) cache += ' --rm --no-cache';
       if (path && typeof path === 'string')
         shellExec(
-          `cd ${path}${secretsInput}&& sudo podman build -f ./${
+          `cd ${path} && sudo podman build -f ./${
             dockerfileName && typeof dockerfileName === 'string' ? dockerfileName : 'Dockerfile'
           } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache}${secretDockerInput} --network host`,
         );

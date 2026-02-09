@@ -321,8 +321,6 @@ program
   .option('--kubeadm', 'Set kubeadm cluster env image context management.')
   .option('--k3s', 'Set k3s cluster env image context management.')
   .option('--node-name', 'Set node name for kubeadm or k3s cluster env image context management.')
-  .option('--secrets', 'Includes Dockerfile environment secrets during the build.')
-  .option('--secrets-path [secrets-path]', 'Specifies a custom path for Dockerfile environment secrets.')
   .option('--reset', 'Performs a build without using the cache.')
   .option('--dev', 'Use development mode.')
   .option('--pull-dockerhub <dockerhub-image>', 'Sets a custom Docker Hub image for base image pulls.')
