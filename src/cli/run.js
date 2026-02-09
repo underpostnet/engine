@@ -1235,6 +1235,19 @@ EOF
     },
 
     /**
+     * @method disk-devices
+     * @description Executes the `disk-devices.sh` script to display information about disk devices.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'disk-devices': async (path = '/', options = DEFAULT_OPTION) => {
+      const { underpostRoot } = options;
+      shellExec(`chmod +x ${underpostRoot}/scripts/disk-devices.sh`);
+      shellExec(`${underpostRoot}/scripts/disk-devices.sh`);
+    },
+
+    /**
      * @method disk-usage
      * @description Displays disk usage statistics using the `du` command, sorted by size.
      * @param {string} path - The input value, identifier, or path for the operation.
