@@ -152,6 +152,7 @@ class UnderpostRepository {
           .map((commitData, i) => `${i === 0 ? '' : ' && '}git ${diffCmd} ${commitData.hash}`)
           .join('');
         if (history[0]) {
+          let index = history.length;
           for (const commit of history) {
             console.log(
               shellExec(`git show -s --format=%ci ${commit.hash}`, {
@@ -160,7 +161,8 @@ class UnderpostRepository {
                 disableLog: true,
               }).trim().green,
             );
-            console.log(commit.hash.yellow, commit.message);
+            console.log(`${index}`.magenta, commit.hash.yellow, commit.message);
+            index--;
             console.log(
               shellExec(`git show --name-status --pretty="" ${commit.hash}`, {
                 stdout: true,
