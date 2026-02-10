@@ -629,22 +629,23 @@ curl -X POST \\
      * @description Generates the kernel parameters for the target machine's bootloader configuration,
      * including the necessary parameters to enable cloud-init with a specific configuration URL and logging settings.
      * @param {array} cmd - The existing array of kernel parameters to which cloud-init parameters will be appended.
-     * @param {string} ipDhcpServer - The IP address of the DHCP server, used to construct the cloud-init configuration URL and logging host.
-     * @param {object} options - Additional options for generating kernel parameters.
-     * @param {object} options.machine - The machine information, including system_id for constructing the cloud-init configuration URL.
-     * @param {string} options.machine.system_id - The unique identifier of the machine, used to fetch the correct cloud-init preseed configuration from MAAS.
+     * @param {object} options - Options for generating kernel parameters.
+     * @param {string} options.ipDhcpServer - The IP address of the DHCP server.
+     * @param {object} [options.machine] - The machine information, including system_id for constructing the cloud-init configuration URL.
+     * @param {string} [options.machine.system_id] - The unique identifier of the machine, used to fetch the correct cloud-init preseed configuration from MAAS.
      * @return {array} The modified array of kernel parameters with cloud-init parameters included.
      * @memberof UnderpostCloudInit
      */,
     kernelParamsFactory(
       cmd = [],
-      ipDhcpServer = '',
       options = {
+        ipDhcpServer: '',
         machine: {
           system_id: '',
         },
       },
     ) {
+      const { ipDhcpServer } = options;
       const cloudInitPreseedUrl = `http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${options.machine?.system_id ? options.machine.system_id : 'system-id'}/?op=get_preseed`;
       cmd = cmd.concat([
         `cloud-init=enabled`,

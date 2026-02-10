@@ -628,6 +628,10 @@ program
   )
   .option('--ipxe', 'Chainloads iPXE to normalize identity before commissioning.')
   .option('--ipxe-rebuild', 'Forces rebuild of iPXE binary with embedded boot script.')
+  .option(
+    '--ipxe-build-iso <iso-path>',
+    'Builds a standalone iPXE ISO with embedded script for the specified workflow ID.',
+  )
   .option('--install-packer', 'Installs Packer CLI.')
   .option(
     '--packer-maas-image-template <template-path>',

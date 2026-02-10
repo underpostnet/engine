@@ -41,6 +41,117 @@ class UnderpostBaremetal {
     },
 
     /**
+     * @method ipxeBuildIso
+     * @description Builds a UEFI-bootable iPXE ISO with an embedded bridge script.
+     * @param {object} params
+     * @param {string} params.workflowId - The workflow identifier (e.g., 'hp-envy-iso-ram').
+     * @param {string} params.isoOutputPath - Output path for the generated ISO file.
+     * @param {string} params.tftpPrefix - TFTP prefix directory (e.g., 'envy').
+     * @param {string} params.ipFileServer - IP address of the TFTP/file server to chain to.
+     * @param {string} [params.ipAddress='192.168.1.191'] - The IP address of the client machine.
+     * @param {string} [params.ipConfig='none'] - IP configuration method (e.g., 'dhcp', 'none').
+     * @param {string} [params.netmask='255.255.255.0'] - The network mask.
+     * @param {string} [params.dnsServer='8.8.8.8'] - The DNS server address.
+     * @param {string} [params.macAddress=''] - The MAC address of the client machine.
+     * @param {boolean} [params.cloudInit=false] - Flag to enable cloud-init.
+     * @param {object} [params.machine=null] - The machine object containing system_id for cloud-init.
+     * @memberof UnderpostBaremetal
+     * @returns {Promise<void>}
+     */
+    async ipxeBuildIso({
+      workflowId,
+      isoOutputPath,
+      tftpPrefix,
+      ipFileServer,
+      ipAddress,
+      ipConfig,
+      netmask,
+      dnsServer,
+      macAddress,
+      cloudInit,
+      machine,
+    }) {
+      const outputPath = !isoOutputPath || isoOutputPath === '.' ? `./ipxe-${workflowId}.iso` : isoOutputPath;
+      if (fs.existsSync(outputPath)) fs.removeSync(outputPath);
+      shellExec(`mkdir -p $(dirname ${outputPath})`);
+
+      const workflowsConfig = Underpost.baremetal.loadWorkflowsConfig();
+      if (!workflowsConfig[workflowId]) {
+        throw new Error(`Workflow configuration not found for ID: ${workflowId}`);
+      }
+
+      const { cmd } = Underpost.baremetal.kernelCmdBootParamsFactory({
+        ipClient: ipAddress,
+        ipDhcpServer: ipFileServer,
+        ipFileServer,
+        ipConfig,
+        netmask,
+        hostname: workflowId,
+        dnsServer,
+        fileSystemUrl: workflowsConfig[workflowId].isoUrl,
+        type: workflowsConfig[workflowId].type,
+        macAddress,
+        cloudInit,
+        machine,
+        osIdLike: workflowsConfig[workflowId].osIdLike,
+        networkInterfaceName: workflowsConfig[workflowId].networkInterfaceName,
+      });
+
+      const ipxeSrcDir = '/home/dd/ipxe/src';
+      const embedScriptName = `embed_${workflowId}.ipxe`;
+      const embedScriptPath = path.join(ipxeSrcDir, embedScriptName);
+
+      const embedScriptContent = `#!ipxe
+dhcp
+set server_ip ${ipFileServer}
+set tftp_prefix ${tftpPrefix}
+kernel tftp://\${server_ip}/\${tftp_prefix}/pxe/vmlinuz-efi ${cmd}
+initrd tftp://\${server_ip}/\${tftp_prefix}/pxe/initrd.img
+boot || shell
+`;
+
+      fs.writeFileSync(embedScriptPath, embedScriptContent);
+      logger.info(`Created embedded script at ${embedScriptPath}`);
+
+      // Determine target architecture
+      let targetArch = 'x86_64'; // Default to x86_64
+      if (
+        workflowsConfig[workflowId].architecture === 'arm64' ||
+        workflowsConfig[workflowId].architecture === 'aarch64'
+      ) {
+        targetArch = 'arm64';
+      }
+
+      // Determine host architecture
+      const hostArch = process.arch === 'arm64' ? 'arm64' : 'x86_64';
+
+      let crossCompile = '';
+      if (hostArch === 'x86_64' && targetArch === 'arm64') {
+        crossCompile = 'CROSS_COMPILE=aarch64-linux-gnu-';
+      } else if (hostArch === 'arm64' && targetArch === 'x86_64') {
+        crossCompile = 'CROSS_COMPILE=x86_64-linux-gnu-';
+      }
+
+      const platformDir = targetArch === 'arm64' ? 'bin-arm64-efi' : 'bin-x86_64-efi';
+      const makeTarget = `${platformDir}/ipxe.iso`;
+
+      logger.info(
+        `Building iPXE ISO for ${targetArch} on ${hostArch}: make ${makeTarget} ${crossCompile} EMBED=${embedScriptName}`,
+      );
+
+      const buildCmd = `cd ${ipxeSrcDir} && make ${makeTarget} ${crossCompile} EMBED=${embedScriptName}`;
+      shellExec(buildCmd);
+
+      const builtIsoPath = path.join(ipxeSrcDir, makeTarget);
+      if (fs.existsSync(builtIsoPath)) {
+        fs.copySync(builtIsoPath, outputPath);
+        logger.info(`ISO successfully built and copied to ${outputPath}`);
+      } else {
+        logger.error(`Failed to build ISO at ${builtIsoPath}`);
+      }
+    },
+
+    /**
      * @method callback
      * @description Initiates a baremetal provisioning workflow based on the provided options.
      * This is the primary entry point for orchestrating baremetal operations.
@@ -64,6 +175,7 @@ class UnderpostBaremetal {
      * @param {string} [options.mac=''] - MAC address of the baremetal machine.
      * @param {boolean} [options.ipxe=false] - Flag to use iPXE for booting.
      * @param {boolean} [options.ipxeRebuild=false] - Flag to rebuild the iPXE binary with embedded script.
+     * @param {string} [options.ipxeBuildIso=''] - Builds a standalone iPXE ISO with embedded script for the specified workflow ID.
      * @param {boolean} [options.installPacker=false] - Flag to install Packer CLI.
      * @param {string} [options.packerMaasImageTemplate] - Template path from canonical/packer-maas to extract (requires workflow-id).
      * @param {string} [options.packerWorkflowId] - Workflow ID for Packer MAAS image operations (used with --packer-maas-image-build or --packer-maas-image-upload).
@@ -111,6 +223,7 @@ class UnderpostBaremetal {
         mac: '',
         ipxe: false,
         ipxeRebuild: false,
+        ipxeBuildIso: '',
         installPacker: false,
         packerMaasImageTemplate: false,
         packerWorkflowId: '',
@@ -193,6 +306,45 @@ class UnderpostBaremetal {
 
       // Define the TFTP root prefix path based
       const tftpRootPath = `${process.env.TFTP_ROOT}/${tftpPrefix}`;
+
+      if (options.ipxeBuildIso) {
+        let machine = null;
+
+        if (options.cloudInit) {
+          // Search for an existing machine by hostname to extract system_id for cloud-init
+          const [searchMachine] = Underpost.baremetal.maasCliExec(`machines read hostname=${hostname}`);
+
+          if (searchMachine) {
+            logger.info(`Found existing machine ${hostname} with system_id ${searchMachine.system_id}`);
+            machine = searchMachine;
+          } else {
+            // Machine does not exist, create it to obtain a system_id
+            logger.info(`Machine ${hostname} not found, creating new machine for cloud-init system_id...`);
+            machine = Underpost.baremetal.machineFactory({
+              hostname,
+              ipAddress,
+              macAddress,
+              architecture: workflowsConfig[workflowId].architecture,
+            }).machine;
+            logger.info(`✓ Machine created with system_id ${machine.system_id}`);
+          }
+        }
+
+        await Underpost.baremetal.ipxeBuildIso({
+          workflowId,
+          isoOutputPath: options.ipxeBuildIso,
+          tftpPrefix,
+          ipFileServer,
+          ipAddress,
+          ipConfig,
+          netmask,
+          dnsServer,
+          macAddress,
+          cloudInit: options.cloudInit,
+          machine,
+        });
+        return;
+      }
 
       // Define the iPXE cache directory to preserve builds across tftproot cleanups
       const ipxeCacheDir = `/tmp/ipxe-cache/${tftpPrefix}`;
@@ -2028,10 +2180,9 @@ shell
         osIdLike,
       } = options;
 
-      const ipParam = true
-        ? `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}` +
-          `:${networkInterfaceName ? networkInterfaceName : 'eth0'}:${ipConfig}:${dnsServer}`
-        : 'ip=dhcp';
+      const ipParam =
+        `ip=${ipClient}:${ipFileServer}:${ipDhcpServer}:${netmask}:${hostname}` +
+        `:${networkInterfaceName ? networkInterfaceName : 'eth0'}:${ipConfig}:${dnsServer}`;
 
       const nfsOptions = `${
         type === 'chroot-debootstrap' || type === 'chroot-container'
@@ -2078,7 +2229,7 @@ shell
         // `toram`,
         'nomodeset',
         `editable_rootfs=tmpfs`,
-        `ramdisk_size=3550000`,
+        // `ramdisk_size=3550000`,
         // `root=/dev/sda1`, // rpi4 usb port unit
         'apparmor=0', // Disable AppArmor security
         ...(networkInterfaceName === 'eth0'
@@ -2122,7 +2273,7 @@ shell
       if (type === 'iso-ram') {
         const netBootParams = [`netboot=url`];
         if (fileSystemUrl) netBootParams.push(`url=${fileSystemUrl.replace('https', 'http')}`);
-        cmd = [ipParam, `boot=casper`, ...netBootParams, ...kernelParams];
+        cmd = [ipParam, `boot=casper`, 'toram', ...netBootParams, ...kernelParams, ...performanceParams];
       } else if (type === 'chroot-debootstrap' || type === 'chroot-container') {
         let qemuNfsRootParams = [`root=/dev/nfs`, `rootfstype=nfs`];
 
