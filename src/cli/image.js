@@ -108,18 +108,14 @@ class UnderpostImage {
       if (imagePath && typeof imagePath === 'string' && !fs.existsSync(imagePath))
         fs.mkdirSync(imagePath, { recursive: true });
       const tarFile = `${imagePath}/${imageName.replace(':', '_')}.tar`;
-
-      let secretDockerInput = '';
       let cache = '';
-
       if (reset === true) cache += ' --rm --no-cache';
-      if (path && typeof path === 'string')
+      if (path)
         shellExec(
           `cd ${path} && sudo podman build -f ./${
             dockerfileName && typeof dockerfileName === 'string' ? dockerfileName : 'Dockerfile'
-          } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache}${secretDockerInput} --network host`,
+          } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache} --network host`,
         );
-
       if (podmanSave === true) {
         if (fs.existsSync(tarFile)) fs.removeSync(tarFile);
         shellExec(`podman save -o ${tarFile} ${podManImg}`);
