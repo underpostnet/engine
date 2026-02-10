@@ -644,10 +644,24 @@ curl -X POST \\
         machine: {
           system_id: '',
         },
+        authCredentials: { consumer_key: '', consumer_secret: '', token_key: '', token_secret: '' },
       },
     ) {
-      const { ipDhcpServer } = options;
-      const cloudInitPreseedUrl = `http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${options.machine?.system_id ? options.machine.system_id : 'system-id'}/?op=get_preseed`;
+      const { ipDhcpServer, authCredentials } = options;
+      // const cloudInitPreseedUrl = `http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${options.machine?.system_id ? options.machine.system_id : 'system-id'}/?op=get_preseed`;
+
+      const maasConfig = {
+        metadata_url: `http://${ipDhcpServer}:5240/MAAS/metadata/`,
+        ...(authCredentials?.consumer_key ? authCredentials : {}),
+      };
+
+      const ccContent = JSON.stringify({
+        datasource_list: ['MAAS'],
+        datasource: {
+          MAAS: maasConfig,
+        },
+      });
+
       cmd = cmd.concat([
         `cloud-init=enabled`,
         // 'autoinstall',
@@ -657,7 +671,7 @@ curl -X POST \\
         // `log_host=${ipDhcpServer}`,
         // `log_port=5247`,
         // `BOOTIF=${macAddress}`,
-        `cc:{'datasource_list': ['MAAS']}end_cc`,
+        `cc:${ccContent}end_cc`,
       ]);
       return cmd;
     },
