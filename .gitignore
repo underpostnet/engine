@@ -19,6 +19,7 @@
 *.tar.gz
 *.metals
 *scala-build
+*.iso
 _
 _.js
 

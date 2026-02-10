@@ -2301,7 +2301,7 @@ shell
         cmd = [ipParam, `netboot=nfs`, nfsRootParam, ...kernelParams, ...performanceParams];
         cmd.push(`ifname=${networkInterfaceName}:${macAddress}`);
       }
-      if (cloudInit) cmd = Underpost.cloudInit.kernelParamsFactory(cmd, options);
+      if (cloudInit) cmd = Underpost.cloudInit.kernelParamsFactory(macAddress, cmd, options);
       // cmd.push('---');
       const cmdStr = cmd.join(' ');
       logger.info('Constructed kernel command line');

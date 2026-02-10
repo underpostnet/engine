@@ -637,6 +637,7 @@ curl -X POST \\
      * @memberof UnderpostCloudInit
      */,
     kernelParamsFactory(
+      macAddress,
       cmd = [],
       options = {
         ipDhcpServer: '',
@@ -649,13 +650,14 @@ curl -X POST \\
       const cloudInitPreseedUrl = `http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${options.machine?.system_id ? options.machine.system_id : 'system-id'}/?op=get_preseed`;
       cmd = cmd.concat([
         `cloud-init=enabled`,
-        'autoinstall',
-        `cloud-config-url=${cloudInitPreseedUrl}`,
-        `ds=nocloud-net;s=${cloudInitPreseedUrl}`,
-        `log_host=${ipDhcpServer}`,
-        `log_port=5247`,
+        // 'autoinstall',
+        // `cloud-config-url=${cloudInitPreseedUrl}`,
+        // `ds=nocloud-net;s=${cloudInitPreseedUrl}`,
+        // `enable_ssh=1`,
+        // `log_host=${ipDhcpServer}`,
+        // `log_port=5247`,
         // `BOOTIF=${macAddress}`,
-        // `cc:{'datasource_list': ['MAAS']}end_cc`,
+        `cc:{'datasource_list': ['MAAS']}end_cc`,
       ]);
       return cmd;
     },
