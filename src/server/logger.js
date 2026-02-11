@@ -28,11 +28,13 @@ const levels = {
   debug: 4,
 };
 
-// This method set the current severity based on
-// the current NODE_ENV: show all the log levels
-// if the server was run in development mode; otherwise,
-// if it was run in production, show only warn and error messages.
-const level = () => 'info'; // (process.env.NODE_ENV || 'development' ? 'debug' : 'warn');
+/**
+ * The `level` function determines the logging level based on the provided `logLevel` parameter or defaults to 'info'.
+ * @param {string} logLevel - The logging level to be used. If not provided, it defaults to 'info'.
+ * @returns {string} The logging level to be used for the logger.
+ * @memberof Logger
+ */
+const level = (logLevel = '') => logLevel || 'info';
 
 // Define different colors for each level.
 // Colors make the log message more visible,
@@ -98,13 +100,14 @@ const setUpInfo = async (logger = new winston.Logger()) => {
  * messages.
  * @param meta - The `meta` parameter in the `loggerFactory` function is used to extract the last part
  * of a URL and use it to create log files in a specific directory.
+ * @param logLevel - Specify the logging level for the logger instance. e.g., 'error', 'warn', 'info', 'debug'.
  * @returns {underpostLogger} The `loggerFactory` function returns a logger instance created using Winston logger
  * library. The logger instance is configured with various transports for printing out messages to
  * different destinations such as the terminal, error.log file, and all.log file. The logger instance
  * also has a method `setUpInfo` attached to it for setting up additional information.
  * @memberof Logger
  */
-const loggerFactory = (meta = { url: '' }) => {
+const loggerFactory = (meta = { url: '' }, logLevel = '') => {
   meta = meta.url.split('/').pop();
   // Define which transports the logger must use to print out messages.
   // In this example, we are using three different transports
@@ -125,7 +128,7 @@ const loggerFactory = (meta = { url: '' }) => {
   // and used to log messages.
   const logger = winston.createLogger({
     defaultMeta: meta,
-    level: level(),
+    level: level(logLevel),
     levels,
     format: format(meta),
     transports,
@@ -147,38 +150,30 @@ const loggerFactory = (meta = { url: '' }) => {
 };
 
 /**
- * The `loggerMiddleware` function creates a middleware for logging HTTP requests using Morgan with
- * custom message format and options.
- * @param meta - The `meta` parameter in the `loggerMiddleware` function is an object that contains
- * information about the request URL. It has a default value of an empty object `{ url: '' }`. This
- * object is used to provide additional metadata for logging purposes.
- * @returns {Handler<any, any>} The `loggerMiddleware` function returns a middleware function that uses the Morgan library
- * to log HTTP request information. The middleware function formats the log message using predefined
- * tokens provided by Morgan and custom tokens like `:host` to include specific request details. The
- * log message format includes information such as remote address, HTTP method, host, URL, status code,
- * content length, and response time in milliseconds. The middleware
+ * The `loggerMiddleware` function is an Express middleware that uses the Morgan library to log HTTP requests.
+ * @param {Object} meta - An object containing metadata, such as the URL, to be used in the logger.
+ * @param {string} logLevel - The logging level to be used for the logger (e.g., 'error', 'warn', 'info', 'debug').
+ * @param {Function} skip - A function to determine whether to skip logging for a particular request.
+ * @returns {Function} A middleware function that can be used in an Express application to log HTTP requests.
  * @memberof Logger
  */
-const loggerMiddleware = (meta = { url: '' }) => {
+const loggerMiddleware = (
+  meta = { url: '' },
+  logLevel = 'info',
+  skip = (req, res) => process.env.NODE_ENV === 'production',
+) => {
   const stream = {
     // Use the http severity
-    write: (message) => loggerFactory(meta).http(message),
+    write: (message) => loggerFactory(meta, logLevel).http(message),
   };
-
-  const skip = (req, res) => process.env.NODE_ENV === 'production';
 
   morgan.token('host', function (req, res) {
     return req.headers['host'];
   });
 
   return morgan(
-    // Define message format string (this is the default one).
-    // The message format is made from tokens, and each token is
-    // defined inside the Morgan library.
-    // You can create your custom token to show what do you want from a request.
+    // Define message format string
     `:remote-addr :method :host:url :status :res[content-length] - :response-time ms`,
-    // Options: in this case, I overwrote the stream and the skip logic.
-    // See the methods above.
     { stream, skip },
   );
 };
