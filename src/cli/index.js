@@ -138,9 +138,6 @@ program
   .option('--head-components <paths>', 'Comma-separated SSR head component paths.')
   .option('--body-components <paths>', 'Comma-separated SSR body component paths.')
 
-  .option('--deploy-id <deploy-id>', 'Build static assets for a specific deployment ID.')
-  .option('--build', 'Triggers the static build process for the specified deployment ID.')
-  .option('--build-host <build-host>', 'Sets a custom build host for static documents or assets.')
   .option('--build-path <build-path>', 'Sets a custom build path for static documents or assets.')
   .option('--env <env>', 'Sets the environment for the static build (e.g., "development", "production").')
   .option('--minify', 'Minify HTML output (default: true for production).')

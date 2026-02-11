@@ -68,11 +68,8 @@ const logger = loggerFactory(import.meta);
  * @property {string} [page=''] - SSR component path to render
  * @property {string} [title='Home'] - Page title (deprecated: use metadata.title)
  * @property {string} [outputPath='.'] - Output file path
- * @property {string} [deployId=''] - Deployment identifier
- * @property {string} [buildHost=''] - Build host URL
  * @property {string} [buildPath='/'] - Build path
  * @property {string} [env='production'] - Environment (development/production)
- * @property {boolean} [build=false] - Whether to trigger build
  * @property {boolean} [dev=false] - Development mode flag
  * @property {boolean} [minify=true] - Minify HTML output
  * @property {MetadataOptions} [metadata={}] - Comprehensive metadata options
@@ -95,11 +92,8 @@ const DefaultStaticGenerationOptions = {
   page: '',
   title: '',
   outputPath: '',
-  deployId: '',
-  buildHost: '',
   buildPath: '/',
   env: 'production',
-  build: false,
   dev: false,
   minify: true,
   metadata: {},
@@ -385,11 +379,8 @@ class UnderpostStatic {
      * @param {string} [options.page] - Path to the SSR component to render
      * @param {string} [options.title] - Page title (deprecated: use metadata.title)
      * @param {string} [options.outputPath] - Output file path
-     * @param {string} [options.deployId] - Deployment identifier
-     * @param {string} [options.buildHost] - Build host URL
      * @param {string} [options.buildPath='/'] - Build path
      * @param {string} [options.env='production'] - Environment (development/production)
-     * @param {boolean} [options.build=false] - Whether to trigger build
      * @param {boolean} [options.minify=true] - Minify HTML output
      * @param {MetadataOptions} [options.metadata={}] - Comprehensive metadata options
      * @param {Object} [options.scripts={}] - Script injection options
@@ -598,23 +589,6 @@ class UnderpostStatic {
         } catch (error) {
           logger.error(`Error generating static page: ${error.message}`);
           logger.error(error.stack);
-          throw error;
-        }
-      }
-
-      // Trigger build if requested
-      if (options.deployId && options.build) {
-        try {
-          logger.info(`Triggering build for deployment: ${options.deployId}`);
-
-          shellExec(`underpost env ${options.deployId} ${options.env}`);
-          shellExec(
-            `npm run build ${options.deployId}${options.buildHost ? ` ${options.buildHost} ${options.buildPath}` : ``}`,
-          );
-
-          logger.info('Build completed successfully');
-        } catch (error) {
-          logger.error(`Build error: ${error.message}`);
           throw error;
         }
       }
