@@ -261,6 +261,12 @@ curl -X POST \\
      * @param {boolean} params.ubuntuToolsBuild - Flag to determine if Ubuntu tools should be built.
      * @param {string} [params.bootcmd] - Optional custom commands to run during boot.
      * @param {string} [params.runcmd] - Optional custom commands to run during first boot.
+     * @param {object} [params.write_files] - Optional array of files to write during cloud-init, each with path, permissions, owner, and content.
+     * @param {string} [params.write_files[].path] - The file path where the content will be written on the target machine.
+     * @param {string} [params.write_files[].permissions] - The file permissions to set for the written file (e.g., '0644').
+     * @param {string} [params.write_files[].owner] - The owner of the written file (e.g., 'root:root').
+     * @param {string} [params.write_files[].content] - The content to write into the file.
+     * @param {boolean} [params.write_files[].defer] - Whether to defer writing the file until the 'final' stage of cloud-init.
      * @param {object} [authCredentials={}] - Optional MAAS authentication credentials.
      * @returns {object} The generated cloud-init configuration content.
      * @memberof UnderpostCloudInit
@@ -278,6 +284,15 @@ curl -X POST \\
         ubuntuToolsBuild,
         bootcmd: bootcmdParam,
         runcmd: runcmdParam,
+        write_files = [
+          {
+            path: '',
+            permissions: '',
+            owner: '',
+            content: '',
+            defer: false,
+          },
+        ],
       },
       authCredentials = { consumer_key: '', consumer_secret: '', token_key: '', token_secret: '' },
     ) {
@@ -334,12 +349,14 @@ curl -X POST \\
             name: process.env.MAAS_ADMIN_USERNAME,
             sudo: ['ALL=(ALL) NOPASSWD:ALL'],
             shell: '/bin/bash',
-            lock_passwd: false,
+            lock_passwd: true,
             groups: 'sudo,users,admin,wheel,lxd',
-            plain_text_passwd: process.env.MAAS_ADMIN_USERNAME,
+            // plain_text_passwd: process.env.MAAS_ADMIN_USERNAME,
             ssh_authorized_keys: [fs.readFileSync(`/home/dd/engine/engine-private/deploy/id_rsa.pub`, 'utf8')],
           },
         ],
+        disable_root: true,
+        ssh_pwauth: false,
         timezone,
         ntp: {
           enabled: true,
@@ -380,7 +397,7 @@ curl -X POST \\
         final_message: '====== Cloud init finished ======',
         bootcmd,
         runcmd,
-        disable_root: true,
+        write_files,
         preserve_hostname: false,
         cloud_init_modules: [
           // minimal for commissioning
@@ -473,6 +490,7 @@ curl -X POST \\
         growpart,
         network,
         runcmd,
+        write_files,
         final_message,
         bootcmd,
         disable_root,
@@ -600,6 +618,21 @@ curl -X POST \\
         runcmd.forEach((cmd) => yaml.push(`  - ${cmd}`));
       }
 
+      if (write_files) {
+        yaml.push('write_files:');
+        write_files.forEach((file) => {
+          yaml.push(`  - path: ${file.path}`);
+          if (file.encoding) yaml.push(`    encoding: ${file.encoding}`);
+          if (file.owner) yaml.push(`    owner: ${file.owner}`);
+          if (file.permissions) yaml.push(`    permissions: '${file.permissions}'`);
+          if (file.defer) yaml.push(`    defer: ${file.defer}`);
+          if (file.content) {
+            yaml.push(`    content: |`);
+            file.content.split('\n').forEach((line) => yaml.push(`      ${line}`));
+          }
+        });
+      }
+
       if (final_message) yaml.push(`final_message: "${final_message}"`);
 
       if (bootcmd) {
@@ -641,39 +674,17 @@ curl -X POST \\
       cmd = [],
       options = {
         ipDhcpServer: '',
+        bootstrapHttpServerPort: 8888,
+        hostname: '',
         machine: {
           system_id: '',
         },
         authCredentials: { consumer_key: '', consumer_secret: '', token_key: '', token_secret: '' },
       },
     ) {
-      const { ipDhcpServer, authCredentials } = options;
-      // const cloudInitPreseedUrl = `http://${ipDhcpServer}:5248/MAAS/metadata/by-id/${options.machine?.system_id ? options.machine.system_id : 'system-id'}/?op=get_preseed`;
-
-      const maasConfig = {
-        metadata_url: `http://${ipDhcpServer}:5240/MAAS/metadata/`,
-        ...(authCredentials?.consumer_key ? authCredentials : {}),
-      };
-
-      const ccContent = JSON.stringify({
-        datasource_list: ['MAAS'],
-        datasource: {
-          MAAS: maasConfig,
-        },
-      });
-
-      cmd = cmd.concat([
-        `cloud-init=enabled`,
-        // 'autoinstall',
-        // `cloud-config-url=${cloudInitPreseedUrl}`,
-        // `ds=nocloud-net;s=${cloudInitPreseedUrl}`,
-        // `enable_ssh=1`,
-        // `log_host=${ipDhcpServer}`,
-        // `log_port=5247`,
-        // `BOOTIF=${macAddress}`,
-        `cc:${ccContent}end_cc`,
-      ]);
-      return cmd;
+      const { ipDhcpServer, bootstrapHttpServerPort, hostname } = options;
+      const cloudConfigUrl = `http://${ipDhcpServer}:${bootstrapHttpServerPort}/${hostname}/cloud-init/user-data`;
+      return cmd.concat([`cloud-config-url=${cloudConfigUrl}`]);
     },
   };
 }
