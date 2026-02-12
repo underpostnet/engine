@@ -421,29 +421,9 @@ rm -rf ${artifacts.join(' ')}`);
 
         logger.info(`Uploading image to MAAS...`);
 
-        // Detect MAAS profile from 'maas list' output
-        let maasProfile = process.env.MAAS_ADMIN_USERNAME;
-        if (!maasProfile) {
-          const profileList = shellExec('maas list', { silent: true, stdout: true });
-          if (profileList) {
-            const firstLine = profileList.trim().split('\n')[0];
-            const match = firstLine.match(/^(\S+)\s+http/);
-            if (match) {
-              maasProfile = match[1];
-              logger.info(`Detected MAAS profile: ${maasProfile}`);
-            }
-          }
-        }
-
-        if (!maasProfile) {
-          throw new Error(
-            'MAAS profile not found. Please run "maas login" first or set MAAS_ADMIN_USERNAME environment variable.',
-          );
-        }
-
         // Use the upload script to avoid MAAS CLI bugs
         const uploadScript = `${underpostRoot}/scripts/maas-upload-boot-resource.sh`;
-        const uploadCmd = `${uploadScript} ${maasProfile} "${workflow.maas.name}" "${workflow.maas.title}" "${workflow.maas.architecture}" "${workflow.maas.base_image}" "${workflow.maas.filetype}" "${tarballPath}"`;
+        const uploadCmd = `${uploadScript} ${process.env.MAAS_ADMIN_USERNAME} "${workflow.maas.name}" "${workflow.maas.title}" "${workflow.maas.architecture}" "${workflow.maas.base_image}" "${workflow.maas.filetype}" "${tarballPath}"`;
 
         logger.info(`Uploading to MAAS using: ${uploadScript}`);
         const uploadResult = shellExec(uploadCmd);
@@ -2159,7 +2139,7 @@ fi
       const hostname = options.hostname || 'localhost';
 
       shellExec(`mkdir -p ${bootstrapHttpServerPath}/${hostname}/cloud-init`);
-      shellExec(`node bin run kill ${port}`);
+      shellExec(`node bin run kill ${port}`, { silent: true });
 
       const app = express();
 
