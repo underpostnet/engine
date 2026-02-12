@@ -186,47 +186,6 @@ class UnderpostBaremetal {
       // Define the TFTP root prefix path based
       const tftpRootPath = `${process.env.TFTP_ROOT}/${tftpPrefix}`;
 
-      if (options.ipxeBuildIso) {
-        let machine = null;
-
-        if (options.cloudInit) {
-          // Search for an existing machine by hostname to extract system_id for cloud-init
-          const [searchMachine] = Underpost.baremetal.maasCliExec(`machines read hostname=${hostname}`);
-
-          if (searchMachine) {
-            logger.info(`Found existing machine ${hostname} with system_id ${searchMachine.system_id}`);
-            machine = searchMachine;
-          } else {
-            // Machine does not exist, create it to obtain a system_id
-            logger.info(`Machine ${hostname} not found, creating new machine for cloud-init system_id...`);
-            machine = Underpost.baremetal.machineFactory({
-              hostname,
-              ipAddress,
-              macAddress,
-              architecture: workflowsConfig[workflowId].architecture,
-            }).machine;
-            logger.info(`✓ Machine created with system_id ${machine.system_id}`);
-          }
-        }
-
-        await Underpost.baremetal.ipxeBuildIso({
-          workflowId,
-          isoOutputPath: options.ipxeBuildIso,
-          tftpPrefix,
-          ipFileServer,
-          ipAddress,
-          ipConfig,
-          netmask,
-          dnsServer,
-          macAddress,
-          cloudInit: options.cloudInit,
-          machine,
-          dev: options.dev,
-          bootstrapHttpServerPort: options.bootstrapHttpServerPort,
-        });
-        return;
-      }
-
       // Define the iPXE cache directory to preserve builds across tftproot cleanups
       const ipxeCacheDir = `/tmp/ipxe-cache/${tftpPrefix}`;
 
@@ -297,6 +256,26 @@ class UnderpostBaremetal {
           }
         }
       }
+
+      if (options.ipxeBuildIso)
+        return await Underpost.baremetal.ipxeBuildIso({
+          workflowId,
+          isoOutputPath: options.ipxeBuildIso,
+          tftpPrefix,
+          ipFileServer,
+          ipAddress,
+          ipConfig,
+          netmask,
+          dnsServer,
+          macAddress,
+          cloudInit: options.cloudInit,
+          dev: options.dev,
+          bootstrapHttpServerPort: Underpost.baremetal.bootstrapHttpServerPortFactory({
+            port: options.bootstrapHttpServerPort,
+            workflowId,
+            workflowsConfig,
+          }),
+        });
 
       if (options.installPacker) {
         await Underpost.baremetal.installPacker(underpostRoot);
@@ -1050,7 +1029,6 @@ rm -rf ${artifacts.join(' ')}`);
             type,
             macAddress,
             cloudInit: options.cloudInit,
-            machine,
             dev: options.dev,
             osIdLike: workflowsConfig[workflowId].osIdLike || '',
             authCredentials,
@@ -1230,7 +1208,6 @@ rm -rf ${artifacts.join(' ')}`);
      * @param {string} [params.dnsServer='8.8.8.8'] - The DNS server address.
      * @param {string} [params.macAddress=''] - The MAC address of the client machine.
      * @param {boolean} [params.cloudInit=false] - Flag to enable cloud-init.
-     * @param {object} [params.machine=null] - The machine object containing system_id for cloud-init.
      * @param {boolean} [params.dev=false] - Development mode flag to determine paths.
      * @param {number} [params.bootstrapHttpServerPort=8888] - Port for the bootstrap HTTP server used in ISO RAM workflows.
      * @memberof UnderpostBaremetal
@@ -1247,7 +1224,6 @@ rm -rf ${artifacts.join(' ')}`);
       dnsServer,
       macAddress,
       cloudInit,
-      machine,
       dev,
       bootstrapHttpServerPort,
     }) {
@@ -1279,7 +1255,6 @@ rm -rf ${artifacts.join(' ')}`);
         type: workflowsConfig[workflowId].type,
         macAddress,
         cloudInit,
-        machine,
         osIdLike: workflowsConfig[workflowId].osIdLike,
         networkInterfaceName: workflowsConfig[workflowId].networkInterfaceName,
         authCredentials,
@@ -2307,7 +2282,6 @@ fi
      * @param {string} options.macAddress - The MAC address of the client.
      * @param {boolean} options.cloudInit - Whether to include cloud-init parameters.
      * @param {object} options.machine - The machine object containing system_id.
-     * @param {string} options.machine.system_id - The system ID of the machine (for MAAS metadata).
      * @param {boolean} [options.dev=false] - Whether to enable dev mode with dracut debugging parameters.
      * @param {string} [options.osIdLike=''] - OS family identifier (e.g., 'rhel centos fedora' or 'debian ubuntu').
      * @param {object} options.authCredentials - Authentication credentials for fetching files (if needed).
@@ -2333,7 +2307,6 @@ fi
         type: '',
         macAddress: '',
         cloudInit: false,
-        machine: { system_id: '' },
         dev: false,
         osIdLike: '',
         authCredentials: { consumer_key: '', consumer_secret: '', token_key: '', token_secret: '' },
