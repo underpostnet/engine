@@ -833,7 +833,6 @@ rm -rf ${artifacts.join(' ')}`);
               `chmod +x /underpost/shutdown.sh`,
               `chmod +x /underpost/device_scan.sh`,
               `chmod +x /underpost/mac.sh`,
-              `chmod +x /underpost/enlistment.sh`,
               `sudo chmod 700 ~/.ssh/`, // Set secure permissions for .ssh directory.
               `sudo chmod 600 ~/.ssh/authorized_keys`, // Set secure permissions for authorized_keys.
               `sudo chmod 644 ~/.ssh/known_hosts`, // Set permissions for known_hosts.

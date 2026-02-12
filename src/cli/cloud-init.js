@@ -122,8 +122,6 @@ ${Underpost.baremetal.stepsRender(
     `cloud-init modules --mode=config`,
     `sleep 3`,
     `cloud-init modules --mode=final`,
-    `sleep 3`,
-    `/underpost/enlistment.sh`,
   ],
   false,
 )}`,
@@ -189,45 +187,6 @@ cat /etc/default/keyboard`,
           // Copy the device scan script from manifests.
           logger.info('Build', `${nfsHostToolsPath}/device_scan.sh`);
           fs.copySync(`${underpostRoot}/scripts/device-scan.sh`, `${nfsHostToolsPath}/device_scan.sh`);
-
-          // Build and write the MAAS enlistment script.
-          logger.info('Build', `${nfsHostToolsPath}/enlistment.sh`);
-          fs.writeFileSync(
-            `${nfsHostToolsPath}/enlistment.sh`,
-            `#!/bin/bash
-set -x
-
-# ------------------------------------------------------------
-# Step: Commission a machine in MAAS using OAuth1 authentication
-# ------------------------------------------------------------
-
-MACHINE_ID=$(cat /underpost/system-id)
-CONSUMER_KEY=$(cat /underpost/consumer-key)
-TOKEN_KEY=$(cat /underpost/token-key)
-TOKEN_SECRET=$(cat /underpost/token-secret)
-
-echo ">>> Starting MAAS machine commissioning for system_id: $MACHINE_ID …"
-
-curl -X POST \\
-  --fail --location --verbose --include --raw --trace-ascii /dev/stdout\\
-  --header "Authorization:\\
-  OAuth oauth_version=1.0,\\
-  oauth_signature_method=PLAINTEXT,\\
-  oauth_consumer_key=$CONSUMER_KEY,\\
-  oauth_token=$TOKEN_KEY,\\
-  oauth_signature=&$TOKEN_SECRET,\\
-  oauth_nonce=$(uuidgen),\\
-  oauth_timestamp=$(date +%s)"\\
-  -F "commissioning_scripts=20-maas-01-install-lldpd"\\
-  -F "enable_ssh=1"\\
-  -F "skip_bmc_config=1"\\
-  -F "skip_networking=1"\\
-  -F "skip_storage=1"\\
-  -F "testing_scripts=none"\\
-  http://${callbackMetaData.runnerHost.ip}:5240/MAAS/api/2.0/machines/$MACHINE_ID/op-commission \\
-  2>&1 | tee /underpost/enlistment.log || echo "ERROR: MAAS commissioning returned code $?"`,
-            'utf8',
-          );
 
           // Import SSH keys for root user.
           logger.info('Import ssh keys');
