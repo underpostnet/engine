@@ -11,7 +11,7 @@ This guide provides detailed information on using the main cluster lifecycle com
 5. [cluster](#cluster)
 6. [dd-container](#dd-container)
 7. [image](#image)
-8. [Default Configuration](#default-configuration)
+8. [default-configuration](#default-configuration)
 9. [promote](#promote)
 
 ---
@@ -326,7 +326,7 @@ node bin image --pull-base --kubeadm --version 1.2.3
 
 ---
 
-## Default Configuration
+## default-configuration
 
 **Command:** `node bin new --default-conf --deploy-id <deploy-id>`
 
