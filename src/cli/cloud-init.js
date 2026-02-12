@@ -320,6 +320,7 @@ curl -X POST \\
       let runcmd = [
         'echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"',
         'echo "Init runcmd"',
+        'systemctl enable --now ssh',
         'echo "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"',
       ];
 
@@ -377,6 +378,7 @@ curl -X POST \\
           'smartmontools',
           'net-tools',
           'util-linux',
+          'openssh-server',
         ],
         resize_rootfs: false,
         growpart: { mode: 'off' },
@@ -411,37 +413,37 @@ curl -X POST \\
           'ssh', // enable/configure SSH for temporary access
 
           // optional modules (commented out by default)
-          // 'migrator',
-          // 'seed_random',
-          // 'growpart',
-          // 'resizefs',
-          // 'users-groups',
+          'migrator',
+          'seed_random',
+          'growpart',
+          'resizefs',
+          'users-groups',
         ],
         cloud_config_modules: [
           // minimal so MAAS can run commissioning scripts
           'runcmd', // commissioning / final script execution
           'mounts', // mount devices during commissioning if needed
-          // 'ntp',             // optional — enable if you want time sync
+          'ntp', // optional — enable if you want time sync
 
           // typically not required for basic commissioning (commented)
-          // 'emit_upstart',
-          // 'disk_setup',
-          // 'ssh-import-id',
-          // 'locale',
-          // 'set-passwords',
-          // 'grub-dpkg',
-          // 'apt-pipelining',
-          // 'apt-configure',
-          // 'package-update-upgrade-install', // heavy; do NOT enable by default
-          // 'landscape',
-          // 'timezone',
-          // 'puppet',
-          // 'chef',
-          // 'salt-minion',
-          // 'mcollective',
-          // 'disable-ec2-metadata',
-          // 'byobu',
-          // 'ssh-import-id', // duplicate in original list
+          'emit_upstart',
+          'disk_setup',
+          'ssh-import-id',
+          'locale',
+          'set-passwords',
+          'grub-dpkg',
+          'apt-pipelining',
+          'apt-configure',
+          'package-update-upgrade-install', // heavy; do NOT enable by default
+          'landscape',
+          'timezone',
+          'puppet',
+          'chef',
+          'salt-minion',
+          'mcollective',
+          'disable-ec2-metadata',
+          'byobu',
+          'ssh-import-id', // duplicate in original list
         ],
         cloud_final_modules: [
           // minimal suggestions so final scripts run and node reports status
@@ -449,13 +451,13 @@ curl -X POST \\
           'final-message', // useful for logs/reporting
 
           // optional / commented
-          // 'rightscale_userdata',
-          // 'scripts-vendor',
-          // 'scripts-per-once',
-          // 'scripts-user',
-          // 'ssh-authkey-fingerprints',
-          // 'keys-to-console',
-          // 'power-state-change', // use carefully (can poweroff/reboot)
+          'rightscale_userdata',
+          'scripts-vendor',
+          'scripts-per-once',
+          'scripts-user',
+          'ssh-authkey-fingerprints',
+          'keys-to-console',
+          'power-state-change', // use carefully (can poweroff/reboot)
         ],
       });
 

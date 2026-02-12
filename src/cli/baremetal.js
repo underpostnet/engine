@@ -897,6 +897,19 @@ rm -rf ${artifacts.join(' ')}`);
       if (options.cloudInit || options.cloudInitUpdate) {
         const { chronyc, networkInterfaceName } = workflowsConfig[workflowId];
         const { timezone, chronyConfPath } = chronyc;
+
+        let write_files = [];
+        let runcmd = options.runcmd;
+
+        if (machine && options.commission) {
+          write_files = Underpost.baremetal.commissioningWriteFilesFactory({
+            machine,
+            authCredentials,
+            runnerHostIp: callbackMetaData.runnerHost.ip,
+          });
+          runcmd = '/usr/local/bin/underpost-enlist.sh';
+        }
+
         const { cloudConfigSrc } = Underpost.cloudInit.configFactory(
           {
             controlServerIp: callbackMetaData.runnerHost.ip,
@@ -909,7 +922,8 @@ rm -rf ${artifacts.join(' ')}`);
             networkInterfaceName,
             ubuntuToolsBuild: options.ubuntuToolsBuild,
             bootcmd: options.bootcmd,
-            runcmd: options.runcmd,
+            runcmd,
+            write_files,
           },
           authCredentials,
         );
@@ -1143,31 +1157,11 @@ rm -rf ${artifacts.join(' ')}`);
         if (discoveredMachine) machine = discoveredMachine;
 
         if (machine) {
-          const { consumer_key, token_key, token_secret } = authCredentials;
-          const write_files = [
-            {
-              path: '/usr/local/bin/underpost-enlist.sh',
-              permissions: '0755',
-              owner: 'root:root',
-              content: `#!/bin/bash
-set -euo pipefail
-CONSUMER_KEY="${consumer_key}"
-TOKEN_KEY="${token_key}"
-TOKEN_SECRET="${token_secret}"
-
-curl -X POST \\
-  --fail --location --verbose --include --raw --trace-ascii /dev/stdout \\
-  --header "Authorization: OAuth oauth_version=\\"1.0\\", oauth_signature_method=\\"PLAINTEXT\\", oauth_consumer_key=\\"$CONSUMER_KEY\\", oauth_token=\\"$TOKEN_KEY\\", oauth_signature=\\"&$TOKEN_SECRET\\", oauth_nonce=\\"$(uuidgen)\\", oauth_timestamp=\\"$(date +%s)\\"" \\
-  -F "commissioning_scripts=20-maas-01-install-lldpd" \\
-  -F "enable_ssh=1" \\
-  -F "skip_bmc_config=1" \\
-  -F "skip_networking=1" \\
-  -F "skip_storage=1" \\
-  -F "testing_scripts=none" \\
-  http://${callbackMetaData.runnerHost.ip}:5240/MAAS/api/2.0/machines/${machine.system_id}/op-commission
-`,
-            },
-          ];
+          const write_files = Underpost.baremetal.commissioningWriteFilesFactory({
+            machine,
+            authCredentials,
+            runnerHostIp: callbackMetaData.runnerHost.ip,
+          });
 
           const { cloudConfigSrc } = Underpost.cloudInit.configFactory(
             {
@@ -2094,6 +2088,59 @@ shell
      */
     bootstrapHttpServerPortFactory({ port, workflowId, workflowsConfig }) {
       return port || workflowsConfig[workflowId]?.bootstrapHttpServerPort || 8888;
+    },
+
+    /**
+     * @method commissioningWriteFilesFactory
+     * @description Generates the write_files configuration for the commissioning script.
+     * @param {object} params
+     * @param {object} params.machine - The machine object.
+     * @param {object} params.authCredentials - MAAS authentication credentials.
+     * @param {string} params.runnerHostIp - The IP address of the runner host.
+     * @memberof UnderpostBaremetal
+     * @returns {Array} The write_files array.
+     */
+    commissioningWriteFilesFactory({ machine, authCredentials, runnerHostIp }) {
+      const { consumer_key, token_key, token_secret } = authCredentials;
+      return [
+        {
+          path: '/usr/local/bin/underpost-enlist.sh',
+          permissions: '0755',
+          owner: 'root:root',
+          content: `#!/bin/bash
+# set -euo pipefail
+CONSUMER_KEY="${consumer_key}"
+TOKEN_KEY="${token_key}"
+TOKEN_SECRET="${token_secret}"
+LOG_FILE="/var/log/underpost-enlistment.log"
+RESPONSE_FILE="/tmp/maas_response.txt"
+STATUS_FILE="/tmp/maas_status.txt"
+
+echo "Starting MAAS Commissioning Request..." | tee -a "$LOG_FILE"
+
+curl -X POST \\
+  --location --verbose \\
+  --header "Authorization: OAuth oauth_version=\\"1.0\\", oauth_signature_method=\\"PLAINTEXT\\", oauth_consumer_key=\\"$CONSUMER_KEY\\", oauth_token=\\"$TOKEN_KEY\\", oauth_signature=\\"&$TOKEN_SECRET\\", oauth_nonce=\\"$(uuidgen)\\", oauth_timestamp=\\"$(date +%s)\\"" \\
+  -F "enable_ssh=1" \\
+  http://${runnerHostIp}:5240/MAAS/api/2.0/machines/${machine.system_id}/op-commission \\
+  --output "$RESPONSE_FILE" --write-out "%{http_code}" > "$STATUS_FILE" 2>> "$LOG_FILE"
+
+HTTP_STATUS=$(cat "$STATUS_FILE")
+
+echo "HTTP Status: $HTTP_STATUS" | tee -a "$LOG_FILE"
+echo "Response Body:" | tee -a "$LOG_FILE"
+cat "$RESPONSE_FILE" | tee -a "$LOG_FILE"
+
+if [ "$HTTP_STATUS" -eq 200 ]; then
+  echo "Commissioning requested successfully. Rebooting to start commissioning..." | tee -a "$LOG_FILE"
+  reboot
+else
+  echo "ERROR: MAAS commissioning failed with status $HTTP_STATUS" | tee -a "$LOG_FILE"
+  exit 0
+fi
+`,
+        },
+      ];
     },
 
     /**

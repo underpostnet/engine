@@ -129,7 +129,7 @@
     "isoUrl": "https://releases.ubuntu.com/releases/24.04/ubuntu-24.04.3-live-server-amd64.iso",
     "tftpPrefix": "envy",
     "bootstrapHttpServerPort": 8888,
-    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS hp-envy ISO-NFS commissioning (AMD64)",
+    "menuentryStr": "UNDERPOST.NET UEFI/ISO-IPXE/MAAS hp-envy ISO-NFS commissioning (AMD64)",
     "networkInterfaceName": "eth0",
     "chronyc": {
       "timezone": "America/Santiago",
@@ -153,7 +153,7 @@
     "isoUrl": "https://releases.ubuntu.com/releases/24.04/ubuntu-24.04.3-live-server-amd64.iso",
     "tftpPrefix": "envy",
     "bootstrapHttpServerPort": 8888,
-    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS hp-envy ISO-RAM commissioning (AMD64)",
+    "menuentryStr": "UNDERPOST.NET UEFI/ISO-IPXE/MAAS hp-envy ISO-RAM commissioning (AMD64)",
     "networkInterfaceName": "eth0",
     "chronyc": {
       "timezone": "America/Santiago",
