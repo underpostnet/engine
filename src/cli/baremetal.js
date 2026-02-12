@@ -6,7 +6,7 @@
 
 import { fileURLToPath } from 'url';
 import { getNpmRootPath, getUnderpostRootPath } from '../server/conf.js';
-import { openTerminal, pbcopy, shellExec } from '../server/process.js';
+import { pbcopy, shellExec } from '../server/process.js';
 import dotenv from 'dotenv';
 import { loggerFactory, loggerMiddleware } from '../server/logger.js';
 import fs from 'fs-extra';
@@ -65,6 +65,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.commission=false] - Flag to commission the baremetal machine.
      * @param {number} [options.bootstrapHttpServerPort=8888] - Port for the bootstrap HTTP server.
      * @param {string} [options.bootstrapHttpServerPath='./public/localhost'] - Path for the bootstrap HTTP server files.
+     * @param {boolean} [options.bootstrapHttpServerRun=false] - Flag to start the bootstrap HTTP server.
      * @param {string} [options.isoUrl=''] - Uses a custom ISO URL for baremetal machine commissioning.
      * @param {boolean} [options.ubuntuToolsBuild=false] - Builds ubuntu tools for chroot environment.
      * @param {boolean} [options.ubuntuToolsTest=false] - Tests ubuntu tools in chroot environment.
@@ -115,6 +116,7 @@ class UnderpostBaremetal {
         commission: false,
         bootstrapHttpServerPort: 8888,
         bootstrapHttpServerPath: './public/localhost',
+        bootstrapHttpServerRun: false,
         isoUrl: '',
         ubuntuToolsBuild: false,
         ubuntuToolsTest: false,
@@ -869,11 +871,14 @@ rm -rf ${artifacts.join(' ')}`);
           });
       }
 
+      // Generate MAAS authentication credentials
       const authCredentials =
         options.commission || options.cloudInit || options.cloudInitUpdate
           ? Underpost.baremetal.maasAuthCredentialsFactory()
           : { consumer_key: '', consumer_secret: '', token_key: '', token_secret: '' };
 
+      // Generate cloud-init configuration if needed for commissioning or cloud-init update workflows.
+      let cloudConfigSrc = '';
       if (options.cloudInit || options.cloudInitUpdate) {
         const { chronyc, networkInterfaceName } = workflowsConfig[workflowId];
         const { timezone, chronyConfPath } = chronyc;
@@ -890,7 +895,7 @@ rm -rf ${artifacts.join(' ')}`);
           runcmd = '/usr/local/bin/underpost-enlist.sh';
         }
 
-        const { cloudConfigSrc } = Underpost.cloudInit.configFactory(
+        cloudConfigSrc = Underpost.cloudInit.configFactory(
           {
             controlServerIp: callbackMetaData.runnerHost.ip,
             hostname,
@@ -906,12 +911,28 @@ rm -rf ${artifacts.join(' ')}`);
             write_files,
           },
           authCredentials,
-        );
+        ).cloudConfigSrc;
+      }
+
+      // Start HTTP bootstrap server if cloud-init config or ISO URL is used (for ISO-based workflows).
+      if (cloudConfigSrc || workflowsConfig[workflowId].isoUrl)
         Underpost.baremetal.httpBootstrapServerStaticFactory({
           bootstrapHttpServerPath,
           hostname,
           cloudConfigSrc,
           isoUrl: workflowsConfig[workflowId].isoUrl,
+        });
+
+      // Start HTTP bootstrap server if commissioning or if ISO URL is used (for ISO-based workflows).
+      if (options.bootstrapHttpServerRun || options.commission) {
+        Underpost.baremetal.httpBootstrapServerRunnerFactory({
+          hostname,
+          bootstrapHttpServerPath,
+          bootstrapHttpServerPort: Underpost.baremetal.bootstrapHttpServerPortFactory({
+            port: options.bootstrapHttpServerPort,
+            workflowId,
+            workflowsConfig,
+          }),
         });
       }
 
@@ -928,6 +949,7 @@ rm -rf ${artifacts.join(' ')}`);
           nfsReset: options.nfsReset,
         });
       }
+
       // Handle commissioning tasks
       if (options.commission === true) {
         let { firmwares, networkInterfaceName, maas, menuentryStr, type } = workflowsConfig[workflowId];
@@ -1102,16 +1124,6 @@ rm -rf ${artifacts.join(' ')}`);
         shellExec(`sudo chown -R $(whoami):$(whoami) ${process.env.TFTP_ROOT}`);
         shellExec(`sudo sudo chmod 755 ${process.env.TFTP_ROOT}`);
 
-        Underpost.baremetal.httpBootstrapServerRunnerFactory({
-          hostname,
-          bootstrapHttpServerPath,
-          bootstrapHttpServerPort: Underpost.baremetal.bootstrapHttpServerPortFactory({
-            port: options.bootstrapHttpServerPort,
-            workflowId,
-            workflowsConfig,
-          }),
-        });
-
         if (type === 'chroot-debootstrap' || type === 'chroot-container')
           await Underpost.baremetal.nfsMountCallback({
             hostname,
@@ -1135,49 +1147,6 @@ rm -rf ${artifacts.join(' ')}`);
         const { discovery, machine: discoveredMachine } =
           await Underpost.baremetal.commissionMonitor(commissionMonitorPayload);
         if (discoveredMachine) machine = discoveredMachine;
-
-        if (machine) {
-          const write_files = Underpost.baremetal.commissioningWriteFilesFactory({
-            machine,
-            authCredentials,
-            runnerHostIp: callbackMetaData.runnerHost.ip,
-          });
-
-          const { cloudConfigSrc } = Underpost.cloudInit.configFactory(
-            {
-              controlServerIp: callbackMetaData.runnerHost.ip,
-              hostname,
-              commissioningDeviceIp: ipAddress,
-              gatewayip: callbackMetaData.runnerHost.ip,
-              mac: macAddress,
-              timezone: workflowsConfig[workflowId].chronyc.timezone,
-              chronyConfPath: workflowsConfig[workflowId].chronyc.chronyConfPath,
-              networkInterfaceName: workflowsConfig[workflowId].networkInterfaceName,
-              ubuntuToolsBuild: options.ubuntuToolsBuild,
-              bootcmd: options.bootcmd,
-              runcmd: '/usr/local/bin/underpost-enlist.sh',
-              write_files,
-            },
-            authCredentials,
-          );
-
-          Underpost.baremetal.httpBootstrapServerStaticFactory({
-            bootstrapHttpServerPath,
-            hostname,
-            cloudConfigSrc,
-            isoUrl: workflowsConfig[workflowId].isoUrl,
-          });
-        }
-
-        if ((type === 'chroot-debootstrap' || type === 'chroot-container') && options.cloudInit === true) {
-          openTerminal(`node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init`);
-          openTerminal(
-            `node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init-machine`,
-          );
-          shellExec(
-            `node ${underpostRoot}/bin baremetal ${workflowId} ${ipAddress} ${hostname} --logs cloud-init-config`,
-          );
-        }
       }
     },
 
@@ -2109,8 +2078,7 @@ echo "Response Body:" | tee -a "$LOG_FILE"
 cat "$RESPONSE_FILE" | tee -a "$LOG_FILE"
 
 if [ "$HTTP_STATUS" -eq 200 ]; then
-  echo "Commissioning requested successfully. Rebooting to start commissioning..." | tee -a "$LOG_FILE"
-  reboot
+  echo "Commissioning requested successfully." | tee -a "$LOG_FILE"
 else
   echo "ERROR: MAAS commissioning failed with status $HTTP_STATUS" | tee -a "$LOG_FILE"
   exit 0
@@ -2127,34 +2095,34 @@ fi
      * @param {string} params.bootstrapHttpServerPath - The path where static files will be created.
      * @param {string} params.hostname - The hostname of the client machine.
      * @param {string} params.cloudConfigSrc - The cloud-init configuration YAML source.
-     * @param {object} [params.metadata] - Optional metadata to include in meta-data file.
-     * @param {string} [params.vendorData] - Optional vendor-data content (default: empty string).
-     * @param {string} [params.isoUrl] - Optional ISO URL to cache and serve.
+     * @param {string} params.vendorData - The cloud-init vendor-data content.
+     * @param {string} params.isoUrl - Optional ISO URL to cache and serve.
      * @memberof UnderpostBaremetal
      * @returns {void}
      */
     httpBootstrapServerStaticFactory({
-      bootstrapHttpServerPath,
-      hostname,
-      cloudConfigSrc,
-      metadata = {},
+      bootstrapHttpServerPath = '',
+      hostname = '',
+      cloudConfigSrc = '',
       vendorData = '',
       isoUrl = '',
     }) {
-      // Create directory structure
-      shellExec(`mkdir -p ${bootstrapHttpServerPath}/${hostname}/cloud-init`);
+      if (cloudConfigSrc) {
+        // Create directory structure
+        shellExec(`mkdir -p ${bootstrapHttpServerPath}/${hostname}/cloud-init`);
 
-      // Write user-data file
-      fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/user-data`, cloudConfigSrc, 'utf8');
+        // Write user-data file
+        fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/user-data`, cloudConfigSrc, 'utf8');
 
-      // Write meta-data file
-      const metaDataContent = `instance-id: ${metadata.instanceId || hostname}\nlocal-hostname: ${metadata.localHostname || hostname}`;
-      fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/meta-data`, metaDataContent, 'utf8');
+        // Write meta-data file
+        const metaDataContent = `instance-id: ${hostname}\nlocal-hostname: ${hostname}`;
+        fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/meta-data`, metaDataContent, 'utf8');
 
-      // Write vendor-data file
-      fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/vendor-data`, vendorData, 'utf8');
+        // Write vendor-data file
+        fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/vendor-data`, vendorData, 'utf8');
 
-      logger.info(`Cloud-init files written to ${bootstrapHttpServerPath}/${hostname}/cloud-init`);
+        logger.info(`Cloud-init files written to ${bootstrapHttpServerPath}/${hostname}/cloud-init`);
+      }
 
       if (isoUrl) {
         const isoFilename = isoUrl.split('/').pop();

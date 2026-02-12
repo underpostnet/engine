@@ -651,6 +651,10 @@ program
   .option('--clear-discovered', 'Clears all discovered baremetal machines from the database.')
   .option('--commission', 'Init workflow for commissioning a physical machine.')
   .option(
+    '--bootstrap-http-server-run',
+    'Runs a temporary bootstrap HTTP server for generic purposes such as serving iPXE scripts or ISO images during commissioning.',
+  )
+  .option(
     '--bootstrap-http-server-path <path>',
     'Sets a custom bootstrap HTTP server path for baremetal commissioning.',
   )
