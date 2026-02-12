@@ -75,6 +75,7 @@ class UnderpostBaremetal {
      * @param {boolean} [options.nfsBuild=false] - Flag to build the NFS root filesystem.
      * @param {boolean} [options.nfsBuildServer=false] - Flag to build the NFS server components.
      * @param {boolean} [options.nfsMount=false] - Flag to mount the NFS root filesystem.
+     * @param {boolean} [options.nfsReset=false] - Flag to reset the NFS environment by unmounting and cleaning the host path.
      * @param {boolean} [options.nfsUnmount=false] - Flag to unmount the NFS root filesystem.
      * @param {boolean} [options.nfsSh=false] - Flag to chroot into the NFS environment for shell access.
      * @param {string} [options.logs=''] - Specifies which logs to display ('dhcp', 'cloud', 'machine', 'cloud-config').
@@ -124,6 +125,7 @@ class UnderpostBaremetal {
         nfsBuild: false,
         nfsBuildServer: false,
         nfsMount: false,
+        nfsReset: false,
         nfsUnmount: false,
         nfsSh: false,
         logs: '',
@@ -944,6 +946,7 @@ rm -rf ${artifacts.join(' ')}`);
         shellExec(`${underpostRoot}/scripts/nat-iptables.sh`);
         Underpost.baremetal.rebuildNfsServer({
           nfsHostPath,
+          nfsReset: options.nfsReset,
         });
       }
       // Handle commissioning tasks
@@ -3289,9 +3292,10 @@ logdir /var/log/chrony
      * @param {string} params.nfsHostPath - The path to the NFS server export.
      * @memberof UnderpostBaremetal
      * @param {string} [params.subnet='192.168.1.0/24'] - The subnet allowed to access the NFS export.
+     * @param {boolean} [params.nfsReset=false] - Flag to completely reset the NFS server (restart service).
      * @returns {void}
      */
-    rebuildNfsServer({ nfsHostPath, subnet }) {
+    rebuildNfsServer({ nfsHostPath, subnet, nfsReset }) {
       if (!subnet) subnet = '192.168.1.0/24'; // Default subnet if not provided.
       // Write the NFS exports configuration to /etc/exports.
       fs.writeFileSync(
@@ -3340,9 +3344,11 @@ udp-port = 32766
 
       // Restart the nfs-server service to apply all configuration changes,
       // including port settings from /etc/nfs.conf and export changes.
-      logger.info('Restarting nfs-server service...');
-      shellExec(`sudo systemctl restart nfs-server`);
-      logger.info('NFS server restarted.');
+      if (nfsReset) {
+        logger.info('Restarting nfs-server service...');
+        shellExec(`sudo systemctl restart nfs-server`);
+        logger.info('NFS server restarted.');
+      }
     },
 
     /**
