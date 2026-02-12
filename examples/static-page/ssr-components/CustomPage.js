@@ -1,22 +1,10 @@
 /**
  * Custom Page SSR Component Example
  * @module examples/ssr-components/CustomPage
- *
- * @description
- * This is an example SSR component demonstrating best practices for creating
- * custom static pages with the Underpost Static Site Generator.
  */
 
 /**
- * Main SSR Component for rendering a custom landing page
- *
- * This component demonstrates:
- * - Semantic HTML structure
- * - Accessibility best practices
- * - Responsive design patterns
- * - Progressive enhancement
- * - Clean, maintainable code
- *
+ * SSR Component Example for rendering a custom landing page
  * @function SrrComponent
  * @returns {string} HTML string for the page body
  */
