@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.99.4
+## underpost ci/cd cli v2.99.5
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -243,12 +243,6 @@ Options:
   --manifest <path>            Web manifest path.
   --head-components <paths>    Comma-separated SSR head component paths.
   --body-components <paths>    Comma-separated SSR body component paths.
-  --deploy-id <deploy-id>      Build static assets for a specific deployment
-                               ID.
-  --build                      Triggers the static build process for the
-                               specified deployment ID.
-  --build-host <build-host>    Sets a custom build host for static documents or
-                               assets.
   --build-path <build-path>    Sets a custom build path for static documents or
                                assets.
   --env <env>                  Sets the environment for the static build (e.g.,
@@ -286,6 +280,8 @@ Options:
   --deploy-id <deploy-id>  Sets the deployment configuration ID for the
                            operation context.
   --build                  Sets the build context for the operation.
+  --copy                   Copies the configuration value to the clipboard
+                           (only for get operation).
   -h, --help               display help for command
  
 ```
@@ -495,7 +491,7 @@ Manages secrets for various platforms.
 
 Arguments:
   platform                            The secret management platform. Options:
-                                      docker, underpost.
+                                      underpost.
 
 Options:
   --init                              Initializes the secrets platform
@@ -546,10 +542,6 @@ Options:
                                        management.
   --node-name                          Set node name for kubeadm or k3s cluster
                                        env image context management.
-  --secrets                            Includes Dockerfile environment secrets
-                                       during the build.
-  --secrets-path [secrets-path]        Specifies a custom path for Dockerfile
-                                       environment secrets.
   --reset                              Performs a build without using the
                                        cache.
   --dev                                Use development mode.
@@ -800,7 +792,7 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: dev-cluster,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,cron,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-usage,dev,service,etc-hosts,sh,log,ps,ptls,release-cmt,deploy-test,sync-replica,tf-vae-test,spark-template,rmi,kill,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
+  runner-id                                       The runner ID to run. Options: dev-cluster,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,cron,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,ptls,release-cmt,deploy-test,sync-replica,tf-vae-test,spark-template,rmi,kill,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
   path                                            The input value, identifier, or path for the operation.
 
 Options:
@@ -941,6 +933,7 @@ Options:
   --mac <mac>                                   Specifies the MAC address for baremetal machine operations. Use "random" for random MAC, "hardware" to use device's actual MAC (no spoofing), or specify a MAC address.
   --ipxe                                        Chainloads iPXE to normalize identity before commissioning.
   --ipxe-rebuild                                Forces rebuild of iPXE binary with embedded boot script.
+  --ipxe-build-iso <iso-path>                   Builds a standalone iPXE ISO with embedded script for the specified workflow ID.
   --install-packer                              Installs Packer CLI.
   --packer-maas-image-template <template-path>  Creates a new image folder from canonical/packer-maas template path (requires workflow-id).
   --packer-workflow-id <workflow-id>            Specifies the workflow ID for Packer MAAS image operations.
@@ -966,7 +959,7 @@ Options:
   --rocky-tools-test                            Tests rocky linux tools in chroot environment.
   --bootcmd <bootcmd-list>                      Comma-separated list of boot commands to execute.
   --runcmd <runcmd-list>                        Comma-separated list of run commands to execute.
-  --logs <log-id>                               Displays logs for log id: dhcp, cloud, machine, cloud-config.
+  --logs <log-id>                               Displays logs for log id: dhcp,dhcp-lease,dhcp-lan,cloud-init,cloud-init-machine,cloud-init-config
   --dev                                         Sets the development context environment for baremetal operations.
   --ls                                          Lists available boot resources and machines.
   -h, --help                                    display help for command
