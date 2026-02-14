@@ -272,6 +272,7 @@ class UnderpostBaremetal {
           macAddress,
           cloudInit: options.cloudInit,
           dev: options.dev,
+          forceRebuild: options.ipxeRebuild,
           bootstrapHttpServerPort: Underpost.baremetal.bootstrapHttpServerPortFactory({
             port: options.bootstrapHttpServerPort,
             workflowId,
@@ -1177,6 +1178,7 @@ rm -rf ${artifacts.join(' ')}`);
      * @param {string} [params.macAddress=''] - The MAC address of the client machine.
      * @param {boolean} [params.cloudInit=false] - Flag to enable cloud-init.
      * @param {boolean} [params.dev=false] - Development mode flag to determine paths.
+     * @param {boolean} [params.forceRebuild=false] - Force a complete iPXE rebuild. Without this, reuses existing ISO.
      * @param {number} [params.bootstrapHttpServerPort=8888] - Port for the bootstrap HTTP server used in ISO RAM workflows.
      * @memberof UnderpostBaremetal
      * @returns {Promise<void>}
@@ -1193,10 +1195,10 @@ rm -rf ${artifacts.join(' ')}`);
       macAddress,
       cloudInit,
       dev,
+      forceRebuild = false,
       bootstrapHttpServerPort,
     }) {
       const outputPath = !isoOutputPath || isoOutputPath === '.' ? `./ipxe-${workflowId}.iso` : isoOutputPath;
-      if (fs.existsSync(outputPath)) fs.removeSync(outputPath);
       shellExec(`mkdir -p $(dirname ${outputPath})`);
 
       const workflowsConfig = Underpost.baremetal.loadWorkflowsConfig();
@@ -1252,7 +1254,7 @@ boot || shell
       logger.info(`Created embedded script at ${embedScriptPath}`);
 
       // Determine target architecture
-      let targetArch = 'x86_64'; // Default to x86_64
+      let targetArch = 'x86_64';
       if (
         workflowsConfig[workflowId].architecture === 'arm64' ||
         workflowsConfig[workflowId].architecture === 'aarch64'
@@ -1260,18 +1262,26 @@ boot || shell
         targetArch = 'arm64';
       }
 
-      // Determine host architecture
-      const hostArch = process.arch === 'arm64' ? 'arm64' : 'x86_64';
+      const platformDir = targetArch === 'arm64' ? 'bin-arm64-efi' : 'bin-x86_64-efi';
+      const makeTarget = `${platformDir}/ipxe.iso`;
+      const builtIsoPath = path.join(ipxeSrcDir, makeTarget);
 
+      if (!forceRebuild && fs.existsSync(builtIsoPath)) {
+        fs.copySync(builtIsoPath, outputPath);
+        logger.info(`Reusing existing iPXE ISO: ${builtIsoPath} -> ${outputPath}`);
+      } else {
+        if (forceRebuild) {
+          logger.info(`Force rebuild: cleaning iPXE build artifacts...`);
+          shellExec(`cd ${ipxeSrcDir} && make clean`, { silent: true });
+        }
+
+        const hostArch = process.arch === 'arm64' ? 'arm64' : 'x86_64';
       let crossCompile = '';
       if (hostArch === 'x86_64' && targetArch === 'arm64') {
         crossCompile = 'CROSS_COMPILE=aarch64-linux-gnu-';
       } else if (hostArch === 'arm64' && targetArch === 'x86_64') {
         crossCompile = 'CROSS_COMPILE=x86_64-linux-gnu-';
       }
-
-      const platformDir = targetArch === 'arm64' ? 'bin-arm64-efi' : 'bin-x86_64-efi';
-      const makeTarget = `${platformDir}/ipxe.iso`;
 
       logger.info(
         `Building iPXE ISO for ${targetArch} on ${hostArch}: make ${makeTarget} ${crossCompile} EMBED=${embedScriptName}`,
@@ -1280,12 +1290,12 @@ boot || shell
       const buildCmd = `cd ${ipxeSrcDir} && make ${makeTarget} ${crossCompile} EMBED=${embedScriptName}`;
       shellExec(buildCmd);
 
-      const builtIsoPath = path.join(ipxeSrcDir, makeTarget);
       if (fs.existsSync(builtIsoPath)) {
         fs.copySync(builtIsoPath, outputPath);
         logger.info(`ISO successfully built and copied to ${outputPath}`);
       } else {
         logger.error(`Failed to build ISO at ${builtIsoPath}`);
+        }
       }
     },
 
@@ -1961,25 +1971,12 @@ shell
      * @memberof UnderpostBaremetal
      */
     ipxeEfiFactory({ tftpRootPath, ipxeCacheDir, arch, underpostRoot, embeddedScriptPath, forceRebuild = false }) {
-      const shouldRebuild =
-        forceRebuild || (!fs.existsSync(`${tftpRootPath}/ipxe.efi`) && !fs.existsSync(`${ipxeCacheDir}/ipxe.efi`));
+      const embedArg =
+        embeddedScriptPath && fs.existsSync(embeddedScriptPath) ? ` --embed-script ${embeddedScriptPath}` : '';
+      const rebuildArg = forceRebuild ? ' --rebuild' : '';
 
-      if (!shouldRebuild) return;
-
-      if (embeddedScriptPath && fs.existsSync(embeddedScriptPath)) {
-        logger.info('Rebuilding iPXE with embedded boot script...', {
-          embeddedScriptPath,
-          forced: forceRebuild,
-        });
-        shellExec(
-          `${underpostRoot}/scripts/ipxe-setup.sh ${tftpRootPath} --target-arch ${arch} --embed-script ${embeddedScriptPath} --rebuild`,
-          {
-            silent: true,
-          },
-        );
-      } else if (shouldRebuild) {
-        shellExec(`${underpostRoot}/scripts/ipxe-setup.sh ${tftpRootPath} --target-arch ${arch}`);
-      }
+      logger.info('Building iPXE EFI binary...', { embeddedScriptPath, forced: forceRebuild });
+      shellExec(`${underpostRoot}/scripts/ipxe-setup.sh ${tftpRootPath} --target-arch ${arch}${embedArg}${rebuildArg}`);
 
       shellExec(`mkdir -p ${ipxeCacheDir}`);
       shellExec(`cp ${tftpRootPath}/ipxe.efi ${ipxeCacheDir}/ipxe.efi`);
