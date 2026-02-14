@@ -6,7 +6,7 @@
     "isoUrl": "https://cdimage.ubuntu.com/releases/24.04/release/ubuntu-24.04.3-live-server-arm64.iso",
     "tftpPrefix": "rpi4mb",
     "bootstrapHttpServerPort": 8888,
-    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 ISO-RAM commissioning (ARM64)",
+    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 ISO-RAM Ubuntu 24.04 ephemeral commissioning (ARM64)",
     "networkInterfaceName": "enabcm6e4ei0",
     "chronyc": {
       "timezone": "America/Santiago",
@@ -35,7 +35,7 @@
     "architecture": "arm64",
     "tftpPrefix": "rpi4mb",
     "bootstrapHttpServerPort": 8888,
-    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 CHROOT commissioning (ARM64)",
+    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 CHROOT Ubuntu 24.04 ephemeral commissioning (ARM64)",
     "networkInterfaceName": "enabcm6e4ei0",
     "firmwares": [
       {
@@ -71,7 +71,7 @@
     "isoUrl": "https://cdimage.ubuntu.com/releases/24.04/release/ubuntu-24.04.3-live-server-arm64.iso",
     "tftpPrefix": "rpi4mb",
     "bootstrapHttpServerPort": 8888,
-    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 ISO-NFS commissioning (ARM64)",
+    "menuentryStr": "UNDERPOST.NET UEFI/GRUB/MAAS RPi4 ISO-NFS Ubuntu 24.04 ephemeral commissioning (ARM64)",
     "networkInterfaceName": "enabcm6e4ei0",
     "chronyc": {
       "timezone": "America/Santiago",
@@ -100,7 +100,7 @@
     "architecture": "arm64",
     "tftpPrefix": "rpi4mb",
     "bootstrapHttpServerPort": 8888,
-    "menuentryStr": "UNDERPOST.NET Rocky9 Container CHROOT NFS (ARM64)",
+    "menuentryStr": "UNDERPOST.NET Container CHROOT Rocky Linux 9 ephemeral commissioning (ARM64)",
     "networkInterfaceName": "eth0",
     "firmwares": [
       {
@@ -129,7 +129,7 @@
     "isoUrl": "https://releases.ubuntu.com/releases/24.04/ubuntu-24.04.3-live-server-amd64.iso",
     "tftpPrefix": "envy",
     "bootstrapHttpServerPort": 8888,
-    "menuentryStr": "UNDERPOST.NET UEFI/ISO-IPXE/MAAS hp-envy ISO-NFS commissioning (AMD64)",
+    "menuentryStr": "UNDERPOST.NET UEFI/ISO-IPXE/MAAS hp-envy ISO-NFS Ubuntu 24.04 ephemeral commissioning (AMD64)",
     "networkInterfaceName": "eth0",
     "chronyc": {
       "timezone": "America/Santiago",
@@ -153,7 +153,7 @@
     "isoUrl": "https://releases.ubuntu.com/releases/24.04/ubuntu-24.04.3-live-server-amd64.iso",
     "tftpPrefix": "envy",
     "bootstrapHttpServerPort": 8888,
-    "menuentryStr": "UNDERPOST.NET UEFI/ISO-IPXE/MAAS hp-envy ISO-RAM commissioning (AMD64)",
+    "menuentryStr": "UNDERPOST.NET UEFI/ISO-IPXE/MAAS hp-envy ISO-RAM Ubuntu 24.04 ephemeral commissioning (AMD64)",
     "networkInterfaceName": "eth0",
     "chronyc": {
       "timezone": "America/Santiago",
@@ -165,6 +165,43 @@
         "architecture": "amd64/hwe-24.04-edge",
         "name": "ubuntu/noble"
       }
+    },
+    "keyboard": {
+      "layout": "es"
+    }
+  },
+  "hp-envy-iso-ram-rocky9": {
+    "type": "iso-ram",
+    "osIdLike": "rhel centos fedora",
+    "architecture": "amd64",
+    "isoUrl": "https://download.rockylinux.org/pub/rocky/9/isos/x86_64/Rocky-9-latest-x86_64-boot.iso",
+    "tftpPrefix": "envy-rocky9",
+    "bootstrapHttpServerPort": 8888,
+    "menuentryStr": "UNDERPOST.NET UEFI/ISO-IPXE/KICKSTART-ANACONDA hp-envy ISO-RAM Rocky Linux 9 ephemeral commissioning (AMD64)",
+    "networkInterfaceName": "eth0",
+    "chronyc": {
+      "timezone": "America/Santiago",
+      "chronyConfPath": "/etc/chrony/chrony.conf"
+    },
+    "firmwares": [],
+    "container": {
+      "image": "quay.io/rockylinux/rockylinux:9",
+      "architecture": "amd64",
+      "packages": [
+        "kernel",
+        "kernel-core",
+        "kernel-modules",
+        "linux-firmware",
+        "dracut",
+        "dracut-network",
+        "dracut-config-generic",
+        "dracut-live",
+        "nfs-utils",
+        "tar",
+        "iproute",
+        "openssh-server",
+        "openssh-clients"
+      ]
     },
     "keyboard": {
       "layout": "es"

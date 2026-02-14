@@ -6,6 +6,7 @@
 
 import UnderpostBaremetal from './cli/baremetal.js';
 import UnderpostCloudInit from './cli/cloud-init.js';
+import UnderpostKickStart from './cli/kickstart.js';
 import UnderpostCluster from './cli/cluster.js';
 import UnderpostDB from './cli/db.js';
 import UnderpostDeploy from './cli/deploy.js';
@@ -177,6 +178,16 @@ class Underpost {
    */
   static get cloudInit() {
     return UnderpostCloudInit.API;
+  }
+
+  /**
+   * KickStart cli API
+   * @static
+   * @type {UnderpostKickStart.API}
+   * @memberof Underpost
+   */
+  static get kickstart() {
+    return UnderpostKickStart.API;
   }
 
   /**
