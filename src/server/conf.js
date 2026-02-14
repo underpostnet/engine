@@ -1173,14 +1173,6 @@ const getPathsSSR = (conf) => {
  */
 const Cmd = {
   /**
-   * @method delete
-   * @description Deletes the deploy.
-   * @param {string} deployId - The deploy ID.
-   * @returns {string} - The delete command.
-   * @memberof Cmd
-   */
-  delete: (deployId) => `pm2 delete ${deployId}`,
-  /**
    * @method run
    * @description Runs the deploy.
    * @returns {string} - The run command.
@@ -1221,20 +1213,6 @@ const Cmd = {
    * @memberof Cmd
    */
   syncPorts: () => `node bin/deploy sync-env-port`,
-  /**
-   * @method cron
-   * @description Creates a cron job.
-   * @param {string} deployList - The deploy list.
-   * @param {string} jobList - The job list.
-   * @param {string} name - The name.
-   * @param {string} expression - The expression.
-   * @param {object} options - The options.
-   * @param {number} instances - The number of PM2 instances (default: 1).
-   * @returns {string} - The cron command.
-   * @memberof Cmd
-   */
-  cron: (deployList, jobList, name, expression, options, instances = 1) =>
-    `pm2 start ./bin/index.js --no-autorestart --instances ${instances} --cron "${expression}" --name ${name} -- cron ${options?.git ? `--git ` : ''}${deployList} ${jobList}`,
 };
 
 /**

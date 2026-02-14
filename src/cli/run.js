@@ -68,7 +68,8 @@ const logger = loggerFactory(import.meta);
  * @property {boolean} etcHosts - Whether to modify /etc/hosts.
  * @property {string} confServerPath - The configuration server path.
  * @property {string} underpostRoot - The root path of the Underpost installation.
- * @property {string} cronJobs - The cron jobs to run.
+ * @property {string} cmdCronJobs - Pre-script commands to run before cron job execution.
+ * @property {string} deployIdCronJobs - The deployment ID for cron jobs.
  * @property {string} timezone - The timezone to set.
  * @property {boolean} kubeadm - Whether to run in kubeadm mode.
  * @property {boolean} kind - Whether to run in kind mode.
@@ -84,6 +85,8 @@ const logger = loggerFactory(import.meta);
  * @property {string} monitorStatusKindType - The monitor status kind type option.
  * @property {string} monitorStatusDeltaMs - The monitor status delta in milliseconds.
  * @property {string} monitorStatusMaxAttempts - The maximum number of attempts for monitor status.
+ * @property {boolean} dryRun - Whether to perform a dry run.
+ * @property {boolean} createJobNow - Whether to create the job immediately.
  * @property {boolean} logs - Whether to enable logs.
  * @memberof UnderpostRun
  */
@@ -127,7 +130,8 @@ const DEFAULT_OPTION = {
   etcHosts: false,
   confServerPath: '',
   underpostRoot: '',
-  cronJobs: '',
+  cmdCronJobs: '',
+  deployIdCronJobs: '',
   timezone: '',
   kubeadm: false,
   kind: false,
@@ -144,6 +148,8 @@ const DEFAULT_OPTION = {
   monitorStatusDeltaMs: '',
   monitorStatusMaxAttempts: '',
   logs: false,
+  dryRun: false,
+  createJobNow: false,
 };
 
 /**
@@ -502,7 +508,21 @@ class UnderpostRun {
           if (!validVersion) throw new Error('Version mismatch');
         }
         if (options.timezone !== 'none') shellExec(`${baseCommand} run${baseClusterCommand} tz`);
-        if (options.cronJobs !== 'none') shellExec(`${baseCommand} run${baseClusterCommand} cron`);
+        if (options.deployIdCronJobs !== 'none') {
+          const cronClusterFlag = options.k3s
+            ? ' --k3s'
+            : options.kind
+              ? ' --kind'
+              : options.kubeadm
+                ? ' --kubeadm'
+                : '';
+          const cronCmdFlag = options.cmdCronJobs ? ` --cmd-cron-jobs "${options.cmdCronJobs}"` : '';
+          const cronCreateJobNowFlag = options.createJobNow ? ' --create-job-now' : '';
+          const cronDryRunFlag = options.dryRun ? ' --dry-run' : '';
+          shellExec(
+            `${baseCommand} run${baseClusterCommand} cron${cronClusterFlag}${cronCmdFlag}${cronCreateJobNowFlag}${cronDryRunFlag}${options.deployIdCronJobs ? ` ${options.deployIdCronJobs}` : ''}`,
+          );
+        }
       }
 
       const currentTraffic = isDeployRunnerContext(path, options)
@@ -710,16 +730,29 @@ class UnderpostRun {
 
     /**
      * @method cron
-     * @description Sets up and starts the `dd-cron` environment by writing environment variables, starting the cron service, and cleaning up.
+     * @description Sets up cron jobs using `underpost cron --setup-start` command, which likely configures scheduled tasks for the application.
      * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     cron: (path, options = DEFAULT_OPTION) => {
-      const env = options.dev ? 'development' : 'production';
-      shellExec(`node bin env ${path ? path : 'dd-cron'} ${env}`);
-      shellExec(`npm start`);
-      shellExec(`node bin env clean`);
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const devFlag = options.dev ? ' --dev' : '';
+      const gitFlag = options.git ? ' --git' : '';
+      const namespaceFlag =
+        options.namespace && options.namespace !== 'default' ? ` --namespace ${options.namespace}` : '';
+      const imageFlag = options.image ? ` --image ${options.image}` : '';
+      const cmdFlag = options.cmdCronJobs ? ` --cmd "${options.cmdCronJobs}"` : '';
+      const ddCronPath = './engine-private/deploy/dd.cron';
+      const defaultDeployId = !path && fs.existsSync(ddCronPath) ? fs.readFileSync(ddCronPath, 'utf8').trim() : '';
+      const setupStartId = path || defaultDeployId;
+      const setupStart = setupStartId ? ` --setup-start ${setupStartId} --apply` : '';
+      const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : options.kubeadm ? ' --kubeadm' : '';
+      const createJobNowFlag = options.createJobNow ? ' --create-job-now' : '';
+      const dryRunFlag = options.dryRun ? ' --dry-run' : '';
+      shellExec(
+        `${baseCommand} cron${devFlag}${gitFlag}${namespaceFlag}${imageFlag}${cmdFlag}${clusterFlag}${createJobNowFlag}${dryRunFlag}${setupStart}`,
+      );
     },
 
     /**
@@ -991,7 +1024,7 @@ EOF
         args: [daemonProcess(path ? path : `cd /home/dd/engine && npm install && npm run test`)],
       };
 
-      await Underpost.run.RUNNERS['deploy-job'](path, payload);
+      await Underpost.run.CALL('deploy-job', path, payload);
     },
 
     /**
@@ -1550,7 +1583,7 @@ EOF
             `${baseCommand} secret underpost --create-from-file /etc/config/.env.${env}`,
             `${baseCommand} start --build --run ${deployId} ${env} --underpost-quickly-install`,
           ];
-      shellExec(`node bin run sync${baseClusterCommand} --cron-jobs none dd-test --cmd "${cmd}"`);
+      shellExec(`node bin run sync${baseClusterCommand} --deploy-id-cron-jobs none dd-test --cmd "${cmd}"`);
     },
 
     /**

@@ -59,7 +59,7 @@ jobs:
             echo "Starting remote sync and deploy"
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
-            sudo -n -- /bin/bash -lc "node bin run sync --cron-jobs none dd-test,1,,localhost/rockylinux9-underpost:v2.98.3"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none dd-test,1,,localhost/rockylinux9-underpost:v2.98.3"
   init:
     if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-init-engine-test)')
     name: Remote SSH init deployment

@@ -407,10 +407,26 @@ program
     '[job-list]',
     `A comma-separated list of job IDs. Options: ${Underpost.cron.getJobsIDs()}. Defaults to all available jobs.`,
   )
-  .option('--init-pm2-cronjobs', 'Initializes PM2 cron jobs from configuration for the specified deployment IDs.')
-  .option('--git', 'Uploads cron job configurations to GitHub.')
-  .option('--update-package-scripts', 'Updates package.json start scripts for each deploy-id configuration.')
-  .description('Manages cron jobs, including initialization, execution, and configuration updates.')
+  .option('--generate-k8s-cronjobs', 'Generates Kubernetes CronJob YAML manifests from cron configuration.')
+  .option('--apply', 'Applies generated K8s CronJob manifests to the cluster via kubectl.')
+  .option(
+    '--setup-start [deploy-id]',
+    'Updates deploy-id package.json start script and generates+applies its K8s CronJob manifests.',
+  )
+  .option('--namespace <namespace>', 'Kubernetes namespace for the CronJob resources (default: "default").')
+  .option('--image <image>', 'Custom container image for the CronJob pods.')
+  .option('--git', 'Pass --git flag to cron job execution.')
+  .option('--cmd <cmd>', 'Optional pre-script commands to run before cron execution.')
+  .option('--dev', 'Use local ./ base path instead of global underpost installation.')
+  .option('--k3s', 'Use k3s cluster context (apply directly on host).')
+  .option('--kind', 'Use kind cluster context (apply via kind-worker container).')
+  .option('--kubeadm', 'Use kubeadm cluster context (apply directly on host).')
+  .option('--dry-run', 'Preview cron jobs without executing them.')
+  .option(
+    '--create-job-now',
+    'After applying manifests, immediately create a Job from each CronJob (requires --apply).',
+  )
+  .description('Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests.')
   .action(Underpost.cron.callback);
 
 program
@@ -539,7 +555,11 @@ program
   .option('--expose', 'Enables service exposure for the runner execution.')
   .option('--conf-server-path <conf-server-path>', 'Sets a custom configuration server path.')
   .option('--underpost-root <underpost-root>', 'Sets a custom Underpost root path.')
-  .option('--cron-jobs <jobs>', 'Comma-separated list of cron jobs to run before executing the script.')
+  .option('--cmd-cron-jobs <cmd-cron-jobs>', 'Pre-script commands to run before cron job execution.')
+  .option(
+    '--deploy-id-cron-jobs <deploy-id-cron-jobs>',
+    'Specifies deployment IDs to synchronize cron jobs with during execution.',
+  )
   .option('--timezone <timezone>', 'Sets the timezone for the runner execution.')
   .option('--kubeadm', 'Sets the kubeadm cluster context for the runner execution.')
   .option('--k3s', 'Sets the k3s cluster context for the runner execution.')
@@ -571,6 +591,11 @@ program
   .option(
     '--monitor-status-max-attempts <attempts>',
     'Sets the maximum number of status check attempts (default: 600).',
+  )
+  .option('--dry-run', 'Preview operations without executing them.')
+  .option(
+    '--create-job-now',
+    'After applying cron manifests, immediately create a Job from each CronJob (forwarded to cron runner).',
   )
   .description('Runs specified scripts using various runners.')
   .action(Underpost.run.callback);
