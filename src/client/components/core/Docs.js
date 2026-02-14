@@ -22,8 +22,9 @@ const Docs = {
         return html`
           <iframe
             class="in iframe-${ModalId}"
-            style="width: 100%; border: none; background: white"
+            style="width: 100%; border: none; background: white; display: block"
             src="${docData.url()}"
+            sandbox="allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox"
           >
           </iframe>
         `;
@@ -38,8 +39,11 @@ const Docs = {
       RouterInstance: Modal.Data['modal-docs'].options.RouterInstance,
     });
     Modal.Data[ModalId].onObserverListener[ModalId] = () => {
-      if (s(`.iframe-${ModalId}`))
-        s(`.iframe-${ModalId}`).style.height = `${s(`.${ModalId}`).offsetHeight - Modal.headerTitleHeight}px`;
+      if (s(`.iframe-${ModalId}`)) {
+        const barEl = s(`.bar-default-modal-${ModalId}`);
+        const barHeight = barEl ? barEl.offsetHeight : Modal.headerTitleHeight;
+        s(`.iframe-${ModalId}`).style.height = `${s(`.${ModalId}`).offsetHeight - barHeight}px`;
+      }
 
       if (type.match('coverage')) {
         simpleIconsRender(`.doc-icon-coverage`);

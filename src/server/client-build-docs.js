@@ -137,7 +137,7 @@ const buildJsDocs = async ({ host, path, metadata = {} }) => {
 
   jsDocsConfig.opts.destination = `./public/${host}${path === '/' ? path : `${path}/`}docs/`;
   jsDocsConfig.opts.theme_opts.title = metadata?.title ? metadata.title : undefined;
-  jsDocsConfig.opts.theme_opts.favicon = `./public/${host}${path === '/' ? path : `${path}/favicon.ico`}`;
+  jsDocsConfig.opts.theme_opts.favicon = `./public/${host}${path === '/' ? '/' : `${path}/`}favicon.ico`;
 
   fs.writeFileSync(`./jsdoc.json`, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
   logger.warn('build jsdoc view', jsDocsConfig.opts.destination);
