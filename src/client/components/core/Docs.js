@@ -24,7 +24,7 @@ const Docs = {
             class="in iframe-${ModalId}"
             style="width: 100%; border: none; background: white; display: block"
             src="${docData.url()}"
-            sandbox="allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox"
           >
           </iframe>
         `;
@@ -38,6 +38,21 @@ const Docs = {
       query: true,
       RouterInstance: Modal.Data['modal-docs'].options.RouterInstance,
     });
+    const iframeEl = s(`.iframe-${ModalId}`);
+    if (iframeEl) {
+      iframeEl.addEventListener('load', () => {
+        try {
+          const iframeWin = iframeEl.contentWindow;
+          if (iframeWin) {
+            Object.defineProperty(iframeWin, 'parent', { get: () => iframeWin, configurable: false });
+            Object.defineProperty(iframeWin, 'top', { get: () => iframeWin, configurable: false });
+          }
+        } catch (e) {
+          // cross-origin or security restriction — safe to ignore
+        }
+        window.scrollTo(0, 0);
+      });
+    }
     Modal.Data[ModalId].onObserverListener[ModalId] = () => {
       if (s(`.iframe-${ModalId}`)) {
         const barEl = s(`.bar-default-modal-${ModalId}`);

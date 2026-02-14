@@ -963,9 +963,11 @@ rm -rf ${artifacts.join(' ')}`);
         );
         logger.info('Commissioning resource', resource);
 
-        if (type === 'iso-nfs') {
+        if (
+          Underpost.baremetal.getFamilyBaseOs(workflowsConfig[workflowId].osIdLike).isDebianBased &&
+          (type === 'iso-nfs' || type === 'chroot-debootstrap' || type === 'chroot-container')
+        ) {
           // Prepare NFS casper path if using NFS boot.
-          shellExec(`sudo rm -rf ${nfsHostPath}`);
           shellExec(`mkdir -p ${nfsHostPath}/casper`);
         }
 
@@ -1148,9 +1150,8 @@ rm -rf ${artifacts.join(' ')}`);
           machine: machine ? machine.system_id : null,
         });
 
-        const { discovery, machine: discoveredMachine } = await Underpost.baremetal.commissionMonitor(
-          commissionMonitorPayload,
-        );
+        const { discovery, machine: discoveredMachine } =
+          await Underpost.baremetal.commissionMonitor(commissionMonitorPayload);
         if (discoveredMachine) machine = discoveredMachine;
       }
     },
@@ -2495,10 +2496,10 @@ fi
           const discoverHostname = discovery.hostname
             ? discovery.hostname
             : discovery.mac_organization
-            ? discovery.mac_organization
-            : discovery.domain
-            ? discovery.domain
-            : `generic-host-${s4()}${s4()}`;
+              ? discovery.mac_organization
+              : discovery.domain
+                ? discovery.domain
+                : `generic-host-${s4()}${s4()}`;
 
           console.log(discoverHostname.bgBlue.bold.white);
           console.log('ip target:'.green + ipAddress, 'ip discovered:'.green + discovery.ip);
