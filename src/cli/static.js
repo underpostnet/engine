@@ -6,11 +6,12 @@
 
 import fs from 'fs-extra';
 import path from 'path';
+import express from 'express';
 import { ssrFactory } from '../server/ssr.js';
 import { shellExec } from '../server/process.js';
 import Underpost from '../index.js';
 import { JSONweb } from '../server/client-formatted.js';
-import { loggerFactory } from '../server/logger.js';
+import { loggerFactory, loggerMiddleware } from '../server/logger.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -591,6 +592,31 @@ class UnderpostStatic {
           logger.error(error.stack);
           throw error;
         }
+      }
+
+      // Start standalone static file server if --run-sv is specified
+      if (options.runSv !== undefined) {
+        const port = typeof options.runSv === 'string' ? parseInt(options.runSv, 10) : 5000;
+        const servePath =
+          options.outputPath && options.outputPath !== '.'
+            ? path.dirname(path.resolve(options.outputPath))
+            : path.resolve('.');
+
+        if (!fs.existsSync(servePath)) {
+          logger.error(`Serve path does not exist: ${servePath}`);
+          return;
+        }
+
+        const app = express();
+
+        app.use(loggerMiddleware(import.meta, 'debug', () => false));
+
+        app.use('/', express.static(servePath));
+
+        app.listen(port, () => {
+          logger.info(`Static file server running at http://localhost:${port}`);
+          logger.info(`Serving files from: ${servePath}`);
+        });
       }
     },
 

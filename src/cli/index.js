@@ -150,6 +150,11 @@ program
   .option('--dir <dir>', 'HTML dir attribute (default: ltr).')
   .option('--dev', 'Sets the development cli context')
 
+  .option(
+    '--run-sv [port]',
+    'Start a standalone Express static server to preview the static build (default port: 5000).',
+  )
+
   .description(`Manages static build of page, bundles, and documentation with comprehensive customization options.`)
   .action(Underpost.static.callback);
 
