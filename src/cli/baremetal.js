@@ -667,7 +667,11 @@ rm -rf ${artifacts.join(' ')}`);
             bootstrapArch,
             callbackMetaData,
             steps: [
-              `dnf install -y --allowerasing ${allPackages.join(' ')} 2>/dev/null || yum install -y --allowerasing ${allPackages.join(' ')} 2>/dev/null || echo "Package install completed"`,
+              `dnf install -y --allowerasing ${allPackages.join(
+                ' ',
+              )} 2>/dev/null || yum install -y --allowerasing ${allPackages.join(
+                ' ',
+              )} 2>/dev/null || echo "Package install completed"`,
               `dnf clean all`,
               `echo "=== Installed packages verification ==="`,
               `rpm -qa | grep -E "dracut|kernel|nfs" | sort`,
@@ -1144,8 +1148,9 @@ rm -rf ${artifacts.join(' ')}`);
           machine: machine ? machine.system_id : null,
         });
 
-        const { discovery, machine: discoveredMachine } =
-          await Underpost.baremetal.commissionMonitor(commissionMonitorPayload);
+        const { discovery, machine: discoveredMachine } = await Underpost.baremetal.commissionMonitor(
+          commissionMonitorPayload,
+        );
         if (discoveredMachine) machine = discoveredMachine;
       }
     },
@@ -1220,7 +1225,11 @@ rm -rf ${artifacts.join(' ')}`);
         dnsServer,
         fileSystemUrl:
           dev && workflowsConfig[workflowId].type === 'iso-ram'
-            ? `http://${ipFileServer}:${Underpost.baremetal.bootstrapHttpServerPortFactory({ port: bootstrapHttpServerPort, workflowId, workflowsConfig })}/${workflowId}/${workflowsConfig[workflowId].isoUrl.split('/').pop()}`
+            ? `http://${ipFileServer}:${Underpost.baremetal.bootstrapHttpServerPortFactory({
+                port: bootstrapHttpServerPort,
+                workflowId,
+                workflowsConfig,
+              })}/${workflowId}/${workflowsConfig[workflowId].isoUrl.split('/').pop()}`
             : workflowsConfig[workflowId].isoUrl,
         type: workflowsConfig[workflowId].type,
         architecture: workflowsConfig[workflowId].architecture,
@@ -1241,14 +1250,12 @@ rm -rf ${artifacts.join(' ')}`);
       const embedScriptName = `embed_${workflowId}.ipxe`;
       const embedScriptPath = path.join(ipxeSrcDir, embedScriptName);
 
-      const embedScriptContent = `#!ipxe
-dhcp
-set server_ip ${ipFileServer}
-set tftp_prefix ${tftpPrefix}
-kernel tftp://\${server_ip}/\${tftp_prefix}/pxe/vmlinuz-efi ${cmd}
-initrd tftp://\${server_ip}/\${tftp_prefix}/pxe/initrd.img
-boot || shell
-`;
+      const embedScriptContent = Underpost.baremetal.ipxeScriptFactory({
+        maasIp: ipFileServer,
+        tftpPrefix,
+        kernelCmd: cmd,
+        minimal: true,
+      });
 
       fs.writeFileSync(embedScriptPath, embedScriptContent);
       logger.info(`Created embedded script at ${embedScriptPath}`);
@@ -1270,31 +1277,29 @@ boot || shell
         fs.copySync(builtIsoPath, outputPath);
         logger.info(`Reusing existing iPXE ISO: ${builtIsoPath} -> ${outputPath}`);
       } else {
-        if (forceRebuild) {
-          logger.info(`Force rebuild: cleaning iPXE build artifacts...`);
-          shellExec(`cd ${ipxeSrcDir} && make clean`, { silent: true });
-        }
+        logger.info(`Rebuild: cleaning iPXE build artifacts...`);
+        shellExec(`cd ${ipxeSrcDir} && make clean`);
 
         const hostArch = process.arch === 'arm64' ? 'arm64' : 'x86_64';
-      let crossCompile = '';
-      if (hostArch === 'x86_64' && targetArch === 'arm64') {
-        crossCompile = 'CROSS_COMPILE=aarch64-linux-gnu-';
-      } else if (hostArch === 'arm64' && targetArch === 'x86_64') {
-        crossCompile = 'CROSS_COMPILE=x86_64-linux-gnu-';
-      }
+        let crossCompile = '';
+        if (hostArch === 'x86_64' && targetArch === 'arm64') {
+          crossCompile = 'CROSS_COMPILE=aarch64-linux-gnu-';
+        } else if (hostArch === 'arm64' && targetArch === 'x86_64') {
+          crossCompile = 'CROSS_COMPILE=x86_64-linux-gnu-';
+        }
 
-      logger.info(
-        `Building iPXE ISO for ${targetArch} on ${hostArch}: make ${makeTarget} ${crossCompile} EMBED=${embedScriptName}`,
-      );
+        logger.info(
+          `Building iPXE ISO for ${targetArch} on ${hostArch}: make ${makeTarget} ${crossCompile} EMBED=${embedScriptName}`,
+        );
 
-      const buildCmd = `cd ${ipxeSrcDir} && make ${makeTarget} ${crossCompile} EMBED=${embedScriptName}`;
-      shellExec(buildCmd);
+        const buildCmd = `cd ${ipxeSrcDir} && make ${makeTarget} ${crossCompile} EMBED=${embedScriptName}`;
+        shellExec(buildCmd);
 
-      if (fs.existsSync(builtIsoPath)) {
-        fs.copySync(builtIsoPath, outputPath);
-        logger.info(`ISO successfully built and copied to ${outputPath}`);
-      } else {
-        logger.error(`Failed to build ISO at ${builtIsoPath}`);
+        if (fs.existsSync(builtIsoPath)) {
+          fs.copySync(builtIsoPath, outputPath);
+          logger.info(`ISO successfully built and copied to ${outputPath}`);
+        } else {
+          logger.error(`Failed to build ISO at ${builtIsoPath}`);
         }
       }
     },
@@ -1857,16 +1862,28 @@ shell
      * @method ipxeScriptFactory
      * @description Generates the iPXE script content for stable identity.
      * This iPXE script uses directly boots kernel/initrd via TFTP.
+     * When minimal mode is enabled, generates a simple dhcp+kernel+initrd+boot script.
      * @param {object} params - The parameters for generating the script.
-     * @param {string} params.maasIp - The IP address of the MAAS server.
+     * @param {string} params.maasIp - The IP address of the MAAS/file server.
      * @param {string} [params.macAddress] - The MAC address registered in MAAS (for display only).
-     * @param {string} params.architecture - The architecture (arm64/amd64).
+     * @param {string} [params.architecture] - The architecture (arm64/amd64).
      * @param {string} params.tftpPrefix - The TFTP prefix path (e.g., 'rpi4mb').
      * @param {string} params.kernelCmd - The kernel command line parameters.
+     * @param {boolean} [params.minimal=false] - Generate a minimal embedded script for ISO builds.
      * @returns {string} The iPXE script content.
      * @memberof UnderpostBaremetal
      */
-    ipxeScriptFactory({ maasIp, macAddress, architecture, tftpPrefix, kernelCmd }) {
+    ipxeScriptFactory({ maasIp, macAddress, architecture, tftpPrefix, kernelCmd, minimal = false }) {
+      if (minimal) {
+        return `#!ipxe
+dhcp
+set server_ip ${maasIp}
+set tftp_prefix ${tftpPrefix}
+kernel tftp://\${server_ip}/\${tftp_prefix}/pxe/vmlinuz-efi ${kernelCmd}
+initrd tftp://\${server_ip}/\${tftp_prefix}/pxe/initrd.img
+boot || shell
+`;
+      }
       const macInfo =
         macAddress && macAddress !== '00:00:00:00:00:00'
           ? `echo Registered MAC: ${macAddress}`
@@ -1904,7 +1921,11 @@ echo ========================================
 echo Loading kernel and initrd via TFTP...
 echo Kernel: tftp://${maasIp}/${kernelPath}
 echo Initrd: tftp://${maasIp}/${initrdPath}
-${macAddress && macAddress !== '00:00:00:00:00:00' ? `echo Kernel will use MAC: ${macAddress} (via ifname parameter)` : 'echo Kernel will use hardware MAC'}
+${
+  macAddress && macAddress !== '00:00:00:00:00:00'
+    ? `echo Kernel will use MAC: ${macAddress} (via ifname parameter)`
+    : 'echo Kernel will use hardware MAC'
+}
 echo ========================================
 
 # Load kernel via TFTP
@@ -1935,7 +1956,9 @@ echo ========================================
 # Fallback: Try MAAS HTTP bootloader (may have certificate issues)
 set boot-url http://${maasIp}:5248/images/bootloader
 echo Boot URL: \${boot-url}
-chain \${boot-url}/uefi/${architecture}/${grubBootloader === 'grubaa64.efi' ? 'bootaa64.efi' : 'bootx64.efi'} || goto error
+chain \${boot-url}/uefi/${architecture}/${
+        grubBootloader === 'grubaa64.efi' ? 'bootaa64.efi' : 'bootx64.efi'
+      } || goto error
 
 :error
 echo ========================================
@@ -2030,7 +2053,11 @@ shell
       echo "${menuentryStr}"
       echo " ${Underpost.version}"
       echo "Date: ${new Date().toISOString()}"
-      ${cmd.match('/MAAS/metadata/by-id/') ? `echo "System ID: ${cmd.split('/MAAS/metadata/by-id/')[1].split('/')[0]}"` : ''}
+      ${
+        cmd.match('/MAAS/metadata/by-id/')
+          ? `echo "System ID: ${cmd.split('/MAAS/metadata/by-id/')[1].split('/')[0]}"`
+          : ''
+      }
       echo "TFTP server: ${tftpIp}"
       echo "Kernel path: ${kernelPath}"
       echo "Initrd path: ${initrdPath}"
@@ -2135,27 +2162,8 @@ fi
     }) {
       shellExec(`mkdir -p ${bootstrapHttpServerPath}/${hostname}`);
 
-      if (cloudConfigSrc) {
-        // Create directory structure
-        shellExec(`mkdir -p ${bootstrapHttpServerPath}/${hostname}/cloud-init`);
-
-        // Write user-data file
-        fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/user-data`, cloudConfigSrc, 'utf8');
-
-        // Write meta-data file
-        const metaDataContent = `instance-id: ${hostname}\nlocal-hostname: ${hostname}`;
-        fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/meta-data`, metaDataContent, 'utf8');
-
-        // Write vendor-data file
-        fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/cloud-init/vendor-data`, vendorData, 'utf8');
-
-        logger.info(`Cloud-init files written to ${bootstrapHttpServerPath}/${hostname}/cloud-init`);
-      }
-
-      if (kickstartSrc) {
-        fs.writeFileSync(`${bootstrapHttpServerPath}/${hostname}/ks.cfg`, kickstartSrc, 'utf8');
-        logger.info(`Kickstart file written to ${bootstrapHttpServerPath}/${hostname}/ks.cfg`);
-      }
+      Underpost.cloudInit.httpServerStaticFactory({ bootstrapHttpServerPath, hostname, cloudConfigSrc, vendorData });
+      Underpost.kickstart.httpServerStaticFactory({ bootstrapHttpServerPath, hostname, kickstartSrc });
 
       if (isoUrl) {
         const isoFilename = isoUrl.split('/').pop();
@@ -2366,7 +2374,9 @@ fi
           : []
       }`;
 
-      const nfsRootParam = `nfsroot=${ipFileServer}:${process.env.NFS_EXPORT_PATH}/${hostname}${nfsOptions ? `,${nfsOptions}` : ''}`;
+      const nfsRootParam = `nfsroot=${ipFileServer}:${process.env.NFS_EXPORT_PATH}/${hostname}${
+        nfsOptions ? `,${nfsOptions}` : ''
+      }`;
 
       const permissionsParams = [
         `rw`,
@@ -2429,17 +2439,7 @@ fi
       let cmd = [];
       if (type === 'iso-ram') {
         if (isRhelBased) {
-          const repoArch = architecture.match('arm64') ? 'aarch64' : 'x86_64';
-
-          cmd = [
-            ipParam,
-            `inst.ks=http://${ipDhcpServer}:${bootstrapHttpServerPort}/${hostname}/ks.cfg`,
-            // Use upstream repo for installation packages if not mirroring
-            `inst.repo=http://dl.rockylinux.org/pub/rocky/9/BaseOS/${repoArch}/os/`,
-            `inst.text`,
-            `inst.sshd`,
-            ...kernelParams,
-          ];
+          cmd = Underpost.kickstart.kernelParamsFactory(macAddress, [ipParam, ...kernelParams], options);
         } else {
           // ISO-RAM (Debian/Ubuntu): full live ISO downloaded into RAM via casper toram.
           const netBootParams = [`netboot=url`];
@@ -2495,10 +2495,10 @@ fi
           const discoverHostname = discovery.hostname
             ? discovery.hostname
             : discovery.mac_organization
-              ? discovery.mac_organization
-              : discovery.domain
-                ? discovery.domain
-                : `generic-host-${s4()}${s4()}`;
+            ? discovery.mac_organization
+            : discovery.domain
+            ? discovery.domain
+            : `generic-host-${s4()}${s4()}`;
 
           console.log(discoverHostname.bgBlue.bold.white);
           console.log('ip target:'.green + ipAddress, 'ip discovered:'.green + discovery.ip);

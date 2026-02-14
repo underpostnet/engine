@@ -618,7 +618,30 @@ cat /etc/default/keyboard`,
       }
 
       return yaml.join('\n');
-    } /**
+    },
+
+    /**
+     * @method httpServerStaticFactory
+     * @description Writes cloud-init files (user-data, meta-data, vendor-data) to the bootstrap HTTP server path.
+     * @param {object} params
+     * @param {string} params.bootstrapHttpServerPath
+     * @param {string} params.hostname
+     * @param {string} params.cloudConfigSrc
+     * @param {string} [params.vendorData='']
+     * @memberof UnderpostCloudInit
+     * @returns {void}
+     */
+    httpServerStaticFactory({ bootstrapHttpServerPath, hostname, cloudConfigSrc, vendorData = '' }) {
+      if (!cloudConfigSrc) return;
+      const dir = `${bootstrapHttpServerPath}/${hostname}/cloud-init`;
+      shellExec(`mkdir -p ${dir}`);
+      fs.writeFileSync(`${dir}/user-data`, cloudConfigSrc, 'utf8');
+      fs.writeFileSync(`${dir}/meta-data`, `instance-id: ${hostname}\nlocal-hostname: ${hostname}`, 'utf8');
+      fs.writeFileSync(`${dir}/vendor-data`, vendorData, 'utf8');
+      logger.info(`Cloud-init files written to ${dir}`);
+    },
+
+    /**
      * @method kernelParamsFactory
      * @description Generates the kernel parameters for the target machine's bootloader configuration,
      * including the necessary parameters to enable cloud-init with a specific configuration URL and logging settings.
@@ -629,7 +652,7 @@ cat /etc/default/keyboard`,
      * @param {string} [options.machine.system_id] - The unique identifier of the machine, used to fetch the correct cloud-init preseed configuration from MAAS.
      * @return {array} The modified array of kernel parameters with cloud-init parameters included.
      * @memberof UnderpostCloudInit
-     */,
+     */
     kernelParamsFactory(
       macAddress,
       cmd = [],
