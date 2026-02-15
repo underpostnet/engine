@@ -284,6 +284,7 @@ export {
   UnderpostImage,
   UnderpostStatic,
   UnderpostLxd,
+  UnderpostKickStart,
   UnderpostMonitor,
   UnderpostRepository,
   UnderpostRun,

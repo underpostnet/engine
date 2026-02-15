@@ -502,6 +502,7 @@ program
   .option('--status', 'Checks the status of the SSH service.')
   .option('--connect-uri', 'Displays the connection URI.')
   .option('--copy', 'Copies the connection URI to clipboard.')
+  .description('Manages SSH credentials and sessions for remote access to cluster nodes or services.')
   .action(Underpost.ssh.callback);
 
 program
