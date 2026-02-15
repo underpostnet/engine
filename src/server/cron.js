@@ -436,12 +436,22 @@ class UnderpostCron {
       return fs.readFileSync(deployFilePath, 'utf8').trim();
     },
 
-    /** @returns {Object} Available cron job handlers */
+    /**
+     * Get the available cron job handlers.
+     * Each handler should have a callback function that executes the job logic.
+     * @memberof UnderpostCron
+     * @returns {Object} Available cron job handlers
+     */
     get JOB() {
       return UnderpostCron.JOB;
     },
 
-    /** @returns {string[]} List of available job IDs */
+    /**
+     * Get the list of available job IDs.
+     * This is derived from the keys of the JOB object.
+     * @memberof UnderpostCron
+     * @returns {string[]} List of available job IDs
+     */
     getJobsIDs() {
       return Object.keys(UnderpostCron.JOB);
     },
