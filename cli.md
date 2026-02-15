@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.99.5
+## underpost ci/cd cli v2.99.6
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -25,7 +25,7 @@ Commands:
   install                                                    Quickly imports Underpost npm dependencies by copying them.
   db [options] [deploy-list]                                 Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.
   metadata [options] [deploy-id] [host] [path]               Manages cluster metadata operations, including import and export.
-  cron [options] [deploy-list] [job-list]                    Manages cron jobs, including initialization, execution, and configuration updates.
+  cron [options] [deploy-list] [job-list]                    Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests.
   fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
   test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
   monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
@@ -255,6 +255,8 @@ Options:
   --lang <lang>                HTML lang attribute (default: en).
   --dir <dir>                  HTML dir attribute (default: ltr).
   --dev                        Sets the development cli context
+  --run-sv [port]              Start a standalone Express static server to
+                               preview the static build (default port: 5000).
   -h, --help                   display help for command
  
 ```
@@ -630,22 +632,39 @@ Options:
 ```
  Usage: underpost cron [options] [deploy-list] [job-list]
 
-Manages cron jobs, including initialization, execution, and configuration
-updates.
+Manages cron jobs: execute jobs directly or generate and apply K8s CronJob
+manifests.
 
 Arguments:
-  deploy-list               A comma-separated list of deployment IDs (e.g.,
-                            "default-a,default-b").
-  job-list                  A comma-separated list of job IDs. Options:
-                            dns,backup. Defaults to all available jobs.
+  deploy-list                A comma-separated list of deployment IDs (e.g.,
+                             "default-a,default-b").
+  job-list                   A comma-separated list of job IDs. Options:
+                             dns,backup. Defaults to all available jobs.
 
 Options:
-  --init-pm2-cronjobs       Initializes PM2 cron jobs from configuration for
-                            the specified deployment IDs.
-  --git                     Uploads cron job configurations to GitHub.
-  --update-package-scripts  Updates package.json start scripts for each
-                            deploy-id configuration.
-  -h, --help                display help for command
+  --generate-k8s-cronjobs    Generates Kubernetes CronJob YAML manifests from
+                             cron configuration.
+  --apply                    Applies generated K8s CronJob manifests to the
+                             cluster via kubectl.
+  --setup-start [deploy-id]  Updates deploy-id package.json start script and
+                             generates+applies its K8s CronJob manifests.
+  --namespace <namespace>    Kubernetes namespace for the CronJob resources
+                             (default: "default").
+  --image <image>            Custom container image for the CronJob pods.
+  --git                      Pass --git flag to cron job execution.
+  --cmd <cmd>                Optional pre-script commands to run before cron
+                             execution.
+  --dev                      Use local ./ base path instead of global underpost
+                             installation.
+  --k3s                      Use k3s cluster context (apply directly on host).
+  --kind                     Use kind cluster context (apply via kind-worker
+                             container).
+  --kubeadm                  Use kubeadm cluster context (apply directly on
+                             host).
+  --dry-run                  Preview cron jobs without executing them.
+  --create-job-now           After applying manifests, immediately create a Job
+                             from each CronJob (requires --apply).
+  -h, --help                 display help for command
  
 ```
   
@@ -834,7 +853,8 @@ Options:
   --expose                                        Enables service exposure for the runner execution.
   --conf-server-path <conf-server-path>           Sets a custom configuration server path.
   --underpost-root <underpost-root>               Sets a custom Underpost root path.
-  --cron-jobs <jobs>                              Comma-separated list of cron jobs to run before executing the script.
+  --cmd-cron-jobs <cmd-cron-jobs>                 Pre-script commands to run before cron job execution.
+  --deploy-id-cron-jobs <deploy-id-cron-jobs>     Specifies deployment IDs to synchronize cron jobs with during execution.
   --timezone <timezone>                           Sets the timezone for the runner execution.
   --kubeadm                                       Sets the kubeadm cluster context for the runner execution.
   --k3s                                           Sets the k3s cluster context for the runner execution.
@@ -855,6 +875,8 @@ Options:
   --monitor-status-kind-type <kind-type>          Sets the Kubernetes resource kind type to monitor (default: "pods").
   --monitor-status-delta-ms <milliseconds>        Sets the polling interval in milliseconds for status monitoring (default: 1000).
   --monitor-status-max-attempts <attempts>        Sets the maximum number of status check attempts (default: 600).
+  --dry-run                                       Preview operations without executing them.
+  --create-job-now                                After applying cron manifests, immediately create a Job from each CronJob (forwarded to cron runner).
   -h, --help                                      display help for command
  
 ```
@@ -943,11 +965,13 @@ Options:
   --remove-machines <system-ids>                Removes baremetal machines by comma-separated system IDs, or use "all"
   --clear-discovered                            Clears all discovered baremetal machines from the database.
   --commission                                  Init workflow for commissioning a physical machine.
+  --bootstrap-http-server-run                   Runs a temporary bootstrap HTTP server for generic purposes such as serving iPXE scripts or ISO images during commissioning.
   --bootstrap-http-server-path <path>           Sets a custom bootstrap HTTP server path for baremetal commissioning.
   --bootstrap-http-server-port <port>           Sets a custom bootstrap HTTP server port for baremetal commissioning.
   --iso-url <url>                               Uses a custom ISO URL for baremetal machine commissioning.
   --nfs-build                                   Builds an NFS root filesystem for a workflow id config architecture using QEMU emulation.
   --nfs-mount                                   Mounts the NFS root filesystem for a workflow id config architecture.
+  --nfs-reset                                   Resets the NFS server completely, closing all connections before reloading exports.
   --nfs-unmount                                 Unmounts the NFS root filesystem for a workflow id config architecture.
   --nfs-build-server                            Builds the NFS server for a workflow id config architecture.
   --nfs-sh                                      Copies QEMU emulation root entrypoint shell command to the clipboard.
