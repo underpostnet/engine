@@ -13,6 +13,8 @@ import dns from 'node:dns';
 import os from 'node:os';
 import { shellExec, pbcopy } from './process.js';
 import Underpost from '../index.js';
+import { writeEnv } from './conf.js';
+import { resolveDeployId } from './cron.js';
 
 dotenv.config();
 
@@ -328,6 +330,14 @@ class Dns {
             logger.info('IP updated successfully and verified', testIp);
             Underpost.env.set('ip', testIp);
             Underpost.env.delete('monitor-input');
+            {
+              const deployId = resolveDeployId();
+              const envs = dotenv.parse(
+                fs.readFileSync(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}`, 'utf8'),
+              );
+              envs.ip = testIp;
+              writeEnv(`./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}`, envs);
+            }
           } else {
             logger.error('IP not updated or verification failed', { expected: testIp, received: verifyIp });
           }

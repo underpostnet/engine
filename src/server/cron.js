@@ -460,4 +460,4 @@ class UnderpostCron {
 
 export default UnderpostCron;
 
-export { cronJobYamlFactory };
+export { cronJobYamlFactory, resolveDeployId };
