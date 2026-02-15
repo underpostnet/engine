@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dd-cron-backup
+  namespace: default
+  labels:
+    app: dd-cron-backup
+    managed-by: underpost
+spec:
+  schedule: "0 1 * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 200
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  suspend: false
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: dd-cron-backup
+            managed-by: underpost
+        spec:
+          containers:
+            - name: dd-cron-backup
+              image: underpost/underpost-engine:v2.99.5
+              command:
+                - /bin/sh
+                - -c
+                - >
+                  cd /home/dd/engine && node bin run secret && node bin env dd-cron production && node bin cron --git --dev dd-lampp,dd-cyberia,dd-core,dd-test backup
+              volumeMounts:
+                - mountPath: /home/dd/engine
+                  name: underpost-cron-container-volume
+          volumes:
+            - hostPath:
+                path: /home/dd/engine
+                type: Directory
+              name: underpost-cron-container-volume
+          restartPolicy: OnFailure
