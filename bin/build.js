@@ -164,11 +164,6 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   packageJson.name = repoName.replace('engine-', '');
 
   switch (confName) {
-    case 'dd-core': {
-      fs.mkdirSync(`${basePath}/manifests/cronjobs`, { recursive: true });
-      fs.copyFileSync(`./manifests/cronjobs`, `${basePath}/manifests/cronjobs`);
-      break;
-    }
     case 'dd-cyberia':
       fs.copyFileSync(`./bin/cyberia.js`, `${basePath}/bin/cyberia.js`);
       fs.copyFileSync(

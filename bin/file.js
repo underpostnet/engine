@@ -101,7 +101,6 @@ try {
           './manifests/deployment/dd-template-development',
           './src/server/object-layer.js',
           './src/server/atlas-sprite-sheet-generator.js',
-          './manifests/cronjobs',
           'bin/web3.js',
           'bin/cyberia.js',
         ]) {
