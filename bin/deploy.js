@@ -472,6 +472,7 @@ try {
         `node bin cron --cmd 'cd /home/dd/engine && node bin run secret && node bin env dd-cron production' --git --kubeadm --dev --setup-start`,
       );
       shellExec(`node bin/deploy build-envs`);
+      shellExec(`node bin cmt --changelog-build`);
       break;
     }
 

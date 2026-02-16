@@ -63,6 +63,7 @@ jobs:
 
       - name: Clone and Push to github package repository
         run: |
+          LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
           underpost clone --bare underpostnet/pwa-microservices-template-ghpkg
           rm -rf ./.git
           mv ./pwa-microservices-template-ghpkg.git ./.git
@@ -74,14 +75,5 @@ jobs:
           git config user.email 'fcoverdugoa@underpost.net'
           git add .
           git status
-          underpost cmt . ci package-pwa-microservices-template-ghpkg 'Update github repo package'
+          underpost cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
           underpost push . underpostnet/pwa-microservices-template-ghpkg
-
-# git clone --bare https://github.com/underpostnet/engine.git
-# mkdir engine
-# mv ./engine.git ./engine/.git
-# cd engine
-# git init
-
-# git push -u origin https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template-ghpkg.git
-# git push -u origin master

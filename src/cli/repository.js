@@ -91,6 +91,9 @@ class UnderpostRepository {
      * @param {string} [options.deployId=''] - An optional deploy ID to include in the commit message.
      * @param {string} [options.hashes=''] - If provided with diff option, shows the diff between two hashes.
      * @param {string} [options.extension=''] - If provided with diff option, filters the diff by this file extension.
+     * @param {boolean|string} [options.changelog=undefined] - If true, prints the changelog since the last CI integration commit (starting with 'ci(package-pwa-microservices-'). If a number string, prints the changelog of the last N commits split by version sections. Only considers commits starting with '[<tag>]'.
+     * @param {boolean} [options.changelogBuild=false] - If true, scrapes all git history and builds a full CHANGELOG.md. Commits containing 'New release v:' are used as version section titles. Only commits starting with '[<tag>]' are included as entries.
+     * @param {string} [options.changelogMinVersion=''] - If set, overrides the default minimum version limit (2.85.0) for --changelog-build.
      * @memberof UnderpostRepository
      */
     commit(
@@ -110,9 +113,165 @@ class UnderpostRepository {
         deployId: '',
         hashes: '',
         extension: '',
+        changelog: undefined,
+        changelogBuild: false,
+        changelogMinVersion: '',
       },
     ) {
       if (!repoPath) repoPath = '.';
+
+      if (options.changelog !== undefined || options.changelogBuild) {
+        const ciIntegrationPrefix = 'ci(package-pwa-microservices-';
+        const releaseMatch = 'New release v:';
+
+        // Helper: parse [<tag>] commits into grouped sections
+        const buildSectionChangelog = (commits) => {
+          const groups = {};
+          const tagOrder = [];
+          for (const commit of commits) {
+            if (!commit.message.startsWith('[')) continue;
+            const match = commit.message.match(/^\[([^\]]+)\]\s*(.*)/);
+            if (match) {
+              const tag = match[1].trim();
+              const context = match[2].trim().replaceAll('"', '');
+              if (!groups[tag]) {
+                groups[tag] = [];
+                tagOrder.push(tag);
+              }
+              groups[tag].push({ ...commit, context });
+            }
+          }
+          let out = '';
+          for (const tag of tagOrder) {
+            out += `### ${tag}\n\n`;
+            for (const entry of groups[tag]) {
+              out += `- ${entry.context} (${commitUrl(entry.hash, entry.fullHash)})\n`;
+            }
+            out += '\n';
+          }
+          return out;
+        };
+
+        // Helper: fetch git log as structured array
+        const fetchHistory = (limit) => {
+          const limitArg = limit ? ` -n ${limit}` : '';
+          const rawLog = shellExec(`git log --pretty=format:"%h||%H||%s||%ci"${limitArg}`, {
+            stdout: true,
+            silent: true,
+            disableLog: true,
+          });
+          return rawLog
+            .split('\n')
+            .map((line) => {
+              const parts = line.split('||');
+              return {
+                hash: (parts[0] || '').trim(),
+                fullHash: (parts[1] || '').trim(),
+                message: parts[2] || '',
+                date: parts[3] || '',
+              };
+            })
+            .filter((c) => c.hash);
+        };
+
+        const githubUser = process.env.GITHUB_USERNAME || 'underpostnet';
+        const commitUrl = (shortHash, fullHash) =>
+          `[${shortHash}](https://github.com/${githubUser}/engine/commit/${fullHash})`;
+
+        // Helper: extract version from commit message containing 'New release v:'
+        const extractVersion = (message) => {
+          const idx = message.indexOf(releaseMatch);
+          if (idx === -1) return null;
+          return message.substring(idx + releaseMatch.length).trim();
+        };
+
+        // Helper: split commits array into version sections by 'New release v:' boundary
+        const buildVersionSections = (commits) => {
+          const sections = [];
+          let currentSection = { title: null, date: new Date().toISOString().split('T')[0], commits: [] };
+
+          for (const commit of commits) {
+            const version = extractVersion(commit.message);
+            if (version) {
+              // Push accumulated commits as a section
+              sections.push(currentSection);
+              // Start new version section; commits below this one belong to it
+              const commitDate = commit.date ? commit.date.split(' ')[0] : '';
+              currentSection = { title: `${releaseMatch}${version}`, date: commitDate, hash: commit.hash, commits: [] };
+            } else {
+              currentSection.commits.push(commit);
+            }
+          }
+          // Push the last (oldest) section
+          if (currentSection.commits.length > 0) sections.push(currentSection);
+          return sections;
+        };
+
+        // Helper: render sections array into changelog markdown string
+        const renderSections = (sections) => {
+          let changelog = '';
+          for (const section of sections) {
+            const sectionBody = buildSectionChangelog(section.commits);
+            if (!sectionBody) continue;
+            if (section.title) {
+              changelog += `## ${section.title} (${section.date})\n\n`;
+            } else {
+              changelog += `## ${section.date}\n\n`;
+            }
+            changelog += sectionBody;
+          }
+          return changelog;
+        };
+
+        const changelogMinVersion = options.changelogMinVersion || '2.97.1';
+
+        if (options.changelogBuild) {
+          // --changelog-build: scrape ALL history, split by 'New release v:' commits as version sections
+          const allCommits = fetchHistory();
+          const sections = buildVersionSections(allCommits);
+
+          // Filter sections: stop at changelogMinVersion boundary
+          const limitedSections = [];
+          for (const section of sections) {
+            limitedSections.push(section);
+            if (section.title) {
+              const versionStr = section.title.replace(releaseMatch, '').trim();
+              if (versionStr === changelogMinVersion) break;
+            }
+          }
+
+          let changelog = renderSections(limitedSections);
+
+          if (!changelog) {
+            changelog = `No changelog entries found.\n`;
+          }
+
+          const changelogPath = `${repoPath === '.' ? '.' : repoPath}/CHANGELOG.md`;
+          fs.writeFileSync(changelogPath, `# Changelog\n\n${changelog}`);
+          logger.info('CHANGELOG.md built at', changelogPath);
+        } else {
+          // --changelog [latest-n]: print changelog of last N commits or since last release
+          const hasExplicitCount =
+            options.changelog !== undefined && options.changelog !== true && !isNaN(parseInt(options.changelog));
+          const scanLimit = hasExplicitCount ? parseInt(options.changelog) : 500;
+          const allCommits = fetchHistory(scanLimit);
+
+          let commits;
+          if (!hasExplicitCount) {
+            // No explicit count: find commits up to the last CI integration boundary
+            const ciIndex = allCommits.findIndex((c) => c.message.startsWith(ciIntegrationPrefix));
+            commits = ciIndex >= 0 ? allCommits.slice(0, ciIndex) : allCommits;
+          } else {
+            commits = allCommits;
+          }
+
+          const sections = buildVersionSections(commits);
+          let changelog = renderSections(sections);
+          console.log(changelog || `No changelog entries found.\n`);
+        }
+
+        return;
+      }
       if (options.diff && options.hashes) {
         const hashes = options.hashes.split(',');
         const cmd = `git --no-pager diff ${hashes[0]} ${hashes[1] ? hashes[1] : 'HEAD'}${options.extension ? ` -- '*.${options.extension}'` : ''}`;

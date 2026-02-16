@@ -80,6 +80,12 @@ program
   .option('--cached', 'Commit staged changes only or context.')
   .option('--hashes <hashes>', 'Comma-separated list of specific file hashes of commits.')
   .option('--extension <extension>', 'specific file extensions of commits.')
+  .option(
+    '--changelog [latest-n]',
+    'Print plain the changelog of the specified number of latest n commits, if no number is provided it will get the changelog to latest ci integration',
+  )
+  .option('--changelog-build', 'Builds a CHANGELOG.md file based on the commit history')
+  .option('--changelog-min-version <version>', 'Sets the minimum version limit for --changelog-build (default: 2.85.0)')
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 
