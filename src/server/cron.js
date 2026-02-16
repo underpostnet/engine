@@ -8,12 +8,15 @@ import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
+import { getUnderpostRootPath } from './conf.js';
 
 const logger = loggerFactory(import.meta);
 
 const volumeHostPath = '/home/dd';
 const enginePath = '/home/dd/engine';
 const cronVolumeName = 'underpost-cron-container-volume';
+const shareEnvVolumeName = 'underpost-share-env';
+const underpostContainerEnvPath = '/usr/lib/node_modules/underpost/.env';
 
 /**
  * Generates a Kubernetes CronJob YAML manifest string.
@@ -94,11 +97,18 @@ spec:
               volumeMounts:
                 - mountPath: ${enginePath}
                   name: ${cronVolumeName}
+                - mountPath: ${underpostContainerEnvPath}
+                  name: ${shareEnvVolumeName}
+                  subPath: .env
           volumes:
             - hostPath:
                 path: ${enginePath}
                 type: Directory
               name: ${cronVolumeName}
+            - hostPath:
+                path: ${getUnderpostRootPath()}/.env
+                type: FileOrCreate
+              name: ${shareEnvVolumeName}
           restartPolicy: OnFailure
 `;
 };
