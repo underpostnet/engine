@@ -1126,6 +1126,17 @@ nvidia/gpu-operator \
       break;
     }
 
+    case 'sync-start': {
+      const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
+      for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
+        const packageJsonPath = `./engine-private/conf/${deployId}/package.json`;
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+        packageJson.scripts.start = `${originPackageJson.scripts.start} ${deployId}`;
+        fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 4), 'utf8');
+      }
+      break;
+    }
+
     case 'sync-envs': {
       for (const deployId of ['dd-cron'].concat(
         fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(','),
