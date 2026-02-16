@@ -64,7 +64,7 @@ class UnderpostCloudInit {
           fs.writeFileSync(
             `${nfsHostToolsPath}/date.sh`,
             Underpost.baremetal.stepsRender(
-              Underpost.baremetal.systemProvisioningFactory[systemProvisioning].timezone({
+              Underpost.system.factory[systemProvisioning].timezone({
                 timezone,
                 chronyConfPath,
               }),
@@ -78,7 +78,7 @@ class UnderpostCloudInit {
           fs.writeFileSync(
             `${nfsHostToolsPath}/keyboard.sh`,
             Underpost.baremetal.stepsRender(
-              Underpost.baremetal.systemProvisioningFactory[systemProvisioning].keyboard(keyboard.layout),
+              Underpost.system.factory[systemProvisioning].keyboard(keyboard.layout),
               false,
             ),
             'utf8',

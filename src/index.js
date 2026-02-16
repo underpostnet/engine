@@ -21,6 +21,7 @@ import UnderpostSecret from './cli/secrets.js';
 import UnderpostSSH from './cli/ssh.js';
 import UnderpostStatic from './cli/static.js';
 import UnderpostTest from './cli/test.js';
+import UnderpostSystemProvisionig from './cli/system.js';
 
 import UnderpostDns from './server/dns.js';
 import UnderpostBackup from './server/backup.js';
@@ -211,7 +212,17 @@ class Underpost {
   }
 
   /**
-   * Dns cli API
+   * System Provisioning cli API
+   * @static
+   * @type {UnderpostSystemProvisionig.API}
+   * @memberof Underpost
+   */
+  static get system() {
+    return UnderpostSystemProvisionig.API;
+  }
+
+  /**
+   * Dns server API
    * @static
    * @type {UnderpostDns.API}
    * @memberof Underpost
@@ -221,7 +232,7 @@ class Underpost {
   }
 
   /**
-   * BackUp cli API
+   * BackUp server API
    * @static
    * @type {UnderpostBackup.API}
    * @memberof Underpost
@@ -231,7 +242,7 @@ class Underpost {
   }
 
   /**
-   * Cron cli API
+   * Cron server API
    * @static
    * @type {UnderpostCron.API}
    * @memberof Underpost
@@ -241,7 +252,7 @@ class Underpost {
   }
 
   /**
-   * Start Up cli API
+   * Start Up server API
    * @static
    * @type {UnderpostStartUp.API}
    * @memberof Underpost
