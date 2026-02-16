@@ -7,6 +7,8 @@
  * @namespace UnderpostSystemProvisionig
  */
 
+import fs from 'fs-extra';
+
 /**
  * @class UnderpostSystemProvisionig
  * @description A class that encapsulates the system provisioning logic for Underpost CLI. It provides a structured way to generate shell commands for provisioning systems based on their OS type, including Ubuntu and Rocky Linux. The class contains a static API object with a factory for different provisioning steps, making it easy to extend and maintain.
