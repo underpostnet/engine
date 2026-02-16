@@ -5,7 +5,7 @@ import { EmailRender } from './EmailRender.js';
 /**
  * Module for configuring and sending emails using Nodemailer.
  * @module src/mailer/MailerProvider.js
- * @namespace MailerProviderNamespace
+ * @namespace MailerProviderService
  */
 
 const logger = loggerFactory(import.meta);
@@ -27,13 +27,13 @@ const logger = loggerFactory(import.meta);
  * @property {string} [host=''] - Application host for context.
  * @property {string} [path=''] - Application path for context.
  * @property {object.<string, string>} templates - Map of template keys to SSR component file names.
- * @memberof MailerProviderNamespace
+ * @memberof MailerProviderService
  */
 
 /**
  * @class
  * @alias MailerProviderService
- * @memberof MailerProviderNamespace
+ * @memberof MailerProviderService
  * @classdesc Manages multiple Nodemailer transporter instances and handles loading of
  * email templates and sending emails.
  */
@@ -205,7 +205,7 @@ class MailerProviderService {
 /**
  * Singleton instance of the MailerProviderService class for backward compatibility.
  * @alias MailerProvider
- * @memberof MailerProviderNamespace
+ * @memberof MailerProviderService
  * @type {MailerProviderService}
  */
 const MailerProvider = new MailerProviderService();

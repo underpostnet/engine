@@ -5,7 +5,7 @@ import { loggerFactory } from '../../server/logger.js';
 /**
  * Module for interacting with MariaDB/MySQL databases using the mariadb connector.
  * @module src/db/MariaDB.js
- * @namespace MariaDBNamespace
+ * @namespace MariaDBService
  */
 
 const logger = loggerFactory(import.meta);
@@ -13,7 +13,7 @@ const logger = loggerFactory(import.meta);
 /**
  * @class
  * @alias MariaDBService
- * @memberof MariaDBNamespace
+ * @memberof MariaDBService
  * @classdesc Provides a simplified interface for executing queries against a MariaDB/MySQL database
  * using a connection pool, ensuring connection management (acquisition and release).
  */
@@ -58,7 +58,7 @@ class MariaDBService {
 /**
  * Singleton instance of the MariaDBService class for backward compatibility.
  * @alias MariaDB
- * @memberof MariaDBNamespace
+ * @memberof MariaDBService
  * @type {MariaDBService}
  */
 const MariaDB = new MariaDBService();

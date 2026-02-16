@@ -1,5 +1,11 @@
 'use strict';
 
+/**
+ * Module for building project documentation (JSDoc, Swagger, Coverage).
+ * @module src/server/client-build-docs.js
+ * @namespace clientBuildDocs
+ */
+
 import fs from 'fs-extra';
 import swaggerAutoGen from 'swagger-autogen';
 import { shellExec } from './process.js';
@@ -8,6 +14,8 @@ import { JSONweb } from './client-formatted.js';
 
 /**
  * Builds API documentation using Swagger
+ * @function buildApiDocs
+ * @memberof clientBuildDocs
  * @param {Object} options - Documentation build options
  * @param {string} options.host - The hostname for the API
  * @param {string} options.path - The base path for the API
@@ -126,18 +134,32 @@ const buildApiDocs = async ({
 
 /**
  * Builds JSDoc documentation
+ * @function buildJsDocs
+ * @memberof clientBuildDocs
  * @param {Object} options - JSDoc build options
  * @param {string} options.host - The hostname for the documentation
  * @param {string} options.path - The base path for the documentation
  * @param {Object} options.metadata - Metadata for the documentation
+ * @param {string} options.publicClientId - Client ID used to resolve the tutorials/references directory
  */
-const buildJsDocs = async ({ host, path, metadata = {} }) => {
+const buildJsDocs = async ({ host, path, metadata = {}, publicClientId }) => {
   const logger = loggerFactory(import.meta);
   const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
 
   jsDocsConfig.opts.destination = `./public/${host}${path === '/' ? path : `${path}/`}docs/`;
   jsDocsConfig.opts.theme_opts.title = metadata?.title ? metadata.title : undefined;
   jsDocsConfig.opts.theme_opts.favicon = `./public/${host}${path === '/' ? '/' : `${path}/`}favicon.ico`;
+
+  const tutorialsPath = `./src/client/public/${publicClientId}/docs/references`;
+  if (fs.existsSync(tutorialsPath)) {
+    jsDocsConfig.opts.tutorials = tutorialsPath;
+    if (jsDocsConfig.opts.theme_opts.sections && !jsDocsConfig.opts.theme_opts.sections.includes('Tutorials')) {
+      jsDocsConfig.opts.theme_opts.sections.push('Tutorials');
+    }
+    logger.info('build jsdoc tutorials', tutorialsPath);
+  } else {
+    delete jsDocsConfig.opts.tutorials;
+  }
 
   fs.writeFileSync(`./jsdoc.json`, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
   logger.warn('build jsdoc view', jsDocsConfig.opts.destination);
@@ -147,6 +169,8 @@ const buildJsDocs = async ({ host, path, metadata = {} }) => {
 
 /**
  * Builds test coverage documentation
+ * @function buildCoverage
+ * @memberof clientBuildDocs
  * @param {Object} options - Coverage build options
  * @param {string} options.host - The hostname for the coverage
  * @param {string} options.path - The base path for the coverage
@@ -168,6 +192,8 @@ const buildCoverage = async ({ host, path }) => {
 
 /**
  * Main function to build all documentation
+ * @function buildDocs
+ * @memberof clientBuildDocs
  * @param {Object} options - Documentation build options
  * @param {string} options.host - The hostname
  * @param {string} options.path - The base path
@@ -188,7 +214,7 @@ const buildDocs = async ({
   rootClientPath,
   packageData,
 }) => {
-  await buildJsDocs({ host, path, metadata });
+  await buildJsDocs({ host, path, metadata, publicClientId });
   await buildCoverage({ host, path });
   await buildApiDocs({
     host,

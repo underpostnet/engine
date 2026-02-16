@@ -3,13 +3,13 @@ import { ssrFactory } from '../server/ssr.js';
 /**
  * Module for handling the rendering and styling of HTML emails using SSR components.
  * @module src/mailer/EmailRender.js
- * @namespace EmailRenderNamespace
+ * @namespace EmailRenderService
  */
 
 /**
  * @class
  * @alias EmailRenderService
- * @memberof EmailRenderNamespace
+ * @memberof EmailRenderService
  * @classdesc Utility class for managing CSS styles and rendering email templates using
  * Server-Side Rendering (SSR) components.
  */
@@ -108,7 +108,7 @@ class EmailRenderService {
 /**
  * Singleton instance of the EmailRenderService class for backward compatibility.
  * @alias EmailRender
- * @memberof EmailRenderNamespace
+ * @memberof EmailRenderService
  * @type {EmailRenderService}
  */
 const EmailRender = new EmailRenderService();
