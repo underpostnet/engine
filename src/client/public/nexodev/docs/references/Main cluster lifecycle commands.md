@@ -259,11 +259,12 @@ node bin run promote dd-my-app,development
 
 ---
 
+
 ## Cron
 
-**Command:** `node bin run cron [deploy-id] [options]`
+**Command:** `underpost cron [deploy-list] [job-list] [options]` / `node bin cron [deploy-list] [job-list] [options]`
 
-Manages Kubernetes CronJob lifecycle for scheduled tasks (DNS updates, backups). Reads the default deploy-id from `./engine-private/deploy/dd.cron` when no deploy-id argument is provided. The deploy-id uses the `dd-<conf-id>` format.
+Manages cron jobs: execute directly, generate K8s CronJob manifests, or setup a deploy-id's start script.
 
 ### DD Cron File
 
@@ -280,26 +281,34 @@ The file `./engine-private/deploy/dd.cron` stores the default cron deploy-id (e.
 ### Usage
 
 ```bash
-# Generate and apply cron jobs using dd.cron default deploy-id
-node bin run cron --dev --kind
+# Direct execution — run jobs immediately
+underpost cron dd-cron dns
+underpost cron dd-cron backup --git
+underpost cron dd-cron dns,backup
+node bin cron dd-cron dns --dev
 
-# Specify deploy-id explicitly
-node bin run cron dd-cron --dev --kind
+# Generate K8s CronJob manifests
+node bin cron --generate-k8s-cronjobs --dev
+node bin cron --generate-k8s-cronjobs --namespace production --dev
 
-# Apply manifests to cluster
-node bin run cron dd-cron --dev --kind --apply
+# Generate + apply to cluster
+node bin cron --generate-k8s-cronjobs --apply --kind --dev
+node bin cron --generate-k8s-cronjobs --apply --kubeadm
+node bin cron --generate-k8s-cronjobs --apply --k3s --image custom:latest
 
-# Apply and immediately trigger all jobs
-node bin run cron dd-cron --dev --kind --create-job-now
+# Apply + create immediate jobs
+node bin cron --generate-k8s-cronjobs --apply --create-job-now --kind --dev
 
-# Dry run (preview without executing)
-node bin run cron dd-cron --dev --kind --dry-run
+# Setup deploy start (update package.json + generate manifests)
+node bin cron --setup-start dd-cron
+node bin cron --setup-start dd-my-app --namespace staging
 
-# With custom pre-command and namespace
-node bin run cron dd-cron --dev --kind --cmd "echo setup" --namespace production
+# Dry run / SSH
+node bin cron dd-cron dns --dry-run
+underpost cron dd-cron backup --ssh --git
 
-# Production with kubeadm
-node bin run cron dd-cron --kubeadm
+# Pre-script commands
+node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node bin env dd-core production" --kind --dev
 ```
 
 ### Options

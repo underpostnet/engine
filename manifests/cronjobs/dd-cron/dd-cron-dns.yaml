@@ -28,7 +28,7 @@ spec:
                 - /bin/sh
                 - -c
                 - >
-                  cd /home/dd/engine && node bin env dd-cron production && node bin cron --git --dev dd-cron dns
+                   cd /home/dd/engine && node bin env dd-cron production && node bin cron --git --dev --ssh dd-cron dns
               volumeMounts:
                 - mountPath: /home/dd/engine
                   name: underpost-cron-container-volume

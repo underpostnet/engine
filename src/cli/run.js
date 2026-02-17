@@ -523,21 +523,7 @@ class UnderpostRun {
           if (!validVersion) throw new Error('Version mismatch');
         }
         if (options.timezone !== 'none') shellExec(`${baseCommand} run${baseClusterCommand} tz`);
-        if (options.deployIdCronJobs !== 'none') {
-          const cronClusterFlag = options.k3s
-            ? ' --k3s'
-            : options.kind
-              ? ' --kind'
-              : options.kubeadm
-                ? ' --kubeadm'
-                : '';
-          const cronCmdFlag = options.cmdCronJobs ? ` --cmd-cron-jobs "${options.cmdCronJobs}"` : '';
-          const cronCreateJobNowFlag = options.createJobNow ? ' --create-job-now' : '';
-          const cronDryRunFlag = options.dryRun ? ' --dry-run' : '';
-          shellExec(
-            `${baseCommand} run${baseClusterCommand} cron${cronClusterFlag}${cronCmdFlag}${cronCreateJobNowFlag}${cronDryRunFlag}${options.deployIdCronJobs ? ` ${options.deployIdCronJobs}` : ''}`,
-          );
-        }
+        if (options.deployIdCronJobs !== 'none') shellExec(`node bin cron --dev --setup-start --apply`);
       }
 
       const currentTraffic = isDeployRunnerContext(path, options)
@@ -741,33 +727,6 @@ class UnderpostRun {
                 ? process.env.TIME_ZONE
                 : 'America/New_York';
       shellExec(`sudo timedatectl set-timezone ${tz}`);
-    },
-
-    /**
-     * @method cron
-     * @description Sets up cron jobs using `underpost cron --setup-start` command, which likely configures scheduled tasks for the application.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    cron: (path, options = DEFAULT_OPTION) => {
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
-      const devFlag = options.dev ? ' --dev' : '';
-      const gitFlag = options.git ? ' --git' : '';
-      const namespaceFlag =
-        options.namespace && options.namespace !== 'default' ? ` --namespace ${options.namespace}` : '';
-      const imageFlag = options.image ? ` --image ${options.image}` : '';
-      const cmdFlag = options.cmdCronJobs ? ` --cmd "${options.cmdCronJobs}"` : '';
-      const ddCronPath = './engine-private/deploy/dd.cron';
-      const defaultDeployId = !path && fs.existsSync(ddCronPath) ? fs.readFileSync(ddCronPath, 'utf8').trim() : '';
-      const setupStartId = path || defaultDeployId;
-      const setupStart = setupStartId ? ` --setup-start ${setupStartId} --apply` : '';
-      const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : options.kubeadm ? ' --kubeadm' : '';
-      const createJobNowFlag = options.createJobNow ? ' --create-job-now' : '';
-      const dryRunFlag = options.dryRun ? ' --dry-run' : '';
-      shellExec(
-        `${baseCommand} cron${devFlag}${gitFlag}${namespaceFlag}${imageFlag}${cmdFlag}${clusterFlag}${createJobNowFlag}${dryRunFlag}${setupStart}`,
-      );
     },
 
     /**

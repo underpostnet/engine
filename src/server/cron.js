@@ -191,15 +191,9 @@ class UnderpostCron {
       jobList = Object.keys(Underpost.cron.JOB).join(','),
       options = {},
     ) {
-      if (options.setupStart) {
-        await Underpost.cron.setupDeployStart(options.setupStart, options);
-        return;
-      }
+      if (options.setupStart) return await Underpost.cron.setupDeployStart(options.setupStart, options);
 
-      if (options.generateK8sCronjobs) {
-        await Underpost.cron.generateK8sCronJobs(options);
-        return;
-      }
+      if (options.generateK8sCronjobs) return await Underpost.cron.generateK8sCronJobs(options);
 
       for (const _jobId of jobList.split(',')) {
         const jobId = _jobId.trim();
@@ -277,18 +271,18 @@ class UnderpostCron {
       // Generate and apply cron job manifests for this deploy-id
       await Underpost.cron.generateK8sCronJobs({
         deployId,
-        apply: options.apply,
-        git: !!options.git,
-        dev: !!options.dev,
-        cmd: options.cmd,
         namespace: options.namespace,
         image: options.image,
-        k3s: !!options.k3s,
-        kind: !!options.kind,
-        kubeadm: !!options.kubeadm,
-        createJobNow: !!options.createJobNow,
-        dryRun: !!options.dryRun,
-        ssh: !!options.ssh,
+        apply: options.apply,
+        git: true,
+        dev: true,
+        kubeadm: true,
+        ssh: true,
+        cmd: ` cd /home/dd/engine && node bin env ${deployId} production`,
+        k3s: false,
+        kind: false,
+        createJobNow: false,
+        dryRun: false,
       });
     },
 

@@ -60,7 +60,7 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "node bin run metadata dd-core"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm dd-core,1,,localhost/rockylinux9-underpost:v2.98.3 --cmd-cron-jobs 'cd /home/dd/engine && node bin run secret && node bin env dd-cron production'"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm dd-core,1,,localhost/rockylinux9-underpost:v2.98.3 && node bin run secret && node bin env dd-cron production'"
   init:
     if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-init-engine-core)')
     name: Remote SSH init deployment

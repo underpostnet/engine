@@ -28,7 +28,7 @@ spec:
                 - /bin/sh
                 - -c
                 - >
-                  cd /home/dd/engine && node bin env dd-cron production && node bin cron --git --dev dd-lampp,dd-cyberia,dd-core,dd-test backup
+                   cd /home/dd/engine && node bin env dd-cron production && node bin cron --git --dev --ssh dd-lampp,dd-cyberia,dd-core,dd-test backup
               volumeMounts:
                 - mountPath: /home/dd/engine
                   name: underpost-cron-container-volume

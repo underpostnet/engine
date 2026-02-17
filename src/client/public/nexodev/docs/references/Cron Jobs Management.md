@@ -1,147 +1,264 @@
 # Cron Jobs Management
 
+Minimalist reference for Underpost engine cron job CLI.
+
+---
+
+## Table of Contents
+
+1. [Command](#command)
+2. [Modes](#modes)
+3. [Usage](#usage)
+4. [Options](#options)
+5. [Job Types](#job-types)
+6. [Configuration](#configuration)
+7. [Lifecycle](#lifecycle)
+8. [File Structure](#file-structure)
+9. [Sync Integration](#sync-integration)
+
+---
+
+## Command
+
+```bash
+underpost cron [deploy-list] [job-list] [options]
+node bin cron [deploy-list] [job-list] [options]    # dev mode
+```
+
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `deploy-list` | Comma-separated deploy IDs (`dd-<conf-id>`) | `default` |
+| `job-list` | Comma-separated job IDs (`dns`, `backup`) | All available jobs |
+
+---
+
+## Modes
+
+The cron command operates in three modes:
+
+| Mode | Trigger | Description |
+|------|---------|-------------|
+| **Direct execution** | No manifest flags | Runs job callbacks immediately in the current process |
+| **Generate + Apply** | `--generate-k8s-cronjobs` | Generates K8s CronJob YAML manifests; optionally applies with `--apply` |
+| **Setup deploy start** | `--setup-start [deploy-id]` | Updates `package.json` start script and generates+applies manifests for a deploy-id |
+
+---
+
+## Usage
+
+### Direct Execution
+
+Run jobs immediately without Kubernetes manifests:
+
+```bash
+underpost cron dd-cron dns
+underpost cron dd-cron backup --git
+underpost cron dd-cron dns,backup
+node bin cron dd-cron dns --dev
+```
+
+### Generate Manifests
+
+Generate CronJob YAML files without applying:
+
+```bash
+node bin cron --generate-k8s-cronjobs --dev
+node bin cron --generate-k8s-cronjobs --namespace production --dev
+```
+
+### Apply to Cluster
+
+Generate and deploy CronJob manifests to a running cluster:
+
+```bash
+node bin cron --generate-k8s-cronjobs --apply --kind --dev
+node bin cron --generate-k8s-cronjobs --apply --kubeadm
+node bin cron --generate-k8s-cronjobs --apply --k3s --image custom:latest
+```
+
+### Immediate Job Creation
+
+After applying, create a one-off Job from each CronJob:
+
+```bash
+node bin cron --generate-k8s-cronjobs --apply --create-job-now --kind --dev
+```
+
+### Setup Deploy Start
+
+Update a deploy-id's `package.json` start script and generate its manifests:
+
+```bash
+node bin cron --setup-start dd-cron
+node bin cron --setup-start dd-my-app --namespace staging
+```
+
+### Dry Run
+
+Preview jobs without executing:
+
+```bash
+node bin cron dd-cron dns --dry-run
+node bin cron dd-cron backup --dry-run --dev
+```
+
+### SSH Remote Execution
+
+Execute backup jobs via SSH on the remote node:
+
+```bash
+underpost cron dd-cron backup --ssh --git
+```
+
+### Pre-script Commands
+
+Inject commands before cron execution inside the container:
+
+```bash
+node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node bin env dd-core production" --kind --dev
+```
+
+---
+
+## Options
+
+| Option | Description |
+|--------|-------------|
+| `--generate-k8s-cronjobs` | Generate K8s CronJob YAML manifests from `conf.cron.json` |
+| `--apply` | Apply generated manifests to the cluster via `kubectl` |
+| `--setup-start [deploy-id]` | Update `package.json` start script and generate+apply manifests |
+| `--namespace <name>` | Kubernetes namespace (default: `default`) |
+| `--image <name>` | Custom container image for CronJob pods |
+| `--git` | Pass `--git` flag to job execution |
+| `--cmd <command>` | Pre-script commands before cron execution |
+| `--dev` | Development mode (`node bin` instead of `underpost`) |
+| `--kind` | Kind cluster context |
+| `--k3s` | K3s cluster context |
+| `--kubeadm` | Kubeadm cluster context |
+| `--dry-run` | Preview jobs without executing |
+| `--create-job-now` | Create an immediate Job from each CronJob after applying |
+| `--ssh` | Execute backup commands via SSH on the remote node |
+
+---
+
+## Job Types
+
+| Job ID | Description | Deploy ID Source | Callback |
+|--------|-------------|------------------|----------|
+| `dns` | Dynamic DNS record updates | `dd.cron` | Detects public IP changes and updates configured DNS provider records |
+| `backup` | Database exports | `dd.router` (all deploy-ids) | Runs `node bin db --export --primary-pod` for each deploy-id |
+
+### DNS Job
+
+Checks if the host's public IP has changed. When a new IP is detected, iterates through DNS records defined in `conf.cron.json` and calls the configured provider API (e.g. `dondominio`) to update A records. Verifies the update by resolving the configured host.
+
+### Backup Job
+
+Iterates through the comma-separated deploy-id list and runs a database export for each. Supports `--git` to commit exports to the cron-backups repository and `--ssh` to execute on a remote node.
+
+---
+
 ## Configuration
 
-Create `engine-private/conf/<deploy-id>/conf.cron.json`:
+### DD Cron File
+
+`./engine-private/deploy/dd.cron` — stores the default cron deploy-id (e.g. `dd-cron`). Used when no deploy-id argument is provided.
+
+### Conf Cron JSON
+
+Located at `./engine-private/conf/dd-<conf-id>/conf.cron.json`:
 
 ```json
 {
   "jobs": {
-    "dns": { "expression": "0 */6 * * *", "enabled": true },
-    "backup": { "expression": "0 0 * * *", "enabled": true }
+    "dns": {
+      "enabled": true,
+      "expression": "*/5 * * * *"
+    },
+    "backup": {
+      "enabled": true,
+      "expression": "0 0 * * *"
+    }
+  },
+  "records": {
+    "A": [
+      {
+        "dns": "dondominio",
+        "user": "ddns-user",
+        "api_key": "ddns-api-key",
+        "host": "example.com"
+      }
+    ]
   }
 }
 ```
 
-Set the deploy-id reference in `engine-private/deploy/dd.cron`.
+| Field | Description |
+|-------|-------------|
+| `jobs.<id>.enabled` | Whether the job is active (`true`/`false`) |
+| `jobs.<id>.expression` | Cron schedule expression (standard 5-field format) |
+| `records.A[]` | DNS A record providers for the `dns` job |
+| `records.A[].dns` | Provider name (must match a handler in `Dns.services.updateIp`) |
 
-## CLI Usage
+---
 
-```bash
-# Execute cron jobs directly
-underpost cron <deploy-list> <job-list>
+## Lifecycle
 
-# Execute with flags
-underpost cron default dns,backup --git --dev
+### Direct Execution Flow
 
-# Preview jobs without executing
-underpost cron default dns,backup --dry-run
+1. Parse `deploy-list` and `job-list` arguments
+2. For each job ID, look up the handler in `UnderpostCron.JOB`
+3. Call the handler's `callback(deployList, options)`
+4. DNS: check public IP → update records → verify
+5. Backup: iterate deploy-ids → run `db --export --primary-pod` for each
 
-# Generate K8s CronJob manifests
-underpost cron --generate-k8s-cronjobs
+### Manifest Generation + Apply Flow
 
-# Generate and apply to cluster
-underpost cron --generate-k8s-cronjobs --apply --k3s
-underpost cron --generate-k8s-cronjobs --apply --kind
-underpost cron --generate-k8s-cronjobs --apply --kubeadm
+1. **Resolve deploy-id** — argument or `./engine-private/deploy/dd.cron`
+2. **Read `conf.cron.json`** — load job definitions from `./engine-private/conf/dd-<conf-id>/conf.cron.json`
+3. **Generate YAML** — for each enabled job, produce a CronJob manifest at `./manifests/cronjobs/dd-<conf-id>/dd-<conf-id>-<job>.yaml`
+4. **Delete existing** — `kubectl delete cronjob <name> --ignore-not-found`
+5. **Load image** — ensure the container image is available on the cluster
+6. **Sync engine** — if `--kind`, copy engine directory into `kind-worker` container
+7. **Apply** — `kubectl apply -f` on each generated manifest
+8. **Create immediate jobs** — if `--create-job-now`, run `kubectl create job <name>-now --from=cronjob/<name>`
 
-# Generate, apply, and immediately run all enabled CronJobs
-underpost cron --generate-k8s-cronjobs --apply --create-job-now --k3s
-underpost cron --generate-k8s-cronjobs --apply --create-job-now --kind
-underpost cron --generate-k8s-cronjobs --apply --create-job-now --kubeadm
+### Setup Deploy Start Flow
 
-# Setup deploy-id start script and apply
-underpost cron --setup-start <deploy-id> --apply --k3s
+1. Resolve deploy-id (argument or `dd.cron` file)
+2. Read `conf.cron.json` and validate enabled jobs exist
+3. Update `package.json` start script with `kubectl apply -f` commands for each job manifest
+4. Call `generateK8sCronJobs` with hardcoded production defaults (`--git`, `--dev`, `--kubeadm`, `--ssh`)
 
-# Setup, apply, and immediately run
-underpost cron --setup-start <deploy-id> --apply --create-job-now --kind
+---
+
+## File Structure
+
+```
+engine-private/
+├── deploy/
+│   ├── dd.cron              # Default cron deploy-id (e.g. dd-cron)
+│   └── dd.router            # Deploy-id list for backup jobs
+└── conf/
+    └── dd-<conf-id>/
+        ├── conf.cron.json   # Job definitions and DNS records
+        └── package.json     # Updated by --setup-start
+
+manifests/
+└── cronjobs/
+    └── dd-<conf-id>/
+        ├── dd-<conf-id>-dns.yaml
+        └── dd-<conf-id>-backup.yaml
 ```
 
-## Runner Integration
+---
+
+## Sync Integration
+
+The `sync` command triggers cron setup automatically unless `--deploy-id-cron-jobs` is set to `none`:
 
 ```bash
-# Run cron setup via runner (reads dd.cron if no path given)
-underpost run cron
-underpost run --dev cron
-
-# With cluster flag and pre-script command
-underpost run --k3s --cmd-cron-jobs "echo hello" cron
-
-# Sync runner forwards cluster and cron flags automatically
-underpost run --k3s --cmd-cron-jobs "echo setup" sync dd-default
+node bin run sync dd-my-app --dev --kind --create-job-now
 ```
 
-| Runner Flag | Description |
-|-------------|-------------|
-| `--cmd-cron-jobs <cmd>` | Pre-script commands forwarded as `--cmd` to cron execution |
-| `--deploy-id-cron-jobs <id>` | Deploy-id for cron job synchronization during sync |
-
-## Cluster Flags
-
-| Flag | Context | Behavior |
-|------|---------|----------|
-| `--k3s` | k3s cluster | Applies directly on host |
-| `--kubeadm` | kubeadm cluster | Applies directly on host |
-| `--kind` | kind cluster | Syncs engine volume to `kind-worker` container before applying |
-
-Cluster flags are forwarded through the full chain: `run sync` → `run cron` → `underpost cron` → backup/dns jobs → `node bin db --export`.
-
-## Cron Command Options
-
-| Option | Description |
-|--------|-------------|
-| `--generate-k8s-cronjobs` | Generate CronJob YAML manifests |
-| `--apply` | Apply manifests to the cluster via kubectl |
-| `--create-job-now` | After applying, immediately create a Job from each CronJob (requires `--apply`) |
-| `--setup-start <deploy-id>` | Update deploy-id `package.json` start script and generate+apply manifests |
-| `--namespace <ns>` | Kubernetes namespace (default: `default`) |
-| `--image <image>` | Custom container image (overrides default) |
-| `--git` | Pass `--git` flag to job execution |
-| `--dev` | Use local `./` base path instead of global underpost |
-| `--cmd <cmd>` | Pre-script commands to run before cron execution |
-| `--dry-run` | Preview cron jobs without executing them |
-| `--k3s` | k3s cluster context |
-| `--kind` | kind cluster context |
-| `--kubeadm` | kubeadm cluster context |
-
-## Immediate Job Execution
-
-The `--create-job-now` flag creates a one-off Kubernetes Job from each applied CronJob's `jobTemplate`, triggering an immediate run without waiting for the scheduled time. This is useful for:
-
-- Verifying that newly deployed CronJobs execute correctly
-- Running a cron task on-demand after a configuration change
-- Initial deployment scenarios where the first execution shouldn't wait for the next schedule window
-
-Under the hood, for each enabled CronJob it runs:
-
-```bash
-kubectl create job <cronjob-name>-now-<timestamp> --from=cronjob/<cronjob-name> -n <namespace>
-```
-
-The generated Job name is suffixed with a timestamp to avoid naming collisions and is truncated to the Kubernetes 63-character limit.
-
-> **Note:** `--create-job-now` requires `--apply` because the CronJob must exist in the cluster before a Job can be created from it.
-
-### Examples
-
-```bash
-# Apply manifests and immediately run all enabled CronJobs on a kind cluster
-underpost cron --generate-k8s-cronjobs --apply --create-job-now --kind
-
-# Setup a deploy-id, apply its CronJobs, and trigger them immediately
-underpost cron --setup-start dd-cron --apply --create-job-now --kubeadm
-
-# Apply to a specific namespace and run immediately
-underpost cron --generate-k8s-cronjobs --apply --create-job-now --namespace production --k3s
-```
-
-## Default Image
-
-Default container image: `underpost/underpost-engine:<version>`.
-
-When `--apply` is used without a custom `--image`, the default image is automatically pulled and loaded into the cluster via `underpost image --pull-dockerhub underpost` using the specified cluster flag.
-
-## Volume
-
-All cron jobs mount the engine directory from the host:
-
-- **hostPath**: `/home/dd/engine` (type: `Directory`)
-- **mountPath**: `/home/dd/engine`
-- **Volume name**: `underpost-cron-container-volume`
-
-For `--kind` clusters, the engine directory is automatically synced into the `kind-worker` node before applying manifests.
-
-## Available Jobs
-
-- `dns` — DNS management tasks
-- `backup` — Database export operations (uses `dd.router` for deploy-id resolution, forwards `--k3s`/`--kind`/`--kubeadm` to `node bin db --export`)
+This calls the cron runner internally with resolved cluster flags, applying cron manifests as part of the deployment sync cycle. The `--cmd-cron-jobs` option on `sync` forwards pre-script commands to the cron generator.
