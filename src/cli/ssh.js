@@ -536,7 +536,7 @@ SSH_KEY=$(node bin config get --plain DEFAULT_SSH_KEY_PATH)
 
 chmod 600 "$SSH_KEY"
 
-ssh -i "$SSH_KEY" -o BatchMode=yes "$REMOTE_USER@$REMOTE_HOST" -p $REMOTE_PORT sh <<EOF
+ssh -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$REMOTE_USER@$REMOTE_HOST" -p $REMOTE_PORT sh <<EOF
 ${cd ? `cd ${cd}` : ''}
 ${useSudo ? `sudo -n -- /bin/bash -lc "${remoteCommand}"` : remoteCommand}
 EOF
