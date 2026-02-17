@@ -345,7 +345,7 @@ class UnderpostRun {
      */
     'template-deploy': (path = '', options = DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
-      const message = shellExec(`node bin cmt --changelog`, { silent: true, stdout: true }).trim();
+      const message = shellExec(`node bin cmt --changelog --changelog-no-hash`, { silent: true, stdout: true }).trim();
       shellExec(`${baseCommand} run clean`);
       shellExec(
         `${baseCommand} push ./engine-private ${options.force ? '-f ' : ''}${

@@ -86,6 +86,10 @@ program
   )
   .option('--changelog-build', 'Builds a CHANGELOG.md file based on the commit history')
   .option('--changelog-min-version <version>', 'Sets the minimum version limit for --changelog-build (default: 2.85.0)')
+  .option(
+    '--changelog-no-hash',
+    'Excludes commit hashes from the generated changelog entries (used with --changelog-build).',
+  )
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 

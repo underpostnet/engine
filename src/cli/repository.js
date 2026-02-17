@@ -94,6 +94,7 @@ class UnderpostRepository {
      * @param {boolean|string} [options.changelog=undefined] - If true, prints the changelog since the last CI integration commit (starting with 'ci(package-pwa-microservices-'). If a number string, prints the changelog of the last N commits split by version sections. Only considers commits starting with '[<tag>]'.
      * @param {boolean} [options.changelogBuild=false] - If true, scrapes all git history and builds a full CHANGELOG.md. Commits containing 'New release v:' are used as version section titles. Only commits starting with '[<tag>]' are included as entries.
      * @param {string} [options.changelogMinVersion=''] - If set, overrides the default minimum version limit (2.85.0) for --changelog-build.
+     * @param {boolean} [options.changelogNoHash=false] - If true, omits commit hashes from the changelog entries.
      * @memberof UnderpostRepository
      */
     commit(
@@ -116,6 +117,7 @@ class UnderpostRepository {
         changelog: undefined,
         changelogBuild: false,
         changelogMinVersion: '',
+        changelogNoHash: false,
       },
     ) {
       if (!repoPath) repoPath = '.';
@@ -145,7 +147,7 @@ class UnderpostRepository {
           for (const tag of tagOrder) {
             out += `### ${tag}\n\n`;
             for (const entry of groups[tag]) {
-              out += `- ${entry.context} (${commitUrl(entry.hash, entry.fullHash)})\n`;
+              out += `- ${entry.context}${options.changelogNoHash ? '' : ` (${commitUrl(entry.hash, entry.fullHash)})`}\n`;
             }
             out += '\n';
           }
@@ -214,7 +216,7 @@ class UnderpostRepository {
             const sectionBody = buildSectionChangelog(section.commits);
             if (!sectionBody) continue;
             if (section.title) {
-              changelog += `## ${section.title} (${section.date})\n\n`;
+              changelog += `## ${section.title}${options.changelogNoHash ? '' : ` (${section.date})`}\n\n`;
             } else {
               changelog += `## ${section.date}\n\n`;
             }
@@ -344,7 +346,11 @@ class UnderpostRepository {
      * @memberof UnderpostRepository
      */
     getLastCommitMsg(skip = 0) {
-      return shellExec(`git --no-pager log -1 --skip=${skip} --pretty=%B`, { stdout: true });
+      return shellExec(`git --no-pager log -1 --skip=${skip} --pretty=%B`, {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+      });
     },
 
     /**
