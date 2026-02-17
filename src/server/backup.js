@@ -8,6 +8,7 @@ import fs from 'fs-extra';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import dotenv from 'dotenv';
+import Underpost from '../index.js';
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ class BackUp {
    * @param {boolean} [options.k3s] - Use k3s cluster context.
    * @param {boolean} [options.kind] - Use kind cluster context.
    * @param {boolean} [options.kubeadm] - Use kubeadm cluster context.
+   * @param {boolean} [options.ssh] - Execute backup commands via SSH on the remote node.
    * @memberof UnderpostBakcUp
    */
   static callback = async function (deployList, options = { git: false }) {
@@ -43,10 +45,21 @@ class BackUp {
       const deployId = _deployId.trim();
       if (!deployId) continue;
 
-      logger.info('Executing database export for', deployId);
-      shellExec(
-        `node bin db ${options.git ? '--git --force-clone ' : ''}--export --primary-pod${clusterFlag} ${deployId}`,
-      );
+      const command =
+        `cd /home/dd/engine` +
+        `node bin db ${options.git ? '--git --force-clone ' : ''}--export --primary-pod${clusterFlag} ${deployId}`;
+
+      if (options.ssh) {
+        logger.info('Executing database export via SSH for', deployId);
+        await Underpost.ssh.sshRemoteRunner(command, {
+          remote: true,
+          useSudo: true,
+          cd: '/home/dd/engine',
+        });
+      } else {
+        logger.info('Executing database export for', deployId);
+        shellExec(command);
+      }
     }
   };
 }

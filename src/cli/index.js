@@ -435,6 +435,7 @@ program
     '--create-job-now',
     'After applying manifests, immediately create a Job from each CronJob (requires --apply).',
   )
+  .option('--ssh', 'Execute backup commands via SSH on the remote node instead of locally.')
   .description('Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests.')
   .action(Underpost.cron.callback);
 

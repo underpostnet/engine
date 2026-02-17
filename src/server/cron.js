@@ -33,6 +33,7 @@ const underpostContainerEnvPath = '/usr/lib/node_modules/underpost/.env';
  * @param {string} [params.cmd] - Optional pre-script commands to run before cron execution
  * @param {boolean} [params.suspend=false] - Whether the CronJob is suspended
  * @param {boolean} [params.dryRun=false] - Pass --dry-run flag to the cron command inside the container
+ * @param {boolean} [params.ssh=false] - Execute backup commands via SSH on the remote node
  * @returns {string} Kubernetes CronJob YAML manifest
  * @memberof UnderpostCron
  */
@@ -48,6 +49,7 @@ const cronJobYamlFactory = ({
   cmd,
   suspend = false,
   dryRun = false,
+  ssh = false,
 }) => {
   const containerImage = image || `underpost/underpost-engine:${Underpost.version}`;
 
@@ -60,7 +62,7 @@ const cronJobYamlFactory = ({
 
   const cmdPart = cmd ? `${cmd} && ` : '';
   const cronBin = dev ? 'node bin' : 'underpost';
-  const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}`;
+  const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}${ssh ? '--ssh ' : ''}`;
   const cronCommand = `${cmdPart}${cronBin} cron ${flags}${deployList} ${jobList}`;
 
   return `apiVersion: batch/v1
@@ -181,6 +183,7 @@ class UnderpostCron {
      * @param {boolean} [options.kubeadm] - Use kubeadm cluster context (apply directly on host)
      * @param {boolean} [options.dryRun] - Preview cron jobs without executing them
      * @param {boolean} [options.createJobNow] - After applying, immediately create a Job from each CronJob (requires --apply)
+     * @param {boolean} [options.ssh] - Execute backup commands via SSH on the remote node
      * @memberof UnderpostCron
      */
     callback: async function (
@@ -229,6 +232,7 @@ class UnderpostCron {
      * @param {boolean} [options.k3s] - k3s cluster context (apply directly on host)
      * @param {boolean} [options.kind] - kind cluster context (apply via kind-worker container)
      * @param {boolean} [options.kubeadm] - kubeadm cluster context (apply directly on host)
+     * @param {boolean} [options.ssh] - Execute backup commands via SSH on the remote node
      * @memberof UnderpostCron
      */
     setupDeployStart: async function (deployId, options = {}) {
@@ -284,6 +288,7 @@ class UnderpostCron {
         kubeadm: !!options.kubeadm,
         createJobNow: !!options.createJobNow,
         dryRun: !!options.dryRun,
+        ssh: !!options.ssh,
       });
     },
 
@@ -305,6 +310,7 @@ class UnderpostCron {
      * @param {boolean} [options.kubeadm=false] - kubeadm cluster context (apply directly on host)
      * @param {boolean} [options.createJobNow=false] - After applying, create a Job from each CronJob immediately
      * @param {boolean} [options.dryRun=false] - Pass --dry-run=client to kubectl commands
+     * @param {boolean} [options.ssh=false] - Execute backup commands via SSH on the remote node
      * @memberof UnderpostCron
      */
     generateK8sCronJobs: async function (options = {}) {
@@ -361,6 +367,7 @@ class UnderpostCron {
           cmd: options.cmd,
           suspend: false,
           dryRun: !!options.dryRun,
+          ssh: !!options.ssh,
         });
 
         const yamlFilePath = `${outputDir}/${cronJobName}.yaml`;
