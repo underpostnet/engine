@@ -10,7 +10,6 @@ permissions:
   id-token: write
 jobs:
   pwa-microservices-template:
-    # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-lampp-repo-build)')
     name: Update github repo package Jobs
     env:
       SYNC: ${{ startsWith(github.event.workflow_run.head_commit.message, 'ci(package-pwa-microservices-template-sync-engine-lampp)') }}
@@ -48,6 +47,14 @@ jobs:
       - name: Build repository
         run: |
           cd .. && underpost clone underpostnet/pwa-microservices-template
+          cd pwa-microservices-template
+          FULL_MSG=$(git log -1 --pretty=%B 2>/dev/null || echo "")
+          LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed 's/^[^)]*) *//')
+          if [ -z "$LAST_COMMIT_MESSAGE" ]; then
+            LAST_COMMIT_MESSAGE="Update engine lampp repository"
+          fi
+          echo "[INFO] Captured commit message: $LAST_COMMIT_MESSAGE"
+          cd ..
           underpost clone --bare underpostnet/engine-lampp
           cd engine
           node bin/build dd-lampp development
@@ -58,7 +65,7 @@ jobs:
           git config user.name 'underpostnet'
           git config user.email 'development@underpost.net'
           git add .
-          underpost cmt . ci engine-lampp-repo-build 'Update engine lampp repository'
+          git commit -m "$LAST_COMMIT_MESSAGE"
           underpost push . underpostnet/engine-lampp
           if [ "${SYNC}" = "true" ]; then
             echo "[INFO] Init engine-lampp deployment"

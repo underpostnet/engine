@@ -34,6 +34,17 @@ jobs:
           curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
           dnf install nodejs -y
 
+      - name: Capture commit message
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          FULL_MSG=$(git log -1 --pretty=%B)
+          LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed 's/^[^)]*) *//')
+          echo "LAST_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
+          echo "$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          echo "[INFO] Full commit message: $FULL_MSG"
+          echo "[INFO] Extracted payload: $LAST_COMMIT_MESSAGE"
+
       - name: Install dependencies
         run: |
           npm install -g underpost
@@ -56,5 +67,5 @@ jobs:
           git add .
           git config user.name 'underpostnet'
           git config user.email 'fcoverdugoa@underpost.net'
-          underpost cmt . ci package-pwa-microservices-template-ghpkg "$(node ../engine/bin cmt --changelog)"
+          underpost cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
           underpost push . underpostnet/pwa-microservices-template

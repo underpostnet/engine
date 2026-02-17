@@ -32,20 +32,13 @@ jobs:
           curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
           dnf install nodejs -y
 
-        # - name: Get npm root
-        #   run: sudo npm root -g
-
-        # - run: npm ci
-
-        # - name: Install underpost cli
-        #   run: sudo npm install -g underpost
-
-        # usage: git remote set-url [--push] <name> <newurl> [<oldurl>]
-        #    or: git remote set-url --add <name> <newurl>
-        #    or: git remote set-url --delete <name> <url>
-        #     --[no-]push           manipulate push URLs
-        #     --[no-]add            add URL
-        #     --[no-]delete         delete URLs
+      - name: Capture commit message
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          echo "LAST_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
+          echo "$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Install dependencies and set repo configuration
         run: |
@@ -63,17 +56,16 @@ jobs:
 
       - name: Clone and Push to github package repository
         run: |
-          LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
           underpost clone --bare underpostnet/pwa-microservices-template-ghpkg
           rm -rf ./.git
           mv ./pwa-microservices-template-ghpkg.git ./.git
           pwd
-          git config --global --add safe.directory /__w/pwa-microservices-template/pwa-microservices-template
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template-ghpkg.git
           git init
           git config user.name 'underpostnet'
           git config user.email 'fcoverdugoa@underpost.net'
           git add .
           git status
-          underpost cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
+          git commit -m "$LAST_COMMIT_MESSAGE"
           underpost push . underpostnet/pwa-microservices-template-ghpkg
