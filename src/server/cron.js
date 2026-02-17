@@ -274,6 +274,7 @@ class UnderpostCron {
         namespace: options.namespace,
         image: options.image,
         apply: options.apply,
+        createJobNow: options.createJobNow,
         git: true,
         dev: true,
         kubeadm: true,
@@ -281,7 +282,6 @@ class UnderpostCron {
         cmd: ` cd ${enginePath} && node bin env ${deployId} production`,
         k3s: false,
         kind: false,
-        createJobNow: false,
         dryRun: false,
       });
     },
