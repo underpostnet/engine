@@ -34,11 +34,13 @@ jobs:
 
       - name: Capture commit message
         run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          LAST_COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          FULL_MSG="${{ github.event.head_commit.message }}"
+          LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed 's/^[^)]*) *//')
           echo "LAST_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
           echo "$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+          echo "[INFO] Full commit message: $FULL_MSG"
+          echo "[INFO] Extracted payload: $LAST_COMMIT_MESSAGE"
 
       - name: Install dependencies and set repo configuration
         run: |
@@ -50,6 +52,7 @@ jobs:
 
       - name: Set git global credentials
         run: |
+          git config --global --add safe.directory '*'
           git config --global credential.helper ""
           git config --global user.name 'underpostnet'
           git config --global user.email 'fcoverdugoa@underpost.net'
@@ -60,7 +63,6 @@ jobs:
           rm -rf ./.git
           mv ./pwa-microservices-template-ghpkg.git ./.git
           pwd
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template-ghpkg.git
           git init
           git config user.name 'underpostnet'

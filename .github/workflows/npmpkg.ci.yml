@@ -36,8 +36,7 @@ jobs:
 
       - name: Capture commit message
         run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          FULL_MSG=$(git log -1 --pretty=%B)
+          FULL_MSG="${{ github.event.head_commit.message }}"
           LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed 's/^[^)]*) *//')
           echo "LAST_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
           echo "$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV
@@ -53,6 +52,7 @@ jobs:
 
       - name: Set git global credentials
         run: |
+          git config --global --add safe.directory '*'
           git config --global credential.helper ""
           git config --global user.name 'underpostnet'
           git config --global user.email 'fcoverdugoa@underpost.net'
