@@ -49,7 +49,7 @@ jobs:
         run: |
           cd .. && underpost clone underpostnet/pwa-microservices-template
           FULL_MSG=$(cd pwa-microservices-template && git log -1 --pretty=%B 2>/dev/null || echo "")
-          LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed 's/^[^)]*) *//')
+          LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1d')
           if [ -z "$LAST_COMMIT_MESSAGE" ]; then
             LAST_COMMIT_MESSAGE="Update engine cyberia repository"
           fi

@@ -357,7 +357,7 @@ class UnderpostRun {
       shellExec(
         `${baseCommand} cmt . --empty ci package-pwa-microservices-template${
           path.startsWith('sync') ? `-${path}` : ''
-        }${message ? ` "${message.replaceAll('"', '')}"` : ''}`,
+        }${message ? ` "${message.replaceAll('"', '').replaceAll('`', '')}"` : ''}`,
       );
       shellExec(`${baseCommand} push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`);
     },
