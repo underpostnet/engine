@@ -354,10 +354,17 @@ class UnderpostRun {
       );
       shellCd('/home/dd/engine');
       shellExec(`git reset`);
+      function replaceNthNewline(str, n, replacement = ' ') {
+        let count = 0;
+        return str.replace(/\r\n?|\n/g, (match) => {
+          count++;
+          return count === n ? replacement : match;
+        });
+      }
       shellExec(
         `${baseCommand} cmt . --empty ci package-pwa-microservices-template${
           path.startsWith('sync') ? `-${path}` : ''
-        }${message ? ` "${message.replaceAll('"', '').replaceAll('`', '')}"` : ''}`,
+        }${message ? ` "${replaceNthNewline(message.replaceAll('"', '').replaceAll('`', '').replaceAll('#', ''), 2)}"` : ''}`,
       );
       shellExec(`${baseCommand} push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`);
     },
