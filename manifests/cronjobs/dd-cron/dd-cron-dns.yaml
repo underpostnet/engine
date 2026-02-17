@@ -23,7 +23,7 @@ spec:
         spec:
           containers:
             - name: dd-cron-dns
-              image: underpost/underpost-engine:v2.99.6
+              image: underpost/underpost-engine:v2.99.7
               command:
                 - /bin/sh
                 - -c
@@ -41,7 +41,7 @@ spec:
                 type: Directory
               name: underpost-cron-container-volume
             - hostPath:
-                path: /root/.nvm/versions/node/v24.10.0/lib/node_modules/underpost/.env
-                type: FileOrCreate
+                path: /root/.nvm/versions/node/v24.10.0/lib/node_modules/underpost
+                type: DirectoryOrCreate
               name: underpost-share-env
           restartPolicy: OnFailure

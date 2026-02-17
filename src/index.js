@@ -41,7 +41,7 @@ class Underpost {
    * @type {String}
    * @memberof Underpost
    */
-  static version = 'v2.99.6';
+  static version = 'v2.99.7';
 
   /**
    * Required Node.js major version

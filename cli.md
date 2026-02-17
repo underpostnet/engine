@@ -1,4 +1,4 @@
-## underpost ci/cd cli v2.99.6
+## underpost ci/cd cli v2.99.7
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -29,7 +29,7 @@ Commands:
   fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
   test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
   monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
-  ssh [options]
+  ssh [options]                                              Manages SSH credentials and sessions for remote access to cluster nodes or services.
   run [options] <runner-id> [path]                           Runs specified scripts using various runners.
   lxd [options]                                              Manages LXD containers and virtual machines.
   baremetal [options] [workflow-id]                          Manages baremetal server operations, including installation, database setup, commissioning, and user management.
@@ -142,33 +142,46 @@ Manages commits to a GitHub repository, supporting various commit types and
 options.
 
 Arguments:
-  path                     The absolute or relative directory path of the
-                           repository.
-  commit-type              The type of commit to perform. Options: feat, fix,
-                           docs, style, refactor, perf, ci, cd, infra, build,
-                           test, chore, revert, backup.
-  module-tag               Optional: Sets a specific module tag for the commit.
-  message                  Optional: Provides an additional custom message for
-                           the commit.
+  path                               The absolute or relative directory path of
+                                     the repository.
+  commit-type                        The type of commit to perform. Options:
+                                     feat, fix, docs, style, refactor, perf,
+                                     ci, cd, infra, build, test, chore, revert,
+                                     backup.
+  module-tag                         Optional: Sets a specific module tag for
+                                     the commit.
+  message                            Optional: Provides an additional custom
+                                     message for the commit.
 
 Options:
-  --log <latest-n>         Shows commit history from the specified number of
-                           latest n path commits.
-  --last-msg <latest-n>    Displays the last n commit message.
-  --empty                  Allows committing with empty files.
-  --copy                   Copies the generated commit message to the
-                           clipboard.
-  --info                   Displays information about available commit types.
-  --diff                   Shows the current git diff changes.
-  --edit                   Edit last commit.
-  --msg <msg>              Sets a custom commit message.
-  --deploy-id <deploy-id>  Sets the deployment configuration ID for the commit
-                           context.
-  --cached                 Commit staged changes only or context.
-  --hashes <hashes>        Comma-separated list of specific file hashes of
-                           commits.
-  --extension <extension>  specific file extensions of commits.
-  -h, --help               display help for command
+  --log <latest-n>                   Shows commit history from the specified
+                                     number of latest n path commits.
+  --last-msg <latest-n>              Displays the last n commit message.
+  --empty                            Allows committing with empty files.
+  --copy                             Copies the generated commit message to the
+                                     clipboard.
+  --info                             Displays information about available
+                                     commit types.
+  --diff                             Shows the current git diff changes.
+  --edit                             Edit last commit.
+  --deploy-id <deploy-id>            Sets the deployment configuration ID for
+                                     the commit context.
+  --cached                           Commit staged changes only or context.
+  --hashes <hashes>                  Comma-separated list of specific file
+                                     hashes of commits.
+  --extension <extension>            specific file extensions of commits.
+  --changelog [latest-n]             Print plain the changelog of the specified
+                                     number of latest n commits, if no number
+                                     is provided it will get the changelog to
+                                     latest ci integration
+  --changelog-build                  Builds a CHANGELOG.md file based on the
+                                     commit history
+  --changelog-min-version <version>  Sets the minimum version limit for
+                                     --changelog-build (default: 2.85.0)
+  --changelog-no-hash                Excludes commit hashes from the generated
+                                     changelog entries (used with
+                                     --changelog-build).
+  -h, --help                         display help for command
  
 ```
   
@@ -664,6 +677,8 @@ Options:
   --dry-run                  Preview cron jobs without executing them.
   --create-job-now           After applying manifests, immediately create a Job
                              from each CronJob (requires --apply).
+  --ssh                      Execute backup commands via SSH on the remote node
+                             instead of locally.
   -h, --help                 display help for command
  
 ```
@@ -766,6 +781,9 @@ Options:
 ```
  Usage: underpost ssh [options]
 
+Manages SSH credentials and sessions for remote access to cluster nodes or
+services.
+
 Options:
   --deploy-id <deploy-id>  Sets deploy id context for ssh operations.
   --generate               Generates new ssh credential and stores it in
@@ -811,7 +829,7 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: dev-cluster,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,cron,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,ptls,release-cmt,deploy-test,sync-replica,tf-vae-test,spark-template,rmi,kill,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
+  runner-id                                       The runner ID to run. Options: dev-cluster,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,ptls,release-cmt,deploy-test,sync-replica,tf-vae-test,spark-template,rmi,kill,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
   path                                            The input value, identifier, or path for the operation.
 
 Options:

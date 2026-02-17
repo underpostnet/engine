@@ -1,15 +1,53 @@
 # Changelog
 
-## 2026-02-16
+## 2026-02-17
 
-### cli-repo
+### cli-ssh
 
-- Add changelog commits logic to sub repo builds ([9bfb2fa7](https://github.com/underpostnet/engine/commit/9bfb2fa7a00baa80954b1c61cbaeef0765367b6f))
-- Remove redundant --msg flag in cmt command ([59b529bb](https://github.com/underpostnet/engine/commit/59b529bb6ecd5bf8ff14d5d686e96a1d9e6911a5))
+- Fix batch remote execution ([3658db14](https://github.com/underpostnet/engine/commit/3658db140b550914b0c331723d7a8cd11999514a))
 
 ### cli-cron
 
+- Change order exec createJobNow logic ([524b8b80](https://github.com/underpostnet/engine/commit/524b8b802dc40220cef8380dd9b7a80eb3055821))
+- Fix error prepare subPath in cronjob subPath mount ([33bedaff](https://github.com/underpostnet/engine/commit/33bedaff2a7e815e3522f4921e937384ee0b7750))
+- Fix engine path definition and remove old cmd job in ci core sync command ([dbc5b6e6](https://github.com/underpostnet/engine/commit/dbc5b6e6e863b6c11f6c186d3a6f52781920c2be))
+- Refactor run sync cron and remove redundant cron runner ([5885a747](https://github.com/underpostnet/engine/commit/5885a747acb16dc422b6d4007bfe403bbc896660))
+- Add SSH flag to remote cron exec ([4339fb9d](https://github.com/underpostnet/engine/commit/4339fb9d32dea3dc4d47da19d554347a6a5ab070))
 - Add underpost cron jobs config env persistence ([d8d15eda](https://github.com/underpostnet/engine/commit/d8d15eda887465300b58b6775d5c2b8d241010f8))
+
+### cron-cli
+
+- Enable createJobNow in cron setup-start ([bdce5ca0](https://github.com/underpostnet/engine/commit/bdce5ca0df705daa25255b55ce15c1483bc8a717))
+
+### cli-run
+
+- Improve message commit clean on logic propagate in template-deploy runnner ([dfa64105](https://github.com/underpostnet/engine/commit/dfa641052bc71ad3c5c8c461651d1947dc5f21c0))
+- Add replaceNthNewline logic in template-deploy runner ([282faf73](https://github.com/underpostnet/engine/commit/282faf73ef32dc65e1b140af6f4e7609e964a503))
+
+### github-actions
+
+- Replace split logic ')' character, to simply deletes the first line and keeps everything from the second line ([6c1fbdf1](https://github.com/underpostnet/engine/commit/6c1fbdf1193cbf0f32cdfa9bccd11228d9f889f4))
+
+### cli-repo
+
+- Fix propagation message logic ([9ff035f1](https://github.com/underpostnet/engine/commit/9ff035f157b8433d5b236f46e54abc895b7ff626))
+- Add logic to propagate integration commit message between repos ([4f7201c9](https://github.com/underpostnet/engine/commit/4f7201c945d1c0e95a604ff680bc2a64ac2e4c8d))
+- Add --changelog-no-hash flag and logic ([d71cfe06](https://github.com/underpostnet/engine/commit/d71cfe062fe2a1a6b1f8678b64ee24faed4751f4))
+- Add changelog commits logic to sub repo builds ([c8e94c32](https://github.com/underpostnet/engine/commit/c8e94c32fdad0a68eeadd9ab599d640c7cdd3f51))
+- Remove redundant --msg flag in cmt command ([59b529bb](https://github.com/underpostnet/engine/commit/59b529bb6ecd5bf8ff14d5d686e96a1d9e6911a5))
+
+### cli-system
+
+- Fix missing fs import ([94bbd4ec](https://github.com/underpostnet/engine/commit/94bbd4ec7aa5a154f12ae55657a77c7320ae3739))
+- Add cli system module as a SystemProvisionig OS instructions provider ([d8e629e7](https://github.com/underpostnet/engine/commit/d8e629e71dcc580cf0d3997e88457a35466333a1))
+
+### bin-deploy
+
+- Add sync start scripts of each deploy id dd.router ([3d40afa8](https://github.com/underpostnet/engine/commit/3d40afa8b84fa4329624177e242c9105519fe6e8))
+
+### docs
+
+- JSDoc name, descriptions, and render logic improvements ([01a288ab](https://github.com/underpostnet/engine/commit/01a288abcf25876c357678996913e4702487de28))
 
 ### cli
 
