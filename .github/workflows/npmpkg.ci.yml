@@ -37,7 +37,7 @@ jobs:
       - name: Capture commit message
         run: |
           FULL_MSG="${{ github.event.head_commit.message }}"
-          LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1d')
+          LAST_COMMIT_MESSAGE="${FULL_MSG:-update package}"
           echo "LAST_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
           echo "$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
