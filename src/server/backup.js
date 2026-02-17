@@ -45,9 +45,7 @@ class BackUp {
       const deployId = _deployId.trim();
       if (!deployId) continue;
 
-      const command =
-        `cd /home/dd/engine` +
-        `node bin db ${options.git ? '--git --force-clone ' : ''}--export --primary-pod${clusterFlag} ${deployId}`;
+      const command = `node bin db ${options.git ? '--git --force-clone ' : ''}--export --primary-pod${clusterFlag} ${deployId}`;
 
       if (options.ssh) {
         logger.info('Executing database export via SSH for', deployId);

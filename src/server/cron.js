@@ -278,7 +278,7 @@ class UnderpostCron {
         dev: true,
         kubeadm: true,
         ssh: true,
-        cmd: ` cd /home/dd/engine && node bin env ${deployId} production`,
+        cmd: ` cd ${enginePath} && node bin env ${deployId} production`,
         k3s: false,
         kind: false,
         createJobNow: false,
