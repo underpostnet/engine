@@ -400,28 +400,27 @@ class UnderpostCron {
           shellExec(`kubectl apply -f ${yamlFile}`);
         }
         logger.info('All CronJob manifests applied');
-
-        // Create an immediate Job from each CronJob if requested
-        if (options.createJobNow) {
-          for (const job of Object.keys(confCronConfig.jobs)) {
-            const jobConfig = confCronConfig.jobs[job];
-            if (jobConfig.enabled === false) continue;
-
-            const cronJobName = `${jobDeployId}-${job}`
-              .toLowerCase()
-              .replace(/[^a-z0-9-]/g, '-')
-              .replace(/--+/g, '-')
-              .replace(/^-|-$/g, '')
-              .substring(0, 52);
-
-            const immediateJobName = `${cronJobName}-now-${Date.now()}`.substring(0, 63);
-            logger.info(`Creating immediate Job from CronJob: ${cronJobName}`, { jobName: immediateJobName });
-            shellExec(`kubectl create job ${immediateJobName} --from=cronjob/${cronJobName} -n ${namespace}`);
-          }
-          logger.info('All immediate Jobs created');
-        }
       } else {
         logger.info(`Manifests generated in ${outputDir}. Use --apply to deploy to the cluster.`);
+      }
+      // Create an immediate Job from each CronJob if requested
+      if (options.createJobNow) {
+        for (const job of Object.keys(confCronConfig.jobs)) {
+          const jobConfig = confCronConfig.jobs[job];
+          if (jobConfig.enabled === false) continue;
+
+          const cronJobName = `${jobDeployId}-${job}`
+            .toLowerCase()
+            .replace(/[^a-z0-9-]/g, '-')
+            .replace(/--+/g, '-')
+            .replace(/^-|-$/g, '')
+            .substring(0, 52);
+
+          const immediateJobName = `${cronJobName}-now-${Date.now()}`.substring(0, 63);
+          logger.info(`Creating immediate Job from CronJob: ${cronJobName}`, { jobName: immediateJobName });
+          shellExec(`kubectl create job ${immediateJobName} --from=cronjob/${cronJobName} -n ${namespace}`);
+        }
+        logger.info('All immediate Jobs created');
       }
     },
 
