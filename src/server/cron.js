@@ -108,8 +108,8 @@ spec:
                 type: Directory
               name: ${cronVolumeName}
             - hostPath:
-                path: ${getUnderpostRootPath()}/.env
-                type: FileOrCreate
+                path: ${getUnderpostRootPath()}
+                type: DirectoryOrCreate
               name: ${shareEnvVolumeName}
           restartPolicy: OnFailure
 `;
