@@ -1,4 +1,4 @@
-import mariadb from 'mariadb';
+import { createPool } from 'mariadb';
 
 import { loggerFactory } from '../../server/logger.js';
 
@@ -32,7 +32,7 @@ class MariaDBService {
    */
   async query(options) {
     const { host, port, user, password, query } = options;
-    const pool = mariadb.createPool({
+    const pool = createPool({
       host: 'host' in options ? host : '127.0.0.1',
       port: 'port' in options ? port : 3306,
       user: 'user' in options ? user : 'root',
