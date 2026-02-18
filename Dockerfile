@@ -1,23 +1,23 @@
 FROM rockylinux:9
 
-# --- Update and install required packages
+# Update and install required packages
 RUN dnf -y update && \
     dnf -y install epel-release && \
     dnf -y install --allowerasing \
-        bzip2 \
-        sudo \
-        curl \
-        net-tools \
-        openssh-server \
-        nano \
-        vim-enhanced \
-        less \
-        openssl-devel \
-        wget \
-        git \
-        gnupg2 \
-        libnsl \
-        perl && \
+    bzip2 \
+    sudo \
+    curl \
+    net-tools \
+    openssh-server \
+    nano \
+    vim-enhanced \
+    less \
+    openssl-devel \
+    wget \
+    git \
+    gnupg2 \
+    libnsl \
+    perl && \
     dnf clean all
 
 
