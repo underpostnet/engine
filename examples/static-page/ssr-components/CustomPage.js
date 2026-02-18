@@ -1,6 +1,6 @@
 /**
  * Custom Page SSR Component Example
- * @module examples/ssr-components/CustomPage
+ * @module examples/ssr-components/CustomPage.js
  */
 
 /**
