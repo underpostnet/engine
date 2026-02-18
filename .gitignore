@@ -20,8 +20,6 @@
 *.metals
 *scala-build
 *.iso
-_
-_.js
 
 init.hwm
 init.pwd

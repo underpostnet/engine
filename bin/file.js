@@ -101,7 +101,6 @@ try {
           './manifests/deployment/dd-template-development',
           './src/server/object-layer.js',
           './src/server/atlas-sprite-sheet-generator.js',
-          'bin/web3.js',
           'bin/cyberia.js',
         ]) {
           if (fs.existsSync(deletePath)) fs.removeSync('../pwa-microservices-template/' + deletePath);
@@ -164,25 +163,11 @@ try {
           JSON.stringify(templatePackageLockJson, null, 4),
           'utf8',
         );
-        const badges = fs
-          .readFileSync(`./README.md`, 'utf8')
-          .split(`<!-- badges -->`)[1]
-          .split(`<!-- end-badges -->`)[0];
-        let originMd = fs.readFileSync(`../pwa-microservices-template/README.md`, 'utf8');
-
-        originMd =
-          originMd.split(`<!-- badges -->`)[0] +
-          `<!-- badges -->` +
-          badges +
-          `<!-- end-badges -->` +
-          originMd.split(`<!-- end-badges -->`)[1];
-
-        const splitKeyword = '## underpost ci/cd cli';
         fs.writeFileSync(
-          `../pwa-microservices-template/README.md`,
-          originMd.split(`<!-- -->`)[0] +
-            `<!-- -->
-${splitKeyword + fs.readFileSync(`./README.md`, 'utf8').split(splitKeyword)[1]}`,
+          '../pwa-microservices-template/README.md',
+          fs
+            .readFileSync('./README.md', 'utf8')
+            .replace('<!-- template-title -->', '#### Base template for pwa/api-rest projects.'),
           'utf8',
         );
       }
