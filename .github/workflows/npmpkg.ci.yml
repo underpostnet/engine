@@ -48,7 +48,6 @@ jobs:
       - name: Install dependencies
         run: |
           npm install -g underpost
-          cp ./src/db/mariadb/MariaDB.js /usr/lib/node_modules/underpost/src/db/mariadb/MariaDB.js
           underpost config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
           npm install
 
