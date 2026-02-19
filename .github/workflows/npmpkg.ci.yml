@@ -37,7 +37,8 @@ jobs:
       - name: Capture commit message
         run: |
           FULL_MSG="${{ github.event.head_commit.message }}"
-          LAST_COMMIT_MESSAGE="${FULL_MSG:-update package}"
+          REST="$(echo "$FULL_MSG" | tail -n +2 | awk 'NR==1{first=$0; has_first=1; next} NR==2{print first " " $0; has_first=0; next} {print} END{if(has_first) print first}')"
+          LAST_COMMIT_MESSAGE="${REST:-$FULL_MSG}"
           echo "LAST_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
           echo "$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
@@ -68,5 +69,5 @@ jobs:
           git add .
           git config user.name 'underpostnet'
           git config user.email 'fcoverdugoa@underpost.net'
-          git commit -m "$LAST_COMMIT_MESSAGE"
+          underpost cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
           underpost push . underpostnet/pwa-microservices-template
