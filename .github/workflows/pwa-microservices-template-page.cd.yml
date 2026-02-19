@@ -52,6 +52,7 @@ jobs:
       - name: Build the site
         run: |
           npm install -g underpost
+          cp ./src/db/mariadb/MariaDB.js /usr/lib/node_modules/underpost/src/db/mariadb/MariaDB.js
           npm install
           node bin new --default-conf --conf-workflow-id dd-github-pages
           node bin new --deploy-id dd-github-pages

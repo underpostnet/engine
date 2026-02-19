@@ -44,6 +44,7 @@ jobs:
       - name: Install dependencies and set repo configuration
         run: |
           npm install -g underpost
+          cp ./src/db/mariadb/MariaDB.js /usr/lib/node_modules/underpost/src/db/mariadb/MariaDB.js
           underpost config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
           npm install
           node ./bin/deploy rename-package @underpostnet/underpost
