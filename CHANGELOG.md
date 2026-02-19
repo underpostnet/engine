@@ -1,6 +1,30 @@
 # Changelog
 
-## 2026-02-17
+## 2026-02-19
+
+### github-actions
+
+- Fix last commit message in npmpkg workflow ([6dd0f484](https://github.com/underpostnet/engine/commit/6dd0f48452fd9810eeb3f535d8859d7e92a418fd))
+- Fix MariaDB import in CI workflows ([2002c11f](https://github.com/underpostnet/engine/commit/2002c11f312293be00c6434e4ba64a81a370e1df))
+- Fix GitHub Actions commit message ([e36c4fb6](https://github.com/underpostnet/engine/commit/e36c4fb6592d17e4d3ffca1e8eede90105a5847b))
+
+### dockerfile
+
+- Underpost image dockerfiles file formats and clean comment ([6e22157c](https://github.com/underpostnet/engine/commit/6e22157c3d276aab9dc328165e7bc686a339663b))
+
+### conf
+
+- Fix repository README logic builder ([d88c5317](https://github.com/underpostnet/engine/commit/d88c5317e32b18b8d180d028e4ef9388ce6db78a))
+
+### db
+
+- Fix MariaDB import ([6edf3719](https://github.com/underpostnet/engine/commit/6edf3719bf4ee71ebe30fb1e7e5a9767aaefe352))
+
+### cli-static
+
+- Fix module js doc path ([6b10a929](https://github.com/underpostnet/engine/commit/6b10a9295422425863ef24f6eb7d76c67b248385))
+
+## New release v:2.99.7 (2026-02-17)
 
 ### cli-ssh
 
