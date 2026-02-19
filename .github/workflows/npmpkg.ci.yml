@@ -68,5 +68,5 @@ jobs:
           git add .
           git config user.name 'underpostnet'
           git config user.email 'fcoverdugoa@underpost.net'
-          underpost cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
+          git commit -m "$LAST_COMMIT_MESSAGE"
           underpost push . underpostnet/pwa-microservices-template
