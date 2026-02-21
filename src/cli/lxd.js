@@ -123,7 +123,7 @@ ipv6.address=none`);
       if (options.deleteVm) {
         const vmName = options.deleteVm;
         logger.info(`Stopping VM: ${vmName}`);
-        shellExec(`lxc stop ${vmName} --force`);
+        shellExec(`lxc stop ${vmName}`);
         logger.info(`Deleting VM: ${vmName}`);
         shellExec(`lxc delete ${vmName}`);
         logger.info(`VM ${vmName} deleted.`);

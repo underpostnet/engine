@@ -138,11 +138,14 @@ class UnderpostCluster {
       }
 
       // Reset Kubernetes cluster components (Kind/Kubeadm/K3s) and container runtimes
-      if (options.reset === true)
+      if (options.reset === true) {
+        const clusterType = options.k3s === true ? 'k3s' : options.kubeadm === true ? 'kubeadm' : 'kind';
         return await Underpost.cluster.safeReset({
           underpostRoot,
           removeVolumeHostPaths: options.removeVolumeHostPaths,
+          clusterType,
         });
+      }
 
       // Check if a cluster (Kind, Kubeadm, or K3s) is already initialized
       const alreadyKubeadmCluster = Underpost.deploy.get('calico-kube-controllers')[0];
@@ -514,12 +517,15 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
      * @description Performs a complete reset of the Kubernetes cluster and its container environments.
      * This version focuses on correcting persistent permission errors (such as 'permission denied'
      * in coredns) by restoring SELinux security contexts and safely cleaning up cluster artifacts.
+     * Only the uninstall/delete commands specific to the given clusterType are executed; all other
+     * cleanup steps (log truncation, filesystem, network) are always run as generic k8s resets.
      * @param {object} [options] - Configuration options for the reset.
      * @param {string} [options.underpostRoot] - The root path of the underpost project.
      * @param {boolean} [options.removeVolumeHostPaths=false] - Whether to remove data from host paths used by Persistent Volumes.
+     * @param {string} [options.clusterType='kind'] - The type of cluster to reset: 'kind', 'kubeadm', or 'k3s'.
      * @memberof UnderpostCluster
      */
-    async safeReset(options = { underpostRoot: '.', removeVolumeHostPaths: false }) {
+    async safeReset(options = { underpostRoot: '.', removeVolumeHostPaths: false, clusterType: 'kind' }) {
       logger.info('Starting a safe and comprehensive reset of Kubernetes and container environments...');
 
       try {
@@ -589,14 +595,22 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
         // Safely unmount pod filesystems to avoid errors.
         shellExec('sudo umount -f /var/lib/kubelet/pods/*/*');
 
-        // Phase 3: Execute official uninstallation commands
-        logger.info('Phase 3/7: Executing official reset and uninstallation commands...');
-        logger.info('  -> Executing kubeadm reset...');
-        shellExec('sudo kubeadm reset --force');
-        logger.info('  -> Executing K3s uninstallation script if it exists...');
-        shellExec('sudo /usr/local/bin/k3s-uninstall.sh');
-        logger.info('  -> Deleting Kind clusters...');
-        shellExec('kind get clusters | xargs -r -t -n1 kind delete cluster');
+        // Phase 3: Execute official uninstallation commands (type-specific)
+        const clusterType = options.clusterType || 'kind';
+        logger.info(
+          `Phase 3/7: Executing official reset/uninstallation commands for cluster type: '${clusterType}'...`,
+        );
+        if (clusterType === 'kubeadm') {
+          logger.info('  -> Executing kubeadm reset...');
+          shellExec('sudo kubeadm reset --force');
+        } else if (clusterType === 'k3s') {
+          logger.info('  -> Executing K3s uninstallation script if it exists...');
+          shellExec('sudo /usr/local/bin/k3s-uninstall.sh');
+        } else {
+          // Default: kind
+          logger.info('  -> Deleting Kind clusters...');
+          shellExec('kind get clusters | xargs -r -t -n1 kind delete cluster');
+        }
 
         // Phase 4: File system cleanup
         logger.info('Phase 4/7: Cleaning up remaining file system artifacts...');
@@ -616,9 +630,6 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
         // Remove iptables rules and CNI network interfaces.
         shellExec('sudo iptables -F');
         shellExec('sudo iptables -t nat -F');
-        // Restore iptables rules
-        shellExec(`chmod +x ${options.underpostRoot}/scripts/nat-iptables.sh`);
-        shellExec(`${options.underpostRoot}/scripts/nat-iptables.sh`, { silent: true });
         shellExec('sudo ip link del cni0');
         shellExec('sudo ip link del flannel.1');
 
@@ -716,6 +727,11 @@ EOF`);
       shellExec(`chmod +x /usr/local/bin/helm`);
       shellExec(`sudo mv /usr/local/bin/helm /bin/helm`);
       shellExec(`sudo rm -rf get_helm.sh`);
+
+      // Install snap
+      shellExec(`sudo yum install -y snapd`);
+      shellExec(`sudo systemctl enable --now snapd.socket`);
+
       console.log('Host prerequisites installed successfully.');
     },
 
