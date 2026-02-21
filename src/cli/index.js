@@ -242,7 +242,6 @@ program
   .option('--init-host', 'Installs necessary Kubernetes node CLI tools (e.g., kind, kubeadm, docker, podman, helm).')
   .option('--uninstall-host', 'Uninstalls all host components installed by init-host.')
   .option('--config', 'Sets the base Kubernetes node configuration.')
-  .option('--worker', 'Sets the context for a worker node.')
   .option('--chown', 'Sets the appropriate ownership for Kubernetes kubeconfig files.')
   .option('--k3s', 'Initializes the cluster using K3s (Lightweight Kubernetes).')
   .option('--hosts <hosts>', 'A comma-separated list of cluster hostnames or IP addresses.')
@@ -613,37 +612,33 @@ program
 
 program
   .command('lxd')
-  .option('--init', 'Initializes LXD on the current machine.')
-  .option('--reset', 'Resets LXD on the current machine, deleting all configurations.')
-  .option('--install', 'Installs LXD on the current machine.')
-  .option('--dev', 'Sets the development context environment for LXD.')
-  .option('--create-virtual-network', 'Creates an LXD virtual network bridge.')
-  .option('--create-admin-profile', 'Creates an admin profile for LXD management.')
-  .option('--control', 'Sets the context for a control node VM.')
-  .option('--worker', 'Sets the context for a worker node VM.')
-  .option('--create-vm <vm-id>', 'Creates default virtual machines with the specified ID.')
-  .option('--init-vm <vm-id>', 'Retrieves the Underpost initialization script for the specified VM.')
-  .option('--info-vm <vm-id>', 'Retrieves all information about the specified VM.')
-  .option('--test <vm-id>', 'Tests the health, status, and network connectivity for a VM.')
-  .option('--root-size <gb-size>', 'Sets the root partition size (in GB) for the VM.')
-  .option('--k3s', 'Flag to indicate that the VM initialization is for a K3s cluster type.')
+  .option('--init', 'Initializes LXD on the current machine via preseed.')
+  .option('--reset', 'Removes the LXD snap and purges all data.')
+  .option('--install', 'Installs the LXD snap.')
+  .option('--dev', 'Use local paths instead of the global npm installation.')
+  .option('--create-virtual-network', 'Creates the lxdbr0 bridge network.')
+  .option('--ipv4-address <cidr>', 'IPv4 address/CIDR for the lxdbr0 bridge network (default: "10.250.250.1/24").')
+  .option('--create-admin-profile', 'Creates the admin-profile for VM management.')
+  .option('--control', 'Initialize the target VM as a K3s control plane node.')
+  .option('--worker', 'Initialize the target VM as a K3s worker node.')
+  .option('--create-vm <vm-name>', 'Copy the LXC launch command for a new K3s VM to the clipboard.')
+  .option('--delete-vm <vm-name>', 'Stop and delete the specified VM.')
+  .option('--init-vm <vm-name>', 'Run k3s-node-setup.sh on the specified VM (use with --control or --worker).')
+  .option('--info-vm <vm-name>', 'Display full configuration and status for the specified VM.')
+  .option('--test <vm-name>', 'Run connectivity and health checks on the specified VM.')
+  .option('--root-size <gb-size>', 'Root disk size in GiB for --create-vm (default: 32).')
   .option(
     '--join-node <nodes>',
-    'A comma-separated list of worker and control nodes to join (e.g., "k8s-worker-1,k8s-control").',
+    'Join a K3s worker to a control plane. Standalone format: "workerName,controlName". ' +
+      'When used with --init-vm --worker, provide just the control node name for auto-join.',
   )
-  .option(
-    '--expose <vm-name-ports>',
-    'Exposes specified ports on a VM (e.g., "k8s-control:80,443"). Multiple VM-port pairs can be comma-separated.',
-  )
-  .option(
-    '--delete-expose <vm-name-ports>',
-    'Removes exposed ports on a VM (e.g., "k8s-control:80,443"). Multiple VM-port pairs can be comma-separated.',
-  )
-  .option('--workflow-id <workflow-id>', 'Sets the workflow ID context for LXD operations.')
-  .option('--vm-id <vm-id>', 'Sets the VM ID context for LXD operations.')
-  .option('--deploy-id <deploy-id>', 'Sets the deployment ID context for LXD operations.')
-  .option('--namespace <namespace>', 'Kubernetes namespace for LXD operations (defaults to "default").')
-  .description('Manages LXD containers and virtual machines.')
+  .option('--expose <vm-name:ports>', 'Proxy host ports to a VM (e.g., "k3s-control:80,443").')
+  .option('--delete-expose <vm-name:ports>', 'Remove proxied ports from a VM (e.g., "k3s-control:80,443").')
+  .option('--workflow-id <workflow-id>', 'Workflow ID to execute via runWorkflow.')
+  .option('--vm-id <vm-name>', 'Target VM name for workflow execution.')
+  .option('--deploy-id <deploy-id>', 'Deployment ID context for workflow execution.')
+  .option('--namespace <namespace>', 'Kubernetes namespace context (defaults to "default").')
+  .description('Manages LXD virtual machines as K3s nodes (control plane or workers).')
   .action(Underpost.lxd.callback);
 
 program

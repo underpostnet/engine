@@ -534,9 +534,6 @@ rm -rf ${artifacts.join(' ')}`);
       if (options.controlServerDbInstall === true) {
         // Deploy the database provider and manage MAAS database.
         shellExec(`node ${underpostRoot}/bin/deploy ${dbProviderId} install`);
-        shellExec(
-          `node ${underpostRoot}/bin/deploy pg-drop-db ${process.env.DB_PG_MAAS_NAME} ${process.env.DB_PG_MAAS_USER}`,
-        );
         shellExec(`node ${underpostRoot}/bin/deploy maas-db`);
         return;
       }
@@ -1150,8 +1147,9 @@ rm -rf ${artifacts.join(' ')}`);
           machine: machine ? machine.system_id : null,
         });
 
-        const { discovery, machine: discoveredMachine } =
-          await Underpost.baremetal.commissionMonitor(commissionMonitorPayload);
+        const { discovery, machine: discoveredMachine } = await Underpost.baremetal.commissionMonitor(
+          commissionMonitorPayload,
+        );
         if (discoveredMachine) machine = discoveredMachine;
       }
     },
@@ -2496,10 +2494,10 @@ fi
           const discoverHostname = discovery.hostname
             ? discovery.hostname
             : discovery.mac_organization
-              ? discovery.mac_organization
-              : discovery.domain
-                ? discovery.domain
-                : `generic-host-${s4()}${s4()}`;
+            ? discovery.mac_organization
+            : discovery.domain
+            ? discovery.domain
+            : `generic-host-${s4()}${s4()}`;
 
           console.log(discoverHostname.bgBlue.bold.white);
           console.log('ip target:'.green + ipAddress, 'ip discovered:'.green + discovery.ip);

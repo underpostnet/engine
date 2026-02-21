@@ -57,7 +57,6 @@ class UnderpostCluster {
      * @param {string} [options.prom=''] - Initialize the cluster with a Prometheus Operator deployment and monitor scrap for specified hosts.
      * @param {boolean} [options.uninstallHost=false] - Uninstall all host components.
      * @param {boolean} [options.config=false] - Apply general host configuration (SELinux, containerd, sysctl, firewalld).
-     * @param {boolean} [options.worker=false] - Configure as a worker node (for Kubeadm or K3s join).
      * @param {boolean} [options.chown=false] - Set up kubectl configuration for the current user.
      * @param {boolean} [options.removeVolumeHostPaths=false] - Remove data from host paths used by Persistent Volumes.
      * @param {string} [options.hosts] - Set custom hosts entries.
@@ -94,7 +93,6 @@ class UnderpostCluster {
         prom: '',
         uninstallHost: false,
         config: false,
-        worker: false,
         chown: false,
         removeVolumeHostPaths: false,
         hosts: '',
@@ -153,66 +151,20 @@ class UnderpostCluster {
       const alreadyK3sCluster = Underpost.deploy.get('svclb-traefik')[0];
 
       // --- Kubeadm/Kind/K3s Cluster Initialization ---
-      // This block handles the initial setup of the Kubernetes cluster (control plane or worker).
-      // It prevents re-initialization if a cluster is already detected.
-      if (!options.worker && !alreadyKubeadmCluster && !alreadyKindCluster && !alreadyK3sCluster) {
+      if (!alreadyKubeadmCluster && !alreadyKindCluster && !alreadyK3sCluster) {
         Underpost.cluster.config();
         if (options.k3s === true) {
           logger.info('Initializing K3s control plane...');
           // Install K3s
-          console.log('Installing K3s...');
+          logger.info('Installing K3s...');
           shellExec(`curl -sfL https://get.k3s.io | sh -`);
-          console.log('K3s installation completed.');
+          logger.info('K3s installation completed.');
 
-          // Move k3s binary to /bin/k3s and make it executable
-          shellExec(`sudo mv /usr/local/bin/k3s /bin/k3s`);
-          shellExec(`sudo chmod +x /bin/k3s`);
-          console.log('K3s binary moved to /bin/k3s and made executable.');
-
-          // Configure kubectl for the current user for K3s *before* checking readiness
-          // This ensures kubectl can find the K3s kubeconfig immediately after K3s installation.
           Underpost.cluster.chown('k3s');
 
-          // Wait for K3s to be ready
           logger.info('Waiting for K3s to be ready...');
-          let k3sReady = false;
-          let retries = 0;
-          const maxRetries = 20; // Increased retries for K3s startup
-          const delayMs = 5000; // 5 seconds
-
-          while (!k3sReady && retries < maxRetries) {
-            try {
-              // Explicitly use KUBECONFIG for kubectl commands to ensure it points to K3s config
-              const nodes = shellExec(`KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes -o json`, {
-                stdout: true,
-                silent: true,
-              });
-              const parsedNodes = JSON.parse(nodes);
-              if (
-                parsedNodes.items.some((node) =>
-                  node.status.conditions.some((cond) => cond.type === 'Ready' && cond.status === 'True'),
-                )
-              ) {
-                k3sReady = true;
-                logger.info('K3s cluster is ready.');
-              } else {
-                logger.info(`K3s not yet ready. Retrying in ${delayMs / 1000} seconds...`);
-                await new Promise((resolve) => setTimeout(resolve, delayMs));
-              }
-            } catch (error) {
-              logger.info(`Error checking K3s status: ${error.message}. Retrying in ${delayMs / 1000} seconds...`);
-              await new Promise((resolve) => setTimeout(resolve, delayMs));
-            }
-            retries++;
-          }
-
-          if (!k3sReady) {
-            logger.error('K3s cluster did not become ready in time. Please check the K3s logs.');
-            return;
-          }
-
-          // K3s includes local-path-provisioner by default, so no need to install explicitly.
-          logger.info('K3s comes with local-path-provisioner by default. Skipping explicit installation.');
+          shellExec(`sudo systemctl is-active --wait k3s || sudo systemctl wait --for=active k3s.service`);
+          logger.info('K3s service is active.');
         } else if (options.kubeadm === true) {
           logger.info('Initializing Kubeadm control plane...');
           // Set default values if not provided
@@ -254,14 +206,6 @@ class UnderpostCluster {
           );
           Underpost.cluster.chown('kind'); // Pass 'kind' to chown
         }
-      } else if (options.worker === true) {
-        // Worker node specific configuration (kubeadm join command needs to be executed separately)
-        logger.info('Worker node configuration applied. Awaiting join command...');
-        // No direct cluster initialization here for workers. The `kubeadm join` or `k3s agent` command
-        // needs to be run on the worker after the control plane is up and a token is created.
-        // This part of the script is for general worker setup, not the join itself.
-      } else {
-        logger.warn('Cluster already initialized or worker flag not set for worker node.');
       }
 
       // --- Optional Component Deployments (Databases, Ingress, Cert-Manager) ---
