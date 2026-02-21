@@ -10,13 +10,6 @@ if (fs.existsSync(baseConfPath)) dotenv.config({ path: baseConfPath, override: t
 
 const logger = loggerFactory(import.meta);
 
-// (async () => {
-//   return;
-//   const files = await fs.readdir(`./src`);
-//   for (const relativePath of files) {
-//   }
-// })();
-
 const confName = process.argv[2];
 const basePath = '../pwa-microservices-template';
 const repoName = `engine-${confName.split('dd-')[1]}`;
@@ -24,19 +17,12 @@ const deployList = (confName === 'dd' ? fs.readFileSync(`./engine-private/deploy
   ',',
 );
 
-logger.info('', {
+logger.info('Build repository', {
   confName,
   repoName,
   basePath,
   deployList,
 });
-
-if (process.argv.includes('clean')) {
-  if (fs.existsSync(`${basePath}/images`)) fs.copySync(`${basePath}/images`, `./images`);
-  shellExec(`cd ${basePath} && git checkout .`);
-  shellExec(`cd ${basePath} && git clean -f -d`);
-  process.exit(0);
-}
 
 if (process.argv.includes('conf')) {
   for (const _confName of deployList) {

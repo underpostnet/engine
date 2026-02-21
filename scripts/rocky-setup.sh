@@ -103,16 +103,4 @@ echo "[+] Cleanup: remove unnecessary packages and old metadata"
 dnf autoremove -y
 dnf clean all
 
-cat <<EOF
-
-Installation complete.
-- To allow SSH access (if this is a VM or server), open port 22 in firewalld:
-  sudo firewall-cmd --add-service=ssh --permanent && sudo firewall-cmd --reload
-- If you installed Development Tools, you will have gcc, make, etc.
-
-Examples:
-  sudo ./scripts/rocky-setup.sh --install-dev
-  INSTALL_DEV=1 sudo ./scripts/rocky-setup.sh
-
-Customize PACKAGES=(...) inside this script according to your needs (docker, podman, kube, mssql-tools, etc.).
-EOF
+echo "[+] Setup complete! Rocky Linux is now configured with the recommended base packages."

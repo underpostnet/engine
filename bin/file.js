@@ -22,26 +22,22 @@ logger.info('argv', process.argv);
 let [exe, dir, type] = process.argv;
 let rawPath = process.argv[3].replaceAll(`'`, '');
 let toPath = process.argv[4].replaceAll(`'`, '');
-
 let path = `${rawPath}`.split('/');
 path.pop();
 path = path.join('/');
-
 const file = `${rawPath}`.split('/').pop();
 const ext = file.split('.')[1];
 let name = getCapVariableName(file.split('.')[0]);
+let content = '';
 
 logger.info('File metadata', { path, file, ext, name });
 
 try {
-  let content = '';
   switch (type) {
     case 'update-template':
     case 'copy-src':
       console.log({ rawPath, toPath });
 
-      // this function returns a promise, but you can also pass a cb
-      // if you like that approach better.
       let result = await new Promise((resolve) =>
         walk(
           {

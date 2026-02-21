@@ -568,42 +568,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       break;
     }
 
-    case 'postgresql': {
-      if (process.argv.includes('install')) {
-        shellExec(`sudo dnf install -y postgresql-server postgresql`);
-        shellExec(`sudo postgresql-setup --initdb`);
-        shellExec(`chown postgres /var/lib/pgsql/data`);
-        shellExec(`sudo systemctl enable postgresql.service`);
-        shellExec(`sudo systemctl start postgresql.service`);
-      } else {
-        shellExec(`sudo systemctl enable postgresql.service`);
-        shellExec(`sudo systemctl restart postgresql.service`);
-      }
-
-      shellExec(`sudo systemctl status postgresql.service`);
-
-      // sudo systemctl stop postgresql
-      // sudo systemctl disable postgresql
-
-      // psql login
-      // psql -U <user> -h 127.0.0.1 -W <db-name>
-
-      // gedit /var/lib/pgsql/data/pg_hba.conf
-      // host    <db-name>    	<db-user>        <db-host>               md5
-      // local   all             postgres                                trust
-      // # "local" is for Unix domain socket connections only
-      // local   all             all                                     md5
-      // # IPv4 local connections:
-      // host    all             all             127.0.0.1/32            md5
-      // # IPv6 local connections:
-      // host    all             all             ::1/128                 md5
-
-      // gedit /var/lib/pgsql/data/postgresql.conf
-      // listen_addresses = '*'
-
-      break;
-    }
-
     case 'postgresql-17': {
       if (process.argv.includes('install')) {
         shellExec(`sudo dnf module reset postgresql -y`);
@@ -635,46 +599,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       break;
     }
 
-    case 'postgresql-14': {
-      if (process.argv.includes('install')) {
-        shellExec(`sudo dnf module reset postgresql -y`);
-        shellExec(`sudo dnf -qy module disable postgresql`);
-
-        shellExec(`sudo systemctl stop postgresql-14`);
-        shellExec(`sudo systemctl disable postgresql-14`);
-
-        shellExec(`sudo dnf remove -y postgresql14 postgresql14-server postgresql14-contrib`);
-        shellExec(`sudo rm -rf /var/lib/pgsql`);
-
-        shellExec(`sudo dnf install postgresql14 postgresql14-server postgresql14-contrib -y`);
-      }
-      if (process.argv.includes('uninstall')) {
-        shellExec(`sudo systemctl stop postgresql-14`);
-        shellExec(`sudo systemctl disable postgresql-14`);
-        shellExec(`sudo dnf remove -y postgresql14 postgresql14-server postgresql14-contrib`);
-        shellExec(`sudo rm -rf /var/lib/pgsql /var/log/pgsql /etc/postgresql`);
-      } else {
-        shellExec(`sudo /usr/pgsql-14/bin/postgresql-14-setup initdb`);
-        shellExec(`sudo systemctl start postgresql-14`);
-        shellExec(`sudo systemctl enable postgresql-14`);
-        shellExec(`sudo systemctl status postgresql-14`);
-        // sudo dnf install postgresql14-contrib
-      }
-
-      break;
-    }
-
-    case 'pg-stop': {
-      shellExec(`sudo systemctl stop postgresql-14`);
-      shellExec(`sudo systemctl disable postgresql-14`);
-      break;
-    }
-    case 'pg-start': {
-      shellExec(`sudo systemctl enable postgresql-14`);
-      shellExec(`sudo systemctl restart postgresql-14`);
-      break;
-    }
-
     case 'pg-list-db': {
       shellExec(`sudo -i -u postgres psql -c "\\l"`);
       break;
@@ -693,36 +617,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
     case 'maas-stop': {
       shellExec(`sudo snap stop maas`);
-      break;
-    }
-
-    case 'mount': {
-      const mounts = shellExec(`mount`).split(`\n`);
-      console.table(
-        mounts
-          .filter((l) => l.trim())
-          .map(
-            (o) => (
-              (o = o.split(' ')),
-              {
-                path: o[2],
-                type: o[4],
-                permissions: o[5],
-              }
-            ),
-          ),
-      );
-      break;
-    }
-
-    case 'create-ports': {
-      const cmd = [];
-      const commissioningDeviceIp = Underpost.dns.getLocalIPv4Address();
-      for (const port of ['5240']) {
-        const name = 'maas';
-        cmd.push(`${name}:${port}-${port}:${commissioningDeviceIp}`);
-      }
-      pbcopy(`node engine-private/r create-port ${cmd}`);
       break;
     }
 
@@ -987,22 +881,6 @@ nvidia/gpu-operator \
       break;
     }
 
-    case 'update-static-guide': {
-      fs.writeFileSync(
-        `src/client/public/nexodev/docs/references/Static Site Generator Quick Reference.md`,
-        fs.readFileSync(`examples/static-page/QUICK-REFERENCE.md`, 'utf8'),
-      );
-      fs.writeFileSync(
-        `src/client/public/nexodev/docs/references/Static Site Generator Examples.md`,
-        fs.readFileSync(`examples/static-page/README.md`, 'utf8'),
-      );
-      fs.writeFileSync(
-        `src/client/public/nexodev/docs/references/Static Generator Guide.md`,
-        fs.readFileSync(`examples/static-page/STATIC-GENERATOR-GUIDE.md`, 'utf8'),
-      );
-      break;
-    }
-
     case 'udpate-version-files': {
       const oldNpmVersion = process.argv[3];
       const oldNodeVersion = process.argv[4];
@@ -1015,13 +893,6 @@ nvidia/gpu-operator \
         `README.md`,
         fs
           .readFileSync(`README.md`, 'utf8')
-          .replaceAll(oldNodeVersion, nodeVersion)
-          .replaceAll(oldNpmVersion, npmVersion),
-      );
-      fs.writeFileSync(
-        `manifests/lxd/underpost-setup.sh`,
-        fs
-          .readFileSync(`manifests/lxd/underpost-setup.sh`, 'utf8')
           .replaceAll(oldNodeVersion, nodeVersion)
           .replaceAll(oldNpmVersion, npmVersion),
       );
@@ -1106,10 +977,10 @@ nvidia/gpu-operator \
             `${key}`.toUpperCase().match('MAC')
               ? 'changethis'
               : isNaN(parseFloat(privateEnv[key]))
-                ? `${privateEnv[key]}`.match(`@`)
-                  ? 'admin@default.net'
-                  : 'changethis'
-                : privateEnv[key];
+              ? `${privateEnv[key]}`.match(`@`)
+                ? 'admin@default.net'
+                : 'changethis'
+              : privateEnv[key];
         }
         return env;
       };
