@@ -1,7 +1,8 @@
 name: CI | Publish npm package
 on:
-  release:
-    types: [released]
+  push:
+    tags:
+      - 'v*'
 jobs:
   build-and-publish:
     # prevents this action from running on forks
@@ -12,28 +13,18 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
-      - run: npm ci
-
-      # Publish to npm
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24.x'
-          registry-url: 'https://registry.npmjs.org'
-          # Defaults to the user or organization that owns the workflow file
-          # scope: '@underpostnet'
-      - env:
+      - name: Publish to npm
+        env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        name: Publish to npm
         run: npm publish --provenance --access public
 
   build-and-publish-ghpkg:
@@ -45,44 +36,33 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
+          scope: '@underpostnet'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
-      - run: npm ci
-
-      # Publish to npm git hub package
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24.x'
-          registry-url: 'https://registry.npmjs.org'
-          # Defaults to the user or organization that owns the workflow file
-          scope: '@underpostnet'
-      - env:
+      - name: Publish to npm
+        env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        name: Publish to npm
-        run: |
-          npm publish --provenance --access public
+        run: npm publish --provenance --access public
 
-      # Publish to GitHub Packages
       - name: Setup node to publish to GitHub Packages
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
+          node-version: '24.x'
           registry-url: 'https://npm.pkg.github.com'
-          # Defaults to the user or organization that owns the workflow file
           scope: '@underpostnet'
 
-      - run: |
+      - name: Publish to GitHub Packages
+        run: |
           npm config set //npm.pkg.github.com/:_authToken=${{ secrets.GIT_AUTH_TOKEN }}
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GIT_AUTH_TOKEN }}" > ~/.npmrc
-          echo "@underposnet:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          echo "@underpostnet:registry=https://npm.pkg.github.com" >> ~/.npmrc
           npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
