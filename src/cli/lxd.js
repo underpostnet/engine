@@ -344,7 +344,7 @@ ipv6.address=none`);
         }
         case 'dev-reset': {
           shellExec(
-            `lxc exec ${vmName} -- bash -lc 'cd /home/dd/engine && node bin cluster --dev --reset && node bin cluster --dev --k3s'`,
+            `lxc exec ${vmName} -- bash -lc 'cd /home/dd/engine && node bin cluster --dev --reset --k3s && node bin cluster --dev --k3s'`,
           );
           break;
         }

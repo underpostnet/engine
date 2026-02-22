@@ -1148,7 +1148,7 @@ EOF
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const clusterType = options.k3s ? 'k3s' : 'kubeadm';
       shellCd(`/home/dd/engine`);
-      shellExec(`${baseCommand} cluster${baseClusterCommand} --reset`);
+      shellExec(`${baseCommand} cluster${baseClusterCommand} --reset --${clusterType}`);
       await timer(5000);
       shellExec(`${baseCommand} cluster${baseClusterCommand} --${clusterType}`);
       await timer(5000);
@@ -1779,8 +1779,9 @@ EOF
      * @memberof UnderpostRun
      */
     'gpu-env': (path, options = DEFAULT_OPTION) => {
+      const clusterType = 'kubeadm';
       shellExec(
-        `node bin cluster --dev --reset && node bin cluster --dev --dedicated-gpu --kubeadm && kubectl get pods --all-namespaces -o wide -w`,
+        `node bin cluster --dev --reset --${clusterType} && node bin cluster --dev --dedicated-gpu --${clusterType} && kubectl get pods --all-namespaces -o wide -w`,
       );
     },
     /**
