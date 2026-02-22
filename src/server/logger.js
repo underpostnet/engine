@@ -101,14 +101,18 @@ const setUpInfo = async (logger = new winston.Logger()) => {
  * @param meta - The `meta` parameter in the `loggerFactory` function is used to extract the last part
  * of a URL and use it to create log files in a specific directory.
  * @param logLevel - Specify the logging level for the logger instance. e.g., 'error', 'warn', 'info', 'debug'.
- * @param enableFileLogs - Whether to write logs to files. Defaults to false.
+ * @param enableFileLogs - Whether to write logs to files. Defaults to the value of the `ENABLE_FILE_LOGS` environment variable.
  * @returns {underpostLogger} The `loggerFactory` function returns a logger instance created using Winston logger
  * library. The logger instance is configured with various transports for printing out messages to
  * different destinations such as the terminal, error.log file, and all.log file. The logger instance
  * also has a method `setUpInfo` attached to it for setting up additional information.
  * @memberof Logger
  */
-const loggerFactory = (meta = { url: '' }, logLevel = '', enableFileLogs = false) => {
+const loggerFactory = (
+  meta = { url: '' },
+  logLevel = '',
+  enableFileLogs = process.env.ENABLE_FILE_LOGS === 'true' || process.env.ENABLE_FILE_LOGS === true,
+) => {
   meta = meta.url.split('/').pop();
   // Define which transports the logger must use to print out messages.
   // In this example, we are using three different transports
@@ -168,7 +172,7 @@ const loggerMiddleware = (
   meta = { url: '' },
   logLevel = 'info',
   skip = (req, res) => process.env.NODE_ENV === 'production',
-  enableFileLogs = false,
+  enableFileLogs = process.env.ENABLE_FILE_LOGS === 'true' || process.env.ENABLE_FILE_LOGS === true,
 ) => {
   const stream = {
     // Use the http severity
