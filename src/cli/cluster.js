@@ -384,9 +384,13 @@ EOF
      */
     pullImage(image, options = { kubeadm: false, k3s: false }) {
       if (!options.kubeadm && !options.k3s) {
-        // Kind cluster: pull with Docker and load into the Kind node
+        const tarPath = `/tmp/kind-image-${image.replace(/[\/:]/g, '-')}.tar`;
         shellExec(`docker pull ${image}`);
-        shellExec(`sudo kind load docker-image ${image}`);
+        shellExec(`docker save ${image} -o ${tarPath}`);
+        shellExec(
+          `for node in $(kind get nodes); do cat ${tarPath} | docker exec -i $node ctr --namespace=k8s.io images import -; done`,
+        );
+        shellExec(`rm -f ${tarPath}`);
       } else if (options.kubeadm || options.k3s) {
         // Kubeadm / K3s: use crictl to pull directly into containerd
         shellExec(`sudo crictl pull ${image}`);
