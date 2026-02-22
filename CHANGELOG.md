@@ -1,6 +1,72 @@
 # Changelog
 
-## 2026-02-19
+## 2026-02-22
+
+### engine-core
+
+- Add ENABLE_FILE_LOGS env ([8657e35f](https://github.com/underpostnet/engine/commit/8657e35f2dab6cf1507a9b3f9146df45ab07d0dd))
+
+### docs
+
+- Rename cli.md -> CLI-HELP.md ([18e18689](https://github.com/underpostnet/engine/commit/18e18689349227b2c8769eec9f4e1ebeb85b8cf0))
+- Apply fix in swagger-autogen@2.9.2 bug: getResponsesTag missing __¬¬¬__ decode ([2b0d27db](https://github.com/underpostnet/engine/commit/2b0d27db38307d9276b14651083b0ac0c20ecaed))
+- Remove unused jsdocs sections ([ec06f338](https://github.com/underpostnet/engine/commit/ec06f338cca5d656f46629b8957e3ded183ecff7))
+
+### bin-zed
+
+- Move zed settings file tod zed js bin module ([ba32abea](https://github.com/underpostnet/engine/commit/ba32abeaff4d198c79bcd92ab0fc0120bb41d9d5))
+
+### client-core
+
+- Fix clear filter user management ([a1d79661](https://github.com/underpostnet/engine/commit/a1d796612654f0e03a4d64ad16dfed403ad0a771))
+
+### package
+
+- Fix resolve npm minimatch ReDoS vulnerability ([4739fea1](https://github.com/underpostnet/engine/commit/4739fea18407b88e407f7b4be109f2ecc3a3435e))
+- Apply npm audit fix ([9496c5c7](https://github.com/underpostnet/engine/commit/9496c5c77980102fcb402aae29de3f72337adcc4))
+- Apply npm audit fix versions packages ([a1ed004e](https://github.com/underpostnet/engine/commit/a1ed004eecc1219e612027e9bc1f2fab4c717517))
+
+### server-client-build-docs
+
+- Apply Swagger autogen syntax error fix of version v2.9.2 ([7c8da2ff](https://github.com/underpostnet/engine/commit/7c8da2ff7ffd55e7b0492f019a2b44294137ab39))
+
+### vscode
+
+- Remove vs deprecated settings conf, and remove vs extension to minimal and remove comments of vs extensions in vanilla js ([b2aec354](https://github.com/underpostnet/engine/commit/b2aec354e757f136265b564a86cd1744bd460d88))
+
+### cli-ipfs
+
+- Implements base ipfs underpost dedicated module ([7f4f27f9](https://github.com/underpostnet/engine/commit/7f4f27f9c63ff149c5dd4de57952961a2b3498d0))
+
+### cli-cluster
+
+- Add Main IPFS Cluster StatefulSet Integration ([53dd0903](https://github.com/underpostnet/engine/commit/53dd09038b47d1a8330ff1e72b0087d2600c93b9))
+- Add --exposePort custom flag ([a29185fe](https://github.com/underpostnet/engine/commit/a29185fe6f48c3babaa66d142d042909ca8b0889))
+- Refactor pullImage load docker pull images to kind nodes ([3bdd5e78](https://github.com/underpostnet/engine/commit/3bdd5e787c242318cbab032816adf0008e9ab9dd))
+- Add --replicas custom option ([70bdc6cd](https://github.com/underpostnet/engine/commit/70bdc6cdc0cf2aa3b2025133a5438f55d7e1ad18))
+- Centralize pullImage for k3s kubeadm kind ([873b20d5](https://github.com/underpostnet/engine/commit/873b20d5a24b07afea39a95e0f705d1f8f01050b))
+- Add snap install on init host workflow and cluster safeReset refactor ([48b4c33d](https://github.com/underpostnet/engine/commit/48b4c33d59166d54042fc5f96b5b524eccbdf1ec))
+
+### server-logger
+
+- Add optional file logging to logger factory ([ef18a29e](https://github.com/underpostnet/engine/commit/ef18a29e6e31e24e0e705446ca3cdf8804bda6ef))
+
+### cli-lxd
+
+- Refactor lxd module and workflows to vm cluster with k3s control and worker node integration ([812d5cdd](https://github.com/underpostnet/engine/commit/812d5cdd86f3055c448b594c218ae6e99c365e38))
+
+### bin-deploy
+
+- Clean up legacy logic ([d3cb1139](https://github.com/underpostnet/engine/commit/d3cb1139b3670915f6c612fd127541debb717d86))
+
+### github-actions
+
+- Add ref to checkout for provenance in cyberia publish workflow package ([6e0f9b59](https://github.com/underpostnet/engine/commit/6e0f9b5939103a366d28c4940e859d545cabdc34))
+- Add ref to checkout for provenance ([0512ebec](https://github.com/underpostnet/engine/commit/0512ebecf65d1379d29c2c0e2377733a4265c06f))
+- Remove copying of MariaDB.js to underpost directory. ([d64c64ee](https://github.com/underpostnet/engine/commit/d64c64ee99b015dd1e956f6ccc9055fcb73057f9))
+- Fix package-pwa-microservices-template-ghpkg commit message propagation logic ([c8ef2ea8](https://github.com/underpostnet/engine/commit/c8ef2ea8d89d1a37c4dacef4d2538304605369fc))
+
+## New release v:2.99.8 (2026-02-18)
 
 ### github-actions
 
