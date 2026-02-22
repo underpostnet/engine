@@ -123,6 +123,7 @@ try {
         templatePackageJson.devDependencies = originPackageJson.devDependencies;
         templatePackageJson.version = originPackageJson.version;
         templatePackageJson.scripts = originPackageJson.scripts;
+        templatePackageJson.overrides = originPackageJson.overrides;
         templatePackageJson.name = name;
         templatePackageJson.description = description;
         // templatePackageJson.scripts.dev = dev;

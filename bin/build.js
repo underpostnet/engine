@@ -193,9 +193,6 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
     'utf8',
   );
 
-  // Regenerate package-lock.json to match the modified package.json
-  shellExec(`cd ${basePath} && npm install --package-lock-only --ignore-scripts`);
-
   fs.copySync(`./src/cli`, `${basePath}/src/cli`);
   if (!fs.existsSync(`${basePath}/images`)) fs.mkdirSync(`${basePath}/images`);
 

@@ -1,0 +1,13 @@
+name: CI | Publish gitlab repository package
+on: [push]
+jobs:
+  pwa-microservices-template:
+    if: github.repository == 'underpostnet/pwa-microservices-template' && startsWith(github.event.head_commit.message, 'ci(package-pwa-microservices-template-ghpkg)')
+    name: Update gitlab repo package Jobs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Push to GitLab
+        run: |
+          git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@gitlab.com/underpostnet/pwa-microservices-template.git
+          git push --mirror gitlab
