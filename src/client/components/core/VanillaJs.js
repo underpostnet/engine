@@ -7,31 +7,6 @@
 import { s4 } from './CommonJs.js';
 import { windowGetH, windowGetW } from './windowGetDimensions.js';
 
-/*
-
-Name: es6-string-html
-Id: Tobermory.es6-string-html
-Description: Syntax highlighting in es6 multiline strings
-Version: 2.12.1
-Publisher: Tobermory
-VS Marketplace Link: https://marketplace.visualstudio.com/items?itemName=Tobermory.es6-string-html
-
-Name: es6-string-css
-Id: bashmish.es6-string-css
-Description: Highlight CSS language in ES6 template literals
-Version: 0.1.0
-Publisher: Mikhail Bashkirov
-VS Marketplace Link: https://marketplace.visualstudio.com/items?itemName=bashmish.es6-string-css
-
-Name: lit-html
-Id: bierner.lit-html
-Description: Syntax highlighting and IntelliSense for html inside of JavaScript and TypeScript tagged template strings
-Version: 1.11.1
-Publisher: Matt Bierner
-VS Marketplace Link: https://marketplace.visualstudio.com/items?itemName=bierner.lit-html
-
-*/
-
 /**
  * Query selector.
  *
