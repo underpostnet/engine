@@ -254,16 +254,7 @@ EOF
       }
 
       if (options.full === true || options.valkey === true) {
-        if (options.pullImage === true) {
-          // shellExec(`sudo podman pull valkey/valkey:latest`);
-          if (!options.kubeadm && !options.k3s) {
-            // Only load if not kubeadm/k3s (Kind needs it)
-            shellExec(`docker pull valkey/valkey:latest`);
-            shellExec(`sudo kind load docker-image valkey/valkey:latest`);
-          } else if (options.kubeadm || options.k3s)
-            // For kubeadm/k3s, ensure it's available for containerd
-            shellExec(`sudo crictl pull valkey/valkey:latest`);
-        }
+        if (options.pullImage === true) Underpost.cluster.pullImage('valkey/valkey:latest', options);
         shellExec(`kubectl delete statefulset valkey-service -n ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey -n ${options.namespace}`);
         await Underpost.test.statusMonitor('valkey-service', 'Running', 'pods', 1000, 60 * 10);
@@ -274,16 +265,7 @@ EOF
         );
         shellExec(`kubectl delete statefulset mariadb-statefulset -n ${options.namespace} --ignore-not-found`);
 
-        if (options.pullImage === true) {
-          // shellExec(`sudo podman pull mariadb:latest`);
-          if (!options.kubeadm && !options.k3s) {
-            // Only load if not kubeadm/k3s (Kind needs it)
-            shellExec(`docker pull mariadb:latest`);
-            shellExec(`sudo kind load docker-image mariadb:latest`);
-          } else if (options.kubeadm || options.k3s)
-            // For kubeadm/k3s, ensure it's available for containerd
-            shellExec(`sudo crictl pull mariadb:latest`);
-        }
+        if (options.pullImage === true) Underpost.cluster.pullImage('mariadb:latest', options);
         shellExec(`kubectl apply -f ${underpostRoot}/manifests/mariadb/storage-class.yaml -n ${options.namespace}`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb -n ${options.namespace}`);
       }
@@ -297,30 +279,14 @@ EOF
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mysql -n ${options.namespace}`);
       }
       if (options.full === true || options.postgresql === true) {
-        if (options.pullImage === true) {
-          if (!options.kubeadm && !options.k3s) {
-            // Only load if not kubeadm/k3s (Kind needs it)
-            shellExec(`docker pull postgres:latest`);
-            shellExec(`sudo kind load docker-image postgres:latest`);
-          } else if (options.kubeadm || options.k3s)
-            // For kubeadm/k3s, ensure it's available for containerd
-            shellExec(`sudo crictl pull postgres:latest`);
-        }
+        if (options.pullImage === true) Underpost.cluster.pullImage('postgres:latest', options);
         shellExec(
           `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/postgresql -n ${options.namespace}`);
       }
       if (options.mongodb4 === true) {
-        if (options.pullImage === true) {
-          if (!options.kubeadm && !options.k3s) {
-            // Only load if not kubeadm/k3s (Kind needs it)
-            shellExec(`docker pull mongo:4.4`);
-            shellExec(`sudo kind load docker-image mongo:4.4`);
-          } else if (options.kubeadm || options.k3s)
-            // For kubeadm/k3s, ensure it's available for containerd
-            shellExec(`sudo crictl pull mongo:4.4`);
-        }
+        if (options.pullImage === true) Underpost.cluster.pullImage('mongo:4.4', options);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb-4.4 -n ${options.namespace}`);
 
         const deploymentName = 'mongodb-deployment';
@@ -342,15 +308,7 @@ EOF
           );
         }
       } else if (options.full === true || options.mongodb === true) {
-        if (options.pullImage === true) {
-          if (!options.kubeadm && !options.k3s) {
-            // Only load if not kubeadm/k3s (Kind needs it)
-            shellExec(`docker pull mongo:latest`);
-            shellExec(`sudo kind load docker-image mongo:latest`);
-          } else if (options.kubeadm || options.k3s)
-            // For kubeadm/k3s, ensure it's available for containerd
-            shellExec(`sudo crictl pull mongo:latest`);
-        }
+        if (options.pullImage === true) Underpost.cluster.pullImage('mongo:latest', options);
         shellExec(
           `sudo kubectl create secret generic mongodb-keyfile --from-file=/home/dd/engine/engine-private/mongodb-keyfile --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
@@ -408,6 +366,28 @@ EOF
         const letsEncName = 'letsencrypt-prod';
         shellExec(`sudo kubectl delete ClusterIssuer ${letsEncName} --ignore-not-found`);
         shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/${letsEncName}.yaml -n ${options.namespace}`);
+      }
+    },
+
+    /**
+     * @method pullImage
+     * @description Pulls a container image using the appropriate runtime based on the cluster type.
+     * - For Kind clusters: pulls via Docker and loads the image into the Kind cluster.
+     * - For Kubeadm/K3s clusters: pulls via crictl (containerd).
+     * @param {string} image - The fully-qualified container image reference (e.g. 'mongo:latest').
+     * @param {object} options - The cluster options object from `init`.
+     * @param {boolean} [options.kubeadm=false] - Whether the cluster is Kubeadm-based.
+     * @param {boolean} [options.k3s=false] - Whether the cluster is K3s-based.
+     * @memberof UnderpostCluster
+     */
+    pullImage(image, options = { kubeadm: false, k3s: false }) {
+      if (!options.kubeadm && !options.k3s) {
+        // Kind cluster: pull with Docker and load into the Kind node
+        shellExec(`docker pull ${image}`);
+        shellExec(`sudo kind load docker-image ${image}`);
+      } else if (options.kubeadm || options.k3s) {
+        // Kubeadm / K3s: use crictl to pull directly into containerd
+        shellExec(`sudo crictl pull ${image}`);
       }
     },
 
