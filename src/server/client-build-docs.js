@@ -7,7 +7,6 @@
  */
 
 import fs from 'fs-extra';
-import swaggerAutoGen from 'swagger-autogen';
 import { shellExec } from './process.js';
 import { loggerFactory } from './logger.js';
 import { JSONweb } from './client-formatted.js';
@@ -123,20 +122,33 @@ const buildApiDocs = async ({
 
   logger.warn('build swagger api docs', doc.info);
 
-  // swagger-autogen@2.9.2 bug: getResponsesTag missing __¬¬¬__ decode before eval
-  const swaggerTagsPath = './node_modules/swagger-autogen/src/swagger-tags.js';
-  const buggy = `data = data.replaceAll('\\n', ' ');`;
-  const fixed = `data = data.replaceAll('\\n', ' ').replaceAll('__¬¬¬__', '"');`;
-  const swaggerTagsSrc = fs.readFileSync(swaggerTagsPath, 'utf8');
-  if (swaggerTagsSrc.includes(buggy)) fs.writeFileSync(swaggerTagsPath, swaggerTagsSrc.replace(buggy, fixed), 'utf8');
+  // swagger-autogen@2.9.2 bug: getProducesTag, getConsumesTag, getResponsesTag missing __¬¬¬__ decode before eval
+  fs.writeFileSync(
+    `node_modules/swagger-autogen/src/swagger-tags.js`,
+    fs
+      .readFileSync(`node_modules/swagger-autogen/src/swagger-tags.js`, 'utf8')
+      // getProducesTag and getConsumesTag: already decode &quot; but not __¬¬¬__
+      .replaceAll(
+        `data.replaceAll('\\n', ' ').replaceAll('\u201c', '\u201d')`,
+        `data.replaceAll('\\n', ' ').replaceAll('\u201c', '\u201d').replaceAll('__\u00ac\u00ac\u00ac__', '"')`,
+      )
+      // getResponsesTag: decodes neither &quot; nor __¬¬¬__
+      .replaceAll(
+        `data.replaceAll('\\n', ' ');`,
+        `data.replaceAll('\\n', ' ').replaceAll('__\u00ac\u00ac\u00ac__', '"');`,
+      ),
+    'utf8',
+  );
+  setTimeout(async () => {
+    const { default: swaggerAutoGen } = await import('swagger-autogen');
+    const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
+    const routes = [];
+    for (const api of apis) {
+      if (['user'].includes(api)) routes.push(`./src/api/${api}/${api}.router.js`);
+    }
 
-  const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
-  const routes = [];
-  for (const api of apis) {
-    if (['user'].includes(api)) routes.push(`./src/api/${api}/${api}.router.js`);
-  }
-
-  await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
+    await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
+  });
 };
 
 /**
