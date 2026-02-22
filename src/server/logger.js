@@ -101,27 +101,33 @@ const setUpInfo = async (logger = new winston.Logger()) => {
  * @param meta - The `meta` parameter in the `loggerFactory` function is used to extract the last part
  * of a URL and use it to create log files in a specific directory.
  * @param logLevel - Specify the logging level for the logger instance. e.g., 'error', 'warn', 'info', 'debug'.
+ * @param enableFileLogs - Whether to write logs to files. Defaults to false.
  * @returns {underpostLogger} The `loggerFactory` function returns a logger instance created using Winston logger
  * library. The logger instance is configured with various transports for printing out messages to
  * different destinations such as the terminal, error.log file, and all.log file. The logger instance
  * also has a method `setUpInfo` attached to it for setting up additional information.
  * @memberof Logger
  */
-const loggerFactory = (meta = { url: '' }, logLevel = '') => {
+const loggerFactory = (meta = { url: '' }, logLevel = '', enableFileLogs = false) => {
   meta = meta.url.split('/').pop();
   // Define which transports the logger must use to print out messages.
   // In this example, we are using three different transports
   const transports = [
     // Allow the use the terminal to print the messages
     new winston.transports.Console(),
-    // Allow to print all the error level messages inside the error.log file
-    // new winston.transports.File({
-    //   filename: `logs/${meta}/error.log`,
-    //   level: 'error',
-    // }),
-    // Allow to print all the error message inside the all.log file
-    // (also the error log that are also printed inside the error.log(
-    new winston.transports.File({ filename: `logs/${meta}/all.log` }),
+    // Optionally write log files when enableFileLogs is true
+    ...(enableFileLogs
+      ? [
+          // Allow to print all the error level messages inside the error.log file
+          new winston.transports.File({
+            filename: `logs/${meta}/error.log`,
+            level: 'error',
+          }),
+          // Allow to print all the error messages inside the all.log file
+          // (also includes error logs that are also printed inside error.log)
+          new winston.transports.File({ filename: `logs/${meta}/all.log` }),
+        ]
+      : []),
   ];
 
   // Create the logger instance that has to be exported
@@ -154,6 +160,7 @@ const loggerFactory = (meta = { url: '' }, logLevel = '') => {
  * @param {Object} meta - An object containing metadata, such as the URL, to be used in the logger.
  * @param {string} logLevel - The logging level to be used for the logger (e.g., 'error', 'warn', 'info', 'debug').
  * @param {Function} skip - A function to determine whether to skip logging for a particular request.
+ * @param {boolean} enableFileLogs - Whether to write logs to files. Defaults to false.
  * @returns {Function} A middleware function that can be used in an Express application to log HTTP requests.
  * @memberof Logger
  */
@@ -161,10 +168,11 @@ const loggerMiddleware = (
   meta = { url: '' },
   logLevel = 'info',
   skip = (req, res) => process.env.NODE_ENV === 'production',
+  enableFileLogs = false,
 ) => {
   const stream = {
     // Use the http severity
-    write: (message) => loggerFactory(meta, logLevel).http(message),
+    write: (message) => loggerFactory(meta, logLevel, enableFileLogs).http(message),
   };
 
   morgan.token('host', function (req, res) {
