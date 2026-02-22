@@ -60,6 +60,7 @@ class UnderpostCluster {
      * @param {boolean} [options.chown=false] - Set up kubectl configuration for the current user.
      * @param {boolean} [options.removeVolumeHostPaths=false] - Remove data from host paths used by Persistent Volumes.
      * @param {string} [options.hosts] - Set custom hosts entries.
+     * @param {string} [options.replicas] - Set the number of replicas for certain deployments.
      * @memberof UnderpostCluster
      */
     async init(
@@ -96,6 +97,7 @@ class UnderpostCluster {
         chown: false,
         removeVolumeHostPaths: false,
         hosts: '',
+        replicas: '',
       },
     ) {
       // Handles initial host setup (installing docker, podman, kind, kubeadm, helm)

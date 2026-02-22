@@ -247,6 +247,7 @@ program
   .option('--hosts <hosts>', 'A comma-separated list of cluster hostnames or IP addresses.')
   .option('--remove-volume-host-paths', 'Removes specified volume host paths after execution.')
   .option('--namespace <namespace>', 'Kubernetes namespace for cluster operations (defaults to "default").')
+  .option('--replicas <replicas>', 'Sets a custom number of replicas for statefulset deployments.')
   .action(Underpost.cluster.init)
   .description('Manages Kubernetes clusters, defaulting to Kind cluster initialization.');
 
