@@ -123,6 +123,13 @@ const buildApiDocs = async ({
 
   logger.warn('build swagger api docs', doc.info);
 
+  // swagger-autogen@2.9.2 bug: getResponsesTag missing __¬¬¬__ decode before eval
+  const swaggerTagsPath = './node_modules/swagger-autogen/src/swagger-tags.js';
+  const buggy = `data = data.replaceAll('\\n', ' ');`;
+  const fixed = `data = data.replaceAll('\\n', ' ').replaceAll('__¬¬¬__', '"');`;
+  const swaggerTagsSrc = fs.readFileSync(swaggerTagsPath, 'utf8');
+  if (swaggerTagsSrc.includes(buggy)) fs.writeFileSync(swaggerTagsPath, swaggerTagsSrc.replace(buggy, fixed), 'utf8');
+
   const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
   const routes = [];
   for (const api of apis) {
