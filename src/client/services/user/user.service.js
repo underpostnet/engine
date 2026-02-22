@@ -38,7 +38,7 @@ const UserService = {
         }),
     ),
   get: (options = {}) => {
-    const { id, page, limit, filterModel, sortModel, sort, asc, order } = options;
+    const { id = 'all', page, limit, filterModel, sortModel, sort, asc, order } = options;
     const url = buildQueryUrl(getApiBaseUrl({ id, endpoint }), {
       page,
       limit,
