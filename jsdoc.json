@@ -3,7 +3,6 @@
     "allowUnknownTags": true,
     "dictionaries": ["jsdoc"]
   },
-  "categoryfile": "./jsdoc-categories.json",
   "source": {
     "include": ["./src", "./package.json", "./README.md", "./CHANGELOG.md"],
     "includePattern": ".js$",
@@ -26,7 +25,7 @@
       "favicon": "./public/www.nexodev.org/",
       "displayModuleHeader": true,
       "includeFilesListInHomepage": true,
-      "sections": ["Modules", "Classes", "Namespaces", "Tutorials", "Events", "Interfaces", "Global"],
+      "sections": ["Namespaces", "Tutorials"],
       "meta": [
         {
           "name": "author",
