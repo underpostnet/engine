@@ -295,6 +295,10 @@ program
   .option('--namespace <namespace>', 'Kubernetes namespace for deployment operations (defaults to "default").')
   .option('--kind-type <kind-type>', 'Specifies the Kind cluster type for deployment operations.')
   .option('--port <port>', 'Sets up port forwarding from local to remote ports.')
+  .option(
+    '--expose-port <port>',
+    'Sets the local:remote port to expose when --expose is active (overrides auto-detected service port).',
+  )
   .option('--cmd <cmd>', 'Custom initialization command for deployment (comma-separated commands).')
   .description('Manages application deployments, defaulting to deploying development pods.')
   .action(Underpost.deploy.callback);

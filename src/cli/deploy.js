@@ -491,6 +491,7 @@ spec:
         retryPerTryTimeout: '',
         kindType: '',
         port: 0,
+        exposePort: 0,
         cmd: '',
       },
     ) {
@@ -573,11 +574,13 @@ EOF`);
         if (options.expose === true) {
           const kindType = options.kindType ? options.kindType : 'svc';
           const svc = Underpost.deploy.get(deployId, kindType)[0];
-          const port = options.port
-            ? options.port
-            : kindType !== 'svc'
-              ? 80
-              : parseInt(svc[`PORT(S)`].split('/TCP')[0]);
+          const port = options.exposePort
+            ? parseInt(options.exposePort)
+            : options.port
+              ? parseInt(options.port)
+              : kindType !== 'svc'
+                ? 80
+                : parseInt(svc[`PORT(S)`].split('/TCP')[0]);
           logger.info(deployId, {
             svc,
             port,
