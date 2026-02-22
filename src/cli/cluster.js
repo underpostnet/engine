@@ -264,75 +264,7 @@ EOF
         await Underpost.test.statusMonitor('valkey-service', 'Running', 'pods', 1000, 60 * 10);
       }
       if (options.ipfs) {
-        if (options.pullImage === true) {
-          Underpost.cluster.pullImage('ipfs/kubo:latest', options);
-          Underpost.cluster.pullImage('ipfs/ipfs-cluster:latest', options);
-        }
-        // Step 1: Generate cluster secret and bootstrap peer identity
-        // ipfs-cluster-service requires CLUSTER_SECRET as a 64-char hex string.
-        // base64 (openssl rand -base64 32) contains '/', '+', '=' which are invalid hex bytes.
-        const CLUSTER_SECRET = shellExec("od -vN 32 -An -tx1 /dev/urandom | tr -d ' \\n'", {
-          stdout: true,
-        }).trim();
-        const ipfsTmpDir = '/tmp/ipfs-cluster-identity';
-        shellExec(`rm -rf ${ipfsTmpDir} && mkdir -p ${ipfsTmpDir}`);
-        shellExec(`docker run --rm -v ${ipfsTmpDir}:/data/ipfs-cluster ipfs/ipfs-cluster init -f`);
-        const IDENTITY_JSON = JSON.parse(shellExec(`cat ${ipfsTmpDir}/identity.json`, { stdout: true }).trim());
-        logger.info('Generated IPFS cluster identity', {
-          CLUSTER_SECRET,
-          IDENTITY_JSON,
-        });
-
-        const ipfsReplicas = options.replicas ? parseInt(options.replicas) : 3;
-
-        // Step 2: Tear down any existing deployment so secrets/PVCs are recreated cleanly.
-        // PVCs are also deleted so the init container re-runs ipfs init with the current
-        // profile (pebbleds) instead of reusing a stale badgerds-initialized repo.
-        shellExec(`kubectl delete statefulset ipfs-cluster -n ${options.namespace} --ignore-not-found`);
-        shellExec(`kubectl delete secret ipfs-cluster-secret -n ${options.namespace} --ignore-not-found`);
-        shellExec(`kubectl delete configmap env-config -n ${options.namespace} --ignore-not-found`);
-        for (let i = 0; i < ipfsReplicas; i++) {
-          shellExec(
-            `kubectl delete pvc cluster-storage-ipfs-cluster-${i} ipfs-storage-ipfs-cluster-${i} -n ${options.namespace} --ignore-not-found`,
-          );
-        }
-
-        // Step 3: Create Kubernetes Secret with cluster secret and bootstrap private key
-        shellExec(
-          `kubectl create secret generic ipfs-cluster-secret \
---from-literal=cluster-secret=${CLUSTER_SECRET} \
---from-literal=bootstrap-peer-priv-key=${IDENTITY_JSON.private_key} \
---dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
-        );
-
-        // Step 4: Create ConfigMap with bootstrap peer ID and service name
-        shellExec(
-          `kubectl create configmap env-config \
---from-literal=bootstrap-peer-id=${IDENTITY_JSON.id} \
---from-literal=CLUSTER_SVC_NAME=ipfs-cluster \
---dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
-        );
-
-        // Step 5: Apply UDP buffer sysctl on every kind node so QUIC (used by IPFS) can
-        // reach the recommended 7.5 MB buffer size. Kind nodes are containers and do not
-        // inherit the host's sysctl values, so this must be set via docker exec.
-        if (!options.kubeadm && !options.k3s) {
-          shellExec(
-            `for node in $(kind get nodes); do docker exec $node sysctl -w net.core.rmem_max=7500000 net.core.wmem_max=7500000; done`,
-          );
-        }
-
-        // Step 6: Apply storage class and kustomize manifests
-        shellExec(`kubectl apply -f ${underpostRoot}/manifests/ipfs/storage-class.yaml`);
-        shellExec(`kubectl apply -k ${underpostRoot}/manifests/ipfs -n ${options.namespace}`);
-
-        // Scale to the requested replica count (statefulset.yaml hardcodes 3 as the max)
-        shellExec(`kubectl scale statefulset ipfs-cluster --replicas=${ipfsReplicas} -n ${options.namespace}`);
-
-        // Step 7: Wait for all requested pods to reach Running state
-        for (let i = 0; i < ipfsReplicas; i++) {
-          await Underpost.test.statusMonitor(`ipfs-cluster-${i}`, 'Running', 'pods', 1000, 60 * 15);
-        }
+        await Underpost.ipfs.deploy(options, underpostRoot);
       }
       if (options.full === true || options.mariadb === true) {
         shellExec(

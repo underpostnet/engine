@@ -12,6 +12,7 @@ import UnderpostDB from './cli/db.js';
 import UnderpostDeploy from './cli/deploy.js';
 import UnderpostRootEnv from './cli/env.js';
 import UnderpostFileStorage from './cli/fs.js';
+import UnderpostIpfs from './cli/ipfs.js';
 import UnderpostImage from './cli/image.js';
 import UnderpostLxd from './cli/lxd.js';
 import UnderpostMonitor from './cli/monitor.js';
@@ -28,6 +29,7 @@ import UnderpostBackup from './server/backup.js';
 import UnderpostCron from './server/cron.js';
 import UnderpostStartUp from './server/start.js';
 import UnderpostTLS from './server/tls.js';
+import UnderpostIPFS from './cli/ipfs.js';
 
 /**
  * Underpost main module methods
@@ -142,6 +144,15 @@ class Underpost {
    */
   static get fs() {
     return UnderpostFileStorage.API;
+  }
+  /**
+   * IPFS cli API
+   * @static
+   * @type {UnderpostIPFS.API}
+   * @memberof Underpost
+   */
+  static get ipfs() {
+    return UnderpostIPFS.API;
   }
   /**
    * Monitor cli API
