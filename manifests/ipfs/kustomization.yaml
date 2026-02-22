@@ -1,0 +1,8 @@
+---
+# kubectl apply -k ipfs/.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - headless-service.yaml
+  - configmap.yaml
+  - statefulset.yaml

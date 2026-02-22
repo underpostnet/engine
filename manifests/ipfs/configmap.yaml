@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ipfs-cluster-set-bootstrap-conf
+data:
+  entrypoint.sh: |
+    #!/bin/sh
+    set -e
+
+    user=ipfs
+
+    # Custom entrypoint for k8s: connects non-bootstrap pods to the bootstrap peer
+    # ipfs-cluster-0 acts as the bootstrap node using the pre-generated identity.
+
+    if [ ! -f /data/ipfs-cluster/service.json ]; then
+      ipfs-cluster-service init
+    fi
+
+    PEER_HOSTNAME=$(cat /proc/sys/kernel/hostname)
+
+    if echo "${PEER_HOSTNAME}" | grep -q "^ipfs-cluster-0"; then
+      # Bootstrap node: use the pre-seeded identity and secret
+      exec ipfs-cluster-service daemon --upgrade
+    else
+      BOOTSTRAP_ADDR="/dns4/${SVC_NAME}-0/tcp/9096/ipfs/${BOOTSTRAP_PEER_ID}"
+
+      if [ -z "${BOOTSTRAP_ADDR}" ]; then
+        echo "ERROR: BOOTSTRAP_ADDR could not be constructed." >&2
+        exit 1
+      fi
+
+      exec ipfs-cluster-service daemon --upgrade --bootstrap "${BOOTSTRAP_ADDR}" --leave
+    fi
+
+  configure-ipfs.sh: |
+    #!/bin/sh
+    set -e
+    set -x
+
+    # Custom init script: prepares the IPFS data directory and sets production config.
+
+    mkdir -p /data/ipfs
+    chown -R 1000:100 /data/ipfs
+
+    if [ -f /data/ipfs/config ]; then
+      # Remove stale repo lock if present
+      rm -f /data/ipfs/repo.lock
+      exit 0
+    fi
+
+    ipfs init --profile=pebbleds,server
+    ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001
+    ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8080
+    ipfs config --json Swarm.ConnMgr.HighWater 2000
+    ipfs config --json Datastore.BloomFilterSize 1048576
+    ipfs config Datastore.StorageMax 100GB
+    chown -R 1000:100 /data/ipfs
