@@ -1335,7 +1335,7 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
   });
   md = md.replaceAll(oldVersion, newVersion);
   fs.writeFileSync(`./src/client/public/nexodev/docs/references/Command Line Interface.md`, md, 'utf8');
-  fs.writeFileSync(`./cli.md`, md, 'utf8');
+  fs.writeFileSync(`./CLI-HELP.md`, md, 'utf8');
   const readme = fs.readFileSync(`./README.md`, 'utf8');
   fs.writeFileSync('./README.md', readme.replaceAll(oldVersion, newVersion), 'utf8');
 };

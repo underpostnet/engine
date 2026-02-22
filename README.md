@@ -99,4 +99,4 @@ Commands:
  
 ```
 
-<a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/cli.md">See CLI Docs here.</a>
+<a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/CLI-HELP.md">See CLI Docs here.</a>
