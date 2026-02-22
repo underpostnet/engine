@@ -124,6 +124,7 @@ class UnderpostRepository {
 
       if (options.changelog !== undefined || options.changelogBuild) {
         const ciIntegrationPrefix = 'ci(package-pwa-microservices-';
+        const ciIntegrationVersionPrefix = 'New release v:';
         const releaseMatch = 'New release v:';
 
         // Helper: parse [<tag>] commits into grouped sections
@@ -261,7 +262,9 @@ class UnderpostRepository {
           let commits;
           if (!hasExplicitCount) {
             // No explicit count: find commits up to the last CI integration boundary
-            const ciIndex = allCommits.findIndex((c) => c.message.startsWith(ciIntegrationPrefix));
+            const ciIndex = allCommits.findIndex(
+              (c) => c.message.startsWith(ciIntegrationPrefix) && !c.message.match(ciIntegrationVersionPrefix),
+            );
             commits = ciIndex >= 0 ? allCommits.slice(0, ciIndex) : allCommits;
           } else {
             commits = allCommits;
