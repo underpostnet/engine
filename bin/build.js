@@ -172,6 +172,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         ...packageJson.dependencies,
         ...CyberiaDependencies,
       };
+      packageJson.overrides = originPackageJson.overrides;
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
       fs.copyFileSync(`./src/api/object-layer/README.md`, `${basePath}/README.md`);
       fs.copySync(`./hardhat`, `${basePath}/hardhat`);
@@ -216,4 +217,6 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   if (fs.existsSync(`./src/ws/${confName.split('-')[1]}`)) {
     fs.copySync(`./src/ws/${confName.split('-')[1]}`, `${basePath}/src/ws/${confName.split('-')[1]}`);
   }
+  shellExec(`cd ${basePath} && npm install --ignore-scripts`);
+  shellExec(`cd ${basePath} && npm run fix`);
 }
