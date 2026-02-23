@@ -678,7 +678,7 @@ const DefaultConf = /**/ {
   ssr: {
     Nexodev: {
       head: ['Seo', 'Pwa', 'NexodevScripts', 'Css'],
-      body: ['CacheControl', 'NexodevSplashScreen'],
+      body: ['CacheControl', 'NexodevSplashScreen', 'SwaggerDarkMode'],
       mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
       offline: [
         { path: '/offline', title: 'No Network Connection', client: 'NoNetworkConnection', head: [], body: [] },

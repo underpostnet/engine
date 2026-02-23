@@ -1,4 +1,4 @@
-## underpost ci/cd cli v3.0.0
+## underpost ci/cd cli v3.0.1
 
 ### Usage: `underpost [options] [command]`
   ```

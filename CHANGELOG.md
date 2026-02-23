@@ -1,6 +1,55 @@
 # Changelog
 
-## 2026-02-22
+## 2026-02-23
+
+### gitlab
+
+- Fix package json lock template build ([e674ec6b](https://github.com/underpostnet/engine/commit/e674ec6be61d7a170ab468d473d0e545401b765a))
+- Fix mirror push to GitLab ([9585aa50](https://github.com/underpostnet/engine/commit/9585aa50ee481fa49084c0edd44cc28b4b2561e8))
+
+### bin-file
+
+- Add missing gitlab.ci.yml build to pwa-microservices-template ([ec49ded0](https://github.com/underpostnet/engine/commit/ec49ded0ac3fbfcba1e7e10b0ed1dcfc13a8da87))
+
+### client-core
+
+- Add missing keyboard focus search box on iframes docs ([c5b0f86c](https://github.com/underpostnet/engine/commit/c5b0f86c7acc0d2c964cc1ef80625693241e6d62))
+- Add VanillaJs get selector in iframe ([e37fa340](https://github.com/underpostnet/engine/commit/e37fa34037cff9924bc747f1ee11190ee2e1164b))
+
+### giblab
+
+- Add .gitlab-ci.yml ([a795bd5f](https://github.com/underpostnet/engine/commit/a795bd5f3526257c858ec70ee27feb8bfd793baf))
+
+### docs
+
+- Add VanillaJs get selector in iframe sync darkTheme in docs component. ([5b2ba08f](https://github.com/underpostnet/engine/commit/5b2ba08f3b0df3a6072aa49ca55efd223f72a95c))
+
+### server-client-build-docs
+
+- Enable Swagger UI Dark Light Mode ([eaadad70](https://github.com/underpostnet/engine/commit/eaadad70cd74bcd9f7990dd63834bbd69bffcbae))
+
+### github-actions
+
+- Add gitlab mirror CI repository integration ([3d6acdef](https://github.com/underpostnet/engine/commit/3d6acdefeea72f26a733975e822dbcf2b4e793e3))
+- Fix GitHub Actions npm provenance ([cd31b8f0](https://github.com/underpostnet/engine/commit/cd31b8f0ed202ed376016d3fc4b9fc63152f5186))
+
+### cli-run
+
+- Fix missing cluster type on runners id cluster and gpu env ([ddd72d2e](https://github.com/underpostnet/engine/commit/ddd72d2e32e448b8956862f0719d5ab2d2ea7606))
+
+### package
+
+- Resolve npm ci lock mismatch ([357b4e81](https://github.com/underpostnet/engine/commit/357b4e81611541a0d979bc95cb587343bf540604))
+
+### cli-repo
+
+- Fix Changelog error due to type integration message ([750656e1](https://github.com/underpostnet/engine/commit/750656e1cbee5dbb3e73d9d5cdd4d94ed049a4f1))
+
+### cli-ipfs
+
+- Fix underpost ipfs syntax import in main src index ([f7bebb65](https://github.com/underpostnet/engine/commit/f7bebb6555a85df35aed3e248dd0b304c00fd008))
+
+## New release v:3.0.0 (2026-02-22)
 
 ### engine-core
 
