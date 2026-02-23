@@ -104,6 +104,7 @@ try {
           `./.github/workflows/pwa-microservices-template-test.ci.yml`,
           `./.github/workflows/npmpkg.ci.yml`,
           `./.github/workflows/ghpkg.ci.yml`,
+          `./.github/workflows/gitlab.ci.yml`,
           `./.github/workflows/publish.ci.yml`,
           `./.github/workflows/release.cd.yml`,
           './src/ws/IoInterface.js',
