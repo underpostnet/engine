@@ -249,7 +249,7 @@ const buildApiDocs = async ({
 
       if (patched) {
         fs.writeFileSync(outputFile, JSON.stringify(swaggerJson, null, 2), 'utf8');
-        logger.warn('swagger post-process: requestBody injected', Object.keys(requestBodies));
+        // logger.warn('swagger post-process: requestBody injected', Object.keys(requestBodies));
       }
     }
   });
