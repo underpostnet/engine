@@ -1,9 +1,9 @@
 import { Badge } from './Badge.js';
 import { BtnIcon } from './BtnIcon.js';
-import { Css, renderCssAttr, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
+import { Css, darkTheme, renderCssAttr, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
 import { buildBadgeToolTipMenuOption, Modal, renderViewTitle } from './Modal.js';
 import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent, getProxyPath } from './Router.js';
-import { htmls, s } from './VanillaJs.js';
+import { htmls, s, sIframe } from './VanillaJs.js';
 
 // https://mintlify.com/docs/quickstart
 
@@ -39,6 +39,7 @@ const Docs = {
       RouterInstance: Modal.Data['modal-docs'].options.RouterInstance,
     });
     const iframeEl = s(`.iframe-${ModalId}`);
+    let swaggerThemeEventKey = null;
     if (iframeEl) {
       iframeEl.addEventListener('load', () => {
         try {
@@ -52,6 +53,72 @@ const Docs = {
         }
         window.scrollTo(0, 0);
       });
+
+      if (type === 'src') {
+        swaggerThemeEventKey = `jsdocs-iframe-${ModalId}`;
+
+        const applyJsDocsTheme = (isDark) => {
+          try {
+            const iframeWin = iframeEl.contentWindow;
+            if (!iframeWin) return;
+            const theme = isDark ? 'dark' : 'light';
+            if (typeof iframeWin.updateTheme === 'function') {
+              // clean-jsdoc-theme exposes updateTheme() globally
+              iframeWin.updateTheme(theme);
+            } else {
+              // Fallback: replicate localUpdateTheme manually
+              const iframeDoc = iframeEl.contentDocument || iframeWin.document;
+              if (!iframeDoc || !iframeDoc.body) return;
+              iframeDoc.body.setAttribute('data-theme', theme);
+              iframeDoc.body.classList.remove('dark', 'light');
+              iframeDoc.body.classList.add(theme);
+              const iconID = isDark ? '#light-theme-icon' : '#dark-theme-icon';
+              const svgUses = sIframe(iframeEl, '.theme-svg-use') ? iframeDoc.querySelectorAll('.theme-svg-use') : [];
+              svgUses.forEach((svg) => svg.setAttribute('xlink:href', iconID));
+              iframeWin.localStorage?.setItem('theme', theme);
+            }
+          } catch (e) {
+            // cross-origin or security restriction — safe to ignore
+          }
+        };
+
+        // Apply current theme as soon as the iframe content is ready
+        iframeEl.addEventListener('load', () => applyJsDocsTheme(darkTheme));
+
+        // Keep in sync whenever the parent page theme changes
+        ThemeEvents[swaggerThemeEventKey] = () => {
+          if (s(`.iframe-${ModalId}`)) applyJsDocsTheme(darkTheme);
+        };
+      }
+
+      if (type === 'api') {
+        swaggerThemeEventKey = `swagger-iframe-${ModalId}`;
+
+        const applySwaggerTheme = (isDark) => {
+          try {
+            const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
+            if (!iframeDoc || !iframeDoc.body) return;
+            if (isDark) {
+              iframeDoc.body.classList.add('swagger-dark');
+            } else {
+              iframeDoc.body.classList.remove('swagger-dark');
+            }
+            iframeEl.contentWindow?.localStorage?.setItem('swagger-theme', isDark ? 'dark' : 'light');
+            const toggleBtn = sIframe(iframeEl, '#swagger-theme-toggle');
+            if (toggleBtn) toggleBtn.textContent = isDark ? '\u2600\uFE0F Light Mode' : '\uD83C\uDF19 Dark Mode';
+          } catch (e) {
+            // cross-origin or security restriction — safe to ignore
+          }
+        };
+
+        // Apply current theme as soon as the iframe content is ready
+        iframeEl.addEventListener('load', () => applySwaggerTheme(darkTheme));
+
+        // Keep in sync whenever the parent page theme changes
+        ThemeEvents[swaggerThemeEventKey] = () => {
+          if (s(`.iframe-${ModalId}`)) applySwaggerTheme(darkTheme);
+        };
+      }
     }
     Modal.Data[ModalId].onObserverListener[ModalId] = () => {
       if (s(`.iframe-${ModalId}`)) {
@@ -67,6 +134,7 @@ const Docs = {
     };
     Modal.Data[ModalId].onObserverListener[ModalId]();
     Modal.Data[ModalId].onCloseListener[ModalId] = () => {
+      if (swaggerThemeEventKey) delete ThemeEvents[swaggerThemeEventKey];
       closeModalRouteChangeEvent({ closedId: ModalId });
     };
   },
@@ -342,10 +410,6 @@ const Docs = {
         <div class="docs-landing">
           <div class="docs-header">
             <h1>Documentation</h1>
-            <p>
-              Find everything you need to build amazing applications with our platform. Get started with our guides, API
-              reference, and examples.
-            </p>
             <!--
                     <div class="search-bar">
                       <i class="fas fa-search"></i>
