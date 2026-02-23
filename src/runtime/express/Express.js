@@ -20,6 +20,7 @@ import { createPeerServer } from '../../server/peer.js';
 import { createValkeyConnection } from '../../server/valkey.js';
 import { applySecurity, authMiddlewareFactory } from '../../server/auth.js';
 import { ssrMiddlewareFactory } from '../../server/ssr.js';
+import { buildSwaggerUiOptions } from '../../server/client-build-docs.js';
 
 import { shellExec } from '../../server/process.js';
 import { devProxyHostFactory, isDevProxyContext, isTlsDevProxy } from '../../server/conf.js';
@@ -167,8 +168,8 @@ class ExpressService {
       // Swagger UI setup
       if (fs.existsSync(swaggerJsonPath)) {
         const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
-        // Reusing swaggerPath defined outside, removing unnecessary redeclaration
-        app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDoc));
+        const swaggerUiOptions = await buildSwaggerUiOptions();
+        app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDoc, swaggerUiOptions));
       }
 
       // Security and CORS

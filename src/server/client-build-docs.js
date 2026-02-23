@@ -10,6 +10,7 @@ import fs from 'fs-extra';
 import { shellExec } from './process.js';
 import { loggerFactory } from './logger.js';
 import { JSONweb } from './client-formatted.js';
+import { ssrFactory } from './ssr.js';
 
 /**
  * Builds API documentation using Swagger
@@ -62,59 +63,135 @@ const buildApiDocs = async ({
     components: {
       schemas: {
         userRequest: {
-          username: 'user123',
-          password: 'Password123',
-          email: 'user@example.com',
+          type: 'object',
+          required: ['username', 'password', 'email'],
+          properties: {
+            username: { type: 'string', example: 'user123' },
+            password: { type: 'string', example: 'Password123!' },
+            email: { type: 'string', format: 'email', example: 'user@example.com' },
+          },
         },
         userResponse: {
-          status: 'success',
-          data: {
-            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7Il9pZCI6IjY2YzM3N2Y1N2Y5OWU1OTY5YjgxZG...',
-            user: {
-              _id: '66c377f57f99e5969b81de89',
-              email: 'user@example.com',
-              emailConfirmed: false,
-              username: 'user123',
-              role: 'user',
-              profileImageId: '66c377f57f99e5969b81de87',
+          type: 'object',
+          properties: {
+            status: { type: 'string', example: 'success' },
+            data: {
+              type: 'object',
+              properties: {
+                token: {
+                  type: 'string',
+                  example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7Il9pZCI6IjY2YzM3N2Y1N2Y5OWU1OTY5YjgxZG...',
+                },
+                user: {
+                  type: 'object',
+                  properties: {
+                    _id: { type: 'string', example: '66c377f57f99e5969b81de89' },
+                    email: { type: 'string', format: 'email', example: 'user@example.com' },
+                    emailConfirmed: { type: 'boolean', example: false },
+                    username: { type: 'string', example: 'user123' },
+                    role: { type: 'string', example: 'user' },
+                    profileImageId: { type: 'string', example: '66c377f57f99e5969b81de87' },
+                  },
+                },
+              },
             },
           },
         },
         userUpdateResponse: {
-          status: 'success',
-          data: {
-            _id: '66c377f57f99e5969b81de89',
-            email: 'user@example.com',
-            emailConfirmed: false,
-            username: 'user123222',
-            role: 'user',
-            profileImageId: '66c377f57f99e5969b81de87',
+          type: 'object',
+          properties: {
+            status: { type: 'string', example: 'success' },
+            data: {
+              type: 'object',
+              properties: {
+                _id: { type: 'string', example: '66c377f57f99e5969b81de89' },
+                email: { type: 'string', format: 'email', example: 'user@example.com' },
+                emailConfirmed: { type: 'boolean', example: false },
+                username: { type: 'string', example: 'user123222' },
+                role: { type: 'string', example: 'user' },
+                profileImageId: { type: 'string', example: '66c377f57f99e5969b81de87' },
+              },
+            },
           },
         },
         userGetResponse: {
-          status: 'success',
-          data: {
-            _id: '66c377f57f99e5969b81de89',
-            email: 'user@example.com',
-            emailConfirmed: false,
-            username: 'user123222',
-            role: 'user',
-            profileImageId: '66c377f57f99e5969b81de87',
+          type: 'object',
+          properties: {
+            status: { type: 'string', example: 'success' },
+            data: {
+              type: 'object',
+              properties: {
+                _id: { type: 'string', example: '66c377f57f99e5969b81de89' },
+                email: { type: 'string', format: 'email', example: 'user@example.com' },
+                emailConfirmed: { type: 'boolean', example: false },
+                username: { type: 'string', example: 'user123222' },
+                role: { type: 'string', example: 'user' },
+                profileImageId: { type: 'string', example: '66c377f57f99e5969b81de87' },
+              },
+            },
           },
         },
         userLogInRequest: {
-          email: 'user@example.com',
-          password: 'Password123',
+          type: 'object',
+          required: ['email', 'password'],
+          properties: {
+            email: { type: 'string', format: 'email', example: 'user@example.com' },
+            password: { type: 'string', example: 'Password123!' },
+          },
         },
         userBadRequestResponse: {
-          status: 'error',
-          message: 'Bad request. Please check your inputs, and try again',
+          type: 'object',
+          properties: {
+            status: { type: 'string', example: 'error' },
+            message: {
+              type: 'string',
+              example: 'Bad request. Please check your inputs, and try again',
+            },
+          },
         },
       },
       securitySchemes: {
         bearerAuth: {
           type: 'http',
           scheme: 'bearer',
+        },
+      },
+    },
+  };
+
+  /**
+   * swagger-autogen has no requestBody annotation support — it only handles
+   * #swagger.parameters, responses, security, etc.  We define the requestBody
+   * objects here and inject them into the generated JSON as a post-processing step.
+   *
+   * Each key is an "<method> <path>" pair matching the generated paths object.
+   * The value is a valid OAS 3.0 requestBody object.
+   */
+  const requestBodies = {
+    'post /user': {
+      description: 'User registration data',
+      required: true,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/userRequest' },
+        },
+      },
+    },
+    'post /user/auth': {
+      description: 'User login credentials',
+      required: true,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/userLogInRequest' },
+        },
+      },
+    },
+    'put /user/{id}': {
+      description: 'User fields to update',
+      required: true,
+      content: {
+        'application/json': {
+          schema: { $ref: '#/components/schemas/userRequest' },
         },
       },
     },
@@ -148,6 +225,33 @@ const buildApiDocs = async ({
     }
 
     await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
+
+    // Post-process: inject requestBody into operations — swagger-autogen silently
+    // ignores #swagger.requestBody annotations and has no internal OAS-3 body support.
+    if (fs.existsSync(outputFile)) {
+      const swaggerJson = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
+      let patched = false;
+
+      for (const [key, requestBody] of Object.entries(requestBodies)) {
+        const [method, ...pathParts] = key.split(' ');
+        const opPath = pathParts.join(' ');
+        if (swaggerJson.paths?.[opPath]?.[method]) {
+          swaggerJson.paths[opPath][method].requestBody = requestBody;
+          // Remove any stale in:body entry from parameters (OAS 3.0 doesn't allow it)
+          if (Array.isArray(swaggerJson.paths[opPath][method].parameters)) {
+            swaggerJson.paths[opPath][method].parameters = swaggerJson.paths[opPath][method].parameters.filter(
+              (p) => p.in !== 'body',
+            );
+          }
+          patched = true;
+        }
+      }
+
+      if (patched) {
+        fs.writeFileSync(outputFile, JSON.stringify(swaggerJson, null, 2), 'utf8');
+        logger.warn('swagger post-process: requestBody injected', Object.keys(requestBodies));
+      }
+    }
   });
 };
 
@@ -247,4 +351,18 @@ const buildDocs = async ({
   });
 };
 
-export { buildDocs };
+/**
+ * Builds Swagger UI customization options by rendering the SwaggerDarkMode SSR body component.
+ * Returns the customCss and customJsStr strings required by swagger-ui-express to enable
+ * a dark/light mode toggle button with a black/gray gradient dark theme.
+ * @function buildSwaggerUiOptions
+ * @memberof clientBuildDocs
+ * @returns {Promise<{customCss: string, customJsStr: string}>} Swagger UI setup options
+ */
+const buildSwaggerUiOptions = async () => {
+  const swaggerDarkMode = await ssrFactory('./src/client/ssr/body/SwaggerDarkMode.js');
+  const { css, js } = swaggerDarkMode();
+  return { customCss: css, customJsStr: js };
+};
+
+export { buildDocs, buildSwaggerUiOptions };

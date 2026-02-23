@@ -99,22 +99,6 @@ const UserRouter = (options) => {
     #swagger.description = 'This endpoint get a JWT for authenticated user'
     #swagger.path = '/user/auth'
     #swagger.method = 'post'
-    #swagger.produces = ['application/json']
-    #swagger.consumes = ['application/json']
-
-    #swagger.requestBody = {
-      in: 'body',
-      description: 'User data',
-      required: true,
-      content: {
-          'application/json': {
-              schema: {
-                  $ref: '#/components/schemas/userLogInRequest'
-              }
-          }
-      }
-    }
-
     #swagger.responses[200] = {
       description: 'User created successfully',
       content: {
@@ -148,22 +132,6 @@ const UserRouter = (options) => {
       #swagger.description = 'This endpoint will create a new user account'
       #swagger.path = '/user'
       #swagger.method = 'post'
-      #swagger.produces = ['application/json']
-      #swagger.consumes = ['application/json']
-
-      #swagger.requestBody = {
-        in: 'body',
-        description: 'User data',
-        required: true,
-        content: {
-            'application/json': {
-                schema: {
-                    $ref: '#/components/schemas/userRequest'
-                }
-            }
-        }
-      }
-
       #swagger.responses[200] = {
         description: 'User created successfully',
         content: {
@@ -274,8 +242,6 @@ const UserRouter = (options) => {
       #swagger.description = 'This endpoint will update user data by ID'
       #swagger.path = '/user/{id}'
       #swagger.method = 'put'
-      #swagger.produces = ['application/json']
-      #swagger.consumes = ['application/json']
       #swagger.security = [{
         'bearerAuth': []
       }]
@@ -285,19 +251,6 @@ const UserRouter = (options) => {
           description: 'User ID',
           required: true,
           type: 'string'
-      }
-
-      #swagger.requestBody = {
-        in: 'body',
-        description: 'User data',
-        required: true,
-        content: {
-            'application/json': {
-                schema: {
-                  $ref: '#/components/schemas/userRequest'
-                }
-            }
-        }
       }
 
       #swagger.responses[200] = {
