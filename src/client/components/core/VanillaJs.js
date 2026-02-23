@@ -418,12 +418,48 @@ function hexToRgbA(hex) {
 
 const htmlStrSanitize = (str) => (str ? str.replace(/<\/?[^>]+(>|$)/g, '').trim() : '');
 
+/**
+ * Query selector inside an iframe. Allows obtaining a single element that is
+ * inside an iframe in order to execute events on it.
+ * Note: the iframe must be same-origin for this to work.
+ *
+ * @param {string|Element} iframeEl The CSS selector string or the iframe Element itself.
+ * @param {string} el The query selector for the element inside the iframe.
+ * @returns {Element|null} The matched element inside the iframe, or null if not found.
+ * @memberof VanillaJS
+ */
+const sIframe = (iframeEl, el) => {
+  const iframe = typeof iframeEl === 'string' ? s(iframeEl) : iframeEl;
+  if (!iframe) return null;
+  const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+  return iframeDoc ? iframeDoc.querySelector(el) : null;
+};
+
+/**
+ * Query selector all inside an iframe. Allows obtaining all elements matching a
+ * selector that are inside an iframe in order to execute events on them.
+ * Note: the iframe must be same-origin for this to work.
+ *
+ * @param {string|Element} iframeEl The CSS selector string or the iframe Element itself.
+ * @param {string} el The query selector for the elements inside the iframe.
+ * @returns {NodeList|null} A NodeList of matched elements inside the iframe, or null if not found.
+ * @memberof VanillaJS
+ */
+const saIframe = (iframeEl, el) => {
+  const iframe = typeof iframeEl === 'string' ? s(iframeEl) : iframeEl;
+  if (!iframe) return null;
+  const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+  return iframeDoc ? iframeDoc.querySelectorAll(el) : null;
+};
+
 export {
   s,
   htmls,
   append,
   prepend,
   sa,
+  sIframe,
+  saIframe,
   copyData,
   pasteData,
   preHTML,
