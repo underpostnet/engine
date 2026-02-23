@@ -52,6 +52,28 @@ const Docs = {
           // cross-origin or security restriction — safe to ignore
         }
         window.scrollTo(0, 0);
+        // Bind Shift+K inside the iframe to focus the parent SearchBox (mirrors app-wide shortcut)
+        try {
+          const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
+          if (iframeDoc) {
+            iframeDoc.addEventListener('keydown', (e) => {
+              if (e.shiftKey && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (s(`.top-bar-search-box`)) {
+                  if (s(`.main-body-btn-ui-close`) && s(`.main-body-btn-ui-close`).classList.contains('hide')) {
+                    s(`.main-body-btn-ui-open`).click();
+                  }
+                  s(`.top-bar-search-box`).blur();
+                  s(`.top-bar-search-box`).focus();
+                  s(`.top-bar-search-box`).select();
+                }
+              }
+            });
+          }
+        } catch (e) {
+          // cross-origin or security restriction — safe to ignore
+        }
       });
 
       if (type === 'src') {
