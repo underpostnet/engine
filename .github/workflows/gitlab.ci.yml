@@ -9,8 +9,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          lfs: true
       - name: Push to GitLab
         run: |
           git remote add gitlab https://oauth2:${{ secrets.GITLAB_TOKEN }}@gitlab.com/underpostnet/pwa-microservices-template.git
-          git push gitlab --force --all
+          git lfs install
+          git lfs fetch --all
+          git lfs push --all gitlab
+          git push gitlab HEAD:main --force
           git push gitlab --force --tags

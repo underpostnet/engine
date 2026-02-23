@@ -1,7 +1,13 @@
 import fs from 'fs-extra';
 
 import { loggerFactory } from '../src/server/logger.js';
-import { cap, getCapVariableName, getDirname, uniqueArray } from '../src/client/components/core/CommonJs.js';
+import {
+  cap,
+  getCapVariableName,
+  getDirname,
+  newInstance,
+  uniqueArray,
+} from '../src/client/components/core/CommonJs.js';
 import { shellCd, shellExec } from '../src/server/process.js';
 import walk from 'ignore-walk';
 import { validateTemplatePath } from '../src/server/conf.js';
@@ -138,7 +144,25 @@ try {
           JSON.stringify(templatePackageJson, null, 4),
           'utf8',
         );
+        const originPackageLockJson = JSON.parse(fs.readFileSync('./package-lock.json', 'utf8'));
 
+        const templatePackageLockJson = JSON.parse(
+          fs.readFileSync('../pwa-microservices-template/package-lock.json', 'utf8'),
+        );
+
+        const originBasePackageLock = newInstance(templatePackageLockJson.packages['']);
+        templatePackageLockJson.name = name;
+        templatePackageLockJson.version = originPackageLockJson.version;
+        templatePackageLockJson.packages = originPackageLockJson.packages;
+        templatePackageLockJson.packages[''].name = name;
+        templatePackageLockJson.packages[''].version = originPackageLockJson.version;
+        templatePackageLockJson.packages[''].hasInstallScript = originBasePackageLock.hasInstallScript;
+        templatePackageLockJson.packages[''].license = originBasePackageLock.license;
+        fs.writeFileSync(
+          '../pwa-microservices-template/package-lock.json',
+          JSON.stringify(templatePackageLockJson, null, 4),
+          'utf8',
+        );
         // Regenerate package-lock.json to match the modified package.json
         // shellExec(`cd ../pwa-microservices-template && npm install --package-lock-only --ignore-scripts`);
         fs.writeFileSync(
