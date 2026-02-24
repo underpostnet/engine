@@ -11,6 +11,7 @@
  * @namespace IpfsClient
  */
 
+import stringify from 'fast-json-stable-stringify';
 import { loggerFactory } from './logger.js';
 
 const logger = loggerFactory(import.meta);
@@ -62,7 +63,7 @@ const getGatewayUrl = () =>
  *
  * @param {Buffer|string} content   – raw bytes or a UTF-8 string to store.
  * @param {string}        [filename='data'] – logical filename for the upload.
- * @param {string}        [mfsPath]  – optional full MFS path (e.g. `/object-layer/ghost/ghost_data.json`).
+ * @param {string}        [mfsPath]  – optional full MFS path.
  *                                     When omitted defaults to `/pinned/<filename>`.
  * @returns {Promise<IpfsAddResult|null>} `null` when the node is unreachable.
  */
@@ -159,7 +160,7 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
  * @returns {Promise<IpfsAddResult|null>}
  */
 const addJsonToIpfs = async (obj, filename = 'data.json', mfsPath) => {
-  const payload = JSON.stringify(obj);
+  const payload = stringify(obj);
   return addToIpfs(Buffer.from(payload, 'utf-8'), filename, mfsPath);
 };
 
