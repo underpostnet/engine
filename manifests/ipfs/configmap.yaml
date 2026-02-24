@@ -16,6 +16,13 @@ data:
       ipfs-cluster-service init
     fi
 
+    # Bind cluster APIs to 0.0.0.0 so they are reachable from other pods.
+    # By default ipfs-cluster listens on 127.0.0.1 for REST (9094),
+    # Proxy (9095) and Pinning Service (9097).
+    sed -i 's|/ip4/127\.0\.0\.1/tcp/9094|/ip4/0.0.0.0/tcp/9094|g' /data/ipfs-cluster/service.json
+    sed -i 's|/ip4/127\.0\.0\.1/tcp/9095|/ip4/0.0.0.0/tcp/9095|g' /data/ipfs-cluster/service.json
+    sed -i 's|/ip4/127\.0\.0\.1/tcp/9097|/ip4/0.0.0.0/tcp/9097|g' /data/ipfs-cluster/service.json
+
     PEER_HOSTNAME=$(cat /proc/sys/kernel/hostname)
 
     if echo "${PEER_HOSTNAME}" | grep -q "^ipfs-cluster-0"; then

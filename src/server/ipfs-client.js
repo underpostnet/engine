@@ -24,8 +24,7 @@ const logger = loggerFactory(import.meta);
  * @returns {string}
  */
 const getIpfsApiUrl = () =>
-  process.env.IPFS_API_URL ||
-  `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster-0.ipfs-cluster.default.svc.cluster.local'}:5001`;
+  process.env.IPFS_API_URL || `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster'}:5001`;
 
 /**
  * Base URL of the IPFS Cluster REST API (port 9094).
@@ -33,7 +32,7 @@ const getIpfsApiUrl = () =>
  */
 const getClusterApiUrl = () =>
   process.env.IPFS_CLUSTER_API_URL ||
-  `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster-0.ipfs-cluster.default.svc.cluster.local'}:9094`;
+  `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster'}:9094`;
 
 /**
  * Base URL of the IPFS HTTP Gateway (port 8080).
@@ -41,7 +40,7 @@ const getClusterApiUrl = () =>
  */
 const getGatewayUrl = () =>
   process.env.IPFS_GATEWAY_URL ||
-  `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster-0.ipfs-cluster.default.svc.cluster.local'}:8080`;
+  `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster'}:8080`;
 
 // ─────────────────────────────────────────────────────────
 //  Core: add content

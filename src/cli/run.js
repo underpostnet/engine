@@ -218,12 +218,12 @@ class UnderpostRun {
     },
 
     /**
-     * @method expose-ipfs
+     * @method ipfs-expose
      * @description Exposes IPFS Cluster services on specified ports for local access.
      * @type {Function}
      * @memberof UnderpostRun
      */
-    'expose-ipfs': (path, options = DEFAULT_OPTION) => {
+    'ipfs-expose': (path, options = DEFAULT_OPTION) => {
       const ports = [5001, 9094, 8080];
       for (const port of ports)
         shellExec(`node bin deploy --expose ipfs-cluster --expose-port ${port} --disable-update-underpost-config`, {
