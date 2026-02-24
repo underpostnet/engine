@@ -52,6 +52,8 @@ const ItemSchema = new Schema(
  * @property {Data.Stats} data.stats - Statistical attributes of the object layer
  * @property {Data.Item} data.item - Item information this layer represents
  * @property {string} data.seed - Random UUID for unique state generation
+ * @property {string} [data.atlasSpriteSheetCid] - IPFS Content Identifier for the consolidated atlas sprite sheet PNG
+ * @property {string} [cid] - IPFS Content Identifier for the object layer data JSON (fast-json-stable-stringify)
  * @property {Types.ObjectId} objectLayerRenderFramesId - Reference to ObjectLayerRenderFrames document
  * @property {Types.ObjectId} atlasSpriteSheetId - Reference to AtlasSpriteSheet document
  * @property {string} sha256 - SHA-256 hash of the object layer data
@@ -72,7 +74,9 @@ const ObjectLayerSchema = new Schema(
           'Please provide a valid UUID v4',
         ],
       },
+      atlasSpriteSheetCid: { type: String, default: '', trim: true },
     },
+    cid: { type: String, default: '', trim: true },
     objectLayerRenderFramesId: { type: Schema.Types.ObjectId, ref: 'ObjectLayerRenderFrames' },
     atlasSpriteSheetId: { type: Schema.Types.ObjectId, ref: 'AtlasSpriteSheet' },
     sha256: {
@@ -115,6 +119,7 @@ ObjectLayerSchema.pre('save', function (next) {
   if (!this.data.stats || !this.data.item || !this.data.seed || !this.sha256) {
     throw new Error('Missing required fields');
   }
+  // cid (object layer data JSON) and data.atlasSpriteSheetCid (atlas PNG) are optional – default to ''
   next();
 });
 
@@ -126,7 +131,7 @@ const ProviderSchema = ObjectLayerSchema;
 const ObjectLayerDto = {
   select: {
     get: () => {
-      return { _id: 1, 'data.item': 1 };
+      return { _id: 1, 'data.item': 1, 'data.atlasSpriteSheetCid': 1, cid: 1, atlasSpriteSheetId: 1 };
     },
     getMetadata: () => {
       return {
@@ -134,6 +139,8 @@ const ObjectLayerDto = {
         'data.item': 1,
         'data.stats': 1,
         'data.seed': 1,
+        'data.atlasSpriteSheetCid': 1,
+        cid: 1,
         objectLayerRenderFramesId: 1,
         atlasSpriteSheetId: 1,
         sha256: 1,

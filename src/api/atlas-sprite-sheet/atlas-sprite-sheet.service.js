@@ -4,6 +4,8 @@ import { DataQuery } from '../../server/data-query.js';
 import { AtlasSpriteSheetGenerator } from '../../server/atlas-sprite-sheet-generator.js';
 import { FileFactory } from '../file/file.service.js';
 import { AtlasSpriteSheetDto } from './atlas-sprite-sheet.model.js';
+import { IpfsClient } from '../../server/ipfs-client.js';
+import { createPinRecord } from '../ipfs/ipfs.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -39,6 +41,27 @@ const AtlasSpriteSheetService = {
 
     const fileDoc = await new File(FileFactory.create(buffer, `${itemKey}.png`)).save();
 
+    // Add atlas PNG to IPFS and obtain its CID
+    let atlasCid = '';
+    try {
+      const ipfsResult = await IpfsClient.addBufferToIpfs(
+        buffer,
+        `${itemKey}_atlas_sprite_sheet.png`,
+        `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet.png`,
+      );
+      if (ipfsResult) {
+        atlasCid = ipfsResult.cid;
+        // Create pin record for the authenticated user (when available)
+        const userId = req.auth && req.auth.user ? req.auth.user._id : undefined;
+        if (userId) {
+          await createPinRecord({ cid: atlasCid, userId, pinType: 'recursive', options });
+        }
+        logger.info(`Atlas sprite sheet pinned to IPFS – CID: ${atlasCid}`);
+      }
+    } catch (ipfsError) {
+      logger.warn('Failed to add atlas sprite sheet to IPFS:', ipfsError.message);
+    }
+
     let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
 
     if (atlasDoc) {
@@ -47,16 +70,20 @@ const AtlasSpriteSheetService = {
         await File.findByIdAndDelete(atlasDoc.fileId);
       }
       atlasDoc.fileId = fileDoc._id;
+      atlasDoc.cid = atlasCid;
       atlasDoc.metadata = metadata;
       await atlasDoc.save();
     } else {
       atlasDoc = await new AtlasSpriteSheet({
         fileId: fileDoc._id,
+        cid: atlasCid,
         metadata,
       }).save();
     }
 
     objectLayer.atlasSpriteSheetId = atlasDoc._id;
+    objectLayer.data.atlasSpriteSheetCid = atlasCid;
+    objectLayer.markModified('data.atlasSpriteSheetCid');
     await objectLayer.save();
 
     return atlasDoc;
@@ -84,6 +111,8 @@ const AtlasSpriteSheetService = {
         await AtlasSpriteSheet.findByIdAndDelete(atlasDoc._id);
       }
       objectLayer.atlasSpriteSheetId = undefined;
+      objectLayer.data.atlasSpriteSheetCid = '';
+      objectLayer.markModified('data.atlasSpriteSheetCid');
       await objectLayer.save();
     }
 

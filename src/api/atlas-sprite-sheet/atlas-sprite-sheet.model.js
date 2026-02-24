@@ -75,6 +75,7 @@ const DirectionFramesSchema = new Schema(
 /**
  * @typedef {Object} AtlasSpriteSheet
  * @property {Types.ObjectId} fileId - Reference to File document (consolidated PNG)
+ * @property {string} [cid] - IPFS Content Identifier for the atlas PNG
  * @property {Object} metadata - Atlas sprite sheet metadata
  * @property {string} metadata.itemKey - Item identifier key for texture reference
  * @property {number} metadata.atlasWidth - Total atlas width in pixels
@@ -91,6 +92,11 @@ const AtlasSpriteSheetSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'File',
       required: true,
+    },
+    cid: {
+      type: String,
+      default: '',
+      trim: true,
     },
     metadata: {
       itemKey: { type: String, required: true, trim: true },
@@ -129,6 +135,7 @@ const AtlasSpriteSheetDto = {
       return {
         _id: 1,
         fileId: 1,
+        cid: 1,
         metadata: 1,
         createdAt: 1,
         updatedAt: 1,

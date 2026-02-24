@@ -41,9 +41,9 @@ const ObjectLayerManagement = {
                 // Navigate to viewer route first
                 setPath(`${getProxyPath()}object-layer-engine-viewer`);
                 // Then add query param without replacing history
-                setQueryParams({ cid: data._id }, { replace: true });
+                setQueryParams({ id: data._id }, { replace: true });
                 if (s(`.modal-object-layer-engine-viewer`)) {
-                  await ObjectLayerEngineViewer.Reload({ Elements });
+                  await ObjectLayerEngineViewer.Reload({ Elements, force: true });
                 }
                 s(`.main-btn-object-layer-engine-viewer`).click();
               });
@@ -87,7 +87,7 @@ const ObjectLayerManagement = {
                 // Navigate to editor route first
                 setPath(`${getProxyPath()}object-layer-engine`);
                 // Then add query param without replacing history
-                setQueryParams({ cid: data._id }, { replace: true });
+                setQueryParams({ id: data._id }, { replace: true });
                 if (s(`.modal-object-layer-engine`)) await ObjectLayerEngineModal.Reload();
                 else s(`.main-btn-object-layer-engine`).click();
               });
@@ -148,6 +148,42 @@ const ObjectLayerManagement = {
       }
     }
 
+    const createCidRenderer = (cidAccessor) => {
+      return class {
+        eGui;
+
+        async init(params) {
+          this.eGui = document.createElement('div');
+          const { data } = params;
+          const cid = cidAccessor(data) || '';
+
+          if (!cid) {
+            this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
+            return;
+          }
+
+          this.eGui.innerHTML = html`<span
+            title="${cid}"
+            style="font-family: monospace; font-size: 11px; cursor: default; user-select: all;"
+            >${cid}</span
+          >`;
+        }
+
+        getGui() {
+          return this.eGui;
+        }
+
+        refresh(params) {
+          return true;
+        }
+      };
+    };
+
+    // IPFS CID of object layer data JSON (fast-json-stable-stringify)
+    const CidRenderer = createCidRenderer((d) => d?.cid);
+    // IPFS CID of the consolidated atlas sprite sheet PNG
+    const AtlasCidRenderer = createCidRenderer((d) => d?.data?.atlasSpriteSheetCid || d?.atlasSpriteSheetId?.cid);
+
     let columnDefs = [
       // {
       //   field: '_id',
@@ -163,6 +199,24 @@ const ObjectLayerManagement = {
       },
       { field: 'data.item.type', headerName: 'Item Type', editable: role === 'user' },
       { field: 'data.item.description', headerName: 'Description', flex: 1, editable: role === 'user' },
+      {
+        field: 'cid',
+        headerName: 'IPFS CID',
+        width: 160,
+        cellRenderer: CidRenderer,
+        editable: false,
+        sortable: false,
+        filter: false,
+      },
+      {
+        field: 'data.atlasSpriteSheetCid',
+        headerName: 'Atlas CID',
+        width: 160,
+        cellRenderer: AtlasCidRenderer,
+        editable: false,
+        sortable: false,
+        filter: false,
+      },
       {
         field: 'frame08',
         headerName: 'Frame 08 Preview',

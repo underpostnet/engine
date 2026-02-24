@@ -12,7 +12,7 @@ import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas
 import { NotificationManager } from '../core/NotificationManager.js';
 import { htmls, s } from '../core/VanillaJs.js';
 
-import { darkTheme, ThemeEvents } from '../core/Css.js';
+import { darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 import { ObjectLayerEngineModal } from './ObjectLayerEngineModal.js';
 import { Modal } from '../core/Modal.js';
@@ -30,7 +30,7 @@ const ObjectLayerEngineViewer = {
     currentMode: 'idle',
     webp: null,
     isGenerating: false,
-    currentCid: undefined, // Track current loaded cid to prevent unnecessary reloads
+    currentObjectId: undefined, // Track current loaded object layer id to prevent unnecessary reloads
     atlasSpriteSheet: null,
     isGeneratingAtlas: false,
     webpMetadata: null,
@@ -55,8 +55,8 @@ const ObjectLayerEngineViewer = {
   Render: async function ({ Elements }) {
     const id = 'object-layer-engine-viewer';
 
-    // Reset currentCid when modal is rendered to ensure Reload triggers properly
-    this.Data.currentCid = undefined;
+    // Reset currentObjectId when modal is rendered to ensure Reload triggers properly
+    this.Data.currentObjectId = undefined;
 
     Modal.Data[`modal-${id}`].onReloadModalListener[id] = async () => {
       ObjectLayerEngineViewer.Reload({ Elements });
@@ -66,15 +66,15 @@ const ObjectLayerEngineViewer = {
     listenQueryParamsChange({
       id: `${id}-query-listener`,
       event: async (queryParams) => {
-        const cid = queryParams.cid || null;
+        const objectId = queryParams.id || null;
 
         if (!s(`.modal-${id}`) || !s(`#${id}`)) {
           logger.warn('ObjectLayerEngineViewer DOM not ready for query param change');
           return;
         }
 
-        // Only reload if cid actually changed (normalize undefined to null for comparison)
-        if (cid !== this.Data.currentCid) {
+        // Only reload if object id actually changed (normalize undefined to null for comparison)
+        if (objectId !== this.Data.currentObjectId) {
           await this.Reload({ Elements });
         }
       },
@@ -101,8 +101,8 @@ const ObjectLayerEngineViewer = {
       return;
     }
 
-    // Clear current cid when rendering empty state
-    this.Data.currentCid = null;
+    // Clear current object id when rendering empty state
+    this.Data.currentObjectId = null;
 
     // Check if the management table grid already exists AND its DOM is still present
     // If it does, don't re-render (just let DefaultManagement's RouterEvents handle URL changes)
@@ -569,6 +569,50 @@ const ObjectLayerEngineViewer = {
             color: ${darkTheme ? '#666' : '#999'};
             padding: 20px;
           }
+          .ipfs-cid-label {
+            font-size: 14px;
+            color: ${darkTheme ? '#b0b8c8' : '#555'};
+            word-break: break-all;
+            padding: 10px 12px;
+            border: 1px solid
+              ${(() => {
+                const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+                return tc ? (darkTheme ? darkenHex(tc, 0.7) : lightenHex(tc, 0.7)) : darkTheme ? '#3a3f4b' : '#d0d5dd';
+              })()};
+            border-radius: 6px;
+            background: ${(() => {
+              const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+              return tc ? (darkTheme ? darkenHex(tc, 0.85) : lightenHex(tc, 0.85)) : darkTheme ? '#1a1f2e' : '#f4f6f9';
+            })()};
+            margin-top: 8px;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            line-height: 1.5;
+          }
+          .ipfs-cid-label i {
+            color: ${(() => {
+              const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+              return tc ? (darkTheme ? lightenHex(tc, 0.5) : darkenHex(tc, 0.3)) : darkTheme ? '#4a9eff' : '#2196F3';
+            })()};
+            font-size: 14px;
+            flex-shrink: 0;
+          }
+          .ipfs-cid-label strong {
+            color: ${darkTheme ? '#cdd4e0' : '#333'};
+            white-space: nowrap;
+            font-size: 14px;
+          }
+          .ipfs-cid-label .ipfs-cid-value {
+            user-select: all;
+            cursor: text;
+            color: ${(() => {
+              const tc = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
+              return tc ? (darkTheme ? lightenHex(tc, 0.6) : darkenHex(tc, 0.3)) : darkTheme ? '#8ecfff' : '#1565c0';
+            })()};
+            font-family: monospace;
+            font-size: 13px;
+          }
 
           @media (max-width: 850px) {
             .object-layer-viewer-container {
@@ -619,6 +663,20 @@ const ObjectLayerEngineViewer = {
                       <span style="font-weight: 600;">${itemActivable ? 'Yes' : 'No'}</span>
                     </div>
                   </div>
+                  ${objectLayer.cid
+                    ? html`<div class="ipfs-cid-label">
+                        <i class="fa-solid fa-cube"></i>
+                        <strong>IPFS CID:</strong>
+                        <span class="ipfs-cid-value">${objectLayer.cid}</span>
+                      </div>`
+                    : ''}
+                  ${objectLayer.data.atlasSpriteSheetCid
+                    ? html`<div class="ipfs-cid-label">
+                        <i class="fa-solid fa-image"></i>
+                        <strong>Atlas IPFS CID:</strong>
+                        <span class="ipfs-cid-value">${objectLayer.data.atlasSpriteSheetCid}</span>
+                      </div>`
+                    : ''}
                 </div>
 
                 <!-- Stats Data Section -->
@@ -777,6 +835,16 @@ const ObjectLayerEngineViewer = {
                               <p style="padding: 2px"><strong class="item-data-key-label">ID:</strong></p>
                               <p style="padding: 2px" font-size: 12px;">${this.Data.atlasSpriteSheet._id}</p>
                             </div>
+                            ${
+                              this.Data.atlasSpriteSheet.cid
+                                ? html`<div style="grid-column: 1 / -1;">
+                                    <p style="padding: 2px"><strong class="item-data-key-label">IPFS CID:</strong></p>
+                                    <p class="ipfs-cid-value" style="padding: 2px;">
+                                      ${this.Data.atlasSpriteSheet.cid}
+                                    </p>
+                                  </div>`
+                                : ''
+                            }
                             <div>
                               <p style="padding: 2px"><strong class="item-data-key-label">Dimensions:</strong></p>
                               <p style="padding: 2px">
@@ -937,8 +1005,8 @@ const ObjectLayerEngineViewer = {
     const listBtn = s('#return-to-list-btn');
     if (listBtn) {
       listBtn.addEventListener('click', () => {
-        // Clear the cid parameter to return to list view
-        setQueryParams({ cid: null }, { replace: false });
+        // Clear the id parameter to return to list view
+        setQueryParams({ id: null }, { replace: false });
         // The listener will detect the change and call renderEmpty()
       });
     }
@@ -1020,7 +1088,10 @@ const ObjectLayerEngineViewer = {
           html: 'Atlas sprite sheet generated successfully',
           status: 'success',
         });
+        // Reset generating flag before reload so renderViewer shows updated content
+        this.Data.isGeneratingAtlas = false;
         await this.Reload({ Elements, force: true, skipWebp: true });
+        return;
       } else {
         throw new Error(message || 'Failed to generate atlas');
       }
@@ -1031,8 +1102,10 @@ const ObjectLayerEngineViewer = {
         status: 'error',
       });
     } finally {
-      this.Data.isGeneratingAtlas = false;
-      await this.renderViewer({ Elements });
+      if (this.Data.isGeneratingAtlas) {
+        this.Data.isGeneratingAtlas = false;
+        await this.renderViewer({ Elements });
+      }
     }
   },
 
@@ -1062,7 +1135,10 @@ const ObjectLayerEngineViewer = {
           html: 'Atlas sprite sheet removed successfully',
           status: 'success',
         });
+        // Reset generating flag before reload so renderViewer shows updated content
+        this.Data.isGeneratingAtlas = false;
         await this.Reload({ Elements, force: true, skipWebp: true });
+        return;
       } else {
         throw new Error(message || 'Failed to remove atlas');
       }
@@ -1073,8 +1149,10 @@ const ObjectLayerEngineViewer = {
         status: 'error',
       });
     } finally {
-      this.Data.isGeneratingAtlas = false;
-      await this.renderViewer({ Elements });
+      if (this.Data.isGeneratingAtlas) {
+        this.Data.isGeneratingAtlas = false;
+        await this.renderViewer({ Elements });
+      }
     }
   },
 
@@ -1209,7 +1287,7 @@ const ObjectLayerEngineViewer = {
     // Navigate to editor route first
     setPath(`${getProxyPath()}object-layer-engine`);
     // Then add query param without replacing history
-    setQueryParams({ cid: objectLayer._id }, { replace: true });
+    setQueryParams({ id: objectLayer._id }, { replace: true });
 
     if (s(`.modal-object-layer-engine`)) {
       ObjectLayerEngineModal.Reload();
@@ -1221,22 +1299,22 @@ const ObjectLayerEngineViewer = {
   Reload: async function (options = {}) {
     const { Elements, force = false, skipWebp = false } = options;
     const queryParams = getQueryParams();
-    const cid = queryParams.cid || null;
+    const objectId = queryParams.id || null;
 
-    // Only reload if cid actually changed (same logic as listener) or forced
-    if (cid !== this.Data.currentCid || force) {
-      if (cid !== this.Data.currentCid && !skipWebp) {
+    // Only reload if object id actually changed (same logic as listener) or forced
+    if (objectId !== this.Data.currentObjectId || force) {
+      if (objectId !== this.Data.currentObjectId && !skipWebp) {
         this.Data.webp = null;
         this.Data.webpMetadata = null;
       }
-      this.Data.currentCid = cid;
+      this.Data.currentObjectId = objectId;
 
-      if (cid) {
-        await this.loadObjectLayer(cid, Elements, { skipWebp });
+      if (objectId) {
+        await this.loadObjectLayer(objectId, Elements, { skipWebp });
       } else {
         await this.renderEmpty({ Elements });
       }
-    } else if (!cid && (this.Data.currentCid === null || force)) {
+    } else if (!objectId && (this.Data.currentObjectId === null || force)) {
       // Special case: if we're already in empty state but DOM might have been reset
       // (e.g., modal reopened), force render the table if DOM is missing
       const id = 'object-layer-engine-viewer';

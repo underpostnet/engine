@@ -9,6 +9,8 @@ import { ObjectLayerEngine } from '../../server/object-layer.js';
 import { shellExec } from '../../server/process.js';
 import { DataQuery } from '../../server/data-query.js';
 import { AtlasSpriteSheetService } from '../atlas-sprite-sheet/atlas-sprite-sheet.service.js';
+import { IpfsClient } from '../../server/ipfs-client.js';
+import { createPinRecord } from '../ipfs/ipfs.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -150,7 +152,27 @@ const ObjectLayerService = {
       // Add reference to render frames (top-level, not in data)
       objectLayerData.objectLayerRenderFramesId = objectLayerRenderFramesDoc._id;
 
-      // Generate SHA256 hash using fast-json-stable-stringify (seed is part of data)
+      // Add object layer data to IPFS and store the CID
+      try {
+        const itemId = objectLayerData.data.item.id;
+        const ipfsResult = await IpfsClient.addJsonToIpfs(
+          objectLayerData.data,
+          `${itemId}_data.json`,
+          `/object-layer/${itemId}/${itemId}_data.json`,
+        );
+        if (ipfsResult) {
+          objectLayerData.cid = ipfsResult.cid;
+          // Create pin record for the authenticated user
+          const userId = req.auth && req.auth.user ? req.auth.user._id : undefined;
+          if (userId) {
+            await createPinRecord({ cid: ipfsResult.cid, userId, pinType: 'recursive', options });
+          }
+        }
+      } catch (ipfsError) {
+        logger.warn('Failed to add object layer data to IPFS:', ipfsError.message);
+      }
+
+      // Generate SHA256 hash using fast-json-stable-stringify of objectLayer.data
       objectLayerData.sha256 = crypto.createHash('sha256').update(stringify(objectLayerData.data)).digest('hex');
 
       // Save to MongoDB
@@ -326,7 +348,9 @@ const ObjectLayerService = {
     logger.info(`ObjectLayerService.get - filtering check - id: ${id}`);
     if (id && id !== 'undefined' && !['render', 'metadata', 'frame-counts'].includes(id)) {
       try {
-        const objectLayer = await ObjectLayer.findById(id).select(ObjectLayerDto.select.get());
+        const objectLayer = await ObjectLayer.findById(id)
+          .select(ObjectLayerDto.select.get())
+          .populate('atlasSpriteSheetId', 'cid');
         if (objectLayer) {
           logger.info(`ObjectLayerService.get - found record by id: ${id}`);
           return { data: [objectLayer], total: 1, page: 1, totalPages: 1 };
@@ -344,7 +368,8 @@ const ObjectLayerService = {
         .sort(sort)
         .limit(limit)
         .skip(skip)
-        .select(ObjectLayerDto.select.get()),
+        .select(ObjectLayerDto.select.get())
+        .populate('atlasSpriteSheetId', 'cid'),
       ObjectLayer.countDocuments(query), // { userId: req.auth.user._id }
     ]);
     return { data, total, page, totalPages: Math.ceil(total / limit) };
@@ -627,7 +652,26 @@ const ObjectLayerService = {
         objectLayerData.objectLayerRenderFramesId = objectLayerRenderFramesDoc._id;
       }
 
-      // Generate SHA256 hash using fast-json-stable-stringify (seed is part of data)
+      // Add object layer data to IPFS and store the CID
+      try {
+        const itemId = objectLayerData.data.item.id;
+        const ipfsResult = await IpfsClient.addJsonToIpfs(
+          objectLayerData.data,
+          `${itemId}_data.json`,
+          `/object-layer/${itemId}/${itemId}_data.json`,
+        );
+        if (ipfsResult) {
+          objectLayerData.cid = ipfsResult.cid;
+          const userId = req.auth && req.auth.user ? req.auth.user._id : undefined;
+          if (userId) {
+            await createPinRecord({ cid: ipfsResult.cid, userId, pinType: 'recursive', options });
+          }
+        }
+      } catch (ipfsError) {
+        logger.warn('Failed to add object layer data to IPFS:', ipfsError.message);
+      }
+
+      // Generate SHA256 hash using fast-json-stable-stringify of objectLayer.data
       objectLayerData.sha256 = crypto.createHash('sha256').update(stringify(objectLayerData.data)).digest('hex');
 
       // Save to MongoDB

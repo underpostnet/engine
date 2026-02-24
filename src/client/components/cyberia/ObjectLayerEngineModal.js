@@ -195,7 +195,7 @@ const ObjectLayerEngineModal = {
     const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor'];
     const statTypes = ['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility'];
 
-    // Check if we have a 'cid' query parameter to load existing object layer
+    // Check if we have an 'id' query parameter to load existing object layer
     const queryParams = getQueryParams();
     let loadedData = null;
 
@@ -302,9 +302,9 @@ const ObjectLayerEngineModal = {
       });
     };
 
-    if (queryParams.cid) {
-      ObjectLayerEngineModal.existingObjectLayerId = queryParams.cid;
-      loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.cid);
+    if (queryParams.id) {
+      ObjectLayerEngineModal.existingObjectLayerId = queryParams.id;
+      loadedData = await ObjectLayerEngineModal.loadFromDatabase(queryParams.id);
 
       if (loadedData) {
         const { metadata, objectLayerRenderFramesId } = loadedData;
@@ -1257,7 +1257,6 @@ const ObjectLayerEngineModal = {
       setPath(`${getProxyPath()}object-layer-engine-management`);
       const queryParams = getQueryParams();
       queryParams.id = id ? id : '';
-      queryParams.cid = '';
       queryParams.page = 1;
       setQueryParams(queryParams, { replace: true });
 
