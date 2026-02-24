@@ -509,33 +509,23 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // https://besu.hyperledger.org/
       // https://github.com/hyperledger/besu/archive/refs/tags/24.9.1.tar.gz
 
-      switch (process.platform) {
-        case 'linux':
-          {
-            shellCd(`..`);
+      shellCd(`..`);
 
-            // Download the Linux binary
-            shellExec(`wget https://github.com/hyperledger/besu/releases/download/24.9.1/besu-24.9.1.tar.gz`);
+      // Download the Linux binary
+      shellExec(`wget https://github.com/hyperledger/besu/releases/download/24.9.1/besu-24.9.1.tar.gz`);
 
-            // Unzip the file:
-            shellExec(`tar -xvzf besu-24.9.1.tar.gz`);
+      // Unzip the file:
+      shellExec(`tar -xvzf besu-24.9.1.tar.gz`);
 
-            shellCd(`besu-24.9.1`);
+      shellCd(`besu-24.9.1`);
 
-            shellExec(`bin/besu --help`);
+      shellExec(`bin/besu --help`);
 
-            // Set env path
-            // export PATH=$PATH:/home/dd/besu-24.9.1/bin
+      // Set env path
+      // export PATH=$PATH:/home/dd/besu-24.9.1/bin
 
-            // Open src
-            // shellExec(`sudo code /home/dd/besu-24.9.1 --user-data-dir="/root/.vscode-root" --no-sandbox`);
-          }
-
-          break;
-
-        default:
-          break;
-      }
+      // Open src
+      // shellExec(`sudo code /home/dd/besu-24.9.1 --user-data-dir="/root/.vscode-root" --no-sandbox`);
 
       break;
     }
@@ -977,10 +967,10 @@ nvidia/gpu-operator \
             `${key}`.toUpperCase().match('MAC')
               ? 'changethis'
               : isNaN(parseFloat(privateEnv[key]))
-              ? `${privateEnv[key]}`.match(`@`)
-                ? 'admin@default.net'
-                : 'changethis'
-              : privateEnv[key];
+                ? `${privateEnv[key]}`.match(`@`)
+                  ? 'admin@default.net'
+                  : 'changethis'
+                : privateEnv[key];
         }
         return env;
       };

@@ -6,27 +6,6 @@
     }
   },
   {
-    "api": "cyberia-biome",
-    "model": {
-      "fileId": true,
-      "topLevelColorFileId": true
-    }
-  },
-  {
-    "api": "cyberia-tile",
-    "model": {
-      "fileId": true
-    }
-  },
-  {
-    "api": "cyberia-world",
-    "model": {
-      "adjacentFace": {
-        "fileId": true
-      }
-    }
-  },
-  {
     "api": "document",
     "model": {
       "fileId": true,
