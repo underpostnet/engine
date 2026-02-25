@@ -647,24 +647,24 @@ function applySecurity(app, opts = {}) {
     }),
   );
   logger.info('Cors origin', origin);
+  if (!process.env.DISABLE_API_RATE_LIMIT) {
+    // Rate limiting + slow down
+    const limiter = rateLimit({
+      windowMs: rate.windowMs,
+      max: rate.max,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many requests, please try again later.' },
+    });
+    app.use(limiter);
 
-  // Rate limiting + slow down
-  const limiter = rateLimit({
-    windowMs: rate.windowMs,
-    max: rate.max,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many requests, please try again later.' },
-  });
-  app.use(limiter);
-
-  const speedLimiter = slowDown({
-    windowMs: slowdown.windowMs,
-    delayAfter: slowdown.delayAfter,
-    delayMs: () => slowdown.delayMs,
-  });
-  app.use(speedLimiter);
-
+    const speedLimiter = slowDown({
+      windowMs: slowdown.windowMs,
+      delayAfter: slowdown.delayAfter,
+      delayMs: () => slowdown.delayMs,
+    });
+    app.use(speedLimiter);
+  }
   // Cookie parsing
   app.use(cookieParser(process.env.JWT_SECRET));
 }

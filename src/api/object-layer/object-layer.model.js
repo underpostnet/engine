@@ -131,7 +131,14 @@ const ProviderSchema = ObjectLayerSchema;
 const ObjectLayerDto = {
   select: {
     get: () => {
-      return { _id: 1, 'data.item': 1, 'data.atlasSpriteSheetCid': 1, cid: 1, atlasSpriteSheetId: 1 };
+      return {
+        _id: 1,
+        'data.item': 1,
+        'data.atlasSpriteSheetCid': 1,
+        cid: 1,
+        objectLayerRenderFramesId: 1,
+        atlasSpriteSheetId: 1,
+      };
     },
     getMetadata: () => {
       return {

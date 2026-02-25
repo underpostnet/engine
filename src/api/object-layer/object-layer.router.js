@@ -20,16 +20,12 @@ const ObjectLayerRouter = (options) => {
     `/generate-webp/:itemType/:itemId/:directionCode`,
     async (req, res) => await ObjectLayerController.generateWebp(req, res, options),
   );
-  router.get(`/render/:id`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));
-  router.get(`/metadata/:id`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));
-  router.get(
-    `/frame-counts/:id`,
-    authMiddleware,
-    async (req, res) => await ObjectLayerController.get(req, res, options),
-  );
-  router.get(`/:id`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));
-  router.get(`/:id`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));
-  router.get(`/`, authMiddleware, async (req, res) => await ObjectLayerController.get(req, res, options));
+  router.get(`/render/:id`, async (req, res) => await ObjectLayerController.get(req, res, options));
+  router.get(`/metadata/:id`, async (req, res) => await ObjectLayerController.get(req, res, options));
+  router.get(`/frame-counts/:id`, async (req, res) => await ObjectLayerController.get(req, res, options));
+  router.get(`/:id`, async (req, res) => await ObjectLayerController.get(req, res, options));
+  router.get(`/:id`, async (req, res) => await ObjectLayerController.get(req, res, options));
+  router.get(`/`, async (req, res) => await ObjectLayerController.get(req, res, options));
   router.put(
     `/:id/frame-image/:itemType/:itemId/:directionCode`,
     authMiddleware,

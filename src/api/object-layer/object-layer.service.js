@@ -1,5 +1,6 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
+import { ObjectLayerRenderFramesDto } from '../object-layer-render-frames/object-layer-render-frames.model.js';
 import { FileFactory } from '../file/file.service.js';
 import fs from 'fs-extra';
 import crypto from 'crypto';
@@ -293,7 +294,9 @@ const ObjectLayerService = {
 
     // GET /metadata/:id - Get only metadata (no render frames/colors) for specific object layer
     if (req.path.startsWith('/metadata/')) {
-      const objectLayer = await ObjectLayer.findById(req.params.id).select(ObjectLayerDto.select.getMetadata());
+      const objectLayer = await ObjectLayer.findById(req.params.id)
+        .select(ObjectLayerDto.select.getMetadata())
+        .populate('objectLayerRenderFramesId', ObjectLayerRenderFramesDto.select.get());
       if (!objectLayer) {
         throw new Error('ObjectLayer not found');
       }
@@ -350,7 +353,8 @@ const ObjectLayerService = {
       try {
         const objectLayer = await ObjectLayer.findById(id)
           .select(ObjectLayerDto.select.get())
-          .populate('atlasSpriteSheetId', 'cid');
+          .populate('atlasSpriteSheetId', 'cid')
+          .populate('objectLayerRenderFramesId', ObjectLayerRenderFramesDto.select.get());
         if (objectLayer) {
           logger.info(`ObjectLayerService.get - found record by id: ${id}`);
           return { data: [objectLayer], total: 1, page: 1, totalPages: 1 };
@@ -369,7 +373,8 @@ const ObjectLayerService = {
         .limit(limit)
         .skip(skip)
         .select(ObjectLayerDto.select.get())
-        .populate('atlasSpriteSheetId', 'cid'),
+        .populate('atlasSpriteSheetId', 'cid')
+        .populate('objectLayerRenderFramesId', ObjectLayerRenderFramesDto.select.get()),
       ObjectLayer.countDocuments(query), // { userId: req.auth.user._id }
     ]);
     return { data, total, page, totalPages: Math.ceil(total / limit) };
