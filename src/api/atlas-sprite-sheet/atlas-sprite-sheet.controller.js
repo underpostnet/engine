@@ -51,13 +51,14 @@ const AtlasSpriteSheetController = {
   },
   get: async (req, res, options) => {
     try {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       const { page, limit } = req.query;
       const result = await AtlasSpriteSheetService.get(
         { ...req, query: { ...req.query, page: parseInt(page), limit: parseInt(limit) } },
         res,
         options,
       );
-      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
       return res.status(200).json({
         status: 'success',
         data: result,
