@@ -57,6 +57,7 @@ const AtlasSpriteSheetController = {
         res,
         options,
       );
+      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
       return res.status(200).json({
         status: 'success',
         data: result,
