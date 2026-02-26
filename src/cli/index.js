@@ -218,7 +218,6 @@ program
   .option('--contour', 'Initializes the cluster with Project Contour base HTTPProxy and Envoy.')
   .option('--cert-manager', "Initializes the cluster with a Let's Encrypt production ClusterIssuer.")
   .option('--dedicated-gpu', 'Initializes the cluster with dedicated GPU base resources and environment settings.')
-  .option('--full', 'Initializes the cluster with all available statefulsets and services.')
   .option(
     '--ns-use <ns-name>',
     "Switches the current Kubernetes context to the specified namespace (creates if it doesn't exist).",

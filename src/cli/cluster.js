@@ -37,7 +37,6 @@ class UnderpostCluster {
      * @param {boolean} [options.postgresql=false] - Deploy PostgreSQL.
      * @param {boolean} [options.valkey=false] - Deploy Valkey.
      * @param {boolean} [options.ipfs=false] - Deploy ipfs-cluster statefulset.
-     * @param {boolean} [options.full=false] - Deploy a full set of common components.
      * @param {boolean} [options.info=false] - Display extensive Kubernetes cluster information.
      * @param {boolean} [options.certManager=false] - Deploy Cert-Manager for certificate management.
      * @param {boolean} [options.listPods=false] - List Kubernetes pods.
@@ -75,7 +74,6 @@ class UnderpostCluster {
         postgresql: false,
         valkey: false,
         ipfs: false,
-        full: false,
         info: false,
         certManager: false,
         listPods: false,
@@ -102,26 +100,22 @@ class UnderpostCluster {
         replicas: '',
       },
     ) {
-      // Handles initial host setup (installing docker, podman, kind, kubeadm, helm)
-      if (options.initHost === true) return Underpost.cluster.initHost();
+      if (options.initHost) return Underpost.cluster.initHost();
 
-      // Handles initial host setup (installing docker, podman, kind, kubeadm, helm)
-      if (options.uninstallHost === true) return Underpost.cluster.uninstallHost();
+      if (options.uninstallHost) return Underpost.cluster.uninstallHost();
 
-      // Applies general host configuration (SELinux, containerd, sysctl)
-      if (options.config === true) return Underpost.cluster.config();
+      if (options.config) return Underpost.cluster.config();
 
-      // Sets up kubectl configuration for the current user
-      if (options.chown === true) return Underpost.cluster.chown();
+      if (options.chown) return Underpost.cluster.chown();
 
       const npmRoot = getNpmRootPath();
-      const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
+      const underpostRoot = options.dev ? '.' : `${npmRoot}/underpost`;
 
-      if (options.listPods === true) return console.table(Underpost.deploy.get(podName ?? undefined));
+      if (options.listPods) return console.table(Underpost.deploy.get(podName ?? undefined));
       // Set default namespace if not specified
       if (!options.namespace) options.namespace = 'default';
 
-      if (options.nsUse && typeof options.nsUse === 'string') {
+      if (options.nsUse) {
         // Verify if namespace exists, create if not
         const namespaceExists = shellExec(`kubectl get namespace ${options.nsUse} --ignore-not-found -o name`, {
           stdout: true,
@@ -142,8 +136,8 @@ class UnderpostCluster {
       }
 
       // Reset Kubernetes cluster components (Kind/Kubeadm/K3s) and container runtimes
-      if (options.reset === true) {
-        const clusterType = options.k3s === true ? 'k3s' : options.kubeadm === true ? 'kubeadm' : 'kind';
+      if (options.reset) {
+        const clusterType = options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind';
         return await Underpost.cluster.safeReset({
           underpostRoot,
           removeVolumeHostPaths: options.removeVolumeHostPaths,
@@ -160,7 +154,7 @@ class UnderpostCluster {
       // --- Kubeadm/Kind/K3s Cluster Initialization ---
       if (!alreadyKubeadmCluster && !alreadyKindCluster && !alreadyK3sCluster) {
         Underpost.cluster.config();
-        if (options.k3s === true) {
+        if (options.k3s) {
           logger.info('Initializing K3s control plane...');
           // Install K3s
           logger.info('Installing K3s...');
@@ -172,7 +166,7 @@ class UnderpostCluster {
           logger.info('Waiting for K3s to be ready...');
           shellExec(`sudo systemctl is-active --wait k3s || sudo systemctl wait --for=active k3s.service`);
           logger.info('K3s service is active.');
-        } else if (options.kubeadm === true) {
+        } else if (options.kubeadm) {
           logger.info('Initializing Kubeadm control plane...');
           // Set default values if not provided
           const podNetworkCidr = options.podNetworkCidr || '192.168.0.0/16';
@@ -208,7 +202,7 @@ class UnderpostCluster {
           logger.info('Initializing Kind cluster...');
           shellExec(
             `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${
-              options?.dev === true ? '-dev' : ''
+              options.dev ? '-dev' : ''
             }.yaml`,
           );
           Underpost.cluster.chown('kind'); // Pass 'kind' to chown
@@ -218,14 +212,12 @@ class UnderpostCluster {
       // --- Optional Component Deployments (Databases, Ingress, Cert-Manager) ---
       // These deployments happen after the base cluster is up.
 
-      if (options.full === true || options.dedicatedGpu === true) {
+      if (options.dedicatedGpu) {
         shellExec(`node ${underpostRoot}/bin/deploy nvidia-gpu-operator`);
-        shellExec(
-          `node ${underpostRoot}/bin/deploy kubeflow-spark-operator${options.kubeadm === true ? ' kubeadm' : ''}`,
-        );
+        shellExec(`node ${underpostRoot}/bin/deploy kubeflow-spark-operator${options.kubeadm ? ' kubeadm' : ''}`);
       }
 
-      if (options.grafana === true) {
+      if (options.grafana) {
         shellExec(`kubectl delete deployment grafana -n ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/grafana -n ${options.namespace}`);
         const yaml = `${fs
@@ -238,7 +230,7 @@ EOF
 `);
       }
 
-      if (options.prom && typeof options.prom === 'string') {
+      if (options.prom) {
         shellExec(`kubectl delete deployment prometheus --ignore-not-found`);
         shellExec(`kubectl delete configmap prometheus-config --ignore-not-found`);
         shellExec(`kubectl delete service prometheus --ignore-not-found`);
@@ -257,8 +249,8 @@ EOF
 `);
       }
 
-      if (options.full === true || options.valkey === true) {
-        if (options.pullImage === true) Underpost.cluster.pullImage('valkey/valkey:latest', options);
+      if (options.valkey) {
+        if (options.pullImage) Underpost.cluster.pullImage('valkey/valkey:latest', options);
         shellExec(`kubectl delete statefulset valkey-service -n ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey -n ${options.namespace}`);
         await Underpost.test.statusMonitor('valkey-service', 'Running', 'pods', 1000, 60 * 10);
@@ -266,17 +258,17 @@ EOF
       if (options.ipfs) {
         await Underpost.ipfs.deploy(options, underpostRoot);
       }
-      if (options.full === true || options.mariadb === true) {
+      if (options.mariadb) {
         shellExec(
           `sudo kubectl create secret generic mariadb-secret --from-file=username=/home/dd/engine/engine-private/mariadb-username --from-file=password=/home/dd/engine/engine-private/mariadb-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
         shellExec(`kubectl delete statefulset mariadb-statefulset -n ${options.namespace} --ignore-not-found`);
 
-        if (options.pullImage === true) Underpost.cluster.pullImage('mariadb:latest', options);
+        if (options.pullImage) Underpost.cluster.pullImage('mariadb:latest', options);
         shellExec(`kubectl apply -f ${underpostRoot}/manifests/mariadb/storage-class.yaml -n ${options.namespace}`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb -n ${options.namespace}`);
       }
-      if (options.full === true || options.mysql === true) {
+      if (options.mysql) {
         shellExec(
           `sudo kubectl create secret generic mysql-secret --from-file=username=/home/dd/engine/engine-private/mysql-username --from-file=password=/home/dd/engine/engine-private/mysql-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
@@ -285,15 +277,15 @@ EOF
         shellExec(`sudo chown -R $(whoami):$(whoami) /mnt/data`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mysql -n ${options.namespace}`);
       }
-      if (options.full === true || options.postgresql === true) {
-        if (options.pullImage === true) Underpost.cluster.pullImage('postgres:latest', options);
+      if (options.postgresql) {
+        if (options.pullImage) Underpost.cluster.pullImage('postgres:latest', options);
         shellExec(
           `sudo kubectl create secret generic postgres-secret --from-file=password=/home/dd/engine/engine-private/postgresql-password --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/postgresql -n ${options.namespace}`);
       }
-      if (options.mongodb4 === true) {
-        if (options.pullImage === true) Underpost.cluster.pullImage('mongo:4.4', options);
+      if (options.mongodb4) {
+        if (options.pullImage) Underpost.cluster.pullImage('mongo:4.4', options);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb-4.4 -n ${options.namespace}`);
 
         const deploymentName = 'mongodb-deployment';
@@ -314,8 +306,8 @@ EOF
         --eval 'rs.initiate(${JSON.stringify(mongoConfig)})'`,
           );
         }
-      } else if (options.full === true || options.mongodb === true) {
-        if (options.pullImage === true) Underpost.cluster.pullImage('mongo:latest', options);
+      } else if (options.mongodb) {
+        if (options.pullImage) Underpost.cluster.pullImage('mongo:latest', options);
         shellExec(
           `sudo kubectl create secret generic mongodb-keyfile --from-file=/home/dd/engine/engine-private/mongodb-keyfile --dry-run=client -o yaml | kubectl apply -f - -n ${options.namespace}`,
         );
@@ -344,11 +336,11 @@ EOF
         }
       }
 
-      if (options.full === true || options.contour === true) {
+      if (options.contour) {
         shellExec(
           `kubectl apply -f https://cdn.jsdelivr.net/gh/projectcontour/contour@release-1.33/examples/render/contour.yaml`,
         );
-        if (options.kubeadm === true) {
+        if (options.kubeadm) {
           // Envoy service might need NodePort for kubeadm
           shellExec(
             `sudo kubectl apply -f ${underpostRoot}/manifests/envoy-service-nodeport.yaml -n ${options.namespace}`,
@@ -358,7 +350,7 @@ EOF
         // so a specific NodePort service might not be needed or can be configured differently.
       }
 
-      if (options.full === true || options.certManager === true) {
+      if (options.certManager) {
         if (!Underpost.deploy.get('cert-manager').find((p) => p.STATUS === 'Running')) {
           shellExec(`helm repo add jetstack https://charts.jetstack.io --force-update`);
           shellExec(
