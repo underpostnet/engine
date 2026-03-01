@@ -11,7 +11,10 @@ import { NotificationManager } from '../../components/core/NotificationManager.j
 import { AgGrid } from '../../components/core/AgGrid.js';
 
 const ObjectLayerManagement = {
-  RenderTable: async ({ Elements, idModal }) => {
+  RenderTable: async ({ Elements, idModal: rawIdModal }) => {
+    const idModal = rawIdModal || 'modal-object-layer-engine-management';
+    const serviceId = 'object-layer-engine-management';
+    const gridId = `${serviceId}-grid-${idModal}`;
     const user = Elements.Data.user.main.model.user;
     const { role } = user;
 
@@ -197,7 +200,6 @@ const ObjectLayerManagement = {
                     html: `Object layer "${itemId}" deleted successfully`,
                     status: 'success',
                   });
-                  const gridId = `object-layer-engine-management-grid-${idModal}`;
                   if (AgGrid.grids[gridId]) {
                     AgGrid.grids[gridId].applyTransaction({ remove: [data] });
                   }
@@ -208,7 +210,7 @@ const ObjectLayerManagement = {
                     if (token.page > newTotalPages && newTotalPages > 0) {
                       token.page = newTotalPages;
                     }
-                    DefaultManagement.loadTable(idModal, { reload: true });
+                    await DefaultManagement.loadTable(idModal, { reload: false });
                   }
                 } else {
                   throw new Error(result.message || 'Failed to delete object layer');
@@ -344,8 +346,8 @@ const ObjectLayerManagement = {
     ];
 
     return await DefaultManagement.RenderTable({
-      idModal: idModal ? idModal : 'modal-object-layer-engine-management',
-      serviceId: 'object-layer-engine-management',
+      idModal,
+      serviceId,
       entity: 'object-layer',
       permissions: {
         add: commonUserGuard(role),
