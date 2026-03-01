@@ -322,7 +322,7 @@ const Modal = {
                 'body',
                 html`
                   <div
-                    class="abs main-body-btn-container hide"
+                    class="abs main-body-btn-container"
                     style="top: ${options.heightTopBar + 50}px; z-index: 9; ${true ||
                     (options.mode && options.mode.match('right'))
                       ? 'right'

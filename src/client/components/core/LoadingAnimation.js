@@ -27,8 +27,8 @@ const LoadingAnimation = {
                 ? subThemeManager.darkColor
                 : `#66e400`
               : subThemeManager.lightColor
-              ? subThemeManager.lightColor
-              : `#157e00`};"
+                ? subThemeManager.lightColor
+                : `#157e00`};"
           ></div>
         `,
       );
@@ -131,7 +131,6 @@ const LoadingAnimation = {
     if (!backgroundContainer) backgroundContainer = '.ssr-background';
     if (s(backgroundContainer)) {
       s(backgroundContainer).style.display = 'none';
-      if (s(`.main-body-btn-container`)) s(`.main-body-btn-container`).classList.remove('hide');
       if (callBack) callBack();
     }
   },
