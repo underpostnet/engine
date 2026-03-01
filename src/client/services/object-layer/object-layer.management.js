@@ -1,12 +1,14 @@
 import { DefaultManagement } from '../default/default.management.js';
 import { ObjectLayerService } from './object-layer.service.js';
-import { commonUserGuard } from '../../components/core/CommonJs.js';
+import { commonUserGuard, commonModeratorGuard } from '../../components/core/CommonJs.js';
 import { getProxyPath, setPath, setQueryParams } from '../../components/core/Router.js';
 import { ObjectLayerEngineModal } from '../../components/cyberia/ObjectLayerEngineModal.js';
 import { ObjectLayerEngineViewer } from '../../components/cyberia/ObjectLayerEngineViewer.js';
 import { s } from '../../components/core/VanillaJs.js';
 import { Modal } from '../../components/core/Modal.js';
 import { BtnIcon } from '../../components/core/BtnIcon.js';
+import { NotificationManager } from '../../components/core/NotificationManager.js';
+import { AgGrid } from '../../components/core/AgGrid.js';
 
 const ObjectLayerManagement = {
   RenderTable: async ({ Elements, idModal }) => {
@@ -148,6 +150,88 @@ const ObjectLayerManagement = {
       }
     }
 
+    // Custom renderer for delete button (moderator+ only)
+    const canDelete = commonModeratorGuard(role);
+
+    class DeleteButtonRenderer {
+      eGui;
+
+      async init(params) {
+        this.eGui = document.createElement('div');
+        const { data } = params;
+
+        if (!data || !data._id || !canDelete) {
+          this.eGui.innerHTML = '';
+          return;
+        }
+
+        this.eGui.innerHTML = html` ${await BtnIcon.Render({
+          label: html`<div class="abs center">
+            <i class="fas fa-trash" style="color: #dc3545;"></i>
+          </div> `,
+          class: `in fll section-mp management-table-btn-mini btn-delete-object-layer-${data._id}`,
+        })}`;
+
+        setTimeout(() => {
+          const btn = this.eGui.querySelector(`.btn-delete-object-layer-${data._id}`);
+          if (btn)
+            btn.onclick = async () => {
+              const itemId = data?.data?.item?.id || data._id;
+              const confirmResult = await Modal.RenderConfirm({
+                id: `delete-object-layer-${data._id}`,
+                html: async () => html`
+                  <div class="in section-mp" style="text-align: center">
+                    <p>Are you sure you want to permanently delete object layer <strong>"${itemId}"</strong>?</p>
+                    <p style="color: #dc3545; font-size: 13px; margin-top: 8px;">
+                      This will remove all associated data including render frames, atlas sprite sheet, IPFS pins, and
+                      static asset files.
+                    </p>
+                  </div>
+                `,
+              });
+              if (confirmResult.status !== 'confirm') return;
+              try {
+                const result = await ObjectLayerService.delete({ id: data._id });
+                if (result.status === 'success') {
+                  NotificationManager.Push({
+                    html: `Object layer "${itemId}" deleted successfully`,
+                    status: 'success',
+                  });
+                  const gridId = `object-layer-engine-management-grid-${idModal}`;
+                  if (AgGrid.grids[gridId]) {
+                    AgGrid.grids[gridId].applyTransaction({ remove: [data] });
+                  }
+                  const token = DefaultManagement.Tokens[idModal];
+                  if (token) {
+                    const newTotal = token.total - 1;
+                    const newTotalPages = Math.ceil(newTotal / token.limit);
+                    if (token.page > newTotalPages && newTotalPages > 0) {
+                      token.page = newTotalPages;
+                    }
+                    DefaultManagement.loadTable(idModal, { reload: true });
+                  }
+                } else {
+                  throw new Error(result.message || 'Failed to delete object layer');
+                }
+              } catch (error) {
+                NotificationManager.Push({
+                  html: `Failed to delete: ${error.message}`,
+                  status: 'error',
+                });
+              }
+            };
+        });
+      }
+
+      getGui() {
+        return this.eGui;
+      }
+
+      refresh(params) {
+        return true;
+      }
+    }
+
     const createCidRenderer = (cidAccessor) => {
       return class {
         eGui;
@@ -244,6 +328,19 @@ const ObjectLayerManagement = {
         sortable: false,
         filter: false,
       },
+      ...(canDelete
+        ? [
+            {
+              field: 'delete',
+              headerName: '',
+              width: 100,
+              cellRenderer: DeleteButtonRenderer,
+              editable: false,
+              sortable: false,
+              filter: false,
+            },
+          ]
+        : []),
     ];
 
     return await DefaultManagement.RenderTable({
@@ -252,7 +349,7 @@ const ObjectLayerManagement = {
       entity: 'object-layer',
       permissions: {
         add: commonUserGuard(role),
-        remove: commonUserGuard(role),
+        remove: false,
         reload: commonUserGuard(role),
       },
       customEvent: {

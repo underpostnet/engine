@@ -10,7 +10,7 @@ import {
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { NotificationManager } from '../core/NotificationManager.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { append, htmls, s } from '../core/VanillaJs.js';
 
 import { darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
@@ -993,6 +993,19 @@ const ObjectLayerEngineViewer = {
     const container = s('#metadata-json-editor-container');
     if (!container) return;
 
+    // Ensure vanilla-jsoneditor dark theme CSS is loaded
+    if (!s('.jse-dark-theme-link')) {
+      append(
+        'head',
+        html`<link
+          class="jse-dark-theme-link"
+          rel="stylesheet"
+          type="text/css"
+          href="${getProxyPath()}styles/vanilla-jsoneditor/jse-theme-dark.css"
+        />`,
+      );
+    }
+
     // Destroy previous instance if any
     if (this.Data.metadataJsonEditor) {
       this.Data.metadataJsonEditor.destroy();
@@ -1018,17 +1031,28 @@ const ObjectLayerEngineViewer = {
         },
       });
 
-      // Apply dark theme class if needed
-      if (darkTheme) {
-        container.classList.add('jse-theme-dark');
-      } else {
-        container.classList.remove('jse-theme-dark');
-      }
+      // Apply dark theme class based on current theme
+      this._applyJsonEditorTheme();
+
+      // Register theme event to toggle dark/light on the JSON editor
+      ThemeEvents['metadata-json-editor-theme'] = () => {
+        this._applyJsonEditorTheme();
+      };
     } catch (err) {
       logger.warn('Failed to initialize metadata JSON editor:', err);
       container.innerHTML = html`<div style="padding: 20px; color: #999; text-align: center;">
         Failed to load metadata JSON
       </div>`;
+    }
+  },
+
+  _applyJsonEditorTheme: function () {
+    const container = s('#metadata-json-editor-container');
+    if (!container) return;
+    if (darkTheme) {
+      container.classList.add('jse-theme-dark');
+    } else {
+      container.classList.remove('jse-theme-dark');
     }
   },
 
@@ -1061,11 +1085,12 @@ const ObjectLayerEngineViewer = {
           status: 'success',
         });
 
-        // Clean up JSON editor
+        // Clean up JSON editor and its theme event
         if (this.Data.metadataJsonEditor) {
           this.Data.metadataJsonEditor.destroy();
           this.Data.metadataJsonEditor = null;
         }
+        delete ThemeEvents['metadata-json-editor-theme'];
 
         // Navigate back to list
         this.Data.currentObjectId = undefined;

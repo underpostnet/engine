@@ -130,6 +130,8 @@ const DefaultConf = /**/ {
           public_folder: '/dist/vanilla-jsoneditor/standalone.js',
           import_name: 'vanilla-jsoneditor',
           import_name_build: '/dist/vanilla-jsoneditor/standalone.js',
+          styles: './node_modules/vanilla-jsoneditor/themes',
+          public_styles_folder: '/styles/vanilla-jsoneditor',
         },
       ],
       services: [
