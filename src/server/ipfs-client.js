@@ -365,6 +365,47 @@ const listKuboPins = async (type = 'recursive') => {
 };
 
 // ─────────────────────────────────────────────────────────
+//  MFS management
+// ─────────────────────────────────────────────────────────
+
+/**
+ * Remove a file or directory from the Kubo MFS (Mutable File System).
+ * This cleans up entries visible in the IPFS Web UI "Files" section.
+ *
+ * @param {string} mfsPath – Full MFS path to remove, e.g. `/pinned/myfile.json`
+ *                           or `/object-layer/itemId`.
+ * @param {boolean} [recursive=true] – When `true`, removes directories recursively.
+ * @returns {Promise<boolean>} `true` when the removal succeeded or the path didn't exist.
+ */
+const removeMfsPath = async (mfsPath, recursive = true) => {
+  const kuboUrl = getIpfsApiUrl();
+  try {
+    // First check if the path exists via stat; if it doesn't we can return early.
+    const statRes = await fetch(`${kuboUrl}/api/v0/files/stat?arg=${encodeURIComponent(mfsPath)}`, { method: 'POST' });
+    if (!statRes.ok) {
+      // Path doesn't exist – nothing to remove.
+      logger.info(`IPFS MFS rm – path does not exist, skipping: ${mfsPath}`);
+      return true;
+    }
+
+    const rmRes = await fetch(
+      `${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(mfsPath)}&force=true${recursive ? '&recursive=true' : ''}`,
+      { method: 'POST' },
+    );
+    if (!rmRes.ok) {
+      const text = await rmRes.text();
+      logger.warn(`IPFS MFS rm failed (${rmRes.status}): ${text}`);
+      return false;
+    }
+    logger.info(`IPFS MFS rm OK – ${mfsPath}`);
+    return true;
+  } catch (err) {
+    logger.warn(`IPFS MFS rm unreachable: ${err.message}`);
+    return false;
+  }
+};
+
+// ─────────────────────────────────────────────────────────
 //  Export
 // ─────────────────────────────────────────────────────────
 
@@ -380,6 +421,7 @@ const IpfsClient = {
   getFromIpfs,
   listClusterPins,
   listKuboPins,
+  removeMfsPath,
 };
 
 export { IpfsClient };

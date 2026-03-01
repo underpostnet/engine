@@ -724,15 +724,98 @@ const ObjectLayerService = {
   delete: async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
+    const ObjectLayerRenderFrames =
+      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
+    /** @type {import('../ipfs/ipfs.model.js').IpfsModel} */
+    const Ipfs = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Ipfs;
+
     if (req.params.id) {
-      // Clean up atlas and associated files
+      // Load the full object layer so we can access all references
+      const objectLayer = await ObjectLayer.findById(req.params.id);
+      if (!objectLayer) {
+        throw new Error('ObjectLayer not found');
+      }
+
+      const itemType = objectLayer.data?.item?.type;
+      const itemId = objectLayer.data?.item?.id;
+
+      // ── 1. Clean up AtlasSpriteSheet, its File, and atlas IPFS CID ──
       try {
         await AtlasSpriteSheetService.deleteByObjectLayerId(req, res, options);
       } catch (atlasError) {
         logger.error('Failed to clean up atlas during ObjectLayer deletion:', atlasError);
       }
-      return await ObjectLayer.findByIdAndDelete(req.params.id);
-    } else return await ObjectLayer.deleteMany();
+
+      // ── 2. Clean up ObjectLayerRenderFrames document ──
+      if (objectLayer.objectLayerRenderFramesId) {
+        try {
+          await ObjectLayerRenderFrames.findByIdAndDelete(objectLayer.objectLayerRenderFramesId);
+          logger.info(
+            `Deleted ObjectLayerRenderFrames ${objectLayer.objectLayerRenderFramesId} for ObjectLayer ${req.params.id}`,
+          );
+        } catch (renderFramesError) {
+          logger.error('Failed to delete ObjectLayerRenderFrames:', renderFramesError);
+        }
+      }
+
+      // ── 3. Unpin object layer data JSON CID from IPFS and remove pin records ──
+      if (objectLayer.cid) {
+        try {
+          const othersCount = await Ipfs.countDocuments({ cid: objectLayer.cid });
+          await Ipfs.deleteMany({ cid: objectLayer.cid });
+          if (othersCount <= 1) {
+            await IpfsClient.unpinCid(objectLayer.cid);
+          }
+          logger.info(`Cleaned up IPFS data CID ${objectLayer.cid} for ObjectLayer ${req.params.id}`);
+        } catch (ipfsError) {
+          logger.warn(`Failed to clean up IPFS data CID ${objectLayer.cid}: ${ipfsError.message}`);
+        }
+      }
+
+      // ── 4. Remove MFS directory for this object layer (covers both data JSON and atlas PNG) ──
+      if (itemId) {
+        try {
+          await IpfsClient.removeMfsPath(`/object-layer/${itemId}`);
+          logger.info(`Removed MFS directory /object-layer/${itemId}`);
+        } catch (mfsError) {
+          logger.warn(`Failed to remove MFS path /object-layer/${itemId}: ${mfsError.message}`);
+        }
+      }
+
+      // ── 5. Remove static asset files from disk ──
+      if (itemType && itemId) {
+        const staticPaths = [
+          `./src/client/public/cyberia/assets/${itemType}/${itemId}`,
+          `./public/${options.host}${options.path}/assets/${itemType}/${itemId}`,
+        ];
+        for (const assetDir of staticPaths) {
+          try {
+            if (fs.existsSync(assetDir)) {
+              await fs.remove(assetDir);
+              logger.info(`Removed static asset directory: ${assetDir}`);
+            }
+          } catch (fsError) {
+            logger.warn(`Failed to remove static asset directory ${assetDir}: ${fsError.message}`);
+          }
+        }
+      }
+
+      // ── 6. Delete the ObjectLayer document itself ──
+      const deleted = await ObjectLayer.findByIdAndDelete(req.params.id);
+      logger.info(`ObjectLayer ${req.params.id} and all associated resources deleted successfully`);
+      return deleted;
+    } else {
+      // Bulk delete: clean up all object layers
+      const allObjectLayers = await ObjectLayer.find({});
+      for (const ol of allObjectLayers) {
+        try {
+          await ObjectLayerService.delete({ params: { id: ol._id.toString() }, auth: req.auth }, res, options);
+        } catch (err) {
+          logger.error(`Failed to delete ObjectLayer ${ol._id} during bulk delete: ${err.message}`);
+        }
+      }
+      return { deletedCount: allObjectLayers.length };
+    }
   },
 };
 
