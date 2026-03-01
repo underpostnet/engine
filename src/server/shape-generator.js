@@ -15,7 +15,7 @@
  * @returns {function(): number} Returns a function that yields 0..1 on each call.
  * @memberof ShapeGenerator
  */
-function createRng(seed) {
+export function createRng(seed) {
   let s = seed | 0;
   return function () {
     s |= 0;
@@ -32,7 +32,7 @@ function createRng(seed) {
  * @returns {number}
  * @memberof ShapeGenerator
  */
-function seedToInt(seed) {
+export function seedToInt(seed) {
   if (typeof seed === 'number') return seed | 0;
   let h = 0;
   for (let i = 0; i < seed.length; i++) {
@@ -52,7 +52,7 @@ function seedToInt(seed) {
  * @returns {function(number, number): number} Noise function returning -1..1.
  * @memberof ShapeGenerator
  */
-function createNoise2D(rng) {
+export function createNoise2D(rng) {
   const SIZE = 256;
   const perm = new Uint8Array(SIZE * 2);
   const grad = new Float64Array(SIZE);

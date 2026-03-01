@@ -24,12 +24,14 @@ Key features:
 
 - Walks the asset directory structure and processes PNG/GIF files.
 - Produces `frame_matrix` and `map_color` arrays from images.
+- **Procedurally generates object layers** from semantic item-id descriptors with deterministic seeds and temporal coherence.
 - Saves processed objects to the `ObjectLayer` model with top-level references to `ObjectLayerRenderFrames`.
 - Creates separate `ObjectLayerRenderFrames` documents for render data.
 - Links ObjectLayers to AtlasSpriteSheet documents via top-level `atlasSpriteSheetId`.
 - Generates unique UUID v4 seeds (via `crypto.randomUUID()`) for SHA256 hash uniqueness.
 - Generates SHA256 hash using `fast-json-stable-stringify` for deterministic serialization.
 - Reconstructs PNG frames from stored tile data for debugging.
+- Writes static asset PNGs, atlas sprite sheets, and metadata to the conventional directory structure.
 
 ## Getting Started
 
@@ -66,6 +68,104 @@ cyberia ol --import skin,floor
 
 # Process all recognized types
 cyberia ol --import all
+```
+
+### Procedural generation with `--generate`
+
+Produces semantically consistent object layers with controlled, reproducible variation and short-term temporal coherence (consecutive frames stay visually consistent). Uses the parametric shape generator and object layer engine under the hood.
+
+```bash
+# Generate a desert floor tile (single frame, auto seed)
+cyberia ol floor-desert --generate
+
+# Full control: 3 frames, explicit seed, density
+cyberia ol floor-desert --generate --count 3 --seed fx-42 --frame-index 0 --frame-count 3 --density 0.5
+
+# Grass terrain, sparse, 5 frames
+cyberia ol floor-grass --generate --seed meadow-7 --frame-count 5 --density 0.3
+
+# Water surface, dense, high element count
+cyberia ol floor-water --generate --seed ocean-1 --count 5 --density 0.8 --frame-count 4
+
+# Stone cobblestone
+cyberia ol floor-stone --generate --seed cobble-99 --count 4 --density 0.6
+
+# Lava flow, 3-frame animation
+cyberia ol floor-lava --generate --seed magma-3 --frame-count 3 --density 0.7
+```
+
+**`--generate` options:**
+
+| Option | Default | Description |
+|---|---|---|
+| `--seed <str>` | auto UUID | Deterministic seed string. Same seed → same output. |
+| `--count <n>` | `3` | Shape element count multiplier per layer. |
+| `--frame-index <n>` | `0` | Starting frame index. |
+| `--frame-count <n>` | `1` | Number of consecutive frames to generate. |
+| `--density <f>` | `0.5` | Overall density factor (`0`–`1`). Lower = sparser. |
+
+**Available semantic item-id prefixes:**
+
+| Prefix | Type | Tags | Palette |
+|---|---|---|---|
+| `floor-desert` | floor | sand, dune, arid | warm ochres, sand tones |
+| `floor-grass` | floor | grass, meadow, earth | greens, earth browns |
+| `floor-water` | floor | water, ocean, wave | blues, foam whites |
+| `floor-stone` | floor | stone, rock, cobble | greys, warm/cool stone |
+| `floor-lava` | floor | lava, magma, fire | reds, oranges, dark crust |
+| `skin-*` | skin | character, body | skin tones, clothing darks |
+
+#### How generation works
+
+Each item-id maps to a **semantic descriptor** that provides `semanticTags`, `paletteHints`, `preferredShapes`, and named **layer specs** (e.g. `base`, `dunes`, `rocks`, `tufts` for `floor-desert`).
+
+**Seed derivation** — deterministic at every level:
+
+```
+layerSeed  = hash(seed + ':' + itemId + ':' + layerKey)
+frameSeed  = hash(layerSeed + ':' + frameIndex)
+```
+
+**Temporal coherence** — shape topology (which shapes, how many, where) is locked to `layerSeed` and never changes between frames. Only smooth, low-frequency noise perturbations (position jitter, slight rotation/scale wobble) are derived from `frameSeed`, so frame N and N+1 differ by ~2% of cells.
+
+**Layer naming** — every generated layer gets an id: `<itemId>-<layerKey>` (e.g. `floor-desert-dunes`).
+
+**Generation pipeline per layer:**
+
+1. Pick generator type (`noise-field` for base fills, `shape` for element placement).
+2. Select palette colors deterministically from `paletteHints` with per-element `colorShift`.
+3. For shape layers: pick shape via weighted `preferredShapes`, compute stable base transform `(x, y, scale, rotation)`, apply frame-level smooth noise.
+4. Stamp shapes onto a 24×24 grid via `intCoords` rasterization from the parametric shape generator.
+5. Composite all layers into a final `frame_matrix` + unified `colors` palette.
+
+**Variability factors per layer:**
+`scaleVariance`, `rotationVariance`, `colorShift`, `jitter`, `noiseLevel`, `detailLevel`, `sparsity` — small, deterministic variations that keep each generation unique but semantically coherent.
+
+#### What `--generate` persists
+
+The full pipeline runs automatically:
+
+1. **Static assets** — PNGs written to `./src/client/public/cyberia/assets/{type}/{itemId}/{dirCode}/{frame}.png` + `metadata.json`.
+2. **MongoDB** — `ObjectLayerRenderFrames` + `ObjectLayer` documents created with SHA-256 hash.
+3. **Atlas sprite sheet** — generated, saved to `File` + `AtlasSpriteSheet` collections, and linked via `atlasSpriteSheetId`.
+
+#### Reproducibility example
+
+Running the same command twice produces byte-identical output:
+
+```bash
+# Run 1
+cyberia ol floor-desert --generate --seed fx-42 --count 3 --frame-count 2
+
+# Run 2 (identical output)
+cyberia ol floor-desert --generate --seed fx-42 --count 3 --frame-count 2
+```
+
+Different seeds produce different but semantically consistent results:
+
+```bash
+cyberia ol floor-desert --generate --seed fx-42   # variant A
+cyberia ol floor-desert --generate --seed fx-99   # variant B (same style, different arrangement)
 ```
 
 ## Visualize a processed frame
@@ -176,6 +276,45 @@ cyberia ol anon --to-atlas-sprite-sheet
 
 # 4. View the generated atlas
 cyberia ol anon --show-atlas-sprite-sheet
+```
+
+### Procedural Generation Pipeline
+
+Generate an object layer entirely from a semantic descriptor — no source PNGs needed:
+
+```bash
+# 1. Generate a 3-frame desert floor with explicit seed
+cyberia ol floor-desert --generate --seed fx-42 --frame-count 3 --density 0.5
+
+# 2. Inspect the generated frame
+cyberia ol floor-desert --show-frame 08_0
+
+# 3. View the auto-generated atlas
+cyberia ol floor-desert --show-atlas-sprite-sheet
+```
+
+### Batch Procedural Generation
+
+Generate a full tileset family with consistent seeds:
+
+```bash
+cyberia ol floor-desert --generate --seed world-1 --frame-count 3
+cyberia ol floor-grass  --generate --seed world-1 --frame-count 3
+cyberia ol floor-water  --generate --seed world-1 --frame-count 4
+cyberia ol floor-stone  --generate --seed world-1 --frame-count 2
+cyberia ol floor-lava   --generate --seed world-1 --frame-count 3
+```
+
+### Exploring Seed Variations
+
+```bash
+# Same item, different seeds — compare visual output
+cyberia ol floor-desert --generate --seed alpha  --frame-count 1
+cyberia ol floor-desert --generate --seed beta   --frame-count 1
+cyberia ol floor-desert --generate --seed gamma  --frame-count 1
+
+# Inspect each
+cyberia ol floor-desert --show-frame 08_0
 ```
 
 ### Debugging Asset Issues

@@ -27,8 +27,16 @@ import {
   itemTypes,
 } from '../src/server/object-layer.js';
 import { AtlasSpriteSheetGenerator } from '../src/server/atlas-sprite-sheet-generator.js';
+import {
+  generateFrame,
+  generateMultiFrame,
+  writeAssetDirectory,
+  lookupSemantic,
+  semanticRegistry,
+} from '../src/server/semantic-layer-generator.js';
 import { program as underpostProgram } from '../src/cli/index.js';
 import crypto from 'crypto';
+import nodePath from 'path';
 import Underpost from '../src/index.js';
 
 /** @type {Function} */
@@ -57,6 +65,12 @@ try {
     .option('--show-atlas-sprite-sheet', 'Show consolidated atlas sprite sheet PNG for given item-id')
     .option('--import [object-layer-type]', 'Commas separated object layer types e.g. skin,floors')
     .option('--show-frame [direction-frame]', 'View object layer frame for given item-id e.g. 08_0 (default: 08_0)')
+    .option('--generate', 'Generate procedural object layers from semantic item-id (e.g. floor-desert)')
+    .option('--count <count>', 'Shape element count multiplier for --generate (default: 3)', parseFloat)
+    .option('--seed <seed>', 'Deterministic seed string for --generate (e.g. fx-42)')
+    .option('--frame-index <frameIndex>', 'Starting frame index for --generate (default: 0)', parseInt)
+    .option('--frame-count <frameCount>', 'Number of frames to generate for --generate (default: 1)', parseInt)
+    .option('--density <density>', 'Density factor 0..1 for --generate (default: 0.5)', parseFloat)
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
     .option('--storage-file-path <storage-file-path>', 'Storage file path override')
@@ -76,6 +90,12 @@ try {
        * @param {boolean|string} options.toAtlasSpriteSheet - Atlas dimension or `true` for auto-calc.
        * @param {boolean} options.showAtlasSpriteSheet - Whether to display the atlas sprite sheet.
        * @param {boolean} options.drop - Whether to drop existing data before importing.
+       * @param {boolean} options.generate - Whether to run procedural generation for the item-id.
+       * @param {number} options.count - Shape element count multiplier for generation.
+       * @param {string} options.seed - Deterministic seed string for generation.
+       * @param {number} options.frameIndex - Starting frame index for generation.
+       * @param {number} options.frameCount - Number of frames to generate.
+       * @param {number} options.density - Density factor 0..1 for generation.
        * @returns {Promise<void>}
        * @memberof CyberiaCLI
        */
@@ -89,6 +109,12 @@ try {
           storageFilePath: '',
           toAtlasSpriteSheet: '',
           showAtlasSpriteSheet: false,
+          generate: false,
+          count: 3,
+          seed: '',
+          frameIndex: 0,
+          frameCount: 1,
+          density: 0.5,
         },
       ) => {
         if (!options.envPath) options.envPath = `./.env`;
@@ -476,6 +502,159 @@ try {
           logger.info(
             `Atlas sprite sheet dimensions: ${atlasDoc.metadata.atlasWidth}x${atlasDoc.metadata.atlasHeight}`,
           );
+        }
+
+        // ── Handle --generate ────────────────────────────────────────────
+        if (options.generate) {
+          if (!itemId) {
+            logger.error(
+              'item-id is required for --generate (e.g. floor-desert, floor-grass, floor-water, floor-stone, floor-lava)',
+            );
+            logger.info('Available semantic prefixes: ' + Object.keys(semanticRegistry).join(', '));
+            process.exit(1);
+          }
+
+          const descriptor = lookupSemantic(itemId);
+          if (!descriptor) {
+            logger.error(`No semantic descriptor found for item-id "${itemId}".`);
+            logger.info('Available semantic prefixes: ' + Object.keys(semanticRegistry).join(', '));
+            process.exit(1);
+          }
+
+          const genSeed = options.seed || `gen-${crypto.randomUUID().slice(0, 8)}`;
+          const genCount = options.count || 3;
+          const genFrameIndex = options.frameIndex || 0;
+          const genFrameCount = options.frameCount || 1;
+          const genDensity = options.density != null ? options.density : 0.5;
+
+          logger.info('Generating procedural object layers', {
+            itemId,
+            seed: genSeed,
+            count: genCount,
+            startFrame: genFrameIndex,
+            frameCount: genFrameCount,
+            density: genDensity,
+            semanticTags: descriptor.semanticTags,
+            itemType: descriptor.itemType,
+            layers: Object.keys(descriptor.layers),
+          });
+
+          // 1. Generate multi-frame result (deterministic, temporally coherent)
+          const multiFrameResult = generateMultiFrame({
+            itemId,
+            seed: genSeed,
+            frameCount: genFrameCount,
+            startFrame: genFrameIndex,
+            count: genCount,
+            density: genDensity,
+          });
+
+          logger.info(
+            `Generated ${multiFrameResult.frameCount} frame(s) with ${multiFrameResult.objectLayerRenderFramesData.colors.length} unique colors`,
+          );
+
+          // 2. Write static asset PNGs to conventional directory structure
+          const assetBasePath = './src/client/public/cyberia/assets';
+          const writtenFiles = await writeAssetDirectory(
+            multiFrameResult,
+            assetBasePath,
+            20, // cellPixelDim
+            buildImgFromTile,
+          );
+
+          logger.info(`Wrote ${writtenFiles.length} asset file(s):`);
+          for (const f of writtenFiles) {
+            logger.info(`  → ${f}`);
+          }
+
+          // 3. Persist to MongoDB (ObjectLayerRenderFrames + ObjectLayer)
+          const { objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
+            ObjectLayer,
+            ObjectLayerRenderFrames,
+            objectLayerRenderFramesData: multiFrameResult.objectLayerRenderFramesData,
+            objectLayerData: multiFrameResult.objectLayerData,
+            createOptions: {
+              generateAtlas: false,
+            },
+          });
+
+          logger.info(`ObjectLayer persisted to MongoDB: ${objectLayer._id} (item: ${objectLayer.data.item.id})`);
+
+          // 4. Generate atlas sprite sheet
+          try {
+            const atlasItemKey = objectLayer.data.item.id;
+            const populatedObjectLayer = await ObjectLayer.findById(objectLayer._id).populate(
+              'objectLayerRenderFramesId',
+            );
+
+            const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
+              populatedObjectLayer.objectLayerRenderFramesId,
+              atlasItemKey,
+              20,
+            );
+
+            // Save atlas file to File collection
+            const fileDoc = await new File({
+              name: `${atlasItemKey}-atlas.png`,
+              data: buffer,
+              size: buffer.length,
+              mimetype: 'image/png',
+              md5: crypto.createHash('md5').update(buffer).digest('hex'),
+            }).save();
+
+            // Upsert AtlasSpriteSheet document
+            let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': atlasItemKey });
+            if (atlasDoc) {
+              atlasDoc.fileId = fileDoc._id;
+              atlasDoc.metadata = metadata;
+              await atlasDoc.save();
+              logger.info(`Updated existing AtlasSpriteSheet document: ${atlasDoc._id}`);
+            } else {
+              atlasDoc = await new AtlasSpriteSheet({
+                fileId: fileDoc._id,
+                metadata,
+              }).save();
+              logger.info(`Created new AtlasSpriteSheet document: ${atlasDoc._id}`);
+            }
+
+            // Link atlas to ObjectLayer
+            populatedObjectLayer.atlasSpriteSheetId = atlasDoc._id;
+            await populatedObjectLayer.save();
+
+            // Also write atlas PNG to static assets
+            const atlasOutputDir = nodePath.join(assetBasePath, descriptor.itemType, itemId);
+            await fs.ensureDir(atlasOutputDir);
+            const atlasOutputPath = nodePath.join(atlasOutputDir, `${atlasItemKey}-atlas.png`);
+            await fs.writeFile(atlasOutputPath, buffer);
+
+            logger.info(
+              `Atlas sprite sheet generated: ${metadata.atlasWidth}x${metadata.atlasHeight} → ${atlasOutputPath}`,
+            );
+          } catch (atlasError) {
+            logger.error(`Failed to generate atlas for ${itemId}:`, atlasError);
+          }
+
+          // 5. Compute and save final SHA-256
+          try {
+            const finalObjectLayer = await ObjectLayer.findById(objectLayer._id);
+            const finalSha256 = ObjectLayerEngine.computeSha256(finalObjectLayer.data);
+            finalObjectLayer.sha256 = finalSha256;
+            finalObjectLayer.markModified('data');
+            await finalObjectLayer.save();
+            logger.info(`Final SHA-256: ${finalSha256}`);
+          } catch (sha256Error) {
+            logger.error('Failed to compute final SHA-256:', sha256Error);
+          }
+
+          logger.info(`✓ Generation complete for "${itemId}" (seed: ${genSeed}, frames: ${genFrameCount})`);
+
+          // Log per-layer summary
+          if (multiFrameResult.frames.length > 0) {
+            const firstFrame = multiFrameResult.frames[0];
+            for (const layer of firstFrame.layers) {
+              logger.info(`  Layer "${layer.layerKey}" (${layer.layerId}): ${layer.keys.length} element(s)`);
+            }
+          }
         }
 
         await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
