@@ -1,6 +1,6 @@
 /**
  * Mongoose model for IPFS API – a general-purpose pin record that relates
- * a user to a CID and its pin state.
+ * a user to a CID.
  *
  * @module src/api/ipfs/ipfs.model.js
  * @namespace IpfsModel
@@ -9,18 +9,9 @@
 import { Schema, model } from 'mongoose';
 
 /**
- * Allowed pin types – mirrors Helia's PinType definition
- * (`packages/interface/dist/src/pins.d.ts`).
- *
- * @type {string[]}
- */
-const heliaPinTypes = ['recursive', 'direct', 'indirect'];
-
-/**
  * @typedef {Object} Ipfs
  * @property {string}         cid       – IPFS Content Identifier (CIDv0 or CIDv1).
  * @property {Types.ObjectId} userId    – Reference to the User who owns / requested the pin.
- * @property {string}         pinType   – One of `'recursive' | 'direct' | 'indirect'`.
  * @property {Date}           createdAt – Auto-managed by Mongoose.
  * @property {Date}           updatedAt – Auto-managed by Mongoose.
  * @memberof IpfsModel
@@ -36,12 +27,6 @@ const IpfsSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-    },
-    pinType: {
-      type: String,
-      required: true,
-      enum: heliaPinTypes,
-      default: 'recursive',
     },
   },
   {
@@ -69,7 +54,6 @@ const IpfsDto = {
         _id: 1,
         cid: 1,
         userId: 1,
-        pinType: 1,
         createdAt: 1,
         updatedAt: 1,
       };
@@ -84,4 +68,4 @@ const IpfsDto = {
   },
 };
 
-export { IpfsSchema, IpfsModel, ProviderSchema, IpfsDto, heliaPinTypes };
+export { IpfsSchema, IpfsModel, ProviderSchema, IpfsDto };

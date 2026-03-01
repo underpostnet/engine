@@ -259,7 +259,13 @@ const unpinCid = async (cid) => {
     });
     if (!res.ok) {
       const text = await res.text();
-      logger.error(`IPFS Kubo pin/rm failed (${res.status}): ${text}`);
+      // "not pinned or pinned indirectly" means the CID is already unpinned – treat as success
+      if (text.includes('not pinned')) {
+        kuboOk = true;
+        logger.info(`IPFS Kubo unpin – CID already not pinned: ${cid}`);
+      } else {
+        logger.warn(`IPFS Kubo pin/rm failed (${res.status}): ${text}`);
+      }
     } else {
       kuboOk = true;
       logger.info(`IPFS Kubo unpin OK – CID: ${cid}`);

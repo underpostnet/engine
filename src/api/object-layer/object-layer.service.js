@@ -11,7 +11,7 @@ import { shellExec } from '../../server/process.js';
 import { DataQuery } from '../../server/data-query.js';
 import { AtlasSpriteSheetService } from '../atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { IpfsClient } from '../../server/ipfs-client.js';
-import { createPinRecord } from '../ipfs/ipfs.service.js';
+import { createPinRecord, removePinRecordsAndUnpin } from '../ipfs/ipfs.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -153,79 +153,109 @@ const ObjectLayerService = {
       // Add reference to render frames (top-level, not in data)
       objectLayerData.objectLayerRenderFramesId = objectLayerRenderFramesDoc._id;
 
-      // Add object layer data to IPFS and store the CID
+      // Use a temporary SHA-256 so we can save the ObjectLayer first,
+      // then generate the atlas (which sets data.atlasSpriteSheetCid),
+      // and finally recompute the definitive SHA-256 & IPFS CID.
+      objectLayerData.data.atlasSpriteSheetCid = '';
+      objectLayerData.sha256 = crypto.createHash('sha256').update(stringify(objectLayerData.data)).digest('hex');
+
+      // Save or update ObjectLayer in MongoDB (temporary – without atlas CID)
+      let objectLayer;
       try {
-        const itemId = objectLayerData.data.item.id;
+        const existingObjectLayer = await ObjectLayer.findOne({ sha256: objectLayerData.sha256 });
+        if (existingObjectLayer) {
+          logger.info(`ObjectLayer with sha256 ${objectLayerData.sha256} already exists, updating...`);
+          objectLayer = await ObjectLayer.findByIdAndUpdate(existingObjectLayer._id, objectLayerData, {
+            new: true,
+          }).populate('objectLayerRenderFramesId');
+        } else {
+          objectLayer = await (await ObjectLayer.create(objectLayerData)).populate('objectLayerRenderFramesId');
+          logger.info(`ObjectLayer created successfully with id: ${objectLayer._id}`);
+        }
+      } catch (error) {
+        logger.error('Error creating ObjectLayer:', error);
+        throw error;
+      }
+
+      // Generate atlas sprite sheet – this sets objectLayer.data.atlasSpriteSheetCid and saves
+      try {
+        await AtlasSpriteSheetService.generate(
+          { params: { id: objectLayer._id }, objectLayer, auth: req.auth },
+          res,
+          options,
+        );
+      } catch (atlasError) {
+        logger.error('Failed to auto-generate atlas for ObjectLayer:', atlasError);
+      }
+
+      // Re-read the objectLayer so data.atlasSpriteSheetCid is up-to-date
+      objectLayer = await ObjectLayer.findById(objectLayer._id).populate('objectLayerRenderFramesId');
+
+      // Now that data includes atlasSpriteSheetCid, compute the definitive SHA-256 and IPFS CID
+      const finalSha256 = crypto.createHash('sha256').update(stringify(objectLayer.data)).digest('hex');
+
+      try {
+        const itemId = objectLayer.data.item.id;
         const ipfsResult = await IpfsClient.addJsonToIpfs(
-          objectLayerData.data,
+          objectLayer.data,
           `${itemId}_data.json`,
           `/object-layer/${itemId}/${itemId}_data.json`,
         );
         if (ipfsResult) {
-          objectLayerData.cid = ipfsResult.cid;
-          // Create pin record for the authenticated user
+          objectLayer.cid = ipfsResult.cid;
           const userId = req.auth && req.auth.user ? req.auth.user._id : undefined;
           if (userId) {
-            await createPinRecord({ cid: ipfsResult.cid, userId, pinType: 'recursive', options });
+            await createPinRecord({ cid: ipfsResult.cid, userId, options });
           }
         }
       } catch (ipfsError) {
         logger.warn('Failed to add object layer data to IPFS:', ipfsError.message);
       }
 
-      // Generate SHA256 hash using fast-json-stable-stringify of objectLayer.data
-      objectLayerData.sha256 = crypto.createHash('sha256').update(stringify(objectLayerData.data)).digest('hex');
+      objectLayer.sha256 = finalSha256;
+      objectLayer.markModified('data');
+      await objectLayer.save();
 
-      // Save to MongoDB
-      try {
-        const existingObjectLayer = await ObjectLayer.findOne({ sha256: objectLayerData.sha256 });
-        if (existingObjectLayer) {
-          logger.info(`ObjectLayer with sha256 ${objectLayerData.sha256} already exists, updating...`);
-          const updated = await ObjectLayer.findByIdAndUpdate(existingObjectLayer._id, objectLayerData, {
-            new: true,
-          }).populate('objectLayerRenderFramesId');
-
-          // Update atlas sprite sheet
-          try {
-            await AtlasSpriteSheetService.generate({ params: { id: updated._id }, objectLayer: updated }, res, options);
-          } catch (atlasError) {
-            logger.error('Failed to auto-update atlas for ObjectLayer:', atlasError);
-          }
-
-          return updated;
-        }
-        const newObjectLayer = await (await ObjectLayer.create(objectLayerData)).populate('objectLayerRenderFramesId');
-        logger.info(`ObjectLayer created successfully with id: ${newObjectLayer._id}`);
-
-        // Generate atlas sprite sheet
-        try {
-          await AtlasSpriteSheetService.generate(
-            { params: { id: newObjectLayer._id }, objectLayer: newObjectLayer },
-            res,
-            options,
-          );
-        } catch (atlasError) {
-          logger.error('Failed to auto-generate atlas for new ObjectLayer:', atlasError);
-        }
-
-        return newObjectLayer;
-      } catch (error) {
-        logger.error('Error creating ObjectLayer:', error);
-        throw error;
-      }
+      return objectLayer;
     }
 
     // create object layer from body
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
     const ObjectLayerRenderFrames =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
-    const newObjectLayer = await new ObjectLayer(req.body).save();
+    let newObjectLayer = await new ObjectLayer(req.body).save();
 
-    // Generate atlas sprite sheet
+    // Generate atlas sprite sheet – this sets data.atlasSpriteSheetCid and saves
     try {
-      await AtlasSpriteSheetService.generate({ params: { id: newObjectLayer._id } }, res, options);
+      await AtlasSpriteSheetService.generate({ params: { id: newObjectLayer._id }, auth: req.auth }, res, options);
     } catch (atlasError) {
       logger.error('Failed to auto-generate atlas for new ObjectLayer:', atlasError);
+    }
+
+    // Re-read so data.atlasSpriteSheetCid is up-to-date, then recompute SHA-256 & IPFS CID
+    newObjectLayer = await ObjectLayer.findById(newObjectLayer._id).populate('objectLayerRenderFramesId');
+    if (newObjectLayer) {
+      const finalSha256 = crypto.createHash('sha256').update(stringify(newObjectLayer.data)).digest('hex');
+      try {
+        const itemId = newObjectLayer.data.item.id;
+        const ipfsResult = await IpfsClient.addJsonToIpfs(
+          newObjectLayer.data,
+          `${itemId}_data.json`,
+          `/object-layer/${itemId}/${itemId}_data.json`,
+        );
+        if (ipfsResult) {
+          newObjectLayer.cid = ipfsResult.cid;
+          const userId = req.auth && req.auth.user ? req.auth.user._id : undefined;
+          if (userId) {
+            await createPinRecord({ cid: ipfsResult.cid, userId, options });
+          }
+        }
+      } catch (ipfsError) {
+        logger.warn('Failed to add object layer data to IPFS:', ipfsError.message);
+      }
+      newObjectLayer.sha256 = finalSha256;
+      newObjectLayer.markModified('data');
+      await newObjectLayer.save();
     }
 
     return newObjectLayer;
@@ -657,65 +687,104 @@ const ObjectLayerService = {
         objectLayerData.objectLayerRenderFramesId = objectLayerRenderFramesDoc._id;
       }
 
-      // Add object layer data to IPFS and store the CID
-      try {
-        const itemId = objectLayerData.data.item.id;
-        const ipfsResult = await IpfsClient.addJsonToIpfs(
-          objectLayerData.data,
-          `${itemId}_data.json`,
-          `/object-layer/${itemId}/${itemId}_data.json`,
-        );
-        if (ipfsResult) {
-          objectLayerData.cid = ipfsResult.cid;
-          const userId = req.auth && req.auth.user ? req.auth.user._id : undefined;
-          if (userId) {
-            await createPinRecord({ cid: ipfsResult.cid, userId, pinType: 'recursive', options });
-          }
-        }
-      } catch (ipfsError) {
-        logger.warn('Failed to add object layer data to IPFS:', ipfsError.message);
-      }
-
-      // Generate SHA256 hash using fast-json-stable-stringify of objectLayer.data
+      // Use a temporary SHA-256 so we can save the ObjectLayer first,
+      // then generate the atlas (which sets data.atlasSpriteSheetCid),
+      // and finally recompute the definitive SHA-256 & IPFS CID.
+      objectLayerData.data.atlasSpriteSheetCid = '';
       objectLayerData.sha256 = crypto.createHash('sha256').update(stringify(objectLayerData.data)).digest('hex');
 
-      // Save to MongoDB
+      // Save to MongoDB (temporary – without atlas CID)
+      let updatedObjectLayer;
       try {
-        const updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(objectLayerId, objectLayerData, {
+        updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(objectLayerId, objectLayerData, {
           new: true,
         }).populate('objectLayerRenderFramesId');
         if (!updatedObjectLayer) {
           throw new Error('ObjectLayer not found for update');
         }
         logger.info(`ObjectLayer updated successfully with id: ${objectLayerId}`);
-
-        // Update atlas sprite sheet
-        try {
-          await AtlasSpriteSheetService.generate(
-            { params: { id: objectLayerId }, objectLayer: updatedObjectLayer },
-            res,
-            options,
-          );
-        } catch (atlasError) {
-          logger.error('Failed to auto-update atlas for ObjectLayer:', atlasError);
-        }
-
-        return updatedObjectLayer;
       } catch (error) {
         logger.error('Error updating ObjectLayer:', error);
         throw error;
       }
+
+      // Generate atlas sprite sheet – this sets updatedObjectLayer.data.atlasSpriteSheetCid and saves
+      try {
+        await AtlasSpriteSheetService.generate(
+          { params: { id: objectLayerId }, objectLayer: updatedObjectLayer, auth: req.auth },
+          res,
+          options,
+        );
+      } catch (atlasError) {
+        logger.error('Failed to auto-update atlas for ObjectLayer:', atlasError);
+      }
+
+      // Re-read the objectLayer so data.atlasSpriteSheetCid is up-to-date
+      updatedObjectLayer = await ObjectLayer.findById(objectLayerId).populate('objectLayerRenderFramesId');
+
+      // Now that data includes atlasSpriteSheetCid, compute the definitive SHA-256 and IPFS CID
+      const finalSha256 = crypto.createHash('sha256').update(stringify(updatedObjectLayer.data)).digest('hex');
+
+      try {
+        const itemId = updatedObjectLayer.data.item.id;
+        const ipfsResult = await IpfsClient.addJsonToIpfs(
+          updatedObjectLayer.data,
+          `${itemId}_data.json`,
+          `/object-layer/${itemId}/${itemId}_data.json`,
+        );
+        if (ipfsResult) {
+          updatedObjectLayer.cid = ipfsResult.cid;
+          const userId = req.auth && req.auth.user ? req.auth.user._id : undefined;
+          if (userId) {
+            await createPinRecord({ cid: ipfsResult.cid, userId, options });
+          }
+        }
+      } catch (ipfsError) {
+        logger.warn('Failed to add object layer data to IPFS:', ipfsError.message);
+      }
+
+      updatedObjectLayer.sha256 = finalSha256;
+      updatedObjectLayer.markModified('data');
+      await updatedObjectLayer.save();
+
+      return updatedObjectLayer;
     }
 
     // PUT /:id - Standard update
-    const updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    let updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(req.params.id, req.body, { new: true });
 
     if (updatedObjectLayer) {
-      // Update atlas sprite sheet
+      // Generate atlas sprite sheet – this sets data.atlasSpriteSheetCid and saves
       try {
-        await AtlasSpriteSheetService.generate({ params: { id: req.params.id } }, res, options);
+        await AtlasSpriteSheetService.generate({ params: { id: req.params.id }, auth: req.auth }, res, options);
       } catch (atlasError) {
         logger.error('Failed to auto-update atlas for ObjectLayer:', atlasError);
+      }
+
+      // Re-read so data.atlasSpriteSheetCid is up-to-date, then recompute SHA-256 & IPFS CID
+      updatedObjectLayer = await ObjectLayer.findById(req.params.id).populate('objectLayerRenderFramesId');
+      if (updatedObjectLayer) {
+        const finalSha256 = crypto.createHash('sha256').update(stringify(updatedObjectLayer.data)).digest('hex');
+        try {
+          const itemId = updatedObjectLayer.data.item.id;
+          const ipfsResult = await IpfsClient.addJsonToIpfs(
+            updatedObjectLayer.data,
+            `${itemId}_data.json`,
+            `/object-layer/${itemId}/${itemId}_data.json`,
+          );
+          if (ipfsResult) {
+            updatedObjectLayer.cid = ipfsResult.cid;
+            const userId = req.auth && req.auth.user ? req.auth.user._id : undefined;
+            if (userId) {
+              await createPinRecord({ cid: ipfsResult.cid, userId, options });
+            }
+          }
+        } catch (ipfsError) {
+          logger.warn('Failed to add object layer data to IPFS:', ipfsError.message);
+        }
+        updatedObjectLayer.sha256 = finalSha256;
+        updatedObjectLayer.markModified('data');
+        await updatedObjectLayer.save();
       }
     }
 
@@ -726,8 +795,6 @@ const ObjectLayerService = {
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
     const ObjectLayerRenderFrames =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
-    /** @type {import('../ipfs/ipfs.model.js').IpfsModel} */
-    const Ipfs = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Ipfs;
 
     if (req.params.id) {
       // Load the full object layer so we can access all references
@@ -758,14 +825,10 @@ const ObjectLayerService = {
         }
       }
 
-      // ── 3. Unpin object layer data JSON CID from IPFS and remove pin records ──
+      // ── 3. Remove pin records and unpin object layer data JSON CID from IPFS ──
       if (objectLayer.cid) {
         try {
-          const othersCount = await Ipfs.countDocuments({ cid: objectLayer.cid });
-          await Ipfs.deleteMany({ cid: objectLayer.cid });
-          if (othersCount <= 1) {
-            await IpfsClient.unpinCid(objectLayer.cid);
-          }
+          await removePinRecordsAndUnpin(objectLayer.cid, options);
           logger.info(`Cleaned up IPFS data CID ${objectLayer.cid} for ObjectLayer ${req.params.id}`);
         } catch (ipfsError) {
           logger.warn(`Failed to clean up IPFS data CID ${objectLayer.cid}: ${ipfsError.message}`);

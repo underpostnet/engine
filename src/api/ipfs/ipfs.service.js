@@ -14,27 +14,51 @@ const logger = loggerFactory(import.meta);
  * @param {object}  opts
  * @param {string}  opts.cid      – IPFS Content Identifier.
  * @param {string}  opts.userId   – Mongoose ObjectId string of the owning user.
- * @param {string}  [opts.pinType='recursive'] – 'recursive' | 'direct' | 'indirect'
  * @param {object}  opts.options  – Router options ({ host, path }) for DB lookup.
  * @returns {Promise<import('mongoose').Document>}
  */
-const createPinRecord = async ({ cid, userId, pinType = 'recursive', options }) => {
+const createPinRecord = async ({ cid, userId, options }) => {
   const Ipfs = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Ipfs;
 
-  // Upsert: if a record for this user + CID already exists, just update the pinType.
+  // Upsert: if a record for this user + CID already exists, just touch it.
   const record = await Ipfs.findOneAndUpdate(
     { cid, userId },
-    { cid, userId, pinType },
+    { cid, userId },
     { upsert: true, new: true, setDefaultsOnInsert: true },
   );
 
-  logger.info(`IPFS pin record upserted – CID: ${cid}, userId: ${userId}, pinType: ${pinType}`);
+  logger.info(`IPFS pin record upserted – CID: ${cid}, userId: ${userId}`);
   return record;
 };
 
+/**
+ * Remove all DB pin records for a CID, then best-effort unpin from IPFS node/cluster.
+ * Always deletes the DB records first so that even if the IPFS node is unreachable
+ * the database stays clean.
+ *
+ * @param {string} cid     – IPFS Content Identifier to clean up.
+ * @param {object} options – Router options ({ host, path }) for DB lookup.
+ * @returns {Promise<void>}
+ */
+const removePinRecordsAndUnpin = async (cid, options) => {
+  const Ipfs = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Ipfs;
+
+  // 1. Remove all DB pin records for this CID first
+  await Ipfs.deleteMany({ cid });
+  logger.info(`Removed all IPFS pin records for CID: ${cid}`);
+
+  // 2. Best-effort unpin from IPFS node/cluster (ignore "not pinned" errors)
+  try {
+    await IpfsClient.unpinCid(cid);
+  } catch (err) {
+    logger.warn(`Best-effort IPFS unpin failed for CID ${cid}: ${err.message}`);
+  }
+};
+
 const IpfsService = {
-  /** Expose the helper so other modules can import it directly. */
+  /** Expose helpers so other modules can import them directly. */
   createPinRecord,
+  removePinRecordsAndUnpin,
 
   // ──────────────────────────────────────────────
   //  Standard CRUD
@@ -44,12 +68,14 @@ const IpfsService = {
     /** @type {import('./ipfs.model.js').IpfsModel} */
     const Ipfs = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Ipfs;
 
-    // Accept { cid, userId?, pinType? } in body.
+    // Accept { cid, userId? } in body.
     // If userId is omitted, fall back to the authenticated user.
     const body = { ...req.body };
     if (!body.userId && req.auth && req.auth.user) {
       body.userId = req.auth.user._id;
     }
+    // Strip pinType if sent by legacy clients
+    delete body.pinType;
 
     return await new Ipfs(body).save();
   },
@@ -91,13 +117,18 @@ const IpfsService = {
     if (req.params.id) {
       const record = await Ipfs.findById(req.params.id);
       if (record) {
-        // Best-effort unpin from the IPFS node.
+        // Remove DB record first, then best-effort unpin
+        await Ipfs.findByIdAndDelete(req.params.id);
         try {
-          await IpfsClient.unpinCid(record.cid);
+          // Only unpin from IPFS if no other records reference this CID
+          const remaining = await Ipfs.countDocuments({ cid: record.cid });
+          if (remaining === 0) {
+            await IpfsClient.unpinCid(record.cid);
+          }
         } catch (err) {
           logger.warn(`Failed to unpin CID ${record.cid} from IPFS node: ${err.message}`);
         }
-        return await Ipfs.findByIdAndDelete(req.params.id);
+        return record;
       }
       return null;
     }
@@ -111,7 +142,7 @@ const IpfsService = {
 
   /**
    * POST /ipfs/pin  – add content to IPFS, pin it, and create a DB record.
-   * Body: { data: <string|object>, userId?, pinType? }
+   * Body: { data: <string|object>, userId? }
    */
   pin: async (req, res, options) => {
     const userId = req.body.userId || (req.auth && req.auth.user ? req.auth.user._id : undefined);
@@ -125,7 +156,6 @@ const IpfsService = {
     const record = await createPinRecord({
       cid: result.cid,
       userId,
-      pinType: req.body.pinType || 'recursive',
       options,
     });
 
@@ -143,15 +173,21 @@ const IpfsService = {
     const record = await Ipfs.findOne({ cid, ...(userId ? { userId } : {}) });
     if (!record) throw new Error(`No pin record found for CID ${cid}`);
 
-    // Check if other users still pin this CID – only unpin from the node when nobody else needs it.
-    const othersCount = await Ipfs.countDocuments({ cid, _id: { $ne: record._id } });
-    if (othersCount === 0) {
-      await IpfsClient.unpinCid(cid);
+    // Remove DB record first
+    await Ipfs.findByIdAndDelete(record._id);
+
+    // Only unpin from the IPFS node when nobody else has a record for this CID
+    const remaining = await Ipfs.countDocuments({ cid });
+    if (remaining === 0) {
+      try {
+        await IpfsClient.unpinCid(cid);
+      } catch (err) {
+        logger.warn(`Best-effort IPFS unpin failed for CID ${cid}: ${err.message}`);
+      }
     }
 
-    await Ipfs.findByIdAndDelete(record._id);
     return { success: true, cid };
   },
 };
 
-export { IpfsService, createPinRecord };
+export { IpfsService, createPinRecord, removePinRecordsAndUnpin };
