@@ -19,6 +19,7 @@ import { Modal } from '../core/Modal.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { EventsUI } from '../core/EventsUI.js';
+import { createJSONEditor } from 'vanilla-jsoneditor';
 
 const logger = loggerFactory(import.meta);
 
@@ -34,6 +35,7 @@ const ObjectLayerEngineViewer = {
     atlasSpriteSheet: null,
     isGeneratingAtlas: false,
     webpMetadata: null,
+    metadataJsonEditor: null,
   },
 
   // Map user-friendly direction/mode to numeric direction codes
@@ -677,6 +679,24 @@ const ObjectLayerEngineViewer = {
                         <span class="ipfs-cid-value">${objectLayer.data.atlasSpriteSheetCid}</span>
                       </div>`
                     : ''}
+                  ${objectLayer.sha256
+                    ? html`<div class="ipfs-cid-label">
+                        <i class="fa-solid fa-fingerprint"></i>
+                        <strong>SHA-256:</strong>
+                        <span class="ipfs-cid-value">${objectLayer.sha256}</span>
+                      </div>`
+                    : ''}
+                </div>
+
+                <!-- Metadata JSON Section -->
+                <div class="control-group" style="margin-bottom: 20px;">
+                  <h4><i class="fa-solid fa-code"></i> Metadata JSON</h4>
+                  <div
+                    id="metadata-json-editor-container"
+                    style="height: 400px; border-radius: 6px; overflow: hidden; border: 1px solid ${darkTheme
+                      ? '#444'
+                      : '#ddd'};"
+                  ></div>
                 </div>
 
                 <!-- Stats Data Section -->
@@ -905,6 +925,10 @@ const ObjectLayerEngineViewer = {
                     <i class="fa-solid fa-edit"></i>
                     <span>Edit</span>
                   </button>
+                  <button class="default-viewer-btn" id="delete-object-layer-btn" style="background: #dc3545;">
+                    <i class="fa-solid fa-trash"></i>
+                    <span>Delete</span>
+                  </button>
                 </div>
               `}
         </div>
@@ -918,6 +942,9 @@ const ObjectLayerEngineViewer = {
     if (this.Data.webp) {
       this.displayWebp();
     }
+
+    // Initialize metadata JSON editor
+    this.initMetadataJsonEditor();
   },
 
   displayWebp: async function () {
@@ -959,6 +986,103 @@ const ObjectLayerEngineViewer = {
         if (oldBadge) oldBadge.remove();
         displayArea.appendChild(infoBadge);
       }
+    }
+  },
+
+  initMetadataJsonEditor: async function () {
+    const container = s('#metadata-json-editor-container');
+    if (!container) return;
+
+    // Destroy previous instance if any
+    if (this.Data.metadataJsonEditor) {
+      this.Data.metadataJsonEditor.destroy();
+      this.Data.metadataJsonEditor = null;
+    }
+
+    const objectLayerId = this.Data.objectLayer?._id;
+    if (!objectLayerId) return;
+
+    try {
+      const response = await ObjectLayerService.getMetadata({ id: objectLayerId });
+      const metadataContent = response.status === 'success' && response.data ? response.data : response;
+
+      this.Data.metadataJsonEditor = createJSONEditor({
+        target: container,
+        props: {
+          content: { json: metadataContent },
+          readOnly: true,
+          mainMenuBar: true,
+          navigationBar: true,
+          statusBar: true,
+          mode: 'tree',
+        },
+      });
+
+      // Apply dark theme class if needed
+      if (darkTheme) {
+        container.classList.add('jse-theme-dark');
+      } else {
+        container.classList.remove('jse-theme-dark');
+      }
+    } catch (err) {
+      logger.warn('Failed to initialize metadata JSON editor:', err);
+      container.innerHTML = html`<div style="padding: 20px; color: #999; text-align: center;">
+        Failed to load metadata JSON
+      </div>`;
+    }
+  },
+
+  deleteObjectLayer: async function ({ Elements } = {}) {
+    const objectLayerId = this.Data.objectLayer?._id;
+    if (!objectLayerId) return;
+
+    const itemId = this.Data.objectLayer?.data?.item?.id || objectLayerId;
+
+    const confirmResult = await Modal.RenderConfirm({
+      id: 'delete-object-layer-confirm',
+      html: async () => html`
+        <div class="in section-mp" style="text-align: center">
+          <p>Are you sure you want to permanently delete object layer <strong>"${itemId}"</strong>?</p>
+          <p style="color: #dc3545; font-size: 13px; margin-top: 8px;">
+            This will remove all associated data including render frames, atlas sprite sheet, IPFS pins, and static
+            asset files.
+          </p>
+        </div>
+      `,
+    });
+
+    if (confirmResult.status !== 'confirm') return;
+
+    try {
+      const result = await ObjectLayerService.delete({ id: objectLayerId });
+      if (result.status === 'success') {
+        NotificationManager.Push({
+          html: `Object layer "${itemId}" deleted successfully`,
+          status: 'success',
+        });
+
+        // Clean up JSON editor
+        if (this.Data.metadataJsonEditor) {
+          this.Data.metadataJsonEditor.destroy();
+          this.Data.metadataJsonEditor = null;
+        }
+
+        // Navigate back to list
+        this.Data.currentObjectId = undefined;
+        this.Data.objectLayer = null;
+        this.Data.webp = null;
+        this.Data.webpMetadata = null;
+        this.Data.atlasSpriteSheet = null;
+        setQueryParams({ id: null }, { replace: false });
+      } else {
+        throw new Error(result.message || 'Failed to delete object layer');
+      }
+    } catch (error) {
+      logger.error('Error deleting object layer:', error);
+      NotificationManager.Push({
+        html: `Failed to delete object layer: ${error.message}`,
+        status: 'error',
+      });
     }
   },
 
@@ -1016,6 +1140,14 @@ const ObjectLayerEngineViewer = {
     if (editBtn) {
       editBtn.addEventListener('click', () => {
         this.toEngine();
+      });
+    }
+
+    // Delete button
+    const deleteBtn = s('#delete-object-layer-btn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', async () => {
+        await this.deleteObjectLayer({ Elements });
       });
     }
 
