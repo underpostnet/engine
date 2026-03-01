@@ -1,28 +1,43 @@
 #! /usr/bin/env node
 
+/**
+ * Cyberia Online CLI for object layer management.
+ * Provides commands for importing, viewing, and managing object layer assets,
+ * render frames, and atlas sprite sheets from the command line.
+ *
+ * Delegates shared object layer creation logic to {@link ObjectLayerEngine} in
+ * `src/server/object-layer.js` to keep a single source of truth shared with
+ * the REST API service layer.
+ *
+ * @module bin/cyberia.js
+ * @namespace CyberiaCLI
+ */
+
 import dotenv from 'dotenv';
 import { Command } from 'commander';
 import fs from 'fs-extra';
-import { shellExec, shellCd } from '../src/server/process.js';
+import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import {
+  ObjectLayerEngine,
   pngDirectoryIteratorByObjectLayerType,
   getKeyFramesDirectionsFromNumberFolderDirection,
-  processAndPushFrame,
   buildImgFromTile,
-  generateRandomStats,
   itemTypes,
 } from '../src/server/object-layer.js';
 import { AtlasSpriteSheetGenerator } from '../src/server/atlas-sprite-sheet-generator.js';
 import { program as underpostProgram } from '../src/cli/index.js';
 import crypto from 'crypto';
-import stringify from 'fast-json-stable-stringify';
 import Underpost from '../src/index.js';
+
+/** @type {Function} */
 const logger = loggerFactory(import.meta);
+
 try {
   const program = new Command();
 
+  /** @type {string} */
   const version = Underpost.version;
 
   program
@@ -47,6 +62,23 @@ try {
     .option('--storage-file-path <storage-file-path>', 'Storage file path override')
     .option('--drop', 'Drop existing data before importing')
     .action(
+      /**
+       * Main action handler for the `ol` command.
+       * Manages object layer import, frame viewing, atlas generation, and atlas display.
+       *
+       * @param {string|undefined} itemId - Optional item ID argument.
+       * @param {Object} options - Command options parsed by Commander.
+       * @param {boolean|string} options.import - Object layer types to import (e.g., 'all', 'skin,floor') or `false`.
+       * @param {boolean|string} options.showFrame - Direction-frame string (e.g., '08_0') or `true` for default.
+       * @param {string} options.envPath - Path to the `.env` file.
+       * @param {string} options.mongoHost - MongoDB host override.
+       * @param {string} options.storageFilePath - Path to a storage filter JSON file.
+       * @param {boolean|string} options.toAtlasSpriteSheet - Atlas dimension or `true` for auto-calc.
+       * @param {boolean} options.showAtlasSpriteSheet - Whether to display the atlas sprite sheet.
+       * @param {boolean} options.drop - Whether to drop existing data before importing.
+       * @returns {Promise<void>}
+       * @memberof CyberiaCLI
+       */
       async (
         itemId,
         options = {
@@ -62,8 +94,11 @@ try {
         if (!options.envPath) options.envPath = `./.env`;
         if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
+        /** @type {string} */
         const deployId = process.env.DEFAULT_DEPLOY_ID;
+        /** @type {string} */
         const host = process.env.DEFAULT_DEPLOY_HOST;
+        /** @type {string} */
         const path = process.env.DEFAULT_DEPLOY_PATH;
 
         const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
@@ -87,10 +122,14 @@ try {
           db,
         });
 
+        /** @type {import('mongoose').Model} */
         const ObjectLayer = DataBaseProvider.instance[`${host}${path}`].mongoose.models.ObjectLayer;
+        /** @type {import('mongoose').Model} */
         const ObjectLayerRenderFrames =
           DataBaseProvider.instance[`${host}${path}`].mongoose.models.ObjectLayerRenderFrames;
+        /** @type {import('mongoose').Model} */
         const AtlasSpriteSheet = DataBaseProvider.instance[`${host}${path}`].mongoose.models.AtlasSpriteSheet;
+        /** @type {import('mongoose').Model} */
         const File = DataBaseProvider.instance[`${host}${path}`].mongoose.models.File;
 
         if (options.drop) {
@@ -99,90 +138,140 @@ try {
           shellExec(`cd src/client/public/cyberia && underpost run clean .`);
         }
 
+        /** @type {Object|null} */
         const storage = options.storageFilePath ? JSON.parse(fs.readFileSync(options.storageFilePath, 'utf8')) : null;
 
-        const objectLayers = {};
-
+        // ── Handle --import ──────────────────────────────────────────────
         if (options.import) {
-          const argItemTypes = options.import === 'all' ? Object.keys(itemTypes) : options.import.split(',');
+          /** @type {boolean} */
+          const isImportAll = options.import === 'all';
+
+          /** @type {string[]} */
+          const argItemTypes = isImportAll ? Object.keys(itemTypes) : options.import.split(',');
+
+          /**
+           * Accumulated object layer data keyed by objectLayerId.
+           * @type {Object<string, import('../src/server/object-layer.js').ObjectLayerData>}
+           */
+          const objectLayers = {};
+
           for (const argItemType of argItemTypes) {
             await pngDirectoryIteratorByObjectLayerType(
               argItemType,
-              async ({ path, objectLayerType, objectLayerId, direction, frame }) => {
+              async ({ path: framePath, objectLayerType, objectLayerId, direction, frame }) => {
                 if (
                   storage &&
                   !storage[`src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/08/0.png`]
                 )
                   return;
-                console.log(path, { objectLayerType, objectLayerId, direction, frame });
+
+                console.log(framePath, { objectLayerType, objectLayerId, direction, frame });
+
+                // On first encounter of an objectLayerId, build its data from the asset directory
                 if (!objectLayers[objectLayerId]) {
-                  const metadataPath = `./src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/metadata.json`;
-                  const metadata = fs.existsSync(metadataPath)
-                    ? JSON.parse(fs.readFileSync(metadataPath, 'utf8'))
-                    : null;
+                  const folder = `./src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}`;
+                  const { objectLayerRenderFramesData, objectLayerData } =
+                    await ObjectLayerEngine.buildObjectLayerDataFromDirectory({
+                      folder,
+                      objectLayerType,
+                      objectLayerId,
+                    });
 
-                  if (metadata) {
-                    // Use metadata from file but ensure objectLayerRenderFramesData is initialized
-                    objectLayers[objectLayerId] = metadata;
-
-                    // Ensure data.seed exists (required field)
-                    if (!objectLayers[objectLayerId].data.seed) {
-                      objectLayers[objectLayerId].data.seed = crypto.randomUUID();
-                    }
-
-                    // Ensure objectLayerRenderFramesData exists
-                    if (!objectLayers[objectLayerId].objectLayerRenderFramesData) {
-                      objectLayers[objectLayerId].objectLayerRenderFramesData = {
-                        frames: {},
-                        colors: [],
-                        frame_duration: metadata.data?.render?.frame_duration || 250,
-                        is_stateless: metadata.data?.render?.is_stateless || false,
-                      };
-                    }
-                  } else {
-                    // Create default structure
-                    objectLayers[objectLayerId] = {
-                      data: {
-                        item: {
-                          id: objectLayerId,
-                          type: objectLayerType,
-                          description: '',
-                          activable: true,
-                        },
-                        stats: generateRandomStats(),
-                        seed: crypto.randomUUID(),
-                      },
-                      objectLayerRenderFramesData: {
-                        frames: {},
-                        colors: [],
-                        frame_duration: 250,
-                        is_stateless: false,
-                      },
-                    };
-                  }
+                  objectLayers[objectLayerId] = {
+                    ...objectLayerData,
+                    objectLayerRenderFramesData,
+                    _processed: true,
+                  };
                 }
-                await processAndPushFrame(objectLayers[objectLayerId].objectLayerRenderFramesData, path, direction);
               },
             );
           }
+
           for (const objectLayerId of Object.keys(objectLayers)) {
-            // Create ObjectLayerRenderFrames document
-            const objectLayerRenderFramesDoc = await new ObjectLayerRenderFrames(
-              objectLayers[objectLayerId].objectLayerRenderFramesData,
-            ).save();
+            const entry = objectLayers[objectLayerId];
 
-            // Update ObjectLayer with reference to render frames (top-level, not in data)
-            objectLayers[objectLayerId].objectLayerRenderFramesId = objectLayerRenderFramesDoc._id;
+            // Skip atlas generation when importing all object layers at once (bulk import).
+            // Individual imports or explicit --to-atlas-sprite-sheet calls will still generate atlases.
+            const shouldGenerateAtlas = !isImportAll;
 
-            // Generate SHA256 hash using fast-json-stable-stringify (seed is part of data)
-            objectLayers[objectLayerId].sha256 = crypto
-              .createHash('sha256')
-              .update(stringify(objectLayers[objectLayerId].data))
-              .digest('hex');
+            if (shouldGenerateAtlas) {
+              // Use the centralized createObjectLayerDocuments which handles atlas generation
+              // Since we're in CLI context without a full Express req/res, we build a minimal
+              // atlas generation flow using AtlasSpriteSheetGenerator directly after creation.
+              const { objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
+                ObjectLayer,
+                ObjectLayerRenderFrames,
+                objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
+                objectLayerData: { data: entry.data },
+                createOptions: {
+                  generateAtlas: false,
+                },
+              });
 
-            console.log(await ObjectLayer.create(objectLayers[objectLayerId]));
+              // Generate atlas sprite sheet for individual imports
+              try {
+                const itemKey = objectLayer.data.item.id;
+                const populatedObjectLayer = await ObjectLayer.findById(objectLayer._id).populate(
+                  'objectLayerRenderFramesId',
+                );
+
+                const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
+                  populatedObjectLayer.objectLayerRenderFramesId,
+                  itemKey,
+                  20,
+                );
+
+                const fileDoc = await new File({
+                  name: `${itemKey}-atlas.png`,
+                  data: buffer,
+                  size: buffer.length,
+                  mimetype: 'image/png',
+                  md5: crypto.createHash('md5').update(buffer).digest('hex'),
+                }).save();
+
+                let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
+
+                if (atlasDoc) {
+                  atlasDoc.fileId = fileDoc._id;
+                  atlasDoc.metadata = metadata;
+                  await atlasDoc.save();
+                  logger.info(`Updated existing AtlasSpriteSheet document: ${atlasDoc._id}`);
+                } else {
+                  atlasDoc = await new AtlasSpriteSheet({
+                    fileId: fileDoc._id,
+                    metadata,
+                  }).save();
+                  logger.info(`Created new AtlasSpriteSheet document: ${atlasDoc._id}`);
+                }
+
+                populatedObjectLayer.atlasSpriteSheetId = atlasDoc._id;
+                await populatedObjectLayer.save();
+
+                logger.info(`Atlas sprite sheet completed for item: ${itemKey}`);
+              } catch (atlasError) {
+                logger.error(`Failed to generate atlas for ${objectLayerId}:`, atlasError);
+              }
+
+              console.log(objectLayer);
+            } else {
+              // --import all: create documents without atlas generation
+              const { objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
+                ObjectLayer,
+                ObjectLayerRenderFrames,
+                objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
+                objectLayerData: { data: entry.data },
+                createOptions: {
+                  generateAtlas: false,
+                },
+              });
+
+              logger.info(`ObjectLayer created (atlas skipped for bulk import): ${objectLayerId}`);
+              console.log(objectLayer);
+            }
           }
         }
+
+        // ── Handle --show-frame ──────────────────────────────────────────
         if (options.showFrame !== undefined) {
           if (!itemId) {
             logger.error('item-id is required for --show-frame');
@@ -190,8 +279,10 @@ try {
           }
 
           // Parse direction and frame (default: 08_0)
+          /** @type {string} */
           const showFrameInput = options.showFrame === true ? '08_0' : options.showFrame;
           const [direction, frameIndex] = showFrameInput.split('_');
+          /** @type {number} */
           const frameIndexNum = parseInt(frameIndex) || 0;
 
           logger.info(`Showing frame for item: ${itemId}, direction: ${direction}, frame: ${frameIndexNum}`);
@@ -250,10 +341,11 @@ try {
           shellExec(`firefox ${outputPath}`);
         }
 
-        // Handle --to-atlas-sprite-sheet
+        // ── Handle --to-atlas-sprite-sheet ───────────────────────────────
         if (options.toAtlasSpriteSheet !== undefined) {
           // If toAtlasSpriteSheet is true (flag without value), use null for auto-calc
           // If it's a string/number, parse it as integer
+          /** @type {number|null} */
           const maxAtlasDim = options.toAtlasSpriteSheet === true ? null : parseInt(options.toAtlasSpriteSheet) || null;
 
           if (!itemId) {
@@ -262,6 +354,7 @@ try {
           }
 
           if (maxAtlasDim) {
+            /** @type {string} */
             const sizeRecommendation =
               maxAtlasDim < 2048
                 ? ' (Warning: May be too small for all frames)'
@@ -299,6 +392,7 @@ try {
             maxAtlasDim,
           );
 
+          /** @type {number} */
           const frameCount = Object.values(metadata.frames).reduce((sum, frames) => sum + frames.length, 0);
           logger.info(
             `Atlas generated: ${metadata.atlasWidth}x${metadata.atlasHeight} pixels (${frameCount} frames packed)`,
@@ -340,7 +434,7 @@ try {
           logger.info(`Atlas sprite sheet completed for item: ${itemKey}`);
         }
 
-        // Handle --show-atlas-sprite-sheet
+        // ── Handle --show-atlas-sprite-sheet ─────────────────────────────
         if (options.showAtlasSpriteSheet) {
           if (!itemId) {
             logger.error('item-id is required for --show-atlas-sprite-sheet');
