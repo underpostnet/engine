@@ -1,4 +1,4 @@
-## underpost ci/cd cli v3.0.1
+## underpost ci/cd cli v3.0.2
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -379,8 +379,6 @@ Options:
   --dedicated-gpu                      Initializes the cluster with dedicated
                                        GPU base resources and environment
                                        settings.
-  --full                               Initializes the cluster with all
-                                       available statefulsets and services.
   --ns-use <ns-name>                   Switches the current Kubernetes context
                                        to the specified namespace (creates if
                                        it doesn't exist).
@@ -835,7 +833,7 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: dev-cluster,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,ptls,release-cmt,deploy-test,sync-replica,tf-vae-test,spark-template,rmi,kill,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
+  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,ptls,release-cmt,deploy-test,sync-replica,tf-vae-test,spark-template,rmi,kill,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
   path                                            The input value, identifier, or path for the operation.
 
 Options:

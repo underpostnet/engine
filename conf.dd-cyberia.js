@@ -414,7 +414,11 @@ const DefaultConf = /**/ {
         ],
         ws: 'core',
         peer: true,
-        origins: [],
+        origins: [
+          'https://www.cyberiaonline.com',
+          'https://server.cyberiaonline.com',
+          'https://client.cyberiaonline.com',
+        ],
         minifyBuild: false,
         liteBuild: true,
         docsBuild: false,

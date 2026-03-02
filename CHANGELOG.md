@@ -1,6 +1,61 @@
 # Changelog
 
-## 2026-02-23
+## 2026-03-02
+
+### engine-cyberia
+
+- Add test in engine-cyberia cd workflow ([642d7e36](https://github.com/underpostnet/engine/commit/642d7e36155b6db5dbd36e19767dd95f146ceaf5))
+- Add build dd-cyberia shape generator exclusive module files ([188f563a](https://github.com/underpostnet/engine/commit/188f563a61d7f6bf36bef93cdd18d4e1304f9747))
+- Fix ObjectLayerEngineViewer return to list button click ([aeaead6f](https://github.com/underpostnet/engine/commit/aeaead6f5c67a03449c63c584976e9a73ccc953d))
+- Improve static generations assets in object layer generation CLI ([06694d92](https://github.com/underpostnet/engine/commit/06694d92ea1ad849e745f561b8ec9a48bfa66056))
+- Implements deterministic object layer generation CLI ([f70c9841](https://github.com/underpostnet/engine/commit/f70c9841ef2efc9187c87427cc465505487766db))
+- Implement shape generator module ([5741a38b](https://github.com/underpostnet/engine/commit/5741a38bcfb8c1c4e0ef5053a2a6a73ff50a3879))
+- Fix remove of ag grid table delete object layer delete logic ([e98953cd](https://github.com/underpostnet/engine/commit/e98953cd29767ca44c2362997f0af40cd538371b))
+- Centralize Object Layer Logic and add js docs ([ff8eefed](https://github.com/underpostnet/engine/commit/ff8eefed08349a1e3390379f760c0d9eb20aecca))
+- ObjectLayer Engine Viewer Enhancements ([0ee052e5](https://github.com/underpostnet/engine/commit/0ee052e5231f7b55576595a817742970c90cd056))
+- Add metada json editor of object layers ([abe7448f](https://github.com/underpostnet/engine/commit/abe7448f5ed7429ba1f5c5d01ed94c5c70323638))
+- Remove helia pyntype logic ([2b443d1c](https://github.com/underpostnet/engine/commit/2b443d1c0ed2261e27d5be54903c9a37cff29dd5))
+- Object Layer Deletion Cleanup IPFS ([a2dcdf23](https://github.com/underpostnet/engine/commit/a2dcdf238c32d5b5237f0650232aca0c0823f044))
+- Add Public GET Access for File Object Atlas ([826317fe](https://github.com/underpostnet/engine/commit/826317fe21dfd0b77196ef343b31461c45b5eb72))
+- Allow Cross-Origin on GET methods file, object-layer, and atlas-sprite-sheet api. ([6801839c](https://github.com/underpostnet/engine/commit/6801839cc461dbec6ca205b035ea844415779e85))
+- Add DISABLE_API_RATE_LIMIT env option ([ae72885c](https://github.com/underpostnet/engine/commit/ae72885c1178846067db52b62455d804dbe4eeba))
+
+### client-core
+
+- Fix main-body-btn-container hide logic ([221f8bfc](https://github.com/underpostnet/engine/commit/221f8bfc262048e1ca226f66f0dfab9891db3fd5))
+
+### runtime-express
+
+- Fix express rate limit trust proxy ([ed19e729](https://github.com/underpostnet/engine/commit/ed19e729eafb59d46504fb1ebe89e4bd91c05d7e))
+
+### cli-cluster
+
+- Remove unused full flag ([13df39f5](https://github.com/underpostnet/engine/commit/13df39f508d65b61378ccfca4f7bfc427dcf5fa5))
+
+### ipfs
+
+- Add ipfs client stable json stringify in addJsonToIpfs method ([c2aaf56a](https://github.com/underpostnet/engine/commit/c2aaf56a4bfc4f06147818ec5681567e27967f41))
+- Fix config map IPFS Cluster daemon bind ([7e6df963](https://github.com/underpostnet/engine/commit/7e6df963ba6da1fdc96ac5b6ab844a789901f61b))
+- server ipfs client and object layer atlas sprite sheet ipfs integration ([781e35c4](https://github.com/underpostnet/engine/commit/781e35c4903380df9e7dce7cf5d9275387a46029))
+- Implement ipfs api user-pin and client component service ([1b12e8df](https://github.com/underpostnet/engine/commit/1b12e8df6af21e1dd2edc156e176072f25c9a433))
+
+### cli-run
+
+- Implements expose-ipfs runner ([765772b8](https://github.com/underpostnet/engine/commit/765772b8fb1e7b397560464d1dc6dea0b70a9b7f))
+
+### engine-core
+
+- Clean up legacy logic and json file model ref ([b4c62a2c](https://github.com/underpostnet/engine/commit/b4c62a2cfe4fea0212be644ce333464a81056f6f))
+
+### bin-build
+
+- Add missing       packagejson overrides on dd-cyberia build repository workflow ([7ece9ed5](https://github.com/underpostnet/engine/commit/7ece9ed5500e83a1baedc4d78fd889bca6ecac3c))
+
+## New release v:3.0.1 (2026-02-22)
+
+### engine-core
+
+- Remove ENABLE_FILE_LOGS to default dev adn test env ([727486dc](https://github.com/underpostnet/engine/commit/727486dc4030921c9d1f6a7035eb1a240569fa74))
 
 ### gitlab
 
