@@ -182,6 +182,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         '/src/server/object-layer.js',
         '/src/server/atlas-sprite-sheet-generator.js',
         '/src/server/shape-generator.js',
+        '/src/server/semantic-layer-generator.js',
         '/test/shape-generator.test.js',
       ])
         fs.copySync(`.${path}`, `${basePath}${path}`);
