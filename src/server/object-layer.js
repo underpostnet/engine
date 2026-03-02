@@ -6,6 +6,7 @@
  */
 
 import fs from 'fs-extra';
+import path from 'path';
 import { PNG } from 'pngjs';
 import sharp from 'sharp';
 import { Jimp, intToRGBA, rgbaToInt } from 'jimp';
@@ -509,6 +510,133 @@ export class ObjectLayerEngine {
   }
 
   /**
+   * Map of keyframe direction names to their numeric folder direction codes.
+   * Inverse of {@link ObjectLayerEngine.getKeyFramesDirectionsFromNumberFolderDirection}.
+   * @static
+   * @type {Object<string, string>}
+   * @memberof CyberiaObjectLayer
+   */
+  static directionNameToCode = {
+    down_idle: '08',
+    none_idle: '08',
+    default_idle: '08',
+    up_idle: '02',
+    left_idle: '04',
+    up_left_idle: '04',
+    down_left_idle: '04',
+    right_idle: '06',
+    up_right_idle: '06',
+    down_right_idle: '06',
+    down_walking: '18',
+    up_walking: '12',
+    left_walking: '14',
+    up_left_walking: '14',
+    down_left_walking: '14',
+    right_walking: '16',
+    up_right_walking: '16',
+    down_right_walking: '16',
+  };
+
+  /**
+   * Writes frame PNGs and an optional metadata.json to one or more base asset
+   * directories.  This is the shared write-to-disk step consumed by both the
+   * Cyberia CLI `--generate` / `--import` flows and the REST API service
+   * `post` / `put` `/metadata` endpoints.
+   *
+   * For each base path the layout produced is:
+   * ```
+   * {basePath}/assets/{itemType}/{itemId}/{directionCode}/{frameIndex}.png
+   * {basePath}/assets/{itemType}/{itemId}/metadata.json          (optional)
+   * ```
+   *
+   * @static
+   * @param {Object} params
+   * @param {string[]} params.basePaths - One or more root paths
+   *   (e.g. `['./src/client/public/cyberia/', './public/host/path/']`).
+   *   The conventional `assets/` prefix is appended automatically.
+   * @param {string} params.itemType - Object layer type ('floor', 'skin', …).
+   * @param {string} params.itemId   - Unique item identifier.
+   * @param {ObjectLayerRenderFramesData} params.objectLayerRenderFramesData
+   *   - The render frames data containing `frames`, `colors`,
+   *     `frame_duration` and `is_stateless`.
+   * @param {Object} [params.objectLayerData=null] - When provided, a
+   *   `metadata.json` file is written alongside the frame PNGs.
+   * @param {number} [params.cellPixelDim=20] - Pixel size per grid cell.
+   * @returns {Promise<string[]>} Flat list of every file path written.
+   * @memberof CyberiaObjectLayer
+   */
+  static async writeStaticFrameAssets({
+    basePaths,
+    itemType,
+    itemId,
+    objectLayerRenderFramesData,
+    objectLayerData = null,
+    cellPixelDim = 20,
+  }) {
+    const writtenPaths = [];
+    const dirToCode = ObjectLayerEngine.directionNameToCode;
+
+    for (const basePath of basePaths) {
+      // Track which directionCode/frameIndex combos we already wrote for
+      // this basePath so duplicate direction names (e.g. down_idle,
+      // none_idle, default_idle all map to '08') only write once.
+      const written = new Set();
+
+      for (const [dirName, dirFrames] of Object.entries(objectLayerRenderFramesData.frames)) {
+        const code = dirToCode[dirName];
+        if (!code) continue;
+
+        for (let fi = 0; fi < dirFrames.length; fi++) {
+          const key = `${code}/${fi}`;
+          if (written.has(key)) continue;
+          written.add(key);
+
+          const dirFolder = path.join(basePath, 'assets', itemType, itemId, code);
+          await fs.ensureDir(dirFolder);
+
+          const filePath = path.join(dirFolder, `${fi}.png`);
+
+          await ObjectLayerEngine.buildImgFromTile({
+            tile: {
+              map_color: objectLayerRenderFramesData.colors,
+              frame_matrix: dirFrames[fi],
+            },
+            cellPixelDim,
+            opacityFilter: (x, y, color) => 255,
+            imagePath: filePath,
+          });
+
+          writtenPaths.push(filePath);
+        }
+      }
+
+      // Write metadata.json when objectLayerData is supplied
+      if (objectLayerData) {
+        const metaDir = path.join(basePath, 'assets', itemType, itemId);
+        await fs.ensureDir(metaDir);
+        const metadataPath = path.join(metaDir, 'metadata.json');
+
+        await fs.writeJson(
+          metadataPath,
+          {
+            data: objectLayerData.data,
+            objectLayerRenderFramesData: {
+              frame_duration: objectLayerRenderFramesData.frame_duration,
+              is_stateless: objectLayerRenderFramesData.is_stateless,
+            },
+            generated: true,
+            generatorVersion: '1.0.0',
+          },
+          { spaces: 2 },
+        );
+        writtenPaths.push(metadataPath);
+      }
+    }
+
+    return writtenPaths;
+  }
+
+  /**
    * Creates new ObjectLayerRenderFrames and ObjectLayer documents in MongoDB from the
    * provided data, computes an initial SHA-256, and optionally generates the atlas sprite sheet.
    *
@@ -825,3 +953,10 @@ export const updateObjectLayerDocuments = ObjectLayerEngine.updateObjectLayerDoc
  * @memberof CyberiaObjectLayer
  */
 export const computeAndSaveFinalSha256 = ObjectLayerEngine.computeAndSaveFinalSha256;
+
+/**
+ * @see {@link ObjectLayerEngine.writeStaticFrameAssets}
+ * @function writeStaticFrameAssets
+ * @memberof CyberiaObjectLayer
+ */
+export const writeStaticFrameAssets = ObjectLayerEngine.writeStaticFrameAssets;

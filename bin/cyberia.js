@@ -30,10 +30,11 @@ import { AtlasSpriteSheetGenerator } from '../src/server/atlas-sprite-sheet-gene
 import {
   generateFrame,
   generateMultiFrame,
-  writeAssetDirectory,
   lookupSemantic,
   semanticRegistry,
 } from '../src/server/semantic-layer-generator.js';
+import { IpfsClient } from '../src/server/ipfs-client.js';
+import { createPinRecord } from '../src/api/ipfs/ipfs.service.js';
 import { program as underpostProgram } from '../src/cli/index.js';
 import crypto from 'crypto';
 import nodePath from 'path';
@@ -142,7 +143,7 @@ try {
         });
 
         await DataBaseProvider.load({
-          apis: ['object-layer', 'object-layer-render-frames', 'atlas-sprite-sheet', 'file'],
+          apis: ['object-layer', 'object-layer-render-frames', 'atlas-sprite-sheet', 'file', 'ipfs'],
           host,
           path,
           db,
@@ -527,8 +528,13 @@ try {
           const genFrameCount = options.frameCount || 1;
           const genDensity = options.density != null ? options.density : 0.5;
 
+          // Append a random suffix to make the item-id unique per run
+          const randStr = crypto.randomUUID().slice(0, 8);
+          const uniqueItemId = `${itemId}-${randStr}`;
+
           logger.info('Generating procedural object layers', {
-            itemId,
+            itemId: uniqueItemId,
+            basePrefix: itemId,
             seed: genSeed,
             count: genCount,
             startFrame: genFrameIndex,
@@ -540,6 +546,8 @@ try {
           });
 
           // 1. Generate multi-frame result (deterministic, temporally coherent)
+          //    Pass the base itemId for semantic lookup, but override the stored
+          //    item.id with uniqueItemId so every run produces a distinct asset.
           const multiFrameResult = generateMultiFrame({
             itemId,
             seed: genSeed,
@@ -549,18 +557,24 @@ try {
             density: genDensity,
           });
 
+          // Overwrite the item id in the generated data with the unique variant
+          multiFrameResult.objectLayerData.data.item.id = uniqueItemId;
+
           logger.info(
             `Generated ${multiFrameResult.frameCount} frame(s) with ${multiFrameResult.objectLayerRenderFramesData.colors.length} unique colors`,
           );
 
-          // 2. Write static asset PNGs to conventional directory structure
-          const assetBasePath = './src/client/public/cyberia/assets';
-          const writtenFiles = await writeAssetDirectory(
-            multiFrameResult,
-            assetBasePath,
-            20, // cellPixelDim
-            buildImgFromTile,
-          );
+          // 2. Write static asset PNGs to both source and public directories
+          const srcBasePath = './src/client/public/cyberia/';
+          const publicBasePath = `./public/${host}${path}`;
+          const writtenFiles = await ObjectLayerEngine.writeStaticFrameAssets({
+            basePaths: [srcBasePath, publicBasePath],
+            itemType: descriptor.itemType,
+            itemId: uniqueItemId,
+            objectLayerRenderFramesData: multiFrameResult.objectLayerRenderFramesData,
+            objectLayerData: multiFrameResult.objectLayerData,
+            cellPixelDim: 20,
+          });
 
           logger.info(`Wrote ${writtenFiles.length} asset file(s):`);
           for (const f of writtenFiles) {
@@ -580,7 +594,8 @@ try {
 
           logger.info(`ObjectLayer persisted to MongoDB: ${objectLayer._id} (item: ${objectLayer.data.item.id})`);
 
-          // 4. Generate atlas sprite sheet
+          // 4. Generate atlas sprite sheet + pin to IPFS
+          let atlasCid = '';
           try {
             const atlasItemKey = objectLayer.data.item.id;
             const populatedObjectLayer = await ObjectLayer.findById(objectLayer._id).populate(
@@ -602,51 +617,77 @@ try {
               md5: crypto.createHash('md5').update(buffer).digest('hex'),
             }).save();
 
-            // Upsert AtlasSpriteSheet document
+            // Pin atlas PNG to IPFS + copy into MFS
+            try {
+              const ipfsResult = await IpfsClient.addBufferToIpfs(
+                buffer,
+                `${atlasItemKey}_atlas_sprite_sheet.png`,
+                `/object-layer/${atlasItemKey}/${atlasItemKey}_atlas_sprite_sheet.png`,
+              );
+              if (ipfsResult) {
+                atlasCid = ipfsResult.cid;
+                logger.info(`Atlas sprite sheet pinned to IPFS – CID: ${atlasCid}`);
+              }
+            } catch (ipfsError) {
+              logger.warn('Failed to add atlas sprite sheet to IPFS:', ipfsError.message);
+            }
+
+            // Upsert AtlasSpriteSheet document (with CID)
             let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': atlasItemKey });
             if (atlasDoc) {
               atlasDoc.fileId = fileDoc._id;
+              atlasDoc.cid = atlasCid;
               atlasDoc.metadata = metadata;
               await atlasDoc.save();
               logger.info(`Updated existing AtlasSpriteSheet document: ${atlasDoc._id}`);
             } else {
               atlasDoc = await new AtlasSpriteSheet({
                 fileId: fileDoc._id,
+                cid: atlasCid,
                 metadata,
               }).save();
               logger.info(`Created new AtlasSpriteSheet document: ${atlasDoc._id}`);
             }
 
-            // Link atlas to ObjectLayer
+            // Link atlas to ObjectLayer and set data.atlasSpriteSheetCid
             populatedObjectLayer.atlasSpriteSheetId = atlasDoc._id;
+            populatedObjectLayer.data.atlasSpriteSheetCid = atlasCid;
+            populatedObjectLayer.markModified('data.atlasSpriteSheetCid');
             await populatedObjectLayer.save();
 
-            // Also write atlas PNG to static assets
-            const atlasOutputDir = nodePath.join(assetBasePath, descriptor.itemType, itemId);
-            await fs.ensureDir(atlasOutputDir);
-            const atlasOutputPath = nodePath.join(atlasOutputDir, `${atlasItemKey}-atlas.png`);
-            await fs.writeFile(atlasOutputPath, buffer);
-
-            logger.info(
-              `Atlas sprite sheet generated: ${metadata.atlasWidth}x${metadata.atlasHeight} → ${atlasOutputPath}`,
-            );
+            // Also write atlas PNG to both static asset directories
+            for (const bp of [srcBasePath, publicBasePath]) {
+              const atlasOutputDir = nodePath.join(bp, 'assets', descriptor.itemType, uniqueItemId);
+              await fs.ensureDir(atlasOutputDir);
+              const atlasOutputPath = nodePath.join(atlasOutputDir, `${atlasItemKey}-atlas.png`);
+              await fs.writeFile(atlasOutputPath, buffer);
+              logger.info(
+                `Atlas sprite sheet generated: ${metadata.atlasWidth}x${metadata.atlasHeight} → ${atlasOutputPath}`,
+              );
+            }
           } catch (atlasError) {
-            logger.error(`Failed to generate atlas for ${itemId}:`, atlasError);
+            logger.error(`Failed to generate atlas for ${uniqueItemId}:`, atlasError);
           }
 
-          // 5. Compute and save final SHA-256
+          // 5. Compute final SHA-256, pin OL data JSON to IPFS, create pin records
           try {
-            const finalObjectLayer = await ObjectLayer.findById(objectLayer._id);
-            const finalSha256 = ObjectLayerEngine.computeSha256(finalObjectLayer.data);
-            finalObjectLayer.sha256 = finalSha256;
-            finalObjectLayer.markModified('data');
-            await finalObjectLayer.save();
-            logger.info(`Final SHA-256: ${finalSha256}`);
-          } catch (sha256Error) {
-            logger.error('Failed to compute final SHA-256:', sha256Error);
+            const finalObjectLayer = await ObjectLayer.findById(objectLayer._id).populate('objectLayerRenderFramesId');
+            const finalized = await ObjectLayerEngine.computeAndSaveFinalSha256({
+              objectLayer: finalObjectLayer,
+              ipfsClient: IpfsClient,
+              createPinRecord,
+              userId: undefined, // CLI context has no authenticated user
+              options: { host, path },
+            });
+            logger.info(`Final SHA-256: ${finalized.sha256}`);
+            if (finalized.cid) {
+              logger.info(`ObjectLayer data pinned to IPFS – CID: ${finalized.cid}`);
+            }
+          } catch (finalizeError) {
+            logger.error('Failed to finalize SHA-256 / IPFS:', finalizeError);
           }
 
-          logger.info(`✓ Generation complete for "${itemId}" (seed: ${genSeed}, frames: ${genFrameCount})`);
+          logger.info(`✓ Generation complete for "${uniqueItemId}" (seed: ${genSeed}, frames: ${genFrameCount})`);
 
           // Log per-layer summary
           if (multiFrameResult.frames.length > 0) {

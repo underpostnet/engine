@@ -13,8 +13,6 @@
  */
 
 import crypto from 'crypto';
-import fs from 'fs-extra';
-import path from 'path';
 
 import { createRng, seedToInt, createNoise2D, generateShape, listShapes } from './shape-generator.js';
 import { loggerFactory } from './logger.js';
@@ -1076,101 +1074,6 @@ export function generateMultiFrame(options) {
  */
 function hashMod(str, mod) {
   return ((hashString(str) % mod) + mod) % mod;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
- *  STATIC ASSET OUTPUT
- *  Writes generated frames as PNGs to the conventional asset directory.
- * ═══════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Writes generated frame PNGs to the conventional asset directory structure:
- * ./src/client/public/cyberia/assets/{type}/{itemId}/{dirCode}/{frameIdx}.png
- *
- * @param {MultiFrameResult} result - The generation result.
- * @param {string} [basePath='./src/client/public/cyberia/assets'] - Base asset directory.
- * @param {number} [cellPixelDim=20] - Pixel size per cell.
- * @param {function} buildImgFromTile - The ObjectLayerEngine.buildImgFromTile function.
- * @returns {Promise<string[]>} Paths of written files.
- * @memberof SemanticLayerGenerator
- */
-export async function writeAssetDirectory(result, basePath, cellPixelDim, buildImgFromTile) {
-  const { objectLayerRenderFramesData, objectLayerData } = result;
-  const itemId = objectLayerData.data.item.id;
-  const itemType = objectLayerData.data.item.type;
-  const writtenPaths = [];
-
-  // Map direction names back to folder codes
-  const dirToCode = {
-    down_idle: '08',
-    none_idle: '08',
-    default_idle: '08',
-    up_idle: '02',
-    left_idle: '04',
-    up_left_idle: '04',
-    down_left_idle: '04',
-    right_idle: '06',
-    up_right_idle: '06',
-    down_right_idle: '06',
-    down_walking: '18',
-    up_walking: '12',
-    left_walking: '14',
-    up_left_walking: '14',
-    down_left_walking: '14',
-    right_walking: '16',
-    up_right_walking: '16',
-    down_right_walking: '16',
-  };
-
-  // Track which direction codes + frame indices we've already written
-  const written = new Set();
-
-  for (const [dirName, dirFrames] of Object.entries(objectLayerRenderFramesData.frames)) {
-    const code = dirToCode[dirName];
-    if (!code) continue;
-
-    for (let fi = 0; fi < dirFrames.length; fi++) {
-      const key = `${code}/${fi}`;
-      if (written.has(key)) continue;
-      written.add(key);
-
-      const dirPath = path.join(basePath, itemType, itemId, code);
-      await fs.ensureDir(dirPath);
-
-      const filePath = path.join(dirPath, `${fi}.png`);
-
-      await buildImgFromTile({
-        tile: {
-          map_color: objectLayerRenderFramesData.colors,
-          frame_matrix: dirFrames[fi],
-        },
-        cellPixelDim,
-        opacityFilter: (x, y, color) => 255,
-        imagePath: filePath,
-      });
-
-      writtenPaths.push(filePath);
-    }
-  }
-
-  // Write metadata.json
-  const metadataPath = path.join(basePath, itemType, itemId, 'metadata.json');
-  await fs.writeJson(
-    metadataPath,
-    {
-      data: objectLayerData.data,
-      objectLayerRenderFramesData: {
-        frame_duration: objectLayerRenderFramesData.frame_duration,
-        is_stateless: objectLayerRenderFramesData.is_stateless,
-      },
-      generated: true,
-      generatorVersion: '1.0.0',
-    },
-    { spaces: 2 },
-  );
-  writtenPaths.push(metadataPath);
-
-  return writtenPaths;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
