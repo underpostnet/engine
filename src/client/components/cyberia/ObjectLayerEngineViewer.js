@@ -1121,7 +1121,7 @@ const ObjectLayerEngineViewer = {
         if (direction !== this.Data.currentDirection) {
           this.Data.currentDirection = direction;
           await this.renderViewer({ Elements });
-          await this.attachEventListeners({ Elements });
+          // attachEventListeners is already called inside renderViewer
           await this.generateWebp();
         }
       });
@@ -1136,7 +1136,7 @@ const ObjectLayerEngineViewer = {
         if (mode !== this.Data.currentMode) {
           this.Data.currentMode = mode;
           await this.renderViewer({ Elements });
-          await this.attachEventListeners({ Elements });
+          // attachEventListeners is already called inside renderViewer
           await this.generateWebp();
         }
       });
@@ -1153,10 +1153,26 @@ const ObjectLayerEngineViewer = {
     // Return to list button
     const listBtn = s('#return-to-list-btn');
     if (listBtn) {
-      listBtn.addEventListener('click', () => {
-        // Clear the id parameter to return to list view
+      listBtn.addEventListener('click', async () => {
+        // Clear object data and reset state
+        this.Data.webp = null;
+        this.Data.webpMetadata = null;
+        this.Data.objectLayer = null;
+        this.Data.frameCounts = null;
+
+        // Set currentObjectId to null BEFORE setQueryParams so the
+        // listenQueryParamsChange listener sees the id already matches
+        // and skips calling Reload (avoids double-render race condition)
+        this.Data.currentObjectId = null;
+
+        // Update the URL to remove the id parameter
         setQueryParams({ id: null }, { replace: false });
-        // The listener will detect the change and call renderEmpty()
+
+        // Directly render the list view instead of relying on the
+        // listener → Reload → renderEmpty chain which can silently
+        // fail when the URL was already clean or currentObjectId
+        // was already null
+        await this.renderEmpty({ Elements });
       });
     }
 
