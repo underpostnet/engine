@@ -1052,6 +1052,7 @@ export function generateMultiFrame(options) {
         intelligence: hashMod(seed + ':intelligence', 11),
         utility: hashMod(seed + ':utility', 11),
       },
+      ledger: { type: 'OFF_CHAIN' },
       seed: seedToUUIDv4(seed + ':' + itemId),
     },
   };

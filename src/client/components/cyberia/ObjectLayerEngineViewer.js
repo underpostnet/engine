@@ -672,11 +672,11 @@ const ObjectLayerEngineViewer = {
                         <span class="ipfs-cid-value">${objectLayer.cid}</span>
                       </div>`
                     : ''}
-                  ${objectLayer.data.atlasSpriteSheetCid
+                  ${objectLayer.data.render?.cid
                     ? html`<div class="ipfs-cid-label">
                         <i class="fa-solid fa-image"></i>
                         <strong>Atlas IPFS CID:</strong>
-                        <span class="ipfs-cid-value">${objectLayer.data.atlasSpriteSheetCid}</span>
+                        <span class="ipfs-cid-value">${objectLayer.data.render.cid}</span>
                       </div>`
                     : ''}
                   ${objectLayer.sha256

@@ -189,14 +189,14 @@ const ObjectLayerService = {
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
     let newObjectLayer = await new ObjectLayer(req.body).save();
 
-    // Generate atlas sprite sheet – this sets data.atlasSpriteSheetCid and saves
+    // Generate atlas sprite sheet – this sets data.render.cid and saves
     try {
       await AtlasSpriteSheetService.generate({ params: { id: newObjectLayer._id }, auth: req.auth }, res, options);
     } catch (atlasError) {
       logger.error('Failed to auto-generate atlas for new ObjectLayer:', atlasError);
     }
 
-    // Re-read so data.atlasSpriteSheetCid is up-to-date, then recompute SHA-256 & IPFS CID
+    // Re-read so data.render.cid is up-to-date, then recompute SHA-256 & IPFS CID
     newObjectLayer = await ObjectLayer.findById(newObjectLayer._id).populate('objectLayerRenderFramesId');
     if (newObjectLayer) {
       newObjectLayer = await ObjectLayerEngine.computeAndSaveFinalSha256({
@@ -677,14 +677,14 @@ const ObjectLayerService = {
     let updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(req.params.id, req.body, { new: true });
 
     if (updatedObjectLayer) {
-      // Generate atlas sprite sheet – this sets data.atlasSpriteSheetCid and saves
+      // Generate atlas sprite sheet – this sets data.render.cid and saves
       try {
         await AtlasSpriteSheetService.generate({ params: { id: req.params.id }, auth: req.auth }, res, options);
       } catch (atlasError) {
         logger.error('Failed to auto-update atlas for ObjectLayer:', atlasError);
       }
 
-      // Re-read so data.atlasSpriteSheetCid is up-to-date, then recompute SHA-256 & IPFS CID
+      // Re-read so data.render.cid is up-to-date, then recompute SHA-256 & IPFS CID
       updatedObjectLayer = await ObjectLayer.findById(req.params.id).populate('objectLayerRenderFramesId');
       if (updatedObjectLayer) {
         updatedObjectLayer = await ObjectLayerEngine.computeAndSaveFinalSha256({

@@ -48,7 +48,9 @@ const logger = loggerFactory(import.meta);
  * @property {boolean} [data.item.activable] - Whether the item can be activated.
  * @property {Object} data.stats - Statistical attributes of the object layer.
  * @property {string} data.seed - Random UUID v4 for unique state generation.
- * @property {string} [data.atlasSpriteSheetCid] - IPFS CID for the consolidated atlas sprite sheet PNG.
+ * @property {Object} [data.render] - IPFS content identifiers for the consolidated atlas sprite sheet.
+ * @property {string} [data.render.cid] - IPFS CID for the consolidated atlas sprite sheet PNG.
+ * @property {string} [data.render.metadataCid] - IPFS CID for the atlas sprite sheet metadata JSON (fast-json-stable-stringify).
  * @property {ObjectLayerRenderFramesData} [objectLayerRenderFramesData] - Render frames data (transient, used before persisting).
  * @property {import('mongoose').Types.ObjectId} [objectLayerRenderFramesId] - Reference to persisted ObjectLayerRenderFrames document.
  * @property {string} [sha256] - SHA-256 hash of the object layer data.
@@ -445,6 +447,7 @@ export class ObjectLayerEngine {
             activable: true,
           },
           stats: metadata.data.stats || ObjectLayerEngine.generateRandomStats(),
+          ledger: metadata.data.ledger || { type: 'OFF_CHAIN' },
           seed: metadata.data.seed || crypto.randomUUID(),
         },
       };
@@ -458,6 +461,7 @@ export class ObjectLayerEngine {
             activable: true,
           },
           stats: ObjectLayerEngine.generateRandomStats(),
+          ledger: { type: 'OFF_CHAIN' },
           seed: crypto.randomUUID(),
         },
       };
@@ -501,7 +505,7 @@ export class ObjectLayerEngine {
   /**
    * Computes a SHA-256 hash of the given object layer data using deterministic JSON serialisation.
    * @static
-   * @param {Object} data - The `data` sub-document of an ObjectLayer (item, stats, seed, atlasSpriteSheetCid, …).
+   * @param {Object} data - The `data` sub-document of an ObjectLayer (item, stats, seed, render, …).
    * @returns {string} Hex-encoded SHA-256 hash.
    * @memberof CyberiaObjectLayer
    */
@@ -642,7 +646,7 @@ export class ObjectLayerEngine {
    *
    * When `generateAtlas` is `true` (the default) the method delegates to
    * `AtlasSpriteSheetService.generate` and then recomputes the definitive SHA-256
-   * (which now includes `data.atlasSpriteSheetCid`) and persists an IPFS CID.
+   * (which now includes `data.render.cid`) and persists an IPFS CID.
    *
    * @static
    * @param {Object} params - Parameters.
@@ -668,7 +672,8 @@ export class ObjectLayerEngine {
 
     // 2. Attach reference + compute temporary SHA-256
     objectLayerData.objectLayerRenderFramesId = objectLayerRenderFramesDoc._id;
-    objectLayerData.data.atlasSpriteSheetCid = objectLayerData.data.atlasSpriteSheetCid || '';
+    if (!objectLayerData.data.render) objectLayerData.data.render = {};
+    objectLayerData.data.render.cid = objectLayerData.data.render.cid || '';
     objectLayerData.sha256 = ObjectLayerEngine.computeSha256(objectLayerData.data);
 
     // 3. Upsert ObjectLayer (handle duplicate sha256 gracefully)
@@ -738,7 +743,8 @@ export class ObjectLayerEngine {
     }
 
     // 2. Compute temporary SHA-256
-    objectLayerData.data.atlasSpriteSheetCid = objectLayerData.data.atlasSpriteSheetCid || '';
+    if (!objectLayerData.data.render) objectLayerData.data.render = {};
+    objectLayerData.data.render.cid = objectLayerData.data.render.cid || '';
     objectLayerData.sha256 = ObjectLayerEngine.computeSha256(objectLayerData.data);
 
     // 3. Persist ObjectLayer update
@@ -773,7 +779,7 @@ export class ObjectLayerEngine {
    * Recomputes the definitive SHA-256, pins the object layer data JSON to IPFS,
    * and persists both fields on the ObjectLayer document.
    *
-   * Intended for use after atlas generation has set `data.atlasSpriteSheetCid`.
+   * Intended for use after atlas generation has set `data.render.cid`.
    *
    * @static
    * @param {Object} params - Parameters.
@@ -840,7 +846,7 @@ export class ObjectLayerEngine {
       logger.error(`Failed to auto-${isNew ? 'generate' : 'update'} atlas for ObjectLayer:`, atlasError);
     }
 
-    // Re-read the objectLayer so data.atlasSpriteSheetCid is up-to-date
+    // Re-read the objectLayer so data.render.cid is up-to-date
     objectLayer = await ObjectLayer.findById(objectLayer._id).populate('objectLayerRenderFramesId');
 
     // Compute definitive SHA-256 and IPFS CID

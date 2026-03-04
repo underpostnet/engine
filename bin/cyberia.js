@@ -649,10 +649,11 @@ try {
               logger.info(`Created new AtlasSpriteSheet document: ${atlasDoc._id}`);
             }
 
-            // Link atlas to ObjectLayer and set data.atlasSpriteSheetCid
+            // Link atlas to ObjectLayer and set data.render.cid
             populatedObjectLayer.atlasSpriteSheetId = atlasDoc._id;
-            populatedObjectLayer.data.atlasSpriteSheetCid = atlasCid;
-            populatedObjectLayer.markModified('data.atlasSpriteSheetCid');
+            if (!populatedObjectLayer.data.render) populatedObjectLayer.data.render = {};
+            populatedObjectLayer.data.render.cid = atlasCid;
+            populatedObjectLayer.markModified('data.render');
             await populatedObjectLayer.save();
 
             // Also write atlas PNG to both static asset directories

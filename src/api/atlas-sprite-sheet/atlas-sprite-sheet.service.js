@@ -82,8 +82,9 @@ const AtlasSpriteSheetService = {
     }
 
     objectLayer.atlasSpriteSheetId = atlasDoc._id;
-    objectLayer.data.atlasSpriteSheetCid = atlasCid;
-    objectLayer.markModified('data.atlasSpriteSheetCid');
+    if (!objectLayer.data.render) objectLayer.data.render = {};
+    objectLayer.data.render.cid = atlasCid;
+    objectLayer.markModified('data.render');
     await objectLayer.save();
 
     return atlasDoc;
@@ -106,7 +107,7 @@ const AtlasSpriteSheetService = {
       const atlasDoc = await AtlasSpriteSheet.findById(objectLayer.atlasSpriteSheetId);
       if (atlasDoc) {
         // Remove pin records and unpin atlas CID from IPFS
-        const atlasCid = atlasDoc.cid || objectLayer.data.atlasSpriteSheetCid;
+        const atlasCid = atlasDoc.cid || objectLayer.data.render?.cid;
         if (atlasCid) {
           try {
             await removePinRecordsAndUnpin(atlasCid, options);
@@ -127,8 +128,9 @@ const AtlasSpriteSheetService = {
         await AtlasSpriteSheet.findByIdAndDelete(atlasDoc._id);
       }
       objectLayer.atlasSpriteSheetId = undefined;
-      objectLayer.data.atlasSpriteSheetCid = '';
-      objectLayer.markModified('data.atlasSpriteSheetCid');
+      if (!objectLayer.data.render) objectLayer.data.render = {};
+      objectLayer.data.render.cid = '';
+      objectLayer.markModified('data.render');
       await objectLayer.save();
     }
 

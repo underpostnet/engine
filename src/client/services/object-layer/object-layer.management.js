@@ -268,7 +268,7 @@ const ObjectLayerManagement = {
     // IPFS CID of object layer data JSON (fast-json-stable-stringify)
     const CidRenderer = createCidRenderer((d) => d?.cid);
     // IPFS CID of the consolidated atlas sprite sheet PNG
-    const AtlasCidRenderer = createCidRenderer((d) => d?.data?.atlasSpriteSheetCid || d?.atlasSpriteSheetId?.cid);
+    const AtlasCidRenderer = createCidRenderer((d) => d?.data?.render?.cid || d?.atlasSpriteSheetId?.cid);
 
     let columnDefs = [
       // {
@@ -295,7 +295,7 @@ const ObjectLayerManagement = {
         filter: false,
       },
       {
-        field: 'data.atlasSpriteSheetCid',
+        field: 'data.render.cid',
         headerName: 'Atlas CID',
         width: 160,
         cellRenderer: AtlasCidRenderer,

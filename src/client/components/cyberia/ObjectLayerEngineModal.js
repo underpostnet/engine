@@ -748,6 +748,7 @@ const ObjectLayerEngineModal = {
           data: {
             stats: {},
             item: {},
+            ledger: { type: 'OFF_CHAIN' },
           },
         };
         for (const directionCode of directionCodes) {
