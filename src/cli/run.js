@@ -32,7 +32,6 @@ const logger = loggerFactory(import.meta);
  * @property {string} podName - The name of the pod to run.
  * @property {string} nodeName - The name of the node to run.
  * @property {number} port - Custom port to use.
- * @property {boolean} etcHosts - Whether to modify /etc/hosts.
  * @property {string} volumeHostPath - The host path for the volume.
  * @property {string} volumeMountPath - The mount path for the volume.
  * @property {string} imageName - The name of the image to run.
@@ -85,9 +84,12 @@ const logger = loggerFactory(import.meta);
  * @property {string} monitorStatusKindType - The monitor status kind type option.
  * @property {string} monitorStatusDeltaMs - The monitor status delta in milliseconds.
  * @property {string} monitorStatusMaxAttempts - The maximum number of attempts for monitor status.
+ * @property {boolean} logs - Whether to enable logs.
  * @property {boolean} dryRun - Whether to perform a dry run.
  * @property {boolean} createJobNow - Whether to create the job immediately.
- * @property {boolean} logs - Whether to enable logs.
+ * @property {string|Array<{ip: string, hostnames: string[]}>} hostAliases - Adds entries to the Pod /etc/hosts via Kubernetes hostAliases.
+ *   As a string (CLI): semicolon-separated entries of "ip=hostname1,hostname2" (e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote").
+ *   As an array (programmatic): objects with `ip` and `hostnames` fields (e.g., [{ ip: "127.0.0.1", hostnames: ["foo.local"] }]).
  * @memberof UnderpostRun
  */
 const DEFAULT_OPTION = {
@@ -150,6 +152,7 @@ const DEFAULT_OPTION = {
   logs: false,
   dryRun: false,
   createJobNow: false,
+  hostAliases: '',
 };
 
 /**
@@ -1840,6 +1843,30 @@ EOF
       const imagePullPolicy = options.imagePullPolicy || 'IfNotPresent';
       const hostNetwork = options.hostNetwork ? options.hostNetwork : '';
       const apiVersion = options.apiVersion || 'v1';
+      // Parse hostAliases option:
+      //   - string from CLI: "ip1=host1,host2;ip2=host3,host4"
+      //   - array from programmatic callers: [{ ip: "127.0.0.1", hostnames: ["foo.local"] }]
+      const hostAliases = options.hostAliases
+        ? Array.isArray(options.hostAliases)
+          ? options.hostAliases
+          : options.hostAliases
+              .split(';')
+              .filter((entry) => entry.trim())
+              .map((entry) => {
+                const [ip, hostnamesStr] = entry.split('=');
+                const hostnames = hostnamesStr ? hostnamesStr.split(',').map((h) => h.trim()) : [];
+                return { ip: ip.trim(), hostnames };
+              })
+        : [];
+      const hostAliasesYaml =
+        hostAliases.length > 0
+          ? `  hostAliases:\n${hostAliases
+              .map(
+                (alias) =>
+                  `  - ip: "${alias.ip}"\n    hostnames:\n${alias.hostnames.map((h) => `    - "${h}"`).join('\n')}`,
+              )
+              .join('\n')}`
+          : '';
       const labels = options.labels
         ? options.labels
             .split(',')
@@ -1870,6 +1897,7 @@ spec:
   restartPolicy: ${restartPolicy}
 ${runtimeClassName ? `  runtimeClassName: ${runtimeClassName}` : ''}
 ${hostNetwork ? `  hostNetwork: ${hostNetwork}` : ''}
+${hostAliasesYaml}
   containers:
     - name: ${containerName}
       image: ${imageName}
