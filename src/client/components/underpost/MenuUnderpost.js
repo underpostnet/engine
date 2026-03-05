@@ -33,8 +33,6 @@ const MenuUnderpost = {
 
     const { barConfig } = await Themes[Css.currentTheme]();
 
-    const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
-    const barMode = undefined; // 'top-bottom-bar';
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -43,7 +41,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-contracultura-cyberpunk',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fa-brands fa-blogger"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/blog.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('contracultura-cyberpunk')}</span>`,
             }),
             // style: 'display: none',
@@ -56,7 +54,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-lab-gallery hide',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-photo-film"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/gallery.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('lab-gallery')}</span>`,
             }),
             // style: 'display: none',
@@ -69,7 +67,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-home"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/home.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
             }),
             // style: 'display: none',
@@ -82,7 +80,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-log-in',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-in-alt"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
             }),
             attrs: `data-id="log-in"`,
@@ -94,7 +92,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-sign-up',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-plus"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
             }),
             attrs: `data-id="sign-up"`,
@@ -106,7 +104,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-log-out',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-out-alt"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
             }),
             attrs: `data-id="log-out"`,
@@ -119,7 +117,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-account',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-circle"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/account.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
             }),
             style: 'display: none',
@@ -132,7 +130,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-public-profile',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-tag"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/character.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('public-profile')}</span>`,
             }),
             style: 'display: none',
@@ -145,7 +143,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-settings',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sliders-h"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/settings.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
             }),
             attrs: `data-id="settings"`,
@@ -157,7 +155,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-recover hide',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/update.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
             }),
             attrs: `data-id="recover"`,
@@ -169,7 +167,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-polyhedron',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-cube"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/polyhedron.png" />`,
               text: html`<span class="menu-label-text">Polyhedron</span>`,
             }),
             attrs: `data-id="polyhedron"`,
@@ -181,7 +179,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-github',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fab fa-github"></i>`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/github.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('github')}</span>`,
             }),
             attrs: `data-id="github"`,
@@ -195,18 +193,11 @@ const MenuUnderpost = {
       title: BannerAppTemplate,
       // titleClass: 'hide',
       titleRender: () => {
-        ThemeEvents['titleRender'] = () => {
-          const srcLogo = `${getProxyPath()}assets/splash/mstile-144x144.png`;
-          htmls(
-            '.action-btn-app-icon-render',
-            html`<img class="inl top-bar-app-icon ${darkTheme ? '' : `negative-color`}" src="${srcLogo}" />`,
-          );
-        };
-        setTimeout(ThemeEvents['titleRender']);
         return '';
       },
       mode: 'slide-menu',
       RouterInstance,
+      searchCustomImgClass: 'underpost-menu-icon',
       htmlMainBody: async () => {
         // Create PanelForm instance first to get update function
         const panelFormInstance = await PanelForm.instance({
@@ -283,6 +274,38 @@ const MenuUnderpost = {
       },
     });
 
+    ThemeEvents['underpost-main-theme-event'] = () => {
+      const srcLogo = darkTheme
+        ? `${getProxyPath()}assets/ui-icons/underpost-white.png`
+        : `${getProxyPath()}assets/ui-icons/underpost-white.png`;
+
+      if (s('.action-btn-app-icon-render'))
+        htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+
+      if (s(`.style-ssr-background-image`)) {
+        if (darkTheme) {
+          htmls(
+            `.style-ssr-background-image`,
+            css`
+              .ssr-background-image {
+                background: #191919;
+              }
+            `,
+          );
+        } else {
+          htmls(
+            `.style-ssr-background-image`,
+            css`
+              .ssr-background-image {
+                background: #e8e8e8;
+              }
+            `,
+          );
+        }
+      }
+    };
+    setTimeout(ThemeEvents['underpost-main-theme-event']);
+
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
       group: `menu-sortable`,
@@ -339,8 +362,8 @@ const MenuUnderpost = {
         route: 'sign-up',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-user-plus"></i>`,
-          text: Translate.Render('sign-up'),
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('sign-up')}</span>`,
         }),
         html: async () => await SignUp.Render({ idModal: 'modal-sign-up' }),
         handleType: 'bar',
@@ -358,8 +381,8 @@ const MenuUnderpost = {
         route: 'log-out',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-sign-out-alt"></i>`,
-          text: Translate.Render('log-out'),
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('log-out')}</span>`,
         }),
         html: async () => await LogOut.Render(),
         handleType: 'bar',
@@ -377,8 +400,8 @@ const MenuUnderpost = {
         route: 'log-in',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-sign-in-alt"></i>`,
-          text: Translate.Render('log-in'),
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('log-in')}</span>`,
         }),
         html: async () => await LogIn.Render(),
         handleType: 'bar',
@@ -396,8 +419,8 @@ const MenuUnderpost = {
         route: 'lab-gallery',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-photo-film"></i>`,
-          text: Translate.Render('lab-gallery'),
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/gallery.png" />`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('lab-gallery')}</span>`,
         }),
         html: async () => await LabGalleryUnderpost.Render(),
         handleType: 'bar',
@@ -415,8 +438,8 @@ const MenuUnderpost = {
         route: 'contracultura-cyberpunk',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fa-brands fa-blogger"></i>`,
-          text: Translate.Render('contracultura-cyberpunk'),
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/blog.png" />`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('contracultura-cyberpunk')}</span>`,
         }),
         html: async () => await CyberpunkBloggerUnderpost.Render(),
         handleType: 'bar',
@@ -434,8 +457,8 @@ const MenuUnderpost = {
         route: 'account',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-user-circle"></i>`,
-          text: Translate.Render('account'),
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/account.png" />`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('account')}</span>`,
         }),
         html: async () =>
           await Account.Render({
@@ -508,8 +531,8 @@ const MenuUnderpost = {
         route: 'settings',
         barConfig,
         title: renderViewTitle({
-          icon: html` <i class="fas fa-sliders-h"></i>`,
-          text: Translate.Render('settings'),
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/settings.png" />`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('settings')}</span>`,
         }),
         html: async () => await SettingsUnderpost.Render({ idModal: 'modal-settings' }),
         handleType: 'bar',
@@ -517,7 +540,6 @@ const MenuUnderpost = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        barMode,
       });
     });
 
@@ -528,8 +550,8 @@ const MenuUnderpost = {
         route: 'recover',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
-          text: Translate.Render('recover'),
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/update.png" />`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('recover')}</span>`,
         }),
         html: async () =>
           await Recover.Render({ idModal: 'modal-recover', user: ElementsUnderpost.Data.user.main.model.user }),
@@ -548,8 +570,11 @@ const MenuUnderpost = {
         route: 'polyhedron',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-cube"></i>`,
-          text: 'Polyhedron',
+          icon: html`<img
+            class="inl underpost-menu-icon-modal"
+            src="${getProxyPath()}assets/ui-icons/polyhedron.png"
+          />`,
+          text: `<span class='inl underpost-text-title-modal'>Polyhedron</span>`,
         }),
         html: async () =>
           await Polyhedron.Render({

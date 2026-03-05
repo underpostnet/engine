@@ -30,6 +30,7 @@ const CssCommonCryptokoyn = async () => {
         --cy-font-retro: 'retro-font';
         --cy-font-retro-title: 'retro-font-title';
         --cy-font-retro-sensitive: 'retro-font-sensitive';
+        --cy-font-retro-cta: 'retro-font-cta';
       }
 
       @font-face {
@@ -43,6 +44,64 @@ const CssCommonCryptokoyn = async () => {
       @font-face {
         font-family: 'retro-font-sensitive';
         src: URL('${getProxyPath()}assets/fonts/VT323-Regular.ttf') format('truetype');
+      }
+      @font-face {
+        font-family: 'retro-font-cta';
+        src: URL('${getProxyPath()}assets/fonts/PressStart2P-Regular.ttf') format('truetype');
+      }
+
+      /* Landing Page & Object Viewer Styles */
+      .landing-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        width: 100%;
+        background: #000;
+        color: #fff;
+        text-align: center;
+      }
+
+      .landing-title,
+      h1,
+      h2,
+      h3 {
+        font-family: var(--cy-font-retro-cta);
+        font-size: 5rem;
+        color: #ff0d0d;
+        text-shadow: 2px 2px 0px #9e0808;
+        margin-bottom: 2rem;
+      }
+
+      p {
+        font-family: var(--cy-font-retro);
+      }
+
+      .object-layer-viewer-container {
+        width: 100% !important;
+        font-family: var(--cy-font-retro);
+      }
+
+      .cta-button {
+        font-family: var(--cy-font-retro-cta);
+        font-size: 1.5rem;
+        padding: 1rem 2rem;
+        border: 3px solid #ff0d0d;
+        background: transparent;
+        color: #ff0d0d;
+        cursor: pointer;
+        transition: all 0.3s ease-in-out;
+        text-shadow: 1px 1px 0px #9e0808;
+      }
+
+      .cta-button:hover {
+        background: #ff0d0d;
+        color: #000;
+        box-shadow:
+          0 0 20px #ff0d0d,
+          0 0 40px #ff0d0d;
+        text-shadow: none;
       }
 
       /* Base typography and smoothing */
@@ -85,6 +144,9 @@ const CssCommonCryptokoyn = async () => {
       }
       .main-btn-menu {
         font-size: 20px;
+      }
+      .input-container {
+        width: 278px;
       }
     </style>
 
@@ -137,7 +199,7 @@ const CssCryptokoynLight = {
           }
           .default-slide-menu-top-bar-fix-title-container-text {
             font-size: 40px !important;
-            color: yellow !important;
+            color: #ffcc00 !important;
           }
         </style>
         ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
