@@ -53,14 +53,17 @@ const ItemSchema = new Schema(
  * @property {string} address - The Solidity smart contract address.
  * @memberof CyberiaObjectLayerModel
  */
-const LedgerSchema = new Schema({
-  type: {
-    type: String,
-    enum: ['ERC20', 'ERC721', 'OFF_CHAIN'],
-    required: true,
+const LedgerSchema = new Schema(
+  {
+    type: {
+      type: String,
+      enum: ['ERC20', 'ERC721', 'OFF_CHAIN'],
+      required: true,
+    },
+    address: { type: String }, // Solidity contract address
   },
-  address: { type: String }, // Solidity contract address
-});
+  { _id: false },
+);
 
 /**
  * @typedef {Object} Render
