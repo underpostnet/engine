@@ -269,6 +269,8 @@ const ObjectLayerManagement = {
     const CidRenderer = createCidRenderer((d) => d?.cid);
     // IPFS CID of the consolidated atlas sprite sheet PNG
     const AtlasCidRenderer = createCidRenderer((d) => d?.data?.render?.cid || d?.atlasSpriteSheetId?.cid);
+    // IPFS CID of the atlas sprite sheet metadata JSON (fast-json-stable-stringify)
+    const MetadataCidRenderer = createCidRenderer((d) => d?.data?.render?.metadataCid);
 
     let columnDefs = [
       // {
@@ -286,6 +288,14 @@ const ObjectLayerManagement = {
       { field: 'data.item.type', headerName: 'Item Type', editable: role === 'user' },
       { field: 'data.item.description', headerName: 'Description', flex: 1, editable: role === 'user' },
       {
+        field: 'data.ledger.type',
+        headerName: 'Ledger Type',
+        width: 160,
+        editable: false,
+        sortable: false,
+        filter: false,
+      },
+      {
         field: 'cid',
         headerName: 'IPFS CID',
         width: 160,
@@ -296,7 +306,7 @@ const ObjectLayerManagement = {
       },
       {
         field: 'data.render.cid',
-        headerName: 'Atlas CID',
+        headerName: 'Render CID',
         width: 160,
         cellRenderer: AtlasCidRenderer,
         editable: false,
@@ -304,8 +314,17 @@ const ObjectLayerManagement = {
         filter: false,
       },
       {
+        field: 'data.render.metadataCid',
+        headerName: 'Render Metadata CID',
+        width: 160,
+        cellRenderer: MetadataCidRenderer,
+        editable: false,
+        sortable: false,
+        filter: false,
+      },
+      {
         field: 'frame08',
-        headerName: 'Frame 08 Preview',
+        headerName: 'First IDLE frame preview',
         width: 120,
         cellRenderer: Frame08Renderer,
         editable: false,
