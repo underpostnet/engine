@@ -192,6 +192,16 @@ const ObjectLayerEngineModal = {
     const { Elements } = options;
 
     const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
+    const directionCodeLabels = {
+      '08': 'Down Idle',
+      18: 'Down Walk',
+      '02': 'Up Idle',
+      12: 'Up Walk',
+      '04': 'Left Idle',
+      14: 'Left Walk',
+      '06': 'Right Idle',
+      16: 'Right Walk',
+    };
     const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor'];
     const statTypes = ['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility'];
 
@@ -516,7 +526,7 @@ const ObjectLayerEngineModal = {
         <div class="in section-mp-border">
           <div class="fl">
             <div class="in fll">
-              <div class="in direction-code-bar-frames-title">${directionCode}</div>
+              <div class="in direction-code-bar-frames-title">${directionCodeLabels[directionCode]}</div>
               <div class="in direction-code-bar-frames-btn">
                 ${await BtnIcon.Render({
                   label: html`
