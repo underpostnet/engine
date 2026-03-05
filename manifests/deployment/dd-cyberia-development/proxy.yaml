@@ -3,11 +3,11 @@
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: www.cyberiaonline.com
+  name: underpost.net
   namespace: default
 spec:
   virtualhost:
-    fqdn: www.cyberiaonline.com
+    fqdn: underpost.net
   routes:
     - conditions:
         - prefix: /
@@ -31,11 +31,11 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: cyberiaonline.com
+  name: www.underpost.net
   namespace: default
 spec:
   virtualhost:
-    fqdn: cyberiaonline.com
+    fqdn: www.underpost.net
   routes:
     - conditions:
         - prefix: /
@@ -50,11 +50,11 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: cryptokoyn.net
+  name: www.cyberiaonline.com
   namespace: default
 spec:
   virtualhost:
-    fqdn: cryptokoyn.net
+    fqdn: www.cyberiaonline.com
   routes:
     - conditions:
         - prefix: /
@@ -78,11 +78,11 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: www.cryptokoyn.net
+  name: cyberiaonline.com
   namespace: default
 spec:
   virtualhost:
-    fqdn: www.cryptokoyn.net
+    fqdn: cyberiaonline.com
   routes:
     - conditions:
         - prefix: /
@@ -97,11 +97,11 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: itemledger.com
+  name: cryptokoyn.net
   namespace: default
 spec:
   virtualhost:
-    fqdn: itemledger.com
+    fqdn: cryptokoyn.net
   routes:
     - conditions:
         - prefix: /
@@ -125,6 +125,53 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
+  name: www.cryptokoyn.net
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: www.cryptokoyn.net
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4013
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: itemledger.com
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: itemledger.com
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4014
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4015
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
   name: www.itemledger.com
   namespace: default
 spec:
@@ -137,6 +184,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
-          port: 4013
+          port: 4016
           weight: 100
     

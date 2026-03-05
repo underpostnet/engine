@@ -899,6 +899,7 @@ Options:
   --monitor-status-max-attempts <attempts>        Sets the maximum number of status check attempts (default: 600).
   --dry-run                                       Preview operations without executing them.
   --create-job-now                                After applying cron manifests, immediately create a Job from each CronJob (forwarded to cron runner).
+  --host-aliases <host-aliases>                   Adds entries to the Pod /etc/hosts via hostAliases. Format: semicolon-separated entries of "ip=hostname1,hostname2" (e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote,bar.remote").
   -h, --help                                      display help for command
  
 ```

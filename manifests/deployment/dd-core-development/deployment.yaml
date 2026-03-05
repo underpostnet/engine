@@ -47,33 +47,6 @@ spec:
   selector:
     app: dd-core-development-blue
   ports:
-    - name: 'tcp-4014'
-      protocol: TCP
-      port: 4014
-      targetPort: 4014
-    - name: 'udp-4014'
-      protocol: UDP
-      port: 4014
-      targetPort: 4014
-
-    - name: 'tcp-4015'
-      protocol: TCP
-      port: 4015
-      targetPort: 4015
-    - name: 'udp-4015'
-      protocol: UDP
-      port: 4015
-      targetPort: 4015
-
-    - name: 'tcp-4016'
-      protocol: TCP
-      port: 4016
-      targetPort: 4016
-    - name: 'udp-4016'
-      protocol: UDP
-      port: 4016
-      targetPort: 4016
-
     - name: 'tcp-4017'
       protocol: TCP
       port: 4017
@@ -240,33 +213,6 @@ spec:
   selector:
     app: dd-core-development-green
   ports:
-    - name: 'tcp-4014'
-      protocol: TCP
-      port: 4014
-      targetPort: 4014
-    - name: 'udp-4014'
-      protocol: UDP
-      port: 4014
-      targetPort: 4014
-
-    - name: 'tcp-4015'
-      protocol: TCP
-      port: 4015
-      targetPort: 4015
-    - name: 'udp-4015'
-      protocol: UDP
-      port: 4015
-      targetPort: 4015
-
-    - name: 'tcp-4016'
-      protocol: TCP
-      port: 4016
-      targetPort: 4016
-    - name: 'udp-4016'
-      protocol: UDP
-      port: 4016
-      targetPort: 4016
-
     - name: 'tcp-4017'
       protocol: TCP
       port: 4017
