@@ -11,6 +11,7 @@
 /grafana_data
 /images
 /src/client/public/cyberia
+/src/client/public/underpost
 /src/client/public/doc/.gitignore/engine
 /volume
 .cache
