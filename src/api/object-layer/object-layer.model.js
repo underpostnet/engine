@@ -172,6 +172,7 @@ const ObjectLayerDto = {
       return {
         _id: 1,
         'data.item': 1,
+        'data.ledger': 1,
         'data.render': 1,
         cid: 1,
         objectLayerRenderFramesId: 1,
@@ -183,6 +184,7 @@ const ObjectLayerDto = {
         _id: 1,
         'data.item': 1,
         'data.stats': 1,
+        'data.ledger': 1,
         'data.seed': 1,
         'data.render': 1,
         cid: 1,

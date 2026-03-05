@@ -225,6 +225,11 @@ const ObjectLayerEngineViewer = {
     const itemDescription = objectLayer.data.item.description || '';
     const itemActivable = objectLayer.data.item.activable || false;
 
+    // Get ledger data
+    const ledger = objectLayer.data.ledger || {};
+    const ledgerType = ledger.type || '';
+    const ledgerAddress = ledger.address || '';
+
     // Get stats data
     const stats = objectLayer.data.stats || {};
 
@@ -616,6 +621,33 @@ const ObjectLayerEngineViewer = {
             font-size: 13px;
           }
 
+          .webp-download-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            z-index: 5;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s ease;
+          }
+          .webp-download-btn:hover {
+            background: rgba(0, 0, 0, 0.75);
+            transform: scale(1.05);
+          }
+          .webp-download-btn i {
+            font-size: 12px;
+          }
+
           @media (max-width: 850px) {
             .object-layer-viewer-container {
               padding: 5px;
@@ -732,7 +764,30 @@ const ObjectLayerEngineViewer = {
                   </div>
                 </div>
 
+                <!-- Ledger Section -->
+                <div class="control-group" style="margin-bottom: 20px;">
+                  <h4><i class="fa-solid fa-link"></i> Ledger</h4>
+                  <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; padding: 10px 0;"
+                  >
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                      <span class="item-data-key-label">Type</span>
+                      <span style="font-weight: 600;">${ledgerType || 'N/A'}</span>
+                    </div>
+                    ${ledgerAddress
+                      ? html`<div style="display: flex; flex-direction: column; gap: 4px;">
+                          <span class="item-data-key-label">Contract Address</span>
+                          <span style="font-weight: 600; word-break: break-all;">${ledgerAddress}</span>
+                        </div>`
+                      : ''}
+                  </div>
+                </div>
+
                 <div class="webp-display-area">
+                  <button class="webp-download-btn" id="download-webp-btn">
+                    <i class="fa-solid fa-download"></i>
+                    <span>WebP</span>
+                  </button>
                   <div class="webp-canvas-container chess in" id="webp-canvas-container">
                     ${!this.Data.webp
                       ? html`
@@ -923,10 +978,6 @@ const ObjectLayerEngineViewer = {
                   <button class="default-viewer-btn" id="return-to-list-btn">
                     <i class="fa-solid fa-arrow-left"></i>
                     <span>Return to List</span>
-                  </button>
-                  <button class="default-viewer-btn" id="download-webp-btn">
-                    <i class="fa-solid fa-download"></i>
-                    <span>Download WebP</span>
                   </button>
                   <button class="default-viewer-btn edit-btn" id="edit-object-layer-btn">
                     <i class="fa-solid fa-edit"></i>
