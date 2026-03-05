@@ -23,6 +23,7 @@ import {
   coreUI,
   sanitizeRoute,
   getQueryParams,
+  setRouterReady,
 } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
@@ -1401,6 +1402,7 @@ const Modal = {
                 }
               });
               setTimeout(window.onresize);
+              setRouterReady();
             });
           })();
           break;

@@ -2,6 +2,7 @@ import { Auth } from '../core/Auth.js';
 import { LogIn } from '../core/LogIn.js';
 import { ElementsUnderpost } from './ElementsUnderpost.js';
 import { PanelForm } from '../core/PanelForm.js';
+import { RouterReady } from '../core/Router.js';
 
 const LogInUnderpost = async function () {
   LogIn.Event['LogInUnderpost'] = async (options) => {
@@ -9,6 +10,7 @@ const LogInUnderpost = async function () {
 
     ElementsUnderpost.Data.user.main.model.user = user;
 
+    await RouterReady;
     await PanelForm.Data['underpost-panel'].updatePanel();
   };
   const { user } = await Auth.sessionIn();

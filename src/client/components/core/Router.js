@@ -40,6 +40,36 @@ const coreUI = ['modal-menu', 'main-body', 'main-body-top', 'bottom-bar', 'board
 const closeModalRouteChangeEvents = {};
 
 /**
+ * Deferred promise that resolves once the full UI (including deferred slide-menu DOM
+ * setup in Modal) is ready.  Any code that depends on the complete DOM — route handlers,
+ * session callbacks, panel updates, etc. — can simply `await RouterReady` instead of
+ * scattering individual null-checks across every microfrontend.
+ *
+ * Resolved by calling `setRouterReady()`, which should happen exactly once at the end
+ * of Modal's deferred slide-menu `setTimeout` block.
+ * @type {Promise<void>}
+ * @memberof PwaRouter
+ */
+let _routerReadyResolve;
+const RouterReady = new Promise((resolve) => {
+  _routerReadyResolve = resolve;
+});
+
+/**
+ * Signals that the deferred UI setup is complete and the router (and any other
+ * awaiter of `RouterReady`) may safely access the full DOM.
+ * This must be called exactly once – typically at the end of Modal's deferred
+ * slide-menu `setTimeout` block.
+ * @memberof PwaRouter
+ */
+const setRouterReady = () => {
+  if (_routerReadyResolve) {
+    _routerReadyResolve();
+    _routerReadyResolve = undefined;
+  }
+};
+
+/**
  * Determines the base path for the application, often used for routing within a sub-directory.
  * It checks the current URL's pathname and `window.Routes` to return the appropriate proxy path.
  *
@@ -209,7 +239,8 @@ const Router = function (options = { Routes: () => {}, e: new PopStateEvent() })
  * @param {object} RouterInstance - The router instance configuration, including the `Routes` function.
  * @memberof PwaRouter
  */
-const LoadRouter = function (RouterInstance) {
+const LoadRouter = async function (RouterInstance) {
+  await RouterReady;
   Router(RouterInstance);
   window.onpopstate = (e) => {
     Router({ ...RouterInstance, e });
@@ -466,4 +497,6 @@ export {
   sanitizeRoute,
   queryParamsChangeListeners,
   listenQueryParamsChange,
+  setRouterReady,
+  RouterReady,
 };

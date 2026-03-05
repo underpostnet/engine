@@ -135,7 +135,7 @@ class PwaWorker {
     const isInstall = await this.status();
     if (!isInstall) await this.install();
     await render();
-    LoadRouter(this.RouterInstance);
+    await LoadRouter(this.RouterInstance);
     LoadingAnimation.removeSplashScreen();
     if (this.devMode()) {
       // const delayLiveReload = 1250;
