@@ -679,6 +679,13 @@ const ObjectLayerEngineViewer = {
                         <span class="ipfs-cid-value">${objectLayer.data.render.cid}</span>
                       </div>`
                     : ''}
+                  ${objectLayer.data.render?.metadataCid
+                    ? html`<div class="ipfs-cid-label">
+                        <i class="fa-solid fa-file-code"></i>
+                        <strong>Atlas Metadata CID:</strong>
+                        <span class="ipfs-cid-value">${objectLayer.data.render.metadataCid}</span>
+                      </div>`
+                    : ''}
                   ${objectLayer.sha256
                     ? html`<div class="ipfs-cid-label">
                         <i class="fa-solid fa-fingerprint"></i>

@@ -256,22 +256,60 @@ try {
                   md5: crypto.createHash('md5').update(buffer).digest('hex'),
                 }).save();
 
+                // Pin atlas PNG to IPFS
+                let importAtlasCid = '';
+                let importAtlasMetadataCid = '';
+                try {
+                  const ipfsResult = await IpfsClient.addBufferToIpfs(
+                    buffer,
+                    `${itemKey}_atlas_sprite_sheet.png`,
+                    `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet.png`,
+                  );
+                  if (ipfsResult) {
+                    importAtlasCid = ipfsResult.cid;
+                    logger.info(`Atlas sprite sheet pinned to IPFS – CID: ${importAtlasCid}`);
+                  }
+                } catch (ipfsError) {
+                  logger.warn('Failed to add atlas sprite sheet to IPFS:', ipfsError.message);
+                }
+
+                // Pin atlas metadata JSON to IPFS (fast-json-stable-stringify)
+                try {
+                  const metadataIpfsResult = await IpfsClient.addJsonToIpfs(
+                    metadata,
+                    `${itemKey}_atlas_sprite_sheet_metadata.json`,
+                    `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet_metadata.json`,
+                  );
+                  if (metadataIpfsResult) {
+                    importAtlasMetadataCid = metadataIpfsResult.cid;
+                    logger.info(`Atlas metadata pinned to IPFS – CID: ${importAtlasMetadataCid}`);
+                  }
+                } catch (ipfsError) {
+                  logger.warn('Failed to add atlas metadata to IPFS:', ipfsError.message);
+                }
+
                 let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
 
                 if (atlasDoc) {
                   atlasDoc.fileId = fileDoc._id;
+                  atlasDoc.cid = importAtlasCid;
                   atlasDoc.metadata = metadata;
                   await atlasDoc.save();
                   logger.info(`Updated existing AtlasSpriteSheet document: ${atlasDoc._id}`);
                 } else {
                   atlasDoc = await new AtlasSpriteSheet({
                     fileId: fileDoc._id,
+                    cid: importAtlasCid,
                     metadata,
                   }).save();
                   logger.info(`Created new AtlasSpriteSheet document: ${atlasDoc._id}`);
                 }
 
                 populatedObjectLayer.atlasSpriteSheetId = atlasDoc._id;
+                if (!populatedObjectLayer.data.render) populatedObjectLayer.data.render = {};
+                populatedObjectLayer.data.render.cid = importAtlasCid;
+                populatedObjectLayer.data.render.metadataCid = importAtlasMetadataCid;
+                populatedObjectLayer.markModified('data.render');
                 await populatedObjectLayer.save();
 
                 logger.info(`Atlas sprite sheet completed for item: ${itemKey}`);
@@ -436,12 +474,45 @@ try {
 
           logger.info(`File saved with ID: ${fileDoc._id}`);
 
+          // Pin atlas PNG to IPFS
+          let toAtlasCid = '';
+          let toAtlasMetadataCid = '';
+          try {
+            const ipfsResult = await IpfsClient.addBufferToIpfs(
+              buffer,
+              `${itemKey}_atlas_sprite_sheet.png`,
+              `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet.png`,
+            );
+            if (ipfsResult) {
+              toAtlasCid = ipfsResult.cid;
+              logger.info(`Atlas sprite sheet pinned to IPFS – CID: ${toAtlasCid}`);
+            }
+          } catch (ipfsError) {
+            logger.warn('Failed to add atlas sprite sheet to IPFS:', ipfsError.message);
+          }
+
+          // Pin atlas metadata JSON to IPFS (fast-json-stable-stringify)
+          try {
+            const metadataIpfsResult = await IpfsClient.addJsonToIpfs(
+              metadata,
+              `${itemKey}_atlas_sprite_sheet_metadata.json`,
+              `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet_metadata.json`,
+            );
+            if (metadataIpfsResult) {
+              toAtlasMetadataCid = metadataIpfsResult.cid;
+              logger.info(`Atlas metadata pinned to IPFS – CID: ${toAtlasMetadataCid}`);
+            }
+          } catch (ipfsError) {
+            logger.warn('Failed to add atlas metadata to IPFS:', ipfsError.message);
+          }
+
           // Check if atlas sprite sheet already exists
           let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
 
           if (atlasDoc) {
             // Update existing
             atlasDoc.fileId = fileDoc._id;
+            atlasDoc.cid = toAtlasCid;
             atlasDoc.metadata = metadata;
             await atlasDoc.save();
             logger.info(`Updated existing AtlasSpriteSheet document: ${atlasDoc._id}`);
@@ -449,13 +520,18 @@ try {
             // Create new
             atlasDoc = await new AtlasSpriteSheet({
               fileId: fileDoc._id,
+              cid: toAtlasCid,
               metadata,
             }).save();
             logger.info(`Created new AtlasSpriteSheet document: ${atlasDoc._id}`);
           }
 
-          // Update ObjectLayer with reference to atlas sprite sheet (top-level)
+          // Update ObjectLayer with reference to atlas sprite sheet and render CIDs
           objectLayer.atlasSpriteSheetId = atlasDoc._id;
+          if (!objectLayer.data.render) objectLayer.data.render = {};
+          objectLayer.data.render.cid = toAtlasCid;
+          objectLayer.data.render.metadataCid = toAtlasMetadataCid;
+          objectLayer.markModified('data.render');
           await objectLayer.save();
 
           logger.info(`Atlas sprite sheet completed for item: ${itemKey}`);
@@ -618,6 +694,7 @@ try {
             }).save();
 
             // Pin atlas PNG to IPFS + copy into MFS
+            let atlasMetadataCid = '';
             try {
               const ipfsResult = await IpfsClient.addBufferToIpfs(
                 buffer,
@@ -630,6 +707,21 @@ try {
               }
             } catch (ipfsError) {
               logger.warn('Failed to add atlas sprite sheet to IPFS:', ipfsError.message);
+            }
+
+            // Pin atlas metadata JSON to IPFS (fast-json-stable-stringify)
+            try {
+              const metadataIpfsResult = await IpfsClient.addJsonToIpfs(
+                metadata,
+                `${atlasItemKey}_atlas_sprite_sheet_metadata.json`,
+                `/object-layer/${atlasItemKey}/${atlasItemKey}_atlas_sprite_sheet_metadata.json`,
+              );
+              if (metadataIpfsResult) {
+                atlasMetadataCid = metadataIpfsResult.cid;
+                logger.info(`Atlas metadata pinned to IPFS – CID: ${atlasMetadataCid}`);
+              }
+            } catch (ipfsError) {
+              logger.warn('Failed to add atlas metadata to IPFS:', ipfsError.message);
             }
 
             // Upsert AtlasSpriteSheet document (with CID)
@@ -649,10 +741,11 @@ try {
               logger.info(`Created new AtlasSpriteSheet document: ${atlasDoc._id}`);
             }
 
-            // Link atlas to ObjectLayer and set data.render.cid
+            // Link atlas to ObjectLayer and set data.render.cid + data.render.metadataCid
             populatedObjectLayer.atlasSpriteSheetId = atlasDoc._id;
             if (!populatedObjectLayer.data.render) populatedObjectLayer.data.render = {};
             populatedObjectLayer.data.render.cid = atlasCid;
+            populatedObjectLayer.data.render.metadataCid = atlasMetadataCid;
             populatedObjectLayer.markModified('data.render');
             await populatedObjectLayer.save();
 
