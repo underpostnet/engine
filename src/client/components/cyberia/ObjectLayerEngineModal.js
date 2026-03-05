@@ -365,7 +365,7 @@ const ObjectLayerEngineModal = {
       const capturedDirectionCode = directionCode;
 
       if (!s(`.frames-${capturedDirectionCode}`)) {
-        logger.warn(`Frames container for direction code ${capturedDirectionCode} not found`);
+        console.warn(`Frames container for direction code ${capturedDirectionCode} not found`);
         return;
       }
 
@@ -491,7 +491,7 @@ const ObjectLayerEngineModal = {
       let loader = s('object-layer-png-loader');
 
       if (!ole || !loader) {
-        logger.warn('object-layer-engine or object-layer-png-loader component not found after retries');
+        console.warn('object-layer-engine or object-layer-png-loader component not found after retries');
         return;
       }
 
@@ -578,7 +578,7 @@ const ObjectLayerEngineModal = {
       const loadFrames = async () => {
         // Concurrency guard: skip if already loading to prevent duplicate frames
         if (loadFramesInProgress) {
-          logger.warn('loadFrames already in progress, skipping duplicate call');
+          console.warn('loadFrames already in progress, skipping duplicate call');
           return;
         }
         loadFramesInProgress = true;
