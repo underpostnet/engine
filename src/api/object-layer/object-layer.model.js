@@ -83,12 +83,24 @@ const RenderSchema = new Schema(
 /**
  * @typedef {Object} ObjectLayer
  * @property {Object} data - Object layer data
- * @property {Data.Stats} data.stats - Statistical or mechanical attributes for the object layer
- * @property {Data.Item} data.item - Human-readable item information for the object layer
- * @property {string} data.ledger - Blockchain protocol metadata linking the visual object-layer prefab to its economic reality
- * @property {data.render} data.render - IPFS content identifiers for the consolidated atlas sprite sheet
- * @property {data.render.cid} data.render.cid - IPFS Content Identifier for the consolidated atlas sprite sheet PNG
- * @property {data.render.metadataCid} data.render.metadataCid - IPFS Content Identifier for the atlas sprite sheet metadata JSON (fast-json-stable-stringify)
+ * @property {Object} data.stats - Statistical or mechanical attributes for the object layer
+ * @property {number} data.stats.effect - The effect attribute value
+ * @property {number} data.stats.resistance - The resistance attribute value
+ * @property {number} data.stats.agility - The agility attribute value
+ * @property {number} data.stats.range - The range attribute value
+ * @property {number} data.stats.intelligence - The intelligence attribute value
+ * @property {number} data.stats.utility - The utility attribute value
+ * @property {Object} data.item - Human-readable item information for the object layer
+ * @property {string} data.item.id - Unique identifier for the item
+ * @property {string} data.item.type - Type of the item
+ * @property {string} data.item.description - Description of the item
+ * @property {boolean} data.item.activable - Whether the item can be activated
+ * @property {Object} data.ledger - Blockchain protocol metadata linking the visual object-layer prefab to its economic reality
+ * @property {string} data.ledger.type - The token standard or off-chain designation (ERC20, ERC721, OFF_CHAIN).
+ * @property {string} data.ledger.address - The Solidity smart contract address.
+ * @property {Object} data.render - IPFS content identifiers for the consolidated atlas sprite sheet
+ * @property {string} data.render.cid - IPFS Content Identifier for the consolidated atlas sprite sheet PNG
+ * @property {string} data.render.metadataCid - IPFS Content Identifier for the atlas sprite sheet metadata JSON (fast-json-stable-stringify)
  * @property {string} data.seed - Random UUID for unique state generation
  * @property {string} cid - IPFS Content Identifier for the object layer data JSON (fast-json-stable-stringify)
  * @property {Types.ObjectId} objectLayerRenderFramesId - Reference to ObjectLayerRenderFrames document

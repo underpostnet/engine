@@ -1005,6 +1005,7 @@ const ObjectLayerEngineModal = {
           font-weight: bold;
           font-size: 1.2rem;
           padding: 0.5rem;
+          width: 70px;
         }
         .direction-code-bar-frames-img {
           width: 100px;
