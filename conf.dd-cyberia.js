@@ -14,6 +14,7 @@ const DefaultConf = /**/ {
         thumbnail: 'assets/banner/underpost-social.jpg',
         themeColor: '#141414',
       },
+      publicCopyNonExistingFiles: 'cyberia',
       components: {
         core: [
           'CommonJs',

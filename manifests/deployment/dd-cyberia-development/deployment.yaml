@@ -34,6 +34,9 @@ spec:
             - name: vol-public-dd-cyberia-dd-cyberia-development-blue
               mountPath: /home/dd/engine/src/client/public/cyberia
     
+            - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-blue
+              mountPath: /home/dd/engine/src/client/public/underpost
+    
       volumes:
         - name: config-volume-dd-cyberia-development-blue
           configMap:
@@ -43,6 +46,11 @@ spec:
         - name: vol-public-dd-cyberia-dd-cyberia-development-blue
           persistentVolumeClaim:
             claimName: pvc-public-dd-cyberia-dd-cyberia-development-blue
+    
+      
+        - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-blue
+          persistentVolumeClaim:
+            claimName: pvc-public-dd-cyberia-underpost-dd-cyberia-development-blue
     
       
 ---
@@ -199,6 +207,9 @@ spec:
             - name: vol-public-dd-cyberia-dd-cyberia-development-green
               mountPath: /home/dd/engine/src/client/public/cyberia
     
+            - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-green
+              mountPath: /home/dd/engine/src/client/public/underpost
+    
       volumes:
         - name: config-volume-dd-cyberia-development-green
           configMap:
@@ -208,6 +219,11 @@ spec:
         - name: vol-public-dd-cyberia-dd-cyberia-development-green
           persistentVolumeClaim:
             claimName: pvc-public-dd-cyberia-dd-cyberia-development-green
+    
+      
+        - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-green
+          persistentVolumeClaim:
+            claimName: pvc-public-dd-cyberia-underpost-dd-cyberia-development-green
     
       
 ---

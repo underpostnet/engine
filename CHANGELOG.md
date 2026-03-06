@@ -1,25 +1,16 @@
 # Changelog
 
-## 2026-03-05
-
-### engine
-
-- Move underpost client to dd-cyberia conf ([b6e44e2d6](https://github.com/underpostnet/engine/commit/b6e44e2d6b68ec3f420b627b10b55ed05c677c50))
+## 2026-03-06
 
 ### client-underpost
 
+- Add ui icons images ([9bab63eaa](https://github.com/underpostnet/engine/commit/9bab63eaa62e069371a109199940f9dea236b5c8))
 - Remove underpost public assets folder ([9b6130a98](https://github.com/underpostnet/engine/commit/9b6130a98202a7638dd194c8587fb95859cd088d))
-
-### cli-run
-
-- Implements CLI deploy job hostAliases support ([fbe7da801](https://github.com/underpostnet/engine/commit/fbe7da801910fc6ea7bffd8dfc3c3a7aaf40df1a))
-
-### client-core
-
-- Add RouterReady logic in Router component ([32bdb815e](https://github.com/underpostnet/engine/commit/32bdb815e9eb9cc70844c644dc54ea73f0e7a817))
 
 ### engine-cyberia
 
+- Remove object layer base data.seed attribute ([e9044a337](https://github.com/underpostnet/engine/commit/e9044a3371a5de02a35c27a7ef9e4d3ce50a78b6))
+- Pwa retro styles improve ([d9893c0ca](https://github.com/underpostnet/engine/commit/d9893c0cae4f514d4948df048b77bd96ae97f7a7))
 - Fix object layer js docs commetns and css label direction improve in object layer engine ([c438eb329](https://github.com/underpostnet/engine/commit/c438eb329b7d7e94a6a278f6efc15df8cdbd0d72))
 - Improve direction code labels in bar directions in object layer engine client component ([82a2c04fe](https://github.com/underpostnet/engine/commit/82a2c04fe930e35fbb2dd6b6f38e79d9cd4bd21b))
 - Add Ledger Type and Render Metadata CID to object layer management table ([e75206bb1](https://github.com/underpostnet/engine/commit/e75206bb10b6bf31ec6e800ca0b91fcb67d925c4))
@@ -28,6 +19,18 @@
 - Implements data.render.metadataCid workflow to ref atlas sprite sheet render metada ([5df29b5cb](https://github.com/underpostnet/engine/commit/5df29b5cbfd51b69ebe5e1cc980a395ccbf8e961))
 - ObjectLayer model render schema refactor ([dcc9e7287](https://github.com/underpostnet/engine/commit/dcc9e72872267900e731928f441c6546940a9c05))
 - Add LedgerSchema and atlasSpriteSheetMetadataCid to object layer base data model ([b63e8a7f8](https://github.com/underpostnet/engine/commit/b63e8a7f8de49ba8178e54f86bae306fdbd3261e))
+
+### engine
+
+- Move underpost client to dd-cyberia conf ([b8dfbbb30](https://github.com/underpostnet/engine/commit/b8dfbbb30a43a8e5fa432f6c2b2d7c089d065fad))
+
+### cli-run
+
+- Implements CLI deploy job hostAliases support ([fbe7da801](https://github.com/underpostnet/engine/commit/fbe7da801910fc6ea7bffd8dfc3c3a7aaf40df1a))
+
+### client-core
+
+- Add RouterReady logic in Router component ([32bdb815e](https://github.com/underpostnet/engine/commit/32bdb815e9eb9cc70844c644dc54ea73f0e7a817))
 
 ## New release v:3.0.2 (2026-03-01)
 
