@@ -221,5 +221,4 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
     fs.copySync(`./src/ws/${confName.split('-')[1]}`, `${basePath}/src/ws/${confName.split('-')[1]}`);
   }
   shellExec(`cd ${basePath} && npm install --ignore-scripts`);
-  shellExec(`cd ${basePath} && npm run fix`);
 }
