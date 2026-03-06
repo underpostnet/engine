@@ -41,7 +41,7 @@ const MenuUnderpost = {
             class: 'in wfa main-btn-menu main-btn-contracultura-cyberpunk',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/blog.png" />`,
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/blogger.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('contracultura-cyberpunk')}</span>`,
             }),
             // style: 'display: none',
@@ -276,8 +276,8 @@ const MenuUnderpost = {
 
     ThemeEvents['underpost-main-theme-event'] = () => {
       const srcLogo = darkTheme
-        ? `${getProxyPath()}assets/ui-icons/underpost-white.png`
-        : `${getProxyPath()}assets/ui-icons/underpost-white.png`;
+        ? `${getProxyPath()}assets/ui-icons/underpost.png`
+        : `${getProxyPath()}assets/ui-icons/underpost.png`;
 
       if (s('.action-btn-app-icon-render'))
         htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
@@ -438,7 +438,7 @@ const MenuUnderpost = {
         route: 'contracultura-cyberpunk',
         barConfig,
         title: renderViewTitle({
-          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/blog.png" />`,
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/blogger.png" />`,
           text: `<span class='inl underpost-text-title-modal'>${Translate.Render('contracultura-cyberpunk')}</span>`,
         }),
         html: async () => await CyberpunkBloggerUnderpost.Render(),

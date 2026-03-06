@@ -196,7 +196,7 @@ const PublicProfile = {
       user: { _id: userId, username },
     } = options;
     const idModal = options.idModal || getId();
-    const profileId = `public-profile-${userId}`;
+    const profileId = `public-profile-${username}`;
     const waveAnimationId = `${profileId}-wave`;
     const profileImageClass = `${profileId}-image`;
     const profileContainerId = `${profileId}-container`;
@@ -673,7 +673,7 @@ const PublicProfile = {
             "
           >
             <div
-              class="${profileId}-image-container"
+              class="${profileId}-image-container public-profile-image-container"
               style="
                 position: relative;
                 width: 160px;
@@ -688,7 +688,7 @@ const PublicProfile = {
               "
             >
               <img
-                class="${profileImageClass}"
+                class="${profileImageClass} public-profile-image"
                 style="
                   width: 100%;
                   height: 100%;

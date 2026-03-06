@@ -117,6 +117,11 @@ const CssCommonUnderpost = async () => {
         font-size: 40px !important;
       }
 
+      .modal,
+      .badge {
+        font-family: var(--up-font-retro);
+      }
+
       input,
       .chat-message-body {
         font-family: var(--up-font-retro-sensitive);
@@ -147,6 +152,11 @@ const CssCommonUnderpost = async () => {
       }
       .input-container {
         width: 278px;
+      }
+      .public-profile-image-container,
+      .public-profile-image,
+      .creator-avatar {
+        border-radius: 0px !important;
       }
     </style>
 
@@ -199,7 +209,7 @@ const CssUnderpostLight = {
           }
           .default-slide-menu-top-bar-fix-title-container-text {
             font-size: 40px !important;
-            color: #aa0000 !important;
+            color: white !important;
           }
         </style>
         ${borderChar(1, `#010101`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
