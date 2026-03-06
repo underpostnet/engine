@@ -47,7 +47,6 @@ const logger = loggerFactory(import.meta);
  * @property {string} [data.item.description] - Human-readable description.
  * @property {boolean} [data.item.activable] - Whether the item can be activated.
  * @property {Object} data.stats - Statistical attributes of the object layer.
- * @property {string} data.seed - Random UUID v4 for unique state generation.
  * @property {Object} [data.render] - IPFS content identifiers for the consolidated atlas sprite sheet.
  * @property {string} [data.render.cid] - IPFS CID for the consolidated atlas sprite sheet PNG.
  * @property {string} [data.render.metadataCid] - IPFS CID for the atlas sprite sheet metadata JSON (fast-json-stable-stringify).
@@ -448,7 +447,6 @@ export class ObjectLayerEngine {
           },
           stats: metadata.data.stats || ObjectLayerEngine.generateRandomStats(),
           ledger: metadata.data.ledger || { type: 'OFF_CHAIN' },
-          seed: metadata.data.seed || crypto.randomUUID(),
         },
       };
     } else {
@@ -462,7 +460,6 @@ export class ObjectLayerEngine {
           },
           stats: ObjectLayerEngine.generateRandomStats(),
           ledger: { type: 'OFF_CHAIN' },
-          seed: crypto.randomUUID(),
         },
       };
     }
@@ -505,7 +502,7 @@ export class ObjectLayerEngine {
   /**
    * Computes a SHA-256 hash of the given object layer data using deterministic JSON serialisation.
    * @static
-   * @param {Object} data - The `data` sub-document of an ObjectLayer (item, stats, seed, render, …).
+   * @param {Object} data - The `data` sub-document of an ObjectLayer (item, stats, render).
    * @returns {string} Hex-encoded SHA-256 hash.
    * @memberof CyberiaObjectLayer
    */

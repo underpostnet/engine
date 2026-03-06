@@ -101,7 +101,6 @@ const RenderSchema = new Schema(
  * @property {Object} data.render - IPFS content identifiers for the consolidated atlas sprite sheet
  * @property {string} data.render.cid - IPFS Content Identifier for the consolidated atlas sprite sheet PNG
  * @property {string} data.render.metadataCid - IPFS Content Identifier for the atlas sprite sheet metadata JSON (fast-json-stable-stringify)
- * @property {string} data.seed - Random UUID for unique state generation
  * @property {string} cid - IPFS Content Identifier for the object layer data JSON (fast-json-stable-stringify)
  * @property {Types.ObjectId} objectLayerRenderFramesId - Reference to ObjectLayerRenderFrames document
  * @property {Types.ObjectId} atlasSpriteSheetId - Reference to AtlasSpriteSheet document
@@ -117,14 +116,6 @@ const ObjectLayerSchema = new Schema(
       item: { type: ItemSchema, required: true },
       ledger: { type: LedgerSchema, required: true },
       render: { type: RenderSchema, default: () => ({}) },
-      seed: {
-        type: String,
-        required: true,
-        match: [
-          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
-          'Please provide a valid UUID v4',
-        ],
-      },
     },
     cid: { type: String, default: '', trim: true },
     objectLayerRenderFramesId: { type: Schema.Types.ObjectId, ref: 'ObjectLayerRenderFrames' },
@@ -166,7 +157,7 @@ ObjectLayerSchema.index(
 // Pre-save hook to ensure data consistency
 ObjectLayerSchema.pre('save', function (next) {
   // Ensure all required fields are present
-  if (!this.data.stats || !this.data.item || !this.data.seed || !this.sha256) {
+  if (!this.data.stats || !this.data.item || !this.sha256) {
     throw new Error('Missing required fields');
   }
   // cid (object layer data JSON) and data.render.cid (atlas PNG) are optional – default to ''
@@ -197,7 +188,6 @@ const ObjectLayerDto = {
         'data.item': 1,
         'data.stats': 1,
         'data.ledger': 1,
-        'data.seed': 1,
         'data.render': 1,
         cid: 1,
         objectLayerRenderFramesId: 1,

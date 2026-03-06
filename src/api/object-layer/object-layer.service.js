@@ -645,11 +645,6 @@ const ObjectLayerService = {
           metadataOverride: req.body,
         });
 
-      // Preserve the existing seed if provided in the request body
-      if (req.body.data && req.body.data.seed) {
-        objectLayerData.data.seed = req.body.data.seed;
-      }
-
       // Update documents using centralized engine method (with atlas generation)
       const { objectLayer } = await ObjectLayerEngine.updateObjectLayerDocuments({
         objectLayerId,
