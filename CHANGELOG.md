@@ -4,6 +4,7 @@
 
 ### client-underpost
 
+- Add volume src assets container path ([db4c3f292](https://github.com/underpostnet/engine/commit/db4c3f29242d2dee6b9510d1d7ecf5a2fd6611cd))
 - Add ui icons images ([9bab63eaa](https://github.com/underpostnet/engine/commit/9bab63eaa62e069371a109199940f9dea236b5c8))
 - Remove underpost public assets folder ([9b6130a98](https://github.com/underpostnet/engine/commit/9b6130a98202a7638dd194c8587fb95859cd088d))
 
