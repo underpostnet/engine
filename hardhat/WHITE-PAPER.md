@@ -97,7 +97,7 @@ The result is a composable, interoperable digital object format where:
 - **Ownership is semantic.** Holding an ERC-1155 token proves ownership not just of a balance — but of a complete four-dimensional semantic object.
 - **Interoperability is structural.** Any runtime that understands the Object Layer schema can render, simulate, display, and trade any layer from any source.
 
-The reference implementation deploys a single `ObjectLayerToken` (ERC-1155) contract on a Hyperledger Besu private network, managing both fungible in-game currency (CyberKoyn) and all Object Layer items within one deployment. Infrastructure is orchestrated through Kubernetes clusters initialized via `kubeadm` and managed through the **Underpost CI/CD CLI**.
+The reference implementation deploys a single `ObjectLayerToken` (ERC-1155) contract on a Hyperledger Besu private network, managing both fungible in-game currency (CryptoKoyn) and all Object Layer items within one deployment. Infrastructure is orchestrated through Kubernetes clusters initialized via `kubeadm` and managed through the **Underpost CI/CD CLI**.
 
 ---
 
@@ -441,15 +441,15 @@ import '@openzeppelin/contracts/access/Ownable.sol';
  * @title ObjectLayerToken
  * @dev Unified ERC-1155 multi-token contract for the Cyberia Online Object Layer ecosystem.
  *
- * Token ID 0 (CYBERKOYN): Fungible in-game currency.
+ * Token ID 0 (CRYPTOKOYN): Fungible in-game currency.
  * Token IDs >= 1: Object Layer items — unique (supply 1) or stackable (supply > 1).
  *
  * Features: mint, batch-mint, burn, batch-burn, pause/unpause, supply tracking,
  * on-chain item registry with IPFS metadata CID resolution.
  */
 contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155Supply, Ownable {
-  uint256 public constant CYBERKOYN = 0;
-  uint256 public constant INITIAL_CYBERKOYN_SUPPLY = 10_000_000 * 1e18;
+  uint256 public constant CRYPTOKOYN = 0;
+  uint256 public constant INITIAL_CRYPTOKOYN_SUPPLY = 10_000_000 * 1e18;
 
   string private _baseTokenURI;
   mapping(uint256 => string) private _tokenCIDs;
@@ -468,10 +468,10 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
   {
     _baseTokenURI = baseURI;
     _nextTokenId = 1;
-    _itemIds[CYBERKOYN] = 'cyberkoyn';
-    _itemIdToTokenId[keccak256(abi.encodePacked('cyberkoyn'))] = CYBERKOYN;
-    _mint(initialOwner, CYBERKOYN, INITIAL_CYBERKOYN_SUPPLY, '');
-    emit ObjectLayerRegistered(CYBERKOYN, 'cyberkoyn', '', INITIAL_CYBERKOYN_SUPPLY);
+    _itemIds[CRYPTOKOYN] = 'cryptokoyn';
+    _itemIdToTokenId[keccak256(abi.encodePacked('cryptokoyn'))] = CRYPTOKOYN;
+    _mint(initialOwner, CRYPTOKOYN, INITIAL_CRYPTOKOYN_SUPPLY, '');
+    emit ObjectLayerRegistered(CRYPTOKOYN, 'cryptokoyn', '', INITIAL_CRYPTOKOYN_SUPPLY);
   }
 
   function uri(uint256 tokenId) public view override returns (string memory) {
@@ -543,8 +543,8 @@ This Solidity smart contract implements the ERC-1155 multi-token standard as the
 - **Ownable:** Access control ensuring only the contract owner can mint, register, and pause.
 
 **Constructor:**
-- Mints 10 million CyberKoyn (token ID 0) to the deployer with 18-decimal precision.
-- Registers "cyberkoyn" as the item identifier for token ID 0.
+- Mints 10 million CryptoKoyn (token ID 0) to the deployer with 18-decimal precision.
+- Registers "cryptokoyn" as the item identifier for token ID 0.
 - Sets the base IPFS URI prefix for metadata resolution.
 
 **Key Functions:**
@@ -568,7 +568,7 @@ This Solidity smart contract implements the ERC-1155 multi-token standard as the
 
 | Token Type | Token ID | Supply | Example |
 |------------|----------|--------|---------|
-| Fungible currency | 0 (CYBERKOYN) | 10,000,000 × 10^18 | In-game gold / CKY |
+| Fungible currency | 0 (CRYPTOKOYN) | 10,000,000 × 10^18 | In-game gold / CKY |
 | Semi-fungible resource | `computeTokenId("gold-ore")` | 1,000,000 | Stackable crafting material |
 | Semi-fungible consumable | `computeTokenId("health-potion")` | 100,000 | Stackable consumable |
 | Non-fungible unique gear | `computeTokenId("legendary-hatchet")` | 1 | Unique weapon |
@@ -582,13 +582,13 @@ The ERC-1155 standard treats all token IDs uniformly. The distinction between fu
 **Fungibility semantics within the Object Layer Protocol:**
 - **Supply = 1** → Non-fungible (unique gear, legendary items). The Object Layer is one-of-a-kind.
 - **Supply > 1** → Semi-fungible (stackable resources like wood, stone, gold ore). Multiple instances of the same semantic layer.
-- **Token ID 0 (CYBERKOYN)** → Fully fungible in-game currency with 18-decimal precision.
+- **Token ID 0 (CRYPTOKOYN)** → Fully fungible in-game currency with 18-decimal precision.
 
 <a name="header-5.3"/>
 
 #### 5.3 Token Distribution and Allocation
 
-**CyberKoyn (CKY) — Token ID 0**
+**CryptoKoyn (CKY) — Token ID 0**
 
 - **Total Supply:** 10,000,000 CKY (with 18-decimal precision)
 - **Initial Allocation:**
@@ -605,7 +605,7 @@ The ERC-1155 standard treats all token IDs uniformly. The distinction between fu
 
 **Token Mechanics:**
 
-- **Token Burning:** Players or the governance address can burn tokens via `burn` or `burnBatch`. Burning CyberKoyn reduces circulating supply. Burning item tokens destroys the corresponding in-game item.
+- **Token Burning:** Players or the governance address can burn tokens via `burn` or `burnBatch`. Burning CryptoKoyn reduces circulating supply. Burning item tokens destroys the corresponding in-game item.
 - **Staking:**
   - **Asset Freezing:** Staked tokens are frozen (held in a staking contract or governance address), removing them from circulation.
   - **Voting Rights:** Vote weight is proportional to staked amount and staking duration:
@@ -622,7 +622,7 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked Amount) + 0.5 × (Staking Dur
 **Minting and On-Chain Conversion**
 
 - **Earned In-Game Items:** Must undergo an incubation period before the server registers them on-chain via `registerObjectLayer`.
-- **Crafted Items:** Farm, dropped, craft, and default items must undergo an incubation period and a CyberKoyn minting fee before on-chain registration.
+- **Crafted Items:** Farm, dropped, craft, and default items must undergo an incubation period and a CryptoKoyn minting fee before on-chain registration.
 
 <a name="header-5.4"/>
 
@@ -877,7 +877,7 @@ npx hardhat run scripts/deployObjectLayerToken.cjs --network besu-ibft2
 The deployment script:
 1. Connects to the Besu RPC endpoint using the coinbase private key.
 2. Deploys the `ObjectLayerToken` contract.
-3. Mints 10M CyberKoyn to the deployer.
+3. Mints 10M CryptoKoyn to the deployer.
 4. Writes a JSON deployment artifact to `hardhat/deployments/` for consumption by the Cyberia CLI and server.
 
 **CLI Integration (`bin/cyberia.js`):**
@@ -962,7 +962,7 @@ The full lifecycle of an Object Layer item through the ERC-1155 system:
 
 A player's complete game state can be reconstructed from:
 
-1. **CyberKoyn balance:** `balanceOf(playerAddress, 0)` → in-game currency.
+1. **CryptoKoyn balance:** `balanceOf(playerAddress, 0)` → in-game currency.
 2. **Item ownership:** For each registered Object Layer token ID, `balanceOf(playerAddress, tokenId)` → inventory.
 3. **Off-chain metadata:** Each token ID resolves to an IPFS metadata CID containing atlas sprite sheet coordinates, stats, and item descriptions.
 
@@ -975,7 +975,7 @@ This means a player's character — including all equipped layers (skin, weapon,
 - **Crafting:** Players combine resources (semi-fungible tokens) in-game. The server burns the consumed resource tokens and mints the crafted item token. The new item is a complete Object Layer with all four realities.
 - **Trading:** Players use `safeTransferFrom` for single-layer trades or `safeBatchTransferFrom` for multi-layer trades (e.g., weapon layer + 100 gold ore for a rare shield layer).
 - **Incubation:** Items earned in-game undergo a variable incubation period based on rarity before the server mints them on-chain. This prevents instant sell-off and rewards sustained gameplay.
-- **Minting Fee:** Converting off-chain items to on-chain ERC-1155 tokens requires a CyberKoyn (token ID 0) fee, creating a CKY sink that supports token value.
+- **Minting Fee:** Converting off-chain items to on-chain ERC-1155 tokens requires a CryptoKoyn (token ID 0) fee, creating a CKY sink that supports token value.
 
 ---
 
@@ -1006,7 +1006,7 @@ This means a player's character — including all equipped layers (skin, weapon,
 
 The Object Layer Protocol and its Cyberia Online reference implementation establish a foundation for semantic interoperability in decentralized digital worlds. Future development will extend the protocol along several axes:
 
-- **Staking contract:** A companion contract for CyberKoyn staking with governance voting weight.
+- **Staking contract:** A companion contract for CryptoKoyn staking with governance voting weight.
 - **Marketplace contract:** An on-chain order book for ERC-1155 peer-to-peer trading with escrow, enabling atomic multi-layer trades.
 - **Cross-network bridges:** Enable Object Layer tokens to be bridged to public Ethereum networks, allowing external runtimes to consume the semantic layer format.
 - **Layer 2 scaling:** Explore rollup solutions for high-frequency game transactions while anchoring state to the Besu chain.

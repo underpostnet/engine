@@ -6,7 +6,7 @@ const { ethers } = require('hardhat');
  * Deploys the unified multi-token contract to the configured Hyperledger Besu
  * network and logs the deployed address. The deployer account receives:
  *   - Ownership of the contract
- *   - The initial CyberKoyn (token ID 0) fungible supply
+ *   - The initial CryptoKoyn (token ID 0) fungible supply
  *
  * Usage:
  *   npx hardhat run scripts/deployObjectLayerToken.cjs --network besu-ibft2
@@ -43,13 +43,13 @@ async function main() {
 
   // ── Verify initial state ──────────────────────────────────────────────
 
-  const cyberkoynId = await token.CYBERKOYN();
-  const cyberkoynSupply = await token.totalSupply(cyberkoynId);
-  const deployerCyberkoynBalance = await token.balanceOf(deployer.address, cyberkoynId);
+  const cryptokoynId = await token.CRYPTOKOYN();
+  const cryptokoynSupply = await token.totalSupply(cryptokoynId);
+  const deployerCryptokoynBalance = await token.balanceOf(deployer.address, cryptokoynId);
 
-  console.log('  CyberKoyn (token ID 0):');
-  console.log('    Total supply     :', ethers.formatEther(cyberkoynSupply), 'CKY');
-  console.log('    Deployer balance :', ethers.formatEther(deployerCyberkoynBalance), 'CKY');
+  console.log('  CryptoKoyn (token ID 0):');
+  console.log('    Total supply     :', ethers.formatEther(cryptokoynSupply), 'CKY');
+  console.log('    Deployer balance :', ethers.formatEther(deployerCryptokoynBalance), 'CKY');
   console.log('');
 
   // ── Output deployment info for integration ────────────────────────────
@@ -61,8 +61,8 @@ async function main() {
     address: deployedAddress,
     deployer: deployer.address,
     baseURI: baseURI,
-    cyberkoynTokenId: cyberkoynId.toString(),
-    initialCyberkoynSupply: cyberkoynSupply.toString(),
+    cryptokoynTokenId: cryptokoynId.toString(),
+    initialCryptokoynSupply: cryptokoynSupply.toString(),
     timestamp: new Date().toISOString(),
   };
 

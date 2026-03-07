@@ -49,7 +49,7 @@ const ItemSchema = new Schema(
 /**
  * @typedef {Object} Ledger
  * Blockchain protocol metadata linking the visual object-layer prefab to its economic reality.
- * Uses ERC-1155 as the single multi-token standard for both fungible (CyberKoyn) and
+ * Uses ERC-1155 as the single multi-token standard for both fungible (CryptoKoyn) and
  * non-fungible / semi-fungible Object Layer items within one contract.
  * @property {string} type - The token standard or off-chain designation (ERC1155, OFF_CHAIN).
  * @property {string} address - The Solidity smart contract address (ObjectLayerToken).

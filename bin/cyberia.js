@@ -992,13 +992,13 @@ try {
           const deployment = require('${nodePath.resolve(artifactPath)}');
           try {
             const token = await ethers.getContractAt('ObjectLayerToken', deployment.address);
-            const cyberkoynSupply = await token.totalSupply(0);
+            const cryptokoynSupply = await token.totalSupply(0);
             const deployerCKY = await token.balanceOf(deployer.address, 0);
             const isPaused = false; // pausable check would need try-catch
             console.log('Contract:', JSON.stringify({
               address: deployment.address,
-              cyberkoynTotalSupply: ethers.formatEther(cyberkoynSupply) + ' CKY',
-              deployerCyberkoynBalance: ethers.formatEther(deployerCKY) + ' CKY',
+              cryptokoynTotalSupply: ethers.formatEther(cryptokoynSupply) + ' CKY',
+              deployerCryptokoynBalance: ethers.formatEther(deployerCKY) + ' CKY',
             }, null, 2));
           } catch (e) {
             console.log('Contract not accessible:', e.message);

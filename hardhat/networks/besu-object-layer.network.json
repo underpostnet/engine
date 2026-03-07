@@ -42,10 +42,10 @@
     "contracts": {
       "ObjectLayerToken": {
         "standard": "ERC-1155",
-        "description": "Unified multi-token contract: fungible CyberKoyn (token ID 0) + semi/non-fungible Object Layer items (token ID >= 1)",
+        "description": "Unified multi-token contract: fungible CryptoKoyn (token ID 0) + semi/non-fungible Object Layer items (token ID >= 1)",
         "tokenIdScheme": "keccak256(abi.encodePacked('cyberia.object-layer:', itemId))",
         "fungibleTokens": {
-          "CYBERKOYN": {
+          "CRYPTOKOYN": {
             "tokenId": 0,
             "symbol": "CKY",
             "decimals": 18,

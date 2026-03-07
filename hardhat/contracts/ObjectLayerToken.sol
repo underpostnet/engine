@@ -16,7 +16,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
  * within the Object Layer paradigm.
  *
  * Token ID semantics:
- *   - Token ID 0 (CYBERKOYN): Fungible in-game currency.
+ *   - Token ID 0 (CRYPTOKOYN): Fungible in-game currency.
  *     Minted with 18-decimal supply; divisible and stackable.
  *   - Token IDs >= 1: Object Layer item tokens. Each token ID is derived from
  *     `uint256(keccak256(abi.encodePacked(namespace, itemId)))`.
@@ -50,14 +50,14 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
   // ──────────────────────────────────────────────────────────────────────
 
   /**
-   * @dev Token ID 0 is the fungible in-game currency (CyberKoyn / CKY equivalent).
+   * @dev Token ID 0 is the fungible in-game currency (CryptoKoyn / CKY equivalent).
    */
-  uint256 public constant CYBERKOYN = 0;
+  uint256 public constant CRYPTOKOYN = 0;
 
   /**
    * @dev Initial fungible supply minted to the deployer (10 million with 18 decimals).
    */
-  uint256 public constant INITIAL_CYBERKOYN_SUPPLY = 10_000_000 * 1e18;
+  uint256 public constant INITIAL_CRYPTOKOYN_SUPPLY = 10_000_000 * 1e18;
 
   // ──────────────────────────────────────────────────────────────────────
   // State
@@ -87,7 +87,7 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
 
   /**
    * @dev Counter tracking the next sequential token ID for auto-registration.
-   *      Starts at 1 because token ID 0 is reserved for CYBERKOYN.
+   *      Starts at 1 because token ID 0 is reserved for CRYPTOKOYN.
    */
   uint256 private _nextTokenId;
 
@@ -116,7 +116,7 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
   // ──────────────────────────────────────────────────────────────────────
 
   /**
-   * @dev Deploys the contract, mints the initial CyberKoyn supply to the deployer,
+   * @dev Deploys the contract, mints the initial CryptoKoyn supply to the deployer,
    *      and registers token ID 0 as the fungible currency.
    * @param initialOwner The address that will own the contract and receive the initial supply.
    * @param baseURI The base URI prefix for metadata resolution (e.g. "ipfs://").
@@ -126,11 +126,11 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
     _nextTokenId = 1;
 
     // Register and mint the fungible currency token
-    _itemIds[CYBERKOYN] = 'cyberkoyn';
-    _itemIdToTokenId[keccak256(abi.encodePacked('cyberkoyn'))] = CYBERKOYN;
-    _mint(initialOwner, CYBERKOYN, INITIAL_CYBERKOYN_SUPPLY, '');
+    _itemIds[CRYPTOKOYN] = 'cryptokoyn';
+    _itemIdToTokenId[keccak256(abi.encodePacked('cryptokoyn'))] = CRYPTOKOYN;
+    _mint(initialOwner, CRYPTOKOYN, INITIAL_CRYPTOKOYN_SUPPLY, '');
 
-    emit ObjectLayerRegistered(CYBERKOYN, 'cyberkoyn', '', INITIAL_CYBERKOYN_SUPPLY);
+    emit ObjectLayerRegistered(CRYPTOKOYN, 'cryptokoyn', '', INITIAL_CRYPTOKOYN_SUPPLY);
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -348,7 +348,7 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
   /**
    * @dev Returns the token ID for a given item identifier.
    * @param itemId The human-readable item identifier.
-   * @return The ERC-1155 token ID (0 if not registered, but 0 is also CYBERKOYN).
+   * @return The ERC-1155 token ID (0 if not registered, but 0 is also CRYPTOKOYN).
    */
   function getTokenIdByItemId(string calldata itemId) external view returns (uint256) {
     return _itemIdToTokenId[keccak256(abi.encodePacked(itemId))];
