@@ -797,6 +797,291 @@ try {
     )
     .description('Object layer management');
 
+  // ── chain: Hyperledger Besu / ERC-1155 lifecycle commands ────────────────
+  const chain = program.command('chain').description('Hyperledger Besu chain & ERC-1155 ObjectLayerToken lifecycle');
+
+  chain
+    .command('deploy')
+    .description('Deploy Besu IBFT2 network to Kubernetes (requires kubectl + minikube)')
+    .option('--consensus <type>', 'Consensus algorithm: ibft2 or clique', 'ibft2')
+    .action(async (options) => {
+      const consensus = options.consensus || 'ibft2';
+      const deployDir = `./quorum-kubernetes/playground/kubectl/quorum-besu/${consensus}`;
+      if (!fs.existsSync(deployDir)) {
+        logger.error(`Consensus directory not found: ${deployDir}`);
+        process.exit(1);
+      }
+      logger.info(`Deploying Besu ${consensus.toUpperCase()} network from ${deployDir}`);
+      shellExec(`cd ${deployDir} && bash deploy.sh`);
+      logger.info('Besu network deployment initiated. Use "cyberia chain status" to verify.');
+    });
+
+  chain
+    .command('remove')
+    .description('Remove Besu network from Kubernetes')
+    .option('--consensus <type>', 'Consensus algorithm: ibft2 or clique', 'ibft2')
+    .action(async (options) => {
+      const consensus = options.consensus || 'ibft2';
+      const removeDir = `./quorum-kubernetes/playground/kubectl/quorum-besu/${consensus}`;
+      if (!fs.existsSync(removeDir)) {
+        logger.error(`Consensus directory not found: ${removeDir}`);
+        process.exit(1);
+      }
+      logger.info(`Removing Besu ${consensus.toUpperCase()} network from ${removeDir}`);
+      shellExec(`cd ${removeDir} && bash remove.sh`);
+      logger.info('Besu network removed.');
+    });
+
+  chain
+    .command('deploy-contract')
+    .description('Deploy ObjectLayerToken (ERC-1155) contract to a Besu network via Hardhat')
+    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .action(async (options) => {
+      const network = options.network || 'besu-ibft2';
+      logger.info(`Deploying ObjectLayerToken to network: ${network}`);
+      shellExec(`cd hardhat && npx hardhat run scripts/deployObjectLayerToken.cjs --network ${network}`);
+      logger.info('Contract deployment complete. Check hardhat/deployments/ for the artifact.');
+    });
+
+  chain
+    .command('compile')
+    .description('Compile Solidity contracts via Hardhat')
+    .action(async () => {
+      logger.info('Compiling contracts...');
+      shellExec('cd hardhat && npx hardhat compile');
+      logger.info('Compilation complete.');
+    });
+
+  chain
+    .command('test')
+    .description('Run Hardhat tests for ObjectLayerToken')
+    .action(async () => {
+      logger.info('Running ObjectLayerToken tests...');
+      shellExec('cd hardhat && npx hardhat test test/ObjectLayerToken.js');
+    });
+
+  chain
+    .command('register')
+    .description('Register an Object Layer item on-chain via the deployed ObjectLayerToken contract')
+    .requiredOption('--item-id <itemId>', 'Human-readable item identifier (e.g. "hatchet")')
+    .option('--metadata-cid <cid>', 'IPFS metadata CID for the item', '')
+    .option('--supply <supply>', 'Initial token supply (1 = non-fungible, >1 = semi-fungible)', '1')
+    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--env-path <envPath>', 'Env path', './.env')
+    .action(async (options) => {
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      const deploymentsDir = './hardhat/deployments';
+      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
+      if (!fs.existsSync(artifactPath)) {
+        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
+        process.exit(1);
+      }
+      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const contractAddress = deployment.address;
+
+      logger.info(`Registering Object Layer item "${options.itemId}" on contract ${contractAddress}`);
+      logger.info(`  Metadata CID: ${options.metadataCid || '(none)'}`);
+      logger.info(`  Supply: ${options.supply}`);
+
+      // Use a Hardhat script via inline JS to call registerObjectLayer
+      const registerScript = `
+        const { ethers } = require('hardhat');
+        async function main() {
+          const [deployer] = await ethers.getSigners();
+          const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
+          const tx = await token.registerObjectLayer(
+            deployer.address,
+            '${options.itemId}',
+            '${options.metadataCid || ''}',
+            ${options.supply},
+            '0x'
+          );
+          const receipt = await tx.wait();
+          const tokenId = await token.computeTokenId('${options.itemId}');
+          console.log('Registered tokenId:', tokenId.toString());
+          console.log('Tx hash:', receipt.hash);
+        }
+        main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+      `;
+      const tmpScript = './hardhat/scripts/_cli_register_tmp.cjs';
+      fs.writeFileSync(tmpScript, registerScript, 'utf8');
+      try {
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_register_tmp.cjs --network ${options.network}`);
+      } finally {
+        fs.removeSync(tmpScript);
+      }
+    });
+
+  chain
+    .command('mint')
+    .description('Mint additional tokens for an existing token ID')
+    .requiredOption('--token-id <tokenId>', 'ERC-1155 token ID (uint256)')
+    .requiredOption('--to <address>', 'Recipient address')
+    .requiredOption('--amount <amount>', 'Amount to mint')
+    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--env-path <envPath>', 'Env path', './.env')
+    .action(async (options) => {
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      const deploymentsDir = './hardhat/deployments';
+      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
+      if (!fs.existsSync(artifactPath)) {
+        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
+        process.exit(1);
+      }
+      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const contractAddress = deployment.address;
+
+      logger.info(`Minting ${options.amount} of token ID ${options.tokenId} to ${options.to}`);
+
+      const mintScript = `
+        const { ethers } = require('hardhat');
+        async function main() {
+          const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
+          const tx = await token.mint('${options.to}', ${options.tokenId}, ${options.amount}, '0x');
+          const receipt = await tx.wait();
+          console.log('Mint tx hash:', receipt.hash);
+          const balance = await token.balanceOf('${options.to}', ${options.tokenId});
+          console.log('New balance:', balance.toString());
+        }
+        main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+      `;
+      const tmpScript = './hardhat/scripts/_cli_mint_tmp.cjs';
+      fs.writeFileSync(tmpScript, mintScript, 'utf8');
+      try {
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_mint_tmp.cjs --network ${options.network}`);
+      } finally {
+        fs.removeSync(tmpScript);
+      }
+    });
+
+  chain
+    .command('status')
+    .description('Query Besu chain and ObjectLayerToken contract status')
+    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--env-path <envPath>', 'Env path', './.env')
+    .action(async (options) => {
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      const deploymentsDir = './hardhat/deployments';
+      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
+
+      logger.info('── Besu Chain Status ──');
+
+      // Check node connectivity
+      const statusScript = `
+        const { ethers } = require('hardhat');
+        async function main() {
+          const provider = ethers.provider;
+          const network = await provider.getNetwork();
+          const blockNumber = await provider.getBlockNumber();
+          const [deployer] = await ethers.getSigners();
+          const balance = await provider.getBalance(deployer.address);
+          console.log('Network:', JSON.stringify({
+            name: network.name,
+            chainId: network.chainId.toString(),
+            blockNumber,
+            deployerAddress: deployer.address,
+            deployerBalance: ethers.formatEther(balance) + ' ETH'
+          }, null, 2));
+
+          ${
+            fs.existsSync(artifactPath)
+              ? `
+          const deployment = require('${nodePath.resolve(artifactPath)}');
+          try {
+            const token = await ethers.getContractAt('ObjectLayerToken', deployment.address);
+            const cyberkoynSupply = await token.totalSupply(0);
+            const deployerCKY = await token.balanceOf(deployer.address, 0);
+            const isPaused = false; // pausable check would need try-catch
+            console.log('Contract:', JSON.stringify({
+              address: deployment.address,
+              cyberkoynTotalSupply: ethers.formatEther(cyberkoynSupply) + ' CKY',
+              deployerCyberkoynBalance: ethers.formatEther(deployerCKY) + ' CKY',
+            }, null, 2));
+          } catch (e) {
+            console.log('Contract not accessible:', e.message);
+          }
+          `
+              : `console.log('No deployment artifact found for network ${options.network}.');`
+          }
+        }
+        main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+      `;
+      const tmpScript = './hardhat/scripts/_cli_status_tmp.cjs';
+      fs.writeFileSync(tmpScript, statusScript, 'utf8');
+      try {
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_status_tmp.cjs --network ${options.network}`);
+      } finally {
+        fs.removeSync(tmpScript);
+      }
+    });
+
+  chain
+    .command('pause')
+    .description('Pause all token transfers on the ObjectLayerToken contract (emergency governance)')
+    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .action(async (options) => {
+      const deploymentsDir = './hardhat/deployments';
+      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
+      if (!fs.existsSync(artifactPath)) {
+        logger.error(`Deployment artifact not found: ${artifactPath}`);
+        process.exit(1);
+      }
+      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+
+      const pauseScript = `
+        const { ethers } = require('hardhat');
+        async function main() {
+          const token = await ethers.getContractAt('ObjectLayerToken', '${deployment.address}');
+          const tx = await token.pause();
+          await tx.wait();
+          console.log('Contract PAUSED. All transfers are frozen.');
+        }
+        main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+      `;
+      const tmpScript = './hardhat/scripts/_cli_pause_tmp.cjs';
+      fs.writeFileSync(tmpScript, pauseScript, 'utf8');
+      try {
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_pause_tmp.cjs --network ${options.network}`);
+      } finally {
+        fs.removeSync(tmpScript);
+      }
+    });
+
+  chain
+    .command('unpause')
+    .description('Unpause token transfers on the ObjectLayerToken contract')
+    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .action(async (options) => {
+      const deploymentsDir = './hardhat/deployments';
+      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
+      if (!fs.existsSync(artifactPath)) {
+        logger.error(`Deployment artifact not found: ${artifactPath}`);
+        process.exit(1);
+      }
+      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+
+      const unpauseScript = `
+        const { ethers } = require('hardhat');
+        async function main() {
+          const token = await ethers.getContractAt('ObjectLayerToken', '${deployment.address}');
+          const tx = await token.unpause();
+          await tx.wait();
+          console.log('Contract UNPAUSED. Transfers resumed.');
+        }
+        main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+      `;
+      const tmpScript = './hardhat/scripts/_cli_unpause_tmp.cjs';
+      fs.writeFileSync(tmpScript, unpauseScript, 'utf8');
+      try {
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_unpause_tmp.cjs --network ${options.network}`);
+      } finally {
+        fs.removeSync(tmpScript);
+      }
+    });
+
   if (process.argv[2] == 'underpost') throw new Error('Trigger underpost passthrough');
 
   program.parse();

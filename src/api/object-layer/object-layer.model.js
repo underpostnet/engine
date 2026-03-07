@@ -49,18 +49,22 @@ const ItemSchema = new Schema(
 /**
  * @typedef {Object} Ledger
  * Blockchain protocol metadata linking the visual object-layer prefab to its economic reality.
- * @property {string} type - The token standard or off-chain designation (ERC20, ERC721, OFF_CHAIN).
- * @property {string} address - The Solidity smart contract address.
+ * Uses ERC-1155 as the single multi-token standard for both fungible (CyberKoyn) and
+ * non-fungible / semi-fungible Object Layer items within one contract.
+ * @property {string} type - The token standard or off-chain designation (ERC1155, OFF_CHAIN).
+ * @property {string} address - The Solidity smart contract address (ObjectLayerToken).
+ * @property {string} tokenId - The uint256 ERC-1155 token ID (derived from keccak256 of the item identifier).
  * @memberof CyberiaObjectLayerModel
  */
 const LedgerSchema = new Schema(
   {
     type: {
       type: String,
-      enum: ['ERC20', 'ERC721', 'OFF_CHAIN'],
+      enum: ['ERC1155', 'OFF_CHAIN'],
       required: true,
     },
-    address: { type: String }, // Solidity contract address
+    address: { type: String }, // ObjectLayerToken ERC-1155 contract address
+    tokenId: { type: String, default: '' }, // uint256 ERC-1155 token ID (hex or decimal string)
   },
   { _id: false },
 );
@@ -96,8 +100,9 @@ const RenderSchema = new Schema(
  * @property {string} data.item.description - Description of the item
  * @property {boolean} data.item.activable - Whether the item can be activated
  * @property {Object} data.ledger - Blockchain protocol metadata linking the visual object-layer prefab to its economic reality
- * @property {string} data.ledger.type - The token standard or off-chain designation (ERC20, ERC721, OFF_CHAIN).
- * @property {string} data.ledger.address - The Solidity smart contract address.
+ * @property {string} data.ledger.type - The token standard or off-chain designation (ERC1155, OFF_CHAIN).
+ * @property {string} data.ledger.address - The ObjectLayerToken ERC-1155 smart contract address.
+ * @property {string} data.ledger.tokenId - The uint256 ERC-1155 token ID (hex or decimal string).
  * @property {Object} data.render - IPFS content identifiers for the consolidated atlas sprite sheet
  * @property {string} data.render.cid - IPFS Content Identifier for the consolidated atlas sprite sheet PNG
  * @property {string} data.render.metadataCid - IPFS Content Identifier for the atlas sprite sheet metadata JSON (fast-json-stable-stringify)

@@ -1,0 +1,85 @@
+{
+  "genesis": {
+    "config": {
+      "chainId": 777771,
+      "berlinBlock": 0,
+      "londonBlock": 0,
+      "shanghaiTime": 0,
+      "qbft": {
+        "epochLength": 30000,
+        "blockPeriodSeconds": 5,
+        "requestTimeoutSeconds": 10
+      }
+    },
+    "nonce": "0x0",
+    "timestamp": "0x5b3d92d7",
+    "extraData": "0xf87aa00000000000000000000000000000000000000000000000000000000000000000f8549464a702e6263b7297a96638cac6ae65e6541f4169943923390ad55e90c237593b3b0e401f3b08a0318594aefdb9a738c9f433e5b6b212a6d62f6370c2f69294c7eeb9a4e00ce683cf93039b212648e01c6c6b78c080c0",
+    "gasLimit": "0x1fffffffffffff",
+    "difficulty": "0x1",
+    "mixHash": "0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365",
+    "coinbase": "0x44e298766B94B53AdA033FE920748a398CC7cE63",
+    "number": "0x0",
+    "gasUsed": "0x0",
+    "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "alloc": {
+      "44e298766B94B53AdA033FE920748a398CC7cE63": {
+        "comment": "Coinbase / deployer account – receives initial ETH for gas on private network",
+        "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  },
+  "blockchain": {
+    "nodes": {
+      "generate": true,
+      "count": 4
+    }
+  },
+  "network": {
+    "name": "cyberia-besu",
+    "description": "Hyperledger Besu QBFT private network for Cyberia Online Object Layer ERC-1155 ecosystem",
+    "consensus": "QBFT",
+    "chainId": 777771,
+    "contracts": {
+      "ObjectLayerToken": {
+        "standard": "ERC-1155",
+        "description": "Unified multi-token contract: fungible CyberKoyn (token ID 0) + semi/non-fungible Object Layer items (token ID >= 1)",
+        "tokenIdScheme": "keccak256(abi.encodePacked('cyberia.object-layer:', itemId))",
+        "fungibleTokens": {
+          "CYBERKOYN": {
+            "tokenId": 0,
+            "symbol": "CKY",
+            "decimals": 18,
+            "initialSupply": "10000000000000000000000000"
+          }
+        }
+      }
+    },
+    "rpc": {
+      "besu-ibft2": {
+        "url": "http://127.0.0.1:8545",
+        "chainId": 777771,
+        "gasPrice": 0
+      },
+      "besu-qbft": {
+        "url": "http://127.0.0.1:8545",
+        "chainId": 777771,
+        "gasPrice": 0
+      },
+      "besu-k8s": {
+        "url": "http://127.0.0.1:30545",
+        "chainId": 777771,
+        "gasPrice": 0
+      }
+    },
+    "kubernetes": {
+      "namespace": "besu",
+      "validators": 4,
+      "members": 3,
+      "image": "hyperledger/besu:24.12.1",
+      "monitoring": {
+        "prometheus": true,
+        "grafana": true
+      }
+    }
+  }
+}

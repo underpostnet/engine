@@ -1,0 +1,38 @@
+{
+  "name": "cyberia-hardhat",
+  "version": "1.0.0",
+  "description": "Hardhat project for Cyberia Online ObjectLayerToken (ERC-1155) on Hyperledger Besu",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:ibft2": "hardhat run scripts/deployObjectLayerToken.cjs --network besu-ibft2",
+    "deploy:qbft": "hardhat run scripts/deployObjectLayerToken.cjs --network besu-qbft",
+    "deploy:k8s": "hardhat run scripts/deployObjectLayerToken.cjs --network besu-k8s",
+    "deploy:local": "hardhat run scripts/deployObjectLayerToken.cjs --network hardhat",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@typechain/ethers-v6": "^0.5.0",
+    "@typechain/hardhat": "^9.0.0",
+    "chai": "^4.4.1",
+    "ethers": "^6.13.0",
+    "hardhat": "^2.22.0",
+    "hardhat-gas-reporter": "^1.0.10",
+    "solidity-coverage": "^0.8.0",
+    "typechain": "^8.3.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.1.0",
+    "dotenv": "^16.4.0",
+    "fs-extra": "^11.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
