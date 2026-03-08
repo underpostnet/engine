@@ -160,13 +160,12 @@ ObjectLayerSchema.index(
 );
 
 // Pre-save hook to ensure data consistency
-ObjectLayerSchema.pre('save', function (next) {
+ObjectLayerSchema.pre('save', function () {
   // Ensure all required fields are present
   if (!this.data.stats || !this.data.item || !this.sha256) {
     throw new Error('Missing required fields');
   }
   // cid (object layer data JSON) and data.render.cid (atlas PNG) are optional – default to ''
-  next();
 });
 
 // Create and export the model

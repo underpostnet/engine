@@ -77,12 +77,11 @@ const ObjectLayerRenderFramesSchema = new Schema(
 );
 
 // Pre-save hook to ensure data consistency
-ObjectLayerRenderFramesSchema.pre('save', function (next) {
+ObjectLayerRenderFramesSchema.pre('save', function () {
   // Ensure all required fields are present
   if (!this.frames || !this.colors || this.frame_duration === undefined) {
     throw new Error('Missing required fields: frames, colors, or frame_duration');
   }
-  next();
 });
 
 // Create and export the model
