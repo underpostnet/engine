@@ -168,9 +168,17 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       ];
       packageJson.description = 'Cyberia Engine - Object Layer and Assets Management Microservice';
       const { CyberiaDependencies } = await import(`../src/client/components/cyberia-portal/CommonCyberiaPortal.js`);
+      const hardhatPackageJson = JSON.parse(fs.readFileSync(`./hardhat/package.json`, 'utf8'));
+      const hardhatDeps = {
+        ...(hardhatPackageJson.dependencies || {}),
+      };
+      if (hardhatPackageJson.devDependencies && hardhatPackageJson.devDependencies.ethers) {
+        hardhatDeps.ethers = hardhatPackageJson.devDependencies.ethers;
+      }
       packageJson.dependencies = {
         ...packageJson.dependencies,
         ...CyberiaDependencies,
+        ...hardhatDeps,
       };
       packageJson.overrides = originPackageJson.overrides;
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');

@@ -969,10 +969,10 @@ nvidia/gpu-operator \
             `${key}`.toUpperCase().match('MAC')
               ? 'changethis'
               : isNaN(parseFloat(privateEnv[key]))
-                ? `${privateEnv[key]}`.match(`@`)
-                  ? 'admin@default.net'
-                  : 'changethis'
-                : privateEnv[key];
+              ? `${privateEnv[key]}`.match(`@`)
+                ? 'admin@default.net'
+                : 'changethis'
+              : privateEnv[key];
         }
         return env;
       };
@@ -1025,6 +1025,18 @@ nvidia/gpu-operator \
         const ver = CyberiaDependencies[dep];
         shellExec(`npm install ${dep}@${ver}`);
       }
+      const hardhatPackageJson = JSON.parse(fs.readFileSync(`./hardhat/package.json`, 'utf8'));
+      const hardhatDeps = {
+        ...(hardhatPackageJson.dependencies || {}),
+      };
+      if (hardhatPackageJson.devDependencies && hardhatPackageJson.devDependencies.ethers) {
+        hardhatDeps.ethers = hardhatPackageJson.devDependencies.ethers;
+      }
+      for (const dep of Object.keys(hardhatDeps)) {
+        const ver = hardhatDeps[dep];
+        shellExec(`npm install ${dep}@${ver}`);
+      }
+      shellExec(`cd ./hardhat && npm install`);
       break;
     }
 
