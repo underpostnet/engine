@@ -574,7 +574,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
       }
       if (!enableLiveRebuild && siteMapLinks.length > 0) {
         const xslUrl = fs.existsSync(`${rootClientPath}/sitemap`)
-          ? `${path === '/' ? '' : path}/sitemap.xsl`
+          ? `https://${host}${path === '/' ? '' : path}/sitemap.xsl`
           : undefined;
         // Create a stream to write to
         /** @type {import('sitemap').SitemapStreamOptions} */
