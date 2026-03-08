@@ -94,7 +94,7 @@
     "socket.io": "^4.8.3",
     "sortablejs": "^1.15.0",
     "split-file": "^2.3.0",
-    "swagger-autogen": "^2.23.7",f92bff
+    "swagger-autogen": "^2.23.7",
     "swagger-ui-express": "^5.0.0",
     "uglify-js": "^3.17.4",
     "validator": "^13.11.0",
