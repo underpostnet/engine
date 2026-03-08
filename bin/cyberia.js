@@ -18,6 +18,7 @@ import { Command } from 'commander';
 import fs from 'fs-extra';
 import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
+import { generateBesuManifests, deployBesu, removeBesu } from '../src/server/besu-genesis-generator.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import {
   ObjectLayerEngine,
@@ -841,42 +842,122 @@ try {
 
   chain
     .command('deploy')
-    .description('Deploy Besu IBFT2 network to Kubernetes (requires kubectl + minikube)')
-    .option('--consensus <type>', 'Consensus algorithm: ibft2 or clique', 'ibft2')
+    .description(
+      'Deploy Besu IBFT2 network to kubeadm Kubernetes cluster.\n' +
+        'Dynamically generates fresh validator keys, genesis, extraData, enode URLs,\n' +
+        'and all K8s manifests in manifests/besu/ before applying via kustomize.\n' +
+        'Each invocation creates a unique chain identity (new keys, new extraData).',
+    )
+    .option('--pull-image', 'Pull Besu container images into containerd before deployment')
+    .option('--validators <count>', 'Number of IBFT2 validators (default: 4)', '4')
+    .option('--chain-id <chainId>', 'Chain ID for the network (default: 777771)', '777771')
+    .option('--block-period <seconds>', 'IBFT2 block period in seconds (default: 5)', '5')
+    .option('--epoch-length <length>', 'IBFT2 epoch length (default: 30000)', '30000')
+    .option('--coinbase-address <address>', 'Coinbase deployer address (auto-detected from engine-private if omitted)')
+    .option('--besu-image <image>', 'Besu container image', 'hyperledger/besu:24.12.1')
+    .option('--curl-image <image>', 'Curl init container image', 'curlimages/curl:8.11.1')
+    .option('--node-port-rpc <port>', 'NodePort for external JSON-RPC access', '30545')
+    .option('--node-port-ws <port>', 'NodePort for external WebSocket access', '30546')
+    .option('--namespace <ns>', 'Kubernetes namespace for Besu resources', 'besu')
+    .option('--skip-generate', 'Skip manifest generation and use existing manifests/besu/ as-is')
+    .option('--skip-wait', 'Skip waiting for validators to reach Running state')
     .action(async (options) => {
-      const consensus = options.consensus || 'ibft2';
-      const deployDir = `./quorum-kubernetes/playground/kubectl/quorum-besu/${consensus}`;
-      if (!fs.existsSync(deployDir)) {
-        logger.error(`Consensus directory not found: ${deployDir}`);
+      const result = await deployBesu({
+        pullImage: !!options.pullImage,
+        validators: parseInt(options.validators, 10),
+        chainId: parseInt(options.chainId, 10),
+        blockPeriodSeconds: parseInt(options.blockPeriod, 10),
+        epochLength: parseInt(options.epochLength, 10),
+        coinbaseAddress: options.coinbaseAddress || '',
+        besuImage: options.besuImage,
+        curlImage: options.curlImage,
+        nodePortRpc: parseInt(options.nodePortRpc, 10),
+        nodePortWs: parseInt(options.nodePortWs, 10),
+        namespace: options.namespace,
+        skipGenerate: !!options.skipGenerate,
+        skipWait: !!options.skipWait,
+        manifestsPath: './manifests/besu',
+        networkConfigDir: './hardhat/networks',
+        privateKeysDir: './engine-private/eth-networks/besu/validators',
+      });
+      if (!result && !options.skipGenerate) {
         process.exit(1);
       }
-      logger.info(`Deploying Besu ${consensus.toUpperCase()} network from ${deployDir}`);
-      shellExec(`cd ${deployDir} && bash deploy.sh`);
-      logger.info('Besu network deployment initiated. Use "cyberia chain status" to verify.');
     });
 
   chain
     .command('remove')
-    .description('Remove Besu network from Kubernetes')
-    .option('--consensus <type>', 'Consensus algorithm: ibft2 or clique', 'ibft2')
+    .description('Remove Besu IBFT2 network from kubeadm Kubernetes cluster')
+    .option('--namespace <ns>', 'Kubernetes namespace for Besu resources', 'besu')
+    .option('--clean-keys', 'Also remove generated validator keys from engine-private/')
+    .option('--clean-manifests', 'Also remove the generated manifests/besu/ directory')
     .action(async (options) => {
-      const consensus = options.consensus || 'ibft2';
-      const removeDir = `./quorum-kubernetes/playground/kubectl/quorum-besu/${consensus}`;
-      if (!fs.existsSync(removeDir)) {
-        logger.error(`Consensus directory not found: ${removeDir}`);
+      removeBesu({
+        namespace: options.namespace,
+        cleanKeys: !!options.cleanKeys,
+        cleanManifests: !!options.cleanManifests,
+        manifestsPath: './manifests/besu',
+        privateKeysDir: './engine-private/eth-networks/besu/validators',
+      });
+    });
+
+  chain
+    .command('generate-manifests')
+    .description(
+      'Generate fresh Besu IBFT2 K8s manifests without deploying.\n' +
+        'Creates new validator keys, genesis, extraData, and all manifest files\n' +
+        'in manifests/besu/. Use "cyberia chain deploy --skip-generate" to apply them later.',
+    )
+    .option('--validators <count>', 'Number of IBFT2 validators (default: 4)', '4')
+    .option('--chain-id <chainId>', 'Chain ID for the network (default: 777771)', '777771')
+    .option('--block-period <seconds>', 'IBFT2 block period in seconds (default: 5)', '5')
+    .option('--epoch-length <length>', 'IBFT2 epoch length (default: 30000)', '30000')
+    .option('--coinbase-address <address>', 'Coinbase deployer address (auto-detected from engine-private if omitted)')
+    .option('--besu-image <image>', 'Besu container image', 'hyperledger/besu:24.12.1')
+    .option('--curl-image <image>', 'Curl init container image', 'curlimages/curl:8.11.1')
+    .option('--node-port-rpc <port>', 'NodePort for external JSON-RPC access', '30545')
+    .option('--node-port-ws <port>', 'NodePort for external WebSocket access', '30546')
+    .option('--namespace <ns>', 'Kubernetes namespace for Besu resources', 'besu')
+    .option('--output-dir <dir>', 'Output directory for manifests', './manifests/besu')
+    .action(async (options) => {
+      try {
+        const result = await generateBesuManifests({
+          outputDir: options.outputDir,
+          networkConfigDir: './hardhat/networks',
+          validatorCount: parseInt(options.validators, 10),
+          namespace: options.namespace,
+          chainId: parseInt(options.chainId, 10),
+          blockPeriodSeconds: parseInt(options.blockPeriod, 10),
+          epochLength: parseInt(options.epochLength, 10),
+          requestTimeoutSeconds: 10,
+          coinbaseAddress: options.coinbaseAddress || '',
+          besuImage: options.besuImage,
+          curlImage: options.curlImage,
+          nodePortRpc: parseInt(options.nodePortRpc, 10),
+          nodePortWs: parseInt(options.nodePortWs, 10),
+          savePrivateKeys: true,
+          privateKeysDir: './engine-private/eth-networks/besu/validators',
+        });
+        logger.info('');
+        logger.info('Manifests generated successfully. To deploy:');
+        logger.info('  cyberia chain deploy --skip-generate');
+        logger.info('');
+        logger.info('Validator summary:');
+        for (const v of result.validators) {
+          logger.info(`  Validator ${v.index}: address=${v.address} pubkey=${v.publicKey.slice(0, 16)}...`);
+        }
+      } catch (err) {
+        logger.error(`Manifest generation failed: ${err.message}`);
         process.exit(1);
       }
-      logger.info(`Removing Besu ${consensus.toUpperCase()} network from ${removeDir}`);
-      shellExec(`cd ${removeDir} && bash remove.sh`);
-      logger.info('Besu network removed.');
     });
 
   chain
     .command('deploy-contract')
     .description('Deploy ObjectLayerToken (ERC-1155) contract to a Besu network via Hardhat')
-    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--network <network>', 'Hardhat network name (besu-k8s for kubeadm cluster)', 'besu-k8s')
     .action(async (options) => {
-      const network = options.network || 'besu-ibft2';
+      const network = options.network || 'besu-k8s';
       logger.info(`Deploying ObjectLayerToken to network: ${network}`);
       shellExec(`cd hardhat && npx hardhat run scripts/deployObjectLayerToken.js --network ${network}`);
       logger.info('Contract deployment complete. Check hardhat/deployments/ for the artifact.');
@@ -910,7 +991,7 @@ try {
     .option('--metadata-cid <cid>', 'IPFS metadata CID for the item (ignored when --from-db is set)', '')
     .option('--from-db', 'Resolve the canonical CID from the ObjectLayer MongoDB document (recommended)')
     .option('--supply <supply>', 'Initial token supply (1 = non-fungible, >1 = semi-fungible)', '1')
-    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .option('--env-path <envPath>', 'Env path', './.env')
     .option('--mongo-host <mongoHost>', 'MongoDB host override (used with --from-db)')
     .action(async (options) => {
@@ -1005,7 +1086,7 @@ try {
     .requiredOption('--token-id <tokenId>', 'ERC-1155 token ID (uint256)')
     .requiredOption('--to <address>', 'Recipient address')
     .requiredOption('--amount <amount>', 'Amount to mint')
-    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .option('--env-path <envPath>', 'Env path', './.env')
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
@@ -1046,7 +1127,7 @@ try {
   chain
     .command('status')
     .description('Query Besu chain and ObjectLayerToken contract status')
-    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .option('--env-path <envPath>', 'Env path', './.env')
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
@@ -1110,7 +1191,7 @@ try {
   chain
     .command('pause')
     .description('Pause all token transfers on the ObjectLayerToken contract (emergency governance)')
-    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .action(async (options) => {
       const deploymentsDir = './hardhat/deployments';
       const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
@@ -1143,7 +1224,7 @@ try {
   chain
     .command('unpause')
     .description('Unpause token transfers on the ObjectLayerToken contract')
-    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .action(async (options) => {
       const deploymentsDir = './hardhat/deployments';
       const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
@@ -1298,7 +1379,7 @@ try {
     .description('Query ERC-1155 token balance for an address (CKY fungible, semi-fungible, or non-fungible)')
     .requiredOption('--address <address>', 'Ethereum address to query')
     .option('--token-id <tokenId>', 'ERC-1155 token ID (default: 0 = CKY)', '0')
-    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .option('--env-path <envPath>', 'Env path', './.env')
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
@@ -1351,7 +1432,7 @@ try {
     .requiredOption('--to <address>', 'Recipient address')
     .requiredOption('--token-id <tokenId>', 'ERC-1155 token ID (0 = CKY)')
     .requiredOption('--amount <amount>', 'Amount to transfer')
-    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .option('--env-path <envPath>', 'Env path', './.env')
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
@@ -1409,7 +1490,7 @@ try {
     .requiredOption('--address <address>', 'Address holding the tokens to burn')
     .requiredOption('--token-id <tokenId>', 'ERC-1155 token ID (0 = CKY)')
     .requiredOption('--amount <amount>', 'Amount to burn')
-    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .option('--env-path <envPath>', 'Env path', './.env')
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
@@ -1460,7 +1541,7 @@ try {
     )
     .requiredOption('--items <json>', 'JSON array of items: [{"itemId":"wood","cid":"bafk...","supply":500000}, ...]')
     .option('--from-db', 'Resolve canonical CIDs from the ObjectLayer MongoDB documents (recommended)')
-    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--network <network>', 'Hardhat network name', 'besu-k8s')
     .option('--env-path <envPath>', 'Env path', './.env')
     .option('--mongo-host <mongoHost>', 'MongoDB host override (used with --from-db)')
     .action(async (options) => {

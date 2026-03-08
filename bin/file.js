@@ -99,6 +99,7 @@ try {
           './src/server/atlas-sprite-sheet-generator.js',
           './src/server/shape-generator.js',
           './src/server/semantic-layer-generator.js',
+          './src/server/besu-genesis-generator.js',
           './test/shape-generator.test.js',
           'bin/cyberia.js',
         ]) {

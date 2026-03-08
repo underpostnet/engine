@@ -5,26 +5,38 @@
       "berlinBlock": 0,
       "londonBlock": 0,
       "shanghaiTime": 0,
-      "qbft": {
-        "epochLength": 30000,
-        "blockPeriodSeconds": 5,
-        "requestTimeoutSeconds": 10
+      "ibft2": {
+        "blockperiodseconds": 5,
+        "epochlength": 30000,
+        "requesttimeoutseconds": 10
       }
     },
     "nonce": "0x0",
-    "timestamp": "0x5b3d92d7",
-    "extraData": "0xf87aa00000000000000000000000000000000000000000000000000000000000000000f8549464a702e6263b7297a96638cac6ae65e6541f4169943923390ad55e90c237593b3b0e401f3b08a0318594aefdb9a738c9f433e5b6b212a6d62f6370c2f69294c7eeb9a4e00ce683cf93039b212648e01c6c6b78c080c0",
+    "timestamp": "0x69ad1724",
+    "extraData": "0xf87ea00000000000000000000000000000000000000000000000000000000000000000f85494e6c14bd3dd5b81d301779bdf3e528b1a6f48efa6944bd4d3d9c61fc8a13559774e0d364c2ed0ac45219498b58c42c52ab5d9968df3ad528a25b29b215917940130896e6e1c428ff39e32362b6588808c55c2c2808400000000c0",
     "gasLimit": "0x1fffffffffffff",
     "difficulty": "0x1",
     "mixHash": "0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365",
-    "coinbase": "0x44e298766B94B53AdA033FE920748a398CC7cE63",
+    "coinbase": "0xa8eab0a61c2fad0e2db57cc30bd9c2504ccf4ec8",
     "number": "0x0",
     "gasUsed": "0x0",
     "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "alloc": {
-      "44e298766B94B53AdA033FE920748a398CC7cE63": {
-        "comment": "Coinbase / deployer account – receives initial ETH for gas on private network",
+      "a8eab0a61c2fad0e2db57cc30bd9c2504ccf4ec8": {
+        "comment": "Coinbase / deployer account - receives initial ETH for gas on Cyberia private network",
         "balance": "0x200000000000000000000000000000000000000000000000000000000000000"
+      },
+      "fe3b557e8fb62b89f4916b721be55ceb828dbd73": {
+        "comment": "Dev/test account 1",
+        "balance": "0xad78ebc5ac6200000"
+      },
+      "627306090abaB3A6e1400e9345bC60c78a8BEf57": {
+        "comment": "Dev/test account 2",
+        "balance": "90000000000000000000000"
+      },
+      "f17f52151EbEF6C7334FAD080c5704D77216b732": {
+        "comment": "Dev/test account 3",
+        "balance": "90000000000000000000000"
       }
     }
   },
@@ -36,9 +48,10 @@
   },
   "network": {
     "name": "cyberia-besu",
-    "description": "Hyperledger Besu QBFT private network for Cyberia Online Object Layer ERC-1155 ecosystem",
-    "consensus": "QBFT",
+    "description": "Hyperledger Besu IBFT2 private network for Cyberia Online Object Layer ERC-1155 ecosystem on kubeadm cluster",
+    "consensus": "IBFT2",
     "chainId": 777771,
+    "clusterType": "kubeadm",
     "contracts": {
       "ObjectLayerToken": {
         "standard": "ERC-1155",
@@ -56,30 +69,70 @@
     },
     "rpc": {
       "besu-ibft2": {
-        "url": "http://127.0.0.1:8545",
-        "chainId": 777771,
-        "gasPrice": 0
-      },
-      "besu-qbft": {
+        "description": "Direct RPC access (e.g. kubectl port-forward or in-cluster)",
         "url": "http://127.0.0.1:8545",
         "chainId": 777771,
         "gasPrice": 0
       },
       "besu-k8s": {
+        "description": "kubeadm cluster NodePort access via besu-rpc-nodeport service (30545)",
         "url": "http://127.0.0.1:30545",
         "chainId": 777771,
         "gasPrice": 0
       }
     },
     "kubernetes": {
+      "clusterType": "kubeadm",
+      "manifests": "manifests/besu/",
       "namespace": "besu",
       "validators": 4,
-      "members": 3,
       "image": "hyperledger/besu:24.12.1",
+      "services": {
+        "clusterIP": [
+          "besu-validator1",
+          "besu-validator2",
+          "besu-validator3",
+          "besu-validator4"
+        ],
+        "nodePort": {
+          "name": "besu-rpc-nodeport",
+          "jsonRpc": 30545,
+          "ws": 30546
+        }
+      },
       "monitoring": {
         "prometheus": true,
+        "metricsPort": 9545,
         "grafana": true
       }
     }
-  }
+  },
+  "validators": [
+    {
+      "index": 1,
+      "publicKey": "dcb868ba375ff1716e1f8d73109149e31fa2e93e7c6738eaf5b800736e0376929e92cde8367e0d4edc9c3d812cb7113e073c4e0f751085411bff813528bfe65c",
+      "address": "e6c14bd3dd5b81d301779bdf3e528b1a6f48efa6",
+      "enode": "enode://dcb868ba375ff1716e1f8d73109149e31fa2e93e7c6738eaf5b800736e0376929e92cde8367e0d4edc9c3d812cb7113e073c4e0f751085411bff813528bfe65c@validator1-0.besu-validator1.besu.svc.cluster.local:30303"
+    },
+    {
+      "index": 2,
+      "publicKey": "740e1079c680d5e38e02ca598ba3d71acec060c2c39794fc9eb96dd62f5906b5ce9af350e9f6a7102904656c1624067c50d4b9694363067e9c7a771dd3c4b3c9",
+      "address": "4bd4d3d9c61fc8a13559774e0d364c2ed0ac4521",
+      "enode": "enode://740e1079c680d5e38e02ca598ba3d71acec060c2c39794fc9eb96dd62f5906b5ce9af350e9f6a7102904656c1624067c50d4b9694363067e9c7a771dd3c4b3c9@validator2-0.besu-validator2.besu.svc.cluster.local:30303"
+    },
+    {
+      "index": 3,
+      "publicKey": "e1e7a896f94d192f6a8dde77debd5f4f4eef18c31b47ce7a0452501a143021036ee754bc00e6f285696c524d670283220cd5900d9a401e4b12bb09cf6c687aa9",
+      "address": "98b58c42c52ab5d9968df3ad528a25b29b215917",
+      "enode": "enode://e1e7a896f94d192f6a8dde77debd5f4f4eef18c31b47ce7a0452501a143021036ee754bc00e6f285696c524d670283220cd5900d9a401e4b12bb09cf6c687aa9@validator3-0.besu-validator3.besu.svc.cluster.local:30303"
+    },
+    {
+      "index": 4,
+      "publicKey": "43068f209ce7afb1aec789a08790da7faeb4eda03a46123a5a70b1a14fc264d720d5ce058fb29b0cc077aa836103487ffe552f52ed1006b175bf328af0d84320",
+      "address": "0130896e6e1c428ff39e32362b6588808c55c2c2",
+      "enode": "enode://43068f209ce7afb1aec789a08790da7faeb4eda03a46123a5a70b1a14fc264d720d5ce058fb29b0cc077aa836103487ffe552f52ed1006b175bf328af0d84320@validator4-0.besu-validator4.besu.svc.cluster.local:30303"
+    }
+  ],
+  "generated": "2026-03-08T06:28:52.782Z",
+  "generatorVersion": "1.0.0"
 }

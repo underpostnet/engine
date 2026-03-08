@@ -1,6 +1,7 @@
 // hardhat.config.js
 // Hardhat configuration for the Cyberia Online Object Layer ERC-1155 ecosystem.
-// Supports deployment to Hyperledger Besu (IBFT2/QBFT) private networks.
+// Supports deployment to Hyperledger Besu (IBFT2/QBFT) private networks
+// running on kubeadm-managed Kubernetes clusters (manifests/besu/).
 //
 // Compatible with: Hardhat 2.28.x (hh2 LTS) + Ethers v6 + hardhat-toolbox 6.x
 
@@ -57,20 +58,21 @@ const config = {
     },
   },
 
-  // ── Networks ────────────────────────────────────────────────────────────────
+  // ── Networks ────────────────────────────────────────────────────────────
   //
   // Hyperledger Besu private networks use IBFT2 or QBFT consensus.
   // The RPC endpoints below correspond to the Kubernetes services defined in
-  // quorum-kubernetes/playground/kubectl/quorum-besu/ibft2/.
+  // manifests/besu/ (deployed via `underpost cluster --besu` or `cyberia chain deploy`).
   //
+  // Default to 'hardhat' for local testing; use 'besu-k8s' for kubeadm cluster deployments.
   defaultNetwork: 'hardhat',
 
   networks: {
     // Local Hardhat in-process network (for testing)
     hardhat: {},
 
-    // ── Besu IBFT2 – local development (minikube / docker-compose) ──────────
-    // Connects to the first validator JSON-RPC endpoint.
+    // ── Besu IBFT2 – direct RPC (e.g. port-forward or in-cluster access) ───
+    // Connects to the first validator JSON-RPC endpoint directly.
     'besu-ibft2': {
       url: process.env.BESU_IBFT2_RPC_URL || 'http://127.0.0.1:8545',
       accounts: [coinbaseKey],
@@ -81,7 +83,7 @@ const config = {
       timeout: 120000,
     },
 
-    // ── Besu QBFT – local development (minikube / docker-compose) ───────────
+    // ── Besu QBFT – direct RPC (e.g. port-forward or in-cluster access) ────
     'besu-qbft': {
       url: process.env.BESU_QBFT_RPC_URL || 'http://127.0.0.1:8545',
       accounts: [coinbaseKey],
@@ -90,8 +92,10 @@ const config = {
       timeout: 120000,
     },
 
-    // ── Besu – Kubernetes cluster (NodePort or LoadBalancer) ─────────────────
-    // Use when deploying from outside the k8s cluster via a NodePort or ingress.
+    // ── Besu – kubeadm cluster (NodePort) ───────────────────────────────────
+    // Use when deploying from outside the kubeadm cluster via the NodePort
+    // service (besu-rpc-nodeport → 30545) defined in manifests/besu/.
+    // This is the recommended network for the Cyberia Object Layer ecosystem.
     'besu-k8s': {
       url: process.env.BESU_K8S_RPC_URL || 'http://127.0.0.1:30545',
       accounts: [coinbaseKey],

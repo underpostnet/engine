@@ -171,16 +171,76 @@ npx hardhat coverage
 
 ## 3. Deploy Besu Network & Contract
 
+### Dynamic Manifest Generation
+
+Every `cyberia chain deploy` invocation **dynamically generates fresh validator keys** (secp256k1), computes public keys, enode URLs, IBFT2 `extraData`, genesis, and all Kubernetes manifests before applying them. This means each deployment creates a **unique chain identity** — no hardcoded keys, hashes, or enodes.
+
+The generator (`src/server/besu-genesis-generator.js`) produces:
+
+| Artifact | Description |
+|---|---|
+| `manifests/besu/namespace.yaml` | Dedicated `besu` namespace |
+| `manifests/besu/besu-genesis-configmap.yaml` | Genesis JSON with fresh `extraData` and validator addresses |
+| `manifests/besu/besu-config-toml-configmap.yaml` | Besu TOML config + dynamic `static-nodes.json` |
+| `manifests/besu/besu-validators-configmap.yaml` | Validator public keys (derived from new private keys) |
+| `manifests/besu/besu-node-permissions-configmap.yaml` | Node allowlist with dynamic enode URLs |
+| `manifests/besu/besu-secrets.yaml` | Validator node key secrets (fresh secp256k1 keys) |
+| `manifests/besu/besu-services.yaml` | ClusterIP + NodePort services |
+| `manifests/besu/besu-validators.yaml` | StatefulSets for all validators |
+| `manifests/besu/kustomization.yaml` | Kustomize orchestration |
+| `hardhat/networks/besu-object-layer.network.json` | Network config for Hardhat integration |
+| `engine-private/eth-networks/besu/validators/` | Validator private key backups |
+
 ### Deploy the Besu blockchain (Kubernetes)
 
 ```bash
-# Deploy IBFT2 consensus network
+# Deploy IBFT2 consensus network (generates fresh keys + manifests, then applies)
 cyberia chain deploy
-# or with QBFT consensus
-cyberia chain deploy --consensus qbft
+
+# Deploy with custom options
+cyberia chain deploy \
+  --validators 4 \
+  --chain-id 777771 \
+  --block-period 5 \
+  --epoch-length 30000 \
+  --coinbase-address 0xYOUR_DEPLOYER_ADDRESS \
+  --besu-image hyperledger/besu:24.12.1 \
+  --node-port-rpc 30545 \
+  --node-port-ws 30546 \
+  --namespace besu
+
+# Pull container images into containerd before deployment (kubeadm)
+cyberia chain deploy --pull-image
+
+# Skip manifest generation and use existing manifests/besu/ as-is
+cyberia chain deploy --skip-generate
+
+# Skip waiting for validator pods to reach Running state
+cyberia chain deploy --skip-wait
 
 # Remove the network
 cyberia chain remove
+
+# Remove the network and clean up validator private keys
+cyberia chain remove --clean-keys
+```
+
+### Generate manifests without deploying
+
+```bash
+# Generate fresh manifests only (no kubectl apply)
+cyberia chain generate-manifests
+
+# With custom parameters
+cyberia chain generate-manifests \
+  --validators 4 \
+  --chain-id 777771 \
+  --block-period 5 \
+  --namespace besu \
+  --output-dir ./manifests/besu
+
+# Then deploy later with the pre-generated manifests
+cyberia chain deploy --skip-generate
 ```
 
 ### Deploy the ObjectLayerToken contract
@@ -222,8 +282,12 @@ A deployment artifact is written to `deployments/<network>-ObjectLayerToken.json
 ### Check chain status
 
 ```bash
+cyberia chain status --network besu-k8s
+# or for direct RPC access
 cyberia chain status --network besu-ibft2
 ```
+
+> **Note:** The coinbase address is auto-detected from `./engine-private/eth-networks/besu/coinbase` during manifest generation. If no coinbase key exists, run `cyberia chain key-gen --save` and `cyberia chain set-coinbase` before deploying.
 
 ---
 
@@ -417,15 +481,40 @@ cyberia chain unpause --network besu-ibft2
 | Network | RPC URL | Chain ID | Description |
 |---|---|---|---|
 | `hardhat` | in-process | 31337 | Local testing (default) |
-| `besu-ibft2` | `http://127.0.0.1:8545` | 777771 | Local Besu IBFT2 |
+| `besu-ibft2` | `http://127.0.0.1:8545` | 777771 | Local Besu IBFT2 (port-forward or docker-compose) |
 | `besu-qbft` | `http://127.0.0.1:8545` | 777771 | Local Besu QBFT |
-| `besu-k8s` | `http://127.0.0.1:30545` | 777771 | Kubernetes NodePort |
+| `besu-k8s` | `http://127.0.0.1:30545` | 777771 | Kubernetes NodePort (recommended for kubeadm) |
 
 Override RPC URLs via environment variables:
 
 ```bash
 export BESU_IBFT2_RPC_URL=http://10.0.0.5:8545
 export BESU_IBFT2_CHAIN_ID=777771
+export BESU_K8S_RPC_URL=http://192.168.1.100:30545
+```
+
+## Dynamic Chain Generation Architecture
+
+The `besu-genesis-generator.js` module (`src/server/besu-genesis-generator.js`) ensures every deployment gets a fresh chain identity:
+
+1. **Key generation:** `crypto.createECDH('secp256k1')` generates N validator private keys
+2. **Public key derivation:** Uncompressed public keys (128-char hex) derived from each private key
+3. **Address computation:** `sha3-256(pubKeyBytes)[12..31]` yields the 20-byte Ethereum address
+4. **IBFT2 extraData:** RLP-encoded `[vanity(32), [validator-addresses], vote, round, seals]`
+5. **Genesis:** Includes dynamic `extraData`, coinbase alloc, dev accounts, and timestamp
+6. **Enode URLs:** `enode://<pubkey>@validator<N>-0.besu-validator<N>.besu.svc.cluster.local:30303`
+7. **Manifests:** All YAML files written with the computed values — no hardcoded hashes
+
+```
+cyberia chain deploy
+  └─> generateBesuManifests()
+       ├─> generateValidatorKeys(4)        → fresh secp256k1 key sets
+       ├─> buildGenesis(validators, opts)   → genesis.json with dynamic extraData
+       ├─> write manifests/besu/*.yaml      → all K8s resources
+       ├─> write hardhat/networks/*.json    → Hardhat network config
+       └─> write engine-private/*/validators/ → key backups
+  └─> kubectl apply -k manifests/besu
+  └─> wait for validator1-0..validator4-0 Running
 ```
 
 ---
@@ -433,6 +522,8 @@ export BESU_IBFT2_CHAIN_ID=777771
 ## References
 
 - [WHITE-PAPER.md](./WHITE-PAPER.md) — Full Object Layer Token protocol specification
+- [src/server/besu-genesis-generator.js](../src/server/besu-genesis-generator.js) — Dynamic Besu manifest generator (deployBesu/removeBesu)
+- [bin/cyberia.js](../bin/cyberia.js) — Cyberia CLI (chain deploy/remove/generate-manifests commands)
 - [OpenZeppelin ERC-1155](https://docs.openzeppelin.com/contracts/5.x/erc1155)
 - [Hardhat Documentation](https://hardhat.org/docs)
 - [Hyperledger Besu](https://besu.hyperledger.org/)

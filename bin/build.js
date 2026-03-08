@@ -184,7 +184,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
       fs.copyFileSync(`./src/api/object-layer/README.md`, `${basePath}/README.md`);
       fs.copySync(`./hardhat`, `${basePath}/hardhat`);
-      fs.copySync(`./hardhat/white-paper.md`, `${basePath}/white-paper.md`);
+      fs.copySync(`./hardhat/WHITE-PAPER.md`, `${basePath}/WHITE-PAPER.md`);
       for (const path of [
         '/src/client/ssr/pages/CyberiaServerMetrics.js',
         '/src/server/object-layer.js',
@@ -192,6 +192,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         '/src/server/shape-generator.js',
         '/src/server/semantic-layer-generator.js',
         '/test/shape-generator.test.js',
+        '/src/server/besu-genesis-generator.js',
       ])
         fs.copySync(`.${path}`, `${basePath}${path}`);
 
