@@ -5,6 +5,93 @@
 version: 2
 
 updates:
+  # ── Root project (npm) ──────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "underpostnet"
+    labels:
+      - "dependencies"
+      - "engine"
+    # Group minor/patch updates into a single PR to reduce noise
+    groups:
+      express-stack:
+        patterns:
+          - "express"
+          - "express-*"
+          - "cors"
+          - "compression"
+          - "cookie-parser"
+          - "helmet"
+          - "morgan"
+          - "http-proxy-middleware"
+      database-clients:
+        patterns:
+          - "mongoose"
+          - "mariadb"
+          - "iovalkey"
+      frontend-libs:
+        patterns:
+          - "@fortawesome/*"
+          - "@fullcalendar/*"
+          - "@neodrag/*"
+          - "ag-grid-community"
+          - "d3"
+          - "easymde"
+          - "fullcalendar"
+          - "sortablejs"
+          - "vanilla-jsoneditor"
+          - "peerjs"
+      tooling:
+        patterns:
+          - "nodemon"
+          - "uglify-js"
+          - "html-minifier-terser"
+          - "prettier"
+          - "jsdoc"
+          - "clean-jsdoc-theme"
+          - "swagger-autogen"
+          - "swagger-ui-express"
+      testing:
+        patterns:
+          - "mocha"
+          - "chai"
+          - "c8"
+      cyberia:
+        patterns:
+          - "maxrects-packer"
+          - "pngjs"
+          - "jimp"
+          - "sharp"
+      utilities:
+        patterns:
+          - "axios"
+          - "dotenv"
+          - "env-cmd"
+          - "commander"
+          - "fs-extra"
+          - "adm-zip"
+          - "shelljs"
+          - "colors"
+          - "winston"
+          - "nodemailer"
+          - "cloudinary"
+          - "favicons"
+          - "marked"
+          - "validator"
+          - "jsonwebtoken"
+          - "sitemap"
+          - "socket.io"
+          - "prom-client"
+    commit-message:
+      prefix: "deps(engine)"
+
   # ── Hardhat (npm) ────────────────────────────────────────────────────────
   - package-ecosystem: "npm"
     directory: "/hardhat"
