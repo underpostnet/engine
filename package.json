@@ -93,8 +93,8 @@
     "sitemap": "^7.1.1",
     "socket.io": "^4.8.0",
     "sortablejs": "^1.15.0",
-    "split-file": "^2.3.1",
-    "swagger-autogen": "^2.9.2",
+    "split-file": "^2.3.0",
+    "swagger-autogen": "^2.23.7",f92bff
     "swagger-ui-express": "^5.0.0",
     "uglify-js": "^3.17.4",
     "validator": "^13.11.0",
