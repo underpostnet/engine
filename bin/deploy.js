@@ -1036,6 +1036,10 @@ nvidia/gpu-operator \
         const ver = hardhatDeps[dep];
         shellExec(`npm install ${dep}@${ver}`);
       }
+      break;
+    }
+
+    case 'cyberia-hardhat': {
       shellExec(`cd ./hardhat && npm install --include=dev`);
       break;
     }
