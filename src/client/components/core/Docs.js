@@ -170,6 +170,8 @@ const Docs = {
       icon: html`<i class="fab fa-github"></i>`,
       text: `Last Release`,
       url: function () {
+        const tokenOpts = Docs.Tokens['modal-docs'];
+        if (tokenOpts && tokenOpts.lastReleaseUrl) return tokenOpts.lastReleaseUrl();
         return `https://github.com/underpostnet/pwa-microservices-template-ghpkg/`;
       },
     },

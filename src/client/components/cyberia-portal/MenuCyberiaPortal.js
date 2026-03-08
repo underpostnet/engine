@@ -483,6 +483,7 @@ const MenuCyberiaPortal = {
               html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/arrow-right.png" />`,
             coverageUrl: () => `${getProxyPath()}docs/hardhat-coverage`,
             demoUrl: () => `https://client.cyberiaonline.com/`,
+            lastReleaseUrl: () => `https://github.com/underpostnet/engine-cyberia.git`,
           }),
         handleType: 'bar',
         observer: true,
