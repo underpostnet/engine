@@ -51,7 +51,7 @@ program
   .command('clone')
   .argument(`<uri>`, 'The URI of the GitHub repository (e.g., "username/repository").')
   .option('--bare', 'Performs a bare clone, downloading only the .git files.')
-  .option('-g8', 'Uses the g8 repository extension for cloning.')
+  .option('--g8', 'Uses the g8 repository extension for cloning.')
   .description('Clones a specified GitHub repository into the current directory.')
   .action(Underpost.repo.clone);
 
@@ -60,7 +60,7 @@ program
   .argument('<path>', 'The absolute or relative directory path where the repository is located.')
   .argument(`<uri>`, 'The URI of the GitHub repository (e.g., "username/repository").')
   .description('Pulls the latest changes from a specified GitHub repository.')
-  .option('-g8', 'Uses the g8 repository extension for pulling.')
+  .option('--g8', 'Uses the g8 repository extension for pulling.')
   .action(Underpost.repo.pull);
 
 program
@@ -98,7 +98,7 @@ program
   .argument('<path>', 'The absolute or relative directory path of the repository.')
   .argument(`<uri>`, 'The URI of the GitHub repository (e.g., "username/repository").')
   .option('-f', 'Forces the push, overwriting the remote repository history.')
-  .option('-g8', 'Uses the g8 repository extension for pushing.')
+  .option('--g8', 'Uses the g8 repository extension for pushing.')
   .description('Pushes committed changes from a local repository to a remote GitHub repository.')
   .action(Underpost.repo.push);
 
