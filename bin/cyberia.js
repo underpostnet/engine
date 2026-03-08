@@ -1088,6 +1088,288 @@ try {
       }
     });
 
+  // ── key-gen: Generate Ethereum secp256k1 key pair ───────────────────────
+  chain
+    .command('key-gen')
+    .description('Generate a new Ethereum secp256k1 key pair for player identity or deployer accounts')
+    .option(
+      '--save',
+      'Persist key files to default paths (private → ./engine-private/, public → ./hardhat/deployments/)',
+    )
+    .option('--private-path <path>', 'Custom path for the private key JSON file (overrides default)')
+    .option('--public-path <path>', 'Custom path for the public key JSON file (overrides default)')
+    .action(async (options) => {
+      const { ethers } = await import('ethers');
+      const wallet = ethers.Wallet.createRandom();
+
+      const addressLower = wallet.address.toLowerCase();
+
+      const privateData = {
+        address: wallet.address,
+        privateKey: wallet.privateKey,
+        mnemonic: wallet.mnemonic ? wallet.mnemonic.phrase : null,
+      };
+
+      const publicData = {
+        address: wallet.address,
+        publicKey: wallet.publicKey,
+      };
+
+      logger.info('── New Ethereum Key Pair ──');
+      logger.info(`  Address    : ${wallet.address}`);
+      logger.info(`  Private Key: ${wallet.privateKey}`);
+      logger.info(`  Public Key : ${wallet.publicKey}`);
+      if (privateData.mnemonic) {
+        logger.info(`  Mnemonic   : ${privateData.mnemonic}`);
+      }
+
+      const shouldSave = options.save || options.privatePath || options.publicPath;
+
+      if (shouldSave) {
+        const privatePath = options.privatePath || `./engine-private/eth-networks/besu/${addressLower}.key.json`;
+        const publicPath = options.publicPath || `./hardhat/deployments/${addressLower}.pub.json`;
+
+        fs.ensureDirSync(nodePath.dirname(privatePath));
+        fs.writeJsonSync(privatePath, privateData, { spaces: 2 });
+        logger.info(`  Private key saved to: ${privatePath}`);
+        logger.warn('  ⚠  Keep this file secure! Anyone with the private key controls this address.');
+
+        fs.ensureDirSync(nodePath.dirname(publicPath));
+        fs.writeJsonSync(publicPath, publicData, { spaces: 2 });
+        logger.info(`  Public key saved to : ${publicPath}`);
+      }
+    });
+
+  // ── balance: Query token balance for an address ─────────────────────────
+  chain
+    .command('balance')
+    .description('Query ERC-1155 token balance for an address (CKY fungible, semi-fungible, or non-fungible)')
+    .requiredOption('--address <address>', 'Ethereum address to query')
+    .option('--token-id <tokenId>', 'ERC-1155 token ID (default: 0 = CKY)', '0')
+    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--env-path <envPath>', 'Env path', './.env')
+    .action(async (options) => {
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      const deploymentsDir = './hardhat/deployments';
+      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
+      if (!fs.existsSync(artifactPath)) {
+        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
+        process.exit(1);
+      }
+      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const contractAddress = deployment.address;
+
+      const balanceScript = `
+        import hre from 'hardhat';
+        const { ethers } = hre;
+        async function main() {
+          const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
+          const balance = await token.balanceOf('${options.address}', ${options.tokenId});
+          const itemId = await token.getItemId(${options.tokenId});
+          const metadataCid = await token.getMetadataCID(${options.tokenId});
+          let totalSupply;
+          try { totalSupply = await token['totalSupply(uint256)'](${options.tokenId}); } catch (_) { totalSupply = 'N/A'; }
+          console.log(JSON.stringify({
+            address: '${options.address}',
+            tokenId: '${options.tokenId}',
+            itemId: itemId || '(unregistered)',
+            balance: balance.toString(),
+            formattedBalance: ${options.tokenId} === '0' || ${options.tokenId} === 0 ? ethers.formatEther(balance) + ' CKY' : balance.toString() + ' units',
+            totalSupply: totalSupply.toString(),
+            metadataCid: metadataCid || '(none)',
+          }, null, 2));
+        }
+        main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+      `;
+      const tmpScript = './hardhat/scripts/_cli_balance_tmp.js';
+      fs.writeFileSync(tmpScript, balanceScript, 'utf8');
+      try {
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_balance_tmp.js --network ${options.network}`);
+      } finally {
+        fs.removeSync(tmpScript);
+      }
+    });
+
+  // ── transfer: Transfer ERC-1155 tokens between addresses ────────────────
+  chain
+    .command('transfer')
+    .description('Transfer ERC-1155 tokens (CKY, semi-fungible resources, or non-fungible items)')
+    .requiredOption('--from <address>', 'Sender address (must be the deployer/owner for relayed transfers)')
+    .requiredOption('--to <address>', 'Recipient address')
+    .requiredOption('--token-id <tokenId>', 'ERC-1155 token ID (0 = CKY)')
+    .requiredOption('--amount <amount>', 'Amount to transfer')
+    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--env-path <envPath>', 'Env path', './.env')
+    .action(async (options) => {
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      const deploymentsDir = './hardhat/deployments';
+      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
+      if (!fs.existsSync(artifactPath)) {
+        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
+        process.exit(1);
+      }
+      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const contractAddress = deployment.address;
+
+      logger.info(
+        `Transferring ${options.amount} of token ID ${options.tokenId} from ${options.from} to ${options.to}`,
+      );
+
+      const transferScript = `
+        import hre from 'hardhat';
+        const { ethers } = hre;
+        async function main() {
+          const [signer] = await ethers.getSigners();
+          const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
+          const tx = await token.safeTransferFrom(
+            '${options.from}',
+            '${options.to}',
+            ${options.tokenId},
+            ${options.amount},
+            '0x'
+          );
+          const receipt = await tx.wait();
+          console.log('Transfer tx hash:', receipt.hash);
+          const senderBal = await token.balanceOf('${options.from}', ${options.tokenId});
+          const recipientBal = await token.balanceOf('${options.to}', ${options.tokenId});
+          console.log('Sender balance:', senderBal.toString());
+          console.log('Recipient balance:', recipientBal.toString());
+        }
+        main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+      `;
+      const tmpScript = './hardhat/scripts/_cli_transfer_tmp.js';
+      fs.writeFileSync(tmpScript, transferScript, 'utf8');
+      try {
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_transfer_tmp.js --network ${options.network}`);
+      } finally {
+        fs.removeSync(tmpScript);
+      }
+    });
+
+  // ── burn: Burn ERC-1155 tokens ──────────────────────────────────────────
+  chain
+    .command('burn')
+    .description(
+      'Burn ERC-1155 tokens (CKY to reduce supply, semi-fungible for crafting cost, non-fungible to destroy)',
+    )
+    .requiredOption('--address <address>', 'Address holding the tokens to burn')
+    .requiredOption('--token-id <tokenId>', 'ERC-1155 token ID (0 = CKY)')
+    .requiredOption('--amount <amount>', 'Amount to burn')
+    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--env-path <envPath>', 'Env path', './.env')
+    .action(async (options) => {
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      const deploymentsDir = './hardhat/deployments';
+      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
+      if (!fs.existsSync(artifactPath)) {
+        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
+        process.exit(1);
+      }
+      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const contractAddress = deployment.address;
+
+      logger.info(`Burning ${options.amount} of token ID ${options.tokenId} from ${options.address}`);
+
+      const burnScript = `
+        import hre from 'hardhat';
+        const { ethers } = hre;
+        async function main() {
+          const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
+          const tx = await token.burn('${options.address}', ${options.tokenId}, ${options.amount});
+          const receipt = await tx.wait();
+          console.log('Burn tx hash:', receipt.hash);
+          const remaining = await token.balanceOf('${options.address}', ${options.tokenId});
+          console.log('Remaining balance:', remaining.toString());
+          let totalSupply;
+          try { totalSupply = await token['totalSupply(uint256)'](${options.tokenId}); } catch (_) { totalSupply = 'N/A'; }
+          console.log('Total supply after burn:', totalSupply.toString());
+        }
+        main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+      `;
+      const tmpScript = './hardhat/scripts/_cli_burn_tmp.js';
+      fs.writeFileSync(tmpScript, burnScript, 'utf8');
+      try {
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_burn_tmp.js --network ${options.network}`);
+      } finally {
+        fs.removeSync(tmpScript);
+      }
+    });
+
+  // ── batch-register: Register multiple Object Layer items in one tx ──────
+  chain
+    .command('batch-register')
+    .description('Batch-register multiple Object Layer items on-chain in a single transaction')
+    .requiredOption('--items <json>', 'JSON array of items: [{"itemId":"wood","cid":"bafk...","supply":500000}, ...]')
+    .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
+    .option('--env-path <envPath>', 'Env path', './.env')
+    .action(async (options) => {
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      let items;
+      try {
+        items = JSON.parse(options.items);
+        if (!Array.isArray(items) || items.length === 0) throw new Error('Must be a non-empty array');
+      } catch (e) {
+        logger.error(`Invalid --items JSON: ${e.message}`);
+        process.exit(1);
+      }
+
+      const deploymentsDir = './hardhat/deployments';
+      const artifactPath = `${deploymentsDir}/${options.network}-ObjectLayerToken.json`;
+      if (!fs.existsSync(artifactPath)) {
+        logger.error(`Deployment artifact not found: ${artifactPath}. Run "cyberia chain deploy-contract" first.`);
+        process.exit(1);
+      }
+      const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+      const contractAddress = deployment.address;
+
+      const itemIds = items.map((i) => i.itemId);
+      const cids = items.map((i) => i.cid || '');
+      const supplies = items.map((i) => i.supply || 1);
+
+      logger.info(`Batch-registering ${items.length} items on contract ${contractAddress}`);
+      for (const item of items) {
+        logger.info(`  - ${item.itemId} (supply: ${item.supply || 1}, cid: ${item.cid || '(none)'})`);
+      }
+
+      const batchScript = `
+        import hre from 'hardhat';
+        const { ethers } = hre;
+        async function main() {
+          const [deployer] = await ethers.getSigners();
+          const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
+          const itemIds = ${JSON.stringify(itemIds)};
+          const cids = ${JSON.stringify(cids)};
+          const supplies = ${JSON.stringify(supplies)};
+          const tx = await token.batchRegisterObjectLayers(
+            deployer.address,
+            itemIds,
+            cids,
+            supplies,
+            '0x'
+          );
+          const receipt = await tx.wait();
+          console.log('Batch register tx hash:', receipt.hash);
+          for (const id of itemIds) {
+            const tokenId = await token.computeTokenId(id);
+            const balance = await token.balanceOf(deployer.address, tokenId);
+            console.log('  ' + id + ' -> tokenId:', tokenId.toString(), '  balance:', balance.toString());
+          }
+        }
+        main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+      `;
+      const tmpScript = './hardhat/scripts/_cli_batch_register_tmp.js';
+      fs.writeFileSync(tmpScript, batchScript, 'utf8');
+      try {
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_batch_register_tmp.js --network ${options.network}`);
+      } finally {
+        fs.removeSync(tmpScript);
+      }
+    });
+
   if (process.argv[2] == 'underpost') throw new Error('Trigger underpost passthrough');
 
   program.parse();

@@ -726,7 +726,7 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked) + 0.5 × (Staking Duration /
   - **Rapid Development:** Rich plugin ecosystem and built-in Solidity debugging.
   - **Robust Testing:** Comprehensive testing framework with snapshot-based fixtures.
   - **Simplified Deployment:** Deployment scripts produce JSON artifacts consumed by the Cyberia CLI (`bin/cyberia.js`) for end-to-end lifecycle management.
-  - **Network Configuration:** `hardhat.config.cjs` defines multiple Besu targets (IBFT2, QBFT, Kubernetes) with coinbase key management from a secure private key file.
+  - **Network Configuration:** `hardhat.config.js` defines multiple Besu targets (IBFT2, QBFT, Kubernetes) with coinbase key management from a secure private key file.
 
 <a href='https://hardhat.org/docs' target='_top'>See official Hardhat documentation.</a>
 
@@ -797,7 +797,8 @@ This design adds to the standard OpenZeppelin ERC-1155 implementation:
 
 - **On-chain item registry:** Maps token IDs to human-readable item identifiers and IPFS metadata CIDs.
 - **Deterministic token IDs:** `computeTokenId(itemId) = uint256(keccak256("cyberia.object-layer:" || itemId))`.
-- **Batch registration:** Register and mint multiple item types in one transaction.
+- **Batch registration:** `batchRegisterObjectLayers` registers and mints multiple item types in one transaction.
+- **Per-token metadata management:** `setBaseURI` and `setTokenMetadataCID` allow the owner to update IPFS metadata CIDs post-deployment.
 - **Pause/unpause:** Emergency governance to freeze all transfers.
 - **Supply tracking:** On-chain total supply per token ID via `ERC1155Supply`.
 
@@ -838,7 +839,6 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
   mapping(uint256 => string) private _tokenCIDs;
   mapping(uint256 => string) private _itemIds;
   mapping(bytes32 => uint256) private _itemIdToTokenId;
-  uint256 private _nextTokenId;
 
   event ObjectLayerRegistered(
     uint256 indexed tokenId, string itemId, string metadataCid, uint256 initialSupply
@@ -850,7 +850,6 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
     Ownable(initialOwner)
   {
     _baseTokenURI = baseURI;
-    _nextTokenId = 1;
     _itemIds[CRYPTOKOYN] = 'cryptokoyn';
     _itemIdToTokenId[keccak256(abi.encodePacked('cryptokoyn'))] = CRYPTOKOYN;
     _mint(initialOwner, CRYPTOKOYN, INITIAL_CRYPTOKOYN_SUPPLY, '');
@@ -865,6 +864,17 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
     return super.uri(tokenId);
   }
 
+  function setBaseURI(string calldata newBaseURI) external onlyOwner {
+    _baseTokenURI = newBaseURI;
+    _setURI(newBaseURI);
+  }
+
+  function setTokenMetadataCID(uint256 tokenId, string calldata metadataCid) external onlyOwner {
+    _tokenCIDs[tokenId] = metadataCid;
+    emit MetadataUpdated(tokenId, metadataCid);
+    emit URI(uri(tokenId), tokenId);
+  }
+
   function computeTokenId(string calldata itemId) public pure returns (uint256) {
     return uint256(keccak256(abi.encodePacked('cyberia.object-layer:', itemId)));
   }
@@ -876,13 +886,47 @@ contract ObjectLayerToken is ERC1155, ERC1155Burnable, ERC1155Pausable, ERC1155S
     uint256 initialSupply,
     bytes calldata data
   ) external onlyOwner returns (uint256 tokenId) {
+    bytes32 itemHash = keccak256(abi.encodePacked(itemId));
+    require(
+      (_itemIdToTokenId[itemHash] == 0 && bytes(_itemIds[0]).length > 0) || _itemIdToTokenId[itemHash] == 0,
+      'ObjectLayerToken: item already registered'
+    );
     tokenId = computeTokenId(itemId);
-    require(bytes(_itemIds[tokenId]).length == 0, 'ObjectLayerToken: item already registered');
+    require(bytes(_itemIds[tokenId]).length == 0, 'ObjectLayerToken: token ID collision');
     _itemIds[tokenId] = itemId;
-    _itemIdToTokenId[keccak256(abi.encodePacked(itemId))] = tokenId;
+    _itemIdToTokenId[itemHash] = tokenId;
     if (bytes(metadataCid).length > 0) _tokenCIDs[tokenId] = metadataCid;
     if (initialSupply > 0) _mint(to, tokenId, initialSupply, data);
     emit ObjectLayerRegistered(tokenId, itemId, metadataCid, initialSupply);
+  }
+
+  function batchRegisterObjectLayers(
+    address to,
+    string[] calldata itemIds,
+    string[] calldata metadataCids,
+    uint256[] calldata supplies,
+    bytes calldata data
+  ) external onlyOwner returns (uint256[] memory tokenIds) {
+    require(
+      itemIds.length == metadataCids.length && itemIds.length == supplies.length,
+      'ObjectLayerToken: array length mismatch'
+    );
+    tokenIds = new uint256[](itemIds.length);
+    uint256[] memory mintIds = new uint256[](itemIds.length);
+    uint256[] memory mintAmounts = new uint256[](itemIds.length);
+    for (uint256 i = 0; i < itemIds.length; i++) {
+      uint256 tokenId = computeTokenId(itemIds[i]);
+      require(bytes(_itemIds[tokenId]).length == 0, 'ObjectLayerToken: item already registered or token ID collision');
+      bytes32 itemHash = keccak256(abi.encodePacked(itemIds[i]));
+      _itemIds[tokenId] = itemIds[i];
+      _itemIdToTokenId[itemHash] = tokenId;
+      if (bytes(metadataCids[i]).length > 0) _tokenCIDs[tokenId] = metadataCids[i];
+      tokenIds[i] = tokenId;
+      mintIds[i] = tokenId;
+      mintAmounts[i] = supplies[i];
+      emit ObjectLayerRegistered(tokenId, itemIds[i], metadataCids[i], supplies[i]);
+    }
+    _mintBatch(to, mintIds, mintAmounts, data);
   }
 
   function mint(address to, uint256 tokenId, uint256 amount, bytes calldata data)
@@ -931,8 +975,11 @@ This Solidity smart contract implements the ERC-1155 multi-token standard as the
 - Sets the base IPFS URI prefix for metadata resolution.
 
 **Key Functions:**
-- `registerObjectLayer(to, itemId, metadataCid, initialSupply, data)` — Registers a new Object Layer item on-chain, assigns a deterministic token ID, stores the IPFS metadata CID, and mints the initial supply.
+- `registerObjectLayer(to, itemId, metadataCid, initialSupply, data)` — Registers a new Object Layer item on-chain, assigns a deterministic token ID via `computeTokenId`, guards against duplicate item IDs and token ID collisions, stores the IPFS metadata CID, and mints the initial supply.
+- `batchRegisterObjectLayers(to, itemIds, metadataCids, supplies, data)` — Registers and mints multiple Object Layer items in a single transaction, reducing gas overhead for bulk operations.
 - `computeTokenId(itemId)` — Pure function returning the deterministic `uint256` token ID for any item identifier.
+- `setBaseURI(newBaseURI)` — Updates the IPFS base URI prefix for all token metadata resolution.
+- `setTokenMetadataCID(tokenId, metadataCid)` — Updates the per-token IPFS metadata CID; emits `MetadataUpdated` and `URI` events.
 - `mint(to, tokenId, amount, data)` — Mints additional supply for an existing token.
 - `mintBatch(to, ids, amounts, data)` — Batch-mints multiple token types in one transaction.
 - `burn(account, tokenId, amount)` — Holders destroy their own tokens (inherited from ERC1155Burnable).
@@ -941,9 +988,9 @@ This Solidity smart contract implements the ERC-1155 multi-token standard as the
 
 **Key Advantages:**
 - **Single deployment** manages the entire game economy (CKY currency via cryptokoyn.net + all item types via itemledger.com).
-- **Batch operations** reduce gas costs for multi-asset transfers and minting.
+- **Batch operations** reduce gas costs for multi-asset registration, transfers, and minting via `batchRegisterObjectLayers` and `mintBatch`.
 - **Deterministic token IDs** from `keccak256` enable off-chain → on-chain mapping without a registry lookup.
-- **IPFS metadata integration** via per-token CIDs links each on-chain token to its Object Layer atlas sprite sheet (resolved by itemledger.com).
+- **IPFS metadata integration** via per-token CIDs links each on-chain token to its Object Layer atlas sprite sheet (resolved by itemledger.com). Metadata CIDs can be updated post-deployment via `setTokenMetadataCID`.
 
 <a name="header-7.2"/>
 
@@ -1238,7 +1285,7 @@ The `UnderpostCluster` module (`src/cli/cluster.js`) handles the complete lifecy
 
 #### 8.3 Hardhat Deployment Workflow
 
-The `hardhat.config.cjs` defines multiple Besu network targets, with coinbase private key read from a secure file (`engine-private/eth-networks/besu/coinbase`):
+The `hardhat.config.js` (ESM) defines multiple Besu network targets, with coinbase private key read from a secure file (`engine-private/eth-networks/besu/coinbase`):
 
 | Network Name | RPC URL | Description |
 |--------------|---------|-------------|
@@ -1250,10 +1297,10 @@ The `hardhat.config.cjs` defines multiple Besu network targets, with coinbase pr
 
 ```bash
 cd hardhat
-npx hardhat run scripts/deployObjectLayerToken.cjs --network besu-ibft2
+npx hardhat run scripts/deployObjectLayerToken.js --network besu-ibft2
 ```
 
-The deployment script (`scripts/deployObjectLayerToken.cjs`):
+The deployment script (`scripts/deployObjectLayerToken.js`):
 1. Connects to the Besu RPC endpoint using the coinbase private key (secp256k1).
 2. Deploys the `ObjectLayerToken` contract.
 3. Mints 10M CryptoKoyn to the deployer.
@@ -1262,26 +1309,72 @@ The deployment script (`scripts/deployObjectLayerToken.cjs`):
 
 **CLI Integration (`bin/cyberia.js`):**
 
-The Cyberia CLI provides Besu chain lifecycle commands:
+The Cyberia CLI provides Besu chain lifecycle commands covering all three token types (fungible CKY, semi-fungible resources, non-fungible unique items):
 
 ```bash
-# Deploy the Besu k8s network
+# ── Key Management ──────────────────────────────────────────────────────
+# Generate a new Ethereum secp256k1 key pair (console only)
+cyberia chain key-gen
+# Generate and save to default paths:
+#   private → ./engine-private/eth-networks/besu/<address>.key.json
+#   public  → ./hardhat/deployments/<address>.pub.json
+cyberia chain key-gen --save
+# Custom output paths (implies --save)
+cyberia chain key-gen --private-path ./my-secrets/deployer.key.json --public-path ./keys/deployer.pub.json
+
+# ── Network Deployment ──────────────────────────────────────────────────
+# Deploy the Besu IBFT2/QBFT network to Kubernetes
 cyberia chain deploy
+cyberia chain deploy --consensus qbft
+# Remove the Besu network
+cyberia chain remove
 
-# Deploy the ObjectLayerToken contract
+# ── Contract Deployment ─────────────────────────────────────────────────
+# Compile Solidity contracts
+cyberia chain compile
+# Deploy ObjectLayerToken (ERC-1155) — mints 10M CKY to deployer
 cyberia chain deploy-contract --network besu-ibft2
+# Run contract tests
+cyberia chain test
 
-# Register an Object Layer item on-chain (itemledger.com will index this)
-cyberia chain register --item-id hatchet --metadata-cid bafkrei... --supply 1
+# ── Token Registration (semi-fungible & non-fungible) ───────────────────
+# Register a non-fungible unique item (supply = 1)
+cyberia chain register --item-id legendary-hatchet --metadata-cid bafkrei... --supply 1
+# Register a semi-fungible stackable resource (supply > 1)
+cyberia chain register --item-id gold-ore --metadata-cid bafkrei... --supply 1000000
+# Batch-register multiple items in one transaction
+cyberia chain batch-register --items '[{"itemId":"wood","cid":"bafk...","supply":500000},{"itemId":"stone","cid":"bafk...","supply":500000}]'
 
-# Mint additional tokens
-cyberia chain mint --token-id 0 --to 0x... --amount 1000
+# ── Minting (additional supply for existing tokens) ─────────────────────
+# Mint additional CKY (fungible, token ID 0)
+cyberia chain mint --token-id 0 --to 0xABCD...1234 --amount 1000000000000000000000
+# Mint additional semi-fungible resources
+cyberia chain mint --token-id <uint256> --to 0x... --amount 500
 
-# Query chain status
+# ── Balance Queries ─────────────────────────────────────────────────────
+# Query CKY balance for an address
+cyberia chain balance --address 0xABCD...1234 --token-id 0
+# Query item balance
+cyberia chain balance --address 0xABCD...1234 --token-id <uint256>
+
+# ── Transfers ───────────────────────────────────────────────────────────
+# Transfer CKY between addresses
+cyberia chain transfer --from 0x... --to 0x... --token-id 0 --amount 1000
+# Transfer a non-fungible item
+cyberia chain transfer --from 0x... --to 0x... --token-id <uint256> --amount 1
+
+# ── Burning ─────────────────────────────────────────────────────────────
+# Burn CKY (reduces circulating supply)
+cyberia chain burn --token-id 0 --amount 500 --address 0x...
+# Burn a crafting resource (semi-fungible)
+cyberia chain burn --token-id <uint256> --amount 25 --address 0x...
+
+# ── Status & Governance ─────────────────────────────────────────────────
+# Query chain and contract status
 cyberia chain status
-
-# Emergency governance
+# Emergency pause (freeze all transfers)
 cyberia chain pause
+# Resume transfers
 cyberia chain unpause
 ```
 
