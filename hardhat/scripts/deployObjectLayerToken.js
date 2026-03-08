@@ -51,7 +51,7 @@ async function main() {
   // ── Verify initial state ──────────────────────────────────────────────
 
   const cryptokoynId = await token.CRYPTOKOYN();
-  const cryptokoynSupply = await token.totalSupply(cryptokoynId);
+  const cryptokoynSupply = await token['totalSupply(uint256)'](cryptokoynId);
   const deployerCryptokoynBalance = await token.balanceOf(deployer.address, cryptokoynId);
 
   console.log('  CryptoKoyn (token ID 0):');

@@ -1,5 +1,7 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import hre from 'hardhat';
+
+const { ethers } = hre;
 
 describe('ObjectLayerToken (ERC-1155)', function () {
   let token;
@@ -35,7 +37,7 @@ describe('ObjectLayerToken (ERC-1155)', function () {
     });
 
     it('Should track total supply for CryptoKoyn', async function () {
-      const supply = await token.totalSupply(CRYPTOKOYN_ID);
+      const supply = await token['totalSupply(uint256)'](CRYPTOKOYN_ID);
       expect(supply).to.equal(INITIAL_SUPPLY);
     });
 
@@ -147,7 +149,7 @@ describe('ObjectLayerToken (ERC-1155)', function () {
         .withArgs(tokenId, testItemId, testMetadataCid, testSupply);
 
       expect(await token.balanceOf(owner.address, tokenId)).to.equal(testSupply);
-      expect(await token.totalSupply(tokenId)).to.equal(testSupply);
+      expect(await token['totalSupply(uint256)'](tokenId)).to.equal(testSupply);
     });
 
     it('Should store item ID and metadata CID on-chain', async function () {
@@ -187,7 +189,7 @@ describe('ObjectLayerToken (ERC-1155)', function () {
 
       const tokenId = await token.computeTokenId('gold-ore');
       expect(await token.balanceOf(player1.address, tokenId)).to.equal(fungibleSupply);
-      expect(await token.totalSupply(tokenId)).to.equal(fungibleSupply);
+      expect(await token['totalSupply(uint256)'](tokenId)).to.equal(fungibleSupply);
     });
 
     it('Should support getTokenIdByItemId reverse lookup', async function () {
@@ -202,7 +204,7 @@ describe('ObjectLayerToken (ERC-1155)', function () {
 
       await expect(
         token.registerObjectLayer(owner.address, testItemId, testMetadataCid, testSupply, '0x'),
-      ).to.be.revertedWith('ObjectLayerToken: item already registered or token ID collision');
+      ).to.be.revertedWith('ObjectLayerToken: item already registered');
     });
 
     it('Should revert when called by non-owner', async function () {
@@ -263,7 +265,7 @@ describe('ObjectLayerToken (ERC-1155)', function () {
       await token.mint(player1.address, CRYPTOKOYN_ID, additionalAmount, '0x');
 
       expect(await token.balanceOf(player1.address, CRYPTOKOYN_ID)).to.equal(additionalAmount);
-      expect(await token.totalSupply(CRYPTOKOYN_ID)).to.equal(INITIAL_SUPPLY + additionalAmount);
+      expect(await token['totalSupply(uint256)'](CRYPTOKOYN_ID)).to.equal(INITIAL_SUPPLY + additionalAmount);
     });
 
     it('Should mint additional supply for registered object layers', async function () {
@@ -272,7 +274,7 @@ describe('ObjectLayerToken (ERC-1155)', function () {
 
       await token.mint(player1.address, tokenId, 50n, '0x');
       expect(await token.balanceOf(player1.address, tokenId)).to.equal(50n);
-      expect(await token.totalSupply(tokenId)).to.equal(150n);
+      expect(await token['totalSupply(uint256)'](tokenId)).to.equal(150n);
     });
 
     it('Should batch-mint multiple token IDs', async function () {
@@ -367,7 +369,7 @@ describe('ObjectLayerToken (ERC-1155)', function () {
       await token.burn(owner.address, CRYPTOKOYN_ID, burnAmount);
 
       expect(await token.balanceOf(owner.address, CRYPTOKOYN_ID)).to.equal(INITIAL_SUPPLY - burnAmount);
-      expect(await token.totalSupply(CRYPTOKOYN_ID)).to.equal(INITIAL_SUPPLY - burnAmount);
+      expect(await token['totalSupply(uint256)'](CRYPTOKOYN_ID)).to.equal(INITIAL_SUPPLY - burnAmount);
     });
 
     it('Should allow batch burning', async function () {
@@ -476,11 +478,11 @@ describe('ObjectLayerToken (ERC-1155)', function () {
       await token.registerObjectLayer(owner.address, 'supply-test', '', 10n, '0x');
       const tokenId = await token.computeTokenId('supply-test');
 
-      expect(await token.totalSupply(tokenId)).to.equal(10n);
+      expect(await token['totalSupply(uint256)'](tokenId)).to.equal(10n);
 
       await token.burn(owner.address, tokenId, 3n);
 
-      expect(await token.totalSupply(tokenId)).to.equal(7n);
+      expect(await token['totalSupply(uint256)'](tokenId)).to.equal(7n);
     });
   });
 
@@ -507,7 +509,7 @@ describe('ObjectLayerToken (ERC-1155)', function () {
       // Verify on-chain state matches off-chain ObjectLayer data
       expect(await token.getItemId(weaponTokenId)).to.equal(weaponItemId);
       expect(await token.getMetadataCID(weaponTokenId)).to.equal(weaponCid);
-      expect(await token.totalSupply(weaponTokenId)).to.equal(1n);
+      expect(await token['totalSupply(uint256)'](weaponTokenId)).to.equal(1n);
       expect(await token.uri(weaponTokenId)).to.equal(`ipfs://${weaponCid}`);
 
       // 2. Game server registers a fungible resource
@@ -548,7 +550,7 @@ describe('ObjectLayerToken (ERC-1155)', function () {
       await token.connect(player2).burn(player2.address, resourceTokenId, craftCost);
 
       expect(await token.balanceOf(player2.address, resourceTokenId)).to.equal(ethers.parseEther('75'));
-      expect(await token.totalSupply(resourceTokenId)).to.equal(resourceSupply - craftCost);
+      expect(await token['totalSupply(uint256)'](resourceTokenId)).to.equal(resourceSupply - craftCost);
 
       // 7. Verify CryptoKoyn (fungible currency) still works alongside items
       await token.safeTransferFrom(owner.address, player1.address, CRYPTOKOYN_ID, ethers.parseEther('5000'), '0x');

@@ -996,7 +996,7 @@ try {
           const deployment = JSON.parse(readFileSync('${nodePath.resolve(artifactPath)}', 'utf8'));
           try {
             const token = await ethers.getContractAt('ObjectLayerToken', deployment.address);
-            const cryptokoynSupply = await token.totalSupply(0);
+            const cryptokoynSupply = await token['totalSupply(uint256)'](0);
             const deployerCKY = await token.balanceOf(deployer.address, 0);
             const isPaused = false; // pausable check would need try-catch
             console.log('Contract:', JSON.stringify({

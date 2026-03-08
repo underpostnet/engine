@@ -9,6 +9,7 @@
 /.env
 /prometheus_data
 /grafana_data
+/quorum-kubernetes
 .cache
 .nyc_output
 .git

@@ -1,0 +1,75 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CI | Hardhat – Compile, Test, Audit
+# ─────────────────────────────────────────────────────────────────────────────
+name: CI | Hardhat
+
+on:
+  push:
+    paths:
+      - "hardhat/**"
+      - ".github/workflows/hardhat.ci.yml"
+  pull_request:
+    paths:
+      - "hardhat/**"
+      - ".github/workflows/hardhat.ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Compile, Test & Audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hardhat
+
+    strategy:
+      matrix:
+        node-version: ["20", "22"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: hardhat/package-lock.json
+
+      # ── Install ──────────────────────────────────────────────────────────
+      # Use `npm ci` for reproducible installs from the lockfile.
+      # Never install packages globally in CI.
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      # ── Security Audit ───────────────────────────────────────────────────
+      - name: npm audit (moderate+)
+        run: npm audit --audit-level=moderate
+
+      # ── Compile ──────────────────────────────────────────────────────────
+      - name: Compile Solidity contracts
+        run: npx hardhat compile
+
+      # ── Test ─────────────────────────────────────────────────────────────
+      - name: Run tests
+        run: npx hardhat test
+        env:
+          REPORT_GAS: "true"
+
+      # ── Coverage (optional, only on primary Node version) ────────────────
+      - name: Solidity coverage
+        if: matrix.node-version == '20'
+        run: npx hardhat coverage
+
+      # ── Lockfile integrity check ─────────────────────────────────────────
+      # Fail if package-lock.json is out of sync with package.json
+      - name: Verify lockfile is up to date
+        run: |
+          git diff --exit-code package-lock.json || {
+            echo "::error::package-lock.json is out of sync with package.json. Run 'npm install' locally and commit the lockfile."
+            exit 1
+          }

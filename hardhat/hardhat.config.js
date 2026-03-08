@@ -1,8 +1,12 @@
 // hardhat.config.js
 // Hardhat configuration for the Cyberia Online Object Layer ERC-1155 ecosystem.
 // Supports deployment to Hyperledger Besu (IBFT2/QBFT) private networks.
+//
+// Compatible with: Hardhat 2.28.x (hh2 LTS) + Ethers v6 + hardhat-toolbox 6.x
 
 import '@nomicfoundation/hardhat-toolbox';
+import '@nomicfoundation/hardhat-verify';
+import '@nomicfoundation/hardhat-ignition-ethers';
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import path from 'path';
@@ -103,6 +107,20 @@ const config = {
     tests: './test',
     cache: './cache',
     artifacts: './artifacts',
+  },
+
+  // ── Gas Reporter ────────────────────────────────────────────────────────────
+  gasReporter: {
+    enabled: process.env.REPORT_GAS === 'true',
+    currency: 'USD',
+    outputFile: process.env.GAS_REPORT_FILE || undefined,
+    noColors: !!process.env.GAS_REPORT_FILE,
+  },
+
+  // ── TypeChain ───────────────────────────────────────────────────────────────
+  typechain: {
+    outDir: 'typechain-types',
+    target: 'ethers-v6',
   },
 
   // ── Mocha (test runner) ─────────────────────────────────────────────────────
