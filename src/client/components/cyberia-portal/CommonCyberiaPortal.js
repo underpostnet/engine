@@ -31,6 +31,7 @@ const CyberiaDependencies = {
   pngjs: '^7.0.0',
   jimp: '^1.6.0',
   sharp: '^0.32.5',
+  ethers: '~6.16.0',
 };
 
 export { BaseElement, ModelElement, CyberiaPortalParams, CyberiaDependencies };
