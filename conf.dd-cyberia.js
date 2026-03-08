@@ -280,7 +280,15 @@ const DefaultConf = /**/ {
       ],
     },
     cryptokoyn: {
-      metadata: { title: 'Cryptokoyn' },
+      metadata: {
+        title: 'Cryptokoyn',
+        description:
+          'Financial portal and token hub for CryptoKoyn (CKY) — the fungible ERC-1155 currency of the Cyberia Online ecosystem. Staking, governance, analytics, and wallet management.',
+        keywords: ['cryptokoyn', 'CKY', 'token', 'staking', 'governance', 'ERC-1155', 'wallet', 'blockchain'],
+        author: 'https://github.com/underpostnet',
+        thumbnail: 'assets/banner/koyn-social.png',
+        themeColor: '#0d1117',
+      },
       publicCopyNonExistingFiles: 'cyberia',
       components: {
         core: [
@@ -387,7 +395,15 @@ const DefaultConf = /**/ {
       services: ['core', 'user', 'file', 'crypto'],
     },
     itemledger: {
-      metadata: { title: 'Item Ledger' },
+      metadata: {
+        title: 'Item Ledger',
+        description:
+          'Canonical registry, metadata resolver, and IPFS indexer for Object Layer items — semi-fungible and non-fungible ERC-1155 tokens in the Cyberia Online ecosystem. Item search, provenance, and marketplace.',
+        keywords: ['itemledger', 'object layer', 'NFT', 'ERC-1155', 'metadata', 'IPFS', 'registry', 'marketplace'],
+        author: 'https://github.com/underpostnet',
+        thumbnail: 'apple-touch-startup-image-1136x640.png',
+        themeColor: '#0d1117',
+      },
       publicCopyNonExistingFiles: 'cyberia',
       components: {
         core: [

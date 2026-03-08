@@ -20,7 +20,7 @@ Stackable Rendering Layers as a Unified Tokenized Reality
 
 ---
 
-**Version:** 1.0
+**Version:** 2.0
 
 **Status:** Draft
 
@@ -32,6 +32,8 @@ Stackable Rendering Layers as a Unified Tokenized Reality
 
 This paper introduces the **Object Layer Protocol** — a semantic interoperability standard that defines digital entities as literally stackable rendering layers, each associated with a presentation, UX, economic, and mechanical reality. The protocol enables composable, verifiable, and interoperable digital objects across decentralized runtimes by binding four distinct semantic layers into a single atomic unit. A reference implementation is provided through **Cyberia Online**, a browser-based MMORPG deployed on Hyperledger Besu, where the protocol is realized as an ERC-1155 multi-token contract managed through Kubernetes infrastructure via the Underpost CI/CD CLI.
 
+The protocol leverages the **Ethereum secp256k1** key pair as the universal identity primitive. A single Ethereum key pair authenticates players, proves ownership on-chain, and authorizes off-chain actions via **EIP-712 typed structured data signatures**. The on-chain economy is split across two dedicated service domains: **cryptokoyn.net** (fungible CKY currency hub) and **itemledger.com** (semi-fungible and non-fungible Object Layer registry), both backed by the same `ObjectLayerToken` ERC-1155 contract on Hyperledger Besu.
+
 The Object Layer Protocol is not a token standard — it is a **semantic interoperability layer** that happens to use ERC-1155 as its on-chain ledger binding. The innovation lies in the composable, layer-first architecture where every entity in a runtime is a stack of independently addressable, independently renderable, and independently ownable layers — each carrying its own mechanical, presentational, experiential, and economic meaning.
 
 ---
@@ -40,44 +42,53 @@ The Object Layer Protocol is not a token standard — it is a **semantic interop
 
 1. **Executive Summary**
 2. **Introduction**
-    - 2.1 [Overview of the gaming industry and Cyberia Online](#header-2.1)
-    - 2.2 [Problem statement: the absence of semantic interoperability in digital asset ownership](#header-2.2)
-3. **The Object Layer Protocol**
-    - 3.1 [Semantic interoperability through stackable layers](#header-3.1)
-    - 3.2 [Four realities of an Object Layer](#header-3.2)
-    - 3.3 [AtomicPrefab and layer-first rendering](#header-3.3)
-    - 3.4 [Canonical Object Layer schema](#header-3.4)
-    - 3.5 [Composability: entities as layer stacks](#header-3.5)
-4. **Technology Stack**
-    - 4.1 [Hyperledger Besu](#header-4.1)
-    - 4.2 [Hardhat](#header-4.2)
-    - 4.3 [OpenZeppelin ERC-1155 contracts](#header-4.3)
-    - 4.4 [MongoDB schemas](#header-4.4)
-    - 4.5 [IPFS storage](#header-4.5)
-5. **Tokenomics**
-    - 5.1 [ObjectLayerToken: unified multi-token contract](#header-5.1)
-    - 5.2 [Token ID semantics: fungible, semi-fungible, and non-fungible](#header-5.2)
-    - 5.3 [Token distribution and allocation](#header-5.3)
-    - 5.4 [Governance and circulation](#header-5.4)
-6. **Blockchain Network and Deployment**
-    - 6.1 [Hyperledger Besu IBFT2/QBFT consensus](#header-6.1)
-    - 6.2 [Kubernetes deployment architecture (kubeadm)](#header-6.2)
-    - 6.3 [Hardhat deployment workflow](#header-6.3)
-7. **On-Chain Lifecycle and Game Mechanics**
-    - 7.1 [On-chain lifecycle: register → mint → transfer → burn](#header-7.1)
-    - 7.2 [Decentralized player progression](#header-7.2)
-    - 7.3 [Item crafting, trading, and incubation](#header-7.3)
-8. **Security and Transparency**
-    - 8.1 [Blockchain security measures](#header-8.1)
-    - 8.2 [Smart contract audits](#header-8.2)
-9. **Future Directions**
-10. **References**
+    - 2.1 [Problem statement: the Ethereum ecosystem and the absence of semantic interoperability](#header-2.1)
+    - 2.2 [Solution: the Object Layer Protocol and Ethereum-native identity](#header-2.2)
+3. **Ethereum Identity and Authentication**
+    - 3.1 [secp256k1 key pairs as universal identity](#header-3.1)
+    - 3.2 [EIP-712 signed claims and gasless authentication](#header-3.2)
+    - 3.3 [Authentication flow: key → claim → verify → mint → own](#header-3.3)
+4. **The Object Layer Protocol**
+    - 4.1 [Semantic interoperability through stackable layers](#header-4.1)
+    - 4.2 [Four realities of an Object Layer](#header-4.2)
+    - 4.3 [AtomicPrefab and layer-first rendering](#header-4.3)
+    - 4.4 [Canonical Object Layer schema](#header-4.4)
+    - 4.5 [Composability: entities as layer stacks](#header-4.5)
+5. **Service Architecture**
+    - 5.1 [Three-domain topology](#header-5.1)
+    - 5.2 [cryptokoyn.net — Financial portal and CKY token hub](#header-5.2)
+    - 5.3 [itemledger.com — Object Layer registry and metadata indexer](#header-5.3)
+    - 5.4 [cyberiaonline.com — Game runtime and player portal](#header-5.4)
+6. **Technology Stack**
+    - 6.1 [Hyperledger Besu](#header-6.1)
+    - 6.2 [Hardhat](#header-6.2)
+    - 6.3 [OpenZeppelin ERC-1155 contracts](#header-6.3)
+    - 6.4 [MongoDB schemas](#header-6.4)
+    - 6.5 [IPFS storage](#header-6.5)
+7. **Tokenomics**
+    - 7.1 [ObjectLayerToken: unified multi-token contract](#header-7.1)
+    - 7.2 [Token classification: fungible, semi-fungible, and non-fungible](#header-7.2)
+    - 7.3 [Token distribution and allocation](#header-7.3)
+    - 7.4 [Governance and circulation](#header-7.4)
+8. **Blockchain Network and Deployment**
+    - 8.1 [Hyperledger Besu IBFT2/QBFT consensus](#header-8.1)
+    - 8.2 [Kubernetes deployment architecture (kubeadm)](#header-8.2)
+    - 8.3 [Hardhat deployment workflow](#header-8.3)
+9. **On-Chain Lifecycle and Game Mechanics**
+    - 9.1 [On-chain lifecycle: register → mint → transfer → burn](#header-9.1)
+    - 9.2 [Decentralized player progression](#header-9.2)
+    - 9.3 [Item crafting, trading, and incubation](#header-9.3)
+10. **Security and Transparency**
+    - 10.1 [Blockchain security measures](#header-10.1)
+    - 10.2 [Smart contract audits](#header-10.2)
+11. **Future Directions**
+12. **References**
 
 ---
 
 ### 1. Executive Summary
 
-Current approaches to digital asset tokenization treat tokens as isolated ledger entries — a balance, a URI, a metadata pointer. They lack a coherent semantic model that binds what an object *does*, what it *looks like*, how a *human understands it*, and what it *is worth* into a single interoperable unit.
+Current approaches to digital asset tokenization treat tokens as isolated ledger entries — a balance, a URI, a metadata pointer. They lack a coherent semantic model that binds what an object *does*, what it *looks like*, how a *human understands it*, and what it *is worth* into a single interoperable unit. The Ethereum ecosystem provides the cryptographic and economic primitives to solve this, but existing standards (ERC-721, ERC-1155) leave semantic structure as an afterthought.
 
 The **Object Layer Protocol** solves this by defining a **semantic interoperability standard** where each digital entity is composed of literally stackable rendering layers, and each layer carries four bound realities:
 
@@ -90,6 +101,13 @@ The **Object Layer Protocol** solves this by defining a **semantic interoperabil
 
 These four realities are not metadata annotations on a token. They are the **constitutive semantic dimensions** of the entity itself. A layer without mechanics is decorative. A layer without presentation is invisible. A layer without UX is incomprehensible. A layer without economics is unownable. The protocol requires all four.
 
+**Key architectural decisions:**
+
+- **Ethereum secp256k1 keys** serve as the single identity primitive — the same key pair authenticates with the game server, signs EIP-712 claims, and owns on-chain tokens.
+- **Fungible currency (CKY)** is managed via **cryptokoyn.net** — a dedicated financial portal for staking, governance, analytics, and fiat bridges.
+- **Semi-fungible and non-fungible Object Layers** are managed via **itemledger.com** — the canonical registry, metadata resolver, and IPFS indexer for all item tokens.
+- **A single `ObjectLayerToken` (ERC-1155) contract** on Hyperledger Besu backs both domains, managing the entire token economy in one deployment.
+
 The result is a composable, interoperable digital object format where:
 
 - **Entities are stacks.** A player character is skin + armor + weapon + effect layers, each independently addressable and ownable.
@@ -97,7 +115,7 @@ The result is a composable, interoperable digital object format where:
 - **Ownership is semantic.** Holding an ERC-1155 token proves ownership not just of a balance — but of a complete four-dimensional semantic object.
 - **Interoperability is structural.** Any runtime that understands the Object Layer schema can render, simulate, display, and trade any layer from any source.
 
-The reference implementation deploys a single `ObjectLayerToken` (ERC-1155) contract on a Hyperledger Besu private network, managing both fungible in-game currency (CryptoKoyn) and all Object Layer items within one deployment. Infrastructure is orchestrated through Kubernetes clusters initialized via `kubeadm` and managed through the **Underpost CI/CD CLI**.
+The reference implementation deploys the `ObjectLayerToken` contract on a Hyperledger Besu private network. Infrastructure is orchestrated through Kubernetes clusters initialized via `kubeadm` and managed through the **Underpost CI/CD CLI**.
 
 ---
 
@@ -105,66 +123,230 @@ The reference implementation deploys a single `ObjectLayerToken` (ERC-1155) cont
 
 <a name="header-2.1"/>
 
-#### 2.1 Overview of the Gaming Industry and Cyberia Online
+#### 2.1 Problem Statement: The Ethereum Ecosystem and the Absence of Semantic Interoperability
 
-**The Rise of Multi-Platform Gaming, Procedural Algorithms, and AI Content Generation**
+The Ethereum ecosystem established the foundational primitives for digital ownership — accounts derived from secp256k1 key pairs, smart contracts executing deterministic state transitions, and token standards (ERC-20, ERC-721, ERC-1155) encoding fungible and non-fungible balances. These primitives solved the *ownership* problem: a private key holder can provably own, transfer, and burn on-chain tokens without trusting a central authority.
 
-The gaming industry has experienced explosive growth in recent years, driven by the proliferation of mobile devices and the increasing demand for cross-platform gaming experiences (<a target="_top" href='https://www2.deloitte.com/us/en/insights/industry/technology/future-crossplay-gaming-demand.html'>1</a>,<a target="_top" href='https://unity.com/resources/gaming-report'>2</a>,<a target="_top" href='https://www.servers.com/news/blog/is-cross-platform-the-future-of-gaming'>3</a>,<a target="_top" href='https://www.servers.com/news/blog/my-6-big-takeaways-from-gdc-2023'>4</a>). Games like _Albion Online_ (<a target="_top" href='https://www.affinitymediagroup.co/albion'>case study</a>) have demonstrated the potential of non-linear MMORPGs by allowing players to build their own economies and explore vast virtual worlds.
+However, the ecosystem has failed to solve the *meaning* problem. Existing token standards conflate **ownership** with **identity**. Owning an ERC-721 or ERC-1155 token proves you hold a balance — but it says nothing structural about what the asset *is*, what it *does*, how it *renders*, or how a human *understands* it. Metadata URIs are an afterthought, not a constitutive part of the asset's semantic identity.
 
-A key factor in this growth has been the adoption of procedural content generation technologies. Games such as _Minecraft_ (<a target="_top" href='https://www.kodeby.com/blog/post/exploring-the-impact-of-procedural-generation-in-modern-game-development-techniques'>source</a>) have popularized the idea of randomly generated worlds, offering players unique and infinite experiences. These technologies, combined with advancements in artificial intelligence, have democratized content creation in video games.
+This creates several cascading failures across the Ethereum ecosystem:
 
-**Artificial Intelligence and Content Generation**
+**At the token standard level:**
 
-Large language models (LLMs) and diffusion models are innovating how content is created for video games. These AI tools enable the rapid and efficient generation of:
+- **No structural interoperability.** Two applications cannot share assets because there is no common semantic schema — only opaque metadata blobs stored behind a `uri()` function call.
+- **Presentation is disconnected from ownership.** The visual representation of an asset lives on a centralized server or IPFS with no formal binding to the token's mechanical or economic identity. The `tokenURI` is a hint, not a guarantee.
+- **UX is an afterthought.** Human-readable names, descriptions, and interaction flags are buried in unstructured JSON with no protocol-level validation or composition rules.
+- **Composition is impossible.** There is no standard way to express "this entity is composed of these five independently-owned layers stacked in this order."
 
-- **Stories and scripts:** LLMs can create compelling and personalized narratives for each player.
-- **Art assets:** Diffusion models generate a wide variety of art assets, such as characters, environments, and objects, at a significantly lower cost than traditional methods.
-- **Virtual worlds:** The combination of LLMs and diffusion models enables the creation of coherent and dynamic virtual worlds, where every element is interconnected and responds to player actions.
+**At the infrastructure level:**
 
-**Impact on Cyberia Online**
+- **Key management fragmentation.** Users manage separate identities for wallets, game accounts, and platform logins. The Ethereum key pair — already a strong cryptographic identity — is underutilized as a universal authentication primitive.
+- **Gas cost barriers.** Public Ethereum mainnet gas fees make per-item minting economically infeasible for game economies with thousands of in-game items. This pushes projects toward centralized databases, negating the ownership guarantees of the blockchain.
+- **Metadata availability.** When IPFS pins expire or centralized metadata servers go offline, tokens become opaque pointers to nothing — the semantic content is lost even though the ownership record persists.
 
-Cyberia Online is poised to capitalize on these trends by offering a unique browser-based MMORPG set in a cyberpunk universe. As a non-linear sandbox game, Cyberia Online empowers players to explore a dynamic world and shape their own narratives. By procedurally generating vast areas of its cyberpunk world, Cyberia Online ensures that each player has a unique and personalized experience. Additionally, AI will be used to create dynamic stories and characters that players can interact with meaningfully.
+**At the application level (digital worlds, MMORPGs):**
 
-**Key Features of Cyberia Online**
-
-- Browser-based, cross-platform accessibility
-- Open source auditable
-- Trusted character and items ownership via the Object Layer Protocol
-- Sandbox non-linear gameplay
-- Free-to-play
-- Pixel art aesthetic
-- Action RPG mechanics
-- Cyberpunk setting
-- Content AI scalable
+- **Lack of true ownership.** Players invest significant time and real-world value but hold no cryptographic proof of their digital assets. Server shutdowns erase player progress permanently.
+- **Opacity and manipulation.** Centralized game operators unilaterally control in-game economies — adjusting drop rates, devaluing items, or introducing pay-to-win mechanics without accountability or transparency.
+- **Security risks.** Centralized servers concentrate attack surface. A single breach can compromise the entire player economy.
 
 <a name="header-2.2"/>
 
-#### 2.2 Problem Statement: The Absence of Semantic Interoperability in Digital Asset Ownership
+#### 2.2 Solution: The Object Layer Protocol and Ethereum-Native Identity
 
-The fundamental problem with existing digital asset standards is that they conflate **ownership** with **identity**. Owning an ERC-721 or ERC-1155 token proves you hold a balance — but it says nothing structural about what the asset *is*, what it *does*, how it *renders*, or how a human *understands* it. Metadata URIs are an afterthought, not a constitutive part of the asset's semantic identity.
+The Object Layer Protocol addresses every layer of the problem stack by leveraging Ethereum's existing cryptographic primitives — secp256k1 keys, EIP-712 typed data signatures, and ERC-1155 multi-token contracts — and extending them with a **semantic interoperability standard** that gives tokens structural meaning.
 
-This creates several cascading failures:
+**Identity solved: one key pair, universal authentication.**
 
-- **No structural interoperability:** Two games cannot share assets because there is no common semantic schema — only opaque metadata blobs.
-- **Presentation is disconnected from ownership:** The visual representation of an asset lives on a server or IPFS with no formal binding to the token's mechanical or economic identity.
-- **UX is an afterthought:** Human-readable names, descriptions, and interaction flags are buried in unstructured JSON, not part of the asset's protocol-level definition.
-- **Composition is impossible:** There is no standard way to say "this entity is composed of these five independently-owned layers stacked in this order."
+A player generates a single Ethereum secp256k1 key pair. That key pair:
 
-Traditional MMORPGs compound these problems with centralized servers that raise concerns about (<a target="_top" href='https://ieeexplore.ieee.org/abstract/document/10585540'>source</a>):
+1. **Authenticates** with the game server via EIP-712 signed claims (no passwords, no OAuth).
+2. **Owns** on-chain tokens in the `ObjectLayerToken` ERC-1155 contract.
+3. **Authorizes** off-chain actions (crafting, trading, staking) via signed messages verified server-side.
+4. **Interoperates** across all three service domains (cryptokoyn.net, itemledger.com, cyberiaonline.com) with a single identity.
 
-- **Lack of ownership:** Players invest significant time but lack true ownership of digital assets. Server shutdowns erase player progress.
-- **Opacity and manipulation:** Game developers hold power over in-game economies, potentially manipulating item value or introducing pay-to-win mechanics.
-- **Security risks:** Centralized servers are vulnerable to hacks or exploits.
+**Ownership solved: semantic tokens, not opaque balances.**
 
-The Object Layer Protocol addresses all of these by defining a **semantic interoperability standard** where every digital entity is a stack of layers, each layer carries four bound realities, and ownership is proven on-chain through a single ERC-1155 contract deployment.
+Every on-chain token maps to a complete **AtomicPrefab** — a four-reality semantic unit (mechanics, presentation, UX, economics) content-addressed on IPFS. Owning a token means owning a fully-defined digital entity, not just a ledger entry.
+
+**Gas solved: permissioned Besu network with zero gas fees.**
+
+The `ObjectLayerToken` is deployed on a Hyperledger Besu private network with IBFT2/QBFT consensus and gas price zero. The game server acts as a trusted relayer — verifying player EIP-712 signatures and submitting transactions on their behalf. Players never pay gas; the permissioned validator set provides the economic security model.
+
+**Composition solved: entities as layer stacks.**
+
+The protocol defines entities as ordered stacks of independently-owned Object Layers. A player character is not one token — it is a stack of skin + armor + weapon + effect layers, each with its own token ID, its own stats, its own sprite sheet, and its own owner. Any layer can be transferred, traded, or burned independently.
+
+**Service architecture solved: domain-separated concerns.**
+
+The token economy is served through dedicated domains:
+
+- **cryptokoyn.net** — Financial portal for CKY fungible currency: balances, staking, governance, analytics, and fiat on-ramps.
+- **itemledger.com** — Canonical registry for Object Layer items: metadata resolution, IPFS pinning, on-chain event indexing, item search, and marketplace.
+- **cyberiaonline.com** — Game runtime: real-time multiplayer, inventory management, crafting, and the live rendering engine.
+
+All three domains share the same Besu blockchain, the same MongoDB off-chain store, and the same Ethereum key-based identity system.
 
 ---
 
-### 3. The Object Layer Protocol
+### 3. Ethereum Identity and Authentication
 
 <a name="header-3.1"/>
 
-#### 3.1 Semantic Interoperability Through Stackable Layers
+#### 3.1 secp256k1 Key Pairs as Universal Identity
+
+The Ethereum ecosystem standardizes on the **secp256k1 elliptic curve** (defined in SEC 2, also used by Bitcoin) for all cryptographic identity operations. A key pair consists of:
+
+- **Private key:** A 256-bit random scalar `k` (32 bytes).
+- **Public key:** The corresponding point `K = k × G` on the secp256k1 curve (64 bytes uncompressed, 33 bytes compressed).
+- **Ethereum address:** The rightmost 20 bytes of `keccak256(publicKey)`, prefixed with `0x`.
+
+In the Object Layer Protocol, this single key pair serves as the **universal identity primitive** across all system layers:
+
+| Layer | Function | How the Key Is Used |
+|-------|----------|---------------------|
+| **On-chain** | Token ownership | The Ethereum address holds ERC-1155 balances |
+| **Authentication** | Server login | EIP-712 signed claim replaces username/password |
+| **Authorization** | Action signing | Off-chain crafting, trading, staking requests carry a signature |
+| **Cross-domain** | Unified identity | Same key authenticates across cryptokoyn.net, itemledger.com, cyberiaonline.com |
+
+This eliminates the key management fragmentation described in the problem statement. Players generate one key, store it in a standard Ethereum wallet (MetaMask, hardware wallet, or the game's built-in key manager), and use it everywhere.
+
+<a name="header-3.2"/>
+
+#### 3.2 EIP-712 Signed Claims and Gasless Authentication
+
+**EIP-712** (Ethereum typed structured data hashing and signing) defines a standard for signing structured data that is both human-readable (wallets display the typed fields before signing) and machine-verifiable (the structured hash prevents cross-domain replay attacks).
+
+The Object Layer Protocol uses EIP-712 for **gasless authentication and authorization**. The player's wallet signs a typed claim; the game server verifies the signature; a trusted relayer submits the on-chain transaction.
+
+**EIP-712 Domain Separator:**
+
+```json
+{
+  "name": "CyberiaObjectLayer",
+  "version": "1",
+  "chainId": 777771,
+  "verifyingContract": "0x<ObjectLayerToken address>"
+}
+```
+
+**Example: Authentication Claim**
+
+```json
+{
+  "types": {
+    "EIP712Domain": [
+      { "name": "name", "type": "string" },
+      { "name": "version", "type": "string" },
+      { "name": "chainId", "type": "uint256" },
+      { "name": "verifyingContract", "type": "address" }
+    ],
+    "AuthClaim": [
+      { "name": "player", "type": "address" },
+      { "name": "nonce", "type": "uint256" },
+      { "name": "timestamp", "type": "uint256" },
+      { "name": "action", "type": "string" }
+    ]
+  },
+  "primaryType": "AuthClaim",
+  "message": {
+    "player": "0xABCD...1234",
+    "nonce": 42,
+    "timestamp": 1719500000,
+    "action": "login"
+  }
+}
+```
+
+The wallet signs this structured data, producing a 65-byte `(v, r, s)` ECDSA signature. The server recovers the signer address via `ecrecover` and matches it against the player's registered Ethereum address.
+
+**Why EIP-712 instead of plain `personal_sign`:**
+
+- **Human-readable.** The wallet displays "AuthClaim → player: 0x…, action: login" instead of an opaque hex blob.
+- **Replay-proof.** The domain separator binds the signature to a specific contract, chain, and protocol version.
+- **Typed.** The structured hash prevents ambiguity in how the signed data is encoded.
+
+<a name="header-3.3"/>
+
+#### 3.3 Authentication Flow: Key → Claim → Verify → Mint → Own
+
+The complete authentication and token minting flow using Ethereum secp256k1 keys and EIP-712 signed claims:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         PLAYER (client-side)                           │
+│                                                                        │
+│  1. Player holds an Ethereum secp256k1 key pair                        │
+│     Private key: k (32 bytes)                                          │
+│     Address: 0xABCD...1234                                             │
+│                                                                        │
+│  2. Player signs an EIP-712 typed claim                                │
+│     { player, nonce, timestamp, action } → signature (v, r, s)        │
+│                                                                        │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │  signed claim + signature
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    GAME SERVER (off-chain relayer)                      │
+│                                                                        │
+│  3. Server verifies EIP-712 signature                                  │
+│     ecrecover(structHash, v, r, s) → recovered address                 │
+│     Assert: recovered address == claimed player address                │
+│     Assert: nonce is fresh, timestamp within window                    │
+│                                                                        │
+│  4. Server authenticates session                                       │
+│     Player identity = Ethereum address (no passwords)                  │
+│                                                                        │
+│  5. On qualifying game events (quest complete, craft, drop):           │
+│     Server acts as trusted relayer and submits transaction             │
+│                                                                        │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │  relayer submits tx (gas-free for player)
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     BESU BLOCKCHAIN (on-chain)                         │
+│                                                                        │
+│  6. ObjectLayerToken contract mints token                              │
+│     registerObjectLayer(playerAddress, itemId, metadataCid, supply)    │
+│     — or —                                                             │
+│     mint(playerAddress, tokenId, amount, data)                         │
+│                                                                        │
+│  7. Blockchain records ownership                                       │
+│     balanceOf(playerAddress, tokenId) → updated                        │
+│     Event: ObjectLayerRegistered / TransferSingle                      │
+│                                                                        │
+│  8. Ownership is verifiable by any client                              │
+│     Any Ethereum-compatible tool can query the player's balances       │
+│                                                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Summary of the flow:**
+
+```
+ETH key (secp256k1)
+   → signed claim (EIP-712)
+      → server verifies identity
+         → relayer submits transaction
+            → contract mints token
+               → blockchain records ownership
+```
+
+This architecture means:
+
+- **Players never pay gas.** The Besu network runs with gas price zero; the server relays transactions.
+- **Players never expose private keys to the server.** Authentication is purely signature-based.
+- **Players own their assets cryptographically.** The private key is the sole proof of ownership, not a database row.
+- **Sessions are stateless.** Each request carries a fresh EIP-712 signature; no session cookies or JWTs required (though the server may cache sessions for performance).
+
+---
+
+### 4. The Object Layer Protocol
+
+<a name="header-4.1"/>
+
+#### 4.1 Semantic Interoperability Through Stackable Layers
 
 The core innovation of the Object Layer Protocol is the recognition that a digital entity is not a single atomic thing — it is a **stack of semantically complete layers**.
 
@@ -193,9 +375,9 @@ This is what we mean by **semantic interoperability**: any system that understan
 
 **Stackability is literal.** The client renderer composes layers by drawing lower layers first (skin) then higher layers (weapon), respecting transparency and z-order. This makes layering developer-friendly (simple stack semantics) and operable (many layers per entity). An entity with 10 layers simply has 10 independently addressable, independently ownable, independently renderable semantic units stacked in z-order.
 
-<a name="header-3.2"/>
+<a name="header-4.2"/>
 
-#### 3.2 Four Realities of an Object Layer
+#### 4.2 Four Realities of an Object Layer
 
 Every Object Layer binds four semantic realities into a single atomic unit:
 
@@ -215,9 +397,9 @@ These four realities are **constitutive**, not decorative. They define what the 
 
 The protocol requires all four realities to be present for an Object Layer to be considered complete and interoperable.
 
-<a name="header-3.3"/>
+<a name="header-4.3"/>
 
-#### 3.3 AtomicPrefab and Layer-First Rendering
+#### 4.3 AtomicPrefab and Layer-First Rendering
 
 An **AtomicPrefab** is the protocol's atomic unit — a self-contained Object Layer with all four realities, content-addressed on IPFS:
 
@@ -239,16 +421,16 @@ AtomicPrefab = {
 **The client runtime operates as follows:**
 
 1. **Receive** Object Layer references from the server or on-chain events (`tokenId` → `metadataCid`).
-2. **Fetch** atlas metadata from IPFS, load atlas PNG(s).
+2. **Fetch** atlas metadata from IPFS (resolved via itemledger.com's caching layer or directly).
 3. **Compose** layers in z-order for each entity — lower layers drawn first, respecting transparency.
 4. **Simulate** using `data.stats` for game mechanics.
 5. **Display** using `data.item` for UX tooltips, inventory screens, and interaction prompts.
 
-<a name="header-3.4"/>
+<a name="header-4.4"/>
 
-#### 3.4 Canonical Object Layer Schema
+#### 4.4 Canonical Object Layer Schema
 
-**Stable JSON representation:**
+**Stable JSON representation (AtomicPrefab):**
 
 ```json
 {
@@ -293,9 +475,18 @@ AtomicPrefab = {
 | `data.ledger.address` | ObjectLayerToken contract address |
 | `data.ledger.tokenId` | The deterministic uint256 token ID |
 
-<a name="header-3.5"/>
+**Token classification by `data.ledger`:**
 
-#### 3.5 Composability: Entities as Layer Stacks
+| `ledger.type` | Managed By | Domain | Example |
+|---------------|------------|--------|---------|
+| `"ERC1155"` (tokenId = 0) | cryptokoyn.net | Fungible CKY currency | In-game gold |
+| `"ERC1155"` (supply > 1) | itemledger.com | Semi-fungible resource | Wood, stone, gold ore |
+| `"ERC1155"` (supply = 1) | itemledger.com | Non-fungible unique item | Legendary weapon |
+| `"OFF_CHAIN"` | cyberiaonline.com | Pre-incubation item | Newly dropped loot |
+
+<a name="header-4.5"/>
+
+#### 4.5 Composability: Entities as Layer Stacks
 
 The protocol's composability model is defined by a simple principle: **an entity is an ordered stack of Object Layers**.
 
@@ -326,37 +517,222 @@ This composability is what makes the Object Layer Protocol a **semantic interope
 
 ---
 
-### 4. Technology Stack
+### 5. Service Architecture
 
-<a name="header-4.1"/>
+<a name="header-5.1"/>
 
-#### 4.1 Hyperledger Besu
+#### 5.1 Three-Domain Topology
 
-- **Overview:** Hyperledger Besu is an enterprise-grade Ethereum client that provides a robust and secure platform for executing smart contracts. It supports IBFT2 and QBFT consensus algorithms, ensuring deterministic finality with low latency — ideal for a game economy requiring fast, reliable transactions.
+The Object Layer Protocol's service layer is organized across three dedicated domains, each serving a distinct concern while sharing the same underlying Besu blockchain, MongoDB instance, and Ethereum-based identity system:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        SHARED INFRASTRUCTURE                               │
+│                                                                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐  ┌───────────────┐   │
+│  │ Besu Network │  │   MongoDB    │  │    IPFS     │  │    Valkey     │   │
+│  │  (IBFT2/QBFT)│  │  (off-chain) │  │  (assets)   │  │   (cache)    │   │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬──────┘  └──────┬───────┘   │
+│         │                 │                  │                │            │
+└─────────┼─────────────────┼──────────────────┼────────────────┼────────────┘
+          │                 │                  │                │
+    ┌─────┴─────────────────┴──────────────────┴────────────────┴─────┐
+    │                    ETHEREUM IDENTITY (secp256k1)                │
+    │              One key pair → all three domains                   │
+    └────────────────────┬──────────────┬──────────────┬──────────────┘
+                         │              │              │
+              ┌──────────▼──────┐ ┌─────▼──────┐ ┌────▼───────────────┐
+              │ cryptokoyn.net  │ │itemledger  │ │ cyberiaonline.com  │
+              │                 │ │   .com     │ │                    │
+              │  CKY currency   │ │  Item      │ │  Game runtime      │
+              │  Staking        │ │  registry  │ │  Multiplayer       │
+              │  Governance     │ │  Metadata  │ │  Inventory         │
+              │  Analytics      │ │  IPFS index│ │  Crafting          │
+              │  Fiat bridge    │ │  Marketplace│ │  Combat            │
+              └─────────────────┘ └────────────┘ └────────────────────┘
+```
+
+All three services are configured in the Underpost deployment manifest (`conf.dd-cyberia.js`) and share the same API service modules: `core`, `file`, `user`, `crypto`, `document`, `instance`, `object-layer`, `object-layer-render-frames`, `atlas-sprite-sheet`, and `ipfs`.
+
+<a name="header-5.2"/>
+
+#### 5.2 cryptokoyn.net — Financial Portal and CKY Token Hub
+
+**cryptokoyn.net** is the dedicated financial portal for the **CryptoKoyn (CKY)** fungible currency — token ID 0 in the `ObjectLayerToken` ERC-1155 contract. It provides all currency-related services: balance queries, staking, governance voting, issuance analytics, and (optionally) fiat on-ramps/off-ramps.
+
+**Scope:** Exclusively manages the **unique fungible Object Layer** — CKY. All operations on token ID 0 route through this domain.
+
+**Client application:** The `cryptokoyn` client module includes components for wallet management, CKY-specific UI, and financial dashboards:
+
+- `MenuCryptokoyn` — Navigation and layout
+- `RoutesCryptokoyn` — Client-side routing (`/`, `/wallet`, `/settings`, `/account`)
+- `ElementsCryptokoyn` — CKY-specific UI elements (balance displays, staking forms)
+- `SocketIoCryptokoyn` — Real-time CKY balance and event updates
+- `SettingsCryptokoyn` — User preferences and key management
+
+**API Services:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/balance/{address}` | GET | Returns CKY balance and staking summary for a player address |
+| `/api/stake` | POST | Stakes CKY tokens (interacts with staking contract or governance escrow) |
+| `/api/unstake` | POST | Initiates CKY unstaking with cooldown period |
+| `/api/transfer` | POST | Transfers CKY between player addresses (relayed to Besu) |
+| `/api/explorer/transactions` | GET | Paginated CKY transaction history |
+| `/api/analytics/supply` | GET | Circulating supply, burn rate, staking ratio analytics |
+| `/api/analytics/governance` | GET | Active proposals, voting weight distribution |
+
+**Staking and governance** are core to the CKY tokenomics. Vote weight is proportional to staked amount and duration:
+
+```
+Vote Weight = 0.5 × (Amount Staked / Total Staked) + 0.5 × (Staking Duration / Max Duration)
+```
+
+**Server configuration** (`conf.dd-cyberia.js`):
+
+```javascript
+'cryptokoyn.net': {
+  '/': {
+    client: 'cryptokoyn',
+    runtime: 'nodejs',
+    apis: ['core', 'file', 'user', 'crypto', 'document',
+           'instance', 'object-layer', 'object-layer-render-frames',
+           'atlas-sprite-sheet', 'ipfs'],
+    ws: 'core',
+    peer: true,
+    proxy: [80, 443],
+    db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+    valkey: { port: 6379, host: '127.0.0.1' },
+  }
+}
+```
+
+<a name="header-5.3"/>
+
+#### 5.3 itemledger.com — Object Layer Registry and Metadata Indexer
+
+**itemledger.com** is the canonical registry, metadata resolver, and IPFS indexer for all **semi-fungible and non-fungible Object Layer items** — token IDs ≥ 1 in the `ObjectLayerToken` contract. It serves as the authoritative source for mapping `itemId` → `tokenId`, resolving AtomicPrefab metadata from IPFS, and providing a search and marketplace interface for all game items.
+
+**Scope:** Manages all non-currency Object Layers — semi-fungible resources (wood, stone, potions) and non-fungible unique items (legendary weapons, skins).
+
+**Client application:** The `itemledger` client module includes components for item browsing, metadata inspection, and marketplace interactions:
+
+- `MenuItemledger` — Navigation with item category filters
+- `RoutesItemledger` — Client-side routing (`/`, `/wallet`, `/settings`, `/account`)
+- `ElementsItemledger` — Item card renders, provenance views, atlas sprite preview
+- `SocketIoItemledger` — Real-time `ObjectLayerRegistered` event feed
+- `TranslateItemledger` — Internationalization for item descriptions and UI
+
+**API Services:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/token/{tokenId}` | GET | Returns the full AtomicPrefab JSON (Object Layer data) for a token ID |
+| `/api/item/{itemId}` | GET | Resolves `itemId` → `tokenId` and returns the AtomicPrefab |
+| `/api/metadata/{tokenId}` | GET | Returns IPFS-resolved metadata (atlas sprite sheet coordinates, dimensions) |
+| `/api/search` | GET | Full-text search across item names, types, descriptions |
+| `/api/registry/events` | GET | Paginated `ObjectLayerRegistered` event log |
+| `/api/ipfs/pin` | POST | Pins an Object Layer's atlas PNG and metadata JSON to IPFS |
+| `/api/ipfs/resolve/{cid}` | GET | IPFS CID resolver with local cache (avoids gateway latency) |
+| `/api/marketplace/listings` | GET | Active item listings for peer-to-peer trading |
+| `/api/marketplace/buy` | POST | Executes a `safeTransferFrom` via server relayer |
+| `/api/marketplace/provenance/{tokenId}` | GET | Full ownership history (transfer events) for an item |
+
+**Webhook subscriptions** for on-chain events allow external services to react to item registration and transfers:
+
+- `ObjectLayerRegistered(tokenId, itemId, metadataCid, initialSupply)` — New item type on-chain.
+- `TransferSingle(operator, from, to, id, value)` — Item ownership change.
+- `MetadataUpdated(tokenId, metadataCid)` — Item metadata updated.
+
+**Server configuration** (`conf.dd-cyberia.js`):
+
+```javascript
+'itemledger.com': {
+  '/': {
+    client: 'itemledger',
+    runtime: 'nodejs',
+    apis: ['core', 'file', 'user', 'crypto', 'document',
+           'instance', 'object-layer', 'object-layer-render-frames',
+           'atlas-sprite-sheet', 'ipfs'],
+    ws: 'core',
+    peer: true,
+    proxy: [80, 443],
+    iconsBuild: false,
+    db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+    valkey: { port: 6379, host: '127.0.0.1' },
+  }
+}
+```
+
+<a name="header-5.4"/>
+
+#### 5.4 cyberiaonline.com — Game Runtime and Player Portal
+
+**cyberiaonline.com** is the live game client and server — the runtime where Object Layers are rendered, stacked, simulated, and interacted with in real time. It consumes data from both cryptokoyn.net (CKY balances) and itemledger.com (item metadata) while managing the real-time multiplayer game state.
+
+**Scope:** Game runtime, player sessions, real-time multiplayer, inventory management, crafting, combat, and the Object Layer rendering engine.
+
+**Key runtime operations:**
+
+1. **Authentication:** Player signs EIP-712 claim → server verifies → session established.
+2. **Inventory loading:** Server queries `balanceOf` for the player's address across all registered token IDs, then resolves each token's AtomicPrefab via itemledger.com's API.
+3. **Layer rendering:** The `ObjectLayerEngine` (`src/server/object-layer.js`) processes atlas sprite sheets, frame matrices, and direction codes into renderable layer stacks.
+4. **Crafting:** Player combines resources → server burns consumed tokens + mints crafted item → itemledger.com indexes the new Object Layer.
+5. **Trading:** Player-to-player `safeBatchTransferFrom` via the server relayer.
+
+**Server configuration** (`conf.dd-cyberia.js`):
+
+```javascript
+'www.cyberiaonline.com': {
+  '/': {
+    client: 'cyberia-portal',
+    runtime: 'nodejs',
+    apis: ['core', 'file', 'user', 'crypto', 'document',
+           'instance', 'object-layer', 'object-layer-render-frames',
+           'atlas-sprite-sheet', 'ipfs'],
+    ws: 'core',
+    peer: true,
+    proxy: [80, 443],
+    db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+    valkey: { port: 6379, host: '127.0.0.1' },
+  }
+}
+```
+
+---
+
+### 6. Technology Stack
+
+<a name="header-6.1"/>
+
+#### 6.1 Hyperledger Besu
+
+- **Overview:** Hyperledger Besu is an enterprise-grade Ethereum client that provides a robust and secure platform for executing smart contracts. It supports IBFT2 and QBFT consensus algorithms, ensuring deterministic finality with low latency — ideal for a game economy requiring fast, reliable transactions with zero gas fees.
 - **Key Benefits:**
   - **Privacy and Security:** Offers advanced privacy features and security protocols for permissioned networks.
-  - **Performance and Scalability:** Optimized for high-throughput and low-latency transactions with configurable block periods.
+  - **Performance and Scalability:** Optimized for high-throughput and low-latency transactions with configurable block periods (2–5 seconds).
   - **Enterprise-Grade:** Designed for production environments with robust governance, monitoring (Prometheus/Grafana), and Kubernetes-native deployment support.
-  - **EVM Compatibility:** Full Ethereum Virtual Machine compatibility enables standard Solidity smart contracts and OpenZeppelin libraries.
+  - **EVM Compatibility:** Full Ethereum Virtual Machine compatibility enables standard Solidity smart contracts, OpenZeppelin libraries, and the full EIP-712 signature verification stack.
+  - **secp256k1 Native:** All Besu accounts use the same secp256k1 curve as mainnet Ethereum, ensuring key compatibility and standard wallet support.
 
 <a href='https://besu.hyperledger.org/' target='_top'>See official Hyperledger Besu documentation.</a>
 
-<a name="header-4.2"/>
+<a name="header-6.2"/>
 
-#### 4.2 Hardhat
+#### 6.2 Hardhat
 
-- **Overview:** Hardhat is a powerful development environment for Ethereum. It streamlines the development, testing, and deployment of smart contracts, significantly accelerating the development cycle. The project uses Hardhat to compile, test, and deploy the ObjectLayerToken contract to Besu RPC endpoints.
+- **Overview:** Hardhat is a development environment for Ethereum that streamlines the development, testing, and deployment of smart contracts. The project uses Hardhat to compile, test, and deploy the ObjectLayerToken contract to Besu RPC endpoints.
 - **Key Benefits:**
-  - **Rapid Development:** Provides a rich set of tools and plugins for efficient development.
-  - **Robust Testing:** Offers a comprehensive testing framework with snapshot-based fixtures to ensure code quality and security.
-  - **Simplified Deployment:** Facilitates seamless deployment of smart contracts to multiple Besu network configurations (IBFT2, QBFT, Kubernetes).
-  - **CLI Integration:** Deploy scripts produce JSON artifacts consumed by the Cyberia CLI (`bin/cyberia.js`) for end-to-end lifecycle management.
+  - **Rapid Development:** Rich plugin ecosystem and built-in Solidity debugging.
+  - **Robust Testing:** Comprehensive testing framework with snapshot-based fixtures.
+  - **Simplified Deployment:** Deployment scripts produce JSON artifacts consumed by the Cyberia CLI (`bin/cyberia.js`) for end-to-end lifecycle management.
+  - **Network Configuration:** `hardhat.config.cjs` defines multiple Besu targets (IBFT2, QBFT, Kubernetes) with coinbase key management from a secure private key file.
 
 <a href='https://hardhat.org/docs' target='_top'>See official Hardhat documentation.</a>
 
-<a name="header-4.3"/>
+<a name="header-6.3"/>
 
-#### 4.3 OpenZeppelin ERC-1155 Contracts
+#### 6.3 OpenZeppelin ERC-1155 Contracts
 
 - **Overview:** OpenZeppelin Contracts is a library of reusable, audited smart contract code. The ObjectLayerToken contract inherits from:
   - `ERC1155` — Core multi-token standard.
@@ -371,11 +747,11 @@ This composability is what makes the Object Layer Protocol a **semantic interope
 
 <a href='https://docs.openzeppelin.com/contracts/5.x/erc1155' target='_top'>See official OpenZeppelin ERC-1155 documentation.</a>
 
-<a name="header-4.4"/>
+<a name="header-6.4"/>
 
-#### 4.4 MongoDB Schemas
+#### 6.4 MongoDB Schemas
 
-- **Overview:** MongoDB is a flexible, high-performance NoSQL database that enables efficient storage and retrieval of data. The Object Layer system stores the canonical four-reality representation (`data.stats`, `data.item`, `data.ledger`, `data.render`) in MongoDB, with `data.ledger` referencing the on-chain ERC-1155 token.
+- **Overview:** MongoDB stores the canonical four-reality representation (`data.stats`, `data.item`, `data.ledger`, `data.render`) off-chain, with `data.ledger` referencing the on-chain ERC-1155 token. The `ObjectLayerEngine` (`src/server/object-layer.js`) manages document creation and updates.
 - **Ledger Schema:**
   ```json
   {
@@ -384,35 +760,36 @@ This composability is what makes the Object Layer Protocol a **semantic interope
     "tokenId": "uint256 string"
   }
   ```
+  Items that have not yet completed incubation carry `"type": "OFF_CHAIN"` and are upgraded to `"ERC1155"` upon on-chain registration.
 - **Key Benefits:**
-  - **Scalability:** Easily horizontal scales to handle increasing data volumes and user loads.
-  - **Flexibility:** Schema-less design allows for dynamic data structures.
-  - **High Performance:** Optimized for fast read and write operations.
+  - **Scalability:** Horizontal scaling for increasing data volumes.
+  - **Flexibility:** Schema-less design accommodates dynamic Object Layer structures.
+  - **High Performance:** Optimized for fast read/write operations required by real-time game state.
 
 <a href='https://www.mongodb.com/docs/' target='_top'>See official MongoDB documentation.</a>
 
-<a name="header-4.5"/>
+<a name="header-6.5"/>
 
-#### 4.5 IPFS Storage
+#### 6.5 IPFS Storage
 
-- **Overview:** IPFS (InterPlanetary File System) is a distributed storage and file-sharing network. Object Layer assets are stored on IPFS with two CID references per item:
+- **Overview:** IPFS (InterPlanetary File System) provides content-addressed distributed storage. Object Layer assets are stored on IPFS with two CID references per item:
   - `data.render.cid` — The consolidated atlas sprite sheet PNG.
   - `data.render.metadataCid` — The atlas sprite sheet metadata JSON (frame coordinates, dimensions).
-  - The ObjectLayerToken contract maps each token ID to its `metadataCid` on-chain, enabling trustless metadata resolution.
+  - The `ObjectLayerToken` contract maps each token ID to its `metadataCid` on-chain, enabling trustless metadata resolution.
 - **Key Benefits:**
-  - **Decentralization:** Reduces reliance on centralized servers and improves data resilience.
-  - **Content Addressing:** Efficiently stores and retrieves data based on its content hash, guaranteeing integrity.
-  - **Global Distribution:** Distributes data across a network of nodes, enhancing availability.
+  - **Decentralization:** Reduces reliance on centralized servers.
+  - **Content Addressing:** Data integrity guaranteed by hash-based CIDs.
+  - **Global Distribution:** Assets distributed across IPFS nodes; itemledger.com provides a caching resolver layer.
 
 <a href='https://docs.ipfs.tech/' target='_top'>See official IPFS documentation.</a>
 
 ---
 
-### 5. Tokenomics
+### 7. Tokenomics
 
-<a name="header-5.1"/>
+<a name="header-7.1"/>
 
-#### 5.1 ObjectLayerToken: Unified Multi-Token Contract
+#### 7.1 ObjectLayerToken: Unified Multi-Token Contract
 
 The `ObjectLayerToken` is a single ERC-1155 contract that serves as the **economic reality binding** for the Object Layer Protocol. It manages the entire Cyberia Online token economy — not as the protocol itself, but as the on-chain ledger layer (`data.ledger`) that anchors ownership of semantically complete Object Layers.
 
@@ -441,8 +818,14 @@ import '@openzeppelin/contracts/access/Ownable.sol';
  * @title ObjectLayerToken
  * @dev Unified ERC-1155 multi-token contract for the Cyberia Online Object Layer ecosystem.
  *
- * Token ID 0 (CRYPTOKOYN): Fungible in-game currency.
- * Token IDs >= 1: Object Layer items — unique (supply 1) or stackable (supply > 1).
+ * Token ID 0 (CRYPTOKOYN): Fungible in-game currency — managed via cryptokoyn.net.
+ * Token IDs >= 1: Object Layer items — managed via itemledger.com.
+ *   - Supply = 1: Non-fungible unique items (legendary weapons, unique skins).
+ *   - Supply > 1: Semi-fungible stackable resources (wood, stone, potions).
+ *
+ * Authentication: Players authenticate via secp256k1 EIP-712 signed claims.
+ * The game server acts as a trusted relayer, submitting transactions on behalf
+ * of verified players (gasless for end users on the permissioned Besu network).
  *
  * Features: mint, batch-mint, burn, batch-burn, pause/unpause, supply tracking,
  * on-chain item registry with IPFS metadata CID resolution.
@@ -540,7 +923,7 @@ This Solidity smart contract implements the ERC-1155 multi-token standard as the
 - **ERC1155Burnable:** Allows token holders to burn (destroy) their tokens.
 - **ERC1155Pausable:** Allows the owner to pause all token transfers for emergency governance.
 - **ERC1155Supply:** Tracks on-chain total supply per token ID.
-- **Ownable:** Access control ensuring only the contract owner can mint, register, and pause.
+- **Ownable:** Access control ensuring only the contract owner (server relayer) can mint, register, and pause.
 
 **Constructor:**
 - Mints 10 million CryptoKoyn (token ID 0) to the deployer with 18-decimal precision.
@@ -557,56 +940,51 @@ This Solidity smart contract implements the ERC-1155 multi-token standard as the
 - `uri(tokenId)` — Resolves metadata URI: `ipfs://{per-token-CID}` or falls back to the base URI.
 
 **Key Advantages:**
-- **Single deployment** manages the entire game economy (currency + all item types).
+- **Single deployment** manages the entire game economy (CKY currency via cryptokoyn.net + all item types via itemledger.com).
 - **Batch operations** reduce gas costs for multi-asset transfers and minting.
 - **Deterministic token IDs** from `keccak256` enable off-chain → on-chain mapping without a registry lookup.
-- **IPFS metadata integration** via per-token CIDs links each on-chain token to its Object Layer atlas sprite sheet.
+- **IPFS metadata integration** via per-token CIDs links each on-chain token to its Object Layer atlas sprite sheet (resolved by itemledger.com).
 
-<a name="header-5.2"/>
+<a name="header-7.2"/>
 
-#### 5.2 Token ID Semantics: Fungible, Semi-Fungible, and Non-Fungible
+#### 7.2 Token Classification: Fungible, Semi-Fungible, and Non-Fungible
 
-| Token Type | Token ID | Supply | Example |
-|------------|----------|--------|---------|
-| Fungible currency | 0 (CRYPTOKOYN) | 10,000,000 × 10^18 | In-game gold / CKY |
-| Semi-fungible resource | `computeTokenId("gold-ore")` | 1,000,000 | Stackable crafting material |
-| Semi-fungible consumable | `computeTokenId("health-potion")` | 100,000 | Stackable consumable |
-| Non-fungible unique gear | `computeTokenId("legendary-hatchet")` | 1 | Unique weapon |
-| Non-fungible skin | `computeTokenId("cyber-punk-skin-001")` | 1 | Unique character skin |
+| Token Type | Token ID | Supply | Managed By | Example |
+|------------|----------|--------|------------|---------|
+| Fungible currency | 0 (CRYPTOKOYN) | 10,000,000 × 10^18 | cryptokoyn.net | In-game gold / CKY |
+| Semi-fungible resource | `computeTokenId("gold-ore")` | 1,000,000 | itemledger.com | Stackable crafting material |
+| Semi-fungible consumable | `computeTokenId("health-potion")` | 100,000 | itemledger.com | Stackable consumable |
+| Non-fungible unique gear | `computeTokenId("legendary-hatchet")` | 1 | itemledger.com | Unique weapon |
+| Non-fungible skin | `computeTokenId("cyber-punk-skin-001")` | 1 | itemledger.com | Unique character skin |
 
 The ERC-1155 standard treats all token IDs uniformly. The distinction between fungible, semi-fungible, and non-fungible is purely semantic based on the minted supply:
-- **Fungible:** Large supply, divisible via balance transfers.
-- **Semi-fungible:** Moderate supply, stackable but each unit is interchangeable.
-- **Non-fungible:** Supply of exactly 1, making it unique and non-interchangeable.
+- **Fungible:** Large supply, divisible via balance transfers. Managed by **cryptokoyn.net**.
+- **Semi-fungible:** Moderate supply, stackable but each unit is interchangeable (e.g., wood, stone). Managed by **itemledger.com**.
+- **Non-fungible:** Supply of exactly 1, making it unique and non-interchangeable (e.g., legendary weapons). Managed by **itemledger.com**.
 
-**Fungibility semantics within the Object Layer Protocol:**
-- **Supply = 1** → Non-fungible (unique gear, legendary items). The Object Layer is one-of-a-kind.
-- **Supply > 1** → Semi-fungible (stackable resources like wood, stone, gold ore). Multiple instances of the same semantic layer.
-- **Token ID 0 (CRYPTOKOYN)** → Fully fungible in-game currency with 18-decimal precision.
+<a name="header-7.3"/>
 
-<a name="header-5.3"/>
+#### 7.3 Token Distribution and Allocation
 
-#### 5.3 Token Distribution and Allocation
-
-**CryptoKoyn (CKY) — Token ID 0**
+**CryptoKoyn (CKY) — Token ID 0 — cryptokoyn.net**
 
 - **Total Supply:** 10,000,000 CKY (with 18-decimal precision)
 - **Initial Allocation:**
   - **90% Airdrop and Mint Pool:** Allocated to an airdrop pool and a minting pool to distribute tokens to players through gameplay activities, events, and rewards.
   - **10% Direct Investor Wallets:** Distributed to investor wallets proportionally to their financial participation.
 
-**Object Layer Items — Token IDs ≥ 1**
+**Object Layer Items — Token IDs ≥ 1 — itemledger.com**
 
 - **Total Supply:** Variable per item type, based on game design requirements.
 - **Distribution:**
-  - **In-Game Activities:** Players can earn items by completing quests, achievements, or participating in events. Items are minted on-chain via `registerObjectLayer` or `mint`.
+  - **In-Game Activities:** Players earn items by completing quests, achievements, or participating in events. Items are minted on-chain via `registerObjectLayer` or `mint`.
   - **Crafting:** Players craft items in-game; the server calls `mint` to issue the corresponding ERC-1155 token.
-  - **Marketplace Trading:** ERC-1155 tokens can be freely traded via `safeTransferFrom` and `safeBatchTransferFrom`, enabling peer-to-peer item trading.
+  - **Marketplace Trading:** ERC-1155 tokens can be freely traded via `safeTransferFrom` and `safeBatchTransferFrom`, enabling peer-to-peer item trading through itemledger.com's marketplace.
 
 **Token Mechanics:**
 
 - **Token Burning:** Players or the governance address can burn tokens via `burn` or `burnBatch`. Burning CryptoKoyn reduces circulating supply. Burning item tokens destroys the corresponding in-game item.
-- **Staking:**
+- **Staking (via cryptokoyn.net):**
   - **Asset Freezing:** Staked tokens are frozen (held in a staking contract or governance address), removing them from circulation.
   - **Voting Rights:** Vote weight is proportional to staked amount and staking duration:
 
@@ -621,12 +999,12 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked Amount) + 0.5 × (Staking Dur
 
 **Minting and On-Chain Conversion**
 
-- **Earned In-Game Items:** Must undergo an incubation period before the server registers them on-chain via `registerObjectLayer`.
-- **Crafted Items:** Farm, dropped, craft, and default items must undergo an incubation period and a CryptoKoyn minting fee before on-chain registration.
+- **Earned In-Game Items:** Must undergo an incubation period before the server registers them on-chain via `registerObjectLayer`. During incubation, items carry `ledger.type: "OFF_CHAIN"` in MongoDB.
+- **Crafted Items:** Farm, dropped, craft, and default items must undergo an incubation period and a CryptoKoyn minting fee before on-chain registration. Upon registration, itemledger.com indexes the new Object Layer.
 
-<a name="header-5.4"/>
+<a name="header-7.4"/>
 
-#### 5.4 Governance and Circulation
+#### 7.4 Governance and Circulation
 
 ```mermaid
 flowchart LR
@@ -639,14 +1017,14 @@ end
 
 subgraph Governance-Runtime["Governance<br> Runtime Node <br> Server"]
     subgraph Sync["<br> <br> <br> <br> <br> <br> <br> <br> <br>Sync drain <br> burning protocol"]
-        Stacking["Voting power"]
+        Stacking["Voting power<br>(cryptokoyn.net)"]
         Unlock-Features["Unlock Features"]
         subgraph Withdrawal["**Withdrawal Protocol** <br> Token to Fiat"]
         end
     end
 
     subgraph Faucet["<br><br><br><br><br><br><br>Faucet <br>validation <br> emitter protocol"]
-        ERC-1155["**Token emitter** <br> ERC-1155 ObjectLayerToken <br> (CKY + Items)"]
+        ERC-1155["**Token emitter** <br> ERC-1155 ObjectLayerToken <br> (CKY via cryptokoyn.net<br>+ Items via itemledger.com)"]
         Airdrop-Mint["Airdrop Mint <br> pool"]
     end
     subgraph Coinbase["Coinbase <br> address"]
@@ -726,11 +1104,11 @@ class Airdrop-Mint H1;
 
 ---
 
-### 6. Blockchain Network and Deployment
+### 8. Blockchain Network and Deployment
 
-<a name="header-6.1"/>
+<a name="header-8.1"/>
 
-#### 6.1 Hyperledger Besu IBFT2/QBFT Consensus
+#### 8.1 Hyperledger Besu IBFT2/QBFT Consensus
 
 The ObjectLayerToken is deployed on a **Hyperledger Besu** private network using **IBFT2** or **QBFT** consensus algorithms:
 
@@ -758,13 +1136,14 @@ The ObjectLayerToken is deployed on a **Hyperledger Besu** private network using
 ```
 
 **Key Design Decisions:**
-- **Gas price = 0:** On a private permissioned network, gas fees are not required for economic scarcity — the permissioning layer handles access control.
+- **Gas price = 0:** On a private permissioned network, gas fees are not required for economic scarcity — the permissioning layer handles access control. This enables the gasless relayer model where the server submits transactions on behalf of EIP-712-authenticated players.
 - **Deterministic finality:** IBFT2/QBFT guarantee that once a block is committed, it will never be reverted — critical for game item ownership.
 - **Fast block times:** 2-5 second block periods provide near-real-time transaction confirmation for game interactions.
+- **secp256k1 compatibility:** All Besu accounts use the same elliptic curve as mainnet Ethereum, so player key pairs work identically on both networks (enabling future bridging).
 
-<a name="header-6.2"/>
+<a name="header-8.2"/>
 
-#### 6.2 Kubernetes Deployment Architecture (kubeadm)
+#### 8.2 Kubernetes Deployment Architecture (kubeadm)
 
 The Besu network runs as a Kubernetes deployment orchestrated via **kubeadm** clusters managed through the **Underpost CI/CD CLI** (`underpost cluster`). The Underpost CLI (`src/cli/index.js`) provides comprehensive cluster lifecycle management including initialization, configuration, component deployment, and teardown.
 
@@ -777,7 +1156,7 @@ The Besu network runs as a Kubernetes deployment orchestrated via **kubeadm** cl
 
 **Port Mapping:**
 - `8545` — JSON-RPC (HTTP) — Hardhat connects here.
-- `8546` — WebSocket — Real-time event subscriptions.
+- `8546` — WebSocket — Real-time event subscriptions (used by cryptokoyn.net and itemledger.com for on-chain event indexing).
 - `8547` — GraphQL.
 - `30303` — P2P discovery (TCP + UDP).
 
@@ -855,11 +1234,11 @@ The `UnderpostCluster` module (`src/cli/cluster.js`) handles the complete lifecy
 - **`--kubeadm`**: Runs `kubeadm init`, installs Calico CNI, untaints control plane, installs local-path-provisioner.
 - **`--reset`**: Executes `kubeadm reset --force`, cleans filesystem artifacts, restores SELinux contexts, purges container storage.
 
-<a name="header-6.3"/>
+<a name="header-8.3"/>
 
-#### 6.3 Hardhat Deployment Workflow
+#### 8.3 Hardhat Deployment Workflow
 
-The `hardhat.config.cjs` defines multiple Besu network targets:
+The `hardhat.config.cjs` defines multiple Besu network targets, with coinbase private key read from a secure file (`engine-private/eth-networks/besu/coinbase`):
 
 | Network Name | RPC URL | Description |
 |--------------|---------|-------------|
@@ -874,11 +1253,12 @@ cd hardhat
 npx hardhat run scripts/deployObjectLayerToken.cjs --network besu-ibft2
 ```
 
-The deployment script:
-1. Connects to the Besu RPC endpoint using the coinbase private key.
+The deployment script (`scripts/deployObjectLayerToken.cjs`):
+1. Connects to the Besu RPC endpoint using the coinbase private key (secp256k1).
 2. Deploys the `ObjectLayerToken` contract.
 3. Mints 10M CryptoKoyn to the deployer.
-4. Writes a JSON deployment artifact to `hardhat/deployments/` for consumption by the Cyberia CLI and server.
+4. Verifies initial state (total supply, deployer balance).
+5. Writes a JSON deployment artifact to `hardhat/deployments/` for consumption by the Cyberia CLI and server.
 
 **CLI Integration (`bin/cyberia.js`):**
 
@@ -891,7 +1271,7 @@ cyberia chain deploy
 # Deploy the ObjectLayerToken contract
 cyberia chain deploy-contract --network besu-ibft2
 
-# Register an Object Layer item on-chain
+# Register an Object Layer item on-chain (itemledger.com will index this)
 cyberia chain register --item-id hatchet --metadata-cid bafkrei... --supply 1
 
 # Mint additional tokens
@@ -899,32 +1279,40 @@ cyberia chain mint --token-id 0 --to 0x... --amount 1000
 
 # Query chain status
 cyberia chain status
+
+# Emergency governance
+cyberia chain pause
+cyberia chain unpause
 ```
 
 ---
 
-### 7. On-Chain Lifecycle and Game Mechanics
+### 9. On-Chain Lifecycle and Game Mechanics
 
-<a name="header-7.1"/>
+<a name="header-9.1"/>
 
-#### 7.1 On-Chain Lifecycle: Register → Mint → Transfer → Burn
+#### 9.1 On-Chain Lifecycle: Register → Mint → Transfer → Burn
 
-The full lifecycle of an Object Layer item through the ERC-1155 system:
+The full lifecycle of an Object Layer item through the ERC-1155 system, showing the interaction between all three service domains:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         GAME SERVER (off-chain)                        │
+│              GAME SERVER — cyberiaonline.com (off-chain)               │
 │                                                                        │
-│  1. buildObjectLayerDataFromDirectory() → { stats, item, render }      │
-│  2. computeSha256(data) → sha256                                       │
-│  3. Pin atlas PNG + metadata JSON to IPFS → { cid, metadataCid }       │
-│  4. Store ObjectLayer document in MongoDB                              │
+│  1. Player authenticates via EIP-712 signed claim (secp256k1 key)      │
+│  2. buildObjectLayerDataFromDirectory() → { stats, item, render }      │
+│  3. computeSha256(data) → sha256                                       │
+│  4. Pin atlas PNG + metadata JSON to IPFS → { cid, metadataCid }       │
+│  5. Store ObjectLayer document in MongoDB (ledger.type: "OFF_CHAIN")   │
 │                                                                        │
 │                         ▼ INCUBATION PERIOD ▼                          │
 │                                                                        │
-│  5. registerObjectLayer(to, itemId, metadataCid, supply, data)         │
+│  6. Server relayer submits tx to Besu:                                  │
+│     registerObjectLayer(playerAddr, itemId, metadataCid, supply, data) │
 │     → ERC-1155 tokenId assigned                                        │
-│  6. Update ObjectLayer.data.ledger = { type:"ERC1155", address, tokenId}│
+│  7. Update MongoDB: ledger = { type:"ERC1155", address, tokenId }      │
+│  8. itemledger.com indexes new Object Layer via on-chain event          │
+│  9. cryptokoyn.net reflects any CKY minting fee deduction              │
 │                                                                        │
 └────────────────────────────┬────────────────────────────────────────────┘
                              │
@@ -942,7 +1330,7 @@ The full lifecycle of an Object Layer item through the ERC-1155 system:
 │  mint(player1, resourceId, 500, "0x")                  ← enemy loot    │
 │  burn(player2, resourceId, 25)                         ← crafting cost │
 │                                                                        │
-│  ── GOVERNANCE ──                                                      │
+│  ── GOVERNANCE (via cryptokoyn.net) ──                                 │
 │  pause()                                               ← emergency     │
 │  setTokenMetadataCID(tokenId, "new-cid")               ← content update│
 │  unpause()                                             ← resume        │
@@ -950,80 +1338,94 @@ The full lifecycle of an Object Layer item through the ERC-1155 system:
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Events emitted for indexing:**
+**Events emitted for indexing (consumed by itemledger.com and cryptokoyn.net):**
 - `ObjectLayerRegistered(tokenId, itemId, metadataCid, initialSupply)` — New item type registered.
 - `TransferSingle(operator, from, to, id, value)` — Single token transfer.
 - `TransferBatch(operator, from, to, ids, values)` — Batch token transfer.
 - `MetadataUpdated(tokenId, metadataCid)` — Item metadata updated.
 
-<a name="header-7.2"/>
+<a name="header-9.2"/>
 
-#### 7.2 Decentralized Player Progression
+#### 9.2 Decentralized Player Progression
 
-A player's complete game state can be reconstructed from:
+A player's complete game state can be reconstructed from their Ethereum address (secp256k1 public key):
 
-1. **CryptoKoyn balance:** `balanceOf(playerAddress, 0)` → in-game currency.
-2. **Item ownership:** For each registered Object Layer token ID, `balanceOf(playerAddress, tokenId)` → inventory.
-3. **Off-chain metadata:** Each token ID resolves to an IPFS metadata CID containing atlas sprite sheet coordinates, stats, and item descriptions.
+1. **CryptoKoyn balance (via cryptokoyn.net):** `balanceOf(playerAddress, 0)` → in-game currency.
+2. **Item ownership (via itemledger.com):** For each registered Object Layer token ID, `balanceOf(playerAddress, tokenId)` → inventory.
+3. **Off-chain metadata:** Each token ID resolves via itemledger.com to an IPFS metadata CID containing atlas sprite sheet coordinates, stats, and item descriptions.
 
 This means a player's character — including all equipped layers (skin, weapon, armor, effects) and their economic standing — is verifiably anchored on-chain without requiring a centralized database for ownership records. The **semantic completeness** of each Object Layer ensures that the player's inventory is not just a list of token balances, but a collection of fully-defined four-reality entities that any interoperable runtime can render, simulate, and display.
 
-<a name="header-7.3"/>
+Because identity is a single secp256k1 key pair, a player can verify their inventory from any Ethereum-compatible tool, wallet, or block explorer — even if the game servers are offline.
 
-#### 7.3 Item Crafting, Trading, and Incubation
+<a name="header-9.3"/>
 
-- **Crafting:** Players combine resources (semi-fungible tokens) in-game. The server burns the consumed resource tokens and mints the crafted item token. The new item is a complete Object Layer with all four realities.
-- **Trading:** Players use `safeTransferFrom` for single-layer trades or `safeBatchTransferFrom` for multi-layer trades (e.g., weapon layer + 100 gold ore for a rare shield layer).
-- **Incubation:** Items earned in-game undergo a variable incubation period based on rarity before the server mints them on-chain. This prevents instant sell-off and rewards sustained gameplay.
-- **Minting Fee:** Converting off-chain items to on-chain ERC-1155 tokens requires a CryptoKoyn (token ID 0) fee, creating a CKY sink that supports token value.
+#### 9.3 Item Crafting, Trading, and Incubation
+
+- **Crafting:** Players combine resources (semi-fungible tokens) in-game. The server burns the consumed resource tokens and mints the crafted item token. The new item is a complete Object Layer with all four realities. itemledger.com indexes the new item automatically.
+- **Trading:** Players use `safeTransferFrom` for single-layer trades or `safeBatchTransferFrom` for multi-layer trades (e.g., weapon layer + 100 gold ore for a rare shield layer). itemledger.com's marketplace provides the trading UI.
+- **Incubation:** Items earned in-game undergo a variable incubation period based on rarity before the server mints them on-chain. This prevents instant sell-off and rewards sustained gameplay. During incubation, items exist off-chain with `ledger.type: "OFF_CHAIN"`.
+- **Minting Fee:** Converting off-chain items to on-chain ERC-1155 tokens requires a CryptoKoyn (token ID 0) fee, creating a CKY sink that supports token value. The fee is paid via cryptokoyn.net's staking/wallet infrastructure.
 
 ---
 
-### 8. Security and Transparency
+### 10. Security and Transparency
 
-<a name="header-8.1"/>
+<a name="header-10.1"/>
 
-#### 8.1 Blockchain Security Measures
+#### 10.1 Blockchain Security Measures
 
 - **Permissioned Network:** Hyperledger Besu with IBFT2/QBFT runs as a permissioned network where only authorized validators can produce blocks.
-- **Smart Contract Access Control:** `Ownable` restricts minting, registration, and pause functions to the governance address.
+- **secp256k1 Key Security:** Player identity is secured by the same elliptic curve cryptography used on Ethereum mainnet. Key compromise is the sole attack vector — no passwords, no session tokens.
+- **EIP-712 Replay Protection:** The domain separator binds signatures to a specific contract address, chain ID, and protocol version, preventing cross-chain and cross-contract replay attacks.
+- **Smart Contract Access Control:** `Ownable` restricts minting, registration, and pause functions to the governance address (server relayer).
 - **Pausability:** Emergency pause freezes all token transfers, providing a circuit breaker for security incidents.
 - **Deterministic Finality:** IBFT2/QBFT guarantees blocks are never reverted once committed.
 - **IPFS Content Addressing:** Asset integrity is guaranteed by content-addressed CIDs — any modification changes the hash.
 - **Semantic Integrity:** The four-reality binding ensures that no single dimension of an Object Layer can be tampered with independently — the `sha256` hash covers the complete AtomicPrefab.
 
-<a name="header-8.2"/>
+<a name="header-10.2"/>
 
-#### 8.2 Smart Contract Audits
+#### 10.2 Smart Contract Audits
 
 - The ObjectLayerToken contract inherits from battle-tested OpenZeppelin implementations that have undergone extensive security audits.
 - The contract follows the principle of minimal custom logic — most functionality is inherited from audited OpenZeppelin modules.
 - Automated testing via Hardhat covers the full lifecycle: deployment, registration, minting, transfers, burning, pausing, batch operations, and access control.
+- EIP-712 signature verification follows the canonical implementation specified in the Ethereum Improvement Proposal.
 
 ---
 
-### 9. Future Directions
+### 11. Future Directions
 
 The Object Layer Protocol and its Cyberia Online reference implementation establish a foundation for semantic interoperability in decentralized digital worlds. Future development will extend the protocol along several axes:
 
-- **Staking contract:** A companion contract for CryptoKoyn staking with governance voting weight.
-- **Marketplace contract:** An on-chain order book for ERC-1155 peer-to-peer trading with escrow, enabling atomic multi-layer trades.
-- **Cross-network bridges:** Enable Object Layer tokens to be bridged to public Ethereum networks, allowing external runtimes to consume the semantic layer format.
+- **EIP-712 permit patterns:** Implement `ERC20Permit`-style gasless approvals for the ERC-1155 contract, enabling players to approve transfers via signed messages without on-chain approval transactions.
+- **Staking contract:** A companion contract for CryptoKoyn staking with governance voting weight, deployed alongside the main ObjectLayerToken and managed via cryptokoyn.net.
+- **Marketplace contract:** An on-chain order book for ERC-1155 peer-to-peer trading with escrow, enabling atomic multi-layer trades through itemledger.com.
+- **Cross-network bridges:** Enable Object Layer tokens to be bridged to public Ethereum L1 or L2 networks, allowing external wallets and marketplaces to consume the semantic layer format. The shared secp256k1 key model makes bridging seamless — the same key owns assets on both networks.
 - **Layer 2 scaling:** Explore rollup solutions for high-frequency game transactions while anchoring state to the Besu chain.
-- **DAO governance:** Transition ownership from a single address to a decentralized autonomous organization controlled by stakers.
+- **Account abstraction (ERC-4337):** Enable smart contract wallets for players who prefer social recovery, multi-sig, or session keys instead of raw secp256k1 private key management.
+- **DAO governance:** Transition ownership from a single relayer address to a decentralized autonomous organization controlled by CKY stakers via cryptokoyn.net.
 - **Protocol extensions:** Define additional semantic realities (e.g., audio, physics, narrative) as optional protocol extensions that maintain backward compatibility.
 - **Cross-game interoperability:** Publish the Object Layer schema as an open standard that other games and virtual worlds can adopt, enabling true cross-platform asset portability based on shared semantic structure rather than shared token balances.
 
 ---
 
-### 10. References
+### 12. References
 
 - <a href='https://eips.ethereum.org/EIPS/eip-1155' target='_top'>EIP-1155: Multi Token Standard</a>
+- <a href='https://eips.ethereum.org/EIPS/eip-712' target='_top'>EIP-712: Typed Structured Data Hashing and Signing</a>
+- <a href='https://www.secg.org/sec2-v2.pdf' target='_top'>SEC 2: Recommended Elliptic Curve Domain Parameters (secp256k1)</a>
+- <a href='https://eips.ethereum.org/EIPS/eip-4337' target='_top'>EIP-4337: Account Abstraction Using Alt Mempool</a>
 - <a href='https://docs.openzeppelin.com/contracts/5.x/erc1155' target='_top'>OpenZeppelin ERC-1155 Documentation</a>
+- <a href='https://docs.openzeppelin.com/contracts/5.x/api/utils#EIP712' target='_top'>OpenZeppelin EIP-712 Utilities</a>
 - <a href='https://besu.hyperledger.org/' target='_top'>Hyperledger Besu Documentation</a>
+- <a href='https://besu.hyperledger.org/private-networks/how-to/configure/consensus/qbft' target='_top'>Hyperledger Besu QBFT Consensus Documentation</a>
 - <a href='https://hardhat.org/docs' target='_top'>Hardhat Documentation</a>
 - <a href='https://docs.ipfs.tech/' target='_top'>IPFS Documentation</a>
 - <a href='https://kubernetes.io/docs/' target='_top'>Kubernetes Documentation</a>
 - <a href='https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/' target='_top'>kubeadm Documentation</a>
 - <a href='https://www.mongodb.com/docs/' target='_top'>MongoDB Documentation</a>
+- <a href='https://ethereum.org/en/developers/docs/accounts/' target='_top'>Ethereum Accounts Documentation</a>
+- <a href='https://ethereum.org/en/developers/docs/standards/tokens/erc-1155/' target='_top'>Ethereum.org ERC-1155 Overview</a>
 - <a href='https://github.com/underpostnet/engine' target='_top'>Underpost Engine — CI/CD CLI and Infrastructure</a>
