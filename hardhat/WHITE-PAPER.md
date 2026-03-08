@@ -10,7 +10,7 @@
 
 Network Object Layers
 
-*The Cyberian frontier tokenomics*
+*The Cyberian frontier Entity*
 
 Stackable Rendering Layers as a Unified Tokenized Reality
 
@@ -20,7 +20,7 @@ Stackable Rendering Layers as a Unified Tokenized Reality
 
 ---
 
-**Version:** 2.0
+**Version:** 3.0.3
 
 **Status:** Draft
 
@@ -273,64 +273,40 @@ The wallet signs this structured data, producing a 65-byte `(v, r, s)` ECDSA sig
 
 The complete authentication and token minting flow using Ethereum secp256k1 keys and EIP-712 signed claims:
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         PLAYER (client-side)                           │
-│                                                                        │
-│  1. Player holds an Ethereum secp256k1 key pair                        │
-│     Private key: k (32 bytes)                                          │
-│     Address: 0xABCD...1234                                             │
-│                                                                        │
-│  2. Player signs an EIP-712 typed claim                                │
-│     { player, nonce, timestamp, action } → signature (v, r, s)        │
-│                                                                        │
-└────────────────────────────┬────────────────────────────────────────────┘
-                             │  signed claim + signature
-                             ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    GAME SERVER (off-chain relayer)                      │
-│                                                                        │
-│  3. Server verifies EIP-712 signature                                  │
-│     ecrecover(structHash, v, r, s) → recovered address                 │
-│     Assert: recovered address == claimed player address                │
-│     Assert: nonce is fresh, timestamp within window                    │
-│                                                                        │
-│  4. Server authenticates session                                       │
-│     Player identity = Ethereum address (no passwords)                  │
-│                                                                        │
-│  5. On qualifying game events (quest complete, craft, drop):           │
-│     Server acts as trusted relayer and submits transaction             │
-│                                                                        │
-└────────────────────────────┬────────────────────────────────────────────┘
-                             │  relayer submits tx (gas-free for player)
-                             ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     BESU BLOCKCHAIN (on-chain)                         │
-│                                                                        │
-│  6. ObjectLayerToken contract mints token                              │
-│     registerObjectLayer(playerAddress, itemId, metadataCid, supply)    │
-│     — or —                                                             │
-│     mint(playerAddress, tokenId, amount, data)                         │
-│                                                                        │
-│  7. Blockchain records ownership                                       │
-│     balanceOf(playerAddress, tokenId) → updated                        │
-│     Event: ObjectLayerRegistered / TransferSingle                      │
-│                                                                        │
-│  8. Ownership is verifiable by any client                              │
-│     Any Ethereum-compatible tool can query the player's balances       │
-│                                                                        │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    participant W as Wallet (secp256k1)
+    participant S as Game Server (relayer)
+    participant C as ObjectLayerToken (ERC-1155)
+
+    Note over W: 1. Player holds ETH key pair<br/>Private key k · 32 bytes<br/>Address 0xABCD…1234
+
+    Note over W: 2. Sign EIP-712 typed claim<br/>{ player, nonce, timestamp, action }
+
+    W->>S: 3. Send signed claim + signature (v, r, s)
+
+    Note over S: 4. ecrecover(structHash, v, r, s)<br/>Assert recovered addr == claimed addr<br/>Assert nonce fresh · timestamp in window
+
+    Note over S: 5. Authenticate session<br/>Identity = Ethereum address (no passwords)
+
+    Note over S: 6. Qualifying game event<br/>(quest complete, craft, drop)
+
+    S->>C: 7. registerObjectLayer(playerAddr, itemId,<br/>metadataCid, supply, data)<br/>— or mint(playerAddr, tokenId, amount, data)
+
+    Note over C: 8. balanceOf(playerAddr, tokenId) updated<br/>Emit ObjectLayerRegistered / TransferSingle
+
+    C-->>W: 9. Ownership verifiable by any Ethereum-compatible tool
 ```
 
 **Summary of the flow:**
 
-```
-ETH key (secp256k1)
-   → signed claim (EIP-712)
-      → server verifies identity
-         → relayer submits transaction
-            → contract mints token
-               → blockchain records ownership
+```mermaid
+flowchart LR
+    A["ETH key<br/>(secp256k1)"] --> B["Signed claim<br/>(EIP-712)"]
+    B --> C["Server verifies<br/>identity"]
+    C --> D["Relayer submits<br/>transaction"]
+    D --> E["Contract mints<br/>token"]
+    E --> F["Blockchain records<br/>ownership"]
 ```
 
 This architecture means:
@@ -352,16 +328,18 @@ The core innovation of the Object Layer Protocol is the recognition that a digit
 
 Consider a player character in an MMORPG. It is not one object. It is:
 
-```
-┌─────────────────────────────────┐
-│  Effect Layer (glow, particles) │  ← z-order: 4
-├─────────────────────────────────┤
-│  Weapon Layer (hatchet)         │  ← z-order: 3
-├─────────────────────────────────┤
-│  Armor Layer (cyber-vest)       │  ← z-order: 2
-├─────────────────────────────────┤
-│  Skin Layer (base character)    │  ← z-order: 1
-└─────────────────────────────────┘
+```mermaid
+block-beta
+    columns 1
+    A["🧑 Skin Layer (base character) — z-order: 1"]
+    B["🛡️ Armor Layer (cyber-vest) — z-order: 2"]
+    C["⚔️ Weapon Layer (hatchet) — z-order: 3"]
+    D["🔮 Effect Layer (glow, particles) — z-order: 4"]
+
+    style A fill:#4169e1,color:#fff
+    style B fill:#2e8b57,color:#fff
+    style C fill:#b22222,color:#fff
+    style D fill:#6a0dad,color:#fff
 ```
 
 Each layer in this stack is an **independently complete semantic unit**. The weapon layer has its own stats (damage, range), its own sprite sheet (render), its own human-readable identity (item), and its own on-chain token (ledger). It can be:
@@ -525,31 +503,57 @@ This composability is what makes the Object Layer Protocol a **semantic interope
 
 The Object Layer Protocol's service layer is organized across three dedicated domains, each serving a distinct concern while sharing the same underlying Besu blockchain, MongoDB instance, and Ethereum-based identity system:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        SHARED INFRASTRUCTURE                               │
-│                                                                            │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐  ┌───────────────┐   │
-│  │ Besu Network │  │   MongoDB    │  │    IPFS     │  │    Valkey     │   │
-│  │  (IBFT2/QBFT)│  │  (off-chain) │  │  (assets)   │  │   (cache)    │   │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬──────┘  └──────┬───────┘   │
-│         │                 │                  │                │            │
-└─────────┼─────────────────┼──────────────────┼────────────────┼────────────┘
-          │                 │                  │                │
-    ┌─────┴─────────────────┴──────────────────┴────────────────┴─────┐
-    │                    ETHEREUM IDENTITY (secp256k1)                │
-    │              One key pair → all three domains                   │
-    └────────────────────┬──────────────┬──────────────┬──────────────┘
-                         │              │              │
-              ┌──────────▼──────┐ ┌─────▼──────┐ ┌────▼───────────────┐
-              │ cryptokoyn.net  │ │itemledger  │ │ cyberiaonline.com  │
-              │                 │ │   .com     │ │                    │
-              │  CKY currency   │ │  Item      │ │  Game runtime      │
-              │  Staking        │ │  registry  │ │  Multiplayer       │
-              │  Governance     │ │  Metadata  │ │  Inventory         │
-              │  Analytics      │ │  IPFS index│ │  Crafting          │
-              │  Fiat bridge    │ │  Marketplace│ │  Combat            │
-              └─────────────────┘ └────────────┘ └────────────────────┘
+```mermaid
+graph TD
+    subgraph INFRA["SHARED INFRASTRUCTURE"]
+        BESU["Besu Network<br/>(IBFT2/QBFT)"]
+        MONGO["MongoDB<br/>(off-chain)"]
+        IPFS_NODE["IPFS<br/>(assets)"]
+        VALKEY["Valkey<br/>(cache)"]
+    end
+
+    subgraph IDENTITY["ETHEREUM IDENTITY (secp256k1)<br/>One key pair → all three domains"]
+        ID[ ]
+    end
+
+    BESU --- ID
+    MONGO --- ID
+    IPFS_NODE --- ID
+    VALKEY --- ID
+
+    ID --> CK
+    ID --> IL
+    ID --> CO
+
+    subgraph CK["cryptokoyn.net"]
+        CK1["CKY currency"]
+        CK2["Staking"]
+        CK3["Governance"]
+        CK4["Analytics"]
+        CK5["Fiat bridge"]
+    end
+
+    subgraph IL["itemledger.com"]
+        IL1["Item registry"]
+        IL2["Metadata"]
+        IL3["IPFS index"]
+        IL4["Marketplace"]
+    end
+
+    subgraph CO["cyberiaonline.com"]
+        CO1["Game runtime"]
+        CO2["Multiplayer"]
+        CO3["Inventory"]
+        CO4["Crafting"]
+        CO5["Combat"]
+    end
+
+    style INFRA fill:#1a1a2e,color:#eee,stroke:#555
+    style IDENTITY fill:#2a2a4e,color:#eee,stroke:#888
+    style ID fill:none,stroke:none
+    style CK fill:#767202,color:#fff
+    style IL fill:#0d3b66,color:#fff
+    style CO fill:#6b1d1d,color:#fff
 ```
 
 All three services are configured in the Underpost deployment manifest (`conf.dd-cyberia.js`) and share the same API service modules: `core`, `file`, `user`, `crypto`, `document`, `instance`, `object-layer`, `object-layer-render-frames`, `atlas-sprite-sheet`, and `ipfs`.
@@ -1388,47 +1392,46 @@ cyberia chain unpause
 
 The full lifecycle of an Object Layer item through the ERC-1155 system, showing the interaction between all three service domains:
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│              GAME SERVER — cyberiaonline.com (off-chain)               │
-│                                                                        │
-│  1. Player authenticates via EIP-712 signed claim (secp256k1 key)      │
-│  2. buildObjectLayerDataFromDirectory() → { stats, item, render }      │
-│  3. computeSha256(data) → sha256                                       │
-│  4. Pin atlas PNG + metadata JSON to IPFS → { cid, metadataCid }       │
-│  5. Store ObjectLayer document in MongoDB (ledger.type: "OFF_CHAIN")   │
-│                                                                        │
-│                         ▼ INCUBATION PERIOD ▼                          │
-│                                                                        │
-│  6. Server relayer submits tx to Besu:                                  │
-│     registerObjectLayer(playerAddr, itemId, metadataCid, supply, data) │
-│     → ERC-1155 tokenId assigned                                        │
-│  7. Update MongoDB: ledger = { type:"ERC1155", address, tokenId }      │
-│  8. itemledger.com indexes new Object Layer via on-chain event          │
-│  9. cryptokoyn.net reflects any CKY minting fee deduction              │
-│                                                                        │
-└────────────────────────────┬────────────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     BESU BLOCKCHAIN (on-chain)                         │
-│                                                                        │
-│  ObjectLayerRegistered(tokenId, "hatchet", "bafkrei...", 1)            │
-│                                                                        │
-│  owner.balanceOf(tokenId) = 1                                          │
-│                                                                        │
-│  ── GAMEPLAY ──                                                        │
-│  safeTransferFrom(server, player1, tokenId, 1, "0x")  ← quest reward  │
-│  safeBatchTransferFrom(player1, player2, [...], [...]) ← player trade  │
-│  mint(player1, resourceId, 500, "0x")                  ← enemy loot    │
-│  burn(player2, resourceId, 25)                         ← crafting cost │
-│                                                                        │
-│  ── GOVERNANCE (via cryptokoyn.net) ──                                 │
-│  pause()                                               ← emergency     │
-│  setTokenMetadataCID(tokenId, "new-cid")               ← content update│
-│  unpause()                                             ← resume        │
-│                                                                        │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    participant P as Player
+    participant S as Server Relayer
+    participant C as ObjectLayerToken
+    participant IL as itemledger.com
+    participant CK as cryptokoyn.net
+
+    P->>S: 1. Authenticate via EIP-712 signed claim
+
+    Note over S: 2. buildObjectLayerDataFromDirectory()<br/>→ { stats, item, render }
+    Note over S: 3. computeSha256(data) → sha256
+    Note over S: 4. Pin atlas PNG + metadata JSON to IPFS<br/>→ { cid, metadataCid }
+    Note over S: 5. Store ObjectLayer in MongoDB<br/>(ledger.type: OFF_CHAIN)
+
+    Note over S: ⏳ INCUBATION PERIOD
+
+    S->>C: 6. registerObjectLayer(playerAddr, itemId,<br/>metadataCid, supply, data)
+
+    Note over C: ERC-1155 tokenId assigned
+
+    Note over S: 7. Update MongoDB: ledger =<br/>{ type: ERC1155, address, tokenId }
+
+    C-->>IL: 8. ObjectLayerRegistered event → index
+    C-->>CK: 9. CKY minting fee deduction reflected
+
+    rect rgba(200, 230, 200, 0.15)
+        Note over P,CK: GAMEPLAY
+        S->>C: safeTransferFrom — quest reward
+        P->>C: safeBatchTransferFrom — player trade
+        S->>C: mint(resourceId, 500) — enemy loot
+        P->>C: burn(resourceId, 25) — crafting cost
+    end
+
+    rect rgba(230, 200, 200, 0.15)
+        Note over P,CK: GOVERNANCE (via cryptokoyn.net)
+        CK->>C: pause() — emergency
+        CK->>C: setTokenMetadataCID(tokenId, newCid) — content update
+        CK->>C: unpause() — resume
+    end
 ```
 
 **Events emitted for indexing (consumed by itemledger.com and cryptokoyn.net):**
