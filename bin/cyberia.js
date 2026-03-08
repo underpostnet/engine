@@ -21,6 +21,7 @@ import { loggerFactory } from '../src/server/logger.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import {
   ObjectLayerEngine,
+  resolveCanonicalCid,
   pngDirectoryIteratorByObjectLayerType,
   getKeyFramesDirectionsFromNumberFolderDirection,
   buildImgFromTile,
@@ -39,6 +40,42 @@ import { program as underpostProgram } from '../src/cli/index.js';
 import crypto from 'crypto';
 import nodePath from 'path';
 import Underpost from '../src/index.js';
+
+/**
+ * Connect to the project MongoDB instance using the standard env / conf layout.
+ *
+ * @async
+ * @function connectDbForChain
+ * @param {Object} params
+ * @param {string} params.envPath   – path to .env file.
+ * @param {string} [params.mongoHost] – optional mongo host override.
+ * @returns {Promise<{ ObjectLayer: import('mongoose').Model, host: string, path: string }>}
+ * @memberof CyberiaCLI
+ */
+async function connectDbForChain({ envPath, mongoHost }) {
+  const deployId = process.env.DEFAULT_DEPLOY_ID;
+  const host = process.env.DEFAULT_DEPLOY_HOST;
+  const path = process.env.DEFAULT_DEPLOY_PATH;
+
+  const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+  if (!fs.existsSync(confServerPath)) {
+    throw new Error(`Server config not found: ${confServerPath}. Ensure DEFAULT_DEPLOY_ID is set.`);
+  }
+  const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
+  const { db } = confServer[host][path];
+
+  db.host = mongoHost ? mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
+  await DataBaseProvider.load({
+    apis: ['object-layer'],
+    host,
+    path,
+    db,
+  });
+
+  const ObjectLayer = DataBaseProvider.instance[`${host}${path}`].mongoose.models.ObjectLayer;
+  return { ObjectLayer, host, path };
+}
 
 /** @type {Function} */
 const logger = loggerFactory(import.meta);
@@ -384,7 +421,9 @@ try {
 
           if (frameIndexNum >= frames.length) {
             logger.error(
-              `Frame index ${frameIndexNum} out of range. Available frames: 0-${frames.length - 1} for direction ${objectLayerFrameDirection}`,
+              `Frame index ${frameIndexNum} out of range. Available frames: 0-${
+                frames.length - 1
+              } for direction ${objectLayerFrameDirection}`,
             );
             process.exit(1);
           }
@@ -424,8 +463,8 @@ try {
               maxAtlasDim < 2048
                 ? ' (Warning: May be too small for all frames)'
                 : maxAtlasDim > 4096
-                  ? ' (Large size: ensure GPU compatibility)'
-                  : ' (Recommended size)';
+                ? ' (Large size: ensure GPU compatibility)'
+                : ' (Recommended size)';
 
             logger.info(
               `Generating atlas sprite sheet for item: ${itemId} with max dimension: ${maxAtlasDim}x${maxAtlasDim}${sizeRecommendation}`,
@@ -862,12 +901,18 @@ try {
 
   chain
     .command('register')
-    .description('Register an Object Layer item on-chain via the deployed ObjectLayerToken contract')
+    .description(
+      'Register an Object Layer item on-chain via the deployed ObjectLayerToken contract.\n' +
+        'When --from-db is set the canonical CID is resolved from MongoDB (fast-json-stable-stringify of objectLayer.data).\n' +
+        'This guarantees the on-chain metadataCid always matches the content-addressed IPFS payload.',
+    )
     .requiredOption('--item-id <itemId>', 'Human-readable item identifier (e.g. "hatchet")')
-    .option('--metadata-cid <cid>', 'IPFS metadata CID for the item', '')
+    .option('--metadata-cid <cid>', 'IPFS metadata CID for the item (ignored when --from-db is set)', '')
+    .option('--from-db', 'Resolve the canonical CID from the ObjectLayer MongoDB document (recommended)')
     .option('--supply <supply>', 'Initial token supply (1 = non-fungible, >1 = semi-fungible)', '1')
     .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
     .option('--env-path <envPath>', 'Env path', './.env')
+    .option('--mongo-host <mongoHost>', 'MongoDB host override (used with --from-db)')
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
@@ -880,8 +925,48 @@ try {
       const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
       const contractAddress = deployment.address;
 
+      // ── Resolve canonical CID ───────────────────────────────────────
+      let canonicalCid = options.metadataCid || '';
+
+      if (options.fromDb) {
+        try {
+          const { ObjectLayer, host, path } = await connectDbForChain({
+            envPath: options.envPath,
+            mongoHost: options.mongoHost,
+          });
+          const resolved = await resolveCanonicalCid({
+            itemId: options.itemId,
+            ObjectLayer,
+            ipfsClient: IpfsClient,
+            options: { host, path },
+          });
+
+          if (options.metadataCid && options.metadataCid !== resolved.cid) {
+            logger.warn(
+              `Provided --metadata-cid "${options.metadataCid}" differs from canonical CID "${resolved.cid}" (source: ${resolved.source}).`,
+            );
+            logger.warn('Using the canonical CID to ensure on-chain integrity.');
+          }
+
+          canonicalCid = resolved.cid;
+          logger.info(`Canonical CID resolved (${resolved.source}): ${canonicalCid}`);
+          logger.info(`  SHA-256: ${resolved.sha256}`);
+
+          // Close the DB connection after resolving
+          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+        } catch (dbErr) {
+          logger.error(`Failed to resolve canonical CID from database: ${dbErr.message}`);
+          process.exit(1);
+        }
+      } else if (!canonicalCid) {
+        logger.warn(
+          'No --metadata-cid provided and --from-db not set. The on-chain metadataCid will be empty.\n' +
+            'Consider using --from-db to automatically resolve the canonical CID from the database.',
+        );
+      }
+
       logger.info(`Registering Object Layer item "${options.itemId}" on contract ${contractAddress}`);
-      logger.info(`  Metadata CID: ${options.metadataCid || '(none)'}`);
+      logger.info(`  Metadata CID: ${canonicalCid || '(none)'}`);
       logger.info(`  Supply: ${options.supply}`);
 
       // Use a Hardhat script via inline JS to call registerObjectLayer
@@ -894,7 +979,7 @@ try {
           const tx = await token.registerObjectLayer(
             deployer.address,
             '${options.itemId}',
-            '${options.metadataCid || ''}',
+            '${canonicalCid}',
             ${options.supply},
             '0x'
           );
@@ -1140,6 +1225,73 @@ try {
       }
     });
 
+  // ── set-coinbase: Set the Besu deployer (coinbase) private key ──────────
+  chain
+    .command('set-coinbase')
+    .description(
+      'Set the coinbase deployer private key used by hardhat.config.js for Besu network deployments.\n' +
+        'Accepts either a raw hex private key via --private-key, or a .key.json file generated by "cyberia chain key-gen --save" via --from-file.',
+    )
+    .option('--private-key <hex>', 'Raw hex private key (with or without 0x prefix)')
+    .option(
+      '--from-file <path>',
+      'Path to a .key.json file (e.g. ./engine-private/eth-networks/besu/<address>.key.json)',
+    )
+    .option(
+      '--coinbase-path <path>',
+      'Custom output path for the coinbase file',
+      './engine-private/eth-networks/besu/coinbase',
+    )
+    .action(async (options) => {
+      let privateKey;
+
+      if (options.fromFile) {
+        if (!fs.existsSync(options.fromFile)) {
+          logger.error(`Key file not found: ${options.fromFile}`);
+          process.exit(1);
+        }
+        try {
+          const keyData = fs.readJsonSync(options.fromFile);
+          if (!keyData.privateKey) {
+            logger.error(`Key file does not contain a "privateKey" field: ${options.fromFile}`);
+            process.exit(1);
+          }
+          privateKey = keyData.privateKey;
+          logger.info(`Read private key for address ${keyData.address || '(unknown)'} from ${options.fromFile}`);
+        } catch (e) {
+          logger.error(`Failed to parse key file: ${e.message}`);
+          process.exit(1);
+        }
+      } else if (options.privateKey) {
+        privateKey = options.privateKey;
+      } else {
+        logger.error('Provide either --private-key <hex> or --from-file <path>.');
+        process.exit(1);
+      }
+
+      // Normalise: ensure 0x prefix
+      privateKey = privateKey.trim();
+      if (!privateKey.startsWith('0x')) privateKey = `0x${privateKey}`;
+
+      // Validate the key by deriving the address
+      try {
+        const { ethers } = await import('ethers');
+        const wallet = new ethers.Wallet(privateKey);
+        logger.info(`  Derived address: ${wallet.address}`);
+      } catch (e) {
+        logger.error(`Invalid private key: ${e.message}`);
+        process.exit(1);
+      }
+
+      // Write the coinbase file
+      const coinbasePath = options.coinbasePath;
+      fs.ensureDirSync(nodePath.dirname(coinbasePath));
+      fs.writeFileSync(coinbasePath, privateKey, 'utf8');
+      logger.info(`Coinbase private key written to: ${coinbasePath}`);
+      logger.warn('⚠  Keep this file secure! Anyone with the private key controls the deployer address.');
+      logger.info('hardhat.config.js will read this file automatically for Besu network deployments.');
+    });
+
   // ── balance: Query token balance for an address ─────────────────────────
   chain
     .command('balance')
@@ -1301,10 +1453,16 @@ try {
   // ── batch-register: Register multiple Object Layer items in one tx ──────
   chain
     .command('batch-register')
-    .description('Batch-register multiple Object Layer items on-chain in a single transaction')
+    .description(
+      'Batch-register multiple Object Layer items on-chain in a single transaction.\n' +
+        'When --from-db is set, the canonical CID for every item is resolved from MongoDB\n' +
+        '(fast-json-stable-stringify of objectLayer.data), overriding any "cid" values in the JSON input.',
+    )
     .requiredOption('--items <json>', 'JSON array of items: [{"itemId":"wood","cid":"bafk...","supply":500000}, ...]')
+    .option('--from-db', 'Resolve canonical CIDs from the ObjectLayer MongoDB documents (recommended)')
     .option('--network <network>', 'Hardhat network name', 'besu-ibft2')
     .option('--env-path <envPath>', 'Env path', './.env')
+    .option('--mongo-host <mongoHost>', 'MongoDB host override (used with --from-db)')
     .action(async (options) => {
       if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
 
@@ -1325,6 +1483,49 @@ try {
       }
       const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
       const contractAddress = deployment.address;
+
+      // ── Resolve canonical CIDs when --from-db is set ────────────────
+      if (options.fromDb) {
+        let ObjectLayer, host, path;
+        try {
+          ({ ObjectLayer, host, path } = await connectDbForChain({
+            envPath: options.envPath,
+            mongoHost: options.mongoHost,
+          }));
+        } catch (dbErr) {
+          logger.error(`Failed to connect to database: ${dbErr.message}`);
+          process.exit(1);
+        }
+
+        for (const item of items) {
+          try {
+            const resolved = await resolveCanonicalCid({
+              itemId: item.itemId,
+              ObjectLayer,
+              ipfsClient: IpfsClient,
+              options: { host, path },
+            });
+
+            if (item.cid && item.cid !== resolved.cid) {
+              logger.warn(
+                `Item "${item.itemId}": provided cid "${item.cid}" differs from canonical "${resolved.cid}" (${resolved.source}). Using canonical.`,
+              );
+            }
+
+            item.cid = resolved.cid;
+            logger.info(`  "${item.itemId}" canonical CID (${resolved.source}): ${resolved.cid}`);
+          } catch (resolveErr) {
+            logger.error(`Failed to resolve canonical CID for "${item.itemId}": ${resolveErr.message}`);
+            process.exit(1);
+          }
+        }
+
+        try {
+          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+        } catch (_) {
+          /* ignore close errors */
+        }
+      }
 
       const itemIds = items.map((i) => i.itemId);
       const cids = items.map((i) => i.cid || '');

@@ -818,6 +818,72 @@ export class ObjectLayerEngine {
   }
 
   /**
+   * Resolve the canonical CID for an Object Layer item from the database.
+   *
+   * The canonical CID is the IPFS content identifier of the stable-JSON-serialised
+   * `objectLayer.data` document (produced by `fast-json-stable-stringify`).  This is
+   * the CID that MUST be stored on-chain as the metadata CID so that any party can
+   * independently reproduce the hash from the same semantic payload.
+   *
+   * Resolution order:
+   *   1. If the ObjectLayer document already has a `.cid` field, use it.
+   *   2. Otherwise compute it on-the-fly via `ipfsClient.addJsonToIpfs` (pins the
+   *      data to IPFS as a side-effect) and persist it back to the document.
+   *   3. If IPFS is unreachable, fall back to a local SHA-256 so the caller at
+   *      least gets a content hash (prefixed with `sha256:` to distinguish it
+   *      from a real IPFS CID).
+   *
+   * @static
+   * @param {Object}  params
+   * @param {string}  params.itemId      – human-readable item identifier.
+   * @param {import('mongoose').Model} params.ObjectLayer – Mongoose ObjectLayer model.
+   * @param {Object}  [params.ipfsClient=null] – The IpfsClient module; when `null`, IPFS pinning is skipped and only SHA-256 fallback is returned.
+   * @param {Object}  [params.options]   – `{ host, path }` forwarded to pin helpers.
+   * @returns {Promise<{ cid: string, sha256: string, source: string }>}
+   * @memberof CyberiaObjectLayer
+   */
+  static async resolveCanonicalCid({ itemId, ObjectLayer, ipfsClient = null, options }) {
+    const objectLayer = await ObjectLayer.findOne({ 'data.item.id': itemId });
+    if (!objectLayer) {
+      throw new Error(`ObjectLayer "${itemId}" not found in database`);
+    }
+
+    const sha256 = ObjectLayerEngine.computeSha256(objectLayer.data);
+
+    // 1. Already have a canonical CID persisted
+    if (objectLayer.cid) {
+      return { cid: objectLayer.cid, sha256, source: 'db' };
+    }
+
+    // 2. Try to compute and persist via IPFS
+    if (ipfsClient) {
+      try {
+        const ipfsResult = await ipfsClient.addJsonToIpfs(
+          objectLayer.data,
+          `${itemId}_data.json`,
+          `/object-layer/${itemId}/${itemId}_data.json`,
+        );
+        if (ipfsResult) {
+          objectLayer.cid = ipfsResult.cid;
+          objectLayer.sha256 = sha256;
+          objectLayer.markModified('data');
+          await objectLayer.save();
+          logger.info(`Canonical CID computed and persisted for "${itemId}": ${ipfsResult.cid}`);
+          return { cid: ipfsResult.cid, sha256, source: 'ipfs' };
+        }
+      } catch (err) {
+        logger.warn(`IPFS unreachable while resolving canonical CID for "${itemId}": ${err.message}`);
+      }
+    }
+
+    // 3. Fallback – return a sha256:-prefixed content hash
+    logger.warn(
+      `Using SHA-256 fallback for "${itemId}" (IPFS unavailable). On-chain CID will not resolve via gateway.`,
+    );
+    return { cid: `sha256:${sha256}`, sha256, source: 'sha256-fallback' };
+  }
+
+  /**
    * Internal helper that generates an atlas sprite sheet and then finalizes the SHA-256 / IPFS CID.
    * @static
    * @param {Object} params - Parameters.
@@ -963,3 +1029,10 @@ export const computeAndSaveFinalSha256 = ObjectLayerEngine.computeAndSaveFinalSh
  * @memberof CyberiaObjectLayer
  */
 export const writeStaticFrameAssets = ObjectLayerEngine.writeStaticFrameAssets;
+
+/**
+ * @see {@link ObjectLayerEngine.resolveCanonicalCid}
+ * @function resolveCanonicalCid
+ * @memberof CyberiaObjectLayer
+ */
+export const resolveCanonicalCid = ObjectLayerEngine.resolveCanonicalCid;
