@@ -1,11 +1,17 @@
-// hardhat.config.cjs
+// hardhat.config.js
 // Hardhat configuration for the Cyberia Online Object Layer ERC-1155 ecosystem.
 // Supports deployment to Hyperledger Besu (IBFT2/QBFT) private networks.
 
-require('@nomicfoundation/hardhat-toolbox');
-require('dotenv').config();
-const fs = require('fs-extra');
-const path = require('path');
+import '@nomicfoundation/hardhat-toolbox';
+import dotenv from 'dotenv';
+import fs from 'fs-extra';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Helper: safely read a private key file, falling back to a dummy key for
@@ -34,7 +40,7 @@ const coinbaseKey = readPrivateKey('../engine-private/eth-networks/besu/coinbase
 // ──────────────────────────────────────────────────────────────────────────────
 
 /** @type import('hardhat/config').HardhatUserConfig */
-module.exports = {
+const config = {
   // ── Solidity ────────────────────────────────────────────────────────────────
   solidity: {
     version: '0.8.27',
@@ -104,3 +110,5 @@ module.exports = {
     timeout: 60000,
   },
 };
+
+export default config;

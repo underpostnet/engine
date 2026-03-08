@@ -1,4 +1,11 @@
-const { ethers } = require('hardhat');
+import hre from 'hardhat';
+import fs from 'fs-extra';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const { ethers } = hre;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Deployment script for the ObjectLayerToken (ERC-1155) contract.
@@ -9,7 +16,7 @@ const { ethers } = require('hardhat');
  *   - The initial CryptoKoyn (token ID 0) fungible supply
  *
  * Usage:
- *   npx hardhat run scripts/deployObjectLayerToken.cjs --network besu-ibft2
+ *   npx hardhat run scripts/deployObjectLayerToken.js --network besu-ibft2
  *
  * @module scripts/deployObjectLayerToken
  */
@@ -71,9 +78,6 @@ async function main() {
   console.log('');
 
   // Write deployment artifact to disk for the CLI and server to consume
-  const fs = require('fs-extra');
-  const path = require('path');
-
   const deploymentsDir = path.join(__dirname, '..', 'deployments');
   await fs.ensureDir(deploymentsDir);
 

@@ -1,15 +1,16 @@
 {
   "name": "cyberia-hardhat",
   "version": "1.0.0",
+  "type": "module",
   "description": "Hardhat project for Cyberia Online ObjectLayerToken (ERC-1155) on Hyperledger Besu",
   "private": true,
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:ibft2": "hardhat run scripts/deployObjectLayerToken.cjs --network besu-ibft2",
-    "deploy:qbft": "hardhat run scripts/deployObjectLayerToken.cjs --network besu-qbft",
-    "deploy:k8s": "hardhat run scripts/deployObjectLayerToken.cjs --network besu-k8s",
-    "deploy:local": "hardhat run scripts/deployObjectLayerToken.cjs --network hardhat",
+    "deploy:ibft2": "hardhat run scripts/deployObjectLayerToken.js --network besu-ibft2",
+    "deploy:qbft": "hardhat run scripts/deployObjectLayerToken.js --network besu-qbft",
+    "deploy:k8s": "hardhat run scripts/deployObjectLayerToken.js --network besu-k8s",
+    "deploy:local": "hardhat run scripts/deployObjectLayerToken.js --network hardhat",
     "clean": "hardhat clean"
   },
   "devDependencies": {

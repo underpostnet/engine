@@ -839,7 +839,7 @@ try {
     .action(async (options) => {
       const network = options.network || 'besu-ibft2';
       logger.info(`Deploying ObjectLayerToken to network: ${network}`);
-      shellExec(`cd hardhat && npx hardhat run scripts/deployObjectLayerToken.cjs --network ${network}`);
+      shellExec(`cd hardhat && npx hardhat run scripts/deployObjectLayerToken.js --network ${network}`);
       logger.info('Contract deployment complete. Check hardhat/deployments/ for the artifact.');
     });
 
@@ -886,7 +886,8 @@ try {
 
       // Use a Hardhat script via inline JS to call registerObjectLayer
       const registerScript = `
-        const { ethers } = require('hardhat');
+        import hre from 'hardhat';
+        const { ethers } = hre;
         async function main() {
           const [deployer] = await ethers.getSigners();
           const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
@@ -904,10 +905,10 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_register_tmp.cjs';
+      const tmpScript = './hardhat/scripts/_cli_register_tmp.js';
       fs.writeFileSync(tmpScript, registerScript, 'utf8');
       try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_register_tmp.cjs --network ${options.network}`);
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_register_tmp.js --network ${options.network}`);
       } finally {
         fs.removeSync(tmpScript);
       }
@@ -936,7 +937,8 @@ try {
       logger.info(`Minting ${options.amount} of token ID ${options.tokenId} to ${options.to}`);
 
       const mintScript = `
-        const { ethers } = require('hardhat');
+        import hre from 'hardhat';
+        const { ethers } = hre;
         async function main() {
           const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
           const tx = await token.mint('${options.to}', ${options.tokenId}, ${options.amount}, '0x');
@@ -947,10 +949,10 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_mint_tmp.cjs';
+      const tmpScript = './hardhat/scripts/_cli_mint_tmp.js';
       fs.writeFileSync(tmpScript, mintScript, 'utf8');
       try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_mint_tmp.cjs --network ${options.network}`);
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_mint_tmp.js --network ${options.network}`);
       } finally {
         fs.removeSync(tmpScript);
       }
@@ -971,7 +973,9 @@ try {
 
       // Check node connectivity
       const statusScript = `
-        const { ethers } = require('hardhat');
+        import hre from 'hardhat';
+        import { readFileSync } from 'fs';
+        const { ethers } = hre;
         async function main() {
           const provider = ethers.provider;
           const network = await provider.getNetwork();
@@ -989,7 +993,7 @@ try {
           ${
             fs.existsSync(artifactPath)
               ? `
-          const deployment = require('${nodePath.resolve(artifactPath)}');
+          const deployment = JSON.parse(readFileSync('${nodePath.resolve(artifactPath)}', 'utf8'));
           try {
             const token = await ethers.getContractAt('ObjectLayerToken', deployment.address);
             const cryptokoynSupply = await token.totalSupply(0);
@@ -1009,10 +1013,10 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_status_tmp.cjs';
+      const tmpScript = './hardhat/scripts/_cli_status_tmp.js';
       fs.writeFileSync(tmpScript, statusScript, 'utf8');
       try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_status_tmp.cjs --network ${options.network}`);
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_status_tmp.js --network ${options.network}`);
       } finally {
         fs.removeSync(tmpScript);
       }
@@ -1032,7 +1036,8 @@ try {
       const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
 
       const pauseScript = `
-        const { ethers } = require('hardhat');
+        import hre from 'hardhat';
+        const { ethers } = hre;
         async function main() {
           const token = await ethers.getContractAt('ObjectLayerToken', '${deployment.address}');
           const tx = await token.pause();
@@ -1041,10 +1046,10 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_pause_tmp.cjs';
+      const tmpScript = './hardhat/scripts/_cli_pause_tmp.js';
       fs.writeFileSync(tmpScript, pauseScript, 'utf8');
       try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_pause_tmp.cjs --network ${options.network}`);
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_pause_tmp.js --network ${options.network}`);
       } finally {
         fs.removeSync(tmpScript);
       }
@@ -1064,7 +1069,8 @@ try {
       const deployment = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
 
       const unpauseScript = `
-        const { ethers } = require('hardhat');
+        import hre from 'hardhat';
+        const { ethers } = hre;
         async function main() {
           const token = await ethers.getContractAt('ObjectLayerToken', '${deployment.address}');
           const tx = await token.unpause();
@@ -1073,10 +1079,10 @@ try {
         }
         main().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
       `;
-      const tmpScript = './hardhat/scripts/_cli_unpause_tmp.cjs';
+      const tmpScript = './hardhat/scripts/_cli_unpause_tmp.js';
       fs.writeFileSync(tmpScript, unpauseScript, 'utf8');
       try {
-        shellExec(`cd hardhat && npx hardhat run scripts/_cli_unpause_tmp.cjs --network ${options.network}`);
+        shellExec(`cd hardhat && npx hardhat run scripts/_cli_unpause_tmp.js --network ${options.network}`);
       } finally {
         fs.removeSync(tmpScript);
       }
