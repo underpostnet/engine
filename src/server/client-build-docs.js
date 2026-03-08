@@ -59,6 +59,10 @@ const buildApiDocs = async ({
         name: 'user',
         description: 'User API operations',
       },
+      {
+        name: 'object-layer',
+        description: 'Object Layer API operations',
+      },
     ],
     components: {
       schemas: {
@@ -150,6 +154,70 @@ const buildApiDocs = async ({
           },
         },
       },
+      objectLayerResponse: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', example: 'success' },
+          data: {
+            type: 'object',
+            properties: {
+              _id: { type: 'string', example: '66c377f57f99e5969b81de89' },
+              data: {
+                type: 'object',
+                properties: {
+                  stats: {
+                    type: 'object',
+                    properties: {
+                      effect: { type: 'number', example: 0 },
+                      resistance: { type: 'number', example: 0 },
+                      agility: { type: 'number', example: 0 },
+                      range: { type: 'number', example: 0 },
+                      intelligence: { type: 'number', example: 0 },
+                      utility: { type: 'number', example: 0 },
+                    },
+                  },
+                  item: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string', example: 'skin-default' },
+                      type: { type: 'string', example: 'skin' },
+                      description: { type: 'string', example: 'Default skin layer' },
+                      activable: { type: 'boolean', example: false },
+                    },
+                  },
+                  ledger: {
+                    type: 'object',
+                    properties: {
+                      type: { type: 'string', example: 'semi-fungible' },
+                      address: { type: 'string', example: '0x0000000000000000000000000000000000000000' },
+                      tokenId: { type: 'string', example: '' },
+                    },
+                  },
+                  render: {
+                    type: 'object',
+                    properties: {
+                      cid: { type: 'string', example: '' },
+                      metadataCid: { type: 'string', example: '' },
+                    },
+                  },
+                },
+              },
+              cid: { type: 'string', example: '' },
+              sha256: { type: 'string', example: 'abc123def456...' },
+            },
+          },
+        },
+      },
+      objectLayerBadRequestResponse: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', example: 'error' },
+          message: {
+            type: 'string',
+            example: 'Bad request. Please check your inputs, and try again',
+          },
+        },
+      },
       securitySchemes: {
         bearerAuth: {
           type: 'http',
@@ -221,7 +289,7 @@ const buildApiDocs = async ({
     const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
     const routes = [];
     for (const api of apis) {
-      if (['user'].includes(api)) routes.push(`./src/api/${api}/${api}.router.js`);
+      if (['user', 'object-layer'].includes(api)) routes.push(`./src/api/${api}/${api}.router.js`);
     }
 
     await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
@@ -322,7 +390,27 @@ const buildJsDocs = async ({ host, path, metadata = {}, publicClientId }) => {
   jsDocsConfig.opts.theme_opts.favicon = `./public/${host}${path === '/' ? '/' : `${path}/`}favicon.ico`;
 
   const tutorialsPath = `./src/client/public/${publicClientId}/docs/references`;
-  if (fs.existsSync(tutorialsPath)) {
+
+  // Auto-prepare hardhat references when jsdoc config includes hardhat source files
+  const includesHardhat =
+    jsDocsConfig.source &&
+    Array.isArray(jsDocsConfig.source.include) &&
+    jsDocsConfig.source.include.some((p) => p.includes('hardhat/'));
+  if (includesHardhat && fs.existsSync(`./hardhat`)) {
+    fs.mkdirSync(tutorialsPath, { recursive: true });
+    const hardhatReadmePath = `./hardhat/README.md`;
+    const hardhatWhitePaperPath = `./hardhat/WHITE-PAPER.md`;
+    if (fs.existsSync(hardhatReadmePath)) {
+      fs.copySync(hardhatReadmePath, `${tutorialsPath}/Hardhat Module.md`);
+      logger.info('copied hardhat README.md to tutorials references');
+    }
+    if (fs.existsSync(hardhatWhitePaperPath)) {
+      fs.copySync(hardhatWhitePaperPath, `${tutorialsPath}/White Paper.md`);
+      logger.info('copied hardhat WHITE-PAPER.md to tutorials references');
+    }
+  }
+
+  if (fs.existsSync(tutorialsPath) && fs.readdirSync(tutorialsPath).length > 0) {
     jsDocsConfig.opts.tutorials = tutorialsPath;
     if (jsDocsConfig.opts.theme_opts.sections && !jsDocsConfig.opts.theme_opts.sections.includes('Tutorials')) {
       jsDocsConfig.opts.theme_opts.sections.push('Tutorials');

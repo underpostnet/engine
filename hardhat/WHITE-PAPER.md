@@ -121,7 +121,7 @@ The reference implementation deploys the `ObjectLayerToken` contract on a Hyperl
 
 ### 2. Introduction
 
-<a name="header-2.1"/>
+<a name="header-2.1"></a>
 
 #### 2.1 Problem Statement: The Ethereum Ecosystem and the Absence of Semantic Interoperability
 
@@ -150,7 +150,7 @@ This creates several cascading failures across the Ethereum ecosystem:
 - **Opacity and manipulation.** Centralized game operators unilaterally control in-game economies — adjusting drop rates, devaluing items, or introducing pay-to-win mechanics without accountability or transparency.
 - **Security risks.** Centralized servers concentrate attack surface. A single breach can compromise the entire player economy.
 
-<a name="header-2.2"/>
+<a name="header-2.2"></a>
 
 #### 2.2 Solution: The Object Layer Protocol and Ethereum-Native Identity
 
@@ -191,7 +191,7 @@ All three domains share the same Besu blockchain, the same MongoDB off-chain sto
 
 ### 3. Ethereum Identity and Authentication
 
-<a name="header-3.1"/>
+<a name="header-3.1"></a>
 
 #### 3.1 secp256k1 Key Pairs as Universal Identity
 
@@ -212,7 +212,7 @@ In the Object Layer Protocol, this single key pair serves as the **universal ide
 
 This eliminates the key management fragmentation described in the problem statement. Players generate one key, store it in a standard Ethereum wallet (MetaMask, hardware wallet, or the game's built-in key manager), and use it everywhere.
 
-<a name="header-3.2"/>
+<a name="header-3.2"></a>
 
 #### 3.2 EIP-712 Signed Claims and Gasless Authentication
 
@@ -267,7 +267,7 @@ The wallet signs this structured data, producing a 65-byte `(v, r, s)` ECDSA sig
 - **Replay-proof.** The domain separator binds the signature to a specific contract, chain, and protocol version.
 - **Typed.** The structured hash prevents ambiguity in how the signed data is encoded.
 
-<a name="header-3.3"/>
+<a name="header-3.3"></a>
 
 #### 3.3 Authentication Flow: Key → Claim → Verify → Mint → Own
 
@@ -320,7 +320,7 @@ This architecture means:
 
 ### 4. The Object Layer Protocol
 
-<a name="header-4.1"/>
+<a name="header-4.1"></a>
 
 #### 4.1 Semantic Interoperability Through Stackable Layers
 
@@ -353,7 +353,7 @@ This is what we mean by **semantic interoperability**: any system that understan
 
 **Stackability is literal.** The client renderer composes layers by drawing lower layers first (skin) then higher layers (weapon), respecting transparency and z-order. This makes layering developer-friendly (simple stack semantics) and operable (many layers per entity). An entity with 10 layers simply has 10 independently addressable, independently ownable, independently renderable semantic units stacked in z-order.
 
-<a name="header-4.2"/>
+<a name="header-4.2"></a>
 
 #### 4.2 Four Realities of an Object Layer
 
@@ -375,7 +375,7 @@ These four realities are **constitutive**, not decorative. They define what the 
 
 The protocol requires all four realities to be present for an Object Layer to be considered complete and interoperable.
 
-<a name="header-4.3"/>
+<a name="header-4.3"></a>
 
 #### 4.3 AtomicPrefab and Layer-First Rendering
 
@@ -404,7 +404,7 @@ AtomicPrefab = {
 4. **Simulate** using `data.stats` for game mechanics.
 5. **Display** using `data.item` for UX tooltips, inventory screens, and interaction prompts.
 
-<a name="header-4.4"/>
+<a name="header-4.4"></a>
 
 #### 4.4 Canonical Object Layer Schema
 
@@ -462,7 +462,7 @@ AtomicPrefab = {
 | `"ERC1155"` (supply = 1) | itemledger.com | Non-fungible unique item | Legendary weapon |
 | `"OFF_CHAIN"` | cyberiaonline.com | Pre-incubation item | Newly dropped loot |
 
-<a name="header-4.5"/>
+<a name="header-4.5"></a>
 
 #### 4.5 Composability: Entities as Layer Stacks
 
@@ -497,7 +497,7 @@ This composability is what makes the Object Layer Protocol a **semantic interope
 
 ### 5. Service Architecture
 
-<a name="header-5.1"/>
+<a name="header-5.1"></a>
 
 #### 5.1 Three-Domain Topology
 
@@ -558,7 +558,7 @@ graph TD
 
 All three services are configured in the Underpost deployment manifest (`conf.dd-cyberia.js`) and share the same API service modules: `core`, `file`, `user`, `crypto`, `document`, `instance`, `object-layer`, `object-layer-render-frames`, `atlas-sprite-sheet`, and `ipfs`.
 
-<a name="header-5.2"/>
+<a name="header-5.2"></a>
 
 #### 5.2 cryptokoyn.net — Financial Portal and CKY Token Hub
 
@@ -611,7 +611,7 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked) + 0.5 × (Staking Duration /
 }
 ```
 
-<a name="header-5.3"/>
+<a name="header-5.3"></a>
 
 #### 5.3 itemledger.com — Object Layer Registry and Metadata Indexer
 
@@ -668,7 +668,7 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked) + 0.5 × (Staking Duration /
 }
 ```
 
-<a name="header-5.4"/>
+<a name="header-5.4"></a>
 
 #### 5.4 cyberiaonline.com — Game Runtime and Player Portal
 
@@ -707,7 +707,7 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked) + 0.5 × (Staking Duration /
 
 ### 6. Technology Stack
 
-<a name="header-6.1"/>
+<a name="header-6.1"></a>
 
 #### 6.1 Hyperledger Besu
 
@@ -721,7 +721,7 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked) + 0.5 × (Staking Duration /
 
 <a href='https://besu.hyperledger.org/' target='_top'>See official Hyperledger Besu documentation.</a>
 
-<a name="header-6.2"/>
+<a name="header-6.2"></a>
 
 #### 6.2 Hardhat
 
@@ -734,7 +734,7 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked) + 0.5 × (Staking Duration /
 
 <a href='https://hardhat.org/docs' target='_top'>See official Hardhat documentation.</a>
 
-<a name="header-6.3"/>
+<a name="header-6.3"></a>
 
 #### 6.3 OpenZeppelin ERC-1155 Contracts
 
@@ -751,7 +751,7 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked) + 0.5 × (Staking Duration /
 
 <a href='https://docs.openzeppelin.com/contracts/5.x/erc1155' target='_top'>See official OpenZeppelin ERC-1155 documentation.</a>
 
-<a name="header-6.4"/>
+<a name="header-6.4"></a>
 
 #### 6.4 MongoDB Schemas
 
@@ -772,7 +772,7 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked) + 0.5 × (Staking Duration /
 
 <a href='https://www.mongodb.com/docs/' target='_top'>See official MongoDB documentation.</a>
 
-<a name="header-6.5"/>
+<a name="header-6.5"></a>
 
 #### 6.5 IPFS Storage
 
@@ -792,7 +792,7 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked) + 0.5 × (Staking Duration /
 
 ### 7. Tokenomics
 
-<a name="header-7.1"/>
+<a name="header-7.1"></a>
 
 #### 7.1 ObjectLayerToken: Unified Multi-Token Contract
 
@@ -997,7 +997,7 @@ This Solidity smart contract implements the ERC-1155 multi-token standard as the
 - **Deterministic token IDs** from `keccak256` enable off-chain → on-chain mapping without a registry lookup.
 - **IPFS metadata integration** via per-token CIDs links each on-chain token to its Object Layer atlas sprite sheet (resolved by itemledger.com). Metadata CIDs can be updated post-deployment via `setTokenMetadataCID`.
 
-<a name="header-7.2"/>
+<a name="header-7.2"></a>
 
 #### 7.2 Token Classification: Fungible, Semi-Fungible, and Non-Fungible
 
@@ -1014,7 +1014,7 @@ The ERC-1155 standard treats all token IDs uniformly. The distinction between fu
 - **Semi-fungible:** Moderate supply, stackable but each unit is interchangeable (e.g., wood, stone). Managed by **itemledger.com**.
 - **Non-fungible:** Supply of exactly 1, making it unique and non-interchangeable (e.g., legendary weapons). Managed by **itemledger.com**.
 
-<a name="header-7.3"/>
+<a name="header-7.3"></a>
 
 #### 7.3 Token Distribution and Allocation
 
@@ -1054,7 +1054,7 @@ Vote Weight = 0.5 × (Amount Staked / Total Staked Amount) + 0.5 × (Staking Dur
 - **Earned In-Game Items:** Must undergo an incubation period before the server registers them on-chain via `registerObjectLayer`. During incubation, items carry `ledger.type: "OFF_CHAIN"` in MongoDB.
 - **Crafted Items:** Farm, dropped, craft, and default items must undergo an incubation period and a CryptoKoyn minting fee before on-chain registration. Upon registration, itemledger.com indexes the new Object Layer.
 
-<a name="header-7.4"/>
+<a name="header-7.4"></a>
 
 #### 7.4 Governance and Circulation
 
@@ -1158,7 +1158,7 @@ class Airdrop-Mint H1;
 
 ### 8. Blockchain Network and Deployment
 
-<a name="header-8.1"/>
+<a name="header-8.1"></a>
 
 #### 8.1 Hyperledger Besu IBFT2/QBFT Consensus
 
@@ -1193,7 +1193,7 @@ The ObjectLayerToken is deployed on a **Hyperledger Besu** private network using
 - **Fast block times:** 2-5 second block periods provide near-real-time transaction confirmation for game interactions.
 - **secp256k1 compatibility:** All Besu accounts use the same elliptic curve as mainnet Ethereum, so player key pairs work identically on both networks (enabling future bridging).
 
-<a name="header-8.2"/>
+<a name="header-8.2"></a>
 
 #### 8.2 Kubernetes Deployment Architecture (kubeadm)
 
@@ -1286,7 +1286,7 @@ The `UnderpostCluster` module (`src/cli/cluster.js`) handles the complete lifecy
 - **`--kubeadm`**: Runs `kubeadm init`, installs Calico CNI, untaints control plane, installs local-path-provisioner.
 - **`--reset`**: Executes `kubeadm reset --force`, cleans filesystem artifacts, restores SELinux contexts, purges container storage.
 
-<a name="header-8.3"/>
+<a name="header-8.3"></a>
 
 #### 8.3 Hardhat Deployment Workflow
 
@@ -1399,7 +1399,7 @@ cyberia chain unpause
 
 ### 9. On-Chain Lifecycle and Game Mechanics
 
-<a name="header-9.1"/>
+<a name="header-9.1"></a>
 
 #### 9.1 On-Chain Lifecycle: Register → Mint → Transfer → Burn
 
@@ -1453,7 +1453,7 @@ sequenceDiagram
 - `TransferBatch(operator, from, to, ids, values)` — Batch token transfer.
 - `MetadataUpdated(tokenId, metadataCid)` — Item metadata updated.
 
-<a name="header-9.2"/>
+<a name="header-9.2"></a>
 
 #### 9.2 Decentralized Player Progression
 
@@ -1467,7 +1467,7 @@ This means a player's character — including all equipped layers (skin, weapon,
 
 Because identity is a single secp256k1 key pair, a player can verify their inventory from any Ethereum-compatible tool, wallet, or block explorer — even if the game servers are offline.
 
-<a name="header-9.3"/>
+<a name="header-9.3"></a>
 
 #### 9.3 Item Crafting, Trading, and Incubation
 
@@ -1480,7 +1480,7 @@ Because identity is a single secp256k1 key pair, a player can verify their inven
 
 ### 10. Security and Transparency
 
-<a name="header-10.1"/>
+<a name="header-10.1"></a>
 
 #### 10.1 Blockchain Security Measures
 
@@ -1493,7 +1493,7 @@ Because identity is a single secp256k1 key pair, a player can verify their inven
 - **IPFS Content Addressing:** Asset integrity is guaranteed by content-addressed CIDs — any modification changes the hash.
 - **Semantic Integrity:** The four-reality binding ensures that no single dimension of an Object Layer can be tampered with independently — the `sha256` hash covers the complete AtomicPrefab.
 
-<a name="header-10.2"/>
+<a name="header-10.2"></a>
 
 #### 10.2 Smart Contract Audits
 

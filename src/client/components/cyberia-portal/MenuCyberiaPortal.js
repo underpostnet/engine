@@ -479,6 +479,10 @@ const MenuCyberiaPortal = {
         html: async () =>
           await Docs.Init({
             idModal: 'modal-docs',
+            subMenuIcon: (type) =>
+              html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/arrow-right.png" />`,
+            coverageUrl: () => `${getProxyPath()}docs/hardhat-coverage`,
+            demoUrl: () => `https://client.cyberiaonline.com/`,
           }),
         handleType: 'bar',
         observer: true,

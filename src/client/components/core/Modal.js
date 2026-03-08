@@ -2424,9 +2424,10 @@ const Modal = {
   },
 };
 
-const renderMenuLabel = ({ img, text, icon }) => {
-  if (!img) return html`<span class="inl menu-btn-icon">${icon}</span> ${text}`;
-  return html`<img class="abs center img-btn-square-menu" src="${getProxyPath()}assets/ui-icons/${img}" />
+const renderMenuLabel = ({ img, src, text, icon }) => {
+  if (!img && !src) return html`<span class="inl menu-btn-icon">${icon}</span> ${text}`;
+  const imgSrc = src ? src : `${getProxyPath()}assets/ui-icons/${img}`;
+  return html`<img class="abs center img-btn-square-menu" src="${imgSrc}" />
     <div class="abs center main-btn-menu-text">${text}</div>`;
 };
 

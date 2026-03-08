@@ -9,7 +9,7 @@
  * This eliminates hardcoded keys/hashes in manifests/besu/ and ensures every
  * new deployment gets a clean, unique chain identity.
  *
- * @module src/server/besu-genesis-generator
+ * @module src/server/besu-genesis-generator.js
  * @namespace BesuGenesisGenerator
  */
 

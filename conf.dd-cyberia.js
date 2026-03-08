@@ -195,6 +195,7 @@ const DefaultConf = /**/ {
           'RichText',
           'Panel',
           'Content',
+          'Docs',
           'WebComponent',
         ],
         'cyberia-portal': [
@@ -226,6 +227,7 @@ const DefaultConf = /**/ {
         { path: '/object-layer-engine-management', client: 'CyberiaPortal', ssr: 'CyberiaPortal' },
         { path: '/object-layer-engine-viewer', client: 'CyberiaPortal', ssr: 'CyberiaPortal' },
         { path: '/cyberia-map-engine', client: 'CyberiaPortal', ssr: 'CyberiaPortal' },
+        { path: '/docs', client: 'CyberiaPortal', ssr: 'CyberiaPortal' },
       ],
       dists: [
         {
@@ -629,7 +631,7 @@ const DefaultConf = /**/ {
         ],
         minifyBuild: false,
         liteBuild: true,
-        docsBuild: false,
+        docsBuild: true,
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
         valkey: { port: 6379, host: '127.0.0.1' },

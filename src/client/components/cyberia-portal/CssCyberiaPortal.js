@@ -63,19 +63,61 @@ const CssCommonCyberia = async () => {
         text-align: center;
       }
 
-      .landing-title,
       h1,
       h2,
       h3 {
         font-family: var(--cy-font-retro-cta);
+      }
+
+      p {
+        font-family: var(--cy-font-retro);
+      }
+
+      .landing-title,
+      .html-main-body h1,
+      .html-main-body h2,
+      .html-main-body h3 {
         font-size: 5rem;
         color: #ffcc00;
         text-shadow: 2px 2px 0px #9e7b00;
         margin-bottom: 2rem;
       }
 
-      p {
+      /* Docs section retro styling */
+      .docs-header h1 {
+        font-family: var(--cy-font-retro-cta);
+        color: #ffcc00;
+        text-shadow: 2px 2px 0px #9e7b00;
+      }
+      .docs-card {
+        border: 2px solid #ffcc00;
+        transition: all 0.3s ease-in-out;
+      }
+      .docs-card:hover {
+        background: rgba(255, 204, 0, 0.08);
+        box-shadow:
+          0 0 10px rgba(255, 204, 0, 0.3),
+          0 0 20px rgba(255, 204, 0, 0.15);
+        transform: translateY(-3px);
+      }
+      .card-icon {
+        color: #ffcc00;
+      }
+      .card-content h3 {
+        font-family: var(--cy-font-retro-cta);
+        font-size: 1.25rem;
+      }
+      .card-content p {
         font-family: var(--cy-font-retro);
+      }
+      .submenu-btn {
+        font-family: var(--cy-font-retro);
+      }
+      .submenu-btn:hover {
+        background: rgba(255, 204, 0, 0.1);
+      }
+      .down-arrow-submenu {
+        left: 102px;
       }
 
       .object-layer-viewer-container {

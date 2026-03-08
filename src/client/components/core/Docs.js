@@ -12,6 +12,10 @@ const Docs = {
     const docData = this.Data.find((d) => d.type === type);
     const ModalId = `modal-docs-${docData.type}`;
     const { barConfig } = await Themes[Css.currentTheme]();
+    const parentBarMode =
+      Modal.Data['modal-docs'] && Modal.Data['modal-docs'].options.barMode
+        ? Modal.Data['modal-docs'].options.barMode
+        : undefined;
 
     await Modal.Render({
       barConfig,
@@ -34,7 +38,7 @@ const Docs = {
       route: 'docs',
       slideMenu: 'modal-menu',
       observer: true,
-      barMode: 'top-bottom-bar',
+      barMode: parentBarMode,
       query: true,
       RouterInstance: Modal.Data['modal-docs'].options.RouterInstance,
     });
@@ -180,6 +184,8 @@ const Docs = {
       </svg>`,
       text: html`Demo`,
       url: function () {
+        const tokenOpts = Docs.Tokens['modal-docs'];
+        if (tokenOpts && tokenOpts.demoUrl) return tokenOpts.demoUrl();
         return `https://underpostnet.github.io/pwa-microservices-template-ghpkg/`;
       },
     },
@@ -204,6 +210,8 @@ const Docs = {
       icon: html`<img height="20" width="20" class="doc-icon-coverage" />`,
       text: `Coverage report`,
       url: function () {
+        const tokenOpts = Docs.Tokens['modal-docs'];
+        if (tokenOpts && tokenOpts.coverageUrl) return tokenOpts.coverageUrl();
         return `${getProxyPath()}docs/coverage`;
       },
       themeEvent: () => {
@@ -223,7 +231,7 @@ const Docs = {
     },
   ],
   Tokens: {},
-  Init: async function (options) {
+  Init: async function (options = {}) {
     const { idModal } = options;
     this.Tokens[idModal] = options;
     setTimeout(() => {
@@ -284,10 +292,14 @@ const Docs = {
           break;
       }
       tabHref = docData.url();
+      const subMenuIcon =
+        options.subMenuIcon && typeof options.subMenuIcon === 'function'
+          ? options.subMenuIcon(docData.type)
+          : docData.icon;
       docMenuRender += html`
         ${await BtnIcon.Render({
           class: `in wfa main-btn-menu submenu-btn btn-docs btn-docs-${docData.type}`,
-          label: html`<span class="inl menu-btn-icon">${docData.icon}</span
+          label: html`<span class="inl menu-btn-icon">${subMenuIcon}</span
             ><span class="menu-label-text menu-label-text-docs"> ${docData.text} </span>`,
           tabHref,
           tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption(docData.text, 'right')),
@@ -447,7 +459,10 @@ const Docs = {
                   if (s(`.docs-card-container-${item.id}`)) {
                     s(`.docs-card-container-${item.id}`).onclick = () => {
                       if (item.id.match('demo')) {
-                        location.href = 'https://underpostnet.github.io/pwa-microservices-template-ghpkg/';
+                        const demoData = Docs.Data.find((d) => d.type === 'demo');
+                        location.href = demoData
+                          ? demoData.url()
+                          : 'https://underpostnet.github.io/pwa-microservices-template-ghpkg/';
                       } else if (item.id.match('api')) {
                         if (s(`.btn-docs-api`)) s(`.btn-docs-api`).click();
                       } else {
