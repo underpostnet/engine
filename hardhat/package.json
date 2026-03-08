@@ -35,7 +35,7 @@
     "typechain": "~8.3.2"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "~5.4.0",
+    "@openzeppelin/contracts": "~5.6.1",
     "dotenv": "~16.6.1",
     "fs-extra": "~11.3.4"
   },
