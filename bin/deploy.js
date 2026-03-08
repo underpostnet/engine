@@ -1036,7 +1036,8 @@ nvidia/gpu-operator \
         const ver = hardhatDeps[dep];
         shellExec(`npm install ${dep}@${ver}`);
       }
-      shellExec(`cd ./hardhat && npm install`);
+      shellExec(`cd ./hardhat && npm install --include=dev`);
+      break;
     }
 
     case 'cyberia-docs': {
@@ -1051,7 +1052,7 @@ nvidia/gpu-operator \
       if (fs.existsSync(`./hardhat/package.json`)) {
         logger.info('generating hardhat coverage report for cyberia docs');
         try {
-          shellExec(`cd ./hardhat && npx hardhat coverage`);
+          shellExec(`cd ./hardhat && NODE_ENV=development npx hardhat coverage`);
         } catch (e) {
           logger.warn('hardhat coverage generation failed, continuing', e.message);
         }
