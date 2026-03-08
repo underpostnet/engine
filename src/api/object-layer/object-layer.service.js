@@ -669,7 +669,7 @@ const ObjectLayerService = {
     }
 
     // PUT /:id - Standard update
-    let updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    let updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
 
     if (updatedObjectLayer) {
       // Generate atlas sprite sheet – this sets data.render.cid and saves

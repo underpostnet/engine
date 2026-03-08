@@ -33,7 +33,7 @@ const CompanyService = {
       File,
     });
 
-    return await Company.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    return await Company.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
   },
   delete: async (req, res, options) => {
     /** @type {import('./company.model.js').CompanyModel} */

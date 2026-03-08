@@ -118,11 +118,10 @@ AtlasSpriteSheetSchema.index({ 'metadata.itemKey': 1 }, { unique: true });
 AtlasSpriteSheetSchema.index({ fileId: 1 });
 
 // Pre-save validation
-AtlasSpriteSheetSchema.pre('save', function (next) {
+AtlasSpriteSheetSchema.pre('save', function () {
   if (!this.fileId || !this.metadata) {
     throw new Error('AtlasSpriteSheet missing required fields: fileId or metadata');
   }
-  next();
 });
 
 const AtlasSpriteSheetModel = model('AtlasSpriteSheet', AtlasSpriteSheetSchema);

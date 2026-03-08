@@ -389,7 +389,11 @@ async function createSessionAndUserToken(user, User, req, res, options = { host:
   };
 
   // push session
-  const updatedUser = await User.findByIdAndUpdate(user._id, { $push: { activeSessions: newSession } }, { new: true });
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    { $push: { activeSessions: newSession } },
+    { returnDocument: 'after' },
+  );
   const session = updatedUser.activeSessions[updatedUser.activeSessions.length - 1];
   const jwtid = session._id.toString();
 

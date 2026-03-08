@@ -497,7 +497,7 @@ const DocumentService = {
         req.body.isPublic = isPublic;
         req.body.tags = tags;
 
-        return await Document.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        return await Document.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
       }
     }
   },

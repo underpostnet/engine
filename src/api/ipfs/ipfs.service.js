@@ -24,7 +24,7 @@ const createPinRecord = async ({ cid, userId, options }) => {
   const record = await Ipfs.findOneAndUpdate(
     { cid, userId },
     { cid, userId },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
 
   logger.info(`IPFS pin record upserted – CID: ${cid}, userId: ${userId}`);
@@ -107,7 +107,7 @@ const IpfsService = {
   put: async (req, res, options) => {
     /** @type {import('./ipfs.model.js').IpfsModel} */
     const Ipfs = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Ipfs;
-    return await Ipfs.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    return await Ipfs.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
   },
 
   delete: async (req, res, options) => {

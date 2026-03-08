@@ -679,7 +679,7 @@ export class ObjectLayerEngine {
     if (existingObjectLayer) {
       logger.info(`ObjectLayer with sha256 ${objectLayerData.sha256} already exists, updating...`);
       objectLayer = await ObjectLayer.findByIdAndUpdate(existingObjectLayer._id, objectLayerData, {
-        new: true,
+        returnDocument: 'after',
       }).populate('objectLayerRenderFramesId');
     } else {
       objectLayer = await (await ObjectLayer.create(objectLayerData)).populate('objectLayerRenderFramesId');
@@ -731,7 +731,7 @@ export class ObjectLayerEngine {
       objectLayerRenderFramesDoc = await ObjectLayerRenderFrames.findByIdAndUpdate(
         existingObjectLayer.objectLayerRenderFramesId,
         objectLayerRenderFramesData,
-        { new: true },
+        { returnDocument: 'after' },
       );
       objectLayerData.objectLayerRenderFramesId = existingObjectLayer.objectLayerRenderFramesId;
     } else {
@@ -748,7 +748,7 @@ export class ObjectLayerEngine {
     let objectLayer;
     try {
       objectLayer = await ObjectLayer.findByIdAndUpdate(objectLayerId, objectLayerData, {
-        new: true,
+        returnDocument: 'after',
       }).populate('objectLayerRenderFramesId');
       if (!objectLayer) {
         throw new Error('ObjectLayer not found for update');
