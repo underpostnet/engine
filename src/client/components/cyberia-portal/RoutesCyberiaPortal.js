@@ -45,6 +45,7 @@ const RoutesCyberiaPortal = () => {
       title: 'cyberia-map-engine',
       render: () => s(`.main-btn-cyberia-map-engine`).click(),
     },
+    '/docs': { title: 'docs', render: () => s(`.main-btn-docs`).click() },
   };
 };
 

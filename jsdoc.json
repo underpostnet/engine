@@ -1,52 +1,71 @@
 {
-  "tags": {
-    "allowUnknownTags": true,
-    "dictionaries": ["jsdoc"]
-  },
-  "source": {
-    "include": ["./src", "./package.json", "./README.md", "./CHANGELOG.md"],
-    "includePattern": ".js$",
-    "excludePattern": "(node_modules/|/docs/)"
-  },
-  "plugins": ["plugins/markdown", "plugins/summarize", "plugins/shout"],
-  "opts": {
-    "template": "node_modules/clean-jsdoc-theme",
-    "readme": "./README.md",
-    "recurse": true,
-    "destination": "./public/www.nexodev.org/docs/",
-    "tutorials": "./src/client/public/nexodev/docs/references",
-    "encoding": "utf8",
-    "verbose": true,
-    "theme_opts": {
-      "default_theme": "light",
-      "search": true,
-      "title": "Nexodev - ERP, CRM Development & Cloud DevOps Services",
-      "homepageTitle": "Docs",
-      "favicon": "./public/www.nexodev.org/",
-      "displayModuleHeader": true,
-      "includeFilesListInHomepage": true,
-      "sections": ["Namespaces", "Tutorials"],
-      "meta": [
-        {
-          "name": "author",
-          "content": "Nexodev - underpostnet"
-        },
-        {
-          "name": "description",
-          "content": "Underpost Engine - End2end CI/CD cloud to applications federation tools documentation"
-        },
-        {
-          "name": "keywords",
-          "content": "underpost, engine, erp, crm, devops, cloud, kubernetes, documentation, jsdoc"
+    "tags": {
+        "allowUnknownTags": true,
+        "dictionaries": [
+            "jsdoc"
+        ]
+    },
+    "source": {
+        "include": [
+            "./src",
+            "./hardhat/contracts",
+            "./hardhat/scripts",
+            "./hardhat/test",
+            "./hardhat/hardhat.config.js",
+            "./package.json",
+            "./README.md",
+            "./CHANGELOG.md",
+            "./hardhat/README.md",
+            "./hardhat/WHITE-PAPER.md"
+        ],
+        "includePattern": "\\.(js|sol)$",
+        "excludePattern": "(node_modules/|/docs/|hardhat/node_modules/|hardhat/cache/|hardhat/artifacts/|hardhat/coverage/)"
+    },
+    "plugins": [
+        "plugins/markdown",
+        "plugins/summarize",
+        "plugins/shout"
+    ],
+    "opts": {
+        "template": "node_modules/clean-jsdoc-theme",
+        "readme": "./hardhat/README.md",
+        "recurse": true,
+        "destination": "./public/www.cyberiaonline.com/docs/",
+        "encoding": "utf8",
+        "verbose": true,
+        "theme_opts": {
+            "default_theme": "dark",
+            "search": true,
+            "title": "CYBERIA",
+            "homepageTitle": "Docs",
+            "favicon": "./public/www.cyberiaonline.com/favicon.ico",
+            "displayModuleHeader": true,
+            "includeFilesListInHomepage": true,
+            "sections": [
+                "Namespaces",
+                "Tutorials"
+            ],
+            "meta": [
+                {
+                    "name": "author",
+                    "content": "CYBERIA - underpostnet"
+                },
+                {
+                    "name": "description",
+                    "content": "CYBERIA Online - Browser MMORPG, Object Layer Engine, ERC-1155 Token Ecosystem & Hardhat Smart Contract Documentation"
+                },
+                {
+                    "name": "keywords",
+                    "content": "cyberia, mmorpg, browser, game, hardhat, solidity, erc-1155, blockchain, besu, documentation, jsdoc, object-layer, token, cryptokoyn"
+                }
+            ],
+            "footer": "<div style='text-align:center;margin:1rem 0;font-size:0.85rem;'>&copy; CYBERIA / underpostnet — <a href='https://github.com/underpostnet/engine' target='_blank'>Engine</a> | <a href='https://www.cyberiaonline.com' target='_blank'>Play</a> | <a href='https://www.npmjs.com/package/cyberia' target='_blank'>npm</a></div>",
+            "create_style": ".jsdoc-category-badge{display:inline-block;padding:2px 8px;border-radius:4px;background:#1a1a2e;color:#00d4ff;font-size:0.82em;font-weight:600;margin-bottom:0.4em;border:1px solid #00d4ff}.jsdoc-category{margin-bottom:0.5em}#sidebar-classes,#sidebar-classes+.sidebar-section-children-container{display:none !important}",
+            "add_scripts": ""
         }
-      ],
-      "footer": "<div style='text-align:center;margin:1rem 0;font-size:0.85rem;'>&copy; Nexodev / underpostnet — <a href='https://github.com/underpostnet/engine' target='_blank'>Engine</a> | <a href='https://www.npmjs.com/package/underpost' target='_blank'>npm</a></div>",
-      "create_style": ".jsdoc-category-badge{display:inline-block;padding:2px 8px;border-radius:4px;background:#e3f2fd;color:#1565c0;font-size:0.82em;font-weight:600;margin-bottom:0.4em;border:1px solid #90caf9}.jsdoc-category{margin-bottom:0.5em}#sidebar-classes,#sidebar-classes+.sidebar-section-children-container{display:none !important}",
-      "add_scripts": ""
+    },
+    "markdown": {
+        "hardwrap": false,
+        "idInHeadings": true
     }
-  },
-  "markdown": {
-    "hardwrap": false,
-    "idInHeadings": true
-  }
 }

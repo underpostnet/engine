@@ -2,14 +2,22 @@ import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance, random } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
+import { Docs } from '../core/Docs.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import {
+  buildBadgeToolTipMenuOption,
+  isSubMenuOpen,
+  Modal,
+  renderMenuLabel,
+  renderViewTitle,
+  subMenuRender,
+} from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { getProxyPath } from '../core/Router.js';
+import { getProxyPath, setQueryParams } from '../core/Router.js';
 import { ElementsCyberiaPortal } from './ElementsCyberiaPortal.js';
 import Sortable from 'sortablejs';
 import { RouterCyberiaPortal, BannerAppTemplate } from './RoutesCyberiaPortal.js';
@@ -135,6 +143,27 @@ const MenuCyberiaPortal = {
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('chat')),
           })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-docs',
+            useMenuBtn: true,
+            label: html`<div class="in">
+              ${renderMenuLabel({
+                icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
+                text: html`<span class="menu-label-text"
+                  >${Translate.Render('docs')}
+                  <i
+                    class="fas fa-caret-down inl down-arrow-submenu down-arrow-submenu-docs"
+                    style="rotate: 0deg; transition: 0.4s;"
+                  ></i
+                ></span>`,
+              })}
+            </div> `,
+            attrs: `data-id="docs"`,
+            tabHref: `${getProxyPath()}docs`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs')),
+          })}
+          <div class="abs menu-btn-container-children-docs"></div>
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-admin hide',
             useMenuBtn: true,
@@ -426,6 +455,34 @@ const MenuCyberiaPortal = {
         handleType: 'bar',
         maximize: true,
         observer: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-docs`, async (e) => {
+      if (!isSubMenuOpen('docs') || e.isTrusted) {
+        if (e.isTrusted) setQueryParams({ cid: '' });
+        await subMenuRender('docs');
+      }
+
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-docs',
+        route: 'docs',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('docs')}</span>`,
+        }),
+        html: async () =>
+          await Docs.Init({
+            idModal: 'modal-docs',
+          }),
+        handleType: 'bar',
+        observer: true,
+        maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,

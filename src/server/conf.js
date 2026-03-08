@@ -980,6 +980,7 @@ const validateTemplatePath = (absolutePath = '') => {
     return false;
   }
   if (absolutePath.match('conf.dd-') && absolutePath.match('.js')) return false;
+  if (absolutePath.match('jsdoc.dd-') && absolutePath.match('.json')) return false;
   if (
     absolutePath.match('src/client/services/') &&
     !clients.find((p) => absolutePath.match(`src/client/services/${p}/`))
