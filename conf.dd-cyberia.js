@@ -526,7 +526,7 @@ const DefaultConf = /**/ {
     },
     CyberiaPortal: {
       head: ['Seo', 'Pwa', 'Microdata', 'CyberiaPortalScripts', 'Css'],
-      body: ['CacheControl', 'CyberiaDefaultSplashScreen'],
+      body: ['CacheControl', 'CyberiaDefaultSplashScreen', 'SwaggerDarkMode'],
       mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
       offline: [
         { path: '/offline', title: 'No Network Connection', client: 'NoNetworkConnection', head: [], body: [] },
