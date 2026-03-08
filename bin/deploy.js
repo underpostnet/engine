@@ -1116,6 +1116,40 @@ nvidia/gpu-operator \
 `);
       break;
     }
+
+    case 'dependabot': {
+      shellExec(`git fetch origin`);
+
+      const { stdout: branchOutput } = shellExec(`git branch -r`, { silent: true });
+      const dependabotBranches = branchOutput
+        .split('\n')
+        .map((b) => b.trim())
+        .filter((b) => b.startsWith('remotes/origin/dependabot/') || b.startsWith('origin/dependabot/'))
+        .map((b) => b.replace(/^remotes\//, '').replace(/^origin\//, ''));
+
+      if (dependabotBranches.length === 0) {
+        logger.info('No remote dependabot branches found');
+        break;
+      }
+
+      logger.info('Found dependabot branches:', dependabotBranches);
+
+      for (const branch of dependabotBranches) {
+        logger.info(`Checking out branch: ${branch}`);
+        shellExec(`git checkout -B ${branch} origin/${branch}`);
+      }
+
+      logger.info('Checking out master');
+      shellExec(`git checkout master`);
+
+      for (const branch of dependabotBranches) {
+        logger.info(`Merging branch: ${branch}`);
+        shellExec(`git merge ${branch}`);
+      }
+
+      logger.info('All dependabot branches merged into master');
+      break;
+    }
   }
 } catch (error) {
   logger.error(error, error.stack);

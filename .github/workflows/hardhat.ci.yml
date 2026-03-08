@@ -6,12 +6,12 @@ name: CI | Hardhat
 on:
   push:
     paths:
-      - "hardhat/**"
-      - ".github/workflows/hardhat.ci.yml"
+      - 'hardhat/**'
+      - '.github/workflows/hardhat.ci.yml'
   pull_request:
     paths:
-      - "hardhat/**"
-      - ".github/workflows/hardhat.ci.yml"
+      - 'hardhat/**'
+      - '.github/workflows/hardhat.ci.yml'
   workflow_dispatch:
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: ["20", "22"]
+        node-version: ['24']
 
     steps:
       - name: Checkout repository
@@ -37,7 +37,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          cache: 'npm'
           cache-dependency-path: hardhat/package-lock.json
 
       # ── Install ──────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ jobs:
       - name: Run tests
         run: npx hardhat test
         env:
-          REPORT_GAS: "true"
+          REPORT_GAS: 'true'
 
       # ── Coverage (optional, only on primary Node version) ────────────────
       - name: Solidity coverage
