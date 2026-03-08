@@ -1,15 +1,15 @@
 {
   "name": "Item Ledger",
   "short_name": "Item Ledger",
-  "description": null,
+  "description": "Canonical registry, metadata resolver, and IPFS indexer for Object Layer items — semi-fungible and non-fungible ERC-1155 tokens in the Cyberia Online ecosystem. Item search, provenance, and marketplace.",
   "dir": "auto",
   "lang": "en-US",
   "display": "standalone",
   "orientation": "any",
   "scope": "/",
   "start_url": "/?homescreen=1",
-  "background_color": "#fff",
-  "theme_color": "#fff",
+  "background_color": "#0551C4",
+  "theme_color": "#0551C4",
   "icons": [
     {
       "src": "/android-chrome-36x36.png",

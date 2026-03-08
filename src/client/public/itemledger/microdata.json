@@ -1,0 +1,71 @@
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Item Ledger",
+    "url": "https://itemledger.com",
+    "description": "Canonical registry, metadata resolver, and IPFS indexer for Object Layer items — semi-fungible and non-fungible ERC-1155 tokens in the Cyberia Online ecosystem. Item search, provenance, and marketplace.",
+    "applicationCategory": "BlockchainApplication",
+    "operatingSystem": "All",
+    "browserRequirements": "Requires JavaScript. Requires HTML5.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpostnet"
+    },
+    "keywords": "itemledger, object layer, NFT, ERC-1155, metadata, IPFS, registry, marketplace",
+    "image": "https://itemledger.com/apple-touch-icon.png",
+    "inLanguage": "en"
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Item Ledger",
+    "url": "https://itemledger.com",
+    "logo": "https://itemledger.com/android-chrome-512x512.png",
+    "description": "Canonical registry and IPFS indexer for Object Layer items in the Cyberia Online ecosystem.",
+    "sameAs": [
+      "https://github.com/underpostnet"
+    ],
+    "founder": {
+      "@type": "Organization",
+      "name": "Underpost",
+      "url": "https://github.com/underpostnet"
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is Item Ledger?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Item Ledger is the canonical registry, metadata resolver, and IPFS indexer for Object Layer items — semi-fungible and non-fungible ERC-1155 tokens in the Cyberia Online ecosystem. It provides item search, provenance tracking, and marketplace functionality."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What token standard does Item Ledger use?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Item Ledger uses the ERC-1155 multi-token standard, supporting both semi-fungible and non-fungible tokens for in-game items, equipment, and collectibles within the Cyberia Online ecosystem."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does Item Ledger use IPFS?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Item Ledger indexes and resolves item metadata stored on IPFS (InterPlanetary File System), ensuring decentralized, persistent, and verifiable storage for all Object Layer item data and assets."
+        }
+      }
+    ]
+  }
+]

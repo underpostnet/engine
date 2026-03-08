@@ -4,7 +4,7 @@ SrrComponent = () => html`<link rel="icon" type="image/x-icon" href="/favicon.ic
 <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
 <link rel="manifest" href="/manifest.webmanifest" crossOrigin="use-credentials">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#fff">
+<meta name="theme-color" content="#0551C4">
 <meta name="application-name" content="Item Ledger">
 <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png">
 <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png">
@@ -54,7 +54,7 @@ SrrComponent = () => html`<link rel="icon" type="image/x-icon" href="/favicon.ic
 <link rel="apple-touch-startup-image" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/apple-touch-startup-image-2224x1668.png">
 <link rel="apple-touch-startup-image" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="/apple-touch-startup-image-2048x2732.png">
 <link rel="apple-touch-startup-image" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="/apple-touch-startup-image-2732x2048.png">
-<meta name="msapplication-TileColor" content="#fff">
+<meta name="msapplication-TileColor" content="#0551C4">
 <meta name="msapplication-TileImage" content="/mstile-144x144.png">
 <meta name="msapplication-config" content="/browserconfig.xml">
 <link rel="yandex-tableau-widget" href="/yandex-browser-manifest.json">`;

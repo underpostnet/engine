@@ -287,7 +287,7 @@ const DefaultConf = /**/ {
         keywords: ['cryptokoyn', 'CKY', 'token', 'staking', 'governance', 'ERC-1155', 'wallet', 'blockchain'],
         author: 'https://github.com/underpostnet',
         thumbnail: 'assets/banner/koyn-social.png',
-        themeColor: '#0d1117',
+        themeColor: '#E1DB07',
       },
       publicCopyNonExistingFiles: 'cyberia',
       components: {
@@ -402,7 +402,7 @@ const DefaultConf = /**/ {
         keywords: ['itemledger', 'object layer', 'NFT', 'ERC-1155', 'metadata', 'IPFS', 'registry', 'marketplace'],
         author: 'https://github.com/underpostnet',
         thumbnail: 'apple-touch-startup-image-1136x640.png',
-        themeColor: '#0d1117',
+        themeColor: '#0551C4',
       },
       publicCopyNonExistingFiles: 'cyberia',
       components: {
@@ -533,7 +533,7 @@ const DefaultConf = /**/ {
       pages: [{ path: '/test', title: 'Test', client: 'Test', head: [], body: [] }],
     },
     Cryptokoyn: {
-      head: ['CryptokoynScripts', 'Css'],
+      head: ['Seo', 'Pwa', 'Microdata', 'CryptokoynScripts', 'Css'],
       body: ['CacheControl', 'DefaultSplashScreen'],
       mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
       offline: [
@@ -543,7 +543,7 @@ const DefaultConf = /**/ {
       pages: [{ path: '/test', title: 'Test', client: 'Test', head: [], body: [] }],
     },
     Itemledger: {
-      head: ['ItemledgerScripts', 'Css'],
+      head: ['Seo', 'PwaItemledger', 'Microdata', 'ItemledgerScripts', 'Css'],
       body: ['CacheControl', 'DefaultSplashScreen'],
       mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
       offline: [
