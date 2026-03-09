@@ -10,7 +10,6 @@ const LogInCyberiaPortal = async function () {
 
     ElementsCyberiaPortal.Data.user.main.model.user = user;
 
-    // if (user.role === 'admin' || user.role === 'moderator') s(`.main-btn-admin`).classList.remove('hide');
     await ObjectLayerManagement.Reload('viewer');
   };
   const { user } = await Auth.sessionIn();

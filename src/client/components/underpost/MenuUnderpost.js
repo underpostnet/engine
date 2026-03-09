@@ -159,7 +159,7 @@ const MenuUnderpost = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('content')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-cloud',
+            class: 'in wfa main-btn-menu main-btn-cloud hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/cloud.png" />`,

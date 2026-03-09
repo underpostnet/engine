@@ -31,7 +31,7 @@ jobs:
             set -e
             echo "Starting remote deploy"
             cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "underpost run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run deploy dd-cyberia"
   sync-and-deploy:
@@ -59,8 +59,10 @@ jobs:
             set -e
             echo "Starting remote sync and deploy"
             cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "underpost run pull"
             sudo -n -- /bin/bash -lc "npm install"
+            sudo -n -- /bin/bash -lc "underpost fs src/client/public/cyberia --git --pull --recursive --deploy-id dd-cyberia"
+            sudo -n -- /bin/bash -lc "underpost fs src/client/public/underpost --git --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.underpost.json'"
             sudo -n -- /bin/bash -lc "npm run test"
             sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --timeout-response 300000ms dd-cyberia,1,,localhost/rockylinux9-underpost:v2.98.3 --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-file /etc/config/.env.production,underpost start --build --run dd-cyberia production'"
   init:
@@ -88,7 +90,7 @@ jobs:
             set -e
             echo "Starting init deploy"
             cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "underpost run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --sync --build-manifest --image 'localhost/rockylinux9-underpost:v2.98.3' --timeout-response 300000ms --versions green --replicas 1 --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-file /etc/config/.env.production,underpost start --build --run dd-cyberia production'"
             sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --disable-update-proxy"
