@@ -24,19 +24,17 @@ spec:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run --underpost-quickly-install dd-core development
+              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-core development
 
-    
           volumeMounts:
             - name: config-volume-dd-core-development-blue
               mountPath: /etc/config
-    
+
       volumes:
         - name: config-volume-dd-core-development-blue
           configMap:
             name: underpost-config
-    
-      
+
 ---
 apiVersion: v1
 kind: Service
@@ -190,19 +188,17 @@ spec:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run --underpost-quickly-install dd-core development
+              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-core development
 
-    
           volumeMounts:
             - name: config-volume-dd-core-development-green
               mountPath: /etc/config
-    
+
       volumes:
         - name: config-volume-dd-core-development-green
           configMap:
             name: underpost-config
-    
-      
+
 ---
 apiVersion: v1
 kind: Service

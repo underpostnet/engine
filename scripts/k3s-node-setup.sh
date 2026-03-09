@@ -52,7 +52,7 @@ cd /home/dd/engine
 
 echo "Applying host configuration..."
 
-underpost install
+npm install
 
 node bin run secret
 
