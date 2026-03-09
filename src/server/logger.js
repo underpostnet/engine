@@ -9,7 +9,7 @@
 import dotenv from 'dotenv';
 import winston from 'winston';
 import morgan from 'morgan';
-import colorize from 'json-colorizer';
+import { colorize } from 'json-colorizer';
 import colors from 'colors';
 import v8 from 'v8';
 import { clearTerminalStringColor, formatBytes } from '../client/components/core/CommonJs.js';
