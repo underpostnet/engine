@@ -47,7 +47,7 @@
     "@fullcalendar/rrule": "^6.1.20",
     "@neodrag/vanilla": "^2.3.1",
     "adm-zip": "^0.5.10",
-    "ag-grid-community": "^31.3.4",
+    "ag-grid-community": "^35.1.0",
     "axios": "^1.13.6",
     "chai": "^5.1.0",
     "clean-jsdoc-theme": "^4.3.0",
@@ -99,7 +99,7 @@
     "swagger-ui-express": "^5.0.0",
     "uglify-js": "^3.17.4",
     "validator": "^13.11.0",
-    "vanilla-jsoneditor": "^2.3.2",
+    "vanilla-jsoneditor": "^3.11.0",
     "winston": "^3.19.0"
   },
   "overrides": {
