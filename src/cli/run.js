@@ -525,7 +525,7 @@ class UnderpostRun {
         options.replicas,
         ``,
         ``,
-        options.dev || !isDeployRunnerContext(path, options) ? 'kind-control-plane' : os.hostname(),
+        !options.kubeadm && !options.k3s ? 'kind-control-plane' : os.hostname(),
       ];
       let [deployId, replicas, versions, image, node] = path ? path.split(',') : defaultPath;
       deployId = deployId ? deployId : defaultPath[0];
@@ -1597,7 +1597,7 @@ EOF
           if (_path in confServer[host]) shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${_path}`);
         const node = options.nodeName
           ? options.nodeName
-          : options.dev || !isDeployRunnerContext(path, options)
+          : !options.kubeadm && !options.k3s
             ? 'kind-control-plane'
             : os.hostname();
         // deployId, replicas, versions, image, node

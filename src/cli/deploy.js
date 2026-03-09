@@ -259,6 +259,27 @@ ${Underpost.deploy
         }
         fs.writeFileSync(`./engine-private/conf/${deployId}/build/${env}/deployment.yaml`, deploymentYamlParts, 'utf8');
 
+        const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
+          ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.volume.json`, 'utf8'))
+          : [];
+        if (confVolume.length > 0) {
+          let volumeYaml = '';
+          for (const deploymentVersion of deploymentVersions) {
+            for (const volume of confVolume) {
+              if (!volume.claimName) continue;
+              const pvcId = `${volume.claimName}-${deployId}-${env}-${deploymentVersion}`;
+              const pvId = pvcId.replace(/^pvc-/, 'pv-');
+              const hostPath = `/home/dd/engine/volume/${pvId}`;
+              volumeYaml += `---\n${Underpost.deploy.persistentVolumeFactory({
+                pvcId,
+                namespace: options.namespace,
+                hostPath,
+              })}\n`;
+            }
+          }
+          fs.writeFileSync(`./engine-private/conf/${deployId}/build/${env}/pv-pvc.yaml`, volumeYaml, 'utf8');
+        }
+
         let proxyYaml = '';
         let secretYaml = '';
         const customServices = fs.existsSync(`./engine-private/conf/${deployId}/conf.services.json`)
@@ -335,7 +356,7 @@ ${Underpost.deploy
           const yamlPath = `./engine-private/conf/${deployId}/build/${env}/secret.yaml`;
           fs.writeFileSync(yamlPath, secretYaml, 'utf8');
         } else {
-          const deploymentsFiles = ['Dockerfile', 'proxy.yaml', 'deployment.yaml'];
+          const deploymentsFiles = ['Dockerfile', 'proxy.yaml', 'deployment.yaml', 'pv-pvc.yaml'];
           for (const file of deploymentsFiles) {
             if (fs.existsSync(`./engine-private/conf/${deployId}/build/${env}/${file}`)) {
               fs.copyFileSync(
@@ -915,17 +936,44 @@ EOF
      * @param {object} options - Options for the persistent volume and claim creation.
      * @param {string} options.hostPath - Host path for the persistent volume.
      * @param {string} options.pvcId - Persistent volume claim ID.
+     * @param {string} [options.namespace='default'] - Kubernetes namespace for the PVC claimRef.
      * @returns {string} - YAML configuration for the persistent volume and claim.
      * @memberof UnderpostDeploy
      */
     persistentVolumeFactory({ hostPath, pvcId, namespace = 'default' }) {
       const pvId = pvcId.replace(/^pvc-/, 'pv-');
-      return fs
-        .readFileSync(`./manifests/pv-pvc-dd.yaml`, 'utf8')
-        .replaceAll('pv-dd', pvId)
-        .replaceAll('pvc-dd', pvcId)
-        .replaceAll('ns-dd', namespace)
-        .replace('/home/dd', hostPath);
+      return `apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ${pvId}
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: ${pvcId}
+    namespace: ${namespace}
+  hostPath:
+    path: ${hostPath}
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${pvcId}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  volumeName: ${pvId}
+  resources:
+    requests:
+      storage: 5Gi`;
     },
 
     /**

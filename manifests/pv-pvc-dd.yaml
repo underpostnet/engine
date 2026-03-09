@@ -9,11 +9,6 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   storageClassName: manual
-  claimRef:
-    apiVersion: v1
-    kind: PersistentVolumeClaim
-    name: pvc-dd
-    namespace: ns-dd
   hostPath:
     path: /home/dd
     type: DirectoryOrCreate
@@ -34,7 +29,6 @@ spec:
   accessModes:
     - ReadWriteOnce
   storageClassName: manual
-  volumeName: pv-dd
   resources:
     requests:
       storage: 5Gi
