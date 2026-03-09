@@ -32,6 +32,7 @@ jobs:
             echo "Starting remote deploy"
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run deploy dd-core"
   sync-and-deploy:
     if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-sync-engine-core)')
@@ -59,6 +60,7 @@ jobs:
             echo "Starting remote sync and deploy"
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run metadata dd-core"
             sudo -n -- /bin/bash -lc "node bin run sync --kubeadm dd-core,1,,localhost/rockylinux9-underpost:v2.98.3"
   init:
@@ -87,6 +89,7 @@ jobs:
             echo "Starting init deploy"
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
+            sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin deploy dd-core production --kubeadm --sync --build-manifest --image 'localhost/rockylinux9-underpost:v2.98.3' --versions green --replicas 1"
             sudo -n -- /bin/bash -lc "node bin deploy dd-core production --kubeadm --cert --disable-update-proxy"
             sudo -n -- /bin/bash -lc "node bin monitor dd-core production --ready-deployment --promote --versions green --replicas 1"
