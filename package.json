@@ -75,7 +75,7 @@
     "html-minifier-terser": "^7.2.0",
     "http-proxy-middleware": "^3.0.5",
     "ignore-walk": "^8.0.0",
-    "iovalkey": "^0.2.1",
+    "iovalkey": "^0.3.3",
     "json-colorizer": "^2.2.2",
     "jsonwebtoken": "^9.0.3",
     "mariadb": "^3.2.2",
