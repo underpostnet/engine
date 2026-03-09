@@ -13,20 +13,32 @@ const AgGrid = {
   Render: async function (options) {
     let { id, paginationOptions } = options;
     setTimeout(() => {
+      // Normalize rowSelection from deprecated string form to object form (AG Grid v32.2.1+)
+      let gridOptionsOverrides = { ...(options.gridOptions || {}) };
+      if (typeof gridOptionsOverrides.rowSelection === 'string') {
+        const mode = gridOptionsOverrides.rowSelection; // 'single' or 'multiple'
+        gridOptionsOverrides.rowSelection = {
+          mode: mode === 'multiple' ? 'multiRow' : 'singleRow',
+        };
+      }
+
       // Grid Options: Contains all of the grid configurations
       const gridOptions = {
+        // Use legacy CSS theme mode to avoid conflict with Theming API (AG Grid v33+)
+        theme: 'legacy',
         // Row Data: The data to be displayed.
         pagination: false, // Disabled by default, will be handled by the management view
         // paginationPageSize: 100,
         // suppressPaginationPanel: true, // We are using our own custom pagination component
         // rowHeight: 60,
-        enableCellChangeFlash: true,
+        // enableCellChangeFlash was removed in v35; use enableCellChangeFlash on defaultColDef instead
         defaultColDef: {
           editable: false,
           flex: 1,
           minWidth: 50,
           filter: true,
           autoHeight: true,
+          enableCellChangeFlash: true,
         },
         rowClassRules: {
           'row-new-highlight': (params) => {
@@ -76,7 +88,7 @@ const AgGrid = {
               return { field };
             })
           : [],
-        ...options.gridOptions,
+        ...gridOptionsOverrides,
       };
 
       // Your Javascript code to create the grid
@@ -86,8 +98,11 @@ const AgGrid = {
       // myGridElement.style.setProperty('width', '100%');
       ThemeEvents[id] = () => {
         if (s(`.${id}`)) {
-          s(`.${id}`).classList.remove(darkTheme ? this.theme : this.theme + '-dark');
-          s(`.${id}`).classList.add(!darkTheme ? this.theme : this.theme + '-dark');
+          // darkTheme has already been updated by Css.js when this event fires
+          // If darkTheme is true: remove light class, add dark class
+          // If darkTheme is false: remove dark class, add light class
+          s(`.${id}`).classList.remove(this.theme, this.theme + '-dark');
+          s(`.${id}`).classList.add(darkTheme ? this.theme + '-dark' : this.theme);
         } else {
           // console.warn('change theme: grid not found');
           delete ThemeEvents[id];
@@ -112,7 +127,7 @@ const AgGrid = {
       : '';
     return html`
       <div
-        class="${id} ${this.theme}${options?.darkTheme ? `-dark` : ''}"
+        class="${id} ${darkTheme ? this.theme + '-dark' : this.theme}"
         style="${options?.style
           ? Object.keys(options.style).map((styleKey) => `${styleKey}: ${options.style[styleKey]}; `)
           : ''}"
