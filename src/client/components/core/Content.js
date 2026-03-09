@@ -56,7 +56,7 @@ const attachMarkdownLinkHandlers = (containerSelector) => {
 };
 
 const Content = {
-  Render: async function (options = { idModal: '' }) {
+  Render: async function (options = { idModal: '', titleIcon: '' }) {
     const { idModal } = options;
     setTimeout(async () => {
       try {
@@ -111,11 +111,30 @@ const Content = {
           throw new Error(`no-preview-available`);
         }
 
+        // Use custom titleIcon from options, or extract from the modal's original title HTML, or fall back to default
+        const titleIcon = options.titleIcon
+          ? options.titleIcon
+          : Modal.Data[idModal] &&
+              Modal.Data[idModal].options &&
+              Modal.Data[idModal].options.title &&
+              Modal.Data[idModal].options.title.includes &&
+              Modal.Data[idModal].options.title.includes('<img')
+            ? Modal.Data[idModal].options.title.match(/<img[^>]*>/)?.[0] || html`<i class="inl far fa-file"></i>`
+            : html`<i class="inl far fa-file"></i>`;
+
+        // Preserve the original text wrapper class if present in the modal's stored title
+        const originalTitle = Modal.Data[idModal]?.options?.title || '';
+        const hasCustomTextClass = originalTitle.includes && originalTitle.includes('underpost-text-title-modal');
+        const docTitle = documentObj.title ? documentObj.title : documentObj.location;
+        const titleText = hasCustomTextClass
+          ? `<span class='inl underpost-text-title-modal'>${docTitle}</span>`
+          : docTitle;
+
         htmls(
           `.title-modal-${idModal}`,
           html`${renderViewTitle({
-            icon: html`<i class="inl far fa-file"></i>`,
-            text: `${documentObj.title ? documentObj.title : documentObj.location}`,
+            icon: titleIcon,
+            text: titleText,
           })} `,
         );
         htmls(`.content-render-${idModal}`, ``);

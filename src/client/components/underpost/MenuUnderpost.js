@@ -595,6 +595,10 @@ const MenuUnderpost = {
         html: async () =>
           await Content.Render({
             idModal: `modal-content${subModalId}`,
+            titleIcon: html`<img
+              class="inl underpost-menu-icon-modal"
+              src="${getProxyPath()}assets/ui-icons/doc.png"
+            />`,
           }),
         query: true,
         observer: true,

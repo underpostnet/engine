@@ -2432,13 +2432,26 @@ const renderMenuLabel = ({ img, src, text, icon }) => {
 };
 
 const renderViewTitle = (
-  options = { icon: '', img: '', text: '', assetFolder: '', 'ui-icon': '', dim, top, topText: '' },
+  options = {
+    icon: '',
+    img: '',
+    text: '',
+    assetFolder: '',
+    'ui-icon': '',
+    imgClass: '',
+    textClass: '',
+    dim,
+    top,
+    topText: '',
+  },
 ) => {
   if (options.dim === undefined) options.dim = 30;
   const { img, text, icon, dim, top } = options;
   if (!img && !options['ui-icon']) return html`<span class="view-title-icon">${icon}</span> ${text}`;
+  const imgClass = options.imgClass || 'abs img-btn-square-view-title';
+  const textClass = options.textClass || 'in text-btn-square-view-title';
   return html`<img
-      class="abs img-btn-square-view-title"
+      class="${imgClass}"
       style="${renderCssAttr({
         style: {
           width: `${dim}px`,
@@ -2451,7 +2464,7 @@ const renderViewTitle = (
         : img}"
     />
     <div
-      class="in text-btn-square-view-title"
+      class="${textClass}"
       style="${renderCssAttr({
         style: {
           // 'padding-left': `${20 + dim}px`,

@@ -171,6 +171,9 @@ const CssCommonUnderpost = async () => {
       .content-render p {
         font-size: 22px;
       }
+      .underpost-panel-subtitle {
+        top: 3px !important;
+      }
     </style>
 
     <div class="ag-grid-style"></div>`;
