@@ -844,6 +844,7 @@ EOF`);
 ${Underpost.deploy.persistentVolumeFactory({
   hostPath: rootVolumeHostPath,
   pvcId,
+  namespace,
 })}
 EOF
 `);
@@ -917,12 +918,14 @@ EOF
      * @returns {string} - YAML configuration for the persistent volume and claim.
      * @memberof UnderpostDeploy
      */
-    persistentVolumeFactory({ hostPath, pvcId }) {
+    persistentVolumeFactory({ hostPath, pvcId, namespace = 'default' }) {
+      const pvId = pvcId.replace(/^pvc-/, 'pv-');
       return fs
         .readFileSync(`./manifests/pv-pvc-dd.yaml`, 'utf8')
-        .replace('/home/dd', hostPath)
-        .replace('pv-dd', pvcId.replace('pvc-', 'pv-'))
-        .replace('pvc-dd', pvcId);
+        .replaceAll('pv-dd', pvId)
+        .replaceAll('pvc-dd', pvcId)
+        .replaceAll('ns-dd', namespace)
+        .replace('/home/dd', hostPath);
     },
 
     /**
