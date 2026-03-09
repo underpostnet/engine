@@ -32,6 +32,8 @@ const RoutesUnderpost = () => {
     '/u': { title: 'public-profile', render: () => s(`.main-btn-public-profile`).click() },
     '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click() },
     '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click() },
+    '/content': { title: 'content', render: () => s(`.main-btn-content`).click() },
+    '/cloud': { title: 'cloud', render: () => s(`.main-btn-cloud`).click() },
     '/polyhedron': { title: 'polyhedron', render: () => s(`.main-btn-polyhedron`).click() },
   };
 };

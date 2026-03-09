@@ -23,6 +23,8 @@ import { SearchBox } from '../core/SearchBox.js';
 import { DocumentSearchProvider } from './DocumentSearchProvider.js';
 import { PublicProfile } from '../core/PublicProfile.js';
 import { Polyhedron } from '../core/Polyhedron.js';
+import { FileExplorer } from '../core/FileExplorer.js';
+import { Content } from '../core/Content.js';
 
 const MenuUnderpost = {
   Data: {},
@@ -50,19 +52,24 @@ const MenuUnderpost = {
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog')),
           })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-lab-gallery hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/gallery.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('lab-gallery')}</span>`,
-            }),
-            // style: 'display: none',
-            attrs: `data-id="lab-gallery"`,
-            tabHref: `${getProxyPath()}lab-gallery`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog')),
-          })}
+          ${true
+            ? ''
+            : await BtnIcon.Render({
+                class: 'in wfa main-btn-menu main-btn-lab-gallery hide',
+                useMenuBtn: true,
+                label: renderMenuLabel({
+                  icon: html`<img
+                    class="inl underpost-menu-icon"
+                    src="${getProxyPath()}assets/ui-icons/gallery.png"
+                  />`,
+                  text: html`<span class="menu-label-text">${Translate.Render('lab-gallery')}</span>`,
+                }),
+                // style: 'display: none',
+                attrs: `data-id="lab-gallery"`,
+                tabHref: `${getProxyPath()}lab-gallery`,
+                handleContainerClass: 'handle-btn-container',
+                tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog')),
+              })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
             useMenuBtn: true,
@@ -138,6 +145,30 @@ const MenuUnderpost = {
             tabHref: `${getProxyPath()}u`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('public-profile')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-content hide',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/doc.png" />`,
+              text: html`<span class="menu-label-text">${Translate.Render('content')}</span>`,
+            }),
+            attrs: `data-id="content"`,
+            tabHref: `${getProxyPath()}content`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('content')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-cloud',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/cloud.png" />`,
+              text: html`<span class="menu-label-text">${Translate.Render('cloud')}</span>`,
+            }),
+            attrs: `data-id="cloud"`,
+            tabHref: `${getProxyPath()}cloud`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cloud')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-settings',
@@ -535,6 +566,57 @@ const MenuUnderpost = {
           text: `<span class='inl underpost-text-title-modal'>${Translate.Render('settings')}</span>`,
         }),
         html: async () => await SettingsUnderpost.Render({ idModal: 'modal-settings' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-content`, async () => {
+      let subModalId = '';
+      const path =
+        location.pathname[location.pathname.length - 1] === '/' ? location.pathname.slice(0, -1) : location.pathname;
+
+      if (path.split('/').pop() === 'content' && getQueryParams().cid) {
+        subModalId = `-${getQueryParams().cid}`;
+      }
+
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: `modal-content${subModalId}`,
+        route: 'content',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/doc.png" />`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('content')}</span>`,
+        }),
+        html: async () =>
+          await Content.Render({
+            idModal: `modal-content${subModalId}`,
+          }),
+        query: true,
+        observer: true,
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-cloud`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-cloud',
+        route: 'cloud',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/cloud.png" />`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('cloud')}</span>`,
+        }),
+        html: async () => await FileExplorer.Render({ idModal: 'modal-cloud' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

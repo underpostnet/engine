@@ -544,10 +544,13 @@ const FileExplorer = {
         this.eGui = document.createElement('div');
         const isPublic = params.data.isPublic;
         const toggleId = `toggle-public-${params.data._id}`;
+        const hasGenericFile = !!params.data.hasGenericFile;
+        const hasMdFile = !!params.data.hasMdFile;
+
         this.eGui.innerHTML = html`
           <div class="fl">
             ${await BtnIcon.Render({
-              class: `in fll management-table-btn-mini btn-file-download-${params.data._id}`,
+              class: `in fll management-table-btn-mini btn-file-download-${params.data._id}${!hasGenericFile ? ' btn-disabled' : ''}`,
               label: html` <i class="fas fa-download"></i>`,
               type: 'button',
             })}
@@ -562,8 +565,13 @@ const FileExplorer = {
               type: 'button',
             })}
             ${await BtnIcon.Render({
-              class: `in fll management-table-btn-mini btn-file-copy-content-link-${params.data._id}`,
+              class: `in fll management-table-btn-mini btn-file-copy-content-link-${params.data._id}${!hasGenericFile ? ' btn-disabled' : ''}`,
               label: html`<i class="fas fa-copy"></i>`,
+              type: 'button',
+            })}
+            ${await BtnIcon.Render({
+              class: `in fll management-table-btn-mini btn-file-copy-md-link-${params.data._id}${!hasMdFile ? ' btn-disabled' : ''}`,
+              label: html`<i class="fas fa-file-code"></i>`,
               type: 'button',
             })}
             ${await BtnIcon.Render({
@@ -591,9 +599,44 @@ const FileExplorer = {
               ? getApiBaseUrl({ id: originObj.fileId._id, endpoint: 'file/blob' })
               : undefined;
 
+          const mdBlobUri =
+            originObj && originObj.mdFileId
+              ? getApiBaseUrl({ id: originObj.mdFileId._id, endpoint: 'file/blob' })
+              : undefined;
+
           if (!originObj) {
             s(`.btn-file-view-${params.data._id}`).classList.add('hide');
             s(`.btn-file-copy-content-link-${params.data._id}`).classList.add('hide');
+          }
+
+          // Disable download button if no generic file
+          if (!hasGenericFile) {
+            const dlBtn = s(`.btn-file-download-${params.data._id}`);
+            if (dlBtn) {
+              dlBtn.style.opacity = '0.4';
+              dlBtn.style.cursor = 'not-allowed';
+              dlBtn.style.pointerEvents = 'none';
+            }
+          }
+
+          // Disable copy generic file link button if no generic file
+          if (!hasGenericFile) {
+            const copyBtn = s(`.btn-file-copy-content-link-${params.data._id}`);
+            if (copyBtn) {
+              copyBtn.style.opacity = '0.4';
+              copyBtn.style.cursor = 'not-allowed';
+              copyBtn.style.pointerEvents = 'none';
+            }
+          }
+
+          // Disable copy md file link button if no md file
+          if (!hasMdFile) {
+            const mdCopyBtn = s(`.btn-file-copy-md-link-${params.data._id}`);
+            if (mdCopyBtn) {
+              mdCopyBtn.style.opacity = '0.4';
+              mdCopyBtn.style.cursor = 'not-allowed';
+              mdCopyBtn.style.pointerEvents = 'none';
+            }
           }
 
           EventsUI.onClick(`.btn-file-view-${params.data._id}`, async (e) => {
@@ -606,7 +649,18 @@ const FileExplorer = {
 
           EventsUI.onClick(`.btn-file-copy-content-link-${params.data._id}`, async (e) => {
             e.preventDefault();
+            if (!hasGenericFile || !blobUri) return;
             await copyData(blobUri);
+            NotificationManager.Push({
+              html: Translate.Render('success-copy-data'),
+              status: 'success',
+            });
+          });
+
+          EventsUI.onClick(`.btn-file-copy-md-link-${params.data._id}`, async (e) => {
+            e.preventDefault();
+            if (!hasMdFile || !mdBlobUri) return;
+            await copyData(mdBlobUri);
             NotificationManager.Push({
               html: Translate.Render('success-copy-data'),
               status: 'success',
@@ -615,6 +669,7 @@ const FileExplorer = {
 
           EventsUI.onClick(`.btn-file-download-${params.data._id}`, async (e) => {
             e.preventDefault();
+            if (!hasGenericFile) return;
             try {
               // Use FileService with blob/ prefix for centralized blob fetching
               const { data: blobArray, status } = await FileService.get({ id: `blob/${params.data.fileId}` });
@@ -719,6 +774,12 @@ const FileExplorer = {
                   const docIndex = documentInstance.findIndex((d) => d._id === params.data._id);
                   if (docIndex !== -1) {
                     documentInstance[docIndex].isPublic = data.isPublic;
+                  }
+
+                  // Refresh the isPublic column cell in the grid
+                  const rowNode = AgGrid.grids[gridFileId].getRowNode(params.node.id);
+                  if (rowNode) {
+                    rowNode.setDataValue('isPublic', data.isPublic);
                   }
 
                   // Update button icon
@@ -1347,7 +1408,13 @@ const FileExplorer = {
                     { field: 'name', flex: 2, headerName: 'Title', cellRenderer: LoadFileNameRenderer },
                     { field: 'mdFileName', flex: 1, headerName: 'MD File Name' },
                     { field: 'fileName', flex: 1, headerName: 'Generic File Name' },
-                    { headerName: '', width: 150, cellRenderer: LoadFileActionsRenderer },
+                    {
+                      field: 'isPublic',
+                      headerName: 'Public',
+                      width: 90,
+                      cellDataType: 'boolean',
+                    },
+                    { headerName: '', width: 180, cellRenderer: LoadFileActionsRenderer },
                   ],
                 },
               })}

@@ -158,6 +158,19 @@ const CssCommonUnderpost = async () => {
       .creator-avatar {
         border-radius: 0px !important;
       }
+
+      .content-render h1 {
+        font-size: 18px;
+      }
+      .content-render h2 {
+        font-size: 16px;
+      }
+      .content-render h3 {
+        font-size: 14px;
+      }
+      .content-render p {
+        font-size: 22px;
+      }
     </style>
 
     <div class="ag-grid-style"></div>`;

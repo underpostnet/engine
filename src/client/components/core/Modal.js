@@ -2432,7 +2432,7 @@ const renderMenuLabel = ({ img, src, text, icon }) => {
 };
 
 const renderViewTitle = (
-  options = { icon: '', img: '', text: '', assetFolder: '', 'ui-icons': '', dim, top, topText: '' },
+  options = { icon: '', img: '', text: '', assetFolder: '', 'ui-icon': '', dim, top, topText: '' },
 ) => {
   if (options.dim === undefined) options.dim = 30;
   const { img, text, icon, dim, top } = options;

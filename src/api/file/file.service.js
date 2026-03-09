@@ -387,12 +387,35 @@ const FileService = {
         if (doc.isPublic) return true;
 
         // Otherwise, user must be authenticated and own the document
+        // Try bearer token first
         const token = getBearerToken(req);
-        if (!token) false;
-        const payload = jwtVerify(token, options);
-        const user = await User.findOne({ _id: payload._id }).lean();
-        if (!user) return false;
-        return String(doc.userId) === String(user._id);
+        if (token) {
+          try {
+            const payload = jwtVerify(token, options);
+            const user = await User.findOne({ _id: payload._id }).lean();
+            if (user && String(doc.userId) === String(user._id)) return true;
+          } catch (bearerErr) {
+            logger.warn('Bearer token verification failed, trying cookie session fallback:', bearerErr.message);
+          }
+        }
+
+        // Fallback: check cookie-based session (refreshToken cookie)
+        const refreshToken = req.cookies?.refreshToken;
+        if (refreshToken) {
+          try {
+            const user = await User.findOne({ 'activeSessions.tokenHash': refreshToken }).lean();
+            if (user) {
+              const session = user.activeSessions.find((s) => s.tokenHash === refreshToken);
+              if (session && (!session.expiresAt || session.expiresAt >= new Date())) {
+                return String(doc.userId) === String(user._id);
+              }
+            }
+          } catch (cookieErr) {
+            logger.warn('Cookie session verification failed:', cookieErr.message);
+          }
+        }
+
+        return false;
       } catch (err) {
         console.log(err);
         logger.error('Authorization check failed:', err);
