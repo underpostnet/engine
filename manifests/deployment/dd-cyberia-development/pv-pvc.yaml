@@ -1,0 +1,132 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-public-dd-cyberia-dd-cyberia-development-blue
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: pvc-public-dd-cyberia-dd-cyberia-development-blue
+    namespace: default
+  hostPath:
+    path: /home/dd/engine/volume/pv-public-dd-cyberia-dd-cyberia-development-blue
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-public-dd-cyberia-dd-cyberia-development-blue
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  volumeName: pv-public-dd-cyberia-dd-cyberia-development-blue
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-public-dd-cyberia-underpost-dd-cyberia-development-blue
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: pvc-public-dd-cyberia-underpost-dd-cyberia-development-blue
+    namespace: default
+  hostPath:
+    path: /home/dd/engine/volume/pv-public-dd-cyberia-underpost-dd-cyberia-development-blue
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-public-dd-cyberia-underpost-dd-cyberia-development-blue
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  volumeName: pv-public-dd-cyberia-underpost-dd-cyberia-development-blue
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-public-dd-cyberia-dd-cyberia-development-green
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: pvc-public-dd-cyberia-dd-cyberia-development-green
+    namespace: default
+  hostPath:
+    path: /home/dd/engine/volume/pv-public-dd-cyberia-dd-cyberia-development-green
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-public-dd-cyberia-dd-cyberia-development-green
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  volumeName: pv-public-dd-cyberia-dd-cyberia-development-green
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-public-dd-cyberia-underpost-dd-cyberia-development-green
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: pvc-public-dd-cyberia-underpost-dd-cyberia-development-green
+    namespace: default
+  hostPath:
+    path: /home/dd/engine/volume/pv-public-dd-cyberia-underpost-dd-cyberia-development-green
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-public-dd-cyberia-underpost-dd-cyberia-development-green
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  volumeName: pv-public-dd-cyberia-underpost-dd-cyberia-development-green
+  resources:
+    requests:
+      storage: 5Gi

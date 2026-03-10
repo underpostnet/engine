@@ -26,29 +26,33 @@ spec:
             - >
               npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-cyberia development
 
+    
           volumeMounts:
             - name: config-volume-dd-cyberia-development-blue
               mountPath: /etc/config
-
+    
             - name: vol-public-dd-cyberia-dd-cyberia-development-blue
               mountPath: /home/dd/engine/src/client/public/cyberia
-
+    
             - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-blue
               mountPath: /home/dd/engine/src/client/public/underpost
-
+    
       volumes:
         - name: config-volume-dd-cyberia-development-blue
           configMap:
             name: underpost-config
-
+    
+      
         - name: vol-public-dd-cyberia-dd-cyberia-development-blue
           persistentVolumeClaim:
             claimName: pvc-public-dd-cyberia-dd-cyberia-development-blue
-
+    
+      
         - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-blue
           persistentVolumeClaim:
             claimName: pvc-public-dd-cyberia-underpost-dd-cyberia-development-blue
-
+    
+      
 ---
 apiVersion: v1
 kind: Service
@@ -195,29 +199,33 @@ spec:
             - >
               npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-cyberia development
 
+    
           volumeMounts:
             - name: config-volume-dd-cyberia-development-green
               mountPath: /etc/config
-
+    
             - name: vol-public-dd-cyberia-dd-cyberia-development-green
               mountPath: /home/dd/engine/src/client/public/cyberia
-
+    
             - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-green
               mountPath: /home/dd/engine/src/client/public/underpost
-
+    
       volumes:
         - name: config-volume-dd-cyberia-development-green
           configMap:
             name: underpost-config
-
+    
+      
         - name: vol-public-dd-cyberia-dd-cyberia-development-green
           persistentVolumeClaim:
             claimName: pvc-public-dd-cyberia-dd-cyberia-development-green
-
+    
+      
         - name: vol-public-dd-cyberia-underpost-dd-cyberia-development-green
           persistentVolumeClaim:
             claimName: pvc-public-dd-cyberia-underpost-dd-cyberia-development-green
-
+    
+      
 ---
 apiVersion: v1
 kind: Service

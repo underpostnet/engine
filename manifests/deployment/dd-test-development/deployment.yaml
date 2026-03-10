@@ -26,15 +26,17 @@ spec:
             - >
               npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-test development
 
+    
           volumeMounts:
             - name: config-volume-dd-test-development-blue
               mountPath: /etc/config
-
+    
       volumes:
         - name: config-volume-dd-test-development-blue
           configMap:
             name: underpost-config
-
+    
+      
 ---
 apiVersion: v1
 kind: Service
@@ -109,15 +111,17 @@ spec:
             - >
               npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-test development
 
+    
           volumeMounts:
             - name: config-volume-dd-test-development-green
               mountPath: /etc/config
-
+    
       volumes:
         - name: config-volume-dd-test-development-green
           configMap:
             name: underpost-config
-
+    
+      
 ---
 apiVersion: v1
 kind: Service
