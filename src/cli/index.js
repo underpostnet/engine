@@ -87,6 +87,7 @@ program
     '--changelog-no-hash',
     'Excludes commit hashes from the generated changelog entries (used with --changelog-build).',
   )
+  .option('-b', 'Shows the current Git branch name.')
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 

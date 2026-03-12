@@ -115,9 +115,21 @@ class UnderpostRepository {
         changelogBuild: false,
         changelogMinVersion: '',
         changelogNoHash: false,
+        b: false,
       },
     ) {
       if (!repoPath) repoPath = '.';
+
+      if (options.b) {
+        const currentBranch = shellExec(`cd ${repoPath} && git branch --show-current`, {
+          stdout: true,
+          silent: true,
+          disableLog: true,
+        }).trim();
+        if (options.copy) pbcopy(currentBranch);
+        else console.log(currentBranch);
+        return;
+      }
 
       if (options.changelog !== undefined || options.changelogBuild) {
         const ciIntegrationPrefix = 'ci(package-pwa-microservices-';
@@ -544,7 +556,6 @@ class UnderpostRepository {
             const npmRoot = getNpmRootPath();
             const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
             const destFolder = `./${projectName}`;
-            logger.info('Note: This process may take several minutes to complete');
             logger.info('build app', { destFolder });
             if (fs.existsSync(destFolder)) fs.removeSync(destFolder);
             fs.mkdirSync(destFolder, { recursive: true });
