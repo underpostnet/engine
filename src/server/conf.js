@@ -404,8 +404,9 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
       const devConfPath = `${folder}/conf.${typeConf}.dev${subConf ? `.${subConf}` : ''}.json`;
       if (fs.existsSync(devConfPath)) srcConf = fs.readFileSync(devConfPath, 'utf8');
     }
-    if (typeConf === 'server') srcConf = JSON.stringify(loadReplicas(deployId, JSON.parse(srcConf)), null, 4);
-    fs.writeFileSync(`./conf/conf.${typeConf}.json`, srcConf, 'utf8');
+    let parsed = JSON.parse(srcConf);
+    if (typeConf === 'server') parsed = loadReplicas(deployId, parsed);
+    Config.default[typeConf] = parsed;
   }
   fs.writeFileSync(`./.env.production`, fs.readFileSync(`${folder}/.env.production`, 'utf8'), 'utf8');
   fs.writeFileSync(`./.env.development`, fs.readFileSync(`${folder}/.env.development`, 'utf8'), 'utf8');
@@ -802,7 +803,7 @@ const cloneSrcComponents = async ({ toOptions, fromOptions }) => {
  * @memberof ServerConfBuilder
  */
 const buildProxyRouter = () => {
-  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+  const confServer = newInstance(Config.default.server);
   let currentPort = parseInt(process.env.PORT) + 1;
   const proxyRouter = {};
   for (const host of Object.keys(confServer)) {

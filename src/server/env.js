@@ -27,6 +27,7 @@ import { execSync } from 'node:child_process';
  *
  * @returns {string|null} The `<npm root -g>/underpost` path, or null when the
  *   command fails (e.g. npm is not installed or running in a CI image).
+ * @memberOf UnderpostEnvLoader
  */
 const getUnderpostRoot = () => {
   try {
