@@ -505,7 +505,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         return;
       }
       if (customIde === 'zed') shellExec(`node ${underpostRoot}/bin/zed ${projectPath}`);
-      else shellExec(`code ${underpostRoot}/bin/vs ${projectPath}`);
+      else shellExec(`node ${underpostRoot}/bin/vs ${projectPath}`);
     },
     /**
      * @method crypto-policy
