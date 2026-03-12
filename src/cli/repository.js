@@ -5,7 +5,6 @@
  */
 
 import { commitData } from '../client/components/core/CommonJs.js';
-import dotenv from 'dotenv';
 import { pbcopy, shellCd, shellExec } from '../server/process.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import fs from 'fs-extra';
@@ -13,8 +12,6 @@ import { getNpmRootPath } from '../server/conf.js';
 import { Config } from '../server/conf.js';
 import { DefaultConf } from '../../conf.js';
 import Underpost from '../index.js';
-
-dotenv.config();
 
 const logger = loggerFactory(import.meta);
 

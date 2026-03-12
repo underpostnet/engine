@@ -6,7 +6,6 @@
  * @namespace Runtime
  */
 
-import dotenv from 'dotenv';
 import * as promClient from 'prom-client';
 
 import { loggerFactory } from './logger.js';
@@ -17,8 +16,6 @@ import { getInstanceContext, readConfJson } from './conf.js';
 import ExpressService from '../runtime/express/Express.js';
 
 import Underpost from '../index.js';
-
-dotenv.config();
 
 const logger = loggerFactory(import.meta);
 

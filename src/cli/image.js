@@ -5,13 +5,10 @@
  */
 
 import fs from 'fs-extra';
-import dotenv from 'dotenv';
 import { loggerFactory } from '../server/logger.js';
 import Underpost from '../index.js';
 import { getNpmRootPath, getUnderpostRootPath } from '../server/conf.js';
 import { shellExec } from '../server/process.js';
-
-dotenv.config();
 
 const logger = loggerFactory(import.meta);
 

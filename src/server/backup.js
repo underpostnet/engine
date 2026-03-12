@@ -7,10 +7,7 @@
 import fs from 'fs-extra';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
-import dotenv from 'dotenv';
 import Underpost from '../index.js';
-
-dotenv.config();
 
 const logger = loggerFactory(import.meta);
 

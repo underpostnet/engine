@@ -4,12 +4,9 @@
  * @namespace UnderpostSecret
  */
 
-import dotenv from 'dotenv';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
-
-dotenv.config();
 
 /**
  * @class UnderpostSecret

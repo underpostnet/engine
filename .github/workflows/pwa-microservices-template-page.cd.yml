@@ -56,7 +56,7 @@ jobs:
           node bin new --default-conf --conf-workflow-id dd-github-pages
           node bin new --deploy-id dd-github-pages
           underpost env dd-github-pages production
-          env-cmd -f .env.production node bin/deploy build-full-client dd-github-pages underpostnet.github.io /pwa-microservices-template-ghpkg
+          NODE_ENV=production node bin/deploy build-full-client dd-github-pages underpostnet.github.io /pwa-microservices-template-ghpkg
       # git lfs install
       # git lfs track
       # git lfs ls-files

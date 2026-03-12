@@ -23,10 +23,11 @@ import { shellExec } from './process.js';
 import { DefaultConf } from '../../conf.js';
 import splitFile from 'split-file';
 import Underpost from '../index.js';
+import { loadEnv } from './env.js';
 
 colors.enable();
 
-dotenv.config();
+loadEnv();
 
 const logger = loggerFactory(import.meta);
 

@@ -7,8 +7,6 @@
 'use strict';
 
 import express from 'express';
-import dotenv from 'dotenv';
-
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { buildPortProxyRouter, buildProxyRouter, getTlsHosts, isDevProxyContext, isTlsDevProxy } from './conf.js';
@@ -16,8 +14,6 @@ import { buildPortProxyRouter, buildProxyRouter, getTlsHosts, isDevProxyContext,
 import { shellExec } from './process.js';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
-
-dotenv.config();
 
 const logger = loggerFactory(import.meta);
 

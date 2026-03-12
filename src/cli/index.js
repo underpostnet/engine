@@ -6,12 +6,9 @@ import { getNpmRootPath, getUnderpostRootPath, loadConf } from '../server/conf.j
 import { commitData } from '../client/components/core/CommonJs.js';
 
 import Underpost from '../index.js';
+import { loadEnv } from '../server/env.js';
 
-const underpostRootPath = getUnderpostRootPath();
-
-fs.existsSync(`${underpostRootPath}/.env`)
-  ? dotenv.config({ path: `${underpostRootPath}/.env`, override: true })
-  : dotenv.config();
+loadEnv();
 
 const program = new Command();
 
@@ -112,11 +109,10 @@ program
   .argument('[subConf]', 'Optional: The sub configuration to set.')
   .description('Sets environment variables and configurations related to a specific deployment ID.')
   .action((deployId, env, subConf) => {
-    if (fs.existsSync(`./engine-private/conf/${deployId}/.env.${env}`))
-      dotenv.config({ path: `./engine-private/conf/${deployId}/.env.${env}`, override: true });
-    else if (deployId === 'root') {
-      deployId = Underpost.env.get('DEPLOY_ID');
-    } else dotenv.config({ path: `./.env`, override: true });
+    if (deployId === 'root') {
+      const underpostRootDeployId = Underpost.env.get('DEPLOY_ID');
+      if (underpostRootDeployId) deployId = underpostRootDeployId;
+    }
     loadConf(deployId, subConf);
   });
 

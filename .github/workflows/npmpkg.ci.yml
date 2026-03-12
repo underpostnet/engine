@@ -62,7 +62,7 @@ jobs:
         run: |
           cd .. && underpost clone underpostnet/pwa-microservices-template
           cd engine
-          npm run update-template
+          npm run update:template
           cd ../pwa-microservices-template
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template.git
           git add .

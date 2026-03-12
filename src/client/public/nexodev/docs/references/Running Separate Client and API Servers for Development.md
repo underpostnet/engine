@@ -12,8 +12,8 @@ Your `package.json` should be configured with the following scripts:
 
 ```json
 "scripts": {
-  "dev-api": "env-cmd -f .env.development nodemon --watch src --ignore src/client src/api",
-  "dev-client": "env-cmd -f .env.development node src/client.dev"
+  "dev:api": "NODE_ENV=development nodemon --watch src --ignore src/client src/api",
+  "dev:client": "NODE_ENV=development node src/client.dev"
 }
 ```
 
@@ -48,7 +48,7 @@ Now that both configurations are ready, you can start the API and client servers
     Open a new terminal and run:
 
     ```bash
-    npm run dev-api dd-default local default.net / localhost:4004
+    npm run dev:api dd-default local default.net / localhost:4004
     ```
 
     - This command starts the API server using `src/api.js`.
@@ -59,7 +59,7 @@ Now that both configurations are ready, you can start the API and client servers
     Open another terminal and run:
 
     ```bash
-    npm run dev-client dd-default local default.net /
+    npm run dev:client dd-default local default.net /
     ```
 
     - This command starts the client development server using `src/client.dev.js`.

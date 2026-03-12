@@ -7,8 +7,6 @@
 import axios from 'axios';
 import fs from 'fs';
 import { loggerFactory } from './logger.js';
-import dotenv from 'dotenv';
-dotenv.config();
 
 const logger = loggerFactory(import.meta);
 

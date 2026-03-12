@@ -10,8 +10,6 @@ import { loggerFactory } from '../server/logger.js';
 import dotenv from 'dotenv';
 import { pbcopy } from '../server/process.js';
 
-dotenv.config();
-
 const logger = loggerFactory(import.meta);
 
 /**

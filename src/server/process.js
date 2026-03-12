@@ -8,13 +8,10 @@
 // https://nodejs.org/api/process
 
 import shell from 'shelljs';
-import dotenv from 'dotenv';
 import { loggerFactory } from './logger.js';
 import clipboard from 'clipboardy';
 import Underpost from '../index.js';
 import { getNpmRootPath } from './conf.js';
-
-dotenv.config();
 
 const logger = loggerFactory(import.meta);
 

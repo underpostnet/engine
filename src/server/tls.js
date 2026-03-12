@@ -7,10 +7,8 @@
 import fs from 'fs-extra';
 import https from 'https';
 import path from 'path';
-import dotenv from 'dotenv';
 import { loggerFactory } from './logger.js';
 
-dotenv.config();
 const logger = loggerFactory(import.meta);
 
 const DEFAULT_HOST = 'localhost';

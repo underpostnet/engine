@@ -3,13 +3,13 @@
 // https://nodejs.org/api
 // https://expressjs.com/en/4x/api.html
 
-import dotenv from 'dotenv';
+import { loadEnv } from './server/env.js';
 import { loggerFactory } from './server/logger.js';
 import { Config } from './server/conf.js';
 import { ProcessController } from './server/process.js';
 import { clientLiveBuild } from './server/client-build-live.js';
 
-dotenv.config();
+loadEnv();
 
 await Config.build();
 

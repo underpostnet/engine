@@ -5,14 +5,11 @@
  * @namespace UnderpostCloudInit
  */
 
-import dotenv from 'dotenv';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import { loggerFactory } from '../server/logger.js';
 import { getNpmRootPath } from '../server/conf.js';
 import Underpost from '../index.js';
-
-dotenv.config();
 
 const logger = loggerFactory(import.meta);
 

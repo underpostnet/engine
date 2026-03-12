@@ -6,14 +6,12 @@
 
 import { v2 as cloudinary } from 'cloudinary';
 import { loggerFactory } from '../server/logger.js';
-import dotenv from 'dotenv';
 import AdmZip from 'adm-zip';
 import * as dir from 'path';
 import fs from 'fs-extra';
 import Downloader from '../server/downloader.js';
 import { shellExec } from '../server/process.js';
 import Underpost from '../index.js';
-dotenv.config();
 
 const logger = loggerFactory(import.meta);
 

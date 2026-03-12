@@ -3,13 +3,13 @@
 // https://nodejs.org/api
 // https://expressjs.com/en/4x/api.html
 
-import dotenv from 'dotenv';
+import { loadEnv } from './server/env.js';
 import { loggerFactory } from './server/logger.js';
 import { ProcessController } from './server/process.js';
 import { Config, buildClientStaticConf } from './server/conf.js';
 import { createClientDevServer } from './server/client-dev-server.js';
 
-dotenv.config();
+loadEnv();
 
 const logger = loggerFactory(import.meta);
 

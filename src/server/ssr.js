@@ -5,7 +5,6 @@
  */
 
 import fs from 'fs-extra';
-import dotenv from 'dotenv';
 import vm from 'node:vm';
 
 import Underpost from '../index.js';
@@ -13,8 +12,6 @@ import Underpost from '../index.js';
 import { srcFormatted, JSONweb } from './client-formatted.js';
 import { loggerFactory } from './logger.js';
 import { getRootDirectory } from './process.js';
-
-dotenv.config();
 
 const logger = loggerFactory(import.meta);
 

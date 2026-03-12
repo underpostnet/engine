@@ -1333,14 +1333,14 @@ EOF
       }
       shellExec(`node bin run dev-cluster --expose --namespace ${options.namespace}`, { async: true });
       {
-        const cmd = `npm run dev-api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort} proxy${
+        const cmd = `npm run dev:api ${deployId} ${subConf} ${host} ${_path} ${clientHostPort} proxy${
           options.tls ? ' tls' : ''
         }`;
         shellExec(cmd, { async: true });
       }
       await awaitDeployMonitor(true);
       {
-        const cmd = `npm run dev-client ${deployId} ${subConf} ${host} ${_path} proxy${options.tls ? ' tls' : ''}`;
+        const cmd = `npm run dev:client ${deployId} ${subConf} ${host} ${_path} proxy${options.tls ? ' tls' : ''}`;
 
         shellExec(cmd, {
           async: true,
@@ -1348,9 +1348,7 @@ EOF
       }
       await awaitDeployMonitor(true);
       shellExec(
-        `./node_modules/.bin/env-cmd -f .env.development node src/proxy proxy ${deployId} ${subConf} ${host} ${_path}${
-          options.tls ? ' tls' : ''
-        }`,
+        `NODE_ENV=development node src/proxy proxy ${deployId} ${subConf} ${host} ${_path}${options.tls ? ' tls' : ''}`,
       );
     },
 

@@ -6,156 +6,155 @@ version: 2
 
 updates:
   # ── Root project (npm) ──────────────────────────────────────────────────
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "08:00"
-      timezone: "UTC"
+      interval: 'weekly'
+      day: 'monday'
+      time: '08:00'
+      timezone: 'UTC'
     open-pull-requests-limit: 10
     reviewers:
-      - "underpostnet"
+      - 'underpostnet'
     labels:
-      - "dependencies"
-      - "engine"
+      - 'dependencies'
+      - 'engine'
     # Group minor/patch updates into a single PR to reduce noise
     groups:
       express-stack:
         patterns:
-          - "express"
-          - "express-*"
-          - "cors"
-          - "compression"
-          - "cookie-parser"
-          - "helmet"
-          - "morgan"
-          - "http-proxy-middleware"
+          - 'express'
+          - 'express-*'
+          - 'cors'
+          - 'compression'
+          - 'cookie-parser'
+          - 'helmet'
+          - 'morgan'
+          - 'http-proxy-middleware'
       database-clients:
         patterns:
-          - "mongoose"
-          - "mariadb"
-          - "iovalkey"
+          - 'mongoose'
+          - 'mariadb'
+          - 'iovalkey'
       frontend-libs:
         patterns:
-          - "@fortawesome/*"
-          - "@fullcalendar/*"
-          - "@neodrag/*"
-          - "ag-grid-community"
-          - "d3"
-          - "easymde"
-          - "fullcalendar"
-          - "sortablejs"
-          - "vanilla-jsoneditor"
-          - "peerjs"
+          - '@fortawesome/*'
+          - '@fullcalendar/*'
+          - '@neodrag/*'
+          - 'ag-grid-community'
+          - 'd3'
+          - 'easymde'
+          - 'fullcalendar'
+          - 'sortablejs'
+          - 'vanilla-jsoneditor'
+          - 'peerjs'
       tooling:
         patterns:
-          - "nodemon"
-          - "uglify-js"
-          - "html-minifier-terser"
-          - "prettier"
-          - "jsdoc"
-          - "clean-jsdoc-theme"
-          - "swagger-autogen"
-          - "swagger-ui-express"
+          - 'nodemon'
+          - 'uglify-js'
+          - 'html-minifier-terser'
+          - 'prettier'
+          - 'jsdoc'
+          - 'clean-jsdoc-theme'
+          - 'swagger-autogen'
+          - 'swagger-ui-express'
       testing:
         patterns:
-          - "mocha"
-          - "chai"
-          - "c8"
+          - 'mocha'
+          - 'chai'
+          - 'c8'
       cyberia:
         patterns:
-          - "maxrects-packer"
-          - "pngjs"
-          - "jimp"
-          - "sharp"
+          - 'maxrects-packer'
+          - 'pngjs'
+          - 'jimp'
+          - 'sharp'
       utilities:
         patterns:
-          - "axios"
-          - "dotenv"
-          - "env-cmd"
-          - "commander"
-          - "fs-extra"
-          - "adm-zip"
-          - "shelljs"
-          - "colors"
-          - "winston"
-          - "nodemailer"
-          - "cloudinary"
-          - "favicons"
-          - "marked"
-          - "validator"
-          - "jsonwebtoken"
-          - "sitemap"
-          - "socket.io"
-          - "prom-client"
+          - 'axios'
+          - 'dotenv'
+          - 'commander'
+          - 'fs-extra'
+          - 'adm-zip'
+          - 'shelljs'
+          - 'colors'
+          - 'winston'
+          - 'nodemailer'
+          - 'cloudinary'
+          - 'favicons'
+          - 'marked'
+          - 'validator'
+          - 'jsonwebtoken'
+          - 'sitemap'
+          - 'socket.io'
+          - 'prom-client'
     commit-message:
-      prefix: "deps(engine)"
+      prefix: 'deps(engine)'
 
   # ── Hardhat (npm) ────────────────────────────────────────────────────────
-  - package-ecosystem: "npm"
-    directory: "/hardhat"
+  - package-ecosystem: 'npm'
+    directory: '/hardhat'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "08:00"
-      timezone: "UTC"
+      interval: 'weekly'
+      day: 'monday'
+      time: '08:00'
+      timezone: 'UTC'
     open-pull-requests-limit: 10
     reviewers:
-      - "underpostnet"
+      - 'underpostnet'
     labels:
-      - "dependencies"
-      - "hardhat"
+      - 'dependencies'
+      - 'hardhat'
     # Group minor/patch updates into a single PR to reduce noise
     groups:
       hardhat-toolchain:
         patterns:
-          - "hardhat"
-          - "@nomicfoundation/*"
-          - "@typechain/*"
-          - "typechain"
-          - "ethers"
-          - "hardhat-gas-reporter"
-          - "solidity-coverage"
-          - "chai"
+          - 'hardhat'
+          - '@nomicfoundation/*'
+          - '@typechain/*'
+          - 'typechain'
+          - 'ethers'
+          - 'hardhat-gas-reporter'
+          - 'solidity-coverage'
+          - 'chai'
       openzeppelin:
         patterns:
-          - "@openzeppelin/*"
+          - '@openzeppelin/*'
     # Pin to hh2 ecosystem — ignore Hardhat 3+ major bumps that break plugins
     ignore:
-      - dependency-name: "hardhat"
-        versions: [">=3.0.0"]
-      - dependency-name: "@nomicfoundation/hardhat-toolbox"
-        versions: [">=7.0.0"]
-      - dependency-name: "@nomicfoundation/hardhat-chai-matchers"
-        versions: [">=3.0.0"]
-      - dependency-name: "@nomicfoundation/hardhat-ethers"
-        versions: [">=4.0.0"]
-      - dependency-name: "@nomicfoundation/hardhat-network-helpers"
-        versions: [">=2.0.0"]
-      - dependency-name: "@nomicfoundation/hardhat-verify"
-        versions: [">=3.0.0"]
-      - dependency-name: "@nomicfoundation/hardhat-ignition"
-        versions: [">=1.0.0"]
-      - dependency-name: "@nomicfoundation/hardhat-ignition-ethers"
-        versions: [">=1.0.0"]
-      - dependency-name: "@nomicfoundation/ignition-core"
-        versions: [">=1.0.0"]
+      - dependency-name: 'hardhat'
+        versions: ['>=3.0.0']
+      - dependency-name: '@nomicfoundation/hardhat-toolbox'
+        versions: ['>=7.0.0']
+      - dependency-name: '@nomicfoundation/hardhat-chai-matchers'
+        versions: ['>=3.0.0']
+      - dependency-name: '@nomicfoundation/hardhat-ethers'
+        versions: ['>=4.0.0']
+      - dependency-name: '@nomicfoundation/hardhat-network-helpers'
+        versions: ['>=2.0.0']
+      - dependency-name: '@nomicfoundation/hardhat-verify'
+        versions: ['>=3.0.0']
+      - dependency-name: '@nomicfoundation/hardhat-ignition'
+        versions: ['>=1.0.0']
+      - dependency-name: '@nomicfoundation/hardhat-ignition-ethers'
+        versions: ['>=1.0.0']
+      - dependency-name: '@nomicfoundation/ignition-core'
+        versions: ['>=1.0.0']
       # chai v5+ is ESM-only and breaks hardhat-chai-matchers
-      - dependency-name: "chai"
-        versions: [">=5.0.0"]
+      - dependency-name: 'chai'
+        versions: ['>=5.0.0']
     commit-message:
-      prefix: "deps(hardhat)"
+      prefix: 'deps(hardhat)'
 
   # ── GitHub Actions ───────────────────────────────────────────────────────
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: 'weekly'
+      day: 'monday'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "ci"
+      - 'dependencies'
+      - 'ci'
     commit-message:
-      prefix: "ci(actions)"
+      prefix: 'ci(actions)'

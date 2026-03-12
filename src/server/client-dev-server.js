@@ -5,6 +5,7 @@
  */
 import fs from 'fs-extra';
 import nodemon from 'nodemon';
+import dotenv from 'dotenv';
 import { shellExec } from './process.js';
 import { loggerFactory } from './logger.js';
 
@@ -27,16 +28,14 @@ const createClientDevServer = (
   host = process.argv[4] || 'default.net',
   path = process.argv[5] || '/',
 ) => {
-  shellExec(
-    `env-cmd -f ./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-client node bin/deploy build-full-client ${deployId} ${subConf}-dev-client ${host} ${path}`.trim(),
-  );
+  const devClientEnvPath = `./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-client`;
+  if (fs.existsSync(devClientEnvPath)) dotenv.config({ path: devClientEnvPath, override: true });
 
-  shellExec(
-    `env-cmd -f ./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-client node src/server ${deployId} ${subConf}-dev-client`.trim(),
-    {
-      async: true,
-    },
-  );
+  shellExec(`node bin/deploy build-full-client ${deployId} ${subConf}-dev-client ${host} ${path}`.trim());
+
+  shellExec(`node src/server ${deployId} ${subConf}-dev-client`.trim(), {
+    async: true,
+  });
 
   // https://github.com/remy/nodemon/blob/main/doc/events.md
 

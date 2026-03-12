@@ -5,7 +5,6 @@
  * @namespace UnderpostDns
  */
 import axios from 'axios';
-import dotenv from 'dotenv';
 import fs from 'fs';
 import validator from 'validator';
 import { loggerFactory } from './logger.js';
@@ -15,8 +14,6 @@ import { shellExec, pbcopy } from './process.js';
 import Underpost from '../index.js';
 import { writeEnv, readConfJson } from './conf.js';
 import { resolveDeployId } from './cron.js';
-
-dotenv.config();
 
 const logger = loggerFactory(import.meta);
 

@@ -142,7 +142,7 @@ try {
         templatePackageJson.keywords = uniqueArray(
           ['pwa', 'microservices', 'template', 'builder'].concat(templatePackageJson.keywords),
         );
-        delete templatePackageJson.scripts['update-template'];
+        delete templatePackageJson.scripts['update:template'];
         fs.writeFileSync(
           '../pwa-microservices-template/package.json',
           JSON.stringify(templatePackageJson, null, 4),

@@ -12,8 +12,6 @@ import dotenv from 'dotenv';
 import { loggerFactory } from './logger.js';
 import Underpost from '../index.js';
 
-dotenv.config();
-
 /**
  * Logger instance for this module, utilizing the framework's factory.
  * @type {function(*): void}

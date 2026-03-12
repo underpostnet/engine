@@ -4,7 +4,6 @@
  * @namespace Auth
  */
 
-import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { loggerFactory } from './logger.js';
 import crypto from 'crypto';
@@ -19,7 +18,6 @@ import cookieParser from 'cookie-parser';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { isDevProxyContext } from './conf.js';
 
-dotenv.config();
 const logger = loggerFactory(import.meta);
 
 // Promisified crypto functions

@@ -32,6 +32,7 @@ import colors from 'colors';
 import { program } from '../src/cli/index.js';
 import { timer } from '../src/client/components/core/CommonJs.js';
 import Underpost from '../src/index.js';
+import { loadEnv } from '../src/server/env.js';
 
 colors.enable();
 
@@ -195,7 +196,7 @@ try {
       break;
     case 'build-full-client':
       {
-        dotenv.config({ override: true });
+        loadEnv();
         if (!process.argv[3]) process.argv[3] = 'dd-default';
         const { deployId } = loadConf(process.argv[3], process.argv[4] ?? '');
 
@@ -420,7 +421,7 @@ try {
       shellExec(`node bin run kill 4001`);
       shellExec(`node bin run kill 4002`);
       shellExec(`node bin run kill 4003`);
-      shellExec(`npm run update-template`);
+      shellExec(`npm run update:template`);
       shellExec(
         `cd ../pwa-microservices-template && npm install && echo "\nENABLE_FILE_LOGS=true" >> .env.development`,
       );

@@ -6,7 +6,6 @@
 
 'use strict';
 
-import dotenv from 'dotenv';
 import winston from 'winston';
 import morgan from 'morgan';
 import { colorize, color } from 'json-colorizer';
@@ -15,7 +14,6 @@ import v8 from 'v8';
 import { clearTerminalStringColor, formatBytes } from '../client/components/core/CommonJs.js';
 
 colors.enable();
-dotenv.config();
 
 // Define your severity levels.
 // With them, You can create log files,

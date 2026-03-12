@@ -177,7 +177,7 @@ class UnderpostStartUp {
      * @memberof UnderpostStartUp
      */
     async run(deployId = 'dd-default', env = 'development', options = {}) {
-      const runCmd = env === 'production' ? 'run prod-img' : 'run dev-img';
+      const runCmd = env === 'production' ? 'run prod:container' : 'run dev:container';
       if (fs.existsSync(`./engine-private/replica`)) {
         const replicas = await fs.readdir(`./engine-private/replica`);
         for (const replica of replicas) {

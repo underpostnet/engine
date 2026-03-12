@@ -18,7 +18,6 @@ import {
 import { readConfJson } from './conf.js';
 import UglifyJS from 'uglify-js';
 import { minify } from 'html-minifier-terser';
-import dotenv from 'dotenv';
 import AdmZip from 'adm-zip';
 import * as dir from 'path';
 import { shellExec } from './process.js';
@@ -28,8 +27,6 @@ import { buildIcons } from './client-icons.js';
 import Underpost from '../index.js';
 import { buildDocs } from './client-build-docs.js';
 import { ssrFactory } from './ssr.js';
-
-dotenv.config();
 
 // Static Site Generation (SSG)
 
