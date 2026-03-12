@@ -5,10 +5,9 @@ import { loggerFactory } from '../src/server/logger.js';
 const logger = loggerFactory(import.meta);
 
 const vsCodeRootPath = '/root/.vscode-root';
-const vsProgram = 'code';
+const vsConfigRootPath = '/root/.config/Code';
 
-// const vsCodeRootPath = '/root/.windsurf';
-// const vsProgram = 'windsurf';
+const vsProgram = 'code';
 
 switch (process.argv[2]) {
   case 'info': {
@@ -66,6 +65,7 @@ switch (process.argv[2]) {
 
   case 'clean': {
     shellExec(`sudo rm -rf ${vsCodeRootPath}/*`);
+    shellExec(`sudo rn -rf ${vsConfigRootPath}`);
     break;
   }
   default:

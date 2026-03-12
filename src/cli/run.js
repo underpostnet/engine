@@ -487,15 +487,25 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    ide: (path, options = DEFAULT_OPTION) => {
-      const { underpostRoot } = options;
-      if (path === 'install') {
-        shellExec(`sudo curl -f https://zed.dev/install.sh | sh`);
-        shellExec(
-          `sudo dnf config-manager --add-repo https://download.sublimetext.com/rpm/stable/x86_64/sublime-text.repo`,
-        );
-        shellExec(`sudo dnf install -y sublime-text`);
-      } else shellExec(`node ${underpostRoot}/bin/zed ${path}`);
+    ide: (path = '', options = DEFAULT_OPTION) => {
+      const underpostRoot = options.dev ? '.' : options.underpostRoot;
+      const [projectPath, customIde] = path.split(',');
+      if (projectPath === 'install') {
+        if (customIde === 'zed') shellExec(`sudo curl -f https://zed.dev/install.sh | sh`);
+        else if (customIde === 'subl') {
+          shellExec(
+            `sudo dnf config-manager --add-repo https://download.sublimetext.com/rpm/stable/x86_64/sublime-text.repo`,
+          );
+          shellExec(`sudo dnf install -y sublime-text`);
+        } else {
+          shellExec(`sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc &&
+echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\nautorefresh=1\ntype=rpm-md\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" | sudo tee /etc/yum.repos.d/vscode.repo > /dev/null`);
+          shellExec(`sudo dnf install -y code`);
+        }
+        return;
+      }
+      if (customIde === 'zed') shellExec(`node ${underpostRoot}/bin/zed ${projectPath}`);
+      else shellExec(`code ${underpostRoot}/bin/vs ${projectPath}`);
     },
     /**
      * @method crypto-policy

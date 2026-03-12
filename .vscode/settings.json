@@ -2,8 +2,9 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
   "explorer.compactFolders": false,
-  "javascript.preferences.importModuleSpecifierEnding": "js",
+  "js/ts.preferences.importModuleSpecifierEnding": "js",
   "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
+  "editor.inlineSuggest.enabled": true
 }
