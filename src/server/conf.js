@@ -241,7 +241,8 @@ const Config = {
   build: async function (deployContext = DEFAULT_DEPLOY_ID, deployList, subConf) {
     if (process.argv[2] && typeof process.argv[2] === 'string' && process.argv[2].startsWith('dd-'))
       deployContext = process.argv[2];
-    else if (process.env.DEPLOY_ID && process.env.DEPLOY_ID.startsWith('dd-')) deployContext = process.env.DEPLOY_ID;
+    else if (deployContext !== 'proxy' && process.env.DEPLOY_ID && process.env.DEPLOY_ID.startsWith('dd-'))
+      deployContext = process.env.DEPLOY_ID;
     if (!subConf && process.argv[3] && typeof process.argv[3] === 'string') subConf = process.argv[3];
 
     Underpost.env.set('await-deploy', new Date().toISOString());

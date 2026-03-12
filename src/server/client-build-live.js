@@ -24,7 +24,7 @@ const clientLiveBuild = async () => {
     let host = 'default.net';
     let path = '/';
     let baseHost = `${host}${path === '/' ? '' : path}`;
-    let views = Config.default.client[clientId].views;
+    let views;
     let apiBaseHost;
     let apiBaseProxyPath;
 
@@ -42,6 +42,8 @@ const clientLiveBuild = async () => {
       baseHost = `${host}${path === '/' ? '' : path}`;
       apiBaseHost = confServer[host][path].apiBaseHost;
       apiBaseProxyPath = confServer[host][path].apiBaseProxyPath;
+    } else {
+      views = Config.default.client[clientId].views;
     }
 
     logger.info('Live build config', {

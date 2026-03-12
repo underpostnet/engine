@@ -79,7 +79,8 @@ const createClientDevServer = (
       fs.writeFileSync(`/tmp/client.build.json`, JSON.stringify(buildPathScopeBuild, null, 4));
     })
     .on('crash', function (error) {
-      logger.error(error, error.message);
+      if (error) logger.error(error, error.message || 'nodemon crash');
+      else logger.error('nodemon process crashed');
     });
 };
 
