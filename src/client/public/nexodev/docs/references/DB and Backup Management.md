@@ -30,6 +30,7 @@ underpost db <deploy-id> --macro-rollback-export 3
 ## Overview
 
 The `db` command supports:
+
 - **Database Types**: MariaDB and MongoDB
 - **Operations**: Import, export, statistics, and rollback
 - **Git Integration**: Version control for backups
@@ -48,24 +49,31 @@ underpost db <deploy-list> [options]
 
 ### Available Options
 
-| Option | Description |
-|--------|-------------|
-| `--import` | Import container backups from specified repositories |
-| `--export` | Export container backups to specified repositories |
-| `--pod-name <pod-name>` | Comma-separated pod names or patterns (supports wildcards like `mariadb-*`) |
-| `--all-pods` | Target all matching pods instead of just the first one |
-| `--primary-pod` | Automatically detect and use MongoDB primary pod (MongoDB only) |
-| `--stats` | Display database statistics (collection/table names with document/row counts) |
-| `--collections <collections>` | Comma-separated list of database collections to operate on |
-| `--out-path <out-path>` | Custom output path for backups |
-| `--drop` | Drop specified databases or collections before importing |
-| `--preserveUUID` | Preserve UUIDs during database import operations |
-| `--git` | Enable Git integration for backup version control |
-| `--force-clone` | Force clone Git repository, overwriting local changes |
-| `--hosts <hosts>` | Comma-separated list of database hosts to filter operations |
-| `--paths <paths>` | Comma-separated list of paths to filter database operations |
-| `--ns <ns-name>` | Kubernetes namespace context (defaults to `default`) |
-| `--macro-rollback-export <n>` | Export macro rollback script that reverts the last n commits |
+| Option                            | Description                                                                   |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| `--import`                        | Import container backups from specified repositories                          |
+| `--export`                        | Export container backups to specified repositories                            |
+| `--pod-name <pod-name>`           | Comma-separated pod names or patterns (supports wildcards like `mariadb-*`)   |
+| `--all-pods`                      | Target all matching pods instead of just the first one                        |
+| `--primary-pod`                   | Automatically detect and use MongoDB primary pod (MongoDB only)               |
+| `--stats`                         | Display database statistics (collection/table names with document/row counts) |
+| `--collections <collections>`     | Comma-separated list of database collections to operate on                    |
+| `--out-path <out-path>`           | Custom output path for backups                                                |
+| `--drop`                          | Drop specified databases or collections before importing                      |
+| `--preserveUUID`                  | Preserve UUIDs during database import operations                              |
+| `--git`                           | Enable Git integration for backup version control                             |
+| `--force-clone`                   | Force clone Git repository, overwriting local changes                         |
+| `--hosts <hosts>`                 | Comma-separated list of database hosts to filter operations                   |
+| `--paths <paths>`                 | Comma-separated list of paths to filter database operations                   |
+| `--ns <ns-name>`                  | Kubernetes namespace context (defaults to `default`)                          |
+| `--macro-rollback-export <n>`     | Export macro rollback script that reverts the last n commits                  |
+| `--primary-pod-ensure <pod-name>` | Ensure setup of MongoDB replica set primary pod before operations             |
+| `--clean-fs-collection`           | Clean orphaned File documents not referenced by any models                    |
+| `--clean-fs-dry-run`              | Dry run mode for `--clean-fs-collection` (preview without deleting)           |
+| `--dev`                           | Development CLI context                                                       |
+| `--kubeadm`                       | Kubeadm cluster context for database operations                               |
+| `--kind`                          | Kind cluster context for database operations                                  |
+| `--k3s`                           | K3s cluster context for database operations                                   |
 
 ---
 
@@ -254,11 +262,13 @@ underpost db default-a,default-b --export --pod-name "mongodb-*" --all-pods
 ### Complete Backup Workflow
 
 1. **Export with Git version control:**
+
    ```bash
    underpost db default-a --export --git
    ```
 
 2. **View statistics to verify:**
+
    ```bash
    underpost db default-a --stats
    ```
@@ -271,6 +281,7 @@ underpost db default-a,default-b --export --pod-name "mongodb-*" --all-pods
 ### Clean Database Restore
 
 1. **Import with drop to clean existing data:**
+
    ```bash
    underpost db default-a --import --drop --git
    ```
@@ -283,6 +294,7 @@ underpost db default-a,default-b --export --pod-name "mongodb-*" --all-pods
 ### MongoDB Primary Pod Backup
 
 1. **Auto-detect and backup primary pod:**
+
    ```bash
    underpost db mongodb-cluster --export --primary-pod --git
    ```
@@ -295,6 +307,7 @@ underpost db default-a,default-b --export --pod-name "mongodb-*" --all-pods
 ### Multi-Environment Sync
 
 1. **Export from production:**
+
    ```bash
    underpost db prod-app --export --git --ns production
    ```
@@ -309,38 +322,50 @@ underpost db default-a,default-b --export --pod-name "mongodb-*" --all-pods
 ## Best Practices
 
 ### 1. Always Use Git Integration
+
 Enable `--git` for automated version control and backup history:
+
 ```bash
 underpost db default-a --export --git
 ```
 
 ### 2. Verify Before Import
+
 Check statistics before importing to understand data impact:
+
 ```bash
 underpost db default-a --stats
 ```
 
 ### 3. Use --drop Carefully
+
 The `--drop` flag removes existing data. Always backup first:
+
 ```bash
 underpost db default-a --export --git  # Backup first
 underpost db default-a --import --drop  # Then import
 ```
 
 ### 4. Target Specific Pods
+
 For production systems, target specific pods to minimize impact:
+
 ```bash
 underpost db default-a --export --pod-name mongodb-primary
 ```
 
 ### 5. Create Rollback Points
+
 Before major changes, create rollback scripts:
+
 ```bash
 underpost db default-a --macro-rollback-export 5
 ```
 
 ### 6. Use Namespaces
+
 Always specify namespace in multi-environment setups:
+
 ```bash
 underpost db default-a --export --ns production --git
 ```
@@ -350,35 +375,45 @@ underpost db default-a --export --ns production --git
 ## Troubleshooting
 
 ### Pod Not Found
+
 If pod is not found, list available pods:
+
 ```bash
 kubectl get pods -n <namespace>
 ```
 
 Then specify exact pod name:
+
 ```bash
 underpost db default-a --export --pod-name <exact-pod-name>
 ```
 
 ### Multiple Pods Detected
+
 Use `--all-pods` to process all matching pods:
+
 ```bash
 underpost db default-a --export --pod-name "mariadb-*" --all-pods
 ```
 
 Or target the primary pod for MongoDB:
+
 ```bash
 underpost db default-a --export --primary-pod
 ```
 
 ### Git Conflicts
+
 Force clone to override local changes:
+
 ```bash
 underpost db default-a --export --git --force-clone
 ```
 
 ### Namespace Access
+
 Ensure you have proper Kubernetes RBAC permissions:
+
 ```bash
 kubectl auth can-i get pods -n <namespace>
 ```
@@ -390,11 +425,13 @@ kubectl auth can-i get pods -n <namespace>
 ### Selective Collection Backup and Restore
 
 Export only user-related collections:
+
 ```bash
 underpost db default-a --export --collections users,user_profiles,user_sessions --git
 ```
 
 Import only specific collections without affecting others:
+
 ```bash
 underpost db default-a --import --collections users --preserveUUID
 ```
@@ -402,6 +439,7 @@ underpost db default-a --import --collections users --preserveUUID
 ### Cross-Namespace Migration
 
 1. Export from production:
+
    ```bash
    underpost db prod-app --export --git --ns production
    ```
@@ -414,6 +452,7 @@ underpost db default-a --import --collections users --preserveUUID
 ### Automated Backup Script
 
 Create a scheduled backup script:
+
 ```bash
 #!/bin/bash
 # Daily backup with Git version control
@@ -460,44 +499,44 @@ happens automatically when configs are loaded via `loadConf()` or `loadConfServe
 
 ### Database Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DB_PROVIDER` | Database provider (`mongoose`, `mariadb`) | `mongoose` |
-| `DB_HOST` | MongoDB connection URI | `mongodb://127.0.0.1:27017` |
-| `DB_NAME` | Default database name | `default` |
-| `DB_NAME_<SITE>` | Per-site database name (e.g. `DB_NAME_NEXODEV`) | — |
-| `MARIADB_HOST` | MariaDB/MySQL host | `127.0.0.1` |
-| `MARIADB_PORT` | MariaDB/MySQL port | `3306` |
-| `MARIADB_USER` | MariaDB/MySQL username | `root` |
-| `MARIADB_PASSWORD` | MariaDB/MySQL password | _(empty)_ |
+| Variable           | Description                                     | Default                     |
+| ------------------ | ----------------------------------------------- | --------------------------- |
+| `DB_PROVIDER`      | Database provider (`mongoose`, `mariadb`)       | `mongoose`                  |
+| `DB_HOST`          | MongoDB connection URI                          | `mongodb://127.0.0.1:27017` |
+| `DB_NAME`          | Default database name                           | `default`                   |
+| `DB_NAME_<SITE>`   | Per-site database name (e.g. `DB_NAME_NEXODEV`) | —                           |
+| `MARIADB_HOST`     | MariaDB/MySQL host                              | `127.0.0.1`                 |
+| `MARIADB_PORT`     | MariaDB/MySQL port                              | `3306`                      |
+| `MARIADB_USER`     | MariaDB/MySQL username                          | `root`                      |
+| `MARIADB_PASSWORD` | MariaDB/MySQL password                          | _(empty)_                   |
 
 ### SMTP / Mailer Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SMTP_HOST` | SMTP server hostname | `smtp.default.com` |
-| `SMTP_PORT` | SMTP server port | `465` |
-| `SMTP_SECURE` | Use TLS (`true`/`false`) | `true` |
-| `SMTP_AUTH_USER` | SMTP authentication user | _(empty)_ |
-| `SMTP_AUTH_PASS` | SMTP authentication password | _(empty)_ |
-| `MAILER_SENDER_EMAIL` | Sender email address | `noreply@default.net` |
-| `MAILER_SENDER_NAME` | Sender display name | `Default` |
+| Variable              | Description                  | Default               |
+| --------------------- | ---------------------------- | --------------------- |
+| `SMTP_HOST`           | SMTP server hostname         | `smtp.default.com`    |
+| `SMTP_PORT`           | SMTP server port             | `465`                 |
+| `SMTP_SECURE`         | Use TLS (`true`/`false`)     | `true`                |
+| `SMTP_AUTH_USER`      | SMTP authentication user     | _(empty)_             |
+| `SMTP_AUTH_PASS`      | SMTP authentication password | _(empty)_             |
+| `MAILER_SENDER_EMAIL` | Sender email address         | `noreply@default.net` |
+| `MAILER_SENDER_NAME`  | Sender display name          | `Default`             |
 
 ### DDNS / Cron Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DDNS_HOST` | Hostname to update via DDNS | `example.com` |
-| `DDNS_PROVIDER` | DNS provider name | `dondominio` |
-| `DDNS_API_KEY` | DNS provider API key | _(empty)_ |
-| `DDNS_USER` | DNS provider username | _(empty)_ |
+| Variable        | Description                 | Default       |
+| --------------- | --------------------------- | ------------- |
+| `DDNS_HOST`     | Hostname to update via DDNS | `example.com` |
+| `DDNS_PROVIDER` | DNS provider name           | `dondominio`  |
+| `DDNS_API_KEY`  | DNS provider API key        | _(empty)_     |
+| `DDNS_USER`     | DNS provider username       | _(empty)_     |
 
 ### Valkey (Redis-compatible) Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
+| Variable      | Description        | Default     |
+| ------------- | ------------------ | ----------- |
 | `VALKEY_HOST` | Valkey server host | `127.0.0.1` |
-| `VALKEY_PORT` | Valkey server port | `6379` |
+| `VALKEY_PORT` | Valkey server port | `6379`      |
 
 ### Resolution Order
 

@@ -81,19 +81,20 @@ node bin new --deploy-id dd-my-app --build
 node bin new --deploy-id dd-my-app --purge
 ```
 
-| Option                    | Description                                                                                                         |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `--deploy-id <id>`        | Create deployment ID configuration and env files (format: `dd-<conf-id>`)                                           |
-| `--cluster`               | Create cluster files and sync (requires `--deploy-id`)                                                              |
-| `--sub-conf <type>`       | Create sub-configuration files (`client`, `server`)                                                                 |
-| `--build`                 | Build deployment to pwa-microservices-template                                                                      |
-| `--build-repos`           | Create deployment ID repositories (`engine-<conf-id>`, `engine-<conf-id>-private`, `engine-<conf-id>-cron-backups`) |
-| `--clean-template`        | Clean the build directory                                                                                           |
-| `--sync-conf`             | Sync configuration to private repositories                                                                          |
-| `--purge`                 | Remove deploy ID and all related files                                                                              |
-| `--dev`                   | Development CLI context                                                                                             |
-| `--default-conf`          | Create default deploy ID configuration                                                                              |
-| `--conf-workflow-id <id>` | Custom configuration workflow ID                                                                                    |
+| Option                    | Description                                                                                                                 |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `--deploy-id <id>`        | Create deployment ID configuration and env files (format: `dd-<conf-id>`)                                                   |
+| `--cluster`               | Create cluster files and sync (requires `--deploy-id`)                                                                      |
+| `--sub-conf <type>`       | Create sub-configuration files (`client`, `server`)                                                                         |
+| `--build`                 | Build deployment to pwa-microservices-template                                                                              |
+| `--build-repos`           | Create deployment ID repositories (`engine-<conf-id>`, `engine-<conf-id>-private`, `engine-<conf-id>-cron-backups`)         |
+| `--clean-template`        | Clean the build directory                                                                                                   |
+| `--sync-conf`             | Sync configuration to private repositories                                                                                  |
+| `--sync-start`            | Sync start scripts in deploy ID `package.json` with root `package.json` (use `dd` as `--deploy-id` to sync all `dd.router`) |
+| `--purge`                 | Remove deploy ID and all related files                                                                                      |
+| `--dev`                   | Development CLI context                                                                                                     |
+| `--default-conf`          | Create default deploy ID configuration                                                                                      |
+| `--conf-workflow-id <id>` | Custom configuration workflow ID                                                                                            |
 
 When `--deploy-id dd-my-app` is used with `--cluster`, the engine creates:
 

@@ -34,7 +34,7 @@ underpost cluster --contour
 
 ```bash
 # 1. Create deployment configuration with cluster files
-node bin new my-new-service --deploy-id --cluster
+node bin new --deploy-id dd-my-new-service --cluster
 
 # 2. Build Kubernetes manifests
 node bin deploy dd-my-new-service development --build-manifest
@@ -52,10 +52,11 @@ node bin deploy dd-my-new-service development
 Create a new deployment configuration with Kubernetes support:
 
 ```bash
-node bin new my-new-service --deploy-id --cluster
+node bin new --deploy-id dd-my-new-service --cluster
 ```
 
 **What this does:**
+
 - Creates `./engine-private/conf/dd-my-new-service/` directory
 - Generates configuration files (client.js, server.js, ssr.js)
 - Creates Kubernetes-related files (CI/CD workflows)
@@ -71,6 +72,7 @@ node bin deploy dd-my-new-service development --build-manifest
 ```
 
 **Options:**
+
 - `--build-manifest`: Creates `deployment.yaml` and `proxy.yaml`
 - `--replicas <n>`: Number of replicas (default: 1)
 - `--versions <list>`: Comma-separated versions (default: "blue,green")
@@ -88,11 +90,13 @@ node bin deploy dd-my-new-service development
 ```
 
 **What happens:**
+
 - Applies `deployment.yaml` to create Deployment and Service
 - Applies `proxy.yaml` to create HTTPProxy ingress resource
 - Service becomes accessible through the cluster's ingress controller
 
 **Verify deployment:**
+
 ```bash
 kubectl get pods,svc,httpproxy -n default
 kubectl get pods -l app=dd-my-new-service
@@ -115,66 +119,68 @@ node bin deploy <deploy-list> <environment> [options]
 
 ### Core Options
 
-| Option | Description | Default | Example |
-|--------|-------------|---------|---------|
-| `--build-manifest` | Build Kubernetes manifest files | - | `--build-manifest` |
-| `--replicas <n>` | Number of pod replicas | 1 | `--replicas 3` |
-| `--versions <list>` | Deployment versions (blue/green) | "blue,green" | `--versions blue,green` |
-| `--image <name>` | Docker image for deployment | - | `--image myapp:v1.2.3` |
-| `--namespace <ns>` | Kubernetes namespace | "default" | `--namespace production` |
-| `--timeout-response <duration>` | Set HTTPProxy route `timeoutPolicy.response` (e.g., "1s", "300ms", "infinity") | - | `--timeout-response 1s` |
-| `--timeout-idle <duration>` | Set HTTPProxy route `timeoutPolicy.idle` (e.g., "10s", "infinity") | - | `--timeout-idle 10s` |
-| `--retry-count <count>` | Set HTTPProxy route `retryPolicy.count` (integer) | - | `--retry-count 3` |
-| `--retry-per-try-timeout <duration>` | Set HTTPProxy route `retryPolicy.perTryTimeout` (e.g., "150ms") | - | `--retry-per-try-timeout 150ms` |
-| `--node <name>` | Target specific node | - | `--node worker-01` |
+| Option                               | Description                                                                    | Default      | Example                         |
+| ------------------------------------ | ------------------------------------------------------------------------------ | ------------ | ------------------------------- |
+| `--build-manifest`                   | Build Kubernetes manifest files                                                | -            | `--build-manifest`              |
+| `--replicas <n>`                     | Number of pod replicas                                                         | 1            | `--replicas 3`                  |
+| `--versions <list>`                  | Deployment versions (blue/green)                                               | "blue,green" | `--versions blue,green`         |
+| `--image <name>`                     | Docker image for deployment                                                    | -            | `--image myapp:v1.2.3`          |
+| `--namespace <ns>`                   | Kubernetes namespace                                                           | "default"    | `--namespace production`        |
+| `--timeout-response <duration>`      | Set HTTPProxy route `timeoutPolicy.response` (e.g., "1s", "300ms", "infinity") | -            | `--timeout-response 1s`         |
+| `--timeout-idle <duration>`          | Set HTTPProxy route `timeoutPolicy.idle` (e.g., "10s", "infinity")             | -            | `--timeout-idle 10s`            |
+| `--retry-count <count>`              | Set HTTPProxy route `retryPolicy.count` (integer)                              | -            | `--retry-count 3`               |
+| `--retry-per-try-timeout <duration>` | Set HTTPProxy route `retryPolicy.perTryTimeout` (e.g., "150ms")                | -            | `--retry-per-try-timeout 150ms` |
+| `--node <name>`                      | Target specific node                                                           | -            | `--node worker-01`              |
 
 ### Traffic & Routing Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--traffic <versions>` | Set traffic routing (blue/green) | `--traffic blue` |
-| `--expose` | Expose service via port forwarding | `--expose` |
-| `--port <number>` | Port for exposure | `--port 8080` |
-| `--kind-type <type>` | Resource type to expose (svc/pod) | `--kind-type svc` |
+| Option                 | Description                        | Example           |
+| ---------------------- | ---------------------------------- | ----------------- |
+| `--traffic <versions>` | Set traffic routing (blue/green)   | `--traffic blue`  |
+| `--expose`             | Expose service via port forwarding | `--expose`        |
+| `--port <number>`      | Port for exposure                  | `--port 8080`     |
+| `--kind-type <type>`   | Resource type to expose (svc/pod)  | `--kind-type svc` |
 
 ### TLS/Certificate Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--cert` | Enable TLS certificates (production only) | `--cert` |
-| `--cert-hosts <hosts>` | Specific hosts for certificates | `--cert-hosts "api.example.com,app.example.com"` |
+| Option                 | Description                               | Example                                          |
+| ---------------------- | ----------------------------------------- | ------------------------------------------------ |
+| `--cert`               | Enable TLS certificates (production only) | `--cert`                                         |
+| `--cert-hosts <hosts>` | Specific hosts for certificates           | `--cert-hosts "api.example.com,app.example.com"` |
 
 ### Update Control Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--disable-update-deployment` | Skip deployment updates | `--disable-update-deployment` |
-| `--disable-update-proxy` | Skip proxy updates | `--disable-update-proxy` |
-| `--disable-deployment-proxy` | Disable proxy completely | `--disable-deployment-proxy` |
-| `--disable-update-volume` | Skip volume updates | `--disable-update-volume` |
-| `--disable-update-underpost-config` | Skip config updates | `--disable-update-underpost-config` |
+| Option                              | Description              | Example                             |
+| ----------------------------------- | ------------------------ | ----------------------------------- |
+| `--disable-update-deployment`       | Skip deployment updates  | `--disable-update-deployment`       |
+| `--disable-update-proxy`            | Skip proxy updates       | `--disable-update-proxy`            |
+| `--disable-deployment-proxy`        | Disable proxy completely | `--disable-deployment-proxy`        |
+| `--disable-update-volume`           | Skip volume updates      | `--disable-update-volume`           |
+| `--disable-update-underpost-config` | Skip config updates      | `--disable-update-underpost-config` |
 
 ### Information & Utility Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
+| Option          | Description                  | Example         |
+| --------------- | ---------------------------- | --------------- |
 | `--info-router` | Display router configuration | `--info-router` |
-| `--info-util` | Display utility information | `--info-util` |
-| `--status` | Check deployment status | `--status` |
-| `--sync` | Synchronize configurations | `--sync` |
+| `--status`      | Check deployment status      | `--status`      |
+| `--sync`        | Synchronize configurations   | `--sync`        |
 
 ### Cleanup Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--remove` | Remove deployment from cluster | `--remove` |
-| `--restore-hosts` | Restore /etc/hosts file | `--restore-hosts` |
+| Option            | Description                    | Example           |
+| ----------------- | ------------------------------ | ----------------- |
+| `--remove`        | Remove deployment from cluster | `--remove`        |
+| `--restore-hosts` | Restore /etc/hosts file        | `--restore-hosts` |
 
 ### Development Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--etc-hosts` | Add hosts to /etc/hosts | `--etc-hosts` |
+| Option                 | Description                                        | Example                   |
+| ---------------------- | -------------------------------------------------- | ------------------------- |
+| `--expose-port <port>` | Override auto-detected service port for `--expose` | `--expose-port 8080:8080` |
+| `--cmd <cmd>`          | Custom initialization command (comma-separated)    | `--cmd "npm run migrate"` |
+| `--kubeadm`            | Kubeadm cluster context                            | `--kubeadm`               |
+| `--etc-hosts`          | Add hosts to /etc/hosts                            | `--etc-hosts`             |
 
 ---
 
@@ -269,15 +275,15 @@ spec:
   virtualhost:
     fqdn: timeout.bar.com
   routes:
-  - timeoutPolicy:
-      response: 1s
-      idle: 10s
-    retryPolicy:
-      count: 3
-      perTryTimeout: 150ms
-    services:
-    - name: s1
-      port: 80
+    - timeoutPolicy:
+        response: 1s
+        idle: 10s
+      retryPolicy:
+        count: 3
+        perTryTimeout: 150ms
+      services:
+        - name: s1
+          port: 80
 ```
 
 To generate the proxy YAML with these settings when building manifests:
@@ -293,6 +299,7 @@ node bin deploy dd-my-new-service development
 ```
 
 Notes:
+
 - Durations follow the format used by Envoy (e.g., `300ms`, `5s`, `1m`, or `infinity`).
 - `retryPolicy.perTryTimeout` is optional and may be ignored if it exceeds other request timeouts; consult Envoy/Contour docs for detailed behavior.
 
@@ -361,7 +368,7 @@ node bin deploy dd-app development --etc-hosts
 
 ```bash
 # 1. Create deployment configuration
-node bin new my-service --deploy-id --cluster
+node bin new --deploy-id dd-my-service --cluster
 
 # 2. Build manifests for development
 node bin deploy dd-my-service development --build-manifest --replicas 1
@@ -441,6 +448,7 @@ curl http://localhost:8080
 **Problem:** `deployment.yaml` or `proxy.yaml` files missing.
 
 **Solution:**
+
 ```bash
 # Ensure --build-manifest flag is used
 node bin deploy dd-app development --build-manifest
@@ -454,6 +462,7 @@ ls -la manifests/deployment/dd-app-development/
 **Problem:** kubectl apply errors.
 
 **Solution:**
+
 ```bash
 # Check kubectl access
 kubectl get nodes
@@ -473,6 +482,7 @@ cat manifests/deployment/dd-app-development/deployment.yaml
 **Problem:** Pods stuck in pending or error state.
 
 **Solution:**
+
 ```bash
 # Check pod status
 kubectl get pods -n default
@@ -492,6 +502,7 @@ docker pull <image-name>
 **Problem:** Ingress not routing traffic.
 
 **Solution:**
+
 ```bash
 # Verify Contour is running
 kubectl get pods -n projectcontour
@@ -509,6 +520,7 @@ cat /etc/hosts
 **Problem:** TLS certificates not created.
 
 **Solution:**
+
 ```bash
 # Ensure cert-manager is installed (production)
 kubectl get pods -n cert-manager
@@ -526,6 +538,7 @@ node bin deploy dd-app production --cert --build-manifest
 **Problem:** Persistent volumes not mounting.
 
 **Solution:**
+
 ```bash
 # Check PVC status
 kubectl get pvc -n default

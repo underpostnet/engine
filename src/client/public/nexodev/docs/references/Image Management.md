@@ -65,43 +65,41 @@ node bin image [options]
 
 ### Core Operations
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--build` | Build Docker image using Podman | `--build` |
-| `--ls` | List available images in cluster | `--ls` |
-| `--rm <image-id>` | Remove specified image | `--rm my-app:1.0` |
-| `--pull-base` | Pull base images and build rockylinux9-underpost | `--pull-base` |
-| `--pull-dockerhub <image>` | Pull image from Docker Hub | `--pull-dockerhub nginx:latest` |
+| Option                     | Description                                      | Example                         |
+| -------------------------- | ------------------------------------------------ | ------------------------------- |
+| `--build`                  | Build Docker image using Podman                  | `--build`                       |
+| `--ls`                     | List available images in cluster                 | `--ls`                          |
+| `--rm <image-id>`          | Remove specified image                           | `--rm my-app:1.0`               |
+| `--pull-base`              | Pull base images and build rockylinux9-underpost | `--pull-base`                   |
+| `--pull-dockerhub <image>` | Pull image from Docker Hub                       | `--pull-dockerhub nginx:latest` |
 
 ### Build Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--path [path]` | Path to Dockerfile directory | `--path ./my-app` |
-| `--image-name [name]` | Custom name for the image | `--image-name my-app:1.0` |
-| `--image-path [path]` | Output path for tar archive | `--image-path ./images` |
-| `--dockerfile-name [name]` | Custom Dockerfile name | `--dockerfile-name Dockerfile.prod` |
-| `--podman-save` | Save image as tar archive | `--podman-save` |
-| `--reset` | Build without cache (fresh build) | `--reset` |
-| `--secrets` | Include environment secrets in build | `--secrets` |
-| `--secrets-path [path]` | Custom path to .env secrets file | `--secrets-path ./.env.prod` |
+| Option                     | Description                       | Example                             |
+| -------------------------- | --------------------------------- | ----------------------------------- |
+| `--path [path]`            | Path to Dockerfile directory      | `--path ./my-app`                   |
+| `--image-name [name]`      | Custom name for the image         | `--image-name my-app:1.0`           |
+| `--image-path [path]`      | Output path for tar archive       | `--image-path ./images`             |
+| `--dockerfile-name [name]` | Custom Dockerfile name            | `--dockerfile-name Dockerfile.prod` |
+| `--podman-save`            | Save image as tar archive         | `--podman-save`                     |
+| `--reset`                  | Build without cache (fresh build) | `--reset`                           |
 
 ### Cluster Type Selection
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--kind` | Target Kind cluster | `--kind` |
+| Option      | Description            | Example     |
+| ----------- | ---------------------- | ----------- |
+| `--kind`    | Target Kind cluster    | `--kind`    |
 | `--kubeadm` | Target Kubeadm cluster | `--kubeadm` |
-| `--k3s` | Target K3s cluster | `--k3s` |
+| `--k3s`     | Target K3s cluster     | `--k3s`     |
 
 ### Additional Options
 
-| Option | Description | Example |
-|--------|-------------|---------|
+| Option               | Description                               | Example                  |
+| -------------------- | ----------------------------------------- | ------------------------ |
 | `--namespace <name>` | Kubernetes namespace (default: "default") | `--namespace production` |
-| `--node-name` | Node name for kubeadm/k3s operations | `--node-name worker-1` |
-| `--spec` | Show detailed image specifications | `--spec` |
-| `--dev` | Use development mode | `--dev` |
+| `--node-name`        | Node name for kubeadm/k3s operations      | `--node-name worker-1`   |
+| `--spec`             | Show detailed image specifications        | `--spec`                 |
+| `--dev`              | Use development mode                      | `--dev`                  |
 
 ---
 
@@ -165,20 +163,6 @@ Force a fresh build without using cache:
 node bin image --build --reset --path ./my-app --image-name my-app:latest
 ```
 
-### Build with Secrets
-
-Include environment secrets during the build:
-
-```bash
-node bin image --build --secrets --path ./my-app --image-name my-app:1.0
-```
-
-With custom secrets path:
-
-```bash
-node bin image --build --secrets --secrets-path ./.env.production --path ./my-app --image-name my-app:1.0
-```
-
 ---
 
 ## Pulling Base Images
@@ -204,12 +188,6 @@ node bin image --pull-base --k3s
 node bin image --pull-base --kind --path /custom/path
 ```
 
-### Pull Base with Custom Version
-
-```bash
-node bin image --pull-base --kind --version v2.0.1
-```
-
 ---
 
 ## Docker Hub Integration
@@ -227,12 +205,6 @@ node bin image --pull-dockerhub underpost --kubeadm
 
 # Pull to K3s
 node bin image --pull-dockerhub underpost --k3s
-```
-
-### Pull Specific Version
-
-```bash
-node bin image --pull-dockerhub underpost --version 1.0.0 --kind
 ```
 
 ### Pull Any Docker Hub Image
@@ -431,18 +403,7 @@ Regularly remove old images to save disk space:
 node bin image --rm old-app:1.0.0 --kind
 ```
 
-### 7. Use Secrets Safely
-
-When building with secrets, ensure your `.env` file is properly protected:
-
-```bash
-# Use secrets with custom path
-node bin image --build --secrets --secrets-path ./.env.build --image-name my-app:1.0 --path ./app
-```
-
-Never commit `.env` files to version control.
-
-### 8. Verify Cluster Type
+### 7. Verify Cluster Type
 
 Always specify the correct cluster type to avoid loading images to the wrong cluster:
 
@@ -465,6 +426,7 @@ node bin image --build --kubeadm --image-name my-app:prod --path ./app
 **Problem:** Image isn't available after building.
 
 **Solutions:**
+
 ```bash
 # Verify image was built correctly
 podman images | grep my-app
@@ -481,6 +443,7 @@ node bin image --ls --kind
 **Problem:** Image load operation failed.
 
 **Solutions:**
+
 ```bash
 # Ensure cluster is running
 kubectl get nodes
@@ -503,6 +466,7 @@ node bin image --build --reset --kind --podman-save --image-name my-app:1.0 --pa
 **Problem:** Dockerfile doesn't exist at specified path.
 
 **Solutions:**
+
 ```bash
 # Verify Dockerfile exists
 ls -la ./app/Dockerfile
@@ -519,6 +483,7 @@ pwd
 **Problem:** Insufficient permissions for Podman or cluster operations.
 
 **Solutions:**
+
 ```bash
 # Run with sudo if needed (operations already use sudo internally)
 # Ensure your user is in docker group (for Kind)
@@ -532,6 +497,7 @@ sudo usermod -aG docker $USER
 **Problem:** Disk is full from image builds.
 
 **Solutions:**
+
 ```bash
 # Clean up Podman images
 podman system prune -a
@@ -548,6 +514,7 @@ df -h
 **Problem:** Cannot pull image from Docker Hub.
 
 **Solutions:**
+
 ```bash
 # Check internet connection
 ping docker.io
@@ -564,6 +531,7 @@ node bin image --pull-dockerhub nginx:1.21 --kind
 **Problem:** Image built for different CPU architecture.
 
 **Solutions:**
+
 ```bash
 # Verify system architecture
 uname -m
@@ -664,9 +632,6 @@ node bin image --pull-base --kind
 
 # Fresh build
 --build --reset --kind --path ./app --image-name my-app:1.0
-
-# With secrets
---build --secrets --kind --path ./app --image-name my-app:1.0
 
 # Custom Dockerfile
 --build --dockerfile-name Dockerfile.prod --kind --path ./app --image-name my-app:1.0
