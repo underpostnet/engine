@@ -1019,12 +1019,18 @@ nvidia/gpu-operator \
     }
 
     case 'sync-start': {
+      const targetDeployId = process.argv[3] || 'dd';
+      const deployIds =
+        targetDeployId === 'dd'
+          ? fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')
+          : [targetDeployId];
       const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
-      for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
+      for (const deployId of deployIds) {
         const packageJsonPath = `./engine-private/conf/${deployId}/package.json`;
         const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-        packageJson.scripts.start = `${originPackageJson.scripts.start} ${deployId}`;
+        packageJson.scripts = { start: `${originPackageJson.scripts.start} ${deployId}` };
         fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 4), 'utf8');
+        logger.info(`sync-start`, { deployId, start: packageJson.scripts.start });
       }
       break;
     }

@@ -412,6 +412,7 @@ class UnderpostRepository {
      * @param {boolean} [options.cleanTemplate=false] - If true, cleans the pwa-microservices-template build directory.
      * @param {boolean} [options.build=false] - If true, builds the deployment to pwa-microservices-template (requires deployId).
      * @param {boolean} [options.syncConf=false] - If true, syncs configuration to private repositories (requires deployId).
+     * @param {boolean} [options.syncStart=false] - If true, syncs start scripts in deploy ID package.json with root package.json.
      * @param {boolean} [options.defaultConf=false] - If true, updates the default configuration file (requires deployId).
      * @param {string} [options.confWorkflowId=''] - If provided, uses this configuration workflow ID.
      * @returns {Promise<boolean>} A promise that resolves when the initialization is complete.
@@ -429,6 +430,7 @@ class UnderpostRepository {
         cleanTemplate: false,
         build: false,
         syncConf: false,
+        syncStart: false,
         defaultConf: false,
         confWorkflowId: '',
       },
@@ -457,6 +459,13 @@ class UnderpostRepository {
 
           if (options.deployId) {
             let deployId = options.deployId;
+
+            // Handle sync-start operation (before dd- prefix normalization to support 'dd' special case)
+            if (options.syncStart) {
+              shellExec(`node bin/deploy sync-start ${deployId}`);
+              return resolve(true);
+            }
+
             if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
             // Handle purge operation
             if (options.purge) {

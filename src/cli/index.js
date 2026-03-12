@@ -24,6 +24,10 @@ program
   .option('--build', 'Build the deployment to pwa-microservices-template (requires --deploy-id)')
   .option('--clean-template', 'Clean the build directory (pwa-microservices-template)')
   .option('--sync-conf', 'Sync configuration to private repositories (requires --deploy-id)')
+  .option(
+    '--sync-start',
+    "Sync start scripts in deploy ID package.json with root package.json (use 'dd' as --deploy-id to sync all dd.router)",
+  )
   .option('--purge', 'Remove deploy ID conf and all related repositories (requires --deploy-id)')
   .option('--dev', 'Sets the development cli context')
   .option('--default-conf', 'Create default deploy ID conf env files')
