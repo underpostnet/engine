@@ -1,17 +1,23 @@
 /**
- * Centralized environment variable loader with dotenv override.
+ * Centralized environment variable loader.
  *
- * Priority (first found wins):
- *   1. `./.env.<NODE_ENV>` — e.g. `.env.production`
- *   2. `engine-private/conf/<deployId>/.env.<NODE_ENV>`
- *   3. `./.env`
- *   4. `<underpost npm root>/.env`
- *   5. `./.env.example`
+ * Priority (highest wins):
  *
- * Every file that exists in the chain is loaded with `override: true` so that
- * lower-priority values are overwritten by higher-priority ones. The loading
- * order is reversed (lowest-priority first) so that the highest-priority file
- * has the final say.
+ *   0 (highest) Shell / `process.env` values already set before this runs
+ *   1           `options.nodeEnv` / `options.deployId` explicit overrides
+ *   2           `./.env.<NODE_ENV>` — e.g. `.env.production`
+ *   3           `engine-private/conf/<deployId>/.env.<NODE_ENV>`
+ *   4           `./.env`
+ *   5 (lowest)  `./.env.example`
+ *
+ * Files are loaded from highest to lowest priority using dotenv's default
+ * (no-override) mode — the first value set for a variable wins.  Values
+ * already in `process.env` (from the shell, npm scripts, etc.) are never
+ * overwritten by file-based defaults.
+ *
+ * A bootstrap phase uses `dotenv.parse()` (read-only) to peek at NODE_ENV
+ * and DEPLOY_ID from `.env.example` / `.env` so the full candidate list can
+ * be built before any file touches `process.env`.
  *
  * @module src/server/env.js
  * @namespace UnderpostEnvLoader
@@ -19,66 +25,45 @@
 
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import { execSync } from 'node:child_process';
-
-/**
- * Resolves the underpost npm global root path without depending on conf.js
- * (which itself calls loadEnv).
- *
- * @returns {string|null} The `<npm root -g>/underpost` path, or null when the
- *   command fails (e.g. npm is not installed or running in a CI image).
- * @memberOf UnderpostEnvLoader
- */
-const getUnderpostRoot = () => {
-  try {
-    const npmRoot = execSync('npm root -g', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
-    return `${npmRoot}/underpost`;
-  } catch {
-    return null;
-  }
-};
 
 /**
  * Loads environment variables following the priority chain.
  *
  * @param {object} [options]
- * @param {string} [options.deployId] - Deploy ID used to resolve priority-2 path.
+ * @param {string} [options.deployId] - Deploy ID used to resolve priority-3 path.
  * @param {string} [options.nodeEnv]  - Explicit NODE_ENV override (defaults to
  *        `process.env.NODE_ENV`).
  * @memberof UnderpostEnvLoader
  */
 const loadEnv = (options = {}) => {
-  const nodeEnv = options.nodeEnv || process.env.NODE_ENV;
-  const deployId = options.deployId || process.env.DEPLOY_ID;
+  // Apply explicit overrides first (priority 1).
+  if (options.nodeEnv) process.env.NODE_ENV = options.nodeEnv;
+  if (options.deployId) process.env.DEPLOY_ID = options.deployId;
 
-  // Build candidate paths from lowest to highest priority.
-  // We load lowest first so that higher-priority files override via
-  // `override: true`.
+  // --- Bootstrap: discover NODE_ENV and DEPLOY_ID without touching process.env ---
+  const bootstrap = {};
+  for (const p of ['./.env.example', './.env']) {
+    if (fs.existsSync(p)) Object.assign(bootstrap, dotenv.parse(fs.readFileSync(p)));
+  }
+
+  const nodeEnv = process.env.NODE_ENV || bootstrap.NODE_ENV;
+  const deployId = process.env.DEPLOY_ID || bootstrap.DEPLOY_ID;
+
+  // --- Build candidate list from HIGHEST to LOWEST priority ---
+  // dotenv's default (no-override) mode: first value set for each key wins.
+  // process.env values from the shell are already present, so no file can
+  // overwrite them.
   const candidates = [];
 
-  // Priority 5 — fallback example
+  if (nodeEnv) candidates.push(`./.env.${nodeEnv}`);
+  if (deployId && nodeEnv) candidates.push(`./engine-private/conf/${deployId}/.env.${nodeEnv}`);
+  candidates.push('./.env');
   candidates.push('./.env.example');
 
-  // Priority 4 — underpost global root
-  const underpostRoot = getUnderpostRoot();
-  if (underpostRoot) candidates.push(`${underpostRoot}/.env`);
-
-  // Priority 3 — project root .env
-  candidates.push('./.env');
-
-  // Priority 2 — deploy-specific env
-  if (deployId && nodeEnv) {
-    candidates.push(`./engine-private/conf/${deployId}/.env.${nodeEnv}`);
-  }
-
-  // Priority 1 — root-level NODE_ENV-specific env
-  if (nodeEnv) {
-    candidates.push(`./.env.${nodeEnv}`);
-  }
-
+  // --- Single pass: first-loaded value for each key wins ---
   for (const envPath of candidates) {
     if (fs.existsSync(envPath)) {
-      dotenv.config({ path: envPath, override: true });
+      dotenv.config({ path: envPath });
     }
   }
 };

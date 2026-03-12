@@ -118,6 +118,7 @@ program
       const underpostRootDeployId = Underpost.env.get('DEPLOY_ID');
       if (underpostRootDeployId) deployId = underpostRootDeployId;
     }
+    if (env) process.env.NODE_ENV = env;
     loadConf(deployId, subConf);
   });
 

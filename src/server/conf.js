@@ -241,6 +241,7 @@ const Config = {
   build: async function (deployContext = DEFAULT_DEPLOY_ID, deployList, subConf) {
     if (process.argv[2] && typeof process.argv[2] === 'string' && process.argv[2].startsWith('dd-'))
       deployContext = process.argv[2];
+    else if (process.env.DEPLOY_ID && process.env.DEPLOY_ID.startsWith('dd-')) deployContext = process.env.DEPLOY_ID;
     if (!subConf && process.argv[3] && typeof process.argv[3] === 'string') subConf = process.argv[3];
 
     Underpost.env.set('await-deploy', new Date().toISOString());
@@ -264,26 +265,38 @@ const Config = {
 
     if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
 
-    fs.writeFileSync(
-      `${folder}/.env.production`,
-      fs.readFileSync('./.env.production', 'utf8').replaceAll('dd-default', deployId),
-      'utf8',
-    );
-    fs.writeFileSync(
-      `${folder}/.env.development`,
-      fs.readFileSync('./.env.development', 'utf8').replaceAll('dd-default', deployId),
-      'utf8',
-    );
-    fs.writeFileSync(
-      `${folder}/.env.test`,
-      fs.readFileSync('./.env.test', 'utf8').replaceAll('dd-default', deployId),
-      'utf8',
-    );
+    const envTemplate = fs.existsSync('./.env.example')
+      ? fs.readFileSync('./.env.example', 'utf8')
+      : fs.existsSync('./.env.production')
+        ? fs.readFileSync('./.env.production', 'utf8')
+        : '';
+
+    if (envTemplate) {
+      const prodEnv = envTemplate.replaceAll('dd-default', deployId);
+      fs.writeFileSync(`${folder}/.env.production`, prodEnv, 'utf8');
+      fs.writeFileSync(
+        `${folder}/.env.development`,
+        prodEnv.replace('NODE_ENV=production', 'NODE_ENV=development').replace('PORT=3000', 'PORT=4000'),
+        'utf8',
+      );
+      fs.writeFileSync(
+        `${folder}/.env.test`,
+        prodEnv.replace('NODE_ENV=production', 'NODE_ENV=test').replace('PORT=3000', 'PORT=5000'),
+        'utf8',
+      );
+    }
+
     fs.writeFileSync(
       `${folder}/package.json`,
       fs.readFileSync('./package.json', 'utf8').replaceAll('dd-default', deployId),
       'utf8',
     );
+
+    // Write default conf JSON files if they don't exist
+    for (const confType of Object.keys(this.default)) {
+      const confPath = `${folder}/conf.${confType}.json`;
+      if (!fs.existsSync(confPath)) fs.writeFileSync(confPath, JSON.stringify(this.default[confType], null, 4), 'utf8');
+    }
 
     if (options.subConf) {
       logger.info('Creating sub conf', {
@@ -397,6 +410,8 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
   const folder = getConfFolder(deployId);
 
   if (!fs.existsSync(folder)) Config.deployIdFactory(deployId);
+
+  if (subConf) process.env.DEPLOY_SUB_CONF = subConf;
 
   for (const typeConf of Object.keys(Config.default)) {
     let srcConf = fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8');
