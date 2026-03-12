@@ -265,7 +265,7 @@ const UserService = {
     }
 
     if (req.path.startsWith('/assets')) {
-      options.png.header(res);
+      options.png.header(res, req);
       return options.png.buffer[req.params.id];
     }
 
@@ -281,7 +281,7 @@ const UserService = {
         payload = verifyJWT(req.params.id, options);
       } catch (error) {
         logger.error(error, { 'req.params.id': req.params.id });
-        options.png.header(res);
+        options.png.header(res, req);
         return options.png.buffer['invalid-token'];
       }
       const user = await User.findOne({
@@ -294,10 +294,10 @@ const UserService = {
           { recoverTimeOut: new Date(+new Date() + 1000 * 60 * 15) },
           { runValidators: true },
         );
-        options.png.header(res);
+        options.png.header(res, req);
         return options.png.buffer['recover'];
       } else {
-        options.png.header(res);
+        options.png.header(res, req);
         return options.png.buffer['invalid-token'];
       }
     }
@@ -308,7 +308,7 @@ const UserService = {
         payload = verifyJWT(req.params.id, options);
       } catch (error) {
         logger.error(error, { 'req.params.id': req.params.id });
-        options.png.header(res);
+        options.png.header(res, req);
         return options.png.buffer['invalid-token'];
       }
       const user = await User.findOne({
@@ -324,10 +324,10 @@ const UserService = {
           status: 'email-confirmed',
           id: userWsId,
         });
-        options.png.header(res);
+        options.png.header(res, req);
         return options.png.buffer['check'];
       } else {
-        options.png.header(res);
+        options.png.header(res, req);
         return options.png.buffer['invalid-token'];
       }
     }

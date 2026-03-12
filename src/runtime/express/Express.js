@@ -249,7 +249,13 @@ class ExpressService {
     for (const [_, ssrMiddleware] of Object.entries(ssr)) app.use(ssrMiddleware);
 
     // Start listening on the main port
-    if (useLocalSsl && process.env.NODE_ENV === 'development') {
+    // When behind a dev proxy (isDevProxyContext), the proxy handles TLS termination,
+    // so backend servers should listen on plain HTTP to be reachable via http://localhost:PORT
+    if (
+      (useLocalSsl || process.argv.find((arg) => arg === 'tls')) &&
+      process.env.NODE_ENV === 'development' &&
+      !isDevProxyContext()
+    ) {
       if (!Underpost.tls.validateSecureContext()) shellExec(`node bin/deploy tls`);
       const { ServerSSL } = await Underpost.tls.createSslServer(app);
       await Underpost.start.listenPortController(ServerSSL, port, runningData);

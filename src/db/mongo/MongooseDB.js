@@ -16,17 +16,33 @@ const logger = loggerFactory(import.meta);
  * @memberof MongooseDBService
  * @classdesc Manages the Mongoose connection lifecycle and dynamic loading of database models
  * based on API configuration.
+ *
+ * Connection parameters are resolved in the following order:
+ * 1. Explicit values passed as arguments to {@link MongooseDBService#connect}.
+ * 2. Environment variables (`DB_HOST` for host, `DB_NAME` for database name).
+ * 3. No built-in defaults — both `host` and `name` are required from the caller or environment.
  */
 class MongooseDBService {
   /**
    * Establishes a Mongoose connection to the specified MongoDB instance.
    *
    * @async
-   * @param {string} host - The MongoDB host (e.g., 'mongodb://localhost:27017').
+   * @param {string} host - The MongoDB host URI (e.g., `'mongodb://localhost:27017'`).
+   *   Falls back to `process.env.DB_HOST` when not provided.
    * @param {string} name - The database name.
+   *   Falls back to `process.env.DB_NAME` when not provided.
    * @returns {Promise<mongoose.Connection>} A promise that resolves to the established Mongoose connection object.
+   * @throws {Error} If neither the argument nor the corresponding environment variable supplies a value.
    */
   async connect(host, name) {
+    host = host || process.env.DB_HOST;
+    name = name || process.env.DB_NAME;
+
+    if (!host || !name) {
+      const missing = [!host && 'host (DB_HOST)', !name && 'name (DB_NAME)'].filter(Boolean).join(', ');
+      throw new Error(`MongooseDBService.connect: missing required parameter(s): ${missing}`);
+    }
+
     const uri = `${host}/${name}`;
     // logger.info('MongooseDB connect', { host, name, uri });
     return await mongoose

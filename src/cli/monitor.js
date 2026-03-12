@@ -4,7 +4,7 @@
  * @namespace UnderpostMonitor
  */
 
-import { loadReplicas, pathPortAssignmentFactory } from '../server/conf.js';
+import { loadReplicas, pathPortAssignmentFactory, loadConfServerJson } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import axios from 'axios';
 import fs from 'fs-extra';
@@ -100,7 +100,7 @@ class UnderpostMonitor {
 
       const confServer = loadReplicas(
         deployId,
-        JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+        loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
       );
 
       const pathPortAssignmentData = await pathPortAssignmentFactory(deployId, router, confServer);
@@ -127,7 +127,7 @@ class UnderpostMonitor {
 
       const switchTraffic = (targetTraffic) => {
         const nextTraffic = targetTraffic ?? (traffic === 'blue' ? 'green' : 'blue');
-        // Delegate traffic switching to centralized deploy implementation so behavior is consistent
+        // Delegate traffic switching to deploy implementation so behavior is consistent
         Underpost.deploy.switchTraffic(deployId, env, nextTraffic, options.replicas, options.namespace, options);
         // Keep local traffic in sync with the environment
         traffic = nextTraffic;
@@ -168,9 +168,7 @@ class UnderpostMonitor {
                   switch (options.type) {
                     case 'blue-green':
                     default: {
-                      const confServer = JSON.parse(
-                        fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'),
-                      );
+                      const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
 
                       const namespace = options.namespace;
                       Underpost.deploy.configMap(env, namespace);

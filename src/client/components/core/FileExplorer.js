@@ -671,7 +671,7 @@ const FileExplorer = {
             e.preventDefault();
             if (!hasGenericFile) return;
             try {
-              // Use FileService with blob/ prefix for centralized blob fetching
+              // Use FileService with blob/ prefix for blob fetching
               const { data: blobArray, status } = await FileService.get({ id: `blob/${params.data.fileId}` });
               if (status === 'success' && blobArray && blobArray[0]) {
                 downloadFile(blobArray[0], params.data.name);

@@ -1,7 +1,3 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
-
 const DefaultConf = /**/ {
   client: {
     default: {
@@ -172,17 +168,17 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'default' },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: { email: 'noreply@nexodev.org', name: 'Nexodev' },
           transport: {
-            host: 'smtp.default.com',
+            host: 'smtp.dondominio.com',
             port: 465,
             secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
           },
         },
-        valkey: { port: 6379, host: '127.0.0.1' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
       },
     },
     'stagging.nexodev.org': {
@@ -201,22 +197,31 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'default' },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: { email: 'noreply@nexodev.org', name: 'Nexodev' },
           transport: {
-            host: 'smtp.default.com',
+            host: 'smtp.dondominio.com',
             port: 465,
             secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
           },
         },
-        valkey: { port: 6379, host: '127.0.0.1' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
       },
     },
   },
   cron: {
-    records: { A: [{ host: 'example.com', dns: 'dondominio', api_key: '???', user: '???' }] },
+    records: {
+      A: [
+        {
+          host: 'env:DDNS_HOST:example.com',
+          dns: 'env:DDNS_PROVIDER:dondominio',
+          api_key: 'env:DDNS_API_KEY:',
+          user: 'env:DDNS_USER:',
+        },
+      ],
+    },
     jobs: {
       dns: { expression: '* * * * *', enabled: true, instances: 1 },
       backups: { expression: '0 1 * * *', enabled: true, instances: 1 },

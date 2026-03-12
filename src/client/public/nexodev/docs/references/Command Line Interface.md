@@ -110,7 +110,7 @@ Arguments:
 
 Options:
   --bare      Performs a bare clone, downloading only the .git files.
-  -g8         Uses the g8 repository extension for cloning.
+  --g8        Uses the g8 repository extension for cloning.
   -h, --help  display help for command
  
 ```
@@ -128,7 +128,7 @@ Arguments:
   uri         The URI of the GitHub repository (e.g., "username/repository").
 
 Options:
-  -g8         Uses the g8 repository extension for pulling.
+  --g8        Uses the g8 repository extension for pulling.
   -h, --help  display help for command
  
 ```
@@ -145,8 +145,8 @@ Arguments:
   path                               The absolute or relative directory path of
                                      the repository.
   commit-type                        The type of commit to perform. Options:
-                                     feat, fix, docs, style, refactor, perf,
-                                     ci, cd, infra, build, test, chore, revert,
+                                     feat, fix, docs, style, refactor, perf, ci,
+                                     cd, infra, build, test, chore, revert,
                                      backup.
   module-tag                         Optional: Sets a specific module tag for
                                      the commit.
@@ -160,8 +160,8 @@ Options:
   --empty                            Allows committing with empty files.
   --copy                             Copies the generated commit message to the
                                      clipboard.
-  --info                             Displays information about available
-                                     commit types.
+  --info                             Displays information about available commit
+                                     types.
   --diff                             Shows the current git diff changes.
   --edit                             Edit last commit.
   --deploy-id <deploy-id>            Sets the deployment configuration ID for
@@ -171,8 +171,8 @@ Options:
                                      hashes of commits.
   --extension <extension>            specific file extensions of commits.
   --changelog [latest-n]             Print plain the changelog of the specified
-                                     number of latest n commits, if no number
-                                     is provided it will get the changelog to
+                                     number of latest n commits, if no number is
+                                     provided it will get the changelog to
                                      latest ci integration
   --changelog-build                  Builds a CHANGELOG.md file based on the
                                      commit history
@@ -198,7 +198,7 @@ Arguments:
 
 Options:
   -f          Forces the push, overwriting the remote repository history.
-  -g8         Uses the g8 repository extension for pushing.
+  --g8        Uses the g8 repository extension for pushing.
   -h, --help  display help for command
  
 ```
@@ -282,11 +282,10 @@ Options:
 Manages Underpost configurations using various operators.
 
 Arguments:
-  operator                 The configuration operation to perform. Options:
-                           set, delete, get, list, clean.
+  operator                 The configuration operation to perform. Options: set,
+                           delete, get, list, clean.
   key                      Optional: The specific configuration key to manage.
-  value                    Optional: The value to set for the configuration
-                           key.
+  value                    Optional: The value to set for the configuration key.
 
 Options:
   --plain                  Prints the configuration value in plain text.
@@ -295,8 +294,8 @@ Options:
   --deploy-id <deploy-id>  Sets the deployment configuration ID for the
                            operation context.
   --build                  Sets the build context for the operation.
-  --copy                   Copies the configuration value to the clipboard
-                           (only for get operation).
+  --copy                   Copies the configuration value to the clipboard (only
+                           for get operation).
   -h, --help               display help for command
  
 ```
@@ -337,8 +336,8 @@ Options:
   --ban-egress-clear    Clears all banned egress IP addresses.
   --ban-both-add        Adds IP addresses to both banned ingress and egress
                         lists.
-  --ban-both-remove     Removes IP addresses from both banned ingress and
-                        egress lists.
+  --ban-both-remove     Removes IP addresses from both banned ingress and egress
+                        lists.
   -h, --help            display help for command
  
 ```
@@ -364,8 +363,8 @@ Options:
   --mongodb                            Initializes the cluster with a MongoDB
                                        statefulset.
   --mongo-db-host <host>               Set custom mongo db host
-  --postgresql                         Initializes the cluster with a
-                                       PostgreSQL statefulset.
+  --postgresql                         Initializes the cluster with a PostgreSQL
+                                       statefulset.
   --mongodb4                           Initializes the cluster with a MongoDB
                                        4.4 service.
   --valkey                             Initializes the cluster with a Valkey
@@ -380,10 +379,10 @@ Options:
                                        GPU base resources and environment
                                        settings.
   --ns-use <ns-name>                   Switches the current Kubernetes context
-                                       to the specified namespace (creates if
-                                       it doesn't exist).
-  --kubeadm                            Initializes the cluster using kubeadm
-                                       for control plane management.
+                                       to the specified namespace (creates if it
+                                       doesn't exist).
+  --kubeadm                            Initializes the cluster using kubeadm for
+                                       control plane management.
   --pod-network-cidr <cidr>            Sets custom pod network CIDR for kubeadm
                                        cluster initialization (defaults to
                                        "192.168.0.0/16").
@@ -392,15 +391,15 @@ Options:
                                        to "localhost:6443").
   --grafana                            Initializes the cluster with a Grafana
                                        deployment.
-  --prom [hosts]                       Initializes the cluster with a
-                                       Prometheus Operator deployment and
-                                       monitor scrap for specified hosts.
+  --prom [hosts]                       Initializes the cluster with a Prometheus
+                                       Operator deployment and monitor scrap for
+                                       specified hosts.
   --dev                                Initializes a development-specific
                                        cluster configuration.
   --list-pods                          Displays detailed information about all
                                        pods.
-  --pull-image                         Sets an optional associated image to
-                                       pull during initialization.
+  --pull-image                         Sets an optional associated image to pull
+                                       during initialization.
   --init-host                          Installs necessary Kubernetes node CLI
                                        tools (e.g., kind, kubeadm, docker,
                                        podman, helm).
@@ -414,8 +413,8 @@ Options:
                                        (Lightweight Kubernetes).
   --hosts <hosts>                      A comma-separated list of cluster
                                        hostnames or IP addresses.
-  --remove-volume-host-paths           Removes specified volume host paths
-                                       after execution.
+  --remove-volume-host-paths           Removes specified volume host paths after
+                                       execution.
   --namespace <namespace>              Kubernetes namespace for cluster
                                        operations (defaults to "default").
   --replicas <replicas>                Sets a custom number of replicas for
@@ -479,8 +478,8 @@ Options:
   --status                            Retrieves current network traffic data
                                       from resource deployments and the host
                                       machine network configuration.
-  --kubeadm                           Enables the kubeadm context for
-                                      deployment operations.
+  --kubeadm                           Enables the kubeadm context for deployment
+                                      operations.
   --etc-hosts                         Enables the etc-hosts context for
                                       deployment operations.
   --restore-hosts                     Restores default `/etc/hosts` entries.
@@ -533,8 +532,8 @@ clusters.
 
 Options:
   --build                              Builds a Docker image using Podman,
-                                       optionally saves it as a tar archive,
-                                       and loads it into a specified Kubernetes
+                                       optionally saves it as a tar archive, and
+                                       loads it into a specified Kubernetes
                                        cluster (Kind, Kubeadm, or K3s).
   --ls                                 Lists all available Underpost Dockerfile
                                        images.
@@ -551,8 +550,8 @@ Options:
                                        "rockylinux9-underpost" image.
   --spec                               Get current cached list of container
                                        images used by all pods
-  --namespace <namespace>              Kubernetes namespace for image
-                                       operations (defaults to "default").
+  --namespace <namespace>              Kubernetes namespace for image operations
+                                       (defaults to "default").
   --kind                               Set kind cluster env image context
                                        management.
   --kubeadm                            Set kubeadm cluster env image context
@@ -561,8 +560,7 @@ Options:
                                        management.
   --node-name                          Set node name for kubeadm or k3s cluster
                                        env image context management.
-  --reset                              Performs a build without using the
-                                       cache.
+  --reset                              Performs a build without using the cache.
   --dev                                Use development mode.
   --pull-dockerhub <dockerhub-image>   Sets a custom Docker Hub image for base
                                        image pulls.
@@ -790,32 +788,30 @@ services.
 
 Options:
   --deploy-id <deploy-id>  Sets deploy id context for ssh operations.
-  --generate               Generates new ssh credential and stores it in
-                           current private keys file storage.
+  --generate               Generates new ssh credential and stores it in current
+                           private keys file storage.
   --user <user>            Sets custom ssh user
   --password <password>    Sets custom ssh password
   --host <host>            Sets custom ssh host
   --port <port>            Sets custom ssh port
   --filter <filter>        Filters ssh user credentials from current private
                            keys file storage.
-  --groups <groups>        Sets comma-separated ssh user groups for the ssh
-                           user credential.
+  --groups <groups>        Sets comma-separated ssh user groups for the ssh user
+                           credential.
   --user-add               Adds a new ssh user credential to current private
                            keys file storage.
   --user-remove            Removes an existing ssh user credential from current
                            private keys file storage.
   --user-ls                Lists all ssh user credentials from current private
                            keys file storage.
-  --start                  Starts an SSH session with the specified
-                           credentials.
+  --start                  Starts an SSH session with the specified credentials.
   --reset                  Resets ssh configuration and deletes all stored
                            credentials.
   --keys-list              Lists all ssh keys from current private keys file
                            storage.
   --hosts-list             Lists all ssh hosts from current private keys file
                            storage.
-  --disable-password       Disables password authentication for the SSH
-                           session.
+  --disable-password       Disables password authentication for the SSH session.
   --key-test               Tests the SSH key using ssh-keygen.
   --stop                   Stops the SSH service.
   --status                 Checks the status of the SSH service.
@@ -864,7 +860,6 @@ Options:
   --force                                         Forces operation, overriding any warnings or conflicts.
   --tls                                           Enables TLS for the runner execution.
   --reset                                         Resets the runner state before execution.
-  --terminal                                      Enables terminal mode for interactive script execution.
   --dev-proxy-port-offset <port-offset>           Sets a custom port offset for development proxy.
   --host-network                                  Enables host network mode for the runner execution.
   --requests-memory <requests-memory>             Requests memory limit for the runner execution.
@@ -931,8 +926,8 @@ Options:
   --delete-vm <vm-name>            Stop and delete the specified VM.
   --init-vm <vm-name>              Run k3s-node-setup.sh on the specified VM
                                    (use with --control or --worker).
-  --info-vm <vm-name>              Display full configuration and status for
-                                   the specified VM.
+  --info-vm <vm-name>              Display full configuration and status for the
+                                   specified VM.
   --test <vm-name>                 Run connectivity and health checks on the
                                    specified VM.
   --root-size <gb-size>            Root disk size in GiB for --create-vm
@@ -947,8 +942,7 @@ Options:
                                    "k3s-control:80,443").
   --workflow-id <workflow-id>      Workflow ID to execute via runWorkflow.
   --vm-id <vm-name>                Target VM name for workflow execution.
-  --deploy-id <deploy-id>          Deployment ID context for workflow
-                                   execution.
+  --deploy-id <deploy-id>          Deployment ID context for workflow execution.
   --namespace <namespace>          Kubernetes namespace context (defaults to
                                    "default").
   -h, --help                       display help for command

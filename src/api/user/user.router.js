@@ -30,12 +30,15 @@ const UserRouter = (options) => {
             emailConfirmed: true,
             publicKey: [],
           });
-          logger.warn('Default admin user created. Please change the default password immediately!', result._doc);
+          logger.warn('Default admin user created. Please change the default password immediately!', {
+            username: result._doc.username,
+            email: result._doc.email,
+            role: result._doc.role,
+          });
         }
       }
     } catch (error) {
-      logger.error('Error checking/creating admin user');
-      console.log(error);
+      logger.error('Error checking/creating admin user', { error: error.message });
     }
 
     // Cache mailer images
@@ -46,10 +49,12 @@ const UserRouter = (options) => {
         check: fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-check.png`),
         avatar: fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-default-avatar.png`),
       },
-      header: (res) => {
+      header: (res, req) => {
         res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-        res.set('Access-Control-Allow-Origin', '*');
         res.set('Access-Control-Allow-Headers', '*');
+        if (req && req.headers && req.headers.origin) {
+          res.set('Access-Control-Allow-Origin', req.headers.origin);
+        } else res.setHeader('Access-Control-Allow-Origin', '*');
         res.set('Content-Type', 'image/png');
       },
     };

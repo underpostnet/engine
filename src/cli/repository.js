@@ -720,25 +720,14 @@ Prevent build private config repo.`,
         DefaultConf.client = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.client.json`, 'utf8'));
         DefaultConf.server = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
         DefaultConf.ssr = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.ssr.json`, 'utf8'));
-        // DefaultConf.cron = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.cron.json`, 'utf8'));
-
-        for (const host of Object.keys(DefaultConf.server)) {
-          for (const path of Object.keys(DefaultConf.server[host])) {
-            DefaultConf.server[host][path].db = defaultServer.db;
-            DefaultConf.server[host][path].mailer = defaultServer.mailer;
-
-            delete DefaultConf.server[host][path]._wp_client;
-            delete DefaultConf.server[host][path]._wp_git;
-            delete DefaultConf.server[host][path]._wp_directory;
-            delete DefaultConf.server[host][path].wp;
-            delete DefaultConf.server[host][path].git;
-            delete DefaultConf.server[host][path].directory;
-          }
-        }
       } else
         logger.warn(
           `Deploy ID configuration not found: ./engine-private/conf/${deployId}, using default configuration.`,
         );
+
+      // Serialize the configuration into the conf.*.js manifest file.
+      // env: references from JSON configs are preserved as 'env:KEY' strings.
+      // At runtime, resolveConfSecrets() in conf.js resolves them via process.env.
       const sepRender = '/**/';
       const confRawPaths = fs.readFileSync('./conf.js', 'utf8').split(sepRender);
       confRawPaths[1] = `${JSON.stringify(DefaultConf)};`;

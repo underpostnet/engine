@@ -13,6 +13,7 @@ import {
   buildClientSrc,
   cloneConf,
   loadConf,
+  loadConfServerJson,
   loadReplicas,
   addWsConf,
   buildWsSrc,
@@ -22,6 +23,9 @@ import {
   Cmd,
   writeEnv,
   buildCliDoc,
+  readConfJson,
+  getConfFilePath,
+  DEFAULT_DEPLOY_ID,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import colors from 'colors';
@@ -122,15 +126,8 @@ try {
       break;
     case 'conf': {
       let subConf = process.argv[5] ?? '';
-
-      if (!['current', 'clean', 'root'].includes(process.argv[3])) {
-        const path = fs.existsSync(`./engine-private/replica/${process.argv[3]}`)
-          ? `./engine-private/replica/${process.argv[3]}/.env.${process.argv[4]}`
-          : `./engine-private/conf/${process.argv[3]}/.env.${process.argv[4]}`;
-        dotenv.config({ path, override: true });
-      }
-
-      loadConf(process.argv[3], subConf);
+      const confDeployId = process.argv[3] || DEFAULT_DEPLOY_ID;
+      loadConf(confDeployId, subConf);
       break;
     }
 
@@ -180,8 +177,6 @@ try {
         shellExec(`node bin/deploy build-nodejs-conf-api ${apiId} ${deployId} ${clientId}`);
 
         shellExec(`node bin/deploy build-nodejs-src-api ${apiId} ${deployId} ${clientId}`);
-
-        // shellExec(`npm run dev ${deployId}`);
       }
       break;
     case 'new-nodejs-ws':
@@ -207,9 +202,10 @@ try {
         let argHost = process.argv[5] ? process.argv[5].split(',') : [];
         let argPath = process.argv[6] ? process.argv[6].split(',') : [];
         let deployIdSingleReplicas = [];
-        const serverConf = deployId
-          ? JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'))
-          : Config.default.server;
+        let singleReplicaHosts = [];
+        const serverConf = deployId ? readConfJson(deployId, 'server', { loadReplicas: true }) : Config.default.server;
+        const confFilePath = deployId ? getConfFilePath(deployId, 'server') : null;
+        const originalConfBackup = confFilePath ? fs.readFileSync(confFilePath, 'utf8') : null;
         for (const host of Object.keys(serverConf)) {
           for (const path of Object.keys(serverConf[host])) {
             if (argHost.length && argPath.length && (!argHost.includes(host) || !argPath.includes(path))) {
@@ -218,6 +214,7 @@ try {
               serverConf[host][path].liteBuild = false;
               serverConf[host][path].minifyBuild = process.env.NODE_ENV === 'production' ? true : false;
               if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
+                singleReplicaHosts.push({ host, path });
                 deployIdSingleReplicas = deployIdSingleReplicas.concat(
                   serverConf[host][path].replicas.map((replica) => buildReplicaId({ deployId, replica })),
                 );
@@ -225,8 +222,20 @@ try {
             }
           }
         }
-        fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(serverConf, null, 4), 'utf-8');
+        // Write build-time overrides to private conf so buildClient reads them
+        if (confFilePath) fs.writeFileSync(confFilePath, JSON.stringify(serverConf, null, 4), 'utf-8');
         await buildClient();
+        // Restore original private conf after build
+        if (confFilePath && originalConfBackup) fs.writeFileSync(confFilePath, originalConfBackup, 'utf-8');
+
+        // Build single replica folders before building their clients
+        if (singleReplicaHosts.length > 0) {
+          for (const { host, path } of singleReplicaHosts) {
+            shellExec(Cmd.replica(deployId, host, path));
+          }
+          // Restore main deploy conf after replica folder creation overwrites it
+          shellExec(Cmd.conf(deployId, process.env.NODE_ENV));
+        }
 
         for (const replicaDeployId of deployIdSingleReplicas) {
           shellExec(Cmd.conf(replicaDeployId, process.env.NODE_ENV));
@@ -257,30 +266,54 @@ try {
         { env: 'test', port: 5000 },
       ];
       let portOffset = 0;
+      // Map to store pre-calculated port offsets for single replica deploy IDs
+      const singleReplicaPortOffsets = {};
       for (const deployIdObj of dataDeploy) {
         const { deployId } = deployIdObj;
         const baseConfPath = fs.existsSync(`./engine-private/replica/${deployId}`)
           ? `./engine-private/replica`
           : `./engine-private/conf`;
+
+        // If this is a single replica entry, use the pre-calculated port offset
+        const effectivePortOffset =
+          singleReplicaPortOffsets[deployId] !== undefined ? singleReplicaPortOffsets[deployId] : portOffset;
+
         for (const envInstanceObj of dataEnv) {
           const envPath = `${baseConfPath}/${deployId}/.env.${envInstanceObj.env}`;
           const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-          envObj.PORT = `${envInstanceObj.port + portOffset}`;
+          envObj.PORT = `${envInstanceObj.port + effectivePortOffset}`;
 
           writeEnv(envPath, envObj);
         }
-        const serverConf = loadReplicas(
-          deployId,
-          JSON.parse(fs.readFileSync(`${baseConfPath}/${deployId}/conf.server.json`, 'utf8')),
-        );
+
+        // Single replica entries don't advance portOffset — their ports live within the parent's reserved range
+        if (singleReplicaPortOffsets[deployId] !== undefined) continue;
+
+        const serverConf = loadReplicas(deployId, loadConfServerJson(`${baseConfPath}/${deployId}/conf.server.json`));
         for (const host of Object.keys(serverConf)) {
+          // Collect deferred single replica port reservations per host
+          // (runtime adds singleReplicaOffsetPortCount AFTER the host loop, so reserved space is at end of host)
+          let deferredSingleReplicaSlots = [];
           for (const path of Object.keys(serverConf[host])) {
-            if (serverConf[host][path].singleReplica) {
-              portOffset--;
+            if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
+              // Defer: record the replicas and peer flag to assign port offsets after regular paths
+              deferredSingleReplicaSlots.push({
+                replicas: serverConf[host][path].replicas,
+                peer: !!serverConf[host][path].peer,
+              });
               continue;
             }
             portOffset++;
             if (serverConf[host][path].peer) portOffset++;
+          }
+          // Now assign port offsets for single replicas at the end of the host range
+          for (const slot of deferredSingleReplicaSlots) {
+            for (const replica of slot.replicas) {
+              const replicaDeployId = buildReplicaId({ deployId, replica });
+              singleReplicaPortOffsets[replicaDeployId] = portOffset;
+              portOffset++;
+              if (slot.peer) portOffset++;
+            }
           }
         }
       }
@@ -292,7 +325,7 @@ try {
       const path = process.argv[5];
       const serverConf = loadReplicas(
         deployId,
-        JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+        loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
       );
 
       if (serverConf[host][path].replicas) {
@@ -310,6 +343,20 @@ try {
                 .replaceAll(`${deployId}`, `${replicaDeployId}`),
               'utf8',
             );
+            // Update .env files so DEPLOY_ID points to the replica deploy ID
+            const replicaFolder = `./engine-private/replica/${replicaDeployId}`;
+            for (const envFile of ['.env.production', '.env.development', '.env.test']) {
+              const envFilePath = `${replicaFolder}/${envFile}`;
+              if (fs.existsSync(envFilePath)) {
+                fs.writeFileSync(
+                  envFilePath,
+                  fs
+                    .readFileSync(envFilePath, 'utf8')
+                    .replaceAll(`DEPLOY_ID=${deployId}`, `DEPLOY_ID=${replicaDeployId}`),
+                  'utf8',
+                );
+              }
+            }
           }
         }
         {
@@ -392,7 +439,6 @@ try {
       Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
       const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
       const newVersion = process.argv[3] ?? originPackageJson.version;
-      const node = process.argv[4] ?? 'kind-control-plane';
       const { version } = originPackageJson;
       originPackageJson.version = newVersion;
       fs.writeFileSync(`package.json`, JSON.stringify(originPackageJson, null, 4), 'utf8');
@@ -449,29 +495,14 @@ try {
       shellExec(`node bin/deploy cli-docs ${version} ${newVersion}`);
       shellExec(`node bin/deploy update-dependencies`);
       shellExec(`node bin/build dd`);
-      shellExec(
-        `node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 --node ${node} dd production`,
-      );
-      shellExec(
-        `node bin deploy --kubeadm --build-manifest --sync --info-router --replicas 1 --node ${node} dd development `,
-      );
-      for (const deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(`,`)) {
-        fs.copySync(
-          `./engine-private/conf/${deployId}/build/development/deployment.yaml`,
-          `./manifests/deployment/${deployId}-development/deployment.yaml`,
-        );
-        fs.copySync(
-          `./engine-private/conf/${deployId}/build/development/proxy.yaml`,
-          `./manifests/deployment/${deployId}-development/proxy.yaml`,
-        );
-        shellExec(`node bin new --dev --default-conf --deploy-id ${deployId}`);
-      }
+      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd production`);
+      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd development`);
+      shellExec(`node bin/deploy build-default-confs`);
       shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
       shellExec(`node bin new --deploy-id dd-default`);
       console.log(fs.existsSync(`./engine-private/conf/dd-default`));
       shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
       shellExec(`node bin cron --dev --setup-start`);
-      shellExec(`node bin/deploy build-envs`);
       shellExec(`node bin cmt --changelog-build`);
       break;
     }
@@ -481,13 +512,37 @@ try {
       shellExec(
         `underpost secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
       );
-      shellExec(`node bin/deploy sync-envs`);
       shellExec(`node bin/build dd conf`);
       shellExec(`git add . && cd ./engine-private && git add .`);
       shellExec(`node bin cmt . ci package-pwa-microservices-template 'New release v:${process.argv[3]}'`);
       shellExec(`node bin cmt ./engine-private ci package-pwa-microservices-template`);
       shellExec(`node bin push . ${process.env.GITHUB_USERNAME}/engine`);
       shellExec(`cd ./engine-private && node ../bin push . ${process.env.GITHUB_USERNAME}/engine-private`);
+      break;
+    }
+
+    case 'build-default-confs': {
+      for (const deployId of fs
+        .readFileSync(`./engine-private/deploy/dd.router`, 'utf8')
+        .split(`,`)
+        .concat(['dd-cron'])) {
+        if (fs.existsSync(`./engine-private/conf/${deployId}/build/development/deployment.yaml`))
+          fs.copySync(
+            `./engine-private/conf/${deployId}/build/development/deployment.yaml`,
+            `./manifests/deployment/${deployId}-development/deployment.yaml`,
+          );
+        if (fs.existsSync(`./engine-private/conf/${deployId}/build/development/proxy.yaml`))
+          fs.copySync(
+            `./engine-private/conf/${deployId}/build/development/proxy.yaml`,
+            `./manifests/deployment/${deployId}-development/proxy.yaml`,
+          );
+        if (fs.existsSync(`./engine-private/conf/${deployId}/build/development/pv-pvc.yaml`))
+          fs.copySync(
+            `./engine-private/conf/${deployId}/build/development/pv-pvc.yaml`,
+            `./manifests/deployment/${deployId}-development/pv-pvc.yaml`,
+          );
+        shellExec(`node bin new --dev --default-conf --deploy-id ${deployId}`);
+      }
       break;
     }
 
@@ -503,31 +558,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 #### Generated by [underpost.net](https://underpost.net)`,
         'utf8',
       );
-
-      break;
-    }
-
-    case 'heb': {
-      // https://besu.hyperledger.org/
-      // https://github.com/hyperledger/besu/archive/refs/tags/24.9.1.tar.gz
-
-      shellCd(`..`);
-
-      // Download the Linux binary
-      shellExec(`wget https://github.com/hyperledger/besu/releases/download/24.9.1/besu-24.9.1.tar.gz`);
-
-      // Unzip the file:
-      shellExec(`tar -xvzf besu-24.9.1.tar.gz`);
-
-      shellCd(`besu-24.9.1`);
-
-      shellExec(`bin/besu --help`);
-
-      // Set env path
-      // export PATH=$PATH:/home/dd/besu-24.9.1/bin
-
-      // Open src
-      // shellExec(`sudo code /home/dd/besu-24.9.1 --user-data-dir="/root/.vscode-root" --no-sandbox`);
 
       break;
     }
@@ -1010,12 +1040,6 @@ nvidia/gpu-operator \
           writeEnv(`./engine-private/conf/${deployId}/.env.${env}`, _envObj);
         }
       }
-      break;
-    }
-
-    case 'envs': {
-      shellExec(`node bin/deploy sync-envs`);
-      shellExec(`node bin/deploy build-envs`);
       break;
     }
 

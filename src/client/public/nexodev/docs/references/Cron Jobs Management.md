@@ -253,6 +253,85 @@ manifests/
 
 ---
 
+## Credential Security
+
+All sensitive credentials used by cron jobs (especially the `dns` job) are stored as
+**environment variable references** (`env:VAR_NAME`) inside JSON configuration files —
+never as plaintext values. The actual secret values live exclusively in `.env.<environment>`
+files (e.g. `.env.production`) within `engine-private/`.
+
+### The `env:` Reference Pattern
+
+Configuration files (`conf.cron.json`) use a special `env:` prefix to point to environment
+variables instead of embedding secrets directly:
+
+```json
+{
+  "records": {
+    "A": [
+      {
+        "dns": "dondominio",
+        "user": "env:DDNS_USER",
+        "api_key": "env:DDNS_API_KEY",
+        "host": "env:DDNS_HOST"
+      }
+    ]
+  },
+  "jobs": {
+    "dns": { "enabled": true, "expression": "*/5 * * * *" },
+    "backup": { "enabled": true, "expression": "0 0 * * *" }
+  }
+}
+```
+
+At runtime, the engine's `resolveConfSecrets()` function walks the config object and replaces
+every `"env:VAR_NAME"` string with the corresponding `process.env.VAR_NAME` value. This
+happens automatically when configs are loaded via `loadConf()`.
+
+### DDNS Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DDNS_HOST` | Hostname to update via DDNS | `example.com` |
+| `DDNS_PROVIDER` | DNS provider name (e.g. `dondominio`) | `dondominio` |
+| `DDNS_API_KEY` | DNS provider API key / password | _(empty)_ |
+| `DDNS_USER` | DNS provider username | _(empty)_ |
+
+These variables must be set in the appropriate `.env.<environment>` file
+(e.g. `.env.production`) or injected via your deployment platform.
+
+### How Credentials Flow
+
+1. **`conf.cron.json`** stores `"env:DDNS_USER"`, `"env:DDNS_API_KEY"`, etc. — no
+   secrets are present in the JSON file itself.
+2. When `loadConf()` activates a deploy-id, it copies `.env.*` files and loads them
+   into `process.env`. Configuration JSON files are **not** copied to a staging
+   directory — they remain in `engine-private/conf/<deploy-id>/` and are read
+   directly at runtime via `readConfJson()`.
+3. At runtime, the `dns` job calls `readConfJson(deployId, 'cron', { resolve: true })`
+   which reads from the private folder and resolves `env:` references into real values,
+   then passes each A-record entry to the DNS provider handler (e.g. `dondominio`).
+4. The handler validates that `user` and `api_key` are present before making any external
+   API call. Missing credentials cause an error log and the update is skipped — the full
+   URL containing the API key is **never logged**.
+
+### Generated Manifest Files (`conf.dd-*.js`)
+
+When `updateDefaultConf()` generates a `conf.dd-*.js` manifest:
+
+1. `env:` references from `conf.server.json` are preserved as plain `'env:KEY'` strings in the generated JS file.
+2. Non-sensitive values (expressions, booleans, static strings) are serialized normally.
+3. At runtime, `resolveConfSecrets()` in `conf.js` resolves `'env:KEY'` strings to `process.env.KEY` values when configurations are loaded via `loadConf()` or `loadConfServerJson()`.
+
+This ensures that **no plaintext secret ever appears** in source-controlled JS files.
+
+> **⚠️ Important:** Ensure that `.env.*` files and `engine-private/` are listed in
+> `.gitignore` and are **never committed** to public repositories. The placeholder
+> values (`changethis`) in the root `.env.*` templates are intentional reminders
+> to replace them with real credentials before deployment.
+
+---
+
 ## Sync Integration
 
 The `sync` command triggers cron setup automatically unless `--deploy-id-cron-jobs` is set to `none`:

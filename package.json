@@ -5,7 +5,7 @@
   "version": "3.0.3",
   "description": "underpost engine server",
   "scripts": {
-    "start": "env-cmd -f .env.production node --max-old-space-size=8192 src/server",
+    "start": "node --max-old-space-size=8192 src/server",
     "build": "node bin/deploy build-full-client",
     "test": "env-cmd -f .env.test c8 mocha",
     "dev": "env-cmd -f .env.development nodemon src/server",
@@ -21,7 +21,11 @@
     "prettier": "prettier --write .",
     "fix": "npm audit fix --force && npm audit",
     "update-template": "node bin/file update-template ./ ../pwa-microservices-template",
-    "baremetal": "node bin baremetal --dev --commission --ls --create-machine"
+    "baremetal": "node bin baremetal --dev --commission --ls --create-machine",
+    "security:secrets": "gitleaks detect --source . --config .gitleaks.toml --report-path ./gitleaks-report.json --report-format json --redact=0",
+    "security:secrets:ci": "gitleaks detect --source . --config .gitleaks.toml --redact=1",
+    "security:deps": "npm audit",
+    "security": "npm run security:secrets:ci && npm run security:deps"
   },
   "bin": {
     "underpost": "bin/index.js"

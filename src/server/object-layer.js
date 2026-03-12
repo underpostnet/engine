@@ -1,6 +1,6 @@
 /**
  * Provides utilities and engine logic for processing and managing Cyberia Online's object layer assets (skins, floors, weapons, etc.).
- * Centralizes shared logic consumed by both the Cyberia CLI and the REST API service layer.
+ * Shared logic consumed by both the Cyberia CLI and the REST API service layer.
  * @module src/server/object-layer.js
  * @namespace CyberiaObjectLayer
  */
@@ -82,7 +82,7 @@ const logger = loggerFactory(import.meta);
 
 /**
  * Engine class providing static utilities for Cyberia Online object layer asset processing,
- * frame extraction, directory iteration, image building, and centralized document creation logic.
+ * frame extraction, directory iteration, image building, and document creation logic.
  * @class ObjectLayerEngine
  * @memberof CyberiaObjectLayer
  */
@@ -374,7 +374,7 @@ export class ObjectLayerEngine {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  // Centralized document lifecycle methods
+  // Document lifecycle methods
   // ──────────────────────────────────────────────────────────────────────────
 
   /**

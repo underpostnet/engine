@@ -31,6 +31,190 @@ dotenv.config();
 const logger = loggerFactory(import.meta);
 
 /**
+ * Prefix used in JSON configuration files to denote an environment variable reference.
+ * Any string value in a config object that starts with this prefix will be resolved
+ * to the corresponding `process.env` value at runtime.
+ *
+ * @constant {string}
+ * @memberof ServerConfBuilder
+ * @example
+ * // In conf.server.json:
+ * { "db": { "password": "env:MARIADB_PASSWORD" } }
+ */
+const ENV_REF_PREFIX = 'env:';
+
+/**
+ * Recursively walks a configuration object and replaces every string value that
+ * starts with {@link ENV_REF_PREFIX} (`"env:"`) with the corresponding
+ * `process.env[VAR_NAME]` value.
+ *
+ * Non-string values and strings that do not start with the prefix are left untouched.
+ *
+ * Supports three reference formats:
+ * - `"env:VAR_NAME"` — resolves to `process.env.VAR_NAME`, returns `''` if unset.
+ * - `"env:VAR_NAME:default_value"` — resolves to `process.env.VAR_NAME`, falls back to `default_value` if unset.
+ * - Type-coerced defaults:
+ *   - `"env:VAR_NAME:int:465"` — resolved value is parsed as integer (`parseInt`), falls back to `465`.
+ *   - `"env:VAR_NAME:bool:true"` — resolved value is coerced to boolean (`value !== 'false'`), falls back to `true`.
+ *
+ * @method resolveConfSecrets
+ * @param {any} obj - The configuration object (or value) to resolve.
+ * @returns {any} A **new** object with all `env:` references replaced by their runtime values.
+ * @memberof ServerConfBuilder
+ *
+ * @example
+ * // Given process.env.MARIADB_PASSWORD = 'supersecret'
+ * resolveConfSecrets({ db: { password: 'env:MARIADB_PASSWORD' } });
+ * // => { db: { password: 'supersecret' } }
+ *
+ * @example
+ * // With default value fallback (env var not set)
+ * resolveConfSecrets({ db: { provider: 'env:DB_PROVIDER:mongoose' } });
+ * // => { db: { provider: 'mongoose' } }
+ *
+ * @example
+ * // With int type coercion
+ * resolveConfSecrets({ port: 'env:SMTP_PORT:int:465' });
+ * // => { port: 465 }
+ *
+ * @example
+ * // With bool type coercion
+ * resolveConfSecrets({ secure: 'env:SMTP_SECURE:bool:true' });
+ * // => { secure: true }
+ */
+const resolveConfSecrets = (obj) => {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string') {
+    if (obj.startsWith(ENV_REF_PREFIX)) {
+      const ref = obj.slice(ENV_REF_PREFIX.length);
+      // Support env:VAR_NAME:default_value syntax (first colon separates key from default)
+      const colonIdx = ref.indexOf(':');
+      const envKey = colonIdx !== -1 ? ref.slice(0, colonIdx) : ref;
+      const defaultValue = colonIdx !== -1 ? ref.slice(colonIdx + 1) : undefined;
+      const envValue = process.env[envKey];
+
+      let resolved;
+      if (envValue !== undefined) {
+        resolved = envValue;
+      } else if (defaultValue !== undefined) {
+        resolved = defaultValue;
+      } else {
+        logger.warn(`resolveConfSecrets: environment variable "${envKey}" is not set (referenced as "${obj}")`);
+        return '';
+      }
+
+      // Type coercion via prefix in default value: int:N or bool:B
+      // Also apply coercion when an env value is present and a typed default is declared
+      if (defaultValue !== undefined) {
+        if (defaultValue.startsWith('int:')) {
+          return parseInt(resolved, 10) || parseInt(defaultValue.slice(4), 10) || 0;
+        }
+        if (defaultValue.startsWith('bool:')) {
+          const boolDefault = defaultValue.slice(5);
+          if (envValue !== undefined) return envValue !== 'false';
+          return boolDefault !== 'false';
+        }
+      }
+
+      return resolved;
+    }
+    return obj;
+  }
+  if (Array.isArray(obj)) return obj.map((item) => resolveConfSecrets(item));
+  if (typeof obj === 'object') {
+    const resolved = {};
+    for (const [key, value] of Object.entries(obj)) {
+      resolved[key] = resolveConfSecrets(value);
+    }
+    return resolved;
+  }
+  return obj;
+};
+
+/**
+ * Returns the private configuration folder for a given deploy ID.
+ * Checks for a replica folder first, then falls back to the standard conf folder.
+ *
+ * @method getConfFolder
+ * @param {string} deployId - The deploy ID.
+ * @returns {string} The path to the private configuration folder.
+ * @memberof ServerConfBuilder
+ *
+ * @example
+ * getConfFolder('dd-myapp');
+ * // => './engine-private/conf/dd-myapp'  (or './engine-private/replica/dd-myapp' if it exists)
+ */
+const getConfFolder = (deployId) => {
+  return fs.existsSync(`./engine-private/replica/${deployId}`)
+    ? `./engine-private/replica/${deployId}`
+    : `./engine-private/conf/${deployId}`;
+};
+
+/**
+ * Resolves the full path to a specific configuration JSON file for a deploy ID.
+ * For `server` configs in development mode with a subConf, it will prefer the
+ * dev-specific variant if it exists.
+ *
+ * @method getConfFilePath
+ * @param {string} deployId - The deploy ID.
+ * @param {string} confType - The configuration type (e.g. 'server', 'client', 'cron', 'ssr').
+ * @param {string} [subConf=''] - Optional sub-configuration identifier (used for dev server variants).
+ * @returns {string} The resolved path to the configuration JSON file.
+ * @memberof ServerConfBuilder
+ *
+ * @example
+ * getConfFilePath('dd-myapp', 'server');
+ * // => './engine-private/conf/dd-myapp/conf.server.json'
+ *
+ * @example
+ * // In development with subConf 'local':
+ * getConfFilePath('dd-myapp', 'server', 'local');
+ * // => './engine-private/conf/dd-myapp/conf.server.dev.local.json' (if it exists)
+ */
+const getConfFilePath = (deployId, confType, subConf = '') => {
+  const folder = getConfFolder(deployId);
+  // When no explicit subConf is given, fall back to the env var set by loadConf()
+  const effectiveSubConf = subConf || process.env.DEPLOY_SUB_CONF || '';
+  if (confType === 'server' && effectiveSubConf) {
+    const devConfPath = `${folder}/conf.${confType}.dev.${effectiveSubConf}.json`;
+    if (fs.existsSync(devConfPath)) return devConfPath;
+  }
+  return `${folder}/conf.${confType}.json`;
+};
+
+/**
+ * Reads and parses a configuration JSON file for a given deploy ID and config type.
+ * Optionally resolves `env:` secret references and/or applies replica expansion.
+ *
+ * @method readConfJson
+ * @param {string} deployId - The deploy ID.
+ * @param {string} confType - The configuration type (e.g. 'server', 'client', 'cron', 'ssr').
+ * @param {object} [options={}] - Options.
+ * @param {string} [options.subConf=''] - Sub-configuration identifier for dev variants.
+ * @param {boolean} [options.resolve=false] - Whether to resolve `env:` references.
+ * @param {boolean} [options.loadReplicas=false] - Whether to expand replica entries (server configs).
+ * @returns {object} The parsed (and optionally resolved) configuration object.
+ * @memberof ServerConfBuilder
+ */
+const readConfJson = (deployId, confType, options = {}) => {
+  const filePath = getConfFilePath(deployId, confType, options.subConf || '');
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`readConfJson: configuration file not found: ${filePath}`);
+  }
+  let parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  if (options.loadReplicas && confType === 'server') parsed = loadReplicas(deployId, parsed);
+  if (options.resolve) parsed = resolveConfSecrets(parsed);
+  return parsed;
+};
+
+/**
+ * Default deploy ID used when no deploy ID is specified.
+ * @constant {string}
+ * @memberof ServerConfBuilder
+ */
+const DEFAULT_DEPLOY_ID = 'dd-default';
+
+/**
  * @class Config
  * @description Manages the configuration of the server.
  * This class provides a set of static methods to automate various
@@ -53,12 +237,11 @@ const Config = {
    * @param {string} [subConf=''] - The sub configuration.
    * @memberof ServerConfBuilder
    */
-  build: async function (deployContext = 'dd-default', deployList, subConf) {
+  build: async function (deployContext = DEFAULT_DEPLOY_ID, deployList, subConf) {
     if (process.argv[2] && typeof process.argv[2] === 'string' && process.argv[2].startsWith('dd-'))
       deployContext = process.argv[2];
     if (!subConf && process.argv[3] && typeof process.argv[3] === 'string') subConf = process.argv[3];
-    if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`);
-    if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
+
     Underpost.env.set('await-deploy', new Date().toISOString());
     if (deployContext.startsWith('dd-')) loadConf(deployContext, subConf);
     if (deployContext === 'proxy') await Config.buildProxy(deployList, subConf);
@@ -70,7 +253,7 @@ const Config = {
    * @param {object} [options={ subConf: '', cluster: false }] - The options.
    * @memberof ServerConfBuilder
    */
-  deployIdFactory: function (deployId = 'dd-default', options = { subConf: '', cluster: false }) {
+  deployIdFactory: function (deployId = DEFAULT_DEPLOY_ID, options = { subConf: '', cluster: false }) {
     if (!deployId.startsWith('dd-')) deployId = `dd-${deployId}`;
 
     logger.info('Build deployId', deployId);
@@ -79,6 +262,7 @@ const Config = {
     const repoName = `engine-${deployId.split('dd-')[1]}`;
 
     if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+
     fs.writeFileSync(
       `${folder}/.env.production`,
       fs.readFileSync('./.env.production', 'utf8').replaceAll('dd-default', deployId),
@@ -99,8 +283,6 @@ const Config = {
       fs.readFileSync('./package.json', 'utf8').replaceAll('dd-default', deployId),
       'utf8',
     );
-
-    this.buildTmpConf(folder);
 
     if (options.subConf) {
       logger.info('Creating sub conf', {
@@ -127,37 +309,16 @@ const Config = {
       shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
 
       if (!fs.existsSync(`./engine-private/deploy/dd.router`))
-        fs.writeFileSync(`./engine-private/deploy/dd.router`, '', 'utf8');
-
-      fs.writeFileSync(
-        `./engine-private/deploy/dd.router`,
-        fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').trim() + `,${deployId}`,
-        'utf8',
-      );
-      const updateRepo = (stage = 1) => {
-        shellExec(`git add . && git commit -m "Add base deployId ${deployId} cluster files stage:${stage}"`);
-        shellExec(
-          `cd engine-private && git add . && git commit -m "Add base deployId ${deployId} cluster files stage:${stage}"`,
+        fs.writeFileSync(`./engine-private/deploy/dd.router`, deployId, 'utf8');
+      else
+        fs.writeFileSync(
+          `./engine-private/deploy/dd.router`,
+          fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').trim() + `,${deployId}`,
+          'utf8',
         );
-      };
-      updateRepo(1);
-      shellExec(`node bin run --build --dev sync`);
-      updateRepo(2);
-      shellExec(`node bin run --build sync`);
-      updateRepo(3);
     }
 
     return { deployIdFolder: folder, deployId };
-  },
-  /**
-   * @method buildTmpConf
-   * @description Builds the temporary configuration of the server.
-   * @param {string} [folder='./conf'] - The folder.
-   * @memberof ServerConfBuilder
-   */
-  buildTmpConf: function (folder = './conf') {
-    for (const confType of Object.keys(this.default))
-      fs.writeFileSync(`${folder}/conf.${confType}.json`, JSON.stringify(this.default[confType], null, 4), 'utf8');
   },
   /**
    * @method buildProxyByDeployId
@@ -178,7 +339,7 @@ const Config = {
     )
       confPath = `./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`;
 
-    const serverConf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+    const serverConf = loadConfServerJson(confPath);
 
     for (const host of Object.keys(loadReplicas(deployId, serverConf)))
       this.default.server[host] = {
@@ -206,7 +367,6 @@ const Config = {
         }
       }
     }
-    this.buildTmpConf();
   },
 };
 
@@ -217,7 +377,7 @@ const Config = {
  * @param {string} [subConf=''] - The sub configuration.
  * @memberof ServerConfBuilder
  */
-const loadConf = (deployId = 'dd-default', subConf) => {
+const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
   if (deployId === 'current') {
     console.log(process.env.DEPLOY_ID);
     return;
@@ -225,20 +385,17 @@ const loadConf = (deployId = 'dd-default', subConf) => {
   if (deployId === 'clean') {
     const path = '.';
     fs.removeSync(`${path}/.env`);
-    shellExec(`git checkout ${path}/.env.production`);
-    shellExec(`git checkout ${path}/.env.development`);
-    shellExec(`git checkout ${path}/.env.test`);
+    fs.removeSync(`${path}/.env.production`);
+    fs.removeSync(`${path}/.env.development`);
+    fs.removeSync(`${path}/.env.test`);
     if (fs.existsSync(`${path}/jsdoc.json`)) shellExec(`git checkout ${path}/jsdoc.json`);
     shellExec(`git checkout ${path}/package.json`);
     shellExec(`git checkout ${path}/package-lock.json`);
     return;
   }
-  const folder = fs.existsSync(`./engine-private/replica/${deployId}`)
-    ? `./engine-private/replica/${deployId}`
-    : `./engine-private/conf/${deployId}`;
+  const folder = getConfFolder(deployId);
+
   if (!fs.existsSync(folder)) Config.deployIdFactory(deployId);
-  if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
-  if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`);
 
   for (const typeConf of Object.keys(Config.default)) {
     let srcConf = fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8');
@@ -252,7 +409,7 @@ const loadConf = (deployId = 'dd-default', subConf) => {
   fs.writeFileSync(`./.env.production`, fs.readFileSync(`${folder}/.env.production`, 'utf8'), 'utf8');
   fs.writeFileSync(`./.env.development`, fs.readFileSync(`${folder}/.env.development`, 'utf8'), 'utf8');
   fs.writeFileSync(`./.env.test`, fs.readFileSync(`${folder}/.env.test`, 'utf8'), 'utf8');
-  const NODE_ENV = process.env.NODE_ENV;
+  const NODE_ENV = process.env.NODE_ENV || 'development';
   if (NODE_ENV) {
     const subPathEnv = fs.existsSync(`${folder}/.env.${NODE_ENV}.${subConf}`)
       ? `${folder}/.env.${NODE_ENV}.${subConf}`
@@ -726,9 +883,7 @@ const pathPortAssignmentFactory = async (deployId, router, confServer) => {
     const singleReplicas = await fs.readdir(`./engine-private/replica`);
     for (let replica of singleReplicas) {
       if (replica.startsWith(deployId)) {
-        const replicaServerConf = JSON.parse(
-          fs.readFileSync(`./engine-private/replica/${replica}/conf.server.json`, 'utf8'),
-        );
+        const replicaServerConf = loadConfServerJson(`./engine-private/replica/${replica}/conf.server.json`);
         for (const host of Object.keys(replicaServerConf)) {
           const pathPortAssignment = [];
           for (const path of Object.keys(replicaServerConf[host])) {
@@ -931,7 +1086,7 @@ const getDataDeploy = (
   for (const deployObj of dataDeploy) {
     const serverConf = loadReplicas(
       deployObj.deployId,
-      JSON.parse(fs.readFileSync(`./engine-private/conf/${deployObj.deployId}/conf.server.json`, 'utf8')),
+      loadConfServerJson(`./engine-private/conf/${deployObj.deployId}/conf.server.json`),
     );
     let replicaDataDeploy = [];
     for (const host of Object.keys(serverConf))
@@ -1103,10 +1258,7 @@ const mergeFile = async (parts = [], outputFilePath) => {
  * @memberof ServerConfBuilder
  */
 const rebuildConfFactory = ({ deployId, valkey, mongo }) => {
-  const confServer = loadReplicas(
-    deployId,
-    JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
-  );
+  const confServer = loadReplicas(deployId, loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`));
   const hosts = {};
   for (const host of Object.keys(confServer)) {
     hosts[host] = {};
@@ -1117,9 +1269,7 @@ const rebuildConfFactory = ({ deployId, valkey, mongo }) => {
       if (singleReplica) {
         for (const replica of replicas) {
           const deployIdReplica = buildReplicaId({ replica, deployId });
-          const confServerReplica = JSON.parse(
-            fs.readFileSync(`./engine-private/replica/${deployIdReplica}/conf.server.json`, 'utf8'),
-          );
+          const confServerReplica = loadConfServerJson(`./engine-private/replica/${deployIdReplica}/conf.server.json`);
           for (const _host of Object.keys(confServerReplica)) {
             for (const _path of Object.keys(confServerReplica[_host])) {
               hosts[host][_path] = { replica: { host, path } };
@@ -1349,19 +1499,26 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
  * @param {boolean} options.singleReplica - The single replica.
  * @param {Array} options.replicas - The replicas.
  * @param {string} options.redirect - The redirect.
+ * @param {boolean} [options.peer=false] - Whether peer is enabled on the parent singleReplica path (used for port offset estimation when replica conf is not yet built).
  * @returns {object} - The instance context.
  * @memberof ServerConfBuilder
  */
-const getInstanceContext = async (options = { deployId, singleReplica, replicas, redirect: '' }) => {
-  const { deployId, singleReplica, replicas, redirect } = options;
+const getInstanceContext = async (options = { deployId, singleReplica, replicas, redirect: '', peer: false }) => {
+  const { deployId, singleReplica, replicas, redirect, peer } = options;
   let singleReplicaOffsetPortSum = 0;
 
   if (singleReplica && replicas && replicas.length > 0) {
     for (const replica of replicas) {
       const replicaDeployId = buildReplicaId({ deployId, replica });
-      const confReplicaServer = JSON.parse(
-        fs.readFileSync(`./engine-private/replica/${replicaDeployId}/conf.server.json`, 'utf8'),
-      );
+      const replicaConfPath = `./engine-private/replica/${replicaDeployId}/conf.server.json`;
+      if (!fs.existsSync(replicaConfPath)) {
+        // Replica folder not built yet (e.g. dev mode without prior build);
+        // estimate port offset: 1 per replica path + 1 extra if peer is enabled on the parent singleReplica config
+        singleReplicaOffsetPortSum++;
+        if (peer) singleReplicaOffsetPortSum++;
+        continue;
+      }
+      const confReplicaServer = loadConfServerJson(replicaConfPath);
       for (const host of Object.keys(confReplicaServer)) {
         for (const path of Object.keys(confReplicaServer[host])) {
           singleReplicaOffsetPortSum++;
@@ -1481,15 +1638,7 @@ const isDeployRunnerContext = (path, options) => !options.build && path && path 
  * @returns {boolean} - The dev proxy context.
  * @memberof ServerConfBuilder
  */
-const isDevProxyContext = () => {
-  try {
-    if (process.argv[2] === 'proxy') return true;
-    if (!process.argv[6].startsWith('localhost')) return false;
-    return new URL('http://' + process.argv[6]).hostname ? true : false;
-  } catch {
-    return false;
-  }
-};
+const isDevProxyContext = () => (process.argv.find((arg) => arg === 'proxy') ? true : false);
 
 /**
  * @method devProxyHostFactory
@@ -1502,10 +1651,14 @@ const isDevProxyContext = () => {
  * @returns {string} - The dev proxy host.
  * @memberof ServerConfBuilder
  */
-const devProxyHostFactory = (options = { host: 'default.net', includeHttp: false, port: 80, tls: false }) =>
-  `${options.includeHttp ? (options.tls ? 'https://' : 'http://') : ''}${options.host ? options.host : 'localhost'}:${
-    (options.port ? options.port : options.tls ? 443 : 80) + parseInt(process.env.DEV_PROXY_PORT_OFFSET)
-  }`;
+const devProxyHostFactory = (options = { host: 'default.net', includeHttp: false, port: 80, tls: false }) => {
+  const resolvedPort =
+    (options.port ? options.port : options.tls ? 443 : 80) + parseInt(process.env.DEV_PROXY_PORT_OFFSET);
+  const isDefaultPort = (options.tls && resolvedPort === 443) || (!options.tls && resolvedPort === 80);
+  const protocol = options.includeHttp ? (options.tls ? 'https://' : 'http://') : '';
+  const hostname = options.host ? options.host : 'localhost';
+  return `${protocol}${hostname}${isDefaultPort ? '' : `:${resolvedPort}`}`;
+};
 
 /**
  * @method isTlsDevProxy
@@ -1513,7 +1666,7 @@ const devProxyHostFactory = (options = { host: 'default.net', includeHttp: false
  * @returns {boolean} - The TLS dev proxy status.
  * @memberof ServerConfBuilder
  */
-const isTlsDevProxy = () => process.env.NODE_ENV !== 'production' && process.argv[7] === 'tls';
+const isTlsDevProxy = () => process.env.NODE_ENV !== 'production' && !!process.argv.find((arg) => arg === 'tls');
 
 /**
  * @method getTlsHosts
@@ -1525,6 +1678,42 @@ const isTlsDevProxy = () => process.env.NODE_ENV !== 'production' && process.arg
 const getTlsHosts = (confServer) =>
   Array.from(new Set(Object.keys(confServer).map((h) => new URL('https://' + h).hostname)));
 
+/**
+ * Reads a `conf.server.json` file from disk, parses it, and resolves all `env:` secret
+ * references using {@link resolveConfSecrets}.
+ *
+ * Reads and parses a `conf.server.json` file from disk. The `env:` secret
+ * references are **preserved** by default so that build/deploy tooling never
+ * accidentally strips them.  Callers that need the actual secret values
+ * (e.g. database or mailer modules) should explicitly wrap the result with
+ * {@link resolveConfSecrets}.
+ *
+ * @method loadConfServerJson
+ * @param {string} jsonPath - Absolute or relative path to the `conf.server.json` file.
+ * @param {object} [options] - Optional settings.
+ * @param {boolean} [options.resolve=false] - When `true`, resolves `env:` references
+ *   via {@link resolveConfSecrets} before returning.
+ * @returns {object} The parsed server configuration object (secrets unresolved unless
+ *   `options.resolve` is `true`).
+ * @throws {Error} If the file does not exist or cannot be parsed.
+ * @memberof ServerConfBuilder
+ *
+ * @example
+ * // Structure-only read (env: strings preserved)
+ * const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
+ *
+ * @example
+ * // Resolved read (env: strings replaced with process.env values)
+ * const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`, { resolve: true });
+ */
+const loadConfServerJson = (jsonPath, options) => {
+  if (!fs.existsSync(jsonPath)) {
+    throw new Error(`loadConfServerJson: configuration file not found: ${jsonPath}`);
+  }
+  const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+  return options && options.resolve === true ? resolveConfSecrets(raw) : raw;
+};
+
 export {
   Cmd,
   Config,
@@ -1532,10 +1721,10 @@ export {
   loadReplicas,
   cloneConf,
   getCapVariableName,
+  addClientConf,
   buildClientSrc,
   buildApiSrc,
   addApiConf,
-  addClientConf,
   addWsConf,
   buildWsSrc,
   cloneSrcComponents,
@@ -1565,4 +1754,10 @@ export {
   devProxyHostFactory,
   isTlsDevProxy,
   getTlsHosts,
+  resolveConfSecrets,
+  loadConfServerJson,
+  getConfFolder,
+  getConfFilePath,
+  readConfJson,
+  DEFAULT_DEPLOY_ID,
 };

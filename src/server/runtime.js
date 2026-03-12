@@ -6,14 +6,13 @@
  * @namespace Runtime
  */
 
-import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import * as promClient from 'prom-client';
 
 import { loggerFactory } from './logger.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
 import { Lampp } from '../runtime/lampp/Lampp.js';
-import { getInstanceContext } from './conf.js';
+import { getInstanceContext, readConfJson } from './conf.js';
 
 import ExpressService from '../runtime/express/Express.js';
 
@@ -48,9 +47,9 @@ const buildRuntime = async () => {
   const initPort = parseInt(process.env.PORT) + 1;
   let currentPort = initPort;
 
-  // Load Configuration
-  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
-  const confSSR = JSON.parse(fs.readFileSync(`./conf/conf.ssr.json`, 'utf8'));
+  // Load Configuration — resolve env: secret references at actual server runtime
+  const confServer = readConfJson(deployId, 'server', { resolve: true, loadReplicas: true });
+  const confSSR = readConfJson(deployId, 'ssr');
 
   // Iterate through hosts and paths
   for (const host of Object.keys(confServer)) {
@@ -83,6 +82,7 @@ const buildRuntime = async () => {
         redirect,
         singleReplica,
         replicas,
+        peer,
       });
 
       if (singleReplicaOffsetPortSum > 0) {

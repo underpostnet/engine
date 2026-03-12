@@ -13,7 +13,7 @@ import dns from 'node:dns';
 import os from 'node:os';
 import { shellExec, pbcopy } from './process.js';
 import Underpost from '../index.js';
-import { writeEnv } from './conf.js';
+import { writeEnv, readConfJson } from './conf.js';
 import { resolveDeployId } from './cron.js';
 
 dotenv.config();
@@ -288,15 +288,14 @@ class Dns {
 
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
-        const privateCronConfPath = `./engine-private/conf/${deployId}/conf.cron.json`;
-        const confCronPath = fs.existsSync(privateCronConfPath) ? privateCronConfPath : './conf/conf.cron.json';
 
-        if (!fs.existsSync(confCronPath)) {
-          logger.warn(`Cron config file not found for deployId: ${deployId} at ${confCronPath}`);
+        let confCronData;
+        try {
+          confCronData = readConfJson(deployId, 'cron', { resolve: true });
+        } catch (error) {
+          logger.warn(`Cron config file not found for deployId: ${deployId}`, { message: error.message });
           continue;
         }
-
-        const confCronData = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
 
         if (!confCronData.records) {
           logger.warn(`'records' field missing in cron config for deployId: ${deployId}`);
@@ -365,8 +364,26 @@ class Dns {
        */
       dondominio: (options) => {
         const { user, api_key, host, dns, ip } = options;
+
+        // Validate that required credentials are present before making any request
+        if (!user || !api_key) {
+          logger.error(
+            `${dns} update aborted: missing credentials. ` +
+              `Ensure DDNS_USER and DDNS_API_KEY environment variables are set ` +
+              `or provide 'user' and 'api_key' in cron records configuration.`,
+            { host, hasUser: !!user, hasApiKey: !!api_key },
+          );
+          return Promise.resolve(false);
+        }
+
+        if (!host) {
+          logger.error(`${dns} update aborted: missing host. Set DDNS_HOST or provide 'host' in cron records.`);
+          return Promise.resolve(false);
+        }
+
         const url = `https://dondns.dondominio.com/json/?user=${user}&password=${api_key}&host=${host}&ip=${ip}`;
-        logger.info(`${dns} update ip url`, url);
+        // Log the update attempt without exposing the full URL containing credentials
+        logger.info(`${dns} update ip request`, { host, ip });
 
         // Prevent live IP update in non-production environments
         if (process.env.NODE_ENV !== 'production') {
@@ -382,7 +399,8 @@ class Dns {
               return resolve(true);
             })
             .catch((error) => {
-              logger.error(error, `${dns} update ip error: ${error.message}`);
+              // Only log the error message — the full error object contains the request URL with credentials
+              logger.error(`${dns} update ip error`, { message: error.message, host, ip });
               return resolve(false);
             });
         });

@@ -556,7 +556,6 @@ program
   .option('--force', 'Forces operation, overriding any warnings or conflicts.')
   .option('--tls', 'Enables TLS for the runner execution.')
   .option('--reset', 'Resets the runner state before execution.')
-  .option('--terminal', 'Enables terminal mode for interactive script execution.')
   .option('--dev-proxy-port-offset <port-offset>', 'Sets a custom port offset for development proxy.')
   .option('--host-network', 'Enables host network mode for the runner execution.')
   .option('--requests-memory <requests-memory>', 'Requests memory limit for the runner execution.')

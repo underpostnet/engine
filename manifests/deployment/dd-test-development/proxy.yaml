@@ -15,7 +15,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
-          port: 4030
+          port: 4038
           weight: 100
     
     - conditions:
@@ -24,7 +24,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
-          port: 4031
+          port: 4039
           weight: 100
     
 ---
@@ -43,7 +43,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
-          port: 4032
+          port: 4040
           weight: 100
     
     - conditions:
@@ -52,6 +52,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
-          port: 4033
+          port: 4041
           weight: 100
     

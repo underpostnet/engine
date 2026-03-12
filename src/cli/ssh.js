@@ -497,7 +497,7 @@ EOF`);
     },
 
     /**
-     * Generic SSH remote command runner that centralizes SSH execution logic.
+     * Generic SSH remote command runner that SSH execution logic.
      * Executes arbitrary shell commands on a remote server via SSH with proper credential handling.
      * @async
      * @function sshRemoteRunner

@@ -47,7 +47,7 @@ const createClientDevServer = (
   // restart([ array of files triggering the restart ]) - child process has restarted
   // config:update - nodemon's config has changed
 
-  if (fs.existsSync(`./tmp/client.build.json`)) fs.removeSync(`./tmp/client.build.json`);
+  if (fs.existsSync(`/tmp/client.build.json`)) fs.removeSync(`/tmp/client.build.json`);
 
   let buildPathScope = [];
 
@@ -77,7 +77,7 @@ const createClientDevServer = (
       }, 2500);
       const buildPathScopeBuild = buildPathScope.map((o) => o.path);
       logger.info('buildPathScopeBuild', buildPathScopeBuild);
-      fs.writeFileSync(`./tmp/client.build.json`, JSON.stringify(buildPathScopeBuild, null, 4));
+      fs.writeFileSync(`/tmp/client.build.json`, JSON.stringify(buildPathScopeBuild, null, 4));
     })
     .on('crash', function (error) {
       logger.error(error, error.message);

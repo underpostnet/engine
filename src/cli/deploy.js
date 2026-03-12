@@ -11,6 +11,7 @@ import {
   Config,
   deployRangePortFactory,
   getDataDeploy,
+  loadConfServerJson,
   loadReplicas,
   pathPortAssignmentFactory,
 } from '../server/conf.js';
@@ -230,7 +231,7 @@ spec:
         if (!deployId) continue;
         const confServer = loadReplicas(
           deployId,
-          JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+          loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
         );
         const router = await Underpost.deploy.routerFactory(deployId, env);
         const pathPortAssignmentData = await pathPortAssignmentFactory(deployId, router, confServer);
@@ -406,7 +407,7 @@ spec:
       // kubectl get deploy,sts,svc,configmap,secret -n default -o yaml --export > default.yaml
       const hostTest = options?.hostTest
         ? options.hostTest
-        : Object.keys(JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')))[0];
+        : Object.keys(loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`))[0];
       const info = shellExec(`sudo kubectl get HTTPProxy/${hostTest} -n ${options.namespace} -o yaml`, {
         silent: true,
         stdout: true,
@@ -612,7 +613,7 @@ EOF`);
           continue;
         }
 
-        const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
+        const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
         const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
           ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.volume.json`, 'utf8'))
           : [];

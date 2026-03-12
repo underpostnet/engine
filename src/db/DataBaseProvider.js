@@ -13,7 +13,7 @@ const logger = loggerFactory(import.meta);
  * @class
  * @alias DataBaseProviderService
  * @memberof DataBaseProviderService
- * @classdesc Centralized service for loading, managing, and accessing multiple database connections
+ * @classdesc Service for loading, managing, and accessing multiple database connections
  * based on application configuration (host, path, provider type).
  */
 class DataBaseProviderService {
@@ -81,7 +81,22 @@ class DataBaseProviderService {
       }
       return this.#instance[key][db.provider];
     } catch (error) {
-      logger.error(error, { error: error.stack, options });
+      // Sanitize options to prevent credential exposure in logs
+      const safeOptions = {
+        apis: options.apis,
+        host: options.host,
+        path: options.path,
+        db: options.db
+          ? {
+              provider: options.db.provider,
+              name: options.db.name,
+              host: options.db.host ? '***' : undefined,
+              user: options.db.user ? '***' : undefined,
+              password: options.db.password ? '***' : undefined,
+            }
+          : {},
+      };
+      logger.error(error.message, { safeOptions });
       return undefined;
     }
   }

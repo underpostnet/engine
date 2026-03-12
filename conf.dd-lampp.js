@@ -1,52 +1,30 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
-
 const DefaultConf = /**/ {
   client: {},
   ssr: {},
   server: {
     'www.giancarlobertini.com': {
       '/': {
-        client: 'html-website-templates-publicClientId-Horizontal Scroll One Page Template Website',
+        client: null,
         runtime: 'lampp',
         origins: [],
+        directory: '/opt/lampp/htdocs/online/giancarlobertini_0',
         disabledRebuild: true,
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
         proxy: [80, 443],
-        mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
-          transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
-          },
-        },
       },
     },
     'giancarlobertini.com': {
       '/': {
-        client: 'mysql_test',
+        client: null,
         apis: [],
         runtime: 'lampp',
         origins: [],
+        directory: '/opt/lampp/htdocs/online/giancarlobertini',
         disabledRebuild: true,
         minifyBuild: false,
         liteBuild: true,
         docsBuild: false,
         proxy: [80, 443],
         redirect: 'https://www.giancarlobertini.com',
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
-          transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
-          },
-        },
       },
     },
     'www.ayleenbertini.com': {
@@ -54,47 +32,45 @@ const DefaultConf = /**/ {
         client: null,
         runtime: 'lampp',
         origins: [],
+        directory: '/opt/lampp/htdocs/online/ayleenbertini',
         disabledRebuild: true,
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        proxy: [80, 443],
-        mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
-          transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
-          },
+        db: {
+          provider: 'mariadb',
+          host: 'env:MARIADB_HOST',
+          name: 'env:DB_NAME_AYLEENBERTINI',
+          user: 'env:MARIADB_USER',
+          password: 'env:MARIADB_PASSWORD',
         },
+        proxy: [80, 443],
       },
     },
     'ayleenbertini.com': {
       '/': {
-        client: 'mysql_test',
+        client: null,
         apis: [],
         runtime: 'lampp',
         origins: [],
+        directory: '/opt/lampp/htdocs/online/ayleenbertini',
         disabledRebuild: true,
         minifyBuild: false,
         liteBuild: true,
         docsBuild: false,
         proxy: [80, 443],
         redirect: 'https://www.ayleenbertini.com',
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
-          transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
-          },
-        },
       },
     },
   },
   cron: {
-    records: { A: [{ host: 'example.com', dns: 'dondominio', api_key: '???', user: '???' }] },
+    records: {
+      A: [
+        {
+          host: 'env:DDNS_HOST:example.com',
+          dns: 'env:DDNS_PROVIDER:dondominio',
+          api_key: 'env:DDNS_API_KEY:',
+          user: 'env:DDNS_USER:',
+        },
+      ],
+    },
     jobs: {
       dns: { expression: '* * * * *', enabled: true, instances: 1 },
       backups: { expression: '0 1 * * *', enabled: true, instances: 1 },

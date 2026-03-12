@@ -51,7 +51,9 @@ const AtlasSpriteSheetController = {
   },
   get: async (req, res, options) => {
     try {
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      if (req && req.headers && req.headers.origin) {
+        res.set('Access-Control-Allow-Origin', req.headers.origin);
+      } else res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       const { page, limit } = req.query;
       const result = await AtlasSpriteSheetService.get(

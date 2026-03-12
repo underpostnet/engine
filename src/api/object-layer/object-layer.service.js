@@ -46,7 +46,7 @@ const ObjectLayerService = {
    * - Default — Create an object layer directly from the request body.
    *
    * The `/metadata` and default routes delegate to {@link ObjectLayerEngine.createObjectLayerDocuments}
-   * for centralized document creation, atlas generation, SHA-256 computation, and IPFS pinning.
+   * for document creation, atlas generation, SHA-256 computation, and IPFS pinning.
    *
    * @async
    * @function post
@@ -148,7 +148,7 @@ const ObjectLayerService = {
       fs.writeFileSync(`${folder}/metadata.json`, metadataContent);
       fs.writeFileSync(`${publicFolder}/metadata.json`, metadataContent);
 
-      // Build object layer data from the asset directory using centralized logic
+      // Build object layer data from the asset directory
       const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
       const ObjectLayerRenderFrames =
         DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
@@ -161,7 +161,6 @@ const ObjectLayerService = {
           metadataOverride: req.body,
         });
 
-      // Create documents using centralized engine method (with atlas generation)
       const { objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
         ObjectLayer,
         ObjectLayerRenderFrames,
@@ -519,7 +518,7 @@ const ObjectLayerService = {
    * - `/:id` — Standard update from request body.
    *
    * The `/metadata` route delegates to {@link ObjectLayerEngine.updateObjectLayerDocuments}
-   * for centralized document update, atlas regeneration, SHA-256 computation, and IPFS pinning.
+   * for document update, atlas regeneration, SHA-256 computation, and IPFS pinning.
    *
    * @async
    * @function put
@@ -636,7 +635,7 @@ const ObjectLayerService = {
       const ObjectLayerRenderFrames =
         DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
 
-      // Build object layer data from the asset directory using centralized logic
+      // Build object layer data from the asset directory
       const { objectLayerRenderFramesData, objectLayerData } =
         await ObjectLayerEngine.buildObjectLayerDataFromDirectory({
           folder,
@@ -645,7 +644,7 @@ const ObjectLayerService = {
           metadataOverride: req.body,
         });
 
-      // Update documents using centralized engine method (with atlas generation)
+      // Update documents using engine method (with atlas generation)
       const { objectLayer } = await ObjectLayerEngine.updateObjectLayerDocuments({
         objectLayerId,
         ObjectLayer,

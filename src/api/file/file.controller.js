@@ -19,7 +19,9 @@ const FileController = {
   },
   get: async (req, res, options) => {
     try {
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      if (req && req.headers && req.headers.origin) {
+        res.set('Access-Control-Allow-Origin', req.headers.origin);
+      } else res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       const result = await FileService.get(req, res, options);
       if (result instanceof Buffer) {

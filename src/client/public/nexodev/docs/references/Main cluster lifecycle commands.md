@@ -7,16 +7,17 @@ Minimalist reference for Underpost engine cluster lifecycle commands.
 ## Table of Contents
 
 1. [Deploy ID Convention](#deploy-id-convention)
-2. [New](#new)
-3. [Cluster Build](#cluster-build)
-4. [Template Deploy](#template-deploy)
-5. [SSH Deploy](#ssh-deploy)
-6. [Cluster](#cluster)
-7. [DD Container](#dd-container)
-8. [Image](#image)
-9. [Default Configuration](#default-configuration)
-10. [Promote](#promote)
-11. [Cron](#cron)
+2. [Credential Security](#credential-security)
+3. [New](#new)
+4. [Cluster Build](#cluster-build)
+5. [Template Deploy](#template-deploy)
+6. [SSH Deploy](#ssh-deploy)
+7. [Cluster](#cluster)
+8. [DD Container](#dd-container)
+9. [Image](#image)
+10. [Default Configuration](#default-configuration)
+11. [Promote](#promote)
+12. [Cron](#cron)
 
 ---
 
@@ -40,6 +41,26 @@ The `<conf-id>` suffix (e.g. `core`, `cyberia`, `lampp`, `test`) is the shared i
 When a deploy ID is provided without the `dd-` prefix, the engine normalizes it automatically: `my-app` → `dd-my-app`. However, examples in this reference use the full `dd-<conf-id>` format for clarity.
 
 Use `dd-<conf-id>` for all deploy/cluster/configuration commands. Use `engine-<conf-id>` for repository-level operations (template-deploy paths, ssh-deploy targets, CI/CD workflow files).
+
+---
+
+## Credential Security
+
+Configuration files in `./engine-private/conf/dd-<conf-id>/` use `env:` reference pointers for sensitive values instead of plaintext secrets:
+
+```json
+{
+  "db": {
+    "password": "env:MARIADB_PASSWORD"
+  }
+}
+```
+
+Actual secret values are stored in per-deploy `.env.*` files (`./engine-private/conf/dd-<conf-id>/.env.production`, `.env.development`, `.env.test`). At runtime, the engine's `resolveConfSecrets()` function replaces `"env:VAR_NAME"` with the corresponding `process.env.VAR_NAME` value. Generated `conf.dd-*.js` manifests emit `process.env.VAR || ''` expressions — no plaintext secret is ever written to source-controlled JS files.
+
+LAMPP deploy (`dd-lampp`) clients are `null` in the public project configuration. Client builds for LAMPP deployments are handled by private internal logic in `engine-private/itc-scripts/`.
+
+> **⚠️ Important:** Ensure `.env.*` files and `engine-private/` are listed in `.gitignore` and never committed to public repositories.
 
 ---
 
@@ -149,25 +170,23 @@ node bin run ssh-deploy sync-engine-cyberia --force
 
 **Command:** `node bin run cluster [path] [options]`
 
-Complete cluster initialization: reset → kubeadm → pull images → deploy databases → deploy cache → ingress → certs → services.
+Complete cluster initialization: reset → setup → pull images → deploy databases → deploy cache → ingress → certs → services. The runner uses `kubeadm` by default or `k3s` when `--k3s` is specified.
 
 ```bash
 node bin run cluster
+node bin run cluster express,dd-core+dd-cyberia
 node bin run cluster lampp,dd-core+dd-cyberia+dd-lampp
 node bin run cluster --dev
-node bin run cluster mysql,dd-core+dd-cyberia --dev
+node bin run cluster --k3s
 ```
 
-**Path format:** `<runtime-image>,<deploy-list>` — runtime defaults to `lampp`, deploy-list defaults to `dd.router` contents. Deploy IDs are `+`-separated and use the `dd-<conf-id>` format.
+**Path format:** `<runtime-image>,<deploy-list>` — runtime defaults to `express` (valid values: `express`, `lampp`), deploy-list defaults to `dd.router` contents. Deploy IDs are `+`-separated and use the `dd-<conf-id>` format. When runtime is `lampp`, a MariaDB statefulset is additionally deployed alongside MongoDB.
 
 | Option | Description |
 |--------|-------------|
 | `--dev` | Development environment (uses `--etc-hosts`) |
 | `--namespace <name>` | Kubernetes namespace (default: `default`) |
-| `--replicas <n>` | Replicas per service |
-| `--node-name <name>` | Target node |
 | `--kubeadm` | Kubeadm cluster |
-| `--kind` | Kind cluster |
 | `--k3s` | K3s cluster |
 
 ---
@@ -183,6 +202,7 @@ node bin run dd-container
 node bin run dd-container "npm test"
 node bin run dd-container --pod-name my-dev-pod
 node bin run dd-container --image-name custom-image:latest --dev
+node bin run dd-container --host-network
 ```
 
 | Option | Description |
@@ -192,6 +212,8 @@ node bin run dd-container --image-name custom-image:latest --dev
 | `--node-name <name>` | Target node |
 | `--claim-name <name>` | PVC name (default: `pvc-dd`) |
 | `--volume-host-path <path>` | Host path (default: `/home/dd`) |
+| `--volume-mount-path <path>` | Container mount path |
+| `--host-network` | Use host networking |
 | `--dev` | Development mode (Kind cluster) |
 
 ---
@@ -200,20 +222,37 @@ node bin run dd-container --image-name custom-image:latest --dev
 
 **Command:** `node bin image [options]`
 
-Pulls Underpost Dockerfile base images and loads them into clusters.
+Manages Docker images: pull base images, build custom images, save/load into clusters, list, and remove.
 
 ```bash
 node bin image --pull-base
 node bin image --pull-base --path /home/dd/engine/src/runtime/lampp
 node bin image --pull-base --kind --dev
-node bin image --pull-base --kubeadm --version 1.2.3
+node bin image --pull-base --kubeadm
+node bin image --build --path ./src/runtime/express --image-name my-app:latest --podman-save --kubeadm
+node bin image --ls
+node bin image --rm my-image-id
+node bin image --spec --namespace default
+node bin image --pull-dockerhub underpost --kind
 ```
 
 | Option | Description |
 |--------|-------------|
+| `--pull-base` | Pull base images and build `rockylinux9-underpost` image |
+| `--build` | Build a Docker image using Podman |
+| `--ls` | List all available Underpost Dockerfile images |
+| `--rm <image-id>` | Remove specified image |
+| `--spec` | Get cached list of container images used by all pods |
 | `--path <path>` | Dockerfile directory |
-| `--kind` / `--kubeadm` / `--k3s` | Load into cluster |
-| `--version <version>` | Custom image version |
+| `--image-name <name>` | Custom image name |
+| `--image-path <path>` | Output path for tar image archive |
+| `--dockerfile-name <name>` | Custom Dockerfile name |
+| `--podman-save` | Export built image as tar file using Podman |
+| `--pull-dockerhub <image>` | Pull a Docker Hub image (use `underpost` for the engine image) |
+| `--kind` / `--kubeadm` / `--k3s` | Load image into cluster |
+| `--node-name <name>` | Target node for kubeadm/k3s |
+| `--namespace <name>` | Kubernetes namespace (default: `default`) |
+| `--reset` | Build without cache |
 | `--dev` | Development mode |
 
 ---
@@ -222,7 +261,9 @@ node bin image --pull-base --kubeadm --version 1.2.3
 
 **Command:** `node bin new --default-conf --deploy-id <deploy-id>`
 
-Creates or updates default configuration files for a deployment. Reads from `./engine-private/conf/dd-<conf-id>/` and writes the resolved config to `conf.dd-<conf-id>.js`.
+Creates or updates default configuration files for a deployment. Reads from `./engine-private/conf/dd-<conf-id>/` (including `conf.server.json`, `conf.client.json`, `conf.ssr.json`) and writes the resolved config to `conf.dd-<conf-id>.js`.
+
+During generation, `env:` references from `conf.server.json` are preserved as plain `'env:KEY'` strings in the generated `conf.dd-*.js` file. At runtime, `resolveConfSecrets()` in `conf.js` resolves these strings to `process.env.KEY` values when configurations are loaded via `loadConf()` or `loadConfServerJson()`. Private deployment-only fields (`git`, `directory`) are stripped from the public manifest.
 
 ```bash
 node bin new --default-conf --deploy-id dd-core
@@ -325,6 +366,7 @@ node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node 
 | `--cmd <command>` | Pre-script commands before cron execution |
 | `--create-job-now` | Create an immediate Job from each CronJob after applying |
 | `--dry-run` | Preview jobs without executing |
+| `--ssh` | Execute backup commands via SSH on the remote node instead of locally |
 
 ### Available Job Types
 
@@ -396,3 +438,4 @@ This calls the cron runner internally with the resolved cluster flags, applying 
 - `GITHUB_USERNAME` environment variable set
 - `./engine-private/deploy/dd.router` populated with deploy-ids (format: `dd-<conf-id>,dd-<conf-id>,...`)
 - `./engine-private/deploy/dd.cron` populated with cron deploy-id (format: `dd-<conf-id>`)
+- Per-deploy `.env.*` files in `./engine-private/conf/dd-<conf-id>/` with required secret values (see [Credential Security](#credential-security))

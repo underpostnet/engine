@@ -15,7 +15,7 @@ dotenv.config();
 const logger = loggerFactory(import.meta);
 
 /**
- * @class UnderpostEnv
+ * @class UnderpostRootEnv
  * @description Manages the environment variables of the underpost root.
  * @memberof UnderpostEnv
  */
@@ -41,7 +41,9 @@ class UnderpostRootEnv {
       if (options.build) {
         const deployIdList = options.deployId
           ? [options.deployId]
-          : fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',');
+          : fs.existsSync(`./engine-private/deploy/dd.router`)
+            ? fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')
+            : [DEFAULT_DEPLOY_ID];
         for (const deployId of deployIdList)
           for (const envFile of ['test', 'development', 'production'])
             _set(`./engine-private/conf/${deployId}/.env.${envFile}`, key, value);

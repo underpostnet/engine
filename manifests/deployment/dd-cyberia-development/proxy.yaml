@@ -74,6 +74,78 @@ spec:
           port: 4009
           weight: 100
     
+    - conditions:
+        - prefix: /r1
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4010
+          weight: 100
+    
+    - conditions:
+        - prefix: /r1/peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4011
+          weight: 100
+    
+    - conditions:
+        - prefix: /r2
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4012
+          weight: 100
+    
+    - conditions:
+        - prefix: /r2/peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4013
+          weight: 100
+    
+    - conditions:
+        - prefix: /r3
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4014
+          weight: 100
+    
+    - conditions:
+        - prefix: /r3/peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4015
+          weight: 100
+    
+    - conditions:
+        - prefix: /r4
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4016
+          weight: 100
+    
+    - conditions:
+        - prefix: /r4/peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-blue-service
+          port: 4017
+          weight: 100
+    
 ---
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
@@ -90,7 +162,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
-          port: 4010
+          port: 4018
           weight: 100
     
 ---
@@ -109,7 +181,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
-          port: 4011
+          port: 4019
           weight: 100
     
     - conditions:
@@ -118,7 +190,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
-          port: 4012
+          port: 4020
           weight: 100
     
 ---
@@ -137,7 +209,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
-          port: 4013
+          port: 4021
           weight: 100
     
 ---
@@ -156,7 +228,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
-          port: 4014
+          port: 4022
           weight: 100
     
     - conditions:
@@ -165,7 +237,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
-          port: 4015
+          port: 4023
           weight: 100
     
 ---
@@ -184,6 +256,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-cyberia-development-blue-service
-          port: 4016
+          port: 4024
           weight: 100
     

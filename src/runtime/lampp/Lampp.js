@@ -21,11 +21,11 @@ const logger = loggerFactory(import.meta);
 class LamppService {
   /**
    * @method
-   * @type {string | undefined}
+   * @type {string}
    * @description Stores the accumulated Apache virtual host configuration (router definition).
    * @memberof LamppService
    */
-  router;
+  router = '';
 
   /**
    * @public
@@ -42,7 +42,7 @@ class LamppService {
    * @memberof LamppService
    */
   constructor() {
-    this.router = undefined;
+    this.router = '';
     this.ports = [];
   }
 
@@ -125,7 +125,6 @@ class LamppService {
 
     // 6. Start the service
     cmd = `sudo /opt/lampp/lampp start`;
-    if (this.router) fs.writeFileSync(`./tmp/lampp-router.conf`, this.router, 'utf-8');
     shellExec(cmd);
   }
 
@@ -139,13 +138,7 @@ class LamppService {
    * @memberof LamppService
    */
   appendRouter(render) {
-    if (!this.router) {
-      if (fs.existsSync(`./tmp/lampp-router.conf`)) {
-        this.router = fs.readFileSync(`./tmp/lampp-router.conf`, 'utf-8');
-        return this.router + render;
-      }
-      return (this.router = render);
-    }
+    if (!this.router) return (this.router = render);
     return (this.router += render);
   }
 
@@ -154,10 +147,10 @@ class LamppService {
    *
    * @memberof LamppService
    * @returns {void}
+   * @method removeRouter
    */
   removeRouter() {
-    this.router = undefined;
-    if (fs.existsSync(`./tmp/lampp-router.conf`)) fs.rmSync(`./tmp/lampp-router.conf`);
+    this.router = '';
   }
 
   /**

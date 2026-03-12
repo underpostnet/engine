@@ -16,6 +16,11 @@ const logger = loggerFactory(import.meta);
  * @memberof MariaDBService
  * @classdesc Provides a simplified interface for executing queries against a MariaDB/MySQL database
  * using a connection pool, ensuring connection management (acquisition and release).
+ *
+ * Connection credentials are resolved in the following order:
+ * 1. Explicit values passed in the `options` parameter.
+ * 2. Environment variables (`MARIADB_HOST`, `MARIADB_PORT`, `MARIADB_USER`, `MARIADB_PASSWORD`).
+ * 3. Safe built-in defaults (`127.0.0.1`, `3306`, `root`, empty password).
  */
 class MariaDBService {
   /**
@@ -23,20 +28,20 @@ class MariaDBService {
    *
    * @async
    * @param {object} options - The database connection and query options.
-   * @param {string} [options.host='127.0.0.1'] - The database host.
-   * @param {number} [options.port=3306] - The database port.
-   * @param {string} [options.user='root'] - The database user.
-   * @param {string} [options.password=''] - The database password.
+   * @param {string} [options.host] - The database host. Falls back to `process.env.MARIADB_HOST` then `'127.0.0.1'`.
+   * @param {number} [options.port] - The database port. Falls back to `process.env.MARIADB_PORT` then `3306`.
+   * @param {string} [options.user] - The database user. Falls back to `process.env.MARIADB_USER` then `'root'`.
+   * @param {string} [options.password] - The database password. Falls back to `process.env.MARIADB_PASSWORD` then `''`.
    * @param {string} options.query - The SQL query string to execute.
    * @returns {Promise<any>} The result of the database query.
    */
   async query(options) {
     const { host, port, user, password, query } = options;
     const pool = createPool({
-      host: 'host' in options ? host : '127.0.0.1',
-      port: 'port' in options ? port : 3306,
-      user: 'user' in options ? user : 'root',
-      password: 'password' in options ? password : '',
+      host: 'host' in options ? host : process.env.MARIADB_HOST || '127.0.0.1',
+      port: 'port' in options ? port : parseInt(process.env.MARIADB_PORT, 10) || 3306,
+      user: 'user' in options ? user : process.env.MARIADB_USER || 'root',
+      password: 'password' in options ? password : process.env.MARIADB_PASSWORD || '',
     });
     let conn, result;
     try {
@@ -45,7 +50,7 @@ class MariaDBService {
       logger.info('query');
       console.log(result);
     } catch (error) {
-      logger.error(error, error.stack);
+      logger.error('MariaDB query failed', { error: error.message });
     } finally {
       if (conn) conn.release(); // release to pool
       await pool.end();

@@ -9,7 +9,7 @@
 import dotenv from 'dotenv';
 import winston from 'winston';
 import morgan from 'morgan';
-import { colorize } from 'json-colorizer';
+import { colorize, color } from 'json-colorizer';
 import colors from 'colors';
 import v8 from 'v8';
 import { clearTerminalStringColor, formatBytes } from '../client/components/core/CommonJs.js';
@@ -60,14 +60,34 @@ const format = (meta) =>
     winston.format.colorize({ all: true }),
     // Define the format of the message showing the timestamp, the level and the message
     winston.format.printf((info) => {
-      const symbols = Object.getOwnPropertySymbols(info);
+      const splatKey = Symbol.for('splat');
+      const splat = info[splatKey];
+      const hasSplat = Array.isArray(splat) && splat.length > 0 && splat[0] !== undefined;
+      let splatStr = '';
+      if (hasSplat) {
+        const seen = new WeakSet();
+        splatStr = JSON.stringify(
+          splat[0],
+          (key, value) => {
+            if (typeof value === 'function') return `[Function: ${value.name || 'anonymous'}]`;
+            if (typeof value === 'object' && value !== null) {
+              if (seen.has(value)) return '[Circular]';
+              seen.add(value);
+            }
+            return value;
+          },
+          4,
+        );
+      }
       return `${`[${meta}]`.green} ${info.timestamp} ${info.level} ${
-        symbols[1]
-          ? `${clearTerminalStringColor(info.message)}: ${colorize(JSON.stringify(info[symbols[1]][0], null, 4), {
+        hasSplat
+          ? `${clearTerminalStringColor(info.message)}: ${colorize(splatStr, {
               colors: {
-                STRING_KEY: 'green',
-                STRING_LITERAL: 'magenta.bold',
-                NUMBER_LITERAL: '#FF0000',
+                StringKey: color.green,
+                StringLiteral: color.magenta,
+                NumberLiteral: color.red,
+                BooleanLiteral: color.cyan,
+                NullLiteral: color.white,
               },
             })}`
           : info.message

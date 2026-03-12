@@ -47,41 +47,41 @@ spec:
   selector:
     app: dd-test-development-blue
   ports:
-    - name: 'tcp-4030'
+    - name: 'tcp-4038'
       protocol: TCP
-      port: 4030
-      targetPort: 4030
-    - name: 'udp-4030'
+      port: 4038
+      targetPort: 4038
+    - name: 'udp-4038'
       protocol: UDP
-      port: 4030
-      targetPort: 4030
+      port: 4038
+      targetPort: 4038
 
-    - name: 'tcp-4031'
+    - name: 'tcp-4039'
       protocol: TCP
-      port: 4031
-      targetPort: 4031
-    - name: 'udp-4031'
+      port: 4039
+      targetPort: 4039
+    - name: 'udp-4039'
       protocol: UDP
-      port: 4031
-      targetPort: 4031
+      port: 4039
+      targetPort: 4039
 
-    - name: 'tcp-4032'
+    - name: 'tcp-4040'
       protocol: TCP
-      port: 4032
-      targetPort: 4032
-    - name: 'udp-4032'
+      port: 4040
+      targetPort: 4040
+    - name: 'udp-4040'
       protocol: UDP
-      port: 4032
-      targetPort: 4032
+      port: 4040
+      targetPort: 4040
 
-    - name: 'tcp-4033'
+    - name: 'tcp-4041'
       protocol: TCP
-      port: 4033
-      targetPort: 4033
-    - name: 'udp-4033'
+      port: 4041
+      targetPort: 4041
+    - name: 'udp-4041'
       protocol: UDP
-      port: 4033
-      targetPort: 4033
+      port: 4041
+      targetPort: 4041
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -132,39 +132,39 @@ spec:
   selector:
     app: dd-test-development-green
   ports:
-    - name: 'tcp-4030'
+    - name: 'tcp-4038'
       protocol: TCP
-      port: 4030
-      targetPort: 4030
-    - name: 'udp-4030'
+      port: 4038
+      targetPort: 4038
+    - name: 'udp-4038'
       protocol: UDP
-      port: 4030
-      targetPort: 4030
+      port: 4038
+      targetPort: 4038
 
-    - name: 'tcp-4031'
+    - name: 'tcp-4039'
       protocol: TCP
-      port: 4031
-      targetPort: 4031
-    - name: 'udp-4031'
+      port: 4039
+      targetPort: 4039
+    - name: 'udp-4039'
       protocol: UDP
-      port: 4031
-      targetPort: 4031
+      port: 4039
+      targetPort: 4039
 
-    - name: 'tcp-4032'
+    - name: 'tcp-4040'
       protocol: TCP
-      port: 4032
-      targetPort: 4032
-    - name: 'udp-4032'
+      port: 4040
+      targetPort: 4040
+    - name: 'udp-4040'
       protocol: UDP
-      port: 4032
-      targetPort: 4032
+      port: 4040
+      targetPort: 4040
 
-    - name: 'tcp-4033'
+    - name: 'tcp-4041'
       protocol: TCP
-      port: 4033
-      targetPort: 4033
-    - name: 'udp-4033'
+      port: 4041
+      targetPort: 4041
+    - name: 'udp-4041'
       protocol: UDP
-      port: 4033
-      targetPort: 4033
+      port: 4041
+      targetPort: 4041
   type: LoadBalancer

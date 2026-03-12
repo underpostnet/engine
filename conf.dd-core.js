@@ -1,7 +1,3 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
-
 const DefaultConf = /**/ {
   client: {
     dogmadual: {
@@ -598,16 +594,6 @@ const DefaultConf = /**/ {
         docsBuild: false,
         proxy: [80, 443],
         redirect: 'https://www.dogmadual.com',
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
-          transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
-          },
-        },
       },
     },
     'www.dogmadual.com': {
@@ -622,15 +608,15 @@ const DefaultConf = /**/ {
         liteBuild: true,
         docsBuild: false,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        valkey: { port: 6379, host: '127.0.0.1' },
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_DOGMADUAL' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: { email: 'env:MAILER_SENDER_EMAIL', name: 'env:MAILER_SENDER_NAME' },
           transport: {
-            host: 'smtp.default.com',
-            port: 465,
+            host: 'env:SMTP_HOST',
+            port: 'env:SMTP_PORT',
             secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
           },
         },
       },
@@ -646,16 +632,6 @@ const DefaultConf = /**/ {
         docsBuild: false,
         proxy: [80, 443],
         redirect: 'https://www.nexodev.org',
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
-          transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
-          },
-        },
       },
     },
     'www.nexodev.org': {
@@ -671,15 +647,15 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        valkey: { port: 6379, host: '127.0.0.1' },
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_NEXODEV' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: { email: 'env:MAILER_SENDER_EMAIL', name: 'env:MAILER_SENDER_NAME' },
           transport: {
-            host: 'smtp.default.com',
-            port: 465,
+            host: 'env:SMTP_HOST',
+            port: 'env:SMTP_PORT',
             secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
           },
         },
       },
@@ -697,15 +673,15 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        valkey: { port: 6379, host: '127.0.0.1' },
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_HEALTHCARE' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: { email: 'env:MAILER_SENDER_EMAIL', name: 'env:MAILER_SENDER_NAME' },
           transport: {
-            host: 'smtp.default.com',
-            port: 465,
+            host: 'env:SMTP_HOST',
+            port: 'env:SMTP_PORT',
             secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
           },
         },
       },
@@ -723,15 +699,15 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        valkey: { port: 6379, host: '127.0.0.1' },
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_BYMYELECTRICS' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: { email: 'env:MAILER_SENDER_EMAIL', name: 'env:MAILER_SENDER_NAME' },
           transport: {
-            host: 'smtp.default.com',
-            port: 465,
+            host: 'env:SMTP_HOST',
+            port: 'env:SMTP_PORT',
             secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
           },
         },
       },
@@ -747,16 +723,6 @@ const DefaultConf = /**/ {
         docsBuild: false,
         proxy: [80, 443],
         redirect: 'https://www.bymyelectrics.com',
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
-          transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
-          },
-        },
       },
     },
     'vitaintegral.nexodev.org': {
@@ -772,22 +738,31 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        valkey: { port: 6379, host: '127.0.0.1' },
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_HEALTHCARE' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: { email: 'env:MAILER_SENDER_EMAIL', name: 'env:MAILER_SENDER_NAME' },
           transport: {
-            host: 'smtp.default.com',
-            port: 465,
+            host: 'env:SMTP_HOST',
+            port: 'env:SMTP_PORT',
             secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
           },
         },
       },
     },
   },
   cron: {
-    records: { A: [{ host: 'example.com', dns: 'dondominio', api_key: '???', user: '???' }] },
+    records: {
+      A: [
+        {
+          host: 'env:DDNS_HOST:example.com',
+          dns: 'env:DDNS_PROVIDER:dondominio',
+          api_key: 'env:DDNS_API_KEY:',
+          user: 'env:DDNS_USER:',
+        },
+      ],
+    },
     jobs: {
       dns: { expression: '* * * * *', enabled: true, instances: 1 },
       backups: { expression: '0 1 * * *', enabled: true, instances: 1 },

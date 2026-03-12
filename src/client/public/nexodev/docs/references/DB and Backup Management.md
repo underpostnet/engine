@@ -423,6 +423,107 @@ underpost db default-a,default-b --stats --ns production > backup-stats-$(date +
 
 ---
 
+## Credential Security
+
+All database credentials are stored as **environment variable references** (`env:VAR_NAME`)
+inside JSON configuration files — never as plaintext values. The actual secret values live
+exclusively in `.env.<environment>` files (e.g. `.env.production`) within `engine-private/`.
+
+### The `env:` Reference Pattern
+
+Configuration files (`conf.server.json`, `conf.cron.json`) use a special `env:` prefix to
+point to environment variables instead of embedding secrets directly:
+
+```json
+{
+  "db": {
+    "provider": "mariadb",
+    "host": "env:MARIADB_HOST",
+    "name": "env:DB_NAME_MYAPP",
+    "user": "env:MARIADB_USER",
+    "password": "env:MARIADB_PASSWORD"
+  },
+  "mailer": {
+    "transport": {
+      "auth": {
+        "user": "env:SMTP_AUTH_USER",
+        "pass": "env:SMTP_AUTH_PASS"
+      }
+    }
+  }
+}
+```
+
+At runtime, the engine's `resolveConfSecrets()` function walks the config object and replaces
+every `"env:VAR_NAME"` string with the corresponding `process.env.VAR_NAME` value. This
+happens automatically when configs are loaded via `loadConf()` or `loadConfServerJson()`.
+
+### Database Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DB_PROVIDER` | Database provider (`mongoose`, `mariadb`) | `mongoose` |
+| `DB_HOST` | MongoDB connection URI | `mongodb://127.0.0.1:27017` |
+| `DB_NAME` | Default database name | `default` |
+| `DB_NAME_<SITE>` | Per-site database name (e.g. `DB_NAME_NEXODEV`) | — |
+| `MARIADB_HOST` | MariaDB/MySQL host | `127.0.0.1` |
+| `MARIADB_PORT` | MariaDB/MySQL port | `3306` |
+| `MARIADB_USER` | MariaDB/MySQL username | `root` |
+| `MARIADB_PASSWORD` | MariaDB/MySQL password | _(empty)_ |
+
+### SMTP / Mailer Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SMTP_HOST` | SMTP server hostname | `smtp.default.com` |
+| `SMTP_PORT` | SMTP server port | `465` |
+| `SMTP_SECURE` | Use TLS (`true`/`false`) | `true` |
+| `SMTP_AUTH_USER` | SMTP authentication user | _(empty)_ |
+| `SMTP_AUTH_PASS` | SMTP authentication password | _(empty)_ |
+| `MAILER_SENDER_EMAIL` | Sender email address | `noreply@default.net` |
+| `MAILER_SENDER_NAME` | Sender display name | `Default` |
+
+### DDNS / Cron Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DDNS_HOST` | Hostname to update via DDNS | `example.com` |
+| `DDNS_PROVIDER` | DNS provider name | `dondominio` |
+| `DDNS_API_KEY` | DNS provider API key | _(empty)_ |
+| `DDNS_USER` | DNS provider username | _(empty)_ |
+
+### Valkey (Redis-compatible) Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VALKEY_HOST` | Valkey server host | `127.0.0.1` |
+| `VALKEY_PORT` | Valkey server port | `6379` |
+
+### Resolution Order
+
+Credentials are resolved in the following priority:
+
+1. **`env:` reference in JSON** — `conf.server.json` or `conf.cron.json` stores `"env:VAR_NAME"`.
+2. **Environment variable** — `resolveConfSecrets()` resolves the pointer to `process.env.VAR_NAME`.
+3. **Safe built-in default** — the `DefaultConf` in `conf.js` uses `process.env.VAR || 'fallback'` for base defaults.
+
+### Generated Manifest Files (`conf.dd-*.js`)
+
+When `updateDefaultConf()` generates a `conf.dd-*.js` manifest from `conf.server.json`:
+
+1. `env:` references from `conf.server.json` are preserved as plain `'env:KEY'` strings in the generated JS file.
+2. Non-sensitive values (arrays, booleans, static strings) are serialized normally.
+3. At runtime, `resolveConfSecrets()` in `conf.js` resolves `'env:KEY'` strings to `process.env.KEY` values when configurations are loaded via `loadConf()` or `loadConfServerJson()`.
+
+This ensures that **no plaintext secret ever appears** in source-controlled JS files.
+
+> **⚠️ Important:** Ensure that `.env.*` files and `engine-private/` are listed in
+> `.gitignore` and are **never committed** to public repositories. The placeholder
+> values (`changethis`) in the root `.env.*` templates are intentional reminders
+> to replace them with real credentials before deployment.
+
+---
+
 ## Notes
 
 - **Backup Retention**: System automatically maintains the last `MAX_BACKUP_RETENTION` backups

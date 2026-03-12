@@ -1,7 +1,3 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
-
 const DefaultConf = /**/ {
   client: {
     underpost: {
@@ -572,15 +568,15 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        valkey: { port: 6379, host: '127.0.0.1' },
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_NEXODEV' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: { email: 'env:MAILER_SENDER_EMAIL', name: 'env:MAILER_SENDER_NAME' },
           transport: {
-            host: 'smtp.default.com',
-            port: 465,
+            host: 'env:SMTP_HOST',
+            port: 'env:SMTP_PORT',
             secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
           },
         },
       },
@@ -596,16 +592,6 @@ const DefaultConf = /**/ {
         docsBuild: false,
         proxy: [80, 443],
         redirect: 'https://underpost.net',
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
-          transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
-          },
-        },
       },
     },
     'www.cyberiaonline.com': {
@@ -635,15 +621,56 @@ const DefaultConf = /**/ {
         liteBuild: true,
         docsBuild: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        valkey: { port: 6379, host: '127.0.0.1' },
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_CYBERIA' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: { email: 'env:MAILER_SENDER_EMAIL_CYBERIA', name: 'env:MAILER_SENDER_NAME_CYBERIA' },
           transport: {
-            host: 'smtp.default.com',
-            port: 465,
+            host: 'env:SMTP_HOST_CYBERIA',
+            port: 'env:SMTP_PORT_CYBERIA',
             secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            auth: { user: 'env:SMTP_AUTH_USER_CYBERIA', pass: 'env:SMTP_AUTH_PASS_CYBERIA' },
+          },
+        },
+        replicas: ['/r1', '/r2'],
+      },
+      '/single-replica': {
+        singleReplica: true,
+        replicas: ['/r3', '/r4'],
+        client: 'cyberia-portal',
+        runtime: 'nodejs',
+        apis: [
+          'core',
+          'file',
+          'user',
+          'crypto',
+          'document',
+          'instance',
+          'object-layer',
+          'object-layer-render-frames',
+          'atlas-sprite-sheet',
+          'ipfs',
+        ],
+        ws: 'core',
+        peer: true,
+        origins: [
+          'https://www.cyberiaonline.com',
+          'https://server.cyberiaonline.com',
+          'https://client.cyberiaonline.com',
+        ],
+        minifyBuild: false,
+        liteBuild: true,
+        docsBuild: true,
+        proxy: [80, 443],
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_CYBERIA' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
+        mailer: {
+          sender: { email: 'env:MAILER_SENDER_EMAIL_CYBERIA', name: 'env:MAILER_SENDER_NAME_CYBERIA' },
+          transport: {
+            host: 'env:SMTP_HOST_CYBERIA',
+            port: 'env:SMTP_PORT_CYBERIA',
+            secure: true,
+            auth: { user: 'env:SMTP_AUTH_USER_CYBERIA', pass: 'env:SMTP_AUTH_PASS_CYBERIA' },
           },
         },
       },
@@ -659,16 +686,6 @@ const DefaultConf = /**/ {
         liteBuild: true,
         docsBuild: false,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
-          transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
-          },
-        },
       },
     },
     'cryptokoyn.net': {
@@ -694,15 +711,15 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        valkey: { port: 6379, host: '127.0.0.1' },
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_CRYPTOKOYN' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: { email: 'env:MAILER_SENDER_EMAIL', name: 'env:MAILER_SENDER_NAME' },
           transport: {
-            host: 'smtp.default.com',
-            port: 465,
+            host: 'env:SMTP_HOST',
+            port: 'env:SMTP_PORT',
             secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
           },
         },
       },
@@ -718,16 +735,6 @@ const DefaultConf = /**/ {
         docsBuild: false,
         proxy: [80, 443],
         redirect: 'https://cryptokoyn.net',
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
-          transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
-          },
-        },
       },
     },
     'itemledger.com': {
@@ -754,15 +761,15 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        valkey: { port: 6379, host: '127.0.0.1' },
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_ITEMLEDGER' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: { email: 'env:MAILER_SENDER_EMAIL', name: 'env:MAILER_SENDER_NAME' },
           transport: {
-            host: 'smtp.default.com',
-            port: 465,
+            host: 'env:SMTP_HOST',
+            port: 'env:SMTP_PORT',
             secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
           },
         },
       },
@@ -778,21 +785,20 @@ const DefaultConf = /**/ {
         docsBuild: false,
         proxy: [80, 443],
         redirect: 'https://itemledger.com',
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
-        mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
-          transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
-          },
-        },
       },
     },
   },
   cron: {
-    records: { A: [{ host: 'example.com', dns: 'dondominio', api_key: '???', user: '???' }] },
+    records: {
+      A: [
+        {
+          host: 'env:DDNS_HOST:example.com',
+          dns: 'env:DDNS_PROVIDER:dondominio',
+          api_key: 'env:DDNS_API_KEY:',
+          user: 'env:DDNS_USER:',
+        },
+      ],
+    },
     jobs: {
       dns: { expression: '* * * * *', enabled: true, instances: 1 },
       backups: { expression: '0 1 * * *', enabled: true, instances: 1 },

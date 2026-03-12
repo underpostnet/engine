@@ -123,52 +123,6 @@ const shellCd = (cd, options = { disableLog: false }) => {
 };
 
 /**
- * Opens a new GNOME terminal and executes a command.
- * Note: This function is environment-specific (GNOME/Linux).
- * @memberof Process
- * @param {string} cmd - The command to execute in the new terminal.
- * @param {Object} [options] - Options for the terminal opening.
- * @param {boolean} [options.single=false] - If true, execute as a single session process using `setsid`.
- * @param {string} [options.chown] - Path to change ownership to the target user.
- * @returns {void}
- */
-const openTerminal = (cmd, options = { single: false }) => {
-  // Find the graphical user's UID from /run/user (prefer non-root UID, usually 1000)
-  const IDS = shellExec(`ls -1 /run/user`, { stdout: true, silent: true })
-    .split('\n')
-    .map((v) => v.trim())
-    .filter(Boolean);
-
-  const nonRootIds = IDS.filter((id) => id !== '0');
-  const ID = nonRootIds.length > 0 ? nonRootIds[0] : IDS[0];
-
-  if (!options.chown) options.chown = `/home/dd ${getNpmRootPath()}/underpost`;
-
-  shellExec(`chown -R ${ID}:${ID} ${options.chown}`);
-
-  // Run the terminal as the graphical user and use THAT user's runtime dir/bus.
-  const confCmd = `USER_GRAPHICAL=$(getent passwd "${ID}" | cut -d: -f1); \
-sudo -u "$USER_GRAPHICAL" env DISPLAY="$DISPLAY" \
-XDG_RUNTIME_DIR="/run/user/${ID}" \
-DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${ID}/bus" \
-PATH="$PATH" \
-`;
-
-  if (options.single === true) {
-    // Run as a single session process
-    shellExec(`${confCmd} setsid gnome-terminal -- bash -ic '${cmd}; exec bash' >/dev/null 2>&1 &`, {
-      async: true,
-    });
-    return;
-  }
-  // Run asynchronously and disown
-  shellExec(`${confCmd} gnome-terminal -- bash -c '${cmd}; exec bash' >/dev/null 2>&1 & disown`, {
-    async: true,
-    stdout: true,
-  });
-};
-
-/**
  * Wraps a command to run it as a daemon process in a shell (keeping the process alive/terminal open).
  * @memberof Process
  * @param {string} cmd - The command to daemonize.
@@ -198,4 +152,4 @@ function pbcopy(data) {
   logger.info(`copied to clipboard`, clipboard.readSync());
 }
 
-export { ProcessController, getRootDirectory, shellExec, shellCd, pbcopy, openTerminal, getTerminalPid, daemonProcess };
+export { ProcessController, getRootDirectory, shellExec, shellCd, pbcopy, getTerminalPid, daemonProcess };

@@ -20,6 +20,7 @@ import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { generateBesuManifests, deployBesu, removeBesu } from '../src/server/besu-genesis-generator.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
+import { loadConfServerJson } from '../src/server/conf.js';
 import {
   ObjectLayerEngine,
   resolveCanonicalCid,
@@ -62,7 +63,7 @@ async function connectDbForChain({ envPath, mongoHost }) {
   if (!fs.existsSync(confServerPath)) {
     throw new Error(`Server config not found: ${confServerPath}. Ensure DEFAULT_DEPLOY_ID is set.`);
   }
-  const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
+  const confServer = loadConfServerJson(confServerPath, { resolve: true });
   const { db } = confServer[host][path];
 
   db.host = mongoHost ? mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
@@ -167,7 +168,7 @@ try {
         const path = process.env.DEFAULT_DEPLOY_PATH;
 
         const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-        const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
+        const confServer = loadConfServerJson(confServerPath, { resolve: true });
         const { db } = confServer[host][path];
 
         db.host = options.mongoHost ? options.mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
@@ -260,7 +261,7 @@ try {
             const shouldGenerateAtlas = !isImportAll;
 
             if (shouldGenerateAtlas) {
-              // Use the centralized createObjectLayerDocuments which handles atlas generation
+              // Use the createObjectLayerDocuments which handles atlas generation
               // Since we're in CLI context without a full Express req/res, we build a minimal
               // atlas generation flow using AtlasSpriteSheetGenerator directly after creation.
               const { objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
@@ -464,8 +465,8 @@ try {
               maxAtlasDim < 2048
                 ? ' (Warning: May be too small for all frames)'
                 : maxAtlasDim > 4096
-                ? ' (Large size: ensure GPU compatibility)'
-                : ' (Recommended size)';
+                  ? ' (Large size: ensure GPU compatibility)'
+                  : ' (Recommended size)';
 
             logger.info(
               `Generating atlas sprite sheet for item: ${itemId} with max dimension: ${maxAtlasDim}x${maxAtlasDim}${sizeRecommendation}`,

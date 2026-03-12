@@ -1,7 +1,3 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
-
 const DefaultConf = /**/ {
   client: {
     default: {
@@ -184,19 +180,31 @@ const DefaultConf = /**/ {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
+        db: {
+          provider: 'env:DB_PROVIDER:mongoose',
+          host: 'env:DB_HOST:mongodb://127.0.0.1:27017',
+          name: 'env:DB_NAME:default',
+          user: 'env:DB_USER:',
+          password: 'env:DB_PASSWORD:',
+        },
         mailer: {
-          sender: { email: 'noreply@default.net', name: 'Default' },
+          sender: {
+            email: 'env:MAILER_SENDER_EMAIL:noreply@default.net',
+            name: 'env:MAILER_SENDER_NAME:Default',
+          },
           transport: {
-            host: 'smtp.default.com',
-            port: 465,
-            secure: true,
-            auth: { user: 'noreply@default.net', pass: '' },
+            host: 'env:SMTP_HOST:smtp.default.com',
+            port: 'env:SMTP_PORT:int:465',
+            secure: 'env:SMTP_SECURE:bool:true',
+            auth: {
+              user: 'env:SMTP_AUTH_USER:',
+              pass: 'env:SMTP_AUTH_PASS:',
+            },
           },
         },
         valkey: {
-          port: 6379,
-          host: '127.0.0.1',
+          port: 'env:VALKEY_PORT:int:6379',
+          host: 'env:VALKEY_HOST:127.0.0.1',
         },
       },
     },
@@ -213,7 +221,16 @@ const DefaultConf = /**/ {
     },
   },
   cron: {
-    records: { A: [{ host: 'example.com', dns: 'dondominio', api_key: '???', user: '???' }] },
+    records: {
+      A: [
+        {
+          host: 'env:DDNS_HOST:example.com',
+          dns: 'env:DDNS_PROVIDER:dondominio',
+          api_key: 'env:DDNS_API_KEY:',
+          user: 'env:DDNS_USER:',
+        },
+      ],
+    },
     jobs: {
       dns: { expression: '* * * * *', enabled: true, instances: 1 },
       backups: { expression: '0 1 * * *', enabled: true, instances: 1 },

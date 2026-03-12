@@ -21,7 +21,9 @@ const ObjectLayerController = {
   },
   get: async (req, res, options) => {
     try {
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      if (req && req.headers && req.headers.origin) {
+        res.set('Access-Control-Allow-Origin', req.headers.origin);
+      } else res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       const result = await ObjectLayerService.get(req, res, options);
       return res.status(200).json({
@@ -39,7 +41,9 @@ const ObjectLayerController = {
   generateWebp: async (req, res, options) => {
     try {
       const result = await ObjectLayerService.generateWebp(req, res, options);
-      res.setHeader('Access-Control-Allow-Origin', '*');
+      if (req && req.headers && req.headers.origin) {
+        res.set('Access-Control-Allow-Origin', req.headers.origin);
+      } else res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       res.setHeader('Content-Type', 'image/webp');
       res.setHeader(

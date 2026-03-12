@@ -1,0 +1,75 @@
+# .gitleaks.toml - tailored for the repository
+title = "gitleaks config - underpostnet pwa-microservices-template"
+
+[extend]
+# usar las reglas por defecto y aplicar los cambios de este archivo
+useDefault = true
+# desactivar reglas por id si fuera necesario
+disabledRules = ["generic-api-key"]
+
+# -----------------------
+# Global allowlists (skip files/paths known from .gitignore)
+# -----------------------
+[[allowlists]]
+description = "Ignore common build, artifact and ignored folders (from .gitignore)"
+paths = [
+  '''^\.git/''',
+  '''^node_modules/''',
+  '''^hardhat/node_modules/''',
+  '''^public/''',
+  '''^engine-private/''',
+  '''^conf/''',
+  '''^tmp/''',
+  '''^logs/''',
+  '''^build/''',
+  '''^coverage/''',
+  '''^prometheus_data/''',
+  '''^grafana_data/''',
+  '''^images/''',
+  '''^src/client/public/cyberia/''',
+  '''^src/client/public/underpost/''',
+  '''^src/client/public/doc/\.gitignore/engine/''',
+  '''^volume/''',
+  '''^\.cache$''',
+  '''^\.nyc_output/''',
+  '''^quorum-kubernetes/''',
+  '''^manifests/besu/'''
+]
+regexes = [
+  '''^\.env$''',
+  '''^gitleaks-report\.json$'''
+]
+# regexTarget default = "match"
+regexTarget = "match"
+
+# -----------------------
+# Ignore common archive/binary file extensions (large/binary files)
+# -----------------------
+[[allowlists]]
+description = "Skip common binary and archive file types"
+regexes = [
+  '''(?i).*\.tar(\.gz)?$''',
+  '''(?i).*\.iso$''',
+  '''(?i).*\.metals$''',
+  '''(?i).*scala-build$''',
+  '''(?i).*pub\.json$''',
+  '''(?i)\.(png|jpg|jpeg|gif|pdf|zip|qcow2|bin)$'''
+]
+regexTarget = "match"
+
+# -----------------------
+# Ignore Packer artifacts under packer/images
+# -----------------------
+[[allowlists]]
+description = "Packer build artifacts"
+paths = [
+  '''^packer/images/.*/output-''',
+  '''^packer/images/.*/packer_cache''',
+  '''^packer/images/.*/.*\.tar\.gz$''',
+  '''^packer/images/.*/.*\.qcow2$''',
+  '''^packer/images/.*/.*_VARS\.fd$''',
+  '''^packer/images/.*/x86_64_VARS\.fd$''',
+  '''^packer/images/.*/aarch64_VARS\.fd$''',
+  '''^packer/images/.*/.*\.iso$'''
+]
+regexTarget = "match"

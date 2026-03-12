@@ -101,7 +101,7 @@ const getFileFromFileData = (fileData) => {
 /**
  * Fetch file content from blob endpoint and create File object.
  * Used for metadata-only format files during edit mode.
- * Uses FileService with blob/ prefix for centralized blob fetching.
+ * Uses FileService with blob/ prefix for blob fetching.
  *
  * @async
  * @function getFileFromBlobEndpoint

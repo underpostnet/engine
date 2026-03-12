@@ -15,6 +15,7 @@ import {
   orderArrayFromAttrInt,
   uniqueArray,
 } from '../client/components/core/CommonJs.js';
+import { readConfJson } from './conf.js';
 import UglifyJS from 'uglify-js';
 import { minify } from 'html-minifier-terser';
 import dotenv from 'dotenv';
@@ -241,9 +242,10 @@ const defaultSitemapXsl = `<?xml version="1.0" encoding="UTF-8"?>
  */
 const buildClient = async (options = { liveClientBuildPaths: [], instances: [], buildZip: false }) => {
   const logger = loggerFactory(import.meta);
-  const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
-  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
-  const confSSR = JSON.parse(fs.readFileSync(`./conf/conf.ssr.json`, 'utf8'));
+  const deployId = process.env.DEPLOY_ID;
+  const confClient = readConfJson(deployId, 'client');
+  const confServer = readConfJson(deployId, 'server', { loadReplicas: true });
+  const confSSR = readConfJson(deployId, 'ssr');
   const packageData = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
   const acmeChallengePath = `/.well-known/acme-challenge`;
   const publicPath = `./public`;
@@ -328,26 +330,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
           } */,
       );
     } else if (fs.existsSync(`./engine-private/src/client/public/${publicClientId}`)) {
-      switch (publicClientId) {
-        case 'mysql_test':
-          if (db) {
-            fs.copySync(`./engine-private/src/client/public/${publicClientId}`, rootClientPath);
-            fs.writeFileSync(
-              `${rootClientPath}/index.php`,
-              fs
-                .readFileSync(`${rootClientPath}/index.php`, 'utf8')
-                .replace('test_servername', 'localhost')
-                .replace('test_username', db.user)
-                .replace('test_password', db.password)
-                .replace('test_dbname', db.name),
-              'utf8',
-            );
-          } else logger.error('not provided db config');
-          break;
-
-        default:
-          break;
-      }
+      fs.copySync(`./engine-private/src/client/public/${publicClientId}`, rootClientPath);
     }
     if (dists)
       for (const dist of dists) {

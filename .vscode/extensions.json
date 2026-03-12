@@ -1,9 +1,10 @@
 {
-  "recommendations": [
-    "antiantisepticeye.vscode-color-picker",
-    "bashmish.es6-string-css",
-    "eamodio.gitlens",
-    "esbenp.prettier-vscode",
-    "tobermory.es6-string-html",
-  ],
+    "recommendations": [
+        "anseki.vscode-color",
+        "bashmish.es6-string-css",
+        "eamodio.gitlens",
+        "esbenp.prettier-vscode",
+        "github.copilot-chat",
+        "tobermory.es6-string-html"
+    ]
 }
