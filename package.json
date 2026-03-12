@@ -25,7 +25,8 @@
     "security:secrets": "gitleaks detect --source . --config .gitleaks.toml --report-path ./gitleaks-report.json --report-format json --redact=0",
     "security:secrets:ci": "gitleaks detect --source . --config .gitleaks.toml --redact=1",
     "security:deps": "npm audit",
-    "security": "npm run security:secrets:ci && npm run security:deps"
+    "security": "npm run security:secrets:ci && npm run security:deps",
+    "clean": "node bin env clean && node bin run clean"
   },
   "bin": {
     "underpost": "bin/index.js"
