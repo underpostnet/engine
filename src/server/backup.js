@@ -8,6 +8,7 @@ import fs from 'fs-extra';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import Underpost from '../index.js';
+import { loadCronDeployEnv } from './conf.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -30,6 +31,7 @@ class BackUp {
    * @memberof UnderpostBakcUp
    */
   static callback = async function (deployList, options = { git: false }) {
+    loadCronDeployEnv();
     if ((!deployList || deployList === 'dd') && fs.existsSync(`./engine-private/deploy/dd.router`))
       deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').trim();
 

@@ -4,7 +4,7 @@
  * @namespace UnderpostMonitor
  */
 
-import { loadReplicas, pathPortAssignmentFactory, loadConfServerJson } from '../server/conf.js';
+import { loadReplicas, pathPortAssignmentFactory, loadConfServerJson, loadCronDeployEnv } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import axios from 'axios';
 import fs from 'fs-extra';
@@ -71,6 +71,7 @@ class UnderpostMonitor {
       commanderOptions,
       auxRouter,
     ) {
+      loadCronDeployEnv();
       if (!options.namespace) options.namespace = 'default';
       if (!options.replicas) options.replicas = '1';
       if (deployId === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`)) {

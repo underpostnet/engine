@@ -12,7 +12,7 @@ import dns from 'node:dns';
 import os from 'node:os';
 import { shellExec, pbcopy } from './process.js';
 import Underpost from '../index.js';
-import { writeEnv, readConfJson } from './conf.js';
+import { writeEnv, readConfJson, loadCronDeployEnv } from './conf.js';
 import { resolveDeployId } from './cron.js';
 
 const logger = loggerFactory(import.meta);
@@ -265,6 +265,7 @@ class Dns {
    * @returns {Promise<void>}
    */
   static async callback(deployList) {
+    loadCronDeployEnv();
     const isOnline = await Dns.isInternetConnection();
 
     if (!isOnline) return;

@@ -11,7 +11,7 @@ import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
-import { loadReplicas, pathPortAssignmentFactory } from '../server/conf.js';
+import { loadReplicas, pathPortAssignmentFactory, loadCronDeployEnv } from '../server/conf.js';
 import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 
@@ -773,6 +773,7 @@ class UnderpostDB {
         kind: false,
       },
     ) {
+      loadCronDeployEnv();
       const newBackupTimestamp = new Date().getTime();
       const namespace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
 
@@ -1129,6 +1130,7 @@ class UnderpostDB {
       host = process.env.DEFAULT_DEPLOY_HOST,
       path = process.env.DEFAULT_DEPLOY_PATH,
     ) {
+      loadCronDeployEnv();
       deployId = deployId ? deployId : process.env.DEFAULT_DEPLOY_ID;
       host = host ? host : process.env.DEFAULT_DEPLOY_HOST;
       path = path ? path : process.env.DEFAULT_DEPLOY_PATH;
@@ -1305,6 +1307,7 @@ class UnderpostDB {
         dryRun: false,
       },
     ) {
+      loadCronDeployEnv();
       if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
 
       logger.info('Starting File collection cleanup', { deployList, options });
@@ -1532,6 +1535,7 @@ class UnderpostDB {
         crons: false,
       },
     ) {
+      loadCronDeployEnv();
       deployId = deployId ? deployId : process.env.DEFAULT_DEPLOY_ID;
       host = host ? host : process.env.DEFAULT_DEPLOY_HOST;
       path = path ? path : process.env.DEFAULT_DEPLOY_PATH;

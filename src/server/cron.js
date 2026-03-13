@@ -8,7 +8,7 @@ import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import fs from 'fs-extra';
 import Underpost from '../index.js';
-import { getUnderpostRootPath } from './conf.js';
+import { getUnderpostRootPath, loadCronDeployEnv } from './conf.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -191,6 +191,7 @@ class UnderpostCron {
       jobList = Object.keys(Underpost.cron.JOB).join(','),
       options = {},
     ) {
+      loadCronDeployEnv();
       if (options.setupStart) return await Underpost.cron.setupDeployStart(options.setupStart, options);
 
       if (options.generateK8sCronjobs) return await Underpost.cron.generateK8sCronJobs(options);

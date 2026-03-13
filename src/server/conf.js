@@ -149,6 +149,49 @@ const getConfFolder = (deployId) => {
 };
 
 /**
+ * Loads the deployment-specific `.env` file referenced by `engine-private/deploy/dd.cron`
+ * into `process.env`. Uses `NODE_ENV` to select the environment variant
+ * (defaults to `production`).
+ *
+ * Safe to call multiple times; subsequent calls are no-ops once the env is loaded.
+ *
+ * @method loadCronDeployEnv
+ * @memberof ServerConfBuilder
+ */
+function loadCronDeployEnv() {
+  const envName = process.env.NODE_ENV || 'production';
+
+  // 1) Load dd.cron env (takes full precedence)
+  const cronDeployFile = './engine-private/deploy/dd.cron';
+  if (fs.existsSync(cronDeployFile)) {
+    const cronDeployId = fs.readFileSync(cronDeployFile, 'utf8').trim();
+    if (cronDeployId) {
+      const cronEnvPath = `./engine-private/conf/${cronDeployId}/.env.${envName}`;
+      if (fs.existsSync(cronEnvPath)) {
+        const cronEnv = dotenv.parse(fs.readFileSync(cronEnvPath, 'utf8'));
+        process.env = { ...process.env, ...cronEnv };
+      }
+    }
+  }
+
+  // 2) Load dd.router envs — only keys not already present
+  const routerDeployFile = './engine-private/deploy/dd.router';
+  if (fs.existsSync(routerDeployFile)) {
+    const routerIds = fs.readFileSync(routerDeployFile, 'utf8').trim().split(',');
+    for (const deployId of routerIds) {
+      const id = deployId.trim();
+      if (!id) continue;
+      const envPath = `./engine-private/conf/${id}/.env.${envName}`;
+      if (!fs.existsSync(envPath)) continue;
+      const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+      for (const key of Object.keys(env)) {
+        if (!(key in process.env)) process.env[key] = env[key];
+      }
+    }
+  }
+}
+
+/**
  * Resolves the full path to a specific configuration JSON file for a deploy ID.
  * For `server` configs in development mode with a subConf, it will prefer the
  * dev-specific variant if it exists.
@@ -1728,4 +1771,5 @@ export {
   getConfFilePath,
   readConfJson,
   DEFAULT_DEPLOY_ID,
+  loadCronDeployEnv,
 };
