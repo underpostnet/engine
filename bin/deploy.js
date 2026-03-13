@@ -25,14 +25,12 @@ import {
   buildCliDoc,
   readConfJson,
   getConfFilePath,
-  DEFAULT_DEPLOY_ID,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import colors from 'colors';
 import { program } from '../src/cli/index.js';
 import { timer } from '../src/client/components/core/CommonJs.js';
 import Underpost from '../src/index.js';
-import { loadEnv } from '../src/server/env.js';
 
 colors.enable();
 
@@ -125,12 +123,6 @@ try {
         buildWsSrc({ toOptions, fromOptions });
       }
       break;
-    case 'conf': {
-      let subConf = process.argv[5] ?? '';
-      const confDeployId = process.argv[3] || DEFAULT_DEPLOY_ID;
-      loadConf(confDeployId, subConf);
-      break;
-    }
 
     case 'new-nodejs-app':
       {
@@ -196,7 +188,6 @@ try {
       break;
     case 'build-full-client':
       {
-        loadEnv();
         if (!process.argv[3]) process.argv[3] = 'dd-default';
         const { deployId } = loadConf(process.argv[3], process.argv[4] ?? '');
 
@@ -232,15 +223,15 @@ try {
         // Build single replica folders before building their clients
         if (singleReplicaHosts.length > 0) {
           for (const { host, path } of singleReplicaHosts) {
-            shellExec(Cmd.replica(deployId, host, path));
+            shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${path}`);
           }
           // Restore main deploy conf after replica folder creation overwrites it
-          shellExec(Cmd.conf(deployId, process.env.NODE_ENV));
+          shellExec(`node bin env ${deployId} ${process.env.NODE_ENV}`);
         }
 
         for (const replicaDeployId of deployIdSingleReplicas) {
-          shellExec(Cmd.conf(replicaDeployId, process.env.NODE_ENV));
-          shellExec(Cmd.build(replicaDeployId));
+          shellExec(`node bin env ${replicaDeployId} ${process.env.NODE_ENV}`);
+          shellExec(`node bin/deploy build-full-client ${replicaDeployId}`);
         }
       }
       break;

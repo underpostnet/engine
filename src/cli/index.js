@@ -6,9 +6,11 @@ import { getNpmRootPath, getUnderpostRootPath, loadConf } from '../server/conf.j
 import { commitData } from '../client/components/core/CommonJs.js';
 
 import Underpost from '../index.js';
-import { loadEnv } from '../server/env.js';
 
-loadEnv();
+const underpostGlobalEnv = `${getUnderpostRootPath()}/.env`;
+
+if (fs.existsSync(underpostGlobalEnv)) dotenv.config({ path: underpostGlobalEnv, override: true });
+else dotenv.config();
 
 const program = new Command();
 

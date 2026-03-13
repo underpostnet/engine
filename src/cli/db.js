@@ -225,6 +225,21 @@ class UnderpostDB {
     },
 
     /**
+     * Helper: Resolves the latest backup timestamp from an existing backup directory.
+     * Scans the directory for numeric (epoch) sub-folders and returns the most recent one.
+     * @method _getLatestBackupTimestamp
+     * @memberof UnderpostDB
+     * @param {string} backupDir - Path to the host-folder backup directory.
+     * @return {string|null} The latest timestamp string, or null if none found.
+     */
+    _getLatestBackupTimestamp(backupDir) {
+      if (!fs.existsSync(backupDir)) return null;
+      const entries = fs.readdirSync(backupDir).filter((e) => /^\d+$/.test(e));
+      if (entries.length === 0) return null;
+      return entries.sort((a, b) => parseInt(b) - parseInt(a))[0];
+    },
+
+    /**
      * Helper: Manages Git repository for backups.
      * @method _manageGitRepo
      * @memberof UnderpostDB
@@ -913,9 +928,11 @@ class UnderpostDB {
 
             logger.info('Processing database', { hostFolder, provider, dbName, deployId });
 
-            dbs[provider][dbName].currentBackupTimestamp = backupInfo.current;
+            const latestBackupTimestamp = Underpost.db._getLatestBackupTimestamp(`../${repoName}/${hostFolder}`);
 
-            const currentTimestamp = backupInfo.current || newBackupTimestamp;
+            dbs[provider][dbName].currentBackupTimestamp = latestBackupTimestamp;
+
+            const currentTimestamp = latestBackupTimestamp || newBackupTimestamp;
             const sqlContainerPath = `/home/${dbName}.sql`;
             const fromPartsPath = `../${repoName}/${hostFolder}/${currentTimestamp}/${dbName}-parths.json`;
             const toSqlPath = `../${repoName}/${hostFolder}/${currentTimestamp}/${dbName}.sql`;

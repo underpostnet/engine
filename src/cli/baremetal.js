@@ -16,7 +16,6 @@ import { newInstance, range, s4, timer } from '../client/components/core/CommonJ
 import { spawnSync } from 'child_process';
 import Underpost from '../index.js';
 import express from 'express';
-import { loadEnv } from '../server/env.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -135,9 +134,6 @@ class UnderpostBaremetal {
       },
     ) {
       let { ipAddress, hostname, ipFileServer, ipConfig, netmask, dnsServer } = options;
-
-      // Load environment variables with fallback chain.
-      loadEnv();
 
       // Determine the root path for npm and underpost.
       const npmRoot = getNpmRootPath();

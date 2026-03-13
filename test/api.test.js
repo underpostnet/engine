@@ -5,9 +5,8 @@ import dotenv from 'dotenv';
 
 import { expect } from 'chai';
 import { loggerFactory } from '../src/server/logger.js';
-import { loadEnv } from '../src/server/env.js';
 
-loadEnv({ nodeEnv: 'test' });
+dotenv.config();
 
 const PORT = parseInt(process.env.PORT) + 1;
 

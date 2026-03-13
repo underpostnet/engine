@@ -3,13 +3,10 @@
 // https://nodejs.org/api
 // https://expressjs.com/en/4x/api.html
 
-import { loadEnv } from './server/env.js';
 import { loggerFactory } from './server/logger.js';
 import { Config } from './server/conf.js';
 import { ProcessController } from './server/process.js';
 import { clientLiveBuild } from './server/client-build-live.js';
-
-loadEnv();
 
 await Config.build();
 

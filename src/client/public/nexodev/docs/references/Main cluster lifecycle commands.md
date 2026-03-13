@@ -140,21 +140,6 @@ The `env` command loads configuration from `./engine-private/conf/dd-<conf-id>/`
 
 The `clean` option removes all root `.env` files and restores `package.json` and related files from git.
 
-### Environment Loading Priority
-
-The engine resolves environment variables using a priority chain (highest wins):
-
-| Priority    | Source                                           | Description                                                                              |
-| ----------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| 0 (highest) | Shell / `process.env`                            | Values already set before the loader runs (e.g. `NODE_ENV=development` from npm scripts) |
-| 1           | `options.nodeEnv` / `options.deployId`           | Explicit overrides passed to `loadEnv()`                                                 |
-| 2           | `./.env.<NODE_ENV>`                              | Root-level environment-specific file (e.g. `.env.production`)                            |
-| 3           | `engine-private/conf/<deployId>/.env.<NODE_ENV>` | Deploy-specific environment file                                                         |
-| 4           | `./.env`                                         | Root-level `.env` file                                                                   |
-| 5 (lowest)  | `./.env.example`                                 | Fallback example template                                                                |
-
-Files are loaded from highest to lowest priority using dotenv's no-override mode — the first value set for each variable wins. Shell-provided values are never overwritten by file-based defaults.
-
 ---
 
 ## Development Server

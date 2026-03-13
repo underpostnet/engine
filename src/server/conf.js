@@ -23,11 +23,8 @@ import { shellExec } from './process.js';
 import { DefaultConf } from '../../conf.js';
 import splitFile from 'split-file';
 import Underpost from '../index.js';
-import { loadEnv } from './env.js';
 
 colors.enable();
-
-loadEnv();
 
 const logger = loggerFactory(import.meta);
 
@@ -1110,7 +1107,8 @@ const getDataDeploy = (
     for (const host of Object.keys(serverConf))
       for (const path of Object.keys(serverConf[host])) {
         if (serverConf[host][path].replicas && serverConf[host][path].singleReplica) {
-          if (options && options.buildSingleReplica) shellExec(Cmd.replica(deployObj.deployId, host, path));
+          if (options && options.buildSingleReplica)
+            shellExec(`node bin/deploy build-single-replica ${deployObj.deployId} ${host} ${path}`);
           replicaDataDeploy = replicaDataDeploy.concat(
             serverConf[host][path].replicas.map((r) => {
               return {
@@ -1125,7 +1123,7 @@ const getDataDeploy = (
     if (replicaDataDeploy.length > 0) buildDataDeploy = buildDataDeploy.concat(replicaDataDeploy);
   }
 
-  if (!options.disableSyncEnvPort && options.buildSingleReplica) shellExec(Cmd.syncPorts());
+  if (!options.disableSyncEnvPort && options.buildSingleReplica) shellExec(`node bin/deploy sync-env-port`);
 
   logger.info('Deployments configured', buildDataDeploy);
 
@@ -1333,56 +1331,6 @@ const getPathsSSR = (conf) => {
   for (const o of conf.offline) paths.push(`src/client/ssr/mailer/${o.client}.js`);
   for (const o of conf.pages) paths.push(`src/client/ssr/pages/${o.client}.js`);
   return paths;
-};
-
-/**
- * @method CmdUnderpost
- * @description The command factory.
- * @memberof ServerConfBuilder
- * @namespace CmdUnderpost
- */
-const Cmd = {
-  /**
-   * @method run
-   * @description Runs the deploy.
-   * @returns {string} - The run command.
-   * @memberof Cmd
-   */
-  run: () => `npm start`,
-  /**
-   * @method build
-   * @description Builds the deploy.
-   * @param {string} deployId - The deploy ID.
-   * @returns {string} - The build command.
-   * @memberof CmdUnderpost
-   */
-  build: (deployId) => `node bin/deploy build-full-client ${deployId}`,
-  /**
-   * @method conf
-   * @description Configures the deploy.
-   * @param {string} deployId - The deploy ID.
-   * @param {string} env - The environment.
-   * @returns {string} - The conf command.
-   * @memberof CmdUnderpost
-   */
-  conf: (deployId, env) => `node bin/deploy conf ${deployId} ${env ? env : 'production'}`,
-  /**
-   * @method replica
-   * @description Builds the replica.
-   * @param {string} deployId - The deploy ID.
-   * @param {string} host - The host.
-   * @param {string} path - The path.
-   * @returns {string} - The replica command.
-   * @memberof CmdUnderpost
-   */
-  replica: (deployId, host, path) => `node bin/deploy build-single-replica ${deployId} ${host} ${path}`,
-  /**
-   * @method syncPorts
-   * @description Syncs the ports.
-   * @returns {string} - The sync ports command.
-   * @memberof CmdUnderpost
-   */
-  syncPorts: () => `node bin/deploy sync-env-port`,
 };
 
 /**
@@ -1733,7 +1681,6 @@ const loadConfServerJson = (jsonPath, options) => {
 };
 
 export {
-  Cmd,
   Config,
   loadConf,
   loadReplicas,
