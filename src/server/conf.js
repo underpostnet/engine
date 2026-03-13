@@ -1076,7 +1076,7 @@ const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1
  * @returns {object} - The data deploy.
  * @memberof ServerConfBuilder
  */
-const getDataDeploy = (
+const getDataDeploy = async (
   options = {
     buildSingleReplica: false,
     disableSyncEnvPort: false,
@@ -1108,7 +1108,9 @@ const getDataDeploy = (
       for (const path of Object.keys(serverConf[host])) {
         if (serverConf[host][path].replicas && serverConf[host][path].singleReplica) {
           if (options && options.buildSingleReplica)
-            shellExec(`node bin/deploy build-single-replica ${deployObj.deployId} ${host} ${path}`);
+            await Underpost.repo.client(deployObj.deployId, '', host, path, {
+              singleReplica: true,
+            });
           replicaDataDeploy = replicaDataDeploy.concat(
             serverConf[host][path].replicas.map((r) => {
               return {
@@ -1123,7 +1125,8 @@ const getDataDeploy = (
     if (replicaDataDeploy.length > 0) buildDataDeploy = buildDataDeploy.concat(replicaDataDeploy);
   }
 
-  if (!options.disableSyncEnvPort && options.buildSingleReplica) shellExec(`node bin/deploy sync-env-port`);
+  if (!options.disableSyncEnvPort && options.buildSingleReplica)
+    await Underpost.repo.client(undefined, '', '', '', { syncEnvPort: true });
 
   logger.info('Deployments configured', buildDataDeploy);
 

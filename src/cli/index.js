@@ -38,6 +38,17 @@ program
   .action(Underpost.repo.new);
 
 program
+  .command('client')
+  .argument('[deploy-id]', 'The deployment ID to build.', 'dd-default')
+  .argument('[sub-conf]', 'The sub-configuration for the build.', '')
+  .argument('[host]', 'Comma-separated hosts to filter the build.', '')
+  .argument('[path]', 'Comma-separated paths to filter the build.', '')
+  .option('--sync-env-port', 'Sync environment port assignments across all deploy IDs')
+  .option('--single-replica', 'Build single replica folders instead of full client')
+  .description('Builds client assets, single replicas, and/or syncs environment ports.')
+  .action(Underpost.repo.client);
+
+program
   .command('start')
   .argument('<deploy-id>', 'The unique identifier for the deployment configuration.')
   .argument(

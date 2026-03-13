@@ -8,6 +8,7 @@ import nodemon from 'nodemon';
 import dotenv from 'dotenv';
 import { shellExec } from './process.js';
 import { loggerFactory } from './logger.js';
+import Underpost from '../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -22,7 +23,7 @@ const logger = loggerFactory(import.meta);
  * @returns {void}
  * @memberof clientDevServer
  */
-const createClientDevServer = (
+const createClientDevServer = async (
   deployId = process.argv[2] || 'dd-default',
   subConf = process.argv[3] || '',
   host = process.argv[4] || 'default.net',
@@ -31,7 +32,7 @@ const createClientDevServer = (
   const devClientEnvPath = `./engine-private/conf/${deployId}/.env.${process.env.NODE_ENV}.${subConf}-dev-client`;
   if (fs.existsSync(devClientEnvPath)) dotenv.config({ path: devClientEnvPath, override: true });
 
-  shellExec(`node bin/deploy build-full-client ${deployId} ${subConf}-dev-client ${host} ${path}`.trim());
+  await Underpost.repo.client(deployId, `${subConf}-dev-client`.trim(), host, path);
 
   shellExec(`node src/server ${deployId} ${subConf}-dev-client`.trim(), {
     async: true,

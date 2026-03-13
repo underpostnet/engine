@@ -6,7 +6,7 @@
   "description": "underpost engine server",
   "scripts": {
     "start": "node --max-old-space-size=8192 src/server",
-    "build": "node bin/deploy build-full-client",
+    "build": "node bin client",
     "test": "NODE_ENV=test c8 mocha",
     "dev": "NODE_ENV=development nodemon src/server",
     "dev:container": "NODE_ENV=development node src/server",

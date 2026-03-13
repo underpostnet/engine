@@ -6,27 +6,17 @@ import dotenv from 'dotenv';
 import { pbcopy, shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import {
-  Config,
   addApiConf,
   addClientConf,
   buildApiSrc,
   buildClientSrc,
   cloneConf,
-  loadConf,
-  loadConfServerJson,
-  loadReplicas,
   addWsConf,
   buildWsSrc,
   cloneSrcComponents,
-  getDataDeploy,
-  buildReplicaId,
-  Cmd,
   writeEnv,
   buildCliDoc,
-  readConfJson,
-  getConfFilePath,
 } from '../src/server/conf.js';
-import { buildClient } from '../src/server/client-build.js';
 import colors from 'colors';
 import { program } from '../src/cli/index.js';
 import { timer } from '../src/client/components/core/CommonJs.js';
@@ -133,7 +123,7 @@ try {
 
         shellExec(`node bin/deploy build-nodejs-src-app ${deployId} ${clientId}`);
 
-        shellExec(`node bin/deploy build-full-client ${deployId}`);
+        await Underpost.repo.client(deployId);
 
         shellExec(`npm run dev ${deployId}`);
       }
@@ -186,55 +176,6 @@ try {
         shellExec(`npm run dev ${deployId}`);
       }
       break;
-    case 'build-full-client':
-      {
-        if (!process.argv[3]) process.argv[3] = 'dd-default';
-        const { deployId } = loadConf(process.argv[3], process.argv[4] ?? '');
-
-        let argHost = process.argv[5] ? process.argv[5].split(',') : [];
-        let argPath = process.argv[6] ? process.argv[6].split(',') : [];
-        let deployIdSingleReplicas = [];
-        let singleReplicaHosts = [];
-        const serverConf = deployId ? readConfJson(deployId, 'server', { loadReplicas: true }) : Config.default.server;
-        const confFilePath = deployId ? getConfFilePath(deployId, 'server') : null;
-        const originalConfBackup = confFilePath ? fs.readFileSync(confFilePath, 'utf8') : null;
-        for (const host of Object.keys(serverConf)) {
-          for (const path of Object.keys(serverConf[host])) {
-            if (argHost.length && argPath.length && (!argHost.includes(host) || !argPath.includes(path))) {
-              delete serverConf[host][path];
-            } else {
-              serverConf[host][path].liteBuild = false;
-              serverConf[host][path].minifyBuild = process.env.NODE_ENV === 'production' ? true : false;
-              if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
-                singleReplicaHosts.push({ host, path });
-                deployIdSingleReplicas = deployIdSingleReplicas.concat(
-                  serverConf[host][path].replicas.map((replica) => buildReplicaId({ deployId, replica })),
-                );
-              }
-            }
-          }
-        }
-        // Write build-time overrides to private conf so buildClient reads them
-        if (confFilePath) fs.writeFileSync(confFilePath, JSON.stringify(serverConf, null, 4), 'utf-8');
-        await buildClient();
-        // Restore original private conf after build
-        if (confFilePath && originalConfBackup) fs.writeFileSync(confFilePath, originalConfBackup, 'utf-8');
-
-        // Build single replica folders before building their clients
-        if (singleReplicaHosts.length > 0) {
-          for (const { host, path } of singleReplicaHosts) {
-            shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${path}`);
-          }
-          // Restore main deploy conf after replica folder creation overwrites it
-          shellExec(`node bin env ${deployId} ${process.env.NODE_ENV}`);
-        }
-
-        for (const replicaDeployId of deployIdSingleReplicas) {
-          shellExec(`node bin env ${replicaDeployId} ${process.env.NODE_ENV}`);
-          shellExec(`node bin/deploy build-full-client ${replicaDeployId}`);
-        }
-      }
-      break;
 
     case 'update-dependencies':
       const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
@@ -249,135 +190,6 @@ try {
         }
       }
       break;
-
-    case 'sync-env-port':
-      const dataDeploy = getDataDeploy({ disableSyncEnvPort: true });
-      const dataEnv = [
-        { env: 'production', port: 3000 },
-        { env: 'development', port: 4000 },
-        { env: 'test', port: 5000 },
-      ];
-      let portOffset = 0;
-      // Map to store pre-calculated port offsets for single replica deploy IDs
-      const singleReplicaPortOffsets = {};
-      for (const deployIdObj of dataDeploy) {
-        const { deployId } = deployIdObj;
-        const baseConfPath = fs.existsSync(`./engine-private/replica/${deployId}`)
-          ? `./engine-private/replica`
-          : `./engine-private/conf`;
-
-        // If this is a single replica entry, use the pre-calculated port offset
-        const effectivePortOffset =
-          singleReplicaPortOffsets[deployId] !== undefined ? singleReplicaPortOffsets[deployId] : portOffset;
-
-        for (const envInstanceObj of dataEnv) {
-          const envPath = `${baseConfPath}/${deployId}/.env.${envInstanceObj.env}`;
-          const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-          envObj.PORT = `${envInstanceObj.port + effectivePortOffset}`;
-
-          writeEnv(envPath, envObj);
-        }
-
-        // Single replica entries don't advance portOffset — their ports live within the parent's reserved range
-        if (singleReplicaPortOffsets[deployId] !== undefined) continue;
-
-        const serverConf = loadReplicas(deployId, loadConfServerJson(`${baseConfPath}/${deployId}/conf.server.json`));
-        for (const host of Object.keys(serverConf)) {
-          // Collect deferred single replica port reservations per host
-          // (runtime adds singleReplicaOffsetPortCount AFTER the host loop, so reserved space is at end of host)
-          let deferredSingleReplicaSlots = [];
-          for (const path of Object.keys(serverConf[host])) {
-            if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
-              // Defer: record the replicas and peer flag to assign port offsets after regular paths
-              deferredSingleReplicaSlots.push({
-                replicas: serverConf[host][path].replicas,
-                peer: !!serverConf[host][path].peer,
-              });
-              continue;
-            }
-            portOffset++;
-            if (serverConf[host][path].peer) portOffset++;
-          }
-          // Now assign port offsets for single replicas at the end of the host range
-          for (const slot of deferredSingleReplicaSlots) {
-            for (const replica of slot.replicas) {
-              const replicaDeployId = buildReplicaId({ deployId, replica });
-              singleReplicaPortOffsets[replicaDeployId] = portOffset;
-              portOffset++;
-              if (slot.peer) portOffset++;
-            }
-          }
-        }
-      }
-      break;
-
-    case 'build-single-replica': {
-      const deployId = process.argv[3];
-      const host = process.argv[4];
-      const path = process.argv[5];
-      const serverConf = loadReplicas(
-        deployId,
-        loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
-      );
-
-      if (serverConf[host][path].replicas) {
-        {
-          let replicaIndex = -1;
-          for (const replica of serverConf[host][path].replicas) {
-            replicaIndex++;
-            const replicaDeployId = `${deployId}-${serverConf[host][path].replicas[replicaIndex].slice(1)}`;
-            // fs.mkdirSync(`./engine-private/replica/${deployId}${replicaIndex}`, { recursive: true });
-            await fs.copy(`./engine-private/conf/${deployId}`, `./engine-private/replica/${replicaDeployId}`);
-            fs.writeFileSync(
-              `./engine-private/replica/${replicaDeployId}/package.json`,
-              fs
-                .readFileSync(`./engine-private/replica/${replicaDeployId}/package.json`, 'utf8')
-                .replaceAll(`${deployId}`, `${replicaDeployId}`),
-              'utf8',
-            );
-            // Update .env files so DEPLOY_ID points to the replica deploy ID
-            const replicaFolder = `./engine-private/replica/${replicaDeployId}`;
-            for (const envFile of ['.env.production', '.env.development', '.env.test']) {
-              const envFilePath = `${replicaFolder}/${envFile}`;
-              if (fs.existsSync(envFilePath)) {
-                fs.writeFileSync(
-                  envFilePath,
-                  fs
-                    .readFileSync(envFilePath, 'utf8')
-                    .replaceAll(`DEPLOY_ID=${deployId}`, `DEPLOY_ID=${replicaDeployId}`),
-                  'utf8',
-                );
-              }
-            }
-          }
-        }
-        {
-          let replicaIndex = -1;
-          for (const replica of serverConf[host][path].replicas) {
-            replicaIndex++;
-            const replicaDeployId = `${deployId}-${serverConf[host][path].replicas[replicaIndex].slice(1)}`;
-            let replicaServerConf = JSON.parse(
-              fs.readFileSync(`./engine-private/replica/${replicaDeployId}/conf.server.json`, 'utf8'),
-            );
-
-            const singleReplicaConf = replicaServerConf[host][path];
-            singleReplicaConf.replicas = undefined;
-            singleReplicaConf.singleReplica = undefined;
-
-            replicaServerConf = {};
-            replicaServerConf[host] = {};
-            replicaServerConf[host][replica] = singleReplicaConf;
-
-            fs.writeFileSync(
-              `./engine-private/replica/${replicaDeployId}/conf.server.json`,
-              JSON.stringify(replicaServerConf, null, 4),
-              'utf8',
-            );
-          }
-        }
-      }
-      break;
-    }
 
     case 'rename-package': {
       const name = process.argv[3];

@@ -167,7 +167,7 @@ class UnderpostStartUp {
         for (const itcScript of itcScripts)
           if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
       }
-      shellExec(`node bin/deploy build-full-client ${deployId}`);
+      await Underpost.repo.client(deployId);
     },
     /**
      * Runs a deployment.

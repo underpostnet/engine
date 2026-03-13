@@ -572,7 +572,7 @@ EOF`);
       if (!(options.versions && typeof options.versions === 'string')) options.versions = 'blue,green';
       if (!options.replicas) options.replicas = 1;
       if (options.sync)
-        getDataDeploy({
+        await getDataDeploy({
           buildSingleReplica: true,
         });
       if (options.buildManifest === true) await Underpost.deploy.buildManifest(deployList, env, options);

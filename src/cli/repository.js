@@ -4,12 +4,24 @@
  * @namespace UnderpostRepository
  */
 
+import dotenv from 'dotenv';
 import { commitData } from '../client/components/core/CommonJs.js';
 import { pbcopy, shellCd, shellExec } from '../server/process.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import fs from 'fs-extra';
-import { getNpmRootPath } from '../server/conf.js';
-import { Config } from '../server/conf.js';
+import {
+  getNpmRootPath,
+  Config,
+  loadConf,
+  readConfJson,
+  getConfFilePath,
+  loadReplicas,
+  loadConfServerJson,
+  getDataDeploy,
+  buildReplicaId,
+  writeEnv,
+} from '../server/conf.js';
+import { buildClient } from '../server/client-build.js';
 import { DefaultConf } from '../../conf.js';
 import Underpost from '../index.js';
 
@@ -581,6 +593,215 @@ class UnderpostRepository {
             shellExec(`cd ${destFolder} && npm run dev`);
           }
           return resolve(true);
+        } catch (error) {
+          console.log(error);
+          logger.error(error, error.stack);
+          return reject(false);
+        }
+      });
+    },
+
+    /**
+     * Builds client assets, single replicas, and/or syncs environment ports.
+     * @param {string} [deployId='dd-default'] - The deployment ID.
+     * @param {string} [subConf=''] - The sub-configuration for the build.
+     * @param {string} [host=''] - Comma-separated hosts to filter the build.
+     * @param {string} [path=''] - Comma-separated paths to filter the build.
+     * @param {object} [options] - Build options.
+     * @param {boolean} [options.syncEnvPort=false] - If true, syncs environment port assignments across all deploy IDs.
+     * @param {boolean} [options.singleReplica=false] - If true, builds single replica folders instead of full client.
+     * @returns {Promise<boolean>} A promise that resolves when the build is complete.
+     * @memberof UnderpostRepository
+     */
+    client(
+      deployId = 'dd-default',
+      subConf = '',
+      host = '',
+      path = '',
+      options = {
+        syncEnvPort: false,
+        singleReplica: false,
+      },
+    ) {
+      return new Promise(async (resolve, reject) => {
+        try {
+          // Handle syncEnvPort operation
+          if (options.syncEnvPort) {
+            const dataDeploy = await getDataDeploy({ disableSyncEnvPort: true });
+            const dataEnv = [
+              { env: 'production', port: 3000 },
+              { env: 'development', port: 4000 },
+              { env: 'test', port: 5000 },
+            ];
+            let portOffset = 0;
+            const singleReplicaPortOffsets = {};
+            for (const deployIdObj of dataDeploy) {
+              const { deployId } = deployIdObj;
+              const baseConfPath = fs.existsSync(`./engine-private/replica/${deployId}`)
+                ? `./engine-private/replica`
+                : `./engine-private/conf`;
+
+              const effectivePortOffset =
+                singleReplicaPortOffsets[deployId] !== undefined ? singleReplicaPortOffsets[deployId] : portOffset;
+
+              for (const envInstanceObj of dataEnv) {
+                const envPath = `${baseConfPath}/${deployId}/.env.${envInstanceObj.env}`;
+                const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+                envObj.PORT = `${envInstanceObj.port + effectivePortOffset}`;
+                writeEnv(envPath, envObj);
+              }
+
+              if (singleReplicaPortOffsets[deployId] !== undefined) continue;
+
+              const serverConf = loadReplicas(
+                deployId,
+                loadConfServerJson(`${baseConfPath}/${deployId}/conf.server.json`),
+              );
+              for (const host of Object.keys(serverConf)) {
+                let deferredSingleReplicaSlots = [];
+                for (const path of Object.keys(serverConf[host])) {
+                  if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
+                    deferredSingleReplicaSlots.push({
+                      replicas: serverConf[host][path].replicas,
+                      peer: !!serverConf[host][path].peer,
+                    });
+                    continue;
+                  }
+                  portOffset++;
+                  if (serverConf[host][path].peer) portOffset++;
+                }
+                for (const slot of deferredSingleReplicaSlots) {
+                  for (const replica of slot.replicas) {
+                    const replicaDeployId = buildReplicaId({ deployId, replica });
+                    singleReplicaPortOffsets[replicaDeployId] = portOffset;
+                    portOffset++;
+                    if (slot.peer) portOffset++;
+                  }
+                }
+              }
+            }
+            return resolve(true);
+          }
+
+          // Handle singleReplica operation
+          if (options.singleReplica) {
+            const replicaPath = path;
+            if (!deployId || !host || !replicaPath) {
+              logger.error('client --single-replica requires deploy-id, host, and path arguments');
+              return reject(false);
+            }
+            const serverConf = loadReplicas(
+              deployId,
+              loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
+            );
+
+            if (serverConf[host][replicaPath].replicas) {
+              {
+                let replicaIndex = -1;
+                for (const replica of serverConf[host][replicaPath].replicas) {
+                  replicaIndex++;
+                  const replicaDeployId = `${deployId}-${serverConf[host][replicaPath].replicas[replicaIndex].slice(1)}`;
+                  await fs.copy(`./engine-private/conf/${deployId}`, `./engine-private/replica/${replicaDeployId}`);
+                  fs.writeFileSync(
+                    `./engine-private/replica/${replicaDeployId}/package.json`,
+                    fs
+                      .readFileSync(`./engine-private/replica/${replicaDeployId}/package.json`, 'utf8')
+                      .replaceAll(`${deployId}`, `${replicaDeployId}`),
+                    'utf8',
+                  );
+                  const replicaFolder = `./engine-private/replica/${replicaDeployId}`;
+                  for (const envFile of ['.env.production', '.env.development', '.env.test']) {
+                    const envFilePath = `${replicaFolder}/${envFile}`;
+                    if (fs.existsSync(envFilePath)) {
+                      fs.writeFileSync(
+                        envFilePath,
+                        fs
+                          .readFileSync(envFilePath, 'utf8')
+                          .replaceAll(`DEPLOY_ID=${deployId}`, `DEPLOY_ID=${replicaDeployId}`),
+                        'utf8',
+                      );
+                    }
+                  }
+                }
+              }
+              {
+                let replicaIndex = -1;
+                for (const replica of serverConf[host][replicaPath].replicas) {
+                  replicaIndex++;
+                  const replicaDeployId = `${deployId}-${serverConf[host][replicaPath].replicas[replicaIndex].slice(1)}`;
+                  let replicaServerConf = JSON.parse(
+                    fs.readFileSync(`./engine-private/replica/${replicaDeployId}/conf.server.json`, 'utf8'),
+                  );
+
+                  const singleReplicaConf = replicaServerConf[host][replicaPath];
+                  singleReplicaConf.replicas = undefined;
+                  singleReplicaConf.singleReplica = undefined;
+
+                  replicaServerConf = {};
+                  replicaServerConf[host] = {};
+                  replicaServerConf[host][replica] = singleReplicaConf;
+
+                  fs.writeFileSync(
+                    `./engine-private/replica/${replicaDeployId}/conf.server.json`,
+                    JSON.stringify(replicaServerConf, null, 4),
+                    'utf8',
+                  );
+                }
+              }
+            }
+            return resolve(true);
+          }
+
+          // Handle buildFullClient operation (default)
+          {
+            const { deployId: resolvedDeployId } = loadConf(deployId, subConf ?? '');
+
+            let argHost = host ? host.split(',') : [];
+            let argPath = path ? path.split(',') : [];
+            let deployIdSingleReplicas = [];
+            let singleReplicaHosts = [];
+            const serverConf = resolvedDeployId
+              ? readConfJson(resolvedDeployId, 'server', { loadReplicas: true })
+              : Config.default.server;
+            const confFilePath = resolvedDeployId ? getConfFilePath(resolvedDeployId, 'server') : null;
+            const originalConfBackup = confFilePath ? fs.readFileSync(confFilePath, 'utf8') : null;
+            for (const host of Object.keys(serverConf)) {
+              for (const path of Object.keys(serverConf[host])) {
+                if (argHost.length && argPath.length && (!argHost.includes(host) || !argPath.includes(path))) {
+                  delete serverConf[host][path];
+                } else {
+                  serverConf[host][path].liteBuild = false;
+                  serverConf[host][path].minifyBuild = process.env.NODE_ENV === 'production' ? true : false;
+                  if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
+                    singleReplicaHosts.push({ host, path });
+                    deployIdSingleReplicas = deployIdSingleReplicas.concat(
+                      serverConf[host][path].replicas.map((replica) =>
+                        buildReplicaId({ deployId: resolvedDeployId, replica }),
+                      ),
+                    );
+                  }
+                }
+              }
+            }
+            if (confFilePath) fs.writeFileSync(confFilePath, JSON.stringify(serverConf, null, 4), 'utf-8');
+            await buildClient();
+            if (confFilePath && originalConfBackup) fs.writeFileSync(confFilePath, originalConfBackup, 'utf-8');
+
+            if (singleReplicaHosts.length > 0) {
+              for (const { host, path } of singleReplicaHosts) {
+                await Underpost.repo.client(resolvedDeployId, '', host, path, {
+                  singleReplica: true,
+                });
+              }
+              shellExec(`node bin env ${resolvedDeployId} ${process.env.NODE_ENV}`);
+            }
+
+            for (const replicaDeployId of deployIdSingleReplicas) {
+              shellExec(`node bin env ${replicaDeployId} ${process.env.NODE_ENV}`);
+              await Underpost.repo.client(replicaDeployId);
+            }
+            return resolve(true);
+          }
         } catch (error) {
           console.log(error);
           logger.error(error, error.stack);

@@ -1596,7 +1596,10 @@ EOF
         const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
         shellExec(`${baseCommand} env ${deployId} ${env}`);
         for (const host of Object.keys(confServer))
-          if (_path in confServer[host]) shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${_path}`);
+          if (_path in confServer[host])
+            await Underpost.repo.client(deployId, '', host, _path, {
+              singleReplica: true,
+            });
         const node = options.nodeName
           ? options.nodeName
           : !options.kubeadm && !options.k3s
@@ -1605,7 +1608,7 @@ EOF
         // deployId, replicas, versions, image, node
         let defaultPath = [deployId, 1, ``, ``, node];
         shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${defaultPath}`);
-        shellExec(`node bin/deploy build-full-client ${deployId}`);
+        await Underpost.repo.client(deployId);
       }
       if (isDeployRunnerContext(path, options)) shellExec(`${baseCommand} run promote ${path} production`);
     },
