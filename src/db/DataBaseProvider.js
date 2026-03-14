@@ -89,7 +89,7 @@ class DataBaseProviderService {
         db: options.db
           ? {
               provider: options.db.provider,
-              name: options.db.name,
+              name: options.db.name ? '***' : undefined,
               host: options.db.host ? '***' : undefined,
               user: options.db.user ? '***' : undefined,
               password: options.db.password ? '***' : undefined,
