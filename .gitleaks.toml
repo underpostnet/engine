@@ -1,8 +1,7 @@
 # .gitleaks.toml - tailored for the repository
-title = "gitleaks config - underpostnet pwa-microservices-template"
+title = "gitleaks config - underpostnet engine"
 
 [extend]
-# usar las reglas por defecto y aplicar los cambios de este archivo
 useDefault = true
 # desactivar reglas por id si fuera necesario
 disabledRules = ["generic-api-key"]
