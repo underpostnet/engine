@@ -8,8 +8,18 @@
 
 import winston from 'winston';
 import morgan from 'morgan';
-import { colorize, color } from 'json-colorizer';
+import jsonColorizer from 'json-colorizer';
 import colors from 'colors';
+
+const colorize = jsonColorizer.colorize || jsonColorizer.default || jsonColorizer;
+const identity = (s) => s;
+const color = jsonColorizer.color || {
+  green: identity,
+  magenta: identity,
+  red: identity,
+  cyan: identity,
+  white: identity,
+};
 import v8 from 'v8';
 import { clearTerminalStringColor, formatBytes } from '../client/components/core/CommonJs.js';
 
