@@ -14,6 +14,10 @@ on:
         options:
           - 'true'
           - 'false'
+      message:
+        description: 'Commit message for the build'
+        required: false
+        default: ''
 permissions:
   contents: write
   packages: write
@@ -58,8 +62,12 @@ jobs:
       - name: Build repository
         run: |
           cd .. && underpost clone underpostnet/pwa-microservices-template
-          FULL_MSG=$(cd pwa-microservices-template && git log -1 --pretty=%B 2>/dev/null || echo "")
-          LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1d')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.message }}" ]; then
+            LAST_COMMIT_MESSAGE="${{ github.event.inputs.message }}"
+          else
+            FULL_MSG=$(cd pwa-microservices-template && git log -1 --pretty=%B 2>/dev/null || echo "")
+            LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1s/^[^:]*: [^ ]* //')
+          fi
           if [ -z "$LAST_COMMIT_MESSAGE" ]; then
             LAST_COMMIT_MESSAGE="Update engine test repository"
           fi
