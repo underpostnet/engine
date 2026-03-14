@@ -361,6 +361,12 @@ class UnderpostRun {
      */
     'template-deploy': (path = '', options = DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
+      shellExec(`npm run security:secrets`);
+      const reportPath = './gitleaks-report.json';
+      if (fs.existsSync(reportPath) && fs.readFileSync(reportPath, 'utf8').trim().length > 0) {
+        logger.error('Secrets detected in gitleaks-report.json, aborting template-deploy');
+        return;
+      }
       const message = shellExec(`node bin cmt --changelog --changelog-no-hash`, { silent: true, stdout: true }).trim();
       shellExec(`${baseCommand} run clean`);
       shellExec(
