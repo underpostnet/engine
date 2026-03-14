@@ -147,7 +147,6 @@ class UnderpostRepository {
         const ciIntegrationPrefix = 'ci(package-pwa-microservices-';
         const ciIntegrationVersionPrefix = 'New release v:';
         const releaseMatch = 'New release v:';
-
         // Helper: parse [<tag>] commits into grouped sections
         const buildSectionChangelog = (commits) => {
           const groups = {};
@@ -282,11 +281,26 @@ class UnderpostRepository {
 
           let commits;
           if (!hasExplicitCount) {
-            // No explicit count: find commits up to the last CI integration boundary
-            const ciIndex = allCommits.findIndex(
-              (c) => c.message.startsWith(ciIntegrationPrefix) && !c.message.match(ciIntegrationVersionPrefix),
-            );
-            commits = ciIndex >= 0 ? allCommits.slice(0, ciIndex) : allCommits;
+            let boundaryIndex = -1;
+
+            // New boundary: deploy hash stored in config via `underpost config set LAST_CI_DEPLOY_HASH`
+            const lastDeployHash = shellExec('underpost config get LAST_CI_DEPLOY_HASH --plain', {
+              stdout: true,
+              silent: true,
+              disableLog: true,
+            }).trim();
+            if (lastDeployHash && lastDeployHash !== 'undefined' && lastDeployHash !== 'null') {
+              boundaryIndex = allCommits.findIndex((c) => c.fullHash === lastDeployHash || c.hash === lastDeployHash);
+            }
+
+            // Fallback: old CI integration commit boundary
+            if (boundaryIndex < 0) {
+              boundaryIndex = allCommits.findIndex(
+                (c) => c.message.startsWith(ciIntegrationPrefix) && !c.message.match(ciIntegrationVersionPrefix),
+              );
+            }
+
+            commits = boundaryIndex >= 0 ? allCommits.slice(0, boundaryIndex) : allCommits;
           } else {
             commits = allCommits;
           }
@@ -1150,6 +1164,52 @@ Prevent build private config repo.`,
       }
 
       return copiedFiles;
+    },
+
+    /**
+     * Dispatches a GitHub Actions workflow using gh CLI or curl fallback.
+     * @param {object} options - Dispatch options.
+     * @param {string} options.repo - The GitHub repository (e.g., "owner/repo").
+     * @param {string} options.workflowFile - The workflow file name (e.g., "engine-core.cd.yml").
+     * @param {string} [options.ref='master'] - The git ref to dispatch against.
+     * @param {object} [options.inputs={}] - Key-value inputs for the workflow_dispatch event.
+     * @memberof UnderpostRepository
+     */
+    dispatchWorkflow(options = { repo: '', workflowFile: '', ref: 'master', inputs: {} }) {
+      const { repo, workflowFile, ref, inputs } = options;
+      const ghAvailable = shellExec('command -v gh 2>/dev/null', {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+      }).trim();
+
+      if (ghAvailable) {
+        let cmd = `gh workflow run ${workflowFile} --repo ${repo} --ref ${ref}`;
+        for (const [key, value] of Object.entries(inputs)) {
+          if (value !== undefined && value !== '') {
+            const escaped = String(value).replace(/'/g, "'\\''");
+            cmd += ` -f ${key}='${escaped}'`;
+          }
+        }
+        shellExec(cmd);
+      } else {
+        const token = process.env.GITHUB_TOKEN;
+        if (!token) {
+          logger.error('GITHUB_TOKEN is required for workflow dispatch (gh CLI not available)');
+          return;
+        }
+        const payload = { ref };
+        if (Object.keys(inputs).length > 0) payload.inputs = inputs;
+        const payloadJson = JSON.stringify(payload).replace(/'/g, "'\\''");
+        shellExec(
+          `curl -s -f -X POST ` +
+            `-H "Accept: application/vnd.github.v3+json" ` +
+            `-H "Authorization: token ${token}" ` +
+            `"https://api.github.com/repos/${repo}/actions/workflows/${workflowFile}/dispatches" ` +
+            `-d '${payloadJson}'`,
+        );
+      }
+      logger.info('Dispatched workflow', `${repo} -> ${workflowFile}`, inputs.job ? `(job: ${inputs.job})` : '');
     },
   };
 }

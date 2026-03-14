@@ -4,6 +4,16 @@ on:
     workflows: ['CI | Publish npm repository package']
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      sync:
+        description: 'Trigger sync-and-deploy CD after build'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 permissions:
   contents: write
   packages: write
@@ -12,7 +22,7 @@ jobs:
   pwa-microservices-template:
     name: Update github repo package Jobs
     env:
-      SYNC: ${{ startsWith(github.event.workflow_run.head_commit.message, 'ci(package-pwa-microservices-template-sync-engine-core)') }}
+      SYNC: ${{ startsWith(github.event.workflow_run.head_commit.message, 'ci(package-pwa-microservices-template-sync-engine-core)') || (github.event_name == 'workflow_dispatch' && github.event.inputs.sync == 'true') }}
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
@@ -67,15 +77,12 @@ jobs:
           git commit -m "$LAST_COMMIT_MESSAGE"
           underpost push . underpostnet/engine-core
           if [ "${SYNC}" = "true" ]; then
-            echo "[INFO] Init engine-core deployment"
-            underpost config set GITHUB_USERNAME underpostnet
-            mkdir -p /home/dd
-            sudo rm -rf /home/dd/engine
-            cd /home/dd
-            underpost clone underpostnet/engine
-            cd engine
-            npm install
-            node bin run ssh-deploy sync-engine-core
+            echo "[INFO] Dispatching engine-core CD sync-and-deploy"
+            curl -s -X POST \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${{ secrets.GIT_AUTH_TOKEN }}" \
+              "https://api.github.com/repos/underpostnet/engine/actions/workflows/engine-core.cd.yml/dispatches" \
+              -d '{"ref":"master","inputs":{"job":"sync-and-deploy"}}'
           else
             echo "[INFO] Deployment skipped"
           fi

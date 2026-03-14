@@ -4,6 +4,12 @@ on:
     branches: ['master']
   pull_request:
     branches: ['master']
+  workflow_dispatch:
+    inputs:
+      message:
+        description: 'Changelog message for the build'
+        required: false
+        default: ''
 permissions:
   contents: write
   packages: write
@@ -12,7 +18,10 @@ jobs:
   pwa-microservices-template:
     if: |
       github.repository == 'underpostnet/engine'
-      && startsWith(github.event.head_commit.message, 'ci(package-pwa-microservices-template')
+      && (
+        startsWith(github.event.head_commit.message, 'ci(package-pwa-microservices-template')
+        || github.event_name == 'workflow_dispatch'
+      )
     name: Update npm repo package Jobs
     runs-on: ubuntu-latest
     container:
@@ -36,13 +45,19 @@ jobs:
 
       - name: Capture commit message
         run: |
-          FULL_MSG="${{ github.event.head_commit.message }}"
-          REST="$(echo "$FULL_MSG" | tail -n +2 | awk 'NR==1{first=$0; has_first=1; next} NR==2{print first " " $0; has_first=0; next} {print} END{if(has_first) print first}')"
-          LAST_COMMIT_MESSAGE="${REST:-$FULL_MSG}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            LAST_COMMIT_MESSAGE="${{ github.event.inputs.message }}"
+            if [ -z "$LAST_COMMIT_MESSAGE" ]; then
+              LAST_COMMIT_MESSAGE="Update repository"
+            fi
+          else
+            FULL_MSG="${{ github.event.head_commit.message }}"
+            REST="$(echo "$FULL_MSG" | tail -n +2 | awk 'NR==1{first=$0; has_first=1; next} NR==2{print first " " $0; has_first=0; next} {print} END{if(has_first) print first}')"
+            LAST_COMMIT_MESSAGE="${REST:-$FULL_MSG}"
+          fi
           echo "LAST_COMMIT_MESSAGE<<EOF" >> $GITHUB_ENV
           echo "$LAST_COMMIT_MESSAGE" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-          echo "[INFO] Full commit message: $FULL_MSG"
           echo "[INFO] Extracted payload: $LAST_COMMIT_MESSAGE"
 
       - name: Install dependencies

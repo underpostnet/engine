@@ -1,5 +1,16 @@
 name: CD | Engine cyberia | remote ssh
-on: [push]
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job to run (deploy, sync-and-deploy, init)'
+        required: true
+        type: choice
+        options:
+          - deploy
+          - sync-and-deploy
+          - init
 permissions:
   contents: write
   packages: write
@@ -7,7 +18,12 @@ permissions:
 
 jobs:
   deploy:
-    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-engine-cyberia)')
+    if: >-
+      github.repository == 'underpostnet/engine'
+      && (
+        startsWith(github.event.head_commit.message, 'cd(ssh-engine-cyberia)')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'deploy')
+      )
     name: Remote SSH deployment
     runs-on: ubuntu-latest
     steps:
@@ -35,7 +51,12 @@ jobs:
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run deploy dd-cyberia"
   sync-and-deploy:
-    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-sync-engine-cyberia)')
+    if: >-
+      github.repository == 'underpostnet/engine'
+      && (
+        startsWith(github.event.head_commit.message, 'cd(ssh-sync-engine-cyberia)')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'sync-and-deploy')
+      )
     name: Remote SSH sync and deploy
     runs-on: ubuntu-latest
     steps:
@@ -66,7 +87,12 @@ jobs:
             sudo -n -- /bin/bash -lc "npm run test"
             sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --timeout-response 300000ms dd-cyberia,1,,localhost/rockylinux9-underpost:v2.98.3 --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-file /etc/config/.env.production,underpost start --build --run dd-cyberia production'"
   init:
-    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'cd(ssh-init-engine-cyberia)')
+    if: >-
+      github.repository == 'underpostnet/engine'
+      && (
+        startsWith(github.event.head_commit.message, 'cd(ssh-init-engine-cyberia)')
+        || (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'init')
+      )
     name: Remote SSH init deployment
     runs-on: ubuntu-latest
     steps:

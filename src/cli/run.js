@@ -354,7 +354,7 @@ class UnderpostRun {
     },
     /**
      * @method template-deploy
-     * @description Cleans up, pushes `engine-private` and `engine` repositories with a commit tag `ci package-pwa-microservices-template`.
+     * @description Pushes `engine-private`, dispatches CI workflow to build `pwa-microservices-template`, and optionally dispatches CD sync workflow.
      * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
@@ -375,7 +375,14 @@ class UnderpostRun {
         }/engine-private`,
       );
       shellCd('/home/dd/engine');
-      shellExec(`git reset`);
+
+      // Store deploy boundary hash for changelog before dispatch
+      const deployBoundaryHash = shellExec('git rev-parse HEAD', {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+      }).trim();
+
       function replaceNthNewline(str, n, replacement = ' ') {
         let count = 0;
         return str.replace(/\r\n?|\n/g, (match) => {
@@ -383,35 +390,54 @@ class UnderpostRun {
           return count === n ? replacement : match;
         });
       }
-      shellExec(
-        `${baseCommand} cmt . --empty ci package-pwa-microservices-template${
-          path.startsWith('sync') ? `-${path}` : ''
-        }${
-          message
-            ? ` "${replaceNthNewline(
-                message.replaceAll('"', '').replaceAll('`', '').replaceAll('#', '').replaceAll('- ', ''),
-                2,
-              )}"`
-            : ''
-        }`,
-      );
+      const sanitizedMessage = message
+        ? replaceNthNewline(message.replaceAll('"', '').replaceAll('`', '').replaceAll('#', '').replaceAll('- ', ''), 2)
+            .replace(/\r\n?|\n/g, ' ')
+            .trim()
+        : '';
+
+      // Push engine repo so workflow YAML changes reach GitHub
+      shellExec(`git reset`);
       shellExec(`${baseCommand} push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`);
+
+      // Dispatch CI workflow instead of empty commit + push
+      const repo = `${process.env.GITHUB_USERNAME}/engine`;
+      Underpost.repo.dispatchWorkflow({
+        repo,
+        workflowFile: 'npmpkg.ci.yml',
+        ref: 'master',
+        inputs: sanitizedMessage ? { message: sanitizedMessage } : {},
+      });
+
+      // Dispatch CD sync-and-deploy if path starts with 'sync'
+      if (path.startsWith('sync')) {
+        const confId = path.replace(/^sync-/, '');
+        Underpost.repo.dispatchWorkflow({
+          repo,
+          workflowFile: `${confId}.cd.yml`,
+          ref: 'master',
+          inputs: { job: 'sync-and-deploy' },
+        });
+      }
+
+      // Store deploy boundary for changelog
+      shellExec(`${baseCommand} config set LAST_CI_DEPLOY_HASH ${deployBoundaryHash}`);
     },
 
     /**
      * @method template-deploy-image
-     * @description Commits and pushes a Docker image deployment for the `engine` repository.
+     * @description Dispatches the Docker image CI workflow for the `engine` repository.
      * @param {string} path - The input value, identifier, or path for the operation.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'template-deploy-image': (path, options = DEFAULT_OPTION) => {
-      // const baseCommand = options.dev ? 'node bin' : 'underpost';
-      shellExec(
-        `cd /home/dd/engine && git reset && underpost cmt . --empty ci docker-image 'underpost-engine:${
-          Underpost.version
-        }' && underpost push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`,
-      );
+      Underpost.repo.dispatchWorkflow({
+        repo: `${process.env.GITHUB_USERNAME}/engine`,
+        workflowFile: 'docker-image.ci.yml',
+        ref: 'master',
+        inputs: {},
+      });
     },
     /**
      * @method clean
@@ -472,18 +498,30 @@ class UnderpostRun {
     },
     /**
      * @method ssh-deploy
-     * @description Performs a Git reset, commits with a message `cd ssh-${path}`, and pushes the `engine` repository, likely triggering an SSH-based CD pipeline.
-     * @param {string} path - The input value, identifier, or path for the operation (used as the deployment identifier for the commit message).
+     * @description Dispatches the corresponding CD workflow for SSH-based deployment, replacing empty commits with workflow_dispatch.
+     * @param {string} path - The deployment identifier (e.g., 'engine-core', 'sync-engine-core', 'init-engine-core').
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'ssh-deploy': (path, options = DEFAULT_OPTION) => {
       actionInitLog();
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
-      shellCd('/home/dd/engine');
-      shellExec(`git reset`);
-      shellExec(`${baseCommand} cmt . --empty cd ssh-${path}`);
-      shellExec(`${baseCommand} push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`);
+
+      let job = 'deploy';
+      let confId = path;
+      if (path.startsWith('sync-')) {
+        job = 'sync-and-deploy';
+        confId = path.replace(/^sync-/, '');
+      } else if (path.startsWith('init-')) {
+        job = 'init';
+        confId = path.replace(/^init-/, '');
+      }
+
+      Underpost.repo.dispatchWorkflow({
+        repo: `${process.env.GITHUB_USERNAME}/engine`,
+        workflowFile: `${confId}.cd.yml`,
+        ref: 'master',
+        inputs: { job },
+      });
     },
     /**
      * @method ide
