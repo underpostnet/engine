@@ -16,6 +16,7 @@ import {
   cloneSrcComponents,
   writeEnv,
   buildCliDoc,
+  loadConf,
 } from '../src/server/conf.js';
 import colors from 'colors';
 import { program } from '../src/cli/index.js';
@@ -980,6 +981,20 @@ nvidia/gpu-operator \
     }
 
     // Temporal fallback underpost legacy version handling
+
+    case 'conf': {
+      let subConf = process.argv[5] ?? '';
+
+      if (!['current', 'clean', 'root'].includes(process.argv[3])) {
+        const path = fs.existsSync(`./engine-private/replica/${process.argv[3]}`)
+          ? `./engine-private/replica/${process.argv[3]}/.env.${process.argv[4]}`
+          : `./engine-private/conf/${process.argv[3]}/.env.${process.argv[4]}`;
+        dotenv.config({ path, override: true });
+      }
+
+      loadConf(process.argv[3], subConf);
+      break;
+    }
 
     case 'build-full-client': {
       await Underpost.repo.client(process.argv[3], process.argv[4], process.argv[5], process.argv[6]);
