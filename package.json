@@ -11,6 +11,7 @@
     "dev": "NODE_ENV=development nodemon src/server",
     "dev:container": "NODE_ENV=development node src/server",
     "prod:container": "NODE_ENV=production node src/server",
+    "prod-img": "NODE_ENV=production node src/server",
     "dev:api": "NODE_ENV=development nodemon --watch src --ignore src/client src/api",
     "dev:client": "NODE_ENV=development node src/client.dev",
     "dev:proxy": "NODE_ENV=development node src/proxy proxy",
