@@ -612,7 +612,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           image ? ` --image ${image}` : ''
         }${versions ? ` --versions ${versions}` : ''}${
           options.namespace ? ` --namespace ${options.namespace}` : ''
-        }${timeoutFlags}${cmdString} dd ${env}`,
+        }${timeoutFlags}${cmdString} ${deployId} ${env}`,
       );
 
       if (isDeployRunnerContext(path, options)) {
@@ -1583,20 +1583,6 @@ EOF
       shellExec(`chmod +x ${options.underpostRoot}/scripts/ports-ls.sh`);
       shellExec(`${options.underpostRoot}/scripts/ports-ls.sh`);
     },
-    /**
-     * @method release-cmt
-     * @description Commits and pushes a new release for the `engine` repository with a message indicating the new version.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'release-cmt': async (path, options = DEFAULT_OPTION) => {
-      shellExec(`underpost run pull`);
-      shellExec(`underpost run secret`);
-      shellCd(`/home/dd/engine`);
-      shellExec(`underpost cmt --empty . ci engine ' New engine release $(underpost --version)'`);
-      shellExec(`underpost push . ${process.env.GITHUB_USERNAME}/engine`, { silent: true });
-    },
 
     /**
      * @method deploy-test
@@ -1621,40 +1607,6 @@ EOF
             `${baseCommand} start --build --run ${deployId} ${env}`,
           ];
       shellExec(`node bin run sync${baseClusterCommand} --deploy-id-cron-jobs none dd-test --cmd "${cmd}"`);
-    },
-
-    /**
-     * @method sync-replica
-     * @description Syncs a replica for the dd.router
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'sync-replica': async (path, options = DEFAULT_OPTION) => {
-      const env = options.dev ? 'development' : 'production';
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
-
-      for (let deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(',')) {
-        deployId = deployId.trim();
-        const _path = '/single-replica';
-        const confServer = loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`);
-        shellExec(`${baseCommand} env ${deployId} ${env}`);
-        for (const host of Object.keys(confServer))
-          if (_path in confServer[host])
-            await Underpost.repo.client(deployId, '', host, _path, {
-              singleReplica: true,
-            });
-        const node = options.nodeName
-          ? options.nodeName
-          : !options.kubeadm && !options.k3s
-            ? 'kind-control-plane'
-            : os.hostname();
-        // deployId, replicas, versions, image, node
-        let defaultPath = [deployId, 1, ``, ``, node];
-        shellExec(`${baseCommand} run${options.dev === true ? ' --dev' : ''} --build sync ${defaultPath}`);
-        await Underpost.repo.client(deployId);
-      }
-      if (isDeployRunnerContext(path, options)) shellExec(`${baseCommand} run promote ${path} production`);
     },
 
     /**

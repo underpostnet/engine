@@ -797,23 +797,12 @@ class UnderpostRepository {
                 }
               }
             }
+
             if (confFilePath) fs.writeFileSync(confFilePath, JSON.stringify(serverConf, null, 4), 'utf-8');
+
             await buildClient();
-            if (confFilePath && originalConfBackup) fs.writeFileSync(confFilePath, originalConfBackup, 'utf-8');
+            for (const replicaDeployId of deployIdSingleReplicas) await Underpost.repo.client(replicaDeployId);
 
-            if (singleReplicaHosts.length > 0) {
-              for (const { host, path } of singleReplicaHosts) {
-                await Underpost.repo.client(resolvedDeployId, '', host, path, {
-                  singleReplica: true,
-                });
-              }
-              shellExec(`node bin env ${resolvedDeployId} ${process.env.NODE_ENV}`);
-            }
-
-            for (const replicaDeployId of deployIdSingleReplicas) {
-              shellExec(`node bin env ${replicaDeployId} ${process.env.NODE_ENV}`);
-              await Underpost.repo.client(replicaDeployId);
-            }
             return resolve(true);
           }
         } catch (error) {
