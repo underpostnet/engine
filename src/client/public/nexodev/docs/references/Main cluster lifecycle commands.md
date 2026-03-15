@@ -20,6 +20,8 @@ Minimalist reference for Underpost engine cluster lifecycle commands.
 12. [Default Configuration](#default-configuration)
 13. [Promote](#promote)
 14. [Cron](#cron)
+15. [Sync](#sync)
+16. [Deploy Job](#deploy-job)
 
 ---
 
@@ -180,6 +182,29 @@ node bin new --sub-conf server <sub-conf-name>
 This creates a copy of `conf.server.json` as `conf.server.dev.<sub-conf-name>.json` that can be trimmed to the desired hosts.
 
 The sub-conf filtering is propagated via the `DEPLOY_SUB_CONF` environment variable, which is read by `getConfFilePath()` so that all downstream consumers (client builds, server runtimes, API servers) consistently use the filtered configuration.
+
+### Additional Development Scripts
+
+The following npm scripts provide alternative development modes:
+
+```bash
+# Run development server inside a container (no hot-reload)
+npm run dev:container
+
+# Run production server inside a container
+npm run prod:container
+
+# Run development proxy server
+npm run dev:proxy
+```
+
+| Script           | Description                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------- |
+| `dev:container`  | Starts the server in development mode without nodemon (`NODE_ENV=development node src/server`)  |
+| `prod:container` | Starts the server in production mode inside a container (`NODE_ENV=production node src/server`) |
+| `dev:proxy`      | Starts an Express proxy server for development (`NODE_ENV=development node src/proxy proxy`)    |
+
+See also: [Running Separate Client and API Servers for Development](Running%20Separate%20Client%20and%20API%20Servers%20for%20Development.md) for the `dev:api` and `dev:client` scripts.
 
 ---
 
@@ -481,6 +506,74 @@ node bin run sync dd-my-app --dev --kind --create-job-now
 ```
 
 This calls the cron runner internally with the resolved cluster flags, applying cron manifests as part of the full deployment sync cycle.
+
+---
+
+## Sync
+
+**Command:** `node bin run sync <deploy-id> [options]`
+
+Synchronizes deployment replicas, configurations, and traffic across the cluster. Reads deployment IDs from `./engine-private/deploy/dd.router`, validates version states, updates cron jobs, and handles blue-green traffic switching.
+
+```bash
+node bin run sync dd-core --dev --kind
+node bin run sync dd-core --kubeadm
+node bin run sync dd --dev --kind --create-job-now
+node bin run sync dd-my-app --dev --kind --deploy-id-cron-jobs dd-cron
+node bin run sync dd-my-app --k3s --namespace production
+```
+
+Passing `dd` as the deploy-id syncs all deployments listed in `./engine-private/deploy/dd.router`.
+
+| Option                              | Description                                                    |
+| ----------------------------------- | -------------------------------------------------------------- |
+| `--dev`                             | Development mode (uses Kind cluster and `--etc-hosts`)         |
+| `--kind` / `--kubeadm` / `--k3s`    | Cluster type                                                   |
+| `--namespace <name>`                | Kubernetes namespace (default: `default`)                      |
+| `--replicas <n>`                    | Number of replicas                                             |
+| `--deploy-id-cron-jobs <deploy-id>` | Deploy ID for cron job synchronization (set to `none` to skip) |
+| `--cmd-cron-jobs <cmd>`             | Pre-script commands before cron execution                      |
+| `--create-job-now`                  | Create immediate Job from each CronJob after applying          |
+| `--timezone <tz>`                   | Set timezone for the deployment                                |
+| `--disable-private-conf-update`     | Prevent private configuration updates during execution         |
+
+---
+
+## Deploy Job
+
+**Command:** `node bin run deploy-job <name> [options]`
+
+Deploys a Kubernetes Job resource with configurable container settings, volumes, and resource limits.
+
+```bash
+node bin run deploy-job my-job --image-name my-app:latest --namespace default
+node bin run deploy-job my-job --image-name my-app:v1 --tty --stdin --restart-policy Never
+node bin run deploy-job my-job --image-name my-app:v1 --requests-memory 256Mi --limits-memory 512Mi
+node bin run deploy-job my-job --image-name my-app:v1 --host-aliases "127.0.0.1=foo.local,bar.local;10.1.2.3=baz.remote"
+```
+
+| Option                         | Description                                                                                                    |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `--image-name <name>`          | Docker image for the Job                                                                                       |
+| `--namespace <name>`           | Kubernetes namespace (default: `default`)                                                                      |
+| `--node-name <name>`           | Target node                                                                                                    |
+| `--tty`                        | Enables TTY for the container                                                                                  |
+| `--stdin`                      | Keeps STDIN open                                                                                               |
+| `--restart-policy <policy>`    | Job restart policy (e.g., `Never`, `OnFailure`)                                                                |
+| `--runtime-class-name <name>`  | Runtime class name                                                                                             |
+| `--image-pull-policy <policy>` | Image pull policy (e.g., `Always`, `IfNotPresent`)                                                             |
+| `--api-version <version>`      | Kubernetes API version for the manifest                                                                        |
+| `--labels <labels>`            | Comma-separated key-value pairs (e.g., `app=my-app,env=prod`)                                                  |
+| `--claim-name <name>`          | PVC claim name for volume mounting                                                                             |
+| `--volume-host-path <path>`    | Host path for volume                                                                                           |
+| `--volume-mount-path <path>`   | Container mount path                                                                                           |
+| `--requests-memory <mem>`      | Memory request (e.g., `256Mi`)                                                                                 |
+| `--requests-cpu <cpu>`         | CPU request (e.g., `250m`)                                                                                     |
+| `--limits-memory <mem>`        | Memory limit (e.g., `512Mi`)                                                                                   |
+| `--limits-cpu <cpu>`           | CPU limit (e.g., `500m`)                                                                                       |
+| `--resource-template-id <id>`  | Predefined resource template ID                                                                                |
+| `--host-aliases <aliases>`     | Pod `/etc/hosts` entries. Format: semicolons separate entries, `=` separates IP from comma-separated hostnames |
+| `--cmd <cmd>`                  | Comma-separated list of commands to execute                                                                    |
 
 ---
 
