@@ -2,6 +2,16 @@
 
 ## 2026-03-15
 
+### cli-run
+
+- Fix streamline deployment logic prevent override env files and redundant build workflows ([048fb8ff1](https://github.com/underpostnet/engine/commit/048fb8ff1cbb895c3c04cf8a84daa921fcbe6bf5))
+
+### engine-cyberia
+
+- fix: update error handling for underpost passthrough to include 'env' command ([402a96176](https://github.com/underpostnet/engine/commit/402a961768db9753c2cdd7b067c548edcbd2f0b7))
+
+## New release v:3.1.1 (2026-03-14)
+
 ### cli-index
 
 - fix: add quiet option to dotenv config for improved error handling ([975448eb4](https://github.com/underpostnet/engine/commit/975448eb4d710cc8248a783240ce818b5fb9b891))
