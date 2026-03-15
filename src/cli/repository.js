@@ -1193,7 +1193,14 @@ Prevent build private config repo.`,
         }
         shellExec(cmd);
       } else {
-        const token = process.env.GITHUB_TOKEN;
+        let token = process.env.GITHUB_TOKEN;
+        if (!token) {
+          const envPath = `${getNpmRootPath()}/underpost/.env`;
+          if (fs.existsSync(envPath) && fs.statSync(envPath).isFile()) {
+            const envVars = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+            token = envVars.GITHUB_TOKEN;
+          }
+        }
         if (!token) {
           logger.error('GITHUB_TOKEN is required for workflow dispatch (gh CLI not available)');
           return;

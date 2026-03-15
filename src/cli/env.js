@@ -79,7 +79,7 @@ class UnderpostRootEnv {
     get(key, value, options = { plain: false, disableLog: false, copy: false }) {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
-      if (!fs.existsSync(envPath)) {
+      if (!fs.existsSync(envPath) || !fs.statSync(envPath).isFile()) {
         logger.warn(`Empty environment variables`);
         return undefined;
       }
