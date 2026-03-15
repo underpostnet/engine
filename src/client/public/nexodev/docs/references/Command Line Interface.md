@@ -1,4 +1,4 @@
-## underpost ci/cd cli v3.0.3
+## underpost ci/cd cli v3.1.0
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -8,6 +8,7 @@
 
 Commands:
   new [options] [app-name]                                   Initializes a new Underpost project, service, or configuration.
+  client [options] [deploy-id] [sub-conf] [host] [path]      Builds client assets, single replicas, and/or syncs environment ports.
   start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
   clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
   pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
@@ -62,6 +63,9 @@ Options:
                                     (pwa-microservices-template)
   --sync-conf                       Sync configuration to private repositories
                                     (requires --deploy-id)
+  --sync-start                      Sync start scripts in deploy ID package.json
+                                    with root package.json (use 'dd' as
+                                    --deploy-id to sync all dd.router)
   --purge                           Remove deploy ID conf and all related
                                     repositories (requires --deploy-id)
   --dev                             Sets the development cli context
@@ -69,6 +73,26 @@ Options:
   --conf-workflow-id <workflow-id>  Set custom configuration workflow ID for
                                     conf generation
   -h, --help                        display help for command
+ 
+```
+  
+
+### `client` :
+```
+ Usage: underpost client [options] [deploy-id] [sub-conf] [host] [path]
+
+Builds client assets, single replicas, and/or syncs environment ports.
+
+Arguments:
+  deploy-id         The deployment ID to build. (default: "dd-default")
+  sub-conf          The sub-configuration for the build. (default: "")
+  host              Comma-separated hosts to filter the build. (default: "")
+  path              Comma-separated paths to filter the build. (default: "")
+
+Options:
+  --sync-env-port   Sync environment port assignments across all deploy IDs
+  --single-replica  Build single replica folders instead of full client
+  -h, --help        display help for command
  
 ```
   
@@ -181,6 +205,7 @@ Options:
   --changelog-no-hash                Excludes commit hashes from the generated
                                      changelog entries (used with
                                      --changelog-build).
+  -b                                 Shows the current Git branch name.
   -h, --help                         display help for command
  
 ```

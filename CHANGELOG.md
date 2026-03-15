@@ -1,6 +1,151 @@
 # Changelog
 
-## 2026-03-06
+## 2026-03-15
+
+### docs
+
+- Add documentation for Baremetal and LXD management, including command references and quick start guides ([3569b5150](https://github.com/underpostnet/engine/commit/3569b5150f375467bf5cdb03247897e2849e45ce))
+- feat: update documentation with new command options for database and deployment management ([707ef0e4d](https://github.com/underpostnet/engine/commit/707ef0e4d522392b9d658402bbcd04f8c47dc7ec))
+
+### github-actions
+
+- feat: add optional commit message input for workflow_dispatch in CI configurations ([2314de8c6](https://github.com/underpostnet/engine/commit/2314de8c61bb309a1fe0aa42863243744aec54bc))
+- Fix cloud explorer underpost session and underpost install in deployments workflows ([746547206](https://github.com/underpostnet/engine/commit/74654720635a04df3dda7785157332b401b3ebd3))
+- Add npm install for update packages in deployments engine workflows ([5549a3f5d](https://github.com/underpostnet/engine/commit/5549a3f5d71f8476f0ee8b57e8c9e5c1bc316a10))
+- Remove temporal --underpost-quickly-install in deployments workflows ([777b39a2e](https://github.com/underpostnet/engine/commit/777b39a2e07aaab0ac16ddaa01f5df2b4d50f175))
+
+### cli-repository
+
+- feat: enhance CI/CD workflows with workflow_dispatch support and input options ([b311866fa](https://github.com/underpostnet/engine/commit/b311866faab0872ca9e2f6f3041f1a97784cf362))
+
+### package
+
+- fix: add production image script to package.json ([fe0ca63df](https://github.com/underpostnet/engine/commit/fe0ca63df51df703cc2323ad2b697df1adb3d795))
+- Add deploy js dependabot branch merge deploy script ([cdc7e90c3](https://github.com/underpostnet/engine/commit/cdc7e90c340e7fb8a35c906719a0e0e8fb728625))
+- Fix packages vulnerabilities ([492a3963a](https://github.com/underpostnet/engine/commit/492a3963a54c3ed882fbe0078a6ab353cb2d636b))
+
+### run-deploy
+
+- feat dd security check for secrets before template deployment ([50b6b9ba6](https://github.com/underpostnet/engine/commit/50b6b9ba6d2f49eec1343c70ce7740f87f5cbbc1))
+
+### bin-deploy
+
+- feat(deploy): add 'conf' case to load configuration based on arguments ([28d3e8bf5](https://github.com/underpostnet/engine/commit/28d3e8bf590c35f5c77129400a77b5687bcb05db))
+- Add temporal fallback underpost legacy version handling ([ad74d2ef6](https://github.com/underpostnet/engine/commit/ad74d2ef689a95edab80401514f192bb13226e94))
+- separate cyberia-hardhat case deploy script ([3cd032785](https://github.com/underpostnet/engine/commit/3cd03278549a89dfffd04298bc7a53880099a51e))
+
+### server-logger
+
+- fix(logger): update json-colorizer import and color definitions ([2b89456df](https://github.com/underpostnet/engine/commit/2b89456df3d78e49bed257068f93639542f0e9b8))
+- Fix colorize import logger ([d7c01ccc2](https://github.com/underpostnet/engine/commit/d7c01ccc29b4c6403b024f83a46bd29986260688))
+
+### gitleaks
+
+- fix: update gitleaks configuration title and add new ignore entries for sensitive tokens ([408cad0a4](https://github.com/underpostnet/engine/commit/408cad0a4de273cbec9f97f9b8b93c98246602fd))
+
+### server-conf
+
+- feat: add loadCronDeployEnv function to manage deployment-specific environment variables across modules ([19de5ea13](https://github.com/underpostnet/engine/commit/19de5ea13c121d6ad8b64982f14562ab16fb9d09))
+- feat: enhance environment variable file generation with template support ([467f3a348](https://github.com/underpostnet/engine/commit/467f3a348d6bca994829f5fb51034e8b6c0e5c0e))
+- refactor: update configuration loading logic and enhance environment variable handling ([bbda63807](https://github.com/underpostnet/engine/commit/bbda638076f2bb48b39ce1e52624064afecc8e30))
+
+### cli-client
+
+- feat: refactor deployment process to use new client command and streamline build operations ([c854da41a](https://github.com/underpostnet/engine/commit/c854da41a9d545c1d718e23ffb37e3188c849da7))
+
+### env
+
+- feat: integrate loadEnv function to manage deploy-specific environment variables in CLI and server modules ([47a1560be](https://github.com/underpostnet/engine/commit/47a1560bee093ed2fdc395d70c911fcaca106763))
+
+### template
+
+- fix: update deployment script to build template and adjust logging configuration ([30c3a830b](https://github.com/underpostnet/engine/commit/30c3a830b02097fd11538c7b5d46db35ad479c58))
+
+### server-client
+
+- fix: improve error logging for nodemon crashes in client development server ([a0ece9770](https://github.com/underpostnet/engine/commit/a0ece97700797565dd992f2320d41814fd1e9113))
+
+### package-script
+
+- feat: add clean script to package.json for environment cleanup ([1516217a8](https://github.com/underpostnet/engine/commit/1516217a8311b3e303a433ebeb70c2306369ee39))
+
+### cli-repo
+
+- feat: add sync-start option to synchronize start scripts in package.json for deploy IDs ([59ebb8c1c](https://github.com/underpostnet/engine/commit/59ebb8c1cb681bc3a12f17e2588198119cad2964))
+- feat: add option to display current Git branch name ([8492f7a2b](https://github.com/underpostnet/engine/commit/8492f7a2b8bfe8db50b060d2659a8e059f8d4329))
+
+### cli-run
+
+- Fix runner ide vs code ([70b34ea3d](https://github.com/underpostnet/engine/commit/70b34ea3d3bbf2432882dbe6a9cef87b9af5cf5e))
+
+### server-env
+
+- refactor: centralize environment variable loading ([3c2709aec](https://github.com/underpostnet/engine/commit/3c2709aecf04111ccff716ac929180e93d0edbb9))
+
+### bin-vs
+
+- Improve vs code ide runner handling ([2b1a8b326](https://github.com/underpostnet/engine/commit/2b1a8b326129c5e44fac6691d006991be1eb6097))
+
+### engine
+
+- Refactor security deploy conf logic and handle ([7d6592c43](https://github.com/underpostnet/engine/commit/7d6592c438c6107c10108a0bf78b33b8849a8036))
+- Silencing dotenv injection logs ([56b8e8e80](https://github.com/underpostnet/engine/commit/56b8e8e80f945c508c4cbc277a1f33c9f3977f6d))
+
+### engine-cyberia
+
+- Add development pv pvc dd-cyberia manifests ([ca4d3d342](https://github.com/underpostnet/engine/commit/ca4d3d3420e1d6a3801430e5c1a28e6377f39a0a))
+- Fix object layer model Mongoose pre save next error ([506fb719c](https://github.com/underpostnet/engine/commit/506fb719cbd875e3ffdd1168cf2155bb0f083ba4))
+- Add missing ethers packahge in CyberiaDependencies scope ([5f11cafe6](https://github.com/underpostnet/engine/commit/5f11cafe64abde831e497ed06be825a589e7ce23))
+- Add Customize Docs release URL and MenuCyberiaPortal GitHub ([e879c2240](https://github.com/underpostnet/engine/commit/e879c22401af13d21056f0cd146f0292ae39fc31))
+- Fix Hardhat CI npm audit failure ([3ea9ed486](https://github.com/underpostnet/engine/commit/3ea9ed486ebbc7e5e3879a61a26fcb2fa5071148))
+- Update hardhat config evm version ([816e1d7d0](https://github.com/underpostnet/engine/commit/816e1d7d0594abd34f344c483fad1a62f0238cf0))
+- Cyberia Portal Docs Modal Fixes ([9bd9eb1e4](https://github.com/underpostnet/engine/commit/9bd9eb1e493cb8136e47c73de3a8dbbb1393fe44))
+- Add Cyberia portal docs build integration ([9d8abe001](https://github.com/underpostnet/engine/commit/9d8abe0017249002e13f8f7c1dde4a9b24e5348f))
+- Kubeadm Underpost Cluster Besu Integration ([1df6cfbfb](https://github.com/underpostnet/engine/commit/1df6cfbfb32621243fb2be39de9aba8ebafbde6f))
+- Fix Hardhat Web Integration Canonical CID ([bb2a81fab](https://github.com/underpostnet/engine/commit/bb2a81fab558f9f3c493e9cbae6f029ca9a1b404))
+- Cryptokoyn and Itemledger metadata client and seo injects ([db8c9b337](https://github.com/underpostnet/engine/commit/db8c9b3372d29f84a27b5b40003f09d5956cefd2))
+- Cyberia NPM Dependency Installer hardhat on main module override ([a43cc25ea](https://github.com/underpostnet/engine/commit/a43cc25ea59f6e36a1a52f53fcd1b6b1544168cc))
+- Apply mermaid on diagrams in WHITE-PAPER.md ([0bb230e14](https://github.com/underpostnet/engine/commit/0bb230e14fe3639a9fe026e0c1f2da585856c04c))
+- Hardhat Cyberia CKY Token Lifecycle ([514bdafae](https://github.com/underpostnet/engine/commit/514bdafaee5d345a7fa43d6b1aab2cd6917d5cee))
+- Hardhat Ethers v6 Upgrade Audit ([114e42f7d](https://github.com/underpostnet/engine/commit/114e42f7dd7f549cda21b873461558fc8ce7c7ba))
+- Hardhat ES6 refactor for Cyberia ([9b9f85693](https://github.com/underpostnet/engine/commit/9b9f85693cb7256e433b1184fd8dbf1739a3dbd9))
+- Object Layer Token Ethereum Refactor ([82076eb9e](https://github.com/underpostnet/engine/commit/82076eb9e311ee003b7d91e38e60829f9e3b0f2c))
+- Rename cyberkoyn reference to cryptokoyn ([ae5949337](https://github.com/underpostnet/engine/commit/ae5949337c5a27f4367cc93247023b1448491c9f))
+- Refactor Object Layer White Paper and ERC1155 Besu Integration ([8cb6f59c2](https://github.com/underpostnet/engine/commit/8cb6f59c23a66265d5b663bec37ac0c402ffffad))
+
+### cli-deploy
+
+- Fix Kubernetes PVC Manifest Inconsistencies ([6839bccca](https://github.com/underpostnet/engine/commit/6839bccca30723e1cbd4664b31b0cede1ff63c90))
+- Fix Kubernetes PVC Manifest Inconsistencies builder ([d6f311c60](https://github.com/underpostnet/engine/commit/d6f311c608217401ec145e70aab04206147a743e))
+
+### client-core
+
+- Fix AgGrid Theme Events Rendering ([4b37681f1](https://github.com/underpostnet/engine/commit/4b37681f19a102da5068c20998c0353bae604d54))
+- Add logic to custom ui-icon in content component ([b380703c8](https://github.com/underpostnet/engine/commit/b380703c8a52abb3d37f390725a54ed6b88e5fcc))
+- Fix sitemap generation logic ([7cfb23d01](https://github.com/underpostnet/engine/commit/7cfb23d01988d1f4ff288e8ce17d350c1d3af633))
+- Fix sitemap builder defaul url sitemap ([c39f1e070](https://github.com/underpostnet/engine/commit/c39f1e07055f035da4f737f8ec6f2acfd621ca80))
+
+### client-underpost
+
+- Add File Explorer Cloud Menu Auth ([f3cc57e28](https://github.com/underpostnet/engine/commit/f3cc57e2818e36e56f34bc41f81846b64e48e2a8))
+
+### api-core
+
+- Fix deprecated Mongoose pre save next error ([bee1a5829](https://github.com/underpostnet/engine/commit/bee1a582926a0264be0cfb8ddf87f4ef01413a19))
+
+### conf
+
+- Add SwaggerDarkMode in dd-cyberia conf ([69d4c54f1](https://github.com/underpostnet/engine/commit/69d4c54f1e354e9f45b1b401796ca9702ac95698))
+
+### bin-build
+
+- Fix jsdocs cyberia json build ([20dbe54dd](https://github.com/underpostnet/engine/commit/20dbe54dd7f1e6559b231971afdba694a37315ca))
+
+### cli-core
+
+- Update -g8 option flag ([d1779a1da](https://github.com/underpostnet/engine/commit/d1779a1da5a2883408962fa231dad6342f8fe6d3))
+
+## New release v:3.0.3 (2026-03-06)
 
 ### client-underpost
 
