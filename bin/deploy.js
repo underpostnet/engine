@@ -979,42 +979,6 @@ nvidia/gpu-operator \
       logger.info('All dependabot branches merged into master');
       break;
     }
-
-    // Temporal fallback underpost legacy version handling
-
-    case 'conf': {
-      let subConf = process.argv[5] ?? '';
-
-      if (!['current', 'clean', 'root'].includes(process.argv[3])) {
-        const path = fs.existsSync(`./engine-private/replica/${process.argv[3]}`)
-          ? `./engine-private/replica/${process.argv[3]}/.env.${process.argv[4]}`
-          : `./engine-private/conf/${process.argv[3]}/.env.${process.argv[4]}`;
-        dotenv.config({ path, override: true });
-      }
-
-      loadConf(process.argv[3], subConf);
-      break;
-    }
-
-    case 'build-full-client': {
-      await Underpost.repo.client(process.argv[3], process.argv[4], process.argv[5], process.argv[6]);
-      break;
-    }
-
-    case 'build-single-replica': {
-      const deployId = process.argv[3];
-      const host = process.argv[4];
-      const path = process.argv[5];
-      await Underpost.repo.client(deployId, '', host, path, {
-        singleReplica: true,
-      });
-      break;
-    }
-
-    case 'sync-env-port': {
-      await Underpost.repo.client(undefined, '', '', '', { syncEnvPort: true });
-      break;
-    }
   }
 } catch (error) {
   logger.error(error, error.stack);
