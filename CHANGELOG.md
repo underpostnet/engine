@@ -2,6 +2,20 @@
 
 ## 2026-03-15
 
+### cli-index
+
+- fix: add quiet option to dotenv config for improved error handling ([975448eb4](https://github.com/underpostnet/engine/commit/975448eb4d710cc8248a783240ce818b5fb9b891))
+
+### cli-secrets
+
+- fix: add missing dotenv import in secrets module ([7f83e26c4](https://github.com/underpostnet/engine/commit/7f83e26c44dfe176b6cc524e7b117f322a62bf32))
+
+### cli-repository
+
+- fix: enhance environment variable checks for GITHUB_TOKEN retrieval ([d097c6c1f](https://github.com/underpostnet/engine/commit/d097c6c1f02edcab1e76dca226f129e334dbd453))
+
+## New release v:3.1.0 (2026-03-14)
+
 ### docs
 
 - Add documentation for Baremetal and LXD management, including command references and quick start guides ([3569b5150](https://github.com/underpostnet/engine/commit/3569b5150f375467bf5cdb03247897e2849e45ce))
