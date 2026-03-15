@@ -9,8 +9,8 @@ import Underpost from '../index.js';
 
 const underpostGlobalEnv = `${getUnderpostRootPath()}/.env`;
 
-if (fs.existsSync(underpostGlobalEnv)) dotenv.config({ path: underpostGlobalEnv, override: true });
-else dotenv.config();
+if (fs.existsSync(underpostGlobalEnv)) dotenv.config({ path: underpostGlobalEnv, override: true, quiet: true });
+else dotenv.config({ quiet: true });
 
 const program = new Command();
 
