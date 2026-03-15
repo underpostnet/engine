@@ -3,6 +3,8 @@ set -euo pipefail
 
 BASHRC="$HOME/.bashrc"
 
+sudo dnf install -y iproute lsof nmap-ncat net-tools procps-ng
+
 # Check whether a "ports" function is already defined
 if grep -Eq '^\s*(function\s+ports|ports\s*\(\))' "$BASHRC"; then
   echo "The 'ports' function already exists in $BASHRC. Nothing was changed."
