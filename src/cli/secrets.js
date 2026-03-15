@@ -6,6 +6,7 @@
 
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
+import dotenv from 'dotenv';
 import Underpost from '../index.js';
 
 /**
