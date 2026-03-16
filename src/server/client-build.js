@@ -230,16 +230,30 @@ const defaultSitemapXsl = `<?xml version="1.0" encoding="UTF-8"?>
  * @function buildClient
  * @memberof clientBuild
  * @param {Object} options - Options for the build process.
+ * @param {string} options.deployId - The deployment ID for which to build the client.
  * @param {Array} options.liveClientBuildPaths - List of paths to build incrementally.
  * @param {Array} options.instances - List of instances to build.
  * @param {boolean} options.buildZip - Whether to create zip files of the builds.
+ * @param {boolean} options.fullBuild - Whether to perform a full build.
+ * @param {boolean} options.iconsBuild - Whether to build icons.
+ * @param {boolean} options.docsBuild - Whether to build documentation.
  * @returns {Promise<void>} - Promise that resolves when the build is complete.
  * @throws {Error} - If the build fails.
  * @memberof clientBuild
  */
-const buildClient = async (options = { liveClientBuildPaths: [], instances: [], buildZip: false }) => {
+const buildClient = async (
+  options = {
+    deployId: '',
+    liveClientBuildPaths: [],
+    instances: [],
+    buildZip: false,
+    fullBuild: false,
+    iconsBuild: false,
+    docsBuild: false,
+  },
+) => {
   const logger = loggerFactory(import.meta);
-  const deployId = process.env.DEPLOY_ID;
+  const deployId = options.deployId || process.env.DEPLOY_ID;
   const confClient = readConfJson(deployId, 'client');
   const confServer = readConfJson(deployId, 'server', { loadReplicas: true });
   const confSSR = readConfJson(deployId, 'ssr');
@@ -373,17 +387,13 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
         client,
         directory,
         disabledRebuild,
-        minifyBuild,
         db,
         redirect,
         apis,
-        iconsBuild,
-        docsBuild,
         apiBaseProxyPath,
         apiBaseHost,
         ttiLoadTimeLimit,
         singleReplica,
-        offlineBuild,
       } = confServer[host][path];
       if (singleReplica) continue;
       if (!confClient[client]) confClient[client] = {};
@@ -397,9 +407,10 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       const port = newInstance(currentPort);
       const publicClientId = publicRef ? publicRef : client;
-      const fullBuildEnabled = !confServer[host][path].liteBuild && !enableLiveRebuild;
+      const fullBuildEnabled = options.fullBuild && !enableLiveRebuild;
       // const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : `http://localhost:${port}`;
       const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
+      const minifyBuild = process.env.NODE_ENV === 'production';
       // ''; // process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
       currentPort++;
 
@@ -421,7 +432,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
           rootClientPath,
           acmeChallengeFullPath,
           publicClientId,
-          iconsBuild,
+          iconsBuild: options.iconsBuild,
           metadata,
           publicCopyNonExistingFiles,
         });
@@ -445,11 +456,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
               'components',
               baseHost,
             );
-            fs.writeFileSync(
-              jsPublicPath,
-              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-              'utf8',
-            );
+            fs.writeFileSync(jsPublicPath, minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc, 'utf8');
           }
         }
 
@@ -471,11 +478,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
               'services',
               baseHost,
             );
-            fs.writeFileSync(
-              jsPublicPath,
-              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-              'utf8',
-            );
+            fs.writeFileSync(jsPublicPath, minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc, 'utf8');
           }
         }
 
@@ -493,11 +496,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
               'services',
               baseHost,
             );
-            fs.writeFileSync(
-              jsPublicPath,
-              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-              'utf8',
-            );
+            fs.writeFileSync(jsPublicPath, minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc, 'utf8');
           }
         }
       }
@@ -517,11 +516,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
         if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
           const jsSrc = viewFormatted(await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')), dists, path, baseHost);
 
-          fs.writeFileSync(
-            jsPublicPath,
-            minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-            'utf8',
-          );
+          fs.writeFileSync(jsPublicPath, minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc, 'utf8');
         }
 
         if (
@@ -548,11 +543,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
               baseHost,
             );
 
-            fs.writeFileSync(
-              `${buildPath}${buildId}.js`,
-              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-              'utf8',
-            );
+            fs.writeFileSync(`${buildPath}${buildId}.js`, minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc, 'utf8');
             const title = metadata.title ? metadata.title : title;
 
             const canonicalURL = `https://${host}${path}${
@@ -689,7 +680,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [], 
 
             fs.writeFileSync(
               `${buildPath}index.html`,
-              minifyBuild || process.env.NODE_ENV === 'production'
+              minifyBuild
                 ? await minify(htmlSrc, {
                     minifyCSS: true,
                     minifyJS: true,
@@ -739,7 +730,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
         );
       }
 
-      if (fullBuildEnabled && !enableLiveRebuild && docsBuild) {
+      if (!enableLiveRebuild && options.docsBuild) {
         await buildDocs({
           host,
           path,
@@ -755,7 +746,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
       if (client) {
         let PRE_CACHED_RESOURCES = [];
 
-        if (views && offlineBuild && fs.existsSync(`${rootClientPath}/sw.js`)) {
+        if (views && fs.existsSync(`${rootClientPath}/sw.js`)) {
           PRE_CACHED_RESOURCES = await fs.readdir(rootClientPath, { recursive: true });
           PRE_CACHED_RESOURCES = views
             .map((view) => `${path === '/' ? '' : path}${view.path}`)
@@ -802,7 +793,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
 
               fs.writeFileSync(
                 buildHtmlPath,
-                minifyBuild || process.env.NODE_ENV === 'production'
+                minifyBuild
                   ? await minify(htmlSrc, {
                       minifyCSS: true,
                       minifyJS: true,

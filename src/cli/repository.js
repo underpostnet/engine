@@ -624,6 +624,10 @@ class UnderpostRepository {
      * @param {object} [options] - Build options.
      * @param {boolean} [options.syncEnvPort=false] - If true, syncs environment port assignments across all deploy IDs.
      * @param {boolean} [options.singleReplica=false] - If true, builds single replica folders instead of full client.
+     * @param {boolean} [options.buildZip=false] - If true, creates zip files of the builds.
+     * @param {boolean} [options.liteBuild=false] - If true, skips full build (default is full build).
+     * @param {boolean} [options.iconsBuild=false] - If true, builds icons.
+     * @param {boolean} [options.docsBuild=false] - If true, builds documentation.
      * @returns {Promise<boolean>} A promise that resolves when the build is complete.
      * @memberof UnderpostRepository
      */
@@ -635,6 +639,10 @@ class UnderpostRepository {
       options = {
         syncEnvPort: false,
         singleReplica: false,
+        buildZip: false,
+        liteBuild: false,
+        iconsBuild: false,
+        docsBuild: false,
       },
     ) {
       return new Promise(async (resolve, reject) => {
@@ -784,8 +792,6 @@ class UnderpostRepository {
                 if (argHost.length && argPath.length && (!argHost.includes(host) || !argPath.includes(path))) {
                   delete serverConf[host][path];
                 } else {
-                  serverConf[host][path].liteBuild = false;
-                  serverConf[host][path].minifyBuild = process.env.NODE_ENV === 'production' ? true : false;
                   if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
                     singleReplicaHosts.push({ host, path });
                     deployIdSingleReplicas = deployIdSingleReplicas.concat(
@@ -797,10 +803,18 @@ class UnderpostRepository {
                 }
               }
             }
-
-            if (confFilePath) fs.writeFileSync(confFilePath, JSON.stringify(serverConf, null, 4), 'utf-8');
-
-            await buildClient();
+            await buildClient({
+              buildZip: options.buildZip || false,
+              fullBuild: options.liteBuild ? false : true,
+              iconsBuild: options.iconsBuild || false,
+              docsBuild: options.docsBuild
+                ? true
+                : options.liteBuild
+                  ? false
+                  : ['dd-core', 'dd-cyberia'].find((_deployId) => resolvedDeployId.startsWith(_deployId))
+                    ? true
+                    : false,
+            });
             for (const replicaDeployId of deployIdSingleReplicas) await Underpost.repo.client(replicaDeployId);
 
             return resolve(true);

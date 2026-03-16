@@ -854,6 +854,34 @@ nvidia/gpu-operator \
       break;
     }
 
+    case 'sync-conf': {
+      const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
+      for (const deployId of ['dd-cron'].concat(
+        fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(','),
+      )) {
+        for (const file of fs.readdirSync(`./engine-private/conf/${deployId}/`)) {
+          const deployPackage = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/package.json`, 'utf8'));
+          deployPackage.overrides = originPackageJson.overrides;
+          fs.writeFileSync(
+            `./engine-private/conf/${deployId}/package.json`,
+            JSON.stringify(deployPackage, null, 4),
+            'utf8',
+          );
+          if (file.startsWith('conf.server') && file.endsWith('.json')) {
+            const filePath = `./engine-private/conf/${deployId}/${file}`;
+            const confObj = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            for (const host of Object.keys(confObj)) {
+              for (const path of Object.keys(confObj[host])) {
+              }
+            }
+            fs.writeFileSync(filePath, JSON.stringify(confObj, null, 4), 'utf8');
+            logger.info(`sync-conf`, { deployId, file });
+          }
+        }
+      }
+      break;
+    }
+
     case 'cyberia': {
       const { CyberiaDependencies } = await import(`../src/client/components/cyberia-portal/CommonCyberiaPortal.js`);
       for (const dep of Object.keys(CyberiaDependencies)) {
