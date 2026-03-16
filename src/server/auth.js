@@ -613,13 +613,13 @@ function applySecurity(app, opts = {}) {
         frameAncestors: frameAncestors,
         imgSrc: ["'self'", 'data:', httpDirective, 'https:', 'blob:'],
         objectSrc: ["'none'"],
-        // script-src and script-src-elem include dynamic nonce
-        scriptSrc: [
+        // script-src and script-src-elem: use 'unsafe-inline' for swagger (no nonce, otherwise
+        // the nonce causes 'unsafe-inline' to be ignored per CSP3 spec), nonce for everything else.
+        scriptSrc: ["'self'", (req, res) => (res.locals.isSwagger ? "'unsafe-inline'" : `'nonce-${res.locals.nonce}'`)],
+        scriptSrcElem: [
           "'self'",
-          (req, res) => `'nonce-${res.locals.nonce}'`,
-          (req, res) => (res.locals.isSwagger ? "'unsafe-inline'" : ''),
+          (req, res) => (res.locals.isSwagger ? "'unsafe-inline'" : `'nonce-${res.locals.nonce}'`),
         ],
-        scriptSrcElem: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
         // style-src: avoid 'unsafe-inline' when possible; if you must inline styles,
         // use a nonce for them too (or hash).
         styleSrc: [
@@ -627,6 +627,7 @@ function applySecurity(app, opts = {}) {
           httpDirective,
           (req, res) => (res.locals.isSwagger ? "'unsafe-inline'" : `'nonce-${res.locals.nonce}'`),
         ],
+        styleSrcAttr: [(req, res) => (res.locals.isSwagger ? "'unsafe-inline'" : "'none'")],
         // deny plugins
         objectSrc: ["'none'"],
       },

@@ -165,20 +165,20 @@ class ExpressService {
         });
       }
 
-      // Swagger UI setup
-      if (fs.existsSync(swaggerJsonPath)) {
-        const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
-        const swaggerUiOptions = await buildSwaggerUiOptions();
-        app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDoc, swaggerUiOptions));
-      }
-
-      // Security and CORS
+      // Security and CORS — must run before swagger-ui so CSP headers are included in swagger responses
       if (process.env.NODE_ENV === 'development' && useLocalSsl)
         origins = origins.map((origin) => origin.replace('http', 'https'));
 
       applySecurity(app, {
         origin: origins,
       });
+
+      // Swagger UI setup (after security middleware so responses carry correct CSP headers)
+      if (fs.existsSync(swaggerJsonPath)) {
+        const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
+        const swaggerUiOptions = await buildSwaggerUiOptions();
+        app.use(swaggerPath, swaggerUi.serve, swaggerUi.setup(swaggerDoc, swaggerUiOptions));
+      }
 
       // Database and Valkey connections
       if (db && apis) await DataBaseProvider.load({ apis, host, path, db });

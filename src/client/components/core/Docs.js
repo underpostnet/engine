@@ -24,9 +24,16 @@ const Docs = {
       html: async () => {
         if (docData.renderHtml) return await docData.renderHtml();
         return html`
+          <style>
+            .iframe-${ModalId} {
+              width: 100%;
+              border: none;
+              background: white;
+              display: block;
+            }
+          </style>
           <iframe
             class="in iframe-${ModalId}"
-            style="width: 100%; border: none; background: white; display: block"
             src="${docData.url()}"
             sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox"
           >
