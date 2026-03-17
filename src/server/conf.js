@@ -1276,18 +1276,6 @@ const awaitDeployMonitor = async (init = false, deltaMs = 1000) => {
 };
 
 /**
- * @method getCronBackUpFolder
- * @description Gets the cron back up folder.
- * @param {string} host - The host.
- * @param {string} path - The path.
- * @returns {string} - The cron back up folder.
- * @memberof ServerConfBuilder
- */
-const getCronBackUpFolder = (host = '', path = '') => {
-  return `${host}${path.replace(/\\/g, '/').replace(`/`, '-')}`;
-};
-
-/**
  * @method mergeFile
  * @description Merges the file.
  * @param {Array} parts - The parts.
@@ -1499,8 +1487,25 @@ const buildCliDoc = (program, oldVersion, newVersion) => {
   md = md.replaceAll(oldVersion, newVersion);
   fs.writeFileSync(`./src/client/public/nexodev/docs/references/Command Line Interface.md`, md, 'utf8');
   fs.writeFileSync(`./CLI-HELP.md`, md, 'utf8');
-  const readme = fs.readFileSync(`./README.md`, 'utf8');
-  fs.writeFileSync('./README.md', readme.replaceAll(oldVersion, newVersion), 'utf8');
+
+  // Update README.md: replace version and CLI index section between comment tags
+  let readme = fs.readFileSync(`./README.md`, 'utf8');
+  readme = readme.replaceAll(oldVersion, newVersion);
+  const cliStartTag = '<!-- cli-index-start -->';
+  const cliEndTag = '<!-- cli-index-end -->';
+  const startIdx = readme.indexOf(cliStartTag);
+  const endIdx = readme.indexOf(cliEndTag);
+  if (startIdx !== -1 && endIdx !== -1) {
+    readme =
+      readme.substring(0, startIdx) +
+      cliStartTag +
+      '\n' +
+      baseOptions +
+      '\n' +
+      cliEndTag +
+      readme.substring(endIdx + cliEndTag.length);
+  }
+  fs.writeFileSync('./README.md', readme, 'utf8');
 };
 
 /**
@@ -1743,7 +1748,6 @@ export {
   getDataDeploy,
   validateTemplatePath,
   buildReplicaId,
-  getCronBackUpFolder,
   mergeFile,
   getPathsSSR,
   buildKindPorts,

@@ -187,6 +187,7 @@ try {
           const deployPackage = JSON.parse(fs.readFileSync(filePah, 'utf8'));
           deployPackage.dependencies = originPackage.dependencies;
           deployPackage.devDependencies = originPackage.devDependencies;
+          deployPackage.overrides = originPackage.overrides;
           fs.writeFileSync(filePah, JSON.stringify(deployPackage, null, 4), 'utf8');
         }
       }
@@ -708,71 +709,6 @@ nvidia/gpu-operator \
       break;
     }
 
-    case 'udpate-version-files': {
-      const oldNpmVersion = process.argv[3];
-      const oldNodeVersion = process.argv[4];
-      const oldNodeMajorVersion = oldNodeVersion.split('.')[0];
-      const nodeVersion = shellExec(`node --version`, { stdout: true }).trim().replace('v', '');
-      const newNodeMajorVersion = nodeVersion.split('.')[0];
-      const npmVersion = shellExec(`npm --version`, { stdout: true }).trim();
-
-      fs.writeFileSync(
-        `README.md`,
-        fs
-          .readFileSync(`README.md`, 'utf8')
-          .replaceAll(oldNodeVersion, nodeVersion)
-          .replaceAll(oldNpmVersion, npmVersion),
-      );
-      fs.writeFileSync(
-        `src/client/public/nexodev/docs/references/Getting started.md`,
-        fs
-          .readFileSync(`src/client/public/nexodev/docs/references/Getting started.md`, 'utf8')
-          .replaceAll(oldNodeVersion, nodeVersion)
-          .replaceAll(oldNpmVersion, npmVersion),
-      );
-
-      const workflowFiles = [
-        `./.github/workflows/coverall.ci.yml`,
-
-        `./.github/workflows/engine-core.ci.yml`,
-
-        `./.github/workflows/engine-cyberia.ci.yml`,
-
-        `./.github/workflows/engine-lampp.ci.yml`,
-
-        `./.github/workflows/engine-test.ci.yml`,
-
-        `./.github/workflows/ghpkg.ci.yml`,
-
-        `./.github/workflows/npmpkg.ci.yml`,
-
-        `./.github/workflows/publish.ci.yml`,
-
-        `./.github/workflows/pwa-microservices-template-page.cd.yml`,
-
-        `./.github/workflows/pwa-microservices-template-test.ci.yml`,
-
-        `./.github/workflows/test-api-rest.cd.yml`,
-
-        `./src/runtime/lampp/Dockerfile`,
-
-        `./Dockerfile`,
-      ];
-
-      workflowFiles.forEach((file) => {
-        fs.writeFileSync(
-          file,
-          fs
-            .readFileSync(file, 'utf8')
-            .replaceAll(oldNodeMajorVersion + '.x', newNodeMajorVersion + '.x')
-            .replaceAll(oldNodeVersion, nodeVersion)
-            .replaceAll(oldNpmVersion, npmVersion),
-        );
-      });
-      pbcopy(`nvm alias default v${nodeVersion}`);
-      break;
-    }
-
     case 'tls': {
       fs.mkdirSync(`./engine-private/ssl/localhost`, { recursive: true });
       const targetDir = `./engine-private/ssl/${process.argv[3] ? process.argv[3] : 'localhost'}`;
@@ -887,43 +823,6 @@ nvidia/gpu-operator \
       for (const dep of Object.keys(CyberiaDependencies)) {
         const ver = CyberiaDependencies[dep];
         shellExec(`npm install ${dep}@${ver}`);
-      }
-      break;
-    }
-
-    case 'cyberia-hardhat': {
-      shellExec(`cd ./hardhat && npm install --include=dev`);
-      break;
-    }
-
-    case 'cyberia-docs': {
-      // Copy custom cyberia jsdoc to project root for docs build
-      const cyberiaJsDocPath = `./jsdoc.dd-cyberia.json`;
-      if (fs.existsSync(cyberiaJsDocPath)) {
-        logger.info('copying custom cyberia jsdoc.json to project root');
-        fs.copySync(cyberiaJsDocPath, `./jsdoc.json`);
-      }
-
-      // Generate hardhat coverage report for docs inclusion
-      if (fs.existsSync(`./hardhat/package.json`)) {
-        logger.info('generating hardhat coverage report for cyberia docs');
-        try {
-          shellExec(`cd ./hardhat && NODE_ENV=development npx hardhat coverage`);
-        } catch (e) {
-          logger.warn('hardhat coverage generation failed, continuing', e.message);
-        }
-      }
-
-      // Prepare cyberia docs references directory with hardhat README and WHITE-PAPER
-      const cyberiaDocsRefsDir = `./src/client/public/cyberia/docs/references`;
-      fs.mkdirSync(cyberiaDocsRefsDir, { recursive: true });
-      if (fs.existsSync(`./hardhat/README.md`)) {
-        fs.copySync(`./hardhat/README.md`, `${cyberiaDocsRefsDir}/Hardhat Module.md`);
-        logger.info('copied hardhat README.md to cyberia docs references');
-      }
-      if (fs.existsSync(`./hardhat/WHITE-PAPER.md`)) {
-        fs.copySync(`./hardhat/WHITE-PAPER.md`, `${cyberiaDocsRefsDir}/White Paper.md`);
-        logger.info('copied hardhat WHITE-PAPER.md to cyberia docs references');
       }
       break;
     }
