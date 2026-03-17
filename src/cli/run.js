@@ -1572,13 +1572,73 @@ EOF
     },
 
     /**
-     * @method ptls
+     * @method pid-info
+     * @description Displays detailed information about a process by PID, including service details, command line, executable path, working directory, environment variables, and parent process tree.
+     * @param {string} path - The PID of the process to inspect.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'pid-info': (path, options = DEFAULT_OPTION) => {
+      const pid = path;
+      if (!pid) {
+        logger.error('PID is required. Usage: underpost run pid-info <pid>');
+        return;
+      }
+
+      // Services
+      logger.info('Process info');
+      shellExec(`sudo ps -p ${pid} -o pid,ppid,user,stime,etime,cmd`);
+      logger.info('Command line');
+      shellExec(`sudo cat /proc/${pid}/cmdline | tr '\\0' ' ' ; echo`);
+      logger.info('Executable path');
+      shellExec(`sudo readlink -f /proc/${pid}/exe`);
+      logger.info('Working directory');
+      shellExec(`sudo readlink -f /proc/${pid}/cwd`);
+      logger.info('Environment variables (first 200)');
+      shellExec(`sudo tr '\\0' '\\n' </proc/${pid}/environ | head -200`);
+
+      // Parent
+      logger.info('Parent process');
+      const parentInfo = shellExec(`sudo ps -o pid,ppid,user,cmd -p ${pid}`, { stdout: true, silent: true });
+      console.log(parentInfo);
+      const ppidMatch = parentInfo.split('\n').find((l) => l.trim().startsWith(pid));
+      if (ppidMatch) {
+        const ppid = ppidMatch.trim().split(/\s+/)[1];
+        logger.info(`Parent PID: ${ppid}`);
+        shellExec(`ps -fp ${ppid}`);
+      }
+      logger.info('Process tree');
+      shellExec(`pstree -s ${pid}`);
+    },
+
+    /**
+     * @method background
+     * @description Runs a custom command in the background using nohup, logging output to `/var/log/<id>.log` and saving the PID to `/var/run/<id>.pid`.
+     * @param {string} path - The command to run in the background (e.g. 'npm run prod:container dd-cyberia-r3').
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    background: (path, options = DEFAULT_OPTION) => {
+      if (!path) {
+        logger.error('Command is required. Usage: underpost run background <command>');
+        return;
+      }
+      const id = path.split(/\s+/).pop();
+      const logFile = `/var/log/${id}.log`;
+      const pidFile = `/var/run/${id}.pid`;
+      logger.info(`Starting background process`, { id, logFile, pidFile });
+      shellExec(`nohup ${path} > ${logFile} 2>&1 & pid=$!; echo $pid > ${pidFile}; disown`);
+      logger.info(`Background process started for '${id}'`);
+    },
+
+    /**
+     * @method ports
      * @description Set on ~/.bashrc alias: ports <port> Command to list listening ports that match the given keyword.
      * @param {string} path - The input value, identifier, or path for the operation (used as a keyword to filter listening ports).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    ptls: async (path = '', options = DEFAULT_OPTION) => {
+    ports: async (path = '', options = DEFAULT_OPTION) => {
       shellExec(`chmod +x ${options.underpostRoot}/scripts/ports-ls.sh`);
       shellExec(`${options.underpostRoot}/scripts/ports-ls.sh`);
     },
