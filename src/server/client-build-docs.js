@@ -332,56 +332,17 @@ const buildApiDocs = async ({
  * @param {string} options.path - The base path for the documentation
  * @param {Object} options.metadata - Metadata for the documentation
  * @param {string} options.publicClientId - Client ID used to resolve the tutorials/references directory
+ * @param {Object} options.docs - Documentation config from server conf
+ * @param {string} options.docs.jsJsonPath - Path to the JSDoc JSON config file
  */
-const buildJsDocs = async ({ host, path, metadata = {}, publicClientId }) => {
+const buildJsDocs = async ({ host, path, metadata = {}, publicClientId, docs }) => {
   const logger = loggerFactory(import.meta);
 
-  // Detect custom jsdoc.<deployId>.json by matching host against deploy server configs
-  let customJsDocPath = '';
-  const privateConfBase = `./engine-private/conf`;
-  if (fs.existsSync(privateConfBase)) {
-    for (const deployId of fs.readdirSync(privateConfBase)) {
-      const candidatePath = `./jsdoc.${deployId}.json`;
-      if (!fs.existsSync(candidatePath)) continue;
-
-      // Check if this deployId's server config contains the current host
-      const serverConfPath = `${privateConfBase}/${deployId}/conf.server.json`;
-      if (fs.existsSync(serverConfPath)) {
-        try {
-          const serverConf = JSON.parse(fs.readFileSync(serverConfPath, 'utf8'));
-          if (serverConf[host]) {
-            customJsDocPath = candidatePath;
-            logger.info('detected custom jsdoc config', { deployId, host, path: candidatePath });
-            break;
-          }
-        } catch (e) {
-          // skip invalid JSON
-        }
-      }
-
-      // Fallback: also check dev server configs
-      if (!customJsDocPath) {
-        const devConfFiles = fs
-          .readdirSync(`${privateConfBase}/${deployId}`)
-          .filter((f) => f.match(/^conf\.server\.dev\..*\.json$/));
-        for (const devFile of devConfFiles) {
-          try {
-            const devConf = JSON.parse(fs.readFileSync(`${privateConfBase}/${deployId}/${devFile}`, 'utf8'));
-            if (devConf[host]) {
-              customJsDocPath = candidatePath;
-              logger.info('detected custom jsdoc config (dev)', { deployId, host, path: candidatePath });
-              break;
-            }
-          } catch (e) {
-            // skip invalid JSON
-          }
-        }
-      }
-      if (customJsDocPath) break;
-    }
+  const jsDocSourcePath = docs.jsJsonPath;
+  if (!fs.existsSync(jsDocSourcePath)) {
+    logger.warn('jsdoc config not found, skipping', jsDocSourcePath);
+    return;
   }
-
-  const jsDocSourcePath = customJsDocPath || `./jsdoc.json`;
   const jsDocsConfig = JSON.parse(fs.readFileSync(jsDocSourcePath, 'utf8'));
   logger.info('using jsdoc config', jsDocSourcePath);
 
@@ -391,22 +352,14 @@ const buildJsDocs = async ({ host, path, metadata = {}, publicClientId }) => {
 
   const tutorialsPath = `./src/client/public/${publicClientId}/docs/references`;
 
-  // Auto-prepare hardhat references when jsdoc config includes hardhat source files
-  const includesHardhat =
-    jsDocsConfig.source &&
-    Array.isArray(jsDocsConfig.source.include) &&
-    jsDocsConfig.source.include.some((p) => p.includes('hardhat/'));
-  if (includesHardhat && fs.existsSync(`./hardhat`)) {
+  if (Array.isArray(docs.references) && docs.references.length > 0) {
     fs.mkdirSync(tutorialsPath, { recursive: true });
-    const hardhatReadmePath = `./hardhat/README.md`;
-    const hardhatWhitePaperPath = `./hardhat/WHITE-PAPER.md`;
-    if (fs.existsSync(hardhatReadmePath)) {
-      fs.copySync(hardhatReadmePath, `${tutorialsPath}/Hardhat Module.md`);
-      logger.info('copied hardhat README.md to tutorials references');
-    }
-    if (fs.existsSync(hardhatWhitePaperPath)) {
-      fs.copySync(hardhatWhitePaperPath, `${tutorialsPath}/White Paper.md`);
-      logger.info('copied hardhat WHITE-PAPER.md to tutorials references');
+    for (const refPath of docs.references) {
+      if (fs.existsSync(refPath)) {
+        const fileName = refPath.split('/').pop();
+        fs.copySync(refPath, `${tutorialsPath}/${fileName}`);
+        logger.info('copied reference to tutorials', refPath);
+      }
     }
   }
 
@@ -420,10 +373,10 @@ const buildJsDocs = async ({ host, path, metadata = {}, publicClientId }) => {
     delete jsDocsConfig.opts.tutorials;
   }
 
-  fs.writeFileSync(`./jsdoc.json`, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
+  fs.writeFileSync(jsDocSourcePath, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
   logger.warn('build jsdoc view', jsDocsConfig.opts.destination);
 
-  shellExec(`npm run docs`, { silent: true });
+  shellExec(`npx jsdoc -c ${jsDocSourcePath}`, { silent: true });
 };
 
 /**
@@ -433,58 +386,37 @@ const buildJsDocs = async ({ host, path, metadata = {}, publicClientId }) => {
  * @param {Object} options - Coverage build options
  * @param {string} options.host - The hostname for the coverage
  * @param {string} options.path - The base path for the coverage
+ * @param {Object} options.docs - Documentation config from server conf
+ * @param {string} options.docs.coveragePath - Directory where to run npm run coverage
  */
-const buildCoverage = async ({ host, path }) => {
+const buildCoverage = async ({ host, path, docs }) => {
   const logger = loggerFactory(import.meta);
-  const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
+  const jsDocSourcePath = docs.jsJsonPath;
+  const jsDocsConfig = JSON.parse(fs.readFileSync(jsDocSourcePath, 'utf8'));
+  const coveragePath = docs.coveragePath;
 
-  if (!fs.existsSync(`./coverage`)) {
-    shellExec(`npm test`);
-  }
-
-  const coverageBuildPath = `${jsDocsConfig.opts.destination}coverage`;
-  fs.mkdirSync(coverageBuildPath, { recursive: true });
-  fs.copySync(`./coverage`, coverageBuildPath);
-
-  logger.warn('build coverage', coverageBuildPath);
-
-  // Include hardhat coverage for cyberia-related builds
-  const hardhatCoveragePath = `./hardhat/coverage`;
-  if (fs.existsSync(hardhatCoveragePath) && fs.readdirSync(hardhatCoveragePath).length > 0) {
-    const hardhatCoverageBuildPath = `${jsDocsConfig.opts.destination}hardhat-coverage`;
-    fs.mkdirSync(hardhatCoverageBuildPath, { recursive: true });
-    fs.copySync(hardhatCoveragePath, hardhatCoverageBuildPath);
-    logger.warn('build hardhat coverage', hardhatCoverageBuildPath);
-  } else if (fs.existsSync(`./hardhat/package.json`)) {
-    // Attempt to generate hardhat coverage if the hardhat project exists
-    try {
-      const hardhatPkg = JSON.parse(fs.readFileSync(`./hardhat/package.json`, 'utf8'));
-      if (hardhatPkg.scripts && hardhatPkg.scripts.coverage) {
-        logger.info('generating hardhat coverage report');
-        shellExec(`cd ./hardhat && npx hardhat coverage`, { silent: true });
-        if (fs.existsSync(hardhatCoveragePath) && fs.readdirSync(hardhatCoveragePath).length > 0) {
-          const hardhatCoverageBuildPath = `${jsDocsConfig.opts.destination}hardhat-coverage`;
-          fs.mkdirSync(hardhatCoverageBuildPath, { recursive: true });
-          fs.copySync(hardhatCoveragePath, hardhatCoverageBuildPath);
-          logger.warn('build hardhat coverage (generated)', hardhatCoverageBuildPath);
-        }
+  const coverageOutputPath = `${coveragePath}/coverage`;
+  if (!fs.existsSync(coverageOutputPath)) {
+    const pkgPath = `${coveragePath}/package.json`;
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      if (pkg.scripts && pkg.scripts.coverage) {
+        logger.info('generating coverage report', coveragePath);
+        shellExec(`cd ${coveragePath} && npm run coverage`, { silent: true });
+      } else if (pkg.scripts && pkg.scripts.test) {
+        logger.info('generating coverage via test', coveragePath);
+        shellExec(`cd ${coveragePath} && npm test`, { silent: true });
       }
-    } catch (e) {
-      logger.warn('hardhat coverage generation skipped', e.message);
     }
   }
 
-  // Copy hardhat README and WHITE-PAPER as markdown docs
-  const docsDestBase = jsDocsConfig.opts.destination;
-  const hardhatReadmePath = `./hardhat/README.md`;
-  const hardhatWhitePaperPath = `./hardhat/WHITE-PAPER.md`;
-  if (fs.existsSync(hardhatReadmePath)) {
-    fs.copySync(hardhatReadmePath, `${docsDestBase}hardhat-README.md`);
-    logger.info('copied hardhat README.md to docs');
-  }
-  if (fs.existsSync(hardhatWhitePaperPath)) {
-    fs.copySync(hardhatWhitePaperPath, `${docsDestBase}hardhat-WHITE-PAPER.md`);
-    logger.info('copied hardhat WHITE-PAPER.md to docs');
+  if (fs.existsSync(coverageOutputPath) && fs.readdirSync(coverageOutputPath).length > 0) {
+    const coverageBuildPath = `${jsDocsConfig.opts.destination}coverage`;
+    fs.mkdirSync(coverageBuildPath, { recursive: true });
+    fs.copySync(coverageOutputPath, coverageBuildPath);
+    logger.warn('build coverage', coverageBuildPath);
+  } else {
+    logger.warn('no coverage output found, skipping', coverageOutputPath);
   }
 };
 
@@ -501,6 +433,7 @@ const buildCoverage = async ({ host, path }) => {
  * @param {string} options.publicClientId - Client ID for the public documentation
  * @param {string} options.rootClientPath - Root path for client files
  * @param {Object} options.packageData - Package.json data
+ * @param {Object} options.docs - Documentation config from server conf
  */
 const buildDocs = async ({
   host,
@@ -511,9 +444,10 @@ const buildDocs = async ({
   publicClientId,
   rootClientPath,
   packageData,
+  docs,
 }) => {
-  await buildJsDocs({ host, path, metadata, publicClientId });
-  await buildCoverage({ host, path });
+  await buildJsDocs({ host, path, metadata, publicClientId, docs });
+  await buildCoverage({ host, path, docs });
   await buildApiDocs({
     host,
     path,

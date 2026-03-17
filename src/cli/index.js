@@ -48,7 +48,6 @@ program
   .option('--build-zip', 'Create zip files of the builds')
   .option('--lite-build', 'Skip full build (default is full build)')
   .option('--icons-build', 'Build icons')
-  .option('--docs-build', 'Build documentation')
   .description('Builds client assets, single replicas, and/or syncs environment ports.')
   .action(Underpost.repo.client);
 

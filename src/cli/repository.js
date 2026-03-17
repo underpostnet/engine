@@ -599,7 +599,6 @@ class UnderpostRepository {
      * @param {boolean} [options.buildZip=false] - If true, creates zip files of the builds.
      * @param {boolean} [options.liteBuild=false] - If true, skips full build (default is full build).
      * @param {boolean} [options.iconsBuild=false] - If true, builds icons.
-     * @param {boolean} [options.docsBuild=false] - If true, builds documentation.
      * @returns {Promise<boolean>} A promise that resolves when the build is complete.
      * @memberof UnderpostRepository
      */
@@ -614,7 +613,6 @@ class UnderpostRepository {
         buildZip: false,
         liteBuild: false,
         iconsBuild: false,
-        docsBuild: false,
       },
     ) {
       return new Promise(async (resolve, reject) => {
@@ -779,13 +777,6 @@ class UnderpostRepository {
               buildZip: options.buildZip || false,
               fullBuild: options.liteBuild ? false : true,
               iconsBuild: options.iconsBuild || false,
-              docsBuild: options.docsBuild
-                ? true
-                : options.liteBuild
-                  ? false
-                  : ['dd-core', 'dd-cyberia'].find((_deployId) => resolvedDeployId.startsWith(_deployId))
-                    ? true
-                    : false,
             });
             for (const replicaDeployId of deployIdSingleReplicas) await Underpost.repo.client(replicaDeployId);
 

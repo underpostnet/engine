@@ -236,7 +236,6 @@ const defaultSitemapXsl = `<?xml version="1.0" encoding="UTF-8"?>
  * @param {boolean} options.buildZip - Whether to create zip files of the builds.
  * @param {boolean} options.fullBuild - Whether to perform a full build.
  * @param {boolean} options.iconsBuild - Whether to build icons.
- * @param {boolean} options.docsBuild - Whether to build documentation.
  * @returns {Promise<void>} - Promise that resolves when the build is complete.
  * @throws {Error} - If the build fails.
  * @memberof clientBuild
@@ -249,7 +248,6 @@ const buildClient = async (
     buildZip: false,
     fullBuild: false,
     iconsBuild: false,
-    docsBuild: false,
   },
 ) => {
   const logger = loggerFactory(import.meta);
@@ -394,6 +392,7 @@ const buildClient = async (
         apiBaseHost,
         ttiLoadTimeLimit,
         singleReplica,
+        docs,
       } = confServer[host][path];
       if (singleReplica) continue;
       if (!confClient[client]) confClient[client] = {};
@@ -730,7 +729,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
         );
       }
 
-      if (!enableLiveRebuild && options.docsBuild) {
+      if (fullBuildEnabled && docs) {
         await buildDocs({
           host,
           path,
@@ -740,6 +739,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
           publicClientId,
           rootClientPath,
           packageData,
+          docs,
         });
       }
 
