@@ -92,6 +92,9 @@ Arguments:
 Options:
   --sync-env-port   Sync environment port assignments across all deploy IDs
   --single-replica  Build single replica folders instead of full client
+  --build-zip       Create zip files of the builds
+  --lite-build      Skip full build (default is full build)
+  --icons-build     Build icons
   -h, --help        display help for command
  
 ```
@@ -918,6 +921,7 @@ Options:
   --monitor-status-delta-ms <milliseconds>        Sets the polling interval in milliseconds for status monitoring (default: 1000).
   --monitor-status-max-attempts <attempts>        Sets the maximum number of status check attempts (default: 600).
   --dry-run                                       Preview operations without executing them.
+  --from-n-commit <n>                             Number of commits back to use for message propagation in template-deploy (default: 1, last commit only).
   --create-job-now                                After applying cron manifests, immediately create a Job from each CronJob (forwarded to cron runner).
   --host-aliases <host-aliases>                   Adds entries to the Pod /etc/hosts via hostAliases. Format: semicolon-separated entries of "ip=hostname1,hostname2" (e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote,bar.remote").
   -h, --help                                      display help for command

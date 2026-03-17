@@ -1,6 +1,37 @@
 # Changelog
 
-## 2026-03-15
+## 2026-03-17
+
+### client-underpost
+
+- feat: Refactor styles in RichText and CssUnderpost components for improved typography ([ee1d12335](https://github.com/underpostnet/engine/commit/ee1d123354afb0826ef5f942a07feeeb6eb40c7b))
+
+### docs
+
+- feat: Update CLI documentation and enhance README with versioning and command index ([e6eb668d4](https://github.com/underpostnet/engine/commit/e6eb668d4007dc828f1b946c36ea369aaea6e2d4))
+- feat: Enhance documentation configuration and remove obsolete options in build processes ([3437e1488](https://github.com/underpostnet/engine/commit/3437e14884d54202c8a0bbdcef47edfa03528fb7))
+
+### client-core
+
+- feat: Update links to open in the top frame and enhance iframe sandboxing ([8ec50df8d](https://github.com/underpostnet/engine/commit/8ec50df8d2eaaf210254930351a783c1d4409d5d))
+
+### github-actions
+
+- feat: Add deploy_type option to CI workflows and enhance changelog message propagation ([d222753ec](https://github.com/underpostnet/engine/commit/d222753ec66cbb1ce3cccc54d7eebea3f144e8b8))
+
+### cli-client
+
+- feat: Add sync-conf command and enhance build options for client assets ([ad8b96242](https://github.com/underpostnet/engine/commit/ad8b96242431b9a23b3cf3b4345294938552784f))
+
+### swagger
+
+- fix: update security middleware to ensure correct CSP headers for Swagger UI ([ef7dd5243](https://github.com/underpostnet/engine/commit/ef7dd52434191f4f910a7192007ebca5af16932b))
+
+### scripts
+
+- Add missing package installation command in ports-ls.sh ([e13253366](https://github.com/underpostnet/engine/commit/e13253366f5dfd029f2a12e031b5f995efb269ac))
+
+## New release v:3.1.2 (2026-03-15)
 
 ### cli-run
 
