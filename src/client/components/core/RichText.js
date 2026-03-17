@@ -30,10 +30,9 @@ const RichText = {
     return html` <style>
         .md-container {
           background: white;
-          color: black;
         }
         .md-container button {
-          color: black !important;
+          color: black;
         }
       </style>
       <div class="in md-container"><textarea class="${id}"></textarea></div>`;

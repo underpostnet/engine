@@ -174,6 +174,49 @@ const CssCommonUnderpost = async () => {
       .underpost-panel-subtitle {
         top: 3px !important;
       }
+      .underpost-panel-cell,
+      .underpost-panel-cell p,
+      .underpost-panel-cell span,
+      .underpost-panel-cell a,
+      .underpost-panel-cell div,
+      .underpost-panel-cell pre,
+      .underpost-panel-cell code,
+      .EasyMDEContainer,
+      .editor-preview,
+      .editor-preview-full,
+      .editor-preview p,
+      .editor-preview-full p,
+      .editor-preview span,
+      .editor-preview-full span,
+      .editor-preview a,
+      .editor-preview-full a,
+      .editor-preview div,
+      .editor-preview-full div,
+      .editor-preview pre,
+      .editor-preview-full pre,
+      .editor-preview code,
+      .editor-preview-full code {
+        font-family: var(--up-font-retro-sensitive);
+        font-size: 24px;
+      }
+      .underpost-panel-cell h1,
+      .editor-preview h1,
+      .editor-preview-full h1 {
+        font-family: var(--up-font-retro-sensitive);
+        font-size: 36px;
+      }
+      .underpost-panel-cell h2,
+      .editor-preview h2,
+      .editor-preview-full h2 {
+        font-family: var(--up-font-retro-sensitive);
+        font-size: 30px;
+      }
+      .underpost-panel-cell h3,
+      .editor-preview h3,
+      .editor-preview-full h3 {
+        font-family: var(--up-font-retro-sensitive);
+        font-size: 26px;
+      }
     </style>
 
     <div class="ag-grid-style"></div>`;
