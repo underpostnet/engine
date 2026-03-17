@@ -144,8 +144,6 @@ class UnderpostRepository {
       }
 
       if (options.changelog !== undefined || options.changelogBuild) {
-        const ciIntegrationPrefix = 'ci(package-pwa-microservices-';
-        const ciIntegrationVersionPrefix = 'New release v:';
         const releaseMatch = 'New release v:';
         // Helper: parse [<tag>] commits into grouped sections
         const buildSectionChangelog = (commits) => {
@@ -273,39 +271,13 @@ class UnderpostRepository {
           fs.writeFileSync(changelogPath, `# Changelog\n\n${changelog}`);
           logger.info('CHANGELOG.md built at', changelogPath);
         } else {
-          // --changelog [latest-n]: print changelog of last N commits or since last release
+          // --changelog [latest-n]: print changelog of last N commits (default: 1)
           const hasExplicitCount =
             options.changelog !== undefined && options.changelog !== true && !isNaN(parseInt(options.changelog));
-          const scanLimit = hasExplicitCount ? parseInt(options.changelog) : 500;
+          const scanLimit = hasExplicitCount ? parseInt(options.changelog) : 1;
           const allCommits = fetchHistory(scanLimit);
 
-          let commits;
-          if (!hasExplicitCount) {
-            let boundaryIndex = -1;
-
-            // New boundary: deploy hash stored in config via `underpost config set LAST_CI_DEPLOY_HASH`
-            const lastDeployHash = shellExec('underpost config get LAST_CI_DEPLOY_HASH --plain', {
-              stdout: true,
-              silent: true,
-              disableLog: true,
-            }).trim();
-            if (lastDeployHash && lastDeployHash !== 'undefined' && lastDeployHash !== 'null') {
-              boundaryIndex = allCommits.findIndex((c) => c.fullHash === lastDeployHash || c.hash === lastDeployHash);
-            }
-
-            // Fallback: old CI integration commit boundary
-            if (boundaryIndex < 0) {
-              boundaryIndex = allCommits.findIndex(
-                (c) => c.message.startsWith(ciIntegrationPrefix) && !c.message.match(ciIntegrationVersionPrefix),
-              );
-            }
-
-            commits = boundaryIndex >= 0 ? allCommits.slice(0, boundaryIndex) : allCommits;
-          } else {
-            commits = allCommits;
-          }
-
-          const sections = buildVersionSections(commits);
+          const sections = buildVersionSections(allCommits);
           let changelog = renderSections(sections);
           console.log(changelog || `No changelog entries found.\n`);
         }
@@ -1220,6 +1192,29 @@ Prevent build private config repo.`,
         );
       }
       logger.info('Dispatched workflow', `${repo} -> ${workflowFile}`, inputs.job ? `(job: ${inputs.job})` : '');
+    },
+
+    /**
+     * Sanitizes a markdown changelog string into a compact message format.
+     * Strips date headers, converts section tags to `[tag]` prefixes, removes bullet markers and special characters.
+     * @param {string} message - The raw markdown changelog output.
+     * @returns {string} The sanitized single-line or multi-line compact message.
+     * @memberof UnderpostRepository
+     */
+    sanitizeChangelogMessage(message) {
+      if (!message) return '';
+      return message
+        .replace(/^##\s+\d{4}-\d{2}-\d{2}\s*/gm, '')
+        .replace(/^###\s+(\S+)\s*/gm, '[$1] ')
+        .replace(/^- /gm, '')
+        .replaceAll('"', '')
+        .replaceAll('`', '')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .join('\n')
+        .trim()
+        .replaceAll('] - ', '] ');
     },
   };
 }

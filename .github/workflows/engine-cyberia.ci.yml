@@ -18,6 +18,14 @@ on:
         description: 'Commit message for the build'
         required: false
         default: ''
+      deploy_type:
+        description: 'CD job type to dispatch (sync-and-deploy or init)'
+        required: false
+        default: 'sync-and-deploy'
+        type: choice
+        options:
+          - sync-and-deploy
+          - init
 permissions:
   contents: write
   packages: write
@@ -85,12 +93,16 @@ jobs:
           git commit -m "$LAST_COMMIT_MESSAGE"
           underpost push . underpostnet/engine-cyberia
           if [ "${SYNC}" = "true" ]; then
-            echo "[INFO] Dispatching engine-cyberia CD sync-and-deploy"
+            DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"
+            if [ -z "$DEPLOY_TYPE" ]; then
+              DEPLOY_TYPE="sync-and-deploy"
+            fi
+            echo "[INFO] Dispatching engine-cyberia CD ${DEPLOY_TYPE}"
             curl -s -X POST \
               -H "Accept: application/vnd.github.v3+json" \
               -H "Authorization: token ${{ secrets.GIT_AUTH_TOKEN }}" \
               "https://api.github.com/repos/underpostnet/engine/actions/workflows/engine-cyberia.cd.yml/dispatches" \
-              -d '{"ref":"master","inputs":{"job":"sync-and-deploy"}}'
+              -d "{\"ref\":\"master\",\"inputs\":{\"job\":\"${DEPLOY_TYPE}\"}}"
           else
             echo "[INFO] Deployment skipped"
           fi

@@ -10,6 +10,14 @@ on:
         description: 'Changelog message for the build'
         required: false
         default: ''
+      deploy_conf_id:
+        description: 'Engine conf ID to dispatch after build (e.g., engine-core, engine-cyberia)'
+        required: false
+        default: ''
+      deploy_type:
+        description: 'Deployment type for the engine conf CD (sync-and-deploy or init)'
+        required: false
+        default: ''
 permissions:
   contents: write
   packages: write
@@ -85,3 +93,20 @@ jobs:
           git config user.email 'fcoverdugoa@underpost.net'
           underpost cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
           underpost push . underpostnet/pwa-microservices-template
+
+      - name: Dispatch engine conf CI with sync
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_conf_id != ''
+        run: |
+          DEPLOY_CONF_ID="${{ github.event.inputs.deploy_conf_id }}"
+          DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"
+          echo "[INFO] Dispatching ${DEPLOY_CONF_ID}.ci.yml with sync=true, deploy_type=${DEPLOY_TYPE}"
+          INPUTS="{\"sync\":\"true\",\"message\":\"$LAST_COMMIT_MESSAGE\""
+          if [ -n "$DEPLOY_TYPE" ]; then
+            INPUTS="${INPUTS},\"deploy_type\":\"${DEPLOY_TYPE}\""
+          fi
+          INPUTS="${INPUTS}}"
+          curl -s -f -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GIT_AUTH_TOKEN }}" \
+            "https://api.github.com/repos/underpostnet/engine/actions/workflows/${DEPLOY_CONF_ID}.ci.yml/dispatches" \
+            -d "{\"ref\":\"master\",\"inputs\":${INPUTS}}"

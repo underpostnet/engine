@@ -627,6 +627,10 @@ program
   )
   .option('--dry-run', 'Preview operations without executing them.')
   .option(
+    '--from-n-commit <n>',
+    'Number of commits back to use for message propagation in template-deploy (default: 1, last commit only).',
+  )
+  .option(
     '--create-job-now',
     'After applying cron manifests, immediately create a Job from each CronJob (forwarded to cron runner).',
   )

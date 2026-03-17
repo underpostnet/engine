@@ -87,6 +87,7 @@ const logger = loggerFactory(import.meta);
  * @property {boolean} logs - Whether to enable logs.
  * @property {boolean} dryRun - Whether to perform a dry run.
  * @property {boolean} createJobNow - Whether to create the job immediately.
+ * @property {number} fromNCommit - Number of commits back to use for message propagation (default: 1, last commit only).
  * @property {string|Array<{ip: string, hostnames: string[]}>} hostAliases - Adds entries to the Pod /etc/hosts via Kubernetes hostAliases.
  *   As a string (CLI): semicolon-separated entries of "ip=hostname1,hostname2" (e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote").
  *   As an array (programmatic): objects with `ip` and `hostnames` fields (e.g., [{ ip: "127.0.0.1", hostnames: ["foo.local"] }]).
@@ -151,6 +152,7 @@ const DEFAULT_OPTION = {
   logs: false,
   dryRun: false,
   createJobNow: false,
+  fromNCommit: 0,
   hostAliases: '',
 };
 
@@ -354,8 +356,10 @@ class UnderpostRun {
     },
     /**
      * @method template-deploy
-     * @description Pushes `engine-private`, dispatches CI workflow to build `pwa-microservices-template`, and optionally dispatches CD sync workflow.
-     * @param {string} path - The input value, identifier, or path for the operation.
+     * @description Pushes `engine-private`, dispatches CI workflow to build `pwa-microservices-template`,
+     * and optionally triggers engine-<conf-id> CI with sync/init which in turn dispatches the CD workflow
+     * after the build chain completes (template → ghpkg → engine-<conf-id> → CD).
+     * @param {string} path - The deployment path identifier (e.g., 'sync-engine-core', 'init-engine-core', or empty for build-only).
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
@@ -368,7 +372,14 @@ class UnderpostRun {
         return;
       }
       shellExec(`${baseCommand} run pull`);
-      const message = shellExec(`node bin cmt --changelog --changelog-no-hash`, { silent: true, stdout: true }).trim();
+
+      // Capture last N commit messages for propagation (default: last 1 commit)
+      const fromN = options.fromNCommit && parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
+      const message = shellExec(`node bin cmt --changelog ${fromN} --changelog-no-hash`, {
+        silent: true,
+        stdout: true,
+      }).trim();
+
       shellExec(
         `${baseCommand} push ./engine-private ${options.force ? '-f ' : ''}${
           process.env.GITHUB_USERNAME
@@ -376,52 +387,40 @@ class UnderpostRun {
       );
       shellCd('/home/dd/engine');
 
-      // Store deploy boundary hash for changelog before dispatch
-      const deployBoundaryHash = shellExec('git rev-parse HEAD', {
-        stdout: true,
-        silent: true,
-        disableLog: true,
-      }).trim();
-
-      function replaceNthNewline(str, n, replacement = ' ') {
-        let count = 0;
-        return str.replace(/\r\n?|\n/g, (match) => {
-          count++;
-          return count === n ? replacement : match;
-        });
-      }
-      const sanitizedMessage = message
-        ? replaceNthNewline(message.replaceAll('"', '').replaceAll('`', '').replaceAll('#', '').replaceAll('- ', ''), 2)
-            .replace(/\r\n?|\n/g, ' ')
-            .trim()
-        : '';
+      const sanitizedMessage = Underpost.repo.sanitizeChangelogMessage(message);
 
       // Push engine repo so workflow YAML changes reach GitHub
       shellExec(`git reset`);
       shellExec(`${baseCommand} push . ${options.force ? '-f ' : ''}${process.env.GITHUB_USERNAME}/engine`);
 
-      // Dispatch CI workflow instead of empty commit + push
+      // Determine deploy conf and type from path (sync-engine-core, init-engine-core, etc.)
+      let deployConfId = '';
+      let deployType = '';
+      if (path.startsWith('sync-')) {
+        deployConfId = path.replace(/^sync-/, '');
+        deployType = 'sync-and-deploy';
+      } else if (path.startsWith('init-')) {
+        deployConfId = path.replace(/^init-/, '');
+        deployType = 'init';
+      }
+
+      // Dispatch npmpkg CI workflow — this builds pwa-microservices-template first.
+      // If deployConfId is set, npmpkg.ci.yml will dispatch the engine-<conf-id> CI
+      // with sync=true after template build completes. The engine CI then dispatches
+      // the CD workflow after the engine repo build finishes — ensuring correct sequence:
+      // npmpkg.ci → engine-<id>.ci → engine-<id>.cd
       const repo = `${process.env.GITHUB_USERNAME}/engine`;
+      const inputs = {};
+      if (sanitizedMessage) inputs.message = sanitizedMessage;
+      if (deployConfId) inputs.deploy_conf_id = deployConfId;
+      if (deployType) inputs.deploy_type = deployType;
+
       Underpost.repo.dispatchWorkflow({
         repo,
         workflowFile: 'npmpkg.ci.yml',
         ref: 'master',
-        inputs: sanitizedMessage ? { message: sanitizedMessage } : {},
+        inputs,
       });
-
-      // Dispatch CD sync-and-deploy if path starts with 'sync'
-      if (path.startsWith('sync')) {
-        const confId = path.replace(/^sync-/, '');
-        Underpost.repo.dispatchWorkflow({
-          repo,
-          workflowFile: `${confId}.cd.yml`,
-          ref: 'master',
-          inputs: { job: 'sync-and-deploy' },
-        });
-      }
-
-      // Store deploy boundary for changelog
-      shellExec(`${baseCommand} config set LAST_CI_DEPLOY_HASH ${deployBoundaryHash}`);
     },
 
     /**
