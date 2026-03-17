@@ -91,22 +91,11 @@ jobs:
           git add .
           git config user.name 'underpostnet'
           git config user.email 'fcoverdugoa@underpost.net'
-          underpost cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
-          underpost push . underpostnet/pwa-microservices-template
-
-      - name: Dispatch engine conf CI with sync
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_conf_id != ''
-        run: |
+          COMMIT_MSG="$LAST_COMMIT_MESSAGE"
           DEPLOY_CONF_ID="${{ github.event.inputs.deploy_conf_id }}"
           DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"
-          echo "[INFO] Dispatching ${DEPLOY_CONF_ID}.ci.yml with sync=true, deploy_type=${DEPLOY_TYPE}"
-          INPUTS="{\"sync\":\"true\",\"message\":\"$LAST_COMMIT_MESSAGE\""
-          if [ -n "$DEPLOY_TYPE" ]; then
-            INPUTS="${INPUTS},\"deploy_type\":\"${DEPLOY_TYPE}\""
+          if [ -n "$DEPLOY_CONF_ID" ] && [ -n "$DEPLOY_TYPE" ]; then
+            COMMIT_MSG=$(printf '%s\n[cd:%s:%s]' "$COMMIT_MSG" "$DEPLOY_CONF_ID" "$DEPLOY_TYPE")
           fi
-          INPUTS="${INPUTS}}"
-          curl -s -f -X POST \
-            -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token ${{ secrets.GIT_AUTH_TOKEN }}" \
-            "https://api.github.com/repos/underpostnet/engine/actions/workflows/${DEPLOY_CONF_ID}.ci.yml/dispatches" \
-            -d "{\"ref\":\"master\",\"inputs\":${INPUTS}}"
+          underpost cmt . ci package-pwa-microservices-template-ghpkg "$COMMIT_MSG"
+          underpost push . underpostnet/pwa-microservices-template

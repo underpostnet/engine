@@ -32,9 +32,8 @@ permissions:
   id-token: write
 jobs:
   pwa-microservices-template:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     name: Update github repo package Jobs
-    env:
-      SYNC: ${{ startsWith(github.event.workflow_run.head_commit.message, 'ci(package-pwa-microservices-template-sync-engine-lampp)') || (github.event_name == 'workflow_dispatch' && github.event.inputs.sync == 'true') }}
     runs-on: ubuntu-latest
     container:
       image: quay.io/rockylinux/rockylinux:9
@@ -70,16 +69,30 @@ jobs:
       - name: Build repository
         run: |
           cd .. && underpost clone underpostnet/pwa-microservices-template
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.message }}" ]; then
-            LAST_COMMIT_MESSAGE="${{ github.event.inputs.message }}"
+          FULL_MSG=$(cd pwa-microservices-template && git log -1 --pretty=%B 2>/dev/null || echo "")
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ github.event.inputs.message }}" ]; then
+              LAST_COMMIT_MESSAGE="${{ github.event.inputs.message }}"
+            else
+              LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1s/^[^:]*: [^ ]* //' | grep -v '^\[cd:' || true)
+            fi
+            SHOULD_CD="${{ github.event.inputs.sync }}"
+            DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"
           else
-            FULL_MSG=$(cd pwa-microservices-template && git log -1 --pretty=%B 2>/dev/null || echo "")
-            LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1s/^[^:]*: [^ ]* //')
+            LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1s/^[^:]*: [^ ]* //' | grep -v '^\[cd:' || true)
+            CD_MARKER=$(echo "$FULL_MSG" | grep '^\[cd:engine-lampp:' | head -1 || true)
+            if [ -n "$CD_MARKER" ]; then
+              SHOULD_CD="true"
+              DEPLOY_TYPE=$(echo "$CD_MARKER" | sed 's/\[cd:engine-lampp:\(.*\)\]/\1/')
+            else
+              SHOULD_CD="false"
+            fi
           fi
           if [ -z "$LAST_COMMIT_MESSAGE" ]; then
             LAST_COMMIT_MESSAGE="Update engine lampp repository"
           fi
           echo "[INFO] Captured commit message: $LAST_COMMIT_MESSAGE"
+          echo "[INFO] Should CD: $SHOULD_CD, Deploy type: $DEPLOY_TYPE"
           underpost clone --bare underpostnet/engine-lampp
           cd engine
           node bin/build dd-lampp development
@@ -92,8 +105,7 @@ jobs:
           git add .
           git commit -m "$LAST_COMMIT_MESSAGE"
           underpost push . underpostnet/engine-lampp
-          if [ "${SYNC}" = "true" ]; then
-            DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"
+          if [ "$SHOULD_CD" = "true" ]; then
             if [ -z "$DEPLOY_TYPE" ]; then
               DEPLOY_TYPE="sync-and-deploy"
             fi
