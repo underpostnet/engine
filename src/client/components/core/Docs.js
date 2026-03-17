@@ -35,7 +35,7 @@ const Docs = {
           <iframe
             class="in iframe-${ModalId}"
             src="${docData.url()}"
-            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox allow-top-navigation"
           >
           </iframe>
         `;

@@ -765,7 +765,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
               const htmlSrc = Render({
                 title: page.title,
                 ssrPath,
-                ssrHeadComponents: '',
+                ssrHeadComponents: '<base target="_top">',
                 ssrBodyComponents: SsrComponent(),
                 renderPayload: {
                   apiBaseProxyPath,

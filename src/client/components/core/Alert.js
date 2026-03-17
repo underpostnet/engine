@@ -49,7 +49,7 @@ const e404 = async () => {
     <br />
     <br />${Translate.Render('page-not-found')} <br />
     <br />
-    <a href="${location.origin}">${Translate.Render('back')}</a>
+    <a target="_top" href="${location.origin}">${Translate.Render('back')}</a>
   </div>`;
 };
 
@@ -68,7 +68,7 @@ const e500 = async () => {
     <br />
     <br />${Translate.Render('page-broken')} <br />
     <br />
-    <a href="${location.origin}">${Translate.Render('back')}</a>
+    <a target="_top" href="${location.origin}">${Translate.Render('back')}</a>
   </div>`;
 };
 

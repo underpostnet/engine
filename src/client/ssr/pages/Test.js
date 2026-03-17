@@ -182,17 +182,18 @@ const main = () => {
         <span class="bold">Test Page</span>
         <br />
         <br />
-        <a href="${location.origin}">${Translate.Render('back')}</a>
+        <a target="_top" href="${location.origin}">${Translate.Render('back')}</a>
       </div>`,
   );
 };
 
-SrrComponent = () => html`<script>
-  {
-    const s = ${s};
-    const append = ${append};
-    const getLang = ${getLang};
-    const main = ${main};
-    window.onload = main;
-  }
-</script>`;
+SrrComponent = () =>
+  html`<script>
+    {
+      const s = ${s};
+      const append = ${append};
+      const getLang = ${getLang};
+      const main = ${main};
+      window.onload = main;
+    }
+  </script>`;
