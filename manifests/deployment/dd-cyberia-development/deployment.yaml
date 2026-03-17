@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-blue
-          image: localhost/rockylinux9-underpost:v3.1.2
+          image: localhost/rockylinux9-underpost:v3.1.3
 
           command:
             - /bin/sh
@@ -263,7 +263,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-green
-          image: localhost/rockylinux9-underpost:v3.1.2
+          image: localhost/rockylinux9-underpost:v3.1.3
 
           command:
             - /bin/sh

@@ -1,4 +1,4 @@
-## underpost ci/cd cli v3.1.2
+## underpost ci/cd cli v3.1.3
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -121,6 +121,8 @@ Options:
                                process.
   --underpost-quickly-install  Uses Underpost Quickly Install for dependency
                                installation.
+  --skip-pull-base             Skips cloning repositories, uses current
+                               workspace code directly.
   -h, --help                   display help for command
  
 ```
@@ -857,7 +859,7 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,ptls,deploy-test,tf-vae-test,spark-template,rmi,kill,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
+  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,rmi,kill,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
   path                                            The input value, identifier, or path for the operation.
 
 Options:

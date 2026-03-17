@@ -2,22 +2,32 @@
 
 ## 2026-03-17
 
+### cli-run
+
+- feat: Add 'pid-info' and 'background' methods to enhance process management in CLI ([30afedf4d](https://github.com/underpostnet/engine/commit/30afedf4d17aca20d91f5ad065d979bd42951741))
+
+### server-start
+
+- feat: Add option to skip pulling base code in build process and update configuration for error handling ([3f8d7b09b](https://github.com/underpostnet/engine/commit/3f8d7b09b70270de9b0213b74d9683aad125d732))
+
+### github-actions
+
+- feat: Update CI workflows to improve commit message handling and deployment conditions ([2a4884a1e](https://github.com/underpostnet/engine/commit/2a4884a1e3cbf04eeb4999b1ff38e2c8b4cf41cc))
+- feat: Add deploy_type option to CI workflows and enhance changelog message propagation ([d222753ec](https://github.com/underpostnet/engine/commit/d222753ec66cbb1ce3cccc54d7eebea3f144e8b8))
+
+### docs
+
+- feat: Update changelog, CLI help, and documentation with new commands and options ([124c8b2af](https://github.com/underpostnet/engine/commit/124c8b2aff6aae21b57abeca66281cdfba3aaaf8))
+- feat: Update CLI documentation and enhance README with versioning and command index ([e6eb668d4](https://github.com/underpostnet/engine/commit/e6eb668d4007dc828f1b946c36ea369aaea6e2d4))
+- feat: Enhance documentation configuration and remove obsolete options in build processes ([3437e1488](https://github.com/underpostnet/engine/commit/3437e14884d54202c8a0bbdcef47edfa03528fb7))
+
 ### client-underpost
 
 - feat: Refactor styles in RichText and CssUnderpost components for improved typography ([ee1d12335](https://github.com/underpostnet/engine/commit/ee1d123354afb0826ef5f942a07feeeb6eb40c7b))
 
-### docs
-
-- feat: Update CLI documentation and enhance README with versioning and command index ([e6eb668d4](https://github.com/underpostnet/engine/commit/e6eb668d4007dc828f1b946c36ea369aaea6e2d4))
-- feat: Enhance documentation configuration and remove obsolete options in build processes ([3437e1488](https://github.com/underpostnet/engine/commit/3437e14884d54202c8a0bbdcef47edfa03528fb7))
-
 ### client-core
 
 - feat: Update links to open in the top frame and enhance iframe sandboxing ([8ec50df8d](https://github.com/underpostnet/engine/commit/8ec50df8d2eaaf210254930351a783c1d4409d5d))
-
-### github-actions
-
-- feat: Add deploy_type option to CI workflows and enhance changelog message propagation ([d222753ec](https://github.com/underpostnet/engine/commit/d222753ec66cbb1ce3cccc54d7eebea3f144e8b8))
 
 ### cli-client
 
