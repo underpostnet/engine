@@ -61,6 +61,7 @@ program
   .option('--run', 'Starts application servers and monitors their health.')
   .option('--build', 'Triggers the client-side application build process.')
   .option('--underpost-quickly-install', 'Uses Underpost Quickly Install for dependency installation.')
+  .option('--skip-pull-base', 'Skips cloning repositories, uses current workspace code directly.')
   .action(Underpost.start.callback)
   .description('Initiates application servers, build pipelines, or other defined services based on the deployment ID.');
 

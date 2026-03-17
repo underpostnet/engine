@@ -147,18 +147,25 @@ class UnderpostStartUp {
      * @param {string} deployId - The ID of the deployment.
      * @param {string} env - The environment of the deployment.
      * @param {Object} options - Options for the build.
+     * @param {boolean} options.skipPullBase - Whether to skip pulling the base code and use the current workspace code directly.
      * @param {boolean} options.underpostQuicklyInstall - Whether to use underpost quickly install.
      * @memberof UnderpostStartUp
      */
-    async build(deployId = 'dd-default', env = 'development', options = { underpostQuicklyInstall: false }) {
+    async build(
+      deployId = 'dd-default',
+      env = 'development',
+      options = { underpostQuicklyInstall: false, skipPullBase: false },
+    ) {
       const buildBasePath = `/home/dd`;
       const repoName = `engine-${deployId.split('-')[1]}`;
-      shellExec(`cd ${buildBasePath} && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
-      shellExec(`mkdir -p ${buildBasePath}/engine`);
-      shellExec(`cd ${buildBasePath} && sudo cp -a ./${repoName}/. ./engine`);
-      shellExec(`cd ${buildBasePath} && sudo rm -rf ./${repoName}`);
-      shellExec(`cd ${buildBasePath}/engine && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}-private`);
-      shellExec(`cd ${buildBasePath}/engine && sudo mv ./${repoName}-private ./engine-private`);
+      if (!options.skipPullBase) {
+        shellExec(`cd ${buildBasePath} && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
+        shellExec(`mkdir -p ${buildBasePath}/engine`);
+        shellExec(`cd ${buildBasePath} && sudo cp -a ./${repoName}/. ./engine`);
+        shellExec(`cd ${buildBasePath} && sudo rm -rf ./${repoName}`);
+        shellExec(`cd ${buildBasePath}/engine && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}-private`);
+        shellExec(`cd ${buildBasePath}/engine && sudo mv ./${repoName}-private ./engine-private`);
+      }
       shellCd(`${buildBasePath}/engine`);
       shellExec(options?.underpostQuicklyInstall ? `underpost install` : `npm install`);
       shellExec(`node bin env ${deployId} ${env}`);
@@ -167,7 +174,7 @@ class UnderpostStartUp {
         for (const itcScript of itcScripts)
           if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
       }
-      await Underpost.repo.client(deployId);
+      shellExec(`node bin client ${deployId}`);
     },
     /**
      * Runs a deployment.
