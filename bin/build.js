@@ -178,6 +178,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       fs.copySync(`./hardhat`, `${basePath}/hardhat`);
       fs.copySync(`./hardhat/WHITE-PAPER.md`, `${basePath}/WHITE-PAPER.md`);
       fs.copyFileSync(`./jsdoc.${confName}.json`, `${basePath}/jsdoc.json`);
+      fs.copyFileSync(`./jsdoc.${confName}.json`, `${basePath}/jsdoc.${confName}.json`);
       for (const path of [
         '/src/client/ssr/pages/CyberiaServerMetrics.js',
         '/src/server/object-layer.js',

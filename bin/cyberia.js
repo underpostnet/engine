@@ -1653,7 +1653,8 @@ try {
       }
     });
 
-  if (['underpost', 'env'].includes(process.argv[2])) throw new Error('Trigger underpost passthrough');
+  if (underpostProgram.commands.find((c) => c._name == process.argv[2]))
+    throw new Error('Trigger underpost passthrough');
 
   program.parse();
 } catch (error) {
