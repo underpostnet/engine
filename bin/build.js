@@ -177,8 +177,6 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       fs.copyFileSync(`./src/api/object-layer/README.md`, `${basePath}/README.md`);
       fs.copySync(`./hardhat`, `${basePath}/hardhat`);
       fs.copySync(`./hardhat/WHITE-PAPER.md`, `${basePath}/WHITE-PAPER.md`);
-      fs.copyFileSync(`./jsdoc.${confName}.json`, `${basePath}/jsdoc.json`);
-      fs.copyFileSync(`./jsdoc.${confName}.json`, `${basePath}/jsdoc.${confName}.json`);
       for (const path of [
         '/src/client/ssr/pages/CyberiaServerMetrics.js',
         '/src/server/object-layer.js',
@@ -204,22 +202,26 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   fs.copySync(`./src/cli`, `${basePath}/src/cli`);
   if (!fs.existsSync(`${basePath}/images`)) fs.mkdirSync(`${basePath}/images`);
 
-  const env = process.argv.includes('development') ? 'development' : 'production';
-  const deploymentsFiles = ['proxy.yaml', 'deployment.yaml', 'secret.yaml'];
-  // remove engine-private of .dockerignore for local testing
-  for (const file of deploymentsFiles) {
-    if (fs.existsSync(`./manifests/deployment/${confName}-${env}/${file}`)) {
-      fs.copyFileSync(`./manifests/deployment/${confName}-${env}/${file}`, `${basePath}/${file}`);
-    }
-  }
-
   fs.copyFileSync(`./.github/workflows/${repoName}.ci.yml`, `${basePath}/.github/workflows/${repoName}.ci.yml`);
   fs.copyFileSync(`./.github/workflows/${repoName}.cd.yml`, `${basePath}/.github/workflows/${repoName}.cd.yml`);
+
+  if (fs.existsSync(`./jsdoc.${confName}.json`)) {
+    fs.copyFileSync(`./jsdoc.${confName}.json`, `${basePath}/jsdoc.json`);
+    fs.copyFileSync(`./jsdoc.${confName}.json`, `${basePath}/jsdoc.${confName}.json`);
+  }
+
+  if (fs.existsSync(`./manifests/deployment/${confName}-development`))
+    fs.copySync(
+      `./manifests/deployment/${confName}-development`,
+      `${basePath}/manifests/deployment/${confName}-development`,
+    );
 
   // Copy conf.<deploy-id>.js to conf.js for the respective deployment
   fs.copyFileSync(`./conf.${confName}.js`, `${basePath}/conf.js`);
   fs.copyFileSync(`./manifests/deployment/${confName}-development/proxy.yaml`, `${basePath}/proxy.yaml`);
   fs.copyFileSync(`./manifests/deployment/${confName}-development/deployment.yaml`, `${basePath}/deployment.yaml`);
+  const pvPvcPath = `./manifests/deployment/${confName}-development/pv-pvc.yaml`;
+  if (fs.existsSync(pvPvcPath)) fs.copyFileSync(pvPvcPath, `${basePath}/pv-pvc.yaml`);
 
   if (fs.existsSync(`./src/ws/${confName.split('-')[1]}`)) {
     fs.copySync(`./src/ws/${confName.split('-')[1]}`, `${basePath}/src/ws/${confName.split('-')[1]}`);
