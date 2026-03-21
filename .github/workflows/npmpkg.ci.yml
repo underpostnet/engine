@@ -91,11 +91,29 @@ jobs:
           git add .
           git config user.name 'underpostnet'
           git config user.email 'fcoverdugoa@underpost.net'
-          COMMIT_MSG="$LAST_COMMIT_MESSAGE"
+          underpost cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
+          underpost push . underpostnet/pwa-microservices-template
+
+      - name: Dispatch all engine CIs
+        run: |
           DEPLOY_CONF_ID="${{ github.event.inputs.deploy_conf_id }}"
           DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"
-          if [ -n "$DEPLOY_CONF_ID" ] && [ -n "$DEPLOY_TYPE" ]; then
-            COMMIT_MSG=$(printf '%s\n[cd:%s:%s]' "$COMMIT_MSG" "$DEPLOY_CONF_ID" "$DEPLOY_TYPE")
-          fi
-          underpost cmt . ci package-pwa-microservices-template-ghpkg "$COMMIT_MSG"
-          underpost push . underpostnet/pwa-microservices-template
+          for ENGINE in engine-core engine-cyberia engine-lampp engine-test; do
+            SYNC="false"
+            DT=""
+            if [ "$ENGINE" = "$DEPLOY_CONF_ID" ]; then
+              SYNC="true"
+              DT="$DEPLOY_TYPE"
+            fi
+            echo "[INFO] Dispatching ${ENGINE}.ci.yml (sync=$SYNC, deploy_type=$DT)"
+            INPUTS="{\"sync\":\"${SYNC}\""
+            if [ -n "$DT" ]; then
+              INPUTS="${INPUTS},\"deploy_type\":\"${DT}\""
+            fi
+            INPUTS="${INPUTS}}"
+            curl -s -X POST \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${{ secrets.GIT_AUTH_TOKEN }}" \
+              "https://api.github.com/repos/underpostnet/engine/actions/workflows/${ENGINE}.ci.yml/dispatches" \
+              -d "{\"ref\":\"master\",\"inputs\":${INPUTS}}"
+          done

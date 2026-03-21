@@ -1,9 +1,5 @@
 name: CI | Engine core | github repository
 on:
-  workflow_run:
-    workflows: ['CI | Publish npm repository package']
-    types:
-      - completed
   workflow_dispatch:
     inputs:
       sync:
@@ -32,7 +28,6 @@ permissions:
   id-token: write
 jobs:
   pwa-microservices-template:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     name: Update github repo package Jobs
     runs-on: ubuntu-latest
     container:
@@ -69,25 +64,14 @@ jobs:
       - name: Build repository
         run: |
           cd .. && underpost clone underpostnet/pwa-microservices-template
-          FULL_MSG=$(cd pwa-microservices-template && git log -1 --pretty=%B 2>/dev/null || echo "")
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            if [ -n "${{ github.event.inputs.message }}" ]; then
-              LAST_COMMIT_MESSAGE="${{ github.event.inputs.message }}"
-            else
-              LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1s/^[^:]*: [^ ]* //' | grep -v '^\[cd:' || true)
-            fi
-            SHOULD_CD="${{ github.event.inputs.sync }}"
-            DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"
+          if [ -n "${{ github.event.inputs.message }}" ]; then
+            LAST_COMMIT_MESSAGE="${{ github.event.inputs.message }}"
           else
-            LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1s/^[^:]*: [^ ]* //' | grep -v '^\[cd:' || true)
-            CD_MARKER=$(echo "$FULL_MSG" | grep '^\[cd:engine-core:' | head -1 || true)
-            if [ -n "$CD_MARKER" ]; then
-              SHOULD_CD="true"
-              DEPLOY_TYPE=$(echo "$CD_MARKER" | sed 's/\[cd:engine-core:\(.*\)\]/\1/')
-            else
-              SHOULD_CD="false"
-            fi
+            FULL_MSG=$(cd pwa-microservices-template && git log -1 --pretty=%B 2>/dev/null || echo "")
+            LAST_COMMIT_MESSAGE=$(echo "$FULL_MSG" | sed '1s/^[^:]*: [^ ]* //')
           fi
+          SHOULD_CD="${{ github.event.inputs.sync }}"
+          DEPLOY_TYPE="${{ github.event.inputs.deploy_type }}"
           if [ -z "$LAST_COMMIT_MESSAGE" ]; then
             LAST_COMMIT_MESSAGE="Update engine core repository"
           fi
