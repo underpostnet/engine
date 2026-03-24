@@ -41,5 +41,7 @@ packer/images/*/aarch64_VARS.fd
 packer/images/*/*.iso
 /quorum-kubernetes
 /manifests/besu
+/cyberia-server
+/cyberia-client
 *pub.json
 gitleaks-report.json
