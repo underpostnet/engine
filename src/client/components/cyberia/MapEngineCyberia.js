@@ -1,8 +1,9 @@
-import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { darkTheme } from '../core/Css.js';
 import { Input } from '../core/Input.js';
 import { htmls, s } from '../core/VanillaJs.js';
+import { CyberiaEntityManagement } from '../../services/cyberia-entity/cyberia-entity.management.js';
+import { CyberiaEntityService } from '../../services/cyberia-entity/cyberia-entity.service.js';
+import { DefaultManagement } from '../../services/default/default.management.js';
 
 class MapEngineCyberia {
   static entities = [];
@@ -46,28 +47,57 @@ class MapEngineCyberia {
     const idColor = 'map-engine-color';
     const idAlpha = 'map-engine-alpha';
     const rgbaDisplayId = 'map-engine-rgba-display';
-    const entityGridId = 'map-engine-entity-grid';
+    const managementId = 'modal-cyberia-map-engine';
+
+    const hexToRgba = (hex, alpha) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+
+    const getCanvasParams = () => ({
+      cols: parseInt(s(`.${idX}`)?.value) || 16,
+      rows: parseInt(s(`.${idY}`)?.value) || 16,
+      cellW: parseInt(s(`.${idCellW}`)?.value) || 32,
+      cellH: parseInt(s(`.${idCellH}`)?.value) || 32,
+    });
+
+    const rerenderCanvas = () => {
+      const canvas = s(`.${canvasId}`);
+      if (!canvas) return;
+      const { cols, rows, cellW, cellH } = getCanvasParams();
+      MapEngineCyberia.renderGrid(canvas, cols, rows, cellW, cellH);
+    };
+
+    const getEntityParams = () => {
+      const hex = s(`.${idColor}`)?.value || '#ff0000';
+      const alpha = parseFloat(s(`.${idAlpha}`)?.value);
+      return {
+        entityType: s(`.${idEntityType}`)?.value || 'floor',
+        initCellX: parseInt(s(`.${idInitCellX}`)?.value) || 0,
+        initCellY: parseInt(s(`.${idInitCellY}`)?.value) || 0,
+        dimX: parseInt(s(`.${idDimX}`)?.value) || 1,
+        dimY: parseInt(s(`.${idDimY}`)?.value) || 1,
+        color: hexToRgba(hex, alpha),
+      };
+    };
+
+    const addEntityFromInputs = async () => {
+      const ep = getEntityParams();
+      const result = await CyberiaEntityService.post({ body: ep });
+      if (result.status === 'success') {
+        await DefaultManagement.loadTable(managementId, { force: true, reload: true });
+      }
+    };
 
     setTimeout(() => {
       const canvas = s(`.${canvasId}`);
       if (!canvas) return;
-      const getParams = () => ({
-        cols: parseInt(s(`.${idX}`).value) || 16,
-        rows: parseInt(s(`.${idY}`).value) || 16,
-        cellW: parseInt(s(`.${idCellW}`).value) || 32,
-        cellH: parseInt(s(`.${idCellH}`).value) || 32,
-      });
-
-      const hexToRgba = (hex, alpha) => {
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-      };
 
       const updateRgbaDisplay = () => {
-        const hex = s(`.${idColor}`).value || '#ff0000';
-        const alpha = parseFloat(s(`.${idAlpha}`).value);
+        const hex = s(`.${idColor}`)?.value || '#ff0000';
+        const alpha = parseFloat(s(`.${idAlpha}`)?.value);
         const rgba = hexToRgba(hex, alpha);
         if (s(`.${rgbaDisplayId}`))
           htmls(
@@ -80,35 +110,12 @@ class MapEngineCyberia {
       if (s(`.${idAlpha}`)) s(`.${idAlpha}`).addEventListener('input', updateRgbaDisplay);
       updateRgbaDisplay();
 
-      const getEntityParams = () => {
-        const hex = s(`.${idColor}`).value || '#ff0000';
-        const alpha = parseFloat(s(`.${idAlpha}`).value);
-        return {
-          entityType: s(`.${idEntityType}`).value || 'floor',
-          initCellX: parseInt(s(`.${idInitCellX}`).value) || 0,
-          initCellY: parseInt(s(`.${idInitCellY}`).value) || 0,
-          dimX: parseInt(s(`.${idDimX}`).value) || 1,
-          dimY: parseInt(s(`.${idDimY}`).value) || 1,
-          color: hexToRgba(hex, alpha),
-        };
-      };
-
-      const addEntity = () => {
-        const { cols, rows, cellW, cellH } = getParams();
-        const ep = getEntityParams();
-        MapEngineCyberia.entities.push(ep);
-        MapEngineCyberia.renderGrid(canvas, cols, rows, cellW, cellH);
-        if (AgGrid.grids[entityGridId]) {
-          AgGrid.grids[entityGridId].setGridOption('rowData', [...MapEngineCyberia.entities]);
-        }
-      };
-
-      const params = getParams();
+      const params = getCanvasParams();
       MapEngineCyberia.renderGrid(canvas, params.cols, params.rows, params.cellW, params.cellH);
 
       canvas.onclick = (e) => {
         const rect = canvas.getBoundingClientRect();
-        const { cellW, cellH } = getParams();
+        const { cellW, cellH } = getCanvasParams();
         const col = Math.floor(((e.clientX - rect.left) * (canvas.width / rect.width)) / cellW);
         const row = Math.floor(((e.clientY - rect.top) * (canvas.height / rect.height)) / cellH);
         console.log(`Cell clicked: (${col}, ${row})`);
@@ -116,26 +123,35 @@ class MapEngineCyberia {
         if (s(`.${idInitCellX}`)) s(`.${idInitCellX}`).value = col;
         if (s(`.${idInitCellY}`)) s(`.${idInitCellY}`).value = row;
 
-        addEntity();
+        addEntityFromInputs();
       };
 
-      if (s(`.btn-map-engine-add-entity`)) s(`.btn-map-engine-add-entity`).onclick = () => addEntity();
+      if (s(`.btn-map-engine-add-entity`)) s(`.btn-map-engine-add-entity`).onclick = () => addEntityFromInputs();
 
       if (s(`.btn-map-engine-generate`))
         s(`.btn-map-engine-generate`).onclick = () => {
-          const { cols, rows, cellW, cellH } = getParams();
-          MapEngineCyberia.renderGrid(canvas, cols, rows, cellW, cellH);
+          rerenderCanvas();
         };
+    });
 
-      if (s(`.btn-map-engine-clear`))
-        s(`.btn-map-engine-clear`).onclick = () => {
-          MapEngineCyberia.entities = [];
-          const { cols, rows, cellW, cellH } = getParams();
-          MapEngineCyberia.renderGrid(canvas, cols, rows, cellW, cellH);
-          if (AgGrid.grids[entityGridId]) {
-            AgGrid.grids[entityGridId].setGridOption('rowData', []);
-          }
-        };
+    const managementTableHtml = await CyberiaEntityManagement.RenderTable({
+      idModal: managementId,
+      customEvent: {
+        add: addEntityFromInputs,
+      },
+      readyRowDataEvent: {
+        'map-engine-sync': (rowData) => {
+          MapEngineCyberia.entities = rowData.map((row) => ({
+            entityType: row.entityType,
+            initCellX: row.initCellX,
+            initCellY: row.initCellY,
+            dimX: row.dimX,
+            dimY: row.dimY,
+            color: row.color,
+          }));
+          rerenderCanvas();
+        },
+      },
     });
 
     return html`<div class="in section-mp">
@@ -184,16 +200,10 @@ class MapEngineCyberia {
         </div>
       </div>
       <div class="fl">
-        <div class="in fll" style="width: 50%;">
+        <div class="in wfa" style="padding: 10px; max-width: 200px; margin: auto;">
           ${await BtnIcon.Render({
             class: 'wfa btn-map-engine-generate',
             label: html`<i class="fa-solid fa-arrows-rotate"></i> Generate`,
-          })}
-        </div>
-        <div class="in fll" style="width: 50%;">
-          ${await BtnIcon.Render({
-            class: 'wfa btn-map-engine-clear',
-            label: html`<i class="fa-solid fa-broom"></i> Clear Entities`,
           })}
         </div>
       </div>
@@ -297,26 +307,7 @@ class MapEngineCyberia {
             label: html`<i class="fa-solid fa-plus"></i> Add Entity`,
           })}
         </div>
-        <div class="in">
-          ${await AgGrid.Render({
-            id: entityGridId,
-            darkTheme,
-            style: {
-              height: '300px',
-            },
-            gridOptions: {
-              rowData: [],
-              columnDefs: [
-                { field: 'entityType', headerName: 'Entity Type' },
-                { field: 'initCellX', headerName: 'initCellX' },
-                { field: 'initCellY', headerName: 'initCellY' },
-                { field: 'dimX', headerName: 'dimX' },
-                { field: 'dimY', headerName: 'dimY' },
-                { field: 'color', headerName: 'Color' },
-              ],
-            },
-          })}
-        </div>
+        <div class="in">${managementTableHtml}</div>
       </div>
     </div>`;
   }
