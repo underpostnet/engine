@@ -613,6 +613,7 @@ const DefaultConf = /**/ {
         docs: {
           coveragePath: './hardhat',
           jsJsonPath: './jsdoc.dd-cyberia.json',
+          coverageOutputDir: 'hardhat-coverage',
           references: ['./hardhat/README.md', './hardhat/WHITE-PAPER.md'],
         },
         origins: [
@@ -658,6 +659,7 @@ const DefaultConf = /**/ {
         docs: {
           coveragePath: './hardhat',
           jsJsonPath: './jsdoc.dd-cyberia.json',
+          coverageOutputDir: 'hardhat-coverage',
           references: ['./hardhat/README.md', './hardhat/WHITE-PAPER.md'],
         },
         origins: [

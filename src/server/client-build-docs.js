@@ -394,6 +394,7 @@ const buildCoverage = async ({ host, path, docs }) => {
   const jsDocSourcePath = docs.jsJsonPath;
   const jsDocsConfig = JSON.parse(fs.readFileSync(jsDocSourcePath, 'utf8'));
   const coveragePath = docs.coveragePath;
+  const coverageOutputDir = docs.coverageOutputDir || 'coverage';
 
   const coverageOutputPath = `${coveragePath}/coverage`;
   if (!fs.existsSync(coverageOutputPath)) {
@@ -411,7 +412,7 @@ const buildCoverage = async ({ host, path, docs }) => {
   }
 
   if (fs.existsSync(coverageOutputPath) && fs.readdirSync(coverageOutputPath).length > 0) {
-    const coverageBuildPath = `${jsDocsConfig.opts.destination}coverage`;
+    const coverageBuildPath = `${jsDocsConfig.opts.destination}${coverageOutputDir}`;
     fs.mkdirSync(coverageBuildPath, { recursive: true });
     fs.copySync(coverageOutputPath, coverageBuildPath);
     logger.warn('build coverage', coverageBuildPath);
