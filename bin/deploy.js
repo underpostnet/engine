@@ -890,20 +890,58 @@ nvidia/gpu-operator \
 
       logger.info('Found dependabot branches:', dependabotBranches);
 
-      for (const branch of dependabotBranches) {
-        logger.info(`Checking out branch: ${branch}`);
-        shellExec(`git checkout -B ${branch} origin/${branch}`);
+      // Stash local changes to prevent checkout/merge conflicts
+      const stashResult = shellExec(`git stash --include-untracked`, { silent: true });
+      const hasStash = !stashResult.stdout.includes('No local changes to save');
+
+      // Checkout master
+      const checkoutResult = shellExec(`git checkout master`);
+      if (checkoutResult.code !== 0) {
+        logger.error('Failed to checkout master');
+        if (hasStash) shellExec(`git stash pop`);
+        break;
       }
 
-      logger.info('Checking out master');
-      shellExec(`git checkout master`);
+      // Pull latest master
+      shellExec(`git pull origin master`);
+
+      const mergedBranches = [];
+      const failedBranches = [];
 
       for (const branch of dependabotBranches) {
         logger.info(`Merging branch: ${branch}`);
-        shellExec(`git merge ${branch}`);
+        const mergeResult = shellExec(`git merge origin/${branch}`);
+        if (mergeResult.code === 0) {
+          mergedBranches.push(branch);
+        } else {
+          logger.error(`Failed to merge branch: ${branch}`);
+          shellExec(`git merge --abort`, { silent: true });
+          failedBranches.push(branch);
+        }
       }
 
-      logger.info('All dependabot branches merged into master');
+      if (mergedBranches.length > 0) {
+        logger.info('Pushing merged changes to master');
+        shellExec(`git push origin master`);
+
+        // Delete merged remote branches
+        for (const branch of mergedBranches) {
+          logger.info(`Deleting remote branch: ${branch}`);
+          shellExec(`git push origin --delete ${branch}`);
+        }
+
+        // Delete merged local branches
+        for (const branch of mergedBranches) {
+          shellExec(`git branch -D ${branch}`, { silent: true });
+        }
+      }
+
+      // Restore stashed changes
+      if (hasStash) shellExec(`git stash pop`);
+
+      logger.info('Merged branches:', mergedBranches);
+      if (failedBranches.length > 0) logger.warn('Failed branches:', failedBranches);
+      logger.info('Dependabot merge completed');
       break;
     }
   }
