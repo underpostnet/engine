@@ -1,6 +1,6 @@
 import { loggerFactory } from '../../server/logger.js';
 import { CyberiaMapController } from './cyberia-map.controller.js';
-import { userGuard } from '../../server/auth.js';
+import { userGuard, adminGuard } from '../../server/auth.js';
 import express from 'express';
 
 const logger = loggerFactory(import.meta);
@@ -28,7 +28,7 @@ const CyberiaMapRouter = (options) => {
   router.delete(
     `/`,
     authMiddleware,
-    userGuard,
+    adminGuard,
     async (req, res) => await CyberiaMapController.delete(req, res, options),
   );
   return router;

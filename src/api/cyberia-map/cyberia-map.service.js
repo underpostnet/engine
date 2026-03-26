@@ -31,13 +31,22 @@ const CyberiaMapService = {
   put: async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
     const CyberiaMap = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaMap;
-    return await CyberiaMap.findByIdAndUpdate(req.params.id, req.body);
+    const map = await CyberiaMap.findById(req.params.id);
+    if (!map) throw new Error('map not found');
+    if (req.auth.user.role !== 'admin' && String(map.creator) !== String(req.auth.user._id))
+      throw new Error('insufficient permission');
+    return await CyberiaMap.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
   },
   delete: async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
     const CyberiaMap = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaMap;
-    if (req.params.id) return await CyberiaMap.findByIdAndDelete(req.params.id);
-    else return await CyberiaMap.deleteMany();
+    if (req.params.id) {
+      const map = await CyberiaMap.findById(req.params.id);
+      if (!map) throw new Error('map not found');
+      if (req.auth.user.role !== 'admin' && String(map.creator) !== String(req.auth.user._id))
+        throw new Error('insufficient permission');
+      return await CyberiaMap.findByIdAndDelete(req.params.id);
+    } else return await CyberiaMap.deleteMany();
   },
 };
 

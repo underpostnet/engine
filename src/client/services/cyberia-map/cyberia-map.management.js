@@ -1,7 +1,8 @@
 import { BtnIcon } from '../../components/core/BtnIcon.js';
-import { getId, commonUserGuard } from '../../components/core/CommonJs.js';
+import { getId, commonUserGuard, commonAdminGuard } from '../../components/core/CommonJs.js';
 import { EventsUI } from '../../components/core/EventsUI.js';
 import { NotificationManager } from '../../components/core/NotificationManager.js';
+import { s } from '../../components/core/VanillaJs.js';
 import { DefaultManagement } from '../default/default.management.js';
 import { CyberiaMapService } from './cyberia-map.service.js';
 import { getApiBaseUrl } from '../core/core.service.js';
@@ -169,6 +170,12 @@ const CyberiaMapManagement = {
       ServiceProvider: CyberiaMapService,
       customEvent,
     });
+
+    // Clear all button: admin only
+    if (!commonAdminGuard(role)) {
+      const cleanBtn = s(`.management-table-btn-clean-${idModal}`);
+      if (cleanBtn) cleanBtn.classList.add('hide');
+    }
 
     if (readyRowDataEvent) {
       if (!DefaultManagement.Tokens[idModal].readyRowDataEvent)
