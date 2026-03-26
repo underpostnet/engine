@@ -874,7 +874,8 @@ nvidia/gpu-operator \
     }
 
     case 'dependabot': {
-      shellExec(`git fetch origin`);
+      dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
+      shellExec(`git fetch origin --prune`);
 
       const { stdout: branchOutput } = shellExec(`git branch -r`, { silent: true });
       const dependabotBranches = branchOutput
@@ -905,6 +906,10 @@ nvidia/gpu-operator \
       // Pull latest master
       shellExec(`git pull origin master`);
 
+      // Get repo URI from remote
+      const remoteUrl = shellExec(`git config --get remote.origin.url`, { stdout: true, silent: true }).trim();
+      const gitUri = remoteUrl.replace(/.*github\.com[:/]/, '').replace(/\.git$/, '');
+
       const mergedBranches = [];
       const failedBranches = [];
 
@@ -912,7 +917,8 @@ nvidia/gpu-operator \
         logger.info(`Merging branch: ${branch}`);
         const mergeResult = shellExec(`git merge origin/${branch}`);
         if (mergeResult.code === 0) {
-          mergedBranches.push(branch);
+          const isAlreadyMerged = mergeResult.stdout && mergeResult.stdout.includes('Already up to date');
+          mergedBranches.push({ branch, isAlreadyMerged });
         } else {
           logger.error(`Failed to merge branch: ${branch}`);
           shellExec(`git merge --abort`, { silent: true });
@@ -920,26 +926,22 @@ nvidia/gpu-operator \
         }
       }
 
-      if (mergedBranches.length > 0) {
-        logger.info('Pushing merged changes to master');
-        shellExec(`git push origin master`);
-
-        // Delete merged remote branches
-        for (const branch of mergedBranches) {
-          logger.info(`Deleting remote branch: ${branch}`);
-          shellExec(`git push origin --delete ${branch}`);
-        }
-
-        // Delete merged local branches
-        for (const branch of mergedBranches) {
-          shellExec(`git branch -D ${branch}`, { silent: true });
-        }
+      // Delete merged local and remote branches
+      for (const { branch, isAlreadyMerged } of mergedBranches) {
+        shellExec(`git branch -D ${branch}`, { silent: true });
+        // logger.info(`Deleting remote branch: ${branch}${isAlreadyMerged ? ' (already merged)' : ''}`);
+        // shellExec(`git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}.git --delete ${branch}`, {
+        //   disableLog: true,
+        // });
       }
 
       // Restore stashed changes
       if (hasStash) shellExec(`git stash pop`);
 
-      logger.info('Merged branches:', mergedBranches);
+      logger.info(
+        'Merged branches:',
+        mergedBranches.map((m) => m.branch),
+      );
       if (failedBranches.length > 0) logger.warn('Failed branches:', failedBranches);
       logger.info('Dependabot merge completed');
       break;
