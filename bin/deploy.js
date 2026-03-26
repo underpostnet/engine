@@ -819,11 +819,19 @@ nvidia/gpu-operator \
     }
 
     case 'cyberia': {
-      const { CyberiaDependencies } = await import(`../src/client/components/cyberia-portal/CommonCyberiaPortal.js`);
+      const { CyberiaDependencies, CyberiaDependenciesOverrides, patchCyberiaDependencies } = await import(
+        `../src/client/components/cyberia-portal/CommonCyberiaPortal.js`,
+      );
+      const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
+      const backupPackageJson = JSON.stringify(originPackageJson, null, 4);
+      Object.assign(originPackageJson.overrides, CyberiaDependenciesOverrides);
+      fs.writeFileSync(`package.json`, JSON.stringify(originPackageJson, null, 4), 'utf8');
       for (const dep of Object.keys(CyberiaDependencies)) {
         const ver = CyberiaDependencies[dep];
         shellExec(`npm install ${dep}@${ver}`);
       }
+      patchCyberiaDependencies(fs);
+      fs.writeFileSync(`package.json`, backupPackageJson, 'utf8');
       break;
     }
 
