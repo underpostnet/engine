@@ -1,12 +1,13 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Input } from '../core/Input.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { CyberiaEntityManagement } from '../../services/cyberia-entity/cyberia-entity.management.js';
-import { CyberiaEntityService } from '../../services/cyberia-entity/cyberia-entity.service.js';
+import { CyberiaMapManagement } from '../../services/cyberia-map/cyberia-map.management.js';
+import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 
 class MapEngineCyberia {
   static entities = [];
+  static currentMapId = null;
 
   static renderGrid(canvas, cols, rows, cellW, cellH) {
     canvas.width = cols * cellW;
@@ -32,7 +33,48 @@ class MapEngineCyberia {
     }
   }
 
+  static renderEntityList(containerId) {
+    const container = s(`.${containerId}`);
+    if (!container) return;
+    let html = '';
+    MapEngineCyberia.entities.forEach((entity, i) => {
+      html += `<div class="fl" style="border-bottom:1px solid #444; padding:4px 0; align-items:center;">
+        <div class="in fll" style="width:20px;height:20px;background:${entity.color};border:1px solid #888;margin-right:6px;"></div>
+        <div class="in fll" style="flex:1;font-size:12px;font-family:monospace;">
+          ${entity.entityType} (${entity.initCellX},${entity.initCellY}) ${entity.dimX}x${entity.dimY}
+        </div>
+        <div class="in fll">
+          <button class="btn-map-engine-remove-entity" data-index="${i}" style="cursor:pointer;background:#a00;color:#fff;border:none;padding:2px 8px;font-size:12px;">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </div>`;
+    });
+    if (!html) html = '<div style="color:#888;font-size:13px;">No entities added yet.</div>';
+    htmls(`.${containerId}`, html);
+
+    container.querySelectorAll('.btn-map-engine-remove-entity').forEach((btn) => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.index);
+        MapEngineCyberia.entities.splice(idx, 1);
+        MapEngineCyberia.renderEntityList(containerId);
+        const canvasEl = s('.map-engine-canvas');
+        if (canvasEl) {
+          const cols = parseInt(s('.map-engine-input-x')?.value) || 16;
+          const rows = parseInt(s('.map-engine-input-y')?.value) || 16;
+          const cellW = parseInt(s('.map-engine-input-cell-w')?.value) || 32;
+          const cellH = parseInt(s('.map-engine-input-cell-h')?.value) || 32;
+          MapEngineCyberia.renderGrid(canvasEl, cols, rows, cellW, cellH);
+        }
+      };
+    });
+  }
+
   static async render() {
+    const idCode = 'map-engine-input-code';
+    const idName = 'map-engine-input-name';
+    const idDescription = 'map-engine-input-description';
+
     const idX = 'map-engine-input-x';
     const idY = 'map-engine-input-y';
     const idCellW = 'map-engine-input-cell-w';
@@ -47,7 +89,11 @@ class MapEngineCyberia {
     const idColor = 'map-engine-color';
     const idAlpha = 'map-engine-alpha';
     const rgbaDisplayId = 'map-engine-rgba-display';
+    const entityListId = 'map-engine-entity-list';
     const managementId = 'modal-cyberia-map-engine';
+
+    MapEngineCyberia.entities = [];
+    MapEngineCyberia.currentMapId = null;
 
     const hexToRgba = (hex, alpha) => {
       const r = parseInt(hex.slice(1, 3), 16);
@@ -83,12 +129,59 @@ class MapEngineCyberia {
       };
     };
 
-    const addEntityFromInputs = async () => {
+    const addEntityLocally = () => {
       const ep = getEntityParams();
-      const result = await CyberiaEntityService.post({ body: ep });
+      MapEngineCyberia.entities.push(ep);
+      MapEngineCyberia.renderEntityList(entityListId);
+      rerenderCanvas();
+    };
+
+    const getMapPayload = () => ({
+      code: s(`.${idCode}`)?.value || '',
+      name: s(`.${idName}`)?.value || '',
+      description: s(`.${idDescription}`)?.value || '',
+      entities: MapEngineCyberia.entities,
+    });
+
+    const saveMap = async () => {
+      const body = getMapPayload();
+      let result;
+      if (MapEngineCyberia.currentMapId) {
+        result = await CyberiaMapService.put({ id: MapEngineCyberia.currentMapId, body });
+      } else {
+        result = await CyberiaMapService.post({ body });
+      }
       if (result.status === 'success') {
+        if (result.data?._id) MapEngineCyberia.currentMapId = result.data._id;
         await DefaultManagement.loadTable(managementId, { force: true, reload: true });
       }
+    };
+
+    const loadMap = (mapData) => {
+      MapEngineCyberia.currentMapId = mapData._id || null;
+      if (s(`.${idCode}`)) s(`.${idCode}`).value = mapData.code || '';
+      if (s(`.${idName}`)) s(`.${idName}`).value = mapData.name || '';
+      if (s(`.${idDescription}`)) s(`.${idDescription}`).value = mapData.description || '';
+      MapEngineCyberia.entities = (mapData.entities || []).map((e) => ({
+        entityType: e.entityType,
+        initCellX: e.initCellX,
+        initCellY: e.initCellY,
+        dimX: e.dimX,
+        dimY: e.dimY,
+        color: e.color,
+      }));
+      MapEngineCyberia.renderEntityList(entityListId);
+      rerenderCanvas();
+    };
+
+    const resetForm = () => {
+      MapEngineCyberia.currentMapId = null;
+      if (s(`.${idCode}`)) s(`.${idCode}`).value = '';
+      if (s(`.${idName}`)) s(`.${idName}`).value = '';
+      if (s(`.${idDescription}`)) s(`.${idDescription}`).value = '';
+      MapEngineCyberia.entities = [];
+      MapEngineCyberia.renderEntityList(entityListId);
+      rerenderCanvas();
     };
 
     setTimeout(() => {
@@ -123,38 +216,70 @@ class MapEngineCyberia {
         if (s(`.${idInitCellX}`)) s(`.${idInitCellX}`).value = col;
         if (s(`.${idInitCellY}`)) s(`.${idInitCellY}`).value = row;
 
-        addEntityFromInputs();
+        addEntityLocally();
       };
 
-      if (s(`.btn-map-engine-add-entity`)) s(`.btn-map-engine-add-entity`).onclick = () => addEntityFromInputs();
+      if (s(`.btn-map-engine-add-entity`)) s(`.btn-map-engine-add-entity`).onclick = () => addEntityLocally();
 
       if (s(`.btn-map-engine-generate`))
         s(`.btn-map-engine-generate`).onclick = () => {
           rerenderCanvas();
         };
+
+      if (s(`.btn-map-engine-save-map`)) s(`.btn-map-engine-save-map`).onclick = () => saveMap();
+
+      if (s(`.btn-map-engine-new-map`)) s(`.btn-map-engine-new-map`).onclick = () => resetForm();
     });
 
-    const managementTableHtml = await CyberiaEntityManagement.RenderTable({
+    const managementTableHtml = await CyberiaMapManagement.RenderTable({
       idModal: managementId,
-      customEvent: {
-        add: addEntityFromInputs,
-      },
       readyRowDataEvent: {
-        'map-engine-sync': (rowData) => {
-          MapEngineCyberia.entities = rowData.map((row) => ({
-            entityType: row.entityType,
-            initCellX: row.initCellX,
-            initCellY: row.initCellY,
-            dimX: row.dimX,
-            dimY: row.dimY,
-            color: row.color,
-          }));
-          rerenderCanvas();
+        'map-engine-load': (rowData) => {
+          if (rowData && rowData.length > 0) {
+            const firstMap = rowData[0];
+            if (firstMap._id && firstMap._id === MapEngineCyberia.currentMapId) return;
+          }
+        },
+      },
+      customEvent: {
+        rowClick: async (data) => {
+          if (data && data._id) {
+            const result = await CyberiaMapService.get({ id: data._id });
+            if (result.status === 'success' && result.data) {
+              loadMap(result.data);
+            }
+          }
         },
       },
     });
 
     return html`<div class="in section-mp">
+      <div class="fl">
+        <div class="in fll" style="width: 33%;">
+          ${await Input.Render({
+            id: idCode,
+            label: html`Code`,
+            containerClass: 'inl',
+            type: 'text',
+          })}
+        </div>
+        <div class="in fll" style="width: 33%;">
+          ${await Input.Render({
+            id: idName,
+            label: html`Name`,
+            containerClass: 'inl',
+            type: 'text',
+          })}
+        </div>
+        <div class="in fll" style="width: 33%;">
+          ${await Input.Render({
+            id: idDescription,
+            label: html`Description`,
+            containerClass: 'inl',
+            type: 'text',
+          })}
+        </div>
+      </div>
       <div class="fl">
         <div class="in fll" style="width: 50%;">
           ${await Input.Render({
@@ -307,7 +432,22 @@ class MapEngineCyberia {
             label: html`<i class="fa-solid fa-plus"></i> Add Entity`,
           })}
         </div>
-        <div class="in">${managementTableHtml}</div>
+        <div class="in ${entityListId}" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
+        <div class="fl" style="margin-top: 10px;">
+          <div class="in fll" style="width: 50%; padding: 5px;">
+            ${await BtnIcon.Render({
+              class: 'wfa btn-map-engine-save-map',
+              label: html`<i class="fa-solid fa-floppy-disk"></i> Save Map`,
+            })}
+          </div>
+          <div class="in fll" style="width: 50%; padding: 5px;">
+            ${await BtnIcon.Render({
+              class: 'wfa btn-map-engine-new-map',
+              label: html`<i class="fa-solid fa-file"></i> New Map`,
+            })}
+          </div>
+        </div>
+        <div class="in" style="margin-top: 10px;">${managementTableHtml}</div>
       </div>
     </div>`;
   }

@@ -1,8 +1,14 @@
 import { Schema, model, Types } from 'mongoose';
+import { CyberiaEntitySchema } from '../cyberia-entity/cyberia-entity.model.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
-const CyberiaMapSchema = new Schema({});
+const CyberiaMapSchema = new Schema({
+  code: { type: String, default: '' },
+  name: { type: String, default: '' },
+  description: { type: String, default: '' },
+  entities: { type: [CyberiaEntitySchema], default: [] },
+});
 
 const CyberiaMapModel = model('CyberiaMap', CyberiaMapSchema);
 
