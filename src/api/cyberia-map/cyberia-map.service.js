@@ -8,18 +8,20 @@ const CyberiaMapService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
     const CyberiaMap = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaMap;
+    if (req.auth && req.auth.user) req.body.creator = req.auth.user._id;
     return await new CyberiaMap(req.body).save();
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
     const CyberiaMap = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaMap;
-    if (req.params.id) return await CyberiaMap.findById(req.params.id);
+    const populateCreator = { path: 'creator', model: 'User', select: '_id username' };
+    if (req.params.id) return await CyberiaMap.findById(req.params.id).populate(populateCreator);
 
     // Parse query parameters using DataQuery helper
     const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
 
     const [data, total] = await Promise.all([
-      CyberiaMap.find(query).sort(sort).limit(limit).skip(skip),
+      CyberiaMap.find(query).sort(sort).limit(limit).skip(skip).populate(populateCreator),
       CyberiaMap.countDocuments(query),
     ]);
 

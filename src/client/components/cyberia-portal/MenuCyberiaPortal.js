@@ -621,7 +621,7 @@ const MenuCyberiaPortal = {
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
           text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('cyberia-map-engine')}</span>`,
         }),
-        html: async () => await MapEngineCyberia.render(),
+        html: async () => await MapEngineCyberia.render({ Elements: ElementsCyberiaPortal }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

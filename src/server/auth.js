@@ -9,7 +9,12 @@ import { loggerFactory } from './logger.js';
 import crypto from 'crypto';
 import { promisify } from 'util';
 import { UserDto } from '../api/user/user.model.js';
-import { commonAdminGuard, commonModeratorGuard, validatePassword } from '../client/components/core/CommonJs.js';
+import {
+  commonAdminGuard,
+  commonModeratorGuard,
+  commonUserGuard,
+  validatePassword,
+} from '../client/components/core/CommonJs.js';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
@@ -296,6 +301,23 @@ const adminGuard = (req, res, next) => {
 const moderatorGuard = (req, res, next) => {
   try {
     if (!req.auth || !commonModeratorGuard(req.auth.user.role))
+      return res.status(403).json({ status: 'error', message: 'Insufficient permission' });
+    return next();
+  } catch (err) {
+    logger.error(err);
+    return res.status(400).json({ status: 'error', message: 'bad request' });
+  }
+};
+/**
+ * Express middleware to guard routes for authenticated users (any non-guest role).
+ * @param {import('express').Request} req The Express request object.
+ * @param {import('express').Response} res The Express response object.
+ * @param {import('express').NextFunction} next The next middleware function.
+ * @memberof Auth
+ */
+const userGuard = (req, res, next) => {
+  try {
+    if (!req.auth || !commonUserGuard(req.auth.user.role))
       return res.status(403).json({ status: 'error', message: 'Insufficient permission' });
     return next();
   } catch (err) {
@@ -678,6 +700,7 @@ export {
   jwtVerify as verifyJWT,
   adminGuard,
   moderatorGuard,
+  userGuard,
   validatePasswordMiddleware,
   getBearerToken,
   createSessionAndUserToken,

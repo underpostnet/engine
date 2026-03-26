@@ -1,14 +1,16 @@
 import { BtnIcon } from '../../components/core/BtnIcon.js';
-import { getId } from '../../components/core/CommonJs.js';
+import { getId, commonUserGuard } from '../../components/core/CommonJs.js';
 import { EventsUI } from '../../components/core/EventsUI.js';
 import { NotificationManager } from '../../components/core/NotificationManager.js';
 import { DefaultManagement } from '../default/default.management.js';
 import { CyberiaMapService } from './cyberia-map.service.js';
+import { getApiBaseUrl } from '../core/core.service.js';
 
 const CyberiaMapManagement = {
   RenderTable: async (options = {}) => {
-    const { idModal: rawIdModal, customEvent, readyRowDataEvent, loadMapCallback } = options;
+    const { idModal: rawIdModal, customEvent, readyRowDataEvent, loadMapCallback, Elements } = options;
     const idModal = rawIdModal || 'modal-cyberia-map-management';
+    const role = Elements?.Data?.user?.main?.model?.user?.role || 'guest';
 
     class LoadMapActionGridRenderer {
       eGui;
@@ -37,7 +39,7 @@ const CyberiaMapManagement = {
               if (!params.data._id) return;
               const result = await CyberiaMapService.get({ id: params.data._id });
               if (result.status === 'success' && result.data) {
-                if (loadMapCallback) loadMapCallback(result.data);
+                if (loadMapCallback) await loadMapCallback(result.data);
                 NotificationManager.Push({
                   html: `Map "${result.data.name || result.data.code || params.data._id}" loaded`,
                   status: 'success',
@@ -63,13 +65,59 @@ const CyberiaMapManagement = {
       }
     }
 
+    class ThumbnailPreviewGridRenderer {
+      eGui;
+
+      async init(params) {
+        this.eGui = document.createElement('div');
+        const { data } = params;
+
+        if (!data || !data.thumbnail) {
+          this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
+          return;
+        }
+
+        const thumbnailId = typeof data.thumbnail === 'object' ? data.thumbnail._id : data.thumbnail;
+        if (!thumbnailId) {
+          this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
+          return;
+        }
+
+        const imageSrc = getApiBaseUrl({ id: thumbnailId, endpoint: 'file/blob' });
+
+        this.eGui.innerHTML = html`
+          <div style="position: relative; width: 60px; height: 60px;">
+            <img
+              src="${imageSrc}"
+              style="width: 60px; height: 60px; object-fit: cover; display: block; border: 1px solid #555;"
+              onload="this.style.display='block'; this.nextElementSibling.style.display='none';"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <div
+              style="position: absolute; top: 0; left: 0; width: 60px; height: 60px; display: none; align-items: center; justify-content: center;"
+            >
+              <i class="fas fa-image" style="font-size: 24px; color: #999;"></i>
+            </div>
+          </div>
+        `;
+      }
+
+      getGui() {
+        return this.eGui;
+      }
+
+      refresh(params) {
+        return true;
+      }
+    }
+
     const renderResult = await DefaultManagement.RenderTable({
       idModal,
       serviceId: 'cyberia-map-management',
       entity: 'cyberia-map',
       permissions: {
         add: false,
-        remove: true,
+        remove: commonUserGuard(role),
         reload: true,
       },
       usePagination: true,
@@ -77,6 +125,26 @@ const CyberiaMapManagement = {
         { field: 'code', headerName: 'Code' },
         { field: 'name', headerName: 'Name' },
         { field: 'description', headerName: 'Description' },
+        { field: 'tags', headerName: 'Tags' },
+        { field: 'status', headerName: 'Status' },
+        {
+          field: 'creator',
+          headerName: 'Creator',
+          valueGetter: (params) => {
+            if (!params.data || !params.data.creator) return '—';
+            return typeof params.data.creator === 'object' ? params.data.creator.username || '—' : params.data.creator;
+          },
+          editable: false,
+        },
+        {
+          field: 'thumbnail',
+          headerName: 'Thumbnail',
+          width: 80,
+          cellRenderer: ThumbnailPreviewGridRenderer,
+          editable: false,
+          sortable: false,
+          filter: false,
+        },
         {
           field: 'createdAt',
           headerName: 'createdAt',
