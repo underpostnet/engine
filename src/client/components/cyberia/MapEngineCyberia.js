@@ -1,6 +1,9 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Input } from '../core/Input.js';
 import { htmls, s } from '../core/VanillaJs.js';
+import { NotificationManager } from '../core/NotificationManager.js';
+import { Translate } from '../core/Translate.js';
+import { dynamicCol } from '../core/Css.js';
 import { CyberiaMapManagement } from '../../services/cyberia-map/cyberia-map.management.js';
 import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
@@ -8,6 +11,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 class MapEngineCyberia {
   static entities = [];
   static currentMapId = null;
+  static loadMap = null;
 
   static renderGrid(canvas, cols, rows, cellW, cellH) {
     canvas.width = cols * cellW;
@@ -151,6 +155,15 @@ class MapEngineCyberia {
       } else {
         result = await CyberiaMapService.post({ body });
       }
+      NotificationManager.Push({
+        html:
+          result.status === 'error'
+            ? result.message
+            : MapEngineCyberia.currentMapId
+              ? Translate.Render('success-update-item')
+              : Translate.Render('success-create-item'),
+        status: result.status,
+      });
       if (result.status === 'success') {
         if (result.data?._id) MapEngineCyberia.currentMapId = result.data._id;
         await DefaultManagement.loadTable(managementId, { force: true, reload: true });
@@ -173,6 +186,8 @@ class MapEngineCyberia {
       MapEngineCyberia.renderEntityList(entityListId);
       rerenderCanvas();
     };
+
+    MapEngineCyberia.loadMap = loadMap;
 
     const resetForm = () => {
       MapEngineCyberia.currentMapId = null;
@@ -233,29 +248,22 @@ class MapEngineCyberia {
 
     const managementTableHtml = await CyberiaMapManagement.RenderTable({
       idModal: managementId,
-      readyRowDataEvent: {
-        'map-engine-load': (rowData) => {
-          if (rowData && rowData.length > 0) {
-            const firstMap = rowData[0];
-            if (firstMap._id && firstMap._id === MapEngineCyberia.currentMapId) return;
-          }
-        },
-      },
-      customEvent: {
-        rowClick: async (data) => {
-          if (data && data._id) {
-            const result = await CyberiaMapService.get({ id: data._id });
-            if (result.status === 'success' && result.data) {
-              loadMap(result.data);
-            }
-          }
-        },
-      },
+      loadMapCallback: loadMap,
     });
 
-    return html`<div class="in section-mp">
+    const dcMapFields = 'map-engine-dc-fields';
+    const dcGridSize = 'map-engine-dc-grid-size';
+    const dcCellSize = 'map-engine-dc-cell-size';
+    const dcEntityType = 'map-engine-dc-entity-type';
+    const dcAlpha = 'map-engine-dc-alpha';
+    const dcCellPos = 'map-engine-dc-cell-pos';
+    const dcDim = 'map-engine-dc-dim';
+    const dcSaveNew = 'map-engine-dc-save-new';
+
+    return html`<div class="in section-mp map-engine-container">
+      ${dynamicCol({ containerSelector: 'map-engine-container', id: dcMapFields, type: 'search-inputs' })}
       <div class="fl">
-        <div class="in fll" style="width: 33%;">
+        <div class="in fll ${dcMapFields}-col-a">
           ${await Input.Render({
             id: idCode,
             label: html`Code`,
@@ -263,7 +271,7 @@ class MapEngineCyberia {
             type: 'text',
           })}
         </div>
-        <div class="in fll" style="width: 33%;">
+        <div class="in fll ${dcMapFields}-col-b">
           ${await Input.Render({
             id: idName,
             label: html`Name`,
@@ -271,7 +279,7 @@ class MapEngineCyberia {
             type: 'text',
           })}
         </div>
-        <div class="in fll" style="width: 33%;">
+        <div class="in fll ${dcMapFields}-col-c">
           ${await Input.Render({
             id: idDescription,
             label: html`Description`,
@@ -280,8 +288,9 @@ class MapEngineCyberia {
           })}
         </div>
       </div>
+      ${dynamicCol({ containerSelector: 'map-engine-container', id: dcGridSize, type: 'a-50-b-50' })}
       <div class="fl">
-        <div class="in fll" style="width: 50%;">
+        <div class="in fll ${dcGridSize}-col-a">
           ${await Input.Render({
             id: idX,
             label: html`X`,
@@ -291,7 +300,7 @@ class MapEngineCyberia {
             value: 16,
           })}
         </div>
-        <div class="in fll" style="width: 50%;">
+        <div class="in fll ${dcGridSize}-col-b">
           ${await Input.Render({
             id: idY,
             label: html`Y`,
@@ -302,8 +311,9 @@ class MapEngineCyberia {
           })}
         </div>
       </div>
+      ${dynamicCol({ containerSelector: 'map-engine-container', id: dcCellSize, type: 'a-50-b-50' })}
       <div class="fl">
-        <div class="in fll" style="width: 50%;">
+        <div class="in fll ${dcCellSize}-col-a">
           ${await Input.Render({
             id: idCellW,
             label: html`Cell Width (px)`,
@@ -313,7 +323,7 @@ class MapEngineCyberia {
             value: 32,
           })}
         </div>
-        <div class="in fll" style="width: 50%;">
+        <div class="in fll ${dcCellSize}-col-b">
           ${await Input.Render({
             id: idCellH,
             label: html`Cell Height (px)`,
@@ -336,8 +346,9 @@ class MapEngineCyberia {
         <canvas class="${canvasId}" width="512" height="512" style="border: 1px solid #555;"></canvas>
       </div>
       <div class="in section-mp" style="margin-top: 10px;">
+        ${dynamicCol({ containerSelector: 'map-engine-container', id: dcEntityType, type: 'a-50-b-50' })}
         <div class="fl">
-          <div class="in fll" style="width: 50%;">
+          <div class="in fll ${dcEntityType}-col-a">
             ${await Input.Render({
               id: idEntityType,
               label: html`Entity Type`,
@@ -346,7 +357,7 @@ class MapEngineCyberia {
               value: 'floor',
             })}
           </div>
-          <div class="in fll" style="width: 50%;">
+          <div class="in fll ${dcEntityType}-col-b">
             ${await Input.Render({
               id: idColor,
               label: html`Color`,
@@ -356,8 +367,9 @@ class MapEngineCyberia {
             })}
           </div>
         </div>
+        ${dynamicCol({ containerSelector: 'map-engine-container', id: dcAlpha, type: 'a-50-b-50' })}
         <div class="fl">
-          <div class="in fll" style="width: 50%;">
+          <div class="in fll ${dcAlpha}-col-a">
             <div class="inl input-container-${idAlpha}">
               <div class="in">
                 <div class="in input-label">Alpha</div>
@@ -377,13 +389,14 @@ class MapEngineCyberia {
               </div>
             </div>
           </div>
-          <div class="in fll" style="width: 50%; line-height: 40px;">
+          <div class="in fll ${dcAlpha}-col-b" style="line-height: 40px;">
             <div class="in input-label">RGBA</div>
             <div class="in ${rgbaDisplayId}" style="font-family: monospace; font-size: 13px;"></div>
           </div>
         </div>
+        ${dynamicCol({ containerSelector: 'map-engine-container', id: dcCellPos, type: 'a-50-b-50' })}
         <div class="fl">
-          <div class="in fll" style="width: 50%;">
+          <div class="in fll ${dcCellPos}-col-a">
             ${await Input.Render({
               id: idInitCellX,
               label: html`initCellX`,
@@ -393,7 +406,7 @@ class MapEngineCyberia {
               value: 0,
             })}
           </div>
-          <div class="in fll" style="width: 50%;">
+          <div class="in fll ${dcCellPos}-col-b">
             ${await Input.Render({
               id: idInitCellY,
               label: html`initCellY`,
@@ -404,8 +417,9 @@ class MapEngineCyberia {
             })}
           </div>
         </div>
+        ${dynamicCol({ containerSelector: 'map-engine-container', id: dcDim, type: 'a-50-b-50' })}
         <div class="fl">
-          <div class="in fll" style="width: 50%;">
+          <div class="in fll ${dcDim}-col-a">
             ${await Input.Render({
               id: idDimX,
               label: html`dimX`,
@@ -415,7 +429,7 @@ class MapEngineCyberia {
               value: 1,
             })}
           </div>
-          <div class="in fll" style="width: 50%;">
+          <div class="in fll ${dcDim}-col-b">
             ${await Input.Render({
               id: idDimY,
               label: html`dimY`,
@@ -433,14 +447,15 @@ class MapEngineCyberia {
           })}
         </div>
         <div class="in ${entityListId}" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
+        ${dynamicCol({ containerSelector: 'map-engine-container', id: dcSaveNew, type: 'a-50-b-50' })}
         <div class="fl" style="margin-top: 10px;">
-          <div class="in fll" style="width: 50%; padding: 5px;">
+          <div class="in fll ${dcSaveNew}-col-a" style="padding: 5px;">
             ${await BtnIcon.Render({
               class: 'wfa btn-map-engine-save-map',
               label: html`<i class="fa-solid fa-floppy-disk"></i> Save Map`,
             })}
           </div>
-          <div class="in fll" style="width: 50%; padding: 5px;">
+          <div class="in fll ${dcSaveNew}-col-b" style="padding: 5px;">
             ${await BtnIcon.Render({
               class: 'wfa btn-map-engine-new-map',
               label: html`<i class="fa-solid fa-file"></i> New Map`,
