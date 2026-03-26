@@ -167,15 +167,11 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         'atlas-sprite-sheet',
       ];
       packageJson.description = 'Cyberia Engine - Object Layer and Assets Management Microservice';
-      const { CyberiaDependencies, CyberiaDependenciesOverrides } = await import(
-        `../src/client/components/cyberia-portal/CommonCyberiaPortal.js`
-      );
+      const { CyberiaDependencies } = await import(`../src/client/components/cyberia-portal/CommonCyberiaPortal.js`);
       packageJson.dependencies = {
         ...packageJson.dependencies,
         ...CyberiaDependencies,
       };
-      packageJson.overrides = { ...originPackageJson.overrides, ...CyberiaDependenciesOverrides };
-      packageJson.scripts.install += ' && cd hardhat && npm install';
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');
       fs.copyFileSync(`./src/api/object-layer/README.md`, `${basePath}/README.md`);
       fs.copySync(`./hardhat`, `${basePath}/hardhat`);
