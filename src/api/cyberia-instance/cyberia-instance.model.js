@@ -4,9 +4,14 @@ import { Schema, model, Types } from 'mongoose';
 
 const CyberiaInstanceSchema = new Schema(
   {
-    0: { type: String },
-    1: { type: String },
-    2: { type: String },
+    code: { type: String, default: '' },
+    name: { type: String, default: '' },
+    description: { type: String, default: '' },
+    cyberiaMapCodes: { type: [String], default: [] },
+    tags: { type: [String], default: [] },
+    creator: { type: Schema.Types.ObjectId, ref: 'User' },
+    status: { type: String, default: 'unlisted' },
+    thumbnail: { type: Schema.Types.ObjectId, ref: 'File' },
   },
   {
     timestamps: true,

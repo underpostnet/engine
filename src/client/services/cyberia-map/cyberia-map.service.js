@@ -100,6 +100,27 @@ const CyberiaMapService = {
           return reject(error);
         }),
     ),
+  searchCodes: (options = { q: '' }) => {
+    const url = new URL(getApiBaseUrl({ id: 'search-codes', endpoint }));
+    if (options.q) url.searchParams.set('q', options.q);
+    return new Promise((resolve, reject) =>
+      fetch(url.toString(), {
+        method: 'GET',
+        headers: headersFactory(),
+        credentials: 'include',
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    );
+  },
 };
 
 export { CyberiaMapService };

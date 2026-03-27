@@ -18,6 +18,10 @@ const TranslateCyberiaPortal = {
       en: 'Cyberia Map Engine',
       es: 'Cyberia Map Engine',
     };
+    Translate.Data['cyberia-instance-engine'] = {
+      en: 'Cyberia Instance Engine',
+      es: 'Cyberia Instance Engine',
+    };
   },
 };
 

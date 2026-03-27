@@ -30,6 +30,7 @@ import { ObjectLayerEngineViewer } from '../cyberia/ObjectLayerEngineViewer.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 import { MainBodyCyberiaPortal } from './MainBodyCyberiaPortal.js';
 import { MapEngineCyberia } from '../cyberia/MapEngineCyberia.js';
+import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
 
 const MenuCyberiaPortal = {
   Data: {},
@@ -235,6 +236,18 @@ const MenuCyberiaPortal = {
             tabHref: `${getProxyPath()}cyberia-map-engine`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cyberia-map-engine')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-cyberia-instance-engine',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
+              text: html`<span class="menu-label-text">${Translate.Render('cyberia-instance-engine')}</span>`,
+            }),
+            attrs: `data-id="cyberia-instance-engine"`,
+            tabHref: `${getProxyPath()}cyberia-instance-engine`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cyberia-instance-engine')),
           })}
         </div>
       `,
@@ -622,6 +635,26 @@ const MenuCyberiaPortal = {
           text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('cyberia-map-engine')}</span>`,
         }),
         html: async () => await MapEngineCyberia.render({ Elements: ElementsCyberiaPortal }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        observer: true,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-cyberia-instance-engine`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-cyberia-instance-engine',
+        route: 'cyberia-instance-engine',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('cyberia-instance-engine')}</span>`,
+        }),
+        html: async () => await InstanceEngineCyberia.render({ Elements: ElementsCyberiaPortal }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

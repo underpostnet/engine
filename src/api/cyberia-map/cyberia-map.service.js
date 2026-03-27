@@ -15,6 +15,19 @@ const CyberiaMapService = {
     /** @type {import('./cyberia-map.model.js').CyberiaMapModel} */
     const CyberiaMap = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaMap;
     const populateCreator = { path: 'creator', model: 'User', select: '_id username' };
+
+    // GET /search-codes?q=<partial> - Fast partial match search on code
+    if (req.path?.startsWith('/search-codes')) {
+      const q = (req.query.q || '').trim();
+      if (!q) return { codes: [] };
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const results = await CyberiaMap.find({ code: { $regex: escaped, $options: 'i' } }, { code: 1, _id: 0 })
+        .limit(20)
+        .lean();
+      const codes = [...new Set(results.map((r) => r.code).filter(Boolean))];
+      return { codes };
+    }
+
     if (req.params.id) return await CyberiaMap.findById(req.params.id).populate(populateCreator);
 
     // Parse query parameters using DataQuery helper

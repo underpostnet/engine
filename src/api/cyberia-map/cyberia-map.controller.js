@@ -23,7 +23,12 @@ const CyberiaMapController = {
     try {
       const { page, limit } = req.query;
       const result = await CyberiaMapService.get(
-        { ...req, query: { ...req.query, page: parseInt(page), limit: parseInt(limit) } },
+        {
+          ...req,
+          path: req.path,
+          params: req.params,
+          query: { ...req.query, page: parseInt(page), limit: parseInt(limit) },
+        },
         res,
         options,
       );

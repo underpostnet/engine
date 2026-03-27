@@ -15,6 +15,7 @@ const CyberiaMapRouter = (options) => {
     async (req, res) => await CyberiaMapController.post(req, res, options),
   );
   router.post(`/`, authMiddleware, userGuard, async (req, res) => await CyberiaMapController.post(req, res, options));
+  router.get(`/search-codes`, async (req, res) => await CyberiaMapController.get(req, res, options));
   router.get(`/:id`, async (req, res) => await CyberiaMapController.get(req, res, options));
   router.get(`/`, async (req, res) => await CyberiaMapController.get(req, res, options));
   router.put(`/:id`, authMiddleware, userGuard, async (req, res) => await CyberiaMapController.put(req, res, options));
