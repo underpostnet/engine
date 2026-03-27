@@ -20,6 +20,7 @@ class MapEngineCyberia {
   static thumbnailDirty = false;
   static loadMap = null;
   static showGridBorders = true;
+  static addOnClick = true;
 
   static renderGrid(canvas, cols, rows, cellW, cellH, showGrid = true) {
     canvas.width = cols * cellW;
@@ -486,10 +487,12 @@ class MapEngineCyberia {
         const row = Math.floor(((e.clientY - rect.top) * (canvas.height / rect.height)) / cellH);
         console.log(`Cell clicked: (${col}, ${row})`);
 
+        if (s('.map-engine-cell-coords')) htmls('.map-engine-cell-coords', `Cell: (${col}, ${row})`);
+
         if (s(`.${idInitCellX}`)) s(`.${idInitCellX}`).value = col;
         if (s(`.${idInitCellY}`)) s(`.${idInitCellY}`).value = row;
 
-        addEntityLocally();
+        if (MapEngineCyberia.addOnClick) addEntityLocally();
       };
 
       if (s(`.btn-map-engine-add-entity`)) s(`.btn-map-engine-add-entity`).onclick = () => addEntityLocally();
@@ -598,6 +601,7 @@ class MapEngineCyberia {
     const dcDim = 'map-engine-dc-dim';
     const dcSaveNew = 'map-engine-dc-save-new';
     const dcEntityFilter = 'map-engine-dc-entity-filter';
+    const dcCanvasOpts = 'map-engine-dc-canvas-opts';
     const idFilterEntityType = 'map-engine-filter-entity-type';
     const idFilterInitX = 'map-engine-filter-init-x';
     const idFilterInitY = 'map-engine-filter-init-y';
@@ -755,29 +759,55 @@ class MapEngineCyberia {
         </div>
       </div>
       <div class="in" style="text-align: center; margin-top: 10px;">
-        <div class="fl" style="justify-content: center; margin-bottom: 5px;">
-          <div class="inl" style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
-            ${await ToggleSwitch.Render({
-              id: 'map-engine-show-grid',
-              type: 'checkbox',
-              displayMode: 'checkbox',
-              containerClass: 'inl',
-              checked: true,
-              on: {
-                checked: () => {
-                  MapEngineCyberia.showGridBorders = true;
-                  rerenderCanvas();
+        ${dynamicCol({ containerSelector: 'map-engine-container', id: dcCanvasOpts, type: 'a-50-b-50' })}
+        <div class="fl" style="margin-bottom: 5px;">
+          <div class="in fll ${dcCanvasOpts}-col-a">
+            <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
+              ${await ToggleSwitch.Render({
+                id: 'map-engine-show-grid',
+                type: 'checkbox',
+                displayMode: 'checkbox',
+                containerClass: 'in fll',
+                checked: true,
+                on: {
+                  checked: () => {
+                    MapEngineCyberia.showGridBorders = true;
+                    rerenderCanvas();
+                  },
+                  unchecked: () => {
+                    MapEngineCyberia.showGridBorders = false;
+                    rerenderCanvas();
+                  },
                 },
-                unchecked: () => {
-                  MapEngineCyberia.showGridBorders = false;
-                  rerenderCanvas();
+              })}
+              <div class="section-mp">&nbsp &nbsp Show Grid</div>
+            </div>
+          </div>
+          <div class="in fll ${dcCanvasOpts}-col-b">
+            <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
+              ${await ToggleSwitch.Render({
+                id: 'map-engine-add-on-click',
+                type: 'checkbox',
+                displayMode: 'checkbox',
+                containerClass: 'in fll',
+                checked: true,
+                on: {
+                  checked: () => {
+                    MapEngineCyberia.addOnClick = true;
+                  },
+                  unchecked: () => {
+                    MapEngineCyberia.addOnClick = false;
+                  },
                 },
-              },
-            })}
-            <span>Show Grid</span>
+              })}
+              <div class="section-mp">&nbsp &nbsp Add on Click</div>
+            </div>
           </div>
         </div>
         <canvas class="${canvasId}" width="512" height="512" style="border: 1px solid #555;"></canvas>
+        <div class="in map-engine-cell-coords" style="font-family:monospace;font-size:13px;color:#888;margin-top:4px;">
+          Cell: (0, 0)
+        </div>
       </div>
       <div class="in section-mp" style="margin-top: 10px;">
         ${dynamicCol({ containerSelector: 'map-engine-container', id: dcEntityType, type: 'a-50-b-50' })}
