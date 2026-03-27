@@ -122,17 +122,12 @@ class MapEngineCyberia {
     const idAlpha = 'map-engine-alpha';
     const rgbaDisplayId = 'map-engine-rgba-display';
     const entityListId = 'map-engine-entity-list';
-    const idObjLayerSearch = 'map-engine-obj-layer-search';
-    const objLayerTagsId = 'map-engine-obj-layer-tags';
-    const objLayerSuggestionsId = 'map-engine-obj-layer-suggestions';
+    const idObjLayerDropdown = 'map-engine-obj-layer-dropdown';
     const managementId = 'modal-cyberia-map-engine';
 
     MapEngineCyberia.entities = [];
     MapEngineCyberia.currentMapId = null;
     MapEngineCyberia.currentThumbnailId = null;
-
-    // Track currently selected object layer item IDs for the next entity to add
-    let pendingObjectLayerItemIds = [];
 
     const hexToRgba = (hex, alpha) => {
       const r = parseInt(hex.slice(1, 3), 16);
@@ -170,7 +165,9 @@ class MapEngineCyberia {
 
     const addEntityLocally = () => {
       const ep = getEntityParams();
-      ep.objectLayerItemIds = [...pendingObjectLayerItemIds];
+      ep.objectLayerItemIds = DropDown.Tokens[idObjLayerDropdown]?.value
+        ? [...DropDown.Tokens[idObjLayerDropdown].value]
+        : [];
       MapEngineCyberia.entities.push(ep);
       MapEngineCyberia.renderEntityList(entityListId);
       rerenderCanvas();
@@ -214,6 +211,23 @@ class MapEngineCyberia {
             status: 'error',
           });
           return;
+        }
+      }
+
+      // Auto-capture canvas as thumbnail if none set
+      if (!MapEngineCyberia.currentThumbnailId) {
+        const canvas = s(`.${canvasId}`);
+        if (canvas) {
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+          if (blob) {
+            const file = new File([blob], 'map-thumbnail.png', { type: 'image/png' });
+            const formData = new FormData();
+            formData.append('file', file);
+            const uploadResult = await FileService.post({ body: formData });
+            if (uploadResult.status === 'success' && uploadResult.data?.length > 0) {
+              MapEngineCyberia.currentThumbnailId = uploadResult.data[0]._id;
+            }
+          }
         }
       }
 
@@ -341,36 +355,12 @@ class MapEngineCyberia {
       MapEngineCyberia.entities = [];
       MapEngineCyberia.renderEntityList(entityListId);
       rerenderCanvas();
-      pendingObjectLayerItemIds = [];
-      renderObjLayerTags();
-    };
-
-    const renderObjLayerTags = () => {
-      const container = s(`.${objLayerTagsId}`);
-      if (!container) return;
-      if (pendingObjectLayerItemIds.length === 0) {
-        htmls(`.${objLayerTagsId}`, '');
-        return;
+      if (DropDown.Tokens[idObjLayerDropdown]) {
+        DropDown.Tokens[idObjLayerDropdown].oncheckvalues = {};
+        DropDown.Tokens[idObjLayerDropdown].value = [];
+        htmls(`.dropdown-current-${idObjLayerDropdown}`, '');
+        htmls(`.${idObjLayerDropdown}-render-container`, '');
       }
-      const tagsHtml = pendingObjectLayerItemIds
-        .map(
-          (id, i) =>
-            html`<span
-              style="display:inline-block;background:#335;color:#adf;padding:2px 8px;margin:2px 3px;border-radius:4px;font-size:12px;"
-              >${id}
-              <span class="btn-remove-obj-layer-tag" data-idx="${i}" style="cursor:pointer;margin-left:4px;color:#f88;"
-                >&times;</span
-              ></span
-            >`,
-        )
-        .join('');
-      htmls(`.${objLayerTagsId}`, tagsHtml);
-      container.querySelectorAll('.btn-remove-obj-layer-tag').forEach((btn) => {
-        btn.onclick = () => {
-          pendingObjectLayerItemIds.splice(parseInt(btn.dataset.idx), 1);
-          renderObjLayerTags();
-        };
-      });
     };
 
     setTimeout(() => {
@@ -419,70 +409,31 @@ class MapEngineCyberia {
 
       if (s(`.btn-map-engine-new-map`)) s(`.btn-map-engine-new-map`).onclick = () => resetForm();
 
-      // Object Layer item ID autocomplete
-      const objLayerSearchInput = s(`.${idObjLayerSearch}`);
-      if (objLayerSearchInput) {
-        let searchTimeout = null;
-        objLayerSearchInput.oninput = () => {
-          clearTimeout(searchTimeout);
-          const q = objLayerSearchInput.value.trim();
-          const suggestionsEl = s(`.${objLayerSuggestionsId}`);
-          if (!q) {
-            if (suggestionsEl) htmls(`.${objLayerSuggestionsId}`, '');
-            return;
-          }
-          searchTimeout = setTimeout(async () => {
-            try {
-              const result = await ObjectLayerService.searchItemIds({ q });
-              if (result.status === 'success' && result.data?.itemIds) {
-                const items = result.data.itemIds.filter((id) => !pendingObjectLayerItemIds.includes(id));
-                if (items.length > 0 && suggestionsEl) {
-                  htmls(
-                    `.${objLayerSuggestionsId}`,
-                    items
-                      .map(
-                        (id) =>
-                          html`<div
-                            class="obj-layer-suggestion"
-                            data-item-id="${id}"
-                            style="padding:4px 8px;cursor:pointer;border-bottom:1px solid #333;font-size:12px;font-family:monospace;"
-                          >
-                            ${id}
-                          </div>`,
-                      )
-                      .join(''),
-                  );
-                  suggestionsEl.querySelectorAll('.obj-layer-suggestion').forEach((el) => {
-                    el.onmousedown = (e) => {
-                      e.preventDefault();
-                      const itemId = el.dataset.itemId;
-                      if (!pendingObjectLayerItemIds.includes(itemId)) {
-                        pendingObjectLayerItemIds.push(itemId);
-                        renderObjLayerTags();
-                      }
-                      objLayerSearchInput.value = '';
-                      htmls(`.${objLayerSuggestionsId}`, '');
-                    };
-                  });
-                } else if (suggestionsEl) {
-                  htmls(
-                    `.${objLayerSuggestionsId}`,
-                    html`<div style="padding:4px 8px;color:#888;font-size:12px;">No matches</div>`,
-                  );
-                }
-              }
-            } catch (e) {
-              console.error('Object layer search error:', e);
+      if (s(`.btn-map-engine-capture-thumbnail`))
+        s(`.btn-map-engine-capture-thumbnail`).onclick = () => {
+          const canvas = s(`.${canvasId}`);
+          if (!canvas) return;
+          canvas.toBlob((blob) => {
+            if (!blob) return;
+            const file = new File([blob], 'map-thumbnail.png', { type: 'image/png' });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            const thumbnailInput = s(`.${idThumbnail}`);
+            if (thumbnailInput) {
+              thumbnailInput.files = dataTransfer.files;
+              thumbnailInput.onchange({ target: thumbnailInput });
             }
-          }, 200);
+            MapEngineCyberia.thumbnailDirty = true;
+            const url = URL.createObjectURL(blob);
+            const preview = s('.map-engine-thumbnail-preview');
+            if (preview)
+              preview.innerHTML = html`<img
+                src="${url}"
+                class="in"
+                style="max-width:300px;height:auto;border:1px solid #555;margin:auto"
+              />`;
+          }, 'image/png');
         };
-        objLayerSearchInput.onblur = () => {
-          setTimeout(() => {
-            const suggestionsEl = s(`.${objLayerSuggestionsId}`);
-            if (suggestionsEl) htmls(`.${objLayerSuggestionsId}`, '');
-          }, 150);
-        };
-      }
 
       if (s(`.btn-map-engine-toggle-thumbnail`))
         s(`.btn-map-engine-toggle-thumbnail`).onclick = () => {
@@ -585,6 +536,10 @@ class MapEngineCyberia {
       </div>
       <div class="in section-mp" style="margin-top: 5px;">
         <div class="in map-engine-thumbnail-preview" style="margin-bottom: 5px;"></div>
+        ${await BtnIcon.Render({
+          class: 'wfa btn-map-engine-capture-thumbnail',
+          label: html`<i class="fa-solid fa-camera"></i> Capture Thumbnail`,
+        })}
         ${await BtnIcon.Render({
           class: 'wfa btn-map-engine-toggle-thumbnail',
           label: html`<i class="fa-solid fa-caret-right map-engine-thumbnail-caret"></i> Thumbnail`,
@@ -774,23 +729,25 @@ class MapEngineCyberia {
           </div>
         </div>
         <div class="in" style="margin: 10px;">
-          <div class="inl">
-            <div class="in input-label">Object Layers</div>
-            <div class="in ${objLayerTagsId}" style="min-height:20px;margin-bottom:4px;"></div>
-            <div class="in" style="position:relative;">
-              <input
-                type="text"
-                class="in wfa ${idObjLayerSearch}"
-                placeholder="Search item ID..."
-                style="font-size:13px;padding:4px 8px;"
-                autocomplete="off"
-              />
-              <div
-                class="in ${objLayerSuggestionsId}"
-                style="position:absolute;z-index:10;background:#222;border:1px solid #555;max-height:150px;overflow-y:auto;width:100%;"
-              ></div>
-            </div>
-          </div>
+          ${await DropDown.Render({
+            id: idObjLayerDropdown,
+            label: html`Object Layers`,
+            data: [],
+            type: 'checkbox',
+            containerClass: 'inl',
+            serviceProvider: async (q) => {
+              const result = await ObjectLayerService.searchItemIds({ q });
+              if (result.status === 'success' && result.data?.itemIds) {
+                return result.data.itemIds.map((itemId) => ({
+                  value: itemId,
+                  display: itemId,
+                  data: itemId,
+                  onClick: () => {},
+                }));
+              }
+              return [];
+            },
+          })}
         </div>
         <div class="in">
           ${await BtnIcon.Render({

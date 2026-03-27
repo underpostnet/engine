@@ -21,11 +21,18 @@ const DropDown = {
       onClick: () => {
         console.log('DropDown onClick', this.value);
         if (options && options.resetOnClick) options.resetOnClick();
-        if (options && options.type === 'checkbox')
-          for (const opt of DropDown.Tokens[id].value) {
-            s(`.dropdown-option-${id}-${opt}`).click();
+        if (options && options.type === 'checkbox') {
+          if (options.serviceProvider) {
+            DropDown.Tokens[id].oncheckvalues = {};
+            DropDown.Tokens[id].value = [];
+            htmls(`.dropdown-current-${id}`, '');
+            htmls(`.${id}-render-container`, '');
+          } else {
+            for (const opt of DropDown.Tokens[id].value) {
+              s(`.dropdown-option-${id}-${opt}`).click();
+            }
           }
-        else this.Tokens[id].value = undefined;
+        } else this.Tokens[id].value = undefined;
       },
     });
 
@@ -72,22 +79,30 @@ const DropDown = {
             if (optionData.value !== 'close') {
               if (optionData.value !== 'reset') {
                 if (options.type === 'checkbox') {
-                  // const _instanValue = data
-                  //   .filter((d) => d.checked)
-                  //   .map((v, i, a) => `${v.display}${i < a.length - 1 ? ',' : ''}`)
-                  //   .join('');
-                  const value = Object.keys(DropDown.Tokens[id].oncheckvalues);
-                  htmls(
-                    `.dropdown-current-${id}`,
-                    value.map((v) => DropDown.Tokens[id].originData.find((_v) => _v.value === v).display),
-                  );
+                  if (options.serviceProvider) {
+                    const checkedValues = Object.values(DropDown.Tokens[id].oncheckvalues);
+                    htmls(
+                      `.dropdown-current-${id}`,
+                      checkedValues.map((v) => v.display),
+                    );
+                  } else {
+                    const value = Object.keys(DropDown.Tokens[id].oncheckvalues);
+                    htmls(
+                      `.dropdown-current-${id}`,
+                      value.map((v) => DropDown.Tokens[id].originData.find((_v) => _v.value === v).display),
+                    );
+                  }
                 } else {
                   htmls(`.dropdown-current-${id}`, optionData.display);
                 }
               } else htmls(`.dropdown-current-${id}`, '');
 
               this.Tokens[id].value =
-                options.type === 'checkbox' ? data.filter((d) => d.checked).map((d) => d.data) : optionData.data;
+                options.type === 'checkbox'
+                  ? options.serviceProvider
+                    ? Object.values(DropDown.Tokens[id].oncheckvalues).map((v) => v.data)
+                    : data.filter((d) => d.checked).map((d) => d.data)
+                  : optionData.data;
 
               console.warn('current value dropdown id:' + id, this.Tokens[id].value);
 
@@ -126,7 +141,11 @@ const DropDown = {
                       },
                       checked: () => {
                         optionData.checked = true;
-                        DropDown.Tokens[id].oncheckvalues[valueDisplay] = {};
+                        DropDown.Tokens[id].oncheckvalues[valueDisplay] = {
+                          data: optionData.data,
+                          display: optionData.display,
+                          value: optionData.value,
+                        };
                       },
                     },
                   })}
@@ -186,7 +205,45 @@ const DropDown = {
         }
       };
 
-      s(`.search-box-${id}`).oninput = dropDownSearchHandle;
+      if (options.serviceProvider) {
+        let serviceSearchTimeout = null;
+        s(`.search-box-${id}`).oninput = () => {
+          clearTimeout(serviceSearchTimeout);
+          const q = s(`.search-box-${id}`).value.trim();
+          if (!q) {
+            htmls(`.${id}-render-container`, '');
+            return;
+          }
+          serviceSearchTimeout = setTimeout(async () => {
+            try {
+              let results = await options.serviceProvider(q);
+              if (options.type === 'checkbox') {
+                results = results.map((item) => {
+                  const vd = item.value.trim().replaceAll(' ', '-');
+                  return { ...item, checked: !!DropDown.Tokens[id].oncheckvalues[vd] };
+                });
+              }
+              const controlItems = options.data.filter((d) => d.value === 'reset' || d.value === 'close');
+              const allData = [...results, ...controlItems];
+              if (allData.length > controlItems.length) {
+                const { render } = await _render(allData);
+                htmls(`.${id}-render-container`, render);
+              } else {
+                htmls(
+                  `.${id}-render-container`,
+                  html` <div class="inl" style="padding: 10px; color: red">
+                    <i class="fas fa-exclamation-circle"></i> ${Translate.Render('no-result-found')}
+                  </div>`,
+                );
+              }
+            } catch (e) {
+              console.error('DropDown serviceProvider error:', e);
+            }
+          }, 200);
+        };
+      } else {
+        s(`.search-box-${id}`).oninput = dropDownSearchHandle;
+      }
 
       // Not use onblur generate bug on input toggle
       // s(`.search-box-${id}`).onblur = dropDownSearchHandle;
