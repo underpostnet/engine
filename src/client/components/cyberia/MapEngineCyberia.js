@@ -63,8 +63,21 @@ class MapEngineCyberia {
   static renderEntityList(containerId) {
     const container = s(`.${containerId}`);
     if (!container) return;
-    let html = '';
+
+    const filterType = s('.map-engine-filter-entity-type')?.value?.trim().toLowerCase() || '';
+    const filterX = s('.map-engine-filter-init-x')?.value?.trim() || '';
+    const filterY = s('.map-engine-filter-init-y')?.value?.trim() || '';
+
+    const filtered = [];
     MapEngineCyberia.entities.forEach((entity, i) => {
+      if (filterType && !(entity.entityType || '').toLowerCase().includes(filterType)) return;
+      if (filterX !== '' && !String(entity.initCellX).includes(filterX)) return;
+      if (filterY !== '' && !String(entity.initCellY).includes(filterY)) return;
+      filtered.push({ entity, i });
+    });
+
+    let html = '';
+    filtered.forEach(({ entity, i }) => {
       const layerTags = (entity.objectLayerItemIds || [])
         .map(
           (id) =>
@@ -105,7 +118,8 @@ class MapEngineCyberia {
         </div>
       </div>`;
     });
-    if (!html) html = '<div style="color:#888;font-size:13px;">No entities added yet.</div>';
+    if (!html)
+      html = `<div style="color:#888;font-size:13px;">${MapEngineCyberia.entities.length > 0 ? 'No matching entities.' : 'No entities added yet.'}</div>`;
     htmls(`.${containerId}`, html);
 
     container.querySelectorAll('.btn-map-engine-remove-entity').forEach((btn) => {
@@ -521,6 +535,36 @@ class MapEngineCyberia {
             caret.classList.toggle('fa-caret-down');
           }
         };
+
+      if (s('.btn-map-engine-toggle-entity-filter'))
+        s('.btn-map-engine-toggle-entity-filter').onclick = () => {
+          const body = s('.map-engine-entity-filter-body');
+          const caret = s('.map-engine-entity-filter-caret');
+          if (body) body.classList.toggle('hide');
+          if (caret) {
+            caret.classList.toggle('fa-caret-right');
+            caret.classList.toggle('fa-caret-down');
+          }
+        };
+
+      let entityFilterTimeout = null;
+      const applyEntityFilter = () => {
+        clearTimeout(entityFilterTimeout);
+        entityFilterTimeout = setTimeout(() => {
+          MapEngineCyberia.renderEntityList(entityListId);
+        }, 300);
+      };
+      [idFilterEntityType, idFilterInitX, idFilterInitY].forEach((cls) => {
+        if (s(`.${cls}`)) s(`.${cls}`).addEventListener('input', applyEntityFilter);
+      });
+
+      if (s('.btn-map-engine-clear-entity-filter'))
+        s('.btn-map-engine-clear-entity-filter').onclick = () => {
+          [idFilterEntityType, idFilterInitX, idFilterInitY].forEach((cls) => {
+            if (s(`.${cls}`)) s(`.${cls}`).value = '';
+          });
+          MapEngineCyberia.renderEntityList(entityListId);
+        };
     });
 
     const statusOptions = [
@@ -553,6 +597,10 @@ class MapEngineCyberia {
     const dcCellPos = 'map-engine-dc-cell-pos';
     const dcDim = 'map-engine-dc-dim';
     const dcSaveNew = 'map-engine-dc-save-new';
+    const dcEntityFilter = 'map-engine-dc-entity-filter';
+    const idFilterEntityType = 'map-engine-filter-entity-type';
+    const idFilterInitX = 'map-engine-filter-init-x';
+    const idFilterInitY = 'map-engine-filter-init-y';
 
     return html`<div class="in section-mp map-engine-container">
       ${dynamicCol({ containerSelector: 'map-engine-container', id: dcMapFields, type: 'search-inputs' })}
@@ -853,6 +901,50 @@ class MapEngineCyberia {
             class: 'wfa btn-map-engine-add-entity',
             label: html`<i class="fa-solid fa-plus"></i> Add Entity`,
           })}
+        </div>
+        <div class="in" style="margin-top: 10px;">
+          ${await BtnIcon.Render({
+            class: 'wfa btn-map-engine-toggle-entity-filter',
+            label: html`<i class="fa-solid fa-caret-right map-engine-entity-filter-caret"></i> Filters`,
+          })}
+          <div class="in map-engine-entity-filter-body hide">
+            ${dynamicCol({ containerSelector: 'map-engine-container', id: dcEntityFilter, type: 'search-inputs' })}
+            <div class="fl">
+              <div class="in fll ${dcEntityFilter}-col-a">
+                ${await Input.Render({
+                  id: idFilterEntityType,
+                  label: html`Entity Type`,
+                  containerClass: 'inl',
+                  type: 'text',
+                  placeholder: true,
+                })}
+              </div>
+              <div class="in fll ${dcEntityFilter}-col-b">
+                ${await Input.Render({
+                  id: idFilterInitX,
+                  label: html`initCellX`,
+                  containerClass: 'inl',
+                  type: 'text',
+                  placeholder: true,
+                })}
+              </div>
+              <div class="in fll ${dcEntityFilter}-col-c">
+                ${await Input.Render({
+                  id: idFilterInitY,
+                  label: html`initCellY`,
+                  containerClass: 'inl',
+                  type: 'text',
+                  placeholder: true,
+                })}
+              </div>
+            </div>
+            <div class="in" style="margin-top:5px;">
+              ${await BtnIcon.Render({
+                class: 'wfa btn-map-engine-clear-entity-filter',
+                label: html`<i class="fa-solid fa-broom"></i> Clear Filters`,
+              })}
+            </div>
+          </div>
         </div>
         <div class="in ${entityListId}" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
         ${dynamicCol({ containerSelector: 'map-engine-container', id: dcSaveNew, type: 'a-50-b-50' })}
