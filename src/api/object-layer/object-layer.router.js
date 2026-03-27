@@ -334,6 +334,36 @@ const ObjectLayerRouter = (options) => {
     */
     return await ObjectLayerController.get(req, res, options);
   });
+  router.get(`/search-item-ids`, async (req, res) => {
+    /*
+      #swagger.auto = false
+      #swagger.tags = ['object-layer']
+      #swagger.summary = 'Search object layer item IDs'
+      #swagger.description = 'Returns partial matches of data.item.id for type-ahead autocomplete'
+      #swagger.path = '/object-layer/search-item-ids'
+      #swagger.method = 'get'
+      #swagger.produces = ['application/json']
+
+      #swagger.parameters['q'] = {
+          in: 'query',
+          description: 'Partial item ID to search for',
+          required: false,
+          type: 'string'
+      }
+
+      #swagger.responses[200] = {
+        description: 'Item IDs matching the query',
+        content: {
+            'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/objectLayerResponse'
+                }
+            }
+        }
+      }
+    */
+    return await ObjectLayerController.get(req, res, options);
+  });
   router.get(`/frame-counts/:id`, async (req, res) => {
     /*
       #swagger.auto = false

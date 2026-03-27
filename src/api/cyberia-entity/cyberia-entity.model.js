@@ -9,6 +9,7 @@ const CyberiaEntitySchema = new Schema({
   dimX: { type: Number, default: 1 },
   dimY: { type: Number, default: 1 },
   color: { type: String, default: 'rgba(255, 0, 0, 1)' },
+  objectLayerItemIds: { type: [String], default: [] },
 });
 
 const CyberiaEntityModel = model('CyberiaEntity', CyberiaEntitySchema);

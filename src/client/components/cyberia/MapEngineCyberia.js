@@ -10,6 +10,7 @@ import { CyberiaMapService } from '../../services/cyberia-map/cyberia-map.servic
 import { FileService } from '../../services/file/file.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 
 class MapEngineCyberia {
   static entities = [];
@@ -47,6 +48,15 @@ class MapEngineCyberia {
     if (!container) return;
     let html = '';
     MapEngineCyberia.entities.forEach((entity, i) => {
+      const layerTags = (entity.objectLayerItemIds || [])
+        .map(
+          (id) =>
+            html`<span
+              style="display:inline-block;background:#335;color:#adf;padding:1px 6px;margin:1px 2px;border-radius:3px;font-size:11px;"
+              >${id}</span
+            >`,
+        )
+        .join('');
       html += html`<div class="fl" style="border-bottom:1px solid #444; padding:4px 0; align-items:center;">
         <div
           class="in fll"
@@ -54,6 +64,7 @@ class MapEngineCyberia {
         ></div>
         <div class="in fll" style="flex:1;font-size:12px;font-family:monospace;">
           ${entity.entityType} (${entity.initCellX},${entity.initCellY}) ${entity.dimX}x${entity.dimY}
+          ${layerTags ? html`<div style="margin-top:2px;">${layerTags}</div>` : ''}
         </div>
         <div class="in fll">
           <button
@@ -111,11 +122,17 @@ class MapEngineCyberia {
     const idAlpha = 'map-engine-alpha';
     const rgbaDisplayId = 'map-engine-rgba-display';
     const entityListId = 'map-engine-entity-list';
+    const idObjLayerSearch = 'map-engine-obj-layer-search';
+    const objLayerTagsId = 'map-engine-obj-layer-tags';
+    const objLayerSuggestionsId = 'map-engine-obj-layer-suggestions';
     const managementId = 'modal-cyberia-map-engine';
 
     MapEngineCyberia.entities = [];
     MapEngineCyberia.currentMapId = null;
     MapEngineCyberia.currentThumbnailId = null;
+
+    // Track currently selected object layer item IDs for the next entity to add
+    let pendingObjectLayerItemIds = [];
 
     const hexToRgba = (hex, alpha) => {
       const r = parseInt(hex.slice(1, 3), 16);
@@ -153,6 +170,7 @@ class MapEngineCyberia {
 
     const addEntityLocally = () => {
       const ep = getEntityParams();
+      ep.objectLayerItemIds = [...pendingObjectLayerItemIds];
       MapEngineCyberia.entities.push(ep);
       MapEngineCyberia.renderEntityList(entityListId);
       rerenderCanvas();
@@ -292,6 +310,7 @@ class MapEngineCyberia {
         dimX: e.dimX,
         dimY: e.dimY,
         color: e.color,
+        objectLayerItemIds: e.objectLayerItemIds || [],
       }));
       MapEngineCyberia.renderEntityList(entityListId);
       rerenderCanvas();
@@ -322,6 +341,36 @@ class MapEngineCyberia {
       MapEngineCyberia.entities = [];
       MapEngineCyberia.renderEntityList(entityListId);
       rerenderCanvas();
+      pendingObjectLayerItemIds = [];
+      renderObjLayerTags();
+    };
+
+    const renderObjLayerTags = () => {
+      const container = s(`.${objLayerTagsId}`);
+      if (!container) return;
+      if (pendingObjectLayerItemIds.length === 0) {
+        htmls(`.${objLayerTagsId}`, '');
+        return;
+      }
+      const tagsHtml = pendingObjectLayerItemIds
+        .map(
+          (id, i) =>
+            html`<span
+              style="display:inline-block;background:#335;color:#adf;padding:2px 8px;margin:2px 3px;border-radius:4px;font-size:12px;"
+              >${id}
+              <span class="btn-remove-obj-layer-tag" data-idx="${i}" style="cursor:pointer;margin-left:4px;color:#f88;"
+                >&times;</span
+              ></span
+            >`,
+        )
+        .join('');
+      htmls(`.${objLayerTagsId}`, tagsHtml);
+      container.querySelectorAll('.btn-remove-obj-layer-tag').forEach((btn) => {
+        btn.onclick = () => {
+          pendingObjectLayerItemIds.splice(parseInt(btn.dataset.idx), 1);
+          renderObjLayerTags();
+        };
+      });
     };
 
     setTimeout(() => {
@@ -369,6 +418,71 @@ class MapEngineCyberia {
       if (s(`.btn-map-engine-save-map`)) s(`.btn-map-engine-save-map`).onclick = () => saveMap();
 
       if (s(`.btn-map-engine-new-map`)) s(`.btn-map-engine-new-map`).onclick = () => resetForm();
+
+      // Object Layer item ID autocomplete
+      const objLayerSearchInput = s(`.${idObjLayerSearch}`);
+      if (objLayerSearchInput) {
+        let searchTimeout = null;
+        objLayerSearchInput.oninput = () => {
+          clearTimeout(searchTimeout);
+          const q = objLayerSearchInput.value.trim();
+          const suggestionsEl = s(`.${objLayerSuggestionsId}`);
+          if (!q) {
+            if (suggestionsEl) htmls(`.${objLayerSuggestionsId}`, '');
+            return;
+          }
+          searchTimeout = setTimeout(async () => {
+            try {
+              const result = await ObjectLayerService.searchItemIds({ q });
+              if (result.status === 'success' && result.data?.itemIds) {
+                const items = result.data.itemIds.filter((id) => !pendingObjectLayerItemIds.includes(id));
+                if (items.length > 0 && suggestionsEl) {
+                  htmls(
+                    `.${objLayerSuggestionsId}`,
+                    items
+                      .map(
+                        (id) =>
+                          html`<div
+                            class="obj-layer-suggestion"
+                            data-item-id="${id}"
+                            style="padding:4px 8px;cursor:pointer;border-bottom:1px solid #333;font-size:12px;font-family:monospace;"
+                          >
+                            ${id}
+                          </div>`,
+                      )
+                      .join(''),
+                  );
+                  suggestionsEl.querySelectorAll('.obj-layer-suggestion').forEach((el) => {
+                    el.onmousedown = (e) => {
+                      e.preventDefault();
+                      const itemId = el.dataset.itemId;
+                      if (!pendingObjectLayerItemIds.includes(itemId)) {
+                        pendingObjectLayerItemIds.push(itemId);
+                        renderObjLayerTags();
+                      }
+                      objLayerSearchInput.value = '';
+                      htmls(`.${objLayerSuggestionsId}`, '');
+                    };
+                  });
+                } else if (suggestionsEl) {
+                  htmls(
+                    `.${objLayerSuggestionsId}`,
+                    html`<div style="padding:4px 8px;color:#888;font-size:12px;">No matches</div>`,
+                  );
+                }
+              }
+            } catch (e) {
+              console.error('Object layer search error:', e);
+            }
+          }, 200);
+        };
+        objLayerSearchInput.onblur = () => {
+          setTimeout(() => {
+            const suggestionsEl = s(`.${objLayerSuggestionsId}`);
+            if (suggestionsEl) htmls(`.${objLayerSuggestionsId}`, '');
+          }, 150);
+        };
+      }
 
       if (s(`.btn-map-engine-toggle-thumbnail`))
         s(`.btn-map-engine-toggle-thumbnail`).onclick = () => {
@@ -657,6 +771,25 @@ class MapEngineCyberia {
               min: 1,
               value: 1,
             })}
+          </div>
+        </div>
+        <div class="in" style="margin: 10px;">
+          <div class="inl">
+            <div class="in input-label">Object Layers</div>
+            <div class="in ${objLayerTagsId}" style="min-height:20px;margin-bottom:4px;"></div>
+            <div class="in" style="position:relative;">
+              <input
+                type="text"
+                class="in wfa ${idObjLayerSearch}"
+                placeholder="Search item ID..."
+                style="font-size:13px;padding:4px 8px;"
+                autocomplete="off"
+              />
+              <div
+                class="in ${objLayerSuggestionsId}"
+                style="position:absolute;z-index:10;background:#222;border:1px solid #555;max-height:150px;overflow-y:auto;width:100%;"
+              ></div>
+            </div>
           </div>
         </div>
         <div class="in">

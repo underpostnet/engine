@@ -235,6 +235,22 @@ const ObjectLayerService = {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
 
+    // GET /search-item-ids?q=<partial> - Fast partial match search on data.item.id
+    if (req.path.startsWith('/search-item-ids')) {
+      const q = (req.query.q || '').trim();
+      if (!q) return { itemIds: [] };
+      // Escape regex special characters for safe partial matching
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const results = await ObjectLayer.find(
+        { 'data.item.id': { $regex: escaped, $options: 'i' } },
+        { 'data.item.id': 1, _id: 0 },
+      )
+        .limit(20)
+        .lean();
+      const itemIds = [...new Set(results.map((r) => r.data.item.id))];
+      return { itemIds };
+    }
+
     // GET /frame-counts/:id - Get frame counts for each direction using numeric codes
     if (req.path.startsWith('/frame-counts/')) {
       const objectLayer = await ObjectLayer.findById(req.params.id)
