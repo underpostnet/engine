@@ -12,6 +12,7 @@ import { FileService } from '../../services/file/file.service.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
+import { getProxyPath } from '../core/Router.js';
 
 class MapEngineCyberia {
   static entities = [];
@@ -21,6 +22,38 @@ class MapEngineCyberia {
   static loadMap = null;
   static showGridBorders = true;
   static addOnClick = true;
+  static showObjectLayers = false;
+  static imageCache = {};
+
+  static loadObjectLayerImage(itemId, onLoad) {
+    if (MapEngineCyberia.imageCache[itemId]) return;
+    MapEngineCyberia.imageCache[itemId] = { img: null, loaded: false, error: false };
+    ObjectLayerService.get({
+      limit: 1,
+      filterModel: { 'data.item.id': { filterType: 'text', type: 'equals', filter: itemId } },
+    })
+      .then((res) => {
+        const doc = res?.data?.data?.[0];
+        if (!doc || !doc.data?.item?.type || !doc.data?.item?.id) {
+          MapEngineCyberia.imageCache[itemId].error = true;
+          return;
+        }
+        const { type, id } = doc.data.item;
+        const img = new Image();
+        img.onload = () => {
+          MapEngineCyberia.imageCache[itemId].img = img;
+          MapEngineCyberia.imageCache[itemId].loaded = true;
+          if (onLoad) onLoad();
+        };
+        img.onerror = () => {
+          MapEngineCyberia.imageCache[itemId].error = true;
+        };
+        img.src = `${getProxyPath()}assets/${type}/${id}/08/0.png`;
+      })
+      .catch(() => {
+        MapEngineCyberia.imageCache[itemId].error = true;
+      });
+  }
 
   static renderGrid(canvas, cols, rows, cellW, cellH, showGrid = true) {
     canvas.width = cols * cellW;
@@ -31,8 +64,22 @@ class MapEngineCyberia {
 
     // Draw entities
     for (const entity of MapEngineCyberia.entities) {
-      ctx.fillStyle = entity.color;
-      ctx.fillRect(entity.initCellX * cellW, entity.initCellY * cellH, entity.dimX * cellW, entity.dimY * cellH);
+      const x = entity.initCellX * cellW;
+      const y = entity.initCellY * cellH;
+      const w = entity.dimX * cellW;
+      const h = entity.dimY * cellH;
+
+      if (MapEngineCyberia.showObjectLayers && entity.objectLayerItemIds?.length) {
+        for (const itemId of entity.objectLayerItemIds) {
+          const cached = MapEngineCyberia.imageCache[itemId];
+          if (cached?.loaded && cached.img) {
+            ctx.drawImage(cached.img, x, y, w, h);
+          }
+        }
+      } else {
+        ctx.fillStyle = entity.color;
+        ctx.fillRect(x, y, w, h);
+      }
     }
 
     // Draw grid lines on top
@@ -55,8 +102,22 @@ class MapEngineCyberia {
     const ctx = offscreen.getContext('2d');
     ctx.clearRect(0, 0, offscreen.width, offscreen.height);
     for (const entity of MapEngineCyberia.entities) {
-      ctx.fillStyle = entity.color;
-      ctx.fillRect(entity.initCellX * cellW, entity.initCellY * cellH, entity.dimX * cellW, entity.dimY * cellH);
+      const x = entity.initCellX * cellW;
+      const y = entity.initCellY * cellH;
+      const w = entity.dimX * cellW;
+      const h = entity.dimY * cellH;
+
+      if (MapEngineCyberia.showObjectLayers && entity.objectLayerItemIds?.length) {
+        for (const itemId of entity.objectLayerItemIds) {
+          const cached = MapEngineCyberia.imageCache[itemId];
+          if (cached?.loaded && cached.img) {
+            ctx.drawImage(cached.img, x, y, w, h);
+          }
+        }
+      } else {
+        ctx.fillStyle = entity.color;
+        ctx.fillRect(x, y, w, h);
+      }
     }
     return offscreen;
   }
@@ -258,6 +319,9 @@ class MapEngineCyberia {
         ? [...DropDown.Tokens[idObjLayerDropdown].value]
         : [];
       MapEngineCyberia.entities.push(ep);
+      for (const itemId of ep.objectLayerItemIds) {
+        MapEngineCyberia.loadObjectLayerImage(itemId, rerenderCanvas);
+      }
       MapEngineCyberia.renderEntityList(entityListId);
       rerenderCanvas();
     };
@@ -414,6 +478,11 @@ class MapEngineCyberia {
         color: e.color,
         objectLayerItemIds: e.objectLayerItemIds || [],
       }));
+      for (const entity of MapEngineCyberia.entities) {
+        for (const itemId of entity.objectLayerItemIds || []) {
+          MapEngineCyberia.loadObjectLayerImage(itemId, rerenderCanvas);
+        }
+      }
       MapEngineCyberia.renderEntityList(entityListId);
       rerenderCanvas();
     };
@@ -759,7 +828,7 @@ class MapEngineCyberia {
         </div>
       </div>
       <div class="in" style="text-align: center; margin-top: 10px;">
-        ${dynamicCol({ containerSelector: 'map-engine-container', id: dcCanvasOpts, type: 'a-50-b-50' })}
+        ${dynamicCol({ containerSelector: 'map-engine-container', id: dcCanvasOpts, type: 'search-inputs' })}
         <div class="fl" style="margin-bottom: 5px;">
           <div class="in fll ${dcCanvasOpts}-col-a">
             <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
@@ -801,6 +870,28 @@ class MapEngineCyberia {
                 },
               })}
               <div class="section-mp">&nbsp &nbsp Add on Click</div>
+            </div>
+          </div>
+          <div class="in fll ${dcCanvasOpts}-col-c">
+            <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
+              ${await ToggleSwitch.Render({
+                id: 'map-engine-show-object-layers',
+                type: 'checkbox',
+                displayMode: 'checkbox',
+                containerClass: 'in fll',
+                checked: false,
+                on: {
+                  checked: () => {
+                    MapEngineCyberia.showObjectLayers = true;
+                    rerenderCanvas();
+                  },
+                  unchecked: () => {
+                    MapEngineCyberia.showObjectLayers = false;
+                    rerenderCanvas();
+                  },
+                },
+              })}
+              <div class="section-mp">&nbsp &nbsp Object Layers</div>
             </div>
           </div>
         </div>
