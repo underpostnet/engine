@@ -617,65 +617,7 @@ class UnderpostRepository {
     ) {
       return new Promise(async (resolve, reject) => {
         try {
-          // Handle syncEnvPort operation
-          if (options.syncEnvPort) {
-            const dataDeploy = await getDataDeploy({ disableSyncEnvPort: true });
-            const dataEnv = [
-              { env: 'production', port: 3000 },
-              { env: 'development', port: 4000 },
-              { env: 'test', port: 5000 },
-            ];
-            let portOffset = 0;
-            const singleReplicaPortOffsets = {};
-            for (const deployIdObj of dataDeploy) {
-              const { deployId } = deployIdObj;
-              const baseConfPath = fs.existsSync(`./engine-private/replica/${deployId}`)
-                ? `./engine-private/replica`
-                : `./engine-private/conf`;
-
-              const effectivePortOffset =
-                singleReplicaPortOffsets[deployId] !== undefined ? singleReplicaPortOffsets[deployId] : portOffset;
-
-              for (const envInstanceObj of dataEnv) {
-                const envPath = `${baseConfPath}/${deployId}/.env.${envInstanceObj.env}`;
-                const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-                envObj.PORT = `${envInstanceObj.port + effectivePortOffset}`;
-                writeEnv(envPath, envObj);
-              }
-
-              if (singleReplicaPortOffsets[deployId] !== undefined) continue;
-
-              const serverConf = loadReplicas(
-                deployId,
-                loadConfServerJson(`${baseConfPath}/${deployId}/conf.server.json`),
-              );
-              for (const host of Object.keys(serverConf)) {
-                let deferredSingleReplicaSlots = [];
-                for (const path of Object.keys(serverConf[host])) {
-                  if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
-                    deferredSingleReplicaSlots.push({
-                      replicas: serverConf[host][path].replicas,
-                      peer: !!serverConf[host][path].peer,
-                    });
-                    continue;
-                  }
-                  portOffset++;
-                  if (serverConf[host][path].peer) portOffset++;
-                }
-                for (const slot of deferredSingleReplicaSlots) {
-                  for (const replica of slot.replicas) {
-                    const replicaDeployId = buildReplicaId({ deployId, replica });
-                    singleReplicaPortOffsets[replicaDeployId] = portOffset;
-                    portOffset++;
-                    if (slot.peer) portOffset++;
-                  }
-                }
-              }
-            }
-            return resolve(true);
-          }
-
-          // Handle singleReplica operation
+          // Handle singleReplica operation (must run before syncEnvPort to ensure replica dirs exist)
           if (options.singleReplica) {
             const replicaPath = path;
             if (!deployId || !host || !replicaPath) {
@@ -738,6 +680,71 @@ class UnderpostRepository {
                     JSON.stringify(replicaServerConf, null, 4),
                     'utf8',
                   );
+                }
+              }
+            }
+            if (!options.syncEnvPort) return resolve(true);
+          }
+
+          // Handle syncEnvPort operation
+          if (options.syncEnvPort) {
+            const dataDeploy = await getDataDeploy({ disableSyncEnvPort: true });
+            const dataEnv = [
+              { env: 'production', port: 3000 },
+              { env: 'development', port: 4000 },
+              { env: 'test', port: 5000 },
+            ];
+            let portOffset = 0;
+            const singleReplicaPortOffsets = {};
+            for (const deployIdObj of dataDeploy) {
+              const { deployId } = deployIdObj;
+              const baseConfPath = fs.existsSync(`./engine-private/replica/${deployId}`)
+                ? `./engine-private/replica`
+                : `./engine-private/conf`;
+
+              const effectivePortOffset =
+                singleReplicaPortOffsets[deployId] !== undefined ? singleReplicaPortOffsets[deployId] : portOffset;
+
+              let skipDeploy = false;
+              for (const envInstanceObj of dataEnv) {
+                const envPath = `${baseConfPath}/${deployId}/.env.${envInstanceObj.env}`;
+                if (!fs.existsSync(envPath)) {
+                  logger.warn(`Skipping ${deployId}: ${envPath} not found`);
+                  skipDeploy = true;
+                  break;
+                }
+                const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+                envObj.PORT = `${envInstanceObj.port + effectivePortOffset}`;
+                writeEnv(envPath, envObj);
+              }
+
+              if (skipDeploy) continue;
+              if (singleReplicaPortOffsets[deployId] !== undefined) continue;
+
+              const serverConf = loadReplicas(
+                deployId,
+                loadConfServerJson(`${baseConfPath}/${deployId}/conf.server.json`),
+              );
+              for (const host of Object.keys(serverConf)) {
+                let deferredSingleReplicaSlots = [];
+                for (const path of Object.keys(serverConf[host])) {
+                  if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
+                    deferredSingleReplicaSlots.push({
+                      replicas: serverConf[host][path].replicas,
+                      peer: !!serverConf[host][path].peer,
+                    });
+                    continue;
+                  }
+                  portOffset++;
+                  if (serverConf[host][path].peer) portOffset++;
+                }
+                for (const slot of deferredSingleReplicaSlots) {
+                  for (const replica of slot.replicas) {
+                    const replicaDeployId = buildReplicaId({ deployId, replica });
+                    singleReplicaPortOffsets[replicaDeployId] = portOffset;
+                    portOffset++;
+                    if (slot.peer) portOffset++;
+                  }
                 }
               }
             }
