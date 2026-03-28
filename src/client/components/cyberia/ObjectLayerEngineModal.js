@@ -352,8 +352,19 @@ const ObjectLayerEngineModal = {
       }
     }
 
-    const cells = 26;
-    const pixelSize = parseInt(320 / cells);
+    let cellsW = 26;
+    let cellsH = 26;
+    if (loadedData && loadedData.objectLayerRenderFramesId && loadedData.objectLayerRenderFramesId.frames) {
+      const frames = loadedData.objectLayerRenderFramesId.frames;
+      for (const direction of Object.keys(frames)) {
+        if (frames[direction] && frames[direction].length > 0 && frames[direction][0].length > 0) {
+          cellsH = frames[direction][0].length;
+          cellsW = frames[direction][0][0].length;
+          break;
+        }
+      }
+    }
+    const pixelSize = parseInt(320 / Math.max(cellsW, cellsH));
     const idSectionA = 'template-section-a';
     const idSectionB = 'template-section-b';
 
@@ -1098,7 +1109,7 @@ const ObjectLayerEngineModal = {
       <div class="in section-mp section-mp-border frame-editor-container">
         <div class="in sub-title-modal"><i class="fa-solid fa-table-cells-large"></i> Frame editor</div>
 
-        <object-layer-engine id="ole" width="${cells}" height="${cells}" pixel-size="${pixelSize}">
+        <object-layer-engine id="ole" width="${cellsW}" height="${cellsH}" pixel-size="${pixelSize}">
         </object-layer-engine>
         <object-layer-png-loader id="loader" editor-selector="#ole"></object-layer-png-loader>
       </div>
