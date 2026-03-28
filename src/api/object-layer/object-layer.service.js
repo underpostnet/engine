@@ -182,29 +182,72 @@ const ObjectLayerService = {
       return objectLayer;
     }
 
-    // create object layer from body
+    // create object layer from body – cut-over consistency: stage all CIDs before writing to DB
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
     const ObjectLayerRenderFrames =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayerRenderFrames;
-    let newObjectLayer = await new ObjectLayer(req.body).save();
 
-    // Generate atlas sprite sheet – this sets data.render.cid and saves
-    try {
-      await AtlasSpriteSheetService.generate({ params: { id: newObjectLayer._id }, auth: req.auth }, res, options);
-    } catch (atlasError) {
-      logger.error('Failed to auto-generate atlas for new ObjectLayer:', atlasError);
+    const bodyData = { ...req.body };
+    if (!bodyData.data) bodyData.data = {};
+    if (!bodyData.data.render) bodyData.data.render = {};
+    bodyData.data.render.cid = '';
+    bodyData.data.render.metadataCid = '';
+
+    // If has render frames, generate atlas + CIDs BEFORE creating the ObjectLayer
+    if (bodyData.objectLayerRenderFramesId) {
+      const renderFramesDoc = await ObjectLayerRenderFrames.findById(bodyData.objectLayerRenderFramesId);
+      if (renderFramesDoc) {
+        try {
+          const stagingOL = {
+            data: bodyData.data,
+            objectLayerRenderFramesId: renderFramesDoc,
+          };
+          const result = await AtlasSpriteSheetService.generate(
+            { objectLayer: stagingOL, auth: req.auth },
+            res,
+            options,
+            { skipObjectLayerSave: true },
+          );
+          bodyData.data.render.cid = result.atlasCid;
+          bodyData.data.render.metadataCid = result.atlasMetadataCid;
+          bodyData.atlasSpriteSheetId = result.atlasDoc._id;
+        } catch (atlasError) {
+          logger.error('Failed to auto-generate atlas for new ObjectLayer:', atlasError);
+        }
+      }
     }
 
-    // Re-read so data.render.cid is up-to-date, then recompute SHA-256 & IPFS CID
-    newObjectLayer = await ObjectLayer.findById(newObjectLayer._id).populate('objectLayerRenderFramesId');
-    if (newObjectLayer) {
-      newObjectLayer = await ObjectLayerEngine.computeAndSaveFinalSha256({
-        objectLayer: newObjectLayer,
-        ipfsClient: IpfsClient,
-        createPinRecord,
-        userId: req.auth && req.auth.user ? req.auth.user._id : undefined,
-        options,
-      });
+    // Compute final SHA-256 with all CIDs
+    bodyData.sha256 = ObjectLayerEngine.computeSha256(bodyData.data);
+
+    // Pin data JSON to IPFS
+    const userId = req.auth && req.auth.user ? req.auth.user._id : undefined;
+    try {
+      const itemId = bodyData.data.item.id;
+      const ipfsResult = await IpfsClient.addJsonToIpfs(
+        bodyData.data,
+        `${itemId}_data.json`,
+        `/object-layer/${itemId}/${itemId}_data.json`,
+      );
+      if (ipfsResult) {
+        bodyData.cid = ipfsResult.cid;
+        if (userId) {
+          await createPinRecord({ cid: ipfsResult.cid, userId, options });
+        }
+      }
+    } catch (ipfsError) {
+      logger.warn('Failed to pin data JSON to IPFS:', ipfsError.message);
+    }
+
+    // Atomic create/replace – ObjectLayer is fully populated with all CIDs
+    let newObjectLayer;
+    const existingByItemId = await ObjectLayer.findOne({ 'data.item.id': bodyData.data.item.id });
+    if (existingByItemId) {
+      newObjectLayer = await ObjectLayer.findByIdAndUpdate(existingByItemId._id, bodyData, {
+        returnDocument: 'after',
+      }).populate('objectLayerRenderFramesId');
+    } else {
+      newObjectLayer = await (await new ObjectLayer(bodyData).save()).populate('objectLayerRenderFramesId');
     }
 
     return newObjectLayer;
@@ -683,29 +726,65 @@ const ObjectLayerService = {
       return objectLayer;
     }
 
-    // PUT /:id - Standard update
-    let updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
+    // PUT /:id - Standard update with cut-over consistency
+    const existingOL = await ObjectLayer.findById(req.params.id).populate('objectLayerRenderFramesId');
+    if (!existingOL) {
+      throw new Error('ObjectLayer not found');
+    }
 
-    if (updatedObjectLayer) {
-      // Generate atlas sprite sheet – this sets data.render.cid and saves
+    // Apply body updates to staging data in memory
+    const updateData = { ...req.body };
+    const stagingData = updateData.data || existingOL.data.toObject();
+    if (!stagingData.render) stagingData.render = {};
+
+    // Use existing render frames if available
+    const renderFramesData = existingOL.objectLayerRenderFramesId;
+    if (renderFramesData) {
       try {
-        await AtlasSpriteSheetService.generate({ params: { id: req.params.id }, auth: req.auth }, res, options);
+        const stagingOL = {
+          data: stagingData,
+          objectLayerRenderFramesId: renderFramesData,
+        };
+        const result = await AtlasSpriteSheetService.generate(
+          { objectLayer: stagingOL, auth: req.auth },
+          res,
+          options,
+          { skipObjectLayerSave: true },
+        );
+        stagingData.render.cid = result.atlasCid;
+        stagingData.render.metadataCid = result.atlasMetadataCid;
+        updateData.atlasSpriteSheetId = result.atlasDoc._id;
       } catch (atlasError) {
         logger.error('Failed to auto-update atlas for ObjectLayer:', atlasError);
       }
-
-      // Re-read so data.render.cid is up-to-date, then recompute SHA-256 & IPFS CID
-      updatedObjectLayer = await ObjectLayer.findById(req.params.id).populate('objectLayerRenderFramesId');
-      if (updatedObjectLayer) {
-        updatedObjectLayer = await ObjectLayerEngine.computeAndSaveFinalSha256({
-          objectLayer: updatedObjectLayer,
-          ipfsClient: IpfsClient,
-          createPinRecord,
-          userId: req.auth && req.auth.user ? req.auth.user._id : undefined,
-          options,
-        });
-      }
     }
+
+    updateData.data = stagingData;
+    updateData.sha256 = ObjectLayerEngine.computeSha256(stagingData);
+
+    // Pin data JSON to IPFS
+    const putUserId = req.auth && req.auth.user ? req.auth.user._id : undefined;
+    try {
+      const itemId = stagingData.item.id;
+      const ipfsResult = await IpfsClient.addJsonToIpfs(
+        stagingData,
+        `${itemId}_data.json`,
+        `/object-layer/${itemId}/${itemId}_data.json`,
+      );
+      if (ipfsResult) {
+        updateData.cid = ipfsResult.cid;
+        if (putUserId) {
+          await createPinRecord({ cid: ipfsResult.cid, userId: putUserId, options });
+        }
+      }
+    } catch (ipfsError) {
+      logger.warn('Failed to pin data JSON to IPFS:', ipfsError.message);
+    }
+
+    // Atomic update with all CIDs populated
+    let updatedObjectLayer = await ObjectLayer.findByIdAndUpdate(req.params.id, updateData, {
+      returnDocument: 'after',
+    }).populate('objectLayerRenderFramesId');
 
     return updatedObjectLayer;
   },

@@ -35,6 +35,10 @@ const CyberiaInstanceService = {
     if (!instance) throw new Error('instance not found');
     if (req.auth.user.role !== 'admin' && String(instance.creator) !== String(req.auth.user._id))
       throw new Error('insufficient permission');
+    if (req.body.thumbnail && instance.thumbnail && String(req.body.thumbnail) !== String(instance.thumbnail)) {
+      const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+      await File.findByIdAndDelete(instance.thumbnail);
+    }
     return await CyberiaInstance.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
   },
   delete: async (req, res, options) => {
@@ -45,6 +49,10 @@ const CyberiaInstanceService = {
       if (!instance) throw new Error('instance not found');
       if (req.auth.user.role !== 'admin' && String(instance.creator) !== String(req.auth.user._id))
         throw new Error('insufficient permission');
+      if (instance.thumbnail) {
+        const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+        await File.findByIdAndDelete(instance.thumbnail);
+      }
       return await CyberiaInstance.findByIdAndDelete(req.params.id);
     } else return await CyberiaInstance.deleteMany();
   },

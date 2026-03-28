@@ -1,8 +1,26 @@
 [
   {
+    "api": "atlas-sprite-sheet",
+    "model": {
+      "fileId": true
+    }
+  },
+  {
     "api": "company",
     "model": {
       "logo": true
+    }
+  },
+  {
+    "api": "cyberia-instance",
+    "model": {
+      "thumbnail": true
+    }
+  },
+  {
+    "api": "cyberia-map",
+    "model": {
+      "thumbnail": true
     }
   },
   {

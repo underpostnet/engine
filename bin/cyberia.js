@@ -190,7 +190,11 @@ try {
         const confServer = loadConfServerJson(confServerPath, { resolve: true });
         const { db } = confServer[host][path];
 
-        db.host = options.mongoHost ? options.mongoHost : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+        db.host = options.mongoHost
+          ? options.mongoHost
+          : options.dev
+            ? db.host
+            : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
 
         logger.info('env', {
           env: options.envPath,
@@ -218,9 +222,30 @@ try {
         const File = DataBaseProvider.instance[`${host}${path}`].mongoose.models.File;
 
         if (options.drop) {
+          const olCount = await ObjectLayer.countDocuments();
+          const rfCount = await ObjectLayerRenderFrames.countDocuments();
+
+          // Collect fileIds referenced by atlas sprite sheets before deleting them
+          const atlasDocs = await AtlasSpriteSheet.find({}, { fileId: 1 }).lean();
+          const atlasFileIds = atlasDocs.map((a) => a.fileId).filter(Boolean);
+          const atlasCount = atlasDocs.length;
+
           await ObjectLayer.deleteMany();
           await ObjectLayerRenderFrames.deleteMany();
+          await AtlasSpriteSheet.deleteMany();
+
+          // Remove only the File documents that were referenced by atlas sprite sheets
+          let fileCount = 0;
+          if (atlasFileIds.length > 0) {
+            const result = await File.deleteMany({ _id: { $in: atlasFileIds } });
+            fileCount = result.deletedCount || 0;
+          }
+
+          logger.info(
+            `Dropped: ${olCount} ObjectLayer, ${rfCount} RenderFrames, ${atlasCount} AtlasSpriteSheet, ${fileCount} File (atlas)`,
+          );
           shellExec(`cd src/client/public/cyberia && underpost run clean .`);
+          logger.info('Asset directory cleaned');
         }
 
         /** @type {Object|null} */
@@ -267,6 +292,18 @@ try {
                 objectLayerType: foundType,
                 objectLayerId: currentItemId,
               });
+
+            // Write processed frames back to disk so WebP matches atlas
+            const srcBasePath = './src/client/public/cyberia/';
+            const publicBasePath = `./public/${host}${path}`;
+            await ObjectLayerEngine.writeStaticFrameAssets({
+              basePaths: [srcBasePath, publicBasePath],
+              itemType: foundType,
+              itemId: currentItemId,
+              objectLayerRenderFramesData,
+              objectLayerData,
+              cellPixelDim: 20,
+            });
 
             // Check if an ObjectLayer with the same item.id already exists (upsert by item ID)
             const existingOL = await ObjectLayer.findOne({ 'data.item.id': currentItemId });
@@ -339,6 +376,7 @@ try {
                 // Persist atlas doc (or update existing one for this itemKey)
                 stagingAtlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
                 if (stagingAtlasDoc) {
+                  if (stagingAtlasDoc.fileId) await File.findByIdAndDelete(stagingAtlasDoc.fileId);
                   stagingAtlasDoc.fileId = stagingFileDoc._id;
                   stagingAtlasDoc.cid = importItemCid;
                   stagingAtlasDoc.metadata = metadata;
@@ -406,33 +444,29 @@ try {
               }
 
               objectLayer = await ObjectLayer.findById(existingOL._id);
-
             } else {
-              // New item: create directly (no live data to protect)
-              ({ objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
-                ObjectLayer,
-                ObjectLayerRenderFrames,
-                objectLayerRenderFramesData,
-                objectLayerData: { data: objectLayerData.data },
-                createOptions: {
-                  generateAtlas: false,
-                },
-              }));
+              // ── New item: stage everything before creating (same cut-over pattern) ──
+              logger.info(`ObjectLayer '${currentItemId}' is new, staging creation...`);
 
-              // Generate atlas sprite sheet for new imports
+              const itemKey = currentItemId;
+              const stagingData = JSON.parse(JSON.stringify(objectLayerData.data));
+              if (!stagingData.render) stagingData.render = {};
+              stagingData.render.cid = '';
+              stagingData.render.metadataCid = '';
+
+              let cutoverReady = false;
+              let stagingFileDoc = null;
+              let stagingAtlasDoc = null;
+              let stagingCid = '';
+              let stagingSha256 = '';
               try {
-                const itemKey = objectLayer.data.item.id;
-                const populatedObjectLayer = await ObjectLayer.findById(objectLayer._id).populate(
-                  'objectLayerRenderFramesId',
-                );
-
                 const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
-                  populatedObjectLayer.objectLayerRenderFramesId,
+                  objectLayerRenderFramesData,
                   itemKey,
                   20,
                 );
 
-                const fileDoc = await new File({
+                stagingFileDoc = await new File({
                   name: `${itemKey}-atlas.png`,
                   data: buffer,
                   size: buffer.length,
@@ -450,10 +484,10 @@ try {
                   );
                   if (ipfsResult) {
                     importItemCid = ipfsResult.cid;
-                    logger.info(`Atlas sprite sheet pinned to IPFS – CID: ${importItemCid}`);
+                    logger.info(`[staging] Atlas pinned to IPFS – CID: ${importItemCid}`);
                   }
                 } catch (ipfsError) {
-                  logger.warn('Failed to add atlas sprite sheet to IPFS:', ipfsError.message);
+                  logger.warn('[staging] Failed to add atlas to IPFS:', ipfsError.message);
                 }
 
                 try {
@@ -464,41 +498,65 @@ try {
                   );
                   if (metadataIpfsResult) {
                     importItemMetadataCid = metadataIpfsResult.cid;
-                    logger.info(`Atlas metadata pinned to IPFS – CID: ${importItemMetadataCid}`);
+                    logger.info(`[staging] Atlas metadata pinned to IPFS – CID: ${importItemMetadataCid}`);
                   }
                 } catch (ipfsError) {
-                  logger.warn('Failed to add atlas metadata to IPFS:', ipfsError.message);
+                  logger.warn('[staging] Failed to add atlas metadata to IPFS:', ipfsError.message);
                 }
 
-                let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
-                if (atlasDoc) {
-                  atlasDoc.fileId = fileDoc._id;
-                  atlasDoc.cid = importItemCid;
-                  atlasDoc.metadata = metadata;
-                  await atlasDoc.save();
+                stagingAtlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
+                if (stagingAtlasDoc) {
+                  if (stagingAtlasDoc.fileId) await File.findByIdAndDelete(stagingAtlasDoc.fileId);
+                  stagingAtlasDoc.fileId = stagingFileDoc._id;
+                  stagingAtlasDoc.cid = importItemCid;
+                  stagingAtlasDoc.metadata = metadata;
+                  await stagingAtlasDoc.save();
                 } else {
-                  atlasDoc = await new AtlasSpriteSheet({
-                    fileId: fileDoc._id,
+                  stagingAtlasDoc = await new AtlasSpriteSheet({
+                    fileId: stagingFileDoc._id,
                     cid: importItemCid,
                     metadata,
                   }).save();
                 }
 
-                populatedObjectLayer.atlasSpriteSheetId = atlasDoc._id;
-                if (!populatedObjectLayer.data.render) populatedObjectLayer.data.render = {};
-                populatedObjectLayer.data.render.cid = importItemCid;
-                populatedObjectLayer.data.render.metadataCid = importItemMetadataCid;
-                populatedObjectLayer.markModified('data.render');
-                await populatedObjectLayer.save();
+                stagingData.render.cid = importItemCid;
+                stagingData.render.metadataCid = importItemMetadataCid;
 
-                await ObjectLayerEngine.computeAndSaveFinalSha256({
-                  objectLayer: populatedObjectLayer,
-                  ipfsClient: IpfsClient,
-                });
+                stagingSha256 = ObjectLayerEngine.computeSha256(stagingData);
+                try {
+                  const ipfsDataResult = await IpfsClient.addJsonToIpfs(
+                    stagingData,
+                    `${itemKey}_data.json`,
+                    `/object-layer/${itemKey}/${itemKey}_data.json`,
+                  );
+                  if (ipfsDataResult) {
+                    stagingCid = ipfsDataResult.cid;
+                    logger.info(`[staging] Data JSON pinned to IPFS – CID: ${stagingCid}`);
+                  }
+                } catch (ipfsError) {
+                  logger.warn('[staging] Failed to pin data JSON to IPFS:', ipfsError.message);
+                }
 
-                logger.info(`Atlas sprite sheet completed for item: ${itemKey}`);
+                cutoverReady = true;
+                logger.info(`[staging] Item '${itemKey}' fully staged in memory, ready for creation`);
               } catch (atlasError) {
-                logger.error(`Failed to generate atlas for ${currentItemId}:`, atlasError);
+                logger.error(`[staging] Failed for ${currentItemId}, no document created:`, atlasError);
+              }
+
+              if (cutoverReady) {
+                const newRenderFrames = await ObjectLayerRenderFrames.create(objectLayerRenderFramesData);
+                objectLayer = await ObjectLayer.create({
+                  data: stagingData,
+                  sha256: stagingSha256,
+                  cid: stagingCid,
+                  objectLayerRenderFramesId: newRenderFrames._id,
+                  atlasSpriteSheetId: stagingAtlasDoc._id,
+                });
+                logger.info(`[cut-over] New ObjectLayer ${objectLayer._id} created with all CIDs populated`);
+              } else {
+                if (stagingFileDoc) await File.findByIdAndDelete(stagingFileDoc._id);
+                logger.warn(`[cut-over] Staging failed for ${currentItemId}, no ObjectLayer created`);
+                continue;
               }
             }
 
@@ -522,6 +580,19 @@ try {
            */
           const objectLayers = {};
 
+          // When importing all types, pre-fetch existing item IDs so we can skip them entirely
+          /** @type {Set<string>} */
+          const existingItemIds = new Set();
+          if (isImportAll) {
+            const existingDocs = await ObjectLayer.find({}, { 'data.item.id': 1 }).lean();
+            for (const doc of existingDocs) {
+              if (doc.data?.item?.id) existingItemIds.add(doc.data.item.id);
+            }
+            if (existingItemIds.size > 0) {
+              logger.info(`Skipping ${existingItemIds.size} existing item(s): ${[...existingItemIds].join(', ')}`);
+            }
+          }
+
           for (const argItemType of argItemTypes) {
             await pngDirectoryIteratorByObjectLayerType(
               argItemType,
@@ -531,6 +602,9 @@ try {
                   !storage[`src/client/public/cyberia/assets/${objectLayerType}/${objectLayerId}/08/0.png`]
                 )
                   return;
+
+                // Skip items that already exist in the database (bulk import only)
+                if (isImportAll && existingItemIds.has(objectLayerId)) return;
 
                 console.log(framePath, { objectLayerType, objectLayerId, direction, frame });
 
@@ -543,6 +617,18 @@ try {
                       objectLayerType,
                       objectLayerId,
                     });
+
+                  // Write processed frames back to disk so WebP matches atlas
+                  const srcBasePath = './src/client/public/cyberia/';
+                  const publicBasePath = `./public/${host}${path}`;
+                  await ObjectLayerEngine.writeStaticFrameAssets({
+                    basePaths: [srcBasePath, publicBasePath],
+                    itemType: objectLayerType,
+                    itemId: objectLayerId,
+                    objectLayerRenderFramesData,
+                    objectLayerData,
+                    cellPixelDim: 20,
+                  });
 
                   objectLayers[objectLayerId] = {
                     ...objectLayerData,
@@ -632,6 +718,7 @@ try {
 
                   stagingAtlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
                   if (stagingAtlasDoc) {
+                    if (stagingAtlasDoc.fileId) await File.findByIdAndDelete(stagingAtlasDoc.fileId);
                     stagingAtlasDoc.fileId = stagingFileDoc._id;
                     stagingAtlasDoc.cid = importAtlasCid;
                     stagingAtlasDoc.metadata = metadata;
@@ -693,32 +780,29 @@ try {
                 }
 
                 objectLayer = await ObjectLayer.findById(existingOL._id);
-
               } else {
-                // New item: create directly (no live data to protect)
-                ({ objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
-                  ObjectLayer,
-                  ObjectLayerRenderFrames,
-                  objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
-                  objectLayerData: { data: entry.data },
-                  createOptions: {
-                    generateAtlas: false,
-                  },
-                }));
+                // ── New item: stage everything before creating (same cut-over pattern) ──
+                logger.info(`ObjectLayer '${objectLayerId}' is new, staging creation...`);
 
+                const itemKey = objectLayerId;
+                const stagingData = JSON.parse(JSON.stringify(entry.data));
+                if (!stagingData.render) stagingData.render = {};
+                stagingData.render.cid = '';
+                stagingData.render.metadataCid = '';
+
+                let cutoverReady = false;
+                let stagingFileDoc = null;
+                let stagingAtlasDoc = null;
+                let stagingCid = '';
+                let stagingSha256 = '';
                 try {
-                  const itemKey = objectLayer.data.item.id;
-                  const populatedObjectLayer = await ObjectLayer.findById(objectLayer._id).populate(
-                    'objectLayerRenderFramesId',
-                  );
-
                   const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
-                    populatedObjectLayer.objectLayerRenderFramesId,
+                    entry.objectLayerRenderFramesData,
                     itemKey,
                     20,
                   );
 
-                  const fileDoc = await new File({
+                  stagingFileDoc = await new File({
                     name: `${itemKey}-atlas.png`,
                     data: buffer,
                     size: buffer.length,
@@ -736,10 +820,10 @@ try {
                     );
                     if (ipfsResult) {
                       importAtlasCid = ipfsResult.cid;
-                      logger.info(`Atlas sprite sheet pinned to IPFS – CID: ${importAtlasCid}`);
+                      logger.info(`[staging] Atlas pinned to IPFS – CID: ${importAtlasCid}`);
                     }
                   } catch (ipfsError) {
-                    logger.warn('Failed to add atlas sprite sheet to IPFS:', ipfsError.message);
+                    logger.warn('[staging] Failed to add atlas to IPFS:', ipfsError.message);
                   }
 
                   try {
@@ -750,41 +834,65 @@ try {
                     );
                     if (metadataIpfsResult) {
                       importAtlasMetadataCid = metadataIpfsResult.cid;
-                      logger.info(`Atlas metadata pinned to IPFS – CID: ${importAtlasMetadataCid}`);
+                      logger.info(`[staging] Atlas metadata pinned to IPFS – CID: ${importAtlasMetadataCid}`);
                     }
                   } catch (ipfsError) {
-                    logger.warn('Failed to add atlas metadata to IPFS:', ipfsError.message);
+                    logger.warn('[staging] Failed to add atlas metadata to IPFS:', ipfsError.message);
                   }
 
-                  let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
-                  if (atlasDoc) {
-                    atlasDoc.fileId = fileDoc._id;
-                    atlasDoc.cid = importAtlasCid;
-                    atlasDoc.metadata = metadata;
-                    await atlasDoc.save();
+                  stagingAtlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
+                  if (stagingAtlasDoc) {
+                    if (stagingAtlasDoc.fileId) await File.findByIdAndDelete(stagingAtlasDoc.fileId);
+                    stagingAtlasDoc.fileId = stagingFileDoc._id;
+                    stagingAtlasDoc.cid = importAtlasCid;
+                    stagingAtlasDoc.metadata = metadata;
+                    await stagingAtlasDoc.save();
                   } else {
-                    atlasDoc = await new AtlasSpriteSheet({
-                      fileId: fileDoc._id,
+                    stagingAtlasDoc = await new AtlasSpriteSheet({
+                      fileId: stagingFileDoc._id,
                       cid: importAtlasCid,
                       metadata,
                     }).save();
                   }
 
-                  populatedObjectLayer.atlasSpriteSheetId = atlasDoc._id;
-                  if (!populatedObjectLayer.data.render) populatedObjectLayer.data.render = {};
-                  populatedObjectLayer.data.render.cid = importAtlasCid;
-                  populatedObjectLayer.data.render.metadataCid = importAtlasMetadataCid;
-                  populatedObjectLayer.markModified('data.render');
-                  await populatedObjectLayer.save();
+                  stagingData.render.cid = importAtlasCid;
+                  stagingData.render.metadataCid = importAtlasMetadataCid;
 
-                  await ObjectLayerEngine.computeAndSaveFinalSha256({
-                    objectLayer: populatedObjectLayer,
-                    ipfsClient: IpfsClient,
-                  });
+                  stagingSha256 = ObjectLayerEngine.computeSha256(stagingData);
+                  try {
+                    const ipfsDataResult = await IpfsClient.addJsonToIpfs(
+                      stagingData,
+                      `${itemKey}_data.json`,
+                      `/object-layer/${itemKey}/${itemKey}_data.json`,
+                    );
+                    if (ipfsDataResult) {
+                      stagingCid = ipfsDataResult.cid;
+                      logger.info(`[staging] Data JSON pinned to IPFS – CID: ${stagingCid}`);
+                    }
+                  } catch (ipfsError) {
+                    logger.warn('[staging] Failed to pin data JSON to IPFS:', ipfsError.message);
+                  }
 
-                  logger.info(`Atlas sprite sheet completed for item: ${itemKey}`);
+                  cutoverReady = true;
+                  logger.info(`[staging] Item '${itemKey}' fully staged in memory, ready for creation`);
                 } catch (atlasError) {
-                  logger.error(`Failed to generate atlas for ${objectLayerId}:`, atlasError);
+                  logger.error(`[staging] Failed for ${objectLayerId}, no document created:`, atlasError);
+                }
+
+                if (cutoverReady) {
+                  const newRenderFrames = await ObjectLayerRenderFrames.create(entry.objectLayerRenderFramesData);
+                  objectLayer = await ObjectLayer.create({
+                    data: stagingData,
+                    sha256: stagingSha256,
+                    cid: stagingCid,
+                    objectLayerRenderFramesId: newRenderFrames._id,
+                    atlasSpriteSheetId: stagingAtlasDoc._id,
+                  });
+                  logger.info(`[cut-over] New ObjectLayer ${objectLayer._id} created with all CIDs populated`);
+                } else {
+                  if (stagingFileDoc) await File.findByIdAndDelete(stagingFileDoc._id);
+                  logger.warn(`[cut-over] Staging failed for ${objectLayerId}, no ObjectLayer created`);
+                  continue;
                 }
               }
 
@@ -794,8 +902,10 @@ try {
               );
               console.log(finalObjectLayer.toObject());
             } else {
+              // --import all: skip items that already exist in the database
+              if (existingItemIds.has(objectLayerId)) continue;
+
               // --import all: create documents without atlas generation
-              // Cut-over consistency: stage update for existing items
               const existingOL = await ObjectLayer.findOne({ 'data.item.id': objectLayerId });
               let objectLayer;
 
@@ -828,15 +938,19 @@ try {
                 objectLayer = await ObjectLayer.findById(existingOL._id);
                 logger.info(`[cut-over] Live document ${existingOL._id} updated atomically (atlas skipped)`);
               } else {
-                ({ objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
-                  ObjectLayer,
-                  ObjectLayerRenderFrames,
-                  objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
-                  objectLayerData: { data: entry.data },
-                  createOptions: {
-                    generateAtlas: false,
-                  },
-                }));
+                // New item: create with sha256 populated (no atlas for bulk import)
+                const stagingData = JSON.parse(JSON.stringify(entry.data));
+                if (!stagingData.render) stagingData.render = {};
+                stagingData.render.cid = '';
+                stagingData.render.metadataCid = '';
+                const stagingSha256 = ObjectLayerEngine.computeSha256(stagingData);
+
+                const newRenderFrames = await ObjectLayerRenderFrames.create(entry.objectLayerRenderFramesData);
+                objectLayer = await ObjectLayer.create({
+                  data: stagingData,
+                  sha256: stagingSha256,
+                  objectLayerRenderFramesId: newRenderFrames._id,
+                });
               }
 
               logger.info(
@@ -1023,7 +1137,8 @@ try {
           let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
 
           if (atlasDoc) {
-            // Update existing
+            // Update existing – remove old File to prevent orphans
+            if (atlasDoc.fileId) await File.findByIdAndDelete(atlasDoc.fileId);
             atlasDoc.fileId = fileDoc._id;
             atlasDoc.cid = toAtlasCid;
             atlasDoc.metadata = metadata;
@@ -1246,6 +1361,7 @@ try {
             // Upsert AtlasSpriteSheet document (with CID)
             let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': atlasItemKey });
             if (atlasDoc) {
+              if (atlasDoc.fileId) await File.findByIdAndDelete(atlasDoc.fileId);
               atlasDoc.fileId = fileDoc._id;
               atlasDoc.cid = atlasCid;
               atlasDoc.metadata = metadata;

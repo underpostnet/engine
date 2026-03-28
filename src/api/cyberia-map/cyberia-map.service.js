@@ -48,6 +48,10 @@ const CyberiaMapService = {
     if (!map) throw new Error('map not found');
     if (req.auth.user.role !== 'admin' && String(map.creator) !== String(req.auth.user._id))
       throw new Error('insufficient permission');
+    if (req.body.thumbnail && map.thumbnail && String(req.body.thumbnail) !== String(map.thumbnail)) {
+      const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+      await File.findByIdAndDelete(map.thumbnail);
+    }
     return await CyberiaMap.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
   },
   delete: async (req, res, options) => {
@@ -58,6 +62,10 @@ const CyberiaMapService = {
       if (!map) throw new Error('map not found');
       if (req.auth.user.role !== 'admin' && String(map.creator) !== String(req.auth.user._id))
         throw new Error('insufficient permission');
+      if (map.thumbnail) {
+        const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+        await File.findByIdAndDelete(map.thumbnail);
+      }
       return await CyberiaMap.findByIdAndDelete(req.params.id);
     } else return await CyberiaMap.deleteMany();
   },

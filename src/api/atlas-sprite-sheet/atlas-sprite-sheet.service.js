@@ -10,7 +10,7 @@ import { createPinRecord, removePinRecordsAndUnpin } from '../ipfs/ipfs.service.
 const logger = loggerFactory(import.meta);
 
 const AtlasSpriteSheetService = {
-  generate: async (req, res, options) => {
+  generate: async (req, res, options, generateOptions = {}) => {
     /** @type {import('../object-layer/object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
     /** @type {import('../file/file.model.js').FileModel} */
@@ -97,6 +97,13 @@ const AtlasSpriteSheetService = {
         cid: atlasCid,
         metadata,
       }).save();
+    }
+
+    // When skipObjectLayerSave is set, return CIDs without mutating the OL document.
+    // This enables cut-over consistency: callers stage CIDs in memory and write the
+    // ObjectLayer atomically only after all CIDs are computed.
+    if (generateOptions.skipObjectLayerSave) {
+      return { atlasDoc, atlasCid, atlasMetadataCid };
     }
 
     objectLayer.atlasSpriteSheetId = atlasDoc._id;
