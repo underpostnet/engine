@@ -64,10 +64,10 @@ This will iterate asset folders for the given types and store processed objects 
 
 ```bash
 # Process specific types (comma-separated)
-cyberia ol --import skin,floor
+cyberia ol --import-types skin,floor
 
 # Process all recognized types
-cyberia ol --import all
+cyberia ol --import-types all
 ```
 
 ### Procedural generation with `--generate`
@@ -96,24 +96,24 @@ cyberia ol floor-lava --generate --seed magma-3 --frame-count 3 --density 0.7
 
 **`--generate` options:**
 
-| Option | Default | Description |
-|---|---|---|
-| `--seed <str>` | auto UUID | Deterministic seed string. Same seed → same output. |
-| `--count <n>` | `3` | Shape element count multiplier per layer. |
-| `--frame-index <n>` | `0` | Starting frame index. |
-| `--frame-count <n>` | `1` | Number of consecutive frames to generate. |
-| `--density <f>` | `0.5` | Overall density factor (`0`–`1`). Lower = sparser. |
+| Option              | Default   | Description                                         |
+| ------------------- | --------- | --------------------------------------------------- |
+| `--seed <str>`      | auto UUID | Deterministic seed string. Same seed → same output. |
+| `--count <n>`       | `3`       | Shape element count multiplier per layer.           |
+| `--frame-index <n>` | `0`       | Starting frame index.                               |
+| `--frame-count <n>` | `1`       | Number of consecutive frames to generate.           |
+| `--density <f>`     | `0.5`     | Overall density factor (`0`–`1`). Lower = sparser.  |
 
 **Available semantic item-id prefixes:**
 
-| Prefix | Type | Tags | Palette |
-|---|---|---|---|
-| `floor-desert` | floor | sand, dune, arid | warm ochres, sand tones |
-| `floor-grass` | floor | grass, meadow, earth | greens, earth browns |
-| `floor-water` | floor | water, ocean, wave | blues, foam whites |
-| `floor-stone` | floor | stone, rock, cobble | greys, warm/cool stone |
-| `floor-lava` | floor | lava, magma, fire | reds, oranges, dark crust |
-| `skin-*` | skin | character, body | skin tones, clothing darks |
+| Prefix         | Type  | Tags                 | Palette                    |
+| -------------- | ----- | -------------------- | -------------------------- |
+| `floor-desert` | floor | sand, dune, arid     | warm ochres, sand tones    |
+| `floor-grass`  | floor | grass, meadow, earth | greens, earth browns       |
+| `floor-water`  | floor | water, ocean, wave   | blues, foam whites         |
+| `floor-stone`  | floor | stone, rock, cobble  | greys, warm/cool stone     |
+| `floor-lava`   | floor | lava, magma, fire    | reds, oranges, dark crust  |
+| `skin-*`       | skin  | character, body      | skin tones, clothing darks |
 
 #### How generation works
 
@@ -185,6 +185,7 @@ cyberia ol anon --show-frame 04_1  # left_idle (second frame)
 ```
 
 **Valid direction codes:**
+
 - `08`: down_idle, none_idle, default_idle
 - `18`: down_walking
 - `02`: up_idle
@@ -195,6 +196,7 @@ cyberia ol anon --show-frame 04_1  # left_idle (second frame)
 - `16`: right_walking, up_right_walking, down_right_walking
 
 This command:
+
 - Finds the ObjectLayer by item-id
 - Loads the associated ObjectLayerRenderFrames document
 - Reconstructs the PNG from the stored `frame_matrix` and `map_color`
@@ -216,6 +218,7 @@ cyberia ol anon --to-atlas-sprite-sheet 4096
 ```
 
 This command:
+
 - Finds the ObjectLayer by item-id or MongoDB `_id`
 - Loads the associated ObjectLayerRenderFrames document
 - **Auto-calculates optimal atlas dimensions** based on total frame count (8 directions × all animation modes)
@@ -226,6 +229,7 @@ This command:
 - Uses power-of-2 dimensions for GPU efficiency
 
 **Atlas Dimension Calculation:**
+
 - **Auto (default)**: Dynamically calculates optimal size based on:
   - Total number of frames across all directions and modes
   - Individual frame dimensions
@@ -234,6 +238,7 @@ This command:
 - **Manual override**: Specify exact dimension (e.g., `--to-atlas-sprite-sheet 4096`)
 
 **Common Atlas Sizes:**
+
 - **1024x1024**: ~6-10 frames
 - **2048x2048**: ~20-40 frames (typical for character sprites)
 - **4096x4096**: ~80-160 frames (complex animations)
@@ -252,6 +257,7 @@ cyberia ol anon --show-atlas-sprite-sheet
 ```
 
 This command:
+
 - Finds the ObjectLayer by item-id
 - Retrieves the associated AtlasSpriteSheet via top-level `atlasSpriteSheetId` or by matching `metadata.itemKey`
 - Saves it temporarily to disk
@@ -266,7 +272,7 @@ Process assets from source files through to atlas generation:
 
 ```bash
 # 1. Import object layers from asset directories
-cyberia ol --import skin
+cyberia ol --import-types skin
 
 # 2. Verify a specific frame was imported correctly
 cyberia ol anon --show-frame 08_0
@@ -337,7 +343,7 @@ cyberia ol anon --show-frame 16_0  # right_walking
 
 ```bash
 # Import multiple types at once
-cyberia ol --import skin,floor,weapon
+cyberia ol --import-types skin,floor,weapon
 
 # Process individual items
 cyberia ol sword --show-frame 08_0
