@@ -990,10 +990,10 @@ export class ObjectLayerEngine {
 /**
  * Mapping of item type names to numerical IDs.
  * @constant
- * @type {{floor: number, skin: number, weapon: number, skill: number, coin: number}}
+ * @type {{floor: number, skin: number, breastplate: number, weapon: number, skill: number, coin: number}}
  * @memberof CyberiaObjectLayer
  */
-export const itemTypes = { floor: 0, skin: 1, weapon: 2, skill: 3, coin: 4 };
+export const itemTypes = { floor: 0, skin: 1, breastplate: 2, weapon: 3, skill: 4, coin: 5 };
 
 // ──────────────────────────────────────────────────────────────────────────
 // Backward-compatible named exports matching the original destructured imports.

@@ -120,6 +120,8 @@ try {
     .option('--mongo-host <mongo-host>', 'Mongo host override')
     .option('--storage-file-path <storage-file-path>', 'Storage file path override')
     .option('--drop', 'Drop existing data before importing')
+    .option('--client-public', 'When used with --drop, also remove static asset folders for dropped items')
+    .option('--git-clean', 'When used with --drop, run underpost clean on the cyberia asset directory')
     .option('--dev', 'Force development environment (loads .env.development for IPFS localhost, etc.)')
     .action(
       /**
@@ -137,6 +139,8 @@ try {
        * @param {boolean|string} options.toAtlasSpriteSheet - Atlas dimension or `true` for auto-calc.
        * @param {boolean} options.showAtlasSpriteSheet - Whether to display the atlas sprite sheet.
        * @param {boolean} options.drop - Whether to drop existing data before importing.
+       * @param {boolean} options.clientPublic - Also remove static asset folders when dropping.
+       * @param {boolean} options.gitClean - Run underpost clean on the cyberia asset directory when dropping.
        * @param {boolean} options.dev - Force development environment.
        * @param {boolean} options.generate - Whether to run procedural generation for the item-id.
        * @param {number} options.count - Shape element count multiplier for generation.
@@ -159,6 +163,8 @@ try {
           toAtlasSpriteSheet: '',
           showAtlasSpriteSheet: false,
           drop: false,
+          clientPublic: false,
+          gitClean: false,
           dev: false,
           generate: false,
           count: 3,
@@ -222,17 +228,71 @@ try {
         const File = DataBaseProvider.instance[`${host}${path}`].mongoose.models.File;
 
         if (options.drop) {
-          const olCount = await ObjectLayer.countDocuments();
-          const rfCount = await ObjectLayerRenderFrames.countDocuments();
+          // Parse comma-separated item IDs for targeted drop; if none provided, drop everything
+          const dropItemIds = itemId
+            ? itemId
+                .split(',')
+                .map((id) => id.trim())
+                .filter(Boolean)
+            : null;
+          const isTargetedDrop = dropItemIds && dropItemIds.length > 0;
 
-          // Collect fileIds referenced by atlas sprite sheets before deleting them
-          const atlasDocs = await AtlasSpriteSheet.find({}, { fileId: 1 }).lean();
+          if (isTargetedDrop) {
+            logger.info(`Targeted drop for item(s): ${dropItemIds.join(', ')}`);
+          } else {
+            logger.info('Dropping ALL object layer data');
+          }
+
+          // Build query filter: targeted or all
+          const olFilter = isTargetedDrop ? { 'data.item.id': { $in: dropItemIds } } : {};
+          const atlasFilter = isTargetedDrop ? { 'metadata.itemKey': { $in: dropItemIds } } : {};
+
+          // Collect data before deletion
+          const olDocs = await ObjectLayer.find(olFilter, {
+            cid: 1,
+            'data.item.id': 1,
+            'data.item.type': 1,
+            'data.render': 1,
+            objectLayerRenderFramesId: 1,
+            atlasSpriteSheetId: 1,
+          }).lean();
+          const atlasDocs = await AtlasSpriteSheet.find(atlasFilter, { fileId: 1, cid: 1 }).lean();
+
+          const cidsToUnpin = new Set();
+          const itemIdsToClean = new Set();
+          const renderFrameIds = [];
+          const atlasIds = [];
+
+          for (const doc of olDocs) {
+            if (doc.cid) cidsToUnpin.add(doc.cid);
+            if (doc.data?.render?.cid) cidsToUnpin.add(doc.data.render.cid);
+            if (doc.data?.render?.metadataCid) cidsToUnpin.add(doc.data.render.metadataCid);
+            if (doc.data?.item?.id) itemIdsToClean.add(doc.data.item.id);
+            if (doc.objectLayerRenderFramesId) renderFrameIds.push(doc.objectLayerRenderFramesId);
+            if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
+          }
+
           const atlasFileIds = atlasDocs.map((a) => a.fileId).filter(Boolean);
+          for (const atlas of atlasDocs) {
+            if (atlas.cid) cidsToUnpin.add(atlas.cid);
+          }
+
+          const olCount = olDocs.length;
           const atlasCount = atlasDocs.length;
 
-          await ObjectLayer.deleteMany();
-          await ObjectLayerRenderFrames.deleteMany();
-          await AtlasSpriteSheet.deleteMany();
+          // Delete targeted documents
+          if (isTargetedDrop) {
+            const olIds = olDocs.map((d) => d._id);
+            if (olIds.length > 0) await ObjectLayer.deleteMany({ _id: { $in: olIds } });
+            if (renderFrameIds.length > 0) await ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFrameIds } });
+            if (atlasIds.length > 0) await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
+          } else {
+            await ObjectLayer.deleteMany();
+            await ObjectLayerRenderFrames.deleteMany();
+            await AtlasSpriteSheet.deleteMany();
+          }
+
+          const rfCount = renderFrameIds.length;
 
           // Remove only the File documents that were referenced by atlas sprite sheets
           let fileCount = 0;
@@ -241,11 +301,49 @@ try {
             fileCount = result.deletedCount || 0;
           }
 
+          // Unpin CIDs from IPFS Cluster + Kubo and remove MFS directories
+          let unpinCount = 0;
+          let mfsCount = 0;
+          for (const cid of cidsToUnpin) {
+            const ok = await IpfsClient.unpinCid(cid);
+            if (ok) unpinCount++;
+          }
+          for (const itemKey of itemIdsToClean) {
+            const ok = await IpfsClient.removeMfsPath(`/object-layer/${itemKey}`);
+            if (ok) mfsCount++;
+          }
+
           logger.info(
             `Dropped: ${olCount} ObjectLayer, ${rfCount} RenderFrames, ${atlasCount} AtlasSpriteSheet, ${fileCount} File (atlas)`,
           );
-          shellExec(`cd src/client/public/cyberia && underpost run clean .`);
-          logger.info('Asset directory cleaned');
+          logger.info(
+            `IPFS cleanup: ${unpinCount}/${cidsToUnpin.size} CIDs unpinned, ${mfsCount}/${itemIdsToClean.size} MFS paths removed`,
+          );
+          if (options.gitClean) {
+            shellExec(`cd src/client/public/cyberia && underpost run clean .`);
+            logger.info('Asset directory cleaned');
+          }
+
+          // --client-public: remove static asset folders for dropped items
+          if (options.clientPublic) {
+            const srcBase = './src/client/public/cyberia/assets';
+            const publicBase = `./public/${host}${path}/assets`;
+            let removedCount = 0;
+            for (const doc of olDocs) {
+              const docItemId = doc.data?.item?.id;
+              const docItemType = doc.data?.item?.type;
+              if (!docItemId || !docItemType) continue;
+              for (const base of [srcBase, publicBase]) {
+                const folder = `${base}/${docItemType}/${docItemId}`;
+                if (fs.existsSync(folder)) {
+                  fs.removeSync(folder);
+                  removedCount++;
+                  logger.info(`Removed static folder: ${folder}`);
+                }
+              }
+            }
+            logger.info(`Static asset cleanup: ${removedCount} folder(s) removed`);
+          }
         }
 
         /** @type {Object|null} */
