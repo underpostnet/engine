@@ -128,9 +128,41 @@ class UnderpostRepository {
         changelogMinVersion: '',
         changelogNoHash: false,
         b: false,
+        p: undefined,
+        bc: '',
       },
     ) {
       if (!repoPath) repoPath = '.';
+
+      if (options.bc) {
+        console.log(
+          shellExec(`cd ${repoPath} && git for-each-ref --contains ${options.bc} --format='%(refname:short)'`, {
+            stdout: true,
+            silent: true,
+            disableLog: true,
+          }).trim(),
+        );
+        return;
+      }
+
+      if (options.p !== undefined) {
+        const branch =
+          options.p === true
+            ? shellExec(`cd ${repoPath} && git branch --show-current`, {
+                stdout: true,
+                silent: true,
+                disableLog: true,
+              }).trim()
+            : options.p;
+        console.log(
+          shellExec(`cd ${repoPath} && git --no-pager reflog show refs/heads/${branch}`, {
+            stdout: true,
+            silent: true,
+            disableLog: true,
+          }).trim(),
+        );
+        return;
+      }
 
       if (options.b) {
         const currentBranch = shellExec(`cd ${repoPath} && git branch --show-current`, {

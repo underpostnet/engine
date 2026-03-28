@@ -109,6 +109,8 @@ program
     'Excludes commit hashes from the generated changelog entries (used with --changelog-build).',
   )
   .option('-b', 'Shows the current Git branch name.')
+  .option('-p [branch]', 'Shows the reflog for the specified branch.')
+  .option('--bc <commit-hash>', 'Shows branches that contain the specified commit.')
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 
