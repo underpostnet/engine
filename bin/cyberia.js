@@ -42,6 +42,7 @@ import { program as underpostProgram } from '../src/cli/index.js';
 import crypto from 'crypto';
 import nodePath from 'path';
 import Underpost from '../src/index.js';
+import { DefaultCyberiaItems } from '../src/client/components/cyberia-portal/CommonCyberiaPortal.js';
 
 /**
  * Connect to the project MongoDB instance using the standard env / conf layout.
@@ -1794,6 +1795,15 @@ try {
       } finally {
         fs.removeSync(tmpScript);
       }
+    });
+
+  const runner = program.command('run-workflow').description('Run a Cyberia script from the "scripts" directory');
+
+  runner
+    .command('import-default-items')
+    .description('Import default Object Layer items from a JSON file into MongoDB')
+    .action(async () => {
+      shellExec(`node bin/cyberia ol ${DefaultCyberiaItems} --import`);
     });
 
   if (underpostProgram.commands.find((c) => c._name == process.argv[2]))

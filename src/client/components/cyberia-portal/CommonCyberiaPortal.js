@@ -34,4 +34,31 @@ const CyberiaDependencies = {
   ethers: '~6.16.0',
 };
 
-export { BaseElement, ModelElement, CyberiaPortalParams, CyberiaDependencies };
+const DefaultCyberiaItems = [
+  'coin',
+  // 'red-power',
+  // 'heal',
+  // 'hatchet-skill',
+  // 'green-power',
+  // 'blood',
+  'atlas_pistol_mk2',
+  'atlas_pistol_mk2_bullet',
+  // 'tim-knife',
+  // 'hatchet',
+  // 'wason',
+  // 'scp-2040',
+  'purple',
+  // 'punk',
+  // 'marciano',
+  // 'lain',
+  // 'kaneki',
+  // 'junko',
+  'ghost',
+  // 'eiri',
+  'anon',
+  // 'alex',
+  // 'agent',
+  'grass',
+];
+
+export { BaseElement, ModelElement, CyberiaPortalParams, CyberiaDependencies, DefaultCyberiaItems };
