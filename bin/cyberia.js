@@ -103,7 +103,11 @@ try {
       'Convert object layers to atlas sprite sheets, specify dimension (default: auto-calculated based on frame count)',
     )
     .option('--show-atlas-sprite-sheet', 'Show consolidated atlas sprite sheet PNG for given item-id')
-    .option('--import [object-layer-type]', 'Commas separated object layer types e.g. skin,floors')
+    .option(
+      '--import',
+      'Import specific item-id(s) passed as comma-separated command argument (e.g. ol hatchet,sword --import)',
+    )
+    .option('--import-types [object-layer-type]', 'Batch import by object layer type e.g. skin,floors or all')
     .option('--show-frame [direction-frame]', 'View object layer frame for given item-id e.g. 08_0 (default: 08_0)')
     .option('--generate', 'Generate procedural object layers from semantic item-id (e.g. floor-desert)')
     .option('--count <count>', 'Shape element count multiplier for --generate (default: 3)', parseFloat)
@@ -122,7 +126,8 @@ try {
        *
        * @param {string|undefined} itemId - Optional item ID argument.
        * @param {Object} options - Command options parsed by Commander.
-       * @param {boolean|string} options.import - Object layer types to import (e.g., 'all', 'skin,floor') or `false`.
+       * @param {boolean} options.import - Import specific item-id(s) from the command argument (comma-separated).
+       * @param {boolean|string} options.importTypes - Object layer types to batch import (e.g., 'all', 'skin,floor') or `false`.
        * @param {boolean|string} options.showFrame - Direction-frame string (e.g., '08_0') or `true` for default.
        * @param {string} options.envPath - Path to the `.env` file.
        * @param {string} options.mongoHost - MongoDB host override.
@@ -143,12 +148,14 @@ try {
         itemId,
         options = {
           import: false,
+          importTypes: false,
           showFrame: '',
           envPath: '',
           mongoHost: '',
           storageFilePath: '',
           toAtlasSpriteSheet: '',
           showAtlasSpriteSheet: false,
+          drop: false,
           generate: false,
           count: 3,
           seed: '',
@@ -207,13 +214,149 @@ try {
         /** @type {Object|null} */
         const storage = options.storageFilePath ? JSON.parse(fs.readFileSync(options.storageFilePath, 'utf8')) : null;
 
-        // ── Handle --import ──────────────────────────────────────────────
+        // ── Handle --import (specific item-id(s)) ─────────────────────
         if (options.import) {
+          if (!itemId) {
+            logger.error('item-id is required for --import (comma-separated item IDs, e.g. ol hatchet,sword --import)');
+            process.exit(1);
+          }
+
+          const itemIds = itemId
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean);
+          logger.info(`Importing specific item(s): ${itemIds.join(', ')}`);
+
+          for (const currentItemId of itemIds) {
+            // Search across all asset type directories to find which type contains this item-id
+            let foundType = null;
+            let foundFolder = null;
+            for (const type of Object.keys(itemTypes)) {
+              const candidateFolder = `./src/client/public/cyberia/assets/${type}/${currentItemId}`;
+              if (fs.existsSync(candidateFolder) && fs.statSync(candidateFolder).isDirectory()) {
+                foundType = type;
+                foundFolder = candidateFolder;
+                break;
+              }
+            }
+
+            if (!foundType) {
+              logger.error(
+                `Item-id '${currentItemId}' not found in any asset type directory (${Object.keys(itemTypes).join(', ')})`,
+              );
+              continue;
+            }
+
+            logger.info(`Found item '${currentItemId}' in type '${foundType}' at ${foundFolder}`);
+
+            const { objectLayerRenderFramesData, objectLayerData } =
+              await ObjectLayerEngine.buildObjectLayerDataFromDirectory({
+                folder: foundFolder,
+                objectLayerType: foundType,
+                objectLayerId: currentItemId,
+              });
+
+            const { objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
+              ObjectLayer,
+              ObjectLayerRenderFrames,
+              objectLayerRenderFramesData,
+              objectLayerData: { data: objectLayerData.data },
+              createOptions: {
+                generateAtlas: false,
+              },
+            });
+
+            // Generate atlas sprite sheet for individual imports
+            try {
+              const itemKey = objectLayer.data.item.id;
+              const populatedObjectLayer = await ObjectLayer.findById(objectLayer._id).populate(
+                'objectLayerRenderFramesId',
+              );
+
+              const { buffer, metadata } = await AtlasSpriteSheetGenerator.generateAtlas(
+                populatedObjectLayer.objectLayerRenderFramesId,
+                itemKey,
+                20,
+              );
+
+              const fileDoc = await new File({
+                name: `${itemKey}-atlas.png`,
+                data: buffer,
+                size: buffer.length,
+                mimetype: 'image/png',
+                md5: crypto.createHash('md5').update(buffer).digest('hex'),
+              }).save();
+
+              let importItemCid = '';
+              let importItemMetadataCid = '';
+              try {
+                const ipfsResult = await IpfsClient.addBufferToIpfs(
+                  buffer,
+                  `${itemKey}_atlas_sprite_sheet.png`,
+                  `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet.png`,
+                );
+                if (ipfsResult) {
+                  importItemCid = ipfsResult.cid;
+                  logger.info(`Atlas sprite sheet pinned to IPFS – CID: ${importItemCid}`);
+                }
+              } catch (ipfsError) {
+                logger.warn('Failed to add atlas sprite sheet to IPFS:', ipfsError.message);
+              }
+
+              try {
+                const metadataIpfsResult = await IpfsClient.addJsonToIpfs(
+                  metadata,
+                  `${itemKey}_atlas_sprite_sheet_metadata.json`,
+                  `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet_metadata.json`,
+                );
+                if (metadataIpfsResult) {
+                  importItemMetadataCid = metadataIpfsResult.cid;
+                  logger.info(`Atlas metadata pinned to IPFS – CID: ${importItemMetadataCid}`);
+                }
+              } catch (ipfsError) {
+                logger.warn('Failed to add atlas metadata to IPFS:', ipfsError.message);
+              }
+
+              let atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey });
+
+              if (atlasDoc) {
+                atlasDoc.fileId = fileDoc._id;
+                atlasDoc.cid = importItemCid;
+                atlasDoc.metadata = metadata;
+                await atlasDoc.save();
+                logger.info(`Updated existing AtlasSpriteSheet document: ${atlasDoc._id}`);
+              } else {
+                atlasDoc = await new AtlasSpriteSheet({
+                  fileId: fileDoc._id,
+                  cid: importItemCid,
+                  metadata,
+                }).save();
+                logger.info(`Created new AtlasSpriteSheet document: ${atlasDoc._id}`);
+              }
+
+              populatedObjectLayer.atlasSpriteSheetId = atlasDoc._id;
+              if (!populatedObjectLayer.data.render) populatedObjectLayer.data.render = {};
+              populatedObjectLayer.data.render.cid = importItemCid;
+              populatedObjectLayer.data.render.metadataCid = importItemMetadataCid;
+              populatedObjectLayer.markModified('data.render');
+              await populatedObjectLayer.save();
+
+              logger.info(`Atlas sprite sheet completed for item: ${itemKey}`);
+            } catch (atlasError) {
+              logger.error(`Failed to generate atlas for ${currentItemId}:`, atlasError);
+            }
+
+            console.log(objectLayer);
+          }
+        }
+
+        // ── Handle --import-types (batch by type) ────────────────────────
+        if (options.importTypes) {
           /** @type {boolean} */
-          const isImportAll = options.import === 'all';
+          const isImportAll = options.importTypes === 'all';
 
           /** @type {string[]} */
-          const argItemTypes = isImportAll ? Object.keys(itemTypes) : options.import.split(',');
+          const argItemTypes = isImportAll ? Object.keys(itemTypes) : options.importTypes.split(',');
 
           /**
            * Accumulated object layer data keyed by objectLayerId.
