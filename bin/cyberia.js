@@ -120,6 +120,7 @@ try {
     .option('--mongo-host <mongo-host>', 'Mongo host override')
     .option('--storage-file-path <storage-file-path>', 'Storage file path override')
     .option('--drop', 'Drop existing data before importing')
+    .option('--dev', 'Force development environment (loads .env.development for IPFS localhost, etc.)')
     .action(
       /**
        * Main action handler for the `ol` command.
@@ -136,6 +137,7 @@ try {
        * @param {boolean|string} options.toAtlasSpriteSheet - Atlas dimension or `true` for auto-calc.
        * @param {boolean} options.showAtlasSpriteSheet - Whether to display the atlas sprite sheet.
        * @param {boolean} options.drop - Whether to drop existing data before importing.
+       * @param {boolean} options.dev - Force development environment.
        * @param {boolean} options.generate - Whether to run procedural generation for the item-id.
        * @param {number} options.count - Shape element count multiplier for generation.
        * @param {string} options.seed - Deterministic seed string for generation.
@@ -157,6 +159,7 @@ try {
           toAtlasSpriteSheet: '',
           showAtlasSpriteSheet: false,
           drop: false,
+          dev: false,
           generate: false,
           count: 3,
           seed: '',
@@ -167,6 +170,14 @@ try {
       ) => {
         if (!options.envPath) options.envPath = `./.env`;
         if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+        // --dev: force development environment (IPFS localhost, etc.)
+        if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
+          const deployDevEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
+          if (fs.existsSync(deployDevEnvPath)) {
+            dotenv.config({ path: deployDevEnvPath, override: true });
+          }
+        }
 
         /** @type {string} */
         const deployId = process.env.DEFAULT_DEPLOY_ID;
@@ -257,15 +268,33 @@ try {
                 objectLayerId: currentItemId,
               });
 
-            const { objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
-              ObjectLayer,
-              ObjectLayerRenderFrames,
-              objectLayerRenderFramesData,
-              objectLayerData: { data: objectLayerData.data },
-              createOptions: {
-                generateAtlas: false,
-              },
-            });
+            // Check if an ObjectLayer with the same item.id already exists (upsert by item ID)
+            const existingOL = await ObjectLayer.findOne({ 'data.item.id': currentItemId });
+            let objectLayer;
+
+            if (existingOL) {
+              logger.info(`ObjectLayer '${currentItemId}' already exists (${existingOL._id}), updating...`);
+              ({ objectLayer } = await ObjectLayerEngine.updateObjectLayerDocuments({
+                objectLayerId: existingOL._id,
+                ObjectLayer,
+                ObjectLayerRenderFrames,
+                objectLayerRenderFramesData,
+                objectLayerData: { data: objectLayerData.data },
+                updateOptions: {
+                  generateAtlas: false,
+                },
+              }));
+            } else {
+              ({ objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
+                ObjectLayer,
+                ObjectLayerRenderFrames,
+                objectLayerRenderFramesData,
+                objectLayerData: { data: objectLayerData.data },
+                createOptions: {
+                  generateAtlas: false,
+                },
+              }));
+            }
 
             // Generate atlas sprite sheet for individual imports
             try {
@@ -342,12 +371,20 @@ try {
               populatedObjectLayer.markModified('data.render');
               await populatedObjectLayer.save();
 
+              // Compute final SHA-256 and pin object layer data JSON to IPFS
+              await ObjectLayerEngine.computeAndSaveFinalSha256({
+                objectLayer: populatedObjectLayer,
+                ipfsClient: IpfsClient,
+              });
+
               logger.info(`Atlas sprite sheet completed for item: ${itemKey}`);
             } catch (atlasError) {
               logger.error(`Failed to generate atlas for ${currentItemId}:`, atlasError);
             }
 
-            console.log(objectLayer);
+            // Reload final state to include CID and render updates
+            const finalObjectLayer = await ObjectLayer.findById(objectLayer._id).populate('objectLayerRenderFramesId');
+            console.log(finalObjectLayer.toObject());
           }
         }
 
@@ -405,18 +442,33 @@ try {
             const shouldGenerateAtlas = !isImportAll;
 
             if (shouldGenerateAtlas) {
-              // Use the createObjectLayerDocuments which handles atlas generation
-              // Since we're in CLI context without a full Express req/res, we build a minimal
-              // atlas generation flow using AtlasSpriteSheetGenerator directly after creation.
-              const { objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
-                ObjectLayer,
-                ObjectLayerRenderFrames,
-                objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
-                objectLayerData: { data: entry.data },
-                createOptions: {
-                  generateAtlas: false,
-                },
-              });
+              // Check if an ObjectLayer with the same item.id already exists (upsert by item ID)
+              const existingOL = await ObjectLayer.findOne({ 'data.item.id': objectLayerId });
+              let objectLayer;
+
+              if (existingOL) {
+                logger.info(`ObjectLayer '${objectLayerId}' already exists (${existingOL._id}), updating...`);
+                ({ objectLayer } = await ObjectLayerEngine.updateObjectLayerDocuments({
+                  objectLayerId: existingOL._id,
+                  ObjectLayer,
+                  ObjectLayerRenderFrames,
+                  objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
+                  objectLayerData: { data: entry.data },
+                  updateOptions: {
+                    generateAtlas: false,
+                  },
+                }));
+              } else {
+                ({ objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
+                  ObjectLayer,
+                  ObjectLayerRenderFrames,
+                  objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
+                  objectLayerData: { data: entry.data },
+                  createOptions: {
+                    generateAtlas: false,
+                  },
+                }));
+              }
 
               // Generate atlas sprite sheet for individual imports
               try {
@@ -495,26 +547,58 @@ try {
                 populatedObjectLayer.markModified('data.render');
                 await populatedObjectLayer.save();
 
+                // Compute final SHA-256 and pin object layer data JSON to IPFS
+                await ObjectLayerEngine.computeAndSaveFinalSha256({
+                  objectLayer: populatedObjectLayer,
+                  ipfsClient: IpfsClient,
+                });
+
                 logger.info(`Atlas sprite sheet completed for item: ${itemKey}`);
               } catch (atlasError) {
                 logger.error(`Failed to generate atlas for ${objectLayerId}:`, atlasError);
               }
 
-              console.log(objectLayer);
+              // Reload final state to include CID and render updates
+              const finalObjectLayer = await ObjectLayer.findById(objectLayer._id).populate(
+                'objectLayerRenderFramesId',
+              );
+              console.log(finalObjectLayer.toObject());
             } else {
               // --import all: create documents without atlas generation
-              const { objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
-                ObjectLayer,
-                ObjectLayerRenderFrames,
-                objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
-                objectLayerData: { data: entry.data },
-                createOptions: {
-                  generateAtlas: false,
-                },
-              });
+              // Check if an ObjectLayer with the same item.id already exists
+              const existingOL = await ObjectLayer.findOne({ 'data.item.id': objectLayerId });
+              let objectLayer;
 
-              logger.info(`ObjectLayer created (atlas skipped for bulk import): ${objectLayerId}`);
-              console.log(objectLayer);
+              if (existingOL) {
+                logger.info(
+                  `ObjectLayer '${objectLayerId}' already exists (${existingOL._id}), updating (atlas skipped)...`,
+                );
+                ({ objectLayer } = await ObjectLayerEngine.updateObjectLayerDocuments({
+                  objectLayerId: existingOL._id,
+                  ObjectLayer,
+                  ObjectLayerRenderFrames,
+                  objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
+                  objectLayerData: { data: entry.data },
+                  updateOptions: {
+                    generateAtlas: false,
+                  },
+                }));
+              } else {
+                ({ objectLayer } = await ObjectLayerEngine.createObjectLayerDocuments({
+                  ObjectLayer,
+                  ObjectLayerRenderFrames,
+                  objectLayerRenderFramesData: entry.objectLayerRenderFramesData,
+                  objectLayerData: { data: entry.data },
+                  createOptions: {
+                    generateAtlas: false,
+                  },
+                }));
+              }
+
+              logger.info(
+                `ObjectLayer ${existingOL ? 'updated' : 'created'} (atlas skipped for bulk import): ${objectLayerId}`,
+              );
+              console.log(objectLayer.toObject ? objectLayer.toObject() : objectLayer);
             }
           }
         }
@@ -718,6 +802,12 @@ try {
           objectLayer.data.render.metadataCid = toAtlasMetadataCid;
           objectLayer.markModified('data.render');
           await objectLayer.save();
+
+          // Compute final SHA-256 and pin object layer data JSON to IPFS
+          await ObjectLayerEngine.computeAndSaveFinalSha256({
+            objectLayer,
+            ipfsClient: IpfsClient,
+          });
 
           logger.info(`Atlas sprite sheet completed for item: ${itemKey}`);
         }
@@ -1801,9 +1891,10 @@ try {
 
   runner
     .command('import-default-items')
+    .option('--dev', 'Force development environment (loads .env.development for IPFS localhost, etc.)')
     .description('Import default Object Layer items from a JSON file into MongoDB')
-    .action(async () => {
-      shellExec(`node bin/cyberia ol ${DefaultCyberiaItems} --import`);
+    .action(async (options) => {
+      shellExec(`node bin/cyberia ol ${DefaultCyberiaItems} --import${options.dev ? ' --dev' : ''}`);
     });
 
   if (underpostProgram.commands.find((c) => c._name == process.argv[2]))
