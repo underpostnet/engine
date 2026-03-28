@@ -47,42 +47,6 @@ spec:
   selector:
     app: dd-core-development-blue
   ports:
-    - name: 'tcp-4025'
-      protocol: TCP
-      port: 4025
-      targetPort: 4025
-    - name: 'udp-4025'
-      protocol: UDP
-      port: 4025
-      targetPort: 4025
-
-    - name: 'tcp-4026'
-      protocol: TCP
-      port: 4026
-      targetPort: 4026
-    - name: 'udp-4026'
-      protocol: UDP
-      port: 4026
-      targetPort: 4026
-
-    - name: 'tcp-4027'
-      protocol: TCP
-      port: 4027
-      targetPort: 4027
-    - name: 'udp-4027'
-      protocol: UDP
-      port: 4027
-      targetPort: 4027
-
-    - name: 'tcp-4028'
-      protocol: TCP
-      port: 4028
-      targetPort: 4028
-    - name: 'udp-4028'
-      protocol: UDP
-      port: 4028
-      targetPort: 4028
-
     - name: 'tcp-4029'
       protocol: TCP
       port: 4029
@@ -163,6 +127,78 @@ spec:
       protocol: UDP
       port: 4037
       targetPort: 4037
+
+    - name: 'tcp-4038'
+      protocol: TCP
+      port: 4038
+      targetPort: 4038
+    - name: 'udp-4038'
+      protocol: UDP
+      port: 4038
+      targetPort: 4038
+
+    - name: 'tcp-4039'
+      protocol: TCP
+      port: 4039
+      targetPort: 4039
+    - name: 'udp-4039'
+      protocol: UDP
+      port: 4039
+      targetPort: 4039
+
+    - name: 'tcp-4040'
+      protocol: TCP
+      port: 4040
+      targetPort: 4040
+    - name: 'udp-4040'
+      protocol: UDP
+      port: 4040
+      targetPort: 4040
+
+    - name: 'tcp-4041'
+      protocol: TCP
+      port: 4041
+      targetPort: 4041
+    - name: 'udp-4041'
+      protocol: UDP
+      port: 4041
+      targetPort: 4041
+
+    - name: 'tcp-4042'
+      protocol: TCP
+      port: 4042
+      targetPort: 4042
+    - name: 'udp-4042'
+      protocol: UDP
+      port: 4042
+      targetPort: 4042
+
+    - name: 'tcp-4043'
+      protocol: TCP
+      port: 4043
+      targetPort: 4043
+    - name: 'udp-4043'
+      protocol: UDP
+      port: 4043
+      targetPort: 4043
+
+    - name: 'tcp-4044'
+      protocol: TCP
+      port: 4044
+      targetPort: 4044
+    - name: 'udp-4044'
+      protocol: UDP
+      port: 4044
+      targetPort: 4044
+
+    - name: 'tcp-4045'
+      protocol: TCP
+      port: 4045
+      targetPort: 4045
+    - name: 'udp-4045'
+      protocol: UDP
+      port: 4045
+      targetPort: 4045
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -213,42 +249,6 @@ spec:
   selector:
     app: dd-core-development-green
   ports:
-    - name: 'tcp-4025'
-      protocol: TCP
-      port: 4025
-      targetPort: 4025
-    - name: 'udp-4025'
-      protocol: UDP
-      port: 4025
-      targetPort: 4025
-
-    - name: 'tcp-4026'
-      protocol: TCP
-      port: 4026
-      targetPort: 4026
-    - name: 'udp-4026'
-      protocol: UDP
-      port: 4026
-      targetPort: 4026
-
-    - name: 'tcp-4027'
-      protocol: TCP
-      port: 4027
-      targetPort: 4027
-    - name: 'udp-4027'
-      protocol: UDP
-      port: 4027
-      targetPort: 4027
-
-    - name: 'tcp-4028'
-      protocol: TCP
-      port: 4028
-      targetPort: 4028
-    - name: 'udp-4028'
-      protocol: UDP
-      port: 4028
-      targetPort: 4028
-
     - name: 'tcp-4029'
       protocol: TCP
       port: 4029
@@ -329,4 +329,76 @@ spec:
       protocol: UDP
       port: 4037
       targetPort: 4037
+
+    - name: 'tcp-4038'
+      protocol: TCP
+      port: 4038
+      targetPort: 4038
+    - name: 'udp-4038'
+      protocol: UDP
+      port: 4038
+      targetPort: 4038
+
+    - name: 'tcp-4039'
+      protocol: TCP
+      port: 4039
+      targetPort: 4039
+    - name: 'udp-4039'
+      protocol: UDP
+      port: 4039
+      targetPort: 4039
+
+    - name: 'tcp-4040'
+      protocol: TCP
+      port: 4040
+      targetPort: 4040
+    - name: 'udp-4040'
+      protocol: UDP
+      port: 4040
+      targetPort: 4040
+
+    - name: 'tcp-4041'
+      protocol: TCP
+      port: 4041
+      targetPort: 4041
+    - name: 'udp-4041'
+      protocol: UDP
+      port: 4041
+      targetPort: 4041
+
+    - name: 'tcp-4042'
+      protocol: TCP
+      port: 4042
+      targetPort: 4042
+    - name: 'udp-4042'
+      protocol: UDP
+      port: 4042
+      targetPort: 4042
+
+    - name: 'tcp-4043'
+      protocol: TCP
+      port: 4043
+      targetPort: 4043
+    - name: 'udp-4043'
+      protocol: UDP
+      port: 4043
+      targetPort: 4043
+
+    - name: 'tcp-4044'
+      protocol: TCP
+      port: 4044
+      targetPort: 4044
+    - name: 'udp-4044'
+      protocol: UDP
+      port: 4044
+      targetPort: 4044
+
+    - name: 'tcp-4045'
+      protocol: TCP
+      port: 4045
+      targetPort: 4045
+    - name: 'udp-4045'
+      protocol: UDP
+      port: 4045
+      targetPort: 4045
   type: LoadBalancer

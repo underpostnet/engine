@@ -627,6 +627,30 @@ const DefaultConf = /**/ {
     },
     'www.nexodev.org': {
       '/': {
+        replicas: ['/r1'],
+        client: 'nexodev',
+        runtime: 'nodejs',
+        apis: ['default', 'user', 'test', 'document', 'file', 'crypto', 'instance', 'event-scheduler', 'cron', 'core'],
+        origins: ['https://www.nexodev.org', 'https://underpost.net', 'https://underpostnet.github.io'],
+        ws: 'core',
+        peer: true,
+        docs: { coveragePath: './', jsJsonPath: './jsdoc.json', references: [] },
+        proxy: [80, 443],
+        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_NEXODEV' },
+        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
+        mailer: {
+          sender: { email: 'env:MAILER_SENDER_EMAIL', name: 'env:MAILER_SENDER_NAME' },
+          transport: {
+            host: 'env:SMTP_HOST',
+            port: 'env:SMTP_PORT',
+            secure: true,
+            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
+          },
+        },
+      },
+      '/single-replica0': {
+        replicas: ['/r2'],
+        singleReplica: true,
         client: 'nexodev',
         runtime: 'nodejs',
         apis: ['default', 'user', 'test', 'document', 'file', 'crypto', 'instance', 'event-scheduler', 'cron', 'core'],

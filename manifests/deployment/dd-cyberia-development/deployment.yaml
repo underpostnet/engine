@@ -242,6 +242,42 @@ spec:
       protocol: UDP
       port: 4024
       targetPort: 4024
+
+    - name: 'tcp-4025'
+      protocol: TCP
+      port: 4025
+      targetPort: 4025
+    - name: 'udp-4025'
+      protocol: UDP
+      port: 4025
+      targetPort: 4025
+
+    - name: 'tcp-4026'
+      protocol: TCP
+      port: 4026
+      targetPort: 4026
+    - name: 'udp-4026'
+      protocol: UDP
+      port: 4026
+      targetPort: 4026
+
+    - name: 'tcp-4027'
+      protocol: TCP
+      port: 4027
+      targetPort: 4027
+    - name: 'udp-4027'
+      protocol: UDP
+      port: 4027
+      targetPort: 4027
+
+    - name: 'tcp-4028'
+      protocol: TCP
+      port: 4028
+      targetPort: 4028
+    - name: 'udp-4028'
+      protocol: UDP
+      port: 4028
+      targetPort: 4028
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -487,4 +523,40 @@ spec:
       protocol: UDP
       port: 4024
       targetPort: 4024
+
+    - name: 'tcp-4025'
+      protocol: TCP
+      port: 4025
+      targetPort: 4025
+    - name: 'udp-4025'
+      protocol: UDP
+      port: 4025
+      targetPort: 4025
+
+    - name: 'tcp-4026'
+      protocol: TCP
+      port: 4026
+      targetPort: 4026
+    - name: 'udp-4026'
+      protocol: UDP
+      port: 4026
+      targetPort: 4026
+
+    - name: 'tcp-4027'
+      protocol: TCP
+      port: 4027
+      targetPort: 4027
+    - name: 'udp-4027'
+      protocol: UDP
+      port: 4027
+      targetPort: 4027
+
+    - name: 'tcp-4028'
+      protocol: TCP
+      port: 4028
+      targetPort: 4028
+    - name: 'udp-4028'
+      protocol: UDP
+      port: 4028
+      targetPort: 4028
   type: LoadBalancer

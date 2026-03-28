@@ -15,7 +15,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4025
+          port: 4029
           weight: 100
     
 ---
@@ -34,7 +34,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4026
+          port: 4030
           weight: 100
     
     - conditions:
@@ -43,7 +43,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4027
+          port: 4031
           weight: 100
     
 ---
@@ -62,7 +62,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4028
+          port: 4032
           weight: 100
     
 ---
@@ -74,62 +74,6 @@ metadata:
 spec:
   virtualhost:
     fqdn: www.nexodev.org
-  routes:
-    - conditions:
-        - prefix: /
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4029
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4030
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: healthcare.nexodev.org
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: healthcare.nexodev.org
-  routes:
-    - conditions:
-        - prefix: /
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4031
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4032
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: www.bymyelectrics.com
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: www.bymyelectrics.com
   routes:
     - conditions:
         - prefix: /
@@ -149,6 +93,98 @@ spec:
           port: 4034
           weight: 100
     
+    - conditions:
+        - prefix: /r1
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4035
+          weight: 100
+    
+    - conditions:
+        - prefix: /r1/peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4036
+          weight: 100
+    
+    - conditions:
+        - prefix: /r2
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4037
+          weight: 100
+    
+    - conditions:
+        - prefix: /r2/peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4038
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: healthcare.nexodev.org
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: healthcare.nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4039
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4040
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.bymyelectrics.com
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: www.bymyelectrics.com
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4041
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4042
+          weight: 100
+    
 ---
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
@@ -165,7 +201,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4035
+          port: 4043
           weight: 100
     
 ---
@@ -184,7 +220,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4036
+          port: 4044
           weight: 100
     
     - conditions:
@@ -193,6 +229,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4037
+          port: 4045
           weight: 100
     
