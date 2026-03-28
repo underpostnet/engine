@@ -65,4 +65,6 @@ CyberiaInstanceSchema.index({ 'portals.targetMapCode': 1 });
 
 const CyberiaInstanceModel = model('CyberiaInstance', CyberiaInstanceSchema);
 
-export { CyberiaInstanceSchema, CyberiaInstanceModel };
+const ProviderSchema = CyberiaInstanceSchema;
+
+export { CyberiaInstanceSchema, CyberiaInstanceModel, ProviderSchema };

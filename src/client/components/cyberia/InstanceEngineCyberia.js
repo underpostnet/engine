@@ -3,7 +3,7 @@ import { Input, InputFile, getFileFromBlobEndpoint } from '../core/Input.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
-import { dynamicCol } from '../core/Css.js';
+import { dynamicCol, darkTheme, ThemeEvents } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { CyberiaInstanceManagement } from '../../services/cyberia-instance/cyberia-instance.management.js';
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
@@ -16,6 +16,82 @@ class InstanceEngineCyberia {
   static currentInstanceId = null;
   static currentThumbnailId = null;
   static thumbnailDirty = false;
+  static portals = [];
+
+  static renderPortalList(containerId) {
+    const container = s(`.${containerId}`);
+    if (!container) return;
+
+    const filterSource = s('.instance-engine-filter-source')?.value?.trim().toLowerCase() || '';
+    const filterTarget = s('.instance-engine-filter-target')?.value?.trim().toLowerCase() || '';
+
+    const filtered = [];
+    InstanceEngineCyberia.portals.forEach((portal, i) => {
+      if (filterSource && !(portal.sourceMapCode || '').toLowerCase().includes(filterSource)) return;
+      if (filterTarget && !(portal.targetMapCode || '').toLowerCase().includes(filterTarget)) return;
+      filtered.push({ portal, i });
+    });
+
+    let listHtml = '';
+    filtered.forEach(({ portal, i }) => {
+      listHtml += html`<div class="fl" style="border-bottom:1px solid #444; padding:4px 0; align-items:center;">
+        <div class="in fll" style="flex:1;font-size:12px;font-family:monospace;">
+          <span style="color:${darkTheme ? '#8cf' : '#246'};">${portal.sourceMapCode}</span>
+          (${portal.sourceCellX}, ${portal.sourceCellY})
+          <span style="margin:0 4px;">&rarr;</span>
+          <span style="color:${darkTheme ? '#fc8' : '#842'};">${portal.targetMapCode}</span>
+          (${portal.targetCellX}, ${portal.targetCellY})
+        </div>
+        <div class="in fll" style="display:flex;gap:3px;">
+          <button
+            class="btn-instance-engine-load-portal"
+            data-index="${i}"
+            style="cursor:pointer;background:#36a;color:#fff;border:none;padding:2px 8px;font-size:12px;"
+          >
+            <i class="fa-solid fa-clone"></i>
+          </button>
+          <button
+            class="btn-instance-engine-remove-portal"
+            data-index="${i}"
+            style="cursor:pointer;background:#a00;color:#fff;border:none;padding:2px 8px;font-size:12px;"
+          >
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </div>`;
+    });
+
+    if (!listHtml)
+      listHtml = `<div style="color:#888;font-size:13px;">${
+        InstanceEngineCyberia.portals.length > 0 ? 'No matching portals.' : 'No portals added yet.'
+      }</div>`;
+
+    htmls(`.${containerId}`, listHtml);
+
+    container.querySelectorAll('.btn-instance-engine-remove-portal').forEach((btn) => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.index);
+        InstanceEngineCyberia.portals.splice(idx, 1);
+        InstanceEngineCyberia.renderPortalList(containerId);
+      };
+    });
+
+    container.querySelectorAll('.btn-instance-engine-load-portal').forEach((btn) => {
+      btn.onclick = () => {
+        const idx = parseInt(btn.dataset.index);
+        const portal = InstanceEngineCyberia.portals[idx];
+        if (!portal) return;
+        if (s('.instance-engine-source-map-code'))
+          s('.instance-engine-source-map-code').value = portal.sourceMapCode || '';
+        if (s('.instance-engine-source-cell-x')) s('.instance-engine-source-cell-x').value = portal.sourceCellX || 0;
+        if (s('.instance-engine-source-cell-y')) s('.instance-engine-source-cell-y').value = portal.sourceCellY || 0;
+        if (s('.instance-engine-target-map-code'))
+          s('.instance-engine-target-map-code').value = portal.targetMapCode || '';
+        if (s('.instance-engine-target-cell-x')) s('.instance-engine-target-cell-x').value = portal.targetCellX || 0;
+        if (s('.instance-engine-target-cell-y')) s('.instance-engine-target-cell-y').value = portal.targetCellY || 0;
+      };
+    });
+  }
 
   static async render(options = {}) {
     const { Elements } = options;
@@ -27,10 +103,20 @@ class InstanceEngineCyberia {
     const idThumbnail = 'instance-engine-input-thumbnail';
     const idMapCodesDropdown = 'instance-engine-map-codes-dropdown';
     const managementId = 'modal-cyberia-instance-engine';
+    const portalListId = 'instance-engine-portal-list';
+    const idSourceMapCode = 'instance-engine-source-map-code';
+    const idSourceCellX = 'instance-engine-source-cell-x';
+    const idSourceCellY = 'instance-engine-source-cell-y';
+    const idTargetMapCode = 'instance-engine-target-map-code';
+    const idTargetCellX = 'instance-engine-target-cell-x';
+    const idTargetCellY = 'instance-engine-target-cell-y';
+    const idFilterSource = 'instance-engine-filter-source';
+    const idFilterTarget = 'instance-engine-filter-target';
 
     InstanceEngineCyberia.currentInstanceId = null;
     InstanceEngineCyberia.currentThumbnailId = null;
     InstanceEngineCyberia.thumbnailDirty = false;
+    InstanceEngineCyberia.portals = [];
 
     const getInstancePayload = () => {
       const tagsRaw = s(`.${idTags}`)?.value || '';
@@ -48,6 +134,7 @@ class InstanceEngineCyberia {
         tags,
         status: DropDown.Tokens[idStatus]?.value || 'unlisted',
         cyberiaMapCodes,
+        portals: InstanceEngineCyberia.portals,
       };
       if (InstanceEngineCyberia.currentThumbnailId) payload.thumbnail = InstanceEngineCyberia.currentThumbnailId;
       return payload;
@@ -177,6 +264,17 @@ class InstanceEngineCyberia {
           DropDown.Tokens[idMapCodesDropdown]._renderSelectedBadges?.();
         }
       }
+
+      // Load portals
+      InstanceEngineCyberia.portals = (instanceData.portals || []).map((p) => ({
+        sourceMapCode: p.sourceMapCode || '',
+        sourceCellX: p.sourceCellX || 0,
+        sourceCellY: p.sourceCellY || 0,
+        targetMapCode: p.targetMapCode || '',
+        targetCellX: p.targetCellX || 0,
+        targetCellY: p.targetCellY || 0,
+      }));
+      InstanceEngineCyberia.renderPortalList(portalListId);
     };
 
     const resetForm = () => {
@@ -205,6 +303,8 @@ class InstanceEngineCyberia {
         htmls(`.dropdown-current-${idMapCodesDropdown}`, '');
         htmls(`.${idMapCodesDropdown}-render-container`, '');
       }
+      InstanceEngineCyberia.portals = [];
+      InstanceEngineCyberia.renderPortalList(portalListId);
     };
 
     setTimeout(() => {
@@ -221,6 +321,55 @@ class InstanceEngineCyberia {
             caret.classList.toggle('fa-caret-down');
           }
         };
+
+      // Portal management
+      if (s(`.btn-instance-engine-add-portal`))
+        s(`.btn-instance-engine-add-portal`).onclick = () => {
+          const portal = {
+            sourceMapCode: s(`.${idSourceMapCode}`)?.value || '',
+            sourceCellX: parseInt(s(`.${idSourceCellX}`)?.value) || 0,
+            sourceCellY: parseInt(s(`.${idSourceCellY}`)?.value) || 0,
+            targetMapCode: s(`.${idTargetMapCode}`)?.value || '',
+            targetCellX: parseInt(s(`.${idTargetCellX}`)?.value) || 0,
+            targetCellY: parseInt(s(`.${idTargetCellY}`)?.value) || 0,
+          };
+          InstanceEngineCyberia.portals.push(portal);
+          InstanceEngineCyberia.renderPortalList(portalListId);
+        };
+
+      if (s('.btn-instance-engine-toggle-portal-filter'))
+        s('.btn-instance-engine-toggle-portal-filter').onclick = () => {
+          const body = s('.instance-engine-portal-filter-body');
+          const caret = s('.instance-engine-portal-filter-caret');
+          if (body) body.classList.toggle('hide');
+          if (caret) {
+            caret.classList.toggle('fa-caret-right');
+            caret.classList.toggle('fa-caret-down');
+          }
+        };
+
+      let portalFilterTimeout = null;
+      const applyPortalFilter = () => {
+        clearTimeout(portalFilterTimeout);
+        portalFilterTimeout = setTimeout(() => {
+          InstanceEngineCyberia.renderPortalList(portalListId);
+        }, 300);
+      };
+      [idFilterSource, idFilterTarget].forEach((cls) => {
+        if (s(`.${cls}`)) s(`.${cls}`).addEventListener('input', applyPortalFilter);
+      });
+
+      if (s('.btn-instance-engine-clear-portal-filter'))
+        s('.btn-instance-engine-clear-portal-filter').onclick = () => {
+          [idFilterSource, idFilterTarget].forEach((cls) => {
+            if (s(`.${cls}`)) s(`.${cls}`).value = '';
+          });
+          InstanceEngineCyberia.renderPortalList(portalListId);
+        };
+
+      ThemeEvents['instance-engine-theme'] = () => {
+        InstanceEngineCyberia.renderPortalList(portalListId);
+      };
     });
 
     const statusOptions = [
@@ -247,6 +396,9 @@ class InstanceEngineCyberia {
     const dcFields = 'instance-engine-dc-fields';
     const dcMetaFields = 'instance-engine-dc-meta';
     const dcSaveNew = 'instance-engine-dc-save-new';
+    const dcPortalSource = 'instance-engine-dc-portal-source';
+    const dcPortalTarget = 'instance-engine-dc-portal-target';
+    const dcPortalFilter = 'instance-engine-dc-portal-filter';
 
     return html`<div class="in section-mp instance-engine-container">
       ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcFields, type: 'search-inputs' })}
@@ -363,6 +515,113 @@ class InstanceEngineCyberia {
             return [];
           },
         })}
+      </div>
+      <div class="in section-mp" style="margin-top: 10px;">
+        <div class="in input-label" style="font-size:14px;margin-bottom:5px;">Portals</div>
+        ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalSource, type: 'search-inputs' })}
+        <div class="fl">
+          <div class="in fll ${dcPortalSource}-col-a">
+            ${await Input.Render({
+              id: idSourceMapCode,
+              label: html`Source Map Code`,
+              containerClass: 'inl',
+              type: 'text',
+            })}
+          </div>
+          <div class="in fll ${dcPortalSource}-col-b">
+            ${await Input.Render({
+              id: idSourceCellX,
+              label: html`Source Cell X`,
+              containerClass: 'inl',
+              type: 'number',
+              min: 0,
+              value: 0,
+            })}
+          </div>
+          <div class="in fll ${dcPortalSource}-col-c">
+            ${await Input.Render({
+              id: idSourceCellY,
+              label: html`Source Cell Y`,
+              containerClass: 'inl',
+              type: 'number',
+              min: 0,
+              value: 0,
+            })}
+          </div>
+        </div>
+        ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalTarget, type: 'search-inputs' })}
+        <div class="fl">
+          <div class="in fll ${dcPortalTarget}-col-a">
+            ${await Input.Render({
+              id: idTargetMapCode,
+              label: html`Target Map Code`,
+              containerClass: 'inl',
+              type: 'text',
+            })}
+          </div>
+          <div class="in fll ${dcPortalTarget}-col-b">
+            ${await Input.Render({
+              id: idTargetCellX,
+              label: html`Target Cell X`,
+              containerClass: 'inl',
+              type: 'number',
+              min: 0,
+              value: 0,
+            })}
+          </div>
+          <div class="in fll ${dcPortalTarget}-col-c">
+            ${await Input.Render({
+              id: idTargetCellY,
+              label: html`Target Cell Y`,
+              containerClass: 'inl',
+              type: 'number',
+              min: 0,
+              value: 0,
+            })}
+          </div>
+        </div>
+        <div class="in">
+          ${await BtnIcon.Render({
+            class: 'wfa btn-instance-engine-add-portal',
+            label: html`<i class="fa-solid fa-plus"></i> Add Portal`,
+          })}
+        </div>
+        <div class="in" style="margin-top: 10px;">
+          ${await BtnIcon.Render({
+            class: 'wfa btn-instance-engine-toggle-portal-filter',
+            label: html`<i class="fa-solid fa-caret-right instance-engine-portal-filter-caret"></i> Filters`,
+          })}
+          <div class="in instance-engine-portal-filter-body hide">
+            ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalFilter, type: 'a-50-b-50' })}
+            <div class="fl">
+              <div class="in fll ${dcPortalFilter}-col-a">
+                ${await Input.Render({
+                  id: idFilterSource,
+                  label: html`Source Map Code`,
+                  containerClass: 'inl',
+                  type: 'text',
+                  placeholder: true,
+                })}
+              </div>
+              <div class="in fll ${dcPortalFilter}-col-b">
+                ${await Input.Render({
+                  id: idFilterTarget,
+                  label: html`Target Map Code`,
+                  containerClass: 'inl',
+                  type: 'text',
+                  placeholder: true,
+                })}
+              </div>
+            </div>
+            <div class="in" style="margin-top:5px;">
+              ${await BtnIcon.Render({
+                class: 'wfa btn-instance-engine-clear-portal-filter',
+                label: html`<i class="fa-solid fa-broom"></i> Clear Filters`,
+              })}
+            </div>
+          </div>
+        </div>
+        <div class="in ${portalListId}" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
       </div>
       <div class="in section-mp" style="margin-top: 10px;">
         ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcSaveNew, type: 'a-50-b-50' })}
