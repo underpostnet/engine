@@ -913,12 +913,12 @@ EOF
         // `localhost/rockylinux9-underpost:${Underpost.version}`
         if (!_image) _image = `underpost/underpost-engine:${Underpost.version}`;
 
-        if (options.nodeName) {
-          shellExec(`sudo crictl pull ${_image}`);
-        } else {
-          shellExec(`docker pull ${_image}`);
-          shellExec(`sudo kind load docker-image ${_image}`);
-        }
+        Underpost.image.pullDockerHubImage({
+          dockerhubImage: _image,
+          kind: options.kind || (!options.nodeName && !options.kubeadm && !options.k3s),
+          kubeadm: options.nodeName || options.kubeadm,
+          k3s: options.k3s,
+        });
 
         const currentTraffic = Underpost.deploy.getCurrentTraffic(_deployId, {
           hostTest: _host,
@@ -1091,15 +1091,13 @@ EOF
     'db-client': async (path, options = DEFAULT_OPTION) => {
       const { underpostRoot } = options;
 
-      const image = 'adminer:4.7.6-standalone';
-
-      if (!options.kubeadm && !options.k3s) {
-        // Only load if not kubeadm/k3s (Kind needs it)
-        shellExec(`docker pull ${image}`);
-        shellExec(`sudo kind load docker-image ${image}`);
-      } else if (options.kubeadm || options.k3s)
-        // For kubeadm/k3s, ensure it's available for containerd
-        shellExec(`sudo crictl pull ${image}`);
+      Underpost.image.pullDockerHubImage({
+        dockerhubImage: 'adminer',
+        version: '4.7.6-standalone',
+        kind: options.kind,
+        kubeadm: options.kubeadm,
+        k3s: options.k3s,
+      });
 
       shellExec(`kubectl delete deployment adminer -n ${options.namespace} --ignore-not-found`);
       shellExec(`kubectl apply -k ${underpostRoot}/manifests/deployment/adminer/. -n ${options.namespace}`);
