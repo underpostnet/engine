@@ -17,11 +17,30 @@ import {
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 
 import fs from 'fs-extra';
+import net from 'net';
 import { range, setPad, timer } from '../client/components/core/CommonJs.js';
 
 import os from 'os';
 import Underpost from '../index.js';
 import dotenv from 'dotenv';
+
+const waitForPort = (port, host = '127.0.0.1', { maxAttempts = 30, interval = 2000 } = {}) =>
+  new Promise((resolve, reject) => {
+    let attempts = 0;
+    const tryConnect = () => {
+      attempts++;
+      const socket = net.createConnection({ port, host }, () => {
+        socket.destroy();
+        resolve();
+      });
+      socket.on('error', () => {
+        socket.destroy();
+        if (attempts >= maxAttempts) return reject(new Error(`Port ${port} not ready after ${maxAttempts} attempts`));
+        setTimeout(tryConnect, interval);
+      });
+    };
+    tryConnect();
+  });
 
 const logger = loggerFactory(import.meta);
 
@@ -246,8 +265,15 @@ class UnderpostRun {
       const ports = '6379,27017';
       shellExec(`node bin run kill '${ports}'`);
       shellExec(`node bin run dev-cluster --dev --expose --namespace ${options.namespace}`, { async: true });
-      console.log('Loading fordward services...');
-      await timer(5000);
+      logger.info('Waiting for port-forward services to be ready...');
+      try {
+        await Promise.all([waitForPort(27017), waitForPort(6379)]);
+        logger.info('Port-forward services are ready');
+      } catch (err) {
+        logger.error('Port-forward services failed to become ready', { error: err.message });
+        shellExec(`node bin run kill '${ports}'`);
+        throw err;
+      }
       shellExec(`node bin metadata --generate ${path}`);
       shellExec(`node bin db --dev --clean-fs-collection dd`);
       shellExec(`node bin run kill '${ports}'`);

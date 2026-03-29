@@ -13,6 +13,7 @@ import fs from 'fs-extra';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { loadReplicas, pathPortAssignmentFactory, loadCronDeployEnv } from '../server/conf.js';
 import Underpost from '../index.js';
+import { timer } from '../client/components/core/CommonJs.js';
 const logger = loggerFactory(import.meta);
 
 /**
@@ -1155,9 +1156,23 @@ class UnderpostDB {
 
       const { db } = loadConfServerJson(confServerPath, { resolve: true })[host][path];
 
-      try {
-        await DataBaseProvider.load({ apis: ['instance', 'cron'], host, path, db });
+      const maxRetries = 5;
+      const retryDelay = 3000;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          await DataBaseProvider.load({ apis: ['instance', 'cron'], host, path, db });
+          break;
+        } catch (err) {
+          if (attempt === maxRetries) {
+            logger.error('Failed to connect to database after retries', { attempts: maxRetries, error: err.message });
+            throw err;
+          }
+          logger.warn('Database connection failed, retrying...', { attempt, maxRetries, error: err.message });
+          await timer(retryDelay);
+        }
+      }
 
+      try {
         /** @type {import('../api/instance/instance.model.js').InstanceModel} */
         const Instance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Instance;
 
@@ -1363,8 +1378,18 @@ class UnderpostDB {
             // logger.info('Processing host+path with file api', { host, path, db: db.name });
 
             try {
-              // Connect to database
-              const dbProvider = await DataBaseProvider.load({ apis, host, path, db });
+              // Connect to database with retry
+              let dbProvider;
+              for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                  dbProvider = await DataBaseProvider.load({ apis, host, path, db });
+                  break;
+                } catch (err) {
+                  if (attempt === 3) throw err;
+                  logger.warn('Database connection failed, retrying...', { attempt, host, path, error: err.message });
+                  await timer(3000);
+                }
+              }
               if (!dbProvider || !dbProvider.models) {
                 logger.error('Failed to load database provider', { host, path });
                 continue;
