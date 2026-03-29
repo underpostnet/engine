@@ -126,13 +126,4 @@ class IoChannel {
   }
 }
 
-/**
- * Backward compatibility function to create a new channel instance.
- * @memberof SocketIoInterface
- * @function IoCreateChannel
- * @param {ChannelInterface} IoInterface - The interface object defining the channel's behavior.
- * @returns {IoChannel} An instance of the IoChannel class.
- */
-const IoCreateChannel = (IoInterface) => new IoChannel(IoInterface);
-
-export { IoChannel, IoCreateChannel };
+export { IoChannel };

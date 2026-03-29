@@ -1,7 +1,6 @@
 /**
  * Module for creating and managing WebSocket servers.
- * @module src/ws/IoServer
- * @namespace SocketIoServer
+ * @module ws/IoServer
  */
 
 'use strict';
@@ -9,33 +8,27 @@
 import { Server } from 'socket.io';
 import { loggerFactory } from '../server/logger.js';
 import Underpost from '../index.js';
-import http from 'http';
 
 const logger = loggerFactory(import.meta);
 
 /**
- * @class IoServerClass
- * @alias IoServerClass
- * @memberof SocketIoServer
- * @classdesc Provides a static factory method to create and configure a Socket.IO server,
- * encapsulating WebSocket server initialization logic and CORS configuration.
+ * @class IoServer
+ * @classdesc Factory for creating and configuring Socket.IO server instances
+ * with CORS configuration and HTTP server attachment.
  */
-class IoServerClass {
+class IoServer {
   /**
    * Creates a new WebSocket server instance attached to an HTTP server.
    *
    * @static
-   * @param {http.Server} httpServer - The HTTP server instance to attach the WebSocket server to.
-   * @param {Object} options - Configuration options for the WebSocket server.
-   * @param {string[]} options.origins - List of allowed origins for Cross-Origin Resource Sharing (CORS).
-   * @param {string} options.path - The base path for the API. The WebSocket path ('/socket.io') will be appended to this.
-   * @param {function(import('socket.io').Socket): void} ConnectionHandler - The connection handler function to be executed on a new connection.
-   * @returns {Object} An object containing the final options and the server instance.
-   * @returns {import('socket.io').ServerOptions} return.options - The final options object used to create the WebSocket server.
-   * @returns {import('socket.io').Server} return.ioServer - The created and listening WebSocket server instance.
-   * @returns {object} return.meta - The module's import meta object (`import.meta`).
+   * @param {import('http').Server} httpServer - The HTTP server instance to attach to.
+   * @param {Object} options - Configuration options.
+   * @param {string[]} options.origins - Allowed CORS origins.
+   * @param {string} options.path - Base API path. Socket.IO path is appended automatically.
+   * @param {function(import('socket.io').Socket): void} connectionHandler - Handler for new connections.
+   * @returns {{ options: import('socket.io').ServerOptions, ioServer: import('socket.io').Server, meta: ImportMeta }}
    */
-  static create(httpServer, options = {}, ConnectionHandler = () => {}) {
+  static create(httpServer, options = {}, connectionHandler = () => {}) {
     logger.info('origins', options.origins);
     const wsOptions = {
       cors: {
@@ -55,12 +48,11 @@ class IoServerClass {
         ],
         credentials: true,
       },
-      // Ensure the path ends correctly, appending '/socket.io/'
       path: options.path !== '/' ? `${options.path}/socket.io/` : '/socket.io/',
     };
 
     const ioServerInstance = Underpost.start.listenServerFactory(() =>
-      new Server(httpServer, wsOptions).on('connection', ConnectionHandler),
+      new Server(httpServer, wsOptions).on('connection', connectionHandler),
     );
 
     logger.info('Socket.IO Server created and listening', { path: wsOptions.path });
@@ -73,15 +65,4 @@ class IoServerClass {
   }
 }
 
-/**
- * Backward compatibility export for the server creation function.
- * @memberof SocketIoServer
- * @function IoServer
- * @param {http.Server} httpServer - The HTTP server instance.
- * @param {Object} options - Configuration options.
- * @param {function(import('socket.io').Socket): void} ConnectionHandler - The connection handler function.
- * @returns {Object} The server configuration object.
- */
-const IoServer = IoServerClass.create;
-
-export { IoServerClass, IoServer };
+export { IoServer };

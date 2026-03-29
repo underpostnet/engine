@@ -1,76 +1,43 @@
 /**
- * Module for creating and initializing the main WebSocket server instance.
- * @module ws/core.ws.server
- * @namespace CoreWsServer
+ * Core WebSocket server factory — initializes channels and creates the Socket.IO server.
+ * @module ws/core/core.ws.server
  */
 
 'use strict';
 
-import { IoServerClass } from '../IoServer.js';
-import { CoreWsConnection } from './core.ws.connection.js';
-import { CoreWsChatManagement } from './management/core.ws.chat.js';
-import { CoreWsMailerManagement } from './management/core.ws.mailer.js';
-import { CoreWsStreamManagement } from './management/core.ws.stream.js';
-import http from 'http'; // Added for JSDoc type hinting
-
-// https://socket.io/docs/v3/
+import { IoServer } from '../IoServer.js';
+import { CoreWsConnectionHandler } from './core.ws.connection.js';
+import { CoreWsChatChannel } from './channels/core.ws.chat.js';
+import { CoreWsMailerChannel } from './channels/core.ws.mailer.js';
+import { CoreWsStreamChannel } from './channels/core.ws.stream.js';
 
 /**
- * @class CoreWsServerClass
- * @alias CoreWsServerClass
- * @memberof CoreWsServer
- * @classdesc Manages the creation and initialization of the main WebSocket server,
- * including setting up the management instances for all channels.
+ * @class CoreWsServer
+ * @classdesc Creates the core WebSocket server, initializing all channel state
+ * before attaching the connection handler.
  */
-class CoreWsServerClass {
+class CoreWsServer {
   /**
-   * Initializes channel management instances and creates the Socket.IO server.
-   *
-   * @static
-   * @async
-   * @param {http.Server} httpServer - The HTTP server instance to attach the WebSocket server to.
-   * @param {Object} options - Configuration options for the WebSocket server.
-   * @param {string} options.host - The host address.
-   * @param {string} options.path - The base path for the API.
-   * @returns {Promise<Object>} The result object from IoServer creation.
+   * Initializes channel state and creates the Socket.IO server.
+   * @param {import('http').Server} httpServer
+   * @param {Object} options
+   * @param {string} options.host
+   * @param {string} options.path
+   * @returns {{ options: import('socket.io').ServerOptions, ioServer: import('socket.io').Server, meta: ImportMeta }}
    */
-  static async create(httpServer, options) {
+  static create(httpServer, options) {
     const { host, path } = options;
-    if (!host || !path) {
-      throw new Error('Host and path must be provided in server options.');
-    }
-
-    // Create a unique identifier for this server instance's management context
     const wsManagementId = `${host}${path}`;
 
-    // Initialize/Retrieve singleton management instances for all channels
-    CoreWsChatManagement.instance(wsManagementId);
-    CoreWsMailerManagement.instance(wsManagementId);
-    CoreWsStreamManagement.instance(wsManagementId);
+    CoreWsChatChannel.init(wsManagementId);
+    CoreWsMailerChannel.init(wsManagementId);
+    CoreWsStreamChannel.init(wsManagementId);
 
-    // Use the IoServerClass factory to create the server, passing the connection handler
-    return IoServerClass.create(httpServer, options, (socket) => CoreWsConnection(socket, wsManagementId));
+    return IoServer.create(httpServer, options, (socket) => CoreWsConnectionHandler.handle(socket, wsManagementId));
   }
 }
 
-/**
- * Backward compatibility export for the server creation function.
- * @memberof CoreWsServer
- * @function createIoServer
- * @param {http.Server} httpServer - The HTTP server instance.
- * @param {Object} options - Configuration options.
- * @returns {Promise<Object>} The server creation result.
- */
-const createIoServer = CoreWsServerClass.create;
+/** Required by Express.js dynamic import: `const { createIoServer } = await import(...)` */
+const createIoServer = CoreWsServer.create.bind(CoreWsServer);
 
-/**
- * Backward compatibility alias.
- * @memberof CoreWsServer
- * @function CoreWsServer
- * @param {import('http').Server} httpServer - The HTTP server instance.
- * @param {Object} options - Configuration options.
- * @returns {Promise<Object>} The server creation result.
- */
-const CoreWsServer = createIoServer;
-
-export { CoreWsServerClass, createIoServer, CoreWsServer };
+export { CoreWsServer, createIoServer };

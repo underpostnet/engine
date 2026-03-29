@@ -1,29 +1,24 @@
 /**
- * Module for standardized WebSocket message emission (sending).
- * @module ws/core.ws.emit
- * @namespace CoreWsEmitter
+ * Standardized WebSocket message emission.
+ * @module ws/core/core.ws.emit
  */
 
 import { loggerFactory } from '../../server/logger.js';
-import { Socket } from 'socket.io';
 
 const logger = loggerFactory(import.meta);
 
 /**
  * @class CoreWsEmitter
- * @alias CoreWsEmitter
- * @memberof CoreWsEmitter
- * @classdesc Provides a static utility method for safely emitting messages over a WebSocket connection.
+ * @classdesc Provides a static utility for safely emitting JSON-serialized messages over Socket.IO.
  */
 class CoreWsEmitter {
   /**
-   * Emits a payload to a specific client over a given channel.
-   * The payload is automatically JSON stringified.
+   * Emits a JSON-stringified payload to a client on a given channel.
    *
    * @static
-   * @param {string} [channel=''] - The name of the channel/event to emit on.
-   * @param {Socket | Object} [client={}] - The Socket.IO client/socket object. Must have an `emit` method.
-   * @param {Object} [payload={}] - The data object to send.
+   * @param {string} channel - The channel/event name to emit on.
+   * @param {import('socket.io').Socket} client - The Socket.IO socket to emit to.
+   * @param {Object} payload - The data object to send.
    * @returns {void}
    */
   static emit(channel = '', client = {}, payload = {}) {
@@ -31,23 +26,12 @@ class CoreWsEmitter {
       if (client && typeof client.emit === 'function') {
         client.emit(channel, JSON.stringify(payload));
       } else {
-        logger.error('Invalid client: Cannot emit message.', { channel, client, payload });
+        logger.error('Invalid client: Cannot emit message.', { channel, payload });
       }
     } catch (error) {
-      logger.error(error, { channel, client, payload, stack: error.stack });
+      logger.error(error, { channel, payload, stack: error.stack });
     }
   }
 }
 
-/**
- * Backward compatibility export for the `emit` function.
- * @memberof CoreWsEmitter
- * @function CoreWsEmit
- * @param {string} [channel=''] - The name of the channel/event to emit on.
- * @param {Socket | Object} [client={}] - The Socket.IO client/socket object.
- * @param {Object} [payload={}] - The data object to send.
- * @returns {void}
- */
-const CoreWsEmit = CoreWsEmitter.emit;
-
-export { CoreWsEmitter, CoreWsEmit };
+export { CoreWsEmitter };

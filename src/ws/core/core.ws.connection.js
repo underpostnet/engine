@@ -1,47 +1,36 @@
 /**
- * Module for handling new WebSocket connections and setting up channel listeners.
- * @module ws/core.ws.connection
- * @namespace CoreWsConnection
+ * Core WebSocket connection handler — wires sockets to all channels.
+ * @module ws/core/core.ws.connection
  */
 
 import { loggerFactory } from '../../server/logger.js';
 import { CoreWsChatChannel } from './channels/core.ws.chat.js';
 import { CoreWsMailerChannel } from './channels/core.ws.mailer.js';
 import { CoreWsStreamChannel } from './channels/core.ws.stream.js';
-import { Socket } from 'socket.io'; // Added for JSDoc type hinting
 
 const logger = loggerFactory(import.meta);
 
 /**
- * @class CoreWsConnectionManager
- * @alias CoreWsConnectionManager
- * @memberof CoreWsConnection
- * @classdesc Manages the lifecycle of a new WebSocket connection, setting up listeners for
- * all registered channels (Chat, Mailer, Stream) and handling disconnection by delegating to channel handlers.
+ * @class CoreWsConnectionHandler
+ * @classdesc Subscribes a new socket to all core channels (chat, mailer, stream)
+ * and delegates disconnect events to each channel.
  */
-class CoreWsConnectionManager {
+class CoreWsConnectionHandler {
   /**
-   * Handles a new WebSocket connection by subscribing it to all active channels
-   * and setting up the disconnect listener.
-   *
-   * @static
-   * @param {Socket} socket - The Socket.IO socket object representing the client connection.
-   * @param {string} wsManagementId - Unique identifier for the WebSocket management context.
-   * @returns {void}
+   * Handles a new WebSocket connection.
+   * @param {import('socket.io').Socket} socket
+   * @param {string} wsManagementId
    */
-  static handleConnection(socket, wsManagementId) {
+  static handle(socket, wsManagementId) {
     logger.info(`New connection established. Socket ID: ${socket.id}`);
 
-    // Subscribe socket to all channel connection handlers (assuming these channels are IoChannel instances)
     CoreWsChatChannel.connection(socket, wsManagementId);
     CoreWsMailerChannel.connection(socket, wsManagementId);
     CoreWsStreamChannel.connection(socket, wsManagementId);
 
-    // Set up the disconnect listener
     socket.on('disconnect', (reason) => {
-      logger.info(`Connection disconnected. Socket ID: ${socket.id} due to reason: ${reason}`);
+      logger.info(`Connection disconnected. Socket ID: ${socket.id}, reason: ${reason}`);
 
-      // Notify all channels of the disconnection
       CoreWsChatChannel.disconnect(socket, reason, wsManagementId);
       CoreWsMailerChannel.disconnect(socket, reason, wsManagementId);
       CoreWsStreamChannel.disconnect(socket, reason, wsManagementId);
@@ -49,14 +38,4 @@ class CoreWsConnectionManager {
   }
 }
 
-/**
- * Backward compatibility export for the connection handler function.
- * @memberof CoreWsConnection
- * @function CoreWsConnection
- * @param {Socket} socket - The Socket.IO socket object.
- * @param {string} wsManagementId - Unique identifier for the WebSocket management context.
- * @returns {void}
- */
-const CoreWsConnection = CoreWsConnectionManager.handleConnection;
-
-export { CoreWsConnectionManager, CoreWsConnection };
+export { CoreWsConnectionHandler };
