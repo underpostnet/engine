@@ -16,7 +16,7 @@
     "dev:proxy": "NODE_ENV=development node src/proxy proxy",
     "docs": "jsdoc -c jsdoc.json",
     "install:global": "npm install -g jsdoc && npm install -g prettier",
-    "install:test": "npm install -g mocha && npm install -g c8 && npm install -g coveralls-next",
+    "install:test": "npm install -g mocha && npm install -g c8 && npm uninstall -g coveralls && npm install -g coveralls-next",
     "install": "npm run install:global && npm run install:test",
     "prettier": "prettier --write .",
     "fix": "npm audit fix --force && npm audit",
