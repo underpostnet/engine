@@ -1,6 +1,5 @@
 import { AppStore } from '../core/AppStore.js';
-import { BaseElement } from './CommonDogmadual.js';
 
-const AppStoreDogmadual = new AppStore(BaseElement);
+const AppStoreDogmadual = AppStore.create();
 
 export { AppStoreDogmadual };

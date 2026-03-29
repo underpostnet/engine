@@ -1,6 +1,5 @@
 import { AppStore } from '../core/AppStore.js';
-import { BaseElement } from './CommonBymyelectrics.js';
 
-const AppStoreBymyelectrics = new AppStore(BaseElement);
+const AppStoreBymyelectrics = AppStore.create();
 
 export { AppStoreBymyelectrics };

@@ -1,7 +1,5 @@
 /**
  * Core per-app state store for WebSocket channel data.
- * Each app instantiates an `AppStore` with its own `BaseElement` factory
- * that defines the initial channel data shape (e.g. `{ user, chat, mailer, stream }`).
  *
  * @module client/core/AppStore
  * @namespace AppStore
@@ -10,7 +8,6 @@
 /**
  * @class AppStore
  * @classdesc Per-app singleton state store for WebSocket channel data and authenticated user state.
- * Each app provides a `BaseElement` factory defining the channel shape.
  *
  * Usage: `AppStoreX.Data.user.main.model.user` — the authenticated user object.
  * `AppStoreX.Data` keys (`chat`, `mailer`, `stream`, etc.) — channel definitions for `SocketIo.Init`.
@@ -25,23 +22,18 @@ class AppStore {
    */
   Data;
 
-  /**
-   * The factory function that produces the initial data shape.
-   *
-   * @private
-   * @type {function(): Object}
-   */
-  #baseElementFactory;
+  /** @private @type {function(): Object} */
+  #initialStateFactory;
 
   /**
    * Creates a new AppStore instance.
    *
-   * @param {function(): Object} baseElementFactory - Factory function returning the initial data shape.
+   * @param {function(): Object} initialStateFactory - Factory function returning the initial data shape.
    *   Must return at least `{ user: { main: { model: { user: { _id: '' } } } } }`.
    */
-  constructor(baseElementFactory) {
-    this.#baseElementFactory = baseElementFactory;
-    this.Data = baseElementFactory();
+  constructor(initialStateFactory) {
+    this.#initialStateFactory = initialStateFactory;
+    this.Data = initialStateFactory();
   }
 
   /**
@@ -50,7 +42,27 @@ class AppStore {
    * @returns {void}
    */
   reset() {
-    this.Data = this.#baseElementFactory();
+    this.Data = this.#initialStateFactory();
+  }
+
+  /**
+   * Creates an AppStore with the standard channel layout.
+   * Always includes `user`, `chat`, and `mailer` channels.
+   *
+   * @static
+   * @param {...string} extraChannels - Additional channel names (e.g. `'stream'`).
+   * @returns {AppStore}
+   */
+  static create(...extraChannels) {
+    return new AppStore(() => {
+      const state = {
+        user: { main: { model: { user: { _id: '' } } } },
+        chat: {},
+        mailer: {},
+      };
+      for (const ch of extraChannels) state[ch] = {};
+      return state;
+    });
   }
 }
 

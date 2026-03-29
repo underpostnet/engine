@@ -1,6 +1,5 @@
 import { AppStore } from '../core/AppStore.js';
-import { BaseElement } from './CommonNexodev.js';
 
-const AppStoreNexodev = new AppStore(BaseElement);
+const AppStoreNexodev = AppStore.create('stream');
 
 export { AppStoreNexodev };
