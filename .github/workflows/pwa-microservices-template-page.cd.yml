@@ -62,7 +62,7 @@ jobs:
       # git lfs ls-files
       # git lfs pull
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
