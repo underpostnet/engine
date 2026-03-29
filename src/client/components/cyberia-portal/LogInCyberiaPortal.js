@@ -1,19 +1,19 @@
 import { Auth } from '../core/Auth.js';
 import { LogIn } from '../core/LogIn.js';
 import { s } from '../core/VanillaJs.js';
-import { ElementsCyberiaPortal } from './ElementsCyberiaPortal.js';
+import { AppStoreCyberiaPortal } from './AppStoreCyberiaPortal.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 
 const LogInCyberiaPortal = async function () {
   LogIn.Event['LogInCyberiaPortal'] = async (options) => {
     const { token, user } = options;
 
-    ElementsCyberiaPortal.Data.user.main.model.user = user;
+    AppStoreCyberiaPortal.Data.user.main.model.user = user;
 
     await ObjectLayerManagement.Reload('viewer');
   };
   const { user } = await Auth.sessionIn();
-  ElementsCyberiaPortal.Data.user.main.model.user = user;
+  AppStoreCyberiaPortal.Data.user.main.model.user = user;
 };
 
 export { LogInCyberiaPortal };

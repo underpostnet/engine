@@ -53,7 +53,7 @@ const DefaultConf = /**/ {
         dogmadual: [
           'MenuDogmadual',
           'RoutesDogmadual',
-          'ElementsDogmadual',
+          'AppStoreDogmadual',
           'CommonDogmadual',
           'CssDogmadual',
           'LogInDogmadual',
@@ -182,7 +182,7 @@ const DefaultConf = /**/ {
         nexodev: [
           'MenuNexodev',
           'RoutesNexodev',
-          'ElementsNexodev',
+          'AppStoreNexodev',
           'CommonNexodev',
           'CssNexodev',
           'LogInNexodev',
@@ -332,7 +332,7 @@ const DefaultConf = /**/ {
         healthcare: [
           'MenuHealthcare',
           'RoutesHealthcare',
-          'ElementsHealthcare',
+          'AppStoreHealthcare',
           'CommonHealthcare',
           'CssHealthcare',
           'LogInHealthcare',
@@ -482,7 +482,7 @@ const DefaultConf = /**/ {
         bymyelectrics: [
           'MenuBymyelectrics',
           'RoutesBymyelectrics',
-          'ElementsBymyelectrics',
+          'AppStoreBymyelectrics',
           'CommonBymyelectrics',
           'CssBymyelectrics',
           'LogInBymyelectrics',

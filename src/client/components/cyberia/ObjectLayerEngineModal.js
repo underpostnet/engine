@@ -185,11 +185,11 @@ const ObjectLayerEngineModal = {
       return null;
     }
   },
-  Render: async (options = { idModal: '', Elements: {} }) => {
+  Render: async (options = { idModal: '', appStore: {} }) => {
     // Clear all cached data at the start of each render to prevent contamination
     ObjectLayerEngineModal.clearData();
 
-    const { Elements } = options;
+    const { appStore } = options;
 
     const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
     const directionCodeLabels = {
@@ -849,7 +849,7 @@ const ObjectLayerEngineModal = {
           ObjectLayerEngineModal.existingObjectLayerId ? '(UPDATE MODE)' : '(CREATE MODE)',
         );
 
-        if (Elements.Data.user.main.model.user.role === 'guest') {
+        if (appStore.Data.user.main.model.user.role === 'guest') {
           NotificationManager.Push({
             html: 'Guests cannot save object layers. Please log in.',
             status: 'warning',

@@ -9,9 +9,9 @@ import { getApiBaseUrl } from '../core/core.service.js';
 
 const CyberiaMapManagement = {
   RenderTable: async (options = {}) => {
-    const { idModal: rawIdModal, customEvent, readyRowDataEvent, loadMapCallback, Elements } = options;
+    const { idModal: rawIdModal, customEvent, readyRowDataEvent, loadMapCallback, appStore } = options;
     const idModal = rawIdModal || 'modal-cyberia-map-management';
-    const role = Elements?.Data?.user?.main?.model?.user?.role || 'guest';
+    const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
 
     class LoadMapActionGridRenderer {
       eGui;

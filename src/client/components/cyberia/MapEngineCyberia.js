@@ -248,7 +248,7 @@ class MapEngineCyberia {
   }
 
   static async render(options = {}) {
-    const { Elements } = options;
+    const { appStore } = options;
     const idCode = 'map-engine-input-code';
     const idName = 'map-engine-input-name';
     const idDescription = 'map-engine-input-description';
@@ -649,7 +649,7 @@ class MapEngineCyberia {
     const managementTableHtml = await CyberiaMapManagement.RenderTable({
       idModal: managementId,
       loadMapCallback: loadMap,
-      Elements,
+      appStore,
       readyRowDataEvent: {
         'map-engine-check-deleted': (rowData) => {
           if (MapEngineCyberia.currentMapId) {

@@ -13,7 +13,7 @@ import { Worker } from './components/core/Worker.js';
 import { CssCyberiaDark, CssCyberiaLight } from './components/cyberia-portal/CssCyberiaPortal.js';
 import { SocketIoCyberiaPortal } from './components/cyberia-portal/SocketIoCyberiaPortal.js';
 import { SocketIo } from './components/core/SocketIo.js';
-import { ElementsCyberiaPortal } from './components/cyberia-portal/ElementsCyberiaPortal.js';
+import { AppStoreCyberiaPortal } from './components/cyberia-portal/AppStoreCyberiaPortal.js';
 import { Keyboard } from './components/core/Keyboard.js';
 
 window.onload = () =>
@@ -25,7 +25,7 @@ window.onload = () =>
       await TranslateCyberiaPortal.Init();
       await Responsive.Init();
       await MenuCyberiaPortal.Render();
-      await SocketIo.Init({ channels: ElementsCyberiaPortal.Data });
+      await SocketIo.Init({ channels: AppStoreCyberiaPortal.Data });
       await SocketIoCyberiaPortal.Init();
       await LogInCyberiaPortal();
       await LogOutCyberiaPortal();

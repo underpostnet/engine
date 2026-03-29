@@ -1,6 +1,6 @@
 import { SocketIoHandler } from '../core/SocketIoHandler.js';
-import { ElementsItemledger } from './ElementsItemledger.js';
+import { AppStoreItemledger } from './AppStoreItemledger.js';
 
-const SocketIoItemledger = SocketIoHandler(ElementsItemledger);
+const SocketIoItemledger = SocketIoHandler(AppStoreItemledger);
 
 export { SocketIoItemledger };

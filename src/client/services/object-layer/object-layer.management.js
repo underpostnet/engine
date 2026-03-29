@@ -11,11 +11,11 @@ import { NotificationManager } from '../../components/core/NotificationManager.j
 import { AgGrid } from '../../components/core/AgGrid.js';
 
 const ObjectLayerManagement = {
-  RenderTable: async ({ Elements, idModal: rawIdModal }) => {
+  RenderTable: async ({ appStore, idModal: rawIdModal }) => {
     const idModal = rawIdModal || 'modal-object-layer-engine-management';
     const serviceId = 'object-layer-engine-management';
     const gridId = `${serviceId}-grid-${idModal}`;
-    const user = Elements.Data.user.main.model.user;
+    const user = appStore.Data.user.main.model.user;
     const { role } = user;
 
     // Custom renderer for view button
@@ -48,7 +48,7 @@ const ObjectLayerManagement = {
                 // Then add query param without replacing history
                 setQueryParams({ id: data._id }, { replace: true });
                 if (s(`.modal-object-layer-engine-viewer`)) {
-                  await ObjectLayerEngineViewer.Reload({ Elements, force: true });
+                  await ObjectLayerEngineViewer.Reload({ appStore, force: true });
                 }
                 s(`.main-btn-object-layer-engine-viewer`).click();
               });

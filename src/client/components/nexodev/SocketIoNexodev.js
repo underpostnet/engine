@@ -1,6 +1,6 @@
 import { SocketIoHandler } from '../core/SocketIoHandler.js';
-import { ElementsNexodev } from './ElementsNexodev.js';
+import { AppStoreNexodev } from './AppStoreNexodev.js';
 
-const SocketIoNexodev = SocketIoHandler(ElementsNexodev);
+const SocketIoNexodev = SocketIoHandler(AppStoreNexodev);
 
 export { SocketIoNexodev };

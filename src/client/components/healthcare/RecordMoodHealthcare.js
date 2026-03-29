@@ -8,7 +8,7 @@ import { RouterEvents } from '../core/Router.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
-import { ElementsHealthcare } from './ElementsHealthcare.js';
+import { AppStoreHealthcare } from './AppStoreHealthcare.js';
 
 const RecordMoodHealthcare = {
   Render: async function ({ idModal }) {
@@ -164,7 +164,7 @@ const RecordMoodHealthcare = {
                   await PanelForm.instance({
                     idPanel,
                     defaultUrlImage: `${getProxyPath()}assets/logo/base-icon.png`,
-                    Elements: ElementsHealthcare,
+                    appStore: AppStoreHealthcare,
                     parentIdModal: idModal,
                     scrollClassContainer: `html-${idModal}`,
                     route: routeModal,

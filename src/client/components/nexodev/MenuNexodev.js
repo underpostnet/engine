@@ -28,7 +28,7 @@ import {
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s, sa } from '../core/VanillaJs.js';
-import { ElementsNexodev } from './ElementsNexodev.js';
+import { AppStoreNexodev } from './AppStoreNexodev.js';
 import Sortable from 'sortablejs';
 import { RouterNexodev, BannerAppTemplate } from './RoutesNexodev.js';
 import { CalendarNexodev } from './CalendarNexodev.js';
@@ -521,7 +521,7 @@ const MenuNexodev = {
             await PanelForm.instance({
               idPanel: 'nexodev-blog',
               defaultUrlImage: `${getProxyPath()}assets/splash/android-chrome-96x96.png`,
-              Elements: ElementsNexodev,
+              appStore: AppStoreNexodev,
               parentIdModal: idModal,
               scrollClassContainer: `html-${idModal}`,
               route: routeModal,
@@ -570,7 +570,7 @@ const MenuNexodev = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: ElementsNexodev.Data.user.main.model.user,
+            user: AppStoreNexodev.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -642,7 +642,7 @@ const MenuNexodev = {
         html: async () => {
           return await CalendarNexodev.Render({
             idModal: 'modal-calendar',
-            Elements: ElementsNexodev,
+            appStore: AppStoreNexodev,
             route,
             parentIdModal: 'modal-calendar',
           });
@@ -791,7 +791,7 @@ const MenuNexodev = {
           text: Translate.Render('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: ElementsNexodev.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreNexodev.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -832,7 +832,7 @@ const MenuNexodev = {
           icon: html`<i class="fas fa-users-cog"></i>`,
           text: Translate.Render('user-management'),
         }),
-        html: async () => await UserManagement.RenderTable({ Elements: ElementsNexodev }),
+        html: async () => await UserManagement.RenderTable({ appStore: AppStoreNexodev }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -853,7 +853,7 @@ const MenuNexodev = {
           icon: html`<i class="fas fa-layer-group"></i>`,
           text: Translate.Render('instance-management'),
         }),
-        html: async () => InstanceManagement.RenderTable({ Elements: ElementsNexodev }),
+        html: async () => InstanceManagement.RenderTable({ appStore: AppStoreNexodev }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -879,7 +879,7 @@ const MenuNexodev = {
           </svg>`,
           text: html`<div class="inl" style="top:-5px">${Translate.Render('cron-management')}</div>`,
         }),
-        html: async () => CronManagement.RenderTable({ Elements: ElementsNexodev }),
+        html: async () => CronManagement.RenderTable({ appStore: AppStoreNexodev }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

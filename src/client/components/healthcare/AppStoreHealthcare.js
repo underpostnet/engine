@@ -1,6 +1,6 @@
 import { AppStore } from '../core/AppStore.js';
 import { BaseElement } from './CommonHealthcare.js';
 
-const ElementsHealthcare = new AppStore(BaseElement);
+const AppStoreHealthcare = new AppStore(BaseElement);
 
-export { ElementsHealthcare };
+export { AppStoreHealthcare };

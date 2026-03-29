@@ -1,6 +1,6 @@
 import { SocketIoHandler } from '../core/SocketIoHandler.js';
-import { ElementsCyberiaPortal } from './ElementsCyberiaPortal.js';
+import { AppStoreCyberiaPortal } from './AppStoreCyberiaPortal.js';
 
-const SocketIoCyberiaPortal = SocketIoHandler(ElementsCyberiaPortal);
+const SocketIoCyberiaPortal = SocketIoHandler(AppStoreCyberiaPortal);
 
 export { SocketIoCyberiaPortal };

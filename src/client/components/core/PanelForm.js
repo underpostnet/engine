@@ -85,7 +85,7 @@ const PanelForm = {
     options = {
       idPanel: '',
       defaultUrlImage: '',
-      Elements: {},
+      appStore: {},
       parentIdModal: undefined,
       route: 'home',
       htmlFormHeader: async () => '',
@@ -97,7 +97,7 @@ const PanelForm = {
       showCreatorProfile: false,
     },
   ) {
-    const { idPanel, defaultUrlImage, Elements } = options;
+    const { idPanel, defaultUrlImage, appStore } = options;
 
     // Authenticated users don't need 'public' tag - they see all their own posts
     // Only include 'public' for unauthenticated users (handled by backend)
@@ -458,10 +458,10 @@ const PanelForm = {
             baseNewDoc.mdFileId = hasMdContent
               ? `<div class="markdown-content">${marked.parse(data.mdFileId)}</div>`
               : null;
-            baseNewDoc.userId = Elements.Data.user?.main?.model?.user?._id;
+            baseNewDoc.userId = appStore.Data.user?.main?.model?.user?._id;
 
             // Ensure profileImageId is properly formatted as object with _id property
-            const profileImageIdValue = Elements.Data.user?.main?.model?.user?.profileImageId;
+            const profileImageIdValue = appStore.Data.user?.main?.model?.user?.profileImageId;
             const formattedProfileImageId = profileImageIdValue
               ? typeof profileImageIdValue === 'string'
                 ? { _id: profileImageIdValue }
@@ -469,9 +469,9 @@ const PanelForm = {
               : null;
 
             baseNewDoc.userInfo = {
-              username: Elements.Data.user?.main?.model?.user?.username,
-              email: Elements.Data.user?.main?.model?.user?.email,
-              _id: Elements.Data.user?.main?.model?.user?._id,
+              username: appStore.Data.user?.main?.model?.user?.username,
+              email: appStore.Data.user?.main?.model?.user?.email,
+              _id: appStore.Data.user?.main?.model?.user?._id,
               profileImageId: formattedProfileImageId,
             };
             baseNewDoc.tools = true;
@@ -737,8 +737,8 @@ const PanelForm = {
                 tools:
                   documentObject.userId &&
                   typeof documentObject.userId === 'object' &&
-                  Elements.Data.user?.main?.model?.user?._id &&
-                  documentObject.userId._id === Elements.Data.user.main.model.user._id,
+                  appStore.Data.user?.main?.model?.user?._id &&
+                  documentObject.userId._id === appStore.Data.user.main.model.user._id,
                 _id: documentObject._id,
                 totalCopyShareLinkCount: documentObject.totalCopyShareLinkCount || 0,
                 isPublic: documentObject.isPublic || false,
@@ -772,8 +772,8 @@ const PanelForm = {
                 tools:
                   documentObject.userId &&
                   typeof documentObject.userId === 'object' &&
-                  Elements.Data.user?.main?.model?.user?._id &&
-                  documentObject.userId._id === Elements.Data.user.main.model.user._id,
+                  appStore.Data.user?.main?.model?.user?._id &&
+                  documentObject.userId._id === appStore.Data.user.main.model.user._id,
                 _id: documentObject._id,
                 totalCopyShareLinkCount: documentObject.totalCopyShareLinkCount || 0,
                 isPublic: documentObject.isPublic || false,
@@ -867,10 +867,10 @@ const PanelForm = {
         try {
           const cid = getQueryParams().cid ? getQueryParams().cid : '';
           const forceUpdate =
-            Elements.Data.user.main.model &&
-            Elements.Data.user.main.model.user &&
-            Elements.Data.user.main.model.user._id &&
-            lastUserId !== Elements.Data.user.main.model.user._id;
+            appStore.Data.user.main.model &&
+            appStore.Data.user.main.model.user &&
+            appStore.Data.user.main.model.user._id &&
+            lastUserId !== appStore.Data.user.main.model.user._id;
 
           logger.warn(
             {
@@ -878,8 +878,8 @@ const PanelForm = {
               cid,
               forceUpdate,
             },
-            Elements.Data.user?.main?.model?.user
-              ? JSON.stringify(Elements.Data.user.main.model.user, null, 4)
+            appStore.Data.user?.main?.model?.user
+              ? JSON.stringify(appStore.Data.user.main.model.user, null, 4)
               : 'No user data',
           );
 
@@ -889,8 +889,8 @@ const PanelForm = {
 
           if (loadingGetData || (normalizedLastCid === normalizedCid && !forceUpdate)) return;
           loadingGetData = true;
-          lastUserId = Elements.Data.user?.main?.model?.user?._id
-            ? newInstance(Elements.Data.user.main.model.user._id)
+          lastUserId = appStore.Data.user?.main?.model?.user?._id
+            ? newInstance(appStore.Data.user.main.model.user._id)
             : null;
           lastCid = cid;
 

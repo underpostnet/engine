@@ -1,6 +1,6 @@
 import { AppStore } from '../core/AppStore.js';
 import { BaseElement } from './CommonCryptokoyn.js';
 
-const ElementsCryptokoyn = new AppStore(BaseElement);
+const AppStoreCryptokoyn = new AppStore(BaseElement);
 
-export { ElementsCryptokoyn };
+export { AppStoreCryptokoyn };

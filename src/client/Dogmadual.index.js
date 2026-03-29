@@ -13,7 +13,7 @@ import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { SocketIoDogmadual } from './components/dogmadual/SocketIoDogmadual.js';
 import { SocketIo } from './components/core/SocketIo.js';
-import { ElementsDogmadual } from './components/dogmadual/ElementsDogmadual.js';
+import { AppStoreDogmadual } from './components/dogmadual/AppStoreDogmadual.js';
 import { getProxyPath } from './components/core/Router.js';
 
 const htmlMainBody = async () => {
@@ -28,7 +28,7 @@ window.onload = () =>
       await TranslateCore.Init();
       await Responsive.Init();
       await MenuDogmadual.Render({ htmlMainBody });
-      await SocketIo.Init({ channels: ElementsDogmadual.Data });
+      await SocketIo.Init({ channels: AppStoreDogmadual.Data });
       await SocketIoDogmadual.Init();
       await LogInDogmadual();
       await LogOutDogmadual();

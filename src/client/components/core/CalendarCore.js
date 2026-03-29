@@ -25,7 +25,7 @@ const eventDateFactory = (event) =>
 const CalendarCore = {
   RenderStyle: async function () {},
   Data: {},
-  Render: async function (options = { idModal: '', Elements: {}, hiddenDates: [] }) {
+  Render: async function (options = { idModal: '', appStore: {}, hiddenDates: [] }) {
     this.Data[options.idModal] = {
       data: [],
       originData: [],
@@ -49,7 +49,7 @@ const CalendarCore = {
         this.Data[options.idModal].filesData = [];
         this.Data[options.idModal].originData = newInstance(resultData);
         this.Data[options.idModal].data = resultData.map((o) => {
-          if (o.creatorUserId && options.Elements.Data.user.main.model.user._id === o.creatorUserId) o.tools = true;
+          if (o.creatorUserId && options.appStore.Data.user.main.model.user._id === o.creatorUserId) o.tools = true;
           o.id = o._id;
 
           this.Data[options.idModal].filesData.push({});

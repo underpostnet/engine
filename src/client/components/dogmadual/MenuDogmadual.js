@@ -10,7 +10,7 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
-import { ElementsDogmadual } from './ElementsDogmadual.js';
+import { AppStoreDogmadual } from './AppStoreDogmadual.js';
 import Sortable from 'sortablejs';
 import { RouterDogmadual, BannerAppTemplate } from './RoutesDogmadual.js';
 import { Badge } from '../core/Badge.js';
@@ -258,7 +258,7 @@ const MenuDogmadual = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: ElementsDogmadual.Data.user.main.model.user,
+            user: AppStoreDogmadual.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -300,7 +300,7 @@ const MenuDogmadual = {
           text: Translate.Render('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: ElementsDogmadual.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreDogmadual.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

@@ -9,7 +9,7 @@ import { SignUpNexodev } from './components/nexodev/SignUpNexodev.js';
 import { MenuNexodev } from './components/nexodev/MenuNexodev.js';
 import { RouterNexodev } from './components/nexodev/RoutesNexodev.js';
 import { SocketIo } from './components/core/SocketIo.js';
-import { ElementsNexodev } from './components/nexodev/ElementsNexodev.js';
+import { AppStoreNexodev } from './components/nexodev/AppStoreNexodev.js';
 import { SocketIoNexodev } from './components/nexodev/SocketIoNexodev.js';
 import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
@@ -533,7 +533,7 @@ window.onload = () =>
       await TranslateCore.Init();
       await Responsive.Init();
       await MenuNexodev.Render({ htmlMainBody });
-      await SocketIo.Init({ channels: ElementsNexodev.Data });
+      await SocketIo.Init({ channels: AppStoreNexodev.Data });
       await SocketIoNexodev.Init();
       await LogInNexodev();
       await LogOutNexodev();

@@ -65,7 +65,7 @@ const DefaultConf = /**/ {
         underpost: [
           'MenuUnderpost',
           'RoutesUnderpost',
-          'ElementsUnderpost',
+          'AppStoreUnderpost',
           'CommonUnderpost',
           'CssUnderpost',
           'LogInUnderpost',
@@ -205,7 +205,7 @@ const DefaultConf = /**/ {
         'cyberia-portal': [
           'MenuCyberiaPortal',
           'RoutesCyberiaPortal',
-          'ElementsCyberiaPortal',
+          'AppStoreCyberiaPortal',
           'CommonCyberiaPortal',
           'CssCyberiaPortal',
           'LogInCyberiaPortal',
@@ -351,7 +351,7 @@ const DefaultConf = /**/ {
         cryptokoyn: [
           'MenuCryptokoyn',
           'RoutesCryptokoyn',
-          'ElementsCryptokoyn',
+          'AppStoreCryptokoyn',
           'CommonCryptokoyn',
           'CssCryptokoyn',
           'LogInCryptokoyn',
@@ -466,7 +466,7 @@ const DefaultConf = /**/ {
         itemledger: [
           'MenuItemledger',
           'RoutesItemledger',
-          'ElementsItemledger',
+          'AppStoreItemledger',
           'CommonItemledger',
           'CssItemledger',
           'LogInItemledger',

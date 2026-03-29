@@ -27,14 +27,14 @@ class SocketIoHandlerProvider {
    * Creates a standard SocketIo event initialization object for an app module.
    *
    * @static
-   * @param {import('./AppStore.js').AppStore} Elements - The app-specific AppStore instance.
+   * @param {import('./AppStore.js').AppStore} appStore - The app-specific AppStore instance.
    * @returns {{ Init: function(): Promise<void> }} An object with an `Init` method for SocketIo event registration.
    */
-  static create(Elements) {
+  static create(appStore) {
     return {
       Init() {
         return new Promise((resolve) => {
-          for (const type of Object.keys(Elements.Data)) {
+          for (const type of Object.keys(appStore.Data)) {
             SocketIo.Event[type][s4()] = async (args) => {
               args = JSON.parse(args[0]);
               switch (type) {
@@ -52,7 +52,7 @@ class SocketIoHandlerProvider {
 
               switch (status) {
                 case 'email-confirmed': {
-                  const newUser = { ...Elements.Data.user.main.model.user, emailConfirmed: true };
+                  const newUser = { ...appStore.Data.user.main.model.user, emailConfirmed: true };
                   Account.renderVerifyEmailStatus(newUser);
                   Account.triggerUpdateEvent({ user: newUser });
                   break;
@@ -76,9 +76,9 @@ class SocketIoHandlerProvider {
  * Backward compatibility alias.
  * @function SocketIoHandler
  * @memberof SocketIoHandlerProvider
- * @param {import('./AppStore.js').AppStore} Elements - The app-specific AppStore instance.
+ * @param {import('./AppStore.js').AppStore} appStore - The app-specific AppStore instance.
  * @returns {{ Init: function(): Promise<void> }}
  */
-const SocketIoHandler = (Elements) => SocketIoHandlerProvider.create(Elements);
+const SocketIoHandler = (appStore) => SocketIoHandlerProvider.create(appStore);
 
 export { SocketIoHandlerProvider, SocketIoHandler };

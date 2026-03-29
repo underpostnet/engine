@@ -1,6 +1,6 @@
 import { SocketIoHandler } from '../core/SocketIoHandler.js';
-import { ElementsDefault } from './ElementsDefault.js';
+import { AppStoreDefault } from './AppStoreDefault.js';
 
-const SocketIoDefault = SocketIoHandler(ElementsDefault);
+const SocketIoDefault = SocketIoHandler(AppStoreDefault);
 
 export { SocketIoDefault };

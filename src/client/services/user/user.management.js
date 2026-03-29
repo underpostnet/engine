@@ -2,8 +2,8 @@ import { DefaultManagement } from '../default/default.management.js';
 import { UserService } from './user.service.js';
 
 const UserManagement = {
-  RenderTable: async ({ Elements }) => {
-    const user = Elements.Data.user.main.model.user;
+  RenderTable: async ({ appStore }) => {
+    const user = appStore.Data.user.main.model.user;
     const { role } = user;
     return await DefaultManagement.RenderTable({
       idModal: 'modal-user-management',

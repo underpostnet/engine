@@ -94,7 +94,7 @@ class InstanceEngineCyberia {
   }
 
   static async render(options = {}) {
-    const { Elements } = options;
+    const { appStore } = options;
     const idCode = 'instance-engine-input-code';
     const idName = 'instance-engine-input-name';
     const idDescription = 'instance-engine-input-description';
@@ -382,7 +382,7 @@ class InstanceEngineCyberia {
     const managementTableHtml = await CyberiaInstanceManagement.RenderTable({
       idModal: managementId,
       loadInstanceCallback: loadInstance,
-      Elements,
+      appStore,
       readyRowDataEvent: {
         'instance-engine-check-deleted': (rowData) => {
           if (InstanceEngineCyberia.currentInstanceId) {

@@ -9,7 +9,7 @@ import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
 import { Validator } from '../core/Validator.js';
 import { s } from '../core/VanillaJs.js';
-import { ElementsHealthcare } from './ElementsHealthcare.js';
+import { AppStoreHealthcare } from './AppStoreHealthcare.js';
 
 // https://ewr50l16.forms.app/consulta-nutricional-ayleenbertini
 
@@ -79,13 +79,13 @@ const AppointmentFormHealthcare = {
               ? {
                   ...patient,
                   companyType: mode === 'healthcare-company-private' ? 'private' : 'public',
-                  userId: ElementsHealthcare.Data.user.main.model.user._id,
+                  userId: AppStoreHealthcare.Data.user.main.model.user._id,
                 }
               : {
                   email: 'test@test.com',
                   username: 'Test User',
                   phoneNumbers: [{ type: 'private', number: '1234567890' }],
-                  userId: ElementsHealthcare.Data.user.main.model.user._id,
+                  userId: AppStoreHealthcare.Data.user.main.model.user._id,
                 },
             professional: {
               specialty: ['nutrition'],

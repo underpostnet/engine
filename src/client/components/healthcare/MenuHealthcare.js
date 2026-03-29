@@ -9,7 +9,7 @@ import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } 
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { append, htmls, prepend, s } from '../core/VanillaJs.js';
-import { ElementsHealthcare } from './ElementsHealthcare.js';
+import { AppStoreHealthcare } from './AppStoreHealthcare.js';
 import Sortable from 'sortablejs';
 import { RouterHealthcare, BannerAppTemplate } from './RoutesHealthcare.js';
 import { SettingsHealthcare } from './SettingsHealthcare.js';
@@ -442,7 +442,7 @@ const MenuHealthcare = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: ElementsHealthcare.Data.user.main.model.user,
+            user: AppStoreHealthcare.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -483,7 +483,7 @@ const MenuHealthcare = {
           text: Translate.Render('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: ElementsHealthcare.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreHealthcare.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -551,7 +551,7 @@ const MenuHealthcare = {
             };
             const authSwitch = () => {
               if (!s(`.btn-calendar-panel-${idModal}-add`)) return;
-              if (commonModeratorGuard(ElementsHealthcare.Data.user.main.model.user.role))
+              if (commonModeratorGuard(AppStoreHealthcare.Data.user.main.model.user.role))
                 s(`.btn-calendar-panel-${idModal}-add`).classList.remove('hide');
               else {
                 s(`.btn-calendar-panel-${idModal}-add`).classList.add('hide');
@@ -572,12 +572,12 @@ const MenuHealthcare = {
           });
           return await CalendarCore.Render({
             idModal,
-            Elements: ElementsHealthcare,
+            appStore: AppStoreHealthcare,
             route,
             hiddenDates,
             parentIdModal: 'modal-calendar',
             role: {
-              add: () => commonModeratorGuard(ElementsHealthcare.Data.user.main.model.user.role),
+              add: () => commonModeratorGuard(AppStoreHealthcare.Data.user.main.model.user.role),
             },
             eventClick: async function (dateData, args) {
               const { status } = await appoimentFormRender(dateData);
@@ -612,7 +612,7 @@ const MenuHealthcare = {
           icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
           text: Translate.Render('healthcare-appointment-management'),
         }),
-        html: async () => await HealthcareAppointmentManagement.RenderTable({ Elements: ElementsHealthcare }),
+        html: async () => await HealthcareAppointmentManagement.RenderTable({ appStore: AppStoreHealthcare }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

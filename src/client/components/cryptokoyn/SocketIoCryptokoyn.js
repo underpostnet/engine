@@ -1,6 +1,6 @@
 import { SocketIoHandler } from '../core/SocketIoHandler.js';
-import { ElementsCryptokoyn } from './ElementsCryptokoyn.js';
+import { AppStoreCryptokoyn } from './AppStoreCryptokoyn.js';
 
-const SocketIoCryptokoyn = SocketIoHandler(ElementsCryptokoyn);
+const SocketIoCryptokoyn = SocketIoHandler(AppStoreCryptokoyn);
 
 export { SocketIoCryptokoyn };

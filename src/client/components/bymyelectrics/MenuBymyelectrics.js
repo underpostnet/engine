@@ -10,7 +10,7 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
-import { ElementsBymyelectrics } from './ElementsBymyelectrics.js';
+import { AppStoreBymyelectrics } from './AppStoreBymyelectrics.js';
 import Sortable from 'sortablejs';
 import { RouterBymyelectrics, BannerAppTemplate } from './RoutesBymyelectrics.js';
 import { SettingsBymyelectrics } from './SettingsBymyelectrics.js';
@@ -342,7 +342,7 @@ const MenuBymyelectrics = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: ElementsBymyelectrics.Data.user.main.model.user,
+            user: AppStoreBymyelectrics.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -407,7 +407,7 @@ const MenuBymyelectrics = {
           text: Translate.Render('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: ElementsBymyelectrics.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreBymyelectrics.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

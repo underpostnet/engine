@@ -18,7 +18,7 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath, setQueryParams } from '../core/Router.js';
-import { ElementsCyberiaPortal } from './ElementsCyberiaPortal.js';
+import { AppStoreCyberiaPortal } from './AppStoreCyberiaPortal.js';
 import Sortable from 'sortablejs';
 import { RouterCyberiaPortal, BannerAppTemplate } from './RoutesCyberiaPortal.js';
 import { SettingsCyberiaPortal } from './SettingsCyberiaPortal.js';
@@ -424,7 +424,7 @@ const MenuCyberiaPortal = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: ElementsCyberiaPortal.Data.user.main.model.user,
+            user: AppStoreCyberiaPortal.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -546,7 +546,7 @@ const MenuCyberiaPortal = {
           text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('recover')}</span>`,
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: ElementsCyberiaPortal.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreCyberiaPortal.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -568,7 +568,7 @@ const MenuCyberiaPortal = {
         html: async () =>
           await ObjectLayerEngineModal.Render({
             idModal: 'modal-object-layer-engine',
-            Elements: ElementsCyberiaPortal,
+            appStore: AppStoreCyberiaPortal,
           }),
         handleType: 'bar',
         maximize: true,
@@ -590,7 +590,7 @@ const MenuCyberiaPortal = {
         }),
         html: async () =>
           ObjectLayerManagement.RenderTable({
-            Elements: ElementsCyberiaPortal,
+            appStore: AppStoreCyberiaPortal,
           }),
         handleType: 'bar',
         maximize: true,
@@ -613,7 +613,7 @@ const MenuCyberiaPortal = {
         }),
         html: async () =>
           ObjectLayerEngineViewer.Render({
-            Elements: ElementsCyberiaPortal,
+            appStore: AppStoreCyberiaPortal,
           }),
         handleType: 'bar',
         maximize: true,
@@ -634,7 +634,7 @@ const MenuCyberiaPortal = {
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
           text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('cyberia-map-engine')}</span>`,
         }),
-        html: async () => await MapEngineCyberia.render({ Elements: ElementsCyberiaPortal }),
+        html: async () => await MapEngineCyberia.render({ appStore: AppStoreCyberiaPortal }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -654,7 +654,7 @@ const MenuCyberiaPortal = {
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
           text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('cyberia-instance-engine')}</span>`,
         }),
-        html: async () => await InstanceEngineCyberia.render({ Elements: ElementsCyberiaPortal }),
+        html: async () => await InstanceEngineCyberia.render({ appStore: AppStoreCyberiaPortal }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

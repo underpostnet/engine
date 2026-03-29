@@ -3,8 +3,8 @@ import { DefaultManagement } from '../default/default.management.js';
 import { HealthcareAppointmentService } from './healthcare-appointment.service.js';
 
 const HealthcareAppointmentManagement = {
-  RenderTable: async ({ Elements }) => {
-    const user = Elements.Data.user.main.model.user;
+  RenderTable: async ({ appStore }) => {
+    const user = appStore.Data.user.main.model.user;
     const { role } = user;
     return await DefaultManagement.RenderTable({
       idModal: 'modal-healthcare-appointment-management',

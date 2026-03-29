@@ -10,7 +10,7 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { extractUsernameFromPath, getProxyPath, getQueryParams } from '../core/Router.js';
-import { ElementsUnderpost } from './ElementsUnderpost.js';
+import { AppStoreUnderpost } from './AppStoreUnderpost.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost, BannerAppTemplate } from './RoutesUnderpost.js';
 import { LabGalleryUnderpost } from './LabGalleryUnderpost.js';
@@ -234,7 +234,7 @@ const MenuUnderpost = {
         const panelFormInstance = await PanelForm.instance({
           idPanel: 'underpost-panel',
           defaultUrlImage: `${getProxyPath()}assets/splash/apple-touch-icon-precomposed.png`,
-          Elements: ElementsUnderpost,
+          appStore: AppStoreUnderpost,
           route: 'home',
           share: {
             copyLink: true,
@@ -494,7 +494,7 @@ const MenuUnderpost = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: ElementsUnderpost.Data.user.main.model.user,
+            user: AppStoreUnderpost.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -510,7 +510,7 @@ const MenuUnderpost = {
     EventsUI.onClick(`.main-btn-public-profile`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       const idModal = 'modal-public-profile';
-      const loggedInUser = ElementsUnderpost.Data.user.main.model.user;
+      const loggedInUser = AppStoreUnderpost.Data.user.main.model.user;
 
       // Determine the target username: prefer URL path/query over logged-in user
       const usernameFromPath = extractUsernameFromPath();
@@ -640,7 +640,7 @@ const MenuUnderpost = {
           text: `<span class='inl underpost-text-title-modal'>${Translate.Render('recover')}</span>`,
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: ElementsUnderpost.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreUnderpost.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

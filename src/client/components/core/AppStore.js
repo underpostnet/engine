@@ -12,8 +12,8 @@
  * @classdesc Per-app singleton state store for WebSocket channel data and authenticated user state.
  * Each app provides a `BaseElement` factory defining the channel shape.
  *
- * Usage: `ElementsX.Data.user.main.model.user` — the authenticated user object.
- * `ElementsX.Data` keys (`chat`, `mailer`, `stream`, etc.) — channel definitions for `SocketIo.Init`.
+ * Usage: `AppStoreX.Data.user.main.model.user` — the authenticated user object.
+ * `AppStoreX.Data` keys (`chat`, `mailer`, `stream`, etc.) — channel definitions for `SocketIo.Init`.
  * @memberof AppStore
  */
 class AppStore {

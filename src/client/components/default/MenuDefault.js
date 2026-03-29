@@ -10,7 +10,7 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { extractUsernameFromPath, getProxyPath, getQueryParams } from '../core/Router.js';
-import { ElementsDefault } from './ElementsDefault.js';
+import { AppStoreDefault } from './AppStoreDefault.js';
 import Sortable from 'sortablejs';
 import { RouterDefault, BannerAppTemplate } from './RoutesDefault.js';
 import { SettingsDefault } from './SettingsDefault.js';
@@ -551,7 +551,7 @@ const MenuDefault = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: ElementsDefault.Data.user.main.model.user,
+            user: AppStoreDefault.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -565,7 +565,7 @@ const MenuDefault = {
     EventsUI.onClick(`.main-btn-public-profile`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       const idModal = 'modal-public-profile';
-      const user = ElementsDefault.Data.user.main.model.user;
+      const user = AppStoreDefault.Data.user.main.model.user;
 
       // Check if modal already exists
       const existingModal = s(`.${idModal}`);
@@ -635,7 +635,7 @@ const MenuDefault = {
           text: Translate.Render('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: ElementsDefault.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreDefault.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -723,7 +723,7 @@ const MenuDefault = {
             await PanelForm.instance({
               idPanel: 'default-blog',
               defaultUrlImage: `${getProxyPath()}android-chrome-96x96.png`,
-              Elements: ElementsDefault,
+              appStore: AppStoreDefault,
               parentIdModal: idModal,
               scrollClassContainer: `html-${idModal}`,
               route: routeModal,

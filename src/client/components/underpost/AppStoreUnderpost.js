@@ -1,6 +1,6 @@
 import { AppStore } from '../core/AppStore.js';
 import { BaseElement } from './CommonUnderpost.js';
 
-const ElementsUnderpost = new AppStore(BaseElement);
+const AppStoreUnderpost = new AppStore(BaseElement);
 
-export { ElementsUnderpost };
+export { AppStoreUnderpost };

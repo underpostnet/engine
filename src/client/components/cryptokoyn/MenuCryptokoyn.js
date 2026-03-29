@@ -10,7 +10,7 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
-import { ElementsCryptokoyn } from './ElementsCryptokoyn.js';
+import { AppStoreCryptokoyn } from './AppStoreCryptokoyn.js';
 import Sortable from 'sortablejs';
 import { RouterCryptokoyn, BannerAppTemplate } from './RoutesCryptokoyn.js';
 import { Wallet } from '../core/Wallet.js';
@@ -274,7 +274,7 @@ const MenuCryptokoyn = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: ElementsCryptokoyn.Data.user.main.model.user,
+            user: AppStoreCryptokoyn.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -338,7 +338,7 @@ const MenuCryptokoyn = {
           text: Translate.Render('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: ElementsCryptokoyn.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreCryptokoyn.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

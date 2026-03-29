@@ -54,14 +54,14 @@ const ObjectLayerEngineViewer = {
     return directionCodeMap[key] || null;
   },
 
-  Render: async function ({ Elements }) {
+  Render: async function ({ appStore }) {
     const id = 'object-layer-engine-viewer';
 
     // Reset currentObjectId when modal is rendered to ensure Reload triggers properly
     this.Data.currentObjectId = undefined;
 
     Modal.Data[`modal-${id}`].onReloadModalListener[id] = async () => {
-      ObjectLayerEngineViewer.Reload({ Elements });
+      ObjectLayerEngineViewer.Reload({ appStore });
     };
 
     // Listen for query parameter changes for smooth navigation
@@ -77,7 +77,7 @@ const ObjectLayerEngineViewer = {
 
         // Only reload if object id actually changed (normalize undefined to null for comparison)
         if (objectId !== this.Data.currentObjectId) {
-          await this.Reload({ Elements });
+          await this.Reload({ appStore });
         }
       },
     });
@@ -93,7 +93,7 @@ const ObjectLayerEngineViewer = {
     `;
   },
 
-  renderEmpty: async function ({ Elements }) {
+  renderEmpty: async function ({ appStore }) {
     const id = 'object-layer-engine-viewer';
     const idModal = 'modal-object-layer-engine-viewer';
 
@@ -128,13 +128,13 @@ const ObjectLayerEngineViewer = {
     htmls(
       `#${id}`,
       await ObjectLayerManagement.RenderTable({
-        Elements,
+        appStore,
         idModal,
       }),
     );
   },
 
-  loadObjectLayer: async function (objectLayerId, Elements, options = {}) {
+  loadObjectLayer: async function (objectLayerId, appStore, options = {}) {
     const { skipWebp = false } = options;
     const id = 'object-layer-engine-viewer';
 
@@ -181,7 +181,7 @@ const ObjectLayerEngineViewer = {
       this.Data.currentMode = 'idle';
 
       // Render the viewer UI
-      await this.renderViewer({ Elements });
+      await this.renderViewer({ appStore });
 
       // Generate WebP
       if (!skipWebp) {
@@ -208,7 +208,7 @@ const ObjectLayerEngineViewer = {
     }
   },
 
-  renderViewer: async function ({ Elements }) {
+  renderViewer: async function ({ appStore }) {
     const id = 'object-layer-engine-viewer';
     const { objectLayer, frameCounts } = this.Data;
 
@@ -994,7 +994,7 @@ const ObjectLayerEngineViewer = {
     );
     ThemeEvents[id]();
     // Attach event listeners
-    this.attachEventListeners({ Elements });
+    this.attachEventListeners({ appStore });
 
     // If we already have a webp loaded, display it without re-generating
     if (this.Data.webp) {
@@ -1114,7 +1114,7 @@ const ObjectLayerEngineViewer = {
     }
   },
 
-  deleteObjectLayer: async function ({ Elements } = {}) {
+  deleteObjectLayer: async function ({ appStore } = {}) {
     const objectLayerId = this.Data.objectLayer?._id;
     if (!objectLayerId) return;
 
@@ -1169,7 +1169,7 @@ const ObjectLayerEngineViewer = {
     }
   },
 
-  attachEventListeners: function ({ Elements }) {
+  attachEventListeners: function ({ appStore }) {
     // Direction buttons
     const directionButtons = document.querySelectorAll('[data-direction]');
     directionButtons.forEach((btn) => {
@@ -1178,7 +1178,7 @@ const ObjectLayerEngineViewer = {
         const direction = e.currentTarget.getAttribute('data-direction');
         if (direction !== this.Data.currentDirection) {
           this.Data.currentDirection = direction;
-          await this.renderViewer({ Elements });
+          await this.renderViewer({ appStore });
           // attachEventListeners is already called inside renderViewer
           await this.generateWebp();
         }
@@ -1193,7 +1193,7 @@ const ObjectLayerEngineViewer = {
         const mode = e.currentTarget.getAttribute('data-mode');
         if (mode !== this.Data.currentMode) {
           this.Data.currentMode = mode;
-          await this.renderViewer({ Elements });
+          await this.renderViewer({ appStore });
           // attachEventListeners is already called inside renderViewer
           await this.generateWebp();
         }
@@ -1230,7 +1230,7 @@ const ObjectLayerEngineViewer = {
         // listener → Reload → renderEmpty chain which can silently
         // fail when the URL was already clean or currentObjectId
         // was already null
-        await this.renderEmpty({ Elements });
+        await this.renderEmpty({ appStore });
       });
     }
 
@@ -1246,21 +1246,21 @@ const ObjectLayerEngineViewer = {
     const deleteBtn = s('#delete-object-layer-btn');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', async () => {
-        await this.deleteObjectLayer({ Elements });
+        await this.deleteObjectLayer({ appStore });
       });
     }
 
     // Atlas buttons
     if (s('#generate-atlas-btn')) {
       EventsUI.onClick('#generate-atlas-btn', async () => {
-        await this.generateAtlas({ Elements });
+        await this.generateAtlas({ appStore });
       });
     }
 
     const removeAtlasBtn = s('#remove-atlas-btn');
     if (removeAtlasBtn) {
       removeAtlasBtn.addEventListener('click', async () => {
-        await this.removeAtlas({ Elements });
+        await this.removeAtlas({ appStore });
       });
     }
 
@@ -1306,10 +1306,10 @@ const ObjectLayerEngineViewer = {
     }
   },
 
-  generateAtlas: async function ({ Elements } = {}) {
+  generateAtlas: async function ({ appStore } = {}) {
     const objectLayerId = this.Data.objectLayer._id;
     this.Data.isGeneratingAtlas = true;
-    await this.renderViewer({ Elements });
+    await this.renderViewer({ appStore });
 
     try {
       const { status, data, message } = await AtlasSpriteSheetService.generateAtlas({ id: objectLayerId });
@@ -1321,7 +1321,7 @@ const ObjectLayerEngineViewer = {
         });
         // Reset generating flag before reload so renderViewer shows updated content
         this.Data.isGeneratingAtlas = false;
-        await this.Reload({ Elements, force: true, skipWebp: true });
+        await this.Reload({ appStore, force: true, skipWebp: true });
         return;
       } else {
         throw new Error(message || 'Failed to generate atlas');
@@ -1335,12 +1335,12 @@ const ObjectLayerEngineViewer = {
     } finally {
       if (this.Data.isGeneratingAtlas) {
         this.Data.isGeneratingAtlas = false;
-        await this.renderViewer({ Elements });
+        await this.renderViewer({ appStore });
       }
     }
   },
 
-  removeAtlas: async function ({ Elements } = {}) {
+  removeAtlas: async function ({ appStore } = {}) {
     const confirmResult = await Modal.RenderConfirm({
       id: 'remove-atlas-confirm',
       html: async () => html`
@@ -1356,7 +1356,7 @@ const ObjectLayerEngineViewer = {
 
     const objectLayerId = this.Data.objectLayer._id;
     this.Data.isGeneratingAtlas = true;
-    await this.renderViewer({ Elements });
+    await this.renderViewer({ appStore });
 
     try {
       const { status, message } = await AtlasSpriteSheetService.deleteByObjectLayerId({ id: objectLayerId });
@@ -1368,7 +1368,7 @@ const ObjectLayerEngineViewer = {
         });
         // Reset generating flag before reload so renderViewer shows updated content
         this.Data.isGeneratingAtlas = false;
-        await this.Reload({ Elements, force: true, skipWebp: true });
+        await this.Reload({ appStore, force: true, skipWebp: true });
         return;
       } else {
         throw new Error(message || 'Failed to remove atlas');
@@ -1382,7 +1382,7 @@ const ObjectLayerEngineViewer = {
     } finally {
       if (this.Data.isGeneratingAtlas) {
         this.Data.isGeneratingAtlas = false;
-        await this.renderViewer({ Elements });
+        await this.renderViewer({ appStore });
       }
     }
   },
@@ -1528,7 +1528,7 @@ const ObjectLayerEngineViewer = {
   },
 
   Reload: async function (options = {}) {
-    const { Elements, force = false, skipWebp = false } = options;
+    const { appStore, force = false, skipWebp = false } = options;
     const queryParams = getQueryParams();
     const objectId = queryParams.id || null;
 
@@ -1541,9 +1541,9 @@ const ObjectLayerEngineViewer = {
       this.Data.currentObjectId = objectId;
 
       if (objectId) {
-        await this.loadObjectLayer(objectId, Elements, { skipWebp });
+        await this.loadObjectLayer(objectId, appStore, { skipWebp });
       } else {
-        await this.renderEmpty({ Elements });
+        await this.renderEmpty({ appStore });
       }
     } else if (!objectId && (this.Data.currentObjectId === null || force)) {
       // Special case: if we're already in empty state but DOM might have been reset
@@ -1555,7 +1555,7 @@ const ObjectLayerEngineViewer = {
 
       if (!gridDomExists) {
         // DOM was reset (e.g., modal HTML reloaded), re-render the table
-        await this.renderEmpty({ Elements });
+        await this.renderEmpty({ appStore });
       }
     }
   },

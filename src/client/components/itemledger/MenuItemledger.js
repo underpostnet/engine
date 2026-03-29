@@ -10,7 +10,7 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
-import { ElementsItemledger } from './ElementsItemledger.js';
+import { AppStoreItemledger } from './AppStoreItemledger.js';
 import Sortable from 'sortablejs';
 import { RouterItemledger, BannerAppTemplate } from './RoutesItemledger.js';
 import { SettingsItemledger } from './SettingsItemledger.js';
@@ -271,7 +271,7 @@ const MenuItemledger = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: ElementsItemledger.Data.user.main.model.user,
+            user: AppStoreItemledger.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -339,7 +339,7 @@ const MenuItemledger = {
           text: Translate.Render('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: ElementsItemledger.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreItemledger.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

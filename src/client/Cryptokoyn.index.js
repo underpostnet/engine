@@ -12,7 +12,7 @@ import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoCryptokoyn } from './components/cryptokoyn/SocketIoCryptokoyn.js';
-import { ElementsCryptokoyn } from './components/cryptokoyn/ElementsCryptokoyn.js';
+import { AppStoreCryptokoyn } from './components/cryptokoyn/AppStoreCryptokoyn.js';
 import { CssCryptokoynDark, CssCryptokoynLight } from './components/cryptokoyn/CssCryptokoyn.js';
 
 window.onload = () =>
@@ -23,7 +23,7 @@ window.onload = () =>
       await TranslateCore.Init();
       await Responsive.Init();
       await MenuCryptokoyn.Render();
-      await SocketIo.Init({ channels: ElementsCryptokoyn.Data });
+      await SocketIo.Init({ channels: AppStoreCryptokoyn.Data });
       await SocketIoCryptokoyn.Init();
       await LogInCryptokoyn();
       await LogOutCryptokoyn();

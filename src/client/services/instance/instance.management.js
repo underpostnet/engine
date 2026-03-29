@@ -3,8 +3,8 @@ import { UserService } from '../user/user.service.js';
 import { InstanceService } from './instance.service.js';
 
 const InstanceManagement = {
-  RenderTable: async ({ Elements }) => {
-    const user = Elements.Data.user.main.model.user;
+  RenderTable: async ({ appStore }) => {
+    const user = appStore.Data.user.main.model.user;
     const { role } = user;
     let columnDefs = [
       { field: 'deployId', headerName: 'deployId', editable: role === 'admin' },

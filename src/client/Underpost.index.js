@@ -13,7 +13,7 @@ import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { SocketIoUnderpost } from './components/underpost/SocketIoUnderpost.js';
 import { SocketIo } from './components/core/SocketIo.js';
-import { ElementsUnderpost } from './components/underpost/ElementsUnderpost.js';
+import { AppStoreUnderpost } from './components/underpost/AppStoreUnderpost.js';
 import { CssUnderpostDark, CssUnderpostLight } from './components/underpost/CssUnderpost.js';
 
 window.onload = () =>
@@ -25,7 +25,7 @@ window.onload = () =>
       await TranslateUnderpost.Init();
       await Responsive.Init();
       await MenuUnderpost.Render();
-      await SocketIo.Init({ channels: ElementsUnderpost.Data });
+      await SocketIo.Init({ channels: AppStoreUnderpost.Data });
       await SocketIoUnderpost.Init();
       await LogInUnderpost();
       await LogOutUnderpost();
