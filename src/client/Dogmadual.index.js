@@ -11,7 +11,6 @@ import { RouterDogmadual } from './components/dogmadual/RoutesDogmadual.js';
 import { CssDogmadualDark, CssDogmadualLight } from './components/dogmadual/CssDogmadual.js';
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
-import { DogmadualParams } from './components/dogmadual/CommonDogmadual.js';
 import { SocketIoDogmadual } from './components/dogmadual/SocketIoDogmadual.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { ElementsDogmadual } from './components/dogmadual/ElementsDogmadual.js';
@@ -34,6 +33,6 @@ window.onload = () =>
       await LogInDogmadual();
       await LogOutDogmadual();
       await SignUpDogmadual();
-      await Keyboard.Init({ callBackTime: DogmadualParams.EVENT_CALLBACK_TIME });
+      await Keyboard.Init();
     },
   });

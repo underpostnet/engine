@@ -11,7 +11,6 @@ import { RouterDefault } from './components/default/RoutesDefault.js';
 import { TranslateDefault } from './components/default/TranslateDefault.js';
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
-import { DefaultParams } from './components/default/CommonDefault.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoDefault } from './components/default/SocketIoDefault.js';
 import { ElementsDefault } from './components/default/ElementsDefault.js';
@@ -78,7 +77,7 @@ window.onload = () =>
       await LogInDefault();
       await LogOutDefault();
       await SignUpDefault();
-      await Keyboard.Init({ callBackTime: DefaultParams.EVENT_CALLBACK_TIME });
+      await Keyboard.Init();
       await Modal.RenderSeoSanitizer();
     },
   });

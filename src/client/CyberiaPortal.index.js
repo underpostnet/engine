@@ -15,7 +15,6 @@ import { SocketIoCyberiaPortal } from './components/cyberia-portal/SocketIoCyber
 import { SocketIo } from './components/core/SocketIo.js';
 import { ElementsCyberiaPortal } from './components/cyberia-portal/ElementsCyberiaPortal.js';
 import { Keyboard } from './components/core/Keyboard.js';
-import { CyberiaPortalParams } from './components/cyberia-portal/CommonCyberiaPortal.js';
 
 window.onload = () =>
   Worker.instance({
@@ -31,6 +30,6 @@ window.onload = () =>
       await LogInCyberiaPortal();
       await LogOutCyberiaPortal();
       await SignUpCyberiaPortal();
-      await Keyboard.Init({ callBackTime: CyberiaPortalParams.EVENT_CALLBACK_TIME });
+      await Keyboard.Init();
     },
   });

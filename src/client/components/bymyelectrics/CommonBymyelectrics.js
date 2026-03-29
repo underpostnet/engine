@@ -22,8 +22,4 @@ const BaseElement = () => {
   };
 };
 
-const BymyelectricsParams = {
-  EVENT_CALLBACK_TIME: 45,
-};
-
-export { BaseElement, ModelElement, BymyelectricsParams };
+export { BaseElement, ModelElement };

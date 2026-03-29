@@ -11,7 +11,6 @@ import { RouterItemledger } from './components/itemledger/RoutesItemledger.js';
 import { TranslateItemledger } from './components/itemledger/TranslateItemledger.js';
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
-import { ItemledgerParams } from './components/itemledger/CommonItemledger.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoItemledger } from './components/itemledger/SocketIoItemledger.js';
 import { ElementsItemledger } from './components/itemledger/ElementsItemledger.js';
@@ -37,6 +36,6 @@ window.onload = () =>
       await LogInItemledger();
       await LogOutItemledger();
       await SignUpItemledger();
-      await Keyboard.Init({ callBackTime: ItemledgerParams.EVENT_CALLBACK_TIME });
+      await Keyboard.Init();
     },
   });

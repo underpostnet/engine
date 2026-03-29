@@ -3,8 +3,8 @@ import { cap, getId } from './CommonJs.js';
 const Keyboard = {
   ActiveKey: {},
   Event: {},
-  Init: async function (options = { callBackTime: 50 }) {
-    const { callBackTime } = options;
+  Init: async function () {
+    const callBackTime = 45;
     window.onkeydown = (e = new KeyboardEvent()) => {
       this.ActiveKey[e.key] = true;
       // e.composedPath()

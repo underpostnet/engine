@@ -13,7 +13,6 @@ import { ElementsHealthcare } from './components/healthcare/ElementsHealthcare.j
 import { SocketIoHealthcare } from './components/healthcare/SocketIoHealthcare.js';
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
-import { HealthcareParams } from './components/healthcare/CommonHealthcare.js';
 import { CssHealthcareDark, CssHealthcareLight } from './components/healthcare/CssHealthcare.js';
 import { TranslateHealthcare } from './components/healthcare/TranslateHealthcare.js';
 
@@ -31,6 +30,6 @@ window.onload = () =>
       await LogInHealthcare();
       await LogOutHealthcare();
       await SignUpHealthcare();
-      await Keyboard.Init({ callBackTime: HealthcareParams.EVENT_CALLBACK_TIME });
+      await Keyboard.Init();
     },
   });

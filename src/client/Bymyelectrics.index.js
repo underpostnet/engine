@@ -11,7 +11,6 @@ import { RouterBymyelectrics } from './components/bymyelectrics/RoutesBymyelectr
 import { TranslateBymyelectrics } from './components/bymyelectrics/TranslateBymyelectrics.js';
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
-import { BymyelectricsParams } from './components/bymyelectrics/CommonBymyelectrics.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoBymyelectrics } from './components/bymyelectrics/SocketIoBymyelectrics.js';
 import { ElementsBymyelectrics } from './components/bymyelectrics/ElementsBymyelectrics.js';
@@ -219,6 +218,6 @@ window.onload = () =>
       await LogInBymyelectrics();
       await LogOutBymyelectrics();
       await SignUpBymyelectrics();
-      await Keyboard.Init({ callBackTime: BymyelectricsParams.EVENT_CALLBACK_TIME });
+      await Keyboard.Init();
     },
   });

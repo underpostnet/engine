@@ -22,8 +22,4 @@ const BaseElement = () => {
   };
 };
 
-const UnderpostParams = {
-  EVENT_CALLBACK_TIME: 45,
-};
-
-export { BaseElement, ModelElement, UnderpostParams };
+export { BaseElement, ModelElement };

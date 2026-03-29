@@ -317,8 +317,4 @@ const BaseElement = () => {
   };
 };
 
-const HealthcareParams = {
-  EVENT_CALLBACK_TIME: 45,
-};
-
-export { BaseElement, ModelElement, HealthcareParams, medicalSpecialties, MenuHomeHealthcare, NutritionalTips };
+export { BaseElement, ModelElement, medicalSpecialties, MenuHomeHealthcare, NutritionalTips };

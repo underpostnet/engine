@@ -10,7 +10,6 @@ import { MenuCryptokoyn } from './components/cryptokoyn/MenuCryptokoyn.js';
 import { RouterCryptokoyn } from './components/cryptokoyn/RoutesCryptokoyn.js';
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
-import { CryptokoynParams } from './components/cryptokoyn/CommonCryptokoyn.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoCryptokoyn } from './components/cryptokoyn/SocketIoCryptokoyn.js';
 import { ElementsCryptokoyn } from './components/cryptokoyn/ElementsCryptokoyn.js';
@@ -29,6 +28,6 @@ window.onload = () =>
       await LogInCryptokoyn();
       await LogOutCryptokoyn();
       await SignUpCryptokoyn();
-      await Keyboard.Init({ callBackTime: CryptokoynParams.EVENT_CALLBACK_TIME });
+      await Keyboard.Init();
     },
   });

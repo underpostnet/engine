@@ -22,8 +22,4 @@ const BaseElement = () => {
   };
 };
 
-const DogmadualParams = {
-  EVENT_CALLBACK_TIME: 45,
-};
-
-export { BaseElement, ModelElement, DogmadualParams };
+export { BaseElement, ModelElement };

@@ -22,8 +22,4 @@ const BaseElement = () => {
   };
 };
 
-const CryptokoynParams = {
-  EVENT_CALLBACK_TIME: 45,
-};
-
-export { BaseElement, ModelElement, CryptokoynParams };
+export { BaseElement, ModelElement };

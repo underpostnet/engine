@@ -14,7 +14,6 @@ import { SocketIoNexodev } from './components/nexodev/SocketIoNexodev.js';
 import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
 import { Keyboard } from './components/core/Keyboard.js';
-import { NexodevParams } from './components/nexodev/CommonNexodev.js';
 import { s } from './components/core/VanillaJs.js';
 import { getProxyPath } from './components/core/Router.js';
 import { EventsUI } from './components/core/EventsUI.js';
@@ -84,7 +83,9 @@ const htmlMainBody = async () => {
       border-radius: 12px;
       padding: 2rem;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition:
+        transform 0.3s ease,
+        box-shadow 0.3s ease;
       opacity: 0;
       animation: fadeInUp 0.6s ease-out forwards;
       animation-delay: calc(var(--index) * 0.15s);
@@ -121,7 +122,9 @@ const htmlMainBody = async () => {
       background: rgba(255, 255, 255, 0.2);
       border-radius: 50%;
       transform: translate(-50%, -50%);
-      transition: width 0.6s ease, height 0.6s ease;
+      transition:
+        width 0.6s ease,
+        height 0.6s ease;
     }
 
     .btn:hover:after {
@@ -291,7 +294,11 @@ const htmlMainBody = async () => {
       }
 
       .landing-page {
-        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        font-family:
+          'Segoe UI',
+          system-ui,
+          -apple-system,
+          sans-serif;
         line-height: 1.6;
         max-width: 1200px;
         margin: 0 auto;
@@ -531,6 +538,6 @@ window.onload = () =>
       await LogInNexodev();
       await LogOutNexodev();
       await SignUpNexodev();
-      await Keyboard.Init({ callBackTime: NexodevParams.EVENT_CALLBACK_TIME });
+      await Keyboard.Init();
     },
   });

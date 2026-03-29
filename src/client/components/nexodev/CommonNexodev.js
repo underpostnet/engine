@@ -23,8 +23,4 @@ const BaseElement = () => {
   };
 };
 
-const NexodevParams = {
-  EVENT_CALLBACK_TIME: 45,
-};
-
-export { BaseElement, ModelElement, NexodevParams };
+export { BaseElement, ModelElement };

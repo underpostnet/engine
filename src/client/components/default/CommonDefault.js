@@ -22,8 +22,4 @@ const BaseElement = () => {
   };
 };
 
-const DefaultParams = {
-  EVENT_CALLBACK_TIME: 45,
-};
-
-export { BaseElement, ModelElement, DefaultParams };
+export { BaseElement, ModelElement };
