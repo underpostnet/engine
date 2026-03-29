@@ -1,25 +1,81 @@
+/**
+ * Client-side WebSocket provider using Socket.IO.
+ * Manages a singleton socket connection, channel registration, and event dispatching.
+ *
+ * @module client/core/SocketIo
+ * @namespace SocketIoProvider
+ */
 import { io } from 'socket.io/client-dist/socket.io.esm.min.js';
 import { loggerFactory } from './Logger.js';
 import { getWsBasePath, getWsBaseUrl } from '../../services/core/core.service.js';
 
 const logger = loggerFactory(import.meta);
 
-const SocketIo = {
-  Event: {
+/**
+ * @class SocketIoProvider
+ * @classdesc Provides static methods for managing a singleton Socket.IO client connection,
+ * channel event dispatching, and message emission.
+ * @memberof SocketIoProvider
+ */
+class SocketIoProvider {
+  /**
+   * Event callback registry, keyed by channel name → unique callback ID → handler function.
+   * Built-in channels: `connect`, `connect_error`, `disconnect`.
+   *
+   * @static
+   * @type {Object.<string, Object.<string, function>>}
+   */
+  static Event = {
     connect: {},
     connect_error: {},
     disconnect: {},
-  },
-  /** @type {import('socket.io').Socket} */
-  socket: null,
-  Emit: function (channel = '', payload = {}) {
+  };
+
+  /**
+   * The active Socket.IO client socket instance.
+   *
+   * @static
+   * @type {import('socket.io-client').Socket|null}
+   */
+  static socket = null;
+
+  /**
+   * The current WebSocket host URL.
+   *
+   * @static
+   * @type {string|undefined}
+   */
+  static host;
+
+  /**
+   * Emits a JSON-serialized payload to the server on the specified channel.
+   *
+   * @static
+   * @param {string} [channel=''] - The channel/event name to emit on.
+   * @param {Object} [payload={}] - The data to send.
+   * @returns {void}
+   */
+  static Emit(channel = '', payload = {}) {
     try {
       this.socket.emit(channel, JSON.stringify(payload));
     } catch (error) {
       logger.error(error);
     }
-  },
-  Init: async function (options) {
+  }
+
+  /**
+   * Initializes (or re-initializes) the Socket.IO connection.
+   * Disconnects any existing socket, creates a new connection, and registers
+   * built-in event listeners and custom channels.
+   *
+   * @static
+   * @async
+   * @param {Object} options - Connection options.
+   * @param {string} [options.host] - Override WebSocket host URL.
+   * @param {Object.<string, Object>} [options.channels] - Channel definitions to register listeners for.
+   * @returns {Promise<void>}
+   */
+  static async Init(options) {
     if (this.socket) this.socket.disconnect();
     const path = getWsBasePath();
     this.host = options.host ? options.host : getWsBaseUrl({ wsBasePath: '' });
@@ -29,24 +85,10 @@ const SocketIo = {
     });
     const connectOptions = {
       path: path === '/' ? undefined : path,
-      // auth: {
-      //   token: '',
-      // },
-      // query: {
-      //   'my-key': 'my-value',
-      // },
-      // forceNew: true,
-      // reconnectionAttempts: 'Infinity',
-      // timeout: 10000,
-      // autoConnect: 5000,
-      // Custom auth socket io credentials:
       withCredentials: true,
-      extraHeaders: {
-        //   "my-custom-header": "abcd"
-      },
+      extraHeaders: {},
       transports: ['websocket', 'polling', 'flashsocket'],
     };
-    // logger.error(`connect options:`, JSON.stringify(connectOptions, null, 4));
     this.socket = io(this.host, connectOptions);
 
     this.socket.on('connect', () => {
@@ -65,17 +107,28 @@ const SocketIo = {
     });
 
     if (options && 'channels' in options) this.setChannels(options.channels);
-  },
-  setChannels: function (channels) {
+  }
+
+  /**
+   * Registers socket listeners for each channel key, routing incoming messages
+   * to all registered callbacks in `Event[channel]`.
+   *
+   * @static
+   * @param {Object.<string, Object>} channels - Channel definitions keyed by channel name.
+   * @returns {void}
+   */
+  static setChannels(channels) {
     Object.keys(channels).map((type) => {
       logger.info(`load chanel`, type);
       this.Event[type] = {};
       this.socket.on(type, (...args) => {
-        // logger.info(`event: ${type} | ${JSON.stringify(args, null, 4)}`);
         Object.keys(this.Event[type]).map((keyEvent) => this.Event[type][keyEvent](args));
       });
     });
-  },
-};
+  }
+}
 
-export { SocketIo };
+/** @type {SocketIoProvider} Backward compatibility alias. */
+const SocketIo = SocketIoProvider;
+
+export { SocketIoProvider, SocketIo };

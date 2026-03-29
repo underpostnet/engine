@@ -320,10 +320,12 @@ const UserService = {
           const user = await User.findByIdAndUpdate(_id, { emailConfirmed: true }, { runValidators: true });
         }
         const userWsId = CoreWsMailerManagement.getUserWsId(`${options.host}${options.path}`, user._id.toString());
-        CoreWsEmit(CoreWsMailerChannel.channel, CoreWsMailerChannel.client[userWsId], {
-          status: 'email-confirmed',
-          id: userWsId,
-        });
+        if (userWsId && CoreWsMailerChannel.client[userWsId]) {
+          CoreWsEmit(CoreWsMailerChannel.channel, CoreWsMailerChannel.client[userWsId], {
+            status: 'email-confirmed',
+            id: userWsId,
+          });
+        }
         options.png.header(res, req);
         return options.png.buffer['check'];
       } else {

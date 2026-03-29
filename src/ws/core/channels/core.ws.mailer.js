@@ -10,14 +10,10 @@ const CoreWsMailerController = {
   controller: function (socket, client, payload, wsManagementId) {
     switch (payload.status) {
       case 'register-user':
-        CoreWsMailerManagement.element[wsManagementId][socket.id] = {
-          model: {
-            user: payload.user,
-          },
-        };
+        CoreWsMailerManagement.setUser(wsManagementId, socket.id, payload.user);
         break;
       case 'unregister-user':
-        delete CoreWsMailerManagement.element[wsManagementId][socket.id];
+        CoreWsMailerManagement.removeSocket(wsManagementId, socket.id);
         break;
 
       default:
@@ -26,7 +22,7 @@ const CoreWsMailerController = {
   },
   connection: function (socket, client, wsManagementId) {},
   disconnect: function (socket, client, reason, wsManagementId) {
-    delete CoreWsMailerManagement.element[wsManagementId][socket.id];
+    CoreWsMailerManagement.removeSocket(wsManagementId, socket.id);
   },
 };
 
