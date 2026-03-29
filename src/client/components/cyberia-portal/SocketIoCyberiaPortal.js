@@ -1,6 +1,6 @@
-import { SocketIoHandler } from '../core/SocketIoHandler.js';
+import { SocketIoHandlerProvider } from '../core/SocketIoHandler.js';
 import { AppStoreCyberiaPortal } from './AppStoreCyberiaPortal.js';
 
-const SocketIoCyberiaPortal = SocketIoHandler(AppStoreCyberiaPortal);
+const SocketIoCyberiaPortal = SocketIoHandlerProvider.create(AppStoreCyberiaPortal);
 
 export { SocketIoCyberiaPortal };

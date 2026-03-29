@@ -55,7 +55,4 @@ class WebhookProvider {
   }
 }
 
-/** @type {WebhookProvider} Backward compatibility alias. */
-const Webhook = WebhookProvider;
-
-export { WebhookProvider, Webhook };
+export { WebhookProvider };

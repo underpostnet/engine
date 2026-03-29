@@ -1,6 +1,6 @@
-import { SocketIoHandler } from '../core/SocketIoHandler.js';
+import { SocketIoHandlerProvider } from '../core/SocketIoHandler.js';
 import { AppStoreUnderpost } from './AppStoreUnderpost.js';
 
-const SocketIoUnderpost = SocketIoHandler(AppStoreUnderpost);
+const SocketIoUnderpost = SocketIoHandlerProvider.create(AppStoreUnderpost);
 
 export { SocketIoUnderpost };

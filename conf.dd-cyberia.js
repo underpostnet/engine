@@ -188,6 +188,8 @@ const DefaultConf = /**/ {
           'CssCore',
           'Worker',
           'SocketIo',
+          'AppStore',
+          'SocketIoHandler',
           'Chat',
           'Webhook',
           'Wallet',

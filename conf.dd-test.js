@@ -44,6 +44,8 @@ const DefaultConf = /**/ {
           'D3Chart',
           'Stream',
           'SocketIo',
+          'AppStore',
+          'SocketIoHandler',
           'Docs',
           'Content',
           'FileExplorer',

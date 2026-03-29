@@ -72,13 +72,4 @@ class SocketIoHandlerProvider {
   }
 }
 
-/**
- * Backward compatibility alias.
- * @function SocketIoHandler
- * @memberof SocketIoHandlerProvider
- * @param {import('./AppStore.js').AppStore} appStore - The app-specific AppStore instance.
- * @returns {{ Init: function(): Promise<void> }}
- */
-const SocketIoHandler = (appStore) => SocketIoHandlerProvider.create(appStore);
-
-export { SocketIoHandlerProvider, SocketIoHandler };
+export { SocketIoHandlerProvider };

@@ -10,7 +10,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { htmls, s } from './VanillaJs.js';
-import { Webhook } from './Webhook.js';
+import { WebhookProvider } from './Webhook.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -31,7 +31,7 @@ const LogIn = {
 
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
     if (!user || user.role === 'guest') return;
-    await Webhook.register({ user });
+    await WebhookProvider.register({ user });
     if (s(`.session`))
       htmls(
         `.session`,

@@ -1,6 +1,6 @@
-import { SocketIoHandler } from '../core/SocketIoHandler.js';
+import { SocketIoHandlerProvider } from '../core/SocketIoHandler.js';
 import { AppStoreHealthcare } from './AppStoreHealthcare.js';
 
-const SocketIoHealthcare = SocketIoHandler(AppStoreHealthcare);
+const SocketIoHealthcare = SocketIoHandlerProvider.create(AppStoreHealthcare);
 
 export { SocketIoHealthcare };

@@ -1,6 +1,6 @@
-import { SocketIoHandler } from '../core/SocketIoHandler.js';
+import { SocketIoHandlerProvider } from '../core/SocketIoHandler.js';
 import { AppStoreDogmadual } from './AppStoreDogmadual.js';
 
-const SocketIoDogmadual = SocketIoHandler(AppStoreDogmadual);
+const SocketIoDogmadual = SocketIoHandlerProvider.create(AppStoreDogmadual);
 
 export { SocketIoDogmadual };
