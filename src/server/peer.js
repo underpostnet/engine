@@ -44,6 +44,14 @@ const logger = loggerFactory(import.meta);
  */
 const createPeerServer = async ({ port, origins, path }) => {
   logger.info('origins', origins);
+
+  // In development, allow the local client origin (peer runs on port+1 relative to the client)
+  if (process.env.NODE_ENV === 'development') {
+    const clientPort = port - 1;
+    const devOrigin = `http://localhost:${clientPort}`;
+    if (!origins.includes(devOrigin)) origins.push(devOrigin);
+  }
+
   /** @type {import('peer').IConfig} */
   const options = {
     port,

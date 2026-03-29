@@ -13,21 +13,17 @@ const StreamNexodev = {
   ) {
     setTimeout(async () => {
       const id = 'stream-nexodev';
-      const mediaType = 'audio-video';
       const ROOM_ID = 'test-room';
-      const peer = Stream.createPeerServer({ id }).server;
+      const { peer } = Stream.createPeer(id);
       const channel = 'stream';
       let myPeerId;
 
       Modal.Data[options.idModal].onCloseListener[id] = () => {
-        if (stream) Stream.removeMediaStream(stream);
-        Stream.handlePeerDisconnect({ id });
+        if (stream) Stream.stopStream(stream);
+        Stream.destroyPeer(id);
       };
 
-      const myMediaElement = Stream.createMediaElement(mediaType);
-
       peer.on('open', (peerId) => {
-        // When we first open the app, have us join a room
         myPeerId = peerId;
         console.warn('on my peer open', peerId);
         SocketIo.socket.emit('stream', ROOM_ID, peerId);
@@ -41,24 +37,27 @@ const StreamNexodev = {
           status: 'warning',
         });
 
-      s(`.media-stream-grid`).append(Stream.renderElementStream(myMediaElement, stream)); // Display our audio/video to ourselves
+      const hasVideo = stream.getVideoTracks().length > 0;
+      const hasAudio = stream.getAudioTracks().length > 0;
+
+      if (!hasVideo)
+        NotificationManager.Push({
+          html: `Camera unavailable — ${hasAudio ? 'audio only' : 'no media tracks'}`,
+          status: 'warning',
+        });
+
+      const myVideo = Stream.createVideoElement();
+      myVideo.muted = true;
+      if (!hasVideo) myVideo.style.display = 'none';
+      s(`.media-stream-grid`).append(Stream.attachStream(myVideo, stream));
 
       peer.on('call', (call) => {
-        console.warn('on receive peer call');
-        // When we join someone's room we will receive a call from them
-        call.answer(stream); // Stream them our video/audio
-        const mediaElement = Stream.createMediaElement(mediaType);
-        call.on('stream', (userMediaStream) => {
-          console.warn('on receive peer stream');
-          // When we recieve their stream
-          // Display their audio/video to ourselves
-          s(`.media-stream-grid`).append(Stream.renderElementStream(mediaElement, userMediaStream));
+        call.answer(stream);
+        const remoteVideo = Stream.createVideoElement();
+        call.on('stream', (remoteStream) => {
+          s(`.media-stream-grid`).append(Stream.attachStream(remoteVideo, remoteStream));
         });
-        call.on('close', (call) => {
-          console.warn('on receive peer close');
-          // Stream.handlePeerDisconnect();
-          // call.close();
-        });
+        call.on('close', () => remoteVideo.remove());
       });
 
       peer.on('close', (...args) => {
@@ -68,35 +67,19 @@ const StreamNexodev = {
       const userJoin = {};
 
       SocketIo.socket.on(`${channel}-user-connected`, (userId) => {
-        // If a new user connect
         console.warn(`${channel} user connected`, userId);
 
-        const { call, mediaElement } = Stream.connectToNewUser(
-          mediaType,
-          id,
-          userId,
-          stream,
-          (mediaElement) => {
-            // connect peer stream
-            console.warn(`connect peer stream`, userId);
-            s(`.media-stream-grid`).append(mediaElement);
-          },
-          (mediaElement) => {
-            // disconnected peer stream
-            console.warn(`disconnected peer stream`, userId);
-            // s(`.media-stream-grid`).removeChild(mediaElement);
-            mediaElement.remove();
-          },
-        );
-        userJoin[userId] = { mediaElement };
-        // call.close();
+        const { call, element } = Stream.callPeer(id, userId, stream, {
+          onStream: (el) => s(`.media-stream-grid`).append(el),
+          onClose: (el) => el.remove(),
+        });
+        userJoin[userId] = { element };
       });
 
       SocketIo.socket.on(`${channel}-user-disconnected`, (userId) => {
-        // If a user disconnected
         console.warn(`${channel} user disconnected`, userId);
         if (userJoin[userId]) {
-          userJoin[userId].mediaElement.remove();
+          userJoin[userId].element.remove();
           delete userJoin[userId];
         }
       });
