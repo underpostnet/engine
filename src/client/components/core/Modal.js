@@ -1357,7 +1357,6 @@ const Modal = {
                   class: 'hide',
                   style: {
                     // overflow: 'hidden',
-                    background: 'none',
                     resize: 'none',
                     'min-width': `${minWidth}px`,
                     'z-index': 5,

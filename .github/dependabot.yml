@@ -51,7 +51,7 @@ updates:
       tooling:
         patterns:
           - 'nodemon'
-          - 'uglify-js'
+          - 'esbuild'
           - 'html-minifier-terser'
           - 'prettier'
           - 'jsdoc'

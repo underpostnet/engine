@@ -7,7 +7,7 @@
 'use strict';
 
 import fs from 'fs-extra';
-import { srcFormatted, componentFormatted, viewFormatted, JSONweb } from './client-formatted.js';
+import { transformClientJs, JSONweb } from './client-formatted.js';
 import { loggerFactory } from './logger.js';
 import {
   getCapVariableName,
@@ -16,7 +16,6 @@ import {
   uniqueArray,
 } from '../client/components/core/CommonJs.js';
 import { readConfJson } from './conf.js';
-import UglifyJS from 'uglify-js';
 import { minify } from 'html-minifier-terser';
 import AdmZip from 'adm-zip';
 import * as dir from 'path';
@@ -447,15 +446,15 @@ const buildClient = async (
 
             if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath)) continue;
 
-            const jsSrc = componentFormatted(
-              await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')),
-              module,
+            const jsSrc = await transformClientJs(jsSrcPath, {
               dists,
-              path,
-              'components',
+              proxyPath: path,
+              basePath: 'components',
+              module,
               baseHost,
-            );
-            fs.writeFileSync(jsPublicPath, minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc, 'utf8');
+              minify: minifyBuild,
+            });
+            fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
           }
         }
 
@@ -469,15 +468,15 @@ const buildClient = async (
             const jsPublicPath = `${rootClientPath}/services/${module}/${module}.service.js`;
             if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath)) continue;
 
-            let jsSrc = componentFormatted(
-              await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')),
-              module,
+            const jsSrc = await transformClientJs(jsSrcPath, {
               dists,
-              path,
-              'services',
+              proxyPath: path,
+              basePath: 'services',
+              module,
               baseHost,
-            );
-            fs.writeFileSync(jsPublicPath, minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc, 'utf8');
+              minify: minifyBuild,
+            });
+            fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
           }
         }
 
@@ -487,15 +486,15 @@ const buildClient = async (
             const jsPublicPath = `${rootClientPath}/services/${module}/${module}.management.js`;
             if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath)) continue;
 
-            const jsSrc = componentFormatted(
-              await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')),
-              module,
+            const jsSrc = await transformClientJs(jsSrcPath, {
               dists,
-              path,
-              'services',
+              proxyPath: path,
+              basePath: 'services',
+              module,
               baseHost,
-            );
-            fs.writeFileSync(jsPublicPath, minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc, 'utf8');
+              minify: minifyBuild,
+            });
+            fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
           }
         }
       }
@@ -513,9 +512,9 @@ const buildClient = async (
         const jsPublicPath = `${rootClientPath}/sw.js`;
 
         if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
-          const jsSrc = viewFormatted(await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')), dists, path, baseHost);
+          const jsSrc = await transformClientJs(jsSrcPath, { dists, proxyPath: path, baseHost, minify: minifyBuild });
 
-          fs.writeFileSync(jsPublicPath, minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc, 'utf8');
+          fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
         }
 
         if (
@@ -535,14 +534,14 @@ const buildClient = async (
 
             logger.info('View build', buildPath);
 
-            const jsSrc = viewFormatted(
-              await srcFormatted(fs.readFileSync(`./src/client/${view.client}.index.js`, 'utf8')),
+            const jsSrc = await transformClientJs(`./src/client/${view.client}.index.js`, {
               dists,
-              path,
+              proxyPath: path,
               baseHost,
-            );
+              minify: minifyBuild,
+            });
 
-            fs.writeFileSync(`${buildPath}${buildId}.js`, minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc, 'utf8');
+            fs.writeFileSync(`${buildPath}${buildId}.js`, jsSrc, 'utf8');
             const title = metadata.title ? metadata.title : title;
 
             const canonicalURL = `https://${host}${path}${

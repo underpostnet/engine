@@ -453,7 +453,6 @@ const Panel = {
 
                         tagRender += await Badge.Render({
                           text: tag,
-                          style: { color: tagColor },
                           classList: 'inl panel-tag-clickable',
                           style: {
                             margin: '3px',

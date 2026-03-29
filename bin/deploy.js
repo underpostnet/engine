@@ -798,6 +798,7 @@ nvidia/gpu-operator \
         for (const file of fs.readdirSync(`./engine-private/conf/${deployId}/`)) {
           const deployPackage = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/package.json`, 'utf8'));
           deployPackage.overrides = originPackageJson.overrides;
+          deployPackage.dependencies = originPackageJson.dependencies;
           fs.writeFileSync(
             `./engine-private/conf/${deployId}/package.json`,
             JSON.stringify(deployPackage, null, 4),
@@ -810,7 +811,7 @@ nvidia/gpu-operator \
               for (const path of Object.keys(confObj[host])) {
               }
             }
-            fs.writeFileSync(filePath, JSON.stringify(confObj, null, 4), 'utf8');
+            // fs.writeFileSync(filePath, JSON.stringify(confObj, null, 4), 'utf8');
             logger.info(`sync-conf`, { deployId, file });
           }
         }
