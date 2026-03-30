@@ -466,6 +466,21 @@ class UnderpostRun {
       });
     },
     /**
+     * @method docker-image
+     * @description Dispatches the Docker image CI workflow (`docker-image.ci.yml`) for the `engine` repository via `workflow_dispatch`.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'docker-image': (path, options = DEFAULT_OPTION) => {
+      Underpost.repo.dispatchWorkflow({
+        repo: `${process.env.GITHUB_USERNAME}/engine`,
+        workflowFile: 'docker-image.ci.yml',
+        ref: 'master',
+        inputs: {},
+      });
+    },
+    /**
      * @method clean
      * @description Changes directory to the provided path (defaulting to `/home/dd/engine`) and runs `node bin/deploy clean-core-repo`.
      * @param {string} path - The input value, identifier, or path for the operation (used as the optional directory path).
