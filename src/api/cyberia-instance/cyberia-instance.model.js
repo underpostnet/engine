@@ -29,7 +29,7 @@ const PortalEdgeSchema = new Schema(
 const CyberiaInstanceSchema = new Schema(
   {
     // Instance identifier
-    code: { type: String, default: '', trim: true },
+    code: { type: String, default: '', trim: true, unique: true },
 
     name: { type: String, default: '', trim: true },
     description: { type: String, default: '' },
@@ -59,7 +59,6 @@ const CyberiaInstanceSchema = new Schema(
  * Indexes for fast adjacency lookups.
  * Useful for traversing the graph by source or target node.
  */
-CyberiaInstanceSchema.index({ code: 1 });
 CyberiaInstanceSchema.index({ 'portals.sourceMapCode': 1 });
 CyberiaInstanceSchema.index({ 'portals.targetMapCode': 1 });
 

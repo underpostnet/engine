@@ -5,7 +5,7 @@ import { CyberiaEntitySchema } from '../cyberia-entity/cyberia-entity.model.js';
 
 const CyberiaMapSchema = new Schema(
   {
-    code: { type: String, default: '' },
+    code: { type: String, default: '', unique: true },
     name: { type: String, default: '' },
     description: { type: String, default: '' },
     entities: { type: [CyberiaEntitySchema], default: [] },

@@ -1626,8 +1626,12 @@ try {
           const file = await File.findById(fileId).lean();
           if (!file) return;
           const fileExport = { ...file };
-          if (Buffer.isBuffer(fileExport.data)) {
-            fileExport.data = { $base64: fileExport.data.toString('base64') };
+          // Handle both Node.js Buffer and BSON Binary types from .lean()
+          if (fileExport.data) {
+            const buf = Buffer.isBuffer(fileExport.data)
+              ? fileExport.data
+              : Buffer.from(fileExport.data.buffer || fileExport.data);
+            fileExport.data = { $base64: buf.toString('base64') };
           }
           fs.writeJsonSync(`${backupDir}/files/${fileKey}.json`, fileExport, { spaces: 2 });
         };
@@ -1899,12 +1903,17 @@ try {
           let fileCount = 0;
           for (const f of fileFiles) {
             const fileData = fs.readJsonSync(`${filesDir}/${f}`);
-            // Restore base64-encoded Buffer
-            if (fileData.data && fileData.data.$base64) {
-              fileData.data = Buffer.from(fileData.data.$base64, 'base64');
+            // Restore base64-encoded Buffer (handle both $base64 and { type: 'Buffer', data: [...] })
+            if (fileData.data) {
+              if (fileData.data.$base64) {
+                fileData.data = Buffer.from(fileData.data.$base64, 'base64');
+              } else if (fileData.data.type === 'Buffer' && Array.isArray(fileData.data.data)) {
+                fileData.data = Buffer.from(fileData.data.data);
+              }
             }
-            const filter = fileData._id ? { _id: fileData._id } : { name: fileData.name, md5: fileData.md5 };
-            await File.replaceOne(filter, fileData, { upsert: true });
+            // preserveUUID: delete any existing doc with this _id then create with exact _id
+            await File.deleteOne({ _id: fileData._id });
+            await File.create(fileData);
             fileCount++;
           }
           logger.info(`Imported ${fileCount} File document(s)`);
@@ -1917,9 +1926,9 @@ try {
           let rfCount = 0;
           for (const f of rfFiles) {
             const rfData = fs.readJsonSync(`${rfDir}/${f}`);
-            const filter = rfData._id ? { _id: rfData._id } : {};
-            if (filter._id) {
-              await ObjectLayerRenderFrames.replaceOne(filter, rfData, { upsert: true });
+            if (rfData._id) {
+              await ObjectLayerRenderFrames.deleteOne({ _id: rfData._id });
+              await ObjectLayerRenderFrames.create(rfData);
               rfCount++;
             }
           }
@@ -1933,8 +1942,8 @@ try {
           let atlasCount = 0;
           for (const f of atlasFiles) {
             const atlasData = fs.readJsonSync(`${atlasDir}/${f}`);
-            const filter = atlasData._id ? { _id: atlasData._id } : { 'metadata.itemKey': atlasData.metadata?.itemKey };
-            await AtlasSpriteSheet.replaceOne(filter, atlasData, { upsert: true });
+            await AtlasSpriteSheet.deleteOne({ _id: atlasData._id });
+            await AtlasSpriteSheet.create(atlasData);
             atlasCount++;
           }
           logger.info(`Imported ${atlasCount} AtlasSpriteSheet document(s)`);
@@ -1947,8 +1956,8 @@ try {
           let olCount = 0;
           for (const file of olFiles) {
             const olData = fs.readJsonSync(`${olDir}/${file}`);
-            const filter = olData._id ? { _id: olData._id } : { 'data.item.id': olData.data?.item?.id };
-            await ObjectLayer.replaceOne(filter, olData, { upsert: true });
+            await ObjectLayer.deleteOne({ _id: olData._id });
+            await ObjectLayer.create(olData);
             olCount++;
           }
           logger.info(`Imported ${olCount} ObjectLayer document(s)`);
@@ -1961,8 +1970,8 @@ try {
           let ipfsCount = 0;
           const pinnedCids = new Set();
           for (const doc of ipfsDocs) {
-            const filter = doc._id ? { _id: doc._id } : { cid: doc.cid, userId: doc.userId };
-            await Ipfs.replaceOne(filter, doc, { upsert: true });
+            await Ipfs.deleteOne({ _id: doc._id });
+            await Ipfs.create(doc);
             ipfsCount++;
             if (doc.cid) pinnedCids.add(doc.cid);
           }
@@ -1977,26 +1986,30 @@ try {
           logger.info(`IPFS re-pin: ${repinCount}/${pinnedCids.size} CIDs pinned`);
         }
 
-        // 6. Import maps
+        // 6. Import maps (preserveUUID: delete by code then create with exact _id)
         const mapsDir = `${backupDir}/maps`;
         if (fs.existsSync(mapsDir)) {
           const mapFiles = fs.readdirSync(mapsDir).filter((f) => f.endsWith('.json'));
           let mapCount = 0;
           for (const file of mapFiles) {
             const mapData = fs.readJsonSync(`${mapsDir}/${file}`);
-            const filter = mapData._id ? { _id: mapData._id } : { code: mapData.code };
-            await CyberiaMap.replaceOne(filter, mapData, { upsert: true });
+            // Remove any existing map with this code (may have different _id)
+            await CyberiaMap.deleteOne({ code: mapData.code });
+            // Also remove if an old doc with this _id exists
+            await CyberiaMap.deleteOne({ _id: mapData._id });
+            await CyberiaMap.create(mapData);
             mapCount++;
           }
           logger.info(`Imported ${mapCount} CyberiaMap document(s)`);
         }
 
-        // 7. Import instance
+        // 7. Import instance (preserveUUID: delete by code then create with exact _id)
         const instancePath = `${backupDir}/cyberia-instance.json`;
         if (fs.existsSync(instancePath)) {
           const instanceData = fs.readJsonSync(instancePath);
-          const filter = instanceData._id ? { _id: instanceData._id } : { code: instanceCode };
-          await CyberiaInstance.replaceOne(filter, instanceData, { upsert: true });
+          await CyberiaInstance.deleteOne({ code: instanceCode });
+          await CyberiaInstance.deleteOne({ _id: instanceData._id });
+          await CyberiaInstance.create(instanceData);
           logger.info('Imported CyberiaInstance', { code: instanceCode });
         } else {
           logger.warn(`Instance file not found: ${instancePath}`);
