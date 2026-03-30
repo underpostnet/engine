@@ -50,9 +50,7 @@ jobs:
           dnf install nodejs -y
 
       - name: Install dependencies
-        run: |
-          npm install
-          node bin config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
+        run: npm install
 
       - name: Set git global credentials
         run: |
@@ -61,6 +59,8 @@ jobs:
           git config --global user.email 'development@underpost.net'
 
       - name: Build repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
         run: |
           cd .. && node engine/bin clone underpostnet/pwa-microservices-template
           if [ -n "${{ github.event.inputs.message }}" ]; then

@@ -44,7 +44,6 @@ jobs:
       - name: Install dependencies and set repo configuration
         run: |
           npm install
-          node bin config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
           node ./bin/deploy rename-package @underpostnet/underpost
           node ./bin/deploy set-repo underpostnet/pwa-microservices-template-ghpkg
 
@@ -56,6 +55,8 @@ jobs:
           git config --global user.email 'fcoverdugoa@underpost.net'
 
       - name: Clone and Push to github package repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
         run: |
           node bin clone --bare underpostnet/pwa-microservices-template-ghpkg
           rm -rf ./.git

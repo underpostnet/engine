@@ -69,9 +69,7 @@ jobs:
           echo "[INFO] Extracted payload: $LAST_COMMIT_MESSAGE"
 
       - name: Install dependencies
-        run: |
-          npm install
-          node bin config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
+        run: npm install
 
       - name: Set git global credentials
         run: |
@@ -81,6 +79,8 @@ jobs:
           git config --global user.email 'fcoverdugoa@underpost.net'
 
       - name: Clone github package repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
         run: |
           cd .. && node engine/bin clone underpostnet/pwa-microservices-template
           cd engine

@@ -48,6 +48,7 @@ class UnderpostRootEnv {
         return;
       }
       const exeRootPath = `${getNpmRootPath()}/underpost`;
+      fs.ensureDirSync(exeRootPath);
       const envPath = `${exeRootPath}/.env`;
       _set(envPath, key, value);
     },

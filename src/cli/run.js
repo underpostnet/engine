@@ -1857,9 +1857,7 @@ EOF
      */
     secret: (path, options = DEFAULT_OPTION) => {
       const secretPath = path ? path : `/home/dd/engine/engine-private/conf/dd-cron/.env.production`;
-      const command = options.dev
-        ? `node bin secret underpost --create-from-file ${secretPath}`
-        : `underpost secret underpost --create-from-file ${secretPath}`;
+      const command = `node bin secret underpost --create-from-file ${secretPath}`;
       shellExec(command);
     },
     /**
