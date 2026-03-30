@@ -24,6 +24,7 @@ class MapEngineCyberia {
   static addOnClick = true;
   static showObjectLayers = false;
   static randomDim = false;
+  static captureObjLayerThumbnail = true;
   static imageCache = {};
 
   static loadObjectLayerImage(itemId, onLoad) {
@@ -96,19 +97,20 @@ class MapEngineCyberia {
     }
   }
 
-  static renderToOffscreenCanvas(cols, rows, cellW, cellH) {
+  static renderToOffscreenCanvas(cols, rows, cellW, cellH, { forceObjectLayers = false } = {}) {
     const offscreen = document.createElement('canvas');
     offscreen.width = cols * cellW;
     offscreen.height = rows * cellH;
     const ctx = offscreen.getContext('2d');
     ctx.clearRect(0, 0, offscreen.width, offscreen.height);
+    const useObjectLayers = forceObjectLayers || MapEngineCyberia.showObjectLayers;
     for (const entity of MapEngineCyberia.entities) {
       const x = entity.initCellX * cellW;
       const y = entity.initCellY * cellH;
       const w = entity.dimX * cellW;
       const h = entity.dimY * cellH;
 
-      if (MapEngineCyberia.showObjectLayers && entity.objectLayerItemIds?.length) {
+      if (useObjectLayers && entity.objectLayerItemIds?.length) {
         for (const itemId of entity.objectLayerItemIds) {
           const cached = MapEngineCyberia.imageCache[itemId];
           if (cached?.loaded && cached.img) {
@@ -459,10 +461,12 @@ class MapEngineCyberia {
         }
       }
 
-      // Auto-capture canvas as thumbnail if none set
-      if (!MapEngineCyberia.currentThumbnailId) {
+      // Capture object layer thumbnail on save/update if checkbox is checked
+      if (MapEngineCyberia.captureObjLayerThumbnail) {
         const { cols, rows, cellW, cellH } = getCanvasParams();
-        const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH);
+        const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH, {
+          forceObjectLayers: true,
+        });
         const blob = await new Promise((resolve) => offscreen.toBlob(resolve, 'image/png'));
         if (blob) {
           const file = new File([blob], 'map-thumbnail.png', { type: 'image/png' });
@@ -518,10 +522,12 @@ class MapEngineCyberia {
         }
       }
 
-      // Auto-capture canvas as thumbnail if none available
-      if (!cloneThumbnailId) {
+      // Capture object layer thumbnail for clone if checkbox is checked
+      if (!cloneThumbnailId && MapEngineCyberia.captureObjLayerThumbnail) {
         const { cols, rows, cellW, cellH } = getCanvasParams();
-        const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH);
+        const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH, {
+          forceObjectLayers: true,
+        });
         const blob = await new Promise((resolve) => offscreen.toBlob(resolve, 'image/png'));
         if (blob) {
           const file = new File([blob], 'map-thumbnail.png', { type: 'image/png' });
@@ -907,6 +913,24 @@ class MapEngineCyberia {
           class: 'wfa btn-map-engine-capture-thumbnail',
           label: html`<i class="fa-solid fa-camera"></i> Capture Thumbnail`,
         })}
+        <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left; margin: 5px 0;">
+          ${await ToggleSwitch.Render({
+            id: 'map-engine-capture-obj-layer-thumb',
+            type: 'checkbox',
+            displayMode: 'checkbox',
+            containerClass: 'in fll',
+            checked: true,
+            on: {
+              checked: () => {
+                MapEngineCyberia.captureObjLayerThumbnail = true;
+              },
+              unchecked: () => {
+                MapEngineCyberia.captureObjLayerThumbnail = false;
+              },
+            },
+          })}
+          <div class="section-mp">&nbsp &nbsp Capture Object Layer Map Thumbnail on Save/Update</div>
+        </div>
         ${await BtnIcon.Render({
           class: 'wfa btn-map-engine-toggle-thumbnail',
           label: html`<i class="fa-solid fa-caret-right map-engine-thumbnail-caret"></i> Thumbnail`,
