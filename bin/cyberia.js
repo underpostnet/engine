@@ -1758,6 +1758,9 @@ try {
             const thumbFileIds = [];
             if (existingInstance.thumbnail) thumbFileIds.push(existingInstance.thumbnail);
 
+            // Query other instances/maps for shared thumbnail exclusion
+            const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
+
             if (dropMapCodes.size > 0) {
               const dropMaps = await CyberiaMap.find({ code: { $in: [...dropMapCodes] } }).lean();
               const dropOlItemIds = new Set();
@@ -1768,6 +1771,32 @@ try {
                     dropOlItemIds.add(itemId);
                   }
                 }
+              }
+
+              // Exclude OL item IDs referenced by maps outside this instance
+              const otherMaps = await CyberiaMap.find(
+                { code: { $nin: [...dropMapCodes] } },
+                { 'entities.objectLayerItemIds': 1, thumbnail: 1 },
+              ).lean();
+              const sharedOlItemIds = new Set();
+              for (const m of otherMaps) {
+                for (const entity of m.entities || []) {
+                  for (const itemId of entity.objectLayerItemIds || []) {
+                    if (dropOlItemIds.has(itemId)) sharedOlItemIds.add(itemId);
+                  }
+                }
+              }
+              for (const shared of sharedOlItemIds) dropOlItemIds.delete(shared);
+              if (sharedOlItemIds.size > 0) {
+                logger.info(`Preserved ${sharedOlItemIds.size} ObjectLayer(s) shared with other maps`);
+              }
+
+              // Exclude thumbnail File IDs referenced by other instances or maps
+              const otherMapThumbs = otherMaps.map((m) => m.thumbnail?.toString()).filter(Boolean);
+              const otherInstThumbs = otherInstances.map((i) => i.thumbnail?.toString()).filter(Boolean);
+              const sharedThumbIds = new Set([...otherMapThumbs, ...otherInstThumbs]);
+              for (let i = thumbFileIds.length - 1; i >= 0; i--) {
+                if (sharedThumbIds.has(thumbFileIds[i].toString())) thumbFileIds.splice(i, 1);
               }
 
               if (dropOlItemIds.size > 0) {
@@ -1850,7 +1879,7 @@ try {
               logger.info(`Dropped ${mapResult.deletedCount} CyberiaMap document(s)`);
             }
 
-            // Drop thumbnail File documents (instance + maps)
+            // Drop thumbnail File documents (instance + maps), excluding shared ones
             if (thumbFileIds.length > 0) {
               const thumbResult = await File.deleteMany({ _id: { $in: thumbFileIds } });
               logger.info(`Dropped ${thumbResult.deletedCount} File document(s) (thumbnails)`);
@@ -1990,6 +2019,9 @@ try {
           const thumbFileIds = [];
           if (existingInstance.thumbnail) thumbFileIds.push(existingInstance.thumbnail);
 
+          // Query other instances for shared thumbnail exclusion
+          const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
+
           if (dropMapCodes.size > 0) {
             const dropMaps = await CyberiaMap.find({ code: { $in: [...dropMapCodes] } }).lean();
             const dropOlItemIds = new Set();
@@ -2000,6 +2032,32 @@ try {
                   dropOlItemIds.add(itemId);
                 }
               }
+            }
+
+            // Exclude OL item IDs referenced by maps outside this instance
+            const otherMaps = await CyberiaMap.find(
+              { code: { $nin: [...dropMapCodes] } },
+              { 'entities.objectLayerItemIds': 1, thumbnail: 1 },
+            ).lean();
+            const sharedOlItemIds = new Set();
+            for (const m of otherMaps) {
+              for (const entity of m.entities || []) {
+                for (const itemId of entity.objectLayerItemIds || []) {
+                  if (dropOlItemIds.has(itemId)) sharedOlItemIds.add(itemId);
+                }
+              }
+            }
+            for (const shared of sharedOlItemIds) dropOlItemIds.delete(shared);
+            if (sharedOlItemIds.size > 0) {
+              logger.info(`Preserved ${sharedOlItemIds.size} ObjectLayer(s) shared with other maps`);
+            }
+
+            // Exclude thumbnail File IDs referenced by other instances or maps
+            const otherMapThumbs = otherMaps.map((m) => m.thumbnail?.toString()).filter(Boolean);
+            const otherInstThumbs = otherInstances.map((i) => i.thumbnail?.toString()).filter(Boolean);
+            const sharedThumbIds = new Set([...otherMapThumbs, ...otherInstThumbs]);
+            for (let i = thumbFileIds.length - 1; i >= 0; i--) {
+              if (sharedThumbIds.has(thumbFileIds[i].toString())) thumbFileIds.splice(i, 1);
             }
 
             if (dropOlItemIds.size > 0) {
@@ -2074,7 +2132,7 @@ try {
             logger.info(`Dropped ${mapResult.deletedCount} CyberiaMap document(s)`);
           }
 
-          // Drop thumbnail File documents (instance + maps)
+          // Drop thumbnail File documents (instance + maps), excluding shared ones
           if (thumbFileIds.length > 0) {
             const thumbResult = await File.deleteMany({ _id: { $in: thumbFileIds } });
             logger.info(`Dropped ${thumbResult.deletedCount} File document(s) (thumbnails)`);

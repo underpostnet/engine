@@ -244,7 +244,11 @@ const unpinCid = async (cid) => {
     });
     if (!clusterRes.ok) {
       const text = await clusterRes.text();
-      logger.warn(`IPFS Cluster unpin failed (${clusterRes.status}): ${text}`);
+      if (clusterRes.status === 404) {
+        logger.info(`IPFS Cluster unpin – CID already not pinned: ${cid}`);
+      } else {
+        logger.warn(`IPFS Cluster unpin failed (${clusterRes.status}): ${text}`);
+      }
     } else {
       logger.info(`IPFS Cluster unpin OK – CID: ${cid}`);
     }
