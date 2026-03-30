@@ -54,10 +54,16 @@ const StreamNexodev = {
       peer.on('call', (call) => {
         call.answer(stream);
         const remoteVideo = Stream.createVideoElement();
+        let remotePeerId = call.peer;
         call.on('stream', (remoteStream) => {
           s(`.media-stream-grid`).append(Stream.attachStream(remoteVideo, remoteStream));
+          // Track the element for this peer
+          userJoin[remotePeerId] = { element: remoteVideo };
         });
-        call.on('close', () => remoteVideo.remove());
+        call.on('close', () => {
+          remoteVideo.remove();
+          if (userJoin[remotePeerId]) delete userJoin[remotePeerId];
+        });
       });
 
       peer.on('close', (...args) => {
@@ -66,14 +72,35 @@ const StreamNexodev = {
 
       const userJoin = {};
 
+      SocketIo.socket.on(`${channel}-existing-users`, (userIds) => {
+        console.warn(`${channel} existing users`, userIds);
+        for (const userId of userIds) {
+          if (userId === myPeerId) continue;
+          const { call } = Stream.callPeer(id, userId, stream, {
+            onStream: (el) => {
+              s(`.media-stream-grid`).append(el);
+              userJoin[userId] = { element: el };
+            },
+            onClose: (el) => {
+              el.remove();
+              if (userJoin[userId]) delete userJoin[userId];
+            },
+          });
+        }
+      });
+
       SocketIo.socket.on(`${channel}-user-connected`, (userId) => {
         console.warn(`${channel} user connected`, userId);
-
-        const { call, element } = Stream.callPeer(id, userId, stream, {
-          onStream: (el) => s(`.media-stream-grid`).append(el),
-          onClose: (el) => el.remove(),
+        const { call } = Stream.callPeer(id, userId, stream, {
+          onStream: (el) => {
+            s(`.media-stream-grid`).append(el);
+            userJoin[userId] = { element: el };
+          },
+          onClose: (el) => {
+            el.remove();
+            if (userJoin[userId]) delete userJoin[userId];
+          },
         });
-        userJoin[userId] = { element };
       });
 
       SocketIo.socket.on(`${channel}-user-disconnected`, (userId) => {

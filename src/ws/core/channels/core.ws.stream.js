@@ -20,17 +20,31 @@ class CoreWsStreamChannel {
     stream: true,
     controller(socket, client, payload, wsManagementId, args) {
       const [roomId, userId] = args;
-      CoreWsStreamChannel.#state[wsManagementId][socket.id] = args;
 
+      // Collect existing users in the room before registering the new one
+      const existingUsers = [];
+      for (const entry of Object.values(CoreWsStreamChannel.#state[wsManagementId])) {
+        if (entry[0] === roomId && entry[1]) existingUsers.push(entry[1]);
+      }
+
+      CoreWsStreamChannel.#state[wsManagementId][socket.id] = args;
       socket.join(roomId);
-      socket.broadcast.emit('stream-user-connected', userId);
+      socket.to(roomId).emit('stream-user-connected', userId);
+
+      // Tell the joining user about everyone already in the room
+      if (existingUsers.length > 0) socket.emit('stream-existing-users', existingUsers);
     },
     connection(socket, client, wsManagementId) {
       CoreWsStreamChannel.#state[wsManagementId][socket.id] = [];
     },
     disconnect(socket, client, reason, wsManagementId) {
-      const [roomId, userId] = CoreWsStreamChannel.#state[wsManagementId][socket.id];
-      socket.broadcast.emit('stream-user-disconnected', userId);
+      const entry = CoreWsStreamChannel.#state[wsManagementId]?.[socket.id];
+      if (!entry || entry.length === 0) {
+        if (CoreWsStreamChannel.#state[wsManagementId]) delete CoreWsStreamChannel.#state[wsManagementId][socket.id];
+        return;
+      }
+      const [roomId, userId] = entry;
+      socket.to(roomId).emit('stream-user-disconnected', userId);
       delete CoreWsStreamChannel.#state[wsManagementId][socket.id];
     },
   });
