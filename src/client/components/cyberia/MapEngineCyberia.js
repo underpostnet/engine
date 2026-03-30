@@ -23,6 +23,7 @@ class MapEngineCyberia {
   static showGridBorders = true;
   static addOnClick = true;
   static showObjectLayers = false;
+  static randomDim = false;
   static imageCache = {};
 
   static loadObjectLayerImage(itemId, onLoad) {
@@ -270,6 +271,8 @@ class MapEngineCyberia {
     const idDimY = 'map-engine-dim-y';
     const idColor = 'map-engine-color';
     const idAlpha = 'map-engine-alpha';
+    const idFactorA = 'map-engine-factor-a';
+    const idFactorB = 'map-engine-factor-b';
     const rgbaDisplayId = 'map-engine-rgba-display';
     const entityListId = 'map-engine-entity-list';
     const idObjLayerDropdown = 'map-engine-obj-layer-dropdown';
@@ -313,12 +316,51 @@ class MapEngineCyberia {
       };
     };
 
+    const applyRandomDim = (ep) => {
+      if (!MapEngineCyberia.randomDim) return;
+      const a = parseFloat(s(`.${idFactorA}`)?.value) || 0.5;
+      const b = parseFloat(s(`.${idFactorB}`)?.value) || 1.5;
+      const min = Math.min(a, b);
+      const max = Math.max(a, b);
+      const factor = min + Math.random() * (max - min);
+      ep.dimX = Math.max(1, Math.round(ep.dimX * factor));
+      ep.dimY = Math.max(1, Math.round(ep.dimY * factor));
+    };
+
     const addEntityLocally = () => {
       const ep = getEntityParams();
       ep.objectLayerItemIds = DropDown.Tokens[idObjLayerDropdown]?.value
         ? [...DropDown.Tokens[idObjLayerDropdown].value]
         : [];
+      applyRandomDim(ep);
       MapEngineCyberia.entities.push(ep);
+      for (const itemId of ep.objectLayerItemIds) {
+        MapEngineCyberia.loadObjectLayerImage(itemId, rerenderCanvas);
+      }
+      MapEngineCyberia.renderEntityList(entityListId);
+      rerenderCanvas();
+    };
+
+    const fillMapWithEntity = () => {
+      const ep = getEntityParams();
+      ep.objectLayerItemIds = DropDown.Tokens[idObjLayerDropdown]?.value
+        ? [...DropDown.Tokens[idObjLayerDropdown].value]
+        : [];
+      const { cols, rows } = getCanvasParams();
+      const dimX = ep.dimX || 1;
+      const dimY = ep.dimY || 1;
+      for (let r = 0; r < rows; r += dimY) {
+        for (let c = 0; c < cols; c += dimX) {
+          const tile = {
+            ...ep,
+            initCellX: c,
+            initCellY: r,
+            objectLayerItemIds: [...ep.objectLayerItemIds],
+          };
+          applyRandomDim(tile);
+          MapEngineCyberia.entities.push(tile);
+        }
+      }
       for (const itemId of ep.objectLayerItemIds) {
         MapEngineCyberia.loadObjectLayerImage(itemId, rerenderCanvas);
       }
@@ -566,6 +608,8 @@ class MapEngineCyberia {
 
       if (s(`.btn-map-engine-add-entity`)) s(`.btn-map-engine-add-entity`).onclick = () => addEntityLocally();
 
+      if (s(`.btn-map-engine-fill-map`)) s(`.btn-map-engine-fill-map`).onclick = () => fillMapWithEntity();
+
       if (s(`.btn-map-engine-generate`))
         s(`.btn-map-engine-generate`).onclick = () => {
           rerenderCanvas();
@@ -668,6 +712,7 @@ class MapEngineCyberia {
     const dcAlpha = 'map-engine-dc-alpha';
     const dcCellPos = 'map-engine-dc-cell-pos';
     const dcDim = 'map-engine-dc-dim';
+    const dcFactors = 'map-engine-dc-factors';
     const dcSaveNew = 'map-engine-dc-save-new';
     const dcEntityFilter = 'map-engine-dc-entity-filter';
     const dcCanvasOpts = 'map-engine-dc-canvas-opts';
@@ -995,6 +1040,47 @@ class MapEngineCyberia {
             })}
           </div>
         </div>
+        ${dynamicCol({ containerSelector: 'map-engine-container', id: dcFactors, type: 'a-50-b-50' })}
+        <div class="fl">
+          <div class="in fll ${dcFactors}-col-a">
+            ${await Input.Render({
+              id: idFactorA,
+              label: html`factorA`,
+              containerClass: 'inl',
+              type: 'number',
+              step: 0.01,
+              value: 0.5,
+            })}
+          </div>
+          <div class="in fll ${dcFactors}-col-b">
+            ${await Input.Render({
+              id: idFactorB,
+              label: html`factorB`,
+              containerClass: 'inl',
+              type: 'number',
+              step: 0.01,
+              value: 1.5,
+            })}
+          </div>
+        </div>
+        <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left; margin: 5px 0;">
+          ${await ToggleSwitch.Render({
+            id: 'map-engine-random-dim',
+            type: 'checkbox',
+            displayMode: 'checkbox',
+            containerClass: 'in fll',
+            checked: false,
+            on: {
+              checked: () => {
+                MapEngineCyberia.randomDim = true;
+              },
+              unchecked: () => {
+                MapEngineCyberia.randomDim = false;
+              },
+            },
+          })}
+          <div class="section-mp">&nbsp &nbsp Random Dim</div>
+        </div>
         <div class="in" style="margin: 10px;">
           ${await DropDown.Render({
             id: idObjLayerDropdown,
@@ -1021,6 +1107,12 @@ class MapEngineCyberia {
           ${await BtnIcon.Render({
             class: 'wfa btn-map-engine-add-entity',
             label: html`<i class="fa-solid fa-plus"></i> Add Entity`,
+          })}
+        </div>
+        <div class="in" style="margin-top: 5px;">
+          ${await BtnIcon.Render({
+            class: 'wfa btn-map-engine-fill-map',
+            label: html`<i class="fa-solid fa-fill-drip"></i> Map Fill`,
           })}
         </div>
         <div class="in" style="margin-top: 10px;">
