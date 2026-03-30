@@ -452,6 +452,59 @@ class MapEngineCyberia {
       }
     };
 
+    const cloneMap = async () => {
+      if (!MapEngineCyberia.currentMapId) return;
+
+      // Upload thumbnail if dirty
+      const thumbnailInput = s(`.${idThumbnail}`);
+      if (
+        MapEngineCyberia.thumbnailDirty &&
+        thumbnailInput &&
+        thumbnailInput.files &&
+        thumbnailInput.files.length > 0
+      ) {
+        const formData = new FormData();
+        formData.append('file', thumbnailInput.files[0]);
+        const uploadResult = await FileService.post({ body: formData });
+        if (uploadResult.status === 'success' && uploadResult.data && uploadResult.data.length > 0) {
+          MapEngineCyberia.currentThumbnailId = uploadResult.data[0]._id;
+        } else {
+          NotificationManager.Push({
+            html: uploadResult.message || 'Failed to upload thumbnail',
+            status: 'error',
+          });
+          return;
+        }
+      }
+
+      // Auto-capture canvas as thumbnail if none set
+      if (!MapEngineCyberia.currentThumbnailId) {
+        const { cols, rows, cellW, cellH } = getCanvasParams();
+        const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH);
+        const blob = await new Promise((resolve) => offscreen.toBlob(resolve, 'image/png'));
+        if (blob) {
+          const file = new File([blob], 'map-thumbnail.png', { type: 'image/png' });
+          const formData = new FormData();
+          formData.append('file', file);
+          const uploadResult = await FileService.post({ body: formData });
+          if (uploadResult.status === 'success' && uploadResult.data?.length > 0) {
+            MapEngineCyberia.currentThumbnailId = uploadResult.data[0]._id;
+          }
+        }
+      }
+
+      const body = getMapPayload();
+      const result = await CyberiaMapService.post({ body });
+      NotificationManager.Push({
+        html: result.status === 'error' ? result.message : Translate.Render('success-create-item'),
+        status: result.status,
+      });
+      if (result.status === 'success') {
+        if (result.data?._id) MapEngineCyberia.currentMapId = result.data._id;
+        await DefaultManagement.loadTable(managementId, { force: true, reload: true });
+      }
+    };
+
     const loadMap = async (mapData) => {
       MapEngineCyberia.currentMapId = mapData._id || null;
       if (s(`.${idCode}`)) s(`.${idCode}`).value = mapData.code || '';
@@ -631,6 +684,12 @@ class MapEngineCyberia {
         };
 
       if (s(`.btn-map-engine-save-map`)) s(`.btn-map-engine-save-map`).onclick = () => saveMap();
+
+      if (s(`.btn-map-engine-clone-map`))
+        s(`.btn-map-engine-clone-map`).onclick = () => {
+          if (!MapEngineCyberia.currentMapId) return;
+          cloneMap();
+        };
 
       if (s(`.btn-map-engine-new-map`)) s(`.btn-map-engine-new-map`).onclick = () => resetForm();
 
@@ -1175,7 +1234,7 @@ class MapEngineCyberia {
           </div>
         </div>
         <div class="in ${entityListId}" style="margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
-        ${dynamicCol({ containerSelector: 'map-engine-container', id: dcSaveNew, type: 'a-50-b-50' })}
+        ${dynamicCol({ containerSelector: 'map-engine-container', id: dcSaveNew, type: 'search-inputs' })}
         <div class="fl" style="margin-top: 10px;">
           <div class="in fll ${dcSaveNew}-col-a" style="padding: 5px;">
             ${await BtnIcon.Render({
@@ -1184,6 +1243,12 @@ class MapEngineCyberia {
             })}
           </div>
           <div class="in fll ${dcSaveNew}-col-b" style="padding: 5px;">
+            ${await BtnIcon.Render({
+              class: 'wfa btn-map-engine-clone-map',
+              label: html`<i class="fa-solid fa-clone"></i> Clone Map`,
+            })}
+          </div>
+          <div class="in fll ${dcSaveNew}-col-c" style="padding: 5px;">
             ${await BtnIcon.Render({
               class: 'wfa btn-map-engine-new-map',
               label: html`<i class="fa-solid fa-file"></i> New Map`,
