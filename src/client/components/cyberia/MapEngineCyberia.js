@@ -374,6 +374,7 @@ class MapEngineCyberia {
         .split(',')
         .map((t) => t.trim())
         .filter((t) => t);
+      const { cols, rows, cellW, cellH } = getCanvasParams();
       const payload = {
         code: s(`.${idCode}`)?.value || '',
         name: s(`.${idName}`)?.value || '',
@@ -381,6 +382,10 @@ class MapEngineCyberia {
         tags,
         status: DropDown.Tokens[idStatus]?.value || 'unlisted',
         entities: MapEngineCyberia.entities,
+        gridX: cols,
+        gridY: rows,
+        cellWidth: cellW,
+        cellHeight: cellH,
       };
       if (MapEngineCyberia.currentThumbnailId) payload.thumbnail = MapEngineCyberia.currentThumbnailId;
       return payload;
@@ -453,6 +458,12 @@ class MapEngineCyberia {
       if (s(`.${idName}`)) s(`.${idName}`).value = mapData.name || '';
       if (s(`.${idDescription}`)) s(`.${idDescription}`).value = mapData.description || '';
       if (s(`.${idTags}`)) s(`.${idTags}`).value = (mapData.tags || []).join(', ');
+
+      // Restore grid dimensions
+      if (s(`.${idX}`)) s(`.${idX}`).value = mapData.gridX || 16;
+      if (s(`.${idY}`)) s(`.${idY}`).value = mapData.gridY || 16;
+      if (s(`.${idCellW}`)) s(`.${idCellW}`).value = mapData.cellWidth || 32;
+      if (s(`.${idCellH}`)) s(`.${idCellH}`).value = mapData.cellHeight || 32;
       const statusValue = mapData.status || 'unlisted';
       if (DropDown.Tokens[idStatus]) {
         const statusIndex = statusOptions.findIndex((opt) => opt.value === statusValue);
@@ -551,6 +562,10 @@ class MapEngineCyberia {
       }
       const creatorDisplay = s(`.map-engine-creator-display`);
       if (creatorDisplay) creatorDisplay.innerHTML = '<span style="color:#888;font-size:12px;">—</span>';
+      if (s(`.${idX}`)) s(`.${idX}`).value = 16;
+      if (s(`.${idY}`)) s(`.${idY}`).value = 16;
+      if (s(`.${idCellW}`)) s(`.${idCellW}`).value = 32;
+      if (s(`.${idCellH}`)) s(`.${idCellH}`).value = 32;
       MapEngineCyberia.entities = [];
       MapEngineCyberia.renderEntityList(entityListId);
       rerenderCanvas();
