@@ -491,19 +491,15 @@ class MapEngineCyberia {
     const cloneMap = async () => {
       if (!MapEngineCyberia.currentMapId) return;
 
-      // Upload thumbnail if dirty
+      // Always upload a new thumbnail file for the clone so it doesn't share the original's file
       const thumbnailInput = s(`.${idThumbnail}`);
-      if (
-        MapEngineCyberia.thumbnailDirty &&
-        thumbnailInput &&
-        thumbnailInput.files &&
-        thumbnailInput.files.length > 0
-      ) {
+      let cloneThumbnailId = null;
+      if (thumbnailInput && thumbnailInput.files && thumbnailInput.files.length > 0) {
         const formData = new FormData();
         formData.append('file', thumbnailInput.files[0]);
         const uploadResult = await FileService.post({ body: formData });
         if (uploadResult.status === 'success' && uploadResult.data && uploadResult.data.length > 0) {
-          MapEngineCyberia.currentThumbnailId = uploadResult.data[0]._id;
+          cloneThumbnailId = uploadResult.data[0]._id;
         } else {
           NotificationManager.Push({
             html: uploadResult.message || 'Failed to upload thumbnail',
@@ -513,8 +509,8 @@ class MapEngineCyberia {
         }
       }
 
-      // Auto-capture canvas as thumbnail if none set
-      if (!MapEngineCyberia.currentThumbnailId) {
+      // Auto-capture canvas as thumbnail if none available
+      if (!cloneThumbnailId) {
         const { cols, rows, cellW, cellH } = getCanvasParams();
         const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH);
         const blob = await new Promise((resolve) => offscreen.toBlob(resolve, 'image/png'));
@@ -524,12 +520,13 @@ class MapEngineCyberia {
           formData.append('file', file);
           const uploadResult = await FileService.post({ body: formData });
           if (uploadResult.status === 'success' && uploadResult.data?.length > 0) {
-            MapEngineCyberia.currentThumbnailId = uploadResult.data[0]._id;
+            cloneThumbnailId = uploadResult.data[0]._id;
           }
         }
       }
 
       const body = getMapPayload();
+      if (cloneThumbnailId) body.thumbnail = cloneThumbnailId;
       const result = await CyberiaMapService.post({ body });
       NotificationManager.Push({
         html: result.status === 'error' ? result.message : Translate.Render('success-create-item'),
@@ -537,6 +534,7 @@ class MapEngineCyberia {
       });
       if (result.status === 'success') {
         if (result.data?._id) MapEngineCyberia.currentMapId = result.data._id;
+        if (cloneThumbnailId) MapEngineCyberia.currentThumbnailId = cloneThumbnailId;
         await DefaultManagement.loadTable(managementId, { force: true, reload: true });
       }
     };
