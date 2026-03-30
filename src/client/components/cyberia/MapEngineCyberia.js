@@ -273,6 +273,7 @@ class MapEngineCyberia {
     const idAlpha = 'map-engine-alpha';
     const idFactorA = 'map-engine-factor-a';
     const idFactorB = 'map-engine-factor-b';
+    const idVariationPreserve = 'map-engine-variation-preserve';
     const rgbaDisplayId = 'map-engine-rgba-display';
     const entityListId = 'map-engine-entity-list';
     const idObjLayerDropdown = 'map-engine-obj-layer-dropdown';
@@ -373,8 +374,16 @@ class MapEngineCyberia {
       const b = parseFloat(s(`.${idFactorB}`)?.value) || 1.5;
       const min = Math.min(a, b);
       const max = Math.max(a, b);
+      const preserveRaw = s(`.${idVariationPreserve}`)?.value || '';
+      const preserveSet = new Set(
+        preserveRaw
+          .split(',')
+          .map((t) => t.trim().toLowerCase())
+          .filter((t) => t),
+      );
       const { cols, rows } = getCanvasParams();
       for (const entity of MapEngineCyberia.entities) {
+        if (preserveSet.has((entity.entityType || '').toLowerCase())) continue;
         const dimFactor = min + Math.random() * (max - min);
         entity.dimX = Math.max(1, Math.round(entity.dimX * dimFactor));
         entity.dimY = Math.max(1, Math.round(entity.dimY * dimFactor));
@@ -653,6 +662,7 @@ class MapEngineCyberia {
       if (s(`.${idY}`)) s(`.${idY}`).value = 16;
       if (s(`.${idCellW}`)) s(`.${idCellW}`).value = 32;
       if (s(`.${idCellH}`)) s(`.${idCellH}`).value = 32;
+      if (s(`.${idVariationPreserve}`)) s(`.${idVariationPreserve}`).value = '';
       MapEngineCyberia.entities = [];
       MapEngineCyberia.renderEntityList(entityListId);
       rerenderCanvas();
@@ -1178,6 +1188,13 @@ class MapEngineCyberia {
             })}
           </div>
         </div>
+        ${await Input.Render({
+          id: idVariationPreserve,
+          label: html`Variation Preserve List`,
+          containerClass: 'inl',
+          type: 'text',
+          placeholder: true,
+        })}
         <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left; margin: 5px 0;">
           ${await ToggleSwitch.Render({
             id: 'map-engine-random-dim',
