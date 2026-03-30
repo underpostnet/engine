@@ -368,6 +368,42 @@ class MapEngineCyberia {
       rerenderCanvas();
     };
 
+    const generateVariation = () => {
+      const a = parseFloat(s(`.${idFactorA}`)?.value) || 0.5;
+      const b = parseFloat(s(`.${idFactorB}`)?.value) || 1.5;
+      const min = Math.min(a, b);
+      const max = Math.max(a, b);
+      const { cols, rows } = getCanvasParams();
+      for (const entity of MapEngineCyberia.entities) {
+        const dimFactor = min + Math.random() * (max - min);
+        entity.dimX = Math.max(1, Math.round(entity.dimX * dimFactor));
+        entity.dimY = Math.max(1, Math.round(entity.dimY * dimFactor));
+        const posFactor = min + Math.random() * (max - min);
+        entity.initCellX = Math.max(0, Math.min(cols - 1, Math.round(entity.initCellX * posFactor)));
+        entity.initCellY = Math.max(0, Math.min(rows - 1, Math.round(entity.initCellY * posFactor)));
+      }
+      MapEngineCyberia.renderEntityList(entityListId);
+      rerenderCanvas();
+    };
+
+    const flipHorizontal = () => {
+      const { cols } = getCanvasParams();
+      for (const entity of MapEngineCyberia.entities) {
+        entity.initCellX = cols - entity.initCellX - entity.dimX;
+      }
+      MapEngineCyberia.renderEntityList(entityListId);
+      rerenderCanvas();
+    };
+
+    const flipVertical = () => {
+      const { rows } = getCanvasParams();
+      for (const entity of MapEngineCyberia.entities) {
+        entity.initCellY = rows - entity.initCellY - entity.dimY;
+      }
+      MapEngineCyberia.renderEntityList(entityListId);
+      rerenderCanvas();
+    };
+
     const getMapPayload = () => {
       const tagsRaw = s(`.${idTags}`)?.value || '';
       const tags = tagsRaw
@@ -677,6 +713,13 @@ class MapEngineCyberia {
       if (s(`.btn-map-engine-add-entity`)) s(`.btn-map-engine-add-entity`).onclick = () => addEntityLocally();
 
       if (s(`.btn-map-engine-fill-map`)) s(`.btn-map-engine-fill-map`).onclick = () => fillMapWithEntity();
+
+      if (s(`.btn-map-engine-generate-variation`))
+        s(`.btn-map-engine-generate-variation`).onclick = () => generateVariation();
+
+      if (s(`.btn-map-engine-flip-horizontal`)) s(`.btn-map-engine-flip-horizontal`).onclick = () => flipHorizontal();
+
+      if (s(`.btn-map-engine-flip-vertical`)) s(`.btn-map-engine-flip-vertical`).onclick = () => flipVertical();
 
       if (s(`.btn-map-engine-generate`))
         s(`.btn-map-engine-generate`).onclick = () => {
@@ -1187,6 +1230,24 @@ class MapEngineCyberia {
           ${await BtnIcon.Render({
             class: 'wfa btn-map-engine-fill-map',
             label: html`<i class="fa-solid fa-fill-drip"></i> Map Fill`,
+          })}
+        </div>
+        <div class="in" style="margin-top: 5px;">
+          ${await BtnIcon.Render({
+            class: 'wfa btn-map-engine-generate-variation',
+            label: html`<i class="fa-solid fa-shuffle"></i> Generate Variation`,
+          })}
+        </div>
+        <div class="in" style="margin-top: 5px;">
+          ${await BtnIcon.Render({
+            class: 'wfa btn-map-engine-flip-horizontal',
+            label: html`<i class="fa-solid fa-arrows-left-right"></i> Flip Horizontal`,
+          })}
+        </div>
+        <div class="in" style="margin-top: 5px;">
+          ${await BtnIcon.Render({
+            class: 'wfa btn-map-engine-flip-vertical',
+            label: html`<i class="fa-solid fa-arrows-up-down"></i> Flip Vertical`,
           })}
         </div>
         <div class="in" style="margin-top: 10px;">
