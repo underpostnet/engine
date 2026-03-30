@@ -1530,6 +1530,570 @@ try {
     )
     .description('Object layer management');
 
+  // ── instance: Cyberia instance backup / restore ─────────────────────────
+  program
+    .command('instance [instance-code]')
+    .option('--export [path]', 'Export instance and related documents to a backup directory')
+    .option('--import [path]', 'Import instance and related documents from a backup directory (preserveUUID, upsert)')
+    .option('--drop', 'Drop existing instance, maps and object layers before importing')
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option('--dev', 'Force development environment')
+    .description('Export/import a Cyberia instance with all related maps, entities and object layers')
+    .action(async (instanceCode, options = {}) => {
+      if (!instanceCode) {
+        logger.error('instance-code argument is required');
+        process.exit(1);
+      }
+
+      if (!options.envPath) options.envPath = `./.env`;
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
+        const deployDevEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
+        if (fs.existsSync(deployDevEnvPath)) {
+          dotenv.config({ path: deployDevEnvPath, override: true });
+        }
+      }
+
+      const deployId = process.env.DEFAULT_DEPLOY_ID;
+      const host = process.env.DEFAULT_DEPLOY_HOST;
+      const path = process.env.DEFAULT_DEPLOY_PATH;
+
+      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      if (!fs.existsSync(confServerPath)) {
+        logger.error(`Server config not found: ${confServerPath}`);
+        process.exit(1);
+      }
+      const confServer = loadConfServerJson(confServerPath, { resolve: true });
+      const { db } = confServer[host][path];
+
+      db.host = options.mongoHost
+        ? options.mongoHost
+        : options.dev
+          ? db.host
+          : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
+      logger.info('instance env', { env: options.envPath, deployId, host, path, db });
+
+      await DataBaseProvider.load({
+        apis: [
+          'cyberia-instance',
+          'cyberia-map',
+          'cyberia-entity',
+          'object-layer',
+          'object-layer-render-frames',
+          'atlas-sprite-sheet',
+          'file',
+          'ipfs',
+        ],
+        host,
+        path,
+        db,
+      });
+
+      const dbModels = DataBaseProvider.instance[`${host}${path}`].mongoose.models;
+      const CyberiaInstance = dbModels.CyberiaInstance;
+      const CyberiaMap = dbModels.CyberiaMap;
+      const ObjectLayer = dbModels.ObjectLayer;
+      const ObjectLayerRenderFrames = dbModels.ObjectLayerRenderFrames;
+      const AtlasSpriteSheet = dbModels.AtlasSpriteSheet;
+      const File = dbModels.File;
+      const Ipfs = dbModels.Ipfs;
+
+      // ── EXPORT ──────────────────────────────────────────────────────
+      if (options.export !== undefined) {
+        const instance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
+        if (!instance) {
+          logger.error(`CyberiaInstance with code "${instanceCode}" not found`);
+          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+          process.exit(1);
+        }
+
+        const backupDir =
+          typeof options.export === 'string' && options.export
+            ? options.export
+            : `./engine-private/cyberia-instances/${instanceCode}`;
+
+        fs.ensureDirSync(backupDir);
+        logger.info('Exporting instance', { code: instanceCode, backupDir });
+
+        fs.ensureDirSync(`${backupDir}/files`);
+
+        // Helper: export a File document to the files/ directory
+        const exportFileDoc = async (fileId, fileKey) => {
+          if (!fileId) return;
+          const file = await File.findById(fileId).lean();
+          if (!file) return;
+          const fileExport = { ...file };
+          if (Buffer.isBuffer(fileExport.data)) {
+            fileExport.data = { $base64: fileExport.data.toString('base64') };
+          }
+          fs.writeJsonSync(`${backupDir}/files/${fileKey}.json`, fileExport, { spaces: 2 });
+        };
+
+        // 1. Save instance document + thumbnail
+        fs.writeJsonSync(`${backupDir}/cyberia-instance.json`, instance, { spaces: 2 });
+        if (instance.thumbnail) {
+          await exportFileDoc(instance.thumbnail, `thumb-instance-${instanceCode}`);
+        }
+        logger.info('Exported CyberiaInstance', { code: instanceCode });
+
+        // 2. Collect all map codes (instance maps + portal targets)
+        const mapCodes = new Set(instance.cyberiaMapCodes || []);
+        for (const portal of instance.portals || []) {
+          if (portal.sourceMapCode) mapCodes.add(portal.sourceMapCode);
+          if (portal.targetMapCode) mapCodes.add(portal.targetMapCode);
+        }
+
+        // 3. Export maps + thumbnails
+        const maps = await CyberiaMap.find({ code: { $in: [...mapCodes] } }).lean();
+        fs.ensureDirSync(`${backupDir}/maps`);
+        for (const map of maps) {
+          fs.writeJsonSync(`${backupDir}/maps/${map.code}.json`, map, { spaces: 2 });
+          if (map.thumbnail) {
+            await exportFileDoc(map.thumbnail, `thumb-map-${map.code}`);
+          }
+        }
+        logger.info(`Exported ${maps.length} CyberiaMap document(s)`, { codes: maps.map((m) => m.code) });
+
+        // 4. Collect all objectLayerItemIds from map entities
+        const objectLayerItemIds = new Set();
+        for (const map of maps) {
+          for (const entity of map.entities || []) {
+            for (const itemId of entity.objectLayerItemIds || []) {
+              objectLayerItemIds.add(itemId);
+            }
+          }
+        }
+
+        // 5. Export object layers with related render frames, atlas, files, and IPFS records
+        if (objectLayerItemIds.size > 0) {
+          const objectLayers = await ObjectLayer.find({
+            'data.item.id': { $in: [...objectLayerItemIds] },
+          }).lean();
+
+          fs.ensureDirSync(`${backupDir}/object-layers`);
+          fs.ensureDirSync(`${backupDir}/render-frames`);
+          fs.ensureDirSync(`${backupDir}/atlas-sprite-sheets`);
+          fs.ensureDirSync(`${backupDir}/ipfs`);
+
+          const allCids = new Set();
+
+          for (const ol of objectLayers) {
+            const fileName = ol.data?.item?.id || ol._id.toString();
+            fs.writeJsonSync(`${backupDir}/object-layers/${fileName}.json`, ol, { spaces: 2 });
+
+            // Export ObjectLayerRenderFrames
+            if (ol.objectLayerRenderFramesId) {
+              const rf = await ObjectLayerRenderFrames.findById(ol.objectLayerRenderFramesId).lean();
+              if (rf) {
+                fs.writeJsonSync(`${backupDir}/render-frames/${fileName}.json`, rf, { spaces: 2 });
+              }
+            }
+
+            // Export AtlasSpriteSheet + its File
+            if (ol.atlasSpriteSheetId) {
+              const atlas = await AtlasSpriteSheet.findById(ol.atlasSpriteSheetId).lean();
+              if (atlas) {
+                fs.writeJsonSync(`${backupDir}/atlas-sprite-sheets/${fileName}.json`, atlas, { spaces: 2 });
+                if (atlas.fileId) {
+                  await exportFileDoc(atlas.fileId, `atlas-${fileName}`);
+                }
+                if (atlas.cid) allCids.add(atlas.cid);
+              }
+            }
+
+            // Collect CIDs for IPFS pin records
+            if (ol.cid) allCids.add(ol.cid);
+            if (ol.data?.render?.cid) allCids.add(ol.data.render.cid);
+            if (ol.data?.render?.metadataCid) allCids.add(ol.data.render.metadataCid);
+          }
+
+          // Export IPFS pin records for all collected CIDs
+          if (allCids.size > 0) {
+            const ipfsDocs = await Ipfs.find({ cid: { $in: [...allCids] } }).lean();
+            if (ipfsDocs.length > 0) {
+              fs.writeJsonSync(`${backupDir}/ipfs/pins.json`, ipfsDocs, { spaces: 2 });
+              logger.info(`Exported ${ipfsDocs.length} Ipfs pin record(s)`);
+            }
+          }
+
+          logger.info(`Exported ${objectLayers.length} ObjectLayer document(s)`, {
+            itemIds: [...objectLayerItemIds],
+          });
+        } else {
+          logger.info('No ObjectLayer references found in map entities');
+        }
+
+        logger.info('Instance export completed', { backupDir });
+      }
+
+      // ── IMPORT ──────────────────────────────────────────────────────
+      if (options.import !== undefined) {
+        const backupDir =
+          typeof options.import === 'string' && options.import
+            ? options.import
+            : `./engine-private/cyberia-instances/${instanceCode}`;
+
+        if (!fs.existsSync(backupDir)) {
+          logger.error(`Backup directory not found: ${backupDir}`);
+          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+          process.exit(1);
+        }
+
+        logger.info('Importing instance', { code: instanceCode, backupDir });
+
+        // 0. Drop existing documents if --drop is set
+        if (options.drop) {
+          const existingInstance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
+          if (existingInstance) {
+            const dropMapCodes = new Set(existingInstance.cyberiaMapCodes || []);
+            for (const portal of existingInstance.portals || []) {
+              if (portal.sourceMapCode) dropMapCodes.add(portal.sourceMapCode);
+              if (portal.targetMapCode) dropMapCodes.add(portal.targetMapCode);
+            }
+
+            // Collect thumbnail File IDs to drop
+            const thumbFileIds = [];
+            if (existingInstance.thumbnail) thumbFileIds.push(existingInstance.thumbnail);
+
+            if (dropMapCodes.size > 0) {
+              const dropMaps = await CyberiaMap.find({ code: { $in: [...dropMapCodes] } }).lean();
+              const dropOlItemIds = new Set();
+              for (const map of dropMaps) {
+                if (map.thumbnail) thumbFileIds.push(map.thumbnail);
+                for (const entity of map.entities || []) {
+                  for (const itemId of entity.objectLayerItemIds || []) {
+                    dropOlItemIds.add(itemId);
+                  }
+                }
+              }
+
+              if (dropOlItemIds.size > 0) {
+                // Gather ObjectLayers to collect related doc IDs and CIDs
+                const olDocs = await ObjectLayer.find(
+                  { 'data.item.id': { $in: [...dropOlItemIds] } },
+                  {
+                    cid: 1,
+                    'data.item.id': 1,
+                    'data.render': 1,
+                    objectLayerRenderFramesId: 1,
+                    atlasSpriteSheetId: 1,
+                  },
+                ).lean();
+
+                const cidsToUnpin = new Set();
+                const renderFrameIds = [];
+                const atlasIds = [];
+                const itemKeysToClean = new Set();
+
+                for (const doc of olDocs) {
+                  if (doc.cid) cidsToUnpin.add(doc.cid);
+                  if (doc.data?.render?.cid) cidsToUnpin.add(doc.data.render.cid);
+                  if (doc.data?.render?.metadataCid) cidsToUnpin.add(doc.data.render.metadataCid);
+                  if (doc.data?.item?.id) itemKeysToClean.add(doc.data.item.id);
+                  if (doc.objectLayerRenderFramesId) renderFrameIds.push(doc.objectLayerRenderFramesId);
+                  if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
+                }
+
+                // Delete AtlasSpriteSheet + referenced File docs
+                if (atlasIds.length > 0) {
+                  const atlasDocs = await AtlasSpriteSheet.find(
+                    { _id: { $in: atlasIds } },
+                    { fileId: 1, cid: 1 },
+                  ).lean();
+                  const atlasFileIds = atlasDocs.map((a) => a.fileId).filter(Boolean);
+                  for (const atlas of atlasDocs) {
+                    if (atlas.cid) cidsToUnpin.add(atlas.cid);
+                  }
+                  if (atlasFileIds.length > 0) {
+                    const fileResult = await File.deleteMany({ _id: { $in: atlasFileIds } });
+                    logger.info(`Dropped ${fileResult.deletedCount} File document(s) (atlas)`);
+                  }
+                  const atlasResult = await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
+                  logger.info(`Dropped ${atlasResult.deletedCount} AtlasSpriteSheet document(s)`);
+                }
+
+                // Delete RenderFrames
+                if (renderFrameIds.length > 0) {
+                  const rfResult = await ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFrameIds } });
+                  logger.info(`Dropped ${rfResult.deletedCount} ObjectLayerRenderFrames document(s)`);
+                }
+
+                // Delete IPFS pin records
+                if (cidsToUnpin.size > 0) {
+                  const ipfsResult = await Ipfs.deleteMany({ cid: { $in: [...cidsToUnpin] } });
+                  logger.info(`Dropped ${ipfsResult.deletedCount} Ipfs pin record(s)`);
+                }
+
+                // Unpin CIDs from IPFS Kubo + Cluster and remove MFS paths
+                let unpinCount = 0;
+                for (const cid of cidsToUnpin) {
+                  const ok = await IpfsClient.unpinCid(cid);
+                  if (ok) unpinCount++;
+                }
+                let mfsCount = 0;
+                for (const itemKey of itemKeysToClean) {
+                  const ok = await IpfsClient.removeMfsPath(`/object-layer/${itemKey}`);
+                  if (ok) mfsCount++;
+                }
+                logger.info(
+                  `IPFS cleanup: ${unpinCount}/${cidsToUnpin.size} CIDs unpinned, ${mfsCount}/${itemKeysToClean.size} MFS paths removed`,
+                );
+
+                const olResult = await ObjectLayer.deleteMany({ 'data.item.id': { $in: [...dropOlItemIds] } });
+                logger.info(`Dropped ${olResult.deletedCount} ObjectLayer document(s)`);
+              }
+
+              const mapResult = await CyberiaMap.deleteMany({ code: { $in: [...dropMapCodes] } });
+              logger.info(`Dropped ${mapResult.deletedCount} CyberiaMap document(s)`);
+            }
+
+            // Drop thumbnail File documents (instance + maps)
+            if (thumbFileIds.length > 0) {
+              const thumbResult = await File.deleteMany({ _id: { $in: thumbFileIds } });
+              logger.info(`Dropped ${thumbResult.deletedCount} File document(s) (thumbnails)`);
+            }
+
+            await CyberiaInstance.deleteOne({ code: instanceCode });
+            logger.info('Dropped CyberiaInstance', { code: instanceCode });
+          } else {
+            logger.info('No existing instance to drop', { code: instanceCode });
+          }
+        }
+
+        // 1. Import File documents first (atlas PNG + thumbnail dependencies)
+        const filesDir = `${backupDir}/files`;
+        if (fs.existsSync(filesDir)) {
+          const fileFiles = fs.readdirSync(filesDir).filter((f) => f.endsWith('.json'));
+          let fileCount = 0;
+          for (const f of fileFiles) {
+            const fileData = fs.readJsonSync(`${filesDir}/${f}`);
+            // Restore base64-encoded Buffer
+            if (fileData.data && fileData.data.$base64) {
+              fileData.data = Buffer.from(fileData.data.$base64, 'base64');
+            }
+            const filter = fileData._id ? { _id: fileData._id } : { name: fileData.name, md5: fileData.md5 };
+            await File.replaceOne(filter, fileData, { upsert: true });
+            fileCount++;
+          }
+          logger.info(`Imported ${fileCount} File document(s)`);
+        }
+
+        // 2. Import ObjectLayerRenderFrames
+        const rfDir = `${backupDir}/render-frames`;
+        if (fs.existsSync(rfDir)) {
+          const rfFiles = fs.readdirSync(rfDir).filter((f) => f.endsWith('.json'));
+          let rfCount = 0;
+          for (const f of rfFiles) {
+            const rfData = fs.readJsonSync(`${rfDir}/${f}`);
+            const filter = rfData._id ? { _id: rfData._id } : {};
+            if (filter._id) {
+              await ObjectLayerRenderFrames.replaceOne(filter, rfData, { upsert: true });
+              rfCount++;
+            }
+          }
+          logger.info(`Imported ${rfCount} ObjectLayerRenderFrames document(s)`);
+        }
+
+        // 3. Import AtlasSpriteSheet
+        const atlasDir = `${backupDir}/atlas-sprite-sheets`;
+        if (fs.existsSync(atlasDir)) {
+          const atlasFiles = fs.readdirSync(atlasDir).filter((f) => f.endsWith('.json'));
+          let atlasCount = 0;
+          for (const f of atlasFiles) {
+            const atlasData = fs.readJsonSync(`${atlasDir}/${f}`);
+            const filter = atlasData._id ? { _id: atlasData._id } : { 'metadata.itemKey': atlasData.metadata?.itemKey };
+            await AtlasSpriteSheet.replaceOne(filter, atlasData, { upsert: true });
+            atlasCount++;
+          }
+          logger.info(`Imported ${atlasCount} AtlasSpriteSheet document(s)`);
+        }
+
+        // 4. Import object layers
+        const olDir = `${backupDir}/object-layers`;
+        if (fs.existsSync(olDir)) {
+          const olFiles = fs.readdirSync(olDir).filter((f) => f.endsWith('.json'));
+          let olCount = 0;
+          for (const file of olFiles) {
+            const olData = fs.readJsonSync(`${olDir}/${file}`);
+            const filter = olData._id ? { _id: olData._id } : { 'data.item.id': olData.data?.item?.id };
+            await ObjectLayer.replaceOne(filter, olData, { upsert: true });
+            olCount++;
+          }
+          logger.info(`Imported ${olCount} ObjectLayer document(s)`);
+        }
+
+        // 5. Import IPFS pin records and re-pin CIDs
+        const ipfsFile = `${backupDir}/ipfs/pins.json`;
+        if (fs.existsSync(ipfsFile)) {
+          const ipfsDocs = fs.readJsonSync(ipfsFile);
+          let ipfsCount = 0;
+          const pinnedCids = new Set();
+          for (const doc of ipfsDocs) {
+            const filter = doc._id ? { _id: doc._id } : { cid: doc.cid, userId: doc.userId };
+            await Ipfs.replaceOne(filter, doc, { upsert: true });
+            ipfsCount++;
+            if (doc.cid) pinnedCids.add(doc.cid);
+          }
+          logger.info(`Imported ${ipfsCount} Ipfs pin record(s)`);
+
+          // Re-pin CIDs to IPFS Kubo + Cluster
+          let repinCount = 0;
+          for (const cid of pinnedCids) {
+            const ok = await IpfsClient.pinCid(cid);
+            if (ok) repinCount++;
+          }
+          logger.info(`IPFS re-pin: ${repinCount}/${pinnedCids.size} CIDs pinned`);
+        }
+
+        // 6. Import maps
+        const mapsDir = `${backupDir}/maps`;
+        if (fs.existsSync(mapsDir)) {
+          const mapFiles = fs.readdirSync(mapsDir).filter((f) => f.endsWith('.json'));
+          let mapCount = 0;
+          for (const file of mapFiles) {
+            const mapData = fs.readJsonSync(`${mapsDir}/${file}`);
+            const filter = mapData._id ? { _id: mapData._id } : { code: mapData.code };
+            await CyberiaMap.replaceOne(filter, mapData, { upsert: true });
+            mapCount++;
+          }
+          logger.info(`Imported ${mapCount} CyberiaMap document(s)`);
+        }
+
+        // 7. Import instance
+        const instancePath = `${backupDir}/cyberia-instance.json`;
+        if (fs.existsSync(instancePath)) {
+          const instanceData = fs.readJsonSync(instancePath);
+          const filter = instanceData._id ? { _id: instanceData._id } : { code: instanceCode };
+          await CyberiaInstance.replaceOne(filter, instanceData, { upsert: true });
+          logger.info('Imported CyberiaInstance', { code: instanceCode });
+        } else {
+          logger.warn(`Instance file not found: ${instancePath}`);
+        }
+
+        logger.info('Instance import completed', { backupDir });
+      }
+
+      // ── DROP (standalone) ───────────────────────────────────────────
+      if (options.drop && options.import === undefined) {
+        const existingInstance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
+        if (existingInstance) {
+          const dropMapCodes = new Set(existingInstance.cyberiaMapCodes || []);
+          for (const portal of existingInstance.portals || []) {
+            if (portal.sourceMapCode) dropMapCodes.add(portal.sourceMapCode);
+            if (portal.targetMapCode) dropMapCodes.add(portal.targetMapCode);
+          }
+
+          // Collect thumbnail File IDs to drop
+          const thumbFileIds = [];
+          if (existingInstance.thumbnail) thumbFileIds.push(existingInstance.thumbnail);
+
+          if (dropMapCodes.size > 0) {
+            const dropMaps = await CyberiaMap.find({ code: { $in: [...dropMapCodes] } }).lean();
+            const dropOlItemIds = new Set();
+            for (const map of dropMaps) {
+              if (map.thumbnail) thumbFileIds.push(map.thumbnail);
+              for (const entity of map.entities || []) {
+                for (const itemId of entity.objectLayerItemIds || []) {
+                  dropOlItemIds.add(itemId);
+                }
+              }
+            }
+
+            if (dropOlItemIds.size > 0) {
+              const olDocs = await ObjectLayer.find(
+                { 'data.item.id': { $in: [...dropOlItemIds] } },
+                {
+                  cid: 1,
+                  'data.item.id': 1,
+                  'data.render': 1,
+                  objectLayerRenderFramesId: 1,
+                  atlasSpriteSheetId: 1,
+                },
+              ).lean();
+
+              const cidsToUnpin = new Set();
+              const renderFrameIds = [];
+              const atlasIds = [];
+              const itemKeysToClean = new Set();
+
+              for (const doc of olDocs) {
+                if (doc.cid) cidsToUnpin.add(doc.cid);
+                if (doc.data?.render?.cid) cidsToUnpin.add(doc.data.render.cid);
+                if (doc.data?.render?.metadataCid) cidsToUnpin.add(doc.data.render.metadataCid);
+                if (doc.data?.item?.id) itemKeysToClean.add(doc.data.item.id);
+                if (doc.objectLayerRenderFramesId) renderFrameIds.push(doc.objectLayerRenderFramesId);
+                if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
+              }
+
+              if (atlasIds.length > 0) {
+                const atlasDocs = await AtlasSpriteSheet.find({ _id: { $in: atlasIds } }, { fileId: 1, cid: 1 }).lean();
+                const atlasFileIds = atlasDocs.map((a) => a.fileId).filter(Boolean);
+                for (const atlas of atlasDocs) {
+                  if (atlas.cid) cidsToUnpin.add(atlas.cid);
+                }
+                if (atlasFileIds.length > 0) {
+                  const fileResult = await File.deleteMany({ _id: { $in: atlasFileIds } });
+                  logger.info(`Dropped ${fileResult.deletedCount} File document(s) (atlas)`);
+                }
+                const atlasResult = await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
+                logger.info(`Dropped ${atlasResult.deletedCount} AtlasSpriteSheet document(s)`);
+              }
+
+              if (renderFrameIds.length > 0) {
+                const rfResult = await ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFrameIds } });
+                logger.info(`Dropped ${rfResult.deletedCount} ObjectLayerRenderFrames document(s)`);
+              }
+
+              if (cidsToUnpin.size > 0) {
+                const ipfsResult = await Ipfs.deleteMany({ cid: { $in: [...cidsToUnpin] } });
+                logger.info(`Dropped ${ipfsResult.deletedCount} Ipfs pin record(s)`);
+              }
+
+              let unpinCount = 0;
+              for (const cid of cidsToUnpin) {
+                const ok = await IpfsClient.unpinCid(cid);
+                if (ok) unpinCount++;
+              }
+              let mfsCount = 0;
+              for (const itemKey of itemKeysToClean) {
+                const ok = await IpfsClient.removeMfsPath(`/object-layer/${itemKey}`);
+                if (ok) mfsCount++;
+              }
+              logger.info(
+                `IPFS cleanup: ${unpinCount}/${cidsToUnpin.size} CIDs unpinned, ${mfsCount}/${itemKeysToClean.size} MFS paths removed`,
+              );
+
+              const olResult = await ObjectLayer.deleteMany({ 'data.item.id': { $in: [...dropOlItemIds] } });
+              logger.info(`Dropped ${olResult.deletedCount} ObjectLayer document(s)`);
+            }
+
+            const mapResult = await CyberiaMap.deleteMany({ code: { $in: [...dropMapCodes] } });
+            logger.info(`Dropped ${mapResult.deletedCount} CyberiaMap document(s)`);
+          }
+
+          // Drop thumbnail File documents (instance + maps)
+          if (thumbFileIds.length > 0) {
+            const thumbResult = await File.deleteMany({ _id: { $in: thumbFileIds } });
+            logger.info(`Dropped ${thumbResult.deletedCount} File document(s) (thumbnails)`);
+          }
+
+          await CyberiaInstance.deleteOne({ code: instanceCode });
+          logger.info('Dropped CyberiaInstance', { code: instanceCode });
+        } else {
+          logger.info('No existing instance to drop', { code: instanceCode });
+        }
+      }
+
+      if (options.export === undefined && options.import === undefined && !options.drop) {
+        logger.error('Specify --export, --import, or --drop flag');
+      }
+
+      await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+    });
+
   // ── chain: Hyperledger Besu / ERC-1155 lifecycle commands ────────────────
   const chain = program.command('chain').description('Hyperledger Besu chain & ERC-1155 ObjectLayerToken lifecycle');
 
