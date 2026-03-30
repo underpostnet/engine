@@ -766,4 +766,16 @@ program
   )
   .action(Underpost.baremetal.callback);
 
+program
+  .command('release')
+  .argument('[version]', 'The new version string to set (e.g., "3.1.4"). Defaults to current version.')
+  .option('--build', 'Builds a new version: tests template, bumps versions, rebuilds manifests and configs.')
+  .option('--deploy', 'Deploys the release: syncs secrets, commits, and pushes to remote repositories.')
+  .description('Release orchestrator for building new versions and deploying releases of the Underpost CLI.')
+  .action(async (version, options) => {
+    if (options.build) return Underpost.release.build(version, options);
+    if (options.deploy) return Underpost.release.deploy(version, options);
+    console.log('Please specify --build or --deploy. Use "underpost release --help" for details.');
+  });
+
 export { program };

@@ -51,9 +51,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install -g underpost
           npm install
-          underpost config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
+          node bin config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
 
       - name: Set git global credentials
         run: |
@@ -63,7 +62,7 @@ jobs:
 
       - name: Build repository
         run: |
-          cd .. && underpost clone underpostnet/pwa-microservices-template
+          cd .. && node engine/bin clone underpostnet/pwa-microservices-template
           if [ -n "${{ github.event.inputs.message }}" ]; then
             LAST_COMMIT_MESSAGE="${{ github.event.inputs.message }}"
           else
@@ -77,7 +76,7 @@ jobs:
           fi
           echo "[INFO] Captured commit message: $LAST_COMMIT_MESSAGE"
           echo "[INFO] Should CD: $SHOULD_CD, Deploy type: $DEPLOY_TYPE"
-          underpost clone --bare underpostnet/engine-cyberia
+          node engine/bin clone --bare underpostnet/engine-cyberia
           cd engine
           node bin/build dd-cyberia development
           cd ../pwa-microservices-template
@@ -88,7 +87,7 @@ jobs:
           git config user.email 'development@underpost.net'
           git add .
           git commit -m "$LAST_COMMIT_MESSAGE"
-          underpost push . underpostnet/engine-cyberia
+          node ../engine/bin push . underpostnet/engine-cyberia
           if [ "$SHOULD_CD" = "true" ]; then
             if [ -z "$DEPLOY_TYPE" ]; then
               DEPLOY_TYPE="sync-and-deploy"

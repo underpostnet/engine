@@ -3,7 +3,7 @@ import axios from 'axios';
 
 import dotenv from 'dotenv';
 
-import { pbcopy, shellCd, shellExec } from '../src/server/process.js';
+import { pbcopy, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import {
   addApiConf,
@@ -215,115 +215,6 @@ try {
       };
       fs.writeFileSync(`./package.json`, JSON.stringify(originPackage, null, 4), 'utf8');
 
-      break;
-    }
-
-    case 'version-build': {
-      dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
-      shellCd(`/home/dd/engine`);
-      Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
-      shellExec(`node bin pull . ${process.env.GITHUB_USERNAME}/engine`);
-      shellExec(`node bin run kill 4001`);
-      shellExec(`node bin run kill 4002`);
-      shellExec(`node bin run kill 4003`);
-      shellExec(`npm run update:template`);
-      shellExec(`cd ../pwa-microservices-template && npm install && npm run build`);
-      console.log(fs.existsSync(`../pwa-microservices-template/engine-private/conf/dd-default`));
-      shellExec(`cd ../pwa-microservices-template && ENABLE_FILE_LOGS=true timeout 5s npm run dev`, {
-        async: true,
-      });
-      await timer(5500);
-      const templateRunnerResult = fs.readFileSync(`../pwa-microservices-template/logs/start.js/all.log`, 'utf8');
-      logger.info('Test template runner result');
-      console.log(templateRunnerResult);
-      if (!templateRunnerResult || templateRunnerResult.toLowerCase().match('error')) {
-        logger.error('Test template runner result failed');
-        break;
-      }
-      shellCd(`/home/dd/engine`);
-      Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
-      const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
-      const newVersion = process.argv[3] ?? originPackageJson.version;
-      const { version } = originPackageJson;
-      originPackageJson.version = newVersion;
-      fs.writeFileSync(`package.json`, JSON.stringify(originPackageJson, null, 4), 'utf8');
-
-      const originPackageLockJson = JSON.parse(fs.readFileSync(`package-lock.json`, 'utf8'));
-      originPackageLockJson.version = newVersion;
-      originPackageLockJson.packages[''].version = newVersion;
-      fs.writeFileSync(`package-lock.json`, JSON.stringify(originPackageLockJson, null, 4), 'utf8');
-
-      if (fs.existsSync(`./engine-private/conf`)) {
-        const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
-        for (const relativePath of files) {
-          const filePah = `./engine-private/conf/${relativePath.replaceAll(`\\`, '/')}`;
-          if (filePah.split('/').pop() === 'package.json') {
-            const originPackage = JSON.parse(fs.readFileSync(filePah, 'utf8'));
-            originPackage.version = newVersion;
-            fs.writeFileSync(filePah, JSON.stringify(originPackage, null, 4), 'utf8');
-          }
-          if (filePah.split('/').pop() === 'deployment.yaml') {
-            fs.writeFileSync(
-              filePah,
-              fs
-                .readFileSync(filePah, 'utf8')
-                .replaceAll(`v${version}`, `v${newVersion}`)
-                .replaceAll(`engine.version: ${version}`, `engine.version: ${newVersion}`),
-              'utf8',
-            );
-          }
-        }
-      }
-
-      fs.writeFileSync(
-        `./manifests/deployment/dd-default-development/deployment.yaml`,
-        fs
-          .readFileSync(`./manifests/deployment/dd-default-development/deployment.yaml`, 'utf8')
-          .replaceAll(`underpost:v${version}`, `underpost:v${newVersion}`),
-        'utf8',
-      );
-
-      if (fs.existsSync(`./.github/workflows/docker-image.ci.yml`))
-        fs.writeFileSync(
-          `./.github/workflows/docker-image.ci.yml`,
-          fs
-            .readFileSync(`./.github/workflows/docker-image.ci.yml`, 'utf8')
-            .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
-          'utf8',
-        );
-
-      fs.writeFileSync(
-        `./src/index.js`,
-        fs.readFileSync(`./src/index.js`, 'utf8').replaceAll(`${version}`, `${newVersion}`),
-        'utf8',
-      );
-      shellExec(`node bin/deploy cli-docs ${version} ${newVersion}`);
-      shellExec(`node bin/deploy update-dependencies`);
-      shellExec(`node bin/build dd`);
-      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd production`);
-      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd development`);
-      shellExec(`node bin/deploy build-default-confs`);
-      shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
-      shellExec(`node bin new --deploy-id dd-default`);
-      console.log(fs.existsSync(`./engine-private/conf/dd-default`));
-      shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
-      shellExec(`node bin cron --dev --setup-start`);
-      shellExec(`node bin cmt --changelog-build`);
-      process.exit(0);
-      break;
-    }
-
-    case 'version-deploy': {
-      dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
-      shellExec(
-        `underpost secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
-      );
-      shellExec(`node bin/build dd conf`);
-      shellExec(`git add . && cd ./engine-private && git add .`);
-      shellExec(`node bin cmt . ci package-pwa-microservices-template 'New release v:${process.argv[3]}'`);
-      shellExec(`node bin cmt ./engine-private ci package-pwa-microservices-template`);
-      shellExec(`node bin push . ${process.env.GITHUB_USERNAME}/engine`);
-      shellExec(`cd ./engine-private && node ../bin push . ${process.env.GITHUB_USERNAME}/engine-private`);
       break;
     }
 

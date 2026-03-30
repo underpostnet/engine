@@ -47,7 +47,7 @@ jobs:
             set -e
             echo "Starting remote deploy"
             cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "underpost run pull"
+            sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run deploy dd-lampp"
   sync-and-deploy:
@@ -80,7 +80,7 @@ jobs:
             set -e
             echo "Starting remote sync and deploy"
             cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "underpost run pull"
+            sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none dd-lampp,1,,localhost/rockylinux9-underpost:v2.98.3"
   init:
@@ -113,7 +113,7 @@ jobs:
             set -e
             echo "Starting init deploy"
             cd /home/dd/engine
-            sudo -n -- /bin/bash -lc "underpost run pull"
+            sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin deploy dd-lampp production --kubeadm --sync --build-manifest --image 'localhost/rockylinux9-underpost:v2.98.3' --versions green --replicas 1"
             sudo -n -- /bin/bash -lc "node bin deploy dd-lampp production --cert --kubeadm --disable-update-proxy"

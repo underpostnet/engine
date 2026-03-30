@@ -22,6 +22,7 @@ import UnderpostSecret from './cli/secrets.js';
 import UnderpostSSH from './cli/ssh.js';
 import UnderpostStatic from './cli/static.js';
 import UnderpostTest from './cli/test.js';
+import UnderpostRelease from './cli/release.js';
 import UnderpostSystemProvisionig from './cli/system.js';
 
 import UnderpostDns from './server/dns.js';
@@ -280,6 +281,16 @@ class Underpost {
   static get tls() {
     return UnderpostTLS.API;
   }
+
+  /**
+   * Release orchestrator cli API
+   * @static
+   * @type {UnderpostRelease.API}
+   * @memberof Underpost
+   */
+  static get release() {
+    return UnderpostRelease.API;
+  }
 }
 
 if (!process.version || !process.version.startsWith(`${Underpost.majorNodejsVersion}.`))
@@ -317,6 +328,7 @@ export {
   UnderpostBackup,
   UnderpostCron,
   UnderpostStartUp,
+  UnderpostRelease,
   UnderpostTLS,
 };
 

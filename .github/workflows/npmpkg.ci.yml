@@ -70,10 +70,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install -g underpost
           npm uninstall -g coveralls
-          underpost config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
           npm install
+          node bin config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
 
       - name: Set git global credentials
         run: |
@@ -84,7 +83,7 @@ jobs:
 
       - name: Clone github package repository
         run: |
-          cd .. && underpost clone underpostnet/pwa-microservices-template
+          cd .. && node engine/bin clone underpostnet/pwa-microservices-template
           cd engine
           npm run update:template
           cd ../pwa-microservices-template
@@ -92,8 +91,8 @@ jobs:
           git add .
           git config user.name 'underpostnet'
           git config user.email 'fcoverdugoa@underpost.net'
-          underpost cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
-          underpost push . underpostnet/pwa-microservices-template
+          node ../engine/bin cmt . ci package-pwa-microservices-template-ghpkg "$LAST_COMMIT_MESSAGE"
+          node ../engine/bin push . underpostnet/pwa-microservices-template
 
       - name: Dispatch all engine CIs
         run: |

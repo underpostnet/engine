@@ -1,0 +1,174 @@
+/**
+ * Release orchestrator module for managing version builds and deployments of the Underpost CLI.
+ *
+ * Provides automated workflows for building new versions (bumping version numbers across
+ * all package files, manifests, and configurations) and deploying releases (committing,
+ * pushing, and syncing secrets to remote repositories).
+ *
+ * @module src/cli/release.js
+ * @namespace UnderpostRelease
+ */
+
+import fs from 'fs-extra';
+import dotenv from 'dotenv';
+import { shellCd, shellExec } from '../server/process.js';
+import { loggerFactory } from '../server/logger.js';
+import { timer } from '../client/components/core/CommonJs.js';
+import Underpost from '../index.js';
+
+const logger = loggerFactory(import.meta);
+
+/**
+ * @class UnderpostRelease
+ * @description Orchestrates version builds and release deployments for the Underpost CLI.
+ * This class provides static methods to automate the full release lifecycle:
+ * building a new version (testing, bumping versions, rebuilding manifests)
+ * and deploying a release (syncing secrets, committing, and pushing to remotes).
+ * @memberof UnderpostRelease
+ */
+class UnderpostRelease {
+  static API = {
+    /**
+     * Builds a new version of the Underpost engine.
+     *
+     * Performs the full version build pipeline:
+     * 1. Loads production environment and pulls latest code.
+     * 2. Kills running dev servers on ports 4001-4003.
+     * 3. Builds and tests the pwa-microservices-template.
+     * 4. Bumps version in package.json, package-lock.json, and all conf package files.
+     * 5. Updates deployment YAML manifests and Docker image CI workflow with new version.
+     * 6. Updates src/index.js version string.
+     * 7. Rebuilds CLI docs, dependencies, client builds, deploy manifests, and default confs.
+     * 8. Syncs cron setup-start scripts and builds changelog.
+     *
+     * @method build
+     * @param {string} [newVersion] - The new version string to set. Defaults to current version if not provided.
+     * @param {object} [options] - Commander options object (unused, reserved for future flags).
+     * @memberof UnderpostRelease
+     */
+    async build(newVersion, options) {
+      dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
+      shellCd(`/home/dd/engine`);
+      Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
+      shellExec(`node bin pull . ${process.env.GITHUB_USERNAME}/engine`);
+      shellExec(`node bin run kill 4001`);
+      shellExec(`node bin run kill 4002`);
+      shellExec(`node bin run kill 4003`);
+      shellExec(`npm run update:template`);
+      shellExec(`cd ../pwa-microservices-template && npm install && npm run build`);
+      console.log(fs.existsSync(`../pwa-microservices-template/engine-private/conf/dd-default`));
+      shellExec(`cd ../pwa-microservices-template && ENABLE_FILE_LOGS=true timeout 5s npm run dev`, {
+        async: true,
+      });
+      await timer(5500);
+      const templateRunnerResult = fs.readFileSync(`../pwa-microservices-template/logs/start.js/all.log`, 'utf8');
+      logger.info('Test template runner result');
+      console.log(templateRunnerResult);
+      if (!templateRunnerResult || templateRunnerResult.toLowerCase().match('error')) {
+        logger.error('Test template runner result failed');
+        return;
+      }
+      shellCd(`/home/dd/engine`);
+      Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
+      const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
+      if (!newVersion) newVersion = originPackageJson.version;
+      const { version } = originPackageJson;
+      originPackageJson.version = newVersion;
+      fs.writeFileSync(`package.json`, JSON.stringify(originPackageJson, null, 4), 'utf8');
+
+      const originPackageLockJson = JSON.parse(fs.readFileSync(`package-lock.json`, 'utf8'));
+      originPackageLockJson.version = newVersion;
+      originPackageLockJson.packages[''].version = newVersion;
+      fs.writeFileSync(`package-lock.json`, JSON.stringify(originPackageLockJson, null, 4), 'utf8');
+
+      if (fs.existsSync(`./engine-private/conf`)) {
+        const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
+        for (const relativePath of files) {
+          const filePah = `./engine-private/conf/${relativePath.replaceAll(`\\`, '/')}`;
+          if (filePah.split('/').pop() === 'package.json') {
+            const originPackage = JSON.parse(fs.readFileSync(filePah, 'utf8'));
+            originPackage.version = newVersion;
+            fs.writeFileSync(filePah, JSON.stringify(originPackage, null, 4), 'utf8');
+          }
+          if (filePah.split('/').pop() === 'deployment.yaml') {
+            fs.writeFileSync(
+              filePah,
+              fs
+                .readFileSync(filePah, 'utf8')
+                .replaceAll(`v${version}`, `v${newVersion}`)
+                .replaceAll(`engine.version: ${version}`, `engine.version: ${newVersion}`),
+              'utf8',
+            );
+          }
+        }
+      }
+
+      fs.writeFileSync(
+        `./manifests/deployment/dd-default-development/deployment.yaml`,
+        fs
+          .readFileSync(`./manifests/deployment/dd-default-development/deployment.yaml`, 'utf8')
+          .replaceAll(`underpost:v${version}`, `underpost:v${newVersion}`),
+        'utf8',
+      );
+
+      if (fs.existsSync(`./.github/workflows/docker-image.ci.yml`))
+        fs.writeFileSync(
+          `./.github/workflows/docker-image.ci.yml`,
+          fs
+            .readFileSync(`./.github/workflows/docker-image.ci.yml`, 'utf8')
+            .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
+          'utf8',
+        );
+
+      fs.writeFileSync(
+        `./src/index.js`,
+        fs.readFileSync(`./src/index.js`, 'utf8').replaceAll(`${version}`, `${newVersion}`),
+        'utf8',
+      );
+      shellExec(`node bin/deploy cli-docs ${version} ${newVersion}`);
+      shellExec(`node bin/deploy update-dependencies`);
+      shellExec(`node bin/build dd`);
+      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd production`);
+      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd development`);
+      shellExec(`node bin/deploy build-default-confs`);
+      shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
+      shellExec(`node bin new --deploy-id dd-default`);
+      console.log(fs.existsSync(`./engine-private/conf/dd-default`));
+      shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
+      shellExec(`node bin cron --dev --setup-start`);
+      shellExec(`node bin cmt --changelog-build`);
+    },
+
+    /**
+     * Deploys a new version release to remote repositories.
+     *
+     * Performs the release deployment pipeline:
+     * 1. Loads production environment from dd-cron.
+     * 2. Syncs Underpost secrets from the production env file.
+     * 3. Builds the dd configuration.
+     * 4. Stages all changes in both engine and engine-private repositories.
+     * 5. Commits with a release message including the version tag.
+     * 6. Pushes both repositories to their respective GitHub remotes.
+     *
+     * @method deploy
+     * @param {string} [version] - The version string for the release commit message (e.g., "3.1.4").
+     * @param {object} [options] - Commander options object (unused, reserved for future flags).
+     * @memberof UnderpostRelease
+     */
+    async deploy(version, options) {
+      dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
+      shellExec(
+        `node bin secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
+      );
+      shellExec(`node bin/build dd conf`);
+      shellExec(`git add . && cd ./engine-private && git add .`);
+      shellExec(`node bin cmt . ci package-pwa-microservices-template 'New release v:${version}'`);
+      shellExec(`node bin cmt ./engine-private ci package-pwa-microservices-template`);
+      shellExec(`node bin push . ${process.env.GITHUB_USERNAME}/engine`);
+      shellExec(`cd ./engine-private && node ../bin push . ${process.env.GITHUB_USERNAME}/engine-private`);
+    },
+  };
+}
+
+export { UnderpostRelease };
+export default UnderpostRelease;

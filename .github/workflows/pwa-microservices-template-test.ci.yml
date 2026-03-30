@@ -26,8 +26,8 @@ jobs:
       - name: Get npm root
         run: npm root -g
 
-      - name: Install underpost CLI
-        run: npm install -g underpost
+      - name: Install dependencies
+        run: npm install
 
       - name: Run test
-        run: underpost test
+        run: node bin test

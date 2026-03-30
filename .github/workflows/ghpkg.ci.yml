@@ -43,10 +43,9 @@ jobs:
 
       - name: Install dependencies and set repo configuration
         run: |
-          npm install -g underpost
           npm uninstall -g coveralls
-          underpost config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
           npm install
+          node bin config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
           node ./bin/deploy rename-package @underpostnet/underpost
           node ./bin/deploy set-repo underpostnet/pwa-microservices-template-ghpkg
 
@@ -59,7 +58,7 @@ jobs:
 
       - name: Clone and Push to github package repository
         run: |
-          underpost clone --bare underpostnet/pwa-microservices-template-ghpkg
+          node bin clone --bare underpostnet/pwa-microservices-template-ghpkg
           rm -rf ./.git
           mv ./pwa-microservices-template-ghpkg.git ./.git
           pwd
@@ -70,4 +69,4 @@ jobs:
           git add .
           git status
           git commit -m "$LAST_COMMIT_MESSAGE"
-          underpost push . underpostnet/pwa-microservices-template-ghpkg
+          node bin push . underpostnet/pwa-microservices-template-ghpkg
