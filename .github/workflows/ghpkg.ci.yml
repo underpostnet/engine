@@ -43,7 +43,6 @@ jobs:
 
       - name: Install dependencies and set repo configuration
         run: |
-          npm uninstall -g coveralls
           npm install
           node bin config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
           node ./bin/deploy rename-package @underpostnet/underpost

@@ -70,7 +70,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm uninstall -g coveralls
           npm install
           node bin config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
 
