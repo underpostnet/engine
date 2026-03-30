@@ -478,6 +478,10 @@ spec:
      * @param {string} [options.kindType] - Type of Kubernetes resource to retrieve information for.
      * @param {number} [options.port] - Port number for exposing the deployment.
      * @param {string} [options.cmd] - Custom initialization command for deploymentYamlPartsFactory (comma-separated commands).
+     * @param {boolean} [options.k3s] - Whether to use k3s cluster context.
+     * @param {boolean} [options.kubeadm] - Whether to use kubeadm cluster context.
+     * @param {boolean} [options.kind] - Whether to use kind cluster context.
+     * @param {boolean} [options.gitClean] - Whether to run git clean on volume mount paths before copying.
      * @returns {Promise<void>} - Promise that resolves when the deployment process is complete.
      * @memberof UnderpostDeploy
      */
@@ -515,6 +519,10 @@ spec:
         port: 0,
         exposePort: 0,
         cmd: '',
+        k3s: false,
+        kubeadm: false,
+        kind: false,
+        gitClean: false,
       },
     ) {
       const namespace = options.namespace ? options.namespace : 'default';
@@ -634,6 +642,8 @@ EOF`);
                   version,
                   namespace,
                   nodeName: options.node ? options.node : env === 'development' ? 'kind-worker' : os.hostname(),
+                  clusterContext: options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind',
+                  gitClean: options.gitClean || false,
                 });
           }
 
@@ -829,6 +839,8 @@ EOF`);
      * @param {string} options.version - Version of the deployment.
      * @param {string} options.namespace - Kubernetes namespace for the deployment.
      * @param {string} options.nodeName - Node name for the deployment.
+     * @param {string} [options.clusterContext='kind'] - Cluster context type ('kind', 'kubeadm', or 'k3s').
+     * @param {boolean} [options.gitClean=false] - Whether to run git clean on volumeMountPath before copying.
      * @memberof UnderpostDeploy
      */
     deployVolume(
@@ -839,6 +851,8 @@ EOF`);
         version: '',
         namespace: '',
         nodeName: '',
+        clusterContext: 'kind',
+        gitClean: false,
       },
     ) {
       if (!volume.claimName) {
@@ -846,19 +860,26 @@ EOF`);
         return;
       }
       const { deployId, env, version, namespace } = options;
+      const clusterContext = options.clusterContext || 'kind';
       const pvcId = `${volume.claimName}-${deployId}-${env}-${version}`;
       const pvId = `${volume.claimName.replace('pvc-', 'pv-')}-${deployId}-${env}-${version}`;
       const rootVolumeHostPath = `/home/dd/engine/volume/${pvId}`;
+      if (options.gitClean && volume.volumeMountPath) {
+        Underpost.repo.clean({ paths: [volume.volumeMountPath] });
+      }
       if (options.nodeName) {
         if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
         fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
-      } else {
+      } else if (clusterContext === 'kind') {
         shellExec(`docker exec -i kind-worker bash -c "mkdir -p ${rootVolumeHostPath}"`);
         // shellExec(`docker cp ${volume.volumeMountPath} kind-worker:${rootVolumeHostPath}`);
         shellExec(`tar -C ${volume.volumeMountPath} -c . | docker cp - kind-worker:${rootVolumeHostPath}`);
         shellExec(
           `docker exec -i kind-worker bash -c "chown -R 1000:1000 ${rootVolumeHostPath}; chmod -R 755 ${rootVolumeHostPath}"`,
         );
+      } else {
+        if (!fs.existsSync(rootVolumeHostPath)) fs.mkdirSync(rootVolumeHostPath, { recursive: true });
+        fs.copySync(volume.volumeMountPath, rootVolumeHostPath);
       }
       shellExec(`kubectl delete pvc ${pvcId} -n ${namespace} --ignore-not-found`);
       shellExec(`kubectl delete pv ${pvId} --ignore-not-found`);

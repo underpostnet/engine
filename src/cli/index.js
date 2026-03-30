@@ -310,6 +310,9 @@ program
     'Retrieves current network traffic data from resource deployments and the host machine network configuration.',
   )
   .option('--kubeadm', 'Enables the kubeadm context for deployment operations.')
+  .option('--k3s', 'Enables the k3s context for deployment operations.')
+  .option('--kind', 'Enables the kind context for deployment operations.')
+  .option('--git-clean', 'Runs git clean on volume mount paths before copying.')
   .option('--etc-hosts', 'Enables the etc-hosts context for deployment operations.')
   .option('--restore-hosts', 'Restores default `/etc/hosts` entries.')
   .option('--disable-update-underpost-config', 'Disables updates to Underpost configuration during deployment.')
@@ -599,6 +602,7 @@ program
   .option('--kubeadm', 'Sets the kubeadm cluster context for the runner execution.')
   .option('--k3s', 'Sets the k3s cluster context for the runner execution.')
   .option('--kind', 'Sets the kind cluster context for the runner execution.')
+  .option('--git-clean', 'Runs git clean on volume mount paths before copying.')
   .option('--log-type <log-type>', 'Sets the log type for the runner execution.')
   .option('--deploy-id <deploy-id>', 'Sets deploy id context for the runner execution.')
   .option('--user <user>', 'Sets user context for the runner execution.')

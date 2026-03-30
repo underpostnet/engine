@@ -85,7 +85,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin fs src/client/public/cyberia --git --pull --recursive --deploy-id dd-cyberia"
             sudo -n -- /bin/bash -lc "node bin fs src/client/public/underpost --git --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.underpost.json'"
             sudo -n -- /bin/bash -lc "npm run test"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --timeout-response 300000ms dd-cyberia,1,,localhost/rockylinux9-underpost:v2.98.3 --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-file /etc/config/.env.production,underpost start --build --run dd-cyberia production'"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --git-clean --timeout-response 300000ms dd-cyberia,1,,localhost/rockylinux9-underpost:v2.98.3 --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-file /etc/config/.env.production,underpost start --build --run dd-cyberia production'"
   init:
     if: >-
       github.repository == 'underpostnet/engine'
@@ -119,5 +119,5 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --sync --build-manifest --image 'localhost/rockylinux9-underpost:v2.98.3' --timeout-response 300000ms --versions green --replicas 1 --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-file /etc/config/.env.production,underpost start --build --run dd-cyberia production'"
-            sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --disable-update-proxy"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-cyberia production --kubeadm --disable-update-proxy --git-clean"
             sudo -n -- /bin/bash -lc "node bin monitor dd-cyberia production --ready-deployment --promote --timeout-response 300000ms --versions green --replicas 1"

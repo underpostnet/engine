@@ -173,6 +173,7 @@ const DEFAULT_OPTION = {
   createJobNow: false,
   fromNCommit: 0,
   hostAliases: '',
+  gitClean: false,
 };
 
 /**
@@ -631,20 +632,22 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       const cmdString = options.cmd
         ? ' --cmd ' + (options.cmd.find((c) => c.match('"')) ? '"' + options.cmd + '"' : "'" + options.cmd + "'")
         : '';
+      const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : ' --kubeadm';
+      const gitCleanFlag = options.gitClean ? ' --git-clean' : '';
 
       shellExec(
-        `${baseCommand} deploy --kubeadm --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
+        `${baseCommand} deploy${clusterFlag} --build-manifest --sync --info-router --replicas ${replicas} --node ${node}${
           image ? ` --image ${image}` : ''
         }${versions ? ` --versions ${versions}` : ''}${
           options.namespace ? ` --namespace ${options.namespace}` : ''
-        }${timeoutFlags}${cmdString} ${deployId} ${env}`,
+        }${timeoutFlags}${cmdString}${gitCleanFlag} ${deployId} ${env}`,
       );
 
       if (isDeployRunnerContext(path, options)) {
         shellExec(
-          `${baseCommand} deploy --kubeadm${cmdString} --replicas ${replicas} --disable-update-proxy ${deployId} ${env} --versions ${versions}${
+          `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --disable-update-proxy ${deployId} ${env} --versions ${versions}${
             options.namespace ? ` --namespace ${options.namespace}` : ''
-          }${timeoutFlags}`,
+          }${timeoutFlags}${gitCleanFlag}`,
         );
         if (!targetTraffic)
           targetTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace });
@@ -965,6 +968,8 @@ EOF
               env,
               version: targetTraffic,
               nodeName: options.nodeName,
+              clusterContext: options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind',
+              gitClean: options.gitClean || false,
             });
         let deploymentYaml = `---
 ${Underpost.deploy
