@@ -323,6 +323,54 @@ class InstanceEngineCyberia {
         };
 
       // Portal management
+      if (s(`.btn-instance-engine-portal-connect`))
+        s(`.btn-instance-engine-portal-connect`).onclick = async () => {
+          if (!InstanceEngineCyberia.currentInstanceId) {
+            NotificationManager.Push({
+              html: Translate.Render('save-instance-first') || 'Save the instance first.',
+              status: 'warning',
+            });
+            return;
+          }
+          const btn = s(`.btn-instance-engine-portal-connect`);
+          if (btn) btn.disabled = true;
+          try {
+            const result = await CyberiaInstanceService.portalConnect({ id: InstanceEngineCyberia.currentInstanceId });
+            if (result.status === 'error') {
+              NotificationManager.Push({ html: result.message, status: 'error' });
+              return;
+            }
+            const { portals: generated, topology, message } = result.data || {};
+            if (!generated || generated.length === 0) {
+              NotificationManager.Push({
+                html: message || 'No portals could be generated.',
+                status: 'warning',
+              });
+              return;
+            }
+            // Append generated portals (skip duplicates by source+target pair)
+            const existing = new Set(InstanceEngineCyberia.portals.map((p) => `${p.sourceMapCode}>${p.targetMapCode}`));
+            let added = 0;
+            for (const p of generated) {
+              const key = `${p.sourceMapCode}>${p.targetMapCode}`;
+              if (!existing.has(key)) {
+                InstanceEngineCyberia.portals.push(p);
+                existing.add(key);
+                added++;
+              }
+            }
+            InstanceEngineCyberia.renderPortalList(portalListId);
+            NotificationManager.Push({
+              html: `${topology} ring — ${added} portal(s) added.`,
+              status: added > 0 ? 'success' : 'warning',
+            });
+          } catch (e) {
+            NotificationManager.Push({ html: e.message, status: 'error' });
+          } finally {
+            if (btn) btn.disabled = false;
+          }
+        };
+
       if (s(`.btn-instance-engine-add-portal`))
         s(`.btn-instance-engine-add-portal`).onclick = () => {
           const portal = {
@@ -580,10 +628,14 @@ class InstanceEngineCyberia {
             })}
           </div>
         </div>
-        <div class="in">
+        <div class="in" style="display:flex;gap:5px;flex-wrap:wrap;">
           ${await BtnIcon.Render({
             class: 'wfa btn-instance-engine-add-portal',
             label: html`<i class="fa-solid fa-plus"></i> Add Portal`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa btn-instance-engine-portal-connect',
+            label: html`<i class="fa-solid fa-circle-nodes"></i> Portal Connector`,
           })}
         </div>
         <div class="in" style="margin-top: 10px;">

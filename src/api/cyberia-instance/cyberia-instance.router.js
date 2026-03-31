@@ -8,6 +8,14 @@ const logger = loggerFactory(import.meta);
 const CyberiaInstanceRouter = (options) => {
   const router = express.Router();
   const authMiddleware = options.authMiddleware;
+  // ── Custom actions (must come before generic /:id routes) ──────────────
+  router.get(
+    `/:id/portal-connect`,
+    authMiddleware,
+    userGuard,
+    async (req, res) => await CyberiaInstanceController.portalConnect(req, res, options),
+  );
+
   router.post(
     `/:id`,
     authMiddleware,
