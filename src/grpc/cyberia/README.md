@@ -4,16 +4,12 @@ Internal gRPC server that exposes read-only RPCs over MongoDB data for the Go ga
 
 ## Architecture
 
-```
-┌──────────────────────┐         gRPC (50051)         ┌───────────────────────┐
-│   Node.js Engine     │ ◄─────────────────────────── │   Go Game Server      │
-│   (MongoDB + Express)│                              │   (cyberia-server)    │
-│                      │  GetFullInstance              │                      │
-│   grpc-server.js     │  GetObjectLayerBatch          │   grpcclient/         │
-│                      │  GetAtlasSpriteSheetBatch      │   world_builder.go    │
-│                      │  GetMapData                   │                      │
-│                      │  Ping                         │                      │
-└──────────────────────┘                              └───────────────────────┘
+```mermaid
+graph LR
+    engine["Node.js Engine\nMongoDB + Express\ngrpc-server.js"]
+    go["Go Game Server\ncyberia-server\ngrpcclient/world_builder.go"]
+
+    engine -->|"gRPC :50051\nGetFullInstance\nGetObjectLayerBatch\nGetAtlasSpriteSheetBatch\nGetMapData · Ping"| go
 ```
 
 ## Data Flow
@@ -34,7 +30,6 @@ Go Game Server (world_builder.go → instance_loader.go → server.go)
   │  BuildWorldFromInstance → builds maps, entities, portals from gRPC data
   │  ReplaceObjectLayerCache → caches ObjectLayer metadata
   │  ReplaceAtlasCache → caches AtlasSpriteSheet metadata
-  │  EnsurePlayableState → creates fallback map if nothing loaded
   ▼
 C/WASM Client (WebSocket binary AOI protocol)
   │  init_data → game config, player state, grid dimensions
@@ -46,15 +41,12 @@ C/WASM Client (WebSocket binary AOI protocol)
 
 When `getFullInstance` is called with an instance code that does not exist in MongoDB, the Engine returns a **minimal playable fallback** instead of `NOT_FOUND`:
 
-- 1 empty map (16×16 grid, no entities)
+- 1 empty map (64×64 floor grid, no obstacles, no bots, no portals)
 - No ObjectLayers, no AtlasSpriteSheets
 - `buildFallbackConfig()` provides playable defaults (speed, life, AOI, etc.)
-- Players are rendered as solid colored rectangles via `defaultPlayerColor` (no sprites needed)
+- Players are rendered as solid colored rectangles using the `PLAYER` color from the instance's color palette (no sprites needed)
 
-The Go server also calls `EnsurePlayableState()` at startup, which creates a fallback empty map with auto-generated floors and obstacles if no maps were loaded from gRPC. This covers two failure scenarios:
-
-1. `ENGINE_GRPC_ADDRESS` not set (no gRPC at all)
-2. gRPC call failed (network error, Engine down)
+The Go server **always** requires gRPC — if the Engine is unreachable it exits with a fatal error. The fallback is purely Engine-side: `getFullInstance` with an unknown code returns a synthetic response, not `NOT_FOUND`.
 
 ### Skill System: itemId → LogicEventID
 
@@ -65,6 +57,10 @@ gameConfig.skillConfig[] (MongoDB)
   ├─ triggerItemId:   "atlas_pistol_mk2"     ← item in player's object layer stack
   ├─ spawnedItemIds:  ["atlas_bullet_mk2"]   ← items spawned by the skill
   └─ logicEventId:    "atlas_pistol_mk2_logic" ← handler key in skill.go switch
+
+gameConfig.skillRules (MongoDB) → SkillRules proto message → GameServer fields
+  ├─ bulletSpawnChance / bulletLifetimeMs / bulletWidth / bulletHeight / bulletSpeedMultiplier
+  └─ doppelgangerSpawnChance / doppelgangerLifetimeMs / doppelgangerSpawnRadius / doppelgangerInitialLifeFraction
 
 Go runtime:
   1. Player performs action
@@ -156,23 +152,23 @@ The gRPC server starts in **all** engine runtime modes that load `conf.server.js
 
 ### Go Server — set in `.env` or environment
 
-| Variable                          | Default             | Description                                        |
-| --------------------------------- | ------------------- | -------------------------------------------------- |
-| `ENGINE_GRPC_ADDRESS`             | _(empty → no gRPC)_ | Engine gRPC server address                         |
-| `INSTANCE_CODE`                   | _(empty)_           | Instance code to load on startup                   |
-| `ENGINE_API_BASE_URL`             | _(empty)_           | Engine HTTP base URL (forwarded to clients)        |
-| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_        | ObjectLayer hot-reload polling interval in seconds |
-| `SERVER_PORT`                     | `8080`              | HTTP/WS server listen port                         |
-| `STATIC_DIR`                      | `./public`          | Directory for static WASM client files             |
-| `ENGINE_GRPC_CA_CERT`             | _(empty)_           | CA certificate for mTLS                            |
-| `ENGINE_GRPC_CLIENT_CERT`         | _(empty)_           | Client certificate for mTLS                        |
-| `ENGINE_GRPC_CLIENT_KEY`          | _(empty)_           | Client private key for mTLS                        |
+| Variable                          | Default           | Description                                        |
+| --------------------------------- | ----------------- | -------------------------------------------------- |
+| `ENGINE_GRPC_ADDRESS`             | `localhost:50051` | Engine gRPC server address — **required**          |
+| `INSTANCE_CODE`                   | `default`         | Instance code to load on startup                   |
+| `ENGINE_API_BASE_URL`             | _(empty)_         | Engine HTTP base URL (forwarded to clients)        |
+| `ENGINE_GRPC_RELOAD_INTERVAL_SEC` | _(disabled)_      | ObjectLayer hot-reload polling interval in seconds |
+| `SERVER_PORT`                     | `8081`            | HTTP/WS server listen port                         |
+| `STATIC_DIR`                      | `./public`        | Directory for static WASM client files             |
+| `ENGINE_GRPC_CA_CERT`             | _(empty)_         | CA certificate for mTLS                            |
+| `ENGINE_GRPC_CLIENT_CERT`         | _(empty)_         | Client certificate for mTLS                        |
+| `ENGINE_GRPC_CLIENT_KEY`          | _(empty)_         | Client private key for mTLS                        |
 
 ### C/WASM Client — compile-time constants in `src/config.h`
 
 | Constant        | Development              | Production                          |
 | --------------- | ------------------------ | ----------------------------------- |
-| `WS_URL`        | `ws://localhost:8080/ws` | `wss://server.cyberiaonline.com/ws` |
+| `WS_URL`        | `ws://localhost:8081/ws` | `wss://server.cyberiaonline.com/ws` |
 | `API_BASE_URL`  | `http://localhost:4005`  | `https://www.cyberiaonline.com`     |
 | `GHOST_ITEM_ID` | `ghost`                  | `ghost`                             |
 
@@ -185,20 +181,20 @@ Run all three components locally in separate terminals:
 cd /home/dd/engine
 npm run dev
 
-# Terminal 2: Go game server (WS :8080 + REST /api/v1/*)
+# Terminal 2: Go game server (WS :8081 + REST /api/v1/*)
 cd /home/dd/engine/cyberia-server
 cat > .env << 'EOF'
 ENGINE_GRPC_ADDRESS=localhost:50051
 INSTANCE_CODE=cyberia-main
 ENGINE_API_BASE_URL=http://localhost:4005
-SERVER_PORT=8080
+SERVER_PORT=8081
 EOF
 go run main.go
 
 # Terminal 3: C/WASM client (static :8082)
 cd /home/dd/engine/cyberia-client
 # Edit src/config.h:
-#   WS_URL = "ws://localhost:8080/ws"
+#   WS_URL = "ws://localhost:8081/ws"
 #   API_BASE_URL = "http://localhost:4005"
 source ~/.emsdk/emsdk_env.sh
 make -f Web.mk clean && make -f Web.mk web
@@ -209,11 +205,11 @@ make -f Web.mk serve-development   # http://localhost:8082
 
 ```
 1. Engine (npm run dev)       → gRPC server listens on :50051
-2. Go server (go run main.go) → dials :50051, loads instance, WS on :8080
-3. C client (serve-development) → opens browser, connects WS to :8080
+2. Go server (go run main.go) → dials :50051, loads instance, WS on :8081
+3. C client (serve-development) → opens browser, connects WS to :8081
 ```
 
-If the Engine is not running or `INSTANCE_CODE` doesn't match a database record, the Go server creates a fallback empty map with auto-generated floors and obstacles. Players connect and move as solid colored rectangles.
+If `INSTANCE_CODE` doesn't match a database record, the Engine returns a minimal fallback instance — the Go server starts normally. If the Engine is not running, the Go server exits (gRPC is required).
 
 ### Dev ports summary
 
@@ -221,7 +217,7 @@ If the Engine is not running or `INSTANCE_CODE` doesn't match a database record,
 | -------------- | ----- | --------- |
 | Engine Express | 4005+ | HTTP      |
 | Engine gRPC    | 50051 | gRPC      |
-| Go server      | 8080  | HTTP + WS |
+| Go server      | 8081  | HTTP + WS |
 | C client       | 8082  | HTTP      |
 
 ## Production
@@ -231,7 +227,7 @@ If the Engine is not running or `INSTANCE_CODE` doesn't match a database record,
 ```
 1. Engine (dd-cyberia)      ← Express :4005-4014, gRPC :50051 (cluster-internal)
 2. Go server (mmo-server)   ← ENGINE_GRPC_ADDRESS=<engine-clusterIP>:50051
-3. C client (mmo-client)    ← static WASM files served on :8081
+3. C client (mmo-client)    ← static WASM files served on :8082
 ```
 
 ### C client production build
@@ -243,7 +239,7 @@ cd /home/dd/engine/cyberia-client
 #   API_BASE_URL = "https://www.cyberiaonline.com"
 source ~/.emsdk/emsdk_env.sh
 make -f Web.mk clean && make -f Web.mk web BUILD_MODE=RELEASE
-make -f Web.mk serve-production   # http://localhost:8081
+make -f Web.mk serve-production   # http://localhost:8082
 ```
 
 ### Go server with embedded client
@@ -254,7 +250,7 @@ The Go server can serve the WASM client directly via `STATIC_DIR`:
 # Copy WASM build output to Go server's public dir
 cp -r cyberia-client/bin/web/release/* cyberia-server/public/
 
-# Go server serves both WS and static files on :8080
+# Go server serves both WS and static files on :8081
 STATIC_DIR=./public go run main.go
 ```
 
@@ -263,8 +259,8 @@ In Kubernetes, each runs in its own pod behind Contour/Envoy:
 ```
 Contour/Envoy (L7 proxy, TLS termination via cert-manager)
   ├─ www.cyberiaonline.com    → Engine pods (:4005)
-  ├─ server.cyberiaonline.com → Go server pod (:8080)  ← WS + REST
-  └─ client.cyberiaonline.com → Client pod (:8081)     ← WASM static
+│  server.cyberiaonline.com → Go server pod (:8081)  ← WS + REST
+│  client.cyberiaonline.com → Client pod (:8082)     ← WASM static
 ```
 
 Port 50051 (gRPC) is **not** exposed via Contour — it is cluster-internal only.
@@ -296,34 +292,37 @@ All three repos use `workflow_dispatch` for manual triggers + commit-message tri
 
 ## KubeAdm Cluster Topology
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        KubeAdm Cluster                              │
-│                                                                     │
-│  ┌─────────────┐     ┌──────────────────────────────────────────┐  │
-│  │   Contour    │     │  dd-cyberia Pod (blue/green)             │  │
-│  │   Envoy      │     │                                          │  │
-│  │   (L7 proxy) │────▶│  Node.js Engine (:4005-4014)             │  │
-│  │              │     │    ├─ Express (HTTP/WS)                  │  │
-│  │  HTTPProxy:  │     │    ├─ gRPC server (:50051) ──────┐      │  │
-│  │  *.cyberiaon │     │    └─ MongoDB, Valkey, Mailer     │      │  │
-│  │  line.com    │     │                                    │      │  │
-│  │              │     └────────────────────────────────────│──────┘  │
-│  │              │                                          │         │
-│  │              │     ┌────────────────────────────────────│──────┐  │
-│  │              │     │  dd-cyberia-mmo-server Pod          │      │  │
-│  │              │────▶│                                    ▼      │  │
-│  │              │     │  Go game server (:8080) ◄── gRPC client  │  │
-│  │              │     │    ├─ WebSocket game loop                 │  │
-│  │              │     │    └─ REST API /api/v1/*                  │  │
-│  │              │     └──────────────────────────────────────────┘  │
-│  │              │                                                   │
-│  │              │     ┌──────────────────────────────────────────┐  │
-│  │              │────▶│  dd-cyberia-mmo-client Pod               │  │
-│  │              │     │  WASM client static server (:8081)       │  │
-│  └─────────────┘     └──────────────────────────────────────────┘  │
-│                                                                     │
-│  cert-manager: LetsEncrypt certs for *.cyberiaonline.com            │
-│  ConfigMap: underpost-config (.env.production)                      │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    internet(["🌐 Internet\nHTTPS / WSS"])
+
+    subgraph cluster["KubeAdm Cluster"]
+        subgraph contour["Contour / Envoy — L7 proxy · cert-manager TLS"]
+            proxy["HTTPProxy\n*.cyberiaonline.com"]
+        end
+
+        subgraph dd_cyberia["dd-cyberia Pod  (blue/green)"]
+            engine["Node.js Engine  :4005-4014\nExpress · MongoDB · Valkey · Mailer"]
+            grpc_srv["gRPC server  :50051\ncluster-internal only"]
+            engine --- grpc_srv
+        end
+
+        subgraph mmo_server["dd-cyberia-mmo-server Pod"]
+            go_srv["Go game server  :8081\nWebSocket /ws · REST /api/v1/*"]
+        end
+
+        subgraph mmo_client["dd-cyberia-mmo-client Pod"]
+            wasm["WASM static server  :8082\ncyberia-client (Raylib/Emscripten)"]
+        end
+
+        cfg["ConfigMap  underpost-config\n.env.production"]
+    end
+
+    internet -->|HTTPS/WSS| proxy
+    proxy -->|"www.cyberiaonline.com → :4005"| engine
+    proxy -->|"server.cyberiaonline.com → :8081"| go_srv
+    proxy -->|"client.cyberiaonline.com → :8082"| wasm
+    grpc_srv -->|"gRPC  GetFullInstance\nGetObjectLayerBatch\nHot-reload"| go_srv
+    cfg -.->|env vars| dd_cyberia
+    cfg -.->|env vars| mmo_server
 ```

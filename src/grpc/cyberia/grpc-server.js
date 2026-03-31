@@ -233,30 +233,23 @@ function toInstanceConfig(gc) {
     defaultCoinQuantity: gc.defaultCoinQuantity || 0,
     lifeRegenChance: gc.lifeRegenChance || 0,
     maxChance: gc.maxChance || 0,
-    bulletSpawnChance: gc.bulletSpawnChance || 0,
-    bulletLifetimeMs: gc.bulletLifetimeMs || 0,
-    bulletWidth: gc.bulletWidth || 0,
-    bulletHeight: gc.bulletHeight || 0,
-    bulletSpeedMultiplier: gc.bulletSpeedMultiplier || 0,
-    doppelgangerSpawnChance: gc.doppelgangerSpawnChance || 0,
-    doppelgangerLifetimeMs: gc.doppelgangerLifetimeMs || 0,
-    doppelgangerSpawnRadius: gc.doppelgangerSpawnRadius || 0,
-    doppelgangerInitialLifeFraction: gc.doppelgangerInitialLifeFraction || 0,
     defaultFloorItemId: gc.defaultFloorItemId || '',
     skillConfig: (gc.skillConfig || []).map((sc) => ({
       triggerItemId: sc.triggerItemId || '',
       spawnedItemIds: sc.spawnedItemIds || [],
       logicEventId: sc.logicEventId || '',
     })),
-    defaultPlayerColor: gc.defaultPlayerColor
-      ? {
-          key: 'default_player_color',
-          r: gc.defaultPlayerColor.r || 0,
-          g: gc.defaultPlayerColor.g || 0,
-          b: gc.defaultPlayerColor.b || 0,
-          a: gc.defaultPlayerColor.a != null ? gc.defaultPlayerColor.a : 255,
-        }
-      : { key: 'default_player_color', r: 0, g: 255, b: 0, a: 255 },
+    skillRules: {
+      bulletSpawnChance: gc.skillRules?.bulletSpawnChance || 0,
+      bulletLifetimeMs: gc.skillRules?.bulletLifetimeMs || 0,
+      bulletWidth: gc.skillRules?.bulletWidth || 0,
+      bulletHeight: gc.skillRules?.bulletHeight || 0,
+      bulletSpeedMultiplier: gc.skillRules?.bulletSpeedMultiplier || 0,
+      doppelgangerSpawnChance: gc.skillRules?.doppelgangerSpawnChance || 0,
+      doppelgangerLifetimeMs: gc.skillRules?.doppelgangerLifetimeMs || 0,
+      doppelgangerSpawnRadius: gc.skillRules?.doppelgangerSpawnRadius || 0,
+      doppelgangerInitialLifeFraction: gc.skillRules?.doppelgangerInitialLifeFraction || 0,
+    },
   };
 }
 
@@ -269,8 +262,8 @@ function toInstanceConfig(gc) {
  */
 function buildFallbackConfig() {
   return {
-    cellSize: 32,
-    fps: 10,
+    cellSize: 64,
+    fps: 60,
     interpolationMs: 100,
     defaultObjWidth: 1,
     defaultObjHeight: 1,
@@ -280,20 +273,25 @@ function buildFallbackConfig() {
     defaultHeightScreenFactor: 1,
     devUi: false,
     colors: [
-      { key: 'background', r: 30, g: 30, b: 30, a: 255 },
-      { key: 'obstacle', r: 80, g: 80, b: 80, a: 255 },
-      { key: 'portal', r: 0, g: 200, b: 200, a: 255 },
+      { key: 'BACKGROUND', r: 30, g: 30, b: 30, a: 255 },
+      { key: 'FLOOR_BACKGROUND', r: 45, g: 45, b: 45, a: 255 },
+      { key: 'FLOOR', r: 60, g: 60, b: 60, a: 255 },
+      { key: 'OBSTACLE', r: 80, g: 80, b: 80, a: 255 },
+      { key: 'PORTAL', r: 0, g: 200, b: 200, a: 255 },
+      { key: 'PLAYER', r: 0, g: 255, b: 0, a: 255 },
+      { key: 'OTHER_PLAYER', r: 128, g: 128, b: 255, a: 255 },
+      { key: 'BOT', r: 255, g: 128, b: 0, a: 255 },
     ],
-    aoiRadius: 300,
+    aoiRadius: 10,
     portalHoldTimeMs: 1000,
     portalSpawnRadius: 3,
-    entityBaseSpeed: 200,
+    entityBaseSpeed: 5,
     entityBaseMaxLife: 100,
     entityBaseActionCooldownMs: 500,
     entityBaseMinActionCooldownMs: 100,
     botAggroRange: 10,
-    defaultPlayerWidth: 1,
-    defaultPlayerHeight: 1,
+    defaultPlayerWidth: 2,
+    defaultPlayerHeight: 2,
     playerBaseLifeRegenMin: 0.5,
     playerBaseLifeRegenMax: 1.5,
     sumStatsLimit: 500,
@@ -307,18 +305,19 @@ function buildFallbackConfig() {
     defaultCoinQuantity: 1,
     lifeRegenChance: 300,
     maxChance: 10000,
-    bulletSpawnChance: 0,
-    bulletLifetimeMs: 0,
-    bulletWidth: 0,
-    bulletHeight: 0,
-    bulletSpeedMultiplier: 0,
-    doppelgangerSpawnChance: 0,
-    doppelgangerLifetimeMs: 0,
-    doppelgangerSpawnRadius: 0,
-    doppelgangerInitialLifeFraction: 0,
     defaultFloorItemId: '',
     skillConfig: [],
-    defaultPlayerColor: { key: 'default_player_color', r: 0, g: 255, b: 0, a: 255 },
+    skillRules: {
+      bulletSpawnChance: 0,
+      bulletLifetimeMs: 0,
+      bulletWidth: 0,
+      bulletHeight: 0,
+      bulletSpeedMultiplier: 0,
+      doppelgangerSpawnChance: 0,
+      doppelgangerLifetimeMs: 0,
+      doppelgangerSpawnRadius: 0,
+      doppelgangerInitialLifeFraction: 0,
+    },
   };
 }
 
@@ -411,16 +410,42 @@ function buildHandlers(dbKey) {
     async getFullInstance(call, callback) {
       try {
         const models = getModels(dbKey);
-        const inst = await models.CyberiaInstance.findOne({ code: call.request.instanceCode }).lean();
+        // Normalise empty instanceCode to the canonical fallback name.
+        const instanceCode = call.request.instanceCode || 'default';
+        const inst = await models.CyberiaInstance.findOne({ code: instanceCode }).lean();
 
         // ── Fallback: instance not found → return a minimal playable instance ──
         if (!inst) {
-          logger.info(`Instance "${call.request.instanceCode}" not found — returning fallback instance.`);
+          logger.info(`Instance "${instanceCode}" not found — returning fallback instance.`);
           const fallbackMapCode = 'fallback-map-0';
+          // Build a 16×16 grid of 1×1 floor tiles — no obstacles, no bots, no portals.
+          // Players are rendered as solid colored rectangles using the PLAYER color from the palette.
+          // The Engine owns this fallback; the Go server must not generate its own.
+          const fallbackGridSize = 64;
+          const fallbackTileDim = 4; // 4×4-cell tiles — AOI-visible transitions as player moves
+          const fallbackFloorColor = 'rgba(60,60,60,1)';
+          const fallbackFloors = [];
+          for (let r = 0; r < fallbackGridSize; r += fallbackTileDim) {
+            for (let c = 0; c < fallbackGridSize; c += fallbackTileDim) {
+              fallbackFloors.push({
+                entityType: 'floor',
+                initCellX: c,
+                initCellY: r,
+                dimX: fallbackTileDim,
+                dimY: fallbackTileDim,
+                color: fallbackFloorColor,
+                objectLayerItemIds: [],
+                spawnRadius: 0,
+                aggroRange: 0,
+                maxLife: 0,
+                lifeRegen: 0,
+              });
+            }
+          }
           callback(null, {
             instance: {
               mongoId: '',
-              code: call.request.instanceCode,
+              code: instanceCode,
               name: 'Fallback Instance',
               description: 'Auto-generated minimal instance',
               tags: [],
@@ -434,11 +459,11 @@ function buildHandlers(dbKey) {
                 mongoId: '',
                 code: fallbackMapCode,
                 name: 'Fallback Map',
-                gridX: 16,
-                gridY: 16,
+                gridX: fallbackGridSize,
+                gridY: fallbackGridSize,
                 cellWidth: 32,
                 cellHeight: 32,
-                entities: [], // No entities — Go server auto-generates floors/obstacles
+                entities: fallbackFloors,
               },
             ],
             objectLayers: [],
@@ -455,6 +480,11 @@ function buildHandlers(dbKey) {
           for (const e of m.entities || []) {
             for (const id of e.objectLayerItemIds || []) itemIds.add(id);
           }
+        }
+        // Also include skill-spawned item IDs so their ObjectLayer metadata
+        // reaches clients (they never appear as map entity items).
+        for (const sc of inst.gameConfig?.skillConfig || []) {
+          for (const id of sc.spawnedItemIds || []) itemIds.add(id);
         }
 
         const olDocs = itemIds.size

@@ -132,32 +132,26 @@ const CyberiaInstanceSchema = new Schema(
           lifeRegenChance: { type: Number },
           maxChance: { type: Number },
 
-          // Skill config
-          bulletSpawnChance: { type: Number },
-          bulletLifetimeMs: { type: Number },
-          bulletWidth: { type: Number },
-          bulletHeight: { type: Number },
-          bulletSpeedMultiplier: { type: Number },
-          doppelgangerSpawnChance: { type: Number },
-          doppelgangerLifetimeMs: { type: Number },
-          doppelgangerSpawnRadius: { type: Number },
-          doppelgangerInitialLifeFraction: { type: Number },
-
-          // Floor defaults
-          defaultFloorItemId: { type: String },
-
-          // Player color (fallback when no object layers / sprites)
-          defaultPlayerColor: {
+          // Skill rules — bullet and doppelganger tuning parameters
+          skillRules: {
             type: new Schema(
               {
-                r: { type: Number, default: 0 },
-                g: { type: Number, default: 255 },
-                b: { type: Number, default: 0 },
-                a: { type: Number, default: 255 },
+                bulletSpawnChance: { type: Number, default: 0 },
+                bulletLifetimeMs: { type: Number, default: 0 },
+                bulletWidth: { type: Number, default: 0 },
+                bulletHeight: { type: Number, default: 0 },
+                bulletSpeedMultiplier: { type: Number, default: 0 },
+                doppelgangerSpawnChance: { type: Number, default: 0 },
+                doppelgangerLifetimeMs: { type: Number, default: 0 },
+                doppelgangerSpawnRadius: { type: Number, default: 0 },
+                doppelgangerInitialLifeFraction: { type: Number, default: 0 },
               },
               { _id: false },
             ),
           },
+
+          // Floor defaults
+          defaultFloorItemId: { type: String },
 
           // Skill map
           skillConfig: {

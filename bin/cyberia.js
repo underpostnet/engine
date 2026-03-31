@@ -42,7 +42,10 @@ import { program as underpostProgram } from '../src/cli/index.js';
 import crypto from 'crypto';
 import nodePath from 'path';
 import Underpost from '../src/index.js';
-import { DefaultCyberiaItems } from '../src/client/components/cyberia-portal/CommonCyberiaPortal.js';
+import {
+  DefaultCyberiaItems,
+  DefaultSkillConfig,
+} from '../src/client/components/cyberia-portal/CommonCyberiaPortal.js';
 
 /**
  * Connect to the project MongoDB instance using the standard env / conf layout.
@@ -2988,6 +2991,69 @@ try {
     .description('Import default Object Layer items from a JSON file into MongoDB')
     .action(async (options) => {
       shellExec(`node bin/cyberia ol ${DefaultCyberiaItems} --import${options.dev ? ' --dev' : ''}`);
+      shellExec(`node bin/cyberia run-workflow seed-skill-config${options.dev ? ' --dev' : ''}`);
+    });
+
+  runner
+    .command('seed-skill-config')
+    .option('--instance-code <code>', 'CyberiaInstance code to update (default: $INSTANCE_CODE env or "default")')
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option('--dev', 'Force development environment')
+    .description('Upsert default skillConfig entries into a CyberiaInstance document')
+    .action(async (options) => {
+      if (!options.envPath) options.envPath = `./.env`;
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
+        const devEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
+        if (fs.existsSync(devEnvPath)) dotenv.config({ path: devEnvPath, override: true });
+      }
+
+      const deployId = process.env.DEFAULT_DEPLOY_ID;
+      const host = process.env.DEFAULT_DEPLOY_HOST;
+      const path = process.env.DEFAULT_DEPLOY_PATH;
+      const instanceCode = options.instanceCode || process.env.INSTANCE_CODE || 'default';
+
+      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      if (!fs.existsSync(confServerPath)) {
+        logger.error(`Server config not found: ${confServerPath}`);
+        process.exit(1);
+      }
+      const confServer = loadConfServerJson(confServerPath, { resolve: true });
+      const { db } = confServer[host][path];
+
+      db.host = options.mongoHost
+        ? options.mongoHost
+        : options.dev
+          ? db.host
+          : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
+      logger.info('seed-skill-config', { instanceCode, deployId, host, path, db });
+
+      await DataBaseProvider.load({ apis: ['cyberia-instance'], host, path, db });
+
+      const CyberiaInstance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaInstance;
+
+      const result = await CyberiaInstance.findOneAndUpdate(
+        { code: instanceCode },
+        { $set: { 'gameConfig.skillConfig': DefaultSkillConfig } },
+        { upsert: false, new: true },
+      );
+
+      if (!result) {
+        logger.warn(
+          `CyberiaInstance "${instanceCode}" not found — skillConfig not seeded. ` +
+            `Create the instance first or import it with: node bin/cyberia instance ${instanceCode} --import`,
+        );
+      } else {
+        logger.info(
+          `skillConfig seeded for instance "${instanceCode}" (${DefaultSkillConfig.length} entries)`,
+          DefaultSkillConfig.map((e) => `${e.triggerItemId} → ${e.logicEventId}`),
+        );
+      }
+
+      await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
     });
 
   if (underpostProgram.commands.find((c) => c._name == process.argv[2]))

@@ -33,4 +33,16 @@ const DefaultCyberiaItems = [
   'grass',
 ];
 
-export { CyberiaDependencies, DefaultCyberiaItems };
+const DefaultSkillConfig = [
+  // { triggerItemId: 'anon', spawnedItemIds: [], logicEventId: 'doppelganger' },
+  {
+    triggerItemId: 'atlas_pistol_mk2',
+    spawnedItemIds: ['atlas_pistol_mk2_bullet'],
+    logicEventId: 'atlas_pistol_mk2_logic',
+  },
+  { triggerItemId: 'coin', spawnedItemIds: [], logicEventId: 'coin_drop_or_transaction' },
+  // { triggerItemId: 'purple', spawnedItemIds: [], logicEventId: 'doppelganger' },
+  // { triggerItemId: 'atlas_pistol_mk2_bullet', spawnedItemIds: [], logicEventId: 'doppelganger' },
+];
+
+export { CyberiaDependencies, DefaultCyberiaItems, DefaultSkillConfig };
