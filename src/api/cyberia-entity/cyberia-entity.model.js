@@ -10,6 +10,11 @@ const CyberiaEntitySchema = new Schema({
   dimY: { type: Number, default: 1 },
   color: { type: String, default: 'rgba(255, 0, 0, 1)' },
   objectLayerItemIds: { type: [String], default: [] },
+  // Bot-specific fields (ignored for non-bot entities)
+  spawnRadius: { type: Number, default: 0 },
+  aggroRange: { type: Number, default: 0 },
+  maxLife: { type: Number, default: 0 },
+  lifeRegen: { type: Number, default: 0 },
 });
 
 const CyberiaEntityModel = model('CyberiaEntity', CyberiaEntitySchema);
