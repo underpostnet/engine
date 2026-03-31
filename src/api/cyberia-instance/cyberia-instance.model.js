@@ -159,8 +159,7 @@ const CyberiaInstanceSchema = new Schema(
               new Schema(
                 {
                   triggerItemId: { type: String, required: true },
-                  spawnedItemIds: { type: [String], default: [] },
-                  logicEventId: { type: String, default: '' },
+                  logicEventIds: { type: [String], default: [] },
                 },
                 { _id: false },
               ),

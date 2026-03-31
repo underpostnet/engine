@@ -236,8 +236,7 @@ function toInstanceConfig(gc) {
     defaultFloorItemId: gc.defaultFloorItemId || '',
     skillConfig: (gc.skillConfig || []).map((sc) => ({
       triggerItemId: sc.triggerItemId || '',
-      spawnedItemIds: sc.spawnedItemIds || [],
-      logicEventId: sc.logicEventId || '',
+      logicEventIds: sc.logicEventIds || [],
     })),
     skillRules: {
       bulletSpawnChance: gc.skillRules?.bulletSpawnChance || 0,
@@ -481,12 +480,6 @@ function buildHandlers(dbKey) {
             for (const id of e.objectLayerItemIds || []) itemIds.add(id);
           }
         }
-        // Also include skill-spawned item IDs so their ObjectLayer metadata
-        // reaches clients (they never appear as map entity items).
-        for (const sc of inst.gameConfig?.skillConfig || []) {
-          for (const id of sc.spawnedItemIds || []) itemIds.add(id);
-        }
-
         const olDocs = itemIds.size
           ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...itemIds] } })
               .populate('objectLayerRenderFramesId', { _id: 1, frame_duration: 1, is_stateless: 1 })

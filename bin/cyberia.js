@@ -3049,7 +3049,7 @@ try {
       } else {
         logger.info(
           `skillConfig seeded for instance "${instanceCode}" (${DefaultSkillConfig.length} entries)`,
-          DefaultSkillConfig.map((e) => `${e.triggerItemId} → ${e.logicEventId}`),
+          DefaultSkillConfig.map((e) => `${e.triggerItemId} → [${e.logicEventIds.join(', ')}]`),
         );
       }
 
