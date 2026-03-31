@@ -57,57 +57,57 @@ const CyberiaInstanceConfSchema = new Schema(
     instanceCode: { type: String, required: true, unique: true, trim: true },
 
     // ── Rendering / camera ──────────────────────────────────────────
-    cellSize: { type: Number },
-    fps: { type: Number },
-    interpolationMs: { type: Number },
-    defaultObjWidth: { type: Number },
-    defaultObjHeight: { type: Number },
-    cameraSmoothing: { type: Number },
-    cameraZoom: { type: Number },
-    defaultWidthScreenFactor: { type: Number },
-    defaultHeightScreenFactor: { type: Number },
-    devUi: { type: Boolean },
+    cellSize: { type: Number, default: 64 },
+    fps: { type: Number, default: 60 },
+    interpolationMs: { type: Number, default: 100 },
+    defaultObjWidth: { type: Number, default: 1 },
+    defaultObjHeight: { type: Number, default: 1 },
+    cameraSmoothing: { type: Number, default: 0.1 },
+    cameraZoom: { type: Number, default: 1.0 },
+    defaultWidthScreenFactor: { type: Number, default: 1 },
+    defaultHeightScreenFactor: { type: Number, default: 1 },
+    devUi: { type: Boolean, default: false },
     colors: { type: [ColorEntrySchema], default: [] },
 
     // ── World / AOI ─────────────────────────────────────────────────
-    aoiRadius: { type: Number },
-    portalHoldTimeMs: { type: Number },
-    portalSpawnRadius: { type: Number },
+    aoiRadius: { type: Number, default: 10 },
+    portalHoldTimeMs: { type: Number, default: 1000 },
+    portalSpawnRadius: { type: Number, default: 3 },
 
     // ── Entity base stats ────────────────────────────────────────────
-    entityBaseSpeed: { type: Number },
-    entityBaseMaxLife: { type: Number },
-    entityBaseActionCooldownMs: { type: Number },
-    entityBaseMinActionCooldownMs: { type: Number },
+    entityBaseSpeed: { type: Number, default: 5 },
+    entityBaseMaxLife: { type: Number, default: 100 },
+    entityBaseActionCooldownMs: { type: Number, default: 500 },
+    entityBaseMinActionCooldownMs: { type: Number, default: 100 },
 
     // ── Bot defaults ─────────────────────────────────────────────────
-    botAggroRange: { type: Number },
+    botAggroRange: { type: Number, default: 10 },
 
     // ── Player defaults ──────────────────────────────────────────────
-    defaultPlayerWidth: { type: Number },
-    defaultPlayerHeight: { type: Number },
-    playerBaseLifeRegenMin: { type: Number },
-    playerBaseLifeRegenMax: { type: Number },
-    sumStatsLimit: { type: Number },
-    maxActiveLayers: { type: Number },
-    initialLifeFraction: { type: Number },
+    defaultPlayerWidth: { type: Number, default: 2 },
+    defaultPlayerHeight: { type: Number, default: 2 },
+    playerBaseLifeRegenMin: { type: Number, default: 0.5 },
+    playerBaseLifeRegenMax: { type: Number, default: 1.5 },
+    sumStatsLimit: { type: Number, default: 500 },
+    maxActiveLayers: { type: Number, default: 4 },
+    initialLifeFraction: { type: Number, default: 1.0 },
     defaultPlayerObjectLayers: { type: [DefaultPlayerObjectLayerSchema], default: [] },
 
     // ── Combat / death ───────────────────────────────────────────────
-    respawnDurationMs: { type: Number },
-    ghostItemId: { type: String },
-    collisionLifeLoss: { type: Number },
+    respawnDurationMs: { type: Number, default: 3000 },
+    ghostItemId: { type: String, default: '' },
+    collisionLifeLoss: { type: Number, default: 10 },
 
     // ── Economy ──────────────────────────────────────────────────────
-    coinItemId: { type: String },
-    defaultCoinQuantity: { type: Number },
+    coinItemId: { type: String, default: '' },
+    defaultCoinQuantity: { type: Number, default: 1 },
 
     // ── Regen ────────────────────────────────────────────────────────
-    lifeRegenChance: { type: Number },
-    maxChance: { type: Number },
+    lifeRegenChance: { type: Number, default: 300 },
+    maxChance: { type: Number, default: 10000 },
 
     // ── Floor defaults ───────────────────────────────────────────────
-    defaultFloorItemId: { type: String },
+    defaultFloorItemId: { type: String, default: '' },
 
     // ── Skill system ─────────────────────────────────────────────────
     // Each entry maps a trigger item to an ordered list of logic handler keys.

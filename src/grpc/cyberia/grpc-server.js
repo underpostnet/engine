@@ -186,71 +186,148 @@ function toInstanceMsg(doc) {
   };
 }
 
+/**
+ * Converts a CyberiaInstanceConf Mongoose document (or plain object) into
+ * a complete InstanceConfig proto message.
+ * Any field that is null/undefined in `gc` falls back to FALLBACK_CONFIG_DEFAULTS,
+ * so partial DB documents always produce a fully playable config.
+ */
 function toInstanceConfig(gc) {
-  if (!gc) return {};
+  const fb = FALLBACK_CONFIG_DEFAULTS;
+  if (!gc) return buildFallbackConfig();
+  const colors =
+    gc.colors && gc.colors.length > 0
+      ? gc.colors.map((c) => ({
+          key: c.key || '',
+          r: c.r ?? 0,
+          g: c.g ?? 0,
+          b: c.b ?? 0,
+          a: c.a ?? 255,
+        }))
+      : fb.colors.map((c) => ({ ...c }));
   return {
-    cellSize: gc.cellSize || 0,
-    fps: gc.fps || 0,
-    interpolationMs: gc.interpolationMs || 0,
-    defaultObjWidth: gc.defaultObjWidth || 0,
-    defaultObjHeight: gc.defaultObjHeight || 0,
-    cameraSmoothing: gc.cameraSmoothing || 0,
-    cameraZoom: gc.cameraZoom || 0,
-    defaultWidthScreenFactor: gc.defaultWidthScreenFactor || 0,
-    defaultHeightScreenFactor: gc.defaultHeightScreenFactor || 0,
-    devUi: !!gc.devUi,
-    colors: (gc.colors || []).map((c) => ({
-      key: c.key || '',
-      r: c.r || 0,
-      g: c.g || 0,
-      b: c.b || 0,
-      a: c.a != null ? c.a : 255,
-    })),
-    aoiRadius: gc.aoiRadius || 0,
-    portalHoldTimeMs: gc.portalHoldTimeMs || 0,
-    portalSpawnRadius: gc.portalSpawnRadius || 0,
-    entityBaseSpeed: gc.entityBaseSpeed || 0,
-    entityBaseMaxLife: gc.entityBaseMaxLife || 0,
-    entityBaseActionCooldownMs: gc.entityBaseActionCooldownMs || 0,
-    entityBaseMinActionCooldownMs: gc.entityBaseMinActionCooldownMs || 0,
-    botAggroRange: gc.botAggroRange || 0,
-    defaultPlayerWidth: gc.defaultPlayerWidth || 0,
-    defaultPlayerHeight: gc.defaultPlayerHeight || 0,
-    playerBaseLifeRegenMin: gc.playerBaseLifeRegenMin || 0,
-    playerBaseLifeRegenMax: gc.playerBaseLifeRegenMax || 0,
-    sumStatsLimit: gc.sumStatsLimit || 0,
-    maxActiveLayers: gc.maxActiveLayers || 0,
-    initialLifeFraction: gc.initialLifeFraction || 0,
+    cellSize: gc.cellSize ?? fb.cellSize,
+    fps: gc.fps ?? fb.fps,
+    interpolationMs: gc.interpolationMs ?? fb.interpolationMs,
+    defaultObjWidth: gc.defaultObjWidth ?? fb.defaultObjWidth,
+    defaultObjHeight: gc.defaultObjHeight ?? fb.defaultObjHeight,
+    cameraSmoothing: gc.cameraSmoothing ?? fb.cameraSmoothing,
+    cameraZoom: gc.cameraZoom ?? fb.cameraZoom,
+    defaultWidthScreenFactor: gc.defaultWidthScreenFactor ?? fb.defaultWidthScreenFactor,
+    defaultHeightScreenFactor: gc.defaultHeightScreenFactor ?? fb.defaultHeightScreenFactor,
+    devUi: gc.devUi ?? fb.devUi,
+    colors,
+    aoiRadius: gc.aoiRadius ?? fb.aoiRadius,
+    portalHoldTimeMs: gc.portalHoldTimeMs ?? fb.portalHoldTimeMs,
+    portalSpawnRadius: gc.portalSpawnRadius ?? fb.portalSpawnRadius,
+    entityBaseSpeed: gc.entityBaseSpeed ?? fb.entityBaseSpeed,
+    entityBaseMaxLife: gc.entityBaseMaxLife ?? fb.entityBaseMaxLife,
+    entityBaseActionCooldownMs: gc.entityBaseActionCooldownMs ?? fb.entityBaseActionCooldownMs,
+    entityBaseMinActionCooldownMs: gc.entityBaseMinActionCooldownMs ?? fb.entityBaseMinActionCooldownMs,
+    botAggroRange: gc.botAggroRange ?? fb.botAggroRange,
+    defaultPlayerWidth: gc.defaultPlayerWidth ?? fb.defaultPlayerWidth,
+    defaultPlayerHeight: gc.defaultPlayerHeight ?? fb.defaultPlayerHeight,
+    playerBaseLifeRegenMin: gc.playerBaseLifeRegenMin ?? fb.playerBaseLifeRegenMin,
+    playerBaseLifeRegenMax: gc.playerBaseLifeRegenMax ?? fb.playerBaseLifeRegenMax,
+    sumStatsLimit: gc.sumStatsLimit ?? fb.sumStatsLimit,
+    maxActiveLayers: gc.maxActiveLayers ?? fb.maxActiveLayers,
+    initialLifeFraction: gc.initialLifeFraction ?? fb.initialLifeFraction,
     defaultPlayerObjectLayers: (gc.defaultPlayerObjectLayers || []).map((ol) => ({
       itemId: ol.itemId || '',
       active: !!ol.active,
       quantity: ol.quantity || 0,
     })),
-    respawnDurationMs: gc.respawnDurationMs || 0,
-    ghostItemId: gc.ghostItemId || '',
-    collisionLifeLoss: gc.collisionLifeLoss || 0,
-    coinItemId: gc.coinItemId || '',
-    defaultCoinQuantity: gc.defaultCoinQuantity || 0,
-    lifeRegenChance: gc.lifeRegenChance || 0,
-    maxChance: gc.maxChance || 0,
-    defaultFloorItemId: gc.defaultFloorItemId || '',
+    respawnDurationMs: gc.respawnDurationMs ?? fb.respawnDurationMs,
+    ghostItemId: gc.ghostItemId ?? fb.ghostItemId,
+    collisionLifeLoss: gc.collisionLifeLoss ?? fb.collisionLifeLoss,
+    coinItemId: gc.coinItemId ?? fb.coinItemId,
+    defaultCoinQuantity: gc.defaultCoinQuantity ?? fb.defaultCoinQuantity,
+    lifeRegenChance: gc.lifeRegenChance ?? fb.lifeRegenChance,
+    maxChance: gc.maxChance ?? fb.maxChance,
+    defaultFloorItemId: gc.defaultFloorItemId ?? fb.defaultFloorItemId,
     skillConfig: (gc.skillConfig || []).map((sc) => ({
       triggerItemId: sc.triggerItemId || '',
       logicEventIds: sc.logicEventIds || [],
     })),
     skillRules: {
-      bulletSpawnChance: gc.skillRules?.bulletSpawnChance || 0,
-      bulletLifetimeMs: gc.skillRules?.bulletLifetimeMs || 0,
-      bulletWidth: gc.skillRules?.bulletWidth || 0,
-      bulletHeight: gc.skillRules?.bulletHeight || 0,
-      bulletSpeedMultiplier: gc.skillRules?.bulletSpeedMultiplier || 0,
-      doppelgangerSpawnChance: gc.skillRules?.doppelgangerSpawnChance || 0,
-      doppelgangerLifetimeMs: gc.skillRules?.doppelgangerLifetimeMs || 0,
-      doppelgangerSpawnRadius: gc.skillRules?.doppelgangerSpawnRadius || 0,
-      doppelgangerInitialLifeFraction: gc.skillRules?.doppelgangerInitialLifeFraction || 0,
+      bulletSpawnChance: gc.skillRules?.bulletSpawnChance ?? fb.skillRules.bulletSpawnChance,
+      bulletLifetimeMs: gc.skillRules?.bulletLifetimeMs ?? fb.skillRules.bulletLifetimeMs,
+      bulletWidth: gc.skillRules?.bulletWidth ?? fb.skillRules.bulletWidth,
+      bulletHeight: gc.skillRules?.bulletHeight ?? fb.skillRules.bulletHeight,
+      bulletSpeedMultiplier: gc.skillRules?.bulletSpeedMultiplier ?? fb.skillRules.bulletSpeedMultiplier,
+      doppelgangerSpawnChance: gc.skillRules?.doppelgangerSpawnChance ?? fb.skillRules.doppelgangerSpawnChance,
+      doppelgangerLifetimeMs: gc.skillRules?.doppelgangerLifetimeMs ?? fb.skillRules.doppelgangerLifetimeMs,
+      doppelgangerSpawnRadius: gc.skillRules?.doppelgangerSpawnRadius ?? fb.skillRules.doppelgangerSpawnRadius,
+      doppelgangerInitialLifeFraction:
+        gc.skillRules?.doppelgangerInitialLifeFraction ?? fb.skillRules.doppelgangerInitialLifeFraction,
     },
   };
 }
+
+/**
+ * Canonical fallback server configuration values.
+ * Single source of truth used by:
+ *   - buildFallbackConfig()  — when no instance exists in DB
+ *   - toInstanceConfig()     — to fill missing/zero fields from a partial conf document
+ */
+const FALLBACK_CONFIG_DEFAULTS = {
+  cellSize: 64,
+  fps: 60,
+  interpolationMs: 100,
+  defaultObjWidth: 1,
+  defaultObjHeight: 1,
+  cameraSmoothing: 0.1,
+  cameraZoom: 1.0,
+  defaultWidthScreenFactor: 1,
+  defaultHeightScreenFactor: 1,
+  devUi: false,
+  colors: [
+    { key: 'BACKGROUND', r: 30, g: 30, b: 30, a: 255 },
+    { key: 'FLOOR_BACKGROUND', r: 45, g: 45, b: 45, a: 255 },
+    { key: 'FLOOR', r: 60, g: 60, b: 60, a: 255 },
+    { key: 'OBSTACLE', r: 80, g: 80, b: 80, a: 255 },
+    { key: 'PORTAL', r: 0, g: 200, b: 200, a: 255 },
+    { key: 'PLAYER', r: 0, g: 255, b: 0, a: 255 },
+    { key: 'OTHER_PLAYER', r: 128, g: 128, b: 255, a: 255 },
+    { key: 'BOT', r: 255, g: 128, b: 0, a: 255 },
+  ],
+  aoiRadius: 10,
+  portalHoldTimeMs: 1000,
+  portalSpawnRadius: 3,
+  entityBaseSpeed: 5,
+  entityBaseMaxLife: 100,
+  entityBaseActionCooldownMs: 500,
+  entityBaseMinActionCooldownMs: 100,
+  botAggroRange: 10,
+  defaultPlayerWidth: 2,
+  defaultPlayerHeight: 2,
+  playerBaseLifeRegenMin: 0.5,
+  playerBaseLifeRegenMax: 1.5,
+  sumStatsLimit: 500,
+  maxActiveLayers: 4,
+  initialLifeFraction: 1.0,
+  defaultPlayerObjectLayers: [],
+  respawnDurationMs: 3000,
+  ghostItemId: '',
+  collisionLifeLoss: 10,
+  coinItemId: '',
+  defaultCoinQuantity: 1,
+  lifeRegenChance: 300,
+  maxChance: 10000,
+  defaultFloorItemId: '',
+  skillConfig: [],
+  skillRules: {
+    bulletSpawnChance: 0,
+    bulletLifetimeMs: 0,
+    bulletWidth: 0,
+    bulletHeight: 0,
+    bulletSpeedMultiplier: 0,
+    doppelgangerSpawnChance: 0,
+    doppelgangerLifetimeMs: 0,
+    doppelgangerSpawnRadius: 0,
+    doppelgangerInitialLifeFraction: 0,
+  },
+};
 
 /**
  * Builds a minimal InstanceConfig with playable defaults.
@@ -260,63 +337,45 @@ function toInstanceConfig(gc) {
  * Players are rendered as solid colored rectangles (entity.color).
  */
 function buildFallbackConfig() {
+  return JSON.parse(JSON.stringify(FALLBACK_CONFIG_DEFAULTS));
+}
+
+/**
+ * Generates a minimal 64×64 map of 4×4-cell floor tiles.
+ * Used when the requested instance has no maps, or as the fallback instance map.
+ * @param {string} mapCode
+ */
+function buildFallbackMap(mapCode) {
+  const gridSize = 64;
+  const tileDim = 4;
+  const floorColor = 'rgba(60,60,60,1)';
+  const floors = [];
+  for (let r = 0; r < gridSize; r += tileDim) {
+    for (let c = 0; c < gridSize; c += tileDim) {
+      floors.push({
+        entityType: 'floor',
+        initCellX: c,
+        initCellY: r,
+        dimX: tileDim,
+        dimY: tileDim,
+        color: floorColor,
+        objectLayerItemIds: [],
+        spawnRadius: 0,
+        aggroRange: 0,
+        maxLife: 0,
+        lifeRegen: 0,
+      });
+    }
+  }
   return {
-    cellSize: 64,
-    fps: 60,
-    interpolationMs: 100,
-    defaultObjWidth: 1,
-    defaultObjHeight: 1,
-    cameraSmoothing: 0.1,
-    cameraZoom: 1.0,
-    defaultWidthScreenFactor: 1,
-    defaultHeightScreenFactor: 1,
-    devUi: false,
-    colors: [
-      { key: 'BACKGROUND', r: 30, g: 30, b: 30, a: 255 },
-      { key: 'FLOOR_BACKGROUND', r: 45, g: 45, b: 45, a: 255 },
-      { key: 'FLOOR', r: 60, g: 60, b: 60, a: 255 },
-      { key: 'OBSTACLE', r: 80, g: 80, b: 80, a: 255 },
-      { key: 'PORTAL', r: 0, g: 200, b: 200, a: 255 },
-      { key: 'PLAYER', r: 0, g: 255, b: 0, a: 255 },
-      { key: 'OTHER_PLAYER', r: 128, g: 128, b: 255, a: 255 },
-      { key: 'BOT', r: 255, g: 128, b: 0, a: 255 },
-    ],
-    aoiRadius: 10,
-    portalHoldTimeMs: 1000,
-    portalSpawnRadius: 3,
-    entityBaseSpeed: 5,
-    entityBaseMaxLife: 100,
-    entityBaseActionCooldownMs: 500,
-    entityBaseMinActionCooldownMs: 100,
-    botAggroRange: 10,
-    defaultPlayerWidth: 2,
-    defaultPlayerHeight: 2,
-    playerBaseLifeRegenMin: 0.5,
-    playerBaseLifeRegenMax: 1.5,
-    sumStatsLimit: 500,
-    maxActiveLayers: 4,
-    initialLifeFraction: 1.0,
-    defaultPlayerObjectLayers: [],
-    respawnDurationMs: 3000,
-    ghostItemId: '',
-    collisionLifeLoss: 10,
-    coinItemId: '',
-    defaultCoinQuantity: 1,
-    lifeRegenChance: 300,
-    maxChance: 10000,
-    defaultFloorItemId: '',
-    skillConfig: [],
-    skillRules: {
-      bulletSpawnChance: 0,
-      bulletLifetimeMs: 0,
-      bulletWidth: 0,
-      bulletHeight: 0,
-      bulletSpeedMultiplier: 0,
-      doppelgangerSpawnChance: 0,
-      doppelgangerLifetimeMs: 0,
-      doppelgangerSpawnRadius: 0,
-      doppelgangerInitialLifeFraction: 0,
-    },
+    mongoId: '',
+    code: mapCode,
+    name: 'Fallback Map',
+    gridX: gridSize,
+    gridY: gridSize,
+    cellWidth: 32,
+    cellHeight: 32,
+    entities: floors,
   };
 }
 
@@ -397,8 +456,20 @@ function buildHandlers(dbKey) {
     async getMapData(call, callback) {
       try {
         const models = getModels(dbKey);
-        const doc = await models.CyberiaMap.findOne({ code: call.request.mapCode }).lean();
-        if (!doc) return callback({ code: grpc.status.NOT_FOUND, message: `Map "${call.request.mapCode}" not found` });
+        const { mapCode, instanceCode } = call.request;
+        const doc = await models.CyberiaMap.findOne({ code: mapCode }).lean();
+        if (!doc) return callback({ code: grpc.status.NOT_FOUND, message: `Map "${mapCode}" not found` });
+
+        // Track which instance is serving each mapCode in real time.
+        // instanceCode is provided by the Go server in every GetMapData request.
+        if (instanceCode) {
+          models.GlobalMapCodeRegistry.findOneAndUpdate(
+            { mapCode },
+            { instanceCode, status: 'active' },
+            { upsert: true, new: true, timestamps: true },
+          ).catch((err) => logger.warn('getMapData registry update failed:', err.message));
+        }
+
         callback(null, { map: toMapMsg(doc) });
       } catch (err) {
         logger.error('getMapData:', err);
@@ -417,30 +488,6 @@ function buildHandlers(dbKey) {
         if (!inst) {
           logger.info(`Instance "${instanceCode}" not found — returning fallback instance.`);
           const fallbackMapCode = 'fallback-map-0';
-          // Build a 16×16 grid of 1×1 floor tiles — no obstacles, no bots, no portals.
-          // Players are rendered as solid colored rectangles using the PLAYER color from the palette.
-          // The Engine owns this fallback; the Go server must not generate its own.
-          const fallbackGridSize = 64;
-          const fallbackTileDim = 4; // 4×4-cell tiles — AOI-visible transitions as player moves
-          const fallbackFloorColor = 'rgba(60,60,60,1)';
-          const fallbackFloors = [];
-          for (let r = 0; r < fallbackGridSize; r += fallbackTileDim) {
-            for (let c = 0; c < fallbackGridSize; c += fallbackTileDim) {
-              fallbackFloors.push({
-                entityType: 'floor',
-                initCellX: c,
-                initCellY: r,
-                dimX: fallbackTileDim,
-                dimY: fallbackTileDim,
-                color: fallbackFloorColor,
-                objectLayerItemIds: [],
-                spawnRadius: 0,
-                aggroRange: 0,
-                maxLife: 0,
-                lifeRegen: 0,
-              });
-            }
-          }
           callback(null, {
             instance: {
               mongoId: '',
@@ -453,18 +500,7 @@ function buildHandlers(dbKey) {
               topologyMode: 'manual',
               seed: '',
             },
-            maps: [
-              {
-                mongoId: '',
-                code: fallbackMapCode,
-                name: 'Fallback Map',
-                gridX: fallbackGridSize,
-                gridY: fallbackGridSize,
-                cellWidth: 32,
-                cellHeight: 32,
-                entities: fallbackFloors,
-              },
-            ],
+            maps: [buildFallbackMap(fallbackMapCode)],
             objectLayers: [],
             config: buildFallbackConfig(),
           });

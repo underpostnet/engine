@@ -8,8 +8,30 @@ const CyberiaInstanceService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
     const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
+    const CyberiaInstanceConf =
+      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstanceConf;
     if (req.auth && req.auth.user) req.body.creator = req.auth.user._id;
-    return await new CyberiaInstance(req.body).save();
+    const instance = await new CyberiaInstance(req.body).save();
+
+    // Auto-upsert a CyberiaInstanceConf for this instance using schema defaults.
+    // $setOnInsert ensures existing conf documents are never overwritten.
+    if (instance.code && CyberiaInstanceConf) {
+      try {
+        const conf = await CyberiaInstanceConf.findOneAndUpdate(
+          { instanceCode: instance.code },
+          { $setOnInsert: { instanceCode: instance.code } },
+          { upsert: true, new: true },
+        );
+        if (conf && !instance.conf) {
+          await CyberiaInstance.findByIdAndUpdate(instance._id, { conf: conf._id });
+          instance.conf = conf._id;
+        }
+      } catch (e) {
+        logger.error('auto-upsert CyberiaInstanceConf failed:', e);
+      }
+    }
+
+    return instance;
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
