@@ -93,7 +93,7 @@ const createEntityCard = (entityType) => {
 
 const fetchMetrics = async () => {
   try {
-    const response = await fetch('http://localhost:8080/api/v1/metrics');
+    const response = await fetch('/api/v1/metrics');
     if (!response.ok) throw new Error('Failed to fetch metrics');
     return await response.json();
   } catch (error) {

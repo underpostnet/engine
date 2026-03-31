@@ -51,6 +51,133 @@ const CyberiaInstanceSchema = new Schema(
       enum: ['manual', 'procedural', 'hybrid'],
       default: 'hybrid',
     },
+
+    // Game server configuration — replaces all hardcoded Go defaults
+    gameConfig: {
+      type: new Schema(
+        {
+          // Rendering / camera
+          cellSize: { type: Number },
+          fps: { type: Number },
+          interpolationMs: { type: Number },
+          defaultObjWidth: { type: Number },
+          defaultObjHeight: { type: Number },
+          cameraSmoothing: { type: Number },
+          cameraZoom: { type: Number },
+          defaultWidthScreenFactor: { type: Number },
+          defaultHeightScreenFactor: { type: Number },
+          devUi: { type: Boolean },
+          colors: {
+            type: [
+              new Schema(
+                {
+                  key: { type: String, required: true },
+                  r: { type: Number, default: 0 },
+                  g: { type: Number, default: 0 },
+                  b: { type: Number, default: 0 },
+                  a: { type: Number, default: 255 },
+                },
+                { _id: false },
+              ),
+            ],
+            default: [],
+          },
+
+          // World / AOI
+          aoiRadius: { type: Number },
+          portalHoldTimeMs: { type: Number },
+          portalSpawnRadius: { type: Number },
+
+          // Entity base stats
+          entityBaseSpeed: { type: Number },
+          entityBaseMaxLife: { type: Number },
+          entityBaseActionCooldownMs: { type: Number },
+          entityBaseMinActionCooldownMs: { type: Number },
+
+          // Bot defaults
+          botAggroRange: { type: Number },
+
+          // Player defaults
+          defaultPlayerWidth: { type: Number },
+          defaultPlayerHeight: { type: Number },
+          playerBaseLifeRegenMin: { type: Number },
+          playerBaseLifeRegenMax: { type: Number },
+          sumStatsLimit: { type: Number },
+          maxActiveLayers: { type: Number },
+          initialLifeFraction: { type: Number },
+          defaultPlayerObjectLayers: {
+            type: [
+              new Schema(
+                {
+                  itemId: { type: String, required: true },
+                  active: { type: Boolean, default: false },
+                  quantity: { type: Number, default: 1 },
+                },
+                { _id: false },
+              ),
+            ],
+            default: [],
+          },
+
+          // Combat / death
+          respawnDurationMs: { type: Number },
+          ghostItemId: { type: String },
+          collisionLifeLoss: { type: Number },
+
+          // Economy
+          coinItemId: { type: String },
+          defaultCoinQuantity: { type: Number },
+
+          // Regen
+          lifeRegenChance: { type: Number },
+          maxChance: { type: Number },
+
+          // Skill config
+          bulletSpawnChance: { type: Number },
+          bulletLifetimeMs: { type: Number },
+          bulletWidth: { type: Number },
+          bulletHeight: { type: Number },
+          bulletSpeedMultiplier: { type: Number },
+          doppelgangerSpawnChance: { type: Number },
+          doppelgangerLifetimeMs: { type: Number },
+          doppelgangerSpawnRadius: { type: Number },
+          doppelgangerInitialLifeFraction: { type: Number },
+
+          // Floor defaults
+          defaultFloorItemId: { type: String },
+
+          // Player color (fallback when no object layers / sprites)
+          defaultPlayerColor: {
+            type: new Schema(
+              {
+                r: { type: Number, default: 0 },
+                g: { type: Number, default: 255 },
+                b: { type: Number, default: 0 },
+                a: { type: Number, default: 255 },
+              },
+              { _id: false },
+            ),
+          },
+
+          // Skill map
+          skillConfig: {
+            type: [
+              new Schema(
+                {
+                  triggerItemId: { type: String, required: true },
+                  spawnedItemIds: { type: [String], default: [] },
+                  logicEventId: { type: String, default: '' },
+                },
+                { _id: false },
+              ),
+            ],
+            default: [],
+          },
+        },
+        { _id: false },
+      ),
+      default: () => ({}),
+    },
   },
   { timestamps: true },
 );

@@ -186,6 +186,142 @@ function toInstanceMsg(doc) {
   };
 }
 
+function toInstanceConfig(gc) {
+  if (!gc) return {};
+  return {
+    cellSize: gc.cellSize || 0,
+    fps: gc.fps || 0,
+    interpolationMs: gc.interpolationMs || 0,
+    defaultObjWidth: gc.defaultObjWidth || 0,
+    defaultObjHeight: gc.defaultObjHeight || 0,
+    cameraSmoothing: gc.cameraSmoothing || 0,
+    cameraZoom: gc.cameraZoom || 0,
+    defaultWidthScreenFactor: gc.defaultWidthScreenFactor || 0,
+    defaultHeightScreenFactor: gc.defaultHeightScreenFactor || 0,
+    devUi: !!gc.devUi,
+    colors: (gc.colors || []).map((c) => ({
+      key: c.key || '',
+      r: c.r || 0,
+      g: c.g || 0,
+      b: c.b || 0,
+      a: c.a != null ? c.a : 255,
+    })),
+    aoiRadius: gc.aoiRadius || 0,
+    portalHoldTimeMs: gc.portalHoldTimeMs || 0,
+    portalSpawnRadius: gc.portalSpawnRadius || 0,
+    entityBaseSpeed: gc.entityBaseSpeed || 0,
+    entityBaseMaxLife: gc.entityBaseMaxLife || 0,
+    entityBaseActionCooldownMs: gc.entityBaseActionCooldownMs || 0,
+    entityBaseMinActionCooldownMs: gc.entityBaseMinActionCooldownMs || 0,
+    botAggroRange: gc.botAggroRange || 0,
+    defaultPlayerWidth: gc.defaultPlayerWidth || 0,
+    defaultPlayerHeight: gc.defaultPlayerHeight || 0,
+    playerBaseLifeRegenMin: gc.playerBaseLifeRegenMin || 0,
+    playerBaseLifeRegenMax: gc.playerBaseLifeRegenMax || 0,
+    sumStatsLimit: gc.sumStatsLimit || 0,
+    maxActiveLayers: gc.maxActiveLayers || 0,
+    initialLifeFraction: gc.initialLifeFraction || 0,
+    defaultPlayerObjectLayers: (gc.defaultPlayerObjectLayers || []).map((ol) => ({
+      itemId: ol.itemId || '',
+      active: !!ol.active,
+      quantity: ol.quantity || 0,
+    })),
+    respawnDurationMs: gc.respawnDurationMs || 0,
+    ghostItemId: gc.ghostItemId || '',
+    collisionLifeLoss: gc.collisionLifeLoss || 0,
+    coinItemId: gc.coinItemId || '',
+    defaultCoinQuantity: gc.defaultCoinQuantity || 0,
+    lifeRegenChance: gc.lifeRegenChance || 0,
+    maxChance: gc.maxChance || 0,
+    bulletSpawnChance: gc.bulletSpawnChance || 0,
+    bulletLifetimeMs: gc.bulletLifetimeMs || 0,
+    bulletWidth: gc.bulletWidth || 0,
+    bulletHeight: gc.bulletHeight || 0,
+    bulletSpeedMultiplier: gc.bulletSpeedMultiplier || 0,
+    doppelgangerSpawnChance: gc.doppelgangerSpawnChance || 0,
+    doppelgangerLifetimeMs: gc.doppelgangerLifetimeMs || 0,
+    doppelgangerSpawnRadius: gc.doppelgangerSpawnRadius || 0,
+    doppelgangerInitialLifeFraction: gc.doppelgangerInitialLifeFraction || 0,
+    defaultFloorItemId: gc.defaultFloorItemId || '',
+    skillConfig: (gc.skillConfig || []).map((sc) => ({
+      triggerItemId: sc.triggerItemId || '',
+      spawnedItemIds: sc.spawnedItemIds || [],
+      logicEventId: sc.logicEventId || '',
+    })),
+    defaultPlayerColor: gc.defaultPlayerColor
+      ? {
+          key: 'default_player_color',
+          r: gc.defaultPlayerColor.r || 0,
+          g: gc.defaultPlayerColor.g || 0,
+          b: gc.defaultPlayerColor.b || 0,
+          a: gc.defaultPlayerColor.a != null ? gc.defaultPlayerColor.a : 255,
+        }
+      : { key: 'default_player_color', r: 0, g: 255, b: 0, a: 255 },
+  };
+}
+
+/**
+ * Builds a minimal InstanceConfig with playable defaults.
+ * Used when the requested instance does not exist in the database.
+ * No entities, no skills, no items — just enough for the Go server
+ * to create an empty map where player entities can connect and move.
+ * Players are rendered as solid colored rectangles (entity.color).
+ */
+function buildFallbackConfig() {
+  return {
+    cellSize: 32,
+    fps: 10,
+    interpolationMs: 100,
+    defaultObjWidth: 1,
+    defaultObjHeight: 1,
+    cameraSmoothing: 0.1,
+    cameraZoom: 1.0,
+    defaultWidthScreenFactor: 1,
+    defaultHeightScreenFactor: 1,
+    devUi: false,
+    colors: [
+      { key: 'background', r: 30, g: 30, b: 30, a: 255 },
+      { key: 'obstacle', r: 80, g: 80, b: 80, a: 255 },
+      { key: 'portal', r: 0, g: 200, b: 200, a: 255 },
+    ],
+    aoiRadius: 300,
+    portalHoldTimeMs: 1000,
+    portalSpawnRadius: 3,
+    entityBaseSpeed: 200,
+    entityBaseMaxLife: 100,
+    entityBaseActionCooldownMs: 500,
+    entityBaseMinActionCooldownMs: 100,
+    botAggroRange: 10,
+    defaultPlayerWidth: 1,
+    defaultPlayerHeight: 1,
+    playerBaseLifeRegenMin: 0.5,
+    playerBaseLifeRegenMax: 1.5,
+    sumStatsLimit: 500,
+    maxActiveLayers: 4,
+    initialLifeFraction: 1.0,
+    defaultPlayerObjectLayers: [],
+    respawnDurationMs: 3000,
+    ghostItemId: '',
+    collisionLifeLoss: 10,
+    coinItemId: '',
+    defaultCoinQuantity: 1,
+    lifeRegenChance: 300,
+    maxChance: 10000,
+    bulletSpawnChance: 0,
+    bulletLifetimeMs: 0,
+    bulletWidth: 0,
+    bulletHeight: 0,
+    bulletSpeedMultiplier: 0,
+    doppelgangerSpawnChance: 0,
+    doppelgangerLifetimeMs: 0,
+    doppelgangerSpawnRadius: 0,
+    doppelgangerInitialLifeFraction: 0,
+    defaultFloorItemId: '',
+    skillConfig: [],
+    defaultPlayerColor: { key: 'default_player_color', r: 0, g: 255, b: 0, a: 255 },
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // RPC handler factory
 // ═══════════════════════════════════════════════════════════════════
@@ -276,11 +412,40 @@ function buildHandlers(dbKey) {
       try {
         const models = getModels(dbKey);
         const inst = await models.CyberiaInstance.findOne({ code: call.request.instanceCode }).lean();
-        if (!inst)
-          return callback({
-            code: grpc.status.NOT_FOUND,
-            message: `Instance "${call.request.instanceCode}" not found`,
+
+        // ── Fallback: instance not found → return a minimal playable instance ──
+        if (!inst) {
+          logger.info(`Instance "${call.request.instanceCode}" not found — returning fallback instance.`);
+          const fallbackMapCode = 'fallback-map-0';
+          callback(null, {
+            instance: {
+              mongoId: '',
+              code: call.request.instanceCode,
+              name: 'Fallback Instance',
+              description: 'Auto-generated minimal instance',
+              tags: [],
+              mapCodes: [fallbackMapCode],
+              portals: [],
+              topologyMode: 'manual',
+              seed: '',
+            },
+            maps: [
+              {
+                mongoId: '',
+                code: fallbackMapCode,
+                name: 'Fallback Map',
+                gridX: 16,
+                gridY: 16,
+                cellWidth: 32,
+                cellHeight: 32,
+                entities: [], // No entities — Go server auto-generates floors/obstacles
+              },
+            ],
+            objectLayers: [],
+            config: buildFallbackConfig(),
           });
+          return;
+        }
 
         const mapCodes = inst.cyberiaMapCodes || [];
         const mapDocs = mapCodes.length ? await models.CyberiaMap.find({ code: { $in: mapCodes } }).lean() : [];
@@ -302,6 +467,7 @@ function buildHandlers(dbKey) {
           instance: toInstanceMsg(inst),
           maps: mapDocs.map(toMapMsg),
           objectLayers: olDocs.map(toObjectLayerMsg),
+          config: toInstanceConfig(inst.gameConfig),
         });
       } catch (err) {
         logger.error('getFullInstance:', err);

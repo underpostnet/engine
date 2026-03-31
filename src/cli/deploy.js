@@ -155,6 +155,7 @@ metadata:
   namespace: ${namespace ? namespace : 'default'}
   labels:
     app: ${deployId}-${env}-${suffix}
+    deploy-id: ${deployId}-${env}
 spec:
   replicas: ${replicas}
   selector:
@@ -164,6 +165,7 @@ spec:
     metadata:
       labels:
         app: ${deployId}-${env}-${suffix}
+        deploy-id: ${deployId}-${env}
     spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
@@ -259,6 +261,8 @@ ${Underpost.deploy
 `;
         }
         fs.writeFileSync(`./engine-private/conf/${deployId}/build/${env}/deployment.yaml`, deploymentYamlParts, 'utf8');
+
+        Underpost.deploy.buildGrpcServiceManifest({ deployId, env, confServer, namespace: options.namespace });
 
         const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
           ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.volume.json`, 'utf8'))
@@ -368,6 +372,56 @@ ${Underpost.deploy
           }
         }
       }
+    },
+    /**
+     * Builds and writes a stable gRPC ClusterIP service YAML for a deployment.
+     * Scans conf.server.json for gRPC ports and emits grpc-service.yaml under
+     * `engine-private/conf/<deployId>/build/<env>/`. The selector uses the shared
+     * `deploy-id: <deployId>-<env>` label so both blue and green pods are targeted.
+     * @param {string} deployId - Deployment ID.
+     * @param {string} env - Environment ('development' or 'production').
+     * @param {object} confServer - Parsed conf.server.json content.
+     * @param {string} [namespace='default'] - Kubernetes namespace.
+     * @returns {string|null} - Path to the written YAML file, or null if no gRPC ports found.
+     * @memberof UnderpostDeploy
+     */
+    buildGrpcServiceManifest({ deployId, env, confServer, namespace = 'default' }) {
+      const grpcPorts = new Set();
+      for (const host of Object.keys(confServer)) {
+        for (const path of Object.keys(confServer[host])) {
+          const grpc = confServer[host][path].grpc;
+          if (grpc && grpc.port) grpcPorts.add(parseInt(grpc.port));
+        }
+      }
+      if (grpcPorts.size === 0) return null;
+      const grpcServiceName = `${deployId}-grpc-service`;
+      const grpcPortsList = [...grpcPorts]
+        .map(
+          (port) => `    - name: grpc-${port}
+      protocol: TCP
+      port: ${port}
+      targetPort: ${port}`,
+        )
+        .join('\n');
+      const grpcServiceYaml = `---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${grpcServiceName}
+  namespace: ${namespace}
+  labels:
+    app: ${grpcServiceName}
+spec:
+  type: ClusterIP
+  selector:
+    deploy-id: ${deployId}-${env}
+  ports:
+${grpcPortsList}
+`;
+      const yamlPath = `./engine-private/conf/${deployId}/build/${env}/grpc-service.yaml`;
+      fs.writeFileSync(yamlPath, grpcServiceYaml, 'utf8');
+      logger.info(`gRPC ClusterIP service YAML written: ${grpcServiceName} (ports: ${[...grpcPorts].join(', ')})`);
+      return yamlPath;
     },
     /**
      * Builds a Certificate resource for a host using cert-manager.
@@ -662,8 +716,11 @@ EOF`);
             : `manifests/deployment/${deployId}-${env}`;
 
         if (!options.remove) {
-          if (!options.disableUpdateDeployment)
+          if (!options.disableUpdateDeployment) {
             shellExec(`sudo kubectl apply -f ./${manifestsPath}/deployment.yaml -n ${namespace}`);
+            const grpcServicePath = `./${manifestsPath}/grpc-service.yaml`;
+            if (fs.existsSync(grpcServicePath)) shellExec(`sudo kubectl apply -f ${grpcServicePath} -n ${namespace}`);
+          }
           if (!options.disableUpdateProxy)
             shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml -n ${namespace}`);
 
