@@ -288,6 +288,7 @@ const DefaultConf = /**/ {
         'cyberia-entity',
         'cyberia-map',
         'cyberia-instance',
+        'cyberia-instance-conf',
       ],
     },
     cryptokoyn: {
@@ -640,6 +641,7 @@ const DefaultConf = /**/ {
           'cyberia-entity',
           'cyberia-map',
           'cyberia-instance',
+          'cyberia-instance-conf',
         ],
         ws: 'core',
         peer: true,
@@ -688,6 +690,7 @@ const DefaultConf = /**/ {
           'cyberia-entity',
           'cyberia-map',
           'cyberia-instance',
+          'cyberia-instance-conf',
         ],
         ws: 'core',
         peer: true,

@@ -411,7 +411,7 @@ function buildHandlers(dbKey) {
         const models = getModels(dbKey);
         // Normalise empty instanceCode to the canonical fallback name.
         const instanceCode = call.request.instanceCode || 'default';
-        const inst = await models.CyberiaInstance.findOne({ code: instanceCode }).lean();
+        const inst = await models.CyberiaInstance.findOne({ code: instanceCode }).populate('conf').lean();
 
         // ── Fallback: instance not found → return a minimal playable instance ──
         if (!inst) {
@@ -490,7 +490,7 @@ function buildHandlers(dbKey) {
           instance: toInstanceMsg(inst),
           maps: mapDocs.map(toMapMsg),
           objectLayers: olDocs.map(toObjectLayerMsg),
-          config: toInstanceConfig(inst.gameConfig),
+          config: toInstanceConfig(inst.conf),
         });
       } catch (err) {
         logger.error('getFullInstance:', err);

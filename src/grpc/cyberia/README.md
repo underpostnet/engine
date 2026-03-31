@@ -48,28 +48,28 @@ When `getFullInstance` is called with an instance code that does not exist in Mo
 
 The Go server **always** requires gRPC — if the Engine is unreachable it exits with a fatal error. The fallback is purely Engine-side: `getFullInstance` with an unknown code returns a synthetic response, not `NOT_FOUND`.
 
-### Skill System: itemId → LogicEventID
+### Skill System: itemId → logicEventIds
 
-The skill pipeline maps item IDs to skill logic handlers:
+The skill pipeline maps trigger item IDs to ordered lists of logic handler keys:
 
 ```
-gameConfig.skillConfig[] (MongoDB)
-  ├─ triggerItemId:   "atlas_pistol_mk2"     ← item in player's object layer stack
-  ├─ spawnedItemIds:  ["atlas_bullet_mk2"]   ← items spawned by the skill
-  └─ logicEventId:    "atlas_pistol_mk2_logic" ← handler key in skill.go switch
+CyberiaInstanceConf.skillConfig[] (MongoDB)
+  ├─ triggerItemId:  "atlas_pistol_mk2"        ← item in player's active object layer
+  └─ logicEventIds: ["atlas_pistol_mk2_logic"] ← ordered handler keys executed in sequence
 
-gameConfig.skillRules (MongoDB) → SkillRules proto message → GameServer fields
+CyberiaInstanceConf.skillRules (MongoDB) → SkillRules proto message → GameServer fields
   ├─ bulletSpawnChance / bulletLifetimeMs / bulletWidth / bulletHeight / bulletSpeedMultiplier
   └─ doppelgangerSpawnChance / doppelgangerLifetimeMs / doppelgangerSpawnRadius / doppelgangerInitialLifeFraction
 
 Go runtime:
   1. Player performs action
-  2. Iterate active object layers
-  3. s.skillConfig[layer.ItemID] → []SkillDefinition
-  4. switch skillDef.LogicEventID:
-       case "doppelganger" → executePlayerDoppelgangerSkill()
-       case "atlas_pistol_mk2_logic" → executePlayerBulletSkill()
+  2. Iterate active object layers → s.skillConfig[layer.ItemID] → []SkillDefinition
+  3. For each SkillDefinition, iterate LogicEventIDs in order:
+       "doppelganger"          → executePlayerDoppelgangerSkill()
+       "atlas_pistol_mk2_logic" → executePlayerBulletSkill()  (bullet item ID is internal to the handler)
 ```
+
+Spawning new entities (e.g. bullets) is handled entirely inside the logic handler — no `spawnedItemIds` config is needed.
 
 ## Configuration
 

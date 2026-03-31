@@ -3031,22 +3031,28 @@ try {
 
       logger.info('seed-skill-config', { instanceCode, deployId, host, path, db });
 
-      await DataBaseProvider.load({ apis: ['cyberia-instance'], host, path, db });
+      await DataBaseProvider.load({ apis: ['cyberia-instance', 'cyberia-instance-conf'], host, path, db });
 
       const CyberiaInstance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaInstance;
+      const CyberiaInstanceConf = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaInstanceConf;
 
-      const result = await CyberiaInstance.findOneAndUpdate(
-        { code: instanceCode },
-        { $set: { 'gameConfig.skillConfig': DefaultSkillConfig } },
-        { upsert: false, new: true },
-      );
+      const instance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
 
-      if (!result) {
+      if (!instance) {
         logger.warn(
           `CyberiaInstance "${instanceCode}" not found — skillConfig not seeded. ` +
             `Create the instance first or import it with: node bin/cyberia instance ${instanceCode} --import`,
         );
       } else {
+        const conf = await CyberiaInstanceConf.findOneAndUpdate(
+          { instanceCode },
+          { $set: { skillConfig: DefaultSkillConfig } },
+          { upsert: true, new: true },
+        );
+        // Ensure the instance's conf ref is linked.
+        if (!instance.conf || String(instance.conf) !== String(conf._id)) {
+          await CyberiaInstance.findByIdAndUpdate(instance._id, { conf: conf._id });
+        }
         logger.info(
           `skillConfig seeded for instance "${instanceCode}" (${DefaultSkillConfig.length} entries)`,
           DefaultSkillConfig.map((e) => `${e.triggerItemId} → [${e.logicEventIds.join(', ')}]`),
