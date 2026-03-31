@@ -79,6 +79,7 @@ class ExpressService {
     peer,
     valkey,
     apiBaseHost,
+    grpc,
     redirectTarget,
     rootHostPath,
     confSSR,
@@ -196,6 +197,12 @@ class ExpressService {
           ...mailer,
           templates: mailerSsrConf ? mailerSsrConf.mailer : {},
         });
+      }
+
+      // gRPC server
+      if (grpc && grpc.module) {
+        const { GrpcServer } = await import(`../../grpc/${grpc.module}/grpc-server.js`);
+        await GrpcServer.start({ host, path, port: grpc.port || 50051 });
       }
 
       // API router loading

@@ -5,23 +5,22 @@
  * Provides read-only RPCs for the Go game server to fetch
  * ObjectLayers, AtlasSpriteSheets, Instances, and Maps from MongoDB.
  *
- * @module src/grpc/cyberia-grpc-server.js
+ * @module src/grpc/cyberia/grpc-server.js
  */
 
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import path from 'path';
-import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { DataBaseProvider } from '../db/DataBaseProvider.js';
-import { loggerFactory } from '../server/logger.js';
+import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { loggerFactory } from '../../server/logger.js';
 
 const logger = loggerFactory(import.meta);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PROTO_PATH = path.resolve(__dirname, '../../cyberia-server/proto/cyberia.proto');
+const PROTO_PATH = path.resolve(__dirname, '../../../cyberia-server/proto/cyberia.proto');
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: false,
@@ -329,7 +328,7 @@ function buildHandlers(dbKey) {
 // Server lifecycle
 // ═══════════════════════════════════════════════════════════════════
 
-const CyberiaGrpcServer = {
+const GrpcServer = {
   _server: null,
 
   /**
@@ -337,9 +336,8 @@ const CyberiaGrpcServer = {
    * @param {string} opts.host  - DataBaseProvider host key
    * @param {string} opts.path  - DataBaseProvider path key
    * @param {number} [opts.port=50051]
-   * @param {Object} [opts.tls] - mTLS paths { certPath, keyPath, caPath }
    */
-  async start({ host, path: dbPath, port = 50051, tls } = {}) {
+  async start({ host, path: dbPath, port = 50051 } = {}) {
     const dbKey = `${host}${dbPath}`;
     const server = new grpc.Server({
       'grpc.max_send_message_length': 64 * 1024 * 1024,
@@ -348,17 +346,8 @@ const CyberiaGrpcServer = {
 
     server.addService(proto.CyberiaDataService.service, buildHandlers(dbKey));
 
-    let creds;
-    if (tls && tls.certPath && tls.keyPath && tls.caPath) {
-      const rootCert = fs.readFileSync(tls.caPath);
-      const serverCert = fs.readFileSync(tls.certPath);
-      const serverKey = fs.readFileSync(tls.keyPath);
-      creds = grpc.ServerCredentials.createSsl(rootCert, [{ cert_chain: serverCert, private_key: serverKey }], true);
-      logger.info('gRPC: mTLS credentials loaded');
-    } else {
-      creds = grpc.ServerCredentials.createInsecure();
-      logger.info('gRPC: insecure mode (cluster-internal only)');
-    }
+    // gRPC runs over Kubernetes internal network (ClusterIP) — always insecure
+    const creds = grpc.ServerCredentials.createInsecure();
 
     return new Promise((resolve, reject) => {
       server.bindAsync(`0.0.0.0:${port}`, creds, (err) => {
@@ -366,7 +355,7 @@ const CyberiaGrpcServer = {
           logger.error('gRPC bind failed:', err);
           return reject(err);
         }
-        CyberiaGrpcServer._server = server;
+        GrpcServer._server = server;
         logger.info(`gRPC server listening on 0.0.0.0:${port}`);
         resolve(server);
       });
@@ -374,10 +363,10 @@ const CyberiaGrpcServer = {
   },
 
   async stop() {
-    if (!CyberiaGrpcServer._server) return;
+    if (!GrpcServer._server) return;
     return new Promise((resolve) => {
-      CyberiaGrpcServer._server.tryShutdown(() => {
-        CyberiaGrpcServer._server = null;
+      GrpcServer._server.tryShutdown(() => {
+        GrpcServer._server = null;
         logger.info('gRPC server stopped');
         resolve();
       });
@@ -385,4 +374,4 @@ const CyberiaGrpcServer = {
   },
 };
 
-export { CyberiaGrpcServer };
+export { GrpcServer };

@@ -657,6 +657,7 @@ const DefaultConf = /**/ {
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_CYBERIA' },
         valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
+        grpc: { module: 'cyberia', port: 50051 },
         mailer: {
           sender: { email: 'env:MAILER_SENDER_EMAIL_CYBERIA', name: 'env:MAILER_SENDER_NAME_CYBERIA' },
           transport: {
@@ -704,6 +705,7 @@ const DefaultConf = /**/ {
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_CYBERIA' },
         valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
+        grpc: { module: 'cyberia', port: 50051 },
         mailer: {
           sender: { email: 'env:MAILER_SENDER_EMAIL_CYBERIA', name: 'env:MAILER_SENDER_NAME_CYBERIA' },
           transport: {

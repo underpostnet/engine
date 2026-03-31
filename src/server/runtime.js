@@ -71,6 +71,7 @@ const buildRuntime = async () => {
         valkey,
         apiBaseHost,
         useLocalSsl,
+        grpc,
       } = confServer[host][path];
 
       // Calculate context data
@@ -116,6 +117,7 @@ const buildRuntime = async () => {
             peer,
             valkey,
             apiBaseHost,
+            grpc,
             redirectTarget,
             rootHostPath,
             confSSR,
