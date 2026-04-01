@@ -53,9 +53,6 @@ const AtlasSpriteSheetService = {
       );
       if (ipfsResult) {
         atlasCid = ipfsResult.cid;
-        if (userId) {
-          await createPinRecord({ cid: atlasCid, userId, options });
-        }
         logger.info(`Atlas sprite sheet pinned to IPFS – CID: ${atlasCid}`);
       }
     } catch (ipfsError) {
@@ -71,9 +68,6 @@ const AtlasSpriteSheetService = {
       );
       if (metadataIpfsResult) {
         atlasMetadataCid = metadataIpfsResult.cid;
-        if (userId) {
-          await createPinRecord({ cid: atlasMetadataCid, userId, options });
-        }
         logger.info(`Atlas metadata pinned to IPFS – CID: ${atlasMetadataCid}`);
       }
     } catch (ipfsError) {
@@ -97,6 +91,32 @@ const AtlasSpriteSheetService = {
         cid: atlasCid,
         metadata,
       }).save();
+    }
+
+    // Register CIDs in the IPFS registry now that atlasDoc._id is known.
+    if (atlasCid) {
+      try {
+        await createPinRecord({
+          cid: atlasCid,
+          resourceType: 'atlas-sprite-sheet',
+          mfsPath: `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet.png`,
+          options,
+        });
+      } catch (e) {
+        logger.warn('IPFS registry update failed (atlas PNG):', e.message);
+      }
+    }
+    if (atlasMetadataCid) {
+      try {
+        await createPinRecord({
+          cid: atlasMetadataCid,
+          resourceType: 'atlas-metadata',
+          mfsPath: `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet_metadata.json`,
+          options,
+        });
+      } catch (e) {
+        logger.warn('IPFS registry update failed (atlas metadata):', e.message);
+      }
     }
 
     // When skipObjectLayerSave is set, return CIDs without mutating the OL document.

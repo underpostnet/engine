@@ -711,15 +711,12 @@ export class ObjectLayerEngine {
       if (ipfsClient) {
         try {
           const itemId = objectLayerData.data.item.id;
-          const ipfsResult = await ipfsClient.addJsonToIpfs(
-            objectLayerData.data,
-            `${itemId}_data.json`,
-            `/object-layer/${itemId}/${itemId}_data.json`,
-          );
+          const mfsPath = `/object-layer/${itemId}/${itemId}_data.json`;
+          const ipfsResult = await ipfsClient.addJsonToIpfs(objectLayerData.data, `${itemId}_data.json`, mfsPath);
           if (ipfsResult) {
             objectLayerData.cid = ipfsResult.cid;
-            if (userId && createPinRecord) {
-              await createPinRecord({ cid: ipfsResult.cid, userId, options });
+            if (createPinRecord) {
+              await createPinRecord({ cid: ipfsResult.cid, resourceType: 'object-layer-data', mfsPath, options });
             }
           }
         } catch (ipfsError) {
@@ -829,19 +826,15 @@ export class ObjectLayerEngine {
       objectLayerData.sha256 = ObjectLayerEngine.computeSha256(objectLayerData.data);
 
       // Pin data JSON to IPFS
-      const userId = req && req.auth && req.auth.user ? req.auth.user._id : undefined;
       if (ipfsClient) {
         try {
           const itemId = objectLayerData.data.item.id;
-          const ipfsResult = await ipfsClient.addJsonToIpfs(
-            objectLayerData.data,
-            `${itemId}_data.json`,
-            `/object-layer/${itemId}/${itemId}_data.json`,
-          );
+          const mfsPath = `/object-layer/${itemId}/${itemId}_data.json`;
+          const ipfsResult = await ipfsClient.addJsonToIpfs(objectLayerData.data, `${itemId}_data.json`, mfsPath);
           if (ipfsResult) {
             objectLayerData.cid = ipfsResult.cid;
-            if (userId && createPinRecord) {
-              await createPinRecord({ cid: ipfsResult.cid, userId, options });
+            if (createPinRecord) {
+              await createPinRecord({ cid: ipfsResult.cid, resourceType: 'object-layer-data', mfsPath, options });
             }
           }
         } catch (ipfsError) {
@@ -897,15 +890,12 @@ export class ObjectLayerEngine {
     if (ipfsClient) {
       try {
         const itemId = objectLayer.data.item.id;
-        const ipfsResult = await ipfsClient.addJsonToIpfs(
-          objectLayer.data,
-          `${itemId}_data.json`,
-          `/object-layer/${itemId}/${itemId}_data.json`,
-        );
+        const mfsPath = `/object-layer/${itemId}/${itemId}_data.json`;
+        const ipfsResult = await ipfsClient.addJsonToIpfs(objectLayer.data, `${itemId}_data.json`, mfsPath);
         if (ipfsResult) {
           objectLayer.cid = ipfsResult.cid;
-          if (userId && createPinRecord) {
-            await createPinRecord({ cid: ipfsResult.cid, userId, options });
+          if (createPinRecord) {
+            await createPinRecord({ cid: ipfsResult.cid, resourceType: 'object-layer-data', mfsPath, options });
           }
         }
       } catch (ipfsError) {

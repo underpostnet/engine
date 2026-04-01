@@ -69,34 +69,13 @@ const IpfsController = {
       });
     }
   },
-  pin: async (req, res, options) => {
+  verify: async (req, res, options) => {
     try {
-      const result = await IpfsService.pin(req, res, options);
-      return res.status(200).json({
-        status: 'success',
-        data: result,
-      });
+      const result = await IpfsService.verify(req, res, options);
+      return res.status(200).json({ status: 'success', data: result });
     } catch (error) {
       logger.error(error, error.stack);
-      return res.status(400).json({
-        status: 'error',
-        message: error.message,
-      });
-    }
-  },
-  unpin: async (req, res, options) => {
-    try {
-      const result = await IpfsService.unpin(req, res, options);
-      return res.status(200).json({
-        status: 'success',
-        data: result,
-      });
-    } catch (error) {
-      logger.error(error, error.stack);
-      return res.status(400).json({
-        status: 'error',
-        message: error.message,
-      });
+      return res.status(400).json({ status: 'error', message: error.message });
     }
   },
 };

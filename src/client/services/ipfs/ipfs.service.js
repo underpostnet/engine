@@ -100,30 +100,10 @@ const IpfsService = {
           return reject(error);
         }),
     ),
-  pin: (options = { body: {} }) =>
+  verify: () =>
     new Promise((resolve, reject) =>
-      fetch(`${getApiBaseUrl({ endpoint })}/pin`, {
-        method: 'POST',
-        headers: headersFactory(),
-        credentials: 'include',
-        body: payloadFactory(options.body),
-      })
-        .then(async (res) => {
-          return await res.json();
-        })
-        .then((res) => {
-          logger.info(res);
-          return resolve(res);
-        })
-        .catch((error) => {
-          logger.error(error);
-          return reject(error);
-        }),
-    ),
-  unpin: (options = { cid: '' }) =>
-    new Promise((resolve, reject) =>
-      fetch(`${getApiBaseUrl({ endpoint })}/pin/${options.cid}`, {
-        method: 'DELETE',
+      fetch(`${getApiBaseUrl({ endpoint })}/verify`, {
+        method: 'GET',
         headers: headersFactory(),
         credentials: 'include',
       })

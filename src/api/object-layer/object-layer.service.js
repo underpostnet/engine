@@ -221,19 +221,13 @@ const ObjectLayerService = {
     bodyData.sha256 = ObjectLayerEngine.computeSha256(bodyData.data);
 
     // Pin data JSON to IPFS
-    const userId = req.auth && req.auth.user ? req.auth.user._id : undefined;
     try {
       const itemId = bodyData.data.item.id;
-      const ipfsResult = await IpfsClient.addJsonToIpfs(
-        bodyData.data,
-        `${itemId}_data.json`,
-        `/object-layer/${itemId}/${itemId}_data.json`,
-      );
+      const mfsPath = `/object-layer/${itemId}/${itemId}_data.json`;
+      const ipfsResult = await IpfsClient.addJsonToIpfs(bodyData.data, `${itemId}_data.json`, mfsPath);
       if (ipfsResult) {
         bodyData.cid = ipfsResult.cid;
-        if (userId) {
-          await createPinRecord({ cid: ipfsResult.cid, userId, options });
-        }
+        await createPinRecord({ cid: ipfsResult.cid, resourceType: 'object-layer-data', mfsPath, options });
       }
     } catch (ipfsError) {
       logger.warn('Failed to pin data JSON to IPFS:', ipfsError.message);
@@ -763,19 +757,13 @@ const ObjectLayerService = {
     updateData.sha256 = ObjectLayerEngine.computeSha256(stagingData);
 
     // Pin data JSON to IPFS
-    const putUserId = req.auth && req.auth.user ? req.auth.user._id : undefined;
     try {
       const itemId = stagingData.item.id;
-      const ipfsResult = await IpfsClient.addJsonToIpfs(
-        stagingData,
-        `${itemId}_data.json`,
-        `/object-layer/${itemId}/${itemId}_data.json`,
-      );
+      const mfsPath = `/object-layer/${itemId}/${itemId}_data.json`;
+      const ipfsResult = await IpfsClient.addJsonToIpfs(stagingData, `${itemId}_data.json`, mfsPath);
       if (ipfsResult) {
         updateData.cid = ipfsResult.cid;
-        if (putUserId) {
-          await createPinRecord({ cid: ipfsResult.cid, userId: putUserId, options });
-        }
+        await createPinRecord({ cid: ipfsResult.cid, resourceType: 'object-layer-data', mfsPath, options });
       }
     } catch (ipfsError) {
       logger.warn('Failed to pin data JSON to IPFS:', ipfsError.message);

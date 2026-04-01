@@ -432,6 +432,25 @@ const IpfsClient = {
   listClusterPins,
   listKuboPins,
   removeMfsPath,
+  /**
+   * Check whether a single CID is currently pinned on the local Kubo node.
+   * Uses the pin/ls?arg=<cid> endpoint which returns only that one pin
+   * (much cheaper than fetching the full list).
+   *
+   * @param {string} cid - IPFS Content Identifier to check.
+   * @returns {Promise<boolean>} true when the CID is pinned.
+   */
+  isCidPinned: async (cid) => {
+    const kuboUrl = getIpfsApiUrl();
+    try {
+      const res = await fetch(`${kuboUrl}/api/v0/pin/ls?arg=${encodeURIComponent(cid)}&type=all`, { method: 'POST' });
+      if (!res.ok) return false;
+      const json = await res.json();
+      return !!(json.Keys && json.Keys[cid]);
+    } catch {
+      return false;
+    }
+  },
 };
 
 export { IpfsClient };
