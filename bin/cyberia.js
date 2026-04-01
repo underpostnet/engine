@@ -27,8 +27,8 @@ import {
   pngDirectoryIteratorByObjectLayerType,
   getKeyFramesDirectionsFromNumberFolderDirection,
   buildImgFromTile,
-  itemTypes,
 } from '../src/server/object-layer.js';
+import { ITEM_TYPES as itemTypes } from '../src/api/cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 import { AtlasSpriteSheetGenerator } from '../src/server/atlas-sprite-sheet-generator.js';
 import {
   generateFrame,

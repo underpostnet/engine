@@ -14,6 +14,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
+import {
+  CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
+  ENTITY_TYPE_DEFAULTS,
+} from '../../api/cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -195,6 +199,7 @@ function toInstanceMsg(doc) {
 function toInstanceConfig(gc) {
   const fb = FALLBACK_CONFIG_DEFAULTS;
   if (!gc) return buildFallbackConfig();
+
   const colors =
     gc.colors && gc.colors.length > 0
       ? gc.colors.map((c) => ({
@@ -205,6 +210,21 @@ function toInstanceConfig(gc) {
           a: c.a ?? 255,
         }))
       : fb.colors.map((c) => ({ ...c }));
+
+  // Merge entity defaults: use canonical ENTITY_TYPE_DEFAULTS as base, overlay with
+  // any instance-specific overrides stored in gc.entityDefaults.
+  const gcDefaults = gc.entityDefaults && gc.entityDefaults.length > 0 ? gc.entityDefaults : [];
+  const gcDefaultsMap = Object.fromEntries(gcDefaults.map((d) => [d.entityType, d]));
+  const entityDefaults = ENTITY_TYPE_DEFAULTS.map((canonical) => {
+    const override = gcDefaultsMap[canonical.entityType] ?? {};
+    return {
+      entityType: canonical.entityType,
+      liveItemId: override.liveItemId ?? canonical.liveItemId,
+      deadItemId: override.deadItemId ?? canonical.deadItemId,
+      colorKey: override.colorKey ?? canonical.colorKey,
+    };
+  });
+
   return {
     cellSize: gc.cellSize ?? fb.cellSize,
     fps: gc.fps ?? fb.fps,
@@ -238,13 +258,11 @@ function toInstanceConfig(gc) {
       quantity: ol.quantity || 0,
     })),
     respawnDurationMs: gc.respawnDurationMs ?? fb.respawnDurationMs,
-    ghostItemId: gc.ghostItemId ?? fb.ghostItemId,
     collisionLifeLoss: gc.collisionLifeLoss ?? fb.collisionLifeLoss,
-    coinItemId: gc.coinItemId ?? fb.coinItemId,
     defaultCoinQuantity: gc.defaultCoinQuantity ?? fb.defaultCoinQuantity,
     lifeRegenChance: gc.lifeRegenChance ?? fb.lifeRegenChance,
     maxChance: gc.maxChance ?? fb.maxChance,
-    defaultFloorItemId: gc.defaultFloorItemId ?? fb.defaultFloorItemId,
+    entityDefaults,
     skillConfig: (gc.skillConfig || []).map((sc) => ({
       triggerItemId: sc.triggerItemId || '',
       logicEventIds: sc.logicEventIds || [],
@@ -265,90 +283,24 @@ function toInstanceConfig(gc) {
 }
 
 /**
- * Canonical fallback server configuration values.
- * Single source of truth used by:
- *   - buildFallbackConfig()  — when no instance exists in DB
- *   - toInstanceConfig()     — to fill missing/zero fields from a partial conf document
- */
-const FALLBACK_CONFIG_DEFAULTS = {
-  cellSize: 64,
-  fps: 60,
-  interpolationMs: 100,
-  defaultObjWidth: 1,
-  defaultObjHeight: 1,
-  cameraSmoothing: 0.1,
-  cameraZoom: 1.0,
-  defaultWidthScreenFactor: 1,
-  defaultHeightScreenFactor: 1,
-  devUi: false,
-  colors: [
-    { key: 'BACKGROUND', r: 30, g: 30, b: 30, a: 255 },
-    { key: 'FLOOR_BACKGROUND', r: 45, g: 45, b: 45, a: 255 },
-    { key: 'FLOOR', r: 60, g: 60, b: 60, a: 255 },
-    { key: 'OBSTACLE', r: 80, g: 80, b: 80, a: 255 },
-    { key: 'PORTAL', r: 0, g: 200, b: 200, a: 255 },
-    { key: 'PLAYER', r: 0, g: 255, b: 0, a: 255 },
-    { key: 'OTHER_PLAYER', r: 128, g: 128, b: 255, a: 255 },
-    { key: 'BOT', r: 255, g: 128, b: 0, a: 255 },
-  ],
-  aoiRadius: 10,
-  portalHoldTimeMs: 1000,
-  portalSpawnRadius: 3,
-  entityBaseSpeed: 5,
-  entityBaseMaxLife: 100,
-  entityBaseActionCooldownMs: 500,
-  entityBaseMinActionCooldownMs: 100,
-  botAggroRange: 10,
-  defaultPlayerWidth: 2,
-  defaultPlayerHeight: 2,
-  playerBaseLifeRegenMin: 0.5,
-  playerBaseLifeRegenMax: 1.5,
-  sumStatsLimit: 500,
-  maxActiveLayers: 4,
-  initialLifeFraction: 1.0,
-  defaultPlayerObjectLayers: [],
-  respawnDurationMs: 3000,
-  ghostItemId: '',
-  collisionLifeLoss: 10,
-  coinItemId: '',
-  defaultCoinQuantity: 1,
-  lifeRegenChance: 300,
-  maxChance: 10000,
-  defaultFloorItemId: '',
-  skillConfig: [],
-  skillRules: {
-    bulletSpawnChance: 0,
-    bulletLifetimeMs: 0,
-    bulletWidth: 0,
-    bulletHeight: 0,
-    bulletSpeedMultiplier: 0,
-    doppelgangerSpawnChance: 0,
-    doppelgangerLifetimeMs: 0,
-    doppelgangerSpawnRadius: 0,
-    doppelgangerInitialLifeFraction: 0,
-  },
-};
-
-/**
  * Builds a minimal InstanceConfig with playable defaults.
+ * Derived from CYBERIA_INSTANCE_CONF_DEFAULTS (shared with the Mongoose model).
  * Used when the requested instance does not exist in the database.
- * No entities, no skills, no items — just enough for the Go server
- * to create an empty map where player entities can connect and move.
- * Players are rendered as solid colored rectangles (entity.color).
  */
 function buildFallbackConfig() {
   return JSON.parse(JSON.stringify(FALLBACK_CONFIG_DEFAULTS));
 }
 
 /**
- * Generates a minimal 64×64 map of 4×4-cell floor tiles.
- * Used when the requested instance has no maps, or as the fallback instance map.
+ * Generates a canonical 64×64 fallback map of 4×4-cell floor tiles.
+ * The map code is always 'fallback-map'. Tiles carry no objectLayerItemIds;
+ * the Go server assigns defaultFloorItemId (from InstanceConfig) at build time,
+ * falling back to the FLOOR colour if that item does not exist.
  * @param {string} mapCode
  */
 function buildFallbackMap(mapCode) {
   const gridSize = 64;
   const tileDim = 4;
-  const floorColor = 'rgba(60,60,60,1)';
   const floors = [];
   for (let r = 0; r < gridSize; r += tileDim) {
     for (let c = 0; c < gridSize; c += tileDim) {
@@ -358,7 +310,7 @@ function buildFallbackMap(mapCode) {
         initCellY: r,
         dimX: tileDim,
         dimY: tileDim,
-        color: floorColor,
+        color: '',
         objectLayerItemIds: [],
         spawnRadius: 0,
         aggroRange: 0,
@@ -484,14 +436,27 @@ function buildHandlers(dbKey) {
         const instanceCode = call.request.instanceCode || 'default';
         const inst = await models.CyberiaInstance.findOne({ code: instanceCode }).populate('conf').lean();
 
-        // ── Fallback: instance not found → return a minimal playable instance ──
+        // ── Fallback: instance not found → return a minimal playable world ─────
         if (!inst) {
           logger.info(`Instance "${instanceCode}" not found — returning fallback instance.`);
-          const fallbackMapCode = 'fallback-map-0';
+          const fallbackMapCode = 'fallback-map';
+          const fallbackConf = buildFallbackConfig();
+
+          // Attempt to include OL items from entity defaults so the Go server
+          // can render entities with the atlas instead of a solid colour box.
+          const fallbackItemIds = (fallbackConf.entityDefaults || [])
+            .flatMap((d) => [d.liveItemId, d.deadItemId])
+            .filter(Boolean);
+          const fallbackOlDocs = fallbackItemIds.length
+            ? await models.ObjectLayer.find({ 'data.item.id': { $in: fallbackItemIds } })
+                .populate('objectLayerRenderFramesId', { _id: 1, frame_duration: 1, is_stateless: 1 })
+                .lean()
+            : [];
+
           callback(null, {
             instance: {
               mongoId: '',
-              code: instanceCode,
+              code: 'fallback',
               name: 'Fallback Instance',
               description: 'Auto-generated minimal instance',
               tags: [],
@@ -501,21 +466,34 @@ function buildHandlers(dbKey) {
               seed: '',
             },
             maps: [buildFallbackMap(fallbackMapCode)],
-            objectLayers: [],
-            config: buildFallbackConfig(),
+            objectLayers: fallbackOlDocs.map(toObjectLayerMsg),
+            config: fallbackConf,
           });
           return;
         }
 
+        // ── Instance found — load maps + entity OLs + config default OLs ──────
+        const conf = inst.conf || {};
         const mapCodes = inst.cyberiaMapCodes || [];
         const mapDocs = mapCodes.length ? await models.CyberiaMap.find({ code: { $in: mapCodes } }).lean() : [];
 
+        // Collect all item IDs referenced by map entities.
         const itemIds = new Set();
         for (const m of mapDocs) {
           for (const e of m.entities || []) {
             for (const id of e.objectLayerItemIds || []) itemIds.add(id);
           }
         }
+
+        // Also include "system" item IDs from the instance config so the
+        // Go server has their OL data cached without extra round trips:
+        // Include OL item IDs from entityDefaults so the Go server has all
+        // default atlas data cached at startup without needing extra round trips.
+        for (const d of conf.entityDefaults || []) {
+          if (d.liveItemId) itemIds.add(d.liveItemId);
+          if (d.deadItemId) itemIds.add(d.deadItemId);
+        }
+
         const olDocs = itemIds.size
           ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...itemIds] } })
               .populate('objectLayerRenderFramesId', { _id: 1, frame_duration: 1, is_stateless: 1 })
@@ -526,7 +504,7 @@ function buildHandlers(dbKey) {
           instance: toInstanceMsg(inst),
           maps: mapDocs.map(toMapMsg),
           objectLayers: olDocs.map(toObjectLayerMsg),
-          config: toInstanceConfig(inst.conf),
+          config: toInstanceConfig(conf),
         });
       } catch (err) {
         logger.error('getFullInstance:', err);

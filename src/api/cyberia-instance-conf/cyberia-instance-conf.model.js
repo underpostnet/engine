@@ -1,4 +1,20 @@
 import { Schema, model } from 'mongoose';
+import { CYBERIA_INSTANCE_CONF_DEFAULTS as D } from './cyberia-instance-conf.defaults.js';
+
+const EntityDefaultSchema = new Schema(
+  {
+    // Entity category string (matches entity_type_str / bot Behavior in game engine)
+    entityType: { type: String, required: true },
+    // Default ObjectLayer item ID when the entity is alive and carries no assigned items.
+    liveItemId: { type: String, default: '' },
+    // Default ObjectLayer item ID for the dead / ghost / respawning state.
+    // Empty string = use liveItemId solid fill color.
+    deadItemId: { type: String, default: '' },
+    // Palette key for solid-color fallback when no OL items are assigned.
+    colorKey: { type: String, default: '' },
+  },
+  { _id: false },
+);
 
 const ColorEntrySchema = new Schema(
   {
@@ -30,15 +46,15 @@ const SkillConfigEntrySchema = new Schema(
 
 const SkillRulesSchema = new Schema(
   {
-    bulletSpawnChance: { type: Number, default: 0 },
-    bulletLifetimeMs: { type: Number, default: 0 },
-    bulletWidth: { type: Number, default: 0 },
-    bulletHeight: { type: Number, default: 0 },
-    bulletSpeedMultiplier: { type: Number, default: 0 },
-    doppelgangerSpawnChance: { type: Number, default: 0 },
-    doppelgangerLifetimeMs: { type: Number, default: 0 },
-    doppelgangerSpawnRadius: { type: Number, default: 0 },
-    doppelgangerInitialLifeFraction: { type: Number, default: 0 },
+    bulletSpawnChance: { type: Number, default: D.skillRules.bulletSpawnChance },
+    bulletLifetimeMs: { type: Number, default: D.skillRules.bulletLifetimeMs },
+    bulletWidth: { type: Number, default: D.skillRules.bulletWidth },
+    bulletHeight: { type: Number, default: D.skillRules.bulletHeight },
+    bulletSpeedMultiplier: { type: Number, default: D.skillRules.bulletSpeedMultiplier },
+    doppelgangerSpawnChance: { type: Number, default: D.skillRules.doppelgangerSpawnChance },
+    doppelgangerLifetimeMs: { type: Number, default: D.skillRules.doppelgangerLifetimeMs },
+    doppelgangerSpawnRadius: { type: Number, default: D.skillRules.doppelgangerSpawnRadius },
+    doppelgangerInitialLifeFraction: { type: Number, default: D.skillRules.doppelgangerInitialLifeFraction },
   },
   { _id: false },
 );
@@ -57,57 +73,60 @@ const CyberiaInstanceConfSchema = new Schema(
     instanceCode: { type: String, required: true, unique: true, trim: true },
 
     // ── Rendering / camera ──────────────────────────────────────────
-    cellSize: { type: Number, default: 64 },
-    fps: { type: Number, default: 60 },
-    interpolationMs: { type: Number, default: 100 },
-    defaultObjWidth: { type: Number, default: 1 },
-    defaultObjHeight: { type: Number, default: 1 },
-    cameraSmoothing: { type: Number, default: 0.1 },
-    cameraZoom: { type: Number, default: 1.0 },
-    defaultWidthScreenFactor: { type: Number, default: 1 },
-    defaultHeightScreenFactor: { type: Number, default: 1 },
-    devUi: { type: Boolean, default: false },
+    cellSize: { type: Number, default: D.cellSize },
+    fps: { type: Number, default: D.fps },
+    interpolationMs: { type: Number, default: D.interpolationMs },
+    defaultObjWidth: { type: Number, default: D.defaultObjWidth },
+    defaultObjHeight: { type: Number, default: D.defaultObjHeight },
+    cameraSmoothing: { type: Number, default: D.cameraSmoothing },
+    cameraZoom: { type: Number, default: D.cameraZoom },
+    defaultWidthScreenFactor: { type: Number, default: D.defaultWidthScreenFactor },
+    defaultHeightScreenFactor: { type: Number, default: D.defaultHeightScreenFactor },
+    devUi: { type: Boolean, default: D.devUi },
+    // Empty array by default — colours must be configured per-instance.
+    // toInstanceConfig() fills in CYBERIA_INSTANCE_CONF_DEFAULTS.colors when the array is empty.
     colors: { type: [ColorEntrySchema], default: [] },
 
     // ── World / AOI ─────────────────────────────────────────────────
-    aoiRadius: { type: Number, default: 10 },
-    portalHoldTimeMs: { type: Number, default: 1000 },
-    portalSpawnRadius: { type: Number, default: 3 },
+    aoiRadius: { type: Number, default: D.aoiRadius },
+    portalHoldTimeMs: { type: Number, default: D.portalHoldTimeMs },
+    portalSpawnRadius: { type: Number, default: D.portalSpawnRadius },
 
     // ── Entity base stats ────────────────────────────────────────────
-    entityBaseSpeed: { type: Number, default: 5 },
-    entityBaseMaxLife: { type: Number, default: 100 },
-    entityBaseActionCooldownMs: { type: Number, default: 500 },
-    entityBaseMinActionCooldownMs: { type: Number, default: 100 },
+    entityBaseSpeed: { type: Number, default: D.entityBaseSpeed },
+    entityBaseMaxLife: { type: Number, default: D.entityBaseMaxLife },
+    entityBaseActionCooldownMs: { type: Number, default: D.entityBaseActionCooldownMs },
+    entityBaseMinActionCooldownMs: { type: Number, default: D.entityBaseMinActionCooldownMs },
 
     // ── Bot defaults ─────────────────────────────────────────────────
-    botAggroRange: { type: Number, default: 10 },
+    botAggroRange: { type: Number, default: D.botAggroRange },
 
     // ── Player defaults ──────────────────────────────────────────────
-    defaultPlayerWidth: { type: Number, default: 2 },
-    defaultPlayerHeight: { type: Number, default: 2 },
-    playerBaseLifeRegenMin: { type: Number, default: 0.5 },
-    playerBaseLifeRegenMax: { type: Number, default: 1.5 },
-    sumStatsLimit: { type: Number, default: 500 },
-    maxActiveLayers: { type: Number, default: 4 },
-    initialLifeFraction: { type: Number, default: 1.0 },
+    defaultPlayerWidth: { type: Number, default: D.defaultPlayerWidth },
+    defaultPlayerHeight: { type: Number, default: D.defaultPlayerHeight },
+    playerBaseLifeRegenMin: { type: Number, default: D.playerBaseLifeRegenMin },
+    playerBaseLifeRegenMax: { type: Number, default: D.playerBaseLifeRegenMax },
+    sumStatsLimit: { type: Number, default: D.sumStatsLimit },
+    maxActiveLayers: { type: Number, default: D.maxActiveLayers },
+    initialLifeFraction: { type: Number, default: D.initialLifeFraction },
     defaultPlayerObjectLayers: { type: [DefaultPlayerObjectLayerSchema], default: [] },
 
     // ── Combat / death ───────────────────────────────────────────────
-    respawnDurationMs: { type: Number, default: 3000 },
-    ghostItemId: { type: String, default: '' },
-    collisionLifeLoss: { type: Number, default: 10 },
+    respawnDurationMs: { type: Number, default: D.respawnDurationMs },
+    collisionLifeLoss: { type: Number, default: D.collisionLifeLoss },
 
     // ── Economy ──────────────────────────────────────────────────────
-    coinItemId: { type: String, default: '' },
-    defaultCoinQuantity: { type: Number, default: 1 },
+    defaultCoinQuantity: { type: Number, default: D.defaultCoinQuantity },
 
     // ── Regen ────────────────────────────────────────────────────────
-    lifeRegenChance: { type: Number, default: 300 },
-    maxChance: { type: Number, default: 10000 },
+    lifeRegenChance: { type: Number, default: D.lifeRegenChance },
+    maxChance: { type: Number, default: D.maxChance },
 
-    // ── Floor defaults ───────────────────────────────────────────────
-    defaultFloorItemId: { type: String, default: '' },
+    // ── Entity type rendering defaults ───────────────────────────────
+    // Replaces flat fields: userDefaultItemId, botDefaultItemId, ghostItemId,
+    // coinItemId, defaultFloorItemId, bulletDefaultItemId, weaponDefaultItemId.
+    // Each entry: { entityType, liveItemId, deadItemId, colorKey }.
+    entityDefaults: { type: [EntityDefaultSchema], default: D.entityDefaults },
 
     // ── Skill system ─────────────────────────────────────────────────
     // Each entry maps a trigger item to an ordered list of logic handler keys.
