@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: playwright
-          image: mcr.microsoft.com/playwright:v1.58.1-jammy
+          image: mcr.microsoft.com/playwright:v1.59.0-jammy
           command:
             - /bin/bash
             - -c
