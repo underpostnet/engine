@@ -268,11 +268,11 @@ function toInstanceConfig(gc) {
       logicEventIds: sc.logicEventIds || [],
     })),
     skillRules: {
-      bulletSpawnChance: gc.skillRules?.bulletSpawnChance ?? fb.skillRules.bulletSpawnChance,
-      bulletLifetimeMs: gc.skillRules?.bulletLifetimeMs ?? fb.skillRules.bulletLifetimeMs,
-      bulletWidth: gc.skillRules?.bulletWidth ?? fb.skillRules.bulletWidth,
-      bulletHeight: gc.skillRules?.bulletHeight ?? fb.skillRules.bulletHeight,
-      bulletSpeedMultiplier: gc.skillRules?.bulletSpeedMultiplier ?? fb.skillRules.bulletSpeedMultiplier,
+      projectileSpawnChance: gc.skillRules?.projectileSpawnChance ?? fb.skillRules.projectileSpawnChance,
+      projectileLifetimeMs: gc.skillRules?.projectileLifetimeMs ?? fb.skillRules.projectileLifetimeMs,
+      projectileWidth: gc.skillRules?.projectileWidth ?? fb.skillRules.projectileWidth,
+      projectileHeight: gc.skillRules?.projectileHeight ?? fb.skillRules.projectileHeight,
+      projectileSpeedMultiplier: gc.skillRules?.projectileSpeedMultiplier ?? fb.skillRules.projectileSpeedMultiplier,
       doppelgangerSpawnChance: gc.skillRules?.doppelgangerSpawnChance ?? fb.skillRules.doppelgangerSpawnChance,
       doppelgangerLifetimeMs: gc.skillRules?.doppelgangerLifetimeMs ?? fb.skillRules.doppelgangerLifetimeMs,
       doppelgangerSpawnRadius: gc.skillRules?.doppelgangerSpawnRadius ?? fb.skillRules.doppelgangerSpawnRadius,
@@ -293,12 +293,17 @@ function buildFallbackConfig() {
 
 /**
  * Generates a canonical 64×64 fallback map of 4×4-cell floor tiles.
- * The map code is always 'fallback-map'. Tiles carry no objectLayerItemIds;
- * the Go server assigns defaultFloorItemId (from InstanceConfig) at build time,
- * falling back to the FLOOR colour if that item does not exist.
+ * Built purely from ENTITY_TYPE_DEFAULTS — never persisted to MongoDB.
+ * Floor tiles are pre-populated with the canonical floor liveItemId so the
+ * Go server resolves the atlas at startup without an extra round trip.
+ * Bots, skill projectiles and coins are NOT placed here — projectiles/coins are
+ * skill-spawned bots (behavior="skill"/"coin") and have no static map placement.
  * @param {string} mapCode
  */
 function buildFallbackMap(mapCode) {
+  const floorDefault = ENTITY_TYPE_DEFAULTS.find((d) => d.entityType === 'floor');
+  const floorItemIds = floorDefault?.liveItemId ? [floorDefault.liveItemId] : [];
+
   const gridSize = 64;
   const tileDim = 4;
   const floors = [];
@@ -311,7 +316,7 @@ function buildFallbackMap(mapCode) {
         dimX: tileDim,
         dimY: tileDim,
         color: '',
-        objectLayerItemIds: [],
+        objectLayerItemIds: floorItemIds,
         spawnRadius: 0,
         aggroRange: 0,
         maxLife: 0,

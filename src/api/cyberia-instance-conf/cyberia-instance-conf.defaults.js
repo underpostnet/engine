@@ -4,7 +4,7 @@
  * Single source of truth used by:
  *   - cyberia-instance-conf.model.js  — Mongoose schema `default:` declarations
  *   - grpc-server.js                  — FALLBACK_CONFIG_DEFAULTS for missing instances
- *   - src/server/object-layer.js      — re-exports ITEM_TYPES
+ *   - bin/cyberia.js                  — imports ITEM_TYPES for asset type enumeration
  *
  * @module src/api/cyberia-instance-conf/cyberia-instance-conf.defaults.js
  */
@@ -22,12 +22,12 @@
  * @type {Readonly<{floor:string, skin:string, breastplate:string, weapon:string, skill:string, coin:string}>}
  */
 export const ITEM_TYPES = Object.freeze({
-  floor:       'floor',
-  skin:        'skin',
+  floor: 'floor',
+  skin: 'skin',
   breastplate: 'breastplate',
-  weapon:      'weapon',
-  skill:       'skill',
-  coin:        'coin',
+  weapon: 'weapon',
+  skill: 'skill',
+  coin: 'coin',
 });
 
 // ── Entity type defaults ─────────────────────────────────────────────────────
@@ -54,9 +54,13 @@ export const ITEM_TYPES = Object.freeze({
  * Character entity types:
  *   player       — the local (self) player
  *   other_player — remote players in the AOI
- *   bot          — AI-controlled entities (behavior hostile / passive)
- *   bullet       — projectile entities (bot with behavior = "bullet")
- *   coin         — collectible coin entities (bot with behavior = "coin")
+ *   bot          — AI-controlled entities (behavior: hostile / passive)
+ *   skill        — skill-spawned projectile bot (behavior = "skill");
+ *                  NOT placed in maps — created at runtime by skill_projectile.go
+ *                  when a player/bot triggers a projectile skill.
+ *                  liveItemId is a skill-type OL (the projectile sprite).
+ *   coin         — skill-spawned collectible bot (behavior = "coin");
+ *                  NOT placed in maps — dropped at runtime on entity death.
  *
  * World object entity types:
  *   floor / obstacle / portal / foreground
@@ -66,22 +70,22 @@ export const ITEM_TYPES = Object.freeze({
  */
 export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   // ── Characters ─────────────────────────────────────────────────────────
-  { entityType: 'player',       liveItemId: '',                        deadItemId: '', colorKey: 'PLAYER'       },
-  { entityType: 'other_player', liveItemId: '',                        deadItemId: '', colorKey: 'OTHER_PLAYER'  },
-  { entityType: 'bot',          liveItemId: '',                        deadItemId: '', colorKey: 'BOT'           },
-  { entityType: 'bullet',       liveItemId: 'atlas_pistol_mk2_bullet', deadItemId: '', colorKey: 'BULLET'        },
-  { entityType: 'coin',         liveItemId: '',                        deadItemId: '', colorKey: 'COIN'          },
+  { entityType: 'player', liveItemId: 'anon', deadItemId: 'ghost', colorKey: 'PLAYER' },
+  { entityType: 'other_player', liveItemId: 'anon', deadItemId: 'ghost', colorKey: 'OTHER_PLAYER' },
+  { entityType: 'bot', liveItemId: 'purple', deadItemId: 'ghost', colorKey: 'BOT' },
+  { entityType: 'skill', liveItemId: 'atlas_pistol_mk2_bullet', deadItemId: '', colorKey: 'SKILL' },
+  { entityType: 'coin', liveItemId: 'coin', deadItemId: '', colorKey: 'COIN' },
   // ── World objects ───────────────────────────────────────────────────────
-  { entityType: 'floor',        liveItemId: 'grass',                   deadItemId: '', colorKey: 'FLOOR'         },
-  { entityType: 'obstacle',     liveItemId: '',                        deadItemId: '', colorKey: 'OBSTACLE'      },
-  { entityType: 'portal',       liveItemId: '',                        deadItemId: '', colorKey: 'PORTAL'        },
-  { entityType: 'foreground',   liveItemId: '',                        deadItemId: '', colorKey: 'FOREGROUND'    },
+  { entityType: 'floor', liveItemId: 'grass', deadItemId: '', colorKey: 'FLOOR' },
+  { entityType: 'obstacle', liveItemId: '', deadItemId: '', colorKey: 'OBSTACLE' },
+  { entityType: 'portal', liveItemId: '', deadItemId: '', colorKey: 'PORTAL' },
+  { entityType: 'foreground', liveItemId: '', deadItemId: '', colorKey: 'FOREGROUND' },
 ]);
 
 // ── Instance configuration defaults ─────────────────────────────────────────
 export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // ── Rendering / camera ─────────────────────────────────────────────
-  cellSize: 64,
+  cellSize: 45,
   fps: 60,
   interpolationMs: 100,
   defaultObjWidth: 1,
@@ -94,28 +98,28 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
 
   /**
    * Named colour palette forwarded to Go server and C client via the WebSocket
-   * init payload.  Entity colour keys (PLAYER, BOT, BULLET, …) are consumed via
+   * init payload.  Entity colour keys (PLAYER, BOT, SKILL, …) are consumed via
    * entityDefaults[n].colorKey as the solid fallback for that entity type when
    * no ObjectLayer items are assigned.
    * The WEAPON key is kept for UI use (weapon-stat highlights) only.
    */
   colors: [
     // ── World ─────────────────────────────────────────────────────
-    { key: 'BACKGROUND',    r: 30,  g: 30,  b: 30,  a: 255 },
+    { key: 'BACKGROUND', r: 30, g: 30, b: 30, a: 255 },
     { key: 'FLOOR_BACKGROUND', r: 45, g: 45, b: 45, a: 255 },
-    { key: 'FLOOR',         r: 60,  g: 60,  b: 60,  a: 255 },
-    { key: 'OBSTACLE',      r: 80,  g: 80,  b: 80,  a: 255 },
-    { key: 'PORTAL',        r: 0,   g: 200, b: 200, a: 255 },
-    { key: 'FOREGROUND',    r: 200, g: 200, b: 200, a: 80  },
+    { key: 'FLOOR', r: 60, g: 60, b: 60, a: 255 },
+    { key: 'OBSTACLE', r: 80, g: 80, b: 80, a: 255 },
+    { key: 'PORTAL', r: 0, g: 200, b: 200, a: 255 },
+    { key: 'FOREGROUND', r: 200, g: 200, b: 200, a: 80 },
     // ── Entity solid-colour fallbacks (matched by entityDefaults[n].colorKey) ──
-    { key: 'PLAYER',        r: 0,   g: 255, b: 0,   a: 255 },
-    { key: 'OTHER_PLAYER',  r: 128, g: 128, b: 255, a: 255 },
-    { key: 'BOT',           r: 255, g: 128, b: 0,   a: 255 },
-    { key: 'GHOST',         r: 200, g: 200, b: 255, a: 100 },
-    { key: 'COIN',          r: 255, g: 215, b: 0,   a: 255 },
-    { key: 'BULLET',        r: 255, g: 255, b: 50,  a: 255 },
+    { key: 'PLAYER', r: 0, g: 255, b: 0, a: 255 },
+    { key: 'OTHER_PLAYER', r: 128, g: 128, b: 255, a: 255 },
+    { key: 'BOT', r: 255, g: 128, b: 0, a: 255 },
+    { key: 'GHOST', r: 200, g: 200, b: 255, a: 100 },
+    { key: 'COIN', r: 255, g: 215, b: 0, a: 255 },
+    { key: 'SKILL', r: 255, g: 255, b: 50, a: 255 },
     // ── UI-only ────────────────────────────────────────────────────
-    { key: 'WEAPON',        r: 180, g: 50,  b: 50,  a: 255 },
+    { key: 'WEAPON', r: 180, g: 50, b: 50, a: 255 },
   ],
 
   // ── World / AOI ────────────────────────────────────────────────────
@@ -155,7 +159,7 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
 
   // ── Entity type rendering defaults ─────────────────────────────────
   // Replaces flat fields: userDefaultItemId, botDefaultItemId, ghostItemId,
-  // coinItemId, defaultFloorItemId, bulletDefaultItemId, weaponDefaultItemId.
+  // coinItemId, defaultFloorItemId, weaponDefaultItemId.
   // See ENTITY_TYPE_DEFAULTS for documentation of each field.
   entityDefaults: ENTITY_TYPE_DEFAULTS.map((e) => ({ ...e })),
 
@@ -163,11 +167,11 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   skillConfig: [],
 
   skillRules: {
-    bulletSpawnChance: 0,
-    bulletLifetimeMs: 0,
-    bulletWidth: 0,
-    bulletHeight: 0,
-    bulletSpeedMultiplier: 0,
+    projectileSpawnChance: 0,
+    projectileLifetimeMs: 0,
+    projectileWidth: 0,
+    projectileHeight: 0,
+    projectileSpeedMultiplier: 0,
     doppelgangerSpawnChance: 0,
     doppelgangerLifetimeMs: 0,
     doppelgangerSpawnRadius: 0,

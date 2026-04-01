@@ -46,11 +46,11 @@ const SkillConfigEntrySchema = new Schema(
 
 const SkillRulesSchema = new Schema(
   {
-    bulletSpawnChance: { type: Number, default: D.skillRules.bulletSpawnChance },
-    bulletLifetimeMs: { type: Number, default: D.skillRules.bulletLifetimeMs },
-    bulletWidth: { type: Number, default: D.skillRules.bulletWidth },
-    bulletHeight: { type: Number, default: D.skillRules.bulletHeight },
-    bulletSpeedMultiplier: { type: Number, default: D.skillRules.bulletSpeedMultiplier },
+    projectileSpawnChance: { type: Number, default: D.skillRules.projectileSpawnChance },
+    projectileLifetimeMs: { type: Number, default: D.skillRules.projectileLifetimeMs },
+    projectileWidth: { type: Number, default: D.skillRules.projectileWidth },
+    projectileHeight: { type: Number, default: D.skillRules.projectileHeight },
+    projectileSpeedMultiplier: { type: Number, default: D.skillRules.projectileSpeedMultiplier },
     doppelgangerSpawnChance: { type: Number, default: D.skillRules.doppelgangerSpawnChance },
     doppelgangerLifetimeMs: { type: Number, default: D.skillRules.doppelgangerLifetimeMs },
     doppelgangerSpawnRadius: { type: Number, default: D.skillRules.doppelgangerSpawnRadius },
@@ -124,13 +124,13 @@ const CyberiaInstanceConfSchema = new Schema(
 
     // ── Entity type rendering defaults ───────────────────────────────
     // Replaces flat fields: userDefaultItemId, botDefaultItemId, ghostItemId,
-    // coinItemId, defaultFloorItemId, bulletDefaultItemId, weaponDefaultItemId.
+    // coinItemId, defaultFloorItemId, weaponDefaultItemId.
     // Each entry: { entityType, liveItemId, deadItemId, colorKey }.
     entityDefaults: { type: [EntityDefaultSchema], default: D.entityDefaults },
 
     // ── Skill system ─────────────────────────────────────────────────
     // Each entry maps a trigger item to an ordered list of logic handler keys.
-    // Spawning entities (e.g. bullets) is handled inside the logic handler itself.
+    // Spawning entities (e.g. projectiles) is handled inside the logic handler itself.
     skillConfig: { type: [SkillConfigEntrySchema], default: [] },
 
     // Numeric tuning parameters for each skill archetype.
