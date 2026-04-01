@@ -707,7 +707,6 @@ export class ObjectLayerEngine {
       objectLayerData.sha256 = ObjectLayerEngine.computeSha256(objectLayerData.data);
 
       // Pin data JSON to IPFS
-      const userId = req && req.auth && req.auth.user ? req.auth.user._id : undefined;
       if (ipfsClient) {
         try {
           const itemId = objectLayerData.data.item.id;
@@ -879,12 +878,11 @@ export class ObjectLayerEngine {
    * @param {Object} params.objectLayer - The mongoose ObjectLayer document (must be populated).
    * @param {Object} [params.ipfsClient=null] - The IpfsClient module; when `null`, IPFS pinning is skipped.
    * @param {function} [params.createPinRecord=null] - The `createPinRecord` helper; when `null`, pin records are skipped.
-   * @param {string} [params.userId] - Authenticated user ID for IPFS pin record creation.
    * @param {Object} [params.options] - Server options (host, path) forwarded to `createPinRecord`.
    * @returns {Promise<Object>} The saved ObjectLayer document.
    * @memberof CyberiaObjectLayer
    */
-  static async computeAndSaveFinalSha256({ objectLayer, ipfsClient = null, createPinRecord = null, userId, options }) {
+  static async computeAndSaveFinalSha256({ objectLayer, ipfsClient = null, createPinRecord = null, options }) {
     const finalSha256 = ObjectLayerEngine.computeSha256(objectLayer.data);
 
     if (ipfsClient) {

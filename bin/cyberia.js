@@ -229,6 +229,8 @@ try {
         const AtlasSpriteSheet = DataBaseProvider.instance[`${host}${path}`].mongoose.models.AtlasSpriteSheet;
         /** @type {import('mongoose').Model} */
         const File = DataBaseProvider.instance[`${host}${path}`].mongoose.models.File;
+        /** @type {import('mongoose').Model} */
+        const Ipfs = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Ipfs;
 
         if (options.drop) {
           // Parse comma-separated item IDs for targeted drop; if none provided, drop everything
@@ -302,6 +304,12 @@ try {
           if (atlasFileIds.length > 0) {
             const result = await File.deleteMany({ _id: { $in: atlasFileIds } });
             fileCount = result.deletedCount || 0;
+          }
+
+          // Delete IPFS pin registry records for all collected CIDs
+          if (cidsToUnpin.size > 0) {
+            const ipfsResult = await Ipfs.deleteMany({ cid: { $in: [...cidsToUnpin] } });
+            logger.info(`Dropped ${ipfsResult.deletedCount} Ipfs pin record(s)`);
           }
 
           // Unpin CIDs from IPFS Cluster + Kubo and remove MFS directories
@@ -3195,25 +3203,28 @@ try {
       const instance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
 
       if (!instance) {
-        logger.warn(
-          `CyberiaInstance "${instanceCode}" not found — skillConfig not seeded. ` +
-            `Create the instance first or import it with: node bin/cyberia instance ${instanceCode} --import`,
-        );
-      } else {
-        const conf = await CyberiaInstanceConf.findOneAndUpdate(
-          { instanceCode },
-          { $set: { skillConfig: DefaultSkillConfig } },
-          { upsert: true, new: true },
-        );
-        // Ensure the instance's conf ref is linked.
-        if (!instance.conf || String(instance.conf) !== String(conf._id)) {
-          await CyberiaInstance.findByIdAndUpdate(instance._id, { conf: conf._id });
-        }
         logger.info(
-          `skillConfig seeded for instance "${instanceCode}" (${DefaultSkillConfig.length} entries)`,
-          DefaultSkillConfig.map((e) => `${e.triggerItemId} → [${e.logicEventIds.join(', ')}]`),
+          `CyberiaInstance "${instanceCode}" not found — seeding skillConfig into conf using fallback defaults. ` +
+            `To link to a live instance, create or import it with: node bin/cyberia instance ${instanceCode} --import`,
         );
       }
+
+      // Always upsert the conf with DefaultSkillConfig — idempotent regardless of instance existence.
+      const conf = await CyberiaInstanceConf.findOneAndUpdate(
+        { instanceCode },
+        { $set: { skillConfig: DefaultSkillConfig } },
+        { upsert: true, returnDocument: 'after' },
+      );
+
+      // If a live instance exists, ensure its conf ref is linked.
+      if (instance && (!instance.conf || String(instance.conf) !== String(conf._id))) {
+        await CyberiaInstance.findByIdAndUpdate(instance._id, { conf: conf._id });
+      }
+
+      logger.info(
+        `skillConfig seeded for instance "${instanceCode}" (${DefaultSkillConfig.length} entries)`,
+        DefaultSkillConfig.map((e) => `${e.triggerItemId} → [${e.logicEventIds.join(', ')}]`),
+      );
 
       await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
     });
