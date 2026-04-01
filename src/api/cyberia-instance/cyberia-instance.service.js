@@ -1,6 +1,8 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
+import { connectPortals, generateProceduralEntities } from './cyberia-portal-connector.js';
+import { CYBERIA_INSTANCE_CONF_DEFAULTS } from '../cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -64,21 +66,18 @@ const CyberiaInstanceService = {
     return await CyberiaInstance.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
   },
   /**
-   * Heuristic portal connector.
+   * Central portal connector endpoint.
    *
-   * Given an instance ID, loads all its maps from MongoDB, extracts the first
-   * `portal`-type entity from each map, and builds a **minimal circular ring**:
+   * Delegates topology computation to the pure-function `connectPortals()`
+   * from cyberia-portal-connector.js so the same logic can be used by the
+   * GUI without a DB dependency.
    *
-   *   A → B → C → … → A
-   *
-   * Each directed edge uses:
-   *   - sourceCell = first portal entity coords of the source map (fallback 0,0)
-   *   - targetCell = first portal entity coords of the target map (= landing spot)
-   *
-   * If only 1 map exists no portals are possible (returns []).
-   * If 2 maps exist, a bidirectional pair A↔B is returned.
-   * For N ≥ 2 maps the result is always a directed Hamiltonian cycle
-   * using exactly N edges (minimal circular graph).
+   * Optionally generates procedural fallback obstacle/foreground entities
+   * for maps that have none, controlled by query flags:
+   *   ?generateEntities=true   — append procedural obstacles & foreground
+   *   ?obstacleCount=N         — obstacles per map   (default 5)
+   *   ?foregroundCount=N       — foreground per map   (default 3)
+   *   ?persist=true            — save generated portals & entities to DB
    */
   portalConnect: async (req, res, options) => {
     const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
@@ -88,45 +87,65 @@ const CyberiaInstanceService = {
     if (!instance) throw new Error('instance not found');
 
     const mapCodes = instance.cyberiaMapCodes || [];
-    if (mapCodes.length < 2) return { portals: [], topology: 'none', message: 'Need at least 2 maps to connect.' };
 
-    // Load all maps — only fetch portal entities to keep the query light
+    // Load maps with the fields needed by the connector.
     const mapDocs = await CyberiaMap.find(
       { code: { $in: mapCodes } },
-      { code: 1, 'entities.entityType': 1, 'entities.initCellX': 1, 'entities.initCellY': 1 },
+      {
+        code: 1,
+        gridX: 1,
+        gridY: 1,
+        entities: 1,
+      },
     ).lean();
 
-    // Index: mapCode → first portal entity (or null)
-    const portalEntityByCode = {};
-    for (const doc of mapDocs) {
-      const portalEnt = (doc.entities || []).find((e) => e.entityType === 'portal');
-      portalEntityByCode[doc.code] = portalEnt || null;
+    // ── Portal topology (pure function) ──────────────────────────────────
+    const result = connectPortals(mapCodes, mapDocs);
+
+    // ── Procedural entity generation (optional) ──────────────────────────
+    const colors = CYBERIA_INSTANCE_CONF_DEFAULTS.colors;
+    const wantEntities = req.query?.generateEntities === 'true';
+    const obstacleCount = req.query?.obstacleCount ? parseInt(req.query.obstacleCount, 10) : undefined;
+    const foregroundCount = req.query?.foregroundCount ? parseInt(req.query.foregroundCount, 10) : undefined;
+    const seed = instance.seed || '';
+
+    const generatedEntities = {};
+    if (wantEntities) {
+      for (const doc of mapDocs) {
+        const hasObstacles = (doc.entities || []).some((e) => e.entityType === 'obstacle');
+        const hasForeground = (doc.entities || []).some((e) => e.entityType === 'foreground');
+        if (!hasObstacles || !hasForeground) {
+          const mapSeed = seed ? `${seed}:${doc.code}` : doc.code;
+          const generated = generateProceduralEntities({ gridX: doc.gridX || 16, gridY: doc.gridY || 16 }, colors, {
+            obstacleCount,
+            foregroundCount,
+            seed: mapSeed,
+          });
+          generatedEntities[doc.code] = {
+            obstacles: hasObstacles ? [] : generated.obstacles,
+            foreground: hasForeground ? [] : generated.foreground,
+          };
+        }
+      }
     }
 
-    // Build ordered list preserving instance.cyberiaMapCodes order so the
-    // ring follows the order the user placed the maps.
-    const ordered = mapCodes.filter((c) => portalEntityByCode[c] !== undefined || !mapDocs.find((d) => d.code !== c));
-    const n = ordered.length;
-    if (n < 2) return { portals: [], topology: 'none', message: 'Need at least 2 maps to connect.' };
-
-    const portals = [];
-    for (let i = 0; i < n; i++) {
-      const srcCode = ordered[i];
-      const tgtCode = ordered[(i + 1) % n];
-      const srcEnt = portalEntityByCode[srcCode];
-      const tgtEnt = portalEntityByCode[tgtCode];
-      portals.push({
-        sourceMapCode: srcCode,
-        sourceCellX: srcEnt?.initCellX ?? 0,
-        sourceCellY: srcEnt?.initCellY ?? 0,
-        targetMapCode: tgtCode,
-        targetCellX: tgtEnt?.initCellX ?? 0,
-        targetCellY: tgtEnt?.initCellY ?? 0,
-      });
+    // ── Persist to DB when requested ─────────────────────────────────────
+    const persist = req.query?.persist === 'true';
+    if (persist) {
+      await CyberiaInstance.findByIdAndUpdate(req.params.id, { portals: result.portals });
+      for (const [mapCode, ents] of Object.entries(generatedEntities)) {
+        const toAdd = [...ents.obstacles, ...ents.foreground];
+        if (toAdd.length > 0) {
+          await CyberiaMap.findOneAndUpdate({ code: mapCode }, { $push: { entities: { $each: toAdd } } });
+        }
+      }
     }
 
-    const topology = n === 2 ? 'bidirectional' : 'circular';
-    return { portals, topology, mapCount: n };
+    return {
+      ...result,
+      ...(wantEntities ? { generatedEntities } : {}),
+      persisted: persist,
+    };
   },
 
   delete: async (req, res, options) => {
