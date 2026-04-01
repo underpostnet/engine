@@ -219,8 +219,8 @@ function toInstanceConfig(gc) {
     const override = gcDefaultsMap[canonical.entityType] ?? {};
     return {
       entityType: canonical.entityType,
-      liveItemId: override.liveItemId ?? canonical.liveItemId,
-      deadItemId: override.deadItemId ?? canonical.deadItemId,
+      liveItemIds: override.liveItemIds ?? canonical.liveItemIds,
+      deadItemIds: override.deadItemIds ?? canonical.deadItemIds,
       colorKey: override.colorKey ?? canonical.colorKey,
     };
   });
@@ -294,7 +294,7 @@ function buildFallbackConfig() {
 /**
  * Generates a canonical 64×64 fallback map of 4×4-cell floor tiles.
  * Built purely from ENTITY_TYPE_DEFAULTS — never persisted to MongoDB.
- * Floor tiles are pre-populated with the canonical floor liveItemId so the
+ * Floor tiles are pre-populated with the canonical floor liveItemIds so the
  * Go server resolves the atlas at startup without an extra round trip.
  * Bots, skill projectiles and coins are NOT placed here — projectiles/coins are
  * skill-spawned bots (behavior="skill"/"coin") and have no static map placement.
@@ -302,7 +302,7 @@ function buildFallbackConfig() {
  */
 function buildFallbackMap(mapCode) {
   const floorDefault = ENTITY_TYPE_DEFAULTS.find((d) => d.entityType === 'floor');
-  const floorItemIds = floorDefault?.liveItemId ? [floorDefault.liveItemId] : [];
+  const floorItemIds = floorDefault?.liveItemIds?.length ? floorDefault.liveItemIds : [];
 
   const gridSize = 64;
   const tileDim = 4;
@@ -450,7 +450,7 @@ function buildHandlers(dbKey) {
           // Attempt to include OL items from entity defaults so the Go server
           // can render entities with the atlas instead of a solid colour box.
           const fallbackItemIds = (fallbackConf.entityDefaults || [])
-            .flatMap((d) => [d.liveItemId, d.deadItemId])
+            .flatMap((d) => [...(d.liveItemIds || []), ...(d.deadItemIds || [])])
             .filter(Boolean);
           const fallbackOlDocs = fallbackItemIds.length
             ? await models.ObjectLayer.find({ 'data.item.id': { $in: fallbackItemIds } })
@@ -495,8 +495,8 @@ function buildHandlers(dbKey) {
         // Include OL item IDs from entityDefaults so the Go server has all
         // default atlas data cached at startup without needing extra round trips.
         for (const d of conf.entityDefaults || []) {
-          if (d.liveItemId) itemIds.add(d.liveItemId);
-          if (d.deadItemId) itemIds.add(d.deadItemId);
+          for (const id of d.liveItemIds || []) itemIds.add(id);
+          for (const id of d.deadItemIds || []) itemIds.add(id);
         }
 
         const olDocs = itemIds.size

@@ -39,11 +39,11 @@ export const ITEM_TYPES = Object.freeze({
  *   entityType  — string used by the Go server and C client to identify the
  *                 entity category (matches entity_type_str in game_render.c
  *                 and Behavior for bot sub-types).
- *   liveItemId  — ObjectLayer item ID used when the entity is alive/active and
- *                 no explicit items are assigned.  Empty string = no OL fallback,
- *                 rely on colorKey solid fill.
- *   deadItemId  — ObjectLayer item ID for the dead / ghost / respawning state.
- *                 Empty string = no dead-state OL; same solid fill as live.
+ *   liveItemIds — Array of ObjectLayer item IDs applied when the entity is
+ *                 alive/active and no explicit items are assigned.  Empty array =
+ *                 no OL fallback, rely on colorKey solid fill.
+ *   deadItemIds — Array of ObjectLayer item IDs for the dead / ghost / respawning
+ *                 state.  Empty array = no dead-state OL; same solid fill as live.
  *                 Replaces the old flat ghostItemId field for players.
  *   colorKey    — Named palette colour key (see colors in CYBERIA_INSTANCE_CONF_DEFAULTS).
  *                 Used as solid-colour fallback when the entity carries NO active
@@ -58,7 +58,7 @@ export const ITEM_TYPES = Object.freeze({
  *   skill        — skill-spawned projectile bot (behavior = "skill");
  *                  NOT placed in maps — created at runtime by skill_projectile.go
  *                  when a player/bot triggers a projectile skill.
- *                  liveItemId is a skill-type OL (the projectile sprite).
+ *                  liveItemIds carries the skill-type OL (the projectile sprite).
  *   coin         — skill-spawned collectible bot (behavior = "coin");
  *                  NOT placed in maps — dropped at runtime on entity death.
  *
@@ -66,20 +66,25 @@ export const ITEM_TYPES = Object.freeze({
  *   floor / obstacle / portal / foreground
  *
  * @constant
- * @type {ReadonlyArray<{entityType:string, liveItemId:string, deadItemId:string, colorKey:string}>}
+ * @type {ReadonlyArray<{entityType:string, liveItemIds:string[], deadItemIds:string[], colorKey:string}>}
  */
 export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   // ── Characters ─────────────────────────────────────────────────────────
-  { entityType: 'player', liveItemId: 'anon', deadItemId: 'ghost', colorKey: 'PLAYER' },
-  { entityType: 'other_player', liveItemId: 'anon', deadItemId: 'ghost', colorKey: 'OTHER_PLAYER' },
-  { entityType: 'bot', liveItemId: 'purple', deadItemId: 'ghost', colorKey: 'BOT' },
-  { entityType: 'skill', liveItemId: 'atlas_pistol_mk2_bullet', deadItemId: '', colorKey: 'SKILL' },
-  { entityType: 'coin', liveItemId: 'coin', deadItemId: '', colorKey: 'COIN' },
+  { entityType: 'player', liveItemIds: ['anon', 'atlas_pistol_mk2'], deadItemIds: ['ghost'], colorKey: 'PLAYER' },
+  {
+    entityType: 'other_player',
+    liveItemIds: ['anon', 'atlas_pistol_mk2'],
+    deadItemIds: ['ghost'],
+    colorKey: 'OTHER_PLAYER',
+  },
+  { entityType: 'bot', liveItemIds: ['purple'], deadItemIds: ['ghost'], colorKey: 'BOT' },
+  { entityType: 'skill', liveItemIds: ['atlas_pistol_mk2_bullet'], deadItemIds: [], colorKey: 'SKILL' },
+  { entityType: 'coin', liveItemIds: ['coin'], deadItemIds: [], colorKey: 'COIN' },
   // ── World objects ───────────────────────────────────────────────────────
-  { entityType: 'floor', liveItemId: 'grass', deadItemId: '', colorKey: 'FLOOR' },
-  { entityType: 'obstacle', liveItemId: '', deadItemId: '', colorKey: 'OBSTACLE' },
-  { entityType: 'portal', liveItemId: '', deadItemId: '', colorKey: 'PORTAL' },
-  { entityType: 'foreground', liveItemId: '', deadItemId: '', colorKey: 'FOREGROUND' },
+  { entityType: 'floor', liveItemIds: ['grass'], deadItemIds: [], colorKey: 'FLOOR' },
+  { entityType: 'obstacle', liveItemIds: [], deadItemIds: [], colorKey: 'OBSTACLE' },
+  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL' },
+  { entityType: 'foreground', liveItemIds: [], deadItemIds: [], colorKey: 'FOREGROUND' },
 ]);
 
 // ── Instance configuration defaults ─────────────────────────────────────────
@@ -161,20 +166,25 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // Replaces flat fields: userDefaultItemId, botDefaultItemId, ghostItemId,
   // coinItemId, defaultFloorItemId, weaponDefaultItemId.
   // See ENTITY_TYPE_DEFAULTS for documentation of each field.
+  // liveItemIds / deadItemIds are arrays of ObjectLayer item IDs.
   entityDefaults: ENTITY_TYPE_DEFAULTS.map((e) => ({ ...e })),
 
   // ── Skill system ───────────────────────────────────────────────────
-  skillConfig: [],
+  skillConfig: [
+    { triggerItemId: 'atlas_pistol_mk2', logicEventIds: ['atlas_pistol_mk2_logic'] },
+    { triggerItemId: 'coin', logicEventIds: ['coin_drop_or_transaction'] },
+    { triggerItemId: 'anon', logicEventIds: ['doppelganger'] },
+  ],
 
   skillRules: {
-    projectileSpawnChance: 0,
-    projectileLifetimeMs: 0,
-    projectileWidth: 0,
-    projectileHeight: 0,
-    projectileSpeedMultiplier: 0,
-    doppelgangerSpawnChance: 0,
-    doppelgangerLifetimeMs: 0,
-    doppelgangerSpawnRadius: 0,
-    doppelgangerInitialLifeFraction: 0,
+    projectileSpawnChance: 0.5,
+    projectileLifetimeMs: 2000,
+    projectileWidth: 1,
+    projectileHeight: 1,
+    projectileSpeedMultiplier: 3,
+    doppelgangerSpawnChance: 0.5,
+    doppelgangerLifetimeMs: 5000,
+    doppelgangerSpawnRadius: 3,
+    doppelgangerInitialLifeFraction: 1.0,
   },
 };

@@ -5,11 +5,11 @@ const EntityDefaultSchema = new Schema(
   {
     // Entity category string (matches entity_type_str / bot Behavior in game engine)
     entityType: { type: String, required: true },
-    // Default ObjectLayer item ID when the entity is alive and carries no assigned items.
-    liveItemId: { type: String, default: '' },
-    // Default ObjectLayer item ID for the dead / ghost / respawning state.
-    // Empty string = use liveItemId solid fill color.
-    deadItemId: { type: String, default: '' },
+    // Default ObjectLayer item IDs when the entity is alive and carries no assigned items.
+    liveItemIds: { type: [String], default: [] },
+    // Default ObjectLayer item IDs for the dead / ghost / respawning state.
+    // Empty array = use liveItemIds solid fill color.
+    deadItemIds: { type: [String], default: [] },
     // Palette key for solid-color fallback when no OL items are assigned.
     colorKey: { type: String, default: '' },
   },
@@ -125,7 +125,7 @@ const CyberiaInstanceConfSchema = new Schema(
     // ── Entity type rendering defaults ───────────────────────────────
     // Replaces flat fields: userDefaultItemId, botDefaultItemId, ghostItemId,
     // coinItemId, defaultFloorItemId, weaponDefaultItemId.
-    // Each entry: { entityType, liveItemId, deadItemId, colorKey }.
+    // Each entry: { entityType, liveItemIds, deadItemIds, colorKey }.
     entityDefaults: { type: [EntityDefaultSchema], default: D.entityDefaults },
 
     // ── Skill system ─────────────────────────────────────────────────
