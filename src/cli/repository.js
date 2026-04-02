@@ -358,16 +358,16 @@ class UnderpostRepository {
           }
           options.log = count;
         }
-        const history = Underpost.repo.getHistory(options.log);
+        const history = Underpost.repo.getHistory(options.log, repoPath);
         const chainCmd = history
           .reverse()
-          .map((commitData, i) => `${i === 0 ? '' : ' && '}git ${diffCmd} ${commitData.hash}`)
+          .map((commitData, i) => `${i === 0 ? '' : ' && '}git -C ${repoPath} ${diffCmd} ${commitData.hash}`)
           .join('');
         if (history[0]) {
           let index = history.length;
           for (const commit of history) {
             console.log(
-              shellExec(`git show -s --format=%ci ${commit.hash}`, {
+              shellExec(`cd ${repoPath} && git show -s --format=%ci ${commit.hash}`, {
                 stdout: true,
                 silent: true,
                 disableLog: true,
@@ -376,7 +376,7 @@ class UnderpostRepository {
             console.log(`${index}`.magenta, commit.hash.yellow, commit.message);
             index--;
             console.log(
-              shellExec(`git show --name-status --pretty="" ${commit.hash}`, {
+              shellExec(`cd ${repoPath} && git show --name-status --pretty="" ${commit.hash}`, {
                 stdout: true,
                 silent: true,
                 disableLog: true,
@@ -928,8 +928,8 @@ Prevent build private config repo.`,
      * @returns {Array<{hash: string, message: string, files: string}>} An array of commit objects with hash, message, and files.
      * @memberof UnderpostRepository
      */
-    getHistory(sinceCommit = 1) {
-      return shellExec(`git log -1 --pretty=format:"%h %s" -n ${sinceCommit}`, {
+    getHistory(sinceCommit = 1, repoPath = '.') {
+      return shellExec(`cd ${repoPath} && git log -1 --pretty=format:"%h %s" -n ${sinceCommit}`, {
         stdout: true,
         silent: true,
         disableLog: true,
@@ -944,7 +944,7 @@ Prevent build private config repo.`,
         })
         .filter((line) => line.hash)
         .map((line) => {
-          line.files = shellExec(`git show --name-status --pretty="" ${line.hash}`, {
+          line.files = shellExec(`cd ${repoPath} && git show --name-status --pretty="" ${line.hash}`, {
             stdout: true,
             silent: true,
             disableLog: true,
