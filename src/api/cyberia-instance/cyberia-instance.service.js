@@ -2,6 +2,7 @@ import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 import { connectPortals, generateProceduralEntities } from './cyberia-portal-connector.js';
+import { generateFallbackWorld } from './cyberia-fallback-world.js';
 import { CYBERIA_INSTANCE_CONF_DEFAULTS } from '../cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 
 const logger = loggerFactory(import.meta);
@@ -162,6 +163,30 @@ const CyberiaInstanceService = {
       }
       return await CyberiaInstance.findByIdAndDelete(req.params.id);
     } else return await CyberiaInstance.deleteMany();
+  },
+
+  /**
+   * Return an in-memory procedural fallback world.
+   *
+   * Nothing is persisted to MongoDB.  The world is regenerated on every
+   * call but stays deterministic for a given seed.
+   *
+   * Query params:
+   *   ?seed=<string>           — generation seed   (default: 'fallback')
+   *   ?mapCount=<number>       — maps to generate  (default: 4)
+   *   ?botCount=<number>       — bots per map      (default: 4)
+   *   ?obstacleCount=<number>  — obstacles per map  (default: 6)
+   *   ?foregroundCount=<number>— foreground per map (default: 3)
+   */
+  fallbackWorld: async (req) => {
+    const q = req.query || {};
+    return generateFallbackWorld({
+      seed: q.seed || 'fallback',
+      mapCount: q.mapCount ? parseInt(q.mapCount, 10) : undefined,
+      botCount: q.botCount ? parseInt(q.botCount, 10) : undefined,
+      obstacleCount: q.obstacleCount ? parseInt(q.obstacleCount, 10) : undefined,
+      foregroundCount: q.foregroundCount ? parseInt(q.foregroundCount, 10) : undefined,
+    });
   },
 };
 

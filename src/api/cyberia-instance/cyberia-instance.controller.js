@@ -4,6 +4,15 @@ import { CyberiaInstanceService } from './cyberia-instance.service.js';
 const logger = loggerFactory(import.meta);
 
 const CyberiaInstanceController = {
+  fallbackWorld: async (req, res, options) => {
+    try {
+      const result = await CyberiaInstanceService.fallbackWorld(req);
+      return res.status(200).json({ status: 'success', data: result });
+    } catch (error) {
+      logger.error(error, error.stack);
+      return res.status(400).json({ status: 'error', message: error.message });
+    }
+  },
   portalConnect: async (req, res, options) => {
     try {
       const result = await CyberiaInstanceService.portalConnect(req, res, options);

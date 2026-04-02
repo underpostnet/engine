@@ -110,21 +110,21 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
    */
   colors: [
     // ── World ─────────────────────────────────────────────────────
-    { key: 'BACKGROUND', r: 30, g: 30, b: 30, a: 255 },
-    { key: 'FLOOR_BACKGROUND', r: 45, g: 45, b: 45, a: 255 },
-    { key: 'FLOOR', r: 60, g: 60, b: 60, a: 255 },
-    { key: 'OBSTACLE', r: 80, g: 80, b: 80, a: 255 },
-    { key: 'PORTAL', r: 0, g: 200, b: 200, a: 255 },
-    { key: 'FOREGROUND', r: 200, g: 200, b: 200, a: 80 },
+    { key: 'BACKGROUND', r: 30, g: 30, b: 30, a: 255 }, // rgba(30, 30, 30, 1)
+    { key: 'FLOOR_BACKGROUND', r: 45, g: 45, b: 45, a: 255 }, // rgba(45, 45, 45, 1)
+    { key: 'FLOOR', r: 60, g: 60, b: 60, a: 255 }, // rgba(60, 60, 60, 1)
+    { key: 'OBSTACLE', r: 80, g: 80, b: 80, a: 255 }, // rgba(80, 80, 80, 1)
+    { key: 'PORTAL', r: 0, g: 200, b: 200, a: 255 }, // rgba(0, 200, 200, 1)
+    { key: 'FOREGROUND', r: 200, g: 200, b: 200, a: 80 }, // rgba(200, 200, 200, 0.31)
     // ── Entity solid-colour fallbacks (matched by entityDefaults[n].colorKey) ──
-    { key: 'PLAYER', r: 0, g: 255, b: 0, a: 255 },
-    { key: 'OTHER_PLAYER', r: 128, g: 128, b: 255, a: 255 },
-    { key: 'BOT', r: 255, g: 128, b: 0, a: 255 },
-    { key: 'GHOST', r: 200, g: 200, b: 255, a: 100 },
-    { key: 'COIN', r: 255, g: 215, b: 0, a: 255 },
-    { key: 'SKILL', r: 255, g: 255, b: 50, a: 255 },
+    { key: 'PLAYER', r: 0, g: 255, b: 0, a: 255 }, // rgba(0, 255, 0, 1)
+    { key: 'OTHER_PLAYER', r: 128, g: 128, b: 255, a: 255 }, // rgba(128, 128, 255, 1)
+    { key: 'BOT', r: 255, g: 128, b: 0, a: 255 }, // rgba(255, 128, 0, 1)
+    { key: 'GHOST', r: 200, g: 200, b: 255, a: 100 }, // rgba(200, 200, 255, 0.39)
+    { key: 'COIN', r: 255, g: 215, b: 0, a: 255 }, // rgba(255, 215, 0, 1)
+    { key: 'SKILL', r: 255, g: 255, b: 50, a: 255 }, // rgba(255, 255, 50, 1)
     // ── UI-only ────────────────────────────────────────────────────
-    { key: 'WEAPON', r: 180, g: 50, b: 50, a: 255 },
+    { key: 'WEAPON', r: 180, g: 50, b: 50, a: 255 }, // rgba(180, 50, 50, 1)
   ],
 
   // ── World / AOI ────────────────────────────────────────────────────

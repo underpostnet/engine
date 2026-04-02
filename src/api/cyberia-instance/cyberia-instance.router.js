@@ -9,6 +9,7 @@ const CyberiaInstanceRouter = (options) => {
   const router = express.Router();
   const authMiddleware = options.authMiddleware;
   // ── Custom actions (must come before generic /:id routes) ──────────────
+  router.get(`/fallback-world`, async (req, res) => await CyberiaInstanceController.fallbackWorld(req, res, options));
   router.get(
     `/:id/portal-connect`,
     authMiddleware,

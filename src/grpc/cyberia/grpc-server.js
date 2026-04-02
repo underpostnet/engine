@@ -18,6 +18,7 @@ import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
   ENTITY_TYPE_DEFAULTS,
 } from '../../api/cyberia-instance-conf/cyberia-instance-conf.defaults.js';
+import { generateFallbackWorld } from '../../api/cyberia-instance/cyberia-fallback-world.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -291,51 +292,6 @@ function buildFallbackConfig() {
   return JSON.parse(JSON.stringify(FALLBACK_CONFIG_DEFAULTS));
 }
 
-/**
- * Generates a canonical 64×64 fallback map of 4×4-cell floor tiles.
- * Built purely from ENTITY_TYPE_DEFAULTS — never persisted to MongoDB.
- * Floor tiles are pre-populated with the canonical floor liveItemIds so the
- * Go server resolves the atlas at startup without an extra round trip.
- * Bots, skill projectiles and coins are NOT placed here — projectiles/coins are
- * skill-spawned bots (behavior="skill"/"coin") and have no static map placement.
- * @param {string} mapCode
- */
-function buildFallbackMap(mapCode) {
-  const floorDefault = ENTITY_TYPE_DEFAULTS.find((d) => d.entityType === 'floor');
-  const floorItemIds = floorDefault?.liveItemIds?.length ? floorDefault.liveItemIds : [];
-
-  const gridSize = 64;
-  const tileDim = 4;
-  const floors = [];
-  for (let r = 0; r < gridSize; r += tileDim) {
-    for (let c = 0; c < gridSize; c += tileDim) {
-      floors.push({
-        entityType: 'floor',
-        initCellX: c,
-        initCellY: r,
-        dimX: tileDim,
-        dimY: tileDim,
-        color: '',
-        objectLayerItemIds: floorItemIds,
-        spawnRadius: 0,
-        aggroRange: 0,
-        maxLife: 0,
-        lifeRegen: 0,
-      });
-    }
-  }
-  return {
-    mongoId: '',
-    code: mapCode,
-    name: 'Fallback Map',
-    gridX: gridSize,
-    gridY: gridSize,
-    cellWidth: 32,
-    cellHeight: 32,
-    entities: floors,
-  };
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // RPC handler factory
 // ═══════════════════════════════════════════════════════════════════
@@ -441,36 +397,54 @@ function buildHandlers(dbKey) {
         const instanceCode = call.request.instanceCode || 'default';
         const inst = await models.CyberiaInstance.findOne({ code: instanceCode }).populate('conf').lean();
 
-        // ── Fallback: instance not found → return a minimal playable world ─────
+        // ── Fallback: instance not found → return a multi-map procedural world ──
         if (!inst) {
-          logger.info(`Instance "${instanceCode}" not found — returning fallback instance.`);
-          const fallbackMapCode = 'fallback-map';
+          logger.info(`Instance "${instanceCode}" not found — returning fallback world.`);
+          const world = generateFallbackWorld({ seed: instanceCode });
           const fallbackConf = buildFallbackConfig();
 
-          // Attempt to include OL items from entity defaults so the Go server
-          // can render entities with the atlas instead of a solid colour box.
-          const fallbackItemIds = (fallbackConf.entityDefaults || [])
-            .flatMap((d) => [...(d.liveItemIds || []), ...(d.deadItemIds || [])])
-            .filter(Boolean);
-          const fallbackOlDocs = fallbackItemIds.length
-            ? await models.ObjectLayer.find({ 'data.item.id': { $in: fallbackItemIds } })
+          // Collect all objectLayerItemIds from the generated maps so the
+          // Go server can resolve atlases at startup.
+          const fallbackItemIds = new Set();
+          for (const m of world.maps) {
+            for (const e of m.entities || []) {
+              for (const id of e.objectLayerItemIds || []) fallbackItemIds.add(id);
+            }
+          }
+          // Also include system OL items from entity defaults.
+          for (const d of fallbackConf.entityDefaults || []) {
+            for (const id of d.liveItemIds || []) fallbackItemIds.add(id);
+            for (const id of d.deadItemIds || []) fallbackItemIds.add(id);
+          }
+
+          const fallbackOlDocs = fallbackItemIds.size
+            ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...fallbackItemIds] } })
                 .populate('objectLayerRenderFramesId', { _id: 1, frame_duration: 1, is_stateless: 1 })
                 .lean()
             : [];
 
           callback(null, {
-            instance: {
-              mongoId: '',
+            instance: toInstanceMsg({
+              _id: '',
               code: 'fallback',
               name: 'Fallback Instance',
-              description: 'Auto-generated minimal instance',
-              tags: [],
-              mapCodes: [fallbackMapCode],
-              portals: [],
-              topologyMode: 'manual',
-              seed: '',
-            },
-            maps: [buildFallbackMap(fallbackMapCode)],
+              description: 'Auto-generated procedural world (not persisted)',
+              tags: ['fallback', 'procedural'],
+              cyberiaMapCodes: world.instance.cyberiaMapCodes,
+              portals: world.portals,
+              topologyMode: 'procedural',
+              seed: instanceCode,
+            }),
+            maps: world.maps.map((m) => ({
+              mongoId: '',
+              code: m.code,
+              name: m.name,
+              gridX: m.gridX,
+              gridY: m.gridY,
+              cellWidth: m.cellWidth,
+              cellHeight: m.cellHeight,
+              entities: (m.entities || []).map(toEntityMsg),
+            })),
             objectLayers: fallbackOlDocs.map(toObjectLayerMsg),
             config: fallbackConf,
           });
