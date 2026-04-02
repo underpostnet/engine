@@ -87,7 +87,7 @@ program
   .argument(`[commit-type]`, `The type of commit to perform. Options: ${Object.keys(commitData).join(', ')}.`)
   .argument(`[module-tag]`, 'Optional: Sets a specific module tag for the commit.')
   .argument(`[message]`, 'Optional: Provides an additional custom message for the commit.')
-  .option(`--log <latest-n>`, 'Shows commit history from the specified number of latest n path commits.')
+  .option(`--log [latest-n]`, 'Shows commit history from the specified number of latest n path commits.')
   .option('--last-msg <latest-n>', 'Displays the last n commit message.')
   .option('--empty', 'Allows committing with empty files.')
   .option('--copy', 'Copies the generated commit message to the clipboard.')
@@ -108,6 +108,7 @@ program
     '--changelog-no-hash',
     'Excludes commit hashes from the generated changelog entries (used with --changelog-build).',
   )
+  .option('--unpush', 'With --log, automatically sets range to unpushed commits ahead of remote.')
   .option('-b', 'Shows the current Git branch name.')
   .option('-p [branch]', 'Shows the reflog for the specified branch.')
   .option('--bc <commit-hash>', 'Shows branches that contain the specified commit.')

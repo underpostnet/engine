@@ -97,6 +97,7 @@ class UnderpostRepository {
      * @param {boolean} [options.cached=false] - If true, commits only staged changes.
      * @param {number} [options.log=0] - If greater than 0, shows the last N commits with diffs.
      * @param {boolean} [options.lastMsg=0] - If greater than 0, copies or show the last last single n commit message to clipboard.
+     * @param {boolean} [options.unpush=false] - If true with --log, automatically detects unpushed commits ahead of remote and uses that count.
      * @param {string} [options.deployId=''] - An optional deploy ID to include in the commit message.
      * @param {string} [options.hashes=''] - If provided with diff option, shows the diff between two hashes.
      * @param {string} [options.extension=''] - If provided with diff option, filters the diff by this file extension.
@@ -127,6 +128,7 @@ class UnderpostRepository {
         changelogBuild: false,
         changelogMinVersion: '',
         changelogNoHash: false,
+        unpush: false,
         b: false,
         p: undefined,
         bc: '',
@@ -336,7 +338,26 @@ class UnderpostRepository {
         else console.log('Diff command:', _diffCmd);
         return;
       }
-      if (options.log) {
+      if (options.log || options.unpush) {
+        if (options.unpush) {
+          const branch = shellExec(`cd ${repoPath} && git branch --show-current`, {
+            stdout: true,
+            silent: true,
+            disableLog: true,
+          }).trim();
+          shellExec(`cd ${repoPath} && git fetch origin 2>/dev/null`, { silent: true, disableLog: true });
+          const unpushCount = shellExec(`cd ${repoPath} && git rev-list --count origin/${branch}..HEAD 2>/dev/null`, {
+            stdout: true,
+            silent: true,
+            disableLog: true,
+          }).trim();
+          const count = parseInt(unpushCount);
+          if (isNaN(count) || count <= 0) {
+            logger.warn('No unpushed commits found');
+            return;
+          }
+          options.log = count;
+        }
         const history = Underpost.repo.getHistory(options.log);
         const chainCmd = history
           .reverse()
