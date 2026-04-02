@@ -154,6 +154,7 @@ function toEntityMsg(ent) {
     aggroRange: ent.aggroRange || 0,
     maxLife: ent.maxLife || 0,
     lifeRegen: ent.lifeRegen || 0,
+    portalSubtype: ent.portalSubtype || '',
   };
 }
 
@@ -185,6 +186,7 @@ function toInstanceMsg(doc) {
       targetMapCode: p.targetMapCode || '',
       targetCellX: p.targetCellX || 0,
       targetCellY: p.targetCellY || 0,
+      portalMode: p.portalMode || 'inter-portal',
     })),
     topologyMode: doc.topologyMode || 'hybrid',
     seed: doc.seed || '',

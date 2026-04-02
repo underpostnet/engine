@@ -84,6 +84,10 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   { entityType: 'floor', liveItemIds: ['grass'], deadItemIds: [], colorKey: 'FLOOR' },
   { entityType: 'obstacle', liveItemIds: [], deadItemIds: [], colorKey: 'OBSTACLE' },
   { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL' },
+  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTER_PORTAL' },
+  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTER_RANDOM' },
+  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTRA_RANDOM' },
+  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTRA_PORTAL' },
   { entityType: 'foreground', liveItemIds: [], deadItemIds: [], colorKey: 'FOREGROUND' },
 ]);
 
@@ -114,7 +118,11 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
     { key: 'FLOOR_BACKGROUND', r: 45, g: 45, b: 45, a: 255 }, // rgba(45, 45, 45, 1)
     { key: 'FLOOR', r: 60, g: 60, b: 60, a: 255 }, // rgba(60, 60, 60, 1)
     { key: 'OBSTACLE', r: 80, g: 80, b: 80, a: 255 }, // rgba(80, 80, 80, 1)
-    { key: 'PORTAL', r: 0, g: 200, b: 200, a: 255 }, // rgba(0, 200, 200, 1)
+    { key: 'PORTAL', r: 0, g: 200, b: 200, a: 255 }, // rgba(0, 200, 200, 1) — generic fallback
+    { key: 'PORTAL_INTER_PORTAL', r: 0, g: 200, b: 200, a: 255 }, // cyan — to portal on another map
+    { key: 'PORTAL_INTER_RANDOM', r: 80, g: 130, b: 255, a: 255 }, // blue — to random pos on another map
+    { key: 'PORTAL_INTRA_RANDOM', r: 220, g: 200, b: 50, a: 255 }, // yellow — to random pos on same map
+    { key: 'PORTAL_INTRA_PORTAL', r: 200, g: 80, b: 200, a: 255 }, // magenta — to portal on same map
     { key: 'FOREGROUND', r: 255, g: 255, b: 255, a: 189 }, // rgba(255, 255, 255, 0.73)
     // ── Entity solid-colour fallbacks (matched by entityDefaults[n].colorKey) ──
     { key: 'PLAYER', r: 0, g: 255, b: 0, a: 255 }, // rgba(0, 255, 0, 1)

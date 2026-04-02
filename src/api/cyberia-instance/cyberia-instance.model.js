@@ -16,6 +16,17 @@ const PortalEdgeSchema = new Schema(
     targetMapCode: { type: String, required: true, trim: true },
     targetCellX: { type: Number },
     targetCellY: { type: Number },
+
+    // Transport behaviour of this edge:
+    //   inter-portal  — teleport to a portal entity on another map
+    //   inter-random  — teleport to a random walkable cell on another map
+    //   intra-random  — teleport to a random walkable cell on the same map
+    //   intra-portal  — teleport to a portal entity on the same map
+    portalMode: {
+      type: String,
+      enum: ['inter-portal', 'inter-random', 'intra-random', 'intra-portal'],
+      default: 'inter-portal',
+    },
   },
   { _id: false },
 );
