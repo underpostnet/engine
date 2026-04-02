@@ -26,6 +26,7 @@ import {
   findColor,
   randInt,
   BOT_RANGE,
+  BOT_WEAPON_CHANCE,
   PORTAL_DIM_RANGE,
 } from './cyberia-portal-connector.js';
 
@@ -134,6 +135,9 @@ function generateBots(mapDims, colors, opts = {}) {
     const maxX = Math.max(0, mapDims.gridX - dim);
     const maxY = Math.max(0, mapDims.gridY - dim);
 
+    const hasWeapon = Math.random() < BOT_WEAPON_CHANCE;
+    const itemIds = hasWeapon ? ['purple', 'atlas_pistol_mk2'] : ['purple'];
+
     entities.push({
       entityType: 'bot',
       initCellX: randInt(0, maxX),
@@ -141,7 +145,7 @@ function generateBots(mapDims, colors, opts = {}) {
       dimX: dim,
       dimY: dim,
       color: rgba,
-      objectLayerItemIds: ['purple', 'atlas_pistol_mk2'],
+      objectLayerItemIds: itemIds,
       spawnRadius,
       aggroRange,
       maxLife,

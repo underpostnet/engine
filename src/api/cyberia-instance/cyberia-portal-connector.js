@@ -229,9 +229,10 @@ function generateProceduralEntities(mapDims, colors, opts = {}) {
 // ── Entity count ranges ──────────────────────────────────────────────────────
 // [min, max] — actual count is random within range on each generation call.
 
-const OBSTACLE_RANGE = [12, 20];
-const FOREGROUND_RANGE = [6, 12];
+const OBSTACLE_RANGE = [20, 35];
+const FOREGROUND_RANGE = [10, 20];
 const BOT_RANGE = [8, 16];
+const BOT_WEAPON_CHANCE = 0.6;
 const PORTAL_DIM_RANGE = [2, 3];
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -253,5 +254,6 @@ export {
   OBSTACLE_RANGE,
   FOREGROUND_RANGE,
   BOT_RANGE,
+  BOT_WEAPON_CHANCE,
   PORTAL_DIM_RANGE,
 };
