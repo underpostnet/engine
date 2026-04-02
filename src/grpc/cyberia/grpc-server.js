@@ -400,7 +400,7 @@ function buildHandlers(dbKey) {
         // ── Fallback: instance not found → return a multi-map procedural world ──
         if (!inst) {
           logger.info(`Instance "${instanceCode}" not found — returning fallback world.`);
-          const world = generateFallbackWorld({ seed: instanceCode });
+          const world = generateFallbackWorld();
           const fallbackConf = buildFallbackConfig();
 
           // Collect all objectLayerItemIds from the generated maps so the

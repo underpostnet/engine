@@ -115,7 +115,7 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
     { key: 'FLOOR', r: 60, g: 60, b: 60, a: 255 }, // rgba(60, 60, 60, 1)
     { key: 'OBSTACLE', r: 80, g: 80, b: 80, a: 255 }, // rgba(80, 80, 80, 1)
     { key: 'PORTAL', r: 0, g: 200, b: 200, a: 255 }, // rgba(0, 200, 200, 1)
-    { key: 'FOREGROUND', r: 200, g: 200, b: 200, a: 80 }, // rgba(200, 200, 200, 0.31)
+    { key: 'FOREGROUND', r: 255, g: 255, b: 255, a: 189 }, // rgba(255, 255, 255, 0.73)
     // ── Entity solid-colour fallbacks (matched by entityDefaults[n].colorKey) ──
     { key: 'PLAYER', r: 0, g: 255, b: 0, a: 255 }, // rgba(0, 255, 0, 1)
     { key: 'OTHER_PLAYER', r: 128, g: 128, b: 255, a: 255 }, // rgba(128, 128, 255, 1)

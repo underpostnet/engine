@@ -29,38 +29,15 @@ const colorToRgba = (c) => `rgba(${c.r}, ${c.g}, ${c.b}, ${c.a / 255})`;
  */
 const findColor = (colors, key) => colors.find((c) => c.key === key);
 
-// ── Seeded PRNG ──────────────────────────────────────────────────────────────
-// Simple mulberry32 — deterministic for a given numeric seed so procedural
-// generation is reproducible when the instance carries a seed string.
+// ── Random helpers ───────────────────────────────────────────────────────────
 
 /**
- * Create a seeded PRNG (mulberry32).
- * @param {number} seed
- * @returns {() => number} Returns values in [0, 1).
- */
-function createRng(seed) {
-  let s = seed | 0;
-  return () => {
-    s |= 0;
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/**
- * Derive a numeric seed from a string (djb2 hash).
- * Falls back to Date.now() if the string is empty/undefined.
- * @param {string} [seedStr]
+ * Return a random integer in [min, max] (inclusive).
+ * @param {number} min
+ * @param {number} max
  * @returns {number}
  */
-function seedFromString(seedStr) {
-  if (!seedStr) return Date.now();
-  let h = 5381;
-  for (let i = 0; i < seedStr.length; i++) h = ((h << 5) + h + seedStr.charCodeAt(i)) | 0;
-  return h >>> 0;
-}
+const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
 // ── Portal topology builders ─────────────────────────────────────────────────
 
@@ -152,20 +129,20 @@ function connectPortals(mapCodes, maps) {
  * Generate procedural obstacle entities for a map.
  *
  * Obstacles use empty `objectLayerItemIds` so they render as a solid colour
- * from the OBSTACLE palette entry.
+ * from the OBSTACLE palette entry.  Count, dimensions, and positions are
+ * all fully random within the declared ranges.
  *
  * @param {{ gridX: number, gridY: number }} mapDims  Map grid dimensions.
  * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors  Palette.
  * @param {object} [opts]
- * @param {number} [opts.count=5]       Number of obstacle entities to generate.
+ * @param {number} [opts.count]         Override count (ignores range).
  * @param {number} [opts.minDim=1]      Minimum obstacle width/height (cells).
- * @param {number} [opts.maxDim=3]      Maximum obstacle width/height (cells).
- * @param {string} [opts.seed]          Seed string for deterministic output.
+ * @param {number} [opts.maxDim=4]      Maximum obstacle width/height (cells).
  * @returns {object[]}  Array of CyberiaEntity plain objects.
  */
 function generateObstacles(mapDims, colors, opts = {}) {
-  const { count = 5, minDim = 1, maxDim = 3, seed } = opts;
-  const rng = createRng(seedFromString(seed));
+  const { minDim = 1, maxDim = 4 } = opts;
+  const count = opts.count ?? randInt(OBSTACLE_RANGE[0], OBSTACLE_RANGE[1]);
   const { gridX, gridY } = mapDims;
 
   const obstacleColor = findColor(colors, 'OBSTACLE');
@@ -173,15 +150,14 @@ function generateObstacles(mapDims, colors, opts = {}) {
 
   const entities = [];
   for (let i = 0; i < count; i++) {
-    const dimX = minDim + Math.floor(rng() * (maxDim - minDim + 1));
-    const dimY = minDim + Math.floor(rng() * (maxDim - minDim + 1));
-    // Keep entity fully inside the grid bounds.
+    const dimX = randInt(minDim, maxDim);
+    const dimY = randInt(minDim, maxDim);
     const maxX = Math.max(0, gridX - dimX);
     const maxY = Math.max(0, gridY - dimY);
     entities.push({
       entityType: 'obstacle',
-      initCellX: Math.floor(rng() * (maxX + 1)),
-      initCellY: Math.floor(rng() * (maxY + 1)),
+      initCellX: randInt(0, maxX),
+      initCellY: randInt(0, maxY),
       dimX,
       dimY,
       color: rgba,
@@ -195,36 +171,35 @@ function generateObstacles(mapDims, colors, opts = {}) {
  * Generate procedural foreground entities for a map.
  *
  * Foregrounds use empty `objectLayerItemIds` and a semi-transparent colour
- * from the FOREGROUND palette entry.
+ * from the FOREGROUND palette entry.  Count, dimensions, and positions are
+ * all fully random within the declared ranges.
  *
  * @param {{ gridX: number, gridY: number }} mapDims  Map grid dimensions.
  * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors  Palette.
  * @param {object} [opts]
- * @param {number} [opts.count=3]       Number of foreground entities.
+ * @param {number} [opts.count]         Override count (ignores range).
  * @param {number} [opts.minDim=2]      Minimum foreground width/height (cells).
- * @param {number} [opts.maxDim=5]      Maximum foreground width/height (cells).
- * @param {string} [opts.seed]          Seed string for deterministic output.
+ * @param {number} [opts.maxDim=6]      Maximum foreground width/height (cells).
  * @returns {object[]}  Array of CyberiaEntity plain objects.
  */
 function generateForeground(mapDims, colors, opts = {}) {
-  const { count = 3, minDim = 2, maxDim = 5, seed } = opts;
-  const rng = createRng(seedFromString(seed));
+  const { minDim = 2, maxDim = 6 } = opts;
+  const count = opts.count ?? randInt(FOREGROUND_RANGE[0], FOREGROUND_RANGE[1]);
   const { gridX, gridY } = mapDims;
 
   const fgColor = findColor(colors, 'FOREGROUND');
-  // Foreground is semi-transparent: keep palette alpha (default 80/255 ≈ 0.31).
   const rgba = fgColor ? colorToRgba(fgColor) : 'rgba(200, 200, 200, 0.31)';
 
   const entities = [];
   for (let i = 0; i < count; i++) {
-    const dimX = minDim + Math.floor(rng() * (maxDim - minDim + 1));
-    const dimY = minDim + Math.floor(rng() * (maxDim - minDim + 1));
+    const dimX = randInt(minDim, maxDim);
+    const dimY = randInt(minDim, maxDim);
     const maxX = Math.max(0, gridX - dimX);
     const maxY = Math.max(0, gridY - dimY);
     entities.push({
       entityType: 'foreground',
-      initCellX: Math.floor(rng() * (maxX + 1)),
-      initCellY: Math.floor(rng() * (maxY + 1)),
+      initCellX: randInt(0, maxX),
+      initCellY: randInt(0, maxY),
       dimX,
       dimY,
       color: rgba,
@@ -242,22 +217,22 @@ function generateForeground(mapDims, colors, opts = {}) {
  * @param {object} [opts]
  * @param {number} [opts.obstacleCount]
  * @param {number} [opts.foregroundCount]
- * @param {string} [opts.seed]
  * @returns {{ obstacles: object[], foreground: object[] }}
  */
 function generateProceduralEntities(mapDims, colors, opts = {}) {
-  const baseSeed = opts.seed || '';
   return {
-    obstacles: generateObstacles(mapDims, colors, {
-      count: opts.obstacleCount,
-      seed: baseSeed ? baseSeed + ':obstacles' : undefined,
-    }),
-    foreground: generateForeground(mapDims, colors, {
-      count: opts.foregroundCount,
-      seed: baseSeed ? baseSeed + ':foreground' : undefined,
-    }),
+    obstacles: generateObstacles(mapDims, colors, { count: opts.obstacleCount }),
+    foreground: generateForeground(mapDims, colors, { count: opts.foregroundCount }),
   };
 }
+
+// ── Entity count ranges ──────────────────────────────────────────────────────
+// [min, max] — actual count is random within range on each generation call.
+
+const OBSTACLE_RANGE = [12, 20];
+const FOREGROUND_RANGE = [6, 12];
+const BOT_RANGE = [8, 16];
+const PORTAL_DIM_RANGE = [2, 3];
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -273,6 +248,10 @@ export {
   // Helpers
   colorToRgba,
   findColor,
-  createRng,
-  seedFromString,
+  randInt,
+  // Ranges
+  OBSTACLE_RANGE,
+  FOREGROUND_RANGE,
+  BOT_RANGE,
+  PORTAL_DIM_RANGE,
 };

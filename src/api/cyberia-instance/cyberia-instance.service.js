@@ -172,16 +172,14 @@ const CyberiaInstanceService = {
    * call but stays deterministic for a given seed.
    *
    * Query params:
-   *   ?seed=<string>           — generation seed   (default: 'fallback')
    *   ?mapCount=<number>       — maps to generate  (default: 4)
-   *   ?botCount=<number>       — bots per map      (default: 4)
-   *   ?obstacleCount=<number>  — obstacles per map  (default: 6)
-   *   ?foregroundCount=<number>— foreground per map (default: 3)
+   *   ?botCount=<number>       — bots per map      (random 8–16 if omitted)
+   *   ?obstacleCount=<number>  — obstacles per map  (random 12–20 if omitted)
+   *   ?foregroundCount=<number>— foreground per map (random 6–12 if omitted)
    */
   fallbackWorld: async (req) => {
     const q = req.query || {};
     return generateFallbackWorld({
-      seed: q.seed || 'fallback',
       mapCount: q.mapCount ? parseInt(q.mapCount, 10) : undefined,
       botCount: q.botCount ? parseInt(q.botCount, 10) : undefined,
       obstacleCount: q.obstacleCount ? parseInt(q.obstacleCount, 10) : undefined,
