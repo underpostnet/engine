@@ -1,21 +1,6 @@
 import { Schema, model } from 'mongoose';
 import { CYBERIA_INSTANCE_CONF_DEFAULTS as D } from './cyberia-instance-conf.defaults.js';
 
-const EntityDefaultSchema = new Schema(
-  {
-    // Entity category string (matches entity_type_str / bot Behavior in game engine)
-    entityType: { type: String, required: true },
-    // Default ObjectLayer item IDs when the entity is alive and carries no assigned items.
-    liveItemIds: { type: [String], default: [] },
-    // Default ObjectLayer item IDs for the dead / ghost / respawning state.
-    // Empty array = use liveItemIds solid fill color.
-    deadItemIds: { type: [String], default: [] },
-    // Palette key for solid-color fallback when no OL items are assigned.
-    colorKey: { type: String, default: '' },
-  },
-  { _id: false },
-);
-
 const ColorEntrySchema = new Schema(
   {
     key: { type: String, required: true },
@@ -27,11 +12,33 @@ const ColorEntrySchema = new Schema(
   { _id: false },
 );
 
+// ObjectLayer inventory slot: the itemId + whether it starts active + initial quantity.
+// Reused by DefaultPlayerObjectLayerSchema (top-level) and EntityDefaultSchema.defaultObjectLayers.
 const DefaultPlayerObjectLayerSchema = new Schema(
   {
     itemId: { type: String, required: true },
     active: { type: Boolean, default: false },
     quantity: { type: Number, default: 1 },
+  },
+  { _id: false },
+);
+
+const EntityDefaultSchema = new Schema(
+  {
+    // Entity category string (matches entity_type_str / bot Behavior in game engine)
+    entityType: { type: String, required: true },
+    // Default ObjectLayer item IDs when the entity is alive and carries no assigned items.
+    liveItemIds: { type: [String], default: [] },
+    // Default ObjectLayer item IDs for the dead / ghost / respawning state.
+    // Empty array = use liveItemIds solid fill color.
+    deadItemIds: { type: [String], default: [] },
+    // Palette key for solid-color fallback when no OL items are assigned.
+    colorKey: { type: String, default: '' },
+    // Full default ObjectLayer inventory for this entity type.
+    // Each entry specifies itemId, whether it starts active, and its initial quantity.
+    // The coin slot must always have active:false — coins are non-activable.
+    // When non-empty this supersedes liveItemIds for inventory initialization.
+    defaultObjectLayers: { type: [DefaultPlayerObjectLayerSchema], default: [] },
   },
   { _id: false },
 );

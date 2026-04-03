@@ -70,25 +70,52 @@ export const ITEM_TYPES = Object.freeze({
  */
 export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   // ── Characters ─────────────────────────────────────────────────────────
-  { entityType: 'player', liveItemIds: ['anon', 'atlas_pistol_mk2'], deadItemIds: ['ghost'], colorKey: 'PLAYER' },
+  {
+    entityType: 'player',
+    liveItemIds: ['anon', 'atlas_pistol_mk2'],
+    deadItemIds: ['ghost'],
+    colorKey: 'PLAYER',
+    // Full default ObjectLayer inventory for newly spawned players.
+    // active:false items appear in the inventory bar but are not worn.
+    // The coin slot is always active:false — coins are non-activable.
+    defaultObjectLayers: [
+      { itemId: 'anon',            active: true,  quantity: 1 },
+      { itemId: 'atlas_pistol_mk2', active: true,  quantity: 1 },
+      { itemId: 'coin',            active: false, quantity: 0 },
+    ],
+  },
   {
     entityType: 'other_player',
     liveItemIds: ['anon', 'atlas_pistol_mk2'],
     deadItemIds: ['ghost'],
     colorKey: 'OTHER_PLAYER',
+    defaultObjectLayers: [
+      { itemId: 'anon',            active: true,  quantity: 1 },
+      { itemId: 'atlas_pistol_mk2', active: true,  quantity: 1 },
+      { itemId: 'coin',            active: false, quantity: 0 },
+    ],
   },
-  { entityType: 'bot', liveItemIds: ['purple'], deadItemIds: ['ghost'], colorKey: 'BOT' },
-  { entityType: 'skill', liveItemIds: ['atlas_pistol_mk2_bullet'], deadItemIds: [], colorKey: 'SKILL' },
-  { entityType: 'coin', liveItemIds: ['coin'], deadItemIds: [], colorKey: 'COIN' },
+  {
+    entityType: 'bot',
+    liveItemIds: ['purple'],
+    deadItemIds: ['ghost'],
+    colorKey: 'BOT',
+    defaultObjectLayers: [
+      { itemId: 'purple', active: true,  quantity: 1 },
+      { itemId: 'coin',   active: false, quantity: 0 },
+    ],
+  },
+  { entityType: 'skill', liveItemIds: ['atlas_pistol_mk2_bullet'], deadItemIds: [], colorKey: 'SKILL', defaultObjectLayers: [{ itemId: 'atlas_pistol_mk2_bullet', active: true, quantity: 1 }] },
+  { entityType: 'coin',  liveItemIds: ['coin'], deadItemIds: [], colorKey: 'COIN', defaultObjectLayers: [{ itemId: 'coin', active: true, quantity: 1 }] },
   // ── World objects ───────────────────────────────────────────────────────
-  { entityType: 'floor', liveItemIds: ['grass'], deadItemIds: [], colorKey: 'FLOOR' },
-  { entityType: 'obstacle', liveItemIds: [], deadItemIds: [], colorKey: 'OBSTACLE' },
-  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL' },
-  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTER_PORTAL' },
-  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTER_RANDOM' },
-  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTRA_RANDOM' },
-  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTRA_PORTAL' },
-  { entityType: 'foreground', liveItemIds: [], deadItemIds: [], colorKey: 'FOREGROUND' },
+  { entityType: 'floor',               liveItemIds: ['grass'], deadItemIds: [], colorKey: 'FLOOR',                defaultObjectLayers: [] },
+  { entityType: 'obstacle',            liveItemIds: [],        deadItemIds: [], colorKey: 'OBSTACLE',             defaultObjectLayers: [] },
+  { entityType: 'portal',              liveItemIds: [],        deadItemIds: [], colorKey: 'PORTAL',               defaultObjectLayers: [] },
+  { entityType: 'portal',              liveItemIds: [],        deadItemIds: [], colorKey: 'PORTAL_INTER_PORTAL',  defaultObjectLayers: [] },
+  { entityType: 'portal',              liveItemIds: [],        deadItemIds: [], colorKey: 'PORTAL_INTER_RANDOM',  defaultObjectLayers: [] },
+  { entityType: 'portal',              liveItemIds: [],        deadItemIds: [], colorKey: 'PORTAL_INTRA_RANDOM',  defaultObjectLayers: [] },
+  { entityType: 'portal',              liveItemIds: [],        deadItemIds: [], colorKey: 'PORTAL_INTRA_PORTAL',  defaultObjectLayers: [] },
+  { entityType: 'foreground',          liveItemIds: [],        deadItemIds: [], colorKey: 'FOREGROUND',           defaultObjectLayers: [] },
 ]);
 
 // ── Instance configuration defaults ─────────────────────────────────────────
