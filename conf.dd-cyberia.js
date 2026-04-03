@@ -61,6 +61,8 @@ const DefaultConf = /**/ {
           'Panel',
           'PanelForm',
           'Polyhedron',
+          'AppStore',
+          'SocketIoHandler',
         ],
         underpost: [
           'MenuUnderpost',
@@ -349,6 +351,8 @@ const DefaultConf = /**/ {
           'ToolTip',
           'Webhook',
           'Recover',
+          'AppStore',
+          'SocketIoHandler',
         ],
         cryptokoyn: [
           'MenuCryptokoyn',
@@ -463,6 +467,8 @@ const DefaultConf = /**/ {
           'ToolTip',
           'Webhook',
           'Recover',
+          'AppStore',
+          'SocketIoHandler',
         ],
         itemledger: [
           'MenuItemledger',
@@ -659,7 +665,6 @@ const DefaultConf = /**/ {
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_CYBERIA' },
         valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
-        grpc: { module: 'cyberia', port: 50051 },
         mailer: {
           sender: { email: 'env:MAILER_SENDER_EMAIL_CYBERIA', name: 'env:MAILER_SENDER_NAME_CYBERIA' },
           transport: {
@@ -670,6 +675,7 @@ const DefaultConf = /**/ {
           },
         },
         replicas: ['/r1', '/r2'],
+        grpc: { module: 'cyberia', port: 50051 },
       },
       '/single-replica': {
         singleReplica: true,
@@ -708,7 +714,6 @@ const DefaultConf = /**/ {
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_CYBERIA' },
         valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
-        grpc: { module: 'cyberia', port: 50051 },
         mailer: {
           sender: { email: 'env:MAILER_SENDER_EMAIL_CYBERIA', name: 'env:MAILER_SENDER_NAME_CYBERIA' },
           transport: {
@@ -718,6 +723,7 @@ const DefaultConf = /**/ {
             auth: { user: 'env:SMTP_AUTH_USER_CYBERIA', pass: 'env:SMTP_AUTH_PASS_CYBERIA' },
           },
         },
+        grpc: { module: 'cyberia', port: 50051 },
       },
     },
     'cyberiaonline.com': {

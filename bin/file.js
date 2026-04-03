@@ -99,6 +99,8 @@ try {
           './src/server/atlas-sprite-sheet-generator.js',
           './src/server/shape-generator.js',
           './src/server/semantic-layer-generator.js',
+          './src/server/semantic-layer-generator-floor.js',
+          './src/server/semantic-layer-generator-skin.js',
           './src/server/besu-genesis-generator.js',
           './src/grpc/cyberia',
           './test/shape-generator.test.js',
