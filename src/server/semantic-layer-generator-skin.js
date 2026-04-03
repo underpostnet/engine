@@ -654,6 +654,30 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
   const borderIdx = getOrAddColor(globalColors, [0, 0, 0, 255]);
   paint(matrix, zones.border, borderIdx);
 
+  // 4b. CROWN BORDER SOFTENING — for non-shaved skins, replace most outer
+  //     silhouette border pixels within the hair zone with hair colour so the
+  //     crown blends into the background rather than having a hard black outline.
+  //     Interior features (eyes, pupils) are never touched — only outer-silhouette
+  //     pixels (those with at least one empty 8-neighbour) are candidates.
+  //     ~25 % of candidates are kept black for pixel-art definition.
+  if (palette.hairDepth > 0) {
+    const rngBorder = lcgRng(hashStr(`${seed}:${itemId}:soften-border-${dirLabel}`));
+    for (const [bx, by] of zones.border) {
+      if (by > palette.hairDepth) continue;
+      let isOuter = false;
+      for (let dx = -1; dx <= 1 && !isOuter; dx++) {
+        for (let dy = -1; dy <= 1 && !isOuter; dy++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = bx + dx, ny = by + dy;
+          if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM ||
+              (!skinSet.has(`${nx},${ny}`) && !borderSet.has(`${nx},${ny}`)))
+            isOuter = true;
+        }
+      }
+      if (isOuter && rngBorder() < 0.75) matrix[by][bx] = hairIdx;
+    }
+  }
+
   return matrix;
 }
 
@@ -777,6 +801,27 @@ function buildUpDirectionMatrix(zones, palette, globalColors, seed, itemId) {
 
     // Repaint outer silhouette black; inner face-feature pixels stay as hair
     repaintOuterHeadBorder();
+
+    // Crown border softening (UP) — same intent as 4b in buildDirectionMatrix.
+    // repaintOuterHeadBorder() just set outer head border pixels to black;
+    // randomly convert 75 % of them back to hair colour for a softer crown edge.
+    {
+      const rngBorder = lcgRng(hashStr(`${seed}:${itemId}:soften-border-up`));
+      for (const [bx, by] of zones.border) {
+        if (by > HEAD_Y_MAX) continue;
+        if (matrix[by][bx] !== blackIdx) continue; // already hair / not yet set
+        let isOuter = false;
+        for (let dx = -1; dx <= 1 && !isOuter; dx++) {
+          for (let dy = -1; dy <= 1 && !isOuter; dy++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = bx + dx, ny = by + dy;
+            if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM ||
+                !bodySet.has(`${nx},${ny}`)) isOuter = true;
+          }
+        }
+        if (isOuter && rngBorder() < 0.75) matrix[by][bx] = hairIdx;
+      }
+    }
 
     // 2b side. SIDE HAIR STRANDS (UP) — identical geometry to the other three
     //          directions: 1-px strands just below HEAD_Y_MAX, anchored at the
