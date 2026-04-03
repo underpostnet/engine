@@ -163,8 +163,47 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   respawnDurationMs: 3000,
   collisionLifeLoss: 10,
 
-  // ── Economy ────────────────────────────────────────────────────────
-  defaultCoinQuantity: 1,
+  // ── Economy — Fountain & Sink Model ────────────────────────────────
+  //
+  // All economy parameters live under a single `economyRules` sub-document,
+  // mirroring the `skillRules` pattern used by the skill system.
+  //
+  // This system follows the Fountain & Sink model used by industry-standard
+  // MMORPGs (Ultima Online, EverQuest, WoW, EVE Online).
+  //   Fountains  — inject new coins into the economy on spawn events.
+  //   Kill Transfer — zero-sum redistribution between kill participants.
+  //   Sinks      — destroy coins permanently (alpha: all disabled / 0).
+  //
+  // On-chain bridge (future):
+  //   Off-chain coins map 1-to-1 with the CKY token (token ID 0) of the
+  //   ObjectLayerToken ERC-1155 contract on Hyperledger Besu.  On auth the
+  //   server credits the on-chain balance and this wallet becomes a hot cache.
+  //   See hardhat/WHITE-PAPER.md §7 "Tokenomics" and OFF_CHAIN_ECONOMY.md.
+  economyRules: {
+    // ── Fountains ────────────────────────────────────────────────────
+    // Coins bots carry at spawn and on every respawn (infinite mint).
+    // Bots always reset to this value so the PvE reward loop never dries up.
+    botSpawnCoins: 50,
+    // Player starting wallet. No persistence — resets on reconnect (guest mode).
+    // Persists only when authenticated with an on-chain wallet (future).
+    playerSpawnCoins: 50,
+
+    // ── Kill Transfer (zero-sum redistribution) ───────────────────────
+    // Fraction [0,1] of victim coins taken per kill when killing a bot (PvE).
+    coinKillPercentVsBot: 0.4,
+    // Fraction [0,1] of victim coins taken in PvP — intentionally gentler.
+    coinKillPercentVsPlayer: 0.15,
+    // Hard floor per kill: guarantees at least this many coins per successful kill.
+    coinKillMinAmount: 10,
+
+    // ── Sinks (alpha stubs — all disabled by default) ─────────────────
+    // Fraction [0,1] of dead player's coins burned on respawn (0 = disabled).
+    respawnCostPercent: 0.0,
+    // Flat coins burned per portal use — travel tax (0 = disabled).
+    portalFee: 0,
+    // Fraction [0,1] of item value burned per crafting action (0 = disabled).
+    craftingFeePercent: 0.0,
+  },
 
   // ── Regen ──────────────────────────────────────────────────────────
   lifeRegenChance: 300,

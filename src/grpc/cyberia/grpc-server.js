@@ -262,7 +262,17 @@ function toInstanceConfig(gc) {
     })),
     respawnDurationMs: gc.respawnDurationMs ?? fb.respawnDurationMs,
     collisionLifeLoss: gc.collisionLifeLoss ?? fb.collisionLifeLoss,
-    defaultCoinQuantity: gc.defaultCoinQuantity ?? fb.defaultCoinQuantity,
+    // Economy — Fountain & Sink (nested, mirrors EconomyRules proto message).
+    economyRules: {
+      botSpawnCoins: gc.economyRules?.botSpawnCoins ?? fb.economyRules.botSpawnCoins,
+      playerSpawnCoins: gc.economyRules?.playerSpawnCoins ?? fb.economyRules.playerSpawnCoins,
+      coinKillPercentVsBot: gc.economyRules?.coinKillPercentVsBot ?? fb.economyRules.coinKillPercentVsBot,
+      coinKillPercentVsPlayer: gc.economyRules?.coinKillPercentVsPlayer ?? fb.economyRules.coinKillPercentVsPlayer,
+      coinKillMinAmount: gc.economyRules?.coinKillMinAmount ?? fb.economyRules.coinKillMinAmount,
+      respawnCostPercent: gc.economyRules?.respawnCostPercent ?? fb.economyRules.respawnCostPercent,
+      portalFee: gc.economyRules?.portalFee ?? fb.economyRules.portalFee,
+      craftingFeePercent: gc.economyRules?.craftingFeePercent ?? fb.economyRules.craftingFeePercent,
+    },
     lifeRegenChance: gc.lifeRegenChance ?? fb.lifeRegenChance,
     maxChance: gc.maxChance ?? fb.maxChance,
     entityDefaults,

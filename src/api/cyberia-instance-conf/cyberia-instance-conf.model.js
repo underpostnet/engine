@@ -44,6 +44,28 @@ const SkillConfigEntrySchema = new Schema(
   { _id: false },
 );
 
+// ── EconomyRulesSchema ───────────────────────────────────────────────────────
+// Mirrors the EconomyRules proto message and the economyRules sub-document in
+// cyberia-instance-conf.defaults.js.  All fields default from those canonical
+// values so a freshly created document is immediately playable.
+// See OFF_CHAIN_ECONOMY.md for the full Fountain & Sink architecture.
+const EconomyRulesSchema = new Schema(
+  {
+    // ── Fountains ───────────────────────────────────────────────────────────
+    botSpawnCoins: { type: Number, default: D.economyRules.botSpawnCoins },
+    playerSpawnCoins: { type: Number, default: D.economyRules.playerSpawnCoins },
+    // ── Kill Transfer ───────────────────────────────────────────────────────
+    coinKillPercentVsBot: { type: Number, default: D.economyRules.coinKillPercentVsBot },
+    coinKillPercentVsPlayer: { type: Number, default: D.economyRules.coinKillPercentVsPlayer },
+    coinKillMinAmount: { type: Number, default: D.economyRules.coinKillMinAmount },
+    // ── Sinks ───────────────────────────────────────────────────────────────
+    respawnCostPercent: { type: Number, default: D.economyRules.respawnCostPercent },
+    portalFee: { type: Number, default: D.economyRules.portalFee },
+    craftingFeePercent: { type: Number, default: D.economyRules.craftingFeePercent },
+  },
+  { _id: false },
+);
+
 const SkillRulesSchema = new Schema(
   {
     projectileSpawnChance: { type: Number, default: D.skillRules.projectileSpawnChance },
@@ -116,7 +138,8 @@ const CyberiaInstanceConfSchema = new Schema(
     collisionLifeLoss: { type: Number, default: D.collisionLifeLoss },
 
     // ── Economy ──────────────────────────────────────────────────────
-    defaultCoinQuantity: { type: Number, default: D.defaultCoinQuantity },
+    // Fountain & Sink parameters. See EconomyRulesSchema and OFF_CHAIN_ECONOMY.md.
+    economyRules: { type: EconomyRulesSchema },
 
     // ── Regen ────────────────────────────────────────────────────────
     lifeRegenChance: { type: Number, default: D.lifeRegenChance },
