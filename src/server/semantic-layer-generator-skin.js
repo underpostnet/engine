@@ -253,44 +253,60 @@ function clamp(v, lo, hi) {
 
 /**
  * Derives a fully deterministic 5-colour palette for a skin variant.
+ *
  * @param {string} seed
  * @param {string} itemId
+ * @param {'random'|'dark'|'light'|'vivid'|'natural'|'shaved'} [subtype='random']
  * @returns {SkinPalette}
  */
-function deriveSkinPalette(seed, itemId) {
+function deriveSkinPalette(seed, itemId, subtype = 'random') {
   const rng = lcgRng(hashStr(`${seed}:${itemId}:skin-palette`));
 
   /* ── Skin tones: dark brown → light peach ───────────────────────────── */
-  const skinTones = [
-    [38, 22, 14],
-    [72, 44, 28],
-    [110, 68, 44],
-    [152, 100, 66],
-    [186, 134, 94],
-    [214, 170, 130],
-    [232, 196, 164],
-    [248, 220, 196],
+  const allSkinTones = [
+    [38, 22, 14],    // near-black
+    [72, 44, 28],    // very dark
+    [110, 68, 44],   // dark
+    [152, 100, 66],  // medium
+    [186, 134, 94],  // warm mid
+    [214, 170, 130], // light
+    [232, 196, 164], // very light
+    [248, 220, 196], // pale
   ];
-  const skinRgb = skinTones[Math.floor(rng() * skinTones.length)];
+  // Constrain tone pool by subtype
+  const skinPool =
+    subtype === 'dark'  ? allSkinTones.slice(0, 3) :
+    subtype === 'light' ? allSkinTones.slice(5)    :
+    allSkinTones;
+  const skinRgb = skinPool[Math.floor(rng() * skinPool.length)];
 
   /* ── Hair: natural shades + vivid options ───────────────────────────── */
-  const hairPresets = [
-    [18, 12, 8], // near-black
-    [55, 32, 14], // very dark brown
-    [95, 56, 22], // dark brown
-    [158, 108, 42], // medium brown
-    [194, 156, 60], // blond
-    [210, 90, 36], // auburn / ginger
-    [36, 36, 36], // dark grey
+  const naturalHair = [
+    [18, 12, 8],     // near-black
+    [55, 32, 14],    // very dark brown
+    [95, 56, 22],    // dark brown
+    [158, 108, 42],  // medium brown
+    [194, 156, 60],  // blond
+    [210, 90, 36],   // auburn / ginger
+    [36, 36, 36],    // dark grey
     [140, 140, 140], // grey
     [230, 230, 230], // white
-    [168, 22, 22], // vivid red
-    [22, 72, 210], // vivid blue
-    [20, 180, 76], // vivid green
-    [160, 22, 178], // vivid purple
-    [210, 168, 22], // golden
   ];
-  const hairRgb = hairPresets[Math.floor(rng() * hairPresets.length)];
+  const vividHair = [
+    [168, 22, 22],   // vivid red
+    [22, 72, 210],   // vivid blue
+    [20, 180, 76],   // vivid green
+    [160, 22, 178],  // vivid purple
+    [210, 168, 22],  // golden
+    [22, 200, 200],  // vivid cyan
+    [220, 60, 160],  // hot pink
+  ];
+  const allHairPresets = [...naturalHair, ...vividHair];
+  const hairPool =
+    subtype === 'vivid'   ? vividHair   :
+    subtype === 'natural' ? naturalHair :
+    allHairPresets;
+  const hairRgb = hairPool[Math.floor(rng() * hairPool.length)];
 
   /* ── Clothing: random hue, reasonable saturation/lightness ─────────── */
   const shirtRgb = hslToRgb(rng(), 0.6 + rng() * 0.35, 0.32 + rng() * 0.28);
@@ -300,9 +316,11 @@ function deriveSkinPalette(seed, itemId) {
   const shoeH = rng();
   const shoeRgb = hslToRgb(shoeH, 0.35 + rng() * 0.4, 0.12 + rng() * 0.20);
 
-  /* ── Hair depth: controls how far down the hair goes on the head ───── */
-  // Range 5–11: 5 = close-cropped crown, 11 = long hair reaching shoulders
-  const hairDepthOptions = [5, 6, 7, 8, 9, 10, 11];
+  /* ── Hair depth: controls how far down the hair goes on the head ───── *
+   *  0        → shaved (no hair at all — bald silhouette)               *
+   *  5 – 11   → short crop to long flowing hair                         */
+  const hairDepthOptions =
+    subtype === 'shaved' ? [0] : [5, 6, 7, 8, 9, 10, 11];
   const hairDepth = hairDepthOptions[Math.floor(rng() * hairDepthOptions.length)];
 
   return {
@@ -353,16 +371,19 @@ function paint(matrix, coords, colorIdx) {
  * Builds a 24 × 24 frame matrix for DOWN, LEFT, or RIGHT directions.
  *
  * Hair is derived from interior skin pixels at y <= palette.hairDepth.
- * The bottom of the hair zone gets a black hairline border; 2–4 random
- * columns extend 1–2 px further (bang wisps) with black closing tips,
- * giving the crown a slightly irregular, natural look.
+ * hairDepth === 0 means shaved head — all hair steps are skipped.
+ *
+ * Non-shaved heads get:
+ *   2b. Black hairline at y = hairDepth+1 with 2–4 bang wisps punching through.
+ *   2c. Side-only outside-silhouette wisps at the left/right edges of the hair crown
+ *       (mirrors the UP direction's back-of-head style — excludes the top of the crown).
  *
  * @param {DirectionZones} zones
  * @param {SkinPalette} palette
  * @param {number[][]} globalColors  Mutated in place to accumulate unique colours.
  * @param {string} seed
  * @param {string} itemId
- * @param {string} dirLabel  'down' | 'left' | 'right' — differentiates wisps per direction.
+ * @param {string} dirLabel  'down' | 'left' | 'right' — differentiates RNG streams.
  * @returns {number[][]}
  */
 function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLabel) {
@@ -381,39 +402,41 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
   // 1. Full body silhouette → skin tone
   paint(matrix, zones.skin, skinIdx);
 
-  // 2. Hair: interior head pixels at y <= hairDepth (guaranteed non-border)
-  const hairPixels = zones.skin.filter(([x, y]) => y <= palette.hairDepth && !borderSet.has(`${x},${y}`));
-  paint(matrix, hairPixels, hairIdx);
+  // Compute hair pixels and per-row bounding boxes once — shared by steps 2b and 2c.
+  // hairDepth === 0 → shaved head, all hair steps are skipped.
+  const hairPixels = palette.hairDepth > 0
+    ? zones.skin.filter(([x, y]) => y <= palette.hairDepth && !borderSet.has(`${x},${y}`))
+    : [];
 
-  // 2b. Hair fringe: black hairline + bang wisps at the bottom of the hair zone.
-  //     The pixels immediately below the hair area are forehead skin — we paint a
-  //     thin black hairline there, broken in 2–4 columns by downward bang wisps.
-  {
+  const hairRowBounds = new Map();
+  for (const [x, y] of hairPixels) {
+    const b = hairRowBounds.get(y) || { min: x, max: x };
+    b.min = Math.min(b.min, x); b.max = Math.max(b.max, x);
+    hairRowBounds.set(y, b);
+  }
+  const hairRows = [...hairRowBounds.keys()].sort((a, b) => a - b);
+
+  if (palette.hairDepth > 0) {
+    // 2. Hair fill
+    paint(matrix, hairPixels, hairIdx);
+
     const blackIdx = getOrAddColor(globalColors, [0, 0, 0, 255]);
-    const rng = lcgRng(hashStr(`${seed}:${itemId}:fringe-${dirLabel}`));
 
-    // Bounding box per hair row
-    const hairRowBounds = new Map();
-    for (const [x, y] of hairPixels) {
-      const b = hairRowBounds.get(y) || { min: x, max: x };
-      b.min = Math.min(b.min, x); b.max = Math.max(b.max, x);
-      hairRowBounds.set(y, b);
-    }
-    const hairRows = [...hairRowBounds.keys()].sort((a, b) => a - b);
-
+    // 2b. Black hairline + bang wisps at the fringe (bottom of hair zone).
     if (hairRows.length > 0) {
+      const rngFringe = lcgRng(hashStr(`${seed}:${itemId}:fringe-${dirLabel}`));
       const bottomY = hairRows[hairRows.length - 1];
       const { min: fMin, max: fMax } = hairRowBounds.get(bottomY);
 
-      // 2–4 random bang-wisp columns extending below the fringe
+      // Build 2–4 random bang-wisp columns
       const fringeCols = [];
       for (let x = fMin; x <= fMax; x++) fringeCols.push(x);
-      const numWisps = 2 + Math.floor(rng() * 3);   // 2–4
+      const numWisps = 2 + Math.floor(rngFringe() * 3);
       const wispCols = new Set();
       for (let i = 0; i < numWisps; i++) {
-        const wx = fringeCols[Math.floor(rng() * fringeCols.length)];
+        const wx = fringeCols[Math.floor(rngFringe() * fringeCols.length)];
         wispCols.add(wx);
-        const wLen = 1 + Math.floor(rng() * 2);      // 1–2 px extension
+        const wLen = 1 + Math.floor(rngFringe() * 2);
         for (let dy = 1; dy <= wLen; dy++) {
           const wy = bottomY + dy;
           if (wy < SKIN_GRID_DIM && wy <= HEAD_Y_MAX &&
@@ -421,7 +444,6 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
             matrix[wy][wx] = hairIdx;
           }
         }
-        // Black closing tip at the bottom of each wisp
         const tipY = bottomY + wLen + 1;
         if (tipY < SKIN_GRID_DIM && tipY <= HEAD_Y_MAX &&
             skinSet.has(`${wx},${tipY}`) && !borderSet.has(`${wx},${tipY}`)) {
@@ -429,7 +451,7 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
         }
       }
 
-      // Black hairline at y = bottomY + 1 for every non-wisp column that is a skin pixel
+      // Black hairline for non-wisp fringe columns
       const fringeY = bottomY + 1;
       if (fringeY < SKIN_GRID_DIM) {
         for (let x = fMin; x <= fMax; x++) {
@@ -440,37 +462,54 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
         }
       }
     }
-  }
 
-  // 2c. Outside-silhouette hair wisps — stray hair pixels beyond the body outline at
-  //     the hair zone, consistent with the UP direction style.
-  //     Each wisp sits in a transparent pixel adjacent to a head-zone border pixel;
-  //     the border pixel itself (painted black in step 4) closes the wisp naturally.
-  {
-    const rngWisp = lcgRng(hashStr(`${seed}:${itemId}:outer-wisp-${dirLabel}`));
+    // 2c. SIDE-ONLY outside-silhouette wisps — mirroring the UP back-of-head style.
+    //     Only left/right edges of the hair crown are eligible; top pixels are excluded
+    //     so the effect represents the hair poking past the temples/ears, not the crown.
+    //
+    //     "Side" = the candidate x is strictly outside the hair row's x-span at that y.
+    //     For a candidate whose y is above all hair rows, the topmost row's bounds are used.
+    {
+      const rngWisp = lcgRng(hashStr(`${seed}:${itemId}:outer-wisp-${dirLabel}`));
 
-    const wispSet  = new Set();
-    const wispList = [];
-    for (const [bx, by] of zones.border) {
-      if (by > palette.hairDepth) continue;
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          if (dx === 0 && dy === 0) continue;
-          const nx = bx + dx, ny = by + dy;
-          if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM) continue;
-          const key = `${nx},${ny}`;
-          if (!skinSet.has(key) && !borderSet.has(key) && !wispSet.has(key)) {
-            wispSet.add(key);
-            wispList.push([nx, ny]);
+      // Build candidate list (transparent pixels adjacent to head-zone border pixels)
+      const outerWispSet  = new Set();
+      const outerWispList = [];
+      for (const [bx, by] of zones.border) {
+        if (by > palette.hairDepth) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = bx + dx, ny = by + dy;
+            if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM) continue;
+            const key = `${nx},${ny}`;
+            if (!skinSet.has(key) && !borderSet.has(key) && !outerWispSet.has(key)) {
+              outerWispSet.add(key);
+              outerWispList.push([nx, ny]);
+            }
           }
         }
       }
-    }
 
-    const numOuterWisps = 2 + Math.floor(rngWisp() * 3); // 2–4 wisps
-    for (let i = 0; i < numOuterWisps && wispList.length > 0; i++) {
-      const [wx, wy] = wispList[Math.floor(rngWisp() * wispList.length)];
-      matrix[wy][wx] = hairIdx;
+      // Helper: x-span of hair crown at the given y (uses the topmost row for y values
+      // above the hair zone, which is where the side pixels cluster).
+      const boundsAt = (cy) => {
+        if (hairRowBounds.has(cy)) return hairRowBounds.get(cy);
+        if (hairRows.length > 0) return hairRowBounds.get(hairRows[0]);
+        return null;
+      };
+
+      // Keep only candidates that are to the LEFT or RIGHT of the hair silhouette
+      const sideWispList = outerWispList.filter(([cx, cy]) => {
+        const b = boundsAt(cy);
+        return b && (cx < b.min || cx > b.max);
+      });
+
+      const numSideWisps = 2 + Math.floor(rngWisp() * 3);
+      for (let i = 0; i < numSideWisps && sideWispList.length > 0; i++) {
+        const [wx, wy] = sideWispList[Math.floor(rngWisp() * sideWispList.length)];
+        matrix[wy][wx] = hairIdx;
+      }
     }
   }
 
@@ -527,9 +566,14 @@ function buildUpDirectionMatrix(zones, palette, globalColors, seed, itemId) {
   paint(matrix, zones.shoes, shoeIdx);
   paint(matrix, zones.border, blackIdx);
 
-  // 2. HEAD HAIR — scanline-fill y <= HEAD_Y_MAX with hair.
-  //    Covers all pixels in each row's bounding box, eliminating
-  //    transparent eye/mouth gaps and black face-feature border dots.
+  // 2. HEAD HAIR — two paths: shaved (hairDepth=0) or normal.
+  //
+  //  SHAVED: scanline-fill the head with *skin tone* (covers inner face-feature
+  //          border pixels so no eyes/mouth bleed through on the bald back-head).
+  //          Repaint only the outer silhouette black.  No extensions or wisps.
+  //
+  //  NORMAL: scanline-fill with hair colour, keep inner pixels as hair, repaint
+  //          outer silhouette black, then extend hair strip + add wisps.
   const headBounds = new Map();
   for (const [x, y] of allBodyCoords) {
     if (y > HEAD_Y_MAX) continue;
@@ -537,28 +581,44 @@ function buildUpDirectionMatrix(zones, palette, globalColors, seed, itemId) {
     b.min = Math.min(b.min, x); b.max = Math.max(b.max, x);
     headBounds.set(y, b);
   }
-  for (const [y, { min, max }] of headBounds) {
-    for (let x = min; x <= max; x++) matrix[y][x] = hairIdx;
-  }
 
-  // 3. Repaint OUTER head silhouette black (inner face features stay as hair).
-  //    A border pixel is "outer" if any 8-connected neighbour is outside bodySet.
-  for (const [bx, by] of zones.border) {
-    if (by > HEAD_Y_MAX) continue;
-    let outer = false;
-    for (let dx = -1; dx <= 1 && !outer; dx++) {
-      for (let dy = -1; dy <= 1 && !outer; dy++) {
-        if (dx === 0 && dy === 0) continue;
-        const nx = bx + dx, ny = by + dy;
-        if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM || !bodySet.has(`${nx},${ny}`)) outer = true;
+  // Shared helper: repaint outer head silhouette black; inner pixels stay as-is.
+  // A border pixel is "outer" if any 8-connected neighbour is outside bodySet.
+  const repaintOuterHeadBorder = () => {
+    for (const [bx, by] of zones.border) {
+      if (by > HEAD_Y_MAX) continue;
+      let outer = false;
+      for (let dx = -1; dx <= 1 && !outer; dx++) {
+        for (let dy = -1; dy <= 1 && !outer; dy++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = bx + dx, ny = by + dy;
+          if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM || !bodySet.has(`${nx},${ny}`)) outer = true;
+        }
       }
+      if (outer) matrix[by][bx] = blackIdx;
     }
-    if (outer) matrix[by][bx] = blackIdx;
-    // inner face-feature border pixels → left as hair (already set above)
-  }
+  };
 
-  // 4. EXTENDED HAIR — flows below the head onto the upper back.
-  //    hairDepth (5–11) maps to hairExtend (2–8 rows below HEAD_Y_MAX).
+  if (palette.hairDepth === 0) {
+    // ── SHAVED HEAD ─────────────────────────────────────────────────────────
+    // Fill head scanlines with skin tone (eliminates any face-feature artefacts)
+    for (const [y, { min, max }] of headBounds) {
+      for (let x = min; x <= max; x++) matrix[y][x] = skinIdx;
+    }
+    repaintOuterHeadBorder();
+    // No extended hair, no wisps.
+  } else {
+    // ── NORMAL HAIR HEAD ────────────────────────────────────────────────────
+    // Scanline-fill y <= HEAD_Y_MAX with hair colour
+    for (const [y, { min, max }] of headBounds) {
+      for (let x = min; x <= max; x++) matrix[y][x] = hairIdx;
+    }
+
+    // Repaint outer silhouette black; inner face-feature pixels stay as hair
+    repaintOuterHeadBorder();
+
+    // 4. EXTENDED HAIR — flows below the head onto the upper back.
+    //    hairDepth (5–11) maps to hairExtend (2–8 rows below HEAD_Y_MAX).
   const hairExtend = palette.hairDepth - 3;            // 5→2 … 11→8
   const extMaxY   = Math.min(HEAD_Y_MAX + hairExtend, SKIN_GRID_DIM - 2);
 
@@ -636,6 +696,7 @@ function buildUpDirectionMatrix(zones, palette, globalColors, seed, itemId) {
       : Math.min(SKIN_GRID_DIM - 1, baseX + (rng() < 0.45 ? 2 : 1));
     if (matrix[wy][tipX] !== hairIdx) matrix[wy][tipX] = blackIdx;
   }
+  } // end else (normal hair)
 
   return matrix;
 }
@@ -713,7 +774,10 @@ function generateSkinMultiFrame(options, _descriptor) {
   // Shared mutable palette; starts with index 0 = transparent
   const globalColors = [[0, 0, 0, 0]];
 
-  const palette = deriveSkinPalette(seed, itemId);
+  // Skin subtype is injected via the descriptor (set during registration).
+  // Falls back to 'random' for the legacy skin- prefix or any unknown descriptor.
+  const subtype = _descriptor?.skinSubtype ?? 'random';
+  const palette = deriveSkinPalette(seed, itemId, subtype);
 
   // Build idle direction matrices
   const matrices = {
@@ -827,21 +891,48 @@ function generateSkinMultiFrame(options, _descriptor) {
  * @memberof SemanticLayerGeneratorSkin
  */
 export function registerSkinSemantics(registerFn) {
-  registerFn('skin-', {
-    semanticTags: ['character', 'body', 'humanoid'],
-    paletteHints: [], // unused — palette derived procedurally from seed
-    preferredShapes: {},
-    itemType: 'skin',
-    // layers is intentionally empty — frame generation is fully custom
-    layers: {
-      skin: { generator: 'template-zone' },
-      hair: { generator: 'template-zone' },
-      shirt: { generator: 'template-zone' },
-      pants: { generator: 'template-zone' },
-      shoes: { generator: 'template-zone' },
-      border: { generator: 'template-zone' },
-    },
-    // Custom generator bypasses the default shape/noise pipeline
-    customMultiFrameGenerator: generateSkinMultiFrame,
-  });
+  /**
+   * Skin subtypes — each maps a prefix to palette constraints.
+   *
+   * | Prefix          | Skin tone     | Hair pool          | hairDepth |
+   * |-----------------|---------------|--------------------|----------|
+   * | skin-random     | any           | any                | 5–11     |
+   * | skin-dark       | dark (1–3)    | any                | 5–11     |
+   * | skin-light      | light (6–8)   | any                | 5–11     |
+   * | skin-vivid      | any           | vivid only         | 5–11     |
+   * | skin-natural    | any           | natural only       | 5–11     |
+   * | skin-shaved     | any           | any (unused)       | 0 only   |
+   */
+  const SUBTYPES = [
+    { prefix: 'skin-random',  subtype: 'random',  desc: 'Fully random skin tone and hair' },
+    { prefix: 'skin-dark',    subtype: 'dark',    desc: 'Dark skin tones' },
+    { prefix: 'skin-light',   subtype: 'light',   desc: 'Light / pale skin tones' },
+    { prefix: 'skin-vivid',   subtype: 'vivid',   desc: 'Vivid / exotic hair colours (blue, red, green…)' },
+    { prefix: 'skin-natural', subtype: 'natural', desc: 'Natural hair colours (brown, blond, grey…)' },
+    { prefix: 'skin-shaved',  subtype: 'shaved',  desc: 'Shaved / bald head — no hair' },
+  ];
+
+  const sharedLayers = {
+    skin:   { generator: 'template-zone' },
+    hair:   { generator: 'template-zone' },
+    shirt:  { generator: 'template-zone' },
+    pants:  { generator: 'template-zone' },
+    shoes:  { generator: 'template-zone' },
+    border: { generator: 'template-zone' },
+  };
+
+  for (const { prefix, subtype, desc } of SUBTYPES) {
+    registerFn(prefix, {
+      semanticTags: ['character', 'body', 'humanoid'],
+      paletteHints: [],
+      preferredShapes: {},
+      itemType: 'skin',
+      skinSubtype: subtype,
+      description: desc,
+      layers: sharedLayers,
+      // Custom generator bypasses the default shape/noise pipeline;
+      // receives this descriptor so it can read skinSubtype.
+      customMultiFrameGenerator: generateSkinMultiFrame,
+    });
+  }
 }

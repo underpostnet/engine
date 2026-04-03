@@ -109,6 +109,24 @@ cyberia ol floor-stone --generate --seed cobble-99 --count 4 --density 0.6
 
 # Lava flow, 3-frame animation
 cyberia ol floor-lava --generate --seed magma-3 --frame-count 3 --density 0.7
+
+# Skin: random skin tone and hair
+cyberia ol skin-random --generate --seed hero-1 --frame-count 4
+
+# Skin: dark skin only
+cyberia ol skin-dark --generate --seed hero-dark-7
+
+# Skin: light/pale skin only
+cyberia ol skin-light --generate --seed hero-light-3 --frame-count 4
+
+# Skin: any skin tone with vivid (blue/red/green…) hair
+cyberia ol skin-vivid --generate --seed hero-vivid-2
+
+# Skin: any skin tone with natural hair only (brown, blond, grey…)
+cyberia ol skin-natural --generate --seed hero-nat-5 --frame-count 4
+
+# Skin: shaved / bald head (no hair at all)
+cyberia ol skin-shaved --generate --seed hero-bald-1 --frame-count 4
 ```
 
 **`--generate` options:**
@@ -125,12 +143,17 @@ cyberia ol floor-lava --generate --seed magma-3 --frame-count 3 --density 0.7
 
 | Prefix         | Type  | Tags                 | Palette                    |
 | -------------- | ----- | -------------------- | -------------------------- |
-| `floor-desert` | floor | sand, dune, arid     | warm ochres, sand tones    |
-| `floor-grass`  | floor | grass, meadow, earth | greens, earth browns       |
-| `floor-water`  | floor | water, ocean, wave   | blues, foam whites         |
-| `floor-stone`  | floor | stone, rock, cobble  | greys, warm/cool stone     |
-| `floor-lava`   | floor | lava, magma, fire    | reds, oranges, dark crust  |
-| `skin-*`       | skin  | character, body      | skin tones, clothing darks |
+| `floor-desert`  | floor | sand, dune, arid      | warm ochres, sand tones              |
+| `floor-grass`   | floor | grass, meadow, earth  | greens, earth browns                 |
+| `floor-water`   | floor | water, ocean, wave    | blues, foam whites                   |
+| `floor-stone`   | floor | stone, rock, cobble   | greys, warm/cool stone               |
+| `floor-lava`    | floor | lava, magma, fire     | reds, oranges, dark crust            |
+| `skin-random`   | skin  | character, body       | any skin tone, any hair              |
+| `skin-dark`     | skin  | character, body       | dark/melanin-rich skin only          |
+| `skin-light`    | skin  | character, body       | light/pale skin only                 |
+| `skin-vivid`    | skin  | character, body       | any skin + vivid hair (blue, red…)   |
+| `skin-natural`  | skin  | character, body       | any skin + natural hair (brown…)     |
+| `skin-shaved`   | skin  | character, body       | any skin, bald/shaved head           |
 
 #### How generation works
 
