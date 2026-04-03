@@ -1012,19 +1012,33 @@ const ObjectLayerEngineViewer = {
     const { frameCount, frameDuration, currentDirection, currentMode, numericCode } = webpMetadata;
 
     const container = s('#webp-canvas-container');
-    if (container) {
-      // Clear container
-      container.innerHTML = '';
+    if (!container) return;
 
-      // Create and append image
-      const img = document.createElement('img');
-      img.src = webp;
+    // Remove one-time placeholder without destroying the rest of the container
+    // (clearing innerHTML would also destroy #webp-loading-overlay, breaking showLoading)
+    const placeholder = container.querySelector('.webp-placeholder');
+    if (placeholder) placeholder.remove();
+
+    // Reuse the existing <img> element or create one — never nuke the container
+    let img = container.querySelector('img');
+    if (!img) {
+      img = document.createElement('img');
       img.alt = 'WebP Animation';
-      container.appendChild(img);
+      // Insert before the loading overlay so the overlay stays on top
+      const overlay = container.querySelector('#webp-loading-overlay');
+      container.insertBefore(img, overlay || null);
+    }
+    img.src = webp;
 
-      // Create and append info badge
-      const infoBadge = document.createElement('div');
-      infoBadge.className = 'webp-info-badge';
+    // Update info badge in-place or create it once
+    const displayArea = s('.webp-display-area');
+    if (displayArea) {
+      let infoBadge = displayArea.querySelector('.webp-info-badge');
+      if (!infoBadge) {
+        infoBadge = document.createElement('div');
+        infoBadge.className = 'webp-info-badge';
+        displayArea.appendChild(infoBadge);
+      }
       infoBadge.innerHTML = html`
         <span class="info-label" style="margin-left: 8px;">Frames:</span>
         <span>${frameCount}</span><br />
@@ -1037,13 +1051,6 @@ const ObjectLayerEngineViewer = {
         <span class="info-label" style="margin-left: 8px;">Code:</span>
         <span>${numericCode}</span>
       `;
-      const displayArea = s('.webp-display-area');
-      if (displayArea) {
-        // Remove old badge if exists
-        const oldBadge = s('.webp-info-badge');
-        if (oldBadge) oldBadge.remove();
-        displayArea.appendChild(infoBadge);
-      }
     }
   },
 
@@ -1178,8 +1185,8 @@ const ObjectLayerEngineViewer = {
         const direction = e.currentTarget.getAttribute('data-direction');
         if (direction !== this.Data.currentDirection) {
           this.Data.currentDirection = direction;
-          await this.renderViewer({ appStore });
-          // attachEventListeners is already called inside renderViewer
+          // Update button active states without re-rendering the full viewer (prevents flicker)
+          this._updateControlsState();
           await this.generateWebp();
         }
       });
@@ -1193,8 +1200,8 @@ const ObjectLayerEngineViewer = {
         const mode = e.currentTarget.getAttribute('data-mode');
         if (mode !== this.Data.currentMode) {
           this.Data.currentMode = mode;
-          await this.renderViewer({ appStore });
-          // attachEventListeners is already called inside renderViewer
+          // Update button active states without re-rendering the full viewer (prevents flicker)
+          this._updateControlsState();
           await this.generateWebp();
         }
       });
@@ -1462,6 +1469,41 @@ const ObjectLayerEngineViewer = {
     }
   },
 
+  /**
+   * Updates direction/mode button active states and disabled flags in-place,
+   * without re-rendering the viewer. Prevents layout flicker when switching
+   * direction or mode while the WebP canvas and surrounding structure stay intact.
+   */
+  _updateControlsState: function () {
+    const { currentDirection, currentMode, frameCounts } = this.Data;
+    const hasFrames = (direction, mode) => {
+      const code = this.getDirectionCode(direction, mode);
+      return !!(code && frameCounts && frameCounts[code] && frameCounts[code] > 0);
+    };
+    const getFrameCount = (direction, mode) => {
+      const code = this.getDirectionCode(direction, mode);
+      return code ? (frameCounts && frameCounts[code]) || 0 : 0;
+    };
+
+    document.querySelectorAll('[data-direction]').forEach((btn) => {
+      const d = btn.getAttribute('data-direction');
+      btn.classList.toggle('active', d === currentDirection);
+      const hasFr = hasFrames(d, currentMode);
+      btn.disabled = !hasFr;
+      const countEl = btn.querySelector('.frame-count');
+      if (countEl) countEl.textContent = hasFr ? `(${getFrameCount(d, currentMode)})` : '';
+    });
+
+    document.querySelectorAll('[data-mode]').forEach((btn) => {
+      const m = btn.getAttribute('data-mode');
+      btn.classList.toggle('active', m === currentMode);
+      const hasFr = hasFrames(currentDirection, m);
+      btn.disabled = !hasFr;
+      const countEl = btn.querySelector('.frame-count');
+      if (countEl) countEl.textContent = hasFr ? `(${getFrameCount(currentDirection, m)})` : '';
+    });
+  },
+
   showLoading: function (show, message = 'Generating WebP...') {
     const overlay = s('#webp-loading-overlay');
     if (overlay) {
@@ -1477,11 +1519,7 @@ const ObjectLayerEngineViewer = {
       downloadBtn.disabled = show;
     }
 
-    // Remove old info badge if exists
-    const oldBadge = s('.webp-info-badge');
-    if (oldBadge && show) {
-      oldBadge.remove();
-    }
+    // Keep existing info badge visible during loading (removes the layout-shift flicker)
   },
 
   downloadWebp: function () {

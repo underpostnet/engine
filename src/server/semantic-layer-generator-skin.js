@@ -442,6 +442,38 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
     }
   }
 
+  // 2c. Outside-silhouette hair wisps — stray hair pixels beyond the body outline at
+  //     the hair zone, consistent with the UP direction style.
+  //     Each wisp sits in a transparent pixel adjacent to a head-zone border pixel;
+  //     the border pixel itself (painted black in step 4) closes the wisp naturally.
+  {
+    const rngWisp = lcgRng(hashStr(`${seed}:${itemId}:outer-wisp-${dirLabel}`));
+
+    const wispSet  = new Set();
+    const wispList = [];
+    for (const [bx, by] of zones.border) {
+      if (by > palette.hairDepth) continue;
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = bx + dx, ny = by + dy;
+          if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM) continue;
+          const key = `${nx},${ny}`;
+          if (!skinSet.has(key) && !borderSet.has(key) && !wispSet.has(key)) {
+            wispSet.add(key);
+            wispList.push([nx, ny]);
+          }
+        }
+      }
+    }
+
+    const numOuterWisps = 2 + Math.floor(rngWisp() * 3); // 2–4 wisps
+    for (let i = 0; i < numOuterWisps && wispList.length > 0; i++) {
+      const [wx, wy] = wispList[Math.floor(rngWisp() * wispList.length)];
+      matrix[wy][wx] = hairIdx;
+    }
+  }
+
   // 3. Clothes
   paint(matrix, zones.shirt, shirtIdx);
   paint(matrix, zones.pants, pantsIdx);
@@ -624,14 +656,24 @@ function buildUpDirectionMatrix(zones, palette, globalColors, seed, itemId) {
  * @returns {number[][][]}  [frame0, frame1]
  */
 function buildWalkFrames(idleMatrix) {
-  const frame0 = idleMatrix.map((row) => [...row]);
-  const frame1 = Array.from({ length: SKIN_GRID_DIM }, () => Array(SKIN_GRID_DIM).fill(0));
-  for (let y = 0; y < SKIN_GRID_DIM - 1; y++) {
-    for (let x = 0; x < SKIN_GRID_DIM; x++) {
-      frame1[y][x] = idleMatrix[y + 1][x];
+  const FOOT_TOP = SHOE_Y_MIN - 1;                 // y=22 — bottom of leg zone, just above shoes
+  const midX     = Math.floor(SKIN_GRID_DIM / 2); // x=12 — column boundary between left/right foot
+
+  // Build one walk frame: copy idle, then raise shoe row up 1 px for the chosen side,
+  // leaving y=SHOE_Y_MIN transparent for that foot.
+  const makeFrame = (liftLeft) => {
+    const frame = idleMatrix.map((row) => [...row]);
+    const xFrom = liftLeft ? 0    : midX;
+    const xTo   = liftLeft ? midX : SKIN_GRID_DIM;
+    for (let x = xFrom; x < xTo; x++) {
+      frame[FOOT_TOP][x]   = idleMatrix[SHOE_Y_MIN][x]; // raise shoe to y=22
+      frame[SHOE_Y_MIN][x] = 0;                          // clear y=23 → transparent gap
     }
-  }
-  return [frame0, frame1];
+    return frame;
+  };
+
+  // frame0: right foot raised; frame1: left foot raised → alternating step cycle
+  return [makeFrame(false), makeFrame(true)];
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
