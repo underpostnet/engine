@@ -200,7 +200,7 @@ class ExpressService {
       }
 
       // gRPC server
-      if (grpc && grpc.module) {
+      if (path === '/' && grpc && grpc.module) {
         const { GrpcServer } = await import(`../../grpc/${grpc.module}/grpc-server.js`);
         await GrpcServer.start({ host, path, port: grpc.port || 50051 });
       }
