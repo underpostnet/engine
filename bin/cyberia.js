@@ -1591,6 +1591,7 @@ try {
                     cid: atlasCid,
                     resourceType: 'atlas-sprite-sheet',
                     mfsPath: `/object-layer/${atlasItemKey}/${atlasItemKey}_atlas_sprite_sheet.png`,
+                    options: { host, path },
                   });
                 } catch (e) {
                   logger.warn('Failed to create pin record for atlas sprite sheet:', e.message);
@@ -1615,6 +1616,7 @@ try {
                     cid: atlasMetadataCid,
                     resourceType: 'atlas-metadata',
                     mfsPath: `/object-layer/${atlasItemKey}/${atlasItemKey}_atlas_sprite_sheet_metadata.json`,
+                    options: { host, path },
                   });
                 } catch (e) {
                   logger.warn('Failed to create pin record for atlas metadata:', e.message);
