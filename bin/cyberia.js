@@ -3231,6 +3231,47 @@ try {
       await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
     });
 
+  runner
+    .command('generate-semantic-examples')
+    .option('--seed <seed>', 'Base seed string (each type gets a unique suffix appended)', 'example')
+    .option('--frame-count <frameCount>', 'Number of frames to generate per item (default: 4)', parseInt)
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--dev', 'Force development environment')
+    .description('Generate one procedural example of every registered semantic prefix')
+    .action(async (options) => {
+      const SEMANTIC_TYPES = [
+        'floor-desert',
+        'floor-grass',
+        'floor-water',
+        'floor-stone',
+        'floor-lava',
+        'skin-random',
+        'skin-dark',
+        'skin-light',
+        'skin-vivid',
+        'skin-natural',
+        'skin-shaved',
+      ];
+
+      const baseSeed = options.seed || 'example';
+      const frameCount = options.frameCount || 4;
+      const envFlag = options.envPath ? ` --env-path ${options.envPath}` : '';
+      const devFlag = options.dev ? ' --dev' : '';
+
+      logger.info(
+        `Generating ${SEMANTIC_TYPES.length} semantic examples (seed base: "${baseSeed}", frames: ${frameCount})`,
+      );
+
+      for (const prefix of SEMANTIC_TYPES) {
+        const seed = `${baseSeed}-${prefix}`;
+        const cmd = `node bin/cyberia ol ${prefix} --generate --seed ${seed} --frame-count ${frameCount}${envFlag}${devFlag}`;
+        logger.info(`  → ${cmd}`);
+        shellExec(cmd);
+      }
+
+      logger.info('All semantic examples generated.');
+    });
+
   if (underpostProgram.commands.find((c) => c._name == process.argv[2]))
     throw new Error('Trigger underpost passthrough');
 

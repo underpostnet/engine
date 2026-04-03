@@ -375,8 +375,10 @@ function paint(matrix, coords, colorIdx) {
  *
  * Non-shaved heads get:
  *   2b. Black hairline at y = hairDepth+1 with 2–4 bang wisps punching through.
- *   2c. Side-only outside-silhouette wisps at the left/right edges of the hair crown
- *       (mirrors the UP direction's back-of-head style — excludes the top of the crown).
+ *   2c. Side hair extension: narrow strips hang from the crown's left/right
+ *       edges for hairExtend = hairDepth − 3 rows (same formula as UP's
+ *       back-extension), ensuring visual hair-length consistency across all 4
+ *       directions.
  *
  * @param {DirectionZones} zones
  * @param {SkinPalette} palette
@@ -463,52 +465,77 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
       }
     }
 
-    // 2c. SIDE-ONLY outside-silhouette wisps — mirroring the UP back-of-head style.
-    //     Only left/right edges of the hair crown are eligible; top pixels are excluded
-    //     so the effect represents the hair poking past the temples/ears, not the crown.
-    //
-    //     "Side" = the candidate x is strictly outside the hair row's x-span at that y.
-    //     For a candidate whose y is above all hair rows, the topmost row's bounds are used.
+    // 2c. SIDE HAIR EXTENSION — consistent with UP direction's back-extension.
+    //     Narrow strips hang DOWN from the left and right edges of the hair crown
+    //     for exactly hairExtend = hairDepth − 3 rows (5→2 … 11→8), the same
+    //     formula used by buildUpDirectionMatrix.  The strips are anchored at a
+    //     fixed column just outside the bottom hair row's silhouette edges and
+    //     taper (1–2 px wide) the same way UP's back-strip tapers, so hair
+    //     length feels identical across all four directions.
     {
-      const rngWisp = lcgRng(hashStr(`${seed}:${itemId}:outer-wisp-${dirLabel}`));
+      const rngWisp    = lcgRng(hashStr(`${seed}:${itemId}:outer-wisp-${dirLabel}`));
+      const hairExtend = palette.hairDepth - 3;  // ≥ 2 (minimum hairDepth = 5)
 
-      // Build candidate list (transparent pixels adjacent to head-zone border pixels)
-      const outerWispSet  = new Set();
-      const outerWispList = [];
-      for (const [bx, by] of zones.border) {
-        if (by > palette.hairDepth) continue;
-        for (let dx = -1; dx <= 1; dx++) {
-          for (let dy = -1; dy <= 1; dy++) {
-            if (dx === 0 && dy === 0) continue;
-            const nx = bx + dx, ny = by + dy;
-            if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM) continue;
-            const key = `${nx},${ny}`;
-            if (!skinSet.has(key) && !borderSet.has(key) && !outerWispSet.has(key)) {
-              outerWispSet.add(key);
-              outerWispList.push([nx, ny]);
+      if (hairRows.length > 0 && hairExtend > 0) {
+        const bottomHairY                 = hairRows[hairRows.length - 1];
+        const { min: hairBaseMin,
+                max: hairBaseMax }        = hairRowBounds.get(bottomHairY);
+
+        // Anchor columns: one pixel outside the body border on each side.
+        // hairBaseMin/Max are interior hair pixels; body border sits 1 px
+        // further out, so −2 / +2 lands just outside the silhouette.
+        const startL   = hairBaseMin - 2;
+        const startR   = hairBaseMax + 2;
+        const extMaxY  = Math.min(bottomHairY + hairExtend + 1, SKIN_GRID_DIM - 2);
+
+        const sideStripBounds = new Map();
+
+        for (let y = bottomHairY + 1; y <= extMaxY; y++) {
+          const yDist  = y - bottomHairY;
+          // Same taper formula as UP's back-extension
+          const taper  = Math.max(0.25, 1 - yDist * 0.10);
+          const stripW = Math.max(1, Math.round(2 * taper));   // 1–2 px wide
+
+          // Small per-row random jitter (0–1 px) for organic texture
+          const extL = Math.floor(rngWisp() * 2);
+          const extR = Math.floor(rngWisp() * 2);
+
+          // Left strip: from startL leftward for stripW+extL pixels
+          const leftMin = Math.max(0,               startL - (stripW + extL - 1));
+          const leftMax = Math.min(SKIN_GRID_DIM - 1, startL);
+          for (let x = leftMin; x <= leftMax; x++) matrix[y][x] = hairIdx;
+
+          // Right strip: from startR rightward for stripW+extR pixels
+          const rightMin = Math.max(0,               startR);
+          const rightMax = Math.min(SKIN_GRID_DIM - 1, startR + (stripW + extR - 1));
+          for (let x = rightMin; x <= rightMax; x++) matrix[y][x] = hairIdx;
+
+          sideStripBounds.set(y, { leftMin, rightMax });
+        }
+
+        // Black border on outermost pixel of each row's strips
+        for (const [y, { leftMin, rightMax }] of sideStripBounds) {
+          const outerL = leftMin - 1;
+          if (outerL >= 0 && matrix[y][outerL] !== hairIdx)          matrix[y][outerL] = blackIdx;
+          const outerR = rightMax + 1;
+          if (outerR < SKIN_GRID_DIM && matrix[y][outerR] !== hairIdx) matrix[y][outerR] = blackIdx;
+        }
+
+        // Black closing border below the bottom row of each side strip
+        const extYsSorted = [...sideStripBounds.keys()].sort((a, b) => a - b);
+        if (extYsSorted.length > 0) {
+          const lastY              = extYsSorted[extYsSorted.length - 1];
+          const { leftMin, rightMax } = sideStripBounds.get(lastY);
+          const nextY = lastY + 1;
+          if (nextY < SKIN_GRID_DIM) {
+            for (let x = leftMin - 1; x <= leftMin + 1; x++) {
+              if (x >= 0 && x < SKIN_GRID_DIM && matrix[nextY][x] !== hairIdx) matrix[nextY][x] = blackIdx;
+            }
+            for (let x = rightMax - 1; x <= rightMax + 1; x++) {
+              if (x >= 0 && x < SKIN_GRID_DIM && matrix[nextY][x] !== hairIdx) matrix[nextY][x] = blackIdx;
             }
           }
         }
-      }
-
-      // Helper: x-span of hair crown at the given y (uses the topmost row for y values
-      // above the hair zone, which is where the side pixels cluster).
-      const boundsAt = (cy) => {
-        if (hairRowBounds.has(cy)) return hairRowBounds.get(cy);
-        if (hairRows.length > 0) return hairRowBounds.get(hairRows[0]);
-        return null;
-      };
-
-      // Keep only candidates that are to the LEFT or RIGHT of the hair silhouette
-      const sideWispList = outerWispList.filter(([cx, cy]) => {
-        const b = boundsAt(cy);
-        return b && (cx < b.min || cx > b.max);
-      });
-
-      const numSideWisps = 2 + Math.floor(rngWisp() * 3);
-      for (let i = 0; i < numSideWisps && sideWispList.length > 0; i++) {
-        const [wx, wy] = sideWispList[Math.floor(rngWisp() * sideWispList.length)];
-        matrix[wy][wx] = hairIdx;
       }
     }
   }
@@ -565,6 +592,31 @@ function buildUpDirectionMatrix(zones, palette, globalColors, seed, itemId) {
   paint(matrix, zones.pants, pantsIdx);
   paint(matrix, zones.shoes, shoeIdx);
   paint(matrix, zones.border, blackIdx);
+
+  // 1b. FACE FEATURE WIPE — the zones come from the DOWN (front-facing) template
+  //     which embeds eyes, pupils and mouth as black border pixels.  In the UP
+  //     (back-of-head) view those pixels must not appear.
+  //     Walk every border pixel in the face+neck band (y ≤ FACE_FEATURE_Y_MAX).
+  //     If a pixel has ALL 8 neighbours inside bodySet it is an *interior* feature
+  //     (eye outline, pupil, mouth corners) — paint it with skinIdx so it is
+  //     invisible.  Outer-silhouette pixels keep their black value.
+  //
+  //     The mouth is at y=15 in the 26×26 template, which is ABOVE HEAD_Y_MAX=12
+  //     so the subsequent scanline fill does NOT reach it — this wipe is the only
+  //     place that erases it.
+  const FACE_FEATURE_Y_MAX = 17; // below collar; safe upper bound for face features
+  for (const [bx, by] of zones.border) {
+    if (by > FACE_FEATURE_Y_MAX) continue;
+    let outer = false;
+    for (let dx = -1; dx <= 1 && !outer; dx++) {
+      for (let dy = -1; dy <= 1 && !outer; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = bx + dx, ny = by + dy;
+        if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM || !bodySet.has(`${nx},${ny}`)) outer = true;
+      }
+    }
+    if (!outer) matrix[by][bx] = skinIdx;
+  }
 
   // 2. HEAD HAIR — two paths: shaved (hairDepth=0) or normal.
   //
