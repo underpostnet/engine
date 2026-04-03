@@ -538,11 +538,13 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
             if (y >= SKIN_GRID_DIM) break;
             const ext2 = extBase[row] + (rngWisp2() < 0.4 ? 1 : 0); // 40 % +1 bonus
 
-            const lMin2 = Math.max(0, hbL2 - ext2);
-            const rMax2 = Math.min(SKIN_GRID_DIM - 1, hbR2 + ext2);
+            const innerL2 = hbL2 + 2; // 2 px toward center
+            const innerR2 = hbR2 - 2;
+            const lMin2 = Math.max(0, innerL2 - ext2);
+            const rMax2 = Math.min(SKIN_GRID_DIM - 1, innerR2 + ext2);
 
-            for (let x = lMin2; x < hbL2; x++) matrix[y][x] = hairIdx;
-            for (let x = hbR2 + 1; x <= rMax2; x++) matrix[y][x] = hairIdx;
+            for (let x = lMin2; x < innerL2; x++) matrix[y][x] = hairIdx;
+            for (let x = innerR2 + 1; x <= rMax2; x++) matrix[y][x] = hairIdx;
 
             if (lMin2 > 0 && matrix[y][lMin2 - 1] !== hairIdx) matrix[y][lMin2 - 1] = blackIdx;
             if (rMax2 < SKIN_GRID_DIM - 1 && matrix[y][rMax2 + 1] !== hairIdx) matrix[y][rMax2 + 1] = blackIdx;
@@ -589,6 +591,55 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
           matrix[y][px] = hairIdx;
           const bx = px + side;
           if (bx >= 0 && bx < SKIN_GRID_DIM && matrix[y][bx] !== hairIdx) matrix[y][bx] = blackIdx;
+        }
+      }
+    }
+
+    // 2f. MID-CROWN SIDE HAIR ARC — 7-row arc of hair strands following the
+    //     head edge, centered at y=7 (crown shoulders).  Right strand anchors
+    //     near x=8 (character right), left mirrors it at x≈15.  Width peaks
+    //     at the center row (3 px outward) and tapers to 1 px at the extremes.
+    //     Per-row 40 % width bonus + 30 % extra distortion pixel per side.
+    {
+      const CROWN_Y  = 7;
+      const crownW   = [3, 2, 2, 1]; // base width at |dy| = 0, 1, 2, 3
+      const rngCrown = lcgRng(hashStr(`${seed}:${itemId}:crown-side-${dirLabel}`));
+
+      for (let dy = -3; dy <= 3; dy++) {
+        const y = CROWN_Y + dy;
+        if (y < 0 || y >= SKIN_GRID_DIM) continue;
+
+        const borderAtY = zones.border.filter(([, by]) => by === y);
+        if (borderAtY.length < 2) continue;
+        const hbL = Math.min(...borderAtY.map(([x]) => x));
+        const hbR = Math.max(...borderAtY.map(([x]) => x));
+
+        const ext = crownW[Math.abs(dy)] + (rngCrown() < 0.4 ? 1 : 0);
+
+        // Left strand (character right, viewer left)
+        const lMin = Math.max(0, hbL - ext);
+        for (let x = lMin; x < hbL; x++) matrix[y][x] = hairIdx;
+        if (lMin > 0 && matrix[y][lMin - 1] !== hairIdx) matrix[y][lMin - 1] = blackIdx;
+
+        // Right strand (character left, viewer right)
+        const rMax = Math.min(SKIN_GRID_DIM - 1, hbR + ext);
+        for (let x = hbR + 1; x <= rMax; x++) matrix[y][x] = hairIdx;
+        if (rMax < SKIN_GRID_DIM - 1 && matrix[y][rMax + 1] !== hairIdx) matrix[y][rMax + 1] = blackIdx;
+
+        // Distortion: 30 % chance of one extra pixel per side
+        if (rngCrown() < 0.3) {
+          const px = lMin - 1;
+          if (px >= 0 && matrix[y][px] !== hairIdx) {
+            matrix[y][px] = hairIdx;
+            if (px > 0 && matrix[y][px - 1] !== hairIdx) matrix[y][px - 1] = blackIdx;
+          }
+        }
+        if (rngCrown() < 0.3) {
+          const px = rMax + 1;
+          if (px < SKIN_GRID_DIM && matrix[y][px] !== hairIdx) {
+            matrix[y][px] = hairIdx;
+            if (px < SKIN_GRID_DIM - 1 && matrix[y][px + 1] !== hairIdx) matrix[y][px + 1] = blackIdx;
+          }
         }
       }
     }
@@ -787,11 +838,13 @@ function buildUpDirectionMatrix(zones, palette, globalColors, seed, itemId) {
           if (y >= SKIN_GRID_DIM) break;
           const ext2 = extBase[row] + (rngWisp2() < 0.4 ? 1 : 0);
 
-          const lMin2 = Math.max(0, hbL2 - ext2);
-          const rMax2 = Math.min(SKIN_GRID_DIM - 1, hbR2 + ext2);
+          const innerL2 = hbL2 + 2; // 2 px toward center
+          const innerR2 = hbR2 - 2;
+          const lMin2 = Math.max(0, innerL2 - ext2);
+          const rMax2 = Math.min(SKIN_GRID_DIM - 1, innerR2 + ext2);
 
-          for (let x = lMin2; x < hbL2; x++) matrix[y][x] = hairIdx;
-          for (let x = hbR2 + 1; x <= rMax2; x++) matrix[y][x] = hairIdx;
+          for (let x = lMin2; x < innerL2; x++) matrix[y][x] = hairIdx;
+          for (let x = innerR2 + 1; x <= rMax2; x++) matrix[y][x] = hairIdx;
 
           if (lMin2 > 0 && matrix[y][lMin2 - 1] !== hairIdx) matrix[y][lMin2 - 1] = blackIdx;
           if (rMax2 < SKIN_GRID_DIM - 1 && matrix[y][rMax2 + 1] !== hairIdx) matrix[y][rMax2 + 1] = blackIdx;
@@ -827,6 +880,49 @@ function buildUpDirectionMatrix(zones, palette, globalColors, seed, itemId) {
           matrix[y][px] = hairIdx;
           const bx = px + side;
           if (bx >= 0 && bx < SKIN_GRID_DIM && matrix[y][bx] !== hairIdx) matrix[y][bx] = blackIdx;
+        }
+      }
+    }
+
+    // 2e. MID-CROWN SIDE HAIR ARC (UP) — mirrors 2f in buildDirectionMatrix;
+    //     same 7-row arc centered at y=7, using headBounds for the silhouette
+    //     edge reference instead of zones.border.
+    {
+      const CROWN_Y  = 7;
+      const crownW   = [3, 2, 2, 1];
+      const rngCrown = lcgRng(hashStr(`${seed}:${itemId}:crown-side-up`));
+
+      for (let dy = -3; dy <= 3; dy++) {
+        const y = CROWN_Y + dy;
+        if (y < 0 || y >= SKIN_GRID_DIM) continue;
+        const bnd = headBounds.get(y);
+        if (!bnd) continue;
+        const hbL = bnd.min;
+        const hbR = bnd.max;
+
+        const ext = crownW[Math.abs(dy)] + (rngCrown() < 0.4 ? 1 : 0);
+
+        const lMin = Math.max(0, hbL - ext);
+        for (let x = lMin; x < hbL; x++) matrix[y][x] = hairIdx;
+        if (lMin > 0 && matrix[y][lMin - 1] !== hairIdx) matrix[y][lMin - 1] = blackIdx;
+
+        const rMax = Math.min(SKIN_GRID_DIM - 1, hbR + ext);
+        for (let x = hbR + 1; x <= rMax; x++) matrix[y][x] = hairIdx;
+        if (rMax < SKIN_GRID_DIM - 1 && matrix[y][rMax + 1] !== hairIdx) matrix[y][rMax + 1] = blackIdx;
+
+        if (rngCrown() < 0.3) {
+          const px = lMin - 1;
+          if (px >= 0 && matrix[y][px] !== hairIdx) {
+            matrix[y][px] = hairIdx;
+            if (px > 0 && matrix[y][px - 1] !== hairIdx) matrix[y][px - 1] = blackIdx;
+          }
+        }
+        if (rngCrown() < 0.3) {
+          const px = rMax + 1;
+          if (px < SKIN_GRID_DIM && matrix[y][px] !== hairIdx) {
+            matrix[y][px] = hairIdx;
+            if (px < SKIN_GRID_DIM - 1 && matrix[y][px + 1] !== hairIdx) matrix[y][px + 1] = blackIdx;
+          }
         }
       }
     }
