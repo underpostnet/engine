@@ -19,6 +19,7 @@ const AtlasSpriteSheetRouter = (options) => {
   );
   router.post(`/:id`, authMiddleware, async (req, res) => await AtlasSpriteSheetController.post(req, res, options));
   router.post(`/`, authMiddleware, async (req, res) => await AtlasSpriteSheetController.post(req, res, options));
+  router.get(`/blob/:itemKey`, async (req, res) => await AtlasSpriteSheetController.blob(req, res, options));
   router.get(
     `/:id`,
     // authMiddleware,

@@ -4,6 +4,26 @@ import { AtlasSpriteSheetService } from './atlas-sprite-sheet.service.js';
 const logger = loggerFactory(import.meta);
 
 const AtlasSpriteSheetController = {
+  blob: async (req, res, options) => {
+    try {
+      if (req && req.headers && req.headers.origin) {
+        res.set('Access-Control-Allow-Origin', req.headers.origin);
+      } else res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
+      const { buffer, mimetype, name } = await AtlasSpriteSheetService.blob(req, res, options);
+      res.set('Content-Type', mimetype);
+      res.set('Content-Length', buffer.length);
+      res.set('Content-Disposition', `inline; filename="${name}"`);
+      return res.status(200).end(buffer);
+    } catch (error) {
+      logger.error('AtlasSpriteSheetController.blob error:', error);
+      return res.status(404).json({
+        status: 'error',
+        message: error.message,
+      });
+    }
+  },
   generate: async (req, res, options) => {
     try {
       const result = await AtlasSpriteSheetService.generate(req, res, options);

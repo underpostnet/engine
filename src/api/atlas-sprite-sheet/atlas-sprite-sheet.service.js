@@ -10,6 +10,22 @@ import { createPinRecord, removePinRecordsAndUnpin } from '../ipfs/ipfs.service.
 const logger = loggerFactory(import.meta);
 
 const AtlasSpriteSheetService = {
+  blob: async (req, res, options) => {
+    /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
+    const AtlasSpriteSheet =
+      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.AtlasSpriteSheet;
+    /** @type {import('../file/file.model.js').FileModel} */
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+
+    const itemKey = req.params.itemKey;
+    const atlasDoc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': itemKey }).lean();
+    if (!atlasDoc) throw new Error(`Atlas not found for itemKey: ${itemKey}`);
+
+    const fileDoc = await File.findById(atlasDoc.fileId);
+    if (!fileDoc || !fileDoc.data) throw new Error(`File not found for atlas itemKey: ${itemKey}`);
+
+    return { buffer: Buffer.from(fileDoc.data), mimetype: fileDoc.mimetype || 'image/png', name: fileDoc.name };
+  },
   generate: async (req, res, options, generateOptions = {}) => {
     /** @type {import('../object-layer/object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
