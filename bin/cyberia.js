@@ -3242,19 +3242,19 @@ try {
       const SEMANTIC_TYPES = [
         'floor-desert',
         'floor-grass',
-        'floor-water',
-        'floor-stone',
-        'floor-lava',
+        // 'floor-water',
+        // 'floor-stone',
+        // 'floor-lava',
         'skin-random',
-        'skin-dark',
-        'skin-light',
-        'skin-vivid',
-        'skin-natural',
+        // 'skin-dark',
+        // 'skin-light',
+        // 'skin-vivid',
+        // 'skin-natural',
         'skin-shaved',
       ];
 
       const baseSeed = options.seed || 'example';
-      const frameCount = options.frameCount || 4;
+      const frameCount = options.frameCount || 2;
       const envFlag = options.envPath ? ` --env-path ${options.envPath}` : '';
       const devFlag = options.dev ? ' --dev' : '';
 
