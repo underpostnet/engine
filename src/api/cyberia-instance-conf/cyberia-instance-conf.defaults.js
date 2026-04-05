@@ -30,6 +30,34 @@ export const ITEM_TYPES = Object.freeze({
   coin: 'coin',
 });
 
+// ── Equipment rules ──────────────────────────────────────────────────────────
+/**
+ * Equipment rules govern which ObjectLayer item types can be simultaneously
+ * active on a character entity and enforce the one-active-per-type constraint.
+ *
+ * The server validates every item_activation request against these rules:
+ *   1. Only item types listed in `activeItemTypes` may be activated.
+ *   2. When `onePerType` is true (default), activating an item of a given type
+ *      automatically deactivates any other active item of the same type.
+ *   3. When `requireSkin` is true, the player must always have at least one
+ *      active skin if they own any skin-type items.
+ *
+ * Item types NOT listed in `activeItemTypes` (e.g. 'coin', 'floor') are
+ * considered non-activable and their activation requests are rejected.
+ *
+ * @constant
+ * @type {Readonly<{activeItemTypes:string[], onePerType:boolean, requireSkin:boolean}>}
+ */
+export const EQUIPMENT_RULES_DEFAULTS = Object.freeze({
+  // Item types that players are allowed to activate (equip).
+  // Types not in this list are non-activable (coins, floors, etc.).
+  activeItemTypes: ['skin', 'breastplate', 'weapon'],
+  // Enforce at most one active item per item type.
+  onePerType: true,
+  // Require at least one active skin when the player owns any skin.
+  requireSkin: true,
+});
+
 // ── Entity type defaults ─────────────────────────────────────────────────────
 /**
  * Per-entity-type rendering defaults.
@@ -79,9 +107,22 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     // active:false items appear in the inventory bar but are not worn.
     // The coin slot is always active:false — coins are non-activable.
     defaultObjectLayers: [
-      { itemId: 'anon',            active: true,  quantity: 1 },
-      { itemId: 'atlas_pistol_mk2', active: true,  quantity: 1 },
-      { itemId: 'coin',            active: false, quantity: 0 },
+      { itemId: 'anon', active: true, quantity: 1 },
+      { itemId: 'atlas_pistol_mk2', active: true, quantity: 1 },
+      { itemId: 'purple', active: false, quantity: 1 },
+      { itemId: 'ghost', active: false, quantity: 1 },
+      { itemId: 'atlas_pistol_mk2_bullet', active: false, quantity: 5 },
+      { itemId: 'lain', active: false, quantity: 1 },
+      { itemId: 'hatchet', active: false, quantity: 1 },
+      { itemId: 'wason', active: false, quantity: 1 },
+      { itemId: 'scp-2040', active: false, quantity: 1 },
+      { itemId: 'punk', active: false, quantity: 1 },
+      { itemId: 'kaneki', active: false, quantity: 1 },
+      { itemId: 'junko', active: false, quantity: 1 },
+      { itemId: 'eiri', active: false, quantity: 1 },
+      { itemId: 'alex', active: false, quantity: 1 },
+      { itemId: 'agent', active: false, quantity: 1 },
+      { itemId: 'coin', active: false, quantity: 0 },
     ],
   },
   {
@@ -90,9 +131,22 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     deadItemIds: ['ghost'],
     colorKey: 'OTHER_PLAYER',
     defaultObjectLayers: [
-      { itemId: 'anon',            active: true,  quantity: 1 },
-      { itemId: 'atlas_pistol_mk2', active: true,  quantity: 1 },
-      { itemId: 'coin',            active: false, quantity: 0 },
+      { itemId: 'anon', active: true, quantity: 1 },
+      { itemId: 'atlas_pistol_mk2', active: true, quantity: 1 },
+      { itemId: 'purple', active: false, quantity: 1 },
+      { itemId: 'ghost', active: false, quantity: 1 },
+      { itemId: 'atlas_pistol_mk2_bullet', active: false, quantity: 5 },
+      { itemId: 'lain', active: false, quantity: 1 },
+      { itemId: 'hatchet', active: false, quantity: 1 },
+      { itemId: 'wason', active: false, quantity: 1 },
+      { itemId: 'scp-2040', active: false, quantity: 1 },
+      { itemId: 'punk', active: false, quantity: 1 },
+      { itemId: 'kaneki', active: false, quantity: 1 },
+      { itemId: 'junko', active: false, quantity: 1 },
+      { itemId: 'eiri', active: false, quantity: 1 },
+      { itemId: 'alex', active: false, quantity: 1 },
+      { itemId: 'agent', active: false, quantity: 1 },
+      { itemId: 'coin', active: false, quantity: 0 },
     ],
   },
   {
@@ -101,21 +155,33 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     deadItemIds: ['ghost'],
     colorKey: 'BOT',
     defaultObjectLayers: [
-      { itemId: 'purple', active: true,  quantity: 1 },
-      { itemId: 'coin',   active: false, quantity: 0 },
+      { itemId: 'purple', active: true, quantity: 1 },
+      { itemId: 'coin', active: false, quantity: 0 },
     ],
   },
-  { entityType: 'skill', liveItemIds: ['atlas_pistol_mk2_bullet'], deadItemIds: [], colorKey: 'SKILL', defaultObjectLayers: [{ itemId: 'atlas_pistol_mk2_bullet', active: true, quantity: 1 }] },
-  { entityType: 'coin',  liveItemIds: ['coin'], deadItemIds: [], colorKey: 'COIN', defaultObjectLayers: [{ itemId: 'coin', active: true, quantity: 1 }] },
+  {
+    entityType: 'skill',
+    liveItemIds: ['atlas_pistol_mk2_bullet'],
+    deadItemIds: [],
+    colorKey: 'SKILL',
+    defaultObjectLayers: [{ itemId: 'atlas_pistol_mk2_bullet', active: true, quantity: 1 }],
+  },
+  {
+    entityType: 'coin',
+    liveItemIds: ['coin'],
+    deadItemIds: [],
+    colorKey: 'COIN',
+    defaultObjectLayers: [{ itemId: 'coin', active: true, quantity: 1 }],
+  },
   // ── World objects ───────────────────────────────────────────────────────
-  { entityType: 'floor',               liveItemIds: ['grass'], deadItemIds: [], colorKey: 'FLOOR',                defaultObjectLayers: [] },
-  { entityType: 'obstacle',            liveItemIds: [],        deadItemIds: [], colorKey: 'OBSTACLE',             defaultObjectLayers: [] },
-  { entityType: 'portal',              liveItemIds: [],        deadItemIds: [], colorKey: 'PORTAL',               defaultObjectLayers: [] },
-  { entityType: 'portal',              liveItemIds: [],        deadItemIds: [], colorKey: 'PORTAL_INTER_PORTAL',  defaultObjectLayers: [] },
-  { entityType: 'portal',              liveItemIds: [],        deadItemIds: [], colorKey: 'PORTAL_INTER_RANDOM',  defaultObjectLayers: [] },
-  { entityType: 'portal',              liveItemIds: [],        deadItemIds: [], colorKey: 'PORTAL_INTRA_RANDOM',  defaultObjectLayers: [] },
-  { entityType: 'portal',              liveItemIds: [],        deadItemIds: [], colorKey: 'PORTAL_INTRA_PORTAL',  defaultObjectLayers: [] },
-  { entityType: 'foreground',          liveItemIds: [],        deadItemIds: [], colorKey: 'FOREGROUND',           defaultObjectLayers: [] },
+  { entityType: 'floor', liveItemIds: ['grass'], deadItemIds: [], colorKey: 'FLOOR', defaultObjectLayers: [] },
+  { entityType: 'obstacle', liveItemIds: [], deadItemIds: [], colorKey: 'OBSTACLE', defaultObjectLayers: [] },
+  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL', defaultObjectLayers: [] },
+  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTER_PORTAL', defaultObjectLayers: [] },
+  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTER_RANDOM', defaultObjectLayers: [] },
+  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTRA_RANDOM', defaultObjectLayers: [] },
+  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTRA_PORTAL', defaultObjectLayers: [] },
+  { entityType: 'foreground', liveItemIds: [], deadItemIds: [], colorKey: 'FOREGROUND', defaultObjectLayers: [] },
 ]);
 
 // ── Instance configuration defaults ─────────────────────────────────────────
@@ -184,7 +250,6 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   sumStatsLimit: 500,
   maxActiveLayers: 4,
   initialLifeFraction: 1.0,
-  defaultPlayerObjectLayers: [],
 
   // ── Combat / death ─────────────────────────────────────────────────
   respawnDurationMs: 3000,
@@ -261,4 +326,9 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
     doppelgangerSpawnRadius: 3,
     doppelgangerInitialLifeFraction: 1.0,
   },
+
+  // ── Equipment Rules ────────────────────────────────────────────────
+  // Governs which item types can be equipped (activated) and enforces
+  // the one-active-per-type constraint.  See EQUIPMENT_RULES_DEFAULTS.
+  equipmentRules: { ...EQUIPMENT_RULES_DEFAULTS },
 };

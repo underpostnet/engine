@@ -12,9 +12,9 @@ const ColorEntrySchema = new Schema(
   { _id: false },
 );
 
-// ObjectLayer inventory slot: the itemId + whether it starts active + initial quantity.
-// Reused by DefaultPlayerObjectLayerSchema (top-level) and EntityDefaultSchema.defaultObjectLayers.
-const DefaultPlayerObjectLayerSchema = new Schema(
+// ObjectLayer inventory slot: itemId + whether it starts active + initial quantity.
+// Used by EntityDefaultSchema.defaultObjectLayers.
+const ObjectLayerSlotSchema = new Schema(
   {
     itemId: { type: String, required: true },
     active: { type: Boolean, default: false },
@@ -38,7 +38,7 @@ const EntityDefaultSchema = new Schema(
     // Each entry specifies itemId, whether it starts active, and its initial quantity.
     // The coin slot must always have active:false — coins are non-activable.
     // When non-empty this supersedes liveItemIds for inventory initialization.
-    defaultObjectLayers: { type: [DefaultPlayerObjectLayerSchema], default: [] },
+    defaultObjectLayers: { type: [ObjectLayerSlotSchema], default: [] },
   },
   { _id: false },
 );
@@ -69,6 +69,23 @@ const EconomyRulesSchema = new Schema(
     respawnCostPercent: { type: Number, default: D.economyRules.respawnCostPercent },
     portalFee: { type: Number, default: D.economyRules.portalFee },
     craftingFeePercent: { type: Number, default: D.economyRules.craftingFeePercent },
+  },
+  { _id: false },
+);
+
+// ── EquipmentRulesSchema ─────────────────────────────────────────────────────
+// Governs which ObjectLayer item types can be simultaneously active on a
+// character entity and enforces the one-active-per-type constraint.
+// See EQUIPMENT_RULES_DEFAULTS in cyberia-instance-conf.defaults.js.
+const EquipmentRulesSchema = new Schema(
+  {
+    // Item types that players are allowed to activate (equip).
+    // Types not in this list are non-activable (coins, floors, etc.).
+    activeItemTypes: { type: [String], default: D.equipmentRules.activeItemTypes },
+    // Enforce at most one active item per item type.
+    onePerType: { type: Boolean, default: D.equipmentRules.onePerType },
+    // Require at least one active skin when the player owns any skin.
+    requireSkin: { type: Boolean, default: D.equipmentRules.requireSkin },
   },
   { _id: false },
 );
@@ -138,7 +155,6 @@ const CyberiaInstanceConfSchema = new Schema(
     sumStatsLimit: { type: Number, default: D.sumStatsLimit },
     maxActiveLayers: { type: Number, default: D.maxActiveLayers },
     initialLifeFraction: { type: Number, default: D.initialLifeFraction },
-    defaultPlayerObjectLayers: { type: [DefaultPlayerObjectLayerSchema], default: [] },
 
     // ── Combat / death ───────────────────────────────────────────────
     respawnDurationMs: { type: Number, default: D.respawnDurationMs },
@@ -165,6 +181,11 @@ const CyberiaInstanceConfSchema = new Schema(
 
     // Numeric tuning parameters for each skill archetype.
     skillRules: { type: SkillRulesSchema },
+
+    // ── Equipment rules ──────────────────────────────────────────────
+    // Governs which item types can be simultaneously active and enforces
+    // the one-active-per-type constraint.  See EQUIPMENT_RULES_DEFAULTS.
+    equipmentRules: { type: EquipmentRulesSchema },
   },
   { timestamps: true },
 );

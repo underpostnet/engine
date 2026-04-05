@@ -220,11 +220,17 @@ function toInstanceConfig(gc) {
   const gcDefaultsMap = Object.fromEntries(gcDefaults.map((d) => [d.entityType, d]));
   const entityDefaults = ENTITY_TYPE_DEFAULTS.map((canonical) => {
     const override = gcDefaultsMap[canonical.entityType] ?? {};
+    const dols = override.defaultObjectLayers ?? canonical.defaultObjectLayers ?? [];
     return {
       entityType: canonical.entityType,
       liveItemIds: override.liveItemIds ?? canonical.liveItemIds,
       deadItemIds: override.deadItemIds ?? canonical.deadItemIds,
       colorKey: override.colorKey ?? canonical.colorKey,
+      defaultObjectLayers: dols.map((ol) => ({
+        itemId: ol.itemId || '',
+        active: !!ol.active,
+        quantity: ol.quantity || 0,
+      })),
     };
   });
 
@@ -255,11 +261,6 @@ function toInstanceConfig(gc) {
     sumStatsLimit: gc.sumStatsLimit ?? fb.sumStatsLimit,
     maxActiveLayers: gc.maxActiveLayers ?? fb.maxActiveLayers,
     initialLifeFraction: gc.initialLifeFraction ?? fb.initialLifeFraction,
-    defaultPlayerObjectLayers: (gc.defaultPlayerObjectLayers || []).map((ol) => ({
-      itemId: ol.itemId || '',
-      active: !!ol.active,
-      quantity: ol.quantity || 0,
-    })),
     respawnDurationMs: gc.respawnDurationMs ?? fb.respawnDurationMs,
     collisionLifeLoss: gc.collisionLifeLoss ?? fb.collisionLifeLoss,
     // Economy — Fountain & Sink (nested, mirrors EconomyRules proto message).
@@ -291,6 +292,12 @@ function toInstanceConfig(gc) {
       doppelgangerSpawnRadius: gc.skillRules?.doppelgangerSpawnRadius ?? fb.skillRules.doppelgangerSpawnRadius,
       doppelgangerInitialLifeFraction:
         gc.skillRules?.doppelgangerInitialLifeFraction ?? fb.skillRules.doppelgangerInitialLifeFraction,
+    },
+    // Equipment rules — governs activation constraints (nested, mirrors EquipmentRules proto message).
+    equipmentRules: {
+      activeItemTypes: gc.equipmentRules?.activeItemTypes ?? fb.equipmentRules.activeItemTypes,
+      onePerType: gc.equipmentRules?.onePerType ?? fb.equipmentRules.onePerType,
+      requireSkin: gc.equipmentRules?.requireSkin ?? fb.equipmentRules.requireSkin,
     },
   };
 }
@@ -427,6 +434,9 @@ function buildHandlers(dbKey) {
           for (const d of fallbackConf.entityDefaults || []) {
             for (const id of d.liveItemIds || []) fallbackItemIds.add(id);
             for (const id of d.deadItemIds || []) fallbackItemIds.add(id);
+            for (const ol of d.defaultObjectLayers || []) {
+              if (ol.itemId) fallbackItemIds.add(ol.itemId);
+            }
           }
 
           const fallbackOlDocs = fallbackItemIds.size
@@ -483,6 +493,9 @@ function buildHandlers(dbKey) {
         for (const d of conf.entityDefaults || []) {
           for (const id of d.liveItemIds || []) itemIds.add(id);
           for (const id of d.deadItemIds || []) itemIds.add(id);
+          for (const ol of d.defaultObjectLayers || []) {
+            if (ol.itemId) itemIds.add(ol.itemId);
+          }
         }
 
         const olDocs = itemIds.size
