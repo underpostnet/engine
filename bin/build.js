@@ -228,5 +228,6 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   if (fs.existsSync(`./src/ws/${confName.split('-')[1]}`)) {
     fs.copySync(`./src/ws/${confName.split('-')[1]}`, `${basePath}/src/ws/${confName.split('-')[1]}`);
   }
+  fs.copyFileSync(`.gitignore`, `${basePath}/.gitignore`);
   shellExec(`cd ${basePath} && npm install --ignore-scripts`);
 }
