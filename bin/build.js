@@ -169,7 +169,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       packageJson.description = 'Cyberia Engine - Object Layer and Assets Management Microservice';
       const { CyberiaDependencies } = await import(`../src/client/components/cyberia-portal/CommonCyberiaPortal.js`);
       packageJson.dependencies = {
-        ...packageJson.dependencies,
+        ...originPackageJson.dependencies,
         ...CyberiaDependencies,
       };
       fs.writeFileSync(`${basePath}/bin/index.js`, fs.readFileSync(`./bin/cyberia.js`, 'utf8'), 'utf8');

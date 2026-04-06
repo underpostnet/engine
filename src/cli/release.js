@@ -11,7 +11,7 @@
 
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import { shellCd, shellExec } from '../server/process.js';
+import { pbcopy, shellCd, shellExec } from '../server/process.js';
 import { loggerFactory } from '../server/logger.js';
 import { timer } from '../client/components/core/CommonJs.js';
 import Underpost from '../index.js';
@@ -137,6 +137,60 @@ class UnderpostRelease {
       shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
       shellExec(`node bin cron --dev --setup-start`);
       shellExec(`node bin cmt --changelog-build`);
+    },
+
+    /**
+     * Runs the local equivalent of an engine-*.ci.yml GitHub Actions workflow.
+     *
+     * Mirrors the CI pipeline locally:
+     * 1. Loads production environment (for GITHUB_TOKEN / GITHUB_USERNAME).
+     * 2. Clones pwa-microservices-template and engine-{suffix} (bare) into the parent dir (/home/dd).
+     * 3. Builds dd-{suffix} development from the engine directory.
+     * 4. Replaces .git in pwa-microservices-template with the bare-cloned git, then commits and pushes
+     *    to the underpostnet/engine-{suffix} remote repository.
+     *
+     * @method ci
+     * @param {string} deployId - The deploy-id suffix (e.g., "cyberia", "core", "lampp", "test").
+     *   Accepts "cyberia", "dd-cyberia", or "engine-cyberia" — the prefix is stripped automatically.
+     * @param {string} [message] - Optional commit message. Defaults to the last commit message of pwa-microservices-template.
+     * @param {object} [options] - Commander options object (unused, reserved for future flags).
+     * @memberof UnderpostRelease
+     */
+    async ci(deployId, message, options) {
+      dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
+      const suffix = deployId.replace(/^(dd-|engine-)/, '');
+      const repoName = `engine-${suffix}`;
+      const buildTarget = `dd-${suffix}`;
+      const githubOrg = process.env.GITHUB_USERNAME || 'underpostnet';
+      shellCd('/home/dd');
+      if (!fs.existsSync(`/home/dd/pwa-microservices-template`))
+        shellExec(`node engine/bin clone ${githubOrg}/pwa-microservices-template`);
+      else {
+        shellExec(`node engine/bin run clean /home/dd/pwa-microservices-template --dev`);
+        shellExec(`node engine/bin pull /home/dd/pwa-microservices-template ${githubOrg}/pwa-microservices-template`);
+      }
+      let commitMsg = message;
+      if (!commitMsg) {
+        const fullMsg = shellExec(`cd pwa-microservices-template && git log -1 --pretty=%B`, {
+          stdout: true,
+          silent: true,
+        });
+        commitMsg = (fullMsg || '').trim().replace(/^[^:]*:\s+\S+\s+/, '');
+      }
+      commitMsg = (commitMsg || '').trim() || `Update ${repoName} repository`;
+      logger.info(`CI push commit message: ${commitMsg}`);
+      shellExec(`node engine/bin clone --bare ${githubOrg}/${repoName}`);
+      shellCd('/home/dd/engine');
+      shellExec(`node bin/build ${buildTarget}`);
+      shellCd('/home/dd/pwa-microservices-template');
+      shellExec(`rm -rf ./.git`);
+      shellExec(`mv ../${repoName}.git ./.git`);
+      shellExec(`git init`);
+      shellExec(`git config user.name 'underpostnet'`);
+      shellExec(`git config user.email 'development@underpost.net'`);
+      shellExec(`git add .`);
+      // shellExec(`git commit -m "${commitMsg}"`);
+      pbcopy(`git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/${repoName}`);
     },
 
     /**

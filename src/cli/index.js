@@ -776,11 +776,21 @@ program
   .argument('[version]', 'The new version string to set (e.g., "3.1.4"). Defaults to current version.')
   .option('--build', 'Builds a new version: tests template, bumps versions, rebuilds manifests and configs.')
   .option('--deploy', 'Deploys the release: syncs secrets, commits, and pushes to remote repositories.')
+  .option(
+    '--ci-push <deploy-id>',
+    'Local equivalent of engine-*.ci.yml: builds dd-{deploy-id} and pushes to the engine-{deploy-id} repository. ' +
+      'Accepts the suffix (e.g., "cyberia"), "dd-cyberia", or "engine-cyberia".',
+  )
+  .option(
+    '--message <message>',
+    'Commit message for --ci-push (defaults to last commit of pwa-microservices-template).',
+  )
   .description('Release orchestrator for building new versions and deploying releases of the Underpost CLI.')
   .action(async (version, options) => {
     if (options.build) return Underpost.release.build(version, options);
     if (options.deploy) return Underpost.release.deploy(version, options);
-    console.log('Please specify --build or --deploy. Use "underpost release --help" for details.');
+    if (options.ciPush) return Underpost.release.ci(options.ciPush, options.message, options);
+    console.log('Please specify --build, --deploy, or --ci-push. Use "underpost release --help" for details.');
   });
 
 export { program };
