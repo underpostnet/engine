@@ -163,12 +163,8 @@ class UnderpostRelease {
       const buildTarget = `dd-${suffix}`;
       const githubOrg = process.env.GITHUB_USERNAME || 'underpostnet';
       shellCd('/home/dd');
-      if (!fs.existsSync(`/home/dd/pwa-microservices-template`))
-        shellExec(`node engine/bin clone ${githubOrg}/pwa-microservices-template`);
-      else {
-        shellExec(`node engine/bin run clean /home/dd/pwa-microservices-template --dev`);
-        shellExec(`node engine/bin pull /home/dd/pwa-microservices-template ${githubOrg}/pwa-microservices-template`);
-      }
+      shellExec(`sudo rm -rf /home/dd/pwa-microservices-template`);
+      shellExec(`node engine/bin clone ${githubOrg}/pwa-microservices-template`);
       let commitMsg = message;
       if (!commitMsg) {
         const fullMsg = shellExec(`cd pwa-microservices-template && git log -1 --pretty=%B`, {
@@ -191,6 +187,45 @@ class UnderpostRelease {
       shellExec(`git add .`);
       // shellExec(`git commit -m "${commitMsg}"`);
       pbcopy(`git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/${repoName}`);
+    },
+
+    /**
+     * Runs the pwa-microservices-template update and push flow locally.
+     *
+     * Always removes and re-clones pwa-microservices-template, then:
+     * 1. Runs update:template (node bin/file update-template) to sync engine sources.
+     * 2. Installs dependencies and builds the template.
+     * 3. Commits and pushes to the pwa-microservices-template remote repository.
+     *
+     * @method pwa
+     * @param {string} [message] - Optional commit message. Defaults to last commit message of pwa-microservices-template.
+     * @param {object} [options] - Commander options object (unused, reserved for future flags).
+     * @memberof UnderpostRelease
+     */
+    async pwa(message, options) {
+      dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
+      const githubOrg = process.env.GITHUB_USERNAME || 'underpostnet';
+      shellCd('/home/dd');
+      let commitMsg = message;
+      if (!commitMsg) {
+        if (fs.existsSync(`/home/dd/pwa-microservices-template`)) {
+          const fullMsg = shellExec(`cd pwa-microservices-template && git log -1 --pretty=%B`, {
+            stdout: true,
+            silent: true,
+          });
+          commitMsg = (fullMsg || '').trim().replace(/^[^:]*:\s+\S+\s+/, '');
+        }
+      }
+      commitMsg = (commitMsg || '').trim() || `Update pwa-microservices-template repository`;
+      shellExec(`sudo rm -rf /home/dd/pwa-microservices-template`);
+      shellExec(`node engine/bin clone ${githubOrg}/pwa-microservices-template`);
+      shellCd('/home/dd/engine');
+      shellExec(`npm run update:template`);
+      shellExec(`cd ../pwa-microservices-template && npm install && npm run build`);
+      shellCd('/home/dd/pwa-microservices-template');
+      shellExec(`git add .`);
+      // shellExec(`git commit -m "${commitMsg}"`);
+      pbcopy(`git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/pwa-microservices-template`);
     },
 
     /**

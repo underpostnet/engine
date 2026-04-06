@@ -783,14 +783,21 @@ program
   )
   .option(
     '--message <message>',
-    'Commit message for --ci-push (defaults to last commit of pwa-microservices-template).',
+    'Commit message for --ci-push or --pwa-build (defaults to last commit of pwa-microservices-template).',
+  )
+  .option(
+    '--pwa-build',
+    'Runs the pwa-microservices-template update flow: always re-clones, syncs engine sources, installs, builds, and pushes.',
   )
   .description('Release orchestrator for building new versions and deploying releases of the Underpost CLI.')
   .action(async (version, options) => {
     if (options.build) return Underpost.release.build(version, options);
     if (options.deploy) return Underpost.release.deploy(version, options);
     if (options.ciPush) return Underpost.release.ci(options.ciPush, options.message, options);
-    console.log('Please specify --build, --deploy, or --ci-push. Use "underpost release --help" for details.');
+    if (options.pwaBuild) return Underpost.release.pwa(options.message, options);
+    console.log(
+      'Please specify --build, --deploy, --ci-push, or --pwa-build. Use "underpost release --help" for details.',
+    );
   });
 
 export { program };
