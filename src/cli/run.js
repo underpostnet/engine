@@ -451,6 +451,27 @@ class UnderpostRun {
     },
 
     /**
+     * @method template-deploy-local
+     * @description Similar to `template-deploy` but runs the workflow locally without dispatching GitHub Actions. It pulls the latest changes, pushes to GitHub, builds the template, and optionally triggers a local release with CI push.
+     * @param {string} path - The deployment path identifier (e.g., 'sync-engine-core', 'init-engine-core', or empty for build-only).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'template-deploy-local': (path, options = DEFAULT_OPTION) => {
+      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      shellExec(`npm run security:secrets`);
+      const reportPath = './gitleaks-report.json';
+      if (fs.existsSync(reportPath) && JSON.parse(fs.readFileSync(reportPath, 'utf8')).length > 0) {
+        logger.error('Secrets detected in gitleaks-report.json, aborting template-deploy');
+        return;
+      }
+      shellExec(`${baseCommand} run pull`);
+      shellExec(`${baseCommand} push engine-private ${process.env.GITHUB_USERNAME}/engine-private`);
+      shellExec(`${baseCommand} push . ${process.env.GITHUB_USERNAME}/engine`);
+      if (path) shellExec(`${baseCommand} release --ci-push ${path}`);
+      else shellExec(`${baseCommand} release --pwa-build`);
+    },
+    /**
      * @method template-deploy-image
      * @description Dispatches the Docker image CI workflow for the `engine` repository.
      * @param {string} path - The input value, identifier, or path for the operation.

@@ -186,7 +186,9 @@ class UnderpostRelease {
       shellExec(`git config user.email 'development@underpost.net'`);
       shellExec(`git add .`);
       // shellExec(`git commit -m "${commitMsg}"`);
-      pbcopy(`git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/${repoName}`);
+      pbcopy(
+        `cd /home/dd/pwa-microservices-template && git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/${repoName}`,
+      );
     },
 
     /**
@@ -225,7 +227,9 @@ class UnderpostRelease {
       shellCd('/home/dd/pwa-microservices-template');
       shellExec(`git add .`);
       // shellExec(`git commit -m "${commitMsg}"`);
-      pbcopy(`git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/pwa-microservices-template`);
+      pbcopy(
+        `cd /home/dd/pwa-microservices-template && git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/pwa-microservices-template`,
+      );
     },
 
     /**
