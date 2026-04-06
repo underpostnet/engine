@@ -123,6 +123,30 @@ const AtlasSpriteSheetController = {
       });
     }
   },
+  getMetadata: async (req, res, options) => {
+    try {
+      if (req && req.headers && req.headers.origin) {
+        res.set('Access-Control-Allow-Origin', req.headers.origin);
+      } else res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      const { page, limit } = req.query;
+      const result = await AtlasSpriteSheetService.getMetadata(
+        { ...req, query: { ...req.query, page: parseInt(page), limit: parseInt(limit) } },
+        res,
+        options,
+      );
+      return res.status(200).json({
+        status: 'success',
+        data: result,
+      });
+    } catch (error) {
+      logger.error(error, error.stack);
+      return res.status(404).json({
+        status: 'error',
+        message: error.message,
+      });
+    }
+  },
 };
 
 export { AtlasSpriteSheetController };

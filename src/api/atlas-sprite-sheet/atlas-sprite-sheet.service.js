@@ -241,6 +241,36 @@ const AtlasSpriteSheetService = {
     const totalPages = Math.ceil(total / limit);
     return { data, total, page, totalPages };
   },
+  // Returns atlas metadata (layout + frames) for the client.
+  // Client fetches this once per itemKey, caches it, then fetches the PNG blob.
+  getMetadata: async (req, res, options) => {
+    /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
+    const AtlasSpriteSheet =
+      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.AtlasSpriteSheet;
+
+    if (req.params.itemKey) {
+      const doc = await AtlasSpriteSheet.findOne({ 'metadata.itemKey': req.params.itemKey })
+        .select(AtlasSpriteSheetDto.select.getMetadataOnly())
+        .lean();
+      if (!doc) throw new Error(`Atlas not found for itemKey: ${req.params.itemKey}`);
+      return doc;
+    }
+
+    const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
+
+    const [data, total] = await Promise.all([
+      AtlasSpriteSheet.find(query)
+        .select(AtlasSpriteSheetDto.select.getMetadataOnly())
+        .sort(sort)
+        .limit(limit)
+        .skip(skip)
+        .lean(),
+      AtlasSpriteSheet.countDocuments(query),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+    return { data, total, page, totalPages };
+  },
   put: async (req, res, options) => {
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
     const AtlasSpriteSheet =

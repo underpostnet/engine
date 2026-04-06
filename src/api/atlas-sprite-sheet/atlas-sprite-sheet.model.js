@@ -140,6 +140,22 @@ const AtlasSpriteSheetDto = {
         updatedAt: 1,
       };
     },
+    // Returns all fields the client needs per itemKey:
+    // layout dims + frames for rendering, no fileId.
+    // Client flow: GET /metadata/:itemKey → cache → GET /blob/:itemKey → cache PNG.
+    getMetadataOnly: () => {
+      return {
+        _id: 1,
+        cid: 1,
+        'metadata.itemKey': 1,
+        'metadata.atlasWidth': 1,
+        'metadata.atlasHeight': 1,
+        'metadata.cellPixelDim': 1,
+        'metadata.frames': 1,
+        createdAt: 1,
+        updatedAt: 1,
+      };
+    },
   },
 };
 

@@ -20,6 +20,10 @@ const AtlasSpriteSheetRouter = (options) => {
   router.post(`/:id`, authMiddleware, async (req, res) => await AtlasSpriteSheetController.post(req, res, options));
   router.post(`/`, authMiddleware, async (req, res) => await AtlasSpriteSheetController.post(req, res, options));
   router.get(`/blob/:itemKey`, async (req, res) => await AtlasSpriteSheetController.blob(req, res, options));
+  // Metadata endpoints: returns itemKey, atlasWidth, atlasHeight, cellPixelDim, frames (no fileId).
+  // Client fetches /metadata/:itemKey once, caches it, then fetches /blob/:itemKey for the PNG.
+  router.get(`/metadata/:itemKey`, async (req, res) => await AtlasSpriteSheetController.getMetadata(req, res, options));
+  router.get(`/metadata`, async (req, res) => await AtlasSpriteSheetController.getMetadata(req, res, options));
   router.get(
     `/:id`,
     // authMiddleware,
