@@ -102,7 +102,7 @@
     "swagger-autogen": "^2.23.7",
     "swagger-ui-express": "^5.0.0",
     "validator": "^13.11.0",
-    "vanilla-jsoneditor": "^3.11.0",
+    "vanilla-jsoneditor": "^3.12.0",
     "winston": "^3.19.0"
   },
   "bin": {
