@@ -941,14 +941,15 @@ EOF
           { disableLog: true },
         );
       }
-      // After traffic is switched, update the gRPC service selector to the new colour.
+      // Refresh the gRPC service to ensure it points to the parent deploy's current traffic.
       if (promotedTraffic) {
+        const parentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';
         const grpcServicePath = Underpost.deploy.buildGrpcServiceManifest({
           deployId,
           env,
           confServer: loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
           namespace: options.namespace,
-          traffic: [promotedTraffic],
+          traffic: [parentTraffic],
         });
         if (grpcServicePath) shellExec(`kubectl apply -f ${grpcServicePath} -n ${options.namespace}`);
       }
@@ -1021,8 +1022,9 @@ EOF
               gitClean: options.gitClean || false,
             });
         // Regenerate the parent deploy's gRPC ClusterIP service pointing to the
-        // target traffic colour and apply it before the instance pod starts so
+        // parent's current traffic colour and apply it before the instance pod starts so
         // DNS is resolvable the moment the pod boots.
+        const parentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';
         const grpcServicePath = Underpost.deploy.buildGrpcServiceManifest({
           deployId,
           env,
@@ -1036,7 +1038,7 @@ EOF
         const resolvedCmd = _cmd[env].map((c) =>
           c.replaceAll(
             '{{grpc-service-dns}}',
-            `${deployId}-grpc-service-${env}-${targetTraffic}.${options.namespace || 'default'}.svc.cluster.local:50051`,
+            `${deployId}-grpc-service-${env}-${parentTraffic}.${options.namespace || 'default'}.svc.cluster.local:50051`,
           ),
         );
 
