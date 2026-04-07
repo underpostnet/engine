@@ -262,7 +262,13 @@ ${Underpost.deploy
         }
         fs.writeFileSync(`./engine-private/conf/${deployId}/build/${env}/deployment.yaml`, deploymentYamlParts, 'utf8');
 
-        Underpost.deploy.buildGrpcServiceManifest({ deployId, env, confServer, namespace: options.namespace });
+        Underpost.deploy.buildGrpcServiceManifest({
+          deployId,
+          env,
+          confServer,
+          namespace: options.namespace,
+          traffic: options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',') : ['blue'],
+        });
 
         const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
           ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.volume.json`, 'utf8'))
@@ -374,18 +380,20 @@ ${Underpost.deploy
       }
     },
     /**
-     * Builds and writes a stable gRPC ClusterIP service YAML for a deployment.
+     * Builds and writes a gRPC ClusterIP service YAML for a deployment.
      * Scans conf.server.json for gRPC ports and emits grpc-service.yaml under
-     * `engine-private/conf/<deployId>/build/<env>/`. The selector uses the shared
-     * `deploy-id: <deployId>-<env>` label so both blue and green pods are targeted.
+     * `engine-private/conf/<deployId>/build/<env>/`. The selector always uses the
+     * explicit `app: <deployId>-<env>-<traffic>` label to target only the active
+     * colour (blue or green).
      * @param {string} deployId - Deployment ID.
      * @param {string} env - Environment ('development' or 'production').
      * @param {object} confServer - Parsed conf.server.json content.
      * @param {string} [namespace='default'] - Kubernetes namespace.
+     * @param {string[]} [traffic=['blue']] - Active traffic colour(s) ('blue', 'green', or both).
      * @returns {string|null} - Path to the written YAML file, or null if no gRPC ports found.
      * @memberof UnderpostDeploy
      */
-    buildGrpcServiceManifest({ deployId, env, confServer, namespace = 'default' }) {
+    buildGrpcServiceManifest({ deployId, env, confServer, namespace = 'default', traffic = ['blue'] }) {
       const grpcPorts = new Set();
       for (const host of Object.keys(confServer)) {
         for (const path of Object.keys(confServer[host])) {
@@ -394,7 +402,6 @@ ${Underpost.deploy
         }
       }
       if (grpcPorts.size === 0) return null;
-      const grpcServiceName = `${deployId}-grpc-service`;
       const grpcPortsList = [...grpcPorts]
         .map(
           (port) => `    - name: grpc-${port}
@@ -403,7 +410,11 @@ ${Underpost.deploy
       targetPort: ${port}`,
         )
         .join('\n');
-      const grpcServiceYaml = `---
+      let grpcServiceYaml = '';
+      for (const color of traffic) {
+        const grpcServiceName = `${deployId}-grpc-service-${env}-${color}`;
+        const selectorYaml = `app: ${deployId}-${env}-${color}`;
+        grpcServiceYaml += `---
 apiVersion: v1
 kind: Service
 metadata:
@@ -414,13 +425,16 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    deploy-id: ${deployId}-${env}
+    ${selectorYaml}
   ports:
 ${grpcPortsList}
 `;
+        logger.info(
+          `gRPC ClusterIP service YAML written: ${grpcServiceName} (selector: ${selectorYaml}, ports: ${[...grpcPorts].join(', ')})`,
+        );
+      }
       const yamlPath = `./engine-private/conf/${deployId}/build/${env}/grpc-service.yaml`;
       fs.writeFileSync(yamlPath, grpcServiceYaml, 'utf8');
-      logger.info(`gRPC ClusterIP service YAML written: ${grpcServiceName} (ports: ${[...grpcPorts].join(', ')})`);
       return yamlPath;
     },
     /**

@@ -895,6 +895,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       const confInstances = JSON.parse(
         fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
       );
+      let promotedTraffic = '';
       for (const instance of confInstances) {
         let {
           id: _id,
@@ -914,6 +915,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           namespace: options.namespace,
         });
         const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
+        promotedTraffic = targetTraffic;
         let proxyYaml =
           Underpost.deploy.baseProxyYamlFactory({ host: _host, env: options.tls ? 'production' : env, options }) +
           Underpost.deploy.deploymentYamlServiceFactory({
@@ -938,6 +940,17 @@ EOF
 `,
           { disableLog: true },
         );
+      }
+      // After traffic is switched, update the gRPC service selector to the new colour.
+      if (promotedTraffic) {
+        const grpcServicePath = Underpost.deploy.buildGrpcServiceManifest({
+          deployId,
+          env,
+          confServer: loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
+          namespace: options.namespace,
+          traffic: [promotedTraffic],
+        });
+        if (grpcServicePath) shellExec(`kubectl apply -f ${grpcServicePath} -n ${options.namespace}`);
       }
     },
 
@@ -1007,6 +1020,25 @@ EOF
               clusterContext: options.k3s ? 'k3s' : options.kubeadm ? 'kubeadm' : 'kind',
               gitClean: options.gitClean || false,
             });
+        // Regenerate the parent deploy's gRPC ClusterIP service pointing to the
+        // target traffic colour and apply it before the instance pod starts so
+        // DNS is resolvable the moment the pod boots.
+        const grpcServicePath = Underpost.deploy.buildGrpcServiceManifest({
+          deployId,
+          env,
+          confServer: loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
+          namespace: options.namespace,
+          traffic: [targetTraffic],
+        });
+        if (grpcServicePath) shellExec(`kubectl apply -f ${grpcServicePath} -n ${options.namespace}`);
+
+        const resolvedCmd = _cmd[env].map((c) =>
+          c.replaceAll(
+            '{{grpc-service-dns}}',
+            `${deployId}-grpc-service-${env}-${targetTraffic}.${options.namespace || 'default'}.svc.cluster.local:50051`,
+          ),
+        );
+
         let deploymentYaml = `---
 ${Underpost.deploy
   .deploymentYamlPartsFactory({
@@ -1018,7 +1050,7 @@ ${Underpost.deploy
     image: _image,
     namespace: options.namespace,
     volumes: _volumes,
-    cmd: _cmd[env],
+    cmd: resolvedCmd,
   })
   .replace('{{ports}}', buildKindPorts(_fromPort, _toPort))}
 `;
