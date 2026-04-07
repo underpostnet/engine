@@ -1029,6 +1029,7 @@ EOF
           confServer: loadConfServerJson(`./engine-private/conf/${deployId}/conf.server.json`),
           namespace: options.namespace,
           traffic: [targetTraffic],
+          host: _host,
         });
         if (grpcServicePath) shellExec(`kubectl apply -f ${grpcServicePath} -n ${options.namespace}`);
 

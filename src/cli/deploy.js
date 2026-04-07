@@ -390,14 +390,17 @@ ${Underpost.deploy
      * @param {object} confServer - Parsed conf.server.json content.
      * @param {string} [namespace='default'] - Kubernetes namespace.
      * @param {string[]} [traffic=['blue']] - Active traffic colour(s) ('blue', 'green', or both).
+     * @param {string|null} [host=null] - Specific host to scan for gRPC ports. If null, all hosts are scanned.
      * @returns {string|null} - Path to the written YAML file, or null if no gRPC ports found.
      * @memberof UnderpostDeploy
      */
-    buildGrpcServiceManifest({ deployId, env, confServer, namespace = 'default', traffic = ['blue'] }) {
+    buildGrpcServiceManifest({ deployId, env, confServer, namespace = 'default', traffic = ['blue'], host = null }) {
       const grpcPorts = new Set();
-      for (const host of Object.keys(confServer)) {
-        for (const path of Object.keys(confServer[host])) {
-          const grpc = confServer[host][path].grpc;
+      const hostsToScan = host ? [host] : Object.keys(confServer);
+      for (const h of hostsToScan) {
+        if (!confServer[h]) continue;
+        for (const path of Object.keys(confServer[h])) {
+          const grpc = confServer[h][path].grpc;
           if (grpc && grpc.port) grpcPorts.add(parseInt(grpc.port));
         }
       }
