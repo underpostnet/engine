@@ -67,7 +67,7 @@ class WpService {
    */
   static createApp({ port, host, pathRoute, repository, db, resetRouter }) {
     if (!Lampp.enabled()) {
-      logger.warn(`[wp] LAMPP not installed — skipping ${host}`);
+      logger.warn(`LAMPP not installed — skipping ${host}`);
       return { disabled: true };
     }
 
@@ -103,22 +103,33 @@ class WpService {
    * @param {object|null} [opts.db]       - MariaDB config used as fallback for fresh install.
    */
   static provisionClone({ host, siteRoot, repository, db }) {
+    // Step 0 — verify the remote repository is reachable; fall back to fresh install if not
+    const remoteCheck = shellExec(`git ls-remote "${repository}" HEAD 2>/dev/null`, {
+      stdout: true,
+      silent: true,
+    });
+    if (!remoteCheck || !remoteCheck.trim()) {
+      logger.warn(`${host}: remote repository not accessible (${repository}) — running fresh install`);
+      WpService.provisionFresh({ host, siteRoot, db });
+      return;
+    }
+
     // Step 1 — clone if the directory does not exist yet
     if (!fs.existsSync(siteRoot)) {
-      logger.info(`[wp] ${host}: cloning ${repository} → ${siteRoot}`);
+      logger.info(`${host}: cloning ${repository} → ${siteRoot}`);
       const tmp = `${siteRoot}.tmp`;
       if (fs.existsSync(tmp)) shellExec(`sudo rm -rf "${tmp}"`);
       shellExec(`git clone "${repository}" "${tmp}"`);
       shellExec(`sudo mv "${tmp}" "${siteRoot}"`);
       shellExec(`sudo chmod -R 755 "${siteRoot}"`);
-      shellExec(`sudo chown -R daemon:daemon "${siteRoot}"`);
+      shellExec(`sudo chown -R $(whoami):$(whoami) "${siteRoot}"`);
     } else {
-      logger.info(`[wp] ${host}: repo already present at ${siteRoot}`);
+      logger.info(`${host}: repo already present at ${siteRoot}`);
     }
 
     // Step 2 — verify wp-config.php; if missing, wipe and do a fresh install
     if (!fs.existsSync(path.join(siteRoot, 'wp-config.php'))) {
-      logger.warn(`[wp] ${host}: wp-config.php not found — wiping site root and running fresh install`);
+      logger.warn(`${host}: wp-config.php not found — wiping site root and running fresh install`);
       shellExec(`sudo rm -rf "${siteRoot}"`);
       WpService.provisionFresh({ host, siteRoot, db });
     }
@@ -134,11 +145,11 @@ class WpService {
    */
   static provisionFresh({ host, siteRoot, db }) {
     if (fs.existsSync(path.join(siteRoot, 'wp-login.php'))) {
-      logger.info(`[wp] ${host}: WordPress already installed at ${siteRoot}, skipping`);
+      logger.info(`${host}: WordPress already installed at ${siteRoot}, skipping`);
       return;
     }
 
-    logger.info(`[wp] ${host}: fresh install → ${siteRoot}`);
+    logger.info(`${host}: fresh install → ${siteRoot}`);
 
     // Download WordPress zip if not already cached
     if (!fs.existsSync(WP_ZIP_PATH)) {
@@ -155,13 +166,13 @@ class WpService {
     if (fs.existsSync(siteRoot)) shellExec(`sudo rm -rf "${siteRoot}"`);
     shellExec(`sudo mv "${extracted}" "${siteRoot}"`);
     shellExec(`sudo chmod -R 755 "${siteRoot}"`);
-    shellExec(`sudo chown -R daemon:daemon "${siteRoot}"`);
+    shellExec(`sudo chown -R $(whoami):$(whoami) "${siteRoot}"`);
 
     if (db) {
       WpService.createDatabase(db);
       WpService.writeWpConfig({ siteRoot, db });
     } else {
-      logger.warn(`[wp] ${host}: no db config provided — wp-config.php not written`);
+      logger.warn(`${host}: no db config provided — wp-config.php not written`);
     }
   }
 
@@ -170,7 +181,7 @@ class WpService {
    * @param {{ host: string, name: string, user: string, password: string }} db
    */
   static createDatabase({ host, name, user, password }) {
-    logger.info(`[wp] Creating database "${name}" on ${host} if not exists`);
+    logger.info(`Creating database "${name}" on ${host} if not exists`);
     // Use the LAMPP bundled mysql client
     const mysql = `/opt/lampp/bin/mysql`;
     const q = (s) => s.replace(/'/g, "\\'");
@@ -188,7 +199,7 @@ class WpService {
     const sample = path.join(siteRoot, 'wp-config-sample.php');
     const target = path.join(siteRoot, 'wp-config.php');
     if (!fs.existsSync(sample)) {
-      logger.warn(`[wp] wp-config-sample.php not found at ${siteRoot}`);
+      logger.warn(`wp-config-sample.php not found at ${siteRoot}`);
       return;
     }
     let cfg = fs.readFileSync(sample, 'utf8');
@@ -206,7 +217,7 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
 `;
     cfg = cfg.replace('<?php', `<?php\n${httpsSnippet}`);
     fs.writeFileSync(target, cfg, 'utf8');
-    logger.info(`[wp] wp-config.php written for ${db.name}`);
+    logger.info(`wp-config.php written for ${db.name}`);
   }
 
   /**
@@ -218,13 +229,13 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
    */
   static backup({ host }) {
     const siteRoot = WpService.siteDir(host);
-    logger.info(`[wp] backup: ${host}`);
+    logger.info(`backup: ${host}`);
 
     // MariaDB export is handled by the shared db.js backup flow — no duplicate dump here.
     if (fs.existsSync(path.join(siteRoot, '.git'))) {
       shellExec(`cd "${siteRoot}" && git add -A && git commit -m "wp backup $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true`);
       shellExec(`cd "${siteRoot}" && git push`);
-      logger.info(`[wp] backup: git push done for ${siteRoot}`);
+      logger.info(`backup: git push done for ${siteRoot}`);
     }
   }
 }

@@ -119,6 +119,18 @@ class UnderpostDB {
 
         logger.info('Importing MariaDB database', { podName, dbName });
 
+        // Always ensure the database exists first — required for WP even when no backup is available
+        Underpost.kubectl.run(
+          `kubectl exec -n ${namespace} -i ${podName} -- mariadb -p${password} -e 'CREATE DATABASE IF NOT EXISTS ${dbName};'`,
+          { context: `create database ${dbName}` },
+        );
+
+        // If no SQL file is available, the empty database is enough — return early
+        if (!sqlPath || !fs.existsSync(sqlPath)) {
+          logger.warn('No SQL backup file found — empty database ensured', { podName, dbName, sqlPath });
+          return true;
+        }
+
         // Remove existing SQL file in container
         Underpost.kubectl.exec({
           podName,
@@ -137,12 +149,6 @@ class UnderpostDB {
         ) {
           return false;
         }
-
-        // Create database if it doesn't exist
-        Underpost.kubectl.run(
-          `kubectl exec -n ${namespace} -i ${podName} -- mariadb -p${password} -e 'CREATE DATABASE IF NOT EXISTS ${dbName};'`,
-          { context: `create database ${dbName}` },
-        );
 
         // Import SQL file
         const importCmd = `mariadb -u ${user} -p${password} ${dbName} < ${containerSqlPath}`;
@@ -231,6 +237,16 @@ class UnderpostDB {
         const containerBsonPath = `/${dbName}`;
 
         logger.info('Importing MongoDB database', { podName, dbName });
+
+        // If no BSON directory is available, skip — MongoDB creates the DB on first write
+        if (!bsonPath || !fs.existsSync(bsonPath)) {
+          logger.warn('No BSON backup directory found — database will be created on first write', {
+            podName,
+            dbName,
+            bsonPath,
+          });
+          return true;
+        }
 
         // Remove existing BSON directory in container
         Underpost.kubectl.exec({
