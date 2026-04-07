@@ -8,7 +8,8 @@ import fs from 'fs-extra';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import Underpost from '../index.js';
-import { loadCronDeployEnv } from './conf.js';
+import { loadCronDeployEnv, readConfJson } from './conf.js';
+import { WpService } from '../runtime/wp/Wp.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -56,6 +57,20 @@ class BackUp {
       } else {
         logger.info('Executing database export for', deployId);
         shellExec(command);
+      }
+
+      // WordPress sites: additional git-push backup for each 'wp' runtime entry
+      try {
+        const confServer = readConfJson(deployId, 'server');
+        for (const host of Object.keys(confServer)) {
+          for (const path of Object.keys(confServer[host])) {
+            const entry = confServer[host][path];
+            if (entry.runtime !== 'wp') continue;
+            WpService.backup({ host });
+          }
+        }
+      } catch (err) {
+        logger.warn(`[wp] backup scan skipped for ${deployId}`, { error: err.message });
       }
     }
   };

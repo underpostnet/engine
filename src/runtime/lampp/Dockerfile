@@ -20,8 +20,8 @@ RUN dnf -y update && \
     perl && \
     dnf clean all
 
-# --- Download and install XAMPP
-RUN curl -L -o /tmp/xampp-linux-installer.run "https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/7.4.33/xampp-linux-x64-7.4.33-0-installer.run" && \
+# --- Download and install XAMPP (PHP 8.2)
+RUN curl -L -o /tmp/xampp-linux-installer.run "https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/8.2.12/xampp-linux-x64-8.2.12-0-installer.run" && \
     chmod +x /tmp/xampp-linux-installer.run && \
     bash -c "/tmp/xampp-linux-installer.run --mode unattended" && \
     ln -sf /opt/lampp/lampp /usr/bin/lampp

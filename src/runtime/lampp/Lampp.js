@@ -169,9 +169,9 @@ class LamppService {
       shellCd(`./engine-private/setup`);
 
       if (!process.argv.includes(`server`)) {
-        // Download and run the XAMPP installer
+        // Download and run the XAMPP installer (PHP 8.2)
         shellExec(
-          `curl -Lo xampp-linux-installer.run https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/7.4.30/xampp-linux-x64-7.4.30-1-installer.run?from_af=true`,
+          `curl -Lo xampp-linux-installer.run https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/8.2.12/xampp-linux-x64-8.2.12-0-installer.run`,
         );
         shellExec(`sudo chmod +x xampp-linux-installer.run`);
         shellExec(
