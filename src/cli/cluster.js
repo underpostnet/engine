@@ -111,7 +111,7 @@ class UnderpostCluster {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options.dev ? '.' : `${npmRoot}/underpost`;
 
-      if (options.listPods) return console.table(Underpost.deploy.get(podName ?? undefined));
+      if (options.listPods) return console.table(Underpost.kubectl.get(podName ?? undefined));
       // Set default namespace if not specified
       if (!options.namespace) options.namespace = 'default';
 
@@ -146,10 +146,10 @@ class UnderpostCluster {
       }
 
       // Check if a cluster (Kind, Kubeadm, or K3s) is already initialized
-      const alreadyKubeadmCluster = Underpost.deploy.get('calico-kube-controllers')[0];
-      const alreadyKindCluster = Underpost.deploy.get('kube-apiserver-kind-control-plane')[0];
+      const alreadyKubeadmCluster = Underpost.kubectl.get('calico-kube-controllers')[0];
+      const alreadyKindCluster = Underpost.kubectl.get('kube-apiserver-kind-control-plane')[0];
       // K3s pods often contain 'svclb-traefik' in the kube-system namespace
-      const alreadyK3sCluster = Underpost.deploy.get('svclb-traefik')[0];
+      const alreadyK3sCluster = Underpost.kubectl.get('svclb-traefik')[0];
 
       // --- Kubeadm/Kind/K3s Cluster Initialization ---
       if (!alreadyKubeadmCluster && !alreadyKindCluster && !alreadyK3sCluster) {
@@ -299,7 +299,7 @@ EOF
             members: [{ _id: 0, host: `${options.mongoDbHost}:27017` }],
           };
 
-          const [pod] = Underpost.deploy.get(deploymentName);
+          const [pod] = Underpost.kubectl.get(deploymentName);
 
           shellExec(
             `sudo kubectl exec -i ${pod.NAME} -- mongo --quiet \
@@ -351,7 +351,7 @@ EOF
       }
 
       if (options.certManager) {
-        if (!Underpost.deploy.get('cert-manager').find((p) => p.STATUS === 'Running')) {
+        if (!Underpost.kubectl.get('cert-manager').find((p) => p.STATUS === 'Running')) {
           shellExec(`helm repo add jetstack https://charts.jetstack.io --force-update`);
           shellExec(
             `helm install cert-manager jetstack/cert-manager \
@@ -641,7 +641,7 @@ net.ipv4.ip_forward = 1' | sudo tee ${iptableConfPath}`,
       const resources = {};
       const nodeName = node
         ? node
-        : Underpost.deploy.get('kind-control-plane', 'node').length > 0
+        : Underpost.kubectl.get('kind-control-plane', 'node').length > 0
           ? 'kind-control-plane'
           : os.hostname();
       const info = shellExec(`kubectl describe node ${nodeName} | grep -E '(Allocatable:|Capacity:)' -A 6`, {

@@ -632,7 +632,7 @@ EOF`);
             env,
             traffic: Underpost.deploy.getCurrentTraffic(deployId, { namespace }),
             router: await Underpost.deploy.routerFactory(deployId, env),
-            pods: await Underpost.deploy.get(deployId),
+            pods: await Underpost.kubectl.get(deployId),
             instances,
           });
         }
@@ -674,7 +674,7 @@ EOF`);
         if (!deployId) continue;
         if (options.expose === true) {
           const kindType = options.kindType ? options.kindType : 'svc';
-          const svc = Underpost.deploy.get(deployId, kindType)[0];
+          const svc = Underpost.kubectl.get(deployId, kindType)[0];
           const port = options.exposePort
             ? parseInt(options.exposePort)
             : options.port
@@ -756,65 +756,6 @@ EOF`);
         );
     },
     /**
-     * Retrieves information about a deployment.
-     * @param {string} deployId - Deployment ID for which information is being retrieved.
-     * @param {string} kindType - Type of Kubernetes resource to retrieve information for (e.g. 'pods').
-     * @param {string} namespace - Kubernetes namespace to retrieve information from.
-     * @returns {Array<object>} - Array of objects containing information about the deployment.
-     * @memberof UnderpostDeploy
-     */
-    get(deployId, kindType = 'pods', namespace = '') {
-      const raw = shellExec(
-        `sudo kubectl get ${kindType}${namespace ? ` -n ${namespace}` : ` --all-namespaces`} -o wide`,
-        {
-          stdout: true,
-          disableLog: true,
-          silent: true,
-        },
-      );
-
-      const heads = raw
-        .split(`\n`)[0]
-        .split(' ')
-        .filter((_r) => _r.trim());
-
-      const pods = raw
-        .split(`\n`)
-        .filter((r) => (deployId ? r.match(deployId) : r.trim() && !r.match('NAME')))
-        .map((r) => r.split(' ').filter((_r) => _r.trim()));
-
-      const result = [];
-
-      for (const row of pods) {
-        const pod = {};
-        let index = -1;
-        for (const head of heads) {
-          index++;
-          pod[head] = row[index];
-        }
-        result.push(pod);
-      }
-
-      return result;
-    },
-
-    /**
-     * Checks if a container file exists in a pod.
-     * @param {object} options - Options for the check.
-     * @param {string} options.podName - Name of the pod to check.
-     * @param {string} options.path - Path to the container file to check.
-     * @returns {boolean} - True if the container file exists, false otherwise.
-     * @memberof UnderpostDeploy
-     */
-    existsContainerFile({ podName, path }) {
-      const result = shellExec(`kubectl exec ${podName} -- test -f ${path} && echo "true" || echo "false"`, {
-        stdout: true,
-        disableLog: true,
-        silent: true,
-      }).trim();
-      return result === 'true';
-    },
-    /**
      * Checks the status of a deployment.
      * @param {string} deployId - Deployment ID for which the status is being checked.
      * @param {string} env - Environment for which the status is being checked.
@@ -826,7 +767,7 @@ EOF`);
      */
     async checkDeploymentReadyStatus(deployId, env, traffic, ignoresNames = [], namespace = 'default') {
       const cmd = `underpost config get container-status`;
-      const pods = Underpost.deploy.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
+      const pods = Underpost.kubectl.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
       const readyPods = [];
       const notReadyPods = [];
       for (const pod of pods) {

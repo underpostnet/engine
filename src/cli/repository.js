@@ -1267,6 +1267,75 @@ Prevent build private config repo.`,
         .trim()
         .replaceAll('] - ', '] ');
     },
+
+    /**
+     * Manages a cron-backup Git repository: clone, pull, commit, or push.
+     * Resolves the repository path as `../<repoName>` relative to the CWD.
+     * Requires the `GITHUB_USERNAME` environment variable to be set.
+     * @param {object} params
+     * @param {string} params.repoName - Repository name (e.g. `engine-cyberia-cron-backups`).
+     * @param {'clone'|'pull'|'commit'|'push'} params.operation - Git operation to perform.
+     * @param {string} [params.message=''] - Commit message (used by the `commit` operation).
+     * @param {boolean} [params.forceClone=false] - Remove existing clone before re-cloning.
+     * @returns {boolean} `true` on success, `false` if GITHUB_USERNAME is unset or on error.
+     * @memberof UnderpostRepository
+     */
+    manageBackupRepo({ repoName, operation, message = '', forceClone = false }) {
+      try {
+        const username = process.env.GITHUB_USERNAME;
+        if (!username) {
+          logger.error('GITHUB_USERNAME environment variable not set');
+          return false;
+        }
+
+        const repoPath = `../${repoName}`;
+
+        switch (operation) {
+          case 'clone':
+            if (forceClone && fs.existsSync(repoPath)) {
+              logger.info(`Force clone: removing existing repository: ${repoName}`);
+              fs.removeSync(repoPath);
+            }
+            if (!fs.existsSync(repoPath)) {
+              shellExec(`cd .. && underpost clone ${username}/${repoName}`);
+              logger.info(`Cloned repository: ${repoName}`);
+            }
+            break;
+
+          case 'pull':
+            if (fs.existsSync(repoPath)) {
+              shellExec(`cd ${repoPath} && git checkout . && git clean -f -d`);
+              shellExec(`cd ${repoPath} && underpost pull . ${username}/${repoName}`, { silent: true });
+              logger.info(`Pulled repository: ${repoName}`);
+            }
+            break;
+
+          case 'commit':
+            if (fs.existsSync(repoPath)) {
+              shellExec(`cd ${repoPath} && git add .`);
+              shellExec(`underpost cmt ${repoPath} backup '' '${message}'`);
+              logger.info(`Committed to repository: ${repoName}`, { message });
+            }
+            break;
+
+          case 'push':
+            if (fs.existsSync(repoPath)) {
+              shellExec(`cd ${repoPath} && underpost push . ${username}/${repoName}`, { silent: true });
+              logger.info(`Pushed repository: ${repoName}`);
+            }
+            break;
+
+          default:
+            logger.warn(`Unknown git operation: ${operation}`);
+            return false;
+        }
+
+        return true;
+      } catch (error) {
+        logger.error(`Git operation failed`, { repoName, operation, error: error.message });
+        return false;
+      }
+    },
   };
 }
 

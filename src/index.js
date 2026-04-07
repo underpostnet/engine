@@ -10,6 +10,7 @@ import UnderpostKickStart from './cli/kickstart.js';
 import UnderpostCluster from './cli/cluster.js';
 import UnderpostDB from './cli/db.js';
 import UnderpostDeploy from './cli/deploy.js';
+import UnderpostKubectl from './cli/kubectl.js';
 import UnderpostRootEnv from './cli/env.js';
 import UnderpostFileStorage from './cli/fs.js';
 import UnderpostIPFS from './cli/ipfs.js';
@@ -126,6 +127,15 @@ class Underpost {
    */
   static get db() {
     return UnderpostDB.API;
+  }
+  /**
+   * Kubectl cli API
+   * @static
+   * @type {UnderpostKubectl.API}
+   * @memberof Underpost
+   */
+  static get kubectl() {
+    return UnderpostKubectl.API;
   }
   /**
    * Deployment cli API
@@ -311,6 +321,7 @@ export {
   UnderpostCluster,
   UnderpostDB,
   UnderpostDeploy,
+  UnderpostKubectl,
   UnderpostRootEnv,
   UnderpostFileStorage,
   UnderpostImage,

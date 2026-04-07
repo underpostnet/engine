@@ -17,21 +17,6 @@ import { timer } from '../client/components/core/CommonJs.js';
 const logger = loggerFactory(import.meta);
 
 /**
- * Redacts credentials from shell command strings before logging.
- * Masks passwords in `-p<password>`, `--password=<password>`, and `-P <password>` patterns.
- * @param {string} cmd - The raw command string.
- * @memberof UnderpostDB
- * @returns {string} The command with credentials replaced by `***`.
- */
-const sanitizeCommand = (cmd) => {
-  if (typeof cmd !== 'string') return cmd;
-  return cmd
-    .replace(/-p['"]?[^\s'"]+/g, '-p***')
-    .replace(/--password=['"]?[^\s'"]+/g, '--password=***')
-    .replace(/-P\s+['"]?[^\s'"]+/g, '-P ***');
-};
-
-/**
  * Constants for database operations
  * @constant {number} MAX_BACKUP_RETENTION - Maximum number of backups to retain
  * @memberof UnderpostDB
@@ -100,132 +85,6 @@ class UnderpostDB {
    */
   static API = {
     /**
-     * Helper: Gets filtered pods based on criteria.
-     * @method _getFilteredPods
-     * @memberof UnderpostDB
-     * @param {Object} criteria - Filter criteria.
-     * @param {string} [criteria.podNames] - Comma-separated pod name patterns.
-     * @param {string} [criteria.namespace='default'] - Kubernetes namespace.
-     * @param {string} [criteria.deployId] - Deployment ID pattern.
-     * @return {Array<PodInfo>} Filtered pod list.
-     */
-    _getFilteredPods(criteria = {}) {
-      const { podNames, namespace = 'default', deployId } = criteria;
-
-      try {
-        // Get all pods using Underpost.deploy.get
-        let pods = Underpost.deploy.get(deployId || '', 'pods', namespace);
-
-        // Filter by pod names if specified
-        if (podNames) {
-          const patterns = podNames.split(',').map((p) => p.trim());
-          pods = pods.filter((pod) => {
-            return patterns.some((pattern) => {
-              // Support wildcards
-              const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
-              return regex.test(pod.NAME);
-            });
-          });
-        }
-
-        logger.info(`Found ${pods.length} pod(s) matching criteria`, { criteria, podNames: pods.map((p) => p.NAME) });
-        return pods;
-      } catch (error) {
-        logger.error('Error filtering pods', { error: error.message, criteria });
-        return [];
-      }
-    },
-
-    /**
-     * Helper: Executes kubectl command with error handling.
-     * @method _executeKubectl
-     * @memberof UnderpostDB
-     * @param {string} command - kubectl command to execute.
-     * @param {Object} [options={}] - Execution options.
-     * @param {string} [options.context=''] - Command context for logging.
-     * @return {string|null} Command output or null on error.
-     */
-    _executeKubectl(command, options = {}) {
-      const { context = '' } = options;
-
-      try {
-        logger.info(`Executing kubectl command`, { command: sanitizeCommand(command), context });
-        return shellExec(command, { stdout: true, disableLog: true });
-      } catch (error) {
-        logger.error(`kubectl command failed`, { command: sanitizeCommand(command), error: error.message, context });
-        throw error;
-      }
-    },
-
-    /**
-     * Helper: Copies file to pod.
-     * @method _copyToPod
-     * @memberof UnderpostDB
-     * @param {Object} params - Copy parameters.
-     * @param {string} params.sourcePath - Source file path.
-     * @param {string} params.podName - Target pod name.
-     * @param {string} params.namespace - Pod namespace.
-     * @param {string} params.destPath - Destination path in pod.
-     * @return {boolean} Success status.
-     */
-    _copyToPod({ sourcePath, podName, namespace, destPath }) {
-      try {
-        const command = `sudo kubectl cp ${sourcePath} ${namespace}/${podName}:${destPath}`;
-        Underpost.db._executeKubectl(command, { context: `copy to pod ${podName}` });
-        return true;
-      } catch (error) {
-        logger.error('Failed to copy file to pod', { sourcePath, podName, destPath, error: error.message });
-        return false;
-      }
-    },
-
-    /**
-     * Helper: Copies file from pod.
-     * @method _copyFromPod
-     * @memberof UnderpostDB
-     * @param {Object} params - Copy parameters.
-     * @param {string} params.podName - Source pod name.
-     * @param {string} params.namespace - Pod namespace.
-     * @param {string} params.sourcePath - Source path in pod.
-     * @param {string} params.destPath - Destination file path.
-     * @return {boolean} Success status.
-     */
-    _copyFromPod({ podName, namespace, sourcePath, destPath }) {
-      try {
-        const command = `sudo kubectl cp ${namespace}/${podName}:${sourcePath} ${destPath}`;
-        Underpost.db._executeKubectl(command, { context: `copy from pod ${podName}` });
-        return true;
-      } catch (error) {
-        logger.error('Failed to copy file from pod', { podName, sourcePath, destPath, error: error.message });
-        return false;
-      }
-    },
-
-    /**
-     * Helper: Executes command in pod.
-     * @method _execInPod
-     * @memberof UnderpostDB
-     * @param {Object} params - Execution parameters.
-     * @param {string} params.podName - Pod name.
-     * @param {string} params.namespace - Pod namespace.
-     * @param {string} params.command - Command to execute.
-     * @return {string|null} Command output or null.
-     */
-    _execInPod({ podName, namespace, command }) {
-      try {
-        const kubectlCmd = `sudo kubectl exec -n ${namespace} -i ${podName} -- sh -c "${command}"`;
-        return Underpost.db._executeKubectl(kubectlCmd, { context: `exec in pod ${podName}` });
-      } catch (error) {
-        logger.error('Failed to execute command in pod', {
-          podName,
-          command: sanitizeCommand(command),
-          error: error.message,
-        });
-        throw error;
-      }
-    },
-
-    /**
      * Helper: Resolves the latest backup timestamp from an existing backup directory.
      * Scans the directory for numeric (epoch) sub-folders and returns the most recent one.
      * @method _getLatestBackupTimestamp
@@ -238,76 +97,6 @@ class UnderpostDB {
       const entries = fs.readdirSync(backupDir).filter((e) => /^\d+$/.test(e));
       if (entries.length === 0) return null;
       return entries.sort((a, b) => parseInt(b) - parseInt(a))[0];
-    },
-
-    /**
-     * Helper: Manages Git repository for backups.
-     * @method _manageGitRepo
-     * @memberof UnderpostDB
-     * @param {Object} params - Git parameters.
-     * @param {string} params.repoName - Repository name.
-     * @param {string} params.operation - Operation (clone, pull, commit, push).
-     * @param {string} [params.message=''] - Commit message.
-     * @param {boolean} [params.forceClone=false] - Force remove and re-clone repository.
-     * @return {boolean} Success status.
-     */
-    _manageGitRepo({ repoName, operation, message = '', forceClone = false }) {
-      try {
-        const username = process.env.GITHUB_USERNAME;
-        if (!username) {
-          logger.error('GITHUB_USERNAME environment variable not set');
-          return false;
-        }
-
-        const repoPath = `../${repoName}`;
-
-        switch (operation) {
-          case 'clone':
-            if (forceClone && fs.existsSync(repoPath)) {
-              logger.info(`Force clone enabled, removing existing repository: ${repoName}`);
-              fs.removeSync(repoPath);
-            }
-            if (!fs.existsSync(repoPath)) {
-              shellExec(`cd .. && underpost clone ${username}/${repoName}`);
-              logger.info(`Cloned repository: ${repoName}`);
-            }
-            break;
-
-          case 'pull':
-            if (fs.existsSync(repoPath)) {
-              shellExec(`cd ${repoPath} && git checkout . && git clean -f -d`);
-              shellExec(`cd ${repoPath} && underpost pull . ${username}/${repoName}`, {
-                silent: true,
-              });
-              logger.info(`Pulled repository: ${repoName}`);
-            }
-            break;
-
-          case 'commit':
-            if (fs.existsSync(repoPath)) {
-              shellExec(`cd ${repoPath} && git add .`);
-              shellExec(`underpost cmt ${repoPath} backup '' '${message}'`);
-              logger.info(`Committed to repository: ${repoName}`, { message });
-            }
-            break;
-
-          case 'push':
-            if (fs.existsSync(repoPath)) {
-              shellExec(`cd ${repoPath} && underpost push . ${username}/${repoName}`, { silent: true });
-              logger.info(`Pushed repository: ${repoName}`);
-            }
-            break;
-
-          default:
-            logger.warn(`Unknown git operation: ${operation}`);
-            return false;
-        }
-
-        return true;
-      } catch (error) {
-        logger.error(`Git operation failed`, { repoName, operation, error: error.message });
-        return false;
-      }
     },
 
     /**
@@ -331,7 +120,7 @@ class UnderpostDB {
         logger.info('Importing MariaDB database', { podName, dbName });
 
         // Remove existing SQL file in container
-        Underpost.db._execInPod({
+        Underpost.kubectl.exec({
           podName,
           namespace,
           command: `rm -rf ${containerSqlPath}`,
@@ -339,7 +128,7 @@ class UnderpostDB {
 
         // Copy SQL file to pod
         if (
-          !Underpost.db._copyToPod({
+          !Underpost.kubectl.cpTo({
             sourcePath: sqlPath,
             podName,
             namespace,
@@ -350,14 +139,14 @@ class UnderpostDB {
         }
 
         // Create database if it doesn't exist
-        Underpost.db._executeKubectl(
+        Underpost.kubectl.run(
           `kubectl exec -n ${namespace} -i ${podName} -- mariadb -p${password} -e 'CREATE DATABASE IF NOT EXISTS ${dbName};'`,
           { context: `create database ${dbName}` },
         );
 
         // Import SQL file
         const importCmd = `mariadb -u ${user} -p${password} ${dbName} < ${containerSqlPath}`;
-        Underpost.db._execInPod({ podName, namespace, command: importCmd });
+        Underpost.kubectl.exec({ podName, namespace, command: importCmd });
 
         logger.info('Successfully imported MariaDB database', { podName, dbName });
         return true;
@@ -388,7 +177,7 @@ class UnderpostDB {
         logger.info('Exporting MariaDB database', { podName, dbName });
 
         // Remove existing SQL file in container
-        Underpost.db._execInPod({
+        Underpost.kubectl.exec({
           podName,
           namespace,
           command: `rm -rf ${containerSqlPath}`,
@@ -396,11 +185,11 @@ class UnderpostDB {
 
         // Dump database
         const dumpCmd = `mariadb-dump --user=${user} --password=${password} --lock-tables ${dbName} > ${containerSqlPath}`;
-        Underpost.db._execInPod({ podName, namespace, command: dumpCmd });
+        Underpost.kubectl.exec({ podName, namespace, command: dumpCmd });
 
         // Copy SQL file from pod
         if (
-          !Underpost.db._copyFromPod({
+          !Underpost.kubectl.cpFrom({
             podName,
             namespace,
             sourcePath: containerSqlPath,
@@ -444,7 +233,7 @@ class UnderpostDB {
         logger.info('Importing MongoDB database', { podName, dbName });
 
         // Remove existing BSON directory in container
-        Underpost.db._execInPod({
+        Underpost.kubectl.exec({
           podName,
           namespace,
           command: `rm -rf ${containerBsonPath}`,
@@ -452,7 +241,7 @@ class UnderpostDB {
 
         // Copy BSON directory to pod
         if (
-          !Underpost.db._copyToPod({
+          !Underpost.kubectl.cpTo({
             sourcePath: bsonPath,
             podName,
             namespace,
@@ -466,7 +255,7 @@ class UnderpostDB {
         const restoreCmd = `mongorestore -d ${dbName} ${containerBsonPath}${drop ? ' --drop' : ''}${
           preserveUUID ? ' --preserveUUID' : ''
         }`;
-        Underpost.db._execInPod({ podName, namespace, command: restoreCmd });
+        Underpost.kubectl.exec({ podName, namespace, command: restoreCmd });
 
         logger.info('Successfully imported MongoDB database', { podName, dbName });
         return true;
@@ -496,7 +285,7 @@ class UnderpostDB {
         logger.info('Exporting MongoDB database', { podName, dbName, collections });
 
         // Remove existing BSON directory in container
-        Underpost.db._execInPod({
+        Underpost.kubectl.exec({
           podName,
           namespace,
           command: `rm -rf ${containerBsonPath}`,
@@ -507,16 +296,16 @@ class UnderpostDB {
           const collectionList = collections.split(',').map((c) => c.trim());
           for (const collection of collectionList) {
             const dumpCmd = `mongodump -d ${dbName} --collection ${collection} -o /`;
-            Underpost.db._execInPod({ podName, namespace, command: dumpCmd });
+            Underpost.kubectl.exec({ podName, namespace, command: dumpCmd });
           }
         } else {
           const dumpCmd = `mongodump -d ${dbName} -o /`;
-          Underpost.db._execInPod({ podName, namespace, command: dumpCmd });
+          Underpost.kubectl.exec({ podName, namespace, command: dumpCmd });
         }
 
         // Copy BSON directory from pod
         if (
-          !Underpost.db._copyFromPod({
+          !Underpost.kubectl.cpFrom({
             podName,
             namespace,
             sourcePath: containerBsonPath,
@@ -858,15 +647,15 @@ class UnderpostDB {
         if (!processedRepos.has(repoName)) {
           logger.info('Processing Git operations for repository', { repoName, deployId });
           if (options.git === true) {
-            Underpost.db._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
-            Underpost.db._manageGitRepo({ repoName, operation: 'pull' });
+            Underpost.repo.manageBackupRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
+            Underpost.repo.manageBackupRepo({ repoName, operation: 'pull' });
           }
 
           if (options.macroRollbackExport) {
             // Only clone if not already done by git option above
             if (options.git !== true) {
-              Underpost.db._manageGitRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
-              Underpost.db._manageGitRepo({ repoName, operation: 'pull' });
+              Underpost.repo.manageBackupRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
+              Underpost.repo.manageBackupRepo({ repoName, operation: 'pull' });
             }
 
             const nCommits = parseInt(options.macroRollbackExport);
@@ -959,11 +748,15 @@ class UnderpostDB {
               deployId: provider === 'mariadb' ? 'mariadb' : 'mongo',
             };
 
-            targetPods = Underpost.db._getFilteredPods(podCriteria);
+            targetPods = Underpost.kubectl.getFilteredPods(podCriteria);
 
             // Fallback to default if no custom pods specified
             if (targetPods.length === 0 && !options.podName) {
-              const defaultPods = Underpost.deploy.get(provider === 'mariadb' ? 'mariadb' : 'mongo', 'pods', namespace);
+              const defaultPods = Underpost.kubectl.get(
+                provider === 'mariadb' ? 'mariadb' : 'mongo',
+                'pods',
+                namespace,
+              );
               console.log('defaultPods', defaultPods);
               targetPods = defaultPods;
             }
@@ -1105,8 +898,8 @@ class UnderpostDB {
           const commitMessage = `${new Date(newBackupTimestamp).toLocaleDateString()} ${new Date(
             newBackupTimestamp,
           ).toLocaleTimeString()}`;
-          Underpost.db._manageGitRepo({ repoName, operation: 'commit', message: commitMessage });
-          Underpost.db._manageGitRepo({ repoName, operation: 'push' });
+          Underpost.repo.manageBackupRepo({ repoName, operation: 'commit', message: commitMessage });
+          Underpost.repo.manageBackupRepo({ repoName, operation: 'push' });
           processedRepos.add(`${repoName}-committed`);
         }
       }

@@ -81,7 +81,7 @@ class UnderpostTest {
         return await Underpost.test.statusMonitor(options.podName, options.podStatus, options.kindType);
 
       if (options.sh === true || options.logs === true) {
-        const [pod] = Underpost.deploy.get(deployList);
+        const [pod] = Underpost.kubectl.get(deployList);
         if (pod) {
           if (options.sh) return pbcopy(`sudo kubectl exec -it ${pod.NAME} -- sh`);
           if (options.logs) return shellExec(`sudo kubectl logs -f ${pod.NAME}`);
@@ -115,7 +115,7 @@ class UnderpostTest {
                 break;
             }
           else {
-            const pods = Underpost.deploy.get(deployId);
+            const pods = Underpost.kubectl.get(deployId);
             if (pods.length > 0)
               for (const deployData of pods) {
                 const { NAME } = deployData;
@@ -145,7 +145,7 @@ class UnderpostTest {
         logger.info(`Loading instance`, { podName, status, kindType, deltaMs, maxAttempts });
         const _monitor = async () => {
           await timer(deltaMs);
-          const pods = Underpost.deploy.get(podName, kindType);
+          const pods = Underpost.kubectl.get(podName, kindType);
           let result = pods.find((p) => p.STATUS === status || (status === 'Running' && p.STATUS === 'Completed'));
           logger.info(
             `Testing pod ${podName}... ${result ? 1 : 0}/1 - elapsed time ${deltaMs * (index + 1)}s - attempt ${

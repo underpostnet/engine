@@ -731,7 +731,7 @@ nvidia/gpu-operator \
       if (fs.existsSync(toPath)) fs.removeSync(toPath);
       shellExec(`node bin/deploy pw-conf ${scriptPath}`);
       shellExec(`kubectl delete deployment playwright-server --ignore-not-found`);
-      while (Underpost.deploy.get('playwright-server').length > 0) {
+      while (Underpost.kubectl.get('playwright-server').length > 0) {
         logger.info(`Waiting for playwright-server deployment to be deleted...`);
         await timer(1000);
       }
@@ -739,13 +739,13 @@ nvidia/gpu-operator \
       const id = 'playwright-server';
       await Underpost.test.statusMonitor(id);
       const nameSpace = 'default';
-      const [pod] = Underpost.deploy.get(id);
+      const [pod] = Underpost.kubectl.get(id);
       const podName = pod.NAME;
       shellExec(`kubectl logs -f ${podName} -n ${nameSpace}`, {
         async: true,
       });
       (async () => {
-        while (!Underpost.deploy.existsContainerFile({ podName, path: fromPath })) {
+        while (!Underpost.kubectl.existsFile({ podName, path: fromPath })) {
           await timer(1000);
           logger.info(`Waiting for file ${fromPath} in pod ${podName}...`);
         }

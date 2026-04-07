@@ -1006,7 +1006,7 @@ EOF
 
         const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
         const podId = `${_deployId}-${env}-${targetTraffic}`;
-        const ignorePods = Underpost.deploy.get(podId, 'pods', options.namespace).map((p) => p.NAME);
+        const ignorePods = Underpost.kubectl.get(podId, 'pods', options.namespace).map((p) => p.NAME);
         Underpost.deploy.configMap(env, options.namespace);
         shellExec(`kubectl delete service ${podId}-service --namespace ${options.namespace} --ignore-not-found`);
         shellExec(`kubectl delete deployment ${podId} --namespace ${options.namespace} --ignore-not-found`);
@@ -1099,7 +1099,7 @@ EOF
      * @memberof UnderpostRun
      */
     'ls-deployments': async (path, options = DEFAULT_OPTION) => {
-      console.table(await Underpost.deploy.get(path, 'deployments', options.namespace));
+      console.table(await Underpost.kubectl.get(path, 'deployments', options.namespace));
     },
 
     /**
@@ -1793,7 +1793,7 @@ EOF
 
               const { close } = await (async () => {
                 const checkAwaitPath = '/await';
-                while (!Underpost.deploy.existsContainerFile({ podName, path: checkAwaitPath })) {
+                while (!Underpost.kubectl.existsFile({ podName, path: checkAwaitPath })) {
                   logger.info('monitor', checkAwaitPath);
                   await timer(1000);
                 }
@@ -1820,7 +1820,7 @@ EOF
                 logger.info('monitor', checkPath);
                 {
                   const checkAwaitPath = `/home/dd/docs${checkPath}`;
-                  while (!Underpost.deploy.existsContainerFile({ podName, path: checkAwaitPath })) {
+                  while (!Underpost.kubectl.existsFile({ podName, path: checkAwaitPath })) {
                     logger.info('waiting for', checkAwaitPath);
                     await timer(1000);
                   }
