@@ -895,6 +895,9 @@ EOF`);
 
       shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml -n ${namespace}`);
 
+      const grpcServicePath = `./engine-private/conf/${deployId}/build/${env}/grpc-service.yaml`;
+      if (fs.existsSync(grpcServicePath)) shellExec(`kubectl apply -f ${grpcServicePath} -n ${namespace}`);
+
       Underpost.env.set(`${deployId}-${env}-traffic`, targetTraffic);
     },
 
