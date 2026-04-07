@@ -72,20 +72,30 @@ class WpService {
     }
 
     WpService.ensureBaseDir();
-    const siteRoot = WpService.siteDir(host);
+    // vhostDir is always the Apache DocumentRoot (WP_BASE_DIR/host)
+    const vhostDir = WpService.siteDir(host);
+    // subDir is non-empty when WordPress lives in a subdirectory (e.g. pathRoute='/wp' → 'wp')
+    const subDir = pathRoute && pathRoute !== '/' ? pathRoute.replace(/^\/+/, '').replace(/\/+$/, '') : '';
+    // wpDir is where WordPress files are actually installed
+    const wpDir = subDir ? path.join(vhostDir, subDir) : vhostDir;
 
     if (repository) {
-      WpService.provisionClone({ host, siteRoot, repository, db });
+      WpService.provisionClone({ host, siteRoot: wpDir, repository, db, subDir });
     } else {
-      WpService.provisionFresh({ host, siteRoot, db });
+      WpService.provisionFresh({ host, siteRoot: wpDir, db, subDir });
     }
 
-    // Wire up Apache VirtualHost via Lampp
+    // Write a root .htaccess that rewrites / → /subDir/ when running in subdirectory mode
+    if (subDir) {
+      WpService.ensureSubdirHtaccess({ vhostDir, subDir });
+    }
+
+    // Wire up Apache VirtualHost via Lampp — DocumentRoot is always vhostDir
     const { disabled } = Lampp.createApp({
       port,
       host,
       path: pathRoute,
-      directory: siteRoot,
+      directory: vhostDir,
       resetRouter,
     });
 
@@ -102,7 +112,7 @@ class WpService {
    * @param {string}      opts.repository - HTTPS clone URL.
    * @param {object|null} [opts.db]       - MariaDB config used as fallback for fresh install.
    */
-  static provisionClone({ host, siteRoot, repository, db }) {
+  static provisionClone({ host, siteRoot, repository, db, subDir = '' }) {
     // Step 0 — verify the remote repository is reachable; fall back to fresh install if not
     const remoteCheck = shellExec(`git ls-remote "${repository}" HEAD 2>/dev/null`, {
       stdout: true,
@@ -110,7 +120,7 @@ class WpService {
     });
     if (!remoteCheck || !remoteCheck.trim()) {
       logger.warn(`${host}: remote repository not accessible (${repository}) — running fresh install`);
-      WpService.provisionFresh({ host, siteRoot, db });
+      WpService.provisionFresh({ host, siteRoot, db, subDir });
       return;
     }
 
@@ -131,7 +141,7 @@ class WpService {
     if (!fs.existsSync(path.join(siteRoot, 'wp-config.php'))) {
       logger.warn(`${host}: wp-config.php not found — wiping site root and running fresh install`);
       shellExec(`sudo rm -rf "${siteRoot}"`);
-      WpService.provisionFresh({ host, siteRoot, db });
+      WpService.provisionFresh({ host, siteRoot, db, subDir });
     }
   }
 
@@ -143,7 +153,7 @@ class WpService {
    * @param {string}      opts.siteRoot - Absolute path where WordPress should live.
    * @param {object|null} opts.db       - `{ host, name, user, password }`.
    */
-  static provisionFresh({ host, siteRoot, db }) {
+  static provisionFresh({ host, siteRoot, db, subDir = '' }) {
     if (fs.existsSync(path.join(siteRoot, 'wp-login.php'))) {
       logger.info(`${host}: WordPress already installed at ${siteRoot}, skipping`);
       return;
@@ -170,10 +180,31 @@ class WpService {
 
     if (db) {
       WpService.createDatabase(db);
-      WpService.writeWpConfig({ siteRoot, db });
+      WpService.writeWpConfig({ siteRoot, db, host, subDir });
     } else {
       logger.warn(`${host}: no db config provided — wp-config.php not written`);
     }
+  }
+
+  /**
+   * Writes a .htaccess file at the vhost document root that rewrites all
+   * requests to a WordPress subdirectory (Method I — without URL change).
+   * @param {{ vhostDir: string, subDir: string }} opts
+   */
+  static ensureSubdirHtaccess({ vhostDir, subDir }) {
+    if (!fs.existsSync(vhostDir)) fs.mkdirSync(vhostDir, { recursive: true });
+    const htaccessPath = path.join(vhostDir, '.htaccess');
+    const content = `<IfModule mod_rewrite.c>
+RewriteEngine on
+RewriteCond %{REQUEST_URI} !^\/${subDir}\/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ \/${subDir}\/$1
+RewriteRule ^(\/)?$ \/${subDir}\/index.php [L]
+<\/IfModule>
+`;
+    fs.writeFileSync(htaccessPath, content, 'utf8');
+    logger.info(`subdirectory .htaccess written`, { vhostDir, subDir });
   }
 
   /**
@@ -195,7 +226,7 @@ class WpService {
    * Writes a minimal `wp-config.php` from `wp-config-sample.php`.
    * @param {{ siteRoot: string, db: { host: string, name: string, user: string, password: string } }} opts
    */
-  static writeWpConfig({ siteRoot, db }) {
+  static writeWpConfig({ siteRoot, db, host = '', subDir = '' }) {
     const sample = path.join(siteRoot, 'wp-config-sample.php');
     const target = path.join(siteRoot, 'wp-config.php');
     if (!fs.existsSync(sample)) {
@@ -209,6 +240,14 @@ class WpService {
       .replace("define( 'DB_PASSWORD', 'password_here' );", `define( 'DB_PASSWORD', '${db.password}' );`)
       .replace("define( 'DB_HOST', 'localhost' );", `define( 'DB_HOST', '${db.host}' );`)
       .replace("define( 'DB_CHARSET', 'utf8' );", `define( 'DB_CHARSET', 'utf8mb4' );`);
+    // When WordPress is installed in a subdirectory, WP_HOME and WP_SITEURL must be set
+    if (host && subDir) {
+      const wpSiteUrl = `https://${host}/${subDir}`;
+      cfg = cfg.replace(
+        '/** Absolute path to the WordPress directory. */',
+        `define( 'WP_HOME', '${wpSiteUrl}' );\ndefine( 'WP_SITEURL', '${wpSiteUrl}' );\n\n/** Absolute path to the WordPress directory. */`,
+      );
+    }
     // Inject reverse-proxy HTTPS detection (needed behind Contour/envoy)
     const httpsSnippet = `
 if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
