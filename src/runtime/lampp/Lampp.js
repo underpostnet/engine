@@ -237,7 +237,8 @@ Listen ${port}
 
 <VirtualHost *:${port}>
   DocumentRoot "${documentRoot}"
-  ServerName ${host}:${port}
+  ServerName ${host}
+  UseCanonicalName Off
 
   <Directory "${documentRoot}">
     Options Indexes FollowSymLinks MultiViews
