@@ -31,6 +31,9 @@ RUN mkdir -p /opt/lampp/htdocs && \
     chown -R root:root /opt/lampp/htdocs && \
     chmod -R a+rX /opt/lampp/htdocs
 
+# Add XAMPP binaries to PATH
+ENV PATH="/opt/lampp/bin:${PATH}"
+
 # Install WP-CLI
 RUN curl -sL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -o /usr/local/bin/wp && \
     chmod +x /usr/local/bin/wp && \

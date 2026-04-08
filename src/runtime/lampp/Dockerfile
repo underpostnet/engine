@@ -31,6 +31,9 @@ RUN mkdir -p /opt/lampp/htdocs && \
     chown -R root:root /opt/lampp/htdocs && \
     chmod -R a+rX /opt/lampp/htdocs
 
+# Add XAMPP binaries to PATH
+ENV PATH="/opt/lampp/bin:${PATH}"
+
 # Install Node.js
 RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
 RUN dnf install nodejs -y

@@ -133,7 +133,7 @@ const buildRuntime = async () => {
 
         case 'lampp':
           {
-            const { disabled } = await Lampp.createApp({
+            const { disabled } = Lampp.createApp({
               port,
               host,
               path,
@@ -156,6 +156,8 @@ const buildRuntime = async () => {
               pathRoute: path,
               repository,
               db,
+              redirect,
+              redirectTarget,
               resetRouter: currentPort === initPort,
             });
             if (disabled) continue;

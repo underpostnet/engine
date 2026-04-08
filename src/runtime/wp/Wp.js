@@ -50,33 +50,43 @@ class WpService {
   /**
    * Provisions a WordPress site and registers it with the LAMPP virtual-host router.
    *
+   * Directory layout (e.g. host='test.nexodev.org', pathRoute='/wp'):
+   *   - DocumentRoot (vhostDir): /opt/lampp/htdocs/wp/test.nexodev.org
+   *   - WordPress files (wpDir): /opt/lampp/htdocs/wp/test.nexodev.org/wp
+   *   - Root .htaccess rewrites / → /wp/ so Apache serves WordPress transparently.
+   *
+   * When pathRoute='/' the DocumentRoot and wpDir are the same directory.
+   *
    * @param {object} opts
-   * @param {number}      opts.port          - Apache VirtualHost listen port.
-   * @param {string}      opts.host          - Server name / virtual host.
-   * @param {string}      opts.pathRoute     - URL path (used for error documents).
-   * @param {string|null} [opts.repository]  - GitHub HTTPS clone URL.  When set
-   *                                           the site root is cloned from this repo
-   *                                           instead of downloading WordPress.
-   * @param {object|null} [opts.db]          - MariaDB connection config:
-   *                                           `{ host, name, user, password }`.
-   *                                           Required for fresh installs; ignored
-   *                                           when `repository` is set (wp-config.php
-   *                                           is assumed to be part of the repo).
-   * @param {boolean}     [opts.resetRouter] - Clear LAMPP router before appending.
+   * @param {number}      opts.port            - Apache VirtualHost listen port.
+   * @param {string}      opts.host            - Server name / virtual host.
+   * @param {string}      opts.pathRoute       - URL path (e.g. '/wp' or '/').
+   * @param {string|null} [opts.repository]    - GitHub HTTPS clone URL. When set the
+   *                                             site root is cloned instead of downloading WordPress.
+   * @param {object|null} [opts.db]            - MariaDB connection config:
+   *                                             `{ host, name, user, password }`.
+   *                                             Required for fresh installs; ignored when
+   *                                             `repository` is set (wp-config.php is assumed
+   *                                             to be part of the repo).
+   * @param {boolean}     [opts.redirect]      - If true, enables Apache RewriteEngine redirection.
+   * @param {string}      [opts.redirectTarget] - Target URL for the redirect rule.
+   * @param {boolean}     [opts.resetRouter]   - Clear LAMPP router before appending.
    * @returns {{ disabled: boolean }}
    */
-  static createApp({ port, host, pathRoute, repository, db, resetRouter }) {
+  static createApp({ port, host, pathRoute, repository, db, redirect, redirectTarget, resetRouter }) {
     if (!Lampp.enabled()) {
       logger.warn(`LAMPP not installed — skipping ${host}`);
       return { disabled: true };
     }
 
     WpService.ensureBaseDir();
-    // vhostDir is always the Apache DocumentRoot (WP_BASE_DIR/host)
+
+    // DocumentRoot for the Apache VirtualHost — always under WP_BASE_DIR/<host>
     const vhostDir = WpService.siteDir(host);
-    // subDir is non-empty when WordPress lives in a subdirectory (e.g. pathRoute='/wp' → 'wp')
+
+    // When pathRoute is a subdirectory (e.g. '/wp'), WordPress files live one level deeper.
+    // When pathRoute is '/' they share the same directory as the DocumentRoot.
     const subDir = pathRoute && pathRoute !== '/' ? pathRoute.replace(/^\/+/, '').replace(/\/+$/, '') : '';
-    // wpDir is where WordPress files are actually installed
     const wpDir = subDir ? path.join(vhostDir, subDir) : vhostDir;
 
     if (repository) {
@@ -90,12 +100,15 @@ class WpService {
       WpService.ensureSubdirHtaccess({ vhostDir, subDir });
     }
 
-    // Wire up Apache VirtualHost via Lampp — DocumentRoot is always vhostDir
+    // Wire up Apache VirtualHost via Lampp — DocumentRoot is always vhostDir;
+    // Lampp.createApp uses `directory` directly as the DocumentRoot.
     const { disabled } = Lampp.createApp({
       port,
       host,
       path: pathRoute,
       directory: vhostDir,
+      redirect,
+      redirectTarget,
       resetRouter,
     });
 
