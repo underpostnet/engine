@@ -188,6 +188,9 @@ class WpService {
     // The zip always extracts to /tmp/wp-extract/wordpress/
     const extracted = path.join(extractDir, 'wordpress');
     if (fs.existsSync(siteRoot)) shellExec(`sudo rm -rf "${siteRoot}"`);
+    // Ensure parent directory exists (e.g. /opt/lampp/htdocs/wp/<host>/)
+    const parentDir = path.dirname(siteRoot);
+    if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
     shellExec(`sudo mv "${extracted}" "${siteRoot}"`);
     shellExec(`sudo chmod -R 755 "${siteRoot}"`);
     shellExec(`sudo chown -R $(whoami):$(whoami) "${siteRoot}"`);
