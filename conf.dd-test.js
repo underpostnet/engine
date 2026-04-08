@@ -156,6 +156,20 @@ const DefaultConf = /**/ {
   },
   server: {
     'test.nexodev.org': {
+      '/wp': {
+        client: null,
+        runtime: 'wp',
+        origins: [],
+        disabledRebuild: true,
+        proxy: [80, 443],
+        db: {
+          provider: 'mariadb',
+          host: 'env:MARIADB_HOST',
+          name: 'env:DB_NAME_WP_TEST',
+          user: 'env:MARIADB_USER',
+          password: 'env:MARIADB_PASSWORD',
+        },
+      },
       '/': {
         client: 'default',
         runtime: 'nodejs',

@@ -154,8 +154,9 @@ class WpService {
    * @param {object|null} opts.db       - `{ host, name, user, password }`.
    */
   static provisionFresh({ host, siteRoot, db, subDir = '' }) {
-    if (fs.existsSync(path.join(siteRoot, 'wp-login.php'))) {
-      logger.info(`${host}: WordPress already installed at ${siteRoot}, skipping`);
+    // Validator: wp-config.php presence means installation is complete/valid
+    if (fs.existsSync(path.join(siteRoot, 'wp-config.php'))) {
+      logger.info(`${host}: wp-config.php found at ${siteRoot}, skipping fresh install`);
       return;
     }
 
@@ -181,9 +182,46 @@ class WpService {
     if (db) {
       WpService.createDatabase(db);
       WpService.writeWpConfig({ siteRoot, db, host, subDir });
+      WpService.wpCliInstall({ siteRoot, db, host, subDir });
     } else {
       logger.warn(`${host}: no db config provided — wp-config.php not written`);
     }
+  }
+
+  /**
+   * Runs WP-CLI to complete the WordPress installation non-interactively,
+   * then installs and activates the Wordfence security plugin.
+   * Safe to call on an already-installed site — wp-cli will detect it and skip.
+   * @param {{ siteRoot: string, db: object, host: string, subDir: string }} opts
+   */
+  static wpCliInstall({ siteRoot, db, host, subDir = '' }) {
+    const siteUrl = subDir ? `https://${host}/${subDir}` : `https://${host}`;
+    const adminUser = process.env.WP_ADMIN_USER || 'admin';
+    const adminPassword = process.env.WP_ADMIN_PASSWORD || 'ChangeMe_' + Math.random().toString(36).slice(2, 10);
+    const adminEmail = process.env.WP_ADMIN_EMAIL || `admin@${host}`;
+    const siteTitle = process.env.WP_SITE_TITLE || host;
+    const wp = (cmd) => shellExec(`wp --allow-root --path="${siteRoot}" ${cmd}`, { stdout: true, silent: false });
+
+    // Step 1 — install WordPress core (skipped automatically by WP-CLI if already installed)
+    logger.info(`${host}: running wp core install`);
+    wp(
+      `core install` +
+        ` --url="${siteUrl}"` +
+        ` --title="${siteTitle}"` +
+        ` --admin_user="${adminUser}"` +
+        ` --admin_password="${adminPassword}"` +
+        ` --admin_email="${adminEmail}"` +
+        ` --skip-email`,
+    );
+
+    // Step 2 — install and activate Wordfence Security
+    logger.info(`${host}: installing Wordfence security plugin`);
+    wp(`plugin install wordfence --activate`);
+
+    // Step 3 — enable auto-updates for the plugin
+    wp(`plugin auto-updates enable wordfence`);
+
+    logger.info(`${host}: WP-CLI provisioning complete`, { siteUrl, adminUser, adminEmail });
   }
 
   /**
