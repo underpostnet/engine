@@ -244,9 +244,15 @@ class WpService {
     // Step 2 — install and activate Wordfence Security
     logger.info(`${host}: installing Wordfence security plugin`);
     wpCli(`plugin install wordfence --activate`);
+    wpCli(`plugin install all-in-one-wp-security-and-firewall --activate`);
+    wpCli(`plugin install sucuri-scanner --activate`);
+    wpCli(`plugin install cleantalk-spam-protect --activate`);
 
     // Step 3 — enable auto-updates for the plugin
     wpCli(`plugin auto-updates enable wordfence`);
+    wpCli(`plugin auto-updates enable all-in-one-wp-security-and-firewall`);
+    wpCli(`plugin auto-updates enable sucuri-scanner`);
+    wpCli(`plugin auto-updates enable cleantalk-spam-protect`);
 
     logger.info(`${host}: WP-CLI provisioning complete`, { siteUrl, adminUser, adminEmail });
   }
@@ -273,18 +279,16 @@ RewriteRule ^(\/)?$ \/${subDir}\/index.php [L]
   }
 
   /**
-   * Creates a MariaDB database and user if they do not already exist.
+   * Drops and recreates a MariaDB database to ensure a clean state for fresh installs.
    * @param {{ host: string, name: string, user: string, password: string }} db
    */
   static createDatabase({ host, name, user, password }) {
-    logger.info(`Creating database "${name}" on ${host} if not exists`);
-    // Use the LAMPP bundled mysql client
+    logger.info(`Dropping and recreating database "${name}" on ${host}`);
     const mysql = `/opt/lampp/bin/mysql`;
     const q = (s) => s.replace(/'/g, "\\'");
-    shellExec(
-      `${mysql} -h '${host}' -u '${q(user)}' -p'${q(password)}' -e ` +
-        `"CREATE DATABASE IF NOT EXISTS \\\`${q(name)}\\\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"`,
-    );
+    const exec = (sql) => shellExec(`${mysql} -h '${host}' -u '${q(user)}' -p'${q(password)}' -e "${sql}"`);
+    exec(`DROP DATABASE IF EXISTS \\\`${q(name)}\\\``);
+    exec(`CREATE DATABASE \\\`${q(name)}\\\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
   }
 
   /**
