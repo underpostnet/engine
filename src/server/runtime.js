@@ -74,6 +74,7 @@ const buildRuntime = async () => {
         useLocalSsl,
         grpc,
         repository,
+        wp,
       } = confServer[host][path];
 
       // Calculate context data
@@ -156,6 +157,7 @@ const buildRuntime = async () => {
               pathRoute: path,
               repository,
               db,
+              wp,
               redirect,
               redirectTarget,
               resetRouter: currentPort === initPort,

@@ -68,12 +68,14 @@ class WpService {
    *                                             Required for fresh installs; ignored when
    *                                             `repository` is set (wp-config.php is assumed
    *                                             to be part of the repo).
+   * @param {object|null} [opts.wp]            - WordPress install config:
+   *                                             `{ title, adminUser, adminPassword, adminEmail }`.
    * @param {boolean}     [opts.redirect]      - If true, enables Apache RewriteEngine redirection.
    * @param {string}      [opts.redirectTarget] - Target URL for the redirect rule.
    * @param {boolean}     [opts.resetRouter]   - Clear LAMPP router before appending.
    * @returns {{ disabled: boolean }}
    */
-  static createApp({ port, host, pathRoute, repository, db, redirect, redirectTarget, resetRouter }) {
+  static createApp({ port, host, pathRoute, repository, db, wp, redirect, redirectTarget, resetRouter }) {
     if (!Lampp.enabled()) {
       logger.warn(`LAMPP not installed — skipping ${host}`);
       return { disabled: true };
@@ -90,9 +92,9 @@ class WpService {
     const wpDir = subDir ? path.join(vhostDir, subDir) : vhostDir;
 
     if (repository) {
-      WpService.provisionClone({ host, siteRoot: wpDir, repository, db, subDir });
+      WpService.provisionClone({ host, siteRoot: wpDir, repository, db, wp, subDir });
     } else {
-      WpService.provisionFresh({ host, siteRoot: wpDir, db, subDir });
+      WpService.provisionFresh({ host, siteRoot: wpDir, db, wp, subDir });
     }
 
     // Write a root .htaccess that rewrites / → /subDir/ when running in subdirectory mode
@@ -125,7 +127,7 @@ class WpService {
    * @param {string}      opts.repository - HTTPS clone URL.
    * @param {object|null} [opts.db]       - MariaDB config used as fallback for fresh install.
    */
-  static provisionClone({ host, siteRoot, repository, db, subDir = '' }) {
+  static provisionClone({ host, siteRoot, repository, db, wp, subDir = '' }) {
     // Step 0 — verify the remote repository is reachable; fall back to fresh install if not
     const remoteCheck = shellExec(`git ls-remote "${repository}" HEAD 2>/dev/null`, {
       stdout: true,
@@ -133,7 +135,7 @@ class WpService {
     });
     if (!remoteCheck || !remoteCheck.trim()) {
       logger.warn(`${host}: remote repository not accessible (${repository}) — running fresh install`);
-      WpService.provisionFresh({ host, siteRoot, db, subDir });
+      WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
       return;
     }
 
@@ -154,7 +156,7 @@ class WpService {
     if (!fs.existsSync(path.join(siteRoot, 'wp-config.php'))) {
       logger.warn(`${host}: wp-config.php not found — wiping site root and running fresh install`);
       shellExec(`sudo rm -rf "${siteRoot}"`);
-      WpService.provisionFresh({ host, siteRoot, db, subDir });
+      WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
     }
   }
 
@@ -166,7 +168,7 @@ class WpService {
    * @param {string}      opts.siteRoot - Absolute path where WordPress should live.
    * @param {object|null} opts.db       - `{ host, name, user, password }`.
    */
-  static provisionFresh({ host, siteRoot, db, subDir = '' }) {
+  static provisionFresh({ host, siteRoot, db, wp, subDir = '' }) {
     // Validator: wp-config.php presence means installation is complete/valid
     if (fs.existsSync(path.join(siteRoot, 'wp-config.php'))) {
       logger.info(`${host}: wp-config.php found at ${siteRoot}, skipping fresh install`);
@@ -198,7 +200,7 @@ class WpService {
     if (db) {
       WpService.createDatabase(db);
       WpService.writeWpConfig({ siteRoot, db, host, subDir });
-      WpService.wpCliInstall({ siteRoot, db, host, subDir });
+      WpService.wpCliInstall({ siteRoot, db, host, wp, subDir });
     } else {
       logger.warn(`${host}: no db config provided — wp-config.php not written`);
     }
@@ -208,19 +210,28 @@ class WpService {
    * Runs WP-CLI to complete the WordPress installation non-interactively,
    * then installs and activates the Wordfence security plugin.
    * Safe to call on an already-installed site — wp-cli will detect it and skip.
-   * @param {{ siteRoot: string, db: object, host: string, subDir: string }} opts
+   * @param {object} opts
+   * @param {string} opts.siteRoot - Absolute path to the WordPress installation.
+   * @param {object} opts.db       - MariaDB config (unused here but kept for signature consistency).
+   * @param {string} opts.host     - Virtual-host name.
+   * @param {object|null} [opts.wp] - WordPress install config from server conf:
+   *                                  `{ title, adminUser, adminPassword, adminEmail }`.
+   * @param {string} [opts.subDir] - Subdirectory name (e.g. 'wp').
    */
-  static wpCliInstall({ siteRoot, db, host, subDir = '' }) {
+  static wpCliInstall({ siteRoot, db, host, wp, subDir = '' }) {
     const siteUrl = subDir ? `https://${host}/${subDir}` : `https://${host}`;
-    const adminUser = process.env.WP_ADMIN_USER || 'admin';
-    const adminPassword = process.env.WP_ADMIN_PASSWORD || 'ChangeMe_' + Math.random().toString(36).slice(2, 10);
-    const adminEmail = process.env.WP_ADMIN_EMAIL || `admin@${host}`;
-    const siteTitle = process.env.WP_SITE_TITLE || host;
-    const wp = (cmd) => shellExec(`wp --allow-root --path="${siteRoot}" ${cmd}`, { stdout: true, silent: false });
+    const adminUser = (wp && wp.adminUser) || process.env.WP_ADMIN_USER || 'admin';
+    const adminPassword =
+      (wp && wp.adminPassword) ||
+      process.env.WP_ADMIN_PASSWORD ||
+      'ChangeMe_' + Math.random().toString(36).slice(2, 10);
+    const adminEmail = (wp && wp.adminEmail) || process.env.WP_ADMIN_EMAIL || `admin@${host}`;
+    const siteTitle = (wp && wp.title) || process.env.WP_SITE_TITLE || host;
+    const wpCli = (cmd) => shellExec(`wp --allow-root --path="${siteRoot}" ${cmd}`, { stdout: true, silent: false });
 
     // Step 1 — install WordPress core (skipped automatically by WP-CLI if already installed)
     logger.info(`${host}: running wp core install`);
-    wp(
+    wpCli(
       `core install` +
         ` --url="${siteUrl}"` +
         ` --title="${siteTitle}"` +
@@ -232,10 +243,10 @@ class WpService {
 
     // Step 2 — install and activate Wordfence Security
     logger.info(`${host}: installing Wordfence security plugin`);
-    wp(`plugin install wordfence --activate`);
+    wpCli(`plugin install wordfence --activate`);
 
     // Step 3 — enable auto-updates for the plugin
-    wp(`plugin auto-updates enable wordfence`);
+    wpCli(`plugin auto-updates enable wordfence`);
 
     logger.info(`${host}: WP-CLI provisioning complete`, { siteUrl, adminUser, adminEmail });
   }

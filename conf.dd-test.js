@@ -162,6 +162,12 @@ const DefaultConf = /**/ {
         origins: [],
         disabledRebuild: true,
         proxy: [80, 443],
+        wp: {
+          title: 'Nexodev WP Test',
+          adminUser: 'env:WP_TEST_ADMIN_USER',
+          adminPassword: 'env:WP_TEST_ADMIN_PASSWORD',
+          adminEmail: 'env:WP_TEST_ADMIN_EMAIL',
+        },
         db: {
           provider: 'mariadb',
           host: 'env:MARIADB_HOST',
