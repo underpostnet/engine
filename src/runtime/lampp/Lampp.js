@@ -90,6 +90,17 @@ class LamppService {
     cmd = `sudo /opt/lampp/lampp stop`;
     shellExec(cmd);
 
+    // 3b. Make Apache run as the current process user so file ownership via
+    //     $(whoami) is consistent and plugins (Wordfence WAF, Sucuri) can write.
+    {
+      let conf = fs.readFileSync(httpdConfPath, 'utf8');
+      const currentUser = shellExec(`whoami`, { stdout: true, silent: true }).trim();
+      const currentGroup = shellExec(`id -gn`, { stdout: true, silent: true }).trim();
+      conf = conf.replace(/^User\s+\S+/m, `User ${currentUser}`);
+      conf = conf.replace(/^Group\s+\S+/m, `Group ${currentGroup}`);
+      fs.writeFileSync(httpdConfPath, conf, 'utf8');
+    }
+
     // 4. Comment out default port Listen directives (80 and 443) to prevent conflicts
     // Modify httpd.conf (port 80)
     if (!fs.readFileSync(httpdConfPath, 'utf8').match(/# Listen 80/))

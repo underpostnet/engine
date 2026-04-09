@@ -102,9 +102,9 @@ class WpService {
       WpService.ensureSubdirHtaccess({ vhostDir, subDir });
     }
 
-    // Make the site writable by the XAMPP Apache process (runs as daemon:daemon).
+    // Make the site writable by the XAMPP Apache process (runs as whoami:whoami).
     // This is required for plugins like Wordfence WAF and Sucuri that write config/upload files.
-    shellExec(`sudo chown -R daemon:daemon "${vhostDir}"`);
+    shellExec(`sudo chown -R $(whoami):$(whoami) "${vhostDir}"`);
     shellExec(`sudo find "${vhostDir}" -type d -exec chmod 755 {} \\;`);
     shellExec(`sudo find "${vhostDir}" -type f -exec chmod 644 {} \\;`);
 
