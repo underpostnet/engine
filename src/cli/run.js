@@ -400,8 +400,12 @@ class UnderpostRun {
       }
       shellExec(`${baseCommand} run pull`);
 
-      // Capture last N commit messages for propagation (default: last 1 commit)
-      const fromN = options.fromNCommit && parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
+      // Capture last N commit messages for propagation.
+      // When --from-n-commit is not set, auto-detect unpushed commit count (same as --unpush flag).
+      const fromN =
+        options.fromNCommit && parseInt(options.fromNCommit) > 0
+          ? parseInt(options.fromNCommit)
+          : Underpost.repo.getUnpushedCount('.').count;
       const message = shellExec(`node bin cmt --changelog ${fromN} --changelog-no-hash`, {
         silent: true,
         stdout: true,
@@ -467,8 +471,12 @@ class UnderpostRun {
       }
       shellExec(`${baseCommand} run pull`);
 
-      // Capture last N commit messages from the engine repo (same logic as template-deploy)
-      const fromN = options.fromNCommit && parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
+      // Capture last N commit messages from the engine repo.
+      // When --from-n-commit is not set, auto-detect unpushed commit count (same as --unpush flag).
+      const fromN =
+        options.fromNCommit && parseInt(options.fromNCommit) > 0
+          ? parseInt(options.fromNCommit)
+          : Underpost.repo.getUnpushedCount('.').count;
       const rawMessage = shellExec(`node bin cmt --changelog ${fromN} --changelog-no-hash`, {
         silent: true,
         stdout: true,

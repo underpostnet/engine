@@ -340,19 +340,8 @@ class UnderpostRepository {
       }
       if (options.log || options.unpush) {
         if (options.unpush) {
-          const branch = shellExec(`cd ${repoPath} && git branch --show-current`, {
-            stdout: true,
-            silent: true,
-            disableLog: true,
-          }).trim();
-          shellExec(`cd ${repoPath} && git fetch origin 2>/dev/null`, { silent: true, disableLog: true });
-          const unpushCount = shellExec(`cd ${repoPath} && git rev-list --count origin/${branch}..HEAD 2>/dev/null`, {
-            stdout: true,
-            silent: true,
-            disableLog: true,
-          }).trim();
-          const count = parseInt(unpushCount);
-          if (isNaN(count) || count <= 0) {
+          const { count, hasUnpushed } = Underpost.repo.getUnpushedCount(repoPath);
+          if (!hasUnpushed) {
             logger.warn('No unpushed commits found');
             return;
           }
@@ -1239,6 +1228,31 @@ Prevent build private config repo.`,
         );
       }
       logger.info('Dispatched workflow', `${repo} -> ${workflowFile}`, inputs.job ? `(job: ${inputs.job})` : '');
+    },
+
+    /**
+     * Returns metadata about unpushed commits in a git repository.
+     * Fetches from origin, then counts commits ahead of the remote branch.
+     * @param {string} [repoPath='.'] - Path to the git repository.
+     * @param {number} [fallback=1] - Value to return as `count` when no unpushed commits are detected.
+     * @returns {{ count: number, branch: string, hasUnpushed: boolean }} Unpush metadata.
+     * @memberof UnderpostRepository
+     */
+    getUnpushedCount(repoPath = '.', fallback = 1) {
+      const branch = shellExec(`cd ${repoPath} && git branch --show-current`, {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+      }).trim();
+      shellExec(`cd ${repoPath} && git fetch origin 2>/dev/null`, { silent: true, disableLog: true });
+      const raw = shellExec(`cd ${repoPath} && git rev-list --count origin/${branch}..HEAD 2>/dev/null`, {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+      }).trim();
+      const count = parseInt(raw);
+      const hasUnpushed = !isNaN(count) && count > 0;
+      return { count: hasUnpushed ? count : fallback, branch, hasUnpushed };
     },
 
     /**
