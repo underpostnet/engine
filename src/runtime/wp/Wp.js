@@ -212,7 +212,7 @@ class WpService {
 
     if (db) {
       WpService.createDatabase(db);
-      WpService.writeWpConfig({ siteRoot, db, host, subDir });
+      WpService.writeWpConfig({ siteRoot, db, host, subDir, wp });
       WpService.wpCliInstall({ siteRoot, db, host, wp, subDir });
     } else {
       logger.warn(`${host}: no db config provided — wp-config.php not written`);
@@ -266,6 +266,13 @@ class WpService {
     wpCli(`plugin auto-updates enable all-in-one-wp-security-and-firewall`);
     wpCli(`plugin auto-updates enable sucuri-scanner`);
     wpCli(`plugin auto-updates enable cleantalk-spam-protect`);
+
+    // Step 4 — install and activate WP Mail SMTP when configured
+    if (wp && wp.wpMailSmtp) {
+      logger.info(`${host}: installing WP Mail SMTP plugin`);
+      wpCli(`plugin install wp-mail-smtp --activate`);
+      wpCli(`plugin auto-updates enable wp-mail-smtp`);
+    }
 
     logger.info(`${host}: WP-CLI provisioning complete`, { siteUrl, adminUser, adminEmail });
   }
@@ -329,9 +336,11 @@ ${marker} end`;
 
   /**
    * Writes a minimal `wp-config.php` from `wp-config-sample.php`.
-   * @param {{ siteRoot: string, db: { host: string, name: string, user: string, password: string } }} opts
+   * When `wp.wpMailSmtp` is provided, injects WP Mail SMTP plugin constants
+   * (WPMS_ON, WPMS_SMTP_HOST, etc.) so the plugin is pre-configured on first boot.
+   * @param {{ siteRoot: string, db: { host: string, name: string, user: string, password: string }, host?: string, subDir?: string, wp?: object }} opts
    */
-  static writeWpConfig({ siteRoot, db, host = '', subDir = '' }) {
+  static writeWpConfig({ siteRoot, db, host = '', subDir = '', wp }) {
     const sample = path.join(siteRoot, 'wp-config-sample.php');
     const target = path.join(siteRoot, 'wp-config.php');
     if (!fs.existsSync(sample)) {
@@ -360,6 +369,36 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
 }
 `;
     cfg = cfg.replace('<?php', `<?php\n${httpsSnippet}`);
+
+    // Inject WP Mail SMTP constants when wpMailSmtp config is provided
+    const wpMailSmtp = wp && wp.wpMailSmtp;
+    if (wpMailSmtp) {
+      const smtp = wpMailSmtp.smtp || {};
+      const wpmsLines = [
+        `define( 'WPMS_ON', true );`,
+        wpMailSmtp.fromEmail ? `define( 'WPMS_MAIL_FROM', '${wpMailSmtp.fromEmail}' );` : null,
+        wpMailSmtp.fromName ? `define( 'WPMS_MAIL_FROM_NAME', '${wpMailSmtp.fromName}' );` : null,
+        `define( 'WPMS_MAIL_FROM_FORCE', true );`,
+        `define( 'WPMS_MAIL_FROM_NAME_FORCE', false );`,
+        wpMailSmtp.mailer ? `define( 'WPMS_MAILER', '${wpMailSmtp.mailer}' );` : null,
+        wpMailSmtp.returnPath !== undefined ? `define( 'WPMS_SET_RETURN_PATH', ${wpMailSmtp.returnPath} );` : null,
+        smtp.host ? `define( 'WPMS_SMTP_HOST', '${smtp.host}' );` : null,
+        smtp.port ? `define( 'WPMS_SMTP_PORT', ${smtp.port} );` : null,
+        smtp.encryption ? `define( 'WPMS_SSL', '${smtp.encryption}' );` : null,
+        smtp.auth !== undefined ? `define( 'WPMS_SMTP_AUTH', ${smtp.auth} );` : null,
+        `define( 'WPMS_SMTP_AUTOTLS', true );`,
+        smtp.user ? `define( 'WPMS_SMTP_USER', '${smtp.user}' );` : null,
+        smtp.pass ? `define( 'WPMS_SMTP_PASS', '${smtp.pass}' );` : null,
+      ]
+        .filter(Boolean)
+        .join('\n');
+      cfg = cfg.replace(
+        '/** Absolute path to the WordPress directory. */',
+        `// WP Mail SMTP plugin constants\n${wpmsLines}\n\n/** Absolute path to the WordPress directory. */`,
+      );
+      logger.info(`${host}: WP Mail SMTP constants injected into wp-config.php`);
+    }
+
     fs.writeFileSync(target, cfg, 'utf8');
     logger.info(`wp-config.php written for ${db.name}`);
   }
