@@ -5,6 +5,7 @@
  */
 
 import { daemonProcess, getTerminalPid, pbcopy, shellCd, shellExec } from '../server/process.js';
+import crypto from 'crypto';
 import {
   awaitDeployMonitor,
   buildKindPorts,
@@ -174,6 +175,7 @@ const DEFAULT_OPTION = {
   fromNCommit: 0,
   hostAliases: '',
   gitClean: false,
+  copy: false,
 };
 
 /**
@@ -1949,6 +1951,43 @@ EOF
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
+    /**
+     * @method generate-pass
+     * @description Generates a cryptographically secure random password that satisfies all validatePassword
+     * constraints (lowercase, uppercase, digit, special char, min 8 chars). Logs the plain password
+     * to the console or, when `--copy` is set, copies it to the clipboard via pbcopy.
+     * @param {string} path - Optional password length (default: 16).
+     * @param {Object} options - The default underpost runner options for customizing workflow.
+     * @param {boolean} options.copy - When true, copies to clipboard instead of logging.
+     * @memberof UnderpostRun
+     */
+    'generate-pass': (path, options = DEFAULT_OPTION) => {
+      const length = path && parseInt(path) > 0 ? parseInt(path) : 16;
+      const lower = 'abcdefghijklmnopqrstuvwxyz';
+      const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const digits = '0123456789';
+      const special = '@#$%^&*()_+';
+      const all = lower + upper + digits + special;
+      const buf = crypto.randomBytes(length + 4);
+      // Guarantee at least one character from each required class
+      const chars = [
+        lower[buf[0] % lower.length],
+        upper[buf[1] % upper.length],
+        digits[buf[2] % digits.length],
+        special[buf[3] % special.length],
+      ];
+      for (let i = 4; i < length; i++) chars.push(all[buf[i] % all.length]);
+      // Fisher-Yates shuffle using an independent random buffer
+      const shuf = crypto.randomBytes(length);
+      for (let i = chars.length - 1; i > 0; i--) {
+        const j = shuf[i % shuf.length] % (i + 1);
+        [chars[i], chars[j]] = [chars[j], chars[i]];
+      }
+      const password = chars.join('');
+      if (options.copy) pbcopy(password);
+      else console.log(password);
+    },
+
     secret: (path, options = DEFAULT_OPTION) => {
       const secretPath = path ? path : `/home/dd/engine/engine-private/conf/dd-cron/.env.production`;
       const command = `node bin secret underpost --create-from-file ${secretPath}`;

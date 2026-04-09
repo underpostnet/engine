@@ -647,6 +647,7 @@ program
       'Format: semicolon-separated entries of "ip=hostname1,hostname2" ' +
       '(e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote,bar.remote").',
   )
+  .option('--copy', 'Copies the runner output to the clipboard (supported by: generate-pass, template-deploy-local).')
   .description('Runs specified scripts using various runners.')
   .action(Underpost.run.callback);
 
