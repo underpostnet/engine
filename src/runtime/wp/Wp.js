@@ -414,6 +414,7 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
    */
   static backup({ host, repository }) {
     const siteRoot = WpService.siteDir(host);
+    const githubOrg = process.env.GITHUB_USERNAME || 'underpostnet';
     if (!fs.existsSync(siteRoot)) {
       logger.warn(`backup: site root does not exist — ${siteRoot}`);
       return;
@@ -421,14 +422,14 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
     logger.info(`backup: ${host}`);
 
     // Ensure git is initialized when a repository is configured
-    if (repository) {
+    if (repository && !fs.existsSync(path.join(siteRoot, '.git'))) {
       Underpost.repo.initLocalRepo({ path: siteRoot, origin: repository });
     }
 
     // MariaDB export is handled by the shared db.js backup flow — no duplicate dump here.
     if (fs.existsSync(path.join(siteRoot, '.git'))) {
       shellExec(`cd "${siteRoot}" && git add -A && git commit -m "wp backup $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true`);
-      shellExec(`cd "${siteRoot}" && git push || true`);
+      shellExec(`cd "${siteRoot}" && underpost push . ${githubOrg}/${repository.split('/').pop().split('.')[0]}`);
       logger.info(`backup: git push done for ${siteRoot}`);
     } else {
       logger.warn(`backup: no .git and no repository configured for ${host} — skipping git push`);

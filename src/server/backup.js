@@ -58,19 +58,22 @@ class BackUp {
         logger.info('Executing database export for', deployId);
         shellExec(command);
       }
-
-      // WordPress sites: additional git-push backup for each 'wp' runtime entry
-      try {
+      {
         const confServer = readConfJson(deployId, 'server');
         for (const host of Object.keys(confServer)) {
           for (const path of Object.keys(confServer[host])) {
             const entry = confServer[host][path];
-            if (entry.runtime !== 'wp') continue;
-            WpService.backup({ host, repository: entry.repository });
+            try {
+              switch (entry.runtime) {
+                case 'wp':
+                  WpService.backup({ host, repository: entry.repository });
+                  break;
+              }
+            } catch (err) {
+              logger.error(`Error during entry runtime backup for ${host}${path}:`, err);
+            }
           }
         }
-      } catch (err) {
-        logger.warn(`[wp] backup scan skipped for ${deployId}`, { error: err.message });
       }
     }
   };
