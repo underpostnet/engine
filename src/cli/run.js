@@ -488,7 +488,7 @@ class UnderpostRun {
       const { triggerCmd } = path
         ? await Underpost.release.ci(path, sanitizedMessage, options)
         : await Underpost.release.pwa(sanitizedMessage, options);
-      pbcopy(triggerCmd);
+      pbcopy(triggerCmd + ' && cd /home/dd/engine');
     },
     /**
      * @method template-deploy-image

@@ -185,9 +185,11 @@ class UnderpostRelease {
       shellCd('/home/dd/pwa-microservices-template');
       shellExec(`rm -rf ./.git`);
       shellExec(`mv ../${repoName}.git ./.git`);
+      shellExec(`git config --local core.bare false`);
+      shellExec(`git reset`);
       Underpost.repo.initLocalRepo({ path: '/home/dd/pwa-microservices-template' });
       return {
-        triggerCmd: `cd /home/dd/pwa-microservices-template && git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/${repoName}`,
+        triggerCmd: `cd /home/dd/pwa-microservices-template && git add . && git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/${repoName}`,
       };
     },
 
