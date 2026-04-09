@@ -4,7 +4,7 @@
  * @namespace UnderpostRun
  */
 
-import { daemonProcess, getTerminalPid, shellCd, shellExec } from '../server/process.js';
+import { daemonProcess, getTerminalPid, pbcopy, shellCd, shellExec } from '../server/process.js';
 import {
   awaitDeployMonitor,
   buildKindPorts,
@@ -461,7 +461,7 @@ class UnderpostRun {
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
-    'template-deploy-local': (path, options = DEFAULT_OPTION) => {
+    'template-deploy-local': async (path, options = DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       shellExec(`npm run security:secrets`);
       const reportPath = './gitleaks-report.json';
@@ -483,11 +483,10 @@ class UnderpostRun {
       }).trim();
       const sanitizedMessage = Underpost.repo.sanitizeChangelogMessage(rawMessage);
 
-      shellExec(`${baseCommand} push engine-private ${process.env.GITHUB_USERNAME}/engine-private`);
-      shellExec(`${baseCommand} push . ${process.env.GITHUB_USERNAME}/engine`);
-      const msgFlag = sanitizedMessage ? ` --message '${sanitizedMessage.replaceAll("'", "'")}'` : '';
-      if (path) shellExec(`${baseCommand} release --ci-push ${path}${msgFlag}`);
-      else shellExec(`${baseCommand} release --pwa-build${msgFlag}`);
+      const { triggerCmd } = path
+        ? await Underpost.release.ci(path, sanitizedMessage, options)
+        : await Underpost.release.pwa(sanitizedMessage, options);
+      pbcopy(triggerCmd);
     },
     /**
      * @method template-deploy-image

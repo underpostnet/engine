@@ -186,11 +186,9 @@ class UnderpostRelease {
       shellExec(`rm -rf ./.git`);
       shellExec(`mv ../${repoName}.git ./.git`);
       Underpost.repo.initLocalRepo({ path: '/home/dd/pwa-microservices-template' });
-      shellExec(`git add .`);
-      // shellExec(`git commit -m "${commitMsg}"`);
-      pbcopy(
-        `cd /home/dd/pwa-microservices-template && git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/${repoName}`,
-      );
+      return {
+        triggerCmd: `cd /home/dd/pwa-microservices-template && git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/${repoName}`,
+      };
     },
 
     /**
@@ -230,9 +228,9 @@ class UnderpostRelease {
       shellCd('/home/dd/pwa-microservices-template');
       shellExec(`git add .`);
       // shellExec(`git commit -m "${commitMsg}"`);
-      pbcopy(
-        `cd /home/dd/pwa-microservices-template && git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/pwa-microservices-template`,
-      );
+      return {
+        triggerCmd: `node bin push . ${githubOrg}/engine && cd /home/dd/pwa-microservices-template && git commit -m "${commitMsg}" && node ../engine/bin push . ${githubOrg}/pwa-microservices-template`,
+      };
     },
 
     /**
