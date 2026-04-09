@@ -66,7 +66,7 @@ class BackUp {
           for (const path of Object.keys(confServer[host])) {
             const entry = confServer[host][path];
             if (entry.runtime !== 'wp') continue;
-            WpService.backup({ host });
+            WpService.backup({ host, repository: entry.repository });
           }
         }
       } catch (err) {

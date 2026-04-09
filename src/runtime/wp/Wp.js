@@ -39,6 +39,36 @@ class WpService {
   }
 
   /**
+   * Initializes (or reinitializes) a git repository at `siteRoot` and links it
+   * to the given remote `repository` URL.  Safe to call on an already-initialized
+   * repo — it will only update the remote URL.
+   * @param {object} opts
+   * @param {string} opts.siteRoot   - Absolute path to the WordPress installation.
+   * @param {string} opts.repository - Git remote URL (HTTPS).
+   * @param {string} opts.host       - Virtual-host name (for logging).
+   */
+  static initGitRepo({ siteRoot, repository, host }) {
+    if (!repository) return;
+    const gitDir = path.join(siteRoot, '.git');
+    if (!fs.existsSync(gitDir)) {
+      logger.info(`${host}: initializing git repo at ${siteRoot}`);
+      shellExec(`cd "${siteRoot}" && git init`);
+      shellExec(`cd "${siteRoot}" && git config user.name 'underpostnet'`);
+      shellExec(`cd "${siteRoot}" && git config user.email 'development@underpost.net'`);
+    }
+    const currentRemote = shellExec(`cd "${siteRoot}" && git remote get-url origin 2>/dev/null || true`, {
+      stdout: true,
+      silent: true,
+    }).trim();
+    if (!currentRemote) {
+      shellExec(`cd "${siteRoot}" && git remote add origin "${repository}"`);
+    } else if (currentRemote !== repository) {
+      shellExec(`cd "${siteRoot}" && git remote set-url origin "${repository}"`);
+    }
+    logger.info(`${host}: git remote origin → ${repository}`);
+  }
+
+  /**
    * Returns the on-disk root path for a WordPress site.
    * @param {string} host  - Virtual-host name (used as folder name).
    * @returns {string}
@@ -97,14 +127,19 @@ class WpService {
       WpService.provisionFresh({ host, siteRoot: wpDir, db, wp, subDir });
     }
 
+    // Ensure git is initialized and linked to the backup repository
+    if (repository) {
+      WpService.initGitRepo({ siteRoot: wpDir, repository, host });
+    }
+
     // Write a root .htaccess that rewrites / → /subDir/ when running in subdirectory mode
     if (subDir) {
       WpService.ensureSubdirHtaccess({ vhostDir, subDir });
     }
 
-    // Make the site writable by the XAMPP Apache process (runs as whoami:whoami).
+    // Make the site writable by the XAMPP Apache process (runs as daemon:daemon).
     // This is required for plugins like Wordfence WAF and Sucuri that write config/upload files.
-    shellExec(`sudo chown -R $(whoami):$(whoami) "${vhostDir}"`);
+    shellExec(`sudo chown -R daemon:daemon "${vhostDir}"`);
     shellExec(`sudo find "${vhostDir}" -type d -exec chmod 755 {} \\;`);
     shellExec(`sudo find "${vhostDir}" -type f -exec chmod 644 {} \\;`);
 
@@ -153,7 +188,7 @@ class WpService {
       shellExec(`git clone "${repository}" "${tmp}"`);
       shellExec(`sudo mv "${tmp}" "${siteRoot}"`);
       shellExec(`sudo chmod -R 755 "${siteRoot}"`);
-      shellExec(`sudo chown -R $(whoami):$(whoami) "${siteRoot}"`);
+      shellExec(`sudo chown -R daemon:daemon "${siteRoot}"`);
     } else {
       logger.info(`${host}: repo already present at ${siteRoot}`);
     }
@@ -163,6 +198,7 @@ class WpService {
       logger.warn(`${host}: wp-config.php not found — wiping site root and running fresh install`);
       shellExec(`sudo rm -rf "${siteRoot}"`);
       WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
+      WpService.initGitRepo({ siteRoot, repository, host });
     }
   }
 
@@ -201,7 +237,7 @@ class WpService {
     if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
     shellExec(`sudo mv "${extracted}" "${siteRoot}"`);
     shellExec(`sudo chmod -R 755 "${siteRoot}"`);
-    shellExec(`sudo chown -R $(whoami):$(whoami) "${siteRoot}"`);
+    shellExec(`sudo chown -R daemon:daemon "${siteRoot}"`);
 
     if (db) {
       WpService.createDatabase(db);
@@ -358,21 +394,34 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
   }
 
   /**
-   * Backs up a WordPress site: exports the MariaDB database and pushes the
-   * site directory to its git remote (if it is a git repo).
+   * Backs up a WordPress site: commits all changes and pushes the
+   * site directory to its git remote.
+   * If no `.git` directory exists but `repository` is provided, git is
+   * initialized first so subsequent cron-triggered backups can push.
    * @param {object} opts
-   * @param {string} opts.host       - Virtual-host name.
-   * @param {object|null} opts.db    - MariaDB config `{ host, name, user, password }`.
+   * @param {string}      opts.host       - Virtual-host name.
+   * @param {string|null} [opts.repository] - Git remote URL; used to initialize git if missing.
    */
-  static backup({ host }) {
+  static backup({ host, repository }) {
     const siteRoot = WpService.siteDir(host);
+    if (!fs.existsSync(siteRoot)) {
+      logger.warn(`backup: site root does not exist — ${siteRoot}`);
+      return;
+    }
     logger.info(`backup: ${host}`);
+
+    // Ensure git is initialized when a repository is configured
+    if (repository) {
+      WpService.initGitRepo({ siteRoot, repository, host });
+    }
 
     // MariaDB export is handled by the shared db.js backup flow — no duplicate dump here.
     if (fs.existsSync(path.join(siteRoot, '.git'))) {
       shellExec(`cd "${siteRoot}" && git add -A && git commit -m "wp backup $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true`);
-      shellExec(`cd "${siteRoot}" && git push`);
+      shellExec(`cd "${siteRoot}" && git push || true`);
       logger.info(`backup: git push done for ${siteRoot}`);
+    } else {
+      logger.warn(`backup: no .git and no repository configured for ${host} — skipping git push`);
     }
   }
 }
