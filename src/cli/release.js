@@ -185,9 +185,7 @@ class UnderpostRelease {
       shellCd('/home/dd/pwa-microservices-template');
       shellExec(`rm -rf ./.git`);
       shellExec(`mv ../${repoName}.git ./.git`);
-      shellExec(`git init`);
-      shellExec(`git config user.name 'underpostnet'`);
-      shellExec(`git config user.email 'development@underpost.net'`);
+      Underpost.repo.initLocalRepo({ path: '/home/dd/pwa-microservices-template' });
       shellExec(`git add .`);
       // shellExec(`git commit -m "${commitMsg}"`);
       pbcopy(

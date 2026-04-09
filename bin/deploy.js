@@ -366,7 +366,10 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         `${path}/.env`,
         fs
           .readFileSync(`${path}/.env`, 'utf8')
-          .replace(`FIRST_SUPERUSER=admin@example.com`, `FIRST_SUPERUSER=development@underpost.net`)
+          .replace(
+            `FIRST_SUPERUSER=admin@example.com`,
+            `FIRST_SUPERUSER=${process.env.GITHUB_EMAIL || 'development@underpost.net'}`,
+          )
           .replace(`FIRST_SUPERUSER_PASSWORD=changethis`, `FIRST_SUPERUSER_PASSWORD=${password}`)
           .replace(`SECRET_KEY=changethis`, `SECRET_KEY=${password}`)
           .replace(`POSTGRES_DB=app`, `POSTGRES_DB=postgresdb`)
@@ -452,7 +455,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           shellExec(
             `sudo kubectl create secret generic ${secretSelector}` +
               ` --from-file=SECRET_KEY=/home/dd/engine/engine-private/postgresql-password` +
-              ` --from-literal=FIRST_SUPERUSER=development@underpost.net` +
+              ` --from-literal=FIRST_SUPERUSER=${process.env.GITHUB_EMAIL || 'development@underpost.net'}` +
               ` --from-file=FIRST_SUPERUSER_PASSWORD=/home/dd/engine/engine-private/postgresql-password` +
               ` --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
           );

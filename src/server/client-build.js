@@ -316,7 +316,8 @@ const buildClient = async (
         shellExec(`cd /home/dd && git clone https://github.com/designmodo/html-website-templates.git`);
       if (!fs.existsSync(`${rootClientPath}/index.php`)) {
         fs.copySync(`/home/dd/html-website-templates/${publicClientId.split('-publicClientId-')[1]}`, rootClientPath);
-        shellExec(`cd ${rootClientPath} && git init && git add . && git commit -m "Base template implementation"`);
+        Underpost.repo.initLocalRepo({ path: rootClientPath });
+        shellExec(`cd ${rootClientPath} && git add . && git commit -m "Base template implementation"`);
         // git remote add origin git@github.com:<username>/<repo>.git
         fs.writeFileSync(`${rootClientPath}/.git/.htaccess`, `Deny from all`, 'utf8');
       }

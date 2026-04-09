@@ -16,6 +16,7 @@ import path from 'path';
 import { shellExec } from '../../server/process.js';
 import { loggerFactory } from '../../server/logger.js';
 import { Lampp } from '../lampp/Lampp.js';
+import Underpost from '../../index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -36,36 +37,6 @@ class WpService {
    */
   static ensureBaseDir() {
     if (!fs.existsSync(WP_BASE_DIR)) fs.mkdirSync(WP_BASE_DIR, { recursive: true });
-  }
-
-  /**
-   * Initializes (or reinitializes) a git repository at `siteRoot` and links it
-   * to the given remote `repository` URL.  Safe to call on an already-initialized
-   * repo — it will only update the remote URL.
-   * @param {object} opts
-   * @param {string} opts.siteRoot   - Absolute path to the WordPress installation.
-   * @param {string} opts.repository - Git remote URL (HTTPS).
-   * @param {string} opts.host       - Virtual-host name (for logging).
-   */
-  static initGitRepo({ siteRoot, repository, host }) {
-    if (!repository) return;
-    const gitDir = path.join(siteRoot, '.git');
-    if (!fs.existsSync(gitDir)) {
-      logger.info(`${host}: initializing git repo at ${siteRoot}`);
-      shellExec(`cd "${siteRoot}" && git init`);
-      shellExec(`cd "${siteRoot}" && git config user.name 'underpostnet'`);
-      shellExec(`cd "${siteRoot}" && git config user.email 'development@underpost.net'`);
-    }
-    const currentRemote = shellExec(`cd "${siteRoot}" && git remote get-url origin 2>/dev/null || true`, {
-      stdout: true,
-      silent: true,
-    }).trim();
-    if (!currentRemote) {
-      shellExec(`cd "${siteRoot}" && git remote add origin "${repository}"`);
-    } else if (currentRemote !== repository) {
-      shellExec(`cd "${siteRoot}" && git remote set-url origin "${repository}"`);
-    }
-    logger.info(`${host}: git remote origin → ${repository}`);
   }
 
   /**
@@ -129,7 +100,7 @@ class WpService {
 
     // Ensure git is initialized and linked to the backup repository
     if (repository) {
-      WpService.initGitRepo({ siteRoot: wpDir, repository, host });
+      Underpost.repo.initLocalRepo({ path: wpDir, origin: repository });
     }
 
     // Write a root .htaccess that rewrites / → /subDir/ when running in subdirectory mode
@@ -198,7 +169,7 @@ class WpService {
       logger.warn(`${host}: wp-config.php not found — wiping site root and running fresh install`);
       shellExec(`sudo rm -rf "${siteRoot}"`);
       WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
-      WpService.initGitRepo({ siteRoot, repository, host });
+      Underpost.repo.initLocalRepo({ path: siteRoot, origin: repository });
     }
   }
 
@@ -412,7 +383,7 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROT
 
     // Ensure git is initialized when a repository is configured
     if (repository) {
-      WpService.initGitRepo({ siteRoot, repository, host });
+      Underpost.repo.initLocalRepo({ path: siteRoot, origin: repository });
     }
 
     // MariaDB export is handled by the shared db.js backup flow — no duplicate dump here.

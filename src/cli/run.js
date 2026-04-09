@@ -1896,7 +1896,8 @@ EOF
 
       shellCd(dir);
 
-      shellExec(`git init && git add . && git commit -m "Base implementation"`);
+      Underpost.repo.initLocalRepo({ path: dir });
+      shellExec(`git add . && git commit -m "Base implementation"`);
       shellExec(`chmod +x ./replace_params.sh`);
       shellExec(`chmod +x ./build.sh`);
 

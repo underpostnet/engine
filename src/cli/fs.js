@@ -107,7 +107,8 @@ class UnderpostFileStorage {
             await Underpost.fs.pull(_path, options);
           } else logger.warn(`Pull path already exists`, _path);
         }
-        shellExec(`cd ${path} && git init && git add . && git commit -m "Base pull state"`);
+        Underpost.repo.initLocalRepo({ path });
+        shellExec(`cd ${path} && git add . && git commit -m "Base pull state"`);
       } else {
         const files =
           options.git === true ? Underpost.repo.getChangedFiles(path) : await fs.readdir(path, { recursive: true });
