@@ -165,13 +165,17 @@ class UnderpostRelease {
       shellCd('/home/dd');
       shellExec(`sudo rm -rf /home/dd/pwa-microservices-template`);
       shellExec(`node engine/bin clone ${githubOrg}/pwa-microservices-template`);
+      // Use the message passed from the caller (engine repo changelog);
+      // fall back to the engine repo's last commit if not provided.
       let commitMsg = message;
       if (!commitMsg) {
-        const fullMsg = shellExec(`cd pwa-microservices-template && git log -1 --pretty=%B`, {
+        shellCd('/home/dd/engine');
+        const rawMsg = shellExec(`node bin cmt --changelog 1 --changelog-no-hash`, {
           stdout: true,
           silent: true,
-        });
-        commitMsg = (fullMsg || '').trim().replace(/^[^:]*:\s+\S+\s+/, '');
+        }).trim();
+        commitMsg = Underpost.repo.sanitizeChangelogMessage(rawMsg);
+        shellCd('/home/dd');
       }
       commitMsg = (commitMsg || '').trim() || `Update ${repoName} repository`;
       logger.info(`CI push commit message: ${commitMsg}`);
@@ -207,18 +211,19 @@ class UnderpostRelease {
     async pwa(message, options) {
       dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
       const githubOrg = process.env.GITHUB_USERNAME || 'underpostnet';
-      shellCd('/home/dd');
+      // Use the message passed from the caller (engine repo changelog);
+      // fall back to the engine repo's last commit if not provided.
       let commitMsg = message;
       if (!commitMsg) {
-        if (fs.existsSync(`/home/dd/pwa-microservices-template`)) {
-          const fullMsg = shellExec(`cd pwa-microservices-template && git log -1 --pretty=%B`, {
-            stdout: true,
-            silent: true,
-          });
-          commitMsg = (fullMsg || '').trim().replace(/^[^:]*:\s+\S+\s+/, '');
-        }
+        shellCd('/home/dd/engine');
+        const rawMsg = shellExec(`node bin cmt --changelog 1 --changelog-no-hash`, {
+          stdout: true,
+          silent: true,
+        }).trim();
+        commitMsg = Underpost.repo.sanitizeChangelogMessage(rawMsg);
       }
       commitMsg = (commitMsg || '').trim() || `Update pwa-microservices-template repository`;
+      shellCd('/home/dd');
       shellExec(`sudo rm -rf /home/dd/pwa-microservices-template`);
       shellExec(`node engine/bin clone ${githubOrg}/pwa-microservices-template`);
       shellCd('/home/dd/engine');

@@ -783,7 +783,7 @@ program
   )
   .option(
     '--message <message>',
-    'Commit message for --ci-push or --pwa-build (defaults to last commit of pwa-microservices-template).',
+    'Commit message for --ci-push or --pwa-build (defaults to last commit of the engine repository).',
   )
   .option(
     '--pwa-build',

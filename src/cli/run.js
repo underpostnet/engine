@@ -466,10 +466,20 @@ class UnderpostRun {
         return;
       }
       shellExec(`${baseCommand} run pull`);
+
+      // Capture last N commit messages from the engine repo (same logic as template-deploy)
+      const fromN = options.fromNCommit && parseInt(options.fromNCommit) > 0 ? parseInt(options.fromNCommit) : 1;
+      const rawMessage = shellExec(`node bin cmt --changelog ${fromN} --changelog-no-hash`, {
+        silent: true,
+        stdout: true,
+      }).trim();
+      const sanitizedMessage = Underpost.repo.sanitizeChangelogMessage(rawMessage);
+
       shellExec(`${baseCommand} push engine-private ${process.env.GITHUB_USERNAME}/engine-private`);
       shellExec(`${baseCommand} push . ${process.env.GITHUB_USERNAME}/engine`);
-      if (path) shellExec(`${baseCommand} release --ci-push ${path}`);
-      else shellExec(`${baseCommand} release --pwa-build`);
+      const msgFlag = sanitizedMessage ? ` --message '${sanitizedMessage.replaceAll("'", "'")}'` : '';
+      if (path) shellExec(`${baseCommand} release --ci-push ${path}${msgFlag}`);
+      else shellExec(`${baseCommand} release --pwa-build${msgFlag}`);
     },
     /**
      * @method template-deploy-image
