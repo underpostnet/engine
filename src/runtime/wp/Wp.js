@@ -258,24 +258,47 @@ class WpService {
   }
 
   /**
-   * Writes a .htaccess file at the vhost document root that rewrites all
-   * requests to a WordPress subdirectory (Method I — without URL change).
+   * Appends rewrite rules for a WordPress subdirectory to the root .htaccess.
+   * Each subdirectory gets its own scoped RewriteRule block so multiple
+   * WordPress installs under the same host do not overwrite each other.
    * @param {{ vhostDir: string, subDir: string }} opts
    */
   static ensureSubdirHtaccess({ vhostDir, subDir }) {
     if (!fs.existsSync(vhostDir)) fs.mkdirSync(vhostDir, { recursive: true });
     const htaccessPath = path.join(vhostDir, '.htaccess');
-    const content = `<IfModule mod_rewrite.c>
-RewriteEngine on
-RewriteCond %{REQUEST_URI} !^\/${subDir}\/
+
+    // Marker comments to identify each subDir block
+    const marker = `# -- wp-subdir: ${subDir} --`;
+    const block = `${marker}
+RewriteCond %{REQUEST_URI} ^\\/${subDir}(\\/|$) [NC]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ \/${subDir}\/$1
-RewriteRule ^(\/)?$ \/${subDir}\/index.php [L]
-<\/IfModule>
-`;
-    fs.writeFileSync(htaccessPath, content, 'utf8');
-    logger.info(`subdirectory .htaccess written`, { vhostDir, subDir });
+RewriteRule ^${subDir}\\/?(.*)?$ \\/${subDir}\\/index.php [L]
+${marker} end`;
+
+    let existing = '';
+    if (fs.existsSync(htaccessPath)) {
+      existing = fs.readFileSync(htaccessPath, 'utf8');
+    }
+
+    // If this subDir block already exists, replace it; otherwise append
+    const markerRegex = new RegExp(
+      `${marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} end`,
+    );
+
+    if (markerRegex.test(existing)) {
+      existing = existing.replace(markerRegex, block);
+    } else {
+      // Ensure the RewriteEngine directive and IfModule wrapper exist
+      if (!existing.includes('RewriteEngine on')) {
+        existing = `<IfModule mod_rewrite.c>\nRewriteEngine on\n\n</IfModule>\n`;
+      }
+      // Insert the new block before the closing </IfModule>
+      existing = existing.replace('</IfModule>', `${block}\n</IfModule>`);
+    }
+
+    fs.writeFileSync(htaccessPath, existing, 'utf8');
+    logger.info(`subdirectory .htaccess updated`, { vhostDir, subDir });
   }
 
   /**
