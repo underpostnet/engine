@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import hre from 'hardhat';
 
-const { ethers } = hre;
+const { ethers } = await hre.network.connect();
 
 describe('ObjectLayerToken (ERC-1155)', function () {
   let token;
@@ -421,7 +421,9 @@ describe('ObjectLayerToken (ERC-1155)', function () {
       await token.pause();
       await token.unpause();
 
-      await expect(token.safeTransferFrom(owner.address, player1.address, CRYPTOKOYN_ID, 1n, '0x')).to.not.be.reverted;
+      await expect(token.safeTransferFrom(owner.address, player1.address, CRYPTOKOYN_ID, 1n, '0x')).to.not.be.revert(
+        ethers,
+      );
     });
 
     it('Should block minting when paused', async function () {

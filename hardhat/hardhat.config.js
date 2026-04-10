@@ -3,11 +3,10 @@
 // Supports deployment to Hyperledger Besu (IBFT2/QBFT) private networks
 // running on kubeadm-managed Kubernetes clusters (manifests/besu/).
 //
-// Compatible with: Hardhat 2.28.x (hh2 LTS) + Ethers v6 + hardhat-toolbox 6.x
+// Compatible with: Hardhat 3.x + Ethers v6 + hardhat-toolbox-mocha-ethers
 
-import '@nomicfoundation/hardhat-toolbox';
-import '@nomicfoundation/hardhat-verify';
-import '@nomicfoundation/hardhat-ignition-ethers';
+import { defineConfig } from 'hardhat/config';
+import hardhatToolboxMochaEthers from '@nomicfoundation/hardhat-toolbox-mocha-ethers';
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import path from 'path';
@@ -45,7 +44,9 @@ const coinbaseKey = readPrivateKey('../engine-private/eth-networks/besu/coinbase
 // ──────────────────────────────────────────────────────────────────────────────
 
 /** @type import('hardhat/config').HardhatUserConfig */
-const config = {
+const config = defineConfig({
+  plugins: [hardhatToolboxMochaEthers],
+
   // ── Solidity ────────────────────────────────────────────────────────────────
   solidity: {
     version: '0.8.27',
@@ -69,11 +70,14 @@ const config = {
 
   networks: {
     // Local Hardhat in-process network (for testing)
-    hardhat: {},
+    hardhat: {
+      type: 'edr-simulated',
+    },
 
     // ── Besu IBFT2 – direct RPC (e.g. port-forward or in-cluster access) ───
     // Connects to the first validator JSON-RPC endpoint directly.
     'besu-ibft2': {
+      type: 'http',
       url: process.env.BESU_IBFT2_RPC_URL || 'http://127.0.0.1:8545',
       accounts: [coinbaseKey],
       chainId: parseInt(process.env.BESU_IBFT2_CHAIN_ID || '777771', 10),
@@ -85,6 +89,7 @@ const config = {
 
     // ── Besu QBFT – direct RPC (e.g. port-forward or in-cluster access) ────
     'besu-qbft': {
+      type: 'http',
       url: process.env.BESU_QBFT_RPC_URL || 'http://127.0.0.1:8545',
       accounts: [coinbaseKey],
       chainId: parseInt(process.env.BESU_QBFT_CHAIN_ID || '777771', 10),
@@ -97,6 +102,7 @@ const config = {
     // service (besu-rpc-nodeport → 30545) defined in manifests/besu/.
     // This is the recommended network for the Cyberia Object Layer ecosystem.
     'besu-k8s': {
+      type: 'http',
       url: process.env.BESU_K8S_RPC_URL || 'http://127.0.0.1:30545',
       accounts: [coinbaseKey],
       chainId: parseInt(process.env.BESU_K8S_CHAIN_ID || '777771', 10),
@@ -121,16 +127,10 @@ const config = {
     noColors: !!process.env.GAS_REPORT_FILE,
   },
 
-  // ── TypeChain ───────────────────────────────────────────────────────────────
-  typechain: {
-    outDir: 'typechain-types',
-    target: 'ethers-v6',
-  },
-
   // ── Mocha (test runner) ─────────────────────────────────────────────────────
   mocha: {
     timeout: 60000,
   },
-};
+});
 
 export default config;

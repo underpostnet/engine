@@ -2550,7 +2550,7 @@ try {
       // Use a Hardhat script via inline JS to call registerObjectLayer
       const registerScript = `
         import hre from 'hardhat';
-        const { ethers } = hre;
+        const { ethers } = await hre.network.connect();
         async function main() {
           const [deployer] = await ethers.getSigners();
           const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
@@ -2601,7 +2601,7 @@ try {
 
       const mintScript = `
         import hre from 'hardhat';
-        const { ethers } = hre;
+        const { ethers } = await hre.network.connect();
         async function main() {
           const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
           const tx = await token.mint('${options.to}', ${options.tokenId}, ${options.amount}, '0x');
@@ -2638,7 +2638,7 @@ try {
       const statusScript = `
         import hre from 'hardhat';
         import { readFileSync } from 'fs';
-        const { ethers } = hre;
+        const { ethers } = await hre.network.connect();
         async function main() {
           const provider = ethers.provider;
           const network = await provider.getNetwork();
@@ -2700,7 +2700,7 @@ try {
 
       const pauseScript = `
         import hre from 'hardhat';
-        const { ethers } = hre;
+        const { ethers } = await hre.network.connect();
         async function main() {
           const token = await ethers.getContractAt('ObjectLayerToken', '${deployment.address}');
           const tx = await token.pause();
@@ -2733,7 +2733,7 @@ try {
 
       const unpauseScript = `
         import hre from 'hardhat';
-        const { ethers } = hre;
+        const { ethers } = await hre.network.connect();
         async function main() {
           const token = await ethers.getContractAt('ObjectLayerToken', '${deployment.address}');
           const tx = await token.unpause();
@@ -2892,7 +2892,7 @@ try {
 
       const balanceScript = `
         import hre from 'hardhat';
-        const { ethers } = hre;
+        const { ethers } = await hre.network.connect();
         async function main() {
           const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
           const balance = await token.balanceOf('${options.address}', ${options.tokenId});
@@ -2949,7 +2949,7 @@ try {
 
       const transferScript = `
         import hre from 'hardhat';
-        const { ethers } = hre;
+        const { ethers } = await hre.network.connect();
         async function main() {
           const [signer] = await ethers.getSigners();
           const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
@@ -3005,7 +3005,7 @@ try {
 
       const burnScript = `
         import hre from 'hardhat';
-        const { ethers } = hre;
+        const { ethers } = await hre.network.connect();
         async function main() {
           const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');
           const tx = await token.burn('${options.address}', ${options.tokenId}, ${options.amount});
@@ -3116,7 +3116,7 @@ try {
 
       const batchScript = `
         import hre from 'hardhat';
-        const { ethers } = hre;
+        const { ethers } = await hre.network.connect();
         async function main() {
           const [deployer] = await ethers.getSigners();
           const token = await ethers.getContractAt('ObjectLayerToken', '${contractAddress}');

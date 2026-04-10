@@ -4,7 +4,7 @@
 // Usage:
 //   npx hardhat ignition deploy ignition/modules/ObjectLayerToken.js --network besu-ibft2
 
-import { buildModule } from '@nomicfoundation/hardhat-ignition/modules';
+import { buildModule } from '@nomicfoundation/ignition-core';
 
 const DEFAULT_BASE_URI = 'ipfs://';
 

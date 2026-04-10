@@ -3,7 +3,6 @@ import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const { ethers } = hre;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -21,6 +20,7 @@ const __dirname = path.dirname(__filename);
  * @module scripts/deployObjectLayerToken
  */
 async function main() {
+  const { ethers } = await hre.network.connect();
   const [deployer] = await ethers.getSigners();
 
   console.log('──────────────────────────────────────────────────');
