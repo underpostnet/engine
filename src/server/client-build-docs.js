@@ -414,7 +414,13 @@ const buildCoverage = async ({ host, path, docs }) => {
   if (fs.existsSync(coverageOutputPath) && fs.readdirSync(coverageOutputPath).length > 0) {
     const coverageBuildPath = `${jsDocsConfig.opts.destination}${coverageOutputDir}`;
     fs.mkdirSync(coverageBuildPath, { recursive: true });
-    fs.copySync(coverageOutputPath, coverageBuildPath);
+    // Hardhat 3 outputs HTML to coverage/html/; Hardhat 2 / c8 output directly to coverage/
+    const coverageHtmlSubdir = `${coverageOutputPath}/html`;
+    if (fs.existsSync(coverageHtmlSubdir) && fs.existsSync(`${coverageHtmlSubdir}/index.html`)) {
+      fs.copySync(coverageHtmlSubdir, coverageBuildPath);
+    } else {
+      fs.copySync(coverageOutputPath, coverageBuildPath);
+    }
     logger.warn('build coverage', coverageBuildPath);
   } else {
     logger.warn('no coverage output found, skipping', coverageOutputPath);

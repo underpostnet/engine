@@ -12,6 +12,7 @@
     "deploy:k8s": "hardhat run scripts/deployObjectLayerToken.js --network besu-k8s",
     "deploy:local": "hardhat run scripts/deployObjectLayerToken.js --network hardhat",
     "clean": "hardhat clean",
+    "coverage": "hardhat test --coverage",
     "audit": "npm audit --audit-level=moderate"
   },
   "devDependencies": {
