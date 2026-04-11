@@ -45,6 +45,7 @@ import Underpost from '../src/index.js';
 import {
   DefaultCyberiaItems,
   DefaultSkillConfig,
+  DefaultCyberiaDialogues,
 } from '../src/client/components/cyberia-portal/CommonCyberiaPortal.js';
 
 /**
@@ -3154,10 +3155,12 @@ try {
   runner
     .command('import-default-items')
     .option('--dev', 'Force development environment (loads .env.development for IPFS localhost, etc.)')
-    .description('Import default Object Layer items from a JSON file into MongoDB')
+    .description('Import default Object Layer items, skill config, and dialogues into MongoDB')
     .action(async (options) => {
-      shellExec(`node bin/cyberia ol ${DefaultCyberiaItems} --import${options.dev ? ' --dev' : ''}`);
-      shellExec(`node bin/cyberia run-workflow seed-skill-config${options.dev ? ' --dev' : ''}`);
+      const devFlag = options.dev ? ' --dev' : '';
+      shellExec(`node bin/cyberia ol ${DefaultCyberiaItems} --import${devFlag}`);
+      shellExec(`node bin/cyberia run-workflow seed-skill-config${devFlag}`);
+      shellExec(`node bin/cyberia run-workflow seed-dialogues${devFlag}`);
     });
 
   runner
@@ -3227,6 +3230,61 @@ try {
         `skillConfig seeded for instance "${instanceCode}" (${DefaultSkillConfig.length} entries)`,
         DefaultSkillConfig.map((e) => `${e.triggerItemId} → [${e.logicEventIds.join(', ')}]`),
       );
+
+      await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+    });
+
+  runner
+    .command('seed-dialogues')
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option('--dev', 'Force development environment')
+    .description('Upsert DefaultCyberiaDialogues into the cyberia-dialogue collection (idempotent)')
+    .action(async (options) => {
+      if (!options.envPath) options.envPath = `./.env`;
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
+        const devEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
+        if (fs.existsSync(devEnvPath)) dotenv.config({ path: devEnvPath, override: true });
+      }
+
+      const deployId = process.env.DEFAULT_DEPLOY_ID;
+      const host = process.env.DEFAULT_DEPLOY_HOST;
+      const path = process.env.DEFAULT_DEPLOY_PATH;
+
+      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      if (!fs.existsSync(confServerPath)) {
+        logger.error(`Server config not found: ${confServerPath}`);
+        process.exit(1);
+      }
+      const confServer = loadConfServerJson(confServerPath, { resolve: true });
+      const { db } = confServer[host][path];
+
+      db.host = options.mongoHost
+        ? options.mongoHost
+        : options.dev
+          ? db.host
+          : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
+      logger.info('seed-dialogues', { deployId, host, path, db });
+
+      await DataBaseProvider.load({ apis: ['cyberia-dialogue'], host, path, db });
+
+      const CyberiaDialogue = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaDialogue;
+
+      // Upsert each dialogue record keyed by (itemId, order) — idempotent.
+      let upserted = 0;
+      for (const dlg of DefaultCyberiaDialogues) {
+        await CyberiaDialogue.findOneAndUpdate(
+          { itemId: dlg.itemId, order: dlg.order },
+          { $set: { speaker: dlg.speaker, text: dlg.text, mood: dlg.mood } },
+          { upsert: true },
+        );
+        upserted++;
+      }
+
+      logger.info(`seed-dialogues: ${upserted} dialogue records upserted`);
 
       await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
     });

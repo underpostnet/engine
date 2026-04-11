@@ -48,6 +48,25 @@ const DEFAULT_GRID_SIZE = 64;
 const DEFAULT_FLOOR_TILE_DIM = 4;
 const DEFAULT_BOT_DIM_RANGE = [2, 3];
 
+/**
+ * NPC skin pool used by the bot generator.  Each bot picks a random skin
+ * instead of always spawning as `purple`, giving the fallback world visual
+ * variety and ensuring dialogue bubbles appear for different characters.
+ */
+const BOT_SKIN_POOL = [
+  'purple',
+  'wason',
+  'scp-2040',
+  'punk',
+  'lain',
+  'kaneki',
+  'junko',
+  'eiri',
+  'anon',
+  'alex',
+  'agent',
+];
+
 // ── Floor generator ──────────────────────────────────────────────────────────
 
 /**
@@ -163,7 +182,8 @@ function generatePortalEntities(mapDims, colors, opts = {}) {
 /**
  * Generate bot entities for a map.
  *
- * - All bots use the `purple` skin + `atlas_pistol_mk2` weapon.
+ * - Each bot picks a random skin from BOT_SKIN_POOL for visual variety.
+ * - Random chance to also carry `atlas_pistol_mk2` weapon.
  * - Random count within BOT_RANGE, random positions, random dimensions.
  * - Uses the BOT palette color as fallback.
  *
@@ -201,8 +221,9 @@ function generateBots(mapDims, colors, opts = {}) {
       cellY = randInt(0, maxY);
     }
 
+    const skin = BOT_SKIN_POOL[Math.floor(Math.random() * BOT_SKIN_POOL.length)];
     const hasWeapon = Math.random() < BOT_WEAPON_CHANCE;
-    const itemIds = hasWeapon ? ['purple', 'atlas_pistol_mk2'] : ['purple'];
+    const itemIds = hasWeapon ? [skin, 'atlas_pistol_mk2'] : [skin];
 
     entities.push({
       entityType: 'bot',

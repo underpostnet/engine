@@ -9,6 +9,8 @@ const CyberiaDialogueRouter = (options) => {
   const authMiddleware = options.authMiddleware;
   router.post(`/:id`, async (req, res) => await CyberiaDialogueController.post(req, res, options));
   router.post(`/`, async (req, res) => await CyberiaDialogueController.post(req, res, options));
+  // Direct lookup by itemId — C client fetches dialogue by item key (same pattern as atlas /metadata/:itemKey)
+  router.get(`/item/:itemId`, async (req, res) => await CyberiaDialogueController.getByItemId(req, res, options));
   router.get(
     `/:id`,
     // authMiddleware,
