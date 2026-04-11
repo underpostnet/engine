@@ -41,6 +41,8 @@ import {
   ENTITY_TYPE_DEFAULTS,
 } from '../cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 
+import { DefaultCyberiaItems } from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
+
 // ── Defaults ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_MAP_COUNT = 4;
@@ -48,24 +50,8 @@ const DEFAULT_GRID_SIZE = 64;
 const DEFAULT_FLOOR_TILE_DIM = 4;
 const DEFAULT_BOT_DIM_RANGE = [2, 3];
 
-/**
- * NPC skin pool used by the bot generator.  Each bot picks a random skin
- * instead of always spawning as `purple`, giving the fallback world visual
- * variety and ensuring dialogue bubbles appear for different characters.
- */
-const BOT_SKIN_POOL = [
-  'purple',
-  'wason',
-  'scp-2040',
-  'punk',
-  'lain',
-  'kaneki',
-  'junko',
-  'eiri',
-  'anon',
-  'alex',
-  'agent',
-];
+/** NPC skin pool — all items with type 'skin' from DefaultCyberiaItems. */
+const BOT_SKIN_POOL = DefaultCyberiaItems.filter((e) => e.item.type === 'skin').map((e) => e.item.id);
 
 // ── Floor generator ──────────────────────────────────────────────────────────
 

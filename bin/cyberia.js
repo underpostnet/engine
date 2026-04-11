@@ -3158,7 +3158,7 @@ try {
     .description('Import default Object Layer items, skill config, and dialogues into MongoDB')
     .action(async (options) => {
       const devFlag = options.dev ? ' --dev' : '';
-      shellExec(`node bin/cyberia ol ${DefaultCyberiaItems} --import${devFlag}`);
+      shellExec(`node bin/cyberia ol ${DefaultCyberiaItems.map((e) => e.item.id)} --import${devFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-skill-config${devFlag}`);
       shellExec(`node bin/cyberia run-workflow seed-dialogues${devFlag}`);
     });
