@@ -254,6 +254,10 @@ function toInstanceConfig(gc) {
       onePerType: gc.equipmentRules?.onePerType ?? fb.equipmentRules.onePerType,
       requireSkin: gc.equipmentRules?.requireSkin ?? fb.equipmentRules.requireSkin,
     },
+    // Status icon mapping — u8 ID → icon filename stem.
+    statusIcons: (gc.statusIcons || fb.statusIcons || [])
+      .filter((s) => s.iconId)
+      .map((s) => ({ id: s.id, iconId: s.iconId })),
   };
 }
 

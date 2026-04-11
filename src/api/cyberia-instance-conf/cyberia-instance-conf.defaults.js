@@ -30,6 +30,53 @@ export const ITEM_TYPES = Object.freeze({
   coin: 'coin',
 });
 
+// ── Entity Status Indicator (ESI) registry ───────────────────────────────────
+/**
+ * Canonical mapping of server-computed entity status icon IDs to the ui-icon
+ * filename stem served from /assets/ui-icons/{iconId}.png.
+ *
+ * The Go server assigns a status u8 per entity each AOI tick.  The C client
+ * receives this mapping dynamically via init_data.statusIcons and uses it to
+ * resolve the u8 to an icon filename at runtime.  This JS-side copy is the
+ * configuration source of truth; it supports instance-specific icon overrides.
+ *
+ * Industry standard name: "Overhead Status Indicator" (OSI).
+ *   WoW: nameplate colour + debuff icons
+ *   FFXIV: enmity/claim icons (red ◆, yellow ●)
+ *   UO: skull for murderers, shield for invulnerables
+ *
+ * IMPORTANT: The numeric IDs MUST stay in sync with:
+ *   - Go:  cyberia-server/src/entity_status.go   (StatusNone … StatusDead)
+ *
+ * @constant
+ */
+export const STATUS_ICONS = Object.freeze([
+  { id: 0, name: 'none', iconId: null, bounce: false, description: 'No icon (skill/coin bots, world objects)' },
+  {
+    id: 1,
+    name: 'passive',
+    iconId: 'arrow-down-gray',
+    bounce: false,
+    description: 'Passive bot — no weapon, non-aggressive',
+  },
+  {
+    id: 2,
+    name: 'hostile',
+    iconId: 'arrow-down-red',
+    bounce: true,
+    description: 'Hostile bot — has weapon, will aggro',
+  },
+  {
+    id: 3,
+    name: 'frozen',
+    iconId: 'chat',
+    bounce: true,
+    description: 'Player in FrozenInteractionState (modal open)',
+  },
+  { id: 4, name: 'player', iconId: 'arrow-down', bounce: false, description: 'Normal player — alive, not frozen' },
+  { id: 5, name: 'dead', iconId: 'skull', bounce: false, description: 'Entity is dead / respawning' },
+]);
+
 // ── Equipment rules ──────────────────────────────────────────────────────────
 /**
  * Equipment rules govern which ObjectLayer item types can be simultaneously
@@ -307,6 +354,12 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // See ENTITY_TYPE_DEFAULTS for documentation of each field.
   // liveItemIds / deadItemIds are arrays of ObjectLayer item IDs.
   entityDefaults: ENTITY_TYPE_DEFAULTS.map((e) => ({ ...e })),
+
+  // ── Entity Status Indicators (ESI) ─────────────────────────────────
+  // Overhead icon mapping — documents the u8→icon relationship.
+  // Stored in config for future instance-specific overrides.
+  // See STATUS_ICONS constant for documentation.
+  statusIcons: STATUS_ICONS.map((s) => ({ ...s })),
 
   // ── Skill system ───────────────────────────────────────────────────
   skillConfig: [

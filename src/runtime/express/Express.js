@@ -136,7 +136,17 @@ class ExpressService {
     });
 
     // Static file serving
-    app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
+    app.use(
+      '/',
+      express.static(directory ? directory : `.${rootHostPath}`, {
+        setHeaders: (res, filePath) => {
+          if (filePath.includes('/assets/')) {
+            res.set('Access-Control-Allow-Origin', '*');
+            res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+          }
+        },
+      }),
+    );
 
     // Handle redirection-only instances
     if (redirect) {
