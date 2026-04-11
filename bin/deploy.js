@@ -841,6 +841,124 @@ nvidia/gpu-operator \
       logger.info('Dependabot merge completed');
       break;
     }
+
+    case 'add-api': {
+      // node bin/deploy add-api <apiId> <deployId> [clientId] [host]
+      // Example: node bin/deploy add-api cyberia-dialogue dd-cyberia cyberia-portal
+      // Example: node bin/deploy add-api cyberia-dialogue dd-cyberia cyberia-portal underpost.net
+      //
+      // Adds an API to server conf files (main + dev variants) and client conf.
+      // - conf.server.json: adds apiId to every host/path that has an `apis` array
+      //   (or only to the specified host if [host] is provided)
+      // - conf.server.dev.*.json: same treatment for all dev variants
+      // - conf.client.json: adds apiId to the specified clientId's `services` array
+      // Idempotent: skips if the API is already present.
+
+      const apiId = process.argv[3];
+      const deployId = process.argv[4];
+      const clientId = process.argv[5];
+      const targetHost = process.argv[6];
+
+      if (!apiId || !deployId) {
+        logger.error('Usage: node bin/deploy add-api <apiId> <deployId> [clientId] [host]');
+        logger.error('Example: node bin/deploy add-api cyberia-dialogue dd-cyberia cyberia-portal');
+        logger.error('Example: node bin/deploy add-api cyberia-dialogue dd-cyberia cyberia-portal underpost.net');
+        process.exit(1);
+      }
+
+      const confFolder = `./engine-private/conf/${deployId}`;
+      if (!fs.existsSync(confFolder)) {
+        logger.error(`Config folder not found: ${confFolder}`);
+        process.exit(1);
+      }
+
+      // Helper: add apiId to apis[] arrays in a server conf file (idempotent)
+      // When targetHost is set, only entries under that host are modified.
+      const addApiToServerConf = (filePath) => {
+        if (!fs.existsSync(filePath)) return 0;
+        const conf = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        let count = 0;
+        const hosts = targetHost ? (conf[targetHost] ? [targetHost] : []) : Object.keys(conf);
+        for (const host of hosts) {
+          for (const path of Object.keys(conf[host])) {
+            const entry = conf[host][path];
+            if (Array.isArray(entry.apis) && entry.apis.length > 0 && !entry.apis.includes(apiId)) {
+              entry.apis.push(apiId);
+              count++;
+            }
+          }
+        }
+        if (count > 0) {
+          fs.writeFileSync(filePath, JSON.stringify(conf, null, 4), 'utf8');
+        }
+        return count;
+      };
+
+      // 1. Main conf.server.json
+      const mainPath = `${confFolder}/conf.server.json`;
+      const mainCount = addApiToServerConf(mainPath);
+      logger.info(`conf.server.json: added "${apiId}" to ${mainCount} path(s)`);
+
+      // 2. All dev variants: conf.server.dev.*.json
+      const devFiles = fs
+        .readdirSync(confFolder)
+        .filter((f) => f.startsWith('conf.server.dev.') && f.endsWith('.json'));
+      for (const devFile of devFiles) {
+        const devPath = `${confFolder}/${devFile}`;
+        const devCount = addApiToServerConf(devPath);
+        logger.info(`${devFile}: added "${apiId}" to ${devCount} path(s)`);
+      }
+
+      // Helper: add apiId to a client conf file's clientId services (idempotent)
+      const addApiToClientConf = (filePath, label) => {
+        if (!clientId || !fs.existsSync(filePath)) return;
+        const confClient = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (confClient[clientId] && Array.isArray(confClient[clientId].services)) {
+          if (!confClient[clientId].services.includes(apiId)) {
+            confClient[clientId].services.push(apiId);
+            fs.writeFileSync(filePath, JSON.stringify(confClient, null, 4), 'utf8');
+            logger.info(`${label}: added "${apiId}" to "${clientId}" services`);
+          } else {
+            logger.info(`${label}: "${apiId}" already in "${clientId}" services`);
+          }
+        } else {
+          logger.warn(`${label}: clientId "${clientId}" not found or has no services array`);
+        }
+      };
+
+      // 3. Client conf.client.json
+      addApiToClientConf(`${confFolder}/conf.client.json`, 'conf.client.json');
+
+      // 4. Replicas: engine-private/replica/<deployId>-*
+      const replicaBase = './engine-private/replica';
+      if (fs.existsSync(replicaBase)) {
+        const replicaDirs = fs
+          .readdirSync(replicaBase)
+          .filter((d) => d.startsWith(`${deployId}-`) && fs.statSync(`${replicaBase}/${d}`).isDirectory());
+        for (const replicaDir of replicaDirs) {
+          const replicaFolder = `${replicaBase}/${replicaDir}`;
+          // Server conf
+          const rMainCount = addApiToServerConf(`${replicaFolder}/conf.server.json`);
+          logger.info(`replica/${replicaDir}/conf.server.json: added "${apiId}" to ${rMainCount} path(s)`);
+          // Dev variants
+          const rDevFiles = fs
+            .readdirSync(replicaFolder)
+            .filter((f) => f.startsWith('conf.server.dev.') && f.endsWith('.json'));
+          for (const rDevFile of rDevFiles) {
+            const rDevCount = addApiToServerConf(`${replicaFolder}/${rDevFile}`);
+            logger.info(`replica/${replicaDir}/${rDevFile}: added "${apiId}" to ${rDevCount} path(s)`);
+          }
+          // Client conf
+          addApiToClientConf(`${replicaFolder}/conf.client.json`, `replica/${replicaDir}/conf.client.json`);
+        }
+      }
+
+      // 5. Rebuild default conf
+      shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
+      logger.info(`Rebuilt default conf for ${deployId}`);
+
+      break;
+    }
   }
 } catch (error) {
   logger.error(error, error.stack);
