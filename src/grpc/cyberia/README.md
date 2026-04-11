@@ -9,19 +9,18 @@ graph LR
     engine["Node.js Engine\nMongoDB + Express\ngrpc-server.js"]
     go["Go Game Server\ncyberia-server\ngrpcclient/world_builder.go"]
 
-    engine -->|"gRPC :50051\nGetFullInstance\nGetObjectLayerBatch\nGetAtlasSpriteSheetBatch\nGetMapData · Ping"| go
+    engine -->|"gRPC :50051\nGetFullInstance\nGetObjectLayerBatch\nGetMapData \u00b7 Ping"| go
 ```
 
 ## Data Flow
 
 ```
-MongoDB (CyberiaInstance + CyberiaMap + ObjectLayer + AtlasSpriteSheet)
+MongoDB (CyberiaInstance + CyberiaMap + ObjectLayer)
   │
   ▼
 Node.js Engine (grpc-server.js)
   │  getFullInstance → instance graph + maps + entities + objectLayers + InstanceConfig
   │  getObjectLayerBatch → stream all ObjectLayers
-  │  getAtlasSpriteSheetBatch → stream all AtlasSpriteSheets
   │  getObjectLayerManifest → itemId + sha256 pairs (for hot-reload diffing)
   │  ping → liveness check
   ▼
@@ -29,11 +28,10 @@ Go Game Server (world_builder.go → instance_loader.go → server.go)
   │  ApplyInstanceConfig → sets all game parameters from gRPC
   │  BuildWorldFromInstance → builds maps, entities, portals from gRPC data
   │  ReplaceObjectLayerCache → caches ObjectLayer metadata
-  │  ReplaceAtlasCache → caches AtlasSpriteSheet metadata
   ▼
 C/WASM Client (WebSocket binary AOI protocol)
   │  init_data → game config, player state, grid dimensions
-  │  metadata → ObjectLayer + Atlas cache (delivered once after connect)
+  │  metadata → ObjectLayer cache (delivered once after connect)
   │  aoi_update → binary-encoded entity positions, directions, modes, colors, item stacks
 ```
 

@@ -3,7 +3,7 @@
  *
  * Runs alongside Express on a separate port (default 50051).
  * Provides read-only RPCs for the Go game server to fetch
- * ObjectLayers, AtlasSpriteSheets, Instances, and Maps from MongoDB.
+ * ObjectLayers, Instances, and Maps from MongoDB.
  *
  * @module src/grpc/cyberia/grpc-server.js
  */
@@ -93,51 +93,6 @@ function toObjectLayerMsg(doc) {
     cid: doc.cid || '',
     frameDuration,
     isStateless,
-  };
-}
-
-function toFrameList(arr) {
-  if (!Array.isArray(arr)) return [];
-  return arr.map((f) => ({
-    x: f.x || 0,
-    y: f.y || 0,
-    width: f.width || 0,
-    height: f.height || 0,
-    frameIndex: f.frameIndex || 0,
-  }));
-}
-
-function toAtlasMsg(doc) {
-  const m = doc.metadata || {};
-  const fr = m.frames || {};
-  return {
-    mongoId: String(doc._id),
-    fileId: doc.fileId ? String(doc.fileId) : '',
-    cid: doc.cid || '',
-    itemKey: m.itemKey || '',
-    atlasWidth: m.atlasWidth || 0,
-    atlasHeight: m.atlasHeight || 0,
-    cellPixelDim: m.cellPixelDim || 20,
-    frames: {
-      upIdle: toFrameList(fr.up_idle),
-      downIdle: toFrameList(fr.down_idle),
-      rightIdle: toFrameList(fr.right_idle),
-      leftIdle: toFrameList(fr.left_idle),
-      upRightIdle: toFrameList(fr.up_right_idle),
-      downRightIdle: toFrameList(fr.down_right_idle),
-      upLeftIdle: toFrameList(fr.up_left_idle),
-      downLeftIdle: toFrameList(fr.down_left_idle),
-      defaultIdle: toFrameList(fr.default_idle),
-      upWalking: toFrameList(fr.up_walking),
-      downWalking: toFrameList(fr.down_walking),
-      rightWalking: toFrameList(fr.right_walking),
-      leftWalking: toFrameList(fr.left_walking),
-      upRightWalking: toFrameList(fr.up_right_walking),
-      downRightWalking: toFrameList(fr.down_right_walking),
-      upLeftWalking: toFrameList(fr.up_left_walking),
-      downLeftWalking: toFrameList(fr.down_left_walking),
-      noneIdle: toFrameList(fr.none_idle),
-    },
   };
 }
 
@@ -355,33 +310,6 @@ function buildHandlers(dbKey) {
       } catch (err) {
         logger.error('getObjectLayer:', err);
         callback({ code: grpc.status.INTERNAL, message: err.message });
-      }
-    },
-
-    async getAtlasSpriteSheet(call, callback) {
-      try {
-        const models = getModels(dbKey);
-        const doc = await models.AtlasSpriteSheet.findOne({ 'metadata.itemKey': call.request.itemKey }).lean();
-        if (!doc)
-          return callback({ code: grpc.status.NOT_FOUND, message: `Atlas "${call.request.itemKey}" not found` });
-        callback(null, toAtlasMsg(doc));
-      } catch (err) {
-        logger.error('getAtlasSpriteSheet:', err);
-        callback({ code: grpc.status.INTERNAL, message: err.message });
-      }
-    },
-
-    async getAtlasSpriteSheetBatch(call) {
-      try {
-        const models = getModels(dbKey);
-        const cursor = models.AtlasSpriteSheet.find({}).lean().cursor();
-        for await (const doc of cursor) {
-          call.write(toAtlasMsg(doc));
-        }
-        call.end();
-      } catch (err) {
-        logger.error('getAtlasSpriteSheetBatch:', err);
-        call.destroy(new Error(err.message));
       }
     },
 
