@@ -51,12 +51,20 @@ export const ITEM_TYPES = Object.freeze({
  * @constant
  */
 export const STATUS_ICONS = Object.freeze([
-  { id: 0, name: 'none', iconId: null, bounce: false, description: 'No icon (skill/coin bots, world objects)' },
+  {
+    id: 0,
+    name: 'none',
+    iconId: null,
+    bounce: false,
+    borderColor: { r: 70, g: 70, b: 120, a: 200 },
+    description: 'No icon (skill/coin bots, world objects)',
+  },
   {
     id: 1,
     name: 'passive',
     iconId: 'arrow-down-gray',
     bounce: false,
+    borderColor: { r: 130, g: 140, b: 160, a: 200 },
     description: 'Passive bot — no weapon, non-aggressive',
   },
   {
@@ -64,6 +72,7 @@ export const STATUS_ICONS = Object.freeze([
     name: 'hostile',
     iconId: 'arrow-down-red',
     bounce: true,
+    borderColor: { r: 210, g: 50, b: 50, a: 240 },
     description: 'Hostile bot — has weapon, will aggro',
   },
   {
@@ -71,10 +80,25 @@ export const STATUS_ICONS = Object.freeze([
     name: 'frozen',
     iconId: 'chat',
     bounce: true,
+    borderColor: { r: 80, g: 160, b: 220, a: 240 },
     description: 'Player in FrozenInteractionState (modal open)',
   },
-  { id: 4, name: 'player', iconId: 'arrow-down', bounce: false, description: 'Normal player — alive, not frozen' },
-  { id: 5, name: 'dead', iconId: 'skull', bounce: false, description: 'Entity is dead / respawning' },
+  {
+    id: 4,
+    name: 'player',
+    iconId: 'arrow-down',
+    bounce: false,
+    borderColor: { r: 60, g: 190, b: 90, a: 240 },
+    description: 'Normal player — alive, not frozen',
+  },
+  {
+    id: 5,
+    name: 'dead',
+    iconId: 'skull',
+    bounce: false,
+    borderColor: { r: 160, g: 130, b: 200, a: 200 },
+    description: 'Entity is dead / respawning',
+  },
 ]);
 
 // ── Equipment rules ──────────────────────────────────────────────────────────
@@ -273,6 +297,8 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
     { key: 'SKILL', r: 255, g: 255, b: 50, a: 255 }, // rgba(255, 255, 50, 1)
     // ── UI-only ────────────────────────────────────────────────────
     { key: 'WEAPON', r: 180, g: 50, b: 50, a: 255 }, // rgba(180, 50, 50, 1)
+    // ── Interaction overlay — self-player bubble/panel border ──────
+    { key: 'SELF_BORDER', r: 220, g: 190, b: 60, a: 240 }, // rgba(220, 190, 60, 0.94) — gold
   ],
 
   // ── World / AOI ────────────────────────────────────────────────────

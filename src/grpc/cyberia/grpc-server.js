@@ -17,6 +17,7 @@ import { loggerFactory } from '../../server/logger.js';
 import {
   CYBERIA_INSTANCE_CONF_DEFAULTS as FALLBACK_CONFIG_DEFAULTS,
   ENTITY_TYPE_DEFAULTS,
+  STATUS_ICONS,
 } from '../../api/cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 import { generateFallbackWorld } from '../../api/cyberia-instance/cyberia-fallback-world.js';
 
@@ -254,10 +255,23 @@ function toInstanceConfig(gc) {
       onePerType: gc.equipmentRules?.onePerType ?? fb.equipmentRules.onePerType,
       requireSkin: gc.equipmentRules?.requireSkin ?? fb.equipmentRules.requireSkin,
     },
-    // Status icon mapping — u8 ID → icon filename stem.
-    statusIcons: (gc.statusIcons || fb.statusIcons || [])
-      .filter((s) => s.iconId)
-      .map((s) => ({ id: s.id, iconId: s.iconId })),
+    // Status icon mapping — u8 ID → icon filename stem + border colour.
+    // Border colours come from the frozen STATUS_ICONS constant (canonical
+    // source of truth).  DB entries may override iconId but borderColor is
+    // always canonical — the DB schema defaults are generic grey, not the
+    // actual per-status colours.
+    statusIcons: STATUS_ICONS.map((canon) => {
+      const dbEntry = (gc.statusIcons || []).find((s) => s.id === canon.id);
+      const bc = canon.borderColor || {};
+      return {
+        id: canon.id,
+        iconId: (dbEntry && dbEntry.iconId) || canon.iconId || '',
+        borderColorR: bc.r ?? 100,
+        borderColorG: bc.g ?? 100,
+        borderColorB: bc.b ?? 100,
+        borderColorA: bc.a ?? 200,
+      };
+    }),
   };
 }
 
@@ -400,7 +414,7 @@ function buildHandlers(dbKey) {
               entities: (m.entities || []).map(toEntityMsg),
             })),
             objectLayers: fallbackOlDocs.map(toObjectLayerMsg),
-            config: fallbackConf,
+            config: toInstanceConfig(fallbackConf),
           });
           return;
         }

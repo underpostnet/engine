@@ -51,6 +51,32 @@ const SkillConfigEntrySchema = new Schema(
   { _id: false },
 );
 
+// ── StatusIconEntrySchema ────────────────────────────────────────────────────
+// Maps a u8 status ID to an overhead icon and a border colour used by the
+// interaction bubble / interact overlay on the C/WASM client.
+// See STATUS_ICONS in cyberia-instance-conf.defaults.js.
+const StatusIconBorderColorSchema = new Schema(
+  {
+    r: { type: Number, default: 100 },
+    g: { type: Number, default: 100 },
+    b: { type: Number, default: 100 },
+    a: { type: Number, default: 200 },
+  },
+  { _id: false },
+);
+
+const StatusIconEntrySchema = new Schema(
+  {
+    id: { type: Number, required: true },
+    name: { type: String, default: '' },
+    iconId: { type: String, default: null },
+    bounce: { type: Boolean, default: false },
+    borderColor: { type: StatusIconBorderColorSchema },
+    description: { type: String, default: '' },
+  },
+  { _id: false },
+);
+
 // ── EconomyRulesSchema ───────────────────────────────────────────────────────
 // Mirrors the EconomyRules proto message and the economyRules sub-document in
 // cyberia-instance-conf.defaults.js.  All fields default from those canonical
@@ -173,6 +199,11 @@ const CyberiaInstanceConfSchema = new Schema(
     // coinItemId, defaultFloorItemId, weaponDefaultItemId.
     // Each entry: { entityType, liveItemIds, deadItemIds, colorKey }.
     entityDefaults: { type: [EntityDefaultSchema], default: D.entityDefaults },
+
+    // ── Entity Status Indicators ────────────────────────────────────
+    // Overhead icon mapping + per-status border colour.
+    // See STATUS_ICONS in cyberia-instance-conf.defaults.js.
+    statusIcons: { type: [StatusIconEntrySchema], default: D.statusIcons },
 
     // ── Skill system ─────────────────────────────────────────────────
     // Each entry maps a trigger item to an ordered list of logic handler keys.
