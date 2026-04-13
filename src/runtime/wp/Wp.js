@@ -65,7 +65,7 @@ class WpService {
     if (!repoUrl) return repoUrl;
     const token = process.env.GITHUB_TOKEN;
     if (token && repoUrl.startsWith('https://github.com/')) {
-      return repoUrl.replace('https://github.com/', `https://${token}@github.com/`);
+      return repoUrl.replace('https://github.com/', `https://oauth2:${token}@github.com/`);
     }
     return repoUrl;
   }

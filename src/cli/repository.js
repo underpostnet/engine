@@ -1262,7 +1262,7 @@ Prevent build private config repo.`,
       }
       let authUrl = normalized;
       if (process.env.GITHUB_TOKEN && normalized.startsWith('https://github.com/')) {
-        authUrl = normalized.replace('https://github.com/', `https://${process.env.GITHUB_TOKEN}@github.com/`);
+        authUrl = normalized.replace('https://github.com/', `https://oauth2:${process.env.GITHUB_TOKEN}@github.com/`);
       }
       // GIT_TERMINAL_PROMPT=0 prevents git from hanging on credential prompts inside containers.
       const raw = shellExec(`GIT_TERMINAL_PROMPT=0 git ls-remote "${authUrl}" HEAD 2>&1 || true`, {
