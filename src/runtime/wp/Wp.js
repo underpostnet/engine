@@ -212,8 +212,9 @@ class WpService {
     }
 
     // Step 0 — verify the remote repository is reachable; fall back to fresh install if not.
-    // Delegates to the centralized Underpost.repo.isRemoteRepo() which handles token injection.
-    const repoAccessible = Underpost.repo.isRemoteRepo(authUrl);
+    // Pass the plain URL — isRemoteRepo handles token injection internally,
+    // matching the same code-path used by the CLI check.
+    const repoAccessible = Underpost.repo.isRemoteRepo(repository);
     logger.info(`${host}: remote accessible = ${repoAccessible} (${repository})`);
     if (!repoAccessible) {
       logger.warn(`${host}: remote repository not accessible (${repository}) — running fresh install`);

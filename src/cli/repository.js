@@ -1264,11 +1264,13 @@ Prevent build private config repo.`,
       if (process.env.GITHUB_TOKEN && normalized.startsWith('https://github.com/')) {
         authUrl = normalized.replace('https://github.com/', `https://${process.env.GITHUB_TOKEN}@github.com/`);
       }
-      const raw = shellExec(`git ls-remote "${authUrl}" HEAD 2>&1 || true`, {
+      // GIT_TERMINAL_PROMPT=0 prevents git from hanging on credential prompts inside containers.
+      const raw = shellExec(`GIT_TERMINAL_PROMPT=0 git ls-remote "${authUrl}" HEAD 2>&1 || true`, {
         stdout: true,
         silent: true,
         disableLog: true,
       });
+      logger.info('isRemoteRepo', { url: normalized, raw: (raw || '').slice(0, 120) });
       return typeof raw === 'string' && /^[0-9a-f]{40}\t/m.test(raw);
     },
 
