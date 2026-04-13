@@ -46,9 +46,9 @@
   "homepage": "https://github.com/underpostnet/engine#readme",
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
+    "@fullcalendar/rrule": "^6.1.20",
     "@grpc/grpc-js": "^1.12.5",
     "@grpc/proto-loader": "^0.8.0",
-    "@fullcalendar/rrule": "^6.1.20",
     "@neodrag/vanilla": "^2.3.1",
     "adm-zip": "^0.5.17",
     "ag-grid-community": "^35.2.1",
@@ -80,6 +80,7 @@
     "http-proxy-middleware": "^3.0.5",
     "ignore-walk": "^8.0.0",
     "iovalkey": "^0.3.3",
+    "is-inside-container": "^1.0.0",
     "json-colorizer": "^3.0.1",
     "jsonwebtoken": "^9.0.3",
     "mariadb": "^3.2.2",
