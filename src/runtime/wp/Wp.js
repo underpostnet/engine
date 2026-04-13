@@ -52,25 +52,6 @@ class WpService {
   }
 
   /**
-   * Returns an authenticated clone URL for GitHub HTTPS repositories when
-   * `GITHUB_TOKEN` is present in the environment.  For non-GitHub URLs or
-   * when no token is set the original URL is returned unchanged.
-   * The token is injected as `https://<token>@github.com/...` so that
-   * `git ls-remote` and `git clone` can reach private repositories.
-   *
-   * @param {string} repoUrl - The plain HTTPS repository URL.
-   * @returns {string} The (possibly augmented) URL.
-   */
-  static resolveRepoWithAuth(repoUrl) {
-    if (!repoUrl) return repoUrl;
-    const token = process.env.GITHUB_TOKEN;
-    if (token && repoUrl.startsWith('https://github.com/')) {
-      return repoUrl.replace('https://github.com/', `https://x-access-token:${token}@github.com/`);
-    }
-    return repoUrl;
-  }
-
-  /**
    * Ensures WP-CLI (`wp`) is available on PATH, downloading and installing it
    * to `/usr/local/bin/wp` if it is not already present.
    */
@@ -203,17 +184,12 @@ class WpService {
    * @param {object|null} [opts.db]       - MariaDB config used as fallback for fresh install.
    */
   static provisionClone({ host, siteRoot, repository, db, wp, subDir = '' }) {
-    // Build an authenticated URL for git operations (required for private repos).
-    // The authenticated URL is intentionally not passed to initLocalRepo so that
-    // the stored remote 'origin' stays as the plain HTTPS URL.
-    const authUrl = WpService.resolveRepoWithAuth(repository);
     if (!process.env.GITHUB_TOKEN && repository && repository.startsWith('https://github.com/')) {
       logger.warn(`${host}: GITHUB_TOKEN not set — git operations will fail for private repositories`);
     }
 
     // Step 0 — verify the remote repository is reachable; fall back to fresh install if not.
-    // Pass the plain URL — isRemoteRepo handles token injection internally,
-    // matching the same code-path used by the CLI check.
+    // repository.js isRemoteRepo handles token injection internally.
     const repoAccessible = Underpost.repo.isRemoteRepo(repository);
     logger.info(`${host}: remote accessible = ${repoAccessible} (${repository})`);
     if (!repoAccessible) {
@@ -225,9 +201,10 @@ class WpService {
     // Step 1 — clone if the directory does not exist yet
     if (!fs.existsSync(siteRoot)) {
       logger.info(`${host}: cloning ${repository} → ${siteRoot}`);
+      const cloneUrl = Underpost.repo.resolveAuthUrl(repository);
       const tmp = `${siteRoot}.tmp`;
       if (fs.existsSync(tmp)) shellExec(`sudo rm -rf "${tmp}"`);
-      shellExec(`git clone "${authUrl}" "${tmp}"`);
+      shellExec(`git clone "${cloneUrl}" "${tmp}"`);
       shellExec(`sudo mv "${tmp}" "${siteRoot}"`);
       shellExec(`sudo chmod -R 755 "${siteRoot}"`);
       shellExec(`sudo chown -R daemon:daemon "${siteRoot}"`);

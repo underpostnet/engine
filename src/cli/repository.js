@@ -1253,27 +1253,32 @@ Prevent build private config repo.`,
      * @returns {boolean} `true` when the remote responded with at least one ref hash.
      * @memberof UnderpostRepository
      */
-    isRemoteRepo(url) {
-      if (!url) return false;
+    resolveAuthUrl(url) {
+      if (!url) return url;
       // Normalize short form "owner/repo" → full GitHub HTTPS URL
       let normalized = url;
       if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('git@')) {
         normalized = `https://github.com/${url}`;
       }
-      let authUrl = normalized;
       if (process.env.GITHUB_TOKEN && normalized.startsWith('https://github.com/')) {
-        authUrl = normalized.replace(
+        return normalized.replace(
           'https://github.com/',
           `https://x-access-token:${process.env.GITHUB_TOKEN}@github.com/`,
         );
       }
+      return normalized;
+    },
+
+    isRemoteRepo(url) {
+      if (!url) return false;
+      const authUrl = Underpost.repo.resolveAuthUrl(url);
       // GIT_TERMINAL_PROMPT=0 prevents git from hanging on credential prompts inside containers.
       const raw = shellExec(`GIT_TERMINAL_PROMPT=0 git ls-remote "${authUrl}" HEAD 2>&1 || true`, {
         stdout: true,
         silent: true,
         disableLog: true,
       });
-      logger.info('isRemoteRepo', { url: normalized, raw: (raw || '').slice(0, 120) });
+      logger.info('isRemoteRepo', { url, raw: (raw || '').slice(0, 120) });
       return typeof raw === 'string' && /^[0-9a-f]{40}\t/m.test(raw);
     },
 
