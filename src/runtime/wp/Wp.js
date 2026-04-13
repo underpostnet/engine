@@ -75,7 +75,7 @@ class WpService {
    * to `/usr/local/bin/wp` if it is not already present.
    */
   static ensureWpCli() {
-    const existing = shellExec(`PATH="${LAMPP_BIN}:$PATH" which wp 2>/dev/null`, {
+    const existing = shellExec(`PATH="${LAMPP_BIN}:$PATH" which wp 2>/dev/null || true`, {
       stdout: true,
       silent: true,
       disableLog: true,
@@ -85,6 +85,26 @@ class WpService {
     shellExec(`curl -sL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar`);
     shellExec(`chmod +x /tmp/wp-cli.phar`);
     shellExec(`sudo mv /tmp/wp-cli.phar /usr/local/bin/wp`);
+  }
+
+  /**
+   * Ensures a no-op sendmail stub exists at /usr/sbin/sendmail so WP plugins
+   * that invoke sendmail directly do not crash when a real MTA is absent.
+   * Mirrors the Dockerfile `RUN printf '#!/bin/sh\ncat > /dev/null\n' > /usr/sbin/sendmail`
+   * line but guards against older container images that pre-date that layer.
+   */
+  static ensureSendmail() {
+    const sendmailPath = '/usr/sbin/sendmail';
+    const existing = shellExec(`test -x "${sendmailPath}" && echo ok || true`, {
+      stdout: true,
+      silent: true,
+      disableLog: true,
+    });
+    if (existing && existing.trim() === 'ok') return;
+    logger.info('sendmail stub missing — creating no-op at /usr/sbin/sendmail');
+    shellExec(
+      `printf '#!/bin/sh\\ncat > /dev/null\\n' | sudo tee ${sendmailPath} > /dev/null && sudo chmod +x ${sendmailPath}`,
+    );
   }
 
   /**
@@ -191,12 +211,11 @@ class WpService {
       logger.warn(`${host}: GITHUB_TOKEN not set — git operations will fail for private repositories`);
     }
 
-    // Step 0 — verify the remote repository is reachable; fall back to fresh install if not
-    const remoteCheck = shellExec(`git ls-remote "${authUrl}" HEAD 2>/dev/null`, {
-      stdout: true,
-      silent: true,
-    });
-    if (!remoteCheck || !remoteCheck.trim()) {
+    // Step 0 — verify the remote repository is reachable; fall back to fresh install if not.
+    // Delegates to the centralized Underpost.repo.isRemoteRepo() which handles token injection.
+    const repoAccessible = Underpost.repo.isRemoteRepo(authUrl);
+    logger.info(`${host}: remote accessible = ${repoAccessible} (${repository})`);
+    if (!repoAccessible) {
       logger.warn(`${host}: remote repository not accessible (${repository}) — running fresh install`);
       WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
       return;
@@ -286,6 +305,7 @@ class WpService {
    */
   static wpCliInstall({ siteRoot, db, host, wp, subDir = '' }) {
     WpService.ensureWpCli();
+    WpService.ensureSendmail();
     const siteUrl = subDir ? `https://${host}/${subDir}` : `https://${host}`;
     const adminUser = (wp && wp.adminUser) || process.env.WP_ADMIN_USER || 'admin';
     const adminPassword =

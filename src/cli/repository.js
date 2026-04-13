@@ -132,9 +132,16 @@ class UnderpostRepository {
         b: false,
         p: undefined,
         bc: '',
+        isRemoteRepo: '',
       },
     ) {
       if (!repoPath) repoPath = '.';
+
+      if (options.isRemoteRepo) {
+        const accessible = Underpost.repo.isRemoteRepo(options.isRemoteRepo);
+        console.log(accessible);
+        return;
+      }
 
       if (options.bc) {
         console.log(
@@ -1238,6 +1245,33 @@ Prevent build private config repo.`,
      * @returns {{ count: number, branch: string, hasUnpushed: boolean }} Unpush metadata.
      * @memberof UnderpostRepository
      */
+    /**
+     * Checks whether a remote Git repository URL is reachable.
+     * Uses `git ls-remote` with `|| true` so the process always exits 0.
+     * Injects `GITHUB_TOKEN` into GitHub HTTPS URLs when available.
+     * @param {string} url - Full HTTPS clone URL to test (e.g. "https://github.com/org/repo.git").
+     * @returns {boolean} `true` when the remote responded with at least one ref hash.
+     * @memberof UnderpostRepository
+     */
+    isRemoteRepo(url) {
+      if (!url) return false;
+      // Normalize short form "owner/repo" → full GitHub HTTPS URL
+      let normalized = url;
+      if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('git@')) {
+        normalized = `https://github.com/${url}`;
+      }
+      let authUrl = normalized;
+      if (process.env.GITHUB_TOKEN && normalized.startsWith('https://github.com/')) {
+        authUrl = normalized.replace('https://github.com/', `https://${process.env.GITHUB_TOKEN}@github.com/`);
+      }
+      const raw = shellExec(`git ls-remote "${authUrl}" HEAD 2>&1 || true`, {
+        stdout: true,
+        silent: true,
+        disableLog: true,
+      });
+      return typeof raw === 'string' && /^[0-9a-f]{40}\t/m.test(raw);
+    },
+
     getUnpushedCount(repoPath = '.', fallback = 1) {
       const branch = shellExec(`cd ${repoPath} && git branch --show-current`, {
         stdout: true,

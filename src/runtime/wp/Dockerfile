@@ -7,6 +7,7 @@ RUN dnf -y update && \
     bzip2 \
     sudo \
     curl \
+    unzip \
     net-tools \
     openssh-server \
     nano \

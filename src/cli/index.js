@@ -112,6 +112,10 @@ program
   .option('-b', 'Shows the current Git branch name.')
   .option('-p [branch]', 'Shows the reflog for the specified branch.')
   .option('--bc <commit-hash>', 'Shows branches that contain the specified commit.')
+  .option(
+    '--is-remote-repo <url-repo>',
+    'Checks whether a remote Git repository URL is reachable. Prints true or false.',
+  )
   .description('Manages commits to a GitHub repository, supporting various commit types and options.')
   .action(Underpost.repo.commit);
 
