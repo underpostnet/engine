@@ -68,6 +68,19 @@ class WpService {
   }
 
   /**
+   * Ensures WP-CLI (`wp`) is available on PATH, downloading and installing it
+   * to `/usr/local/bin/wp` if it is not already present.
+   */
+  static ensureWpCli() {
+    const existing = shellExec(`which wp 2>/dev/null`, { stdout: true, silent: true, disableLog: true });
+    if (existing && existing.trim()) return;
+    logger.info('WP-CLI not found — installing to /usr/local/bin/wp');
+    shellExec(`curl -sL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar`);
+    shellExec(`chmod +x /tmp/wp-cli.phar`);
+    shellExec(`sudo mv /tmp/wp-cli.phar /usr/local/bin/wp`);
+  }
+
+  /**
    * Provisions a WordPress site and registers it with the LAMPP virtual-host router.
    *
    * Directory layout (e.g. host='test.nexodev.org', pathRoute='/wp'):
@@ -117,8 +130,12 @@ class WpService {
       WpService.provisionFresh({ host, siteRoot: wpDir, db, wp, subDir });
     }
 
-    // Ensure git is initialized and linked to the backup repository
+    // Ensure git is initialized and linked to the backup repository.
+    // Mark the directory as safe before git operations — the site root is owned
+    // by daemon:daemon (Apache) and git 2.35+ refuses to run in directories owned
+    // by a different user unless explicitly declared safe.
     if (repository) {
+      shellExec(`git config --global --add safe.directory "${wpDir}"`);
       Underpost.repo.initLocalRepo({ path: wpDir, origin: repository });
     }
 
@@ -191,12 +208,14 @@ class WpService {
       logger.info(`${host}: repo already present at ${siteRoot}`);
     }
 
-    // Step 2 — verify wp-config.php; if missing, wipe and do a fresh install
+    // Step 2 — verify wp-config.php; if missing, wipe and do a fresh install.
+    // initLocalRepo is NOT called here — createApp always calls it after provisionClone
+    // returns (whether clone or fallback path) so we avoid a double-init and ensure
+    // safe.directory is declared before git runs.
     if (!fs.existsSync(path.join(siteRoot, 'wp-config.php'))) {
       logger.warn(`${host}: wp-config.php not found — wiping site root and running fresh install`);
       shellExec(`sudo rm -rf "${siteRoot}"`);
       WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
-      Underpost.repo.initLocalRepo({ path: siteRoot, origin: repository });
     }
   }
 
@@ -259,6 +278,7 @@ class WpService {
    * @param {string} [opts.subDir] - Subdirectory name (e.g. 'wp').
    */
   static wpCliInstall({ siteRoot, db, host, wp, subDir = '' }) {
+    WpService.ensureWpCli();
     const siteUrl = subDir ? `https://${host}/${subDir}` : `https://${host}`;
     const adminUser = (wp && wp.adminUser) || process.env.WP_ADMIN_USER || 'admin';
     const adminPassword =
