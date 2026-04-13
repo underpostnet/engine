@@ -19,6 +19,20 @@ import Underpost from '../index.js';
 const logger = loggerFactory(import.meta);
 
 /**
+ * Kills any Node.js dev-server or nodemon processes that may hold file locks
+ * (e.g. overwriting package.json). Skips VSCode internals and the current process.
+ */
+function killDevServers() {
+  // shellExec(
+  //   `kill -9 $(pgrep -f 'nodemon|node.*src/server|node.*dev' | grep -v '^${process.pid}$') 2>/dev/null || true`,
+  // );
+  shellExec(`node bin run kill 4001`);
+  shellExec(`node bin run kill 4002`);
+  shellExec(`node bin run kill 4003`);
+  shellExec(`node bin run kill 3000`);
+}
+
+/**
  * @class UnderpostRelease
  * @description Orchestrates version builds and release deployments for the Underpost CLI.
  * This class provides static methods to automate the full release lifecycle:
@@ -49,11 +63,9 @@ class UnderpostRelease {
     async build(newVersion, options) {
       dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
       shellCd(`/home/dd/engine`);
+      killDevServers();
       Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
       shellExec(`node bin pull . ${process.env.GITHUB_USERNAME}/engine`);
-      shellExec(`node bin run kill 4001`);
-      shellExec(`node bin run kill 4002`);
-      shellExec(`node bin run kill 4003`);
       shellExec(`npm run update:template`);
       shellExec(`cd ../pwa-microservices-template && npm install && npm run build`);
       console.log(fs.existsSync(`../pwa-microservices-template/engine-private/conf/dd-default`));
@@ -68,6 +80,7 @@ class UnderpostRelease {
         logger.error('Test template runner result failed');
         return;
       }
+      killDevServers();
       shellCd(`/home/dd/engine`);
       Underpost.repo.clean({ paths: ['/home/dd/engine', '/home/dd/engine/engine-private '] });
       const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
@@ -253,6 +266,7 @@ class UnderpostRelease {
      */
     async deploy(version, options) {
       dotenv.config({ path: `./engine-private/conf/dd-cron/.env.production`, override: true });
+      killDevServers();
       shellExec(
         `node bin secret underpost --create-from-file /home/dd/engine/engine-private/conf/dd-cron/.env.production`,
       );
