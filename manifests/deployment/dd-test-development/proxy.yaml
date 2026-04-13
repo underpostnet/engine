@@ -10,7 +10,7 @@ spec:
     fqdn: test.nexodev.org
   routes:
     - conditions:
-        - prefix: /
+        - prefix: /wp
       
       enableWebsockets: true
       services:
@@ -19,12 +19,21 @@ spec:
           weight: 100
     
     - conditions:
-        - prefix: /peer
+        - prefix: /
       
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
           port: 4047
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-test-development-blue-service
+          port: 4048
           weight: 100
     
 ---
@@ -43,7 +52,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
-          port: 4048
+          port: 4049
           weight: 100
     
     - conditions:
@@ -52,6 +61,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
-          port: 4049
+          port: 4050
           weight: 100
     

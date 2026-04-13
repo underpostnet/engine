@@ -6,6 +6,7 @@ metadata:
   namespace: default
   labels:
     app: dd-core-development-blue
+    deploy-id: dd-core-development
 spec:
   replicas: 1
   selector:
@@ -15,6 +16,7 @@ spec:
     metadata:
       labels:
         app: dd-core-development-blue
+        deploy-id: dd-core-development
     spec:
       containers:
         - name: dd-core-development-blue
@@ -208,6 +210,7 @@ metadata:
   namespace: default
   labels:
     app: dd-core-development-green
+    deploy-id: dd-core-development
 spec:
   replicas: 1
   selector:
@@ -217,6 +220,7 @@ spec:
     metadata:
       labels:
         app: dd-core-development-green
+        deploy-id: dd-core-development
     spec:
       containers:
         - name: dd-core-development-green

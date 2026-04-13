@@ -6,6 +6,7 @@ metadata:
   namespace: default
   labels:
     app: dd-cyberia-development-blue
+    deploy-id: dd-cyberia-development
 spec:
   replicas: 1
   selector:
@@ -15,6 +16,7 @@ spec:
     metadata:
       labels:
         app: dd-cyberia-development-blue
+        deploy-id: dd-cyberia-development
     spec:
       containers:
         - name: dd-cyberia-development-blue
@@ -287,6 +289,7 @@ metadata:
   namespace: default
   labels:
     app: dd-cyberia-development-green
+    deploy-id: dd-cyberia-development
 spec:
   replicas: 1
   selector:
@@ -296,6 +299,7 @@ spec:
     metadata:
       labels:
         app: dd-cyberia-development-green
+        deploy-id: dd-cyberia-development
     spec:
       containers:
         - name: dd-cyberia-development-green

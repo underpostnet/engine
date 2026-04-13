@@ -6,6 +6,7 @@ metadata:
   namespace: default
   labels:
     app: dd-test-development-blue
+    deploy-id: dd-test-development
 spec:
   replicas: 1
   selector:
@@ -15,6 +16,7 @@ spec:
     metadata:
       labels:
         app: dd-test-development-blue
+        deploy-id: dd-test-development
     spec:
       containers:
         - name: dd-test-development-blue
@@ -82,6 +84,15 @@ spec:
       protocol: UDP
       port: 4049
       targetPort: 4049
+
+    - name: 'tcp-4050'
+      protocol: TCP
+      port: 4050
+      targetPort: 4050
+    - name: 'udp-4050'
+      protocol: UDP
+      port: 4050
+      targetPort: 4050
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -91,6 +102,7 @@ metadata:
   namespace: default
   labels:
     app: dd-test-development-green
+    deploy-id: dd-test-development
 spec:
   replicas: 1
   selector:
@@ -100,6 +112,7 @@ spec:
     metadata:
       labels:
         app: dd-test-development-green
+        deploy-id: dd-test-development
     spec:
       containers:
         - name: dd-test-development-green
@@ -167,4 +180,13 @@ spec:
       protocol: UDP
       port: 4049
       targetPort: 4049
+
+    - name: 'tcp-4050'
+      protocol: TCP
+      port: 4050
+      targetPort: 4050
+    - name: 'udp-4050'
+      protocol: UDP
+      port: 4050
+      targetPort: 4050
   type: LoadBalancer

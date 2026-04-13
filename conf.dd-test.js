@@ -167,6 +167,20 @@ const DefaultConf = /**/ {
           adminUser: 'env:WP_TEST_ADMIN_USER',
           adminPassword: 'env:WP_TEST_ADMIN_PASSWORD',
           adminEmail: 'env:WP_TEST_ADMIN_EMAIL',
+          wpMailSmtp: {
+            fromEmail: 'env:WP_TEST_MAIL_SMTP_FROM_EMAIL',
+            fromName: 'env:WP_TEST_MAIL_SMTP_FROM_NAME',
+            mailer: 'smtp',
+            returnPath: true,
+            smtp: {
+              host: 'env:WP_TEST_MAIL_SMTP_HOST',
+              port: 'env:WP_TEST_MAIL_SMTP_PORT',
+              encryption: 'tls',
+              auth: true,
+              user: 'env:WP_TEST_MAIL_SMTP_USER',
+              pass: 'env:WP_TEST_MAIL_SMTP_PASS',
+            },
+          },
         },
         db: {
           provider: 'mariadb',

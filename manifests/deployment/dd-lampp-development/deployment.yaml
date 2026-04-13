@@ -6,6 +6,7 @@ metadata:
   namespace: default
   labels:
     app: dd-lampp-development-blue
+    deploy-id: dd-lampp-development
 spec:
   replicas: 1
   selector:
@@ -15,6 +16,7 @@ spec:
     metadata:
       labels:
         app: dd-lampp-development-blue
+        deploy-id: dd-lampp-development
     spec:
       containers:
         - name: dd-lampp-development-blue
@@ -91,6 +93,7 @@ metadata:
   namespace: default
   labels:
     app: dd-lampp-development-green
+    deploy-id: dd-lampp-development
 spec:
   replicas: 1
   selector:
@@ -100,6 +103,7 @@ spec:
     metadata:
       labels:
         app: dd-lampp-development-green
+        deploy-id: dd-lampp-development
     spec:
       containers:
         - name: dd-lampp-development-green
