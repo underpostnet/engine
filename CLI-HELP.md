@@ -1,4 +1,4 @@
-## underpost ci/cd cli v3.1.3
+## underpost ci/cd cli v3.2.0
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -34,6 +34,7 @@ Commands:
   run [options] <runner-id> [path]                           Runs specified scripts using various runners.
   lxd [options]                                              Manages LXD virtual machines as K3s nodes (control plane or workers).
   baremetal [options] [workflow-id]                          Manages baremetal server operations, including installation, database setup, commissioning, and user management.
+  release [options] [version]                                Release orchestrator for building new versions and deploying releases of the Underpost CLI.
   help [command]                                             display help for command
  
 ```
@@ -183,7 +184,7 @@ Arguments:
                                      message for the commit.
 
 Options:
-  --log <latest-n>                   Shows commit history from the specified
+  --log [latest-n]                   Shows commit history from the specified
                                      number of latest n path commits.
   --last-msg <latest-n>              Displays the last n commit message.
   --empty                            Allows committing with empty files.
@@ -210,7 +211,14 @@ Options:
   --changelog-no-hash                Excludes commit hashes from the generated
                                      changelog entries (used with
                                      --changelog-build).
+  --unpush                           With --log, automatically sets range to
+                                     unpushed commits ahead of remote.
   -b                                 Shows the current Git branch name.
+  -p [branch]                        Shows the reflog for the specified branch.
+  --bc <commit-hash>                 Shows branches that contain the specified
+                                     commit.
+  --is-remote-repo <url-repo>        Checks whether a remote Git repository URL
+                                     is reachable. Prints true or false.
   -h, --help                         display help for command
  
 ```
@@ -510,6 +518,12 @@ Options:
                                       machine network configuration.
   --kubeadm                           Enables the kubeadm context for deployment
                                       operations.
+  --k3s                               Enables the k3s context for deployment
+                                      operations.
+  --kind                              Enables the kind context for deployment
+                                      operations.
+  --git-clean                         Runs git clean on volume mount paths
+                                      before copying.
   --etc-hosts                         Enables the etc-hosts context for
                                       deployment operations.
   --restore-hosts                     Restores default `/etc/hosts` entries.
@@ -859,7 +873,7 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,rmi,kill,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
+  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,template-deploy-image,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
   path                                            The input value, identifier, or path for the operation.
 
 Options:
@@ -906,6 +920,7 @@ Options:
   --kubeadm                                       Sets the kubeadm cluster context for the runner execution.
   --k3s                                           Sets the k3s cluster context for the runner execution.
   --kind                                          Sets the kind cluster context for the runner execution.
+  --git-clean                                     Runs git clean on volume mount paths before copying.
   --log-type <log-type>                           Sets the log type for the runner execution.
   --deploy-id <deploy-id>                         Sets deploy id context for the runner execution.
   --user <user>                                   Sets user context for the runner execution.
@@ -926,6 +941,7 @@ Options:
   --from-n-commit <n>                             Number of commits back to use for message propagation in template-deploy (default: 1, last commit only).
   --create-job-now                                After applying cron manifests, immediately create a Job from each CronJob (forwarded to cron runner).
   --host-aliases <host-aliases>                   Adds entries to the Pod /etc/hosts via hostAliases. Format: semicolon-separated entries of "ip=hostname1,hostname2" (e.g., "127.0.0.1=foo.local,bar.local;10.1.2.3=foo.remote,bar.remote").
+  --copy                                          Copies the runner output to the clipboard (supported by: generate-pass, template-deploy-local).
   -h, --help                                      display help for command
  
 ```
@@ -1036,6 +1052,36 @@ Options:
   --dev                                         Sets the development context environment for baremetal operations.
   --ls                                          Lists available boot resources and machines.
   -h, --help                                    display help for command
+ 
+```
+  
+
+### `release` :
+```
+ Usage: underpost release [options] [version]
+
+Release orchestrator for building new versions and deploying releases of the
+Underpost CLI.
+
+Arguments:
+  version                The new version string to set (e.g., "3.1.4"). Defaults
+                         to current version.
+
+Options:
+  --build                Builds a new version: tests template, bumps versions,
+                         rebuilds manifests and configs.
+  --deploy               Deploys the release: syncs secrets, commits, and pushes
+                         to remote repositories.
+  --ci-push <deploy-id>  Local equivalent of engine-*.ci.yml: builds
+                         dd-{deploy-id} and pushes to the engine-{deploy-id}
+                         repository. Accepts the suffix (e.g., "cyberia"),
+                         "dd-cyberia", or "engine-cyberia".
+  --message <message>    Commit message for --ci-push or --pwa-build (defaults
+                         to last commit of the engine repository).
+  --pwa-build            Runs the pwa-microservices-template update flow: always
+                         re-clones, syncs engine sources, installs, builds, and
+                         pushes.
+  -h, --help             display help for command
  
 ```
   

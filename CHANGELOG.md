@@ -1,6 +1,329 @@
 # Changelog
 
-## 2026-03-17
+## 2026-04-13
+
+### cli-repository
+
+- Refactor GitHub URL handling to centralize authentication logic and improve repository accessibility checks ([4783e25bd](https://github.com/underpostnet/engine/commit/4783e25bd85d0c6260b4733bbbb09e811979605c))
+- Update GitHub token usage to use x-access-token format in repository URLs ([8a9506d97](https://github.com/underpostnet/engine/commit/8a9506d9754ae41220e40bd72d1cf9023ec1813d))
+- Update GitHub token usage to use OAuth2 format for repository URLs ([e71530fcc](https://github.com/underpostnet/engine/commit/e71530fcca079bc86048283f151f7e5c02c18b91))
+- Add remote repository accessibility check and unzip to Dockerfile ([be32ecebe](https://github.com/underpostnet/engine/commit/be32ecebe49eab3f39019c5eead74699406d9c99))
+- Refactor UnderpostRepository and UnderpostRun: streamline unpushed commit detection and enhance commit message propagation logic ([f96e3a674](https://github.com/underpostnet/engine/commit/f96e3a6746d745ce1528b598ff36a3dc847f386e))
+- Refactor git repository initialization: streamline repo setup and user configuration using environment variables across multiple modules ([146cb2181](https://github.com/underpostnet/engine/commit/146cb218163e3b27e24357167296378767b776f7))
+- Fix getHistory and related methods to support repository path, enhancing command execution context ([ee79f636f](https://github.com/underpostnet/engine/commit/ee79f636f2081a943026600d4cbaff52d2997958))
+- Add --unpush option to automatically detect unpushed commits for log display ([9c7ca3ca5](https://github.com/underpostnet/engine/commit/9c7ca3ca52abf927a54708e938a71c98b4edb179))
+- Add Git branch reflog and commit hash options to CLI ([c69e8aeca](https://github.com/underpostnet/engine/commit/c69e8aecaa6bccd2085cb5de49ca0e6e0e659867))
+
+### runtime-wp
+
+- Enhance remote repository accessibility checks by preventing credential prompts and improving logging ([abf48b28f](https://github.com/underpostnet/engine/commit/abf48b28fad233a3f166c8f14f3f222b6d4e6061))
+- Prepend XAMPP's bin directory to PATH for WP-CLI calls ([a1449e380](https://github.com/underpostnet/engine/commit/a1449e380f47e0187a9f8f9bfcbde603d89e6685))
+- Add WP-CLI installation check and ensure safe.directory for git operations ([414e8743e](https://github.com/underpostnet/engine/commit/414e8743e18b1f36edf5113da9a03b6a0261a318))
+- Enhance backup functionality: add GitHub organization support and streamline WordPress backup handling ([717004bb0](https://github.com/underpostnet/engine/commit/717004bb0d2e8dac3b1653505b6d9180b34ea364))
+- Enhance WpService: inject WP Mail SMTP plugin configuration into wp-config.php for improved email handling ([10188d104](https://github.com/underpostnet/engine/commit/10188d1042e81402ee2e612e58cd3bb4ba9d3b32))
+- Update .htaccess handling for WordPress subdirectories: append scoped rewrite rules to prevent conflicts between multiple installs. ([409572dab](https://github.com/underpostnet/engine/commit/409572dab2327fe0802e9fa67718de7beca7c641))
+- Refactor database creation logic: drop and recreate MariaDB database for fresh installs to ensure a clean state. ([e370b0b21](https://github.com/underpostnet/engine/commit/e370b0b21ad74de3e20668547fa967b787fb33c5))
+- Enhance WpService and runtime configuration: add WordPress install options to support custom titles, admin credentials, and integrate with server configuration. ([deae03d84](https://github.com/underpostnet/engine/commit/deae03d8431fc9bdc4283e0c359df893625cfa90))
+- Ensure parent directory exists before moving WordPress files: add check and create directory if missing. ([3661681f8](https://github.com/underpostnet/engine/commit/3661681f8785c46ab3df9e7feaa534398b21c6a0))
+- Enhance deployment scripts and Dockerfiles: update image references to use PHP 8.3, add XAMPP binaries to PATH, and modify WpService to support redirect options in createApp method. ([6c782a07d](https://github.com/underpostnet/engine/commit/6c782a07d6ec3eef0f88206775ad7f9ef877e69b))
+- Add WordPress provisioning support with WP-CLI integration: enhance WpService to install WordPress and activate the Wordfence plugin non-interactively; update configuration for subdirectory support in Dockerfile. ([e183f06fc](https://github.com/underpostnet/engine/commit/e183f06fc65542c1fa4c6e32912df5516a1c6e72))
+- Enhance WpService for subdirectory support: modify provisioning methods to handle WordPress installations in subdirectories, including .htaccess generation for URL rewriting. ([38704bf37](https://github.com/underpostnet/engine/commit/38704bf374fc6ba896f7f7a24196f023f40fb55c))
+- Update Dockerfile and Lampp.js to install XAMPP 8.2; add WpService for WordPress management ([ee7cb66de](https://github.com/underpostnet/engine/commit/ee7cb66de35b9f7e46e7ab557ad4a7c0675c67aa))
+
+### server-start
+
+- Clear environment variables during production deployment cleanup ([a6cc07699](https://github.com/underpostnet/engine/commit/a6cc076996b0b891d1179042d35835977dc3c1b2))
+- Add production environment cleanup in deployment process ([69c07f7f6](https://github.com/underpostnet/engine/commit/69c07f7f6befe6c591bc3b4fcd18c0cb22da974c))
+
+### dependencie
+
+- Add is-inside-container package to dependencies ([ba558dea5](https://github.com/underpostnet/engine/commit/ba558dea53a7a21fa84619c986978def994bdaaa))
+
+### engine
+
+- Remove unused CERTBOT_LIVE_PATH variables from environment configuration ([1b47da9ba](https://github.com/underpostnet/engine/commit/1b47da9ba3013d1fd9fb4cda9b4924e2b8cef8e4))
+
+### engine-lampp
+
+- Update WordPress configuration for environment variables and add GitHub authentication for private repositories ([aa0c605ea](https://github.com/underpostnet/engine/commit/aa0c605ead84860e9c7e43167c3e7085e4c7a58d))
+
+### engine-test
+
+- Add SMTP configuration to DefaultConf and update deployment manifests with deploy-id labels ([3bd19e174](https://github.com/underpostnet/engine/commit/3bd19e174f3a114ff1b70ffeb465445ca42cf9b4))
+
+### release
+
+- Refactor killDevServers function for improved process management during builds and deployments ([a21689bdd](https://github.com/underpostnet/engine/commit/a21689bdd7d777c143576709340539d5a9c54c34))
+
+### package
+
+- Remove unnecessary peer dependencies for Babel packages ([560bf8c6b](https://github.com/underpostnet/engine/commit/560bf8c6be2affacd3a88e98bc8ff192020e820d))
+- fix: correct typo in install:test script for coveralls installation ([a466daeb6](https://github.com/underpostnet/engine/commit/a466daeb63d2e504bd369dfcba86ec2cfa1eebec))
+
+### api-cyberia-instance
+
+- Add border color support to status icons and update gRPC server handling ([214ef8825](https://github.com/underpostnet/engine/commit/214ef8825f73cc8e23f3ea4f5e4c8507734c7ff5))
+- Enhance portal functionality by introducing portal subtypes and occupancy grid for better entity placement ([93b75c563](https://github.com/underpostnet/engine/commit/93b75c563edc3aa42c2ffc66e17a9155bdd6125c))
+- Implement fallback world generation and API integration for CyberiaInstance ([0657979de](https://github.com/underpostnet/engine/commit/0657979de3fcf18bae9b94f0441575f1f1b424d1))
+- Implement central portal connector and procedural entity generation for CyberiaInstance ([6146ada76](https://github.com/underpostnet/engine/commit/6146ada7638aa4192d749b720ce7174f79923466))
+- Refactor schema to directed graph model (PortalEdgeSchema) ([a4c0d62a7](https://github.com/underpostnet/engine/commit/a4c0d62a750bf9cf1cd3d1169a2ca5e113063840))
+- Implement CyberiaInstance API with CRUD operations and service integration ([2fa7fde33](https://github.com/underpostnet/engine/commit/2fa7fde33b149fa4718316c2354079ba8303ffdf))
+
+### engine-cyberia
+
+- Add Entity Status Indicator (ESI) registry and update gRPC server to handle status icons ([4c5ec09d5](https://github.com/underpostnet/engine/commit/4c5ec09d51b6abc87cbb6d82343682ea0ecfc8fd))
+- Refactor Cyberia item definitions: update DefaultCyberiaItems structure and enhance import functionality ([d59279a6d](https://github.com/underpostnet/engine/commit/d59279a6d9aaaabc9bdd3c0fa74671f09345575b))
+- Add 'cyberia-dialogue' to DefaultConf: include dialogue module in configuration ([bb7293875](https://github.com/underpostnet/engine/commit/bb729387572a466046bf595b0f2bbcdef4d3eb26))
+- Add equipment rules and refactor object layer schemas for clarity ([f852e2d9b](https://github.com/underpostnet/engine/commit/f852e2d9b219203e5f40af1bef63ee9819c3608d))
+- Add semantic layer generator files and update configuration ([7bde7856e](https://github.com/underpostnet/engine/commit/7bde7856e04bcd4db9bc5e050c554abf7b2d20f3))
+- Refactor enhance Semantic Layer Generator with modular structure and improved documentation ([522ee230c](https://github.com/underpostnet/engine/commit/522ee230cbf2a9631a3ac160731c4c7da3436333))
+- Refactor entity schemas to include defaultObjectLayers for enhanced inventory management and streamline entity initialization ([7ca2116eb](https://github.com/underpostnet/engine/commit/7ca2116ebd30c65620c3906e1d9029936b99fd03))
+- Implement Fountain & Sink economy model with detailed configuration in defaults and schema ([bd0725156](https://github.com/underpostnet/engine/commit/bd0725156f1a2d30f29754c33ea8a769cccdea5f))
+- Enhance bot generation by introducing weapon chance and adjusting entity count ranges for obstacles and foregrounds to improve gameplay variability. ([b22aa71a8](https://github.com/underpostnet/engine/commit/b22aa71a82ed30c51cabfc0a2ffcafee1665a0a8))
+- Refactor fallback world generation to use random counts for bots, obstacles, and foregrounds, enhancing procedural variability. ([2829d9952](https://github.com/underpostnet/engine/commit/2829d99524586c6d9a0515f7511843580c38d5b6))
+- Refactor Cyberia instance configuration to replace single item ID fields with arrays for live and dead item IDs, enhancing flexibility and consistency across schemas. ([ed7697afb](https://github.com/underpostnet/engine/commit/ed7697afbe5c94c6994bdec4cb6b9f44833268fc))
+- Refactor skill rules in Cyberia instance configuration to replace 'bullet' terminology with 'projectile', enhancing clarity and consistency across schemas ([ec88c4bc4](https://github.com/underpostnet/engine/commit/ec88c4bc40c3eb2fd43b2fcea622441d7a9b6f6f))
+- Refactor Cyberia instance configuration to utilize defaults for entity types and skill rules, enhancing maintainability and consistency across schemas ([39b0c9c29](https://github.com/underpostnet/engine/commit/39b0c9c292595dda0bdd7dcdf6f8840c0a9f762c))
+- Enhance Cyberia instance configuration with default values and auto-upsert logic for CyberiaInstanceConf ([703603d57](https://github.com/underpostnet/engine/commit/703603d5712bf0cf9e093e52a573905253bf3970))
+- Refactor Cyberia instance configuration to use separate model and enhance skill configuration handling ([6c8c5abe3](https://github.com/underpostnet/engine/commit/6c8c5abe391fce7288c49a4767a53efb068d0d20))
+- Update skill configuration to use logicEventIds instead of logicEventId and remove spawnedItemIds ([38d27602f](https://github.com/underpostnet/engine/commit/38d27602fe39a2d054c4f05c5a015bef0e262054))
+- Enhance skill configuration and fallback instance handling in gRPC server ([987691fa0](https://github.com/underpostnet/engine/commit/987691fa0dd8991365f5278b1e2dfc9fa74b3b6e))
+- Enhance gRPC server with game server configuration and fallback instance handling ([3f2bf5e43](https://github.com/underpostnet/engine/commit/3f2bf5e4302cca881e1c3e57cf26931ff38a9765))
+- Refactor Cyberia dependencies management by removing overrides and patching logic ([74ee9984e](https://github.com/underpostnet/engine/commit/74ee9984e19549dc0fee5854cb8fc880541896d0))
+- Update patchCyberiaDependencies to handle file-type import changes for ESM and CommonJS ([4514e6d48](https://github.com/underpostnet/engine/commit/4514e6d48103c2dc0b9a553df6f974317ea6c45d))
+- Add CyberiaDependenciesOverrides for enhanced dependency management in Cyberia portal ([d1783287c](https://github.com/underpostnet/engine/commit/d1783287cb54af8779ccd63a0283eb333fb29bf6))
+- Add MapEngineCyberia grid rendering and interactive cell selection ([b798ae61c](https://github.com/underpostnet/engine/commit/b798ae61c4a7b690060786904df84d85ce498a04))
+- fix: Enhance build process by missing copying jsdoc file with specific name and improve error handling in CLI ([56d9300d3](https://github.com/underpostnet/engine/commit/56d9300d30a163a4b456489a36227a5f39e974fc))
+
+### grpc-cyberia
+
+- Remove AtlasSpriteSheet handling from gRPC server: delete unused functions and RPC handlers ([c8dd39728](https://github.com/underpostnet/engine/commit/c8dd39728a8f890e5798e051ddd9448dd23e579b))
+
+### bin-deploy
+
+- Add 'add-api' command to deploy script: implement API addition to server and client configurations ([17811367b](https://github.com/underpostnet/engine/commit/17811367ba0a0e3238c77e9332e0dccd298667cf))
+
+### api-cyberia-dialogue
+
+- Add Cyberia dialogue functionality: implement CRUD operations, enhance dialogue model, and create seed dialogues ([4514545c3](https://github.com/underpostnet/engine/commit/4514545c3037a254c08d06cc25679294b1a10800))
+- Implement Cyberia Dialogue API: add controller, service, model, and router for CRUD operations ([dc463616c](https://github.com/underpostnet/engine/commit/dc463616cc5b07cba2cdc5dd5d1fa4999a7a95f4))
+
+### hardhat
+
+- Enhance coverage build process to support Hardhat 3 output structure ([61b90edbe](https://github.com/underpostnet/engine/commit/61b90edbe18d5a0ff5bd777411fb4745037a2a53))
+- Upgrade to hardhat v3 and fix vulnerabilities ([80ced86ef](https://github.com/underpostnet/engine/commit/80ced86ef1de566574ebeea41e25c4c9fcf5daa4))
+
+### cli-release
+
+- Enhance UnderpostRelease: update local repo initialization to configure worktree and ensure changes are staged before commit ([c552dbc42](https://github.com/underpostnet/engine/commit/c552dbc4214f84d44ac1aabae53785db1f3093d9))
+- Add pwa method to update and push pwa-microservices-template repository ([752adea13](https://github.com/underpostnet/engine/commit/752adea13a332e78b46cdaa8369bdac273115876))
+- Add CI push options to release command and implement local CI workflow ([4249540dc](https://github.com/underpostnet/engine/commit/4249540dc246670048d41f7ead94f4291190943d))
+- Add release orchestrator command and update GitHub workflows ([615a6941f](https://github.com/underpostnet/engine/commit/615a6941f9f226b49398b1bdd824c72578b39b89))
+
+### cli-run
+
+- Add random password generator run id ([76f6be0a9](https://github.com/underpostnet/engine/commit/76f6be0a9221306767296fb1314cc3c1d890472f))
+- Refactor release and run modules: update commit handling to return command strings for improved execution flow ([0ff930428](https://github.com/underpostnet/engine/commit/0ff930428d78e407db3ae56c1818a29502d1df88))
+- Enhance commit message handling: update logic to capture and sanitize last N commit messages from the engine repository for CI push and PWA build commands ([114fda529](https://github.com/underpostnet/engine/commit/114fda5291b9fa73b1adb397cd5a67db4ac2fdad))
+- Update gRPC service traffic handling to reflect current parent deploy traffic ([754b8f770](https://github.com/underpostnet/engine/commit/754b8f7708acaccae9a5ef5e0fed28767a107285))
+- Add local deployment method for templates without GitHub Actions ([62c3ff18a](https://github.com/underpostnet/engine/commit/62c3ff18a9ec0968bcc53dcbcddeb8ab77ec44cb))
+- feat: add docker-image method to dispatch Docker image CI workflow ([97737c3ab](https://github.com/underpostnet/engine/commit/97737c3ab39448db333db0a557f3d0f1a144c351))
+- Add git clean option for deployment processes and enhance cluster context handling ([a59df7402](https://github.com/underpostnet/engine/commit/a59df7402de1c365d73b9614177b6d4e91e1470a))
+- Refactor Docker image handling in CLI: Replace direct shell commands with Underpost.image.pullDockerHubImage for improved clarity and maintainability ([6d656bec8](https://github.com/underpostnet/engine/commit/6d656bec8882d22d2e333a913d482a1321acc727))
+
+### wp-runtime
+
+- Refactor WpService and BackUp: initialize git repository for WordPress sites and link to remote repository during backup operations ([220fa61af](https://github.com/underpostnet/engine/commit/220fa61afa87dead743e9938480190f5321ec5b4))
+- Update LamppService and WpService: adjust Apache user/group ownership to current user for improved plugin compatibility ([2bea96a70](https://github.com/underpostnet/engine/commit/2bea96a70c632300a59b1f458ebec82abaa83c4d))
+- Enhance Dockerfiles and WpService: update PATH for XAMPP binaries, add no-op sendmail, and adjust permissions for writable site configuration ([5f6e34103](https://github.com/underpostnet/engine/commit/5f6e3410337da94b19553c28ab00975dde867387))
+- Fix virtual host configuration: update ServerName directive and disable UseCanonicalName for improved routing. ([bd9137cab](https://github.com/underpostnet/engine/commit/bd9137cab0d353e41388f9e64aedd959607427bd))
+
+### cli-db
+
+- Enhance database management in UnderpostDB: ensure database creation for MariaDB and MongoDB; improve error handling for missing SQL and BSON files. Update WpService to verify remote repository accessibility before cloning, falling back to fresh install if necessary. ([3f7beda29](https://github.com/underpostnet/engine/commit/3f7beda29e569376988eed62ddd50f6a1c2acd3d))
+
+### cli-kubectl
+
+- Refactor Kubernetes CLI operations: centralize pod management and file transfer in a new kubectl module; update db and deploy modules to utilize the new API ([e31597512](https://github.com/underpostnet/engine/commit/e3159751232e47bb1e0bc5a14ff59ccc1bba0916))
+
+### cli-deploy
+
+- Add host parameter to buildGrpcServiceManifest for targeted gRPC port scanning ([f33d6a52a](https://github.com/underpostnet/engine/commit/f33d6a52ad02ca471f599ba4e27203312e73a839))
+- Add gRPC service deployment support in the deploy module ([456a32076](https://github.com/underpostnet/engine/commit/456a32076d458bc67eea239c2bbf257a5e75fee8))
+- Enhance gRPC service manifest to support traffic color switching during deployment ([daf79cce8](https://github.com/underpostnet/engine/commit/daf79cce8b2e48abbefadf3aa2eb64b834bc3dd5))
+
+### bin-build
+
+- Copy .gitignore to the deployment directory during build process ([fbd53450e](https://github.com/underpostnet/engine/commit/fbd53450e3642082051fb595e27f74d3cfa19759))
+- Update build process to conditionally copy jsdoc and deployment manifests for development ([a5b61e906](https://github.com/underpostnet/engine/commit/a5b61e9061511935ba2ddee7531d0e408e91a8af))
+
+### api-atlas-sprite-sheet
+
+- Add metadata endpoints for AtlasSpriteSheet API to retrieve item metadata ([18dfae3e1](https://github.com/underpostnet/engine/commit/18dfae3e1f93154112c2b5374239bcc02f04f801))
+- Add blob endpoint and service for retrieving atlas sprite sheet data ([5c5f60d2b](https://github.com/underpostnet/engine/commit/5c5f60d2b18e8d13b5d53449749c5eb694c18b96))
+
+### cli-cyberia-semantic
+
+- Update default values generate-semantic-examples examples ([b97625211](https://github.com/underpostnet/engine/commit/b9762521182f85aaae88236a5f8ee3fc576b79f5))
+
+### grpc
+
+- Fix gRPC server initialization condition to check for root path ([1efd33b4b](https://github.com/underpostnet/engine/commit/1efd33b4b63f8419a1ba3a8d00b8e854133ada63))
+
+### cyberia-semantic-engine
+
+- Refactor hair zone calculation for improved accuracy in skin generation ([9eb644ed2](https://github.com/underpostnet/engine/commit/9eb644ed272e10352724a6063a82b1f194286243))
+- Refactor hair zone calculation for improved accuracy in skin generation ([4c2e666e3](https://github.com/underpostnet/engine/commit/4c2e666e38b8ae4b7dac0cd5a9e4f6f3a4b1b66b))
+- Refactor skin and hair generation logic for improved readability and maintainability ([a2dd47768](https://github.com/underpostnet/engine/commit/a2dd477680fa1d122c65d9bb544327f18b3aae63))
+- Add command to generate semantic examples with customizable options ([45dbb38d7](https://github.com/underpostnet/engine/commit/45dbb38d77b8fceedca8013b7069745a9717cfdf))
+- Enhance skin generation with subtype support for varied tones and hair styles ([4549be1e7](https://github.com/underpostnet/engine/commit/4549be1e732736afd64e3f05657f78a880dcefa6))
+- Add border extraction and hair depth control to skin template generation ([03b6e45b8](https://github.com/underpostnet/engine/commit/03b6e45b88f8bea347b68723bba11e3ee392327d))
+
+### client-cyberia-ol-viewer
+
+- Refactor WebP display logic to prevent layout flicker and improve control state updates ([4e9843554](https://github.com/underpostnet/engine/commit/4e9843554e7834f22f7bfefcb77bb0ac2873290d))
+
+### playwright
+
+- Update Playwright image version to v1.59.0 for improved features and stability ([3aa4a281a](https://github.com/underpostnet/engine/commit/3aa4a281a1200251fc140639e2df1dbecde88fd9))
+
+### cli-cyberia-instance
+
+- Refactor skillConfig seeding logic to ensure idempotency and improve error handling for missing CyberiaInstance ([0afe4e899](https://github.com/underpostnet/engine/commit/0afe4e899a5f6e4f5edea768a37d136b85a95787))
+- feat: enhance unpin logging for IPFS Cluster to handle 404 status ([5ca839926](https://github.com/underpostnet/engine/commit/5ca839926e123862d4d5d937458d8c62c4f6cc7e))
+
+### api-ipfs
+
+- Refactor IPFS pinning logic to enhance CID registry management and remove userId dependency ([986520b68](https://github.com/underpostnet/engine/commit/986520b6813d49b23a20f5e56d3ccd5559ba7772))
+
+### client-cyberia-instance
+
+- Implement portal connection feature in Cyberia instance with error handling and UI integration ([46a98148f](https://github.com/underpostnet/engine/commit/46a98148fc9f0ff84723e15563aca51be5610970))
+- Add portal management features to InstanceEngineCyberia component ([ef7a1f1d0](https://github.com/underpostnet/engine/commit/ef7a1f1d05429e45743746d9e0fafae130ee8f0d))
+- Add InstanceEngineCyberia and integrate with CyberiaInstance API ([5c03603f7](https://github.com/underpostnet/engine/commit/5c03603f79e3049d8dd20a478fad9f6843e23a1c))
+
+### api-cyberia-global
+
+- Implement Cyberia Global Map Code Registry API with CRUD operations ([2bb06f1c4](https://github.com/underpostnet/engine/commit/2bb06f1c46630abcc7c8423b4befadd807faabfc))
+
+### cyberia-instance-conf
+
+- Implement Cyberia instance configuration API with CRUD operations ([00312d6d0](https://github.com/underpostnet/engine/commit/00312d6d0d3095d75c145995d3f96b8fcd050e6a))
+
+### runtime-express
+
+- implement gRPC server integration and configuration in Express service ([5029c962c](https://github.com/underpostnet/engine/commit/5029c962c688b4a25034f8f2bd12383ef09620d9))
+
+### gprc-cyberia
+
+- feat: add gRPC support with server implementation and update dependencies ([07b552c1c](https://github.com/underpostnet/engine/commit/07b552c1c0b6815b281de590789bb3edb9b6c979))
+
+### github-actions
+
+- Update clean steps for client public directories in deployment process ([b5e9b5edc](https://github.com/underpostnet/engine/commit/b5e9b5edc034c708a5632c9f9f3f90f5dc2cefe0))
+- Update workflow dependencies for Dockerhub and release processes ([5f8aa62e0](https://github.com/underpostnet/engine/commit/5f8aa62e06111f5299088320e594a1379c29af0e))
+- feat: streamline CI workflows by removing redundant GITHUB_TOKEN configuration steps ([dc61ed92b](https://github.com/underpostnet/engine/commit/dc61ed92b1fd6c4a705b721cd7425b362b999cba))
+- fix: remove coveralls uninstallation from CI workflows and update install:test script ([dee0cbc3e](https://github.com/underpostnet/engine/commit/dee0cbc3e825ddbed19a72739b8f69fb4f8250cc))
+- refactor: Simplify CI workflows by removing unnecessary conditions and enhancing dispatch logic ([f7bcb4cc9](https://github.com/underpostnet/engine/commit/f7bcb4cc9792c114befa0f97512212dff095b6dc))
+
+### client-stream
+
+- Enhance user tracking in stream channel by notifying existing users on join ([01702e5d3](https://github.com/underpostnet/engine/commit/01702e5d36712b84612bead2081c5e7bd3c31f04))
+- Refactor: enhance Stream class for improved PeerJS management and simplify StreamNexodev integration ([bc470740b](https://github.com/underpostnet/engine/commit/bc470740b5f5570e51b5f77df7d4345cd8a7aba9))
+
+### api-cyberia-map
+
+- feat: enforce unique constraints on code fields in CyberiaInstance and CyberiaMap schemas ([6ea0fe2ee](https://github.com/underpostnet/engine/commit/6ea0fe2ee7c2684c02580032ca1b6a033f8f6a36))
+- feat: Implement Cyberia map CRUD operations with controller, service, and router ([dd21f6b08](https://github.com/underpostnet/engine/commit/dd21f6b08d1bf2275c75a77fc02bf3860e392982))
+
+### cli-cyberia-instace
+
+- Add export/import functionality for Cyberia instances and related documents ([9b64825cc](https://github.com/underpostnet/engine/commit/9b64825cc0826dc5f5e76d4de941c959a835263c))
+
+### client-cyberia-map
+
+- feat: add option to capture object layer thumbnail on save/update ([824d15aee](https://github.com/underpostnet/engine/commit/824d15aee190e353ae219f67444e0d820a77908a))
+- feat: add variation preserve input for entity dimension adjustments ([d6bafbaba](https://github.com/underpostnet/engine/commit/d6bafbababef22495727e28fa7b9f87409c0a8d8))
+- feat: ensure new thumbnail upload for cloned maps and handle auto-capture fallback ([06468e028](https://github.com/underpostnet/engine/commit/06468e028b934edc4018f7ebd9dc5562f6f4cd37))
+- feat: add entity variation generation and flip functionality in MapEngineCyberia ([815c9ecde](https://github.com/underpostnet/engine/commit/815c9ecdee73f874e8a90689e66dfe084cf0d78d))
+- feat: implement clone map functionality with thumbnail upload and auto-capture ([ed28d7f9f](https://github.com/underpostnet/engine/commit/ed28d7f9ffc971119982cd206d685c971c83e95b))
+- Add grid dimensions to CyberiaMap schema and update MapEngineCyberia to handle grid parameters ([bd3613ecc](https://github.com/underpostnet/engine/commit/bd3613eccd93e9cc6d72dff62a99fcef14136d31))
+- feat: add random dimension feature for entities and implement UI controls ([d24f7e55f](https://github.com/underpostnet/engine/commit/d24f7e55f3d2093c4ea7fe0cc6fe4eaa07bd15d8))
+- Add object layer image loading and toggle functionality in MapEngineCyberia ([087377409](https://github.com/underpostnet/engine/commit/08737740992c6b8f29c348d8b57a44f2f1c5a067))
+- Add toggle for adding entities on click and display cell coordinates in MapEngineCyberia ([d77967d72](https://github.com/underpostnet/engine/commit/d77967d7272a70802b8faabe0d4ba96f9b747178))
+- Add entity filtering functionality to MapEngineCyberia component ([d58f68ef9](https://github.com/underpostnet/engine/commit/d58f68ef91bb3777277b8884545dda1125f6b0a5))
+- Enhance DropDown and MapEngineCyberia components with badge rendering and grid visibility toggle functionality ([b60eb8fb0](https://github.com/underpostnet/engine/commit/b60eb8fb08c4f2da0b12bbf3c4b749247f6dcac8))
+- Refactor DropDown and MapEngineCyberia to integrate object layer item selection and thumbnail capture functionality ([34988386a](https://github.com/underpostnet/engine/commit/34988386a9cab4c27ad34a009efd0da8a5b9f1de))
+- Add search-item-ids endpoint and implement autocomplete for object layer item IDs ([ec066a757](https://github.com/underpostnet/engine/commit/ec066a7575dd1ba2f839b4a53177bad6dc66bae5))
+- feat: Enhance Cyberia map management with admin role checks for update and delete operations ([e62b121d4](https://github.com/underpostnet/engine/commit/e62b121d4b1ffb99516d97d770e7978600113bb1))
+- feat: Enhance Cyberia map management with additional fields, user authentication, and thumbnail support ([0023ba3ec](https://github.com/underpostnet/engine/commit/0023ba3ec4570a79b70944aac5ccc90709f3b63d))
+- feat: Enhance Cyberia map management with load map functionality and notifications ([71aab98e9](https://github.com/underpostnet/engine/commit/71aab98e9760da91a1c262e66256e54acc627909))
+- feat: Implement Cyberia map management with CRUD operations and integrate into MapEngineCyberia ([f6bb13ecc](https://github.com/underpostnet/engine/commit/f6bb13eccc0db73c57510a483de05e8774dd51aa))
+- feat: Enhance Cyberia entity management with CRUD operations and integrate with MapEngineCyberia ([bc3146f2f](https://github.com/underpostnet/engine/commit/bc3146f2f93c32e821a21e6dcd5847b4f48a7526))
+
+### gitub-actions
+
+- Remove coveralls uninstallation from CI workflows ([68eee857c](https://github.com/underpostnet/engine/commit/68eee857ca34a2251d07efee6f9ef48efb28022f))
+
+### coveralls
+
+- Update Coveralls upload step to use direct command instead of GitHub Action ([b0c6712f3](https://github.com/underpostnet/engine/commit/b0c6712f3f97d7d3cb4a8e150991b2e8965aaeaa))
+
+### github-actios
+
+- fix: add bash to required packages and implement retry logic for database connections ([d44c0d52e](https://github.com/underpostnet/engine/commit/d44c0d52edf6e675fffa21cdfd05ae44c7e75e51))
+
+### websocket
+
+- Refactor: update SocketIoHandler to SocketIoHandlerProvider and add AppStore references across multiple configuration files ([0811b67cf](https://github.com/underpostnet/engine/commit/0811b67cf3c9bfe1a2f488106e67572397e0367e))
+- Refactor: streamline WebSocket channel management by consolidating channel logic and removing deprecated management files ([23e024554](https://github.com/underpostnet/engine/commit/23e024554ec7f32074eb69ce591067c2a659e0d3))
+
+### client
+
+- Refactor: remove BaseElement dependencies and simplify AppStore instantiation across multiple components ([f0fa9011e](https://github.com/underpostnet/engine/commit/f0fa9011eb444d5dc9e3583bb5dfc599bef6dd25))
+- Refactor components to utilize AppStore for state management ([9436d91ca](https://github.com/underpostnet/engine/commit/9436d91cad1e3855f3c81d245847b4c0f07909b1))
+- Refactor: replace uglify-js with esbuild for JavaScript minification and import rewriting ([759d8269b](https://github.com/underpostnet/engine/commit/759d8269b54b4d4fddfc0fe8e6ec206fb69aea7b))
+- Refactor parameter handling in multiple components: Remove unused EVENT_CALLBACK_TIME parameters and simplify Keyboard initialization ([491303dcd](https://github.com/underpostnet/engine/commit/491303dcdc939f838e71fc418ccd99c1dcb648ab))
+
+### client-ws
+
+- Refactor: streamline SocketIo handlers and enhance WebSocket management for improved clarity and maintainability ([c2d135072](https://github.com/underpostnet/engine/commit/c2d135072f2ec0cbb64bf651c4198438f2882931))
+
+### cli-cyberia
+
+- Enhance README.md: Add new features for drop and cleanup, static asset management, IPFS and blockchain integration, and update import commands for clarity ([cf433a4e6](https://github.com/underpostnet/engine/commit/cf433a4e6cbc43b0c0d4df88321e84f16b1fd68e))
+- Enhance IPFS cleanup process in Cyberia CLI: collect and unpin CIDs, remove MFS paths for ObjectLayer items ([0984e0fbb](https://github.com/underpostnet/engine/commit/0984e0fbb9048520b766605ed3f7c088a8476709))
+- Enhance Object Layer and Atlas Sprite Sheet Management: Implement cut-over consistency for staging CIDs, streamline IPFS integration, and improve thumbnail handling in Cyberia services. ([9b92cdec7](https://github.com/underpostnet/engine/commit/9b92cdec78611e0fc47168470270359d457346c4))
+- Refactor CLI commands for object layer import: update flags from `--import` to `--import-types` for clarity ([3ef65f6c7](https://github.com/underpostnet/engine/commit/3ef65f6c78daeb65fe9c4cc9804b8a930b21d80b))
+- Add development environment option and enhance ObjectLayer upsert logic in Cyberia CLI ([87ae2f471](https://github.com/underpostnet/engine/commit/87ae2f471ec7d3582958ad8ea383135c1ad470e7))
+- Add default Object Layer items and import command to Cyberia CLI ([4905b91c8](https://github.com/underpostnet/engine/commit/4905b91c84a98e389f558a93feb65d1bf143a79e))
+- Enhance import functionality in Cyberia CLI: support specific item imports and batch imports by type ([6c4c567a6](https://github.com/underpostnet/engine/commit/6c4c567a6db185287b40cd54495a0d6198291f9b))
+
+### object-layer-engine
+
+- Update ObjectLayerEngineModal to dynamically set cell dimensions based on loaded data ([6b304e6e3](https://github.com/underpostnet/engine/commit/6b304e6e3f0db6888231503570ed7274cbdeec70))
+
+### conf
+
+- Update deployment configurations and proxy settings for dd-core and dd-cyberia environments ([a97862864](https://github.com/underpostnet/engine/commit/a97862864855601794f21330c198b14f54d75067))
+
+### cli-client
+
+- Refactor syncEnvPort and singleReplica operations for improved clarity and error handling ([751ef4ffd](https://github.com/underpostnet/engine/commit/751ef4ffde6058daa7d8af4cbb74be2a31b5ec60))
+
+### dependabot
+
+- feat: Enhance dependabot branch management with stashing, merging, and cleanup operations ([06a42f4bd](https://github.com/underpostnet/engine/commit/06a42f4bddf1614bab684dc7dfca38e4b3a9c15d))
+
+### coverage
+
+- feat: Add coverageOutputDir to documentation configuration for custom coverage output path ([ea630ecc4](https://github.com/underpostnet/engine/commit/ea630ecc4dab0d5e086a769b0a952a64b8579aae))
+
+### api-cyberia-entity
+
+- feat: Implement Cyberia entity CRUD operations and service integration ([56629ee17](https://github.com/underpostnet/engine/commit/56629ee1706d06f91375ac6919763c30d073dc73))
+
+## New release v:3.1.3 (2026-03-17)
 
 ### cli-run
 
