@@ -49,6 +49,25 @@ class WpService {
   }
 
   /**
+   * Returns an authenticated clone URL for GitHub HTTPS repositories when
+   * `GITHUB_TOKEN` is present in the environment.  For non-GitHub URLs or
+   * when no token is set the original URL is returned unchanged.
+   * The token is injected as `https://<token>@github.com/...` so that
+   * `git ls-remote` and `git clone` can reach private repositories.
+   *
+   * @param {string} repoUrl - The plain HTTPS repository URL.
+   * @returns {string} The (possibly augmented) URL.
+   */
+  static resolveRepoWithAuth(repoUrl) {
+    if (!repoUrl) return repoUrl;
+    const token = process.env.GITHUB_TOKEN;
+    if (token && repoUrl.startsWith('https://github.com/')) {
+      return repoUrl.replace('https://github.com/', `https://${token}@github.com/`);
+    }
+    return repoUrl;
+  }
+
+  /**
    * Provisions a WordPress site and registers it with the LAMPP virtual-host router.
    *
    * Directory layout (e.g. host='test.nexodev.org', pathRoute='/wp'):
@@ -140,8 +159,16 @@ class WpService {
    * @param {object|null} [opts.db]       - MariaDB config used as fallback for fresh install.
    */
   static provisionClone({ host, siteRoot, repository, db, wp, subDir = '' }) {
+    // Build an authenticated URL for git operations (required for private repos).
+    // The authenticated URL is intentionally not passed to initLocalRepo so that
+    // the stored remote 'origin' stays as the plain HTTPS URL.
+    const authUrl = WpService.resolveRepoWithAuth(repository);
+    if (!process.env.GITHUB_TOKEN && repository && repository.startsWith('https://github.com/')) {
+      logger.warn(`${host}: GITHUB_TOKEN not set — git operations will fail for private repositories`);
+    }
+
     // Step 0 — verify the remote repository is reachable; fall back to fresh install if not
-    const remoteCheck = shellExec(`git ls-remote "${repository}" HEAD 2>/dev/null`, {
+    const remoteCheck = shellExec(`git ls-remote "${authUrl}" HEAD 2>/dev/null`, {
       stdout: true,
       silent: true,
     });
@@ -156,7 +183,7 @@ class WpService {
       logger.info(`${host}: cloning ${repository} → ${siteRoot}`);
       const tmp = `${siteRoot}.tmp`;
       if (fs.existsSync(tmp)) shellExec(`sudo rm -rf "${tmp}"`);
-      shellExec(`git clone "${repository}" "${tmp}"`);
+      shellExec(`git clone "${authUrl}" "${tmp}"`);
       shellExec(`sudo mv "${tmp}" "${siteRoot}"`);
       shellExec(`sudo chmod -R 755 "${siteRoot}"`);
       shellExec(`sudo chown -R daemon:daemon "${siteRoot}"`);
