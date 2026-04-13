@@ -1080,7 +1080,7 @@ ${renderHosts}`,
     async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = [], namespace = 'default', outLogType = '') {
       let checkStatusIteration = 0;
       const checkStatusIterationMsDelay = 1000;
-      const maxIterations = 500;
+      const maxIterations = 3000;
       const deploymentId = `${deployId}-${env}-${targetTraffic}`;
       const iteratorTag = `[${deploymentId}]`;
       logger.info('Deployment init', { deployId, env, targetTraffic, checkStatusIterationMsDelay, namespace });
