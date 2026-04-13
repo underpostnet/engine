@@ -1,14 +1,19 @@
 name: CD | Release deployment | remote ssh
 
 on:
-  workflow_run:
-    workflows: ['CI | Dockerhub']
-    types:
-      - completed
+  push:
+    branches: [main, master]
+
+  workflow_call:
+
+  workflow_dispatch:
 
 jobs:
   after-publish:
-    if: github.repository == 'underpostnet/pwa-microservices-template' || startsWith(github.event.head_commit.message, 'cd(ssh-release)')
+    if: |
+      github.event_name == 'workflow_dispatch'
+      || github.event_name == 'workflow_call'
+      || (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'cd(ssh-release)'))
     runs-on: ubuntu-latest
     steps:
       - name: Run remote deploy via SSH
