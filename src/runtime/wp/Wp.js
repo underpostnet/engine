@@ -23,6 +23,9 @@ const logger = loggerFactory(import.meta);
 const WP_DOWNLOAD_URL = 'https://wordpress.org/latest.zip';
 const WP_ZIP_PATH = '/tmp/wordpress-latest.zip';
 const WP_BASE_DIR = '/opt/lampp/htdocs/wp';
+// XAMPP ships its own PHP binary under /opt/lampp/bin which is not on the default
+// PATH for non-login shells spawned by shellExec. Prepend it to every wp-cli call.
+const LAMPP_BIN = '/opt/lampp/bin';
 
 /**
  * @class WpService
@@ -72,7 +75,11 @@ class WpService {
    * to `/usr/local/bin/wp` if it is not already present.
    */
   static ensureWpCli() {
-    const existing = shellExec(`which wp 2>/dev/null`, { stdout: true, silent: true, disableLog: true });
+    const existing = shellExec(`PATH="${LAMPP_BIN}:$PATH" which wp 2>/dev/null`, {
+      stdout: true,
+      silent: true,
+      disableLog: true,
+    });
     if (existing && existing.trim()) return;
     logger.info('WP-CLI not found — installing to /usr/local/bin/wp');
     shellExec(`curl -sL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar`);
@@ -287,7 +294,12 @@ class WpService {
       'ChangeMe_' + Math.random().toString(36).slice(2, 10);
     const adminEmail = (wp && wp.adminEmail) || process.env.WP_ADMIN_EMAIL || `admin@${host}`;
     const siteTitle = (wp && wp.title) || process.env.WP_SITE_TITLE || host;
-    const wpCli = (cmd) => shellExec(`wp --allow-root --path="${siteRoot}" ${cmd}`, { stdout: true, silent: false });
+    // Prepend XAMPP's bin dir so WP-CLI can find the bundled PHP binary.
+    const wpCli = (cmd) =>
+      shellExec(`PATH="${LAMPP_BIN}:$PATH" wp --allow-root --path="${siteRoot}" ${cmd}`, {
+        stdout: true,
+        silent: false,
+      });
 
     // Step 1 — install WordPress core (skipped automatically by WP-CLI if already installed)
     logger.info(`${host}: running wp core install`);
