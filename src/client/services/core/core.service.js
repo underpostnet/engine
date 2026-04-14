@@ -18,6 +18,19 @@ const endpoint = 'core';
 // https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 
 /**
+ * Returns the normalized proxy path from renderPayload (always trailing `/`).
+ * Falls back to `null` when no apiBaseProxyPath is set.
+ * @memberof CoreServiceClient
+ * @return {string|null}
+ */
+const getApiBaseProxyPath = () =>
+  window.renderPayload?.apiBaseProxyPath
+    ? window.renderPayload.apiBaseProxyPath === '/'
+      ? window.renderPayload.apiBaseProxyPath
+      : `${window.renderPayload.apiBaseProxyPath}/`
+    : null;
+
+/**
  * Gets the base host for API requests.
  * Uses the apiBaseHost from renderPayload if available, otherwise falls back to location.host.
  * @memberof CoreServiceClient
@@ -35,13 +48,7 @@ const getBaseHost = () => (window.renderPayload?.apiBaseHost ? window.renderPayl
  */
 const getApiBasePath = (options) =>
   `${
-    options?.proxyPath
-      ? `/${options.proxyPath}/`
-      : window.renderPayload?.apiBaseProxyPath
-        ? window.renderPayload.apiBaseProxyPath == '/'
-          ? window.renderPayload.apiBaseProxyPath
-          : `${window.renderPayload.apiBaseProxyPath}/`
-        : getProxyPath()
+    options?.proxyPath ? `/${options.proxyPath}/` : getApiBaseProxyPath() || getProxyPath()
   }${window.renderPayload?.apiBasePath ? window.renderPayload.apiBasePath : 'api'}/`;
 
 /**
@@ -65,7 +72,11 @@ const getApiBaseUrl = (options = { id: '', endpoint: '', proxyPath: '' }) =>
  * @memberof CoreServiceClient
  * @return {string} The WebSocket base path.
  */
-const getWsBasePath = () => (getProxyPath() !== '/' ? `${getProxyPath()}socket.io/` : '/socket.io/');
+const getWsBasePath = () => {
+  const proxyPath = getApiBaseProxyPath();
+  if (proxyPath) return proxyPath !== '/' ? `${proxyPath}socket.io/` : '/socket.io/';
+  return getProxyPath() !== '/' ? `${getProxyPath()}socket.io/` : '/socket.io/';
+};
 
 /**
  * Constructs the full WebSocket base URL for connections.
@@ -321,6 +332,7 @@ export {
   payloadFactory,
   buildQueryUrl,
   getBaseHost,
+  getApiBaseProxyPath,
   getApiBasePath,
   getApiBaseUrl,
   getWsBasePath,
