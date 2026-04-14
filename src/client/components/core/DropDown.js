@@ -75,14 +75,22 @@ const DropDown = {
         console.log('DropDown onClick', this.value);
         if (options && options.resetOnClick) options.resetOnClick();
         if (options && options.type === 'checkbox') {
+          DropDown.Tokens[id].oncheckvalues = {};
+          DropDown.Tokens[id].value = [];
+          s(`.${id}`).value = [];
+          htmls(`.dropdown-current-${id}`, '');
           if (options.serviceProvider) {
-            DropDown.Tokens[id].oncheckvalues = {};
-            DropDown.Tokens[id].value = [];
-            htmls(`.dropdown-current-${id}`, '');
             htmls(`.${id}-render-container`, '');
           } else {
-            for (const opt of DropDown.Tokens[id].value) {
-              s(`.dropdown-option-${id}-${opt}`).click();
+            for (const optionData of options.data) {
+              if (optionData.value !== 'reset' && optionData.value !== 'close' && optionData.checked) {
+                optionData.checked = false;
+                const vd = optionData.value.trim().replaceAll(' ', '-');
+                if (ToggleSwitch.Tokens[`checkbox-role-${vd}`]) {
+                  const checkbox = s(`.checkbox-role-${vd}-checkbox`);
+                  if (checkbox && checkbox.checked) ToggleSwitch.Tokens[`checkbox-role-${vd}`].click();
+                }
+              }
             }
           }
         } else this.Tokens[id].value = undefined;
