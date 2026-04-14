@@ -63,6 +63,8 @@ const DefaultConf = /**/ {
           'Pagination',
           'windowGetDimensions',
           'SearchBox',
+          'SocketIoHandler',
+          'AppStore',
         ],
         default: [
           'MenuDefault',
