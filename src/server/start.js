@@ -199,11 +199,7 @@ class UnderpostStartUp {
       shellExec(`npm ${runCmd} ${deployId}`, { async: true });
       await awaitDeployMonitor(true);
       Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
-      if (env === 'production' && isInsideContainer()) {
-        Underpost.env.clean();
-        shellExec(`sudo rm -rf /home/dd/engine/engine-private`);
-        if (fs.existsSync('/etc/config/.env.production')) fs.removeSync('/etc/config/.env.production');
-      }
+      if (env === 'production' && isInsideContainer()) Underpost.secret.globalSecretClean();
     },
   };
 }

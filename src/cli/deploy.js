@@ -130,24 +130,20 @@ class UnderpostDeploy {
     deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image, namespace, volumes, cmd }) {
       if (!cmd)
         cmd = [
+          `printenv | grep -vE '^(KUBERNETES_|HOME=|HOSTNAME=|PATH=|TERM=|SHLVL=|PWD=|_=|LANG=|container=)' > /tmp/.env.${env}`,
           `npm install -g npm@11.2.0`,
           `npm install -g underpost`,
-          `underpost secret underpost --create-from-file /etc/config/.env.${env}`,
+          `underpost secret underpost --create-from-file /tmp/.env.${env}`,
+          `rm -f /tmp/.env.${env}`,
           `underpost start --build --run ${deployId} ${env}`,
         ];
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
-      if (!volumes)
-        volumes = [
-          {
-            volumeMountPath: '/etc/config',
-            volumeName: 'config-volume',
-            configMap: 'underpost-config',
-          },
-        ];
+      if (!volumes) volumes = [];
       const confVolume = fs.existsSync(`./engine-private/conf/${deployId}/conf.volume.json`)
         ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.volume.json`, 'utf8'))
         : [];
       volumes = volumes.concat(confVolume);
+      const containerImage = image ? image : `localhost/rockylinux9-underpost:v${packageJson.version}`;
       return `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -169,7 +165,10 @@ spec:
     spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
-          image: ${image ? image : `localhost/rockylinux9-underpost:v${packageJson.version}`}
+          image: ${containerImage}
+          envFrom:
+            - secretRef:
+                name: underpost-config
 ${
   resources
     ? `          resources:
@@ -187,11 +186,15 @@ ${
             - >
               ${cmd.join(` && `)}
 
-${Underpost.deploy
-  .volumeFactory(volumes.map((v) => ((v.version = `${deployId}-${env}-${suffix}`), v)))
-  .render.split(`\n`)
-  .map((l) => '    ' + l)
-  .join(`\n`)}
+${
+  volumes.length > 0
+    ? Underpost.deploy
+        .volumeFactory(volumes.map((v) => ((v.version = `${deployId}-${env}-${suffix}`), v)))
+        .render.split(`\n`)
+        .map((l) => '    ' + l)
+        .join(`\n`)
+    : ''
+}
 ---
 apiVersion: v1
 kind: Service
@@ -793,15 +796,16 @@ EOF`);
       };
     },
     /**
-     * Creates a configmap for a deployment.
-     * @param {string} env - Environment for which the configmap is being created.
-     * @param {string} [namespace='default'] - Kubernetes namespace for the configmap.
+     * Creates a Kubernetes Secret for a deployment (replaces configMap for secret data).
+     * Secrets are mounted as tmpfs (never written to node disk) and support RBAC restrictions.
+     * @param {string} env - Environment for which the secret is being created.
+     * @param {string} [namespace='default'] - Kubernetes namespace for the secret.
      * @memberof UnderpostDeploy
      */
     configMap(env, namespace = 'default') {
-      shellExec(`kubectl delete configmap underpost-config -n ${namespace} --ignore-not-found`);
+      shellExec(`kubectl delete secret underpost-config -n ${namespace} --ignore-not-found`);
       shellExec(
-        `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env} --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
+        `kubectl create secret generic underpost-config --from-env-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env} --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
       );
     },
     /**
@@ -920,6 +924,8 @@ EOF
      * @param {string} volume.volumeType - Type of the volume (e.g. 'Directory').
      * @param {string|null} volume.claimName - Name of the persistent volume claim (if applicable).
      * @param {string|null} volume.configMap - Name of the config map (if applicable).
+     * @param {string|null} volume.secret - Name of the Kubernetes Secret (if applicable). Mounts as readOnly.
+     * @param {boolean} [volume.emptyDir=false] - If true, uses an emptyDir volume (writable tmpfs).
      * @returns {object} - Object containing the rendered volume mounts and volumes.
      * @memberof UnderpostDeploy
      */
@@ -941,7 +947,17 @@ EOF
       let _volumes = `
   volumes:`;
       volumes.map((volumeData) => {
-        let { volumeName, volumeMountPath, volumeHostPath, volumeType, claimName, configMap, version } = volumeData;
+        let {
+          volumeName,
+          volumeMountPath,
+          volumeHostPath,
+          volumeType,
+          claimName,
+          configMap,
+          secret,
+          emptyDir,
+          version,
+        } = volumeData;
         if (version) {
           volumeName = `${volumeName}-${version}`;
           claimName = claimName ? `${claimName}-${version}` : null;
@@ -949,18 +965,23 @@ EOF
         _volumeMounts += `
         - name: ${volumeName}
           mountPath: ${volumeMountPath}
-`;
+${secret ? `          readOnly: true\n` : ''}`;
 
         _volumes += `
     - name: ${volumeName}
  ${
-   configMap
-     ? `     configMap:
+   emptyDir
+     ? `     emptyDir: {}`
+     : secret
+       ? `     secret:
+        secretName: ${secret}`
+       : configMap
+         ? `     configMap:
         name: ${configMap}`
-     : claimName
-       ? `     persistentVolumeClaim:
+         : claimName
+           ? `     persistentVolumeClaim:
         claimName: ${claimName}`
-       : `     hostPath:
+           : `     hostPath:
         path: ${volumeHostPath}
         type: ${volumeType}
 `

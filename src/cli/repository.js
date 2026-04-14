@@ -1423,6 +1423,96 @@ Prevent build private config repo.`,
         return false;
       }
     },
+
+    /**
+     * Runtime-type → in-pod site-root directory resolver.
+     * Maps each known runtime to the filesystem path where its repository lives inside the container.
+     * @param {string} runtime - The runtime identifier (e.g. 'wp').
+     * @param {string} host - The virtual-host name.
+     * @returns {string|null} Absolute path inside the pod, or null if the runtime has no known mapping.
+     * @memberof UnderpostRepository
+     */
+    runtimeSiteRoot(runtime, host) {
+      const runtimePaths = {
+        wp: `/opt/lampp/htdocs/wp/${host}`,
+      };
+      return runtimePaths[runtime] || null;
+    },
+
+    /**
+     * Backs up all repositories defined in a deployment's conf.server.json by executing
+     * git commit+push inside the running deployment pod via `kubectl exec`.
+     *
+     * Scans every `server[host][path]` entry for a `repository` field. For each match
+     * the runtime-specific site root is resolved and a git backup script is executed
+     * inside the pod. GITHUB_TOKEN and GITHUB_USERNAME are injected as ephemeral
+     * environment variables in the exec command — never persisted to the pod filesystem.
+     *
+     * @param {object} opts
+     * @param {string}  opts.deployId   - Deployment ID (used to read conf.server.json and find pods).
+     * @param {string}  [opts.namespace='default'] - Kubernetes namespace.
+     * @param {string}  [opts.env='production'] - Deployment environment.
+     * @returns {void}
+     * @memberof UnderpostRepository
+     */
+    backupPodRepositories({ deployId, namespace = 'default', env = 'production' }) {
+      const confServer = readConfJson(deployId, 'server', { resolve: true });
+      const githubToken = process.env.GITHUB_TOKEN || '';
+      const githubUsername = process.env.GITHUB_USERNAME || 'underpostnet';
+
+      if (!githubToken) {
+        logger.warn('backupPodRepositories: GITHUB_TOKEN not available — git push will fail');
+      }
+
+      // Resolve the active blue/green traffic colour so we target the correct pod
+      const traffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace });
+      if (!traffic) {
+        logger.warn(`backupPodRepositories: could not resolve current traffic for ${deployId} — skipping`);
+        return;
+      }
+
+      // Find a running pod that matches the active traffic colour
+      const pods = Underpost.kubectl.get(`${deployId}-${env}-${traffic}`, 'pods', namespace);
+      const runningPod = pods.find((p) => p.STATUS === 'Running');
+      if (!runningPod) {
+        logger.warn(`backupPodRepositories: no running ${traffic} pod found for ${deployId} in namespace ${namespace}`);
+        return;
+      }
+      const podName = runningPod.NAME;
+
+      for (const host of Object.keys(confServer)) {
+        for (const routePath of Object.keys(confServer[host])) {
+          const entry = confServer[host][routePath];
+          if (!entry.repository) continue;
+
+          const siteRoot = Underpost.repo.runtimeSiteRoot(entry.runtime, host);
+          if (!siteRoot) {
+            logger.warn(`backupPodRepositories: no site-root mapping for runtime '${entry.runtime}' (${host})`);
+            continue;
+          }
+
+          const repoName = entry.repository.split('/').pop().split('.')[0];
+
+          // Build the backup script — secrets are injected as env vars in the exec,
+          // never written to filesystem. The shell process inherits them ephemerally.
+          const backupScript = [
+            `export GITHUB_TOKEN='${githubToken.replace(/'/g, "'\\''")}'`,
+            `export GITHUB_USERNAME='${githubUsername.replace(/'/g, "'\\''")}'`,
+            `git config --global --add safe.directory '${siteRoot}' 2>/dev/null || true`,
+            `cd '${siteRoot}' && git add -A && git commit -m 'backup $(date -u +%Y-%m-%dT%H:%M:%SZ)' || true`,
+            `cd '${siteRoot}' && underpost push . ${githubUsername}/${repoName}`,
+          ].join(' && ');
+
+          try {
+            logger.info(`backupPodRepositories: backing up ${host} (${entry.runtime}) in pod ${podName}`);
+            Underpost.kubectl.exec({ podName, namespace, command: backupScript });
+            logger.info(`backupPodRepositories: git push done for ${host}`);
+          } catch (err) {
+            logger.error(`backupPodRepositories: backup failed for ${host}`, err.message);
+          }
+        }
+      }
+    },
   };
 }
 

@@ -13,6 +13,19 @@ import { pbcopy } from '../server/process.js';
 const logger = loggerFactory(import.meta);
 
 /**
+ * Guards an env file path against stale directory artifacts.
+ * Removes the path if it exists as a directory (e.g. `.env/` created by a previous EISDIR bug).
+ * @param {string} envPath - The path to the environment file.
+ * @memberof UnderpostEnv
+ */
+const guardEnvPath = (envPath) => {
+  if (fs.existsSync(envPath) && !fs.statSync(envPath).isFile()) {
+    logger.warn(`Removing stale directory at env path: ${envPath}`);
+    fs.removeSync(envPath);
+  }
+};
+
+/**
  * @class UnderpostRootEnv
  * @description Manages the environment variables of the underpost root.
  * @memberof UnderpostEnv
@@ -31,6 +44,7 @@ class UnderpostRootEnv {
      */
     set(key, value, options = { deployId: '', build: false }) {
       const _set = (envPath, key, value) => {
+        guardEnvPath(envPath);
         let env = {};
         if (fs.existsSync(envPath)) env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
         env[key] = value;
@@ -61,6 +75,7 @@ class UnderpostRootEnv {
     delete(key) {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
+      guardEnvPath(envPath);
       let env = {};
       if (fs.existsSync(envPath)) env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
       delete env[key];
@@ -102,6 +117,7 @@ class UnderpostRootEnv {
     list(key, value, options = {}) {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
+      guardEnvPath(envPath);
       if (!fs.existsSync(envPath)) {
         logger.warn(`Empty environment variables`);
         return {};
@@ -141,3 +157,5 @@ class UnderpostRootEnv {
 }
 
 export default UnderpostRootEnv;
+
+export { guardEnvPath };

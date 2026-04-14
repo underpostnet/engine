@@ -34,6 +34,10 @@ RUN npm --version
 RUN npm install -g underpost
 RUN underpost --version
 
+# Create non-root user for secure container execution (cron jobs, init containers)
+# Deployment containers override to root via securityContext when npm install -g is needed
+RUN useradd -m -u 1000 -s /bin/bash dd
+
 # Create working directory
 RUN mkdir /home/dd
 VOLUME /home/dd

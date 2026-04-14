@@ -1781,7 +1781,8 @@ EOF
         : [
             `npm install -g npm@11.2.0`,
             `npm install -g underpost`,
-            `${baseCommand} secret underpost --create-from-file /etc/config/.env.${env}`,
+            `${baseCommand} secret underpost --create-from-file /tmp/.env.${env}`,
+            `rm -f /tmp/.env.${env}`,
             `${baseCommand} start --build --run ${deployId} ${env}`,
           ];
       shellExec(`node bin run sync${baseClusterCommand} --deploy-id-cron-jobs none dd-test --cmd "${cmd}"`);

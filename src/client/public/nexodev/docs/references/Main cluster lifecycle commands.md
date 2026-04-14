@@ -445,9 +445,9 @@ node bin cron --generate-k8s-cronjobs --apply --create-job-now --kind --dev
 node bin cron --setup-start dd-cron
 node bin cron --setup-start dd-my-app --namespace staging
 
-# Dry run / SSH
+# Dry run
 node bin cron dd-cron dns --dry-run
-underpost cron dd-cron backup --ssh --git
+underpost cron dd-cron backup --git
 
 # Pre-script commands
 node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node bin env dd-core production" --kind --dev
@@ -455,19 +455,18 @@ node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node 
 
 ### Options
 
-| Option               | Description                                                           |
-| -------------------- | --------------------------------------------------------------------- |
-| `--dev`              | Development mode (`node bin` instead of `underpost`)                  |
-| `--kind`             | Kind cluster context                                                  |
-| `--k3s`              | K3s cluster context                                                   |
-| `--kubeadm`          | Kubeadm cluster context                                               |
-| `--git`              | Pass `--git` flag to job execution                                    |
-| `--namespace <name>` | Kubernetes namespace (default: `default`)                             |
-| `--image <name>`     | Custom container image                                                |
-| `--cmd <command>`    | Pre-script commands before cron execution                             |
-| `--create-job-now`   | Create an immediate Job from each CronJob after applying              |
-| `--dry-run`          | Preview jobs without executing                                        |
-| `--ssh`              | Execute backup commands via SSH on the remote node instead of locally |
+| Option               | Description                                              |
+| -------------------- | -------------------------------------------------------- |
+| `--dev`              | Development mode (`node bin` instead of `underpost`)     |
+| `--kind`             | Kind cluster context                                     |
+| `--k3s`              | K3s cluster context                                      |
+| `--kubeadm`          | Kubeadm cluster context                                  |
+| `--git`              | Pass `--git` flag to job execution                       |
+| `--namespace <name>` | Kubernetes namespace (default: `default`)                |
+| `--image <name>`     | Custom container image                                   |
+| `--cmd <command>`    | Pre-script commands before cron execution                |
+| `--create-job-now`   | Create an immediate Job from each CronJob after applying |
+| `--dry-run`          | Preview jobs without executing                           |
 
 ### Available Job Types
 

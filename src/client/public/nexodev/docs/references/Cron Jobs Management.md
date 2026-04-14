@@ -25,10 +25,10 @@ underpost cron [deploy-list] [job-list] [options]
 node bin cron [deploy-list] [job-list] [options]    # dev mode
 ```
 
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `deploy-list` | Comma-separated deploy IDs (`dd-<conf-id>`) | `default` |
-| `job-list` | Comma-separated job IDs (`dns`, `backup`) | All available jobs |
+| Argument      | Description                                 | Default            |
+| ------------- | ------------------------------------------- | ------------------ |
+| `deploy-list` | Comma-separated deploy IDs (`dd-<conf-id>`) | `default`          |
+| `job-list`    | Comma-separated job IDs (`dns`, `backup`)   | All available jobs |
 
 ---
 
@@ -36,10 +36,10 @@ node bin cron [deploy-list] [job-list] [options]    # dev mode
 
 The cron command operates in three modes:
 
-| Mode | Trigger | Description |
-|------|---------|-------------|
-| **Direct execution** | No manifest flags | Runs job callbacks immediately in the current process |
-| **Generate + Apply** | `--generate-k8s-cronjobs` | Generates K8s CronJob YAML manifests; optionally applies with `--apply` |
+| Mode                   | Trigger                     | Description                                                                         |
+| ---------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
+| **Direct execution**   | No manifest flags           | Runs job callbacks immediately in the current process                               |
+| **Generate + Apply**   | `--generate-k8s-cronjobs`   | Generates K8s CronJob YAML manifests; optionally applies with `--apply`             |
 | **Setup deploy start** | `--setup-start [deploy-id]` | Updates `package.json` start script and generates+applies manifests for a deploy-id |
 
 ---
@@ -102,14 +102,6 @@ node bin cron dd-cron dns --dry-run
 node bin cron dd-cron backup --dry-run --dev
 ```
 
-### SSH Remote Execution
-
-Execute backup jobs via SSH on the remote node:
-
-```bash
-underpost cron dd-cron backup --ssh --git
-```
-
 ### Pre-script Commands
 
 Inject commands before cron execution inside the container:
@@ -122,31 +114,30 @@ node bin cron --generate-k8s-cronjobs --apply --cmd "cd /home/dd/engine && node 
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--generate-k8s-cronjobs` | Generate K8s CronJob YAML manifests from `conf.cron.json` |
-| `--apply` | Apply generated manifests to the cluster via `kubectl` |
+| Option                      | Description                                                     |
+| --------------------------- | --------------------------------------------------------------- |
+| `--generate-k8s-cronjobs`   | Generate K8s CronJob YAML manifests from `conf.cron.json`       |
+| `--apply`                   | Apply generated manifests to the cluster via `kubectl`          |
 | `--setup-start [deploy-id]` | Update `package.json` start script and generate+apply manifests |
-| `--namespace <name>` | Kubernetes namespace (default: `default`) |
-| `--image <name>` | Custom container image for CronJob pods |
-| `--git` | Pass `--git` flag to job execution |
-| `--cmd <command>` | Pre-script commands before cron execution |
-| `--dev` | Development mode (`node bin` instead of `underpost`) |
-| `--kind` | Kind cluster context |
-| `--k3s` | K3s cluster context |
-| `--kubeadm` | Kubeadm cluster context |
-| `--dry-run` | Preview jobs without executing |
-| `--create-job-now` | Create an immediate Job from each CronJob after applying |
-| `--ssh` | Execute backup commands via SSH on the remote node |
+| `--namespace <name>`        | Kubernetes namespace (default: `default`)                       |
+| `--image <name>`            | Custom container image for CronJob pods                         |
+| `--git`                     | Pass `--git` flag to job execution                              |
+| `--cmd <command>`           | Pre-script commands before cron execution                       |
+| `--dev`                     | Development mode (`node bin` instead of `underpost`)            |
+| `--kind`                    | Kind cluster context                                            |
+| `--k3s`                     | K3s cluster context                                             |
+| `--kubeadm`                 | Kubeadm cluster context                                         |
+| `--dry-run`                 | Preview jobs without executing                                  |
+| `--create-job-now`          | Create an immediate Job from each CronJob after applying        |
 
 ---
 
 ## Job Types
 
-| Job ID | Description | Deploy ID Source | Callback |
-|--------|-------------|------------------|----------|
-| `dns` | Dynamic DNS record updates | `dd.cron` | Detects public IP changes and updates configured DNS provider records |
-| `backup` | Database exports | `dd.router` (all deploy-ids) | Runs `node bin db --export --primary-pod` for each deploy-id |
+| Job ID   | Description                | Deploy ID Source             | Callback                                                              |
+| -------- | -------------------------- | ---------------------------- | --------------------------------------------------------------------- |
+| `dns`    | Dynamic DNS record updates | `dd.cron`                    | Detects public IP changes and updates configured DNS provider records |
+| `backup` | Database exports           | `dd.router` (all deploy-ids) | Runs `node bin db --export --primary-pod` for each deploy-id          |
 
 ### DNS Job
 
@@ -154,7 +145,7 @@ Checks if the host's public IP has changed. When a new IP is detected, iterates 
 
 ### Backup Job
 
-Iterates through the comma-separated deploy-id list and runs a database export for each. Supports `--git` to commit exports to the cron-backups repository and `--ssh` to execute on a remote node.
+Iterates through the comma-separated deploy-id list and runs a database export for each. Supports `--git` to commit exports to the cron-backups repository. Backup commands are always executed via SSH on the remote node.
 
 ---
 
@@ -193,12 +184,12 @@ Located at `./engine-private/conf/dd-<conf-id>/conf.cron.json`:
 }
 ```
 
-| Field | Description |
-|-------|-------------|
-| `jobs.<id>.enabled` | Whether the job is active (`true`/`false`) |
-| `jobs.<id>.expression` | Cron schedule expression (standard 5-field format) |
-| `records.A[]` | DNS A record providers for the `dns` job |
-| `records.A[].dns` | Provider name (must match a handler in `Dns.services.updateIp`) |
+| Field                  | Description                                                     |
+| ---------------------- | --------------------------------------------------------------- |
+| `jobs.<id>.enabled`    | Whether the job is active (`true`/`false`)                      |
+| `jobs.<id>.expression` | Cron schedule expression (standard 5-field format)              |
+| `records.A[]`          | DNS A record providers for the `dns` job                        |
+| `records.A[].dns`      | Provider name (must match a handler in `Dns.services.updateIp`) |
 
 ---
 
@@ -228,7 +219,7 @@ Located at `./engine-private/conf/dd-<conf-id>/conf.cron.json`:
 1. Resolve deploy-id (argument or `dd.cron` file)
 2. Read `conf.cron.json` and validate enabled jobs exist
 3. Update `package.json` start script with `kubectl apply -f` commands for each job manifest
-4. Call `generateK8sCronJobs` with hardcoded production defaults (`--git`, `--dev`, `--kubeadm`, `--ssh`)
+4. Call `generateK8sCronJobs` with hardcoded production defaults (`--git`, `--dev`, `--kubeadm`)
 
 ---
 
@@ -290,12 +281,12 @@ happens automatically when configs are loaded via `loadConf()`.
 
 ### DDNS Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DDNS_HOST` | Hostname to update via DDNS | `example.com` |
-| `DDNS_PROVIDER` | DNS provider name (e.g. `dondominio`) | `dondominio` |
-| `DDNS_API_KEY` | DNS provider API key / password | _(empty)_ |
-| `DDNS_USER` | DNS provider username | _(empty)_ |
+| Variable        | Description                           | Default       |
+| --------------- | ------------------------------------- | ------------- |
+| `DDNS_HOST`     | Hostname to update via DDNS           | `example.com` |
+| `DDNS_PROVIDER` | DNS provider name (e.g. `dondominio`) | `dondominio`  |
+| `DDNS_API_KEY`  | DNS provider API key / password       | _(empty)_     |
+| `DDNS_USER`     | DNS provider username                 | _(empty)_     |
 
 These variables must be set in the appropriate `.env.<environment>` file
 (e.g. `.env.production`) or injected via your deployment platform.

@@ -549,6 +549,7 @@ class UnderpostDB {
      * @param {boolean} [options.k3s=false] - k3s cluster flag.
      * @param {boolean} [options.kubeadm=false] - kubeadm cluster flag.
      * @param {boolean} [options.kind=false] - kind cluster flag.
+     * @param {boolean} [options.repoBackup=false] - Backs up repositories (git commit+push) inside deployment pods via kubectl exec.
      * @return {Promise<void>} Resolves when operation is complete.
      */
     async callback(
@@ -577,6 +578,7 @@ class UnderpostDB {
         k3s: false,
         kubeadm: false,
         kind: false,
+        repoBackup: false,
       },
     ) {
       loadCronDeployEnv();
@@ -584,6 +586,22 @@ class UnderpostDB {
       const namespace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
 
       if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
+
+      // Handle repository backup (git commit+push inside deployment pod)
+      if (options.repoBackup) {
+        const namespace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
+        for (const _deployId of deployList.split(',')) {
+          const deployId = _deployId.trim();
+          if (!deployId) continue;
+          logger.info('Starting pod repository backup', { deployId, namespace });
+          Underpost.repo.backupPodRepositories({
+            deployId,
+            namespace,
+            env: options.dev ? 'development' : 'production',
+          });
+        }
+        return;
+      }
 
       // Handle clean-fs-collection operation
       if (options.cleanFsCollection || options.cleanFsDryRun) {

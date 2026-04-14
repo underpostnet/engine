@@ -423,6 +423,7 @@ program
   .option('--kubeadm', 'Enables the kubeadm context for database operations.')
   .option('--kind', 'Enables the kind context for database operations.')
   .option('--k3s', 'Enables the k3s context for database operations.')
+  .option('--repo-backup', 'Backs up repositories (git commit+push) inside deployment pods via kubectl exec.')
   .description(
     'Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.',
   )
@@ -468,7 +469,6 @@ program
     '--create-job-now',
     'After applying manifests, immediately create a Job from each CronJob (requires --apply).',
   )
-  .option('--ssh', 'Execute backup commands via SSH on the remote node instead of locally.')
   .description('Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests.')
   .action(Underpost.cron.callback);
 
