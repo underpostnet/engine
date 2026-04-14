@@ -101,12 +101,14 @@ class UnderpostFileStorage {
         }
       }
       if (options.pull === true) {
+        let pullSkipCount = 0;
         for (const _path of Object.keys(storage)) {
           if (!fs.existsSync(_path) || options.force === true) {
             if (options.force === true && fs.existsSync(_path)) fs.removeSync(_path);
             await Underpost.fs.pull(_path, options);
-          } else logger.warn(`Pull path already exists`, _path);
+          } else pullSkipCount++;
         }
+        if (pullSkipCount > 0) logger.warn(`Pull skipped ${pullSkipCount} files that already exist`);
         Underpost.repo.initLocalRepo({ path });
         shellExec(`cd ${path} && git add . && git commit -m "Base pull state"`);
       } else {
