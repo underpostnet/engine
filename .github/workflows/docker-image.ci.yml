@@ -1,17 +1,9 @@
 name: CI | Dockerhub
 on:
-  workflow_run:
-    workflows: ['CI | Publish npm package']
-    types:
-      - completed
-
   workflow_dispatch:
 
 jobs:
   build:
-    if: |
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
-      || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       packages: write
