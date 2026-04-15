@@ -130,11 +130,9 @@ class UnderpostDeploy {
     deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image, namespace, volumes, cmd }) {
       if (!cmd)
         cmd = [
-          `printenv | grep -vE '^(KUBERNETES_|HOME=|HOSTNAME=|PATH=|TERM=|SHLVL=|PWD=|_=|LANG=|container=)' > /tmp/.env.${env}`,
           `npm install -g npm@11.2.0`,
           `npm install -g underpost`,
-          `underpost secret underpost --create-from-file /tmp/.env.${env}`,
-          `rm -f /tmp/.env.${env}`,
+          `underpost secret underpost --create-from-env`,
           `underpost start --build --run ${deployId} ${env}`,
         ];
       const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));

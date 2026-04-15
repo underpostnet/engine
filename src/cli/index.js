@@ -337,10 +337,12 @@ program
   .argument('<platform>', `The secret management platform. Options: ${Object.keys(Underpost.secret).join(', ')}.`)
   .option('--init', 'Initializes the secrets platform environment.')
   .option('--create-from-file <path-env-file>', 'Creates secrets from a specified environment file.')
+  .option('--create-from-env', 'Creates secrets from container environment variables (envFrom: secretRef).')
   .option('--list', 'Lists all available secrets for the platform.')
   .description(`Manages secrets for various platforms.`)
   .action((...args) => {
     if (args[1].createFromFile) return Underpost.secret[args[0]].createFromEnvFile(args[1].createFromFile);
+    if (args[1].createFromEnv) return Underpost.secret[args[0]].createFromContainerEnv();
     if (args[1].list) return Underpost.secret[args[0]].list();
     if (args[1].init) return Underpost.secret[args[0]].init();
   });
