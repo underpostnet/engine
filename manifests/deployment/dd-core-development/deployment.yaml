@@ -29,7 +29,10 @@ spec:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-env && underpost start --build --run dd-core development
+              npm install -g npm@11.2.0 &&
+              npm install -g underpost &&
+              underpost secret underpost --create-from-env &&
+              underpost start --build --run dd-core development
 
 
 ---
@@ -226,7 +229,10 @@ spec:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-env && underpost start --build --run dd-core development
+              npm install -g npm@11.2.0 &&
+              npm install -g underpost &&
+              underpost secret underpost --create-from-env &&
+              underpost start --build --run dd-core development
 
 
 ---
