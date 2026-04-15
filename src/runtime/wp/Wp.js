@@ -152,6 +152,9 @@ class WpService {
       WpService.ensureSubdirHtaccess({ vhostDir, subDir });
     }
 
+    // Write security rules into the WordPress root .htaccess
+    WpService.ensureSecurityHtaccess({ dir: wpDir });
+
     // Make the site writable by the XAMPP Apache process (runs as daemon:daemon).
     // This is required for plugins like Wordfence WAF and Sucuri that write config/upload files.
     shellExec(`sudo chown -R daemon:daemon "${vhostDir}"`);
@@ -376,6 +379,69 @@ ${marker} end`;
 
     fs.writeFileSync(htaccessPath, existing, 'utf8');
     logger.info(`subdirectory .htaccess updated`, { vhostDir, subDir });
+  }
+
+  /**
+   * Writes security rules into the WordPress site root `.htaccess`.
+   * Protects `.git` directories, sensitive config files, and SQL dumps
+   * from being served by Apache. Idempotent — uses marker comments to
+   * detect and replace existing blocks on re-runs.
+   * @param {{ dir: string }} opts
+   * @param {string} opts.dir - Absolute path to the WordPress root (where .htaccess lives).
+   */
+  static ensureSecurityHtaccess({ dir }) {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const htaccessPath = path.join(dir, '.htaccess');
+
+    const marker = '# -- wp-security --';
+    const block = `${marker}
+# Block access to .git directories and files
+RedirectMatch 404 /\\.git
+
+# Block access to sensitive dotfiles
+<FilesMatch "^\\.(env|htpasswd|htaccess\\.bak|DS_Store)">
+  Require all denied
+</FilesMatch>
+
+# Block access to WordPress config backups and SQL dumps
+<FilesMatch "(wp-config\\.php\\.bak|wp-config-sample\\.php|\\.sql|\\.sql\\.gz)$">
+  Require all denied
+</FilesMatch>
+
+# Block direct access to PHP files in uploads
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^wp-content/uploads/.*\\.php$ - [F,L]
+</IfModule>
+
+# Block access to xmlrpc.php (common attack vector)
+<Files "xmlrpc.php">
+  Require all denied
+</Files>
+
+# Block access to readme.html and license.txt (version disclosure)
+<FilesMatch "^(readme\\.html|license\\.txt)$">
+  Require all denied
+</FilesMatch>
+${marker} end`;
+
+    let existing = '';
+    if (fs.existsSync(htaccessPath)) {
+      existing = fs.readFileSync(htaccessPath, 'utf8');
+    }
+
+    const markerRegex = new RegExp(
+      `${marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} end`,
+    );
+
+    if (markerRegex.test(existing)) {
+      existing = existing.replace(markerRegex, block);
+    } else {
+      existing = existing ? `${existing}\n${block}\n` : `${block}\n`;
+    }
+
+    fs.writeFileSync(htaccessPath, existing, 'utf8');
+    logger.info(`security .htaccess updated`, { dir });
   }
 
   /**

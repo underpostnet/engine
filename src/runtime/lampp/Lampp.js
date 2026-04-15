@@ -239,12 +239,34 @@ Listen ${port}
   DocumentRoot "${documentRoot}"
   ServerName ${host}
   UseCanonicalName Off
+  ServerSignature Off
 
   <Directory "${documentRoot}">
-    Options Indexes FollowSymLinks MultiViews
+    Options FollowSymLinks MultiViews
     AllowOverride All
     Require all granted
   </Directory>
+
+  # Block access to .git directories and files
+  RedirectMatch 404 /\\.git
+
+  # Block access to hidden dotfiles (.env, .htpasswd, etc.)
+  <FilesMatch "^\\.(env|htpasswd|htaccess\\.bak|DS_Store)">
+    Require all denied
+  </FilesMatch>
+
+  # Block access to sensitive engine files
+  <FilesMatch "(wp-config\\.php\\.bak|wp-config-sample\\.php|\\.sql|\\.sql\\.gz)$">
+    Require all denied
+  </FilesMatch>
+
+  # Security headers
+  <IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always unset X-Powered-By
+  </IfModule>
 
   ${
     redirect
