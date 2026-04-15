@@ -132,10 +132,11 @@ class WpService {
     const subDir = pathRoute && pathRoute !== '/' ? pathRoute.replace(/^\/+/, '').replace(/\/+$/, '') : '';
     const wpDir = subDir ? path.join(vhostDir, subDir) : vhostDir;
 
+    let freshInstall = false;
     if (repository) {
-      WpService.provisionClone({ host, siteRoot: wpDir, repository, db, wp, subDir });
+      ({ freshInstall } = WpService.provisionClone({ host, siteRoot: wpDir, repository, db, wp, subDir }));
     } else {
-      WpService.provisionFresh({ host, siteRoot: wpDir, db, wp, subDir });
+      ({ freshInstall } = WpService.provisionFresh({ host, siteRoot: wpDir, db, wp, subDir }));
     }
 
     // Ensure git is initialized and linked to the backup repository.
@@ -173,6 +174,13 @@ class WpService {
       resetRouter,
     });
 
+    // Immediately commit and push all generated files (wp-config.php, .htaccess,
+    // security rules, plugins, etc.) so that on rollout/restart the clone will
+    // have a complete working state and won't fall back to fresh install again.
+    if (repository && freshInstall) {
+      WpService.persistToRepo({ siteRoot: wpDir, repository, host });
+    }
+
     return { disabled };
   }
 
@@ -197,8 +205,7 @@ class WpService {
     logger.info(`${host}: remote accessible = ${repoAccessible} (${repository})`);
     if (!repoAccessible) {
       logger.warn(`${host}: remote repository not accessible (${repository}) — running fresh install`);
-      WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
-      return;
+      return WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
     }
 
     // Step 1 — clone if the directory does not exist yet
@@ -222,8 +229,10 @@ class WpService {
     if (!fs.existsSync(path.join(siteRoot, 'wp-config.php'))) {
       logger.warn(`${host}: wp-config.php not found — wiping site root and running fresh install`);
       shellExec(`sudo rm -rf "${siteRoot}"`);
-      WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
+      return WpService.provisionFresh({ host, siteRoot, db, wp, subDir });
     }
+
+    return { freshInstall: false };
   }
 
   /**
@@ -238,7 +247,7 @@ class WpService {
     // Validator: wp-config.php presence means installation is complete/valid
     if (fs.existsSync(path.join(siteRoot, 'wp-config.php'))) {
       logger.info(`${host}: wp-config.php found at ${siteRoot}, skipping fresh install`);
-      return;
+      return { freshInstall: false };
     }
 
     logger.info(`${host}: fresh install → ${siteRoot}`);
@@ -270,6 +279,8 @@ class WpService {
     } else {
       logger.warn(`${host}: no db config provided — wp-config.php not written`);
     }
+
+    return { freshInstall: true };
   }
 
   /**
@@ -442,6 +453,71 @@ ${marker} end`;
 
     fs.writeFileSync(htaccessPath, existing, 'utf8');
     logger.info(`security .htaccess updated`, { dir });
+  }
+
+  /**
+   * Ensures a WordPress-specific `.gitignore` exists in the site root so that
+   * large/transient files are excluded from the backup repository while
+   * wp-config.php and security .htaccess ARE tracked.
+   * Idempotent — only writes when the file is missing.
+   * @param {{ dir: string }} opts
+   */
+  static ensureGitignore({ dir }) {
+    const gitignorePath = path.join(dir, '.gitignore');
+    if (fs.existsSync(gitignorePath)) return;
+    const content = `# WordPress .gitignore
+# Cache and temp
+wp-content/cache/
+wp-content/upgrade/
+wp-content/backup-db/
+wp-content/backups/
+wp-content/blogs.dir/
+wp-content/advanced-cache.php
+wp-content/wp-cache-config.php
+wp-content/debug.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+`;
+    fs.writeFileSync(gitignorePath, content, 'utf8');
+    logger.info(`.gitignore written`, { dir });
+  }
+
+  /**
+   * Commits all files in the WordPress site root and pushes to the remote
+   * repository. This persists wp-config.php, .htaccess security rules,
+   * installed plugins, and theme files so that on pod rollout/restart a
+   * `git clone` yields a fully working site without needing a fresh install.
+   *
+   * Safe to call repeatedly — `git commit` is a no-op when the working tree
+   * is clean (`|| true` prevents non-zero exit).
+   *
+   * @param {object} opts
+   * @param {string}      opts.siteRoot   - Absolute path to the WordPress root.
+   * @param {string}      opts.repository - Git remote URL.
+   * @param {string}      opts.host       - Virtual-host name (for logging/commit msg).
+   */
+  static persistToRepo({ siteRoot, repository, host }) {
+    if (!fs.existsSync(path.join(siteRoot, '.git'))) {
+      logger.warn(`persistToRepo: .git missing at ${siteRoot} — skipping`);
+      return;
+    }
+
+    WpService.ensureGitignore({ dir: siteRoot });
+
+    const githubOrg = process.env.GITHUB_USERNAME || 'underpostnet';
+    const repoName = repository.split('/').pop().split('.')[0];
+
+    logger.info(`${host}: persisting site to repository`);
+    shellExec(
+      `cd "${siteRoot}" && git add -A && git commit -m "wp provision ${host} $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true`,
+    );
+    shellExec(`cd "${siteRoot}" && underpost push . ${githubOrg}/${repoName} -f`);
+    logger.info(`${host}: initial commit pushed to ${githubOrg}/${repoName}`);
   }
 
   /**
