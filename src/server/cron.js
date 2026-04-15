@@ -16,7 +16,7 @@ const volumeHostPath = '/home/dd';
 const enginePath = '/home/dd/engine';
 const cronVolumeName = 'underpost-cron-container-volume';
 const shareEnvVolumeName = 'underpost-share-env';
-const underpostContainerEnvPath = '/usr/lib/node_modules/underpost/.env';
+const underpostContainerEnvDir = '/usr/lib/node_modules/underpost';
 
 /**
  * Generates a Kubernetes CronJob YAML manifest string.
@@ -105,9 +105,8 @@ spec:
               volumeMounts:
                 - mountPath: ${enginePath}
                   name: ${cronVolumeName}
-                - mountPath: ${underpostContainerEnvPath}
+                - mountPath: ${underpostContainerEnvDir}
                   name: ${shareEnvVolumeName}
-                  subPath: .env
           volumes:
             - hostPath:
                 path: ${enginePath}
