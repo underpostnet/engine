@@ -21,18 +21,18 @@ spec:
       containers:
         - name: dd-cyberia-development-blue
           image: localhost/rockylinux9-underpost:v3.2.0
+          envFrom:
+            - secretRef:
+                name: underpost-config
 
           command:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-cyberia development
+              printenv | grep -vE '^(KUBERNETES_|HOME=|HOSTNAME=|PATH=|TERM=|SHLVL=|PWD=|_=|LANG=|container=)' > /tmp/.env.development && npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /tmp/.env.development && rm -f /tmp/.env.development && underpost start --build --run dd-cyberia development
 
     
           volumeMounts:
-            - name: config-volume-dd-cyberia-development-blue
-              mountPath: /etc/config
-    
             - name: vol-public-dd-cyberia-dd-cyberia-development-blue
               mountPath: /home/dd/engine/src/client/public/cyberia
     
@@ -40,11 +40,6 @@ spec:
               mountPath: /home/dd/engine/src/client/public/underpost
     
       volumes:
-        - name: config-volume-dd-cyberia-development-blue
-          configMap:
-            name: underpost-config
-    
-      
         - name: vol-public-dd-cyberia-dd-cyberia-development-blue
           persistentVolumeClaim:
             claimName: pvc-public-dd-cyberia-dd-cyberia-development-blue
@@ -304,18 +299,18 @@ spec:
       containers:
         - name: dd-cyberia-development-green
           image: localhost/rockylinux9-underpost:v3.2.0
+          envFrom:
+            - secretRef:
+                name: underpost-config
 
           command:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-cyberia development
+              printenv | grep -vE '^(KUBERNETES_|HOME=|HOSTNAME=|PATH=|TERM=|SHLVL=|PWD=|_=|LANG=|container=)' > /tmp/.env.development && npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /tmp/.env.development && rm -f /tmp/.env.development && underpost start --build --run dd-cyberia development
 
     
           volumeMounts:
-            - name: config-volume-dd-cyberia-development-green
-              mountPath: /etc/config
-    
             - name: vol-public-dd-cyberia-dd-cyberia-development-green
               mountPath: /home/dd/engine/src/client/public/cyberia
     
@@ -323,11 +318,6 @@ spec:
               mountPath: /home/dd/engine/src/client/public/underpost
     
       volumes:
-        - name: config-volume-dd-cyberia-development-green
-          configMap:
-            name: underpost-config
-    
-      
         - name: vol-public-dd-cyberia-dd-cyberia-development-green
           persistentVolumeClaim:
             claimName: pvc-public-dd-cyberia-dd-cyberia-development-green

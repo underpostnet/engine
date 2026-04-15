@@ -21,24 +21,17 @@ spec:
       containers:
         - name: dd-lampp-development-blue
           image: localhost/rockylinux9-underpost:v3.2.0
+          envFrom:
+            - secretRef:
+                name: underpost-config
 
           command:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-lampp development
+              printenv | grep -vE '^(KUBERNETES_|HOME=|HOSTNAME=|PATH=|TERM=|SHLVL=|PWD=|_=|LANG=|container=)' > /tmp/.env.development && npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /tmp/.env.development && rm -f /tmp/.env.development && underpost start --build --run dd-lampp development
 
-    
-          volumeMounts:
-            - name: config-volume-dd-lampp-development-blue
-              mountPath: /etc/config
-    
-      volumes:
-        - name: config-volume-dd-lampp-development-blue
-          configMap:
-            name: underpost-config
-    
-      
+
 ---
 apiVersion: v1
 kind: Service
@@ -108,24 +101,17 @@ spec:
       containers:
         - name: dd-lampp-development-green
           image: localhost/rockylinux9-underpost:v3.2.0
+          envFrom:
+            - secretRef:
+                name: underpost-config
 
           command:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /etc/config/.env.development && underpost start --build --run dd-lampp development
+              printenv | grep -vE '^(KUBERNETES_|HOME=|HOSTNAME=|PATH=|TERM=|SHLVL=|PWD=|_=|LANG=|container=)' > /tmp/.env.development && npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /tmp/.env.development && rm -f /tmp/.env.development && underpost start --build --run dd-lampp development
 
-    
-          volumeMounts:
-            - name: config-volume-dd-lampp-development-green
-              mountPath: /etc/config
-    
-      volumes:
-        - name: config-volume-dd-lampp-development-green
-          configMap:
-            name: underpost-config
-    
-      
+
 ---
 apiVersion: v1
 kind: Service

@@ -198,8 +198,8 @@ class UnderpostStartUp {
       shellExec(`node bin env ${deployId} ${env}`);
       shellExec(`npm ${runCmd} ${deployId}`, { async: true });
       await awaitDeployMonitor(true);
-      Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
       if (env === 'production' && isInsideContainer()) Underpost.secret.globalSecretClean();
+      Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
     },
   };
 }
