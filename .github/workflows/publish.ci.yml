@@ -3,16 +3,26 @@ on:
   push:
     tags:
       - 'v*'
+permissions:
+  contents: write
+  packages: write
+  id-token: write
 jobs:
   build-and-publish:
     # prevents this action from running on forks
     if: github.repository == 'underpostnet/pwa-microservices-template'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+      packages: write
       id-token: write
     steps:
       - uses: actions/checkout@v6
+
+      - name: Install required packages
+        run: |
+          apt-get update -y
+          apt-get install -y sudo tar gzip bzip2 git curl
 
       - uses: actions/setup-node@v6
         with:
@@ -27,12 +37,21 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
 
+      - name: Dispatch release CD
+        run: |
+          curl -s -f -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GIT_AUTH_TOKEN }}" \
+            "https://api.github.com/repos/underpostnet/pwa-microservices-template/actions/workflows/release.cd.yml/dispatches" \
+            -d '{"ref":"master"}'
+
   build-and-publish-ghpkg:
     # prevents this action from running on forks
     if: github.repository == 'underpostnet/pwa-microservices-template-ghpkg'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+      packages: write
       id-token: write
     steps:
       - uses: actions/checkout@v6
@@ -66,10 +85,3 @@ jobs:
           npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
-
-  # Release deploy — triggers release.cd.yml after Docker build succeeds
-  deploy-release:
-    needs: build-and-publish
-    if: always() && needs.build-and-publish.result == 'success'
-    uses: ./.github/workflows/release.cd.yml
-    secrets: inherit
