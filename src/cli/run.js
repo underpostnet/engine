@@ -699,6 +699,10 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       );
 
       if (isDeployRunnerContext(path, options)) {
+        // Backup app/services repositories with repo-backup configured
+        shellExec(
+          `${baseCommand} db ${deployId} ${clusterFlag} --repo-backup --dev --primary-pod --git --force-clone --preserveUUID ${options.namespace ? ` --ns ${options.namespace}` : ''}`,
+        );
         shellExec(
           `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --disable-update-proxy ${deployId} ${env} --versions ${versions}${
             options.namespace ? ` --namespace ${options.namespace}` : ''
