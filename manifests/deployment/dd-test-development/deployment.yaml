@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: dd-test-development-blue
-          image: localhost/rockylinux9-underpost:v3.2.2
+          image: localhost/rockylinux9-underpost:v3.2.3
           envFrom:
             - secretRef:
                 name: underpost-config
@@ -112,7 +112,7 @@ spec:
     spec:
       containers:
         - name: dd-test-development-green
-          image: localhost/rockylinux9-underpost:v3.2.2
+          image: localhost/rockylinux9-underpost:v3.2.3
           envFrom:
             - secretRef:
                 name: underpost-config

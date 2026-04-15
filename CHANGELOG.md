@@ -2,6 +2,16 @@
 
 ## 2026-04-15
 
+### cli-cron
+
+- Remove is-inside-container dependency and implement isInsideContainer method in env module ([79d39ece0](https://github.com/underpostnet/engine/commit/79d39ece0db1f3acb65af22e3bc7f7c6a66487a9))
+
+### github-actions
+
+- Ensure deploy-release job runs only on successful build-and-publish ([08ba04632](https://github.com/underpostnet/engine/commit/08ba0463263f6cb2b6c14a6bd56e547c152a0a3a))
+
+## New release v:3.2.2 (2026-04-15)
+
 ### docker-image
 
 - Remove unnecessary directory creation and volume declaration for working directory in Dockerfile ([84f7f8950](https://github.com/underpostnet/engine/commit/84f7f8950d45512b6177c7523e4d278f2db25ef4))

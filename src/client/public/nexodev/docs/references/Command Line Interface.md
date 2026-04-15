@@ -1,4 +1,4 @@
-## underpost ci/cd cli v3.2.2
+## underpost ci/cd cli v3.2.3
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -321,7 +321,7 @@ Manages Underpost configurations using various operators.
 
 Arguments:
   operator                 The configuration operation to perform. Options: set,
-                           delete, get, list, clean.
+                           delete, get, list, clean, isInsideContainer.
   key                      Optional: The specific configuration key to manage.
   value                    Optional: The value to set for the configuration key.
 
@@ -562,6 +562,8 @@ Options:
                                       environment file.
   --create-from-env                   Creates secrets from container environment
                                       variables (envFrom: secretRef).
+  --global-clean                      Removes all filesystem traces of secrets
+                                      (engine-private, .env, conf cache).
   --list                              Lists all available secrets for the
                                       platform.
   -h, --help                          display help for command
@@ -685,6 +687,7 @@ Options:
   --instances  Apply to instance data collection
   --generate   Generate cluster metadata
   --itc        Apply under container execution context
+  --dev        Sets the development cli context
   -h, --help   display help for command
  
 ```
