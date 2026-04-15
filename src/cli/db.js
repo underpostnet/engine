@@ -945,6 +945,9 @@ class UnderpostDB {
         }
 
         logger.info('Database operation completed successfully');
+      } catch (error) {
+        logger.error('Database operation failed', { error: error.message });
+        throw error;
       } finally {
         if (ephemeral && isInsideContainer()) {
           Underpost.repo.cleanupPrivateEngineRepo();
@@ -1140,6 +1143,9 @@ class UnderpostDB {
 
         await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
         logger.info('Cluster metadata creation completed');
+      } catch (error) {
+        logger.error('Cluster metadata creation failed', { error: error.message });
+        throw error;
       } finally {
         if (ephemeral && isInsideContainer()) {
           Underpost.repo.cleanupPrivateEngineRepo();
@@ -1377,6 +1383,9 @@ class UnderpostDB {
         }
 
         logger.info('File collection cleanup completed');
+      } catch (error) {
+        logger.error('File collection cleanup failed', { error: error.message });
+        throw error;
       } finally {
         if (ephemeral && isInsideContainer()) {
           Underpost.repo.cleanupPrivateEngineRepo();
@@ -1480,6 +1489,9 @@ class UnderpostDB {
         }
 
         logger.info('Cluster metadata backup operation completed');
+      } catch (error) {
+        logger.error('Cluster metadata backup operation failed', { error: error.message });
+        throw error;
       } finally {
         if (ephemeral && isInsideContainer()) {
           Underpost.repo.cleanupPrivateEngineRepo();
