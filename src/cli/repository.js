@@ -1513,6 +1513,59 @@ Prevent build private config repo.`,
         }
       }
     },
+
+    /**
+     * Clones the deploy-specific private repository into `./engine-private`
+     * when it does not already exist on disk.  Returns `{ ephemeral: true }`
+     * when a fresh clone was performed so the caller can remove it after use,
+     * or `{ ephemeral: false }` when the directory was already present (host,
+     * cron hostPath mount, or prior build step).
+     *
+     * @param {string} [deployId] - Deploy ID (e.g. `dd-core`) used to derive
+     *        the repo name `engine-{component}-private`.  Falls back to
+     *        `process.env.DEFAULT_DEPLOY_ID`.
+     * @returns {{ ephemeral: boolean }}
+     * @memberof UnderpostRepository
+     */
+    privateEngineRepoFactory(deployId) {
+      if (fs.existsSync('./engine-private')) return { ephemeral: false };
+
+      const effectiveDeployId = deployId || process.env.DEFAULT_DEPLOY_ID;
+      if (!effectiveDeployId) {
+        throw new Error('privateEngineRepoFactory: no deployId provided and DEFAULT_DEPLOY_ID not set');
+      }
+      const username = process.env.GITHUB_USERNAME;
+      if (!username) {
+        throw new Error('privateEngineRepoFactory: GITHUB_USERNAME not set');
+      }
+
+      const component = effectiveDeployId.split('-')[1];
+      const repoName = `engine-${component}-private`;
+      logger.info(`engine-private missing — cloning ${username}/${repoName} (ephemeral)`);
+      shellExec(`underpost clone ${username}/${repoName}`);
+      if (!fs.existsSync(`./${repoName}`)) {
+        throw new Error(`privateEngineRepoFactory: clone failed for ${username}/${repoName}`);
+      }
+      shellExec(`mv ./${repoName} ./engine-private`);
+
+      return { ephemeral: true };
+    },
+
+    /**
+     * Removes the ephemeral `engine-private/` clone created by
+     * `privateEngineRepoFactory()`.  No-op if the directory does not exist.
+     * @memberof UnderpostRepository
+     */
+    cleanupPrivateEngineRepo() {
+      if (fs.existsSync('./engine-private')) {
+        fs.removeSync('./engine-private');
+        logger.info('engine-private ephemeral clone removed');
+      }
+      if (fs.existsSync('/home/dd/engine-private')) {
+        fs.removeSync('/home/dd/engine-private');
+        logger.info('engine-private in /home/dd removed');
+      }
+    },
   };
 }
 

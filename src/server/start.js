@@ -164,10 +164,9 @@ class UnderpostStartUp {
         shellExec(`mkdir -p ${buildBasePath}/engine`);
         shellExec(`cd ${buildBasePath} && sudo cp -a ./${repoName}/. ./engine`);
         shellExec(`cd ${buildBasePath} && sudo rm -rf ./${repoName}`);
-        shellExec(`cd ${buildBasePath}/engine && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}-private`);
-        shellExec(`cd ${buildBasePath}/engine && sudo mv ./${repoName}-private ./engine-private`);
       }
       shellCd(`${buildBasePath}/engine`);
+      Underpost.repo.privateEngineRepoFactory(deployId);
       shellExec(options?.underpostQuicklyInstall ? `underpost install` : `npm install`);
       shellExec(`node bin env ${deployId} ${env}`);
       if (fs.existsSync('./engine-private/itc-scripts')) {

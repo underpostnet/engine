@@ -99,7 +99,7 @@ class UnderpostSecret {
      */
     globalSecretClean() {
       loadConf('clean');
-      fs.removeSync('./engine-private');
+      Underpost.repo.cleanupPrivateEngineRepo();
       Underpost.env.clean();
     },
   };

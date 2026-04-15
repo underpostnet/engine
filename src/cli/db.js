@@ -14,6 +14,7 @@ import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { loadReplicas, pathPortAssignmentFactory, loadCronDeployEnv } from '../server/conf.js';
 import Underpost from '../index.js';
 import { timer } from '../client/components/core/CommonJs.js';
+import isInsideContainer from 'is-inside-container';
 const logger = loggerFactory(import.meta);
 
 /**
@@ -581,364 +582,375 @@ class UnderpostDB {
         repoBackup: false,
       },
     ) {
-      loadCronDeployEnv();
-      const newBackupTimestamp = new Date().getTime();
-      const namespace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
-
-      if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
-
-      // Handle repository backup (git commit+push inside deployment pod)
-      if (options.repoBackup) {
+      // Ensure engine-private is available (clone ephemerally if inside a deployment
+      // container where globalSecretClean has already removed it).
+      const firstDeployId = deployList !== 'dd' ? deployList.split(',')[0].trim() : '';
+      const { ephemeral } = Underpost.repo.privateEngineRepoFactory(firstDeployId || undefined);
+      try {
+        loadCronDeployEnv();
+        const newBackupTimestamp = new Date().getTime();
         const namespace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
+
+        if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
+
+        // Handle repository backup (git commit+push inside deployment pod)
+        if (options.repoBackup) {
+          const namespace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
+          for (const _deployId of deployList.split(',')) {
+            const deployId = _deployId.trim();
+            if (!deployId) continue;
+            logger.info('Starting pod repository backup', { deployId, namespace });
+            Underpost.repo.backupPodRepositories({
+              deployId,
+              namespace,
+              env: options.dev ? 'development' : 'production',
+            });
+          }
+          return;
+        }
+
+        // Handle clean-fs-collection operation
+        if (options.cleanFsCollection || options.cleanFsDryRun) {
+          logger.info('Starting File collection cleanup operation', { deployList });
+          await Underpost.db.cleanFsCollection(deployList, {
+            hosts: options.hosts,
+            paths: options.paths,
+            dryRun: options.cleanFsDryRun,
+          });
+          return;
+        }
+
+        logger.info('Starting database operation', {
+          deployList,
+          namespace,
+          import: options.import,
+          export: options.export,
+        });
+
+        if (options.primaryPodEnsure) {
+          const primaryPodName = Underpost.db.getMongoPrimaryPodName({ namespace, podName: options.primaryPodEnsure });
+          if (!primaryPodName) {
+            const baseCommand = options.dev ? 'node bin' : 'underpost';
+            const baseClusterCommand = options.dev ? ' --dev' : '';
+            let clusterFlag = options.k3s ? ' --k3s' : options.kubeadm ? ' --kubeadm' : '';
+            shellExec(`${baseCommand} cluster${baseClusterCommand}${clusterFlag} --mongodb`);
+          }
+          return;
+        }
+
+        // Track processed repositories to avoid duplicate Git operations
+        const processedRepos = new Set();
+        // Track processed host+path combinations to avoid duplicates
+        const processedHostPaths = new Set();
+
         for (const _deployId of deployList.split(',')) {
           const deployId = _deployId.trim();
           if (!deployId) continue;
-          logger.info('Starting pod repository backup', { deployId, namespace });
-          Underpost.repo.backupPodRepositories({
-            deployId,
-            namespace,
-            env: options.dev ? 'development' : 'production',
-          });
-        }
-        return;
-      }
 
-      // Handle clean-fs-collection operation
-      if (options.cleanFsCollection || options.cleanFsDryRun) {
-        logger.info('Starting File collection cleanup operation', { deployList });
-        await Underpost.db.cleanFsCollection(deployList, {
-          hosts: options.hosts,
-          paths: options.paths,
-          dryRun: options.cleanFsDryRun,
-        });
-        return;
-      }
+          logger.info('Processing deployment', { deployId });
 
-      logger.info('Starting database operation', {
-        deployList,
-        namespace,
-        import: options.import,
-        export: options.export,
-      });
+          /** @type {Object.<string, Object.<string, DatabaseConfig>>} */
+          const dbs = {};
+          const repoName = `engine-${deployId.includes('dd-') ? deployId.split('dd-')[1] : deployId}-cron-backups`;
 
-      if (options.primaryPodEnsure) {
-        const primaryPodName = Underpost.db.getMongoPrimaryPodName({ namespace, podName: options.primaryPodEnsure });
-        if (!primaryPodName) {
-          const baseCommand = options.dev ? 'node bin' : 'underpost';
-          const baseClusterCommand = options.dev ? ' --dev' : '';
-          let clusterFlag = options.k3s ? ' --k3s' : options.kubeadm ? ' --kubeadm' : '';
-          shellExec(`${baseCommand} cluster${baseClusterCommand}${clusterFlag} --mongodb`);
-        }
-        return;
-      }
+          // Load server configuration
+          const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+          if (!fs.existsSync(confServerPath)) {
+            logger.error('Configuration file not found', { path: confServerPath });
+            continue;
+          }
 
-      // Track processed repositories to avoid duplicate Git operations
-      const processedRepos = new Set();
-      // Track processed host+path combinations to avoid duplicates
-      const processedHostPaths = new Set();
+          const confServer = loadConfServerJson(confServerPath, { resolve: true });
 
-      for (const _deployId of deployList.split(',')) {
-        const deployId = _deployId.trim();
-        if (!deployId) continue;
+          // Build database configuration map
+          for (const host of Object.keys(confServer)) {
+            for (const path of Object.keys(confServer[host])) {
+              const { db } = confServer[host][path];
+              if (db) {
+                const { provider, name, user, password } = db;
+                if (!dbs[provider]) dbs[provider] = {};
 
-        logger.info('Processing deployment', { deployId });
-
-        /** @type {Object.<string, Object.<string, DatabaseConfig>>} */
-        const dbs = {};
-        const repoName = `engine-${deployId.includes('dd-') ? deployId.split('dd-')[1] : deployId}-cron-backups`;
-
-        // Load server configuration
-        const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-        if (!fs.existsSync(confServerPath)) {
-          logger.error('Configuration file not found', { path: confServerPath });
-          continue;
-        }
-
-        const confServer = loadConfServerJson(confServerPath, { resolve: true });
-
-        // Build database configuration map
-        for (const host of Object.keys(confServer)) {
-          for (const path of Object.keys(confServer[host])) {
-            const { db } = confServer[host][path];
-            if (db) {
-              const { provider, name, user, password } = db;
-              if (!dbs[provider]) dbs[provider] = {};
-
-              if (!(name in dbs[provider])) {
-                dbs[provider][name] = {
-                  user,
-                  password,
-                  hostFolder: host + path.replaceAll('/', '-'),
-                  host,
-                  path,
-                };
+                if (!(name in dbs[provider])) {
+                  dbs[provider][name] = {
+                    user,
+                    password,
+                    hostFolder: host + path.replaceAll('/', '-'),
+                    host,
+                    path,
+                  };
+                }
               }
             }
           }
-        }
 
-        // Handle Git operations - execute only once per repository
-        if (!processedRepos.has(repoName)) {
-          logger.info('Processing Git operations for repository', { repoName, deployId });
-          if (options.git === true) {
-            Underpost.repo.manageBackupRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
-            Underpost.repo.manageBackupRepo({ repoName, operation: 'pull' });
-          }
-
-          if (options.macroRollbackExport) {
-            // Only clone if not already done by git option above
-            if (options.git !== true) {
+          // Handle Git operations - execute only once per repository
+          if (!processedRepos.has(repoName)) {
+            logger.info('Processing Git operations for repository', { repoName, deployId });
+            if (options.git === true) {
               Underpost.repo.manageBackupRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
               Underpost.repo.manageBackupRepo({ repoName, operation: 'pull' });
             }
 
-            const nCommits = parseInt(options.macroRollbackExport);
-            const repoPath = `../${repoName}`;
-            const username = process.env.GITHUB_USERNAME;
+            if (options.macroRollbackExport) {
+              // Only clone if not already done by git option above
+              if (options.git !== true) {
+                Underpost.repo.manageBackupRepo({ repoName, operation: 'clone', forceClone: options.forceClone });
+                Underpost.repo.manageBackupRepo({ repoName, operation: 'pull' });
+              }
 
-            if (fs.existsSync(repoPath) && username) {
-              logger.info('Executing macro rollback export', { repoName, nCommits });
-              shellExec(`cd ${repoPath} && underpost cmt . reset ${nCommits}`);
-              shellExec(`cd ${repoPath} && git reset`);
-              shellExec(`cd ${repoPath} && git checkout .`);
-              shellExec(`cd ${repoPath} && git clean -f -d`);
-              shellExec(`cd ${repoPath} && underpost push . ${username}/${repoName} -f`);
-            } else {
-              if (!username) logger.error('GITHUB_USERNAME environment variable not set');
-              logger.warn('Repository not found for macro rollback', { repoPath });
+              const nCommits = parseInt(options.macroRollbackExport);
+              const repoPath = `../${repoName}`;
+              const username = process.env.GITHUB_USERNAME;
+
+              if (fs.existsSync(repoPath) && username) {
+                logger.info('Executing macro rollback export', { repoName, nCommits });
+                shellExec(`cd ${repoPath} && underpost cmt . reset ${nCommits}`);
+                shellExec(`cd ${repoPath} && git reset`);
+                shellExec(`cd ${repoPath} && git checkout .`);
+                shellExec(`cd ${repoPath} && git clean -f -d`);
+                shellExec(`cd ${repoPath} && underpost push . ${username}/${repoName} -f`);
+              } else {
+                if (!username) logger.error('GITHUB_USERNAME environment variable not set');
+                logger.warn('Repository not found for macro rollback', { repoPath });
+              }
             }
+
+            processedRepos.add(repoName);
+            logger.info('Repository marked as processed', { repoName });
+          } else {
+            logger.info('Skipping Git operations for already processed repository', { repoName, deployId });
           }
 
-          processedRepos.add(repoName);
-          logger.info('Repository marked as processed', { repoName });
-        } else {
-          logger.info('Skipping Git operations for already processed repository', { repoName, deployId });
-        }
+          // Process each database provider
+          for (const provider of Object.keys(dbs)) {
+            for (const dbName of Object.keys(dbs[provider])) {
+              const { hostFolder, user, password, host, path } = dbs[provider][dbName];
 
-        // Process each database provider
-        for (const provider of Object.keys(dbs)) {
-          for (const dbName of Object.keys(dbs[provider])) {
-            const { hostFolder, user, password, host, path } = dbs[provider][dbName];
+              // Create unique identifier for host+path combination
+              const hostPathKey = `${deployId}:${host}:${path}`;
 
-            // Create unique identifier for host+path combination
-            const hostPathKey = `${deployId}:${host}:${path}`;
+              // Skip if this host+path combination was already processed
+              if (processedHostPaths.has(hostPathKey)) {
+                logger.info('Skipping already processed host/path', { dbName, host, path, deployId });
+                continue;
+              }
 
-            // Skip if this host+path combination was already processed
-            if (processedHostPaths.has(hostPathKey)) {
-              logger.info('Skipping already processed host/path', { dbName, host, path, deployId });
-              continue;
-            }
+              // Filter by hosts and paths if specified
+              if (
+                (options.hosts &&
+                  !options.hosts
+                    .split(',')
+                    .map((h) => h.trim())
+                    .includes(host)) ||
+                (options.paths &&
+                  !options.paths
+                    .split(',')
+                    .map((p) => p.trim())
+                    .includes(path))
+              ) {
+                logger.info('Skipping database due to host/path filter', { dbName, host, path });
+                continue;
+              }
 
-            // Filter by hosts and paths if specified
-            if (
-              (options.hosts &&
-                !options.hosts
-                  .split(',')
-                  .map((h) => h.trim())
-                  .includes(host)) ||
-              (options.paths &&
-                !options.paths
-                  .split(',')
-                  .map((p) => p.trim())
-                  .includes(path))
-            ) {
-              logger.info('Skipping database due to host/path filter', { dbName, host, path });
-              continue;
-            }
+              if (!hostFolder) {
+                logger.warn('No hostFolder defined for database', { dbName, provider });
+                continue;
+              }
 
-            if (!hostFolder) {
-              logger.warn('No hostFolder defined for database', { dbName, provider });
-              continue;
-            }
+              logger.info('Processing database', { hostFolder, provider, dbName, deployId });
 
-            logger.info('Processing database', { hostFolder, provider, dbName, deployId });
+              const latestBackupTimestamp = Underpost.db._getLatestBackupTimestamp(`../${repoName}/${hostFolder}`);
 
-            const latestBackupTimestamp = Underpost.db._getLatestBackupTimestamp(`../${repoName}/${hostFolder}`);
+              dbs[provider][dbName].currentBackupTimestamp = latestBackupTimestamp;
 
-            dbs[provider][dbName].currentBackupTimestamp = latestBackupTimestamp;
+              const currentTimestamp = latestBackupTimestamp || newBackupTimestamp;
+              const sqlContainerPath = `/home/${dbName}.sql`;
+              const fromPartsPath = `../${repoName}/${hostFolder}/${currentTimestamp}/${dbName}-parths.json`;
+              const toSqlPath = `../${repoName}/${hostFolder}/${currentTimestamp}/${dbName}.sql`;
+              const toNewSqlPath = `../${repoName}/${hostFolder}/${newBackupTimestamp}/${dbName}.sql`;
+              const toBsonPath = `../${repoName}/${hostFolder}/${currentTimestamp}/${dbName}`;
+              const toNewBsonPath = `../${repoName}/${hostFolder}/${newBackupTimestamp}/${dbName}`;
 
-            const currentTimestamp = latestBackupTimestamp || newBackupTimestamp;
-            const sqlContainerPath = `/home/${dbName}.sql`;
-            const fromPartsPath = `../${repoName}/${hostFolder}/${currentTimestamp}/${dbName}-parths.json`;
-            const toSqlPath = `../${repoName}/${hostFolder}/${currentTimestamp}/${dbName}.sql`;
-            const toNewSqlPath = `../${repoName}/${hostFolder}/${newBackupTimestamp}/${dbName}.sql`;
-            const toBsonPath = `../${repoName}/${hostFolder}/${currentTimestamp}/${dbName}`;
-            const toNewBsonPath = `../${repoName}/${hostFolder}/${newBackupTimestamp}/${dbName}`;
+              // Merge split SQL files if needed for import
+              if (options.import === true && fs.existsSync(fromPartsPath) && !fs.existsSync(toSqlPath)) {
+                const names = JSON.parse(fs.readFileSync(fromPartsPath, 'utf8')).map((_path) => {
+                  return `../${repoName}/${hostFolder}/${currentTimestamp}/${_path.split('/').pop()}`;
+                });
+                logger.info('Merging backup parts', { fromPartsPath, toSqlPath, parts: names.length });
+                await mergeFile(names, toSqlPath);
+              }
 
-            // Merge split SQL files if needed for import
-            if (options.import === true && fs.existsSync(fromPartsPath) && !fs.existsSync(toSqlPath)) {
-              const names = JSON.parse(fs.readFileSync(fromPartsPath, 'utf8')).map((_path) => {
-                return `../${repoName}/${hostFolder}/${currentTimestamp}/${_path.split('/').pop()}`;
-              });
-              logger.info('Merging backup parts', { fromPartsPath, toSqlPath, parts: names.length });
-              await mergeFile(names, toSqlPath);
-            }
-
-            // Get target pods based on provider and options
-            let targetPods = [];
-            const podCriteria = {
-              podNames: options.podName,
-              namespace,
-              deployId: provider === 'mariadb' ? 'mariadb' : 'mongo',
-            };
-
-            targetPods = Underpost.kubectl.getFilteredPods(podCriteria);
-
-            // Fallback to default if no custom pods specified
-            if (targetPods.length === 0 && !options.podName) {
-              const defaultPods = Underpost.kubectl.get(
-                provider === 'mariadb' ? 'mariadb' : 'mongo',
-                'pods',
+              // Get target pods based on provider and options
+              let targetPods = [];
+              const podCriteria = {
+                podNames: options.podName,
                 namespace,
-              );
-              console.log('defaultPods', defaultPods);
-              targetPods = defaultPods;
-            }
+                deployId: provider === 'mariadb' ? 'mariadb' : 'mongo',
+              };
 
-            if (targetPods.length === 0) {
-              logger.warn('No pods found matching criteria', { provider, criteria: podCriteria });
-              continue;
-            }
+              targetPods = Underpost.kubectl.getFilteredPods(podCriteria);
 
-            // Handle primary pod detection for MongoDB
-            let podsToProcess = [];
-            if (provider === 'mongoose' && !options.allPods) {
-              // For MongoDB, always use primary pod unless allPods is true
-              if (!targetPods || targetPods.length === 0) {
-                logger.warn('No MongoDB pods available to check for primary');
-                podsToProcess = [];
-              } else {
-                const firstPod = targetPods[0].NAME;
-                const primaryPodName = Underpost.db.getMongoPrimaryPodName({ namespace, podName: firstPod });
+              // Fallback to default if no custom pods specified
+              if (targetPods.length === 0 && !options.podName) {
+                const defaultPods = Underpost.kubectl.get(
+                  provider === 'mariadb' ? 'mariadb' : 'mongo',
+                  'pods',
+                  namespace,
+                );
+                console.log('defaultPods', defaultPods);
+                targetPods = defaultPods;
+              }
 
-                if (primaryPodName) {
-                  const primaryPod = targetPods.find((p) => p.NAME === primaryPodName);
-                  if (primaryPod) {
-                    podsToProcess = [primaryPod];
-                    logger.info('Using MongoDB primary pod', { primaryPod: primaryPodName });
+              if (targetPods.length === 0) {
+                logger.warn('No pods found matching criteria', { provider, criteria: podCriteria });
+                continue;
+              }
+
+              // Handle primary pod detection for MongoDB
+              let podsToProcess = [];
+              if (provider === 'mongoose' && !options.allPods) {
+                // For MongoDB, always use primary pod unless allPods is true
+                if (!targetPods || targetPods.length === 0) {
+                  logger.warn('No MongoDB pods available to check for primary');
+                  podsToProcess = [];
+                } else {
+                  const firstPod = targetPods[0].NAME;
+                  const primaryPodName = Underpost.db.getMongoPrimaryPodName({ namespace, podName: firstPod });
+
+                  if (primaryPodName) {
+                    const primaryPod = targetPods.find((p) => p.NAME === primaryPodName);
+                    if (primaryPod) {
+                      podsToProcess = [primaryPod];
+                      logger.info('Using MongoDB primary pod', { primaryPod: primaryPodName });
+                    } else {
+                      logger.warn('Primary pod not in filtered list, using first pod', { primaryPodName });
+                      podsToProcess = [targetPods[0]];
+                    }
                   } else {
-                    logger.warn('Primary pod not in filtered list, using first pod', { primaryPodName });
+                    logger.warn('Could not detect primary pod, using first pod');
                     podsToProcess = [targetPods[0]];
                   }
-                } else {
-                  logger.warn('Could not detect primary pod, using first pod');
-                  podsToProcess = [targetPods[0]];
+                }
+              } else {
+                // For MariaDB or when allPods is true, limit to first pod unless allPods is true
+                podsToProcess = options.allPods === true ? targetPods : [targetPods[0]];
+              }
+
+              logger.info(`Processing ${podsToProcess.length} pod(s) for ${provider}`, {
+                dbName,
+                pods: podsToProcess.map((p) => p.NAME),
+              });
+
+              // Process each pod
+              for (const pod of podsToProcess) {
+                logger.info('Processing pod', { podName: pod.NAME, node: pod.NODE, status: pod.STATUS });
+
+                switch (provider) {
+                  case 'mariadb': {
+                    if (options.stats === true) {
+                      const stats = Underpost.db._getMariaDBStats({
+                        podName: pod.NAME,
+                        namespace,
+                        dbName,
+                        user,
+                        password,
+                      });
+                      if (stats) {
+                        Underpost.db._displayStats({ provider, dbName, stats });
+                      }
+                    }
+
+                    if (options.import === true) {
+                      Underpost.db._importMariaDB({
+                        pod,
+                        namespace,
+                        dbName,
+                        user,
+                        password,
+                        sqlPath: toSqlPath,
+                      });
+                    }
+
+                    if (options.export === true) {
+                      const outputPath = options.outPath || toNewSqlPath;
+                      await Underpost.db._exportMariaDB({
+                        pod,
+                        namespace,
+                        dbName,
+                        user,
+                        password,
+                        outputPath,
+                      });
+                    }
+                    break;
+                  }
+
+                  case 'mongoose': {
+                    if (options.stats === true) {
+                      const stats = Underpost.db._getMongoStats({
+                        podName: pod.NAME,
+                        namespace,
+                        dbName,
+                      });
+                      if (stats) {
+                        Underpost.db._displayStats({ provider, dbName, stats });
+                      }
+                    }
+
+                    if (options.import === true) {
+                      const bsonPath = options.outPath || toBsonPath;
+                      Underpost.db._importMongoDB({
+                        pod,
+                        namespace,
+                        dbName,
+                        bsonPath,
+                        drop: options.drop,
+                        preserveUUID: options.preserveUUID,
+                      });
+                    }
+
+                    if (options.export === true) {
+                      const outputPath = options.outPath || toNewBsonPath;
+                      Underpost.db._exportMongoDB({
+                        pod,
+                        namespace,
+                        dbName,
+                        outputPath,
+                        collections: options.collections,
+                      });
+                    }
+                    break;
+                  }
+
+                  default:
+                    logger.warn('Unsupported database provider', { provider });
+                    break;
                 }
               }
-            } else {
-              // For MariaDB or when allPods is true, limit to first pod unless allPods is true
-              podsToProcess = options.allPods === true ? targetPods : [targetPods[0]];
+
+              // Mark this host+path combination as processed
+              processedHostPaths.add(hostPathKey);
             }
+          }
 
-            logger.info(`Processing ${podsToProcess.length} pod(s) for ${provider}`, {
-              dbName,
-              pods: podsToProcess.map((p) => p.NAME),
-            });
-
-            // Process each pod
-            for (const pod of podsToProcess) {
-              logger.info('Processing pod', { podName: pod.NAME, node: pod.NODE, status: pod.STATUS });
-
-              switch (provider) {
-                case 'mariadb': {
-                  if (options.stats === true) {
-                    const stats = Underpost.db._getMariaDBStats({
-                      podName: pod.NAME,
-                      namespace,
-                      dbName,
-                      user,
-                      password,
-                    });
-                    if (stats) {
-                      Underpost.db._displayStats({ provider, dbName, stats });
-                    }
-                  }
-
-                  if (options.import === true) {
-                    Underpost.db._importMariaDB({
-                      pod,
-                      namespace,
-                      dbName,
-                      user,
-                      password,
-                      sqlPath: toSqlPath,
-                    });
-                  }
-
-                  if (options.export === true) {
-                    const outputPath = options.outPath || toNewSqlPath;
-                    await Underpost.db._exportMariaDB({
-                      pod,
-                      namespace,
-                      dbName,
-                      user,
-                      password,
-                      outputPath,
-                    });
-                  }
-                  break;
-                }
-
-                case 'mongoose': {
-                  if (options.stats === true) {
-                    const stats = Underpost.db._getMongoStats({
-                      podName: pod.NAME,
-                      namespace,
-                      dbName,
-                    });
-                    if (stats) {
-                      Underpost.db._displayStats({ provider, dbName, stats });
-                    }
-                  }
-
-                  if (options.import === true) {
-                    const bsonPath = options.outPath || toBsonPath;
-                    Underpost.db._importMongoDB({
-                      pod,
-                      namespace,
-                      dbName,
-                      bsonPath,
-                      drop: options.drop,
-                      preserveUUID: options.preserveUUID,
-                    });
-                  }
-
-                  if (options.export === true) {
-                    const outputPath = options.outPath || toNewBsonPath;
-                    Underpost.db._exportMongoDB({
-                      pod,
-                      namespace,
-                      dbName,
-                      outputPath,
-                      collections: options.collections,
-                    });
-                  }
-                  break;
-                }
-
-                default:
-                  logger.warn('Unsupported database provider', { provider });
-                  break;
-              }
-            }
-
-            // Mark this host+path combination as processed
-            processedHostPaths.add(hostPathKey);
+          // Commit and push to Git if enabled - execute only once per repository
+          if (options.export === true && options.git === true && !processedRepos.has(`${repoName}-committed`)) {
+            const commitMessage = `${new Date(newBackupTimestamp).toLocaleDateString()} ${new Date(
+              newBackupTimestamp,
+            ).toLocaleTimeString()}`;
+            Underpost.repo.manageBackupRepo({ repoName, operation: 'commit', message: commitMessage });
+            Underpost.repo.manageBackupRepo({ repoName, operation: 'push' });
+            processedRepos.add(`${repoName}-committed`);
           }
         }
 
-        // Commit and push to Git if enabled - execute only once per repository
-        if (options.export === true && options.git === true && !processedRepos.has(`${repoName}-committed`)) {
-          const commitMessage = `${new Date(newBackupTimestamp).toLocaleDateString()} ${new Date(
-            newBackupTimestamp,
-          ).toLocaleTimeString()}`;
-          Underpost.repo.manageBackupRepo({ repoName, operation: 'commit', message: commitMessage });
-          Underpost.repo.manageBackupRepo({ repoName, operation: 'push' });
-          processedRepos.add(`${repoName}-committed`);
+        logger.info('Database operation completed successfully');
+      } finally {
+        if (ephemeral && isInsideContainer()) {
+          Underpost.repo.cleanupPrivateEngineRepo();
+          Underpost.env.clean();
         }
       }
-
-      logger.info('Database operation completed successfully');
     },
 
     /**
@@ -958,174 +970,182 @@ class UnderpostDB {
       host = process.env.DEFAULT_DEPLOY_HOST,
       path = process.env.DEFAULT_DEPLOY_PATH,
     ) {
-      loadCronDeployEnv();
-      deployId = deployId ? deployId : process.env.DEFAULT_DEPLOY_ID;
-      host = host ? host : process.env.DEFAULT_DEPLOY_HOST;
-      path = path ? path : process.env.DEFAULT_DEPLOY_PATH;
-
-      logger.info('Creating cluster metadata', { deployId, host, path });
-
-      const env = 'production';
-      const deployListPath = './engine-private/deploy/dd.router';
-
-      if (!fs.existsSync(deployListPath)) {
-        logger.error('Deploy router file not found', { path: deployListPath });
-        throw new Error(`Deploy router file not found: ${deployListPath}`);
-      }
-
-      const deployList = fs.readFileSync(deployListPath, 'utf8').split(',');
-
-      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-      if (!fs.existsSync(confServerPath)) {
-        logger.error('Server configuration not found', { path: confServerPath });
-        throw new Error(`Server configuration not found: ${confServerPath}`);
-      }
-
-      const { db } = loadConfServerJson(confServerPath, { resolve: true })[host][path];
-
-      const maxRetries = 5;
-      const retryDelay = 3000;
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          await DataBaseProvider.load({ apis: ['instance', 'cron'], host, path, db });
-          break;
-        } catch (err) {
-          if (attempt === maxRetries) {
-            logger.error('Failed to connect to database after retries', { attempts: maxRetries, error: err.message });
-            throw err;
-          }
-          logger.warn('Database connection failed, retrying...', { attempt, maxRetries, error: err.message });
-          await timer(retryDelay);
-        }
-      }
-
+      const { ephemeral } = Underpost.repo.privateEngineRepoFactory(deployId || undefined);
       try {
-        /** @type {import('../api/instance/instance.model.js').InstanceModel} */
-        const Instance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Instance;
+        loadCronDeployEnv();
+        deployId = deployId ? deployId : process.env.DEFAULT_DEPLOY_ID;
+        host = host ? host : process.env.DEFAULT_DEPLOY_HOST;
+        path = path ? path : process.env.DEFAULT_DEPLOY_PATH;
 
-        await Instance.deleteMany();
-        logger.info('Cleared existing instance metadata');
+        logger.info('Creating cluster metadata', { deployId, host, path });
 
-        for (const _deployId of deployList) {
-          const deployId = _deployId.trim();
-          if (!deployId) continue;
+        const env = 'production';
+        const deployListPath = './engine-private/deploy/dd.router';
 
-          logger.info('Processing deployment for metadata', { deployId });
+        if (!fs.existsSync(deployListPath)) {
+          logger.error('Deploy router file not found', { path: deployListPath });
+          throw new Error(`Deploy router file not found: ${deployListPath}`);
+        }
 
-          const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-          if (!fs.existsSync(confServerPath)) {
-            logger.warn('Configuration not found for deployment', { deployId, path: confServerPath });
-            continue;
+        const deployList = fs.readFileSync(deployListPath, 'utf8').split(',');
+
+        const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+        if (!fs.existsSync(confServerPath)) {
+          logger.error('Server configuration not found', { path: confServerPath });
+          throw new Error(`Server configuration not found: ${confServerPath}`);
+        }
+
+        const { db } = loadConfServerJson(confServerPath, { resolve: true })[host][path];
+
+        const maxRetries = 5;
+        const retryDelay = 3000;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            await DataBaseProvider.load({ apis: ['instance', 'cron'], host, path, db });
+            break;
+          } catch (err) {
+            if (attempt === maxRetries) {
+              logger.error('Failed to connect to database after retries', { attempts: maxRetries, error: err.message });
+              throw err;
+            }
+            logger.warn('Database connection failed, retrying...', { attempt, maxRetries, error: err.message });
+            await timer(retryDelay);
           }
+        }
 
-          const confServer = loadReplicas(deployId, loadConfServerJson(confServerPath, { resolve: true }));
-          const router = await Underpost.deploy.routerFactory(deployId, env);
-          const pathPortAssignmentData = await pathPortAssignmentFactory(deployId, router, confServer);
+        try {
+          /** @type {import('../api/instance/instance.model.js').InstanceModel} */
+          const Instance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Instance;
 
-          for (const host of Object.keys(confServer)) {
-            for (const { path, port } of pathPortAssignmentData[host]) {
-              if (!confServer[host][path]) continue;
+          await Instance.deleteMany();
+          logger.info('Cleared existing instance metadata');
 
-              const { client, runtime, apis, peer } = confServer[host][path];
+          for (const _deployId of deployList) {
+            const deployId = _deployId.trim();
+            if (!deployId) continue;
 
-              // Save main instance
-              {
+            logger.info('Processing deployment for metadata', { deployId });
+
+            const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+            if (!fs.existsSync(confServerPath)) {
+              logger.warn('Configuration not found for deployment', { deployId, path: confServerPath });
+              continue;
+            }
+
+            const confServer = loadReplicas(deployId, loadConfServerJson(confServerPath, { resolve: true }));
+            const router = await Underpost.deploy.routerFactory(deployId, env);
+            const pathPortAssignmentData = await pathPortAssignmentFactory(deployId, router, confServer);
+
+            for (const host of Object.keys(confServer)) {
+              for (const { path, port } of pathPortAssignmentData[host]) {
+                if (!confServer[host][path]) continue;
+
+                const { client, runtime, apis, peer } = confServer[host][path];
+
+                // Save main instance
+                {
+                  const body = {
+                    deployId,
+                    host,
+                    path,
+                    port,
+                    client,
+                    runtime,
+                    apis,
+                  };
+
+                  logger.info('Saving instance metadata', body);
+                  await new Instance(body).save();
+                }
+
+                // Save peer instance if exists
+                if (peer) {
+                  const body = {
+                    deployId,
+                    host,
+                    path: path === '/' ? '/peer' : `${path}/peer`,
+                    port: port + 1,
+                    runtime: 'nodejs',
+                  };
+
+                  logger.info('Saving peer instance metadata', body);
+                  await new Instance(body).save();
+                }
+              }
+            }
+
+            // Process additional instances
+            const confInstancesPath = `./engine-private/conf/${deployId}/conf.instances.json`;
+            if (fs.existsSync(confInstancesPath)) {
+              const confInstances = JSON.parse(fs.readFileSync(confInstancesPath, 'utf8'));
+              for (const instance of confInstances) {
+                const { id, host, path, fromPort, metadata } = instance;
+                const { runtime } = metadata;
                 const body = {
                   deployId,
                   host,
                   path,
-                  port,
-                  client,
+                  port: fromPort,
+                  client: id,
                   runtime,
-                  apis,
                 };
-
-                logger.info('Saving instance metadata', body);
-                await new Instance(body).save();
-              }
-
-              // Save peer instance if exists
-              if (peer) {
-                const body = {
-                  deployId,
-                  host,
-                  path: path === '/' ? '/peer' : `${path}/peer`,
-                  port: port + 1,
-                  runtime: 'nodejs',
-                };
-
-                logger.info('Saving peer instance metadata', body);
+                logger.info('Saving additional instance metadata', body);
                 await new Instance(body).save();
               }
             }
           }
+        } catch (error) {
+          logger.error('Failed to create instance metadata', { error: error.message });
+          throw error;
+        }
 
-          // Process additional instances
-          const confInstancesPath = `./engine-private/conf/${deployId}/conf.instances.json`;
-          if (fs.existsSync(confInstancesPath)) {
-            const confInstances = JSON.parse(fs.readFileSync(confInstancesPath, 'utf8'));
-            for (const instance of confInstances) {
-              const { id, host, path, fromPort, metadata } = instance;
-              const { runtime } = metadata;
-              const body = {
-                deployId,
-                host,
-                path,
-                port: fromPort,
-                client: id,
-                runtime,
-              };
-              logger.info('Saving additional instance metadata', body);
-              await new Instance(body).save();
-            }
+        try {
+          const cronDeployPath = './engine-private/deploy/dd.cron';
+          if (!fs.existsSync(cronDeployPath)) {
+            logger.warn('Cron deploy file not found', { path: cronDeployPath });
+            return;
           }
+
+          const cronDeployId = fs.readFileSync(cronDeployPath, 'utf8').trim();
+          const confCronPath = `./engine-private/conf/${cronDeployId}/conf.cron.json`;
+
+          if (!fs.existsSync(confCronPath)) {
+            logger.warn('Cron configuration not found', { path: confCronPath });
+            return;
+          }
+
+          const confCron = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
+
+          await DataBaseProvider.load({ apis: ['cron'], host, path, db });
+
+          /** @type {import('../api/cron/cron.model.js').CronModel} */
+          const Cron = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Cron;
+
+          await Cron.deleteMany();
+          logger.info('Cleared existing cron metadata');
+
+          for (const jobId of Object.keys(confCron.jobs)) {
+            const body = {
+              jobId,
+              deployId: Underpost.cron.getRelatedDeployIdList(jobId),
+              expression: confCron.jobs[jobId].expression,
+              enabled: confCron.jobs[jobId].enabled,
+            };
+            logger.info('Saving cron metadata', body);
+            await new Cron(body).save();
+          }
+        } catch (error) {
+          logger.error('Failed to create cron metadata', { error: error.message });
         }
-      } catch (error) {
-        logger.error('Failed to create instance metadata', { error: error.message });
-        throw error;
+
+        await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+        logger.info('Cluster metadata creation completed');
+      } finally {
+        if (ephemeral && isInsideContainer()) {
+          Underpost.repo.cleanupPrivateEngineRepo();
+          Underpost.env.clean();
+        }
       }
-
-      try {
-        const cronDeployPath = './engine-private/deploy/dd.cron';
-        if (!fs.existsSync(cronDeployPath)) {
-          logger.warn('Cron deploy file not found', { path: cronDeployPath });
-          return;
-        }
-
-        const cronDeployId = fs.readFileSync(cronDeployPath, 'utf8').trim();
-        const confCronPath = `./engine-private/conf/${cronDeployId}/conf.cron.json`;
-
-        if (!fs.existsSync(confCronPath)) {
-          logger.warn('Cron configuration not found', { path: confCronPath });
-          return;
-        }
-
-        const confCron = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
-
-        await DataBaseProvider.load({ apis: ['cron'], host, path, db });
-
-        /** @type {import('../api/cron/cron.model.js').CronModel} */
-        const Cron = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Cron;
-
-        await Cron.deleteMany();
-        logger.info('Cleared existing cron metadata');
-
-        for (const jobId of Object.keys(confCron.jobs)) {
-          const body = {
-            jobId,
-            deployId: Underpost.cron.getRelatedDeployIdList(jobId),
-            expression: confCron.jobs[jobId].expression,
-            enabled: confCron.jobs[jobId].enabled,
-          };
-          logger.info('Saving cron metadata', body);
-          await new Cron(body).save();
-        }
-      } catch (error) {
-        logger.error('Failed to create cron metadata', { error: error.message });
-      }
-
-      await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
-      logger.info('Cluster metadata creation completed');
     },
 
     /**
@@ -1149,211 +1169,220 @@ class UnderpostDB {
         dryRun: false,
       },
     ) {
-      loadCronDeployEnv();
-      if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
+      const firstDeployId = deployList !== 'dd' ? deployList.split(',')[0].trim() : '';
+      const { ephemeral } = Underpost.repo.privateEngineRepoFactory(firstDeployId || undefined);
+      try {
+        loadCronDeployEnv();
+        if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
 
-      logger.info('Starting File collection cleanup', { deployList, options });
+        logger.info('Starting File collection cleanup', { deployList, options });
 
-      // Load file.ref.json to know which models reference File
-      const fileRefPath = './src/api/file/file.ref.json';
-      if (!fs.existsSync(fileRefPath)) {
-        logger.error('file.ref.json not found', { path: fileRefPath });
-        return;
-      }
-
-      const fileRefData = JSON.parse(fs.readFileSync(fileRefPath, 'utf8'));
-      logger.info('Loaded file reference configuration', { apis: fileRefData.length });
-
-      // Filter hosts and paths if specified
-      const filterHosts = options.hosts ? options.hosts.split(',').map((h) => h.trim()) : [];
-      const filterPaths = options.paths ? options.paths.split(',').map((p) => p.trim()) : [];
-
-      // Track all connections to close them at the end
-      const connectionsToClose = [];
-
-      for (const _deployId of deployList.split(',')) {
-        const deployId = _deployId.trim();
-        if (!deployId) continue;
-
-        logger.info('Processing deployment for File cleanup', { deployId });
-
-        // Load server configuration
-        const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-        if (!fs.existsSync(confServerPath)) {
-          logger.error('Configuration file not found', { path: confServerPath });
-          continue;
+        // Load file.ref.json to know which models reference File
+        const fileRefPath = './src/api/file/file.ref.json';
+        if (!fs.existsSync(fileRefPath)) {
+          logger.error('file.ref.json not found', { path: fileRefPath });
+          return;
         }
 
-        const confServer = loadConfServerJson(confServerPath, { resolve: true });
+        const fileRefData = JSON.parse(fs.readFileSync(fileRefPath, 'utf8'));
+        logger.info('Loaded file reference configuration', { apis: fileRefData.length });
 
-        // Process each host+path combination
-        for (const host of Object.keys(confServer)) {
-          if (filterHosts.length > 0 && !filterHosts.includes(host)) continue;
+        // Filter hosts and paths if specified
+        const filterHosts = options.hosts ? options.hosts.split(',').map((h) => h.trim()) : [];
+        const filterPaths = options.paths ? options.paths.split(',').map((p) => p.trim()) : [];
 
-          for (const path of Object.keys(confServer[host])) {
-            if (filterPaths.length > 0 && !filterPaths.includes(path)) continue;
+        // Track all connections to close them at the end
+        const connectionsToClose = [];
 
-            const { db, apis } = confServer[host][path];
-            if (!db || !apis) continue;
+        for (const _deployId of deployList.split(',')) {
+          const deployId = _deployId.trim();
+          if (!deployId) continue;
 
-            // Check if 'file' api is in the apis list
-            if (!apis.includes('file')) {
-              logger.info('Skipping - no file api in configuration', { host, path });
-              continue;
-            }
+          logger.info('Processing deployment for File cleanup', { deployId });
 
-            // logger.info('Processing host+path with file api', { host, path, db: db.name });
+          // Load server configuration
+          const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+          if (!fs.existsSync(confServerPath)) {
+            logger.error('Configuration file not found', { path: confServerPath });
+            continue;
+          }
 
-            try {
-              // Connect to database with retry
-              let dbProvider;
-              for (let attempt = 1; attempt <= 3; attempt++) {
-                try {
-                  dbProvider = await DataBaseProvider.load({ apis, host, path, db });
-                  break;
-                } catch (err) {
-                  if (attempt === 3) throw err;
-                  logger.warn('Database connection failed, retrying...', { attempt, host, path, error: err.message });
-                  await timer(3000);
+          const confServer = loadConfServerJson(confServerPath, { resolve: true });
+
+          // Process each host+path combination
+          for (const host of Object.keys(confServer)) {
+            if (filterHosts.length > 0 && !filterHosts.includes(host)) continue;
+
+            for (const path of Object.keys(confServer[host])) {
+              if (filterPaths.length > 0 && !filterPaths.includes(path)) continue;
+
+              const { db, apis } = confServer[host][path];
+              if (!db || !apis) continue;
+
+              // Check if 'file' api is in the apis list
+              if (!apis.includes('file')) {
+                logger.info('Skipping - no file api in configuration', { host, path });
+                continue;
+              }
+
+              // logger.info('Processing host+path with file api', { host, path, db: db.name });
+
+              try {
+                // Connect to database with retry
+                let dbProvider;
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                  try {
+                    dbProvider = await DataBaseProvider.load({ apis, host, path, db });
+                    break;
+                  } catch (err) {
+                    if (attempt === 3) throw err;
+                    logger.warn('Database connection failed, retrying...', { attempt, host, path, error: err.message });
+                    await timer(3000);
+                  }
                 }
-              }
-              if (!dbProvider || !dbProvider.models) {
-                logger.error('Failed to load database provider', { host, path });
-                continue;
-              }
-
-              const { models } = dbProvider;
-
-              // Track this connection for cleanup
-              connectionsToClose.push({ host, path, dbProvider });
-
-              // Check if File model exists
-              if (!models.File) {
-                logger.warn('File model not loaded', { host, path });
-                continue;
-              }
-
-              // Get all File documents
-              const allFiles = await models.File.find({}, '_id').lean();
-              logger.info('Found File documents', { count: allFiles.length, host, path });
-
-              if (allFiles.length === 0) continue;
-
-              // Track which File IDs are referenced
-              const referencedFileIds = new Set();
-
-              // Check each API from file.ref.json
-              for (const refConfig of fileRefData) {
-                const { api, model: modelFields } = refConfig;
-
-                // Check if this API is loaded in current context
-                const modelName = api
-                  .split('-')
-                  .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                  .join('');
-                const Model = models[modelName];
-
-                if (!Model) {
-                  logger.debug('Model not loaded in current context', { api, modelName, host, path });
+                if (!dbProvider || !dbProvider.models) {
+                  logger.error('Failed to load database provider', { host, path });
                   continue;
                 }
 
-                logger.info('Checking references in model', { api, modelName });
+                const { models } = dbProvider;
 
-                // Helper function to recursively check field references
-                const checkFieldReferences = async (fieldPath, fieldConfig) => {
-                  for (const [fieldName, fieldValue] of Object.entries(fieldConfig)) {
-                    const currentPath = fieldPath ? `${fieldPath}.${fieldName}` : fieldName;
+                // Track this connection for cleanup
+                connectionsToClose.push({ host, path, dbProvider });
 
-                    if (fieldValue === true) {
-                      // This is a File reference field
-                      const query = {};
-                      query[currentPath] = { $exists: true, $ne: null };
+                // Check if File model exists
+                if (!models.File) {
+                  logger.warn('File model not loaded', { host, path });
+                  continue;
+                }
 
-                      const docs = await Model.find(query, currentPath).lean();
+                // Get all File documents
+                const allFiles = await models.File.find({}, '_id').lean();
+                logger.info('Found File documents', { count: allFiles.length, host, path });
 
-                      for (const doc of docs) {
-                        // Navigate to the nested field
-                        const parts = currentPath.split('.');
-                        let value = doc;
-                        for (const part of parts) {
-                          value = value?.[part];
-                        }
+                if (allFiles.length === 0) continue;
 
-                        if (value) {
-                          if (Array.isArray(value)) {
-                            value.forEach((id) => id && referencedFileIds.add(id.toString()));
-                          } else {
-                            referencedFileIds.add(value.toString());
+                // Track which File IDs are referenced
+                const referencedFileIds = new Set();
+
+                // Check each API from file.ref.json
+                for (const refConfig of fileRefData) {
+                  const { api, model: modelFields } = refConfig;
+
+                  // Check if this API is loaded in current context
+                  const modelName = api
+                    .split('-')
+                    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join('');
+                  const Model = models[modelName];
+
+                  if (!Model) {
+                    logger.debug('Model not loaded in current context', { api, modelName, host, path });
+                    continue;
+                  }
+
+                  logger.info('Checking references in model', { api, modelName });
+
+                  // Helper function to recursively check field references
+                  const checkFieldReferences = async (fieldPath, fieldConfig) => {
+                    for (const [fieldName, fieldValue] of Object.entries(fieldConfig)) {
+                      const currentPath = fieldPath ? `${fieldPath}.${fieldName}` : fieldName;
+
+                      if (fieldValue === true) {
+                        // This is a File reference field
+                        const query = {};
+                        query[currentPath] = { $exists: true, $ne: null };
+
+                        const docs = await Model.find(query, currentPath).lean();
+
+                        for (const doc of docs) {
+                          // Navigate to the nested field
+                          const parts = currentPath.split('.');
+                          let value = doc;
+                          for (const part of parts) {
+                            value = value?.[part];
+                          }
+
+                          if (value) {
+                            if (Array.isArray(value)) {
+                              value.forEach((id) => id && referencedFileIds.add(id.toString()));
+                            } else {
+                              referencedFileIds.add(value.toString());
+                            }
                           }
                         }
+
+                        logger.info('Found references', {
+                          model: modelName,
+                          field: currentPath,
+                          count: docs.length,
+                        });
+                      } else if (typeof fieldValue === 'object') {
+                        // Nested object, recurse
+                        await checkFieldReferences(currentPath, fieldValue);
                       }
-
-                      logger.info('Found references', {
-                        model: modelName,
-                        field: currentPath,
-                        count: docs.length,
-                      });
-                    } else if (typeof fieldValue === 'object') {
-                      // Nested object, recurse
-                      await checkFieldReferences(currentPath, fieldValue);
                     }
-                  }
-                };
+                  };
 
-                await checkFieldReferences('', modelFields);
-              }
-
-              logger.info('Total referenced File IDs', { count: referencedFileIds.size, host, path });
-
-              // Find orphaned files
-              const orphanedFiles = allFiles.filter((file) => !referencedFileIds.has(file._id.toString()));
-
-              if (orphanedFiles.length === 0) {
-                logger.info('No orphaned files found', { host, path });
-              } else {
-                logger.info('Found orphaned files', { count: orphanedFiles.length, host, path });
-
-                if (options.dryRun) {
-                  logger.info('Dry run - would delete files', {
-                    count: orphanedFiles.length,
-                    ids: orphanedFiles.map((f) => f._id.toString()),
-                  });
-                } else {
-                  const orphanedIds = orphanedFiles.map((f) => f._id);
-                  const deleteResult = await models.File.deleteMany({ _id: { $in: orphanedIds } });
-                  logger.info('Deleted orphaned files', {
-                    deletedCount: deleteResult.deletedCount,
-                    host,
-                    path,
-                  });
+                  await checkFieldReferences('', modelFields);
                 }
+
+                logger.info('Total referenced File IDs', { count: referencedFileIds.size, host, path });
+
+                // Find orphaned files
+                const orphanedFiles = allFiles.filter((file) => !referencedFileIds.has(file._id.toString()));
+
+                if (orphanedFiles.length === 0) {
+                  logger.info('No orphaned files found', { host, path });
+                } else {
+                  logger.info('Found orphaned files', { count: orphanedFiles.length, host, path });
+
+                  if (options.dryRun) {
+                    logger.info('Dry run - would delete files', {
+                      count: orphanedFiles.length,
+                      ids: orphanedFiles.map((f) => f._id.toString()),
+                    });
+                  } else {
+                    const orphanedIds = orphanedFiles.map((f) => f._id);
+                    const deleteResult = await models.File.deleteMany({ _id: { $in: orphanedIds } });
+                    logger.info('Deleted orphaned files', {
+                      deletedCount: deleteResult.deletedCount,
+                      host,
+                      path,
+                    });
+                  }
+                }
+              } catch (error) {
+                logger.error('Error processing host+path', {
+                  host,
+                  path,
+                  error: error.message,
+                });
               }
-            } catch (error) {
-              logger.error('Error processing host+path', {
-                host,
-                path,
-                error: error.message,
-              });
             }
           }
         }
-      }
 
-      // Close all connections
-      logger.info('Closing all database connections', { count: connectionsToClose.length });
-      for (const { host, path, dbProvider } of connectionsToClose) {
-        try {
-          if (dbProvider && dbProvider.close) {
-            await dbProvider.close();
-            logger.info('Connection closed', { host, path });
+        // Close all connections
+        logger.info('Closing all database connections', { count: connectionsToClose.length });
+        for (const { host, path, dbProvider } of connectionsToClose) {
+          try {
+            if (dbProvider && dbProvider.close) {
+              await dbProvider.close();
+              logger.info('Connection closed', { host, path });
+            }
+          } catch (error) {
+            logger.error('Error closing connection', { host, path, error: error.message });
           }
-        } catch (error) {
-          logger.error('Error closing connection', { host, path, error: error.message });
+        }
+
+        logger.info('File collection cleanup completed');
+      } finally {
+        if (ephemeral && isInsideContainer()) {
+          Underpost.repo.cleanupPrivateEngineRepo();
+          Underpost.env.clean();
         }
       }
-
-      logger.info('File collection cleanup completed');
     },
 
     /**
@@ -1387,68 +1416,76 @@ class UnderpostDB {
         crons: false,
       },
     ) {
-      loadCronDeployEnv();
-      deployId = deployId ? deployId : process.env.DEFAULT_DEPLOY_ID;
-      host = host ? host : process.env.DEFAULT_DEPLOY_HOST;
-      path = path ? path : process.env.DEFAULT_DEPLOY_PATH;
+      const { ephemeral } = Underpost.repo.privateEngineRepoFactory(deployId || undefined);
+      try {
+        loadCronDeployEnv();
+        deployId = deployId ? deployId : process.env.DEFAULT_DEPLOY_ID;
+        host = host ? host : process.env.DEFAULT_DEPLOY_HOST;
+        path = path ? path : process.env.DEFAULT_DEPLOY_PATH;
 
-      logger.info('Starting cluster metadata backup operation', {
-        deployId,
-        host,
-        path,
-        options,
-      });
+        logger.info('Starting cluster metadata backup operation', {
+          deployId,
+          host,
+          path,
+          options,
+        });
 
-      if (options.generate === true) {
-        logger.info('Generating cluster metadata');
-        await Underpost.db.clusterMetadataFactory(deployId, host, path);
+        if (options.generate === true) {
+          logger.info('Generating cluster metadata');
+          await Underpost.db.clusterMetadataFactory(deployId, host, path);
+        }
+
+        if (options.instances === true) {
+          const outputPath = './engine-private/instances';
+          if (!fs.existsSync(outputPath)) {
+            fs.mkdirSync(outputPath, { recursive: true });
+          }
+          const collection = 'instances';
+
+          if (options.export === true) {
+            logger.info('Exporting instances collection', { outputPath });
+            shellExec(
+              `node bin db --export --primary-pod --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+            );
+          }
+
+          if (options.import === true) {
+            logger.info('Importing instances collection', { outputPath });
+            shellExec(
+              `node bin db --import --primary-pod --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+            );
+          }
+        }
+
+        if (options.crons === true) {
+          const outputPath = './engine-private/crons';
+          if (!fs.existsSync(outputPath)) {
+            fs.mkdirSync(outputPath, { recursive: true });
+          }
+          const collection = 'crons';
+
+          if (options.export === true) {
+            logger.info('Exporting crons collection', { outputPath });
+            shellExec(
+              `node bin db --export --primary-pod --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+            );
+          }
+
+          if (options.import === true) {
+            logger.info('Importing crons collection', { outputPath });
+            shellExec(
+              `node bin db --import --primary-pod --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+            );
+          }
+        }
+
+        logger.info('Cluster metadata backup operation completed');
+      } finally {
+        if (ephemeral && isInsideContainer()) {
+          Underpost.repo.cleanupPrivateEngineRepo();
+          Underpost.env.clean();
+        }
       }
-
-      if (options.instances === true) {
-        const outputPath = './engine-private/instances';
-        if (!fs.existsSync(outputPath)) {
-          fs.mkdirSync(outputPath, { recursive: true });
-        }
-        const collection = 'instances';
-
-        if (options.export === true) {
-          logger.info('Exporting instances collection', { outputPath });
-          shellExec(
-            `node bin db --export --primary-pod --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
-          );
-        }
-
-        if (options.import === true) {
-          logger.info('Importing instances collection', { outputPath });
-          shellExec(
-            `node bin db --import --primary-pod --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
-          );
-        }
-      }
-
-      if (options.crons === true) {
-        const outputPath = './engine-private/crons';
-        if (!fs.existsSync(outputPath)) {
-          fs.mkdirSync(outputPath, { recursive: true });
-        }
-        const collection = 'crons';
-
-        if (options.export === true) {
-          logger.info('Exporting crons collection', { outputPath });
-          shellExec(
-            `node bin db --export --primary-pod --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
-          );
-        }
-
-        if (options.import === true) {
-          logger.info('Importing crons collection', { outputPath });
-          shellExec(
-            `node bin db --import --primary-pod --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
-          );
-        }
-      }
-
-      logger.info('Cluster metadata backup operation completed');
     },
   };
 }

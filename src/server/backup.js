@@ -37,50 +37,60 @@ class BackUp {
    * @memberof UnderpostBakcUp
    */
   static callback = async function (deployList, options = { git: false }) {
-    loadCronDeployEnv();
-    if ((!deployList || deployList === 'dd') && fs.existsSync(`./engine-private/deploy/dd.router`))
-      deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').trim();
+    const firstDeployId = deployList && deployList !== 'dd' ? deployList.split(',')[0].trim() : '';
+    const { ephemeral } = Underpost.repo.privateEngineRepoFactory(firstDeployId || undefined);
+    try {
+      loadCronDeployEnv();
+      if ((!deployList || deployList === 'dd') && fs.existsSync(`./engine-private/deploy/dd.router`))
+        deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').trim();
 
-    logger.info('init backups callback', deployList);
-    await logger.setUpInfo();
+      logger.info('init backups callback', deployList);
+      await logger.setUpInfo();
 
-    const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : options.kubeadm ? ' --kubeadm' : '';
+      const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : options.kubeadm ? ' --kubeadm' : '';
 
-    for (const _deployId of deployList.split(',')) {
-      const deployId = _deployId.trim();
-      if (!deployId) continue;
+      for (const _deployId of deployList.split(',')) {
+        const deployId = _deployId.trim();
+        if (!deployId) continue;
 
-      const dbCommand = `node bin db ${options.git ? '--git --force-clone ' : ''}--export --primary-pod${clusterFlag} ${deployId}`;
-      const repoCommand = `node bin db --repo-backup${clusterFlag} ${deployId}`;
+        const dbCommand = `node bin db ${options.git ? '--git --force-clone ' : ''}--export --primary-pod${clusterFlag} ${deployId}`;
+        const repoCommand = `node bin db --repo-backup${clusterFlag} ${deployId}`;
 
-      // Pass GITHUB_TOKEN and GITHUB_USERNAME ephemerally through the SSH command
-      // so git operations can push backups without relying on host env files.
-      const envPrefix = [
-        process.env.GITHUB_TOKEN ? `GITHUB_TOKEN=${process.env.GITHUB_TOKEN}` : '',
-        process.env.GITHUB_USERNAME ? `GITHUB_USERNAME=${process.env.GITHUB_USERNAME}` : '',
-      ]
-        .filter(Boolean)
-        .join(' ');
-      const prefixCmd = (cmd) => (envPrefix ? `${envPrefix} ${cmd}` : cmd);
+        // Pass GITHUB_TOKEN and GITHUB_USERNAME ephemerally through the SSH command
+        // so git operations can push backups without relying on host env files.
+        const envPrefix = [
+          process.env.GITHUB_TOKEN ? `GITHUB_TOKEN=${process.env.GITHUB_TOKEN}` : '',
+          process.env.GITHUB_USERNAME ? `GITHUB_USERNAME=${process.env.GITHUB_USERNAME}` : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+        const prefixCmd = (cmd) => (envPrefix ? `${envPrefix} ${cmd}` : cmd);
 
-      logger.info('Executing database export via SSH for', deployId);
-      await Underpost.ssh.sshRemoteRunner(prefixCmd(dbCommand), {
-        remote: true,
-        useSudo: true,
-        cd: '/home/dd/engine',
-      });
+        try {
+          logger.info('Executing database export via SSH for', deployId);
+          await Underpost.ssh.sshRemoteRunner(prefixCmd(dbCommand), {
+            remote: true,
+            useSudo: true,
+            cd: '/home/dd/engine',
+          });
+        } catch (err) {
+          logger.error(`Error during database export for ${deployId}:`, err);
+        }
 
-      // Repository backup: Cron container → SSH to host → host finds pod → kubectl exec git backup
-      try {
-        logger.info('Executing repository backup via SSH for', deployId);
-        await Underpost.ssh.sshRemoteRunner(prefixCmd(repoCommand), {
-          remote: true,
-          useSudo: true,
-          cd: '/home/dd/engine',
-        });
-      } catch (err) {
-        logger.error(`Error during repository backup for ${deployId}:`, err);
+        // Repository backup: Cron container → SSH to host → host finds pod → kubectl exec git backup
+        try {
+          logger.info('Executing repository backup via SSH for', deployId);
+          await Underpost.ssh.sshRemoteRunner(prefixCmd(repoCommand), {
+            remote: true,
+            useSudo: true,
+            cd: '/home/dd/engine',
+          });
+        } catch (err) {
+          logger.error(`Error during repository backup for ${deployId}:`, err);
+        }
       }
+    } finally {
+      if (ephemeral) Underpost.repo.cleanupPrivateEngineRepo();
     }
   };
 }
