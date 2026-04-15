@@ -64,9 +64,9 @@ const cronJobYamlFactory = ({
     .replace(/^-|-$/g, '')
     .substring(0, 52);
 
-  const cronBin = dev ? 'node bin' : 'underpost';
+  const cronBin = 'node bin'; // dev ? 'node bin' : 'underpost';
   const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}${k3s ? '--k3s ' : ''}${kind ? '--kind ' : ''}${kubeadm ? '--kubeadm ' : ''}`;
-  const commands = [`cd ${enginePath}`, `node bin run secret`];
+  const commands = [`cd ${enginePath}`]; // `node bin run secret`
   if (cmd) commands.push(cmd);
   commands.push(`${cronBin} cron ${flags}${deployList} ${jobList}`);
   const fullCommand = commands.join(' &&\n                  ');
@@ -280,8 +280,8 @@ class UnderpostCron {
         image: options.image,
         apply: options.apply,
         createJobNow: options.createJobNow,
-        git: options.git !== undefined ? options.git : true,
-        dev: options.dev !== undefined ? options.dev : true,
+        git: !!options.git,
+        dev: !!options.dev,
         kubeadm: hasExplicitCluster ? !!options.kubeadm : true,
         cmd: options.cmd || `node bin env ${deployId} production`,
         k3s: !!options.k3s,

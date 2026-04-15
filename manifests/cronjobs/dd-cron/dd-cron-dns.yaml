@@ -29,9 +29,8 @@ spec:
                 - -c
                 - >
                   cd /home/dd/engine &&
-                  node bin run secret &&
                   node bin env dd-cron production &&
-                  node bin cron --git --dev --kubeadm dd-cron dns
+                  node bin cron --kubeadm dd-cron dns
               volumeMounts:
                 - mountPath: /home/dd/engine
                   name: underpost-cron-container-volume
