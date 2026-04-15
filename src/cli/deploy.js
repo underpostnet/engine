@@ -182,7 +182,7 @@ ${
             - /bin/sh
             - -c
             - >
-              ${cmd.join(` && `)}
+              ${cmd.join(' &&\n              ')}
 
 ${
   volumes.length > 0

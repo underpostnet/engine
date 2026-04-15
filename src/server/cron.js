@@ -56,10 +56,12 @@ const cronJobYamlFactory = ({
     .replace(/^-|-$/g, '')
     .substring(0, 52);
 
-  const cmdPart = cmd ? `${cmd} && ` : '';
   const cronBin = dev ? 'node bin' : 'underpost';
   const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}`;
-  const cronCommand = `${cmdPart}${cronBin} cron ${flags}${deployList} ${jobList}`;
+  const commands = [`cd ${enginePath}`, `node bin run secret`];
+  if (cmd) commands.push(cmd);
+  commands.push(`${cronBin} cron ${flags}${deployList} ${jobList}`);
+  const fullCommand = commands.join(' &&\n                  ');
 
   return `apiVersion: batch/v1
 kind: CronJob
@@ -91,8 +93,7 @@ spec:
                 - /bin/sh
                 - -c
                 - >
-                  cd /home/dd/engine && node bin run secret &&
-                 ${cronCommand}
+                  ${fullCommand}
               volumeMounts:
                 - mountPath: ${enginePath}
                   name: ${cronVolumeName}
@@ -267,7 +268,7 @@ class UnderpostCron {
         git: true,
         dev: true,
         kubeadm: true,
-        cmd: ` cd ${enginePath} && node bin env ${deployId} production`,
+        cmd: `node bin env ${deployId} production`,
         k3s: false,
         kind: false,
         dryRun: false,
