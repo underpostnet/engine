@@ -4,6 +4,16 @@
 
 ### cli-cron
 
+- Update underpost container environment path for volume mount ([8fdfb5416](https://github.com/underpostnet/engine/commit/8fdfb54165f4ef7379fccbeb20e5c476320bc1f6))
+
+### github-actions
+
+- Add dispatch step for release CD in publish workflow ([8dc0e3ccd](https://github.com/underpostnet/engine/commit/8dc0e3ccd1a578f776edf215428d08640b44c3d1))
+
+## New release v:3.2.3 (2026-04-15)
+
+### cli-cron
+
 - Remove is-inside-container dependency and implement isInsideContainer method in env module ([79d39ece0](https://github.com/underpostnet/engine/commit/79d39ece0db1f3acb65af22e3bc7f7c6a66487a9))
 
 ### github-actions

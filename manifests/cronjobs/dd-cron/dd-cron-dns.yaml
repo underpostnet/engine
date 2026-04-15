@@ -23,7 +23,7 @@ spec:
         spec:
           containers:
             - name: dd-cron-dns
-              image: underpost/underpost-engine:v3.2.3
+              image: underpost/underpost-engine:v3.2.4
               command:
                 - /bin/sh
                 - -c
@@ -35,9 +35,8 @@ spec:
               volumeMounts:
                 - mountPath: /home/dd/engine
                   name: underpost-cron-container-volume
-                - mountPath: /usr/lib/node_modules/underpost/.env
+                - mountPath: /usr/lib/node_modules/underpost
                   name: underpost-share-env
-                  subPath: .env
           volumes:
             - hostPath:
                 path: /home/dd/engine

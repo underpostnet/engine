@@ -2,7 +2,7 @@
     "type": "module",
     "main": "src/server.js",
     "name": "underpost-engine",
-    "version": "3.2.3",
+    "version": "3.2.4",
     "description": "underpost engine server",
     "scripts": {
         "start": "node --max-old-space-size=8192 src/server",
