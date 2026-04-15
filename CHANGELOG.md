@@ -1,6 +1,78 @@
 # Changelog
 
-## 2026-04-13
+## 2026-04-15
+
+### docker-image
+
+- Remove unnecessary directory creation and volume declaration for working directory in Dockerfile ([84f7f8950](https://github.com/underpostnet/engine/commit/84f7f8950d45512b6177c7523e4d278f2db25ef4))
+
+### github-actions
+
+- Update CronJob schedules and commands to include kubeadm flag ([2795d6a8a](https://github.com/underpostnet/engine/commit/2795d6a8a9cd552afbd22b16616c982227540dff))
+- Add volume mounts for .env file in dd-cron backup and dns CronJobs ([76cd8a31b](https://github.com/underpostnet/engine/commit/76cd8a31b7d3686d87333bb5384c6648bfbaf066))
+- Refactor deployment and cron job scripts for improved readability and maintainability ([34d38d077](https://github.com/underpostnet/engine/commit/34d38d077adde37d9665b699e642b2ce62bce7fc))
+- Refactor deployment scripts to use environment variables for secret creation ([40165237c](https://github.com/underpostnet/engine/commit/40165237caa07386c71ae2db81894e0e7b1d6373))
+- Update cron jobs and deployment scripts to use secrets and streamline environment variable handling ([3e3b0c3b0](https://github.com/underpostnet/engine/commit/3e3b0c3b013b012c37c076a71915c365047b989f))
+
+### cli-cron
+
+- Add support for k3s, kind, and kubeadm flags in CronJob configuration ([d7edd8dea](https://github.com/underpostnet/engine/commit/d7edd8dea0c978151f80130203686379beebac2c))
+- Add environment variable volume and path for Kubernetes CronJob ([abe731634](https://github.com/underpostnet/engine/commit/abe7316348a90f4fbe8730150bd87a9ee56d8d5c))
+- Refactor deployment scripts to create secrets from container environment variables and streamline environment handling ([e5589ec7f](https://github.com/underpostnet/engine/commit/e5589ec7f6ff67c4d99d49cf65e3261c190919c1))
+- Enhance deployment and backup processes ([f58323077](https://github.com/underpostnet/engine/commit/f58323077dfb4449f22dc4719d07addf2e18d820))
+
+### cli-db
+
+- Add error handling and logging for database operations in UnderpostDB ([c0d935a0c](https://github.com/underpostnet/engine/commit/c0d935a0ce08d26490c997b284e72e3c7f728b76))
+- Implement private engine repository management ([84719664a](https://github.com/underpostnet/engine/commit/84719664adac949b42a0731e408bbb467ed867bd))
+
+### package
+
+- Implement feature X to enhance user experience and fix bug Y in module Z ([8dea4a2f7](https://github.com/underpostnet/engine/commit/8dea4a2f7e53cb5f026bd52aa9adad7909cb01c1))
+- Remove --force option from install:test script to prevent unintended package installations ([2aeeff179](https://github.com/underpostnet/engine/commit/2aeeff179a5bd508b38fd73bb1877d80c1caecb4))
+- Remove force in coveralls-next install script ([5751a6d12](https://github.com/underpostnet/engine/commit/5751a6d126f043b43d90269fa79d0dc1164a5be1))
+
+### runtime-wp
+
+- Implement automatic commit and push of generated files to repository during provisioning ([d20f079ec](https://github.com/underpostnet/engine/commit/d20f079ec472c81960cccf5dcdbdefb3c8eb91e4))
+
+### runtime-lampp
+
+- Enhance .htaccess rules for WordPress and Lampp to protect sensitive files and directories ([1a455ec7b](https://github.com/underpostnet/engine/commit/1a455ec7bd5490603cf7d621d6703d8966a3ee2c))
+
+### cli-deploy
+
+- Refactor command construction in deployment and cron scripts for improved readability ([ceaf5012b](https://github.com/underpostnet/engine/commit/ceaf5012b2b16a52f16e816c178d8d4f5af1590d))
+
+### gitub-actions
+
+- Refactor CI workflows to streamline Docker build and release processes ([ab0875839](https://github.com/underpostnet/engine/commit/ab0875839ab1d174db8d8cff8daf3734282fce00))
+- Refactor CI/CD workflows to streamline Docker build and release processes ([5330af102](https://github.com/underpostnet/engine/commit/5330af10280e7acf2a52b3e0ac17bc5dcd5050b4))
+
+### client-core
+
+- Add SocketIoHandler and AppStore to DefaultConf component list ([a55096889](https://github.com/underpostnet/engine/commit/a550968898ec9526ed3dceef48839ce6be3f1571))
+- Refactor API path handling to introduce getApiBaseProxyPath function and streamline base path construction ([afb1b3532](https://github.com/underpostnet/engine/commit/afb1b35325187ef110b40f4a11f78bfd7e7dbb87))
+- Enhance DropDown component to reset checkbox values and improve state management on click events ([b02a3fad4](https://github.com/underpostnet/engine/commit/b02a3fad4b9587b317f85c5763f34f806642a7ee))
+- Refactor API path handling to introduce getApiBaseProxyPath function and simplify getApiBasePath logic ([0a18bce99](https://github.com/underpostnet/engine/commit/0a18bce996835a8152360a5f7b2f1b2afaea3423))
+
+### cli-fs
+
+- Enhance pull operation to log skipped files when they already exist ([7330aa012](https://github.com/underpostnet/engine/commit/7330aa0126dd67bedf75b847dc6c0794f2ecbf74))
+
+### cli-env
+
+- Refactor UnderpostSecret to streamline environment file handling and remove existing global .env file ([c510f7cff](https://github.com/underpostnet/engine/commit/c510f7cff1aeb3ae26e037000efcee53bcfe6b4b))
+
+### server-start
+
+- Add cleanup command to production deployment process ([5bf5530e3](https://github.com/underpostnet/engine/commit/5bf5530e34b97a6fc1a240a10604d4f5abe2f8cb))
+
+### conf
+
+- Add SocketIoHandler and AppStore to default configuration ([d155277a3](https://github.com/underpostnet/engine/commit/d155277a38359d32d5cd78be20453990585d5d00))
+
+## New release v:3.2.0 (2026-04-13)
 
 ### cli-repository
 

@@ -1,4 +1,4 @@
-## underpost ci/cd cli v3.2.0
+## underpost ci/cd cli v3.2.2
 
 ### Usage: `underpost [options] [command]`
   ```
@@ -553,13 +553,15 @@ Manages secrets for various platforms.
 
 Arguments:
   platform                            The secret management platform. Options:
-                                      underpost.
+                                      underpost, globalSecretClean.
 
 Options:
   --init                              Initializes the secrets platform
                                       environment.
   --create-from-file <path-env-file>  Creates secrets from a specified
                                       environment file.
+  --create-from-env                   Creates secrets from container environment
+                                      variables (envFrom: secretRef).
   --list                              Lists all available secrets for the
                                       platform.
   -h, --help                          display help for command
@@ -659,6 +661,7 @@ Options:
   --kubeadm                                  Enables the kubeadm context for database operations.
   --kind                                     Enables the kind context for database operations.
   --k3s                                      Enables the k3s context for database operations.
+  --repo-backup                              Backs up repositories (git commit+push) inside deployment pods via kubectl exec.
   -h, --help                                 display help for command
  
 ```
@@ -723,8 +726,6 @@ Options:
   --dry-run                  Preview cron jobs without executing them.
   --create-job-now           After applying manifests, immediately create a Job
                              from each CronJob (requires --apply).
-  --ssh                      Execute backup commands via SSH on the remote node
-                             instead of locally.
   -h, --help                 display help for command
  
 ```

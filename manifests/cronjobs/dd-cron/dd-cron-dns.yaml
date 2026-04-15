@@ -7,7 +7,7 @@ metadata:
     app: dd-cron-dns
     managed-by: underpost
 spec:
-  schedule: '* * * * *'
+  schedule: "* * * * *"
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 200
   successfulJobsHistoryLimit: 3
@@ -23,7 +23,7 @@ spec:
         spec:
           containers:
             - name: dd-cron-dns
-              image: underpost/underpost-engine:v3.2.0
+              image: underpost/underpost-engine:v3.2.2
               command:
                 - /bin/sh
                 - -c
