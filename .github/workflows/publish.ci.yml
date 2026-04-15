@@ -70,5 +70,6 @@ jobs:
   # Release deploy — triggers release.cd.yml after Docker build succeeds
   deploy-release:
     needs: build-and-publish
+    if: always() && needs.build-and-publish.result == 'success'
     uses: ./.github/workflows/release.cd.yml
     secrets: inherit
