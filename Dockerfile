@@ -39,8 +39,6 @@ RUN underpost --version
 RUN useradd -m -u 1000 -s /bin/bash dd
 
 # Create working directory
-RUN mkdir /home/dd
-VOLUME /home/dd
 WORKDIR /home/dd
 
 # Expose necessary ports
