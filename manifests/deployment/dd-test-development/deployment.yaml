@@ -29,7 +29,7 @@ spec:
             - /bin/sh
             - -c
             - >
-              printenv | grep -vE '^(KUBERNETES_|HOME=|HOSTNAME=|PATH=|TERM=|SHLVL=|PWD=|_=|LANG=|container=)' > /tmp/.env.development && npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /tmp/.env.development && rm -f /tmp/.env.development && underpost start --build --run dd-test development
+              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-env && underpost start --build --run dd-test development
 
 
 ---
@@ -118,7 +118,7 @@ spec:
             - /bin/sh
             - -c
             - >
-              printenv | grep -vE '^(KUBERNETES_|HOME=|HOSTNAME=|PATH=|TERM=|SHLVL=|PWD=|_=|LANG=|container=)' > /tmp/.env.development && npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-file /tmp/.env.development && rm -f /tmp/.env.development && underpost start --build --run dd-test development
+              npm install -g npm@11.2.0 && npm install -g underpost && underpost secret underpost --create-from-env && underpost start --build --run dd-test development
 
 
 ---
