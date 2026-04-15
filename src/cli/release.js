@@ -148,7 +148,7 @@ class UnderpostRelease {
       shellExec(`node bin new --deploy-id dd-default`);
       console.log(fs.existsSync(`./engine-private/conf/dd-default`));
       shellExec(`sudo rm -rf ./engine-private/conf/dd-default`);
-      shellExec(`node bin cron --dev --setup-start`);
+      shellExec(`node bin cron --setup-start`);
       shellExec(`node bin cmt --changelog-build`);
     },
 

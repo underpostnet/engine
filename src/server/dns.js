@@ -265,7 +265,8 @@ class Dns {
    * @returns {Promise<void>}
    */
   static async callback(deployList) {
-    loadCronDeployEnv();
+    // loadCronDeployEnv();
+
     const isOnline = await Dns.isInternetConnection();
 
     if (!isOnline) return;

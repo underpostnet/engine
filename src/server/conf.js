@@ -149,6 +149,23 @@ const getConfFolder = (deployId) => {
 };
 
 /**
+ * Reads `engine-private/deploy/dd.cron` and returns the deploy-id string,
+ * or `null` if the file does not exist or is empty.
+ *
+ * @method cronDeployIdResolve
+ * @returns {string|null} The deploy-id from dd.cron, or null.
+ * @memberof ServerConfBuilder
+ */
+const cronDeployIdResolve = () => {
+  const cronDeployFile = './engine-private/deploy/dd.cron';
+  if (fs.existsSync(cronDeployFile)) {
+    const id = fs.readFileSync(cronDeployFile, 'utf8').trim();
+    return id || null;
+  }
+  return null;
+};
+
+/**
  * Loads the deployment-specific `.env` file referenced by `engine-private/deploy/dd.cron`
  * into `process.env`. Uses `NODE_ENV` to select the environment variant
  * (defaults to `production`).
@@ -162,15 +179,12 @@ function loadCronDeployEnv() {
   const envName = process.env.NODE_ENV || 'production';
 
   // 1) Load dd.cron env (takes full precedence)
-  const cronDeployFile = './engine-private/deploy/dd.cron';
-  if (fs.existsSync(cronDeployFile)) {
-    const cronDeployId = fs.readFileSync(cronDeployFile, 'utf8').trim();
-    if (cronDeployId) {
-      const cronEnvPath = `./engine-private/conf/${cronDeployId}/.env.${envName}`;
-      if (fs.existsSync(cronEnvPath)) {
-        const cronEnv = dotenv.parse(fs.readFileSync(cronEnvPath, 'utf8'));
-        process.env = { ...process.env, ...cronEnv };
-      }
+  const cronDeployId = cronDeployIdResolve();
+  if (cronDeployId) {
+    const cronEnvPath = `./engine-private/conf/${cronDeployId}/.env.${envName}`;
+    if (fs.existsSync(cronEnvPath)) {
+      const cronEnv = dotenv.parse(fs.readFileSync(cronEnvPath, 'utf8'));
+      process.env = { ...process.env, ...cronEnv };
     }
   }
 
@@ -1776,4 +1790,5 @@ export {
   readConfJson,
   DEFAULT_DEPLOY_ID,
   loadCronDeployEnv,
+  cronDeployIdResolve,
 };
