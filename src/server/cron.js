@@ -33,6 +33,9 @@ const underpostContainerEnvPath = '/usr/lib/node_modules/underpost/.env';
  * @param {string} [params.cmd] - Optional pre-script commands to run before cron execution
  * @param {boolean} [params.suspend=false] - Whether the CronJob is suspended
  * @param {boolean} [params.dryRun=false] - Pass --dry-run flag to the cron command inside the container
+ * @param {boolean} [params.k3s=false] - Pass --k3s flag to the cron command inside the container
+ * @param {boolean} [params.kind=false] - Pass --kind flag to the cron command inside the container
+ * @param {boolean} [params.kubeadm=false] - Pass --kubeadm flag to the cron command inside the container
  * @returns {string} Kubernetes CronJob YAML manifest
  * @memberof UnderpostCron
  */
@@ -48,6 +51,9 @@ const cronJobYamlFactory = ({
   cmd,
   suspend = false,
   dryRun = false,
+  k3s = false,
+  kind = false,
+  kubeadm = false,
 }) => {
   const containerImage = image || `underpost/underpost-engine:${Underpost.version}`;
 
@@ -59,7 +65,7 @@ const cronJobYamlFactory = ({
     .substring(0, 52);
 
   const cronBin = dev ? 'node bin' : 'underpost';
-  const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}`;
+  const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}${k3s ? '--k3s ' : ''}${kind ? '--kind ' : ''}${kubeadm ? '--kubeadm ' : ''}`;
   const commands = [`cd ${enginePath}`, `node bin run secret`];
   if (cmd) commands.push(cmd);
   commands.push(`${cronBin} cron ${flags}${deployList} ${jobList}`);
@@ -268,19 +274,20 @@ class UnderpostCron {
       }
 
       // Generate and apply cron job manifests for this deploy-id
+      const hasExplicitCluster = options.k3s || options.kind || options.kubeadm;
       await Underpost.cron.generateK8sCronJobs({
         deployId,
         namespace: options.namespace,
         image: options.image,
         apply: options.apply,
         createJobNow: options.createJobNow,
-        git: true,
-        dev: true,
-        kubeadm: true,
-        cmd: `node bin env ${deployId} production`,
-        k3s: false,
-        kind: false,
-        dryRun: false,
+        git: options.git !== undefined ? options.git : true,
+        dev: options.dev !== undefined ? options.dev : true,
+        kubeadm: hasExplicitCluster ? !!options.kubeadm : true,
+        cmd: options.cmd || `node bin env ${deployId} production`,
+        k3s: !!options.k3s,
+        kind: !!options.kind,
+        dryRun: !!options.dryRun,
       });
     },
 
@@ -358,6 +365,9 @@ class UnderpostCron {
           cmd: options.cmd,
           suspend: false,
           dryRun: !!options.dryRun,
+          k3s: !!options.k3s,
+          kind: !!options.kind,
+          kubeadm: !!options.kubeadm,
         });
 
         const yamlFilePath = `${outputDir}/${cronJobName}.yaml`;
