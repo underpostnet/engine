@@ -9,7 +9,6 @@ import { awaitDeployMonitor } from './conf.js';
 import { actionInitLog, loggerFactory } from './logger.js';
 import { shellCd, shellExec } from './process.js';
 import Underpost from '../index.js';
-import isInsideContainer from 'is-inside-container';
 const logger = loggerFactory(import.meta);
 
 /**
@@ -197,7 +196,7 @@ class UnderpostStartUp {
       shellExec(`node bin env ${deployId} ${env}`);
       shellExec(`npm ${runCmd} ${deployId}`, { async: true });
       await awaitDeployMonitor(true);
-      if (env === 'production' && isInsideContainer()) Underpost.secret.globalSecretClean();
+      if (env === 'production' && Underpost.env.isInsideContainer()) Underpost.secret.globalSecretClean();
       Underpost.env.set('container-status', `${deployId}-${env}-running-deployment`);
     },
   };

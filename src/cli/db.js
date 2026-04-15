@@ -14,7 +14,6 @@ import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { loadReplicas, pathPortAssignmentFactory, loadCronDeployEnv } from '../server/conf.js';
 import Underpost from '../index.js';
 import { timer } from '../client/components/core/CommonJs.js';
-import isInsideContainer from 'is-inside-container';
 const logger = loggerFactory(import.meta);
 
 /**
@@ -582,10 +581,9 @@ class UnderpostDB {
         repoBackup: false,
       },
     ) {
-      // Ensure engine-private is available (clone ephemerally if inside a deployment
+      // Ensure engine-private is available (clone if inside a deployment
       // container where globalSecretClean has already removed it).
       const firstDeployId = deployList !== 'dd' ? deployList.split(',')[0].trim() : '';
-      const { ephemeral } = Underpost.repo.privateEngineRepoFactory(firstDeployId || undefined);
       try {
         loadCronDeployEnv();
         const newBackupTimestamp = new Date().getTime();
@@ -948,11 +946,6 @@ class UnderpostDB {
       } catch (error) {
         logger.error('Database operation failed', { error: error.message });
         throw error;
-      } finally {
-        if (ephemeral && isInsideContainer()) {
-          Underpost.repo.cleanupPrivateEngineRepo();
-          Underpost.env.clean();
-        }
       }
     },
 
@@ -965,6 +958,8 @@ class UnderpostDB {
      * @param {string} [deployId=process.env.DEFAULT_DEPLOY_ID] - The deployment ID.
      * @param {string} [host=process.env.DEFAULT_DEPLOY_HOST] - The host identifier.
      * @param {string} [path=process.env.DEFAULT_DEPLOY_PATH] - The path identifier.
+     * @param {object} [options] - Options.
+     * @param {boolean} [options.dev=false] - Development mode flag.
      * @return {Promise<void>} Resolves when metadata creation is complete.
      * @throws {Error} If database configuration is invalid or connection fails.
      */
@@ -972,8 +967,8 @@ class UnderpostDB {
       deployId = process.env.DEFAULT_DEPLOY_ID,
       host = process.env.DEFAULT_DEPLOY_HOST,
       path = process.env.DEFAULT_DEPLOY_PATH,
+      options = { dev: false },
     ) {
-      const { ephemeral } = Underpost.repo.privateEngineRepoFactory(deployId || undefined);
       try {
         loadCronDeployEnv();
         deployId = deployId ? deployId : process.env.DEFAULT_DEPLOY_ID;
@@ -1146,11 +1141,6 @@ class UnderpostDB {
       } catch (error) {
         logger.error('Cluster metadata creation failed', { error: error.message });
         throw error;
-      } finally {
-        if (ephemeral && isInsideContainer()) {
-          Underpost.repo.cleanupPrivateEngineRepo();
-          Underpost.env.clean();
-        }
       }
     },
 
@@ -1165,6 +1155,7 @@ class UnderpostDB {
      * @param {string} [options.hosts=''] - Comma-separated list of hosts to filter.
      * @param {string} [options.paths=''] - Comma-separated list of paths to filter.
      * @param {boolean} [options.dryRun=false] - If true, only reports what would be deleted.
+     * @param {boolean} [options.dev=false] - Development mode flag.
      * @return {Promise<void>} Resolves when clean operation is complete.
      */
     async cleanFsCollection(
@@ -1173,10 +1164,10 @@ class UnderpostDB {
         hosts: '',
         paths: '',
         dryRun: false,
+        dev: false,
       },
     ) {
       const firstDeployId = deployList !== 'dd' ? deployList.split(',')[0].trim() : '';
-      const { ephemeral } = Underpost.repo.privateEngineRepoFactory(firstDeployId || undefined);
       try {
         loadCronDeployEnv();
         if (deployList === 'dd') deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
@@ -1386,11 +1377,6 @@ class UnderpostDB {
       } catch (error) {
         logger.error('File collection cleanup failed', { error: error.message });
         throw error;
-      } finally {
-        if (ephemeral && isInsideContainer()) {
-          Underpost.repo.cleanupPrivateEngineRepo();
-          Underpost.env.clean();
-        }
       }
     },
 
@@ -1410,6 +1396,7 @@ class UnderpostDB {
      * @param {boolean} [options.export=false] - Export metadata to backup.
      * @param {boolean} [options.instances=false] - Process instances collection.
      * @param {boolean} [options.crons=false] - Process crons collection.
+     * @param {boolean} [options.dev=false] - Development mode flag.
      * @return {Promise<void>} Resolves when backup operation is complete.
      */
     async clusterMetadataBackupCallback(
@@ -1423,9 +1410,9 @@ class UnderpostDB {
         export: false,
         instances: false,
         crons: false,
+        dev: false,
       },
     ) {
-      const { ephemeral } = Underpost.repo.privateEngineRepoFactory(deployId || undefined);
       try {
         loadCronDeployEnv();
         deployId = deployId ? deployId : process.env.DEFAULT_DEPLOY_ID;
@@ -1492,11 +1479,6 @@ class UnderpostDB {
       } catch (error) {
         logger.error('Cluster metadata backup operation failed', { error: error.message });
         throw error;
-      } finally {
-        if (ephemeral && isInsideContainer()) {
-          Underpost.repo.cleanupPrivateEngineRepo();
-          Underpost.env.clean();
-        }
       }
     },
   };

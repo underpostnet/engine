@@ -153,6 +153,16 @@ class UnderpostRootEnv {
       const envPath = `${exeRootPath}/.env`;
       fs.removeSync(envPath);
     },
+    /**
+     * @method isInsideContainer
+     * @description Detects whether the current process is running inside a container.
+     * Checks for Kubernetes service injection or Docker's .dockerenv marker.
+     * @returns {boolean} True if running inside a container.
+     * @memberof UnderpostEnv
+     */
+    isInsideContainer() {
+      return !!process.env.KUBERNETES_SERVICE_HOST || fs.existsSync('/.dockerenv');
+    },
   };
 }
 

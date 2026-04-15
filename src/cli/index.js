@@ -338,9 +338,11 @@ program
   .option('--init', 'Initializes the secrets platform environment.')
   .option('--create-from-file <path-env-file>', 'Creates secrets from a specified environment file.')
   .option('--create-from-env', 'Creates secrets from container environment variables (envFrom: secretRef).')
+  .option('--global-clean', 'Removes all filesystem traces of secrets (engine-private, .env, conf cache).')
   .option('--list', 'Lists all available secrets for the platform.')
   .description(`Manages secrets for various platforms.`)
   .action((...args) => {
+    if (args[1].globalClean) return Underpost.secret.globalSecretClean();
     if (args[1].createFromFile) return Underpost.secret[args[0]].createFromEnvFile(args[1].createFromFile);
     if (args[1].createFromEnv) return Underpost.secret[args[0]].createFromContainerEnv();
     if (args[1].list) return Underpost.secret[args[0]].list();
@@ -442,6 +444,7 @@ program
   .option('--instances', 'Apply to instance data collection')
   .option('--generate', 'Generate cluster metadata')
   .option('--itc', 'Apply under container execution context')
+  .option('--dev', 'Sets the development cli context')
   .description('Manages cluster metadata operations, including import and export.')
   .action(Underpost.db.clusterMetadataBackupCallback);
 

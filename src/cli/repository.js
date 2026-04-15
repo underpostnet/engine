@@ -1501,6 +1501,7 @@ Prevent build private config repo.`,
             `git config --global --add safe.directory '${siteRoot}' 2>/dev/null || true`,
             `cd '${siteRoot}' && git add -A && git commit -m 'backup $(date -u +%Y-%m-%dT%H:%M:%SZ)' || true`,
             `cd '${siteRoot}' && underpost push . ${githubUsername}/${repoName}`,
+            `cd /home/dd/engine && node bin secret underpost --global-clean`,
           ].join(' && ');
 
           try {
@@ -1517,38 +1518,41 @@ Prevent build private config repo.`,
     /**
      * Clones the deploy-specific private repository into `./engine-private`
      * when it does not already exist on disk.  Returns `{ ephemeral: true }`
-     * when a fresh clone was performed so the caller can remove it after use,
-     * or `{ ephemeral: false }` when the directory was already present (host,
-     * cron hostPath mount, or prior build step).
+     * If `./engine-private` already exists, the call is a no-op unless
+     * `options.force` is `true`, in which case the directory is removed and
+     * re-cloned.
      *
      * @param {string} [deployId] - Deploy ID (e.g. `dd-core`) used to derive
      *        the repo name `engine-{component}-private`.  Falls back to
-     *        `process.env.DEFAULT_DEPLOY_ID`.
-     * @returns {{ ephemeral: boolean }}
+     *        `process.env.DEFAULT_DEPLOY_ID`.  When neither is available the
+     *        default repo name `engine-private` is used.
+     * @param {object} [options]
+     * @param {boolean} [options.force=false] - Remove existing `engine-private`
+     *        and re-clone.
      * @memberof UnderpostRepository
      */
-    privateEngineRepoFactory(deployId) {
-      if (fs.existsSync('./engine-private')) return { ephemeral: false };
+    privateEngineRepoFactory(deployId, options = { force: false }) {
+      if (fs.existsSync('./engine-private') && !options.force) return;
+
+      if (options.force && fs.existsSync('./engine-private')) {
+        fs.removeSync('./engine-private');
+        logger.info('engine-private removed (force re-clone)');
+      }
 
       const effectiveDeployId = deployId || process.env.DEFAULT_DEPLOY_ID;
-      if (!effectiveDeployId) {
-        throw new Error('privateEngineRepoFactory: no deployId provided and DEFAULT_DEPLOY_ID not set');
-      }
+
       const username = process.env.GITHUB_USERNAME;
       if (!username) {
         throw new Error('privateEngineRepoFactory: GITHUB_USERNAME not set');
       }
 
-      const component = effectiveDeployId.split('-')[1];
-      const repoName = `engine-${component}-private`;
-      logger.info(`engine-private missing — cloning ${username}/${repoName} (ephemeral)`);
+      const repoName = effectiveDeployId ? `engine-${effectiveDeployId.split('-')[1]}-private` : 'engine-private';
+      logger.info(`engine-private missing — cloning ${username}/${repoName}`);
       shellExec(`underpost clone ${username}/${repoName}`);
       if (!fs.existsSync(`./${repoName}`)) {
         throw new Error(`privateEngineRepoFactory: clone failed for ${username}/${repoName}`);
       }
-      shellExec(`mv ./${repoName} ./engine-private`);
-
-      return { ephemeral: true };
+      if (repoName !== 'engine-private') shellExec(`mv ./${repoName} ./engine-private`);
     },
 
     /**
