@@ -7,7 +7,7 @@ metadata:
     app: dd-cron-backup
     managed-by: underpost
 spec:
-  schedule: "0 1 * * *"
+  schedule: '0 1 * * *'
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 200
   successfulJobsHistoryLimit: 3
@@ -30,7 +30,7 @@ spec:
                 - >
                   cd /home/dd/engine &&
                   node bin env dd-cron production &&
-                  node bin cron --kubeadm dd-lampp,dd-cyberia,dd-core,dd-test backup
+                  node bin cron dd-lampp,dd-cyberia,dd-core,dd-test backup --git --kubeadm
               volumeMounts:
                 - mountPath: /home/dd/engine
                   name: underpost-cron-container-volume

@@ -68,7 +68,7 @@ const cronJobYamlFactory = ({
   const flags = `${git ? '--git ' : ''}${dev ? '--dev ' : ''}${dryRun ? '--dry-run ' : ''}${k3s ? '--k3s ' : ''}${kind ? '--kind ' : ''}${kubeadm ? '--kubeadm ' : ''}`;
   const commands = [`cd ${enginePath}`]; // `node bin run secret`
   if (cmd) commands.push(cmd);
-  commands.push(`${cronBin} cron ${flags}${deployList} ${jobList}`);
+  commands.push(`${cronBin} cron ${deployList} ${jobList} ${flags}`);
   const fullCommand = commands.join(' &&\n                  ');
 
   return `apiVersion: batch/v1
@@ -272,8 +272,6 @@ class UnderpostCron {
         logger.warn(`package.json not found for deploy-id: ${deployId}`, { path: packageJsonPath });
       }
 
-      // Generate and apply cron job manifests for this deploy-id
-      const hasExplicitCluster = options.k3s || options.kind || options.kubeadm;
       await Underpost.cron.generateK8sCronJobs({
         deployId,
         namespace: options.namespace,
@@ -282,7 +280,7 @@ class UnderpostCron {
         createJobNow: options.createJobNow,
         git: !!options.git,
         dev: !!options.dev,
-        kubeadm: hasExplicitCluster ? !!options.kubeadm : true,
+        kubeadm: !!options.kubeadm,
         cmd: options.cmd || `node bin env ${deployId} production`,
         k3s: !!options.k3s,
         kind: !!options.kind,

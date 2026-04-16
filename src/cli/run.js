@@ -674,7 +674,8 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           if (!validVersion) throw new Error('Version mismatch');
         }
         if (options.timezone !== 'none') shellExec(`${baseCommand} run${baseClusterCommand} tz`);
-        if (options.deployIdCronJobs !== 'none') shellExec(`node bin cron --dev --setup-start --apply`);
+        if (options.deployIdCronJobs !== 'none')
+          shellExec(`node bin cron${baseClusterCommand} --setup-start --git --apply`);
       }
 
       const currentTraffic = isDeployRunnerContext(path, options)
@@ -701,7 +702,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       if (isDeployRunnerContext(path, options)) {
         // Backup app/services repositories with repo-backup configured
         shellExec(
-          `${baseCommand} db ${deployId} ${clusterFlag} --repo-backup --dev --primary-pod --git --force-clone --preserveUUID ${options.namespace ? ` --ns ${options.namespace}` : ''}`,
+          `${baseCommand} db ${deployId} ${clusterFlag}${baseClusterCommand} --repo-backup --primary-pod --git --force-clone --preserveUUID ${options.namespace ? ` --ns ${options.namespace}` : ''}`,
         );
         shellExec(
           `${baseCommand} deploy${clusterFlag}${cmdString} --replicas ${replicas} --disable-update-proxy ${deployId} ${env} --versions ${versions}${

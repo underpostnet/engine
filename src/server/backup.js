@@ -50,8 +50,7 @@ class BackUp {
     for (const _deployId of deployList.split(',')) {
       const deployId = _deployId.trim();
       if (!deployId) continue;
-
-      const dbCommand = `node bin db ${options.git ? '--git --force-clone ' : ''}--export --primary-pod${clusterFlag} ${deployId}`;
+      const dbCommand = `node bin db ${options.git ? '--git --force-clone ' : ''}--export --primary-pod --preserveUUID${clusterFlag} ${deployId}`;
       const repoCommand = `node bin db --repo-backup${clusterFlag} ${deployId}`;
 
       // Pass GITHUB_TOKEN and GITHUB_USERNAME ephemerally through the SSH command
