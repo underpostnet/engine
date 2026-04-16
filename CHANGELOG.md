@@ -1,6 +1,23 @@
 # Changelog
 
-## 2026-04-15
+## 2026-04-16
+
+### cli-run
+
+- Refactor cron command execution to improve flag handling and streamline deployment options ([1773b8e12](https://github.com/underpostnet/engine/commit/1773b8e12d1edccd99d21b231c47bbea647e9772))
+- Add shellExec command for database operations in deployment process ([9de52cb7d](https://github.com/underpostnet/engine/commit/9de52cb7d69e2fe2a8e515e8bfb23a615c0974a6))
+
+### cli-cron
+
+- Enhance cron job commands with git option and streamline backup operations ([170c77ff4](https://github.com/underpostnet/engine/commit/170c77ff499712bce2fe443719c29528c52610e5))
+- Refactor cron job commands to use 'underpost' CLI and remove secret run step ([e51cd0231](https://github.com/underpostnet/engine/commit/e51cd023195ef8855b36418b4076812ef677baaf))
+- Refactor streamline cron deployment handling and add deploy-id resolver ([bb81fe80b](https://github.com/underpostnet/engine/commit/bb81fe80bcb6b7aa30604d65d0357b2e3e5e10ee))
+
+### github-actions
+
+- Fix sudo usage in package installation step ([8545a8e88](https://github.com/underpostnet/engine/commit/8545a8e88e10443d754bcadb1772c3e1acb369f9))
+
+## New release v:3.2.4 (2026-04-15)
 
 ### cli-cron
 

@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: dd-lampp-development-blue
-          image: localhost/rockylinux9-underpost:v3.2.4
+          image: localhost/rockylinux9-underpost:v3.2.5
           envFrom:
             - secretRef:
                 name: underpost-config
@@ -103,7 +103,7 @@ spec:
     spec:
       containers:
         - name: dd-lampp-development-green
-          image: localhost/rockylinux9-underpost:v3.2.4
+          image: localhost/rockylinux9-underpost:v3.2.5
           envFrom:
             - secretRef:
                 name: underpost-config
