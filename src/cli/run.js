@@ -654,6 +654,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       const env = options.dev ? 'development' : 'production';
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
+      const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : ' --kubeadm';
       const defaultPath = [
         'dd-default',
         options.replicas,
@@ -675,7 +676,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
         }
         if (options.timezone !== 'none') shellExec(`${baseCommand} run${baseClusterCommand} tz`);
         if (options.deployIdCronJobs !== 'none')
-          shellExec(`node bin cron${baseClusterCommand} --setup-start --git --apply`);
+          shellExec(`node bin cron${baseClusterCommand}${clusterFlag} --setup-start --git --apply`);
       }
 
       const currentTraffic = isDeployRunnerContext(path, options)
@@ -688,7 +689,6 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       const cmdString = options.cmd
         ? ' --cmd ' + (options.cmd.find((c) => c.match('"')) ? '"' + options.cmd + '"' : "'" + options.cmd + "'")
         : '';
-      const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : ' --kubeadm';
       const gitCleanFlag = options.gitClean ? ' --git-clean' : '';
 
       shellExec(
