@@ -843,11 +843,27 @@ nvidia/gpu-operator \
     }
 
     case 'add-server-client': {
+      // node bin/deploy add-server-client <clientId> <deployId> <host> <path>
+      // Example: node bin/deploy add-server-client cecinasmarcelina dd-core cecinasmarcelina.com /
+      // Example: node bin/deploy add-server-client cecinasmarcelina dd-core www.cecinasmarcelina.com /
       const clientId = process.argv[3];
       const deployId = process.argv[4];
+      const rawHost = process.argv[5];
+      const path = process.argv[6];
+
+      // Normalize: strip www. prefix to get the base host
+      const baseHost = rawHost.startsWith('www.') ? rawHost.slice(4) : rawHost;
+      const mainHost = `www.${baseHost}`;
+      const redirectHost = baseHost;
+
       loadConf('clean');
       loadConf();
       shellExec(`node bin/deploy clone-client default ${clientId} dd-default ${deployId}`);
+      // default.net has the main client entry → maps to www.<host> (main)
+      shellExec(`node bin/deploy clone-server default.net / ${mainHost} ${path} dd-default ${deployId} ${clientId}`);
+      // www.default.net has the redirect/empty entry → maps to <host> (redirect)
+      shellExec(`node bin/deploy clone-server www.default.net / ${redirectHost} ${path} dd-default ${deployId}`);
+      fs.removeSync(`./engine-private/conf/dd-default`);
       break;
     }
 
@@ -863,7 +879,10 @@ nvidia/gpu-operator \
       // - conf.ssr.json: clones the SSR entry under the new PascalCase name
       // - conf.server.json + dev variants: duplicates paths referencing fromClientId for toClientId
       // - src/client/components/<fromClientId>/ → src/client/components/<toClientId>/ (renames identifiers)
+      // - src/client/services/<fromClientId>/ → src/client/services/<toClientId>/ (renames identifiers)
       // - src/client/ssr/head/<From>Scripts.js → <To>Scripts.js
+      // - src/client/ssr/body/<From>*.js → <To>*.js (SplashScreen, etc.)
+      // - src/client/ssr/mailer/<From>*.js → <To>*.js (VerifyEmail, RecoverEmail, etc.)
       // - src/client/<From>.index.js → <To>.index.js
       // - src/client/public/<fromClientId>/ → src/client/public/<toClientId>/
 
@@ -983,7 +1002,35 @@ nvidia/gpu-operator \
         logger.info(`src/client/components: cloned ${srcFromFolder} → ${srcToFolder} (${files.length} files)`);
       }
 
-      // 5. Clone SSR head scripts
+      // 5. Clone src/client/services/<fromClientId>/ → <toClientId>/
+      {
+        const svcFromFolder = `./src/client/services/${fromClientId}`;
+        const svcToFolder = `./src/client/services/${toClientId}`;
+        if (!fs.existsSync(svcFromFolder)) {
+          logger.warn(`Source services folder not found: ${svcFromFolder}, skipping`);
+        } else if (fs.existsSync(svcToFolder)) {
+          logger.warn(`Target services folder already exists: ${svcToFolder}, skipping`);
+        } else {
+          fs.mkdirSync(svcToFolder, { recursive: true });
+          const svcFiles = fs.readdirSync(svcFromFolder, { recursive: true });
+          for (const relativePath of svcFiles) {
+            const fromFilePath = `${svcFromFolder}/${relativePath}`;
+            if (fs.statSync(fromFilePath).isDirectory()) {
+              fs.mkdirSync(`${svcToFolder}/${formattedSrc(relativePath)}`, { recursive: true });
+              continue;
+            }
+            const toFileName = formattedSrc(relativePath);
+            fs.writeFileSync(
+              `${svcToFolder}/${toFileName}`,
+              formattedSrc(fs.readFileSync(fromFilePath, 'utf8')),
+              'utf8',
+            );
+          }
+          logger.info(`src/client/services: cloned ${svcFromFolder} → ${svcToFolder} (${svcFiles.length} files)`);
+        }
+      }
+
+      // 6. Clone SSR head scripts
       const fromScriptsPath = `./src/client/ssr/head/${fromCapName}Scripts.js`;
       const toScriptsPath = `./src/client/ssr/head/${toCapName}Scripts.js`;
       if (fs.existsSync(fromScriptsPath) && !fs.existsSync(toScriptsPath)) {
@@ -993,7 +1040,47 @@ nvidia/gpu-operator \
         logger.warn(`ssr/head: ${toCapName}Scripts.js already exists, skipping`);
       }
 
-      // 6. Clone client index
+      // 7. Clone SSR body files
+      {
+        const ssrConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.ssr.json`, 'utf8'));
+        const toSsr = ssrConf[toCapName];
+        if (toSsr && Array.isArray(toSsr.body)) {
+          for (const bodyName of toSsr.body) {
+            if (!bodyName.startsWith(toCapName)) continue;
+            const fromBodyName = bodyName.replace(toCapName, fromCapName);
+            const fromBodyPath = `./src/client/ssr/body/${fromBodyName}.js`;
+            const toBodyPath = `./src/client/ssr/body/${bodyName}.js`;
+            if (fs.existsSync(fromBodyPath) && !fs.existsSync(toBodyPath)) {
+              fs.writeFileSync(toBodyPath, formattedSrc(fs.readFileSync(fromBodyPath, 'utf8')), 'utf8');
+              logger.info(`ssr/body: cloned ${fromBodyName}.js → ${bodyName}.js`);
+            } else if (fs.existsSync(toBodyPath)) {
+              logger.warn(`ssr/body: ${bodyName}.js already exists, skipping`);
+            }
+          }
+        }
+      }
+
+      // 8. Clone SSR mailer files
+      {
+        const ssrConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.ssr.json`, 'utf8'));
+        const toSsr = ssrConf[toCapName];
+        if (toSsr && toSsr.mailer && typeof toSsr.mailer === 'object') {
+          for (const mailerName of Object.values(toSsr.mailer)) {
+            if (!mailerName.startsWith(toCapName)) continue;
+            const fromMailerName = mailerName.replace(toCapName, fromCapName);
+            const fromMailerPath = `./src/client/ssr/mailer/${fromMailerName}.js`;
+            const toMailerPath = `./src/client/ssr/mailer/${mailerName}.js`;
+            if (fs.existsSync(fromMailerPath) && !fs.existsSync(toMailerPath)) {
+              fs.writeFileSync(toMailerPath, formattedSrc(fs.readFileSync(fromMailerPath, 'utf8')), 'utf8');
+              logger.info(`ssr/mailer: cloned ${fromMailerName}.js → ${mailerName}.js`);
+            } else if (fs.existsSync(toMailerPath)) {
+              logger.warn(`ssr/mailer: ${mailerName}.js already exists, skipping`);
+            }
+          }
+        }
+      }
+
+      // 9. Clone client index
       const fromIndexPath = `./src/client/${fromCapName}.index.js`;
       const toIndexPath = `./src/client/${toCapName}.index.js`;
       if (fs.existsSync(fromIndexPath) && !fs.existsSync(toIndexPath)) {
@@ -1003,7 +1090,7 @@ nvidia/gpu-operator \
         logger.warn(`client: ${toCapName}.index.js already exists, skipping`);
       }
 
-      // 7. Clone public assets
+      // 10. Clone public assets
       const fromPublicPath = `./src/client/public/${fromClientId}`;
       const toPublicPath = `./src/client/public/${toClientId}`;
       if (fs.existsSync(fromPublicPath) && !fs.existsSync(toPublicPath)) {
@@ -1013,7 +1100,149 @@ nvidia/gpu-operator \
         logger.warn(`public: ${toPublicPath} already exists, skipping`);
       }
 
-      // 8. Rebuild default conf
+      // 11. Rebuild default conf
+      shellExec(`node bin new --default-conf --deploy-id ${toDeployId}`);
+      logger.info(`Rebuilt default conf for ${toDeployId}`);
+
+      break;
+    }
+
+    case 'clone-server': {
+      // node bin/deploy clone-server <fromHost> <fromPath> <toHost> <toPath> <fromDeployId> <toDeployId>
+      // Example: node bin/deploy clone-server www.dogmadual.com / www.newsite.com / dd-core dd-other
+      // Example: node bin/deploy clone-server www.nexodev.org / www.newdomain.org /app dd-core dd-core
+      //
+      // Clones a specific server host/path entry from one deploy's conf to another,
+      // optionally renaming the host and path in the target.
+      // - conf.server.json: copies the fromHost/fromPath entry to toHost/toPath
+      // - conf.server.dev.*.json: same treatment for all dev variants
+
+      const fromHost = process.argv[3];
+      const fromPath = process.argv[4];
+      const toHost = process.argv[5];
+      const toPath = process.argv[6];
+      const fromDeployId = process.argv[7];
+      const toDeployId = process.argv[8];
+      const overrideClientId = process.argv[9];
+
+      if (!fromHost || !fromPath || !toHost || !toPath || !fromDeployId || !toDeployId) {
+        logger.error(
+          'Usage: node bin/deploy clone-server <fromHost> <fromPath> <toHost> <toPath> <fromDeployId> <toDeployId> [clientId]',
+        );
+        logger.error(
+          'Example: node bin/deploy clone-server www.dogmadual.com / www.newsite.com / dd-core dd-other newsite',
+        );
+        process.exit(1);
+      }
+
+      const confFromFolder = `./engine-private/conf/${fromDeployId}`;
+      const confToFolder = `./engine-private/conf/${toDeployId}`;
+
+      if (!fs.existsSync(confFromFolder)) {
+        logger.error(`Source config folder not found: ${confFromFolder}`);
+        process.exit(1);
+      }
+      if (!fs.existsSync(confToFolder)) {
+        logger.error(`Target config folder not found: ${confToFolder}`);
+        process.exit(1);
+      }
+
+      const cloneServerEntry = (fromFilePath, toFilePath, label) => {
+        if (!fs.existsSync(fromFilePath)) {
+          logger.warn(`${label}: source file not found, skipping`);
+          return;
+        }
+        const fromServerConf = JSON.parse(fs.readFileSync(fromFilePath, 'utf8'));
+        if (!fromServerConf[fromHost] || !fromServerConf[fromHost][fromPath]) {
+          logger.warn(`${label}: "${fromHost}" "${fromPath}" not found in source, skipping`);
+          return;
+        }
+
+        const toServerConf = fs.existsSync(toFilePath) ? JSON.parse(fs.readFileSync(toFilePath, 'utf8')) : {};
+
+        if (!toServerConf[toHost]) toServerConf[toHost] = {};
+
+        if (toServerConf[toHost][toPath]) {
+          logger.warn(`${label}: "${toHost}" "${toPath}" already exists in target, skipping`);
+          return;
+        }
+
+        toServerConf[toHost][toPath] = JSON.parse(JSON.stringify(fromServerConf[fromHost][fromPath]));
+        // Override client field if --client= is provided
+        const entry = toServerConf[toHost][toPath];
+        if (overrideClientId && entry.client) {
+          entry.client = overrideClientId;
+        }
+        // Update db.name to use the client-specific env variable
+        if (entry.client && entry.db && entry.db.name) {
+          const upperClientId = entry.client.replaceAll('-', '_').toUpperCase();
+          entry.db.name = `env:DB_NAME_${upperClientId}`;
+        }
+        fs.writeFileSync(toFilePath, JSON.stringify(toServerConf, null, 4), 'utf8');
+        logger.info(
+          `${label}: cloned "${fromHost}" "${fromPath}" → "${toHost}" "${toPath}" (${fromDeployId} → ${toDeployId})`,
+        );
+      };
+
+      // 1. Main conf.server.json
+      cloneServerEntry(`${confFromFolder}/conf.server.json`, `${confToFolder}/conf.server.json`, 'conf.server.json');
+
+      // 2. Dev variants (clone from source dev files)
+      const devFiles = fs
+        .readdirSync(confFromFolder)
+        .filter((f) => f.startsWith('conf.server.dev.') && f.endsWith('.json'));
+      for (const devFile of devFiles) {
+        cloneServerEntry(`${confFromFolder}/${devFile}`, `${confToFolder}/${devFile}`, devFile);
+      }
+
+      // 3. Create individual dev file for the new entry (conf.server.dev.<clientId>.json)
+      {
+        const mainToPath = `${confToFolder}/conf.server.json`;
+        if (fs.existsSync(mainToPath)) {
+          const toServerConf = JSON.parse(fs.readFileSync(mainToPath, 'utf8'));
+          const entry = toServerConf[toHost] && toServerConf[toHost][toPath];
+          if (entry && entry.client) {
+            const devFileName = `conf.server.dev.${entry.client}.json`;
+            const devFilePath = `${confToFolder}/${devFileName}`;
+            if (!fs.existsSync(devFilePath)) {
+              const devConf = { [toHost]: { [toPath]: entry } };
+              fs.writeFileSync(devFilePath, JSON.stringify(devConf, null, 4), 'utf8');
+              logger.info(`${devFileName}: created dev file for "${toHost}" "${toPath}"`);
+            } else {
+              logger.info(`${devFileName}: already exists, skipping creation`);
+            }
+          }
+        }
+      }
+
+      // 4. Add DB_NAME_<UPPER> env variable to target deploy .env.* files
+      {
+        const mainFromPath = `${confFromFolder}/conf.server.json`;
+        if (fs.existsSync(mainFromPath)) {
+          const fromServerConf = JSON.parse(fs.readFileSync(mainFromPath, 'utf8'));
+          const sourceEntry = fromServerConf[fromHost] && fromServerConf[fromHost][fromPath];
+          if (sourceEntry && sourceEntry.client) {
+            const clientId = overrideClientId || sourceEntry.client;
+            const upperClientId = clientId.replaceAll('-', '_').toUpperCase();
+            const envKey = `DB_NAME_${upperClientId}`;
+            const envValue = `${envKey}=${clientId}`;
+            for (const envFile of ['.env.production', '.env.development', '.env.test']) {
+              const envPath = `${confToFolder}/${envFile}`;
+              if (fs.existsSync(envPath)) {
+                const envContent = fs.readFileSync(envPath, 'utf8');
+                if (!envContent.includes(envKey)) {
+                  fs.writeFileSync(envPath, envContent.trimEnd() + '\n' + envValue + '\n', 'utf8');
+                  logger.info(`${envFile}: added ${envValue}`);
+                } else {
+                  logger.info(`${envFile}: ${envKey} already exists, skipping`);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 5. Rebuild default conf
       shellExec(`node bin new --default-conf --deploy-id ${toDeployId}`);
       logger.info(`Rebuilt default conf for ${toDeployId}`);
 
