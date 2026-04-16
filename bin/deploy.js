@@ -842,6 +842,15 @@ nvidia/gpu-operator \
       break;
     }
 
+    case 'add-server-client': {
+      const clientId = process.argv[3];
+      const deployId = process.argv[4];
+      loadConf('clean');
+      loadConf();
+      shellExec(`node bin/deploy clone-client default ${clientId} dd-default ${deployId}`);
+      break;
+    }
+
     case 'clone-client': {
       // node bin/deploy clone-client <fromClientId> <toClientId> <fromDeployId> [toDeployId]
       // Example: node bin/deploy clone-client dogmadual mynewclient dd-core
