@@ -197,6 +197,33 @@ spec:
       protocol: UDP
       port: 4045
       targetPort: 4045
+
+    - name: 'tcp-4046'
+      protocol: TCP
+      port: 4046
+      targetPort: 4046
+    - name: 'udp-4046'
+      protocol: UDP
+      port: 4046
+      targetPort: 4046
+
+    - name: 'tcp-4047'
+      protocol: TCP
+      port: 4047
+      targetPort: 4047
+    - name: 'udp-4047'
+      protocol: UDP
+      port: 4047
+      targetPort: 4047
+
+    - name: 'tcp-4048'
+      protocol: TCP
+      port: 4048
+      targetPort: 4048
+    - name: 'udp-4048'
+      protocol: UDP
+      port: 4048
+      targetPort: 4048
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -397,4 +424,31 @@ spec:
       protocol: UDP
       port: 4045
       targetPort: 4045
+
+    - name: 'tcp-4046'
+      protocol: TCP
+      port: 4046
+      targetPort: 4046
+    - name: 'udp-4046'
+      protocol: UDP
+      port: 4046
+      targetPort: 4046
+
+    - name: 'tcp-4047'
+      protocol: TCP
+      port: 4047
+      targetPort: 4047
+    - name: 'udp-4047'
+      protocol: UDP
+      port: 4047
+      targetPort: 4047
+
+    - name: 'tcp-4048'
+      protocol: TCP
+      port: 4048
+      targetPort: 4048
+    - name: 'udp-4048'
+      protocol: UDP
+      port: 4048
+      targetPort: 4048
   type: LoadBalancer

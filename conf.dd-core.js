@@ -566,7 +566,7 @@ const DefaultConf = /**/ {
         ],
         author: 'https://www.cecinasmarcelina.com',
         thumbnail: 'assets/logo/ico.png',
-        themeColor: '#8b4513',
+        themeColor: '#FFF0E5FF',
         pwaAssetsPath: '',
       },
       components: {

@@ -232,3 +232,50 @@ spec:
           port: 4045
           weight: 100
     
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.cecinasmarcelina.com
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: www.cecinasmarcelina.com
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4046
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4047
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: cecinasmarcelina.com
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: cecinasmarcelina.com
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4048
+          weight: 100
+    
