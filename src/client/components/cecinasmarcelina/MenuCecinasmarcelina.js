@@ -273,14 +273,14 @@ const MenuCecinasmarcelina = {
               padding: 0;
               margin: 0 calc(-50vw + 50%);
               width: 100vw;
-              height: 100vh;
+              min-height: calc(100vh - 50px);
               display: flex;
               align-items: center;
               justify-content: center;
               background-image: url('${getProxyPath()}assets/background/hero.webp');
               background-size: cover;
               background-position: center;
-              overflow: hidden;
+              overflow: visible;
             }
             .hero-overlay {
               position: absolute;
@@ -508,30 +508,28 @@ const MenuCecinasmarcelina = {
 
             /* Contact */
             .contact-section {
-              padding: 4rem 1rem;
-              text-align: center;
+              padding: 3rem 1rem;
+              text-align: left;
             }
             .contact-section h2 {
-              font-size: 2rem;
+              font-size: 1.6rem;
               color: ${darkTheme ? '#e74c3c' : '#8b4513'};
-              margin-bottom: 2rem;
+              margin-bottom: 1.5rem;
             }
             .contact-info {
               display: flex;
               flex-direction: column;
-              align-items: center;
-              gap: 1.5rem;
+              align-items: flex-start;
+              gap: 1rem;
             }
             .contact-item {
               display: flex;
               align-items: center;
-              gap: 0.75rem;
-              font-size: 1.1rem;
+              gap: 0.6rem;
+              font-size: 0.95rem;
               color: ${darkTheme ? '#f5ddd0' : '#3d1111'};
-              padding: 1rem 2rem;
-              border-radius: 12px;
+              border-radius: 10px;
               transition: background 0.3s ease, transform 0.2s ease;
-              min-width: 280px;
             }
             .contact-item:hover {
               transform: translateY(-2px);
@@ -567,7 +565,23 @@ const MenuCecinasmarcelina = {
                 font-size: 2rem;
               }
               .hero-inner {
-                padding: 3rem 1.5rem;
+                padding: 2rem 1rem;
+              }
+              .hero-logo {
+                width: 180px;
+              }
+              .hero-cta {
+                flex-direction: column;
+                align-items: center;
+                gap: 0.6rem;
+                margin-top: 1rem;
+              }
+              .btn {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.9rem;
+                width: 100%;
+                max-width: 220px;
+                text-align: center;
               }
               .products-grid,
               .pillars-grid {
