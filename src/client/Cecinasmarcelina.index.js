@@ -230,11 +230,11 @@ const htmlMainBody = async () => {
         <div class="contact-info">
           <div class="contact-item">
             <i class="fas fa-phone"></i>
-            <span>+56 9 7418 8496</span>
+            <span><a href="https://wa.me/56974188496">+56 9 7418 8496</a></span>
           </div>
           <div class="contact-item">
             <i class="fas fa-envelope"></i>
-            <span>cristobalperez27@gmail.com</span>
+            <span><a href="mailto:contacto@cecinasmarcelina.com">contacto@cecinasmarcelina.com</a></span>
           </div>
           <div class="contact-item">
             <i class="fas fa-map-marker-alt"></i>
