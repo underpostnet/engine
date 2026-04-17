@@ -947,7 +947,16 @@ const DefaultConf = /**/ {
         valkey: { port: 'env:VALKEY_PORT:int:6379', host: 'env:VALKEY_HOST:127.0.0.1' },
       },
     },
-    'cecinasmarcelina.com': { '/': { client: null, runtime: 'nodejs', apis: [], origins: [], proxy: [80, 443] } },
+    'cecinasmarcelina.com': {
+      '/': {
+        client: null,
+        runtime: 'nodejs',
+        apis: [],
+        origins: [],
+        proxy: [80, 443],
+        redirect: 'https://www.cecinasmarcelina.com',
+      },
+    },
   },
   cron: {
     records: {

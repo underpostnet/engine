@@ -528,10 +528,28 @@ const MenuCecinasmarcelina = {
               gap: 0.75rem;
               font-size: 1.1rem;
               color: ${darkTheme ? '#f5ddd0' : '#3d1111'};
+              padding: 1rem 2rem;
+              border-radius: 12px;
+              transition: background 0.3s ease, transform 0.2s ease;
+              min-width: 280px;
+            }
+            .contact-item:hover {
+              transform: translateY(-2px);
             }
             .contact-item i {
               color: ${darkTheme ? '#c0392b' : '#8b4513'};
               font-size: 1.3rem;
+              width: 24px;
+              text-align: center;
+              flex-shrink: 0;
+            }
+            .contact-item a {
+              color: ${darkTheme ? '#e8a87c' : '#8b4513'};
+              text-decoration: none;
+              transition: color 0.2s ease;
+            }
+            .contact-item a:hover {
+              color: ${darkTheme ? '#f5ddd0' : '#c0392b'};
             }
 
             /* Footer */
@@ -550,10 +568,6 @@ const MenuCecinasmarcelina = {
               }
               .hero-inner {
                 padding: 3rem 1.5rem;
-              }
-              .hero-logo {
-                width: 90px;
-                height: 90px;
               }
               .products-grid,
               .pillars-grid {
