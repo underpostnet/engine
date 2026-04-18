@@ -159,16 +159,18 @@ function toInstanceConfig(gc) {
   const fb = FALLBACK_CONFIG_DEFAULTS;
   if (!gc) return buildFallbackConfig();
 
-  const colors =
-    gc.colors && gc.colors.length > 0
-      ? gc.colors.map((c) => ({
-          key: c.key || '',
-          r: c.r ?? 0,
-          g: c.g ?? 0,
-          b: c.b ?? 0,
-          a: c.a ?? 255,
-        }))
-      : fb.colors.map((c) => ({ ...c }));
+  // Per-key merge: start with canonical defaults, overlay any DB-defined colours.
+  const dbColorMap = new Map((gc.colors || []).map((c) => [c.key, c]));
+  const colors = fb.colors.map((c) => {
+    const ov = dbColorMap.get(c.key);
+    return ov ? { key: c.key, r: ov.r ?? c.r, g: ov.g ?? c.g, b: ov.b ?? c.b, a: ov.a ?? c.a } : { ...c };
+  });
+  // Append any DB colours whose keys are absent from the canonical defaults.
+  for (const [key, c] of dbColorMap) {
+    if (!colors.some((fc) => fc.key === key)) {
+      colors.push({ key, r: c.r ?? 0, g: c.g ?? 0, b: c.b ?? 0, a: c.a ?? 255 });
+    }
+  }
 
   // Merge entity defaults: use canonical ENTITY_TYPE_DEFAULTS as base, overlay with
   // any instance-specific overrides stored in gc.entityDefaults.
@@ -233,7 +235,7 @@ function toInstanceConfig(gc) {
     lifeRegenChance: gc.lifeRegenChance ?? fb.lifeRegenChance,
     maxChance: gc.maxChance ?? fb.maxChance,
     entityDefaults,
-    skillConfig: (gc.skillConfig || []).map((sc) => ({
+    skillConfig: (gc.skillConfig && gc.skillConfig.length > 0 ? gc.skillConfig : fb.skillConfig).map((sc) => ({
       triggerItemId: sc.triggerItemId || '',
       logicEventIds: sc.logicEventIds || [],
     })),
@@ -432,11 +434,10 @@ function buildHandlers(dbKey) {
           }
         }
 
-        // Also include "system" item IDs from the instance config so the
-        // Go server has their OL data cached without extra round trips:
-        // Include OL item IDs from entityDefaults so the Go server has all
-        // default atlas data cached at startup without needing extra round trips.
-        for (const d of conf.entityDefaults || []) {
+        // Include system OL items from BOTH canonical ENTITY_TYPE_DEFAULTS AND
+        // the DB conf so the Go server always caches all default atlases even if
+        // the DB doc has incomplete entityDefaults.
+        for (const d of [...ENTITY_TYPE_DEFAULTS, ...(conf.entityDefaults || [])]) {
           for (const id of d.liveItemIds || []) itemIds.add(id);
           for (const id of d.deadItemIds || []) itemIds.add(id);
           for (const ol of d.defaultObjectLayers || []) {
