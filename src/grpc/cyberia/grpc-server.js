@@ -97,7 +97,21 @@ function toObjectLayerMsg(doc) {
   };
 }
 
+/**
+ * Parse a CSS rgba() colour string into {r, g, b, a} integer components.
+ * Returns {r:0, g:0, b:0, a:0} (transparent) when the string is absent or malformed.
+ */
+function parseRgba(str) {
+  if (!str) return { r: 0, g: 0, b: 0, a: 0 };
+  const m = str.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/);
+  if (!m) return { r: 0, g: 0, b: 0, a: 0 };
+  // CSS alpha is 0-1 (float); proto uses 0-255 (int).
+  const cssAlpha = m[4] !== undefined ? parseFloat(m[4]) : 1;
+  return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]), a: Math.round(cssAlpha * 255) };
+}
+
 function toEntityMsg(ent) {
+  const rgba = parseRgba(ent.color);
   return {
     entityType: ent.entityType || 'floor',
     initCellX: ent.initCellX || 0,
@@ -111,6 +125,10 @@ function toEntityMsg(ent) {
     maxLife: ent.maxLife || 0,
     lifeRegen: ent.lifeRegen || 0,
     portalSubtype: ent.portalSubtype || '',
+    colorR: rgba.r,
+    colorG: rgba.g,
+    colorB: rgba.b,
+    colorA: rgba.a,
   };
 }
 
