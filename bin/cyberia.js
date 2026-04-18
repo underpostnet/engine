@@ -2113,6 +2113,9 @@ try {
           for (const f of atlasFiles) {
             const atlasData = fs.readJsonSync(`${atlasDir}/${f}`);
             await AtlasSpriteSheet.deleteOne({ _id: atlasData._id });
+            if (atlasData.metadata?.itemKey) {
+              await AtlasSpriteSheet.deleteOne({ 'metadata.itemKey': atlasData.metadata.itemKey });
+            }
             await AtlasSpriteSheet.create(atlasData);
             atlasCount++;
           }
@@ -2127,6 +2130,9 @@ try {
           for (const file of olFiles) {
             const olData = fs.readJsonSync(`${olDir}/${file}`);
             await ObjectLayer.deleteOne({ _id: olData._id });
+            if (olData.sha256) {
+              await ObjectLayer.deleteOne({ sha256: olData.sha256 });
+            }
             await ObjectLayer.create(olData);
             olCount++;
           }
@@ -2141,6 +2147,9 @@ try {
           const pinnedCids = new Set();
           for (const doc of ipfsDocs) {
             await Ipfs.deleteOne({ _id: doc._id });
+            if (doc.cid && doc.resourceType) {
+              await Ipfs.deleteOne({ cid: doc.cid, resourceType: doc.resourceType });
+            }
             await Ipfs.create(doc);
             ipfsCount++;
             if (doc.cid) pinnedCids.add(doc.cid);
