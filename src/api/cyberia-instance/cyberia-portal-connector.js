@@ -1,126 +1,26 @@
 /**
  * Central Portal Connector — pure-function module.
  *
- * Shared by the backend (CyberiaInstanceService) and the GUI (map editor)
- * to build, validate, and procedurally generate portal topology and world
- * entities for a CyberiaInstance.
+ * Sole responsibility: build, validate, and connect portal topology
+ * for a CyberiaInstance.  Given map documents with portal entities,
+ * produces a minimal ring that guarantees full reachability, then
+ * assigns random portal behaviour to every remaining (unconnected)
+ * portal.
  *
- * All exported functions are stateless and synchronous — they operate on
- * plain JS objects (lean Mongoose docs or JSON from the API) so the GUI
- * can call them directly without a DB dependency.
+ * Shared by the backend (CyberiaInstanceService.portalConnect) and the
+ * GUI (Instance Engine "Portal Connector" button) so the same logic
+ * runs everywhere without a DB dependency.
+ *
+ * This module does NOT generate procedural entities (obstacles,
+ * foreground, resources, bots, etc.).  For that, see
+ * cyberia-world-generator.js.
+ *
+ * All exported functions are stateless and synchronous.
  *
  * @module src/api/cyberia-instance/cyberia-portal-connector
  */
 
-// ── Color helpers ────────────────────────────────────────────────────────────
-
-/**
- * Convert a { r, g, b, a } palette entry to an `rgba(…)` CSS string.
- * @param {{ r: number, g: number, b: number, a: number }} c
- * @returns {string}
- */
-const colorToRgba = (c) => `rgba(${c.r}, ${c.g}, ${c.b}, ${c.a / 255})`;
-
-/**
- * Look up a palette entry by key from a colours array.
- * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors
- * @param {string} key
- * @returns {{ r: number, g: number, b: number, a: number } | undefined}
- */
-const findColor = (colors, key) => colors.find((c) => c.key === key);
-
-// ── Random helpers ───────────────────────────────────────────────────────────
-
-/**
- * Return a random integer in [min, max] (inclusive).
- * @param {number} min
- * @param {number} max
- * @returns {number}
- */
-const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
-
-// ── Occupancy grid ───────────────────────────────────────────────────────────
-
-/**
- * 2D boolean grid that tracks which cells are blocked (obstacle / placed entity).
- * Used to find valid walkable positions when placing portals and bots.
- */
-class OccupancyGrid {
-  /**
-   * @param {number} width  Grid columns.
-   * @param {number} height Grid rows.
-   */
-  constructor(width, height) {
-    this.width = width;
-    this.height = height;
-    // false = walkable, true = blocked
-    this.cells = Array.from({ length: height }, () => new Array(width).fill(false));
-  }
-
-  /**
-   * Mark a rectangular region as blocked.
-   * @param {number} x
-   * @param {number} y
-   * @param {number} w
-   * @param {number} h
-   */
-  block(x, y, w, h) {
-    for (let row = y; row < y + h && row < this.height; row++) {
-      for (let col = x; col < x + w && col < this.width; col++) {
-        if (row >= 0 && col >= 0) this.cells[row][col] = true;
-      }
-    }
-  }
-
-  /**
-   * Check whether a rectangle fits entirely within walkable (unblocked) cells.
-   * @param {number} x
-   * @param {number} y
-   * @param {number} w
-   * @param {number} h
-   * @returns {boolean}
-   */
-  fits(x, y, w, h) {
-    if (x < 0 || y < 0 || x + w > this.width || y + h > this.height) return false;
-    for (let row = y; row < y + h; row++) {
-      for (let col = x; col < x + w; col++) {
-        if (this.cells[row][col]) return false;
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Find a random walkable position for a rectangle of given dimensions.
-   * Tries up to `maxAttempts` random positions before giving up.
-   * @param {number} w
-   * @param {number} h
-   * @param {number} [maxAttempts=200]
-   * @returns {{ x: number, y: number } | null}  Position or null if no fit found.
-   */
-  findPosition(w, h, maxAttempts = 200) {
-    const maxX = Math.max(0, this.width - w);
-    const maxY = Math.max(0, this.height - h);
-    for (let i = 0; i < maxAttempts; i++) {
-      const x = randInt(0, maxX);
-      const y = randInt(0, maxY);
-      if (this.fits(x, y, w, h)) return { x, y };
-    }
-    return null;
-  }
-
-  /**
-   * Populate the grid from an array of obstacle entities.
-   * @param {Array<{ initCellX: number, initCellY: number, dimX: number, dimY: number }>} obstacles
-   */
-  addObstacles(obstacles) {
-    for (const o of obstacles) {
-      this.block(o.initCellX, o.initCellY, o.dimX, o.dimY);
-    }
-  }
-}
-
-// ── Portal topology builders ─────────────────────────────────────────────────
+// ── Portal mode constants ────────────────────────────────────────────────────
 
 /**
  * Canonical portal mode strings.
@@ -156,6 +56,8 @@ const PORTAL_MODE_COLOR_KEY = Object.freeze({
  * @type {string[]}
  */
 const EXTRA_PORTAL_MODES = [PORTAL_MODES.INTRA_PORTAL, PORTAL_MODES.INTRA_RANDOM, PORTAL_MODES.INTER_RANDOM];
+
+// ── Portal topology builders ─────────────────────────────────────────────────
 
 /**
  * Extract all portal-type entities from each map document and build
@@ -247,7 +149,9 @@ function buildTopologyFromSubtypes(orderedCodes, portalIndex) {
     const remaining = allOnMap.filter((e) => !usedInRing.has(e));
 
     for (const srcEnt of remaining) {
-      const sub = srcEnt.portalSubtype || PORTAL_MODES.INTER_PORTAL;
+      // If the entity already has an explicit subtype, honour it;
+      // otherwise assign a random mode (matching fallback-world behaviour).
+      const sub = srcEnt.portalSubtype || PORTAL_MODE_LIST[Math.floor(Math.random() * PORTAL_MODE_LIST.length)];
 
       switch (sub) {
         case PORTAL_MODES.INTER_PORTAL: {
@@ -341,119 +245,6 @@ function connectPortals(mapCodes, maps) {
   return { portals, topology, mapCount: ordered.length };
 }
 
-// ── Procedural entity generators ─────────────────────────────────────────────
-
-/**
- * Generate procedural obstacle entities for a map.
- *
- * Obstacles use empty `objectLayerItemIds` so they render as a solid colour
- * from the OBSTACLE palette entry.  Count, dimensions, and positions are
- * all fully random within the declared ranges.
- *
- * @param {{ gridX: number, gridY: number }} mapDims  Map grid dimensions.
- * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors  Palette.
- * @param {object} [opts]
- * @param {number} [opts.count]         Override count (ignores range).
- * @param {number} [opts.minDim=1]      Minimum obstacle width/height (cells).
- * @param {number} [opts.maxDim=4]      Maximum obstacle width/height (cells).
- * @returns {object[]}  Array of CyberiaEntity plain objects.
- */
-function generateObstacles(mapDims, colors, opts = {}) {
-  const { minDim = 1, maxDim = 4 } = opts;
-  const count = opts.count ?? randInt(OBSTACLE_RANGE[0], OBSTACLE_RANGE[1]);
-  const { gridX, gridY } = mapDims;
-
-  const obstacleColor = findColor(colors, 'OBSTACLE');
-  const rgba = obstacleColor ? colorToRgba(obstacleColor) : 'rgba(80, 80, 80, 1)';
-
-  const entities = [];
-  for (let i = 0; i < count; i++) {
-    const dimX = randInt(minDim, maxDim);
-    const dimY = randInt(minDim, maxDim);
-    const maxX = Math.max(0, gridX - dimX);
-    const maxY = Math.max(0, gridY - dimY);
-    entities.push({
-      entityType: 'obstacle',
-      initCellX: randInt(0, maxX),
-      initCellY: randInt(0, maxY),
-      dimX,
-      dimY,
-      color: rgba,
-      objectLayerItemIds: [],
-    });
-  }
-  return entities;
-}
-
-/**
- * Generate procedural foreground entities for a map.
- *
- * Foregrounds use empty `objectLayerItemIds` and a semi-transparent colour
- * from the FOREGROUND palette entry.  Count, dimensions, and positions are
- * all fully random within the declared ranges.
- *
- * @param {{ gridX: number, gridY: number }} mapDims  Map grid dimensions.
- * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors  Palette.
- * @param {object} [opts]
- * @param {number} [opts.count]         Override count (ignores range).
- * @param {number} [opts.minDim=2]      Minimum foreground width/height (cells).
- * @param {number} [opts.maxDim=6]      Maximum foreground width/height (cells).
- * @returns {object[]}  Array of CyberiaEntity plain objects.
- */
-function generateForeground(mapDims, colors, opts = {}) {
-  const { minDim = 2, maxDim = 6 } = opts;
-  const count = opts.count ?? randInt(FOREGROUND_RANGE[0], FOREGROUND_RANGE[1]);
-  const { gridX, gridY } = mapDims;
-
-  const fgColor = findColor(colors, 'FOREGROUND');
-  const rgba = fgColor ? colorToRgba(fgColor) : 'rgba(200, 200, 200, 0.31)';
-
-  const entities = [];
-  for (let i = 0; i < count; i++) {
-    const dimX = randInt(minDim, maxDim);
-    const dimY = randInt(minDim, maxDim);
-    const maxX = Math.max(0, gridX - dimX);
-    const maxY = Math.max(0, gridY - dimY);
-    entities.push({
-      entityType: 'foreground',
-      initCellX: randInt(0, maxX),
-      initCellY: randInt(0, maxY),
-      dimX,
-      dimY,
-      color: rgba,
-      objectLayerItemIds: [],
-    });
-  }
-  return entities;
-}
-
-/**
- * Generate all procedural fallback entities (obstacles + foreground) for a map.
- *
- * @param {{ gridX: number, gridY: number }} mapDims
- * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors
- * @param {object} [opts]
- * @param {number} [opts.obstacleCount]
- * @param {number} [opts.foregroundCount]
- * @returns {{ obstacles: object[], foreground: object[] }}
- */
-function generateProceduralEntities(mapDims, colors, opts = {}) {
-  return {
-    obstacles: generateObstacles(mapDims, colors, { count: opts.obstacleCount }),
-    foreground: generateForeground(mapDims, colors, { count: opts.foregroundCount }),
-  };
-}
-
-// ── Entity count ranges ──────────────────────────────────────────────────────
-// [min, max] — actual count is random within range on each generation call.
-
-const OBSTACLE_RANGE = [20, 35];
-const FOREGROUND_RANGE = [10, 20];
-const BOT_RANGE = [8, 16];
-const BOT_WEAPON_CHANCE = 0.6;
-const PORTAL_DIM_RANGE = [2, 3];
-const PORTAL_COUNT_RANGE = [2, 4];
-
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export {
@@ -466,21 +257,4 @@ export {
   PORTAL_MODE_LIST,
   PORTAL_MODE_COLOR_KEY,
   EXTRA_PORTAL_MODES,
-  // Procedural entities
-  generateObstacles,
-  generateForeground,
-  generateProceduralEntities,
-  // Placement
-  OccupancyGrid,
-  // Helpers
-  colorToRgba,
-  findColor,
-  randInt,
-  // Ranges
-  OBSTACLE_RANGE,
-  FOREGROUND_RANGE,
-  BOT_RANGE,
-  BOT_WEAPON_CHANCE,
-  PORTAL_DIM_RANGE,
-  PORTAL_COUNT_RANGE,
 };

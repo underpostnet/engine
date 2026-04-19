@@ -40,7 +40,10 @@ class InstanceEngineCyberia {
           (${portal.sourceCellX}, ${portal.sourceCellY})
           <span style="margin:0 4px;">&rarr;</span>
           <span style="color:${darkTheme ? '#fc8' : '#842'};">${portal.targetMapCode}</span>
-          (${portal.targetCellX}, ${portal.targetCellY})
+          ${portal.targetCellX < 0 || portal.targetCellY < 0 ? '<span style="color:#aaa;">(random)</span>' : `(${portal.targetCellX}, ${portal.targetCellY})`}
+          <span style="color:${darkTheme ? '#9e9' : '#383'};margin-left:4px;font-size:11px;"
+            >[${portal.portalMode || 'inter-portal'}]</span
+          >
         </div>
         <div class="in fll" style="display:flex;gap:3px;">
           <button
@@ -273,6 +276,7 @@ class InstanceEngineCyberia {
         targetMapCode: p.targetMapCode || '',
         targetCellX: p.targetCellX || 0,
         targetCellY: p.targetCellY || 0,
+        portalMode: p.portalMode || 'inter-portal',
       }));
       InstanceEngineCyberia.renderPortalList(portalListId);
     };
@@ -348,21 +352,21 @@ class InstanceEngineCyberia {
               });
               return;
             }
-            // Append generated portals (skip duplicates by source+target pair)
-            const existing = new Set(InstanceEngineCyberia.portals.map((p) => `${p.sourceMapCode}>${p.targetMapCode}`));
-            let added = 0;
-            for (const p of generated) {
-              const key = `${p.sourceMapCode}>${p.targetMapCode}`;
-              if (!existing.has(key)) {
-                InstanceEngineCyberia.portals.push(p);
-                existing.add(key);
-                added++;
-              }
-            }
+            // Replace all portals with the centralized topology output
+            // (ring + random behavior for remaining unassigned portals)
+            InstanceEngineCyberia.portals = generated.map((p) => ({
+              sourceMapCode: p.sourceMapCode || '',
+              sourceCellX: p.sourceCellX || 0,
+              sourceCellY: p.sourceCellY || 0,
+              targetMapCode: p.targetMapCode || '',
+              targetCellX: p.targetCellX || 0,
+              targetCellY: p.targetCellY || 0,
+              portalMode: p.portalMode || 'inter-portal',
+            }));
             InstanceEngineCyberia.renderPortalList(portalListId);
             NotificationManager.Push({
-              html: `${topology} ring — ${added} portal(s) added.`,
-              status: added > 0 ? 'success' : 'warning',
+              html: `${topology} — ${generated.length} portal(s) generated.`,
+              status: 'success',
             });
           } catch (e) {
             NotificationManager.Push({ html: e.message, status: 'error' });
@@ -380,6 +384,7 @@ class InstanceEngineCyberia {
             targetMapCode: s(`.${idTargetMapCode}`)?.value || '',
             targetCellX: parseInt(s(`.${idTargetCellX}`)?.value) || 0,
             targetCellY: parseInt(s(`.${idTargetCellY}`)?.value) || 0,
+            portalMode: 'inter-portal',
           };
           InstanceEngineCyberia.portals.push(portal);
           InstanceEngineCyberia.renderPortalList(portalListId);

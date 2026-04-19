@@ -1,9 +1,8 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
-import { connectPortals, generateProceduralEntities } from './cyberia-portal-connector.js';
+import { connectPortals } from './cyberia-portal-connector.js';
 import { generateFallbackWorld } from './cyberia-fallback-world.js';
-import { CYBERIA_INSTANCE_CONF_DEFAULTS } from '../cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -73,12 +72,12 @@ const CyberiaInstanceService = {
    * from cyberia-portal-connector.js so the same logic can be used by the
    * GUI without a DB dependency.
    *
-   * Optionally generates procedural fallback obstacle/foreground entities
-   * for maps that have none, controlled by query flags:
-   *   ?generateEntities=true   — append procedural obstacles & foreground
-   *   ?obstacleCount=N         — obstacles per map   (default 5)
-   *   ?foregroundCount=N       — foreground per map   (default 3)
-   *   ?persist=true            — save generated portals & entities to DB
+   * Builds a minimal ring connecting all maps and assigns random portal
+   * subtypes to remaining portals.  Does NOT generate procedural entities —
+   * entity generation is handled exclusively by the fallback world logic
+   * (cyberia-world-generator.js).
+   *
+   *   ?persist=true  — save generated portals to DB
    */
   portalConnect: async (req, res, options) => {
     const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
@@ -103,48 +102,14 @@ const CyberiaInstanceService = {
     // ── Portal topology (pure function) ──────────────────────────────────
     const result = connectPortals(mapCodes, mapDocs);
 
-    // ── Procedural entity generation (optional) ──────────────────────────
-    const colors = CYBERIA_INSTANCE_CONF_DEFAULTS.colors;
-    const wantEntities = req.query?.generateEntities === 'true';
-    const obstacleCount = req.query?.obstacleCount ? parseInt(req.query.obstacleCount, 10) : undefined;
-    const foregroundCount = req.query?.foregroundCount ? parseInt(req.query.foregroundCount, 10) : undefined;
-    const seed = instance.seed || '';
-
-    const generatedEntities = {};
-    if (wantEntities) {
-      for (const doc of mapDocs) {
-        const hasObstacles = (doc.entities || []).some((e) => e.entityType === 'obstacle');
-        const hasForeground = (doc.entities || []).some((e) => e.entityType === 'foreground');
-        if (!hasObstacles || !hasForeground) {
-          const mapSeed = seed ? `${seed}:${doc.code}` : doc.code;
-          const generated = generateProceduralEntities({ gridX: doc.gridX || 16, gridY: doc.gridY || 16 }, colors, {
-            obstacleCount,
-            foregroundCount,
-            seed: mapSeed,
-          });
-          generatedEntities[doc.code] = {
-            obstacles: hasObstacles ? [] : generated.obstacles,
-            foreground: hasForeground ? [] : generated.foreground,
-          };
-        }
-      }
-    }
-
     // ── Persist to DB when requested ─────────────────────────────────────
     const persist = req.query?.persist === 'true';
     if (persist) {
       await CyberiaInstance.findByIdAndUpdate(req.params.id, { portals: result.portals });
-      for (const [mapCode, ents] of Object.entries(generatedEntities)) {
-        const toAdd = [...ents.obstacles, ...ents.foreground];
-        if (toAdd.length > 0) {
-          await CyberiaMap.findOneAndUpdate({ code: mapCode }, { $push: { entities: { $each: toAdd } } });
-        }
-      }
     }
 
     return {
       ...result,
-      ...(wantEntities ? { generatedEntities } : {}),
       persisted: persist,
     };
   },

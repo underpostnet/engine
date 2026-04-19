@@ -99,6 +99,14 @@ export const STATUS_ICONS = Object.freeze([
     borderColor: { r: 160, g: 130, b: 200, a: 200 },
     description: 'Entity is dead / respawning',
   },
+  {
+    id: 6,
+    name: 'resource',
+    iconId: 'arrow-down-gray',
+    bounce: false,
+    borderColor: { r: 100, g: 180, b: 80, a: 220 },
+    description: 'Resource entity — static, exploitable (wood, minerals, etc.)',
+  },
 ]);
 
 // ── Equipment rules ──────────────────────────────────────────────────────────
@@ -253,6 +261,11 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTRA_RANDOM', defaultObjectLayers: [] },
   { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTRA_PORTAL', defaultObjectLayers: [] },
   { entityType: 'foreground', liveItemIds: [], deadItemIds: [], colorKey: 'FOREGROUND', defaultObjectLayers: [] },
+  // ── Resource entities ────────────────────────────────────────────
+  // Static, exploitable map objects (wood, minerals, organic matter, etc.).
+  // No deadItemIds — destroyed resources simply deactivate all OLs.
+  // On respawn, original OLs are restored from PreRespawnObjectLayers.
+  { entityType: 'resource', liveItemIds: [], deadItemIds: [], colorKey: 'RESOURCE', defaultObjectLayers: [] },
 ]);
 
 // ── Instance configuration defaults ─────────────────────────────────────────
@@ -295,6 +308,7 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
     { key: 'GHOST', r: 200, g: 200, b: 255, a: 100 }, // rgba(200, 200, 255, 0.39)
     { key: 'COIN', r: 255, g: 215, b: 0, a: 255 }, // rgba(255, 215, 0, 1)
     { key: 'SKILL', r: 255, g: 255, b: 50, a: 255 }, // rgba(255, 255, 50, 1)
+    { key: 'RESOURCE', r: 100, g: 180, b: 80, a: 255 }, // rgba(100, 180, 80, 1)
     // ── UI-only ────────────────────────────────────────────────────
     { key: 'WEAPON', r: 180, g: 50, b: 50, a: 255 }, // rgba(180, 50, 50, 1)
     // ── Interaction overlay — self-player bubble/panel border ──────

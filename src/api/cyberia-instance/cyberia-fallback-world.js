@@ -18,215 +18,25 @@
  * @module src/api/cyberia-instance/cyberia-fallback-world
  */
 
+import { connectPortals } from './cyberia-portal-connector.js';
+
 import {
-  connectPortals,
   generateObstacles,
   generateForeground,
-  colorToRgba,
-  findColor,
-  randInt,
+  generateResources,
+  generateFloorEntities,
+  generatePortalEntity,
+  generatePortalEntities,
+  generateBots,
   OccupancyGrid,
-  BOT_RANGE,
-  BOT_WEAPON_CHANCE,
-  PORTAL_DIM_RANGE,
-  PORTAL_COUNT_RANGE,
-  PORTAL_MODE_LIST,
-  PORTAL_MODE_COLOR_KEY,
-  EXTRA_PORTAL_MODES,
-  PORTAL_MODES,
-} from './cyberia-portal-connector.js';
+} from './cyberia-world-generator.js';
 
-import {
-  CYBERIA_INSTANCE_CONF_DEFAULTS,
-  ENTITY_TYPE_DEFAULTS,
-} from '../cyberia-instance-conf/cyberia-instance-conf.defaults.js';
-
-import { DefaultCyberiaItems } from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
+import { CYBERIA_INSTANCE_CONF_DEFAULTS } from '../cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
 
 const DEFAULT_MAP_COUNT = 4;
 const DEFAULT_GRID_SIZE = 64;
-const DEFAULT_FLOOR_TILE_DIM = 4;
-const DEFAULT_BOT_DIM_RANGE = [2, 3];
-
-/** NPC skin pool — all items with type 'skin' from DefaultCyberiaItems. */
-const BOT_SKIN_POOL = DefaultCyberiaItems.filter((e) => e.item.type === 'skin').map((e) => e.item.id);
-
-// ── Floor generator ──────────────────────────────────────────────────────────
-
-/**
- * Generate floor tiles that cover the entire map grid.
- * Floor is NOT random — it tiles deterministically so every cell is covered.
- *
- * @param {{ gridX: number, gridY: number }} mapDims
- * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors
- * @param {object} [opts]
- * @param {number} [opts.tileDim=4]  Floor tile size in cells.
- * @returns {object[]}
- */
-function generateFloorEntities(mapDims, colors, opts = {}) {
-  const { tileDim = DEFAULT_FLOOR_TILE_DIM } = opts;
-  const floorDefault = ENTITY_TYPE_DEFAULTS.find((d) => d.entityType === 'floor');
-  const floorItemIds = floorDefault?.liveItemIds?.length ? [...floorDefault.liveItemIds] : [];
-  const floorColor = findColor(colors, 'FLOOR');
-  const rgba = floorColor ? colorToRgba(floorColor) : '';
-
-  const entities = [];
-  for (let y = 0; y < mapDims.gridY; y += tileDim) {
-    for (let x = 0; x < mapDims.gridX; x += tileDim) {
-      entities.push({
-        entityType: 'floor',
-        initCellX: x,
-        initCellY: y,
-        dimX: Math.min(tileDim, mapDims.gridX - x),
-        dimY: Math.min(tileDim, mapDims.gridY - y),
-        color: rgba,
-        objectLayerItemIds: floorItemIds,
-      });
-    }
-  }
-  return entities;
-}
-
-// ── Portal entity generator ──────────────────────────────────────────────────
-
-/**
- * Generate a portal entity at a random walkable position with random dimensions.
- *
- * @param {{ gridX: number, gridY: number }} mapDims
- * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors
- * @param {OccupancyGrid} [grid]  If provided, places portal only on walkable cells and marks them blocked.
- * @param {string} [portalSubtype]  One of PORTAL_MODE_LIST values. Determines the portal colour.
- * @returns {object|null}  Portal entity or null if no valid position found.
- */
-function generatePortalEntity(mapDims, colors, grid, portalSubtype) {
-  // Resolve colour from subtype-specific palette key, falling back to generic PORTAL
-  const colorKey = portalSubtype ? PORTAL_MODE_COLOR_KEY[portalSubtype] : 'PORTAL';
-  const portalColor = findColor(colors, colorKey) || findColor(colors, 'PORTAL');
-  const rgba = portalColor ? colorToRgba(portalColor) : 'rgba(0, 200, 200, 1)';
-  const dimX = randInt(PORTAL_DIM_RANGE[0], PORTAL_DIM_RANGE[1]);
-  const dimY = randInt(PORTAL_DIM_RANGE[0], PORTAL_DIM_RANGE[1]);
-
-  if (grid) {
-    const pos = grid.findPosition(dimX, dimY);
-    if (!pos) return null;
-    grid.block(pos.x, pos.y, dimX, dimY);
-    return {
-      entityType: 'portal',
-      portalSubtype: portalSubtype || 'inter-portal',
-      initCellX: pos.x,
-      initCellY: pos.y,
-      dimX,
-      dimY,
-      color: rgba,
-      objectLayerItemIds: [],
-    };
-  }
-
-  const maxX = Math.max(0, mapDims.gridX - dimX);
-  const maxY = Math.max(0, mapDims.gridY - dimY);
-  return {
-    entityType: 'portal',
-    portalSubtype: portalSubtype || 'inter-portal',
-    initCellX: randInt(0, maxX),
-    initCellY: randInt(0, maxY),
-    dimX,
-    dimY,
-    color: rgba,
-    objectLayerItemIds: [],
-  };
-}
-
-/**
- * Generate a random number of portal entities for a map, each with a
- * randomly assigned portal subtype (and corresponding colour).
- *
- * @param {{ gridX: number, gridY: number }} mapDims
- * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors
- * @param {object} [opts]
- * @param {number} [opts.count]  Override count (ignores range).
- * @param {OccupancyGrid} [opts.grid]  If provided, places portals only on walkable cells.
- * @returns {object[]}
- */
-function generatePortalEntities(mapDims, colors, opts = {}) {
-  const count = opts.count ?? randInt(PORTAL_COUNT_RANGE[0], PORTAL_COUNT_RANGE[1]);
-  const entities = [];
-  for (let i = 0; i < count; i++) {
-    // First portal is always inter-portal (reserved for the ring topology);
-    // extra portals get a random non-ring subtype.
-    const subtype =
-      i === 0 ? PORTAL_MODES.INTER_PORTAL : EXTRA_PORTAL_MODES[Math.floor(Math.random() * EXTRA_PORTAL_MODES.length)];
-    const portal = generatePortalEntity(mapDims, colors, opts.grid, subtype);
-    if (portal) entities.push(portal);
-  }
-  return entities;
-}
-
-// ── Bot generator ────────────────────────────────────────────────────────────
-
-/**
- * Generate bot entities for a map.
- *
- * - Each bot picks a random skin from BOT_SKIN_POOL for visual variety.
- * - Random chance to also carry `atlas_pistol_mk2` weapon.
- * - Random count within BOT_RANGE, random positions, random dimensions.
- * - Uses the BOT palette color as fallback.
- *
- * @param {{ gridX: number, gridY: number }} mapDims
- * @param {Array<{ key: string, r: number, g: number, b: number, a: number }>} colors
- * @param {object} [opts]
- * @param {number} [opts.count]         Override count (ignores range).
- * @param {number} [opts.spawnRadius]
- * @param {number} [opts.aggroRange]
- * @param {number} [opts.maxLife]
- * @param {OccupancyGrid} [opts.grid]  If provided, places bots only on walkable cells.
- * @returns {object[]}
- */
-function generateBots(mapDims, colors, opts = {}) {
-  const count = opts.count ?? randInt(BOT_RANGE[0], BOT_RANGE[1]);
-  const { spawnRadius = 5, aggroRange = 10, maxLife = 100 } = opts;
-  const botColor = findColor(colors, 'BOT');
-  const rgba = botColor ? colorToRgba(botColor) : 'rgba(255, 128, 0, 1)';
-
-  const entities = [];
-  for (let i = 0; i < count; i++) {
-    const dim = randInt(DEFAULT_BOT_DIM_RANGE[0], DEFAULT_BOT_DIM_RANGE[1]);
-
-    let cellX, cellY;
-    if (opts.grid) {
-      const pos = opts.grid.findPosition(dim, dim);
-      if (!pos) continue;
-      opts.grid.block(pos.x, pos.y, dim, dim);
-      cellX = pos.x;
-      cellY = pos.y;
-    } else {
-      const maxX = Math.max(0, mapDims.gridX - dim);
-      const maxY = Math.max(0, mapDims.gridY - dim);
-      cellX = randInt(0, maxX);
-      cellY = randInt(0, maxY);
-    }
-
-    const skin = BOT_SKIN_POOL[Math.floor(Math.random() * BOT_SKIN_POOL.length)];
-    const hasWeapon = Math.random() < BOT_WEAPON_CHANCE;
-    const itemIds = hasWeapon ? [skin, 'atlas_pistol_mk2'] : [skin];
-
-    entities.push({
-      entityType: 'bot',
-      initCellX: cellX,
-      initCellY: cellY,
-      dimX: dim,
-      dimY: dim,
-      color: rgba,
-      objectLayerItemIds: itemIds,
-      spawnRadius,
-      aggroRange,
-      maxLife,
-      lifeRegen: 0,
-    });
-  }
-  return entities;
-}
 
 // ── Single map generator ─────────────────────────────────────────────────────
 
@@ -241,6 +51,7 @@ function generateBots(mapDims, colors, opts = {}) {
  * @param {number} [opts.obstacleCount]
  * @param {number} [opts.foregroundCount]
  * @param {number} [opts.botCount]
+ * @param {number} [opts.resourceCount]
  * @returns {object}  CyberiaMap-shaped plain object.
  */
 function generateFallbackMap(mapCode, colors, opts = {}) {
@@ -263,10 +74,13 @@ function generateFallbackMap(mapCode, colors, opts = {}) {
   // 5. Bots — placed on walkable cells (avoids obstacles and portals)
   const bots = generateBots(mapDims, colors, { count: opts.botCount, grid });
 
-  // 6. Foreground — decorative, no collision restriction
+  // 6. Resources — static exploitable entities placed on walkable cells
+  const resources = generateResources(mapDims, colors, { count: opts.resourceCount, grid });
+
+  // 7. Foreground — decorative, no collision restriction
   const foreground = generateForeground(mapDims, colors, { count: opts.foregroundCount });
 
-  const entities = [...floors, ...obstacles, ...portalEntities, ...foreground, ...bots];
+  const entities = [...floors, ...obstacles, ...portalEntities, ...foreground, ...bots, ...resources];
 
   return {
     code: mapCode,
@@ -296,6 +110,7 @@ function generateFallbackMap(mapCode, colors, opts = {}) {
  * @param {number} [opts.obstacleCount]       Obstacles per map (random if omitted).
  * @param {number} [opts.foregroundCount]     Foreground entities per map (random if omitted).
  * @param {number} [opts.botCount]            Bots per map (random if omitted).
+ * @param {number} [opts.resourceCount]        Resources per map (random if omitted).
  * @param {Array}  [opts.colors]              Override palette.
  * @returns {{
  *   instance: object,
@@ -313,6 +128,7 @@ function generateFallbackWorld(opts = {}) {
     obstacleCount,
     foregroundCount,
     botCount,
+    resourceCount,
     colors = CYBERIA_INSTANCE_CONF_DEFAULTS.colors,
   } = opts;
 
@@ -329,6 +145,7 @@ function generateFallbackWorld(opts = {}) {
       obstacleCount,
       foregroundCount,
       botCount,
+      resourceCount,
     }),
   );
 
@@ -361,8 +178,4 @@ function generateFallbackWorld(opts = {}) {
 export {
   generateFallbackWorld,
   generateFallbackMap,
-  generateFloorEntities,
-  generatePortalEntity,
-  generatePortalEntities,
-  generateBots,
 };
