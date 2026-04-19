@@ -10,6 +10,7 @@
 
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
+import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
@@ -435,6 +436,7 @@ function buildHandlers(dbKey) {
             })),
             objectLayers: fallbackOlDocs.map(toObjectLayerMsg),
             config: toInstanceConfig(fallbackConf),
+            version: 'fallback',
           });
           return;
         }
@@ -469,11 +471,19 @@ function buildHandlers(dbKey) {
               .lean()
           : [];
 
+        // Opaque version string from updatedAt timestamps — the Go server
+        // compares this to skip full world rebuilds when nothing changed.
+        const versionParts = [String(inst.updatedAt || inst._id)];
+        for (const m of mapDocs) versionParts.push(String(m.updatedAt || m._id));
+        if (conf.updatedAt) versionParts.push(String(conf.updatedAt));
+        const version = crypto.createHash('sha256').update(versionParts.join('|')).digest('hex');
+
         callback(null, {
           instance: toInstanceMsg(inst),
           maps: mapDocs.map(toMapMsg),
           objectLayers: olDocs.map(toObjectLayerMsg),
           config: toInstanceConfig(conf),
+          version,
         });
       } catch (err) {
         logger.error('getFullInstance:', err);
