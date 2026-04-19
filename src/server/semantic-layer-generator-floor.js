@@ -5,9 +5,15 @@
  * desert, grass, water, stone, and lava.  Imported by the main
  * semantic-layer-generator.js which registers them at startup.
  *
+ * Biome palettes are imported from the centralized BIOME_PALETTES in the
+ * parent module (circular import is safe because the function body is only
+ * executed after module initialisation completes).
+ *
  * @module src/server/semantic-layer-generator-floor.js
  * @namespace SemanticLayerGeneratorFloor
  */
+
+import { BIOME_PALETTES } from './semantic-layer-generator.js';
 
 /* ═══════════════════════════════════════════════════════════════════════════
  *  FLOOR SEMANTIC REGISTRY
@@ -16,7 +22,6 @@
 
 /**
  * Registers all built-in floor semantic descriptors.
- * Uses dependency injection — no import from the parent module.
  *
  * @param {function(string, import('./semantic-layer-generator.js').SemanticDescriptor): void} registerFn
  * @memberof SemanticLayerGeneratorFloor
@@ -25,16 +30,7 @@ export function registerFloorSemantics(registerFn) {
   /* ── Desert ───────────────────────────────────────────────────────────── */
   registerFn('floor-desert', {
     semanticTags: ['sand', 'dune', 'arid', 'dry'],
-    paletteHints: [
-      [210, 180, 120, 255],
-      [194, 160, 100, 255],
-      [230, 205, 150, 255],
-      [180, 140, 80, 255],
-      [160, 120, 70, 255],
-      [120, 90, 55, 255],
-      [100, 80, 50, 255],
-      [240, 220, 175, 255],
-    ],
+    paletteHints: BIOME_PALETTES.desert,
     preferredShapes: { ellipse: 3, circle: 2, cactus: 1, star: 0.5 },
     itemType: 'floor',
     layers: {
@@ -104,16 +100,7 @@ export function registerFloorSemantics(registerFn) {
   /* ── Grass ────────────────────────────────────────────────────────────── */
   registerFn('floor-grass', {
     semanticTags: ['grass', 'meadow', 'green', 'earth'],
-    paletteHints: [
-      [80, 140, 60, 255],
-      [60, 120, 45, 255],
-      [110, 170, 80, 255],
-      [90, 130, 55, 255],
-      [130, 100, 65, 255],
-      [70, 110, 40, 255],
-      [150, 190, 100, 255],
-      [100, 85, 50, 255],
-    ],
+    paletteHints: BIOME_PALETTES.grass,
     preferredShapes: { ellipse: 3, circle: 2, heart: 0.5 },
     itemType: 'floor',
     layers: {
@@ -168,16 +155,7 @@ export function registerFloorSemantics(registerFn) {
   /* ── Water ────────────────────────────────────────────────────────────── */
   registerFn('floor-water', {
     semanticTags: ['water', 'ocean', 'wave', 'liquid'],
-    paletteHints: [
-      [40, 100, 180, 255],
-      [60, 130, 200, 255],
-      [90, 160, 220, 255],
-      [120, 190, 230, 255],
-      [30, 80, 150, 255],
-      [70, 140, 210, 255],
-      [150, 210, 240, 255],
-      [20, 60, 120, 255],
-    ],
+    paletteHints: BIOME_PALETTES.water,
     preferredShapes: { ellipse: 3, circle: 2 },
     itemType: 'floor',
     layers: {
@@ -232,16 +210,7 @@ export function registerFloorSemantics(registerFn) {
   /* ── Stone ────────────────────────────────────────────────────────────── */
   registerFn('floor-stone', {
     semanticTags: ['stone', 'rock', 'cobble', 'grey'],
-    paletteHints: [
-      [140, 140, 145, 255],
-      [120, 118, 125, 255],
-      [165, 165, 170, 255],
-      [100, 98, 105, 255],
-      [180, 180, 185, 255],
-      [90, 85, 80, 255],
-      [155, 150, 148, 255],
-      [110, 108, 115, 255],
-    ],
+    paletteHints: BIOME_PALETTES.stone,
     preferredShapes: { circle: 3, ellipse: 2, star: 1, 'pixel-art': 0.5 },
     itemType: 'floor',
     layers: {
@@ -296,16 +265,7 @@ export function registerFloorSemantics(registerFn) {
   /* ── Lava ─────────────────────────────────────────────────────────────── */
   registerFn('floor-lava', {
     semanticTags: ['lava', 'magma', 'fire', 'hot'],
-    paletteHints: [
-      [200, 50, 20, 255],
-      [230, 100, 30, 255],
-      [255, 180, 50, 255],
-      [160, 30, 10, 255],
-      [80, 20, 10, 255],
-      [50, 15, 8, 255],
-      [240, 140, 40, 255],
-      [120, 25, 12, 255],
-    ],
+    paletteHints: BIOME_PALETTES.lava,
     preferredShapes: { circle: 3, ellipse: 2, cactus: 1 },
     itemType: 'floor',
     layers: {

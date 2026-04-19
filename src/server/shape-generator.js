@@ -155,6 +155,26 @@ registerShape('parabola', (t, params) => {
   return { x, y: a * x * x };
 });
 
+registerShape('thick-parabola', (t, params) => {
+  // Closed parabolic band — traces the outer curve forward then the inner
+  // curve backward, producing a thick filled crescent when rasterized.
+  // `a` controls curvature, `rangeX` controls horizontal span, and
+  // `thickness` controls band width (vertical gap between outer/inner).
+  const a = params.a ?? 0.6;
+  const rangeX = params.rangeX ?? 1.3;
+  const thickness = params.thickness ?? 0.35;
+  if (t <= 0.5) {
+    // Outer parabola (forward: left → right)
+    const u = t * 2;
+    const xNorm = -rangeX + 2 * rangeX * u;
+    return { x: xNorm, y: a * xNorm * xNorm };
+  }
+  // Inner parabola (reverse: right → left, shifted up by thickness)
+  const u = 1 - (t - 0.5) * 2;
+  const xNorm = -rangeX + 2 * rangeX * u;
+  return { x: xNorm, y: a * xNorm * xNorm + thickness };
+});
+
 registerShape('heart', (t) => {
   const angle = t * Math.PI * 2;
   const x = 16 * Math.pow(Math.sin(angle), 3);
@@ -406,6 +426,42 @@ registerShape('bezier-path', (t, params) => {
   const x = u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x;
   const y = u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y;
   return { x, y };
+});
+
+registerShape('regular-polygon', (t, params) => {
+  // Regular convex polygon with `sides` edges.
+  // Traces straight vertex-to-vertex segments for perfect geometric figures.
+  const sides = Math.max(3, params.sides ?? 4);
+  const r = params.r ?? 1;
+  const segAngle = (2 * Math.PI) / sides;
+  const angle = t * Math.PI * 2;
+  // Which segment are we in?
+  const seg = Math.floor(angle / segAngle);
+  const frac = (angle - seg * segAngle) / segAngle;
+  // Offset: -π/2 puts first vertex at top (flat bottom for odd-sided).
+  // For even-sided polygons, shift by half a segment so edges are axis-aligned.
+  const offset = -Math.PI / 2 + (sides % 2 === 0 ? Math.PI / sides : 0);
+  const a0 = seg * segAngle + offset;
+  const a1 = (seg + 1) * segAngle + offset;
+  const x = r * ((1 - frac) * Math.cos(a0) + frac * Math.cos(a1));
+  const y = r * ((1 - frac) * Math.sin(a0) + frac * Math.sin(a1));
+  return { x, y };
+});
+
+registerShape('rectangle', (t, params) => {
+  // Axis-aligned rectangle with configurable aspect ratio.
+  // `width` and `height` control proportions (default: 1.4 × 1.0).
+  const w = params.width ?? 1.4;
+  const h = params.height ?? 1.0;
+  const hw = w / 2,
+    hh = h / 2;
+  const perim = 2 * (w + h);
+  const d = t * perim;
+  // Traverse: bottom-left → bottom-right → top-right → top-left
+  if (d < w) return { x: -hw + d, y: hh };
+  if (d < w + h) return { x: hw, y: hh - (d - w) };
+  if (d < 2 * w + h) return { x: hw - (d - w - h), y: -hh };
+  return { x: -hw, y: -hh + (d - 2 * w - h) };
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -678,6 +734,49 @@ function rasterizeContour(normalizedPoints, gridW, gridH, closed) {
 }
 
 /**
+ * Scanline-fills the interior of a closed contour on an integer grid.
+ * Takes the contour points produced by `rasterizeContour` and returns a
+ * new array containing both the contour AND all interior cells.
+ *
+ * Uses the standard even-odd scanline algorithm: for each row, find the
+ * leftmost and rightmost contour cell then fill everything in between.
+ *
+ * @param {ShapePoint[]} contourPoints - Contour cells from rasterizeContour.
+ * @param {number} gridW - Grid width.
+ * @param {number} gridH - Grid height.
+ * @returns {ShapePoint[]} All unique filled cells (contour + interior).
+ * @memberof ShapeGenerator
+ */
+function scanlineFill(contourPoints, gridW, gridH) {
+  // Build per-row min/max from contour
+  const rowBounds = new Map();
+  for (const p of contourPoints) {
+    const b = rowBounds.get(p.y);
+    if (b) {
+      if (p.x < b.min) b.min = p.x;
+      if (p.x > b.max) b.max = p.x;
+    } else {
+      rowBounds.set(p.y, { min: p.x, max: p.x });
+    }
+  }
+
+  const seen = new Set();
+  const filled = [];
+
+  for (const [y, { min, max }] of rowBounds) {
+    for (let x = min; x <= max; x++) {
+      const k = x * 100000 + y;
+      if (!seen.has(k)) {
+        seen.add(k);
+        filled.push({ x, y });
+      }
+    }
+  }
+
+  return filled;
+}
+
+/**
  * Renders an integer-coordinate ShapeResult as an ASCII grid string.
  * Useful for quick visual verification of pixel-art shapes.
  *
@@ -738,6 +837,9 @@ export function renderGrid(shapeResult, opts = {}) {
  *   with Bresenham rasterization so that even on a 16×16 grid the full contour
  *   is visible as a connected set of cells. `count` is ignored in this mode;
  *   the number of output points equals the number of unique rasterized cells.
+ * @property {boolean} [fill=false] - When true (and intCoords is enabled),
+ *   scanline-fills the interior of the closed contour, producing a solid
+ *   silhouette instead of an outline-only shape.
  * @memberof ShapeGenerator
  */
 
@@ -810,6 +912,7 @@ export function generateShape(key, options = {}) {
     closed = true,
     normalize = true,
     intCoords = false,
+    fill = false,
     color,
     ...extraParams
   } = options;
@@ -895,6 +998,11 @@ export function generateShape(key, options = {}) {
   // ---- Integer grid rasterization (Bresenham) -------------------------------
   if (useIntCoords) {
     points = rasterizeContour(points, gridW, gridH, closed);
+
+    // ---- Scanline fill (solid silhouette) -----------------------------------
+    if (fill && closed) {
+      points = scanlineFill(points, gridW, gridH);
+    }
 
     // Build metadata for integer grid mode
     const bbox = computeBbox(points);

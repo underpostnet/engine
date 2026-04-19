@@ -127,6 +127,21 @@ cyberia ol skin-natural --generate --seed hero-nat-5 --frame-count 4
 
 # Skin: shaved / bald head (no hair at all)
 cyberia ol skin-shaved --generate --seed hero-bald-1 --frame-count 4
+
+# Resource: desert petal (organic, flower-like)
+cyberia ol resource-desert-petal --generate --seed res-1 --frame-count 3
+
+# Resource: grass stone (hard, mineral chunks)
+cyberia ol resource-grass-stone --generate --seed res-2 --frame-count 2 --density 0.6
+
+# Resource: water polygon (geometric crystals)
+cyberia ol resource-water-polygon --generate --seed res-3 --count 4 --frame-count 4
+
+# Resource: stone thread (thin, wispy sewing threads)
+cyberia ol resource-stone-thread --generate --seed res-4 --frame-count 3 --density 0.4
+
+# Resource: lava petal (fiery organic shapes)
+cyberia ol resource-lava-petal --generate --seed res-5 --frame-count 3 --density 0.7
 ```
 
 **`--generate` options:**
@@ -154,6 +169,12 @@ cyberia ol skin-shaved --generate --seed hero-bald-1 --frame-count 4
 | `skin-vivid`    | skin  | character, body       | any skin + vivid hair (blue, red…)   |
 | `skin-natural`  | skin  | character, body       | any skin + natural hair (brown…)     |
 | `skin-shaved`   | skin  | character, body       | any skin, bald/shaved head           |
+| `resource-{biome}-petal`   | floor | {biome}, petal, organic, flower | biome palette, heart + ellipse shapes  |
+| `resource-{biome}-stone`   | floor | {biome}, stone, mineral, rock   | biome palette, circle + pixel-art shapes |
+| `resource-{biome}-polygon` | floor | {biome}, polygon, crystal, geometric | biome palette, star + ellipse shapes |
+| `resource-{biome}-thread`  | floor | {biome}, thread, fiber, sewing  | biome palette, bezier-path + parabola shapes |
+
+> `{biome}` is one of: `desert`, `grass`, `water`, `stone`, `lava` — 5 biomes × 4 shapes = 20 resource prefixes.
 
 #### How generation works
 
@@ -407,6 +428,12 @@ cyberia ol floor-grass  --generate --seed world-1 --frame-count 3
 cyberia ol floor-water  --generate --seed world-1 --frame-count 4
 cyberia ol floor-stone  --generate --seed world-1 --frame-count 2
 cyberia ol floor-lava   --generate --seed world-1 --frame-count 3
+
+# Resource family — same biome seeds, all four shape variants
+cyberia ol resource-desert-petal   --generate --seed world-1 --frame-count 3
+cyberia ol resource-desert-stone   --generate --seed world-1 --frame-count 3
+cyberia ol resource-desert-polygon --generate --seed world-1 --frame-count 3
+cyberia ol resource-desert-thread  --generate --seed world-1 --frame-count 3
 ```
 
 ### Exploring Seed Variations

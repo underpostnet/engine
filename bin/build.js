@@ -185,6 +185,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         '/src/server/semantic-layer-generator.js',
         '/src/server/semantic-layer-generator-floor.js',
         '/src/server/semantic-layer-generator-skin.js',
+        '/src/server/semantic-layer-generator-resource.js',
         '/test/shape-generator.test.js',
         '/src/server/besu-genesis-generator.js',
         '/.github/workflows/hardhat.ci.yml',

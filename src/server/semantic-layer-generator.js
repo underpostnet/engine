@@ -23,6 +23,7 @@ import { loggerFactory } from './logger.js';
 
 import { registerFloorSemantics } from './semantic-layer-generator-floor.js';
 import { registerSkinSemantics } from './semantic-layer-generator-skin.js';
+import { registerResourceSemantics } from './semantic-layer-generator-resource.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -82,6 +83,64 @@ function deriveFrameSeed(layerSeed, frameIndex) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ *  BIOME COLOUR PALETTES  (canonical source — shared by floor + resource)
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/** @type {Object<string, number[][]>} */
+const BIOME_PALETTES = {
+  desert: [
+    [210, 180, 120, 255],
+    [194, 160, 100, 255],
+    [230, 205, 150, 255],
+    [180, 140, 80, 255],
+    [160, 120, 70, 255],
+    [120, 90, 55, 255],
+    [100, 80, 50, 255],
+    [240, 220, 175, 255],
+  ],
+  grass: [
+    [80, 140, 60, 255],
+    [60, 120, 45, 255],
+    [110, 170, 80, 255],
+    [90, 130, 55, 255],
+    [130, 100, 65, 255],
+    [70, 110, 40, 255],
+    [150, 190, 100, 255],
+    [100, 85, 50, 255],
+  ],
+  water: [
+    [40, 100, 180, 255],
+    [60, 130, 200, 255],
+    [90, 160, 220, 255],
+    [120, 190, 230, 255],
+    [30, 80, 150, 255],
+    [70, 140, 210, 255],
+    [150, 210, 240, 255],
+    [20, 60, 120, 255],
+  ],
+  stone: [
+    [140, 140, 145, 255],
+    [120, 118, 125, 255],
+    [165, 165, 170, 255],
+    [100, 98, 105, 255],
+    [180, 180, 185, 255],
+    [90, 85, 80, 255],
+    [155, 150, 148, 255],
+    [110, 108, 115, 255],
+  ],
+  lava: [
+    [200, 50, 20, 255],
+    [230, 100, 30, 255],
+    [255, 180, 50, 255],
+    [160, 30, 10, 255],
+    [80, 20, 10, 255],
+    [50, 15, 8, 255],
+    [240, 140, 40, 255],
+    [120, 25, 12, 255],
+  ],
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
  *  SEMANTIC REGISTRY
  * ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -111,6 +170,12 @@ function deriveFrameSeed(layerSeed, frameIndex) {
  * @property {number}   [frameJitter]
  * @property {number}   [frameRotation]
  * @property {number}   [frameScale]
+ * @property {boolean}  [fill]             When true, shapes are scanline-filled (solid silhouettes).
+ * @property {Object}   [shapeParams]      Extra parameters forwarded to generateShape (e.g. {sides, closed, a, rangeX}).
+ * @property {number}   [scaleBase=0.15]   Base scale for stamped shapes (0..1 fraction of GRID_DIM).
+ * @property {number}   [scaleRange=0.25]  Random range added on top of scaleBase.
+ * @property {number}   [rotationBase=0]   Fixed rotation offset in degrees applied before random variance.
+ * @property {number}   [centerBias=0]     0..1 factor pulling element positions toward the tile centre.
  * @memberof SemanticLayerGenerator
  */
 
@@ -153,6 +218,7 @@ export function lookupSemantic(itemId) {
 /* ── Load category submodules at startup ────────────────────────────────── */
 registerFloorSemantics(registerSemantic);
 registerSkinSemantics(registerSemantic);
+registerResourceSemantics(registerSemantic);
 
 /* ═══════════════════════════════════════════════════════════════════════════
  *  COLOR UTILITIES
@@ -262,9 +328,19 @@ function generateNoiseFieldLayer(palette, layerSeedInt, frameIndex, spec, densit
 
 /**
  * Stamps a parametric shape onto a frame matrix at a given position/scale.
+ * @param {number[][]} frameMatrix
+ * @param {number[][]} colors
+ * @param {string} shapeKey
+ * @param {Object} transform
+ * @param {number[]} color
+ * @param {number} noiseLevel
+ * @param {number} detailLevel
+ * @param {string|number} seed
+ * @param {boolean} [fill]
+ * @param {Object} [shapeParams] Extra parameters forwarded to generateShape (e.g. sides, closed, a, rangeX).
  * @memberof SemanticLayerGenerator
  */
-function stampShape(frameMatrix, colors, shapeKey, transform, color, noiseLevel, detailLevel, seed) {
+function stampShape(frameMatrix, colors, shapeKey, transform, color, noiseLevel, detailLevel, seed, fill, shapeParams) {
   const gridSize = Math.max(4, Math.round(GRID_DIM * transform.scale));
   const result = generateShape(shapeKey, {
     intCoords: [gridSize, gridSize],
@@ -272,6 +348,8 @@ function stampShape(frameMatrix, colors, shapeKey, transform, color, noiseLevel,
     rotation: transform.rotation,
     seed,
     count: Math.round(80 * detailLevel),
+    fill: !!fill,
+    ...shapeParams,
   });
 
   const existingIdx = colors.findIndex(
@@ -430,10 +508,17 @@ export function generateFrame(options) {
         const shapeKey = pickShape(spec.shapes, preferredShapes, createRng(layerSeedInt + ei * 97));
 
         const baseRng = createRng(layerSeedInt + ei * 31 + 17);
-        const baseX = baseRng();
-        const baseY = baseRng();
-        const baseScale = 0.15 + baseRng() * 0.25 + (baseRng() * 2 - 1) * spec.scaleVariance * 0.15;
-        const baseRotation = (baseRng() * 2 - 1) * spec.rotationVariance;
+        let baseX = baseRng();
+        let baseY = baseRng();
+        const cb = spec.centerBias ?? 0;
+        if (cb > 0) {
+          baseX = baseX + (0.5 - baseX) * cb;
+          baseY = baseY + (0.5 - baseY) * cb;
+        }
+        const sBase = spec.scaleBase ?? 0.15;
+        const sRange = spec.scaleRange ?? 0.25;
+        const baseScale = sBase + baseRng() * sRange + (baseRng() * 2 - 1) * spec.scaleVariance * 0.15;
+        const baseRotation = (spec.rotationBase ?? 0) + (baseRng() * 2 - 1) * spec.rotationVariance;
 
         const fj = spec.frameJitter || 0;
         const fr = spec.frameRotation || 0;
@@ -460,11 +545,11 @@ export function generateFrame(options) {
 
         stampShape(
           compositeMatrix, compositeColors, shapeKey, transform, color,
-          spec.noiseLevel * (spec.jitter + 0.5), spec.detailLevel, shapeSeed,
+          spec.noiseLevel * (spec.jitter + 0.5), spec.detailLevel, shapeSeed, spec.fill, spec.shapeParams,
         );
         stampShape(
           layerMatrix, layerColors, shapeKey, transform, color,
-          spec.noiseLevel * 0.5, spec.detailLevel, shapeSeed,
+          spec.noiseLevel * 0.5, spec.detailLevel, shapeSeed, spec.fill, spec.shapeParams,
         );
 
         layerEntries.push({ type: 'shape', shapeKey, transform, color, shapeSeed });
@@ -642,4 +727,4 @@ function hashMod(str, mod) {
  *  EXPORTS
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-export { hashString, deriveLayerSeed, deriveFrameSeed, pickColor, pickShape, seedToUUIDv4, GRID_DIM, semanticRegistry };
+export { hashString, deriveLayerSeed, deriveFrameSeed, pickColor, pickShape, seedToUUIDv4, GRID_DIM, semanticRegistry, BIOME_PALETTES };
