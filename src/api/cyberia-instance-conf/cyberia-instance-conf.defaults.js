@@ -405,7 +405,7 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
       triggerItemId: 'atlas_pistol_mk2',
       skills: [
         {
-          logicEventId: 'atlas_pistol_mk2_logic',
+          logicEventId: 'projectile',
           name: 'Projectile',
           description:
             'Fires a projectile in the direction of the tap. Spawn chance and lifetime scale with Intelligence and Range.',
@@ -434,6 +434,18 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
           description:
             'Summons a passive clone of yourself that wanders nearby. Spawn chance scales with Intelligence.',
           summonedEntityItemId: '$active_skin',
+        },
+      ],
+    },
+    {
+      triggerItemId: 'hatchet',
+      skills: [
+        {
+          logicEventId: 'projectile',
+          name: 'Projectile',
+          description:
+            'Fires a projectile in the direction of the tap. Spawn chance and lifetime scale with Intelligence and Range.',
+          summonedEntityItemId: 'hatchet-skill',
         },
       ],
     },

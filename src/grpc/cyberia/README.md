@@ -53,7 +53,7 @@ The skill pipeline maps trigger item IDs to ordered lists of logic handler keys:
 ```
 CyberiaInstanceConf.skillConfig[] (MongoDB)
   ├─ triggerItemId:  "atlas_pistol_mk2"        ← item in player's active object layer
-  └─ logicEventIds: ["atlas_pistol_mk2_logic"] ← ordered handler keys executed in sequence
+  └─ logicEventIds: ["projectile"]             ← ordered handler keys executed in sequence
 
 CyberiaInstanceConf.skillRules (MongoDB) → SkillRules proto message → GameServer fields
   ├─ bulletSpawnChance / bulletLifetimeMs / bulletWidth / bulletHeight / bulletSpeedMultiplier
@@ -62,9 +62,9 @@ CyberiaInstanceConf.skillRules (MongoDB) → SkillRules proto message → GameSe
 Go runtime:
   1. Player performs action
   2. Iterate active object layers → s.skillConfig[layer.ItemID] → []SkillDefinition
-  3. For each SkillDefinition, iterate LogicEventIDs in order:
-       "doppelganger"          → executePlayerDoppelgangerSkill()
-       "atlas_pistol_mk2_logic" → executePlayerBulletSkill()  (bullet item ID is internal to the handler)
+  3. For each SkillDefinition, dispatch LogicEventID:
+       "doppelganger"  → executeDoppelgangerSkill()
+       "projectile"    → executeProjectileSkill()
 ```
 
 Spawning new entities (e.g. bullets) is handled entirely inside the logic handler — no `spawnedItemIds` config is needed.

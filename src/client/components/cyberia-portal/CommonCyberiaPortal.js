@@ -37,7 +37,7 @@ const DefaultSkillConfig = [
   // { triggerItemId: 'anon', logicEventIds: ['doppelganger'] },
   {
     triggerItemId: 'atlas_pistol_mk2',
-    logicEventIds: ['atlas_pistol_mk2_logic'],
+    logicEventIds: ['projectile'],
   },
   { triggerItemId: 'coin', logicEventIds: ['coin_drop_or_transaction'] },
   // { triggerItemId: 'purple', logicEventIds: ['doppelganger'] },
