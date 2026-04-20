@@ -256,7 +256,12 @@ function toInstanceConfig(gc) {
     entityDefaults,
     skillConfig: (gc.skillConfig && gc.skillConfig.length > 0 ? gc.skillConfig : fb.skillConfig).map((sc) => ({
       triggerItemId: sc.triggerItemId || '',
-      logicEventIds: sc.logicEventIds || [],
+      skills: (sc.skills || []).map((sk) => ({
+        logicEventId: sk.logicEventId || '',
+        name: sk.name || '',
+        description: sk.description || '',
+        summonedEntityItemId: sk.summonedEntityItemId || '',
+      })),
     })),
     skillRules: {
       projectileSpawnChance: gc.skillRules?.projectileSpawnChance ?? fb.skillRules.projectileSpawnChance,

@@ -190,7 +190,6 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
       { itemId: 'atlas_pistol_mk2', active: true, quantity: 1 },
       { itemId: 'purple', active: false, quantity: 1 },
       { itemId: 'ghost', active: false, quantity: 1 },
-      { itemId: 'atlas_pistol_mk2_bullet', active: false, quantity: 5 },
       { itemId: 'lain', active: false, quantity: 1 },
       { itemId: 'hatchet', active: false, quantity: 1 },
       { itemId: 'wason', active: false, quantity: 1 },
@@ -214,7 +213,6 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
       { itemId: 'atlas_pistol_mk2', active: true, quantity: 1 },
       { itemId: 'purple', active: false, quantity: 1 },
       { itemId: 'ghost', active: false, quantity: 1 },
-      { itemId: 'atlas_pistol_mk2_bullet', active: false, quantity: 5 },
       { itemId: 'lain', active: false, quantity: 1 },
       { itemId: 'hatchet', active: false, quantity: 1 },
       { itemId: 'wason', active: false, quantity: 1 },
@@ -403,9 +401,42 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
 
   // ── Skill system ───────────────────────────────────────────────────
   skillConfig: [
-    { triggerItemId: 'atlas_pistol_mk2', logicEventIds: ['atlas_pistol_mk2_logic'] },
-    { triggerItemId: 'coin', logicEventIds: ['coin_drop_or_transaction'] },
-    { triggerItemId: 'anon', logicEventIds: ['doppelganger'] },
+    {
+      triggerItemId: 'atlas_pistol_mk2',
+      skills: [
+        {
+          logicEventId: 'atlas_pistol_mk2_logic',
+          name: 'Projectile',
+          description:
+            'Fires a projectile in the direction of the tap. Spawn chance and lifetime scale with Intelligence and Range.',
+          summonedEntityItemId: 'atlas_pistol_mk2_bullet',
+        },
+      ],
+    },
+    {
+      triggerItemId: 'coin',
+      skills: [
+        {
+          logicEventId: 'coin_drop_or_transaction',
+          name: 'Coin Drop',
+          description:
+            'Coins are dropped automatically when an entity is killed. Transfer amount scales with kill percent rules.',
+          summonedEntityItemId: 'coin',
+        },
+      ],
+    },
+    {
+      triggerItemId: 'anon',
+      skills: [
+        {
+          logicEventId: 'doppelganger',
+          name: 'Doppelganger',
+          description:
+            'Summons a passive clone of yourself that wanders nearby. Spawn chance scales with Intelligence.',
+          summonedEntityItemId: '$active_skin',
+        },
+      ],
+    },
   ],
 
   skillRules: {
