@@ -23,9 +23,29 @@ class MapEngineCyberia {
   static showGridBorders = true;
   static addOnClick = true;
   static showObjectLayers = false;
-  static randomDim = false;
+  static enableRandomFactors = false;
   static captureObjLayerThumbnail = true;
   static imageCache = {};
+
+  static getEntityFilters() {
+    return {
+      filterType: s('.map-engine-filter-entity-type')?.value?.trim().toLowerCase() || '',
+      filterX: s('.map-engine-filter-init-x')?.value?.trim() || '',
+      filterY: s('.map-engine-filter-init-y')?.value?.trim() || '',
+    };
+  }
+
+  static getFilteredEntities() {
+    const { filterType, filterX, filterY } = MapEngineCyberia.getEntityFilters();
+
+    return MapEngineCyberia.entities.reduce((acc, entity, i) => {
+      if (filterType && !(entity.entityType || '').toLowerCase().includes(filterType)) return acc;
+      if (filterX !== '' && String(entity.initCellX) !== filterX) return acc;
+      if (filterY !== '' && String(entity.initCellY) !== filterY) return acc;
+      acc.push({ entity, i });
+      return acc;
+    }, []);
+  }
 
   static loadObjectLayerImage(itemId, onLoad) {
     if (MapEngineCyberia.imageCache[itemId]) return;
@@ -129,17 +149,13 @@ class MapEngineCyberia {
     const container = s(`.${containerId}`);
     if (!container) return;
 
-    const filterType = s('.map-engine-filter-entity-type')?.value?.trim().toLowerCase() || '';
-    const filterX = s('.map-engine-filter-init-x')?.value?.trim() || '';
-    const filterY = s('.map-engine-filter-init-y')?.value?.trim() || '';
-
-    const filtered = [];
-    MapEngineCyberia.entities.forEach((entity, i) => {
-      if (filterType && !(entity.entityType || '').toLowerCase().includes(filterType)) return;
-      if (filterX !== '' && !String(entity.initCellX).includes(filterX)) return;
-      if (filterY !== '' && !String(entity.initCellY).includes(filterY)) return;
-      filtered.push({ entity, i });
-    });
+    const filtered = MapEngineCyberia.getFilteredEntities();
+    const counter = s('.map-engine-entity-filter-count');
+    if (counter) {
+      const total = MapEngineCyberia.entities.length;
+      const visible = filtered.length;
+      counter.innerHTML = `Showing ${visible} of ${total} entities`;
+    }
 
     let html = '';
     filtered.forEach(({ entity, i }) => {
@@ -299,6 +315,44 @@ class MapEngineCyberia {
       cellH: parseInt(s(`.${idCellH}`)?.value) || 32,
     });
 
+    const getFactorRange = () => {
+      const rawA = parseFloat(s(`.${idFactorA}`)?.value);
+      const rawB = parseFloat(s(`.${idFactorB}`)?.value);
+      const safeA = Number.isFinite(rawA) ? rawA : 0.5;
+      const safeB = Number.isFinite(rawB) ? rawB : 1.5;
+      return {
+        min: Math.min(safeA, safeB),
+        max: Math.max(safeA, safeB),
+      };
+    };
+
+    const getPreserveSet = () => {
+      const preserveRaw = s(`.${idVariationPreserve}`)?.value || '';
+      return new Set(
+        preserveRaw
+          .split(',')
+          .map((t) => t.trim().toLowerCase())
+          .filter((t) => t),
+      );
+    };
+
+    const getPreserveIndices = () => {
+      const preserveSet = getPreserveSet();
+      return MapEngineCyberia.entities.reduce((acc, entity, index) => {
+        if (preserveSet.has((entity.entityType || '').toLowerCase())) acc.push(index);
+        return acc;
+      }, []);
+    };
+
+    const getAffectedEntityCount = (total) => {
+      if (total <= 0) return 0;
+      if (!MapEngineCyberia.enableRandomFactors) return Math.max(1, Math.round(total / 2));
+
+      const { min, max } = getFactorRange();
+      const factor = min + Math.random() * (max - min);
+      return Math.max(1, Math.min(total, Math.round(total * factor)));
+    };
+
     const rerenderCanvas = () => {
       const canvas = s(`.${canvasId}`);
       if (!canvas) return;
@@ -319,12 +373,9 @@ class MapEngineCyberia {
       };
     };
 
-    const applyRandomDim = (ep) => {
-      if (!MapEngineCyberia.randomDim) return;
-      const a = parseFloat(s(`.${idFactorA}`)?.value) || 0.5;
-      const b = parseFloat(s(`.${idFactorB}`)?.value) || 1.5;
-      const min = Math.min(a, b);
-      const max = Math.max(a, b);
+    const applyRandomFactorsToDimensions = (ep) => {
+      if (!MapEngineCyberia.enableRandomFactors) return;
+      const { min, max } = getFactorRange();
       const factor = min + Math.random() * (max - min);
       ep.dimX = Math.max(1, Math.round(ep.dimX * factor));
       ep.dimY = Math.max(1, Math.round(ep.dimY * factor));
@@ -335,7 +386,7 @@ class MapEngineCyberia {
       ep.objectLayerItemIds = DropDown.Tokens[idObjLayerDropdown]?.value
         ? [...DropDown.Tokens[idObjLayerDropdown].value]
         : [];
-      applyRandomDim(ep);
+      applyRandomFactorsToDimensions(ep);
       MapEngineCyberia.entities.push(ep);
       for (const itemId of ep.objectLayerItemIds) {
         MapEngineCyberia.loadObjectLayerImage(itemId, rerenderCanvas);
@@ -360,7 +411,7 @@ class MapEngineCyberia {
             initCellY: r,
             objectLayerItemIds: [...ep.objectLayerItemIds],
           };
-          applyRandomDim(tile);
+          applyRandomFactorsToDimensions(tile);
           MapEngineCyberia.entities.push(tile);
         }
       }
@@ -372,17 +423,8 @@ class MapEngineCyberia {
     };
 
     const generateVariation = () => {
-      const a = parseFloat(s(`.${idFactorA}`)?.value) || 0.5;
-      const b = parseFloat(s(`.${idFactorB}`)?.value) || 1.5;
-      const min = Math.min(a, b);
-      const max = Math.max(a, b);
-      const preserveRaw = s(`.${idVariationPreserve}`)?.value || '';
-      const preserveSet = new Set(
-        preserveRaw
-          .split(',')
-          .map((t) => t.trim().toLowerCase())
-          .filter((t) => t),
-      );
+      const { min, max } = getFactorRange();
+      const preserveSet = getPreserveSet();
       const { cols, rows } = getCanvasParams();
       for (const entity of MapEngineCyberia.entities) {
         if (preserveSet.has((entity.entityType || '').toLowerCase())) continue;
@@ -393,6 +435,72 @@ class MapEngineCyberia {
         entity.initCellX = Math.max(0, Math.min(cols - 1, Math.round(entity.initCellX * posFactor)));
         entity.initCellY = Math.max(0, Math.min(rows - 1, Math.round(entity.initCellY * posFactor)));
       }
+      MapEngineCyberia.renderEntityList(entityListId);
+      rerenderCanvas();
+    };
+
+    const clearAllEntities = () => {
+      MapEngineCyberia.entities = [];
+      MapEngineCyberia.renderEntityList(entityListId);
+      rerenderCanvas();
+    };
+
+    const randomSwapPreserveEntities = () => {
+      const preserveIndices = getPreserveIndices();
+      if (preserveIndices.length < 2) return;
+
+      const selectedCount = getAffectedEntityCount(preserveIndices.length);
+      const shuffled = [...preserveIndices].sort(() => Math.random() - 0.5).slice(0, selectedCount);
+      const swapCount = Math.max(1, Math.floor(shuffled.length / 2));
+
+      for (let i = 0; i < swapCount * 2; i += 2) {
+        const firstIndex = shuffled[i];
+        const secondIndex = shuffled[i + 1];
+        if (firstIndex === undefined || secondIndex === undefined) continue;
+
+        const first = MapEngineCyberia.entities[firstIndex];
+        const second = MapEngineCyberia.entities[secondIndex];
+        const firstPos = { initCellX: first.initCellX, initCellY: first.initCellY };
+
+        first.initCellX = second.initCellX;
+        first.initCellY = second.initCellY;
+        second.initCellX = firstPos.initCellX;
+        second.initCellY = firstPos.initCellY;
+      }
+
+      MapEngineCyberia.renderEntityList(entityListId);
+      rerenderCanvas();
+    };
+
+    const replacePreserveEntitiesWithCurrentConfig = () => {
+      const preserveIndices = getPreserveIndices();
+      if (preserveIndices.length === 0) return;
+
+      const selectedCount = getAffectedEntityCount(preserveIndices.length);
+      const selected = [...preserveIndices].sort(() => Math.random() - 0.5).slice(0, selectedCount);
+      const template = getEntityParams();
+      template.objectLayerItemIds = DropDown.Tokens[idObjLayerDropdown]?.value
+        ? [...DropDown.Tokens[idObjLayerDropdown].value]
+        : [];
+
+      for (const index of selected) {
+        const target = MapEngineCyberia.entities[index];
+        const replacement = {
+          ...target,
+          entityType: template.entityType,
+          dimX: template.dimX,
+          dimY: template.dimY,
+          color: template.color,
+          objectLayerItemIds: [...template.objectLayerItemIds],
+        };
+        applyRandomFactorsToDimensions(replacement);
+        MapEngineCyberia.entities[index] = replacement;
+      }
+
+      for (const itemId of template.objectLayerItemIds) {
+        MapEngineCyberia.loadObjectLayerImage(itemId, rerenderCanvas);
+      }
+
       MapEngineCyberia.renderEntityList(entityListId);
       rerenderCanvas();
     };
@@ -731,6 +839,12 @@ class MapEngineCyberia {
       if (s(`.btn-map-engine-generate-variation`))
         s(`.btn-map-engine-generate-variation`).onclick = () => generateVariation();
 
+      if (s(`.btn-map-engine-swap-preserve-entities`))
+        s(`.btn-map-engine-swap-preserve-entities`).onclick = () => randomSwapPreserveEntities();
+
+      if (s(`.btn-map-engine-replace-preserve-entities`))
+        s(`.btn-map-engine-replace-preserve-entities`).onclick = () => replacePreserveEntitiesWithCurrentConfig();
+
       if (s(`.btn-map-engine-flip-horizontal`)) s(`.btn-map-engine-flip-horizontal`).onclick = () => flipHorizontal();
 
       if (s(`.btn-map-engine-flip-vertical`)) s(`.btn-map-engine-flip-vertical`).onclick = () => flipVertical();
@@ -812,6 +926,9 @@ class MapEngineCyberia {
           });
           MapEngineCyberia.renderEntityList(entityListId);
         };
+
+      if (s('.btn-map-engine-clear-all-entities'))
+        s('.btn-map-engine-clear-all-entities').onclick = () => clearAllEntities();
     });
 
     const statusOptions = [
@@ -1228,14 +1345,14 @@ class MapEngineCyberia {
             checked: false,
             on: {
               checked: () => {
-                MapEngineCyberia.randomDim = true;
+                MapEngineCyberia.enableRandomFactors = true;
               },
               unchecked: () => {
-                MapEngineCyberia.randomDim = false;
+                MapEngineCyberia.enableRandomFactors = false;
               },
             },
           })}
-          <div class="section-mp">&nbsp &nbsp Random Dim</div>
+          <div class="section-mp">&nbsp &nbsp Enable Random Factors</div>
         </div>
         <div class="in" style="margin: 10px;">
           ${await DropDown.Render({
@@ -1275,6 +1392,18 @@ class MapEngineCyberia {
           ${await BtnIcon.Render({
             class: 'wfa btn-map-engine-generate-variation',
             label: html`<i class="fa-solid fa-shuffle"></i> Generate Variation`,
+          })}
+        </div>
+        <div class="in" style="margin-top: 5px;">
+          ${await BtnIcon.Render({
+            class: 'wfa btn-map-engine-swap-preserve-entities',
+            label: html`<i class="fa-solid fa-arrows-rotate"></i> Swap Preserve Positions`,
+          })}
+        </div>
+        <div class="in" style="margin-top: 5px;">
+          ${await BtnIcon.Render({
+            class: 'wfa btn-map-engine-replace-preserve-entities',
+            label: html`<i class="fa-solid fa-wand-magic-sparkles"></i> Replace Preserve Entities`,
           })}
         </div>
         <div class="in" style="margin-top: 5px;">
@@ -1325,10 +1454,22 @@ class MapEngineCyberia {
                 })}
               </div>
             </div>
+            <div
+              class="in map-engine-entity-filter-count"
+              style="margin-top:5px;font-size:12px;color:#888;font-family:monospace;"
+            >
+              Showing 0 of 0 entities
+            </div>
             <div class="in" style="margin-top:5px;">
               ${await BtnIcon.Render({
                 class: 'wfa btn-map-engine-clear-entity-filter',
                 label: html`<i class="fa-solid fa-broom"></i> Clear Filters`,
+              })}
+            </div>
+            <div class="in" style="margin-top:5px;">
+              ${await BtnIcon.Render({
+                class: 'wfa btn-map-engine-clear-all-entities',
+                label: html`<i class="fa-solid fa-trash-can"></i> Delete All Entities`,
               })}
             </div>
           </div>
