@@ -27,6 +27,163 @@ class MapEngineCyberia {
   static enableRandomFactors = false;
   static captureObjLayerThumbnail = true;
   static imageCache = {};
+  static entityUndoStack = [];
+  static entityRedoStack = [];
+  static maxEntityHistory = 200;
+  static entityHistorySync = null;
+  static entityHistoryHotkeyHandler = null;
+
+  static cloneEntity(entity) {
+    return {
+      ...entity,
+      objectLayerItemIds: Array.isArray(entity?.objectLayerItemIds) ? [...entity.objectLayerItemIds] : [],
+    };
+  }
+
+  static cloneEntities(entities = MapEngineCyberia.entities) {
+    return (entities || []).map((entity) => MapEngineCyberia.cloneEntity(entity));
+  }
+
+  static entitySnapshotsEqual(left, right) {
+    if (left === right) return true;
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+
+    for (let i = 0; i < left.length; i++) {
+      const a = left[i] || {};
+      const b = right[i] || {};
+      const aKeys = Object.keys(a);
+      const bKeys = Object.keys(b);
+      if (aKeys.length !== bKeys.length) return false;
+
+      for (const key of aKeys) {
+        const aValue = a[key];
+        const bValue = b[key];
+
+        if (Array.isArray(aValue) || Array.isArray(bValue)) {
+          if (!Array.isArray(aValue) || !Array.isArray(bValue) || aValue.length !== bValue.length) return false;
+          for (let j = 0; j < aValue.length; j++) {
+            if (aValue[j] !== bValue[j]) return false;
+          }
+          continue;
+        }
+
+        if (aValue !== bValue) return false;
+      }
+    }
+
+    return true;
+  }
+
+  static pushEntityHistory(stack, snapshot) {
+    stack.push(snapshot);
+    if (stack.length > MapEngineCyberia.maxEntityHistory) stack.shift();
+  }
+
+  static setEntityHistorySync(callback) {
+    MapEngineCyberia.entityHistorySync = callback;
+  }
+
+  static preloadEntityObjectLayers(onLoad = null) {
+    for (const entity of MapEngineCyberia.entities) {
+      for (const itemId of entity.objectLayerItemIds || []) {
+        MapEngineCyberia.loadObjectLayerImage(itemId, onLoad);
+      }
+    }
+  }
+
+  static refreshEntityEditor() {
+    const callback = MapEngineCyberia.entityHistorySync;
+    if (typeof callback !== 'function') return;
+    MapEngineCyberia.preloadEntityObjectLayers(callback);
+    callback();
+  }
+
+  static clearEntityHistory() {
+    MapEngineCyberia.entityUndoStack.length = 0;
+    MapEngineCyberia.entityRedoStack.length = 0;
+  }
+
+  static setEntities(entities, { clearHistory = false } = {}) {
+    MapEngineCyberia.entities = MapEngineCyberia.cloneEntities(entities);
+    if (clearHistory) MapEngineCyberia.clearEntityHistory();
+    MapEngineCyberia.refreshEntityEditor();
+  }
+
+  static commitEntityMutation(mutate) {
+    if (typeof mutate !== 'function') return false;
+
+    const before = MapEngineCyberia.cloneEntities();
+    mutate();
+    const after = MapEngineCyberia.cloneEntities();
+
+    if (MapEngineCyberia.entitySnapshotsEqual(before, after)) return false;
+
+    MapEngineCyberia.pushEntityHistory(MapEngineCyberia.entityUndoStack, before);
+    MapEngineCyberia.entityRedoStack.length = 0;
+    MapEngineCyberia.refreshEntityEditor();
+    return true;
+  }
+
+  static undoEntityMutation() {
+    if (!MapEngineCyberia.entityUndoStack.length) return false;
+
+    const previous = MapEngineCyberia.entityUndoStack.pop();
+    MapEngineCyberia.pushEntityHistory(MapEngineCyberia.entityRedoStack, MapEngineCyberia.cloneEntities());
+    MapEngineCyberia.setEntities(previous);
+    return true;
+  }
+
+  static redoEntityMutation() {
+    if (!MapEngineCyberia.entityRedoStack.length) return false;
+
+    const next = MapEngineCyberia.entityRedoStack.pop();
+    MapEngineCyberia.pushEntityHistory(MapEngineCyberia.entityUndoStack, MapEngineCyberia.cloneEntities());
+    MapEngineCyberia.setEntities(next);
+    return true;
+  }
+
+  static isEditableTarget(target) {
+    if (!target) return false;
+    const tagName = target.tagName?.toUpperCase();
+    return target.isContentEditable || tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
+  }
+
+  static isEntityHistoryActive() {
+    const container = s('.map-engine-container');
+    return !!container && container.isConnected && container.getClientRects().length > 0;
+  }
+
+  static bindEntityHistoryHotkeys() {
+    if (MapEngineCyberia.entityHistoryHotkeyHandler) {
+      window.removeEventListener('keydown', MapEngineCyberia.entityHistoryHotkeyHandler);
+    }
+
+    MapEngineCyberia.entityHistoryHotkeyHandler = (event) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        !MapEngineCyberia.isEntityHistoryActive() ||
+        MapEngineCyberia.isEditableTarget(event.target)
+      ) {
+        return;
+      }
+
+      const isModifierPressed = event.ctrlKey || event.metaKey;
+      if (!isModifierPressed) return;
+
+      if (event.key === 'z' || event.key === 'Z') {
+        const handled = event.shiftKey ? MapEngineCyberia.redoEntityMutation() : MapEngineCyberia.undoEntityMutation();
+        if (handled) event.preventDefault();
+        return;
+      }
+
+      if (event.key === 'y' || event.key === 'Y') {
+        if (MapEngineCyberia.redoEntityMutation()) event.preventDefault();
+      }
+    };
+
+    window.addEventListener('keydown', MapEngineCyberia.entityHistoryHotkeyHandler);
+  }
 
   static getEntityFilters() {
     return {
@@ -206,17 +363,10 @@ class MapEngineCyberia {
 
     container.querySelectorAll('.btn-map-engine-remove-entity').forEach((btn) => {
       btn.onclick = () => {
-        const idx = parseInt(btn.dataset.index);
-        MapEngineCyberia.entities.splice(idx, 1);
-        MapEngineCyberia.renderEntityList(containerId);
-        const canvasEl = s('.map-engine-canvas');
-        if (canvasEl) {
-          const cols = parseInt(s('.map-engine-input-x')?.value) || 16;
-          const rows = parseInt(s('.map-engine-input-y')?.value) || 16;
-          const cellW = parseInt(s('.map-engine-input-cell-w')?.value) || 32;
-          const cellH = parseInt(s('.map-engine-input-cell-h')?.value) || 32;
-          MapEngineCyberia.renderGrid(canvasEl, cols, rows, cellW, cellH, MapEngineCyberia.showGridBorders);
-        }
+        const idx = parseInt(btn.dataset.index, 10);
+        MapEngineCyberia.commitEntityMutation(() => {
+          MapEngineCyberia.entities.splice(idx, 1);
+        });
       };
     });
 
@@ -299,7 +449,7 @@ class MapEngineCyberia {
     const idObjLayerDropdown = 'map-engine-obj-layer-dropdown';
     const managementId = 'modal-cyberia-map-engine';
 
-    MapEngineCyberia.entities = [];
+    MapEngineCyberia.setEntities([], { clearHistory: true });
     MapEngineCyberia.currentMapId = null;
     MapEngineCyberia.currentThumbnailId = null;
 
@@ -389,12 +539,9 @@ class MapEngineCyberia {
         ? [...DropDown.Tokens[idObjLayerDropdown].value]
         : [];
       applyRandomFactorsToDimensions(ep);
-      MapEngineCyberia.entities.push(ep);
-      for (const itemId of ep.objectLayerItemIds) {
-        MapEngineCyberia.loadObjectLayerImage(itemId, rerenderCanvas);
-      }
-      MapEngineCyberia.renderEntityList(entityListId);
-      rerenderCanvas();
+      MapEngineCyberia.commitEntityMutation(() => {
+        MapEngineCyberia.entities.push(ep);
+      });
     };
 
     const fillMapWithEntity = () => {
@@ -405,46 +552,43 @@ class MapEngineCyberia {
       const { cols, rows } = getCanvasParams();
       const dimX = ep.dimX || 1;
       const dimY = ep.dimY || 1;
-      for (let r = 0; r < rows; r += dimY) {
-        for (let c = 0; c < cols; c += dimX) {
-          const tile = {
-            ...ep,
-            initCellX: c,
-            initCellY: r,
-            objectLayerItemIds: [...ep.objectLayerItemIds],
-          };
-          applyRandomFactorsToDimensions(tile);
-          MapEngineCyberia.entities.push(tile);
+      MapEngineCyberia.commitEntityMutation(() => {
+        for (let r = 0; r < rows; r += dimY) {
+          for (let c = 0; c < cols; c += dimX) {
+            const tile = {
+              ...ep,
+              initCellX: c,
+              initCellY: r,
+              objectLayerItemIds: [...ep.objectLayerItemIds],
+            };
+            applyRandomFactorsToDimensions(tile);
+            MapEngineCyberia.entities.push(tile);
+          }
         }
-      }
-      for (const itemId of ep.objectLayerItemIds) {
-        MapEngineCyberia.loadObjectLayerImage(itemId, rerenderCanvas);
-      }
-      MapEngineCyberia.renderEntityList(entityListId);
-      rerenderCanvas();
+      });
     };
 
     const generateVariation = () => {
       const { min, max } = getFactorRange();
       const preserveSet = getPreserveSet();
       const { cols, rows } = getCanvasParams();
-      for (const entity of MapEngineCyberia.entities) {
-        if (preserveSet.has((entity.entityType || '').toLowerCase())) continue;
-        const dimFactor = min + Math.random() * (max - min);
-        entity.dimX = Math.max(1, Math.round(entity.dimX * dimFactor));
-        entity.dimY = Math.max(1, Math.round(entity.dimY * dimFactor));
-        const posFactor = min + Math.random() * (max - min);
-        entity.initCellX = Math.max(0, Math.min(cols - 1, Math.round(entity.initCellX * posFactor)));
-        entity.initCellY = Math.max(0, Math.min(rows - 1, Math.round(entity.initCellY * posFactor)));
-      }
-      MapEngineCyberia.renderEntityList(entityListId);
-      rerenderCanvas();
+      MapEngineCyberia.commitEntityMutation(() => {
+        for (const entity of MapEngineCyberia.entities) {
+          if (preserveSet.has((entity.entityType || '').toLowerCase())) continue;
+          const dimFactor = min + Math.random() * (max - min);
+          entity.dimX = Math.max(1, Math.round(entity.dimX * dimFactor));
+          entity.dimY = Math.max(1, Math.round(entity.dimY * dimFactor));
+          const posFactor = min + Math.random() * (max - min);
+          entity.initCellX = Math.max(0, Math.min(cols - 1, Math.round(entity.initCellX * posFactor)));
+          entity.initCellY = Math.max(0, Math.min(rows - 1, Math.round(entity.initCellY * posFactor)));
+        }
+      });
     };
 
     const clearAllEntities = () => {
-      MapEngineCyberia.entities = [];
-      MapEngineCyberia.renderEntityList(entityListId);
-      rerenderCanvas();
+      MapEngineCyberia.commitEntityMutation(() => {
+        MapEngineCyberia.entities = [];
+      });
     };
 
     const randomSwapPreserveEntities = () => {
@@ -455,23 +599,22 @@ class MapEngineCyberia {
       const shuffled = [...preserveIndices].sort(() => Math.random() - 0.5).slice(0, selectedCount);
       const swapCount = Math.max(1, Math.floor(shuffled.length / 2));
 
-      for (let i = 0; i < swapCount * 2; i += 2) {
-        const firstIndex = shuffled[i];
-        const secondIndex = shuffled[i + 1];
-        if (firstIndex === undefined || secondIndex === undefined) continue;
+      MapEngineCyberia.commitEntityMutation(() => {
+        for (let i = 0; i < swapCount * 2; i += 2) {
+          const firstIndex = shuffled[i];
+          const secondIndex = shuffled[i + 1];
+          if (firstIndex === undefined || secondIndex === undefined) continue;
 
-        const first = MapEngineCyberia.entities[firstIndex];
-        const second = MapEngineCyberia.entities[secondIndex];
-        const firstPos = { initCellX: first.initCellX, initCellY: first.initCellY };
+          const first = MapEngineCyberia.entities[firstIndex];
+          const second = MapEngineCyberia.entities[secondIndex];
+          const firstPos = { initCellX: first.initCellX, initCellY: first.initCellY };
 
-        first.initCellX = second.initCellX;
-        first.initCellY = second.initCellY;
-        second.initCellX = firstPos.initCellX;
-        second.initCellY = firstPos.initCellY;
-      }
-
-      MapEngineCyberia.renderEntityList(entityListId);
-      rerenderCanvas();
+          first.initCellX = second.initCellX;
+          first.initCellY = second.initCellY;
+          second.initCellX = firstPos.initCellX;
+          second.initCellY = firstPos.initCellY;
+        }
+      });
     };
 
     const replacePreserveEntitiesWithCurrentConfig = () => {
@@ -485,44 +628,39 @@ class MapEngineCyberia {
         ? [...DropDown.Tokens[idObjLayerDropdown].value]
         : [];
 
-      for (const index of selected) {
-        const target = MapEngineCyberia.entities[index];
-        const replacement = {
-          ...target,
-          entityType: template.entityType,
-          dimX: template.dimX,
-          dimY: template.dimY,
-          color: template.color,
-          objectLayerItemIds: [...template.objectLayerItemIds],
-        };
-        applyRandomFactorsToDimensions(replacement);
-        MapEngineCyberia.entities[index] = replacement;
-      }
-
-      for (const itemId of template.objectLayerItemIds) {
-        MapEngineCyberia.loadObjectLayerImage(itemId, rerenderCanvas);
-      }
-
-      MapEngineCyberia.renderEntityList(entityListId);
-      rerenderCanvas();
+      MapEngineCyberia.commitEntityMutation(() => {
+        for (const index of selected) {
+          const target = MapEngineCyberia.entities[index];
+          const replacement = {
+            ...target,
+            entityType: template.entityType,
+            dimX: template.dimX,
+            dimY: template.dimY,
+            color: template.color,
+            objectLayerItemIds: [...template.objectLayerItemIds],
+          };
+          applyRandomFactorsToDimensions(replacement);
+          MapEngineCyberia.entities[index] = replacement;
+        }
+      });
     };
 
     const flipHorizontal = () => {
       const { cols } = getCanvasParams();
-      for (const entity of MapEngineCyberia.entities) {
-        entity.initCellX = cols - entity.initCellX - entity.dimX;
-      }
-      MapEngineCyberia.renderEntityList(entityListId);
-      rerenderCanvas();
+      MapEngineCyberia.commitEntityMutation(() => {
+        for (const entity of MapEngineCyberia.entities) {
+          entity.initCellX = cols - entity.initCellX - entity.dimX;
+        }
+      });
     };
 
     const flipVertical = () => {
       const { rows } = getCanvasParams();
-      for (const entity of MapEngineCyberia.entities) {
-        entity.initCellY = rows - entity.initCellY - entity.dimY;
-      }
-      MapEngineCyberia.renderEntityList(entityListId);
-      rerenderCanvas();
+      MapEngineCyberia.commitEntityMutation(() => {
+        for (const entity of MapEngineCyberia.entities) {
+          entity.initCellY = rows - entity.initCellY - entity.dimY;
+        }
+      });
     };
 
     const getMapPayload = () => {
@@ -734,7 +872,7 @@ class MapEngineCyberia {
         }
       }
 
-      MapEngineCyberia.entities = (mapData.entities || []).map((e) => ({
+      const nextEntities = (mapData.entities || []).map((e) => ({
         entityType: e.entityType,
         initCellX: e.initCellX,
         initCellY: e.initCellY,
@@ -743,13 +881,7 @@ class MapEngineCyberia {
         color: e.color,
         objectLayerItemIds: e.objectLayerItemIds || [],
       }));
-      for (const entity of MapEngineCyberia.entities) {
-        for (const itemId of entity.objectLayerItemIds || []) {
-          MapEngineCyberia.loadObjectLayerImage(itemId, rerenderCanvas);
-        }
-      }
-      MapEngineCyberia.renderEntityList(entityListId);
-      rerenderCanvas();
+      MapEngineCyberia.setEntities(nextEntities, { clearHistory: true });
     };
 
     MapEngineCyberia.loadMap = loadMap;
@@ -779,9 +911,7 @@ class MapEngineCyberia {
       if (s(`.${idCellW}`)) s(`.${idCellW}`).value = 32;
       if (s(`.${idCellH}`)) s(`.${idCellH}`).value = 32;
       if (s(`.${idVariationPreserve}`)) s(`.${idVariationPreserve}`).value = '';
-      MapEngineCyberia.entities = [];
-      MapEngineCyberia.renderEntityList(entityListId);
-      rerenderCanvas();
+      MapEngineCyberia.setEntities([], { clearHistory: true });
       if (DropDown.Tokens[idObjLayerDropdown]) {
         DropDown.Tokens[idObjLayerDropdown].oncheckvalues = {};
         DropDown.Tokens[idObjLayerDropdown].value = [];
@@ -793,6 +923,12 @@ class MapEngineCyberia {
     setTimeout(() => {
       const canvas = s(`.${canvasId}`);
       if (!canvas) return;
+
+      MapEngineCyberia.setEntityHistorySync(() => {
+        MapEngineCyberia.renderEntityList(entityListId);
+        rerenderCanvas();
+      });
+      MapEngineCyberia.bindEntityHistoryHotkeys();
 
       const syncPaletteFromColorInput = () => {
         const colorPalette = s(`.${idColorPalette}`);
@@ -836,6 +972,7 @@ class MapEngineCyberia {
         params.cellH,
         MapEngineCyberia.showGridBorders,
       );
+      MapEngineCyberia.refreshEntityEditor();
 
       canvas.onclick = (e) => {
         const rect = canvas.getBoundingClientRect();
