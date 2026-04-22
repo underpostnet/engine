@@ -160,6 +160,9 @@ export const EQUIPMENT_RULES_DEFAULTS = Object.freeze({
  *   deadItemIds — Array of ObjectLayer item IDs for the dead / ghost / respawning
  *                 state.  Empty array = no dead-state OL; same solid fill as live.
  *                 Replaces the old flat ghostItemId field for players.
+ *   dropItemIds — Array of ObjectLayer item IDs granted to the extractor when
+ *                 a resource-type entity is depleted. These are inventory/drop
+ *                 items only and are NOT auto-activated on the entity itself.
  *   colorKey    — Named palette colour key (see colors in CYBERIA_INSTANCE_CONF_DEFAULTS).
  *                 Used as solid-colour fallback when the entity carries NO active
  *                 ObjectLayer items, or while atlas textures are still loading.
@@ -181,8 +184,30 @@ export const EQUIPMENT_RULES_DEFAULTS = Object.freeze({
  *   floor / obstacle / portal / foreground
  *
  * @constant
- * @type {ReadonlyArray<{entityType:string, liveItemIds:string[], deadItemIds:string[], colorKey:string}>}
+ * @type {ReadonlyArray<{entityType:string, liveItemIds:string[], deadItemIds:string[], dropItemIds:string[], colorKey:string}>}
  */
+export const RESOURCE_ENTITY_TYPE_DEFAULTS = Object.freeze([
+  Object.freeze({
+    entityType: 'resource',
+    liveItemIds: ['wood-1'],
+    deadItemIds: ['wood-extracted-1'],
+    // Until dedicated resource-drop OLs are authored, reuse the wood stack item.
+    dropItemIds: ['wood-drop-1'],
+    colorKey: 'RESOURCE',
+    defaultObjectLayers: [],
+  }),
+  Object.freeze({
+    entityType: 'resource',
+    liveItemIds: ['wood-2'],
+    deadItemIds: ['wood-extracted-2'],
+    dropItemIds: ['wood-drop-2'],
+    colorKey: 'RESOURCE',
+    defaultObjectLayers: [],
+  }),
+]);
+
+export const RESOURCE_ENTITY_TYPE_DEFAULT = RESOURCE_ENTITY_TYPE_DEFAULTS[0];
+
 export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   // ── Characters ─────────────────────────────────────────────────────────
   {
@@ -259,19 +284,75 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     defaultObjectLayers: [{ itemId: 'coin', active: true, quantity: 1 }],
   },
   // ── World objects ───────────────────────────────────────────────────────
-  { entityType: 'floor', liveItemIds: ['grass'], deadItemIds: [], colorKey: 'FLOOR', defaultObjectLayers: [] },
-  { entityType: 'obstacle', liveItemIds: [], deadItemIds: [], colorKey: 'OBSTACLE', defaultObjectLayers: [] },
-  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL', defaultObjectLayers: [] },
-  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTER_PORTAL', defaultObjectLayers: [] },
-  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTER_RANDOM', defaultObjectLayers: [] },
-  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTRA_RANDOM', defaultObjectLayers: [] },
-  { entityType: 'portal', liveItemIds: [], deadItemIds: [], colorKey: 'PORTAL_INTRA_PORTAL', defaultObjectLayers: [] },
-  { entityType: 'foreground', liveItemIds: [], deadItemIds: [], colorKey: 'FOREGROUND', defaultObjectLayers: [] },
+  {
+    entityType: 'floor',
+    liveItemIds: ['grass'],
+    deadItemIds: [],
+    dropItemIds: [],
+    colorKey: 'FLOOR',
+    defaultObjectLayers: [],
+  },
+  {
+    entityType: 'obstacle',
+    liveItemIds: [],
+    deadItemIds: [],
+    dropItemIds: [],
+    colorKey: 'OBSTACLE',
+    defaultObjectLayers: [],
+  },
+  {
+    entityType: 'portal',
+    liveItemIds: [],
+    deadItemIds: [],
+    dropItemIds: [],
+    colorKey: 'PORTAL',
+    defaultObjectLayers: [],
+  },
+  {
+    entityType: 'portal',
+    liveItemIds: [],
+    deadItemIds: [],
+    dropItemIds: [],
+    colorKey: 'PORTAL_INTER_PORTAL',
+    defaultObjectLayers: [],
+  },
+  {
+    entityType: 'portal',
+    liveItemIds: [],
+    deadItemIds: [],
+    dropItemIds: [],
+    colorKey: 'PORTAL_INTER_RANDOM',
+    defaultObjectLayers: [],
+  },
+  {
+    entityType: 'portal',
+    liveItemIds: [],
+    deadItemIds: [],
+    dropItemIds: [],
+    colorKey: 'PORTAL_INTRA_RANDOM',
+    defaultObjectLayers: [],
+  },
+  {
+    entityType: 'portal',
+    liveItemIds: [],
+    deadItemIds: [],
+    dropItemIds: [],
+    colorKey: 'PORTAL_INTRA_PORTAL',
+    defaultObjectLayers: [],
+  },
+  {
+    entityType: 'foreground',
+    liveItemIds: [],
+    deadItemIds: [],
+    dropItemIds: [],
+    colorKey: 'FOREGROUND',
+    defaultObjectLayers: [],
+  },
   // ── Resource entities ────────────────────────────────────────────
   // Static, exploitable map objects (wood, minerals, organic matter, etc.).
-  // No deadItemIds — destroyed resources simply deactivate all OLs.
-  // On respawn, original OLs are restored from PreRespawnObjectLayers.
-  { entityType: 'resource', liveItemIds: [], deadItemIds: [], colorKey: 'RESOURCE', defaultObjectLayers: [] },
+  // liveItemIds render while alive, deadItemIds while depleted, and dropItemIds
+  // are transferred to the extractor. On respawn, original live OLs are restored.
+  ...RESOURCE_ENTITY_TYPE_DEFAULTS,
 ]);
 
 // ── Instance configuration defaults ─────────────────────────────────────────
@@ -398,7 +479,7 @@ export const CYBERIA_INSTANCE_CONF_DEFAULTS = {
   // Replaces flat fields: userDefaultItemId, botDefaultItemId, ghostItemId,
   // coinItemId, defaultFloorItemId, weaponDefaultItemId.
   // See ENTITY_TYPE_DEFAULTS for documentation of each field.
-  // liveItemIds / deadItemIds are arrays of ObjectLayer item IDs.
+  // liveItemIds / deadItemIds / dropItemIds are arrays of ObjectLayer item IDs.
   entityDefaults: ENTITY_TYPE_DEFAULTS.map((e) => ({ ...e })),
 
   // ── Entity Status Indicators (ESI) ─────────────────────────────────

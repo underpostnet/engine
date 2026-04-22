@@ -51,6 +51,101 @@ function getModels(dbKey) {
   return bucket.mongoose.models;
 }
 
+function countSharedItemIds(source = [], target = []) {
+  if (!Array.isArray(source) || source.length === 0 || !Array.isArray(target) || target.length === 0) {
+    return 0;
+  }
+  const targetSet = new Set(target.filter(Boolean));
+  let count = 0;
+  for (const itemId of source) {
+    if (targetSet.has(itemId)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function normalizeEntityDefault(entityDefault = {}, canonical = {}) {
+  const defaultObjectLayers = entityDefault.defaultObjectLayers ?? canonical.defaultObjectLayers ?? [];
+  return {
+    entityType: entityDefault.entityType ?? canonical.entityType ?? '',
+    liveItemIds: [...(entityDefault.liveItemIds ?? canonical.liveItemIds ?? [])],
+    deadItemIds: [...(entityDefault.deadItemIds ?? canonical.deadItemIds ?? [])],
+    dropItemIds: [...(entityDefault.dropItemIds ?? canonical.dropItemIds ?? [])],
+    colorKey: entityDefault.colorKey ?? canonical.colorKey ?? '',
+    defaultObjectLayers: defaultObjectLayers.map((ol) => ({
+      itemId: ol.itemId || '',
+      active: !!ol.active,
+      quantity: ol.quantity || 0,
+    })),
+  };
+}
+
+function selectCanonicalEntityDefaultIndex(entityDefault, canonicalDefaults, usedIndexes) {
+  const pickBestIndex = (candidateIndexes) => {
+    let firstSameTypeIndex = -1;
+    let bestLiveOverlapIndex = -1;
+    let bestLiveOverlap = 0;
+    let bestLiveItemCount = Number.POSITIVE_INFINITY;
+
+    for (const index of candidateIndexes) {
+      const canonical = canonicalDefaults[index];
+      if (canonical.entityType !== entityDefault.entityType) {
+        continue;
+      }
+      if (firstSameTypeIndex === -1) {
+        firstSameTypeIndex = index;
+      }
+      if (entityDefault.colorKey && canonical.colorKey === entityDefault.colorKey) {
+        return index;
+      }
+
+      const liveOverlap = countSharedItemIds(entityDefault.liveItemIds, canonical.liveItemIds);
+      if (
+        liveOverlap > 0 &&
+        (bestLiveOverlapIndex === -1 ||
+          liveOverlap > bestLiveOverlap ||
+          (liveOverlap === bestLiveOverlap && (canonical.liveItemIds?.length ?? 0) < bestLiveItemCount))
+      ) {
+        bestLiveOverlapIndex = index;
+        bestLiveOverlap = liveOverlap;
+        bestLiveItemCount = canonical.liveItemIds?.length ?? 0;
+      }
+    }
+
+    if (bestLiveOverlapIndex !== -1) {
+      return bestLiveOverlapIndex;
+    }
+    return firstSameTypeIndex;
+  };
+
+  const unusedCandidateIndexes = canonicalDefaults.map((_, index) => index).filter((index) => !usedIndexes.has(index));
+
+  const preferredIndex = pickBestIndex(unusedCandidateIndexes);
+  if (preferredIndex !== -1) {
+    return preferredIndex;
+  }
+  return pickBestIndex(canonicalDefaults.map((_, index) => index));
+}
+
+function mergeEntityDefaults(entityDefaults = []) {
+  const mergedDefaults = ENTITY_TYPE_DEFAULTS.map((canonical) => normalizeEntityDefault(canonical, canonical));
+  const usedCanonicalIndexes = new Set();
+
+  for (const entityDefault of entityDefaults) {
+    const canonicalIndex = selectCanonicalEntityDefaultIndex(entityDefault, ENTITY_TYPE_DEFAULTS, usedCanonicalIndexes);
+    if (canonicalIndex === -1) {
+      mergedDefaults.push(normalizeEntityDefault(entityDefault));
+      continue;
+    }
+
+    mergedDefaults[canonicalIndex] = normalizeEntityDefault(entityDefault, ENTITY_TYPE_DEFAULTS[canonicalIndex]);
+    usedCanonicalIndexes.add(canonicalIndex);
+  }
+
+  return mergedDefaults;
+}
+
 // ── Mongoose doc → protobuf message converters ───────────────────
 
 function toObjectLayerMsg(doc) {
@@ -191,25 +286,10 @@ function toInstanceConfig(gc) {
     }
   }
 
-  // Merge entity defaults: use canonical ENTITY_TYPE_DEFAULTS as base, overlay with
-  // any instance-specific overrides stored in gc.entityDefaults.
+  // Merge entity defaults while preserving duplicate builds (for example,
+  // multiple resource or portal variants sharing the same entityType).
   const gcDefaults = gc.entityDefaults && gc.entityDefaults.length > 0 ? gc.entityDefaults : [];
-  const gcDefaultsMap = Object.fromEntries(gcDefaults.map((d) => [d.entityType, d]));
-  const entityDefaults = ENTITY_TYPE_DEFAULTS.map((canonical) => {
-    const override = gcDefaultsMap[canonical.entityType] ?? {};
-    const dols = override.defaultObjectLayers ?? canonical.defaultObjectLayers ?? [];
-    return {
-      entityType: canonical.entityType,
-      liveItemIds: override.liveItemIds ?? canonical.liveItemIds,
-      deadItemIds: override.deadItemIds ?? canonical.deadItemIds,
-      colorKey: override.colorKey ?? canonical.colorKey,
-      defaultObjectLayers: dols.map((ol) => ({
-        itemId: ol.itemId || '',
-        active: !!ol.active,
-        quantity: ol.quantity || 0,
-      })),
-    };
-  });
+  const entityDefaults = mergeEntityDefaults(gcDefaults);
 
   return {
     cellSize: gc.cellSize ?? fb.cellSize,
@@ -406,6 +486,7 @@ function buildHandlers(dbKey) {
           for (const d of fallbackConf.entityDefaults || []) {
             for (const id of d.liveItemIds || []) fallbackItemIds.add(id);
             for (const id of d.deadItemIds || []) fallbackItemIds.add(id);
+            for (const id of d.dropItemIds || []) fallbackItemIds.add(id);
             for (const ol of d.defaultObjectLayers || []) {
               if (ol.itemId) fallbackItemIds.add(ol.itemId);
             }
@@ -465,6 +546,7 @@ function buildHandlers(dbKey) {
         for (const d of [...ENTITY_TYPE_DEFAULTS, ...(conf.entityDefaults || [])]) {
           for (const id of d.liveItemIds || []) itemIds.add(id);
           for (const id of d.deadItemIds || []) itemIds.add(id);
+          for (const id of d.dropItemIds || []) itemIds.add(id);
           for (const ol of d.defaultObjectLayers || []) {
             if (ol.itemId) itemIds.add(ol.itemId);
           }

@@ -32,6 +32,9 @@ const EntityDefaultSchema = new Schema(
     // Default ObjectLayer item IDs for the dead / ghost / respawning state.
     // Empty array = use liveItemIds solid fill color.
     deadItemIds: { type: [String], default: [] },
+    // Resource-only inventory items granted on extraction/depletion.
+    // These are not auto-activated on the entity itself.
+    dropItemIds: { type: [String], default: [] },
     // Palette key for solid-color fallback when no OL items are assigned.
     colorKey: { type: String, default: '' },
     // Full default ObjectLayer inventory for this entity type.
@@ -197,7 +200,7 @@ const CyberiaInstanceConfSchema = new Schema(
     // ── Entity type rendering defaults ───────────────────────────────
     // Replaces flat fields: userDefaultItemId, botDefaultItemId, ghostItemId,
     // coinItemId, defaultFloorItemId, weaponDefaultItemId.
-    // Each entry: { entityType, liveItemIds, deadItemIds, colorKey }.
+    // Each entry: { entityType, liveItemIds, deadItemIds, dropItemIds, colorKey }.
     entityDefaults: { type: [EntityDefaultSchema], default: D.entityDefaults },
 
     // ── Entity Status Indicators ────────────────────────────────────

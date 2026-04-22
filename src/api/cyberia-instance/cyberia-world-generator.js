@@ -18,15 +18,12 @@
 
 import {
   ENTITY_TYPE_DEFAULTS,
+  RESOURCE_ENTITY_TYPE_DEFAULTS,
 } from '../cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 
 import { DefaultCyberiaItems } from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
 
-import {
-  PORTAL_MODES,
-  PORTAL_MODE_COLOR_KEY,
-  EXTRA_PORTAL_MODES,
-} from './cyberia-portal-connector.js';
+import { PORTAL_MODES, PORTAL_MODE_COLOR_KEY, EXTRA_PORTAL_MODES } from './cyberia-portal-connector.js';
 
 // ── Color helpers ────────────────────────────────────────────────────────────
 
@@ -70,6 +67,15 @@ const PORTAL_COUNT_RANGE = [2, 4];
 
 const DEFAULT_BOT_DIM_RANGE = [2, 3];
 const DEFAULT_FLOOR_TILE_DIM = 4;
+
+function pickDefaultResourceItemIds() {
+  const resourceBuilds = RESOURCE_ENTITY_TYPE_DEFAULTS.filter((build) => build.liveItemIds?.length);
+  if (resourceBuilds.length === 0) {
+    return ['wood'];
+  }
+  const build = resourceBuilds[randInt(0, resourceBuilds.length - 1)];
+  return [...build.liveItemIds];
+}
 
 /** NPC skin pool — all items with type 'skin' from DefaultCyberiaItems. */
 const BOT_SKIN_POOL = DefaultCyberiaItems.filter((e) => e.item.type === 'skin').map((e) => e.item.id);
@@ -280,14 +286,14 @@ function generateForeground(mapDims, colors, opts = {}) {
  * @param {number} [opts.count]         Override count (ignores range).
  * @param {number} [opts.dim=2]         Resource width/height (cells).
  * @param {number} [opts.maxLife=80]     Hit-points before destruction.
- * @param {string[]} [opts.itemIds]     Object layer item IDs (default: ['wood']).
+ * @param {string[]} [opts.itemIds]     Object layer item IDs (default: resource liveItemIds from instance defaults).
  * @param {OccupancyGrid} [opts.grid]   If provided, places resources only on walkable cells.
  * @returns {object[]}  Array of CyberiaEntity plain objects.
  */
 function generateResources(mapDims, colors, opts = {}) {
   const { dim = 2, maxLife = 80 } = opts;
   const count = opts.count ?? randInt(RESOURCE_RANGE[0], RESOURCE_RANGE[1]);
-  const itemIds = opts.itemIds ?? ['wood'];
+  const fixedItemIds = opts.itemIds != null ? [...opts.itemIds] : null;
   const resColor = findColor(colors, 'RESOURCE');
   const rgba = resColor ? colorToRgba(resColor) : 'rgba(100, 180, 80, 1)';
 
@@ -314,7 +320,7 @@ function generateResources(mapDims, colors, opts = {}) {
       dimX: dim,
       dimY: dim,
       color: rgba,
-      objectLayerItemIds: [...itemIds],
+      objectLayerItemIds: fixedItemIds ? [...fixedItemIds] : pickDefaultResourceItemIds(),
       maxLife,
     });
   }
