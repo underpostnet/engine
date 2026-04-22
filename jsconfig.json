@@ -2,7 +2,7 @@
   "compilerOptions": {
     "module": "CommonJS",
     "target": "ES6",
-    "moduleResolution": "Node",
+    "moduleResolution": "bundler",
     "checkJs": false
   },
   "exclude": ["node_modules", "public", "engine-private", "volume"]
