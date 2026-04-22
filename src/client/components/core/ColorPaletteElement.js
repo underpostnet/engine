@@ -2,19 +2,15 @@ const PALETTE_COLUMNS = [
   { name: 'Red', hue: 0 },
   { name: 'Orange', hue: 28 },
   { name: 'Yellow', hue: 52 },
-  { name: 'Lime', hue: 82 },
   { name: 'Green', hue: 132 },
   { name: 'Cyan', hue: 182 },
   { name: 'Blue', hue: 224 },
   { name: 'Violet', hue: 278 },
 ];
 
-const PALETTE_LIGHTNESS = [88, 74, 60, 44, 28];
+const PALETTE_LIGHTNESS = [92, 82, 72, 60, 48, 36, 24];
+const PALETTE_GRAYSCALE_LIGHTNESS = [100, 84, 68, 52, 36, 18, 0];
 const PALETTE_SATURATION = 82;
-const NEUTRAL_SWATCHES = [
-  { name: 'White', value: '#FFFFFF' },
-  { name: 'Black', value: '#000000' },
-];
 
 function clampChannel(value) {
   return Math.max(0, Math.min(255, Math.round(value)));
@@ -81,12 +77,22 @@ function normalizeHex(value) {
 }
 
 function buildPaletteRows() {
-  return PALETTE_LIGHTNESS.map((lightness, rowIndex) =>
-    PALETTE_COLUMNS.map((column) => ({
+  return PALETTE_LIGHTNESS.map((lightness, rowIndex) => {
+    const colorSwatches = PALETTE_COLUMNS.map((column) => ({
       name: `${column.name} ${rowIndex + 1}`,
       value: hslToHex(column.hue, PALETTE_SATURATION, lightness),
-    })),
-  );
+    }));
+    const grayscaleLightness = PALETTE_GRAYSCALE_LIGHTNESS[rowIndex] ?? 0;
+    const grayscaleName =
+      rowIndex === 0 ? 'White' : rowIndex === PALETTE_LIGHTNESS.length - 1 ? 'Black' : `Gray ${rowIndex}`;
+    return [
+      ...colorSwatches,
+      {
+        name: grayscaleName,
+        value: hslToHex(0, 0, grayscaleLightness),
+      },
+    ];
+  });
 }
 
 const PALETTE_ROWS = buildPaletteRows();
@@ -203,19 +209,6 @@ class ColorPaletteElement extends HTMLElement {
       `,
     ).join('');
 
-    const neutralMarkup = NEUTRAL_SWATCHES.map(
-      (swatch) => `
-        <button
-          type="button"
-          class="swatch neutral-swatch"
-          data-color="${swatch.value}"
-          title="${swatch.name} ${swatch.value}"
-          aria-label="${swatch.name} ${swatch.value}"
-          style="background:${swatch.value};"
-        ></button>
-      `,
-    ).join('');
-
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -272,12 +265,6 @@ class ColorPaletteElement extends HTMLElement {
           border-radius: 5px;
         }
 
-        .neutral-row {
-          display: grid;
-          gap: 6px;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
         .current {
           align-items: center;
           display: flex;
@@ -305,7 +292,6 @@ class ColorPaletteElement extends HTMLElement {
       </style>
       <div class="palette">
         <div class="grid">${gridMarkup}</div>
-        <div class="neutral-row">${neutralMarkup}</div>
         <div class="current">
           <div class="current-swatch"></div>
           <div><span class="current-label">Selected</span> <span class="current-value"></span></div>

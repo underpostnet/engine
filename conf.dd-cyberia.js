@@ -204,6 +204,7 @@ const DefaultConf = /**/ {
           'Content',
           'Docs',
           'WebComponent',
+          'ColorPaletteElement',
         ],
         'cyberia-portal': [
           'MenuCyberiaPortal',

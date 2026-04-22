@@ -203,7 +203,7 @@ const ObjectLayerEngineModal = {
       '06': 'Right Idle',
       16: 'Right Walk',
     };
-    const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor', 'resource'];
+    const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor', 'resource', 'obstacle', 'foreground', 'portal'];
     const statTypes = ['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility'];
 
     // Check if we have an 'id' query parameter to load existing object layer
