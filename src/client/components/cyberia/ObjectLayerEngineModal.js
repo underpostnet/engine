@@ -21,7 +21,6 @@ import '../core/ColorPaletteElement.js';
 const ObjectLayerEngineModal = {
   selectItemType: 'skin',
   itemActivable: false,
-  renderIsStateless: false,
   renderFrameDuration: 100,
   existingObjectLayerId: null,
   originalDirectionCodes: [],
@@ -92,7 +91,6 @@ const ObjectLayerEngineModal = {
     this.ObjectLayerData = {};
     this.selectItemType = 'skin';
     this.itemActivable = false;
-    this.renderIsStateless = false;
     this.renderFrameDuration = 100;
     this.existingObjectLayerId = null;
     this.originalDirectionCodes = [];
@@ -132,9 +130,6 @@ const ObjectLayerEngineModal = {
     // Reset toggle switches with correct IDs
     const activableCheckbox = s('#ol-toggle-item-activable');
     if (activableCheckbox) activableCheckbox.checked = false;
-
-    const statelessCheckbox = s('#ol-toggle-render-is-stateless');
-    if (statelessCheckbox) statelessCheckbox.checked = false;
 
     // Clear stat inputs with correct IDs
     const statTypes = Object.keys(ObjectLayerEngineModal.statDescriptions);
@@ -332,7 +327,6 @@ const ObjectLayerEngineModal = {
             }
           }
           if (objectLayerRenderFramesId) {
-            ObjectLayerEngineModal.renderIsStateless = objectLayerRenderFramesId.is_stateless || false;
             ObjectLayerEngineModal.renderFrameDuration = objectLayerRenderFramesId.frame_duration || 100;
           }
         }
@@ -827,7 +821,6 @@ const ObjectLayerEngineModal = {
           frames: {},
           colors: [],
           frame_duration: ObjectLayerEngineModal.renderFrameDuration,
-          is_stateless: ObjectLayerEngineModal.renderIsStateless,
         };
 
         const objectLayer = {
@@ -873,7 +866,6 @@ const ObjectLayerEngineModal = {
           }
         }
         objectLayerRenderFramesData.frame_duration = parseInt(s(`.ol-input-render-frame-duration`).value);
-        objectLayerRenderFramesData.is_stateless = ObjectLayerEngineModal.renderIsStateless;
         objectLayer.data.stats = {
           effect: parseInt(s(`.ol-input-item-stats-effect`).value),
           resistance: parseInt(s(`.ol-input-item-stats-resistance`).value),
@@ -1217,25 +1209,6 @@ const ObjectLayerEngineModal = {
                 max: 1000,
                 placeholder: true,
                 value: ObjectLayerEngineModal.renderFrameDuration,
-              })}
-            </div>
-            <div class="in section-mp">
-              ${await ToggleSwitch.Render({
-                id: 'ol-toggle-render-is-stateless',
-                wrapper: true,
-                wrapperLabel: html`${Translate.Render('is-stateless')}`,
-                disabledOnClick: true,
-                checked: ObjectLayerEngineModal.renderIsStateless,
-                on: {
-                  unchecked: () => {
-                    ObjectLayerEngineModal.renderIsStateless = false;
-                    console.warn('renderIsStateless', ObjectLayerEngineModal.renderIsStateless);
-                  },
-                  checked: () => {
-                    ObjectLayerEngineModal.renderIsStateless = true;
-                    console.warn('renderIsStateless', ObjectLayerEngineModal.renderIsStateless);
-                  },
-                },
               })}
             </div>
           </div>

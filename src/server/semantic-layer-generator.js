@@ -544,12 +544,28 @@ export function generateFrame(options) {
         const shapeSeed = `${seed}:${itemId}:${layerKey}:${ei}`;
 
         stampShape(
-          compositeMatrix, compositeColors, shapeKey, transform, color,
-          spec.noiseLevel * (spec.jitter + 0.5), spec.detailLevel, shapeSeed, spec.fill, spec.shapeParams,
+          compositeMatrix,
+          compositeColors,
+          shapeKey,
+          transform,
+          color,
+          spec.noiseLevel * (spec.jitter + 0.5),
+          spec.detailLevel,
+          shapeSeed,
+          spec.fill,
+          spec.shapeParams,
         );
         stampShape(
-          layerMatrix, layerColors, shapeKey, transform, color,
-          spec.noiseLevel * 0.5, spec.detailLevel, shapeSeed, spec.fill, spec.shapeParams,
+          layerMatrix,
+          layerColors,
+          shapeKey,
+          transform,
+          color,
+          spec.noiseLevel * 0.5,
+          spec.detailLevel,
+          shapeSeed,
+          spec.fill,
+          spec.shapeParams,
         );
 
         layerEntries.push({ type: 'shape', shapeKey, transform, color, shapeSeed });
@@ -638,9 +654,7 @@ export function generateMultiFrame(options) {
     const mapping = {};
     for (let ci = 0; ci < frame.compositeColors.length; ci++) {
       const c = frame.compositeColors[ci];
-      let found = globalColors.findIndex(
-        (gc) => gc[0] === c[0] && gc[1] === c[1] && gc[2] === c[2] && gc[3] === c[3],
-      );
+      let found = globalColors.findIndex((gc) => gc[0] === c[0] && gc[1] === c[1] && gc[2] === c[2] && gc[3] === c[3]);
       if (found < 0) {
         globalColors.push([...c]);
         found = globalColors.length - 1;
@@ -657,7 +671,6 @@ export function generateMultiFrame(options) {
 
   const objectLayerRenderFramesData = {
     frame_duration: frameDuration,
-    is_stateless: descriptor.itemType === 'floor',
     frames: {},
     colors: globalColors,
   };
@@ -727,4 +740,14 @@ function hashMod(str, mod) {
  *  EXPORTS
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-export { hashString, deriveLayerSeed, deriveFrameSeed, pickColor, pickShape, seedToUUIDv4, GRID_DIM, semanticRegistry, BIOME_PALETTES };
+export {
+  hashString,
+  deriveLayerSeed,
+  deriveFrameSeed,
+  pickColor,
+  pickShape,
+  seedToUUIDv4,
+  GRID_DIM,
+  semanticRegistry,
+  BIOME_PALETTES,
+};

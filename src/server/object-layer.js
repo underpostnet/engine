@@ -34,7 +34,6 @@ const logger = loggerFactory(import.meta);
  * @property {Object<string, number[][][]>} frames - Map of direction names to arrays of frame matrices.
  * @property {Array<number[]>} colors - Global color palette shared across all frames.
  * @property {number} frame_duration - Duration of each frame in milliseconds.
- * @property {boolean} is_stateless - Whether the render layer is stateless (no animation state).
  * @memberof CyberiaObjectLayer
  */
 
@@ -414,21 +413,18 @@ export class ObjectLayerEngine {
     if (metadata && metadata.objectLayerRenderFramesData) {
       objectLayerRenderFramesData = {
         frame_duration: metadata.objectLayerRenderFramesData.frame_duration || 250,
-        is_stateless: metadata.objectLayerRenderFramesData.is_stateless || false,
         frames: {},
         colors: [],
       };
     } else if (metadata && metadata.data && metadata.data.render) {
       objectLayerRenderFramesData = {
         frame_duration: metadata.data.render.frame_duration || 250,
-        is_stateless: metadata.data.render.is_stateless || false,
         frames: {},
         colors: [],
       };
     } else {
       objectLayerRenderFramesData = {
         frame_duration: 250,
-        is_stateless: false,
         frames: {},
         colors: [],
       };
@@ -559,7 +555,7 @@ export class ObjectLayerEngine {
    * @param {string} params.itemId   - Unique item identifier.
    * @param {ObjectLayerRenderFramesData} params.objectLayerRenderFramesData
    *   - The render frames data containing `frames`, `colors`,
-   *     `frame_duration` and `is_stateless`.
+   *     and `frame_duration`.
    * @param {Object} [params.objectLayerData=null] - When provided, a
    *   `metadata.json` file is written alongside the frame PNGs.
    * @param {number} [params.cellPixelDim=20] - Pixel size per grid cell.
@@ -623,7 +619,6 @@ export class ObjectLayerEngine {
             data: objectLayerData.data,
             objectLayerRenderFramesData: {
               frame_duration: objectLayerRenderFramesData.frame_duration,
-              is_stateless: objectLayerRenderFramesData.is_stateless,
             },
             generated: true,
             generatorVersion: '1.0.0',

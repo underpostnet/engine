@@ -57,7 +57,6 @@ const ObjectLayerRenderFramesDirectionsSchema = new Schema(
  * @property {RenderFrames} frames - Animation frames for different states
  * @property {number[][]} colors - Color palette for rendering
  * @property {number} frame_duration - Duration of each frame in milliseconds
- * @property {boolean} is_stateless - Whether the render is stateless
  * @property {Date} createdAt - When the document was created
  * @property {Date} updatedAt - When the document was last updated
  * @memberof CyberiaObjectLayerRenderFramesModel
@@ -67,7 +66,6 @@ const ObjectLayerRenderFramesSchema = new Schema(
     frames: { type: ObjectLayerRenderFramesDirectionsSchema, required: true },
     colors: { type: [[Number]], required: true },
     frame_duration: { type: Number, required: true, min: 0 },
-    is_stateless: { type: Boolean, default: false },
   },
   {
     timestamps: true,
@@ -92,10 +90,10 @@ const ProviderSchema = ObjectLayerRenderFramesSchema;
 const ObjectLayerRenderFramesDto = {
   select: {
     get: () => {
-      return { _id: 1, frame_duration: 1, is_stateless: 1 };
+      return { _id: 1, frame_duration: 1 };
     },
     getFull: () => {
-      return { _id: 1, frames: 1, colors: 1, frame_duration: 1, is_stateless: 1 };
+      return { _id: 1, frames: 1, colors: 1, frame_duration: 1 };
     },
   },
 };

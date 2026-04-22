@@ -569,7 +569,7 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
     //     Each pixel sits one step outside the body silhouette and is closed
     //     with a black tip pixel for pixel-art definition.
     {
-      const rngDist   = lcgRng(hashStr(`${seed}:${itemId}:hair-distort-${dirLabel}`));
+      const rngDist = lcgRng(hashStr(`${seed}:${itemId}:hair-distort-${dirLabel}`));
       // Collect the outermost border column per hair row.
       const borderInHair = zones.border.filter(([, y]) => y <= palette.hairDepth);
       const bhrMap = new Map();
@@ -579,14 +579,14 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
         b.max = Math.max(b.max, x);
         bhrMap.set(y, b);
       }
-      const bhrRows    = [...bhrMap.keys()];
+      const bhrRows = [...bhrMap.keys()];
       const numDistort = 5 + Math.floor(rngDist() * 5); // 5–9
       for (let i = 0; i < numDistort; i++) {
-        const y   = bhrRows[Math.floor(rngDist() * bhrRows.length)];
+        const y = bhrRows[Math.floor(rngDist() * bhrRows.length)];
         const bnd = bhrMap.get(y);
         if (!bnd) continue;
         const side = rngDist() < 0.5 ? -1 : 1;
-        const px   = side < 0 ? bnd.min - 1 : bnd.max + 1;
+        const px = side < 0 ? bnd.min - 1 : bnd.max + 1;
         if (px >= 0 && px < SKIN_GRID_DIM && matrix[y][px] !== hairIdx) {
           matrix[y][px] = hairIdx;
           const bx = px + side;
@@ -601,8 +601,8 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
     //     at the center row (3 px outward) and tapers to 1 px at the extremes.
     //     Per-row 40 % width bonus + 30 % extra distortion pixel per side.
     {
-      const CROWN_Y  = 7;
-      const crownW   = [3, 2, 2, 1]; // base width at |dy| = 0, 1, 2, 3
+      const CROWN_Y = 7;
+      const crownW = [3, 2, 2, 1]; // base width at |dy| = 0, 1, 2, 3
       const rngCrown = lcgRng(hashStr(`${seed}:${itemId}:crown-side-${dirLabel}`));
 
       for (let dy = -3; dy <= 3; dy++) {
@@ -668,9 +668,15 @@ function buildDirectionMatrix(zones, palette, globalColors, seed, itemId, dirLab
       for (let dx = -1; dx <= 1 && !isOuter; dx++) {
         for (let dy = -1; dy <= 1 && !isOuter; dy++) {
           if (dx === 0 && dy === 0) continue;
-          const nx = bx + dx, ny = by + dy;
-          if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM ||
-              (!skinSet.has(`${nx},${ny}`) && !borderSet.has(`${nx},${ny}`)))
+          const nx = bx + dx,
+            ny = by + dy;
+          if (
+            nx < 0 ||
+            nx >= SKIN_GRID_DIM ||
+            ny < 0 ||
+            ny >= SKIN_GRID_DIM ||
+            (!skinSet.has(`${nx},${ny}`) && !borderSet.has(`${nx},${ny}`))
+          )
             isOuter = true;
         }
       }
@@ -814,9 +820,10 @@ function buildUpDirectionMatrix(zones, palette, globalColors, seed, itemId) {
         for (let dx = -1; dx <= 1 && !isOuter; dx++) {
           for (let dy = -1; dy <= 1 && !isOuter; dy++) {
             if (dx === 0 && dy === 0) continue;
-            const nx = bx + dx, ny = by + dy;
-            if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM ||
-                !bodySet.has(`${nx},${ny}`)) isOuter = true;
+            const nx = bx + dx,
+              ny = by + dy;
+            if (nx < 0 || nx >= SKIN_GRID_DIM || ny < 0 || ny >= SKIN_GRID_DIM || !bodySet.has(`${nx},${ny}`))
+              isOuter = true;
           }
         }
         if (isOuter && rngBorder() < 0.75) matrix[by][bx] = hairIdx;
@@ -912,15 +919,15 @@ function buildUpDirectionMatrix(zones, palette, globalColors, seed, itemId) {
     //     head silhouette for organic texture.  Identical approach to 2e in
     //     buildDirectionMatrix, using headBounds for column references.
     {
-      const rngDist    = lcgRng(hashStr(`${seed}:${itemId}:hair-distort-up`));
-      const hbKeys     = [...headBounds.keys()];
+      const rngDist = lcgRng(hashStr(`${seed}:${itemId}:hair-distort-up`));
+      const hbKeys = [...headBounds.keys()];
       const numDistort = 5 + Math.floor(rngDist() * 5);
       for (let i = 0; i < numDistort; i++) {
-        const y   = hbKeys[Math.floor(rngDist() * hbKeys.length)];
+        const y = hbKeys[Math.floor(rngDist() * hbKeys.length)];
         const bnd = headBounds.get(y);
         if (!bnd) continue;
         const side = rngDist() < 0.5 ? -1 : 1;
-        const px   = side < 0 ? bnd.min - 1 : bnd.max + 1;
+        const px = side < 0 ? bnd.min - 1 : bnd.max + 1;
         if (px >= 0 && px < SKIN_GRID_DIM && matrix[y][px] !== hairIdx) {
           matrix[y][px] = hairIdx;
           const bx = px + side;
@@ -933,8 +940,8 @@ function buildUpDirectionMatrix(zones, palette, globalColors, seed, itemId) {
     //     same 7-row arc centered at y=7, using headBounds for the silhouette
     //     edge reference instead of zones.border.
     {
-      const CROWN_Y  = 7;
-      const crownW   = [3, 2, 2, 1];
+      const CROWN_Y = 7;
+      const crownW = [3, 2, 2, 1];
       const rngCrown = lcgRng(hashStr(`${seed}:${itemId}:crown-side-up`));
 
       for (let dy = -3; dy <= 3; dy++) {
@@ -1160,7 +1167,6 @@ function generateSkinMultiFrame(options, _descriptor) {
 
   const objectLayerRenderFramesData = {
     frame_duration: frameDuration,
-    is_stateless: false,
     frames: {
       // DOWN (08) idle
       down_idle: makeIdleArray(matrices.down),
