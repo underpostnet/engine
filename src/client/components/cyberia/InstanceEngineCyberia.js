@@ -40,7 +40,9 @@ class InstanceEngineCyberia {
           (${portal.sourceCellX}, ${portal.sourceCellY})
           <span style="margin:0 4px;">&rarr;</span>
           <span style="color:${darkTheme ? '#fc8' : '#842'};">${portal.targetMapCode}</span>
-          ${portal.targetCellX < 0 || portal.targetCellY < 0 ? '<span style="color:#aaa;">(random)</span>' : `(${portal.targetCellX}, ${portal.targetCellY})`}
+          ${portal.targetCellX < 0 || portal.targetCellY < 0
+            ? '<span style="color:#aaa;">(random)</span>'
+            : `(${portal.targetCellX}, ${portal.targetCellY})`}
           <span style="color:${darkTheme ? '#9e9' : '#383'};margin-left:4px;font-size:11px;"
             >[${portal.portalMode || 'inter-portal'}]</span
           >
@@ -143,7 +145,7 @@ class InstanceEngineCyberia {
       return payload;
     };
 
-    const saveInstance = async () => {
+    const persistInstance = async ({ notify = true } = {}) => {
       // Upload thumbnail file only if user selected a new one
       const thumbnailInput = s(`.${idThumbnail}`);
       if (
@@ -158,34 +160,44 @@ class InstanceEngineCyberia {
         if (uploadResult.status === 'success' && uploadResult.data && uploadResult.data.length > 0) {
           InstanceEngineCyberia.currentThumbnailId = uploadResult.data[0]._id;
         } else {
-          NotificationManager.Push({
-            html: uploadResult.message || 'Failed to upload thumbnail',
-            status: 'error',
-          });
-          return;
+          if (notify) {
+            NotificationManager.Push({
+              html: uploadResult.message || 'Failed to upload thumbnail',
+              status: 'error',
+            });
+          }
+          return uploadResult;
         }
       }
 
       const body = getInstancePayload();
+      const isUpdate = !!InstanceEngineCyberia.currentInstanceId;
       let result;
-      if (InstanceEngineCyberia.currentInstanceId) {
+      if (isUpdate) {
         result = await CyberiaInstanceService.put({ id: InstanceEngineCyberia.currentInstanceId, body });
       } else {
         result = await CyberiaInstanceService.post({ body });
       }
-      NotificationManager.Push({
-        html:
-          result.status === 'error'
-            ? result.message
-            : InstanceEngineCyberia.currentInstanceId
-              ? Translate.Render('success-update-item')
-              : Translate.Render('success-create-item'),
-        status: result.status,
-      });
+      if (notify) {
+        NotificationManager.Push({
+          html:
+            result.status === 'error'
+              ? result.message
+              : isUpdate
+                ? Translate.Render('success-update-item')
+                : Translate.Render('success-create-item'),
+          status: result.status,
+        });
+      }
       if (result.status === 'success') {
         if (result.data?._id) InstanceEngineCyberia.currentInstanceId = result.data._id;
         await DefaultManagement.loadTable(managementId, { force: true, reload: true });
       }
+      return result;
+    };
+
+    const saveInstance = async () => {
+      await persistInstance({ notify: true });
     };
 
     const loadInstance = async (instanceData) => {
@@ -329,16 +341,17 @@ class InstanceEngineCyberia {
       // Portal management
       if (s(`.btn-instance-engine-portal-connect`))
         s(`.btn-instance-engine-portal-connect`).onclick = async () => {
-          if (!InstanceEngineCyberia.currentInstanceId) {
-            NotificationManager.Push({
-              html: Translate.Render('save-instance-first') || 'Save the instance first.',
-              status: 'warning',
-            });
-            return;
-          }
           const btn = s(`.btn-instance-engine-portal-connect`);
           if (btn) btn.disabled = true;
           try {
+            const persistResult = await persistInstance({ notify: false });
+            if (!persistResult || persistResult.status !== 'success' || !InstanceEngineCyberia.currentInstanceId) {
+              NotificationManager.Push({
+                html: persistResult?.message || Translate.Render('save-instance-first') || 'Save the instance first.',
+                status: persistResult?.status === 'error' ? 'error' : 'warning',
+              });
+              return;
+            }
             const result = await CyberiaInstanceService.portalConnect({ id: InstanceEngineCyberia.currentInstanceId });
             if (result.status === 'error') {
               NotificationManager.Push({ html: result.message, status: 'error' });
