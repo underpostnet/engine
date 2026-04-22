@@ -81,6 +81,7 @@ const DirectionFramesSchema = new Schema(
  * @property {number} metadata.atlasWidth - Total atlas width in pixels
  * @property {number} metadata.atlasHeight - Total atlas height in pixels
  * @property {number} metadata.cellPixelDim - Pixel dimension of each cell
+ * @property {number} metadata.frame_duration - Duration of each frame in milliseconds
  * @property {DirectionFrames} metadata.frames - Frame positions in atlas by direction
  * @property {Date} createdAt - When the document was created
  * @property {Date} updatedAt - When the document was last updated
@@ -103,6 +104,7 @@ const AtlasSpriteSheetSchema = new Schema(
       atlasWidth: { type: Number, required: true, min: 1 },
       atlasHeight: { type: Number, required: true, min: 1 },
       cellPixelDim: { type: Number, required: true, min: 1, default: 20 },
+      frame_duration: { type: Number, min: 0, default: 100 },
       frames: { type: DirectionFramesSchema, required: true },
     },
   },
@@ -151,6 +153,7 @@ const AtlasSpriteSheetDto = {
         'metadata.atlasWidth': 1,
         'metadata.atlasHeight': 1,
         'metadata.cellPixelDim': 1,
+        'metadata.frame_duration': 1,
         'metadata.frames': 1,
         createdAt: 1,
         updatedAt: 1,

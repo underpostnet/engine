@@ -8,6 +8,46 @@ import { IpfsClient } from '../../server/ipfs-client.js';
 import { createPinRecord, removePinRecordsAndUnpin } from '../ipfs/ipfs.service.js';
 
 const logger = loggerFactory(import.meta);
+const DEFAULT_ATLAS_FRAME_DURATION = 100;
+
+function parseAtlasFrameDuration(value) {
+  const frameDuration = Number(value);
+  return Number.isFinite(frameDuration) ? frameDuration : null;
+}
+
+async function resolveAtlasFrameDuration(ObjectLayer, itemKey) {
+  if (!itemKey) return DEFAULT_ATLAS_FRAME_DURATION;
+
+  const objectLayer = await ObjectLayer.findOne({ 'data.item.id': itemKey })
+    .select({ _id: 1, objectLayerRenderFramesId: 1 })
+    .populate('objectLayerRenderFramesId', { _id: 1, frame_duration: 1 })
+    .lean();
+
+  return parseAtlasFrameDuration(objectLayer?.objectLayerRenderFramesId?.frame_duration) || DEFAULT_ATLAS_FRAME_DURATION;
+}
+
+async function withResolvedAtlasFrameDuration(doc, ObjectLayer) {
+  if (!doc?.metadata) return doc;
+
+  const frameDuration = parseAtlasFrameDuration(doc.metadata.frame_duration);
+  if (frameDuration !== null) {
+    return {
+      ...doc,
+      metadata: {
+        ...doc.metadata,
+        frame_duration: frameDuration,
+      },
+    };
+  }
+
+  return {
+    ...doc,
+    metadata: {
+      ...doc.metadata,
+      frame_duration: await resolveAtlasFrameDuration(ObjectLayer, doc.metadata.itemKey),
+    },
+  };
+}
 
 const AtlasSpriteSheetService = {
   blob: async (req, res, options) => {
@@ -244,6 +284,8 @@ const AtlasSpriteSheetService = {
   // Returns atlas metadata (layout + frames) for the client.
   // Client fetches this once per itemKey, caches it, then fetches the PNG blob.
   getMetadata: async (req, res, options) => {
+    /** @type {import('../object-layer/object-layer.model.js').ObjectLayerModel} */
+    const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */
     const AtlasSpriteSheet =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.AtlasSpriteSheet;
@@ -253,7 +295,7 @@ const AtlasSpriteSheetService = {
         .select(AtlasSpriteSheetDto.select.getMetadataOnly())
         .lean();
       if (!doc) throw new Error(`Atlas not found for itemKey: ${req.params.itemKey}`);
-      return doc;
+      return await withResolvedAtlasFrameDuration(doc, ObjectLayer);
     }
 
     const { query, sort, skip, limit, page } = DataQuery.parse(req.query);
@@ -269,7 +311,18 @@ const AtlasSpriteSheetService = {
     ]);
 
     const totalPages = Math.ceil(total / limit);
-    return { data, total, page, totalPages };
+    return {
+      data: data.map((doc) => ({
+        ...doc,
+        metadata: {
+          ...doc.metadata,
+          frame_duration: parseAtlasFrameDuration(doc?.metadata?.frame_duration) || DEFAULT_ATLAS_FRAME_DURATION,
+        },
+      })),
+      total,
+      page,
+      totalPages,
+    };
   },
   put: async (req, res, options) => {
     /** @type {import('./atlas-sprite-sheet.model.js').AtlasSpriteSheetModel} */

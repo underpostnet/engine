@@ -154,11 +154,6 @@ function toObjectLayerMsg(doc) {
   const stats = d.stats || {};
   const ledger = d.ledger || {};
   const render = d.render || {};
-  const rf = doc.objectLayerRenderFramesId;
-  let frameDuration = 250;
-  if (rf && typeof rf === 'object') {
-    if (rf.frame_duration != null) frameDuration = rf.frame_duration;
-  }
   return {
     mongoId: String(doc._id),
     stats: {
@@ -186,7 +181,6 @@ function toObjectLayerMsg(doc) {
     },
     sha256: doc.sha256 || '',
     cid: doc.cid || '',
-    frameDuration,
   };
 }
 
@@ -406,7 +400,6 @@ function buildHandlers(dbKey) {
           filter['data.item.type'] = call.request.itemTypeFilter;
         }
         const cursor = models.ObjectLayer.find(filter)
-          .populate('objectLayerRenderFramesId', { _id: 1, frame_duration: 1 })
           .lean()
           .cursor();
         for await (const doc of cursor) {
@@ -423,7 +416,6 @@ function buildHandlers(dbKey) {
       try {
         const models = getModels(dbKey);
         const doc = await models.ObjectLayer.findOne({ 'data.item.id': call.request.itemId })
-          .populate('objectLayerRenderFramesId', { _id: 1, frame_duration: 1 })
           .lean();
         if (!doc)
           return callback({ code: grpc.status.NOT_FOUND, message: `ObjectLayer "${call.request.itemId}" not found` });
@@ -491,7 +483,6 @@ function buildHandlers(dbKey) {
 
           const fallbackOlDocs = fallbackItemIds.size
             ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...fallbackItemIds] } })
-                .populate('objectLayerRenderFramesId', { _id: 1, frame_duration: 1 })
                 .lean()
             : [];
 
@@ -551,7 +542,6 @@ function buildHandlers(dbKey) {
 
         const olDocs = itemIds.size
           ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...itemIds] } })
-              .populate('objectLayerRenderFramesId', { _id: 1, frame_duration: 1 })
               .lean()
           : [];
 

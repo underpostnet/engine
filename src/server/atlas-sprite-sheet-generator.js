@@ -133,6 +133,7 @@ export class AtlasSpriteSheetGenerator {
    */
   static async generateAtlas(objectLayerRenderFrames, itemKey, cellPixelDim = 20, maxAtlasDim = null) {
     const { frames, colors } = objectLayerRenderFrames;
+    const frameDuration = Number(objectLayerRenderFrames?.frame_duration);
 
     // Direction order for consistent packing
     const directionOrder = [
@@ -272,6 +273,7 @@ export class AtlasSpriteSheetGenerator {
       atlasWidth,
       atlasHeight,
       cellPixelDim,
+      frame_duration: Number.isFinite(frameDuration) ? frameDuration : 100,
       frames: frameMetadata,
     };
 
