@@ -235,6 +235,7 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (this._aInput) this._aInput.value = String(this._brushColor[3]);
     if (this._opacityRange) this._opacityRange.value = String(this._brushColor[3]);
     if (this._opacityNumber) this._opacityNumber.value = String(this._brushColor[3]);
+    this._emitBrushColorChange();
 
     // UI events
     this._colorInput.addEventListener('input', (e) => {
@@ -617,6 +618,11 @@ class ObjectLayerEngineElement extends HTMLElement {
     if (this._aInput) this._aInput.value = String(this._brushColor[3]);
     if (this._opacityRange) this._opacityRange.value = String(this._brushColor[3]);
     if (this._opacityNumber) this._opacityNumber.value = String(this._brushColor[3]);
+    this._emitBrushColorChange();
+  }
+
+  getBrushColor() {
+    return this._brushColor.slice();
   }
 
   // set brush alpha (0-255)
@@ -629,9 +635,22 @@ class ObjectLayerEngineElement extends HTMLElement {
     // keep color input (hex) representing rgb only
     if (this._colorInput) this._colorInput.value = this._rgbaToHex(this._brushColor);
     if (this._hexInput) this._hexInput.value = this._rgbaToHexWithAlpha(this._brushColor);
+    this._emitBrushColorChange();
   }
   getBrushAlpha() {
     return this._brushColor[3];
+  }
+
+  _emitBrushColorChange() {
+    this.dispatchEvent(
+      new CustomEvent('brushcolorchange', {
+        detail: {
+          rgba: this._brushColor.slice(),
+          hex: this._rgbaToHex(this._brushColor),
+          hexWithAlpha: this._rgbaToHexWithAlpha(this._brushColor),
+        },
+      }),
+    );
   }
 
   setBrushSize(n) {

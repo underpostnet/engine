@@ -13,6 +13,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { getProxyPath } from '../core/Router.js';
+import '../core/ColorPaletteElement.js';
 
 class MapEngineCyberia {
   static entities = [];
@@ -288,6 +289,7 @@ class MapEngineCyberia {
     const idDimX = 'map-engine-dim-x';
     const idDimY = 'map-engine-dim-y';
     const idColor = 'map-engine-color';
+    const idColorPalette = 'map-engine-color-palette';
     const idAlpha = 'map-engine-alpha';
     const idFactorA = 'map-engine-factor-a';
     const idFactorB = 'map-engine-factor-b';
@@ -792,6 +794,14 @@ class MapEngineCyberia {
       const canvas = s(`.${canvasId}`);
       if (!canvas) return;
 
+      const syncPaletteFromColorInput = () => {
+        const colorPalette = s(`.${idColorPalette}`);
+        const hex = (s(`.${idColor}`)?.value || '#ff0000').toUpperCase();
+        if (colorPalette && colorPalette.value !== hex) {
+          colorPalette.value = hex;
+        }
+      };
+
       const updateRgbaDisplay = () => {
         const hex = s(`.${idColor}`)?.value || '#ff0000';
         const alpha = parseFloat(s(`.${idAlpha}`)?.value);
@@ -801,10 +811,20 @@ class MapEngineCyberia {
             `.${rgbaDisplayId}`,
             `<span style="display:inline-block;width:16px;height:16px;background:${rgba};border:1px solid #888;vertical-align:middle;margin-right:6px;"></span>${rgba}`,
           );
+        syncPaletteFromColorInput();
       };
 
       if (s(`.${idColor}`)) s(`.${idColor}`).addEventListener('input', updateRgbaDisplay);
       if (s(`.${idAlpha}`)) s(`.${idAlpha}`).addEventListener('input', updateRgbaDisplay);
+      if (s(`.${idColorPalette}`)) {
+        s(`.${idColorPalette}`).addEventListener('colorchange', (event) => {
+          const nextHex = (event.detail?.value || event.detail?.hex || '#ff0000').toLowerCase();
+          if (s(`.${idColor}`) && s(`.${idColor}`).value !== nextHex) {
+            s(`.${idColor}`).value = nextHex;
+            s(`.${idColor}`).dispatchEvent(new Event('input'));
+          }
+        });
+      }
       updateRgbaDisplay();
 
       const params = getCanvasParams();
@@ -1259,6 +1279,10 @@ class MapEngineCyberia {
             <div class="in input-label">RGBA</div>
             <div class="in ${rgbaDisplayId}" style="font-family: monospace; font-size: 13px;"></div>
           </div>
+        </div>
+        <div class="in section-mp-border" style="margin-top: 10px;">
+          <div class="in input-label">Color Palette</div>
+          <color-palette class="${idColorPalette}" value="#FF0000"></color-palette>
         </div>
         ${dynamicCol({ containerSelector: 'map-engine-container', id: dcCellPos, type: 'a-50-b-50' })}
         <div class="fl">

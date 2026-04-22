@@ -16,6 +16,7 @@ import { Modal } from '../core/Modal.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import * as _ from '../cyberia/ObjectLayerEngine.js';
+import '../core/ColorPaletteElement.js';
 
 const ObjectLayerEngineModal = {
   selectItemType: 'skin',
@@ -367,6 +368,20 @@ const ObjectLayerEngineModal = {
     const pixelSize = parseInt(320 / Math.max(cellsW, cellsH));
     const idSectionA = 'template-section-a';
     const idSectionB = 'template-section-b';
+    const colorPaletteClass = 'ol-color-palette';
+
+    const rgbaToHex = (rgba = [0, 0, 0]) => {
+      const red = Math.max(0, Math.min(255, rgba[0] || 0))
+        .toString(16)
+        .padStart(2, '0');
+      const green = Math.max(0, Math.min(255, rgba[1] || 0))
+        .toString(16)
+        .padStart(2, '0');
+      const blue = Math.max(0, Math.min(255, rgba[2] || 0))
+        .toString(16)
+        .padStart(2, '0');
+      return `#${red}${green}${blue}`.toUpperCase();
+    };
 
     let directionsCodeBarRender = '';
 
@@ -737,6 +752,40 @@ const ObjectLayerEngineModal = {
 
       await loadFrames();
       s('object-layer-engine').clear();
+
+      const editor = s('object-layer-engine');
+      const colorPalette = s(`.${colorPaletteClass}`);
+
+      const syncPaletteFromEditor = (event = null) => {
+        if (!colorPalette || !editor) {
+          return;
+        }
+        const nextHex = event?.detail?.hex || rgbaToHex(editor.getBrushColor?.());
+        if (nextHex && colorPalette.value !== nextHex) {
+          colorPalette.value = nextHex;
+        }
+      };
+
+      const syncEditorFromPalette = (event) => {
+        if (!editor) {
+          return;
+        }
+        const nextHex = event.detail?.value || event.detail?.hex;
+        if (!nextHex) {
+          return;
+        }
+        const [red, green, blue] = hexToRgbA(nextHex);
+        const alpha = editor.getBrushAlpha?.() ?? editor.getBrushColor?.()?.[3] ?? 255;
+        editor.setBrushColor([red, green, blue, alpha]);
+      };
+
+      if (colorPalette) {
+        colorPalette.addEventListener('colorchange', syncEditorFromPalette);
+      }
+      if (editor) {
+        editor.addEventListener('brushcolorchange', syncPaletteFromEditor);
+      }
+      syncPaletteFromEditor();
 
       const persistObjectLayer = async ({ clone = false } = {}) => {
         const isUpdateMode = Boolean(ObjectLayerEngineModal.existingObjectLayerId) && !clone;
@@ -1125,6 +1174,10 @@ const ObjectLayerEngineModal = {
 
         <object-layer-engine id="ole" width="${cellsW}" height="${cellsH}" pixel-size="${pixelSize}">
         </object-layer-engine>
+        <div class="in section-mp-border" style="margin-top: 10px;">
+          <div class="in sub-title-modal"><i class="fa-solid fa-palette"></i> Brush palette</div>
+          <color-palette class="${colorPaletteClass}" value="#FF0000"></color-palette>
+        </div>
         <object-layer-png-loader id="loader" editor-selector="#ole"></object-layer-png-loader>
       </div>
 
