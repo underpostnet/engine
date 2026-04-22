@@ -738,7 +738,9 @@ const ObjectLayerEngineModal = {
       await loadFrames();
       s('object-layer-engine').clear();
 
-      EventsUI.onClick(`.ol-btn-save`, async () => {
+      const persistObjectLayer = async ({ clone = false } = {}) => {
+        const isUpdateMode = Boolean(ObjectLayerEngineModal.existingObjectLayerId) && !clone;
+
         // Validate minimum frame_duration 100ms
         const frameDuration = parseInt(s(`.ol-input-render-frame-duration`).value);
         if (!frameDuration || frameDuration < 100) {
@@ -838,15 +840,15 @@ const ObjectLayerEngineModal = {
           description: s(`.ol-input-item-description`).value,
         };
 
-        // Add _id if we're updating an existing object layer
-        if (ObjectLayerEngineModal.existingObjectLayerId) {
+        // Add _id only when updating the existing object layer.
+        if (isUpdateMode) {
           objectLayer._id = ObjectLayerEngineModal.existingObjectLayerId;
         }
 
         console.warn(
           'objectLayer',
           objectLayer,
-          ObjectLayerEngineModal.existingObjectLayerId ? '(UPDATE MODE)' : '(CREATE MODE)',
+          clone ? '(CLONE MODE)' : isUpdateMode ? '(UPDATE MODE)' : '(CREATE MODE)',
         );
 
         if (appStore.Data.user.main.model.user.role === 'guest') {
@@ -863,14 +865,14 @@ const ObjectLayerEngineModal = {
           const directionCodesToUpload = Object.keys(ObjectLayerEngineModal.ObjectLayerData);
 
           // In UPDATE mode, also include original direction codes that may have been cleared
-          const allDirectionCodes = ObjectLayerEngineModal.existingObjectLayerId
+          const allDirectionCodes = isUpdateMode
             ? [...new Set([...directionCodesToUpload, ...ObjectLayerEngineModal.originalDirectionCodes])]
             : directionCodesToUpload;
 
           console.warn(
             `Uploading frames for ${allDirectionCodes.length} directions:`,
             allDirectionCodes,
-            ObjectLayerEngineModal.existingObjectLayerId ? '(UPDATE MODE)' : '(CREATE MODE)',
+            clone ? '(CLONE MODE)' : isUpdateMode ? '(UPDATE MODE)' : '(CREATE MODE)',
           );
 
           for (const directionCode of allDirectionCodes) {
@@ -895,7 +897,7 @@ const ObjectLayerEngineModal = {
 
             // Send all frames for this direction in one request (even if empty, to remove frames)
             try {
-              if (ObjectLayerEngineModal.existingObjectLayerId) {
+              if (isUpdateMode) {
                 // UPDATE: use PUT endpoint with object layer ID
                 const { status, data } = await ObjectLayerService.put({
                   id: `${ObjectLayerEngineModal.existingObjectLayerId}/frame-image/${objectLayer.data.item.type}/${objectLayer.data.item.id}/${directionCode}`,
@@ -936,7 +938,7 @@ const ObjectLayerEngineModal = {
           };
 
           let response;
-          if (ObjectLayerEngineModal.existingObjectLayerId) {
+          if (isUpdateMode) {
             // UPDATE existing object layer
             console.warn(
               'PUT path:',
@@ -957,22 +959,28 @@ const ObjectLayerEngineModal = {
           const { status, data, message } = response;
 
           if (status === 'success') {
+            const successAction = clone ? 'cloned' : isUpdateMode ? 'updated' : 'created';
             NotificationManager.Push({
-              html: `Object layer "${objectLayer.data.item.id}" ${
-                ObjectLayerEngineModal.existingObjectLayerId ? 'updated' : 'created'
-              } successfully!`,
+              html: `Object layer "${objectLayer.data.item.id}" ${successAction} successfully!`,
               status: 'success',
             });
             ObjectLayerEngineModal.toManagement(data?._id || ObjectLayerEngineModal.existingObjectLayerId);
           } else {
+            const errorAction = clone ? 'cloning' : isUpdateMode ? 'updating' : 'creating';
             NotificationManager.Push({
-              html: `Error ${
-                ObjectLayerEngineModal.existingObjectLayerId ? 'updating' : 'creating'
-              } object layer: ${message}`,
+              html: `Error ${errorAction} object layer: ${message}`,
               status: 'error',
             });
           }
         }
+      };
+
+      EventsUI.onClick(`.ol-btn-save`, async () => {
+        await persistObjectLayer();
+      });
+
+      EventsUI.onClick(`.ol-btn-clone`, async () => {
+        await persistObjectLayer({ clone: true });
       });
 
       // Add reset button event listener
@@ -1059,6 +1067,12 @@ const ObjectLayerEngineModal = {
           min-height: 50px;
         }
         .ol-btn-reset {
+          width: 120px;
+          padding: 0.5rem;
+          font-size: 20px;
+          min-height: 50px;
+        }
+        .ol-btn-clone {
           width: 120px;
           padding: 0.5rem;
           font-size: 20px;
@@ -1243,9 +1257,16 @@ const ObjectLayerEngineModal = {
 
       <div class="fl section-mp">
         ${await BtnIcon.Render({
-          label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i> ${Translate.Render('save')}`,
+          label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i>
+            ${ObjectLayerEngineModal.existingObjectLayerId ? 'Update' : Translate.Render('save')}`,
           class: `in flr ol-btn-save`,
         })}
+        ${ObjectLayerEngineModal.existingObjectLayerId
+          ? await BtnIcon.Render({
+              label: html`<i class="submit-btn-icon fa-solid fa-clone"></i> Clone`,
+              class: `in flr ol-btn-clone`,
+            })
+          : ''}
         ${await BtnIcon.Render({
           label: html`<i class="submit-btn-icon fa-solid fa-broom"></i> ${Translate.Render('reset')}`,
           class: `in flr ol-btn-reset`,
