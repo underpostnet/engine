@@ -46,7 +46,7 @@ export const ITEM_TYPES = Object.freeze({
  *   UO: skull for murderers, shield for invulnerables
  *
  * IMPORTANT: The numeric IDs MUST stay in sync with:
- *   - Go:  cyberia-server/src/entity_status.go   (StatusNone … StatusDead)
+ *   - Go:  cyberia-server/src/entity_status.go   (StatusNone … StatusResourceExtracted)
  *
  * @constant
  */
@@ -106,6 +106,14 @@ export const STATUS_ICONS = Object.freeze([
     bounce: false,
     borderColor: { r: 100, g: 180, b: 80, a: 220 },
     description: 'Resource entity — static, exploitable (wood, minerals, etc.)',
+  },
+  {
+    id: 7,
+    name: 'resource-extracted',
+    iconId: 'clock',
+    bounce: false,
+    borderColor: { r: 160, g: 130, b: 200, a: 200 },
+    description: 'Resource entity extracted/depleted (dead state)',
   },
 ]);
 
