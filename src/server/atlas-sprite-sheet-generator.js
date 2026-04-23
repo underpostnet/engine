@@ -256,13 +256,13 @@ export class AtlasSpriteSheetGenerator {
         frameMetadata[direction] = [];
       }
 
-      frameMetadata[direction].push({
+      frameMetadata[direction][frameIndex] = {
         x,
         y,
         width: image.bitmap.width,
         height: image.bitmap.height,
         frameIndex,
-      });
+      };
     }
 
     // Convert to PNG buffer
