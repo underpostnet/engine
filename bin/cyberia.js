@@ -28,7 +28,6 @@ import {
   getKeyFramesDirectionsFromNumberFolderDirection,
   buildImgFromTile,
 } from '../src/server/object-layer.js';
-import { ITEM_TYPES as itemTypes } from '../src/api/cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 import { AtlasSpriteSheetGenerator } from '../src/server/atlas-sprite-sheet-generator.js';
 import {
   generateFrame,
@@ -43,6 +42,7 @@ import crypto from 'crypto';
 import nodePath from 'path';
 import Underpost from '../src/index.js';
 import {
+  ITEM_TYPES as itemTypes,
   DefaultCyberiaItems,
   DefaultSkillConfig,
   DefaultCyberiaDialogues,

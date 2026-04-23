@@ -21,7 +21,10 @@ import {
   RESOURCE_ENTITY_TYPE_DEFAULTS,
 } from '../cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 
-import { DefaultCyberiaItems } from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
+import {
+  DefaultCyberiaItems,
+  ITEM_TYPES,
+} from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
 
 import { PORTAL_MODES, PORTAL_MODE_COLOR_KEY, EXTRA_PORTAL_MODES } from './cyberia-portal-connector.js';
 
@@ -78,7 +81,7 @@ function pickDefaultResourceItemIds() {
 }
 
 /** NPC skin pool — all items with type 'skin' from DefaultCyberiaItems. */
-const BOT_SKIN_POOL = DefaultCyberiaItems.filter((e) => e.item.type === 'skin').map((e) => e.item.id);
+const BOT_SKIN_POOL = DefaultCyberiaItems.filter((e) => e.item.type === ITEM_TYPES.skin).map((e) => e.item.id);
 
 // ── Occupancy grid ───────────────────────────────────────────────────────────
 

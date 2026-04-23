@@ -1,3 +1,48 @@
+/**
+ * Shared Cyberia plain-data module.
+ * Keep this file free of runtime-specific imports so the same registry can be
+ * consumed by client, server, and CLI code.
+ */
+
+const ITEM_TYPES = Object.freeze({
+  skin: 'skin',
+  breastplate: 'breastplate',
+  weapon: 'weapon',
+  skill: 'skill',
+  coin: 'coin',
+  floor: 'floor',
+  obstacle: 'obstacle',
+  portal: 'portal',
+  foreground: 'foreground',
+  resource: 'resource',
+});
+
+const ENTITY_TYPES = Object.freeze({
+  player: 'player',
+  other_player: 'other_player',
+  bot: 'bot',
+  skill: 'skill',
+  coin: 'coin',
+  floor: 'floor',
+  obstacle: 'obstacle',
+  portal: 'portal',
+  foreground: 'foreground',
+  resource: 'resource',
+});
+
+const ENTITY_TYPE_TO_ITEM_TYPES = Object.freeze({
+  [ENTITY_TYPES.player]: Object.freeze([ITEM_TYPES.skin, ITEM_TYPES.breastplate, ITEM_TYPES.weapon]),
+  [ENTITY_TYPES.other_player]: Object.freeze([ITEM_TYPES.skin, ITEM_TYPES.breastplate, ITEM_TYPES.weapon]),
+  [ENTITY_TYPES.bot]: Object.freeze([ITEM_TYPES.skin, ITEM_TYPES.weapon]),
+  [ENTITY_TYPES.skill]: Object.freeze([ITEM_TYPES.skill]),
+  [ENTITY_TYPES.coin]: Object.freeze([ITEM_TYPES.coin]),
+  [ENTITY_TYPES.floor]: Object.freeze([ITEM_TYPES.floor]),
+  [ENTITY_TYPES.obstacle]: Object.freeze([ITEM_TYPES.obstacle]),
+  [ENTITY_TYPES.portal]: Object.freeze([ITEM_TYPES.portal]),
+  [ENTITY_TYPES.foreground]: Object.freeze([ITEM_TYPES.foreground]),
+  [ENTITY_TYPES.resource]: Object.freeze([ITEM_TYPES.resource]),
+});
+
 const CyberiaDependencies = {
   'maxrects-packer': '^2.7.3',
   pngjs: '^7.0.0',
@@ -7,31 +52,48 @@ const CyberiaDependencies = {
 };
 
 const DefaultCyberiaItems = [
-  { item: { id: 'coin', type: 'coin' } },
+  { item: { id: 'coin', type: ITEM_TYPES.coin } },
   // { item: { id: 'red-power', type: 'skill' } },
   // { item: { id: 'heal', type: 'skill' } },
-  { item: { id: 'hatchet-skill', type: 'skill' } },
+  { item: { id: 'hatchet-skill', type: ITEM_TYPES.skill } },
   // { item: { id: 'green-power', type: 'skill' } },
   // { item: { id: 'blood', type: 'skill' } },
-  { item: { id: 'atlas_pistol_mk2', type: 'weapon' } },
-  { item: { id: 'atlas_pistol_mk2_bullet', type: 'skill' } },
-  { item: { id: 'tim-knife', type: 'weapon' } },
-  { item: { id: 'hatchet', type: 'weapon' } },
-  { item: { id: 'wason', type: 'skin' } },
-  { item: { id: 'scp-2040', type: 'skin' } },
-  { item: { id: 'purple', type: 'skin' } },
-  { item: { id: 'punk', type: 'skin' } },
+  { item: { id: 'atlas_pistol_mk2', type: ITEM_TYPES.weapon } },
+  { item: { id: 'atlas_pistol_mk2_bullet', type: ITEM_TYPES.skill } },
+  { item: { id: 'tim-knife', type: ITEM_TYPES.weapon } },
+  { item: { id: 'hatchet', type: ITEM_TYPES.weapon } },
+  { item: { id: 'wason', type: ITEM_TYPES.skin } },
+  { item: { id: 'scp-2040', type: ITEM_TYPES.skin } },
+  { item: { id: 'purple', type: ITEM_TYPES.skin } },
+  { item: { id: 'punk', type: ITEM_TYPES.skin } },
   // { item: { id: 'marciano', type: 'skin' } },
-  { item: { id: 'lain', type: 'skin' } },
-  { item: { id: 'kaneki', type: 'skin' } },
-  { item: { id: 'junko', type: 'skin' } },
-  { item: { id: 'ghost', type: 'skin' } },
-  { item: { id: 'eiri', type: 'skin' } },
-  { item: { id: 'anon', type: 'skin' } },
-  { item: { id: 'alex', type: 'skin' } },
-  { item: { id: 'agent', type: 'skin' } },
-  { item: { id: 'grass', type: 'floor' } },
+  { item: { id: 'lain', type: ITEM_TYPES.skin } },
+  { item: { id: 'kaneki', type: ITEM_TYPES.skin } },
+  { item: { id: 'junko', type: ITEM_TYPES.skin } },
+  { item: { id: 'ghost', type: ITEM_TYPES.skin } },
+  { item: { id: 'eiri', type: ITEM_TYPES.skin } },
+  { item: { id: 'anon', type: ITEM_TYPES.skin } },
+  { item: { id: 'alex', type: ITEM_TYPES.skin } },
+  { item: { id: 'agent', type: ITEM_TYPES.skin } },
+  { item: { id: 'grass', type: ITEM_TYPES.floor } },
 ];
+
+const DEFAULT_CYBERIA_ITEM_BY_ID = Object.freeze(
+  DefaultCyberiaItems.reduce((acc, entry) => {
+    acc[entry.item.id] = entry;
+    return acc;
+  }, {}),
+);
+
+const getDefaultCyberiaItemById = (itemId) => DEFAULT_CYBERIA_ITEM_BY_ID[itemId] || null;
+
+const getDefaultCyberiaItemsByItemType = (itemType) =>
+  DefaultCyberiaItems.filter((entry) => entry.item.type === itemType);
+
+const getDefaultCyberiaItemsByEntityType = (entityType) => {
+  const allowedTypes = ENTITY_TYPE_TO_ITEM_TYPES[entityType] || [];
+  return DefaultCyberiaItems.filter((entry) => allowedTypes.includes(entry.item.type));
+};
 
 const DefaultSkillConfig = [
   // { triggerItemId: 'anon', logicEventIds: ['doppelganger'] },
@@ -220,4 +282,15 @@ const DefaultCyberiaDialogues = [
   },
 ];
 
-export { CyberiaDependencies, DefaultCyberiaItems, DefaultSkillConfig, DefaultCyberiaDialogues };
+export {
+  ITEM_TYPES,
+  ENTITY_TYPES,
+  ENTITY_TYPE_TO_ITEM_TYPES,
+  getDefaultCyberiaItemById,
+  getDefaultCyberiaItemsByItemType,
+  getDefaultCyberiaItemsByEntityType,
+  CyberiaDependencies,
+  DefaultCyberiaItems,
+  DefaultSkillConfig,
+  DefaultCyberiaDialogues,
+};

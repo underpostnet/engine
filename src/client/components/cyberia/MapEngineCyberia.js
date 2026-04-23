@@ -13,7 +13,20 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { getProxyPath } from '../core/Router.js';
+import {
+  ENTITY_TYPES,
+  getDefaultCyberiaItemById,
+} from '../cyberia-portal/CommonCyberiaPortal.js';
 import '../core/ColorPaletteElement.js';
+
+const DEFAULT_ENTITY_TYPE = ENTITY_TYPES.floor;
+const dropdownValueKey = (value = '') => String(value).trim().replaceAll(' ', '-');
+const createDropdownOption = (value, onClick = () => {}, display = value, data = value) => ({
+  value,
+  display,
+  data,
+  onClick,
+});
 
 class MapEngineCyberia {
   static entities = [];
@@ -32,6 +45,78 @@ class MapEngineCyberia {
   static maxEntityHistory = 200;
   static entityHistorySync = null;
   static entityHistoryHotkeyHandler = null;
+  static entityTypeDropdownId = 'map-engine-entity-type';
+  static objectLayerDropdownId = 'map-engine-obj-layer-dropdown';
+  static objectLayerDropdownHostId = 'map-engine-obj-layer-dropdown-host';
+
+  static getSelectedDropdownValue(dropdownId, fallback = '') {
+    return DropDown.Tokens[dropdownId]?.value || s(`.${dropdownId}`)?.value || fallback;
+  }
+
+  static getSelectedEntityType() {
+    return MapEngineCyberia.getSelectedDropdownValue(MapEngineCyberia.entityTypeDropdownId, DEFAULT_ENTITY_TYPE);
+  }
+
+  static getSelectedObjectLayerItemIds() {
+    return DropDown.Tokens[MapEngineCyberia.objectLayerDropdownId]?.value
+      ? [...DropDown.Tokens[MapEngineCyberia.objectLayerDropdownId].value]
+      : [];
+  }
+
+  static setDropdownValue(dropdownId, value) {
+    if (!value || !DropDown.Tokens[dropdownId]) return;
+    DropDown.Tokens[dropdownId].value = value;
+    if (s(`.${dropdownId}`)) s(`.${dropdownId}`).value = value;
+    htmls(`.dropdown-current-${dropdownId}`, value);
+  }
+
+  static getEntityTypeDropdownOptions() {
+    return Object.values(ENTITY_TYPES).map((entityType) => createDropdownOption(entityType));
+  }
+
+  static syncObjectLayerDropdownSelection(itemIds = []) {
+    const dropdownId = MapEngineCyberia.objectLayerDropdownId;
+    if (!DropDown.Tokens[dropdownId]) return;
+
+    DropDown.Tokens[dropdownId].oncheckvalues = {};
+    for (const itemId of itemIds) {
+      const key = dropdownValueKey(itemId);
+      DropDown.Tokens[dropdownId].oncheckvalues[key] = {
+        data: itemId,
+        display: itemId,
+        value: itemId,
+      };
+    }
+    DropDown.Tokens[dropdownId].value = [...itemIds];
+    if (s(`.${dropdownId}`)) s(`.${dropdownId}`).value = [...itemIds];
+    DropDown.Tokens[dropdownId]._renderSelectedBadges?.();
+  }
+
+  static async buildObjectLayerDropdown() {
+    return await DropDown.Render({
+      id: MapEngineCyberia.objectLayerDropdownId,
+      label: html`Object Layers`,
+      data: [],
+      type: 'checkbox',
+      containerClass: 'inl',
+      excludeSelected: true,
+      serviceProvider: async (q) => {
+        const result = await ObjectLayerService.searchItemIds({ q });
+        if (result.status === 'success' && result.data?.itemIds) {
+          return result.data.itemIds.map((itemId) => createDropdownOption(itemId));
+        }
+        return [];
+      },
+    });
+  }
+
+  static async renderObjectLayerDropdown({ selectedItemIds = [] } = {}) {
+    const hostId = MapEngineCyberia.objectLayerDropdownHostId;
+    if (!s(`.${hostId}`)) return;
+
+    htmls(`.${hostId}`, await MapEngineCyberia.buildObjectLayerDropdown());
+    MapEngineCyberia.syncObjectLayerDropdownSelection(selectedItemIds);
+  }
 
   static cloneEntity(entity) {
     return {
@@ -208,6 +293,26 @@ class MapEngineCyberia {
   static loadObjectLayerImage(itemId, onLoad) {
     if (MapEngineCyberia.imageCache[itemId]) return;
     MapEngineCyberia.imageCache[itemId] = { img: null, loaded: false, error: false };
+
+    const loadImage = (type, id) => {
+      const img = new Image();
+      img.onload = () => {
+        MapEngineCyberia.imageCache[itemId].img = img;
+        MapEngineCyberia.imageCache[itemId].loaded = true;
+        if (onLoad) onLoad();
+      };
+      img.onerror = () => {
+        MapEngineCyberia.imageCache[itemId].error = true;
+      };
+      img.src = `${getProxyPath()}assets/${type}/${id}/08/0.png`;
+    };
+
+    const sharedItem = getDefaultCyberiaItemById(itemId)?.item;
+    if (sharedItem?.type && sharedItem?.id) {
+      loadImage(sharedItem.type, sharedItem.id);
+      return;
+    }
+
     ObjectLayerService.get({
       limit: 1,
       filterModel: { 'data.item.id': { filterType: 'text', type: 'equals', filter: itemId } },
@@ -219,16 +324,7 @@ class MapEngineCyberia {
           return;
         }
         const { type, id } = doc.data.item;
-        const img = new Image();
-        img.onload = () => {
-          MapEngineCyberia.imageCache[itemId].img = img;
-          MapEngineCyberia.imageCache[itemId].loaded = true;
-          if (onLoad) onLoad();
-        };
-        img.onerror = () => {
-          MapEngineCyberia.imageCache[itemId].error = true;
-        };
-        img.src = `${getProxyPath()}assets/${type}/${id}/08/0.png`;
+        loadImage(type, id);
       })
       .catch(() => {
         MapEngineCyberia.imageCache[itemId].error = true;
@@ -376,7 +472,10 @@ class MapEngineCyberia {
         const entity = MapEngineCyberia.entities[idx];
         if (!entity) return;
 
-        if (s('.map-engine-entity-type')) s('.map-engine-entity-type').value = entity.entityType || 'floor';
+        const entityType = entity.entityType || DEFAULT_ENTITY_TYPE;
+        const itemIds = entity.objectLayerItemIds || [];
+
+        MapEngineCyberia.setDropdownValue(MapEngineCyberia.entityTypeDropdownId, entityType);
         if (s('.map-engine-init-cell-x')) s('.map-engine-init-cell-x').value = entity.initCellX || 0;
         if (s('.map-engine-init-cell-y')) s('.map-engine-init-cell-y').value = entity.initCellY || 0;
         if (s('.map-engine-dim-x')) s('.map-engine-dim-x').value = entity.dimX || 1;
@@ -397,22 +496,7 @@ class MapEngineCyberia {
           if (s('.map-engine-color')) s('.map-engine-color').dispatchEvent(new Event('input'));
         }
 
-        // Load object layer item IDs into the dropdown
-        const ddId = 'map-engine-obj-layer-dropdown';
-        if (DropDown.Tokens[ddId]) {
-          DropDown.Tokens[ddId].oncheckvalues = {};
-          const itemIds = entity.objectLayerItemIds || [];
-          for (const itemId of itemIds) {
-            const key = itemId.trim().replaceAll(' ', '-');
-            DropDown.Tokens[ddId].oncheckvalues[key] = { data: itemId, display: itemId, value: itemId };
-          }
-          DropDown.Tokens[ddId].value = itemIds;
-          if (s(`.${ddId}`)) s(`.${ddId}`).value = itemIds;
-          // Trigger badge re-render
-          if (s(`.dropdown-current-${ddId}`)) {
-            DropDown.Tokens[ddId]._renderSelectedBadges?.();
-          }
-        }
+        MapEngineCyberia.syncObjectLayerDropdownSelection(itemIds);
       };
     });
   }
@@ -433,7 +517,7 @@ class MapEngineCyberia {
     const idCellH = 'map-engine-input-cell-h';
     const canvasId = 'map-engine-canvas';
 
-    const idEntityType = 'map-engine-entity-type';
+    const idEntityType = MapEngineCyberia.entityTypeDropdownId;
     const idInitCellX = 'map-engine-init-cell-x';
     const idInitCellY = 'map-engine-init-cell-y';
     const idDimX = 'map-engine-dim-x';
@@ -446,7 +530,8 @@ class MapEngineCyberia {
     const idVariationPreserve = 'map-engine-variation-preserve';
     const rgbaDisplayId = 'map-engine-rgba-display';
     const entityListId = 'map-engine-entity-list';
-    const idObjLayerDropdown = 'map-engine-obj-layer-dropdown';
+    const idObjLayerDropdown = MapEngineCyberia.objectLayerDropdownId;
+    const idObjLayerDropdownHost = MapEngineCyberia.objectLayerDropdownHostId;
     const managementId = 'modal-cyberia-map-engine';
 
     MapEngineCyberia.setEntities([], { clearHistory: true });
@@ -516,7 +601,7 @@ class MapEngineCyberia {
       const hex = s(`.${idColor}`)?.value || '#ff0000';
       const alpha = parseFloat(s(`.${idAlpha}`)?.value);
       return {
-        entityType: s(`.${idEntityType}`)?.value || 'floor',
+        entityType: MapEngineCyberia.getSelectedEntityType(),
         initCellX: parseInt(s(`.${idInitCellX}`)?.value) || 0,
         initCellY: parseInt(s(`.${idInitCellY}`)?.value) || 0,
         dimX: parseInt(s(`.${idDimX}`)?.value) || 1,
@@ -912,6 +997,7 @@ class MapEngineCyberia {
       if (s(`.${idCellH}`)) s(`.${idCellH}`).value = 32;
       if (s(`.${idVariationPreserve}`)) s(`.${idVariationPreserve}`).value = '';
       MapEngineCyberia.setEntities([], { clearHistory: true });
+      MapEngineCyberia.setDropdownValue(idEntityType, DEFAULT_ENTITY_TYPE);
       if (DropDown.Tokens[idObjLayerDropdown]) {
         DropDown.Tokens[idObjLayerDropdown].oncheckvalues = {};
         DropDown.Tokens[idObjLayerDropdown].value = [];
@@ -1372,12 +1458,12 @@ class MapEngineCyberia {
         ${dynamicCol({ containerSelector: 'map-engine-container', id: dcEntityType, type: 'a-50-b-50' })}
         <div class="fl">
           <div class="in fll ${dcEntityType}-col-a">
-            ${await Input.Render({
+            ${await DropDown.Render({
               id: idEntityType,
               label: html`Entity Type`,
+              data: MapEngineCyberia.getEntityTypeDropdownOptions(),
+              value: DEFAULT_ENTITY_TYPE,
               containerClass: 'inl',
-              type: 'text',
-              value: 'floor',
             })}
           </div>
           <div class="in fll ${dcEntityType}-col-b">
@@ -1516,26 +1602,9 @@ class MapEngineCyberia {
           <div class="section-mp">&nbsp &nbsp Enable Random Factors</div>
         </div>
         <div class="in" style="margin: 10px;">
-          ${await DropDown.Render({
-            id: idObjLayerDropdown,
-            label: html`Object Layers`,
-            data: [],
-            type: 'checkbox',
-            containerClass: 'inl',
-            excludeSelected: true,
-            serviceProvider: async (q) => {
-              const result = await ObjectLayerService.searchItemIds({ q });
-              if (result.status === 'success' && result.data?.itemIds) {
-                return result.data.itemIds.map((itemId) => ({
-                  value: itemId,
-                  display: itemId,
-                  data: itemId,
-                  onClick: () => {},
-                }));
-              }
-              return [];
-            },
-          })}
+          <div class="${idObjLayerDropdownHost}">
+            ${await MapEngineCyberia.buildObjectLayerDropdown()}
+          </div>
         </div>
         <div class="in">
           ${await BtnIcon.Render({

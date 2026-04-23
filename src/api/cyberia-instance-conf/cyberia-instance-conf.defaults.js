@@ -1,13 +1,22 @@
 /**
  * Canonical default values and type definitions for a CyberiaInstanceConf document.
  *
- * Single source of truth used by:
+ * Canonical config defaults used by:
  *   - cyberia-instance-conf.model.js  — Mongoose schema `default:` declarations
  *   - grpc-server.js                  — FALLBACK_CONFIG_DEFAULTS for missing instances
- *   - bin/cyberia.js                  — imports ITEM_TYPES for asset type enumeration
+ *
+ * The canonical entity-type ↔ item-type relationship lives in:
+ *   - src/client/components/cyberia-portal/CommonCyberiaPortal.js
+ *
+ * This file derives its item/entity type enums from that shared module.
  *
  * @module src/api/cyberia-instance-conf/cyberia-instance-conf.defaults.js
  */
+
+import {
+  ITEM_TYPES as SHARED_ITEM_TYPES,
+  ENTITY_TYPES as SHARED_ENTITY_TYPES,
+} from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
 
 // ── Item type registry ───────────────────────────────────────────────────────
 /**
@@ -19,16 +28,10 @@
  * determined separately by `get_priority_for_type()` in entity_render.c.
  *
  * @constant
- * @type {Readonly<{floor:string, skin:string, breastplate:string, weapon:string, skill:string, coin:string}>}
+ * @type {Readonly<Record<string, string>>}
  */
-export const ITEM_TYPES = Object.freeze({
-  floor: 'floor',
-  skin: 'skin',
-  breastplate: 'breastplate',
-  weapon: 'weapon',
-  skill: 'skill',
-  coin: 'coin',
-});
+export const ITEM_TYPES = SHARED_ITEM_TYPES;
+export const ENTITY_TYPES = SHARED_ENTITY_TYPES;
 
 // ── Entity Status Indicator (ESI) registry ───────────────────────────────────
 /**
@@ -138,7 +141,7 @@ export const STATUS_ICONS = Object.freeze([
 export const EQUIPMENT_RULES_DEFAULTS = Object.freeze({
   // Item types that players are allowed to activate (equip).
   // Types not in this list are non-activable (coins, floors, etc.).
-  activeItemTypes: ['skin', 'breastplate', 'weapon'],
+  activeItemTypes: [ITEM_TYPES.skin, ITEM_TYPES.breastplate, ITEM_TYPES.weapon],
   // Enforce at most one active item per item type.
   onePerType: true,
   // Require at least one active skin when the player owns any skin.
@@ -188,7 +191,7 @@ export const EQUIPMENT_RULES_DEFAULTS = Object.freeze({
  */
 export const RESOURCE_ENTITY_TYPE_DEFAULTS = Object.freeze([
   Object.freeze({
-    entityType: 'resource',
+    entityType: ENTITY_TYPES.resource,
     liveItemIds: ['wood-1'],
     deadItemIds: ['wood-extracted-1'],
     // Until dedicated resource-drop OLs are authored, reuse the wood stack item.
@@ -197,7 +200,7 @@ export const RESOURCE_ENTITY_TYPE_DEFAULTS = Object.freeze([
     defaultObjectLayers: [],
   }),
   Object.freeze({
-    entityType: 'resource',
+    entityType: ENTITY_TYPES.resource,
     liveItemIds: ['wood-2'],
     deadItemIds: ['wood-extracted-2'],
     dropItemIds: ['wood-drop-2'],
@@ -211,7 +214,7 @@ export const RESOURCE_ENTITY_TYPE_DEFAULT = RESOURCE_ENTITY_TYPE_DEFAULTS[0];
 export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   // ── Characters ─────────────────────────────────────────────────────────
   {
-    entityType: 'player',
+    entityType: ENTITY_TYPES.player,
     liveItemIds: ['anon', 'atlas_pistol_mk2'],
     deadItemIds: ['ghost'],
     colorKey: 'PLAYER',
@@ -237,7 +240,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     ],
   },
   {
-    entityType: 'other_player',
+    entityType: ENTITY_TYPES.other_player,
     liveItemIds: ['anon', 'atlas_pistol_mk2'],
     deadItemIds: ['ghost'],
     colorKey: 'OTHER_PLAYER',
@@ -260,7 +263,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     ],
   },
   {
-    entityType: 'bot',
+    entityType: ENTITY_TYPES.bot,
     liveItemIds: ['purple'],
     deadItemIds: ['ghost'],
     colorKey: 'BOT',
@@ -270,14 +273,14 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     ],
   },
   {
-    entityType: 'skill',
+    entityType: ENTITY_TYPES.skill,
     liveItemIds: ['atlas_pistol_mk2_bullet'],
     deadItemIds: [],
     colorKey: 'SKILL',
     defaultObjectLayers: [{ itemId: 'atlas_pistol_mk2_bullet', active: true, quantity: 1 }],
   },
   {
-    entityType: 'coin',
+    entityType: ENTITY_TYPES.coin,
     liveItemIds: ['coin'],
     deadItemIds: [],
     colorKey: 'COIN',
@@ -285,7 +288,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
   },
   // ── World objects ───────────────────────────────────────────────────────
   {
-    entityType: 'floor',
+    entityType: ENTITY_TYPES.floor,
     liveItemIds: ['grass'],
     deadItemIds: [],
     dropItemIds: [],
@@ -293,7 +296,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     defaultObjectLayers: [],
   },
   {
-    entityType: 'obstacle',
+    entityType: ENTITY_TYPES.obstacle,
     liveItemIds: [],
     deadItemIds: [],
     dropItemIds: [],
@@ -301,7 +304,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     defaultObjectLayers: [],
   },
   {
-    entityType: 'portal',
+    entityType: ENTITY_TYPES.portal,
     liveItemIds: [],
     deadItemIds: [],
     dropItemIds: [],
@@ -309,7 +312,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     defaultObjectLayers: [],
   },
   {
-    entityType: 'portal',
+    entityType: ENTITY_TYPES.portal,
     liveItemIds: [],
     deadItemIds: [],
     dropItemIds: [],
@@ -317,7 +320,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     defaultObjectLayers: [],
   },
   {
-    entityType: 'portal',
+    entityType: ENTITY_TYPES.portal,
     liveItemIds: [],
     deadItemIds: [],
     dropItemIds: [],
@@ -325,7 +328,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     defaultObjectLayers: [],
   },
   {
-    entityType: 'portal',
+    entityType: ENTITY_TYPES.portal,
     liveItemIds: [],
     deadItemIds: [],
     dropItemIds: [],
@@ -341,7 +344,7 @@ export const ENTITY_TYPE_DEFAULTS = Object.freeze([
     defaultObjectLayers: [],
   },
   {
-    entityType: 'foreground',
+    entityType: ENTITY_TYPES.foreground,
     liveItemIds: [],
     deadItemIds: [],
     dropItemIds: [],
