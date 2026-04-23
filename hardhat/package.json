@@ -16,7 +16,7 @@
     "audit": "npm audit --audit-level=moderate"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "~3.0.3",
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "~3.0.4",
     "hardhat": "~3.3.0"
   },
   "dependencies": {
