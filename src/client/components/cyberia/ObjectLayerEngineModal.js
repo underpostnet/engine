@@ -18,12 +18,359 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import * as _ from '../cyberia/ObjectLayerEngine.js';
 import '../core/ColorPaletteElement.js';
 
+const DISTORTION_TYPES = Object.freeze([
+  {
+    value: 'position-jitter',
+    label: 'Position Jitter',
+    icon: 'fa-solid fa-arrows-left-right-to-line',
+  },
+  {
+    value: 'rotation-drift',
+    label: 'Rotation Drift',
+    icon: 'fa-solid fa-rotate',
+  },
+  {
+    value: 'scale-wobble',
+    label: 'Scale Wobble',
+    icon: 'fa-solid fa-up-right-and-down-left-from-center',
+  },
+  {
+    value: 'particle-drift',
+    label: 'Particle Drift',
+    icon: 'fa-solid fa-wand-magic-sparkles',
+  },
+]);
+
+const DEFAULT_DISTORTION_TYPE = DISTORTION_TYPES[0].value;
+const DEFAULT_DISTORTION_STATUS =
+  'Applies to the current editor frame only. Use the direction button to persist the distorted frame.';
+const DEFAULT_DISTORTION_FACTOR_A = 0.12;
+
+const hashString = (str = '') => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (Math.imul(31, hash) + str.charCodeAt(i)) | 0;
+  }
+  return hash;
+};
+
+const clampNumber = (value, min, max) => (value < min ? min : value > max ? max : value);
+const lerp = (start, end, factor) => start + (end - start) * factor;
+const smoothstep = (value) => value * value * (3 - 2 * value);
+const normalizedHash = (seed, x, y) => ((hashString(`${seed}:${x}:${y}`) >>> 0) / 4294967295) * 2 - 1;
+
+const sampleSmoothNoise = (seed, x, y) => {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = x0 + 1;
+  const y1 = y0 + 1;
+
+  const sx = smoothstep(x - x0);
+  const sy = smoothstep(y - y0);
+  const n00 = normalizedHash(seed, x0, y0);
+  const n10 = normalizedHash(seed, x1, y0);
+  const n01 = normalizedHash(seed, x0, y1);
+  const n11 = normalizedHash(seed, x1, y1);
+
+  return lerp(lerp(n00, n10, sx), lerp(n01, n11, sx), sy);
+};
+
+const isVisibleCell = (cell) => Array.isArray(cell) && (cell[3] || 0) > 0;
+const cloneMatrix = (matrix = []) => matrix.map((row) => row.map((cell) => cell.slice()));
+
+const countChangedCells = (baseMatrix = [], nextMatrix = []) => {
+  const height = Math.max(baseMatrix.length, nextMatrix.length);
+  const width = Math.max(baseMatrix[0]?.length || 0, nextMatrix[0]?.length || 0);
+  let changedCells = 0;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const baseCell = baseMatrix[y]?.[x] || [0, 0, 0, 0];
+      const nextCell = nextMatrix[y]?.[x] || [0, 0, 0, 0];
+      if (
+        baseCell[0] !== nextCell[0] ||
+        baseCell[1] !== nextCell[1] ||
+        baseCell[2] !== nextCell[2] ||
+        baseCell[3] !== nextCell[3]
+      ) {
+        changedCells++;
+      }
+    }
+  }
+
+  return changedCells;
+};
+
+const deriveMatrixLayerSeed = (matrix = []) => {
+  const signature = [];
+  for (let y = 0; y < matrix.length; y++) {
+    for (let x = 0; x < (matrix[y]?.length || 0); x++) {
+      const cell = matrix[y][x];
+      if (!isVisibleCell(cell)) continue;
+      signature.push(`${x}:${y}:${cell.join(',')}`);
+    }
+  }
+  return hashString(`${matrix[0]?.length || 0}x${matrix.length}:${signature.join('|')}`);
+};
+
+const colorDistance = (left = [0, 0, 0, 0], right = [0, 0, 0, 0]) => {
+  const deltaRed = (left[0] - right[0]) / 255;
+  const deltaGreen = (left[1] - right[1]) / 255;
+  const deltaBlue = (left[2] - right[2]) / 255;
+  const deltaAlpha = ((left[3] || 0) - (right[3] || 0)) / 255;
+  return (
+    Math.sqrt(deltaRed * deltaRed + deltaGreen * deltaGreen + deltaBlue * deltaBlue + deltaAlpha * deltaAlpha * 0.35) /
+    1.83
+  );
+};
+
+const getNeighborEntries = (matrix, x, y) => {
+  const neighbors = [];
+  const sourceCell = matrix[y]?.[x] || [0, 0, 0, 0];
+
+  for (let offsetY = -1; offsetY <= 1; offsetY++) {
+    for (let offsetX = -1; offsetX <= 1; offsetX++) {
+      if (offsetX === 0 && offsetY === 0) continue;
+
+      const neighborX = x + offsetX;
+      const neighborY = y + offsetY;
+      if (
+        neighborY < 0 ||
+        neighborX < 0 ||
+        neighborY >= matrix.length ||
+        neighborX >= (matrix[neighborY]?.length || 0)
+      ) {
+        continue;
+      }
+
+      const neighborCell = matrix[neighborY][neighborX];
+      const visible = isVisibleCell(neighborCell);
+      neighbors.push({
+        x: neighborX,
+        y: neighborY,
+        dx: offsetX,
+        dy: offsetY,
+        cell: neighborCell.slice(),
+        visible,
+        distance: visible ? colorDistance(sourceCell, neighborCell) : 1,
+      });
+    }
+  }
+
+  return neighbors;
+};
+
+const getDistortionTime = (distortionSeed = 0) => (Math.abs(Number(distortionSeed) || 0) % 4096) / 128 + 1;
+
+const getDirectionalVector = ({ x, y, width, height, distortionType, frameSeed, distortionSeed }) => {
+  const distortionTime = getDistortionTime(distortionSeed);
+  const noiseX = sampleSmoothNoise(frameSeed + 211, x * 0.26 + distortionTime * 0.14, y * 0.26 + 1.9);
+  const noiseY = sampleSmoothNoise(frameSeed + 263, x * 0.26 + 7.1, y * 0.26 + distortionTime * 0.14);
+  const centerX = (width - 1) / 2;
+  const centerY = (height - 1) / 2;
+  const deltaX = x - centerX;
+  const deltaY = y - centerY;
+  const radialX = deltaX === 0 ? 0 : deltaX / Math.max(1, Math.abs(deltaX) + Math.abs(deltaY));
+  const radialY = deltaY === 0 ? 0 : deltaY / Math.max(1, Math.abs(deltaX) + Math.abs(deltaY));
+
+  if (distortionType === 'position-jitter') {
+    return { dx: noiseX, dy: noiseY };
+  }
+
+  if (distortionType === 'rotation-drift') {
+    const tangentDirection = sampleSmoothNoise(frameSeed + 307, distortionTime * 0.24, 3.7) >= 0 ? 1 : -1;
+    return {
+      dx: tangentDirection * -radialY + noiseX * 0.3,
+      dy: tangentDirection * radialX + noiseY * 0.3,
+    };
+  }
+
+  if (distortionType === 'scale-wobble') {
+    const radialDirection = sampleSmoothNoise(frameSeed + 359, distortionTime * 0.18, 4.6) >= 0 ? 1 : -1;
+    return {
+      dx: radialX * radialDirection + noiseX * 0.2,
+      dy: radialY * radialDirection + noiseY * 0.2,
+    };
+  }
+
+  return {
+    dx: (noiseX >= 0 ? 0.6 : -0.6) + noiseX * 0.6,
+    dy: (noiseY >= 0 ? 0.6 : -0.6) + noiseY * 0.6,
+  };
+};
+
+const collectVisibleCells = (matrix = [], layerSeed, frameSeed, distortionType, distortionSeed) => {
+  const distortionTime = getDistortionTime(distortionSeed);
+  const visibleCells = [];
+
+  for (let y = 0; y < matrix.length; y++) {
+    for (let x = 0; x < (matrix[y]?.length || 0); x++) {
+      const cell = matrix[y][x];
+      if (!isVisibleCell(cell)) continue;
+
+      const neighbors = getNeighborEntries(matrix, x, y);
+      const visibleNeighbors = neighbors.filter((neighbor) => neighbor.visible);
+      const edgeScore = neighbors.some((neighbor) => !neighbor.visible) ? 1 : 0;
+      const variationScore = visibleNeighbors.length
+        ? visibleNeighbors.reduce((sum, neighbor) => {
+            if (neighbor.distance < 0.01) return sum + 0.04;
+            if (neighbor.distance <= 0.35) return sum + (1 - Math.abs(neighbor.distance - 0.14) / 0.21);
+            if (neighbor.distance <= 0.55) return sum + 0.18;
+            return sum + 0.04;
+          }, 0) / visibleNeighbors.length
+        : 0;
+
+      const activity = (sampleSmoothNoise(frameSeed + 401, x * 0.24 + distortionTime * 0.1, y * 0.24 + 2.7) + 1) / 2;
+      const stabilityBias = 1 - (hashString(`${layerSeed}:${distortionType}:${x}:${y}`) >>> 0) / 4294967295;
+
+      visibleCells.push({
+        x,
+        y,
+        cell: cell.slice(),
+        neighbors,
+        edgeScore,
+        variationScore,
+        score: variationScore * 0.58 + edgeScore * 0.2 + activity * 0.18 + stabilityBias * 0.04,
+      });
+    }
+  }
+
+  return visibleCells.sort((left, right) => right.score - left.score);
+};
+
+const chooseDistortionTarget = ({ entry, matrix, distortionType, frameSeed, distortionSeed, reservedCells }) => {
+  const width = matrix[0]?.length || 0;
+  const height = matrix.length;
+  const vector = getDirectionalVector({
+    x: entry.x,
+    y: entry.y,
+    width,
+    height,
+    distortionType,
+    frameSeed,
+    distortionSeed,
+  });
+  const vectorLength = Math.hypot(vector.dx, vector.dy) || 1;
+
+  return [...entry.neighbors]
+    .map((neighbor) => {
+      const alignment =
+        (neighbor.dx * vector.dx + neighbor.dy * vector.dy) /
+        ((Math.hypot(neighbor.dx, neighbor.dy) || 1) * vectorLength);
+      let score = alignment * 0.55;
+
+      if (!neighbor.visible) {
+        score += 0.22 + entry.edgeScore * 0.16;
+      } else if (neighbor.distance >= 0.01 && neighbor.distance <= 0.38) {
+        score += 0.34 + (0.38 - neighbor.distance) * 0.45;
+      } else {
+        score -= 0.2;
+      }
+
+      if (distortionType === 'particle-drift' && Math.abs(neighbor.dx) === 1 && Math.abs(neighbor.dy) === 1) {
+        score += 0.16;
+      }
+      if (distortionType === 'rotation-drift' && Math.abs(neighbor.dx) + Math.abs(neighbor.dy) === 1) {
+        score += 0.06;
+      }
+      if (distortionType === 'scale-wobble' && !neighbor.visible) {
+        score += 0.08;
+      }
+      if (reservedCells.has(`${neighbor.x}:${neighbor.y}`)) {
+        score = -Infinity;
+      }
+
+      return { ...neighbor, score };
+    })
+    .sort((left, right) => right.score - left.score)
+    .find((candidate) => candidate.score > 0.02);
+};
+
+const buildDistortedMatrix = (
+  baseMatrix,
+  distortionType,
+  factorA = DEFAULT_DISTORTION_FACTOR_A,
+  distortionSeed = Date.now(),
+) => {
+  const layerSeed = deriveMatrixLayerSeed(baseMatrix);
+  const normalizedSeed = Number.isFinite(distortionSeed) ? distortionSeed : hashString(String(distortionSeed));
+  const frameSeed = hashString(`${layerSeed}:${distortionType}:${normalizedSeed}`);
+  const visibleCells = collectVisibleCells(baseMatrix, layerSeed, frameSeed, distortionType, normalizedSeed);
+  const result = cloneMatrix(baseMatrix);
+
+  if (!visibleCells.length) {
+    return { matrix: result, changedCells: 0, appliedDistortions: 0, layerSeed, frameSeed };
+  }
+
+  const densityFactor = clampNumber(Number.isFinite(factorA) ? factorA : DEFAULT_DISTORTION_FACTOR_A, 0.01, 1);
+  const maxBudget = Math.max(1, Math.round(visibleCells.length * 0.35));
+  const distortionBudget = clampNumber(Math.round(visibleCells.length * densityFactor), 1, maxBudget);
+  const reservedCells = new Set();
+  let appliedDistortions = 0;
+
+  for (const entry of visibleCells) {
+    if (appliedDistortions >= distortionBudget) break;
+
+    const sourceKey = `${entry.x}:${entry.y}`;
+    if (reservedCells.has(sourceKey)) continue;
+
+    const target = chooseDistortionTarget({
+      entry,
+      matrix: baseMatrix,
+      distortionType,
+      frameSeed,
+      distortionSeed: normalizedSeed,
+      reservedCells,
+    });
+
+    if (!target) continue;
+
+    if (target.visible) {
+      const nextCell = result[target.y][target.x].slice();
+      result[target.y][target.x] = entry.cell.slice();
+      result[entry.y][entry.x] = nextCell;
+    } else {
+      result[target.y][target.x] = entry.cell.slice();
+      result[entry.y][entry.x] = [0, 0, 0, 0];
+    }
+
+    reservedCells.add(sourceKey);
+    reservedCells.add(`${target.x}:${target.y}`);
+    appliedDistortions++;
+  }
+
+  let changedCells = countChangedCells(baseMatrix, result);
+
+  if (changedCells === 0) {
+    for (const entry of visibleCells) {
+      const transparentTarget = entry.neighbors.find((neighbor) => !neighbor.visible);
+      if (!transparentTarget) continue;
+      result[transparentTarget.y][transparentTarget.x] = entry.cell.slice();
+      result[entry.y][entry.x] = [0, 0, 0, 0];
+      appliedDistortions = 1;
+      changedCells = countChangedCells(baseMatrix, result);
+      break;
+    }
+  }
+
+  return {
+    matrix: result,
+    changedCells,
+    appliedDistortions,
+    densityFactor,
+    layerSeed,
+    frameSeed,
+  };
+};
+
 const ObjectLayerEngineModal = {
   selectItemType: 'skin',
   itemActivable: false,
   renderFrameDuration: 100,
   existingObjectLayerId: null,
   originalDirectionCodes: [],
+  selectedDistortionType: DEFAULT_DISTORTION_TYPE,
+  distortionFactorA: DEFAULT_DISTORTION_FACTOR_A,
   templates: [
     {
       label: 'empty',
@@ -87,13 +434,14 @@ const ObjectLayerEngineModal = {
   },
   ObjectLayerData: {},
   clearData: function () {
-    // Clear all cached object layer data to prevent contamination between sessions
     this.ObjectLayerData = {};
     this.selectItemType = 'skin';
     this.itemActivable = false;
     this.renderFrameDuration = 100;
     this.existingObjectLayerId = null;
     this.originalDirectionCodes = [];
+    this.selectedDistortionType = DEFAULT_DISTORTION_TYPE;
+    this.distortionFactorA = DEFAULT_DISTORTION_FACTOR_A;
     this.templates = [
       {
         label: 'empty',
@@ -102,13 +450,11 @@ const ObjectLayerEngineModal = {
       },
     ];
 
-    // Clear the canvas if it exists
     const ole = s('object-layer-engine');
     if (ole && typeof ole.clear === 'function') {
       ole.clear();
     }
 
-    // Clear all frame previews from DOM for all direction codes
     const directionCodes = ['08', '18', '02', '12', '04', '14', '06', '16'];
     for (const directionCode of directionCodes) {
       const framesContainer = s(`.frames-${directionCode}`);
@@ -144,6 +490,21 @@ const ObjectLayerEngineModal = {
 
     const itemTypeDropdownCurrent = s(`.dropdown-current-ol-dropdown-item-type`);
     if (itemTypeDropdownCurrent) itemTypeDropdownCurrent.innerHTML = 'skin';
+
+    const distortionDropdownCurrent = s(`.dropdown-current-ol-dropdown-distortion-type`);
+    if (distortionDropdownCurrent) {
+      distortionDropdownCurrent.innerHTML =
+        DISTORTION_TYPES.find((entry) => entry.value === DEFAULT_DISTORTION_TYPE)?.label || 'Position Jitter';
+    }
+
+    const distortionFactorInput = s('#ol-input-distortion-factor-a') || s('.ol-input-distortion-factor-a');
+    if (distortionFactorInput) distortionFactorInput.value = String(DEFAULT_DISTORTION_FACTOR_A);
+
+    const distortionStatusNode = s(`.ol-distortion-status`);
+    if (distortionStatusNode) {
+      distortionStatusNode.style.color = '#888';
+      distortionStatusNode.innerHTML = DEFAULT_DISTORTION_STATUS;
+    }
   },
   loadFromDatabase: async (objectLayerId) => {
     try {
@@ -200,6 +561,9 @@ const ObjectLayerEngineModal = {
     };
     const itemTypes = ['skin', 'weapon', 'armor', 'artifact', 'floor', 'resource', 'obstacle', 'foreground', 'portal'];
     const statTypes = ['effect', 'resistance', 'agility', 'range', 'intelligence', 'utility'];
+    const distortionDropdownId = 'ol-dropdown-distortion-type';
+    const distortionApplyBtnClass = 'ol-btn-apply-distortion';
+    const distortionStatusClass = 'ol-distortion-status';
 
     // Check if we have an 'id' query parameter to load existing object layer
     const queryParams = getQueryParams();
@@ -208,6 +572,25 @@ const ObjectLayerEngineModal = {
     // Track frame editing state
     let editingFrameId = null;
     let editingDirectionCode = null;
+
+    const readDistortionFactorA = () => {
+      const factorInput = s('.ol-input-distortion-factor-a') || s('#ol-input-distortion-factor-a');
+      const parsedFactor = Number.parseFloat(factorInput?.value);
+      const normalizedFactor = clampNumber(
+        Number.isFinite(parsedFactor)
+          ? parsedFactor
+          : ObjectLayerEngineModal.distortionFactorA || DEFAULT_DISTORTION_FACTOR_A,
+        0.01,
+        1,
+      );
+
+      ObjectLayerEngineModal.distortionFactorA = normalizedFactor;
+      if (factorInput) {
+        factorInput.value = String(Math.round(normalizedFactor * 100) / 100);
+      }
+
+      return normalizedFactor;
+    };
 
     // Helper function to update UI when entering edit mode
     const enterEditMode = (frameId, directionCode) => {
@@ -781,6 +1164,94 @@ const ObjectLayerEngineModal = {
       }
       syncPaletteFromEditor();
 
+      const setDistortionStatus = (message, tone = 'muted') => {
+        const statusNode = s(`.${distortionStatusClass}`);
+        if (!statusNode) return;
+        statusNode.style.color = tone === 'success' ? '#8fd18c' : tone === 'error' ? '#ff8a8a' : '#888';
+        statusNode.innerHTML = message;
+      };
+
+      const applyDistortionToCurrentFrame = async () => {
+        const ole = s('object-layer-engine');
+        if (!ole || typeof ole.exportMatrixJSON !== 'function' || typeof ole.loadMatrix !== 'function') return;
+
+        let currentJson = null;
+        let currentFrame = null;
+
+        try {
+          currentJson = ole.exportMatrixJSON();
+          currentFrame = typeof currentJson === 'string' ? JSON.parse(currentJson) : currentJson;
+        } catch (error) {
+          setDistortionStatus('Could not read the current frame from the editor.', 'error');
+          return;
+        }
+
+        const currentMatrix = currentFrame?.matrix;
+        if (!Array.isArray(currentMatrix) || !currentMatrix.length || !currentMatrix[0]?.length) {
+          setDistortionStatus('The current frame has no editable matrix data.', 'error');
+          return;
+        }
+        if (!currentMatrix.some((row) => row.some((cell) => isVisibleCell(cell)))) {
+          setDistortionStatus('Paint something on the current frame before applying a distortion.', 'error');
+          return;
+        }
+
+        const selectedDistortionType = ObjectLayerEngineModal.selectedDistortionType || DEFAULT_DISTORTION_TYPE;
+        const distortionFactorA = readDistortionFactorA();
+        const baseFrame = currentFrame;
+        const seedBase = Date.now() + hashString(currentJson);
+        let distortionResult = null;
+
+        for (let attempt = 0; attempt < 4; attempt++) {
+          const distortionSeed = seedBase + attempt * 977;
+          distortionResult = buildDistortedMatrix(
+            baseFrame.matrix,
+            selectedDistortionType,
+            distortionFactorA,
+            distortionSeed,
+          );
+          if (distortionResult.changedCells > 0) break;
+        }
+
+        if (!distortionResult || distortionResult.changedCells === 0) {
+          setDistortionStatus(
+            'No visible distortion was produced for the current frame. Try applying again or edit the frame shape first.',
+            'error',
+          );
+          return;
+        }
+
+        const nextSnapshot = {
+          width: baseFrame.width,
+          height: baseFrame.height,
+          matrix: distortionResult.matrix,
+        };
+        const beforeSnapshot = typeof ole._snapshot === 'function' ? ole._snapshot() : null;
+
+        if (
+          beforeSnapshot &&
+          typeof ole._pushUndo === 'function' &&
+          typeof ole._matricesEqual === 'function' &&
+          !ole._matricesEqual(beforeSnapshot, nextSnapshot)
+        ) {
+          ole._pushUndo(beforeSnapshot);
+        }
+
+        ole.loadMatrix(distortionResult.matrix);
+
+        const distortionLabel =
+          DISTORTION_TYPES.find((entry) => entry.value === selectedDistortionType)?.label || 'Distortion';
+        setDistortionStatus(
+          `${distortionLabel} applied to the current frame. ${distortionResult.appliedDistortions || 0} local shifts, ${distortionResult.changedCells} cells changed, A=${distortionFactorA.toFixed(2)}.`,
+          'success',
+        );
+      };
+
+      EventsUI.onClick(`.${distortionApplyBtnClass}`, async () => {
+        await applyDistortionToCurrentFrame();
+      });
+      setDistortionStatus(DEFAULT_DISTORTION_STATUS);
+
       const persistObjectLayer = async ({ clone = false } = {}) => {
         const isUpdateMode = Boolean(ObjectLayerEngineModal.existingObjectLayerId) && !clone;
 
@@ -1169,6 +1640,52 @@ const ObjectLayerEngineModal = {
         <div class="in section-mp-border" style="margin-top: 10px;">
           <div class="in sub-title-modal"><i class="fa-solid fa-palette"></i> Brush palette</div>
           <color-palette class="${colorPaletteClass}" value="#FF0000"></color-palette>
+        </div>
+        <div class="in section-mp-border" style="margin-top: 10px;">
+          <div class="in sub-title-modal"><i class="fa-solid fa-wand-magic-sparkles"></i> Distortion macro</div>
+          <div class="fl" style="align-items: flex-start; gap: 8px; flex-wrap: wrap;">
+            <div class="in fll" style="min-width: 240px;">
+              ${await DropDown.Render({
+                id: distortionDropdownId,
+                value: ObjectLayerEngineModal.selectedDistortionType,
+                label: html`Select distortion`,
+                data: DISTORTION_TYPES.map((distortion) => ({
+                  value: distortion.value,
+                  display: html`<i class="${distortion.icon}"></i> ${distortion.label}`,
+                  onClick: async () => {
+                    ObjectLayerEngineModal.selectedDistortionType = distortion.value;
+                    readDistortionFactorA();
+                    const statusNode = s(`.${distortionStatusClass}`);
+                    if (statusNode) {
+                      statusNode.style.color = '#888';
+                      statusNode.innerHTML = `${distortion.label} ready for direct canvas apply. ${DEFAULT_DISTORTION_STATUS}`;
+                    }
+                  },
+                })),
+              })}
+            </div>
+            <div class="in fll" style="width: 120px;">
+              ${await Input.Render({
+                id: `ol-input-distortion-factor-a`,
+                label: html`<i class="fa-solid fa-sliders"></i> Factor A`,
+                containerClass: 'inl',
+                type: 'number',
+                min: 0.01,
+                max: 1,
+                step: 0.01,
+                value: ObjectLayerEngineModal.distortionFactorA,
+              })}
+            </div>
+            <div class="in fll">
+              ${await BtnIcon.Render({
+                class: distortionApplyBtnClass,
+                label: html`<i class="fa-solid fa-bolt"></i> Apply Distortion`,
+              })}
+            </div>
+          </div>
+          <div class="in ${distortionStatusClass}" style="margin-top: 6px; font-size: 12px; color: #888;">
+            ${DEFAULT_DISTORTION_STATUS}
+          </div>
         </div>
         <object-layer-png-loader id="loader" editor-selector="#ole"></object-layer-png-loader>
       </div>
