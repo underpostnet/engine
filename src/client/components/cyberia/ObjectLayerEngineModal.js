@@ -1,6 +1,6 @@
 import { CoreService } from '../../services/core/core.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { borderChar, dynamicCol } from '../core/Css.js';
+import { borderChar, Css, dynamicCol, Themes } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Translate } from '../core/Translate.js';
@@ -87,6 +87,7 @@ const DEFAULT_DISTORTION_STATUS =
   'Applies the selected canvas behavior directly to the current editor frame. factorA controls distortion density or mosaic tile scale.';
 const DEFAULT_DISTORTION_FACTOR_A = 0.12;
 const UNIFORM_OPACITY_TOGGLE_ID = 'ol-uniform-opacity-lock';
+const DIRECTION_PREVIEW_MODAL_ID = 'modal-object-layer-direction-preview';
 const CANVAS_BEHAVIOR_BY_VALUE = Object.freeze(
   Object.fromEntries(CANVAS_BEHAVIORS.map((entry) => [entry.value, entry])),
 );
@@ -965,6 +966,140 @@ const ObjectLayerEngineModal = {
     const idSectionA = 'template-section-a';
     const idSectionB = 'template-section-b';
     const colorPaletteClass = 'ol-color-palette';
+    let directionPreviewRuntime = null;
+
+    const cleanupDirectionPreviewRuntime = () => {
+      if (!directionPreviewRuntime) return;
+      if (directionPreviewRuntime.intervalId) {
+        clearInterval(directionPreviewRuntime.intervalId);
+      }
+      for (const frameUrl of directionPreviewRuntime.frameUrls || []) {
+        URL.revokeObjectURL(frameUrl);
+      }
+      directionPreviewRuntime = null;
+    };
+
+    const cleanupDirectionPreviewModal = () => {
+      cleanupDirectionPreviewRuntime();
+      if (s(`.${DIRECTION_PREVIEW_MODAL_ID}`)) {
+        Modal.removeModal(DIRECTION_PREVIEW_MODAL_ID);
+      }
+    };
+
+    if (Modal.Data[options.idModal]) {
+      Modal.Data[options.idModal].onCloseListener[`${options.idModal}-direction-preview-cleanup`] = () => {
+        cleanupDirectionPreviewModal();
+        delete Modal.Data[options.idModal]?.onCloseListener?.[`${options.idModal}-direction-preview-cleanup`];
+      };
+    }
+
+    const getCurrentFrameDuration = () => {
+      const durationInput = s('.ol-input-render-frame-duration') || s('#ol-input-render-frame-duration');
+      const parsedDuration = Number.parseInt(durationInput?.value, 10);
+      return Math.max(
+        100,
+        Number.isFinite(parsedDuration) ? parsedDuration : ObjectLayerEngineModal.renderFrameDuration || 100,
+      );
+    };
+
+    const openDirectionPreviewModal = async (directionCode) => {
+      const frames = ObjectLayerEngineModal.ObjectLayerData[directionCode] || [];
+      if (!frames.length) {
+        NotificationManager.Push({
+          html: `No frames available yet for ${directionCodeLabels[directionCode] || directionCode}.`,
+          status: 'warning',
+        });
+        return;
+      }
+
+      const frameUrls = frames
+        .map((frame) => {
+          if (!frame?.image) return null;
+          return URL.createObjectURL(frame.image);
+        })
+        .filter(Boolean);
+
+      if (!frameUrls.length) {
+        NotificationManager.Push({
+          html: `Could not build a local preview for ${directionCodeLabels[directionCode] || directionCode}.`,
+          status: 'error',
+        });
+        return;
+      }
+
+      cleanupDirectionPreviewModal();
+
+      const { barConfig } = await Themes[Css.currentTheme]();
+      const frameDuration = getCurrentFrameDuration();
+      const previewWidth = Math.max(180, cellsW * pixelSize);
+      const previewHeight = Math.max(180, cellsH * pixelSize);
+
+      await Modal.Render({
+        id: DIRECTION_PREVIEW_MODAL_ID,
+        barConfig,
+        title: `${directionCodeLabels[directionCode] || directionCode} Preview`,
+        html: () => html`
+          <div class="in section-mp" style="text-align: center; min-width: ${previewWidth}px;">
+            <div class="in" style="font-size: 12px; color: #999; margin-bottom: 8px;">
+              ${frames.length} frame${frames.length === 1 ? '' : 's'} at ${frameDuration}ms
+            </div>
+            <div
+              class="in direction-preview-stage"
+              style="display: inline-flex; align-items: center; justify-content: center; min-height: ${previewHeight}px; min-width: ${previewWidth}px; background-image: linear-gradient(45deg, rgba(255,255,255,0.08) 25%, transparent 25%), linear-gradient(-45deg, rgba(255,255,255,0.08) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.08) 75%), linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.08) 75%); background-size: 24px 24px; background-position: 0 0, 0 12px, 12px -12px, -12px 0; border: 1px solid rgba(255,255,255,0.15);"
+            >
+              <img
+                class="direction-preview-image"
+                src="${frameUrls[0]}"
+                style="image-rendering: pixelated; width: ${previewWidth}px; height: ${previewHeight}px; object-fit: contain;"
+              />
+            </div>
+            <div class="fl" style="justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 10px;">
+              ${frameUrls.map(
+                (frameUrl, frameIndex) => html`
+                  <img
+                    src="${frameUrl}"
+                    style="width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.25);"
+                    title="Frame ${frameIndex + 1}"
+                  />
+                `,
+              )}
+            </div>
+          </div>
+        `,
+        style: {
+          width: `${Math.max(300, previewWidth + 40)}px`,
+          height: `${Math.max(260, previewHeight + 150)}px`,
+          border: '1px solid rgba(255,255,255,0.15)',
+          'z-index': 10,
+        },
+        slideMenu: 'modal-menu',
+      });
+
+      const previewImage = s(`.${DIRECTION_PREVIEW_MODAL_ID} .direction-preview-image`);
+      if (!previewImage) {
+        cleanupDirectionPreviewRuntime();
+        return;
+      }
+
+      let currentFrameIndex = 0;
+      const advancePreviewFrame = () => {
+        if (!previewImage) return;
+        currentFrameIndex = (currentFrameIndex + 1) % frameUrls.length;
+        previewImage.src = frameUrls[currentFrameIndex];
+      };
+
+      directionPreviewRuntime = {
+        frameUrls,
+        intervalId: frameUrls.length > 1 ? setInterval(advancePreviewFrame, frameDuration) : null,
+      };
+
+      if (Modal.Data[DIRECTION_PREVIEW_MODAL_ID]) {
+        Modal.Data[DIRECTION_PREVIEW_MODAL_ID].onCloseListener[DIRECTION_PREVIEW_MODAL_ID] = () => {
+          cleanupDirectionPreviewRuntime();
+          delete Modal.Data[DIRECTION_PREVIEW_MODAL_ID]?.onCloseListener?.[DIRECTION_PREVIEW_MODAL_ID];
+        };
+      }
+    };
 
     const rgbaToHex = (rgba = [0, 0, 0]) => {
       const red = Math.max(0, Math.min(255, rgba[0] || 0))
@@ -1149,13 +1284,17 @@ const ObjectLayerEngineModal = {
           <div class="fl">
             <div class="in fll">
               <div class="in direction-code-bar-frames-title">${directionCodeLabels[directionCode]}</div>
-              <div class="in direction-code-bar-frames-btn">
+              <div class="fl direction-code-bar-btn-row" style="gap: 6px;">
                 ${await BtnIcon.Render({
                   label: html`
                     <i class="fa-solid fa-plus direction-code-bar-frames-btn-icon-add-${directionCode}"></i>
                     <i class="fa-solid fa-edit direction-code-bar-frames-btn-icon-edit-${directionCode} hide"></i>
                   `,
                   class: `direction-code-bar-frames-btn-add direction-code-bar-frames-btn-${directionCode}`,
+                })}
+                ${await BtnIcon.Render({
+                  label: html`<i class="fa-solid fa-play"></i>`,
+                  class: `direction-code-bar-preview-btn direction-code-bar-preview-btn-${directionCode}`,
                 })}
               </div>
             </div>
@@ -1262,7 +1401,12 @@ const ObjectLayerEngineModal = {
               }
 
               const buttonSelector = `.direction-code-bar-frames-btn-${currentDirectionCode}`;
+              const previewButtonSelector = `.direction-code-bar-preview-btn-${currentDirectionCode}`;
               console.log(`Registering click handler for: ${buttonSelector}`);
+
+              EventsUI.onClick(previewButtonSelector, async () => {
+                await openDirectionPreviewModal(currentDirectionCode);
+              });
 
               EventsUI.onClick(buttonSelector, async () => {
                 console.log(`Add frame button clicked for direction: ${currentDirectionCode}`);
@@ -1809,6 +1953,10 @@ const ObjectLayerEngineModal = {
           color: white;
           border: none !important;
         }
+        .direction-code-bar-preview-btn {
+          color: white;
+          border: none !important;
+        }
         .direction-code-bar-trash-btn:hover {
           background: none !important;
           color: red;
@@ -1820,6 +1968,10 @@ const ObjectLayerEngineModal = {
         .direction-code-bar-frames-btn-add:hover {
           background: none !important;
           color: #c7ff58;
+        }
+        .direction-code-bar-preview-btn:hover {
+          background: none !important;
+          color: #5ee6ff;
         }
         .ol-btn-save {
           width: 120px;
@@ -1877,6 +2029,7 @@ const ObjectLayerEngineModal = {
         '.direction-code-bar-edit-btn',
         '.direction-code-bar-trash-btn',
         '.direction-code-bar-frames-btn-add',
+        '.direction-code-bar-preview-btn',
       ])}
       <div class="in frame-editor-container-loading">
         <div class="abs center frame-editor-container-loading-center"></div>
