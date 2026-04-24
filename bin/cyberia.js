@@ -1939,12 +1939,33 @@ try {
             if (ol.data?.render?.metadataCid) allCids.add(ol.data.render.metadataCid);
           }
 
-          // Export IPFS pin records for all collected CIDs
+          // Export IPFS pin records for all collected CIDs.
+          // Back-fill resourceType from mfsPath for legacy records that pre-date the required field.
+          // Abort the export (error) if any record still has no resolvable resourceType.
           if (allCids.size > 0) {
             const ipfsDocs = await Ipfs.find({ cid: { $in: [...allCids] } }).lean();
             if (ipfsDocs.length > 0) {
-              fs.writeJsonSync(`${backupDir}/ipfs/pins.json`, ipfsDocs, { spaces: 2 });
-              logger.info(`Exported ${ipfsDocs.length} Ipfs pin record(s)`);
+              const inferResourceType = (doc) => {
+                if (doc.resourceType) return doc.resourceType;
+                const p = doc.mfsPath || '';
+                if (p.endsWith('_atlas_sprite_sheet.png')) return 'atlas-sprite-sheet';
+                if (p.endsWith('_atlas_sprite_sheet_metadata.json')) return 'atlas-metadata';
+                if (p.endsWith('_data.json')) return 'object-layer-data';
+                return null;
+              };
+              const unresolvable = ipfsDocs.filter((d) => !inferResourceType(d));
+              if (unresolvable.length > 0) {
+                for (const d of unresolvable) {
+                  logger.error(
+                    `Ipfs record is missing resourceType and cannot be inferred from mfsPath — export aborted. Fix this record in MongoDB before re-exporting. cid: ${d.cid}, mfsPath: ${d.mfsPath ?? '(none)'}`,
+                  );
+                }
+                await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+                process.exit(1);
+              }
+              const sanitised = ipfsDocs.map((d) => ({ ...d, resourceType: inferResourceType(d) }));
+              fs.writeJsonSync(`${backupDir}/ipfs/pins.json`, sanitised, { spaces: 2 });
+              logger.info(`Exported ${sanitised.length} Ipfs pin record(s)`);
             }
           }
 
@@ -2219,22 +2240,93 @@ try {
           logger.info(`Imported ${olCount} ObjectLayer document(s)`);
         }
 
+        // 4b. Regenerate static frame PNGs from imported render-frames + object-layer documents.
+        //     Mirrors the writeStaticFrameAssets call in `ol --import` so src/client/public/cyberia
+        //     and the public/<host><path> deployment dir are populated even when the cyberia
+        //     asset directory was wiped (e.g. git clean / rm -rf).
+        const rfImportDir = `${backupDir}/render-frames`;
+        const olImportDir = `${backupDir}/object-layers`;
+        if (fs.existsSync(rfImportDir) && fs.existsSync(olImportDir)) {
+          const srcBasePath = './src/client/public/cyberia/';
+          const publicBasePath = `./public/${host}${path}`;
+          let staticWriteCount = 0;
+          const rfFileList = fs.readdirSync(rfImportDir).filter((f) => f.endsWith('.json'));
+          for (const rfFile of rfFileList) {
+            const rfData = fs.readJsonSync(`${rfImportDir}/${rfFile}`);
+            const itemId = nodePath.basename(rfFile, '.json');
+            const olFile = `${olImportDir}/${itemId}.json`;
+            if (!fs.existsSync(olFile)) {
+              logger.warn(`Skipping static asset generation for '${itemId}' — no matching object-layer file`);
+              continue;
+            }
+            const olData = fs.readJsonSync(olFile);
+            const itemType = olData.data?.item?.type;
+            if (!itemType) {
+              logger.warn(`Skipping static asset generation for '${itemId}' — missing data.item.type`);
+              continue;
+            }
+            // rfData matches the ObjectLayerRenderFrames schema: { frames, colors, frame_duration }
+            const objectLayerRenderFramesData = {
+              frames: rfData.frames || {},
+              colors: rfData.colors || [],
+              frame_duration: rfData.frame_duration ?? 100,
+            };
+            try {
+              const written = await ObjectLayerEngine.writeStaticFrameAssets({
+                basePaths: [srcBasePath, publicBasePath],
+                itemType,
+                itemId,
+                objectLayerRenderFramesData,
+                objectLayerData: olData,
+                cellPixelDim: 20,
+              });
+              staticWriteCount += written.length;
+            } catch (err) {
+              logger.warn(`Failed to write static assets for '${itemId}': ${err.message}`);
+            }
+          }
+          logger.info(`Static frame PNGs written: ${staticWriteCount} file(s) across src/client/public and public/`);
+        }
+
         // 5. Import IPFS pin records and re-pin CIDs
         const ipfsFile = `${backupDir}/ipfs/pins.json`;
         if (fs.existsSync(ipfsFile)) {
           const ipfsDocs = fs.readJsonSync(ipfsFile);
           let ipfsCount = 0;
+          let ipfsSkipped = 0;
           const pinnedCids = new Set();
+
+          // Infer resourceType from mfsPath for legacy records that pre-date the required field.
+          // MFS path conventions (from atlas-sprite-sheet.service.js and object-layer.service.js):
+          //   /object-layer/<id>/<id>_atlas_sprite_sheet.png       → 'atlas-sprite-sheet'
+          //   /object-layer/<id>/<id>_atlas_sprite_sheet_metadata.json → 'atlas-metadata'
+          //   /object-layer/<id>/<id>_data.json                    → 'object-layer-data'
+          const inferResourceType = (doc) => {
+            if (doc.resourceType) return doc.resourceType;
+            const p = doc.mfsPath || '';
+            if (p.endsWith('_atlas_sprite_sheet.png')) return 'atlas-sprite-sheet';
+            if (p.endsWith('_atlas_sprite_sheet_metadata.json')) return 'atlas-metadata';
+            if (p.endsWith('_data.json')) return 'object-layer-data';
+            return null;
+          };
+
           for (const doc of ipfsDocs) {
-            await Ipfs.deleteOne({ _id: doc._id });
-            if (doc.cid && doc.resourceType) {
-              await Ipfs.deleteOne({ cid: doc.cid, resourceType: doc.resourceType });
+            const resourceType = inferResourceType(doc);
+            if (!resourceType) {
+              logger.error(
+                `Ipfs record is missing resourceType and cannot be inferred (cid: ${doc.cid}, mfsPath: ${doc.mfsPath ?? '(none)'}) — skipping. Re-export after fixing the source DB record.`,
+              );
+              ipfsSkipped++;
+              continue;
             }
-            await Ipfs.create(doc);
+            const resolved = { ...doc, resourceType };
+            await Ipfs.deleteOne({ _id: resolved._id });
+            await Ipfs.deleteOne({ cid: resolved.cid, resourceType: resolved.resourceType });
+            await Ipfs.create(resolved);
             ipfsCount++;
-            if (doc.cid) pinnedCids.add(doc.cid);
+            if (resolved.cid) pinnedCids.add(resolved.cid);
           }
-          logger.info(`Imported ${ipfsCount} Ipfs pin record(s)`);
+          logger.info(`Imported ${ipfsCount} Ipfs pin record(s)${ipfsSkipped ? `, skipped ${ipfsSkipped} (missing resourceType)` : ''}`);
 
           // Re-pin CIDs to IPFS Kubo + Cluster
           let repinCount = 0;
