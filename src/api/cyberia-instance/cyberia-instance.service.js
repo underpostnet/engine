@@ -22,7 +22,7 @@ const CyberiaInstanceService = {
         const conf = await CyberiaInstanceConf.findOneAndUpdate(
           { instanceCode: instance.code },
           { $setOnInsert: { instanceCode: instance.code } },
-          { upsert: true, new: true },
+          { upsert: true, returnDocument: 'after' },
         );
         if (conf && !instance.conf) {
           await CyberiaInstance.findByIdAndUpdate(instance._id, { conf: conf._id });

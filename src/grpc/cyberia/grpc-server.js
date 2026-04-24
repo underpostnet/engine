@@ -439,7 +439,7 @@ function buildHandlers(dbKey) {
           models.GlobalMapCodeRegistry.findOneAndUpdate(
             { mapCode },
             { instanceCode, status: 'active' },
-            { upsert: true, new: true, timestamps: true },
+            { upsert: true, returnDocument: 'after', timestamps: true },
           ).catch((err) => logger.warn('getMapData registry update failed:', err.message));
         }
 

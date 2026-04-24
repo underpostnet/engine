@@ -1826,7 +1826,7 @@ try {
           const created = await CyberiaInstanceConf.findOneAndUpdate(
             { instanceCode },
             { $setOnInsert: { instanceCode } },
-            { upsert: true, new: true },
+            { upsert: true, returnDocument: 'after' },
           );
           // Back-fill the instance.conf ref if it was missing
           if (created && !instance.conf) {
