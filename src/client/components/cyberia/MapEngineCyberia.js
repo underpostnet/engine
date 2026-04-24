@@ -906,26 +906,10 @@ class MapEngineCyberia {
     const cloneMap = async () => {
       if (!MapEngineCyberia.currentMapId) return;
 
-      // Always upload a new thumbnail file for the clone so it doesn't share the original's file
-      const thumbnailInput = s(`.${idThumbnail}`);
       let cloneThumbnailId = null;
-      if (thumbnailInput && thumbnailInput.files && thumbnailInput.files.length > 0) {
-        const formData = new FormData();
-        formData.append('file', thumbnailInput.files[0]);
-        const uploadResult = await FileService.post({ body: formData });
-        if (uploadResult.status === 'success' && uploadResult.data && uploadResult.data.length > 0) {
-          cloneThumbnailId = uploadResult.data[0]._id;
-        } else {
-          NotificationManager.Push({
-            html: uploadResult.message || 'Failed to upload thumbnail',
-            status: 'error',
-          });
-          return;
-        }
-      }
 
-      // Capture object layer thumbnail for clone if checkbox is checked
-      if (!cloneThumbnailId && MapEngineCyberia.captureObjLayerThumbnail) {
+      // When enabled, clone should use a fresh object-layer capture instead of reusing the current thumbnail file.
+      if (MapEngineCyberia.captureObjLayerThumbnail) {
         const { cols, rows, cellW, cellH } = getCanvasParams();
         const offscreen = MapEngineCyberia.renderToOffscreenCanvas(cols, rows, cellW, cellH, {
           forceObjectLayers: true,
@@ -938,6 +922,22 @@ class MapEngineCyberia {
           const uploadResult = await FileService.post({ body: formData });
           if (uploadResult.status === 'success' && uploadResult.data?.length > 0) {
             cloneThumbnailId = uploadResult.data[0]._id;
+          }
+        }
+      } else {
+        const thumbnailInput = s(`.${idThumbnail}`);
+        if (thumbnailInput && thumbnailInput.files && thumbnailInput.files.length > 0) {
+          const formData = new FormData();
+          formData.append('file', thumbnailInput.files[0]);
+          const uploadResult = await FileService.post({ body: formData });
+          if (uploadResult.status === 'success' && uploadResult.data && uploadResult.data.length > 0) {
+            cloneThumbnailId = uploadResult.data[0]._id;
+          } else {
+            NotificationManager.Push({
+              html: uploadResult.message || 'Failed to upload thumbnail',
+              status: 'error',
+            });
+            return;
           }
         }
       }
@@ -1365,7 +1365,7 @@ class MapEngineCyberia {
               },
             },
           })}
-          <div class="section-mp">&nbsp &nbsp Capture Object Layer Map Thumbnail on Save/Update</div>
+          <div class="section-mp">&nbsp &nbsp Capture Object Layer Map Thumbnail on Save/Update/Clone</div>
         </div>
         ${await BtnIcon.Render({
           class: 'wfa btn-map-engine-toggle-thumbnail',
