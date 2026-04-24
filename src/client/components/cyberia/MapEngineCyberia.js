@@ -13,10 +13,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { ObjectLayerService } from '../../services/object-layer/object-layer.service.js';
 import { getProxyPath } from '../core/Router.js';
-import {
-  ENTITY_TYPES,
-  getDefaultCyberiaItemById,
-} from '../cyberia-portal/CommonCyberiaPortal.js';
+import { ENTITY_TYPES, getDefaultCyberiaItemById } from '../cyberia-portal/CommonCyberiaPortal.js';
 import '../core/ColorPaletteElement.js';
 
 const DEFAULT_ENTITY_TYPE = ENTITY_TYPES.floor;
@@ -48,6 +45,8 @@ class MapEngineCyberia {
   static entityTypeDropdownId = 'map-engine-entity-type';
   static objectLayerDropdownId = 'map-engine-obj-layer-dropdown';
   static objectLayerDropdownHostId = 'map-engine-obj-layer-dropdown-host';
+  static renameSourceObjectLayerInputId = 'map-engine-rename-source-object-layer-item-id';
+  static renameTargetObjectLayerInputId = 'map-engine-rename-target-object-layer-item-id';
 
   static getSelectedDropdownValue(dropdownId, fallback = '') {
     return DropDown.Tokens[dropdownId]?.value || s(`.${dropdownId}`)?.value || fallback;
@@ -61,6 +60,13 @@ class MapEngineCyberia {
     return DropDown.Tokens[MapEngineCyberia.objectLayerDropdownId]?.value
       ? [...DropDown.Tokens[MapEngineCyberia.objectLayerDropdownId].value]
       : [];
+  }
+
+  static getRenameObjectLayerItemIds() {
+    return {
+      source: s(`.${MapEngineCyberia.renameSourceObjectLayerInputId}`)?.value?.trim() || '',
+      target: s(`.${MapEngineCyberia.renameTargetObjectLayerInputId}`)?.value?.trim() || '',
+    };
   }
 
   static setDropdownValue(dropdownId, value) {
@@ -116,6 +122,67 @@ class MapEngineCyberia {
 
     htmls(`.${hostId}`, await MapEngineCyberia.buildObjectLayerDropdown());
     MapEngineCyberia.syncObjectLayerDropdownSelection(selectedItemIds);
+  }
+
+  static renameFilteredObjectLayerItemId() {
+    const { source, target } = MapEngineCyberia.getRenameObjectLayerItemIds();
+    if (!source || !target) {
+      NotificationManager.Push({
+        html: 'Source and target ItemId are required.',
+        status: 'error',
+      });
+      return false;
+    }
+
+    if (source === target) {
+      NotificationManager.Push({
+        html: 'Source and target ItemId must be different.',
+        status: 'error',
+      });
+      return false;
+    }
+
+    const filtered = MapEngineCyberia.getFilteredEntities();
+    if (!filtered.length) {
+      NotificationManager.Push({
+        html: 'No filtered entities available for ItemId rename.',
+        status: 'error',
+      });
+      return false;
+    }
+
+    let matchedEntities = 0;
+    let renamedReferences = 0;
+    const changed = MapEngineCyberia.commitEntityMutation(() => {
+      for (const { i } of filtered) {
+        const entity = MapEngineCyberia.entities[i];
+        if (!Array.isArray(entity?.objectLayerItemIds) || entity.objectLayerItemIds.length === 0) continue;
+
+        let entityChanged = false;
+        entity.objectLayerItemIds = entity.objectLayerItemIds.map((itemId) => {
+          if (itemId !== source) return itemId;
+          entityChanged = true;
+          renamedReferences += 1;
+          return target;
+        });
+
+        if (entityChanged) matchedEntities += 1;
+      }
+    });
+
+    if (!changed) {
+      NotificationManager.Push({
+        html: `No exact ItemId matches for "${source}" were found in the current filtered entities.`,
+        status: 'error',
+      });
+      return false;
+    }
+
+    NotificationManager.Push({
+      html: `Renamed ${renamedReferences} object layer reference${renamedReferences === 1 ? '' : 's'} across ${matchedEntities} filtered entit${matchedEntities === 1 ? 'y' : 'ies'}.`,
+      status: 'success',
+    });
+    return true;
   }
 
   static cloneEntity(entity) {
@@ -532,6 +599,8 @@ class MapEngineCyberia {
     const entityListId = 'map-engine-entity-list';
     const idObjLayerDropdown = MapEngineCyberia.objectLayerDropdownId;
     const idObjLayerDropdownHost = MapEngineCyberia.objectLayerDropdownHostId;
+    const idRenameSourceObjectLayer = MapEngineCyberia.renameSourceObjectLayerInputId;
+    const idRenameTargetObjectLayer = MapEngineCyberia.renameTargetObjectLayerInputId;
     const managementId = 'modal-cyberia-map-engine';
 
     MapEngineCyberia.setEntities([], { clearHistory: true });
@@ -996,6 +1065,8 @@ class MapEngineCyberia {
       if (s(`.${idCellW}`)) s(`.${idCellW}`).value = 32;
       if (s(`.${idCellH}`)) s(`.${idCellH}`).value = 32;
       if (s(`.${idVariationPreserve}`)) s(`.${idVariationPreserve}`).value = '';
+      if (s(`.${idRenameSourceObjectLayer}`)) s(`.${idRenameSourceObjectLayer}`).value = '';
+      if (s(`.${idRenameTargetObjectLayer}`)) s(`.${idRenameTargetObjectLayer}`).value = '';
       MapEngineCyberia.setEntities([], { clearHistory: true });
       MapEngineCyberia.setDropdownValue(idEntityType, DEFAULT_ENTITY_TYPE);
       if (DropDown.Tokens[idObjLayerDropdown]) {
@@ -1172,6 +1243,11 @@ class MapEngineCyberia {
 
       if (s('.btn-map-engine-clear-all-entities'))
         s('.btn-map-engine-clear-all-entities').onclick = () => clearAllEntities();
+
+      if (s('.btn-map-engine-rename-filtered-object-layer-item-id'))
+        s('.btn-map-engine-rename-filtered-object-layer-item-id').onclick = () => {
+          MapEngineCyberia.renameFilteredObjectLayerItemId();
+        };
     });
 
     const statusOptions = [
@@ -1602,8 +1678,38 @@ class MapEngineCyberia {
           <div class="section-mp">&nbsp &nbsp Enable Random Factors</div>
         </div>
         <div class="in" style="margin: 10px;">
-          <div class="${idObjLayerDropdownHost}">
-            ${await MapEngineCyberia.buildObjectLayerDropdown()}
+          <div class="${idObjLayerDropdownHost}">${await MapEngineCyberia.buildObjectLayerDropdown()}</div>
+        </div>
+        <div class="in section-mp-border" style="margin: 10px; padding: 10px;">
+          <div class="in input-label">Rename Object Layer ItemId on Filtered Entities</div>
+          <div class="in" style="font-size:12px;color:#888;margin-bottom:8px;">
+            Replaces only exact source ItemId matches inside entities currently visible through the filters.
+          </div>
+          <div class="fl">
+            <div class="in fll" style="flex:1;padding-right:5px;">
+              ${await Input.Render({
+                id: idRenameSourceObjectLayer,
+                label: html`Source ItemId`,
+                containerClass: 'inl',
+                type: 'text',
+                placeholder: true,
+              })}
+            </div>
+            <div class="in fll" style="flex:1;padding-left:5px;">
+              ${await Input.Render({
+                id: idRenameTargetObjectLayer,
+                label: html`Target ItemId`,
+                containerClass: 'inl',
+                type: 'text',
+                placeholder: true,
+              })}
+            </div>
+          </div>
+          <div class="in" style="margin-top: 5px;">
+            ${await BtnIcon.Render({
+              class: 'wfa btn-map-engine-rename-filtered-object-layer-item-id',
+              label: html`<i class="fa-solid fa-arrow-right-arrow-left"></i> Rename Filtered ItemId`,
+            })}
           </div>
         </div>
         <div class="in">
