@@ -86,6 +86,7 @@ const DEFAULT_DISTORTION_TYPE = DISTORTION_TYPES[0].value;
 const DEFAULT_DISTORTION_STATUS =
   'Applies the selected canvas behavior directly to the current editor frame. factorA controls distortion density or mosaic tile scale.';
 const DEFAULT_DISTORTION_FACTOR_A = 0.12;
+const UNIFORM_OPACITY_TOGGLE_ID = 'ol-uniform-opacity-lock';
 const CANVAS_BEHAVIOR_BY_VALUE = Object.freeze(
   Object.fromEntries(CANVAS_BEHAVIORS.map((entry) => [entry.value, entry])),
 );
@@ -521,6 +522,7 @@ const ObjectLayerEngineModal = {
   originalDirectionCodes: [],
   selectedDistortionType: DEFAULT_DISTORTION_TYPE,
   distortionFactorA: DEFAULT_DISTORTION_FACTOR_A,
+  uniformOpacityEnabled: false,
   templates: [
     {
       label: 'empty',
@@ -592,6 +594,7 @@ const ObjectLayerEngineModal = {
     this.originalDirectionCodes = [];
     this.selectedDistortionType = DEFAULT_DISTORTION_TYPE;
     this.distortionFactorA = DEFAULT_DISTORTION_FACTOR_A;
+    this.uniformOpacityEnabled = false;
     this.templates = [
       {
         label: 'empty',
@@ -739,6 +742,73 @@ const ObjectLayerEngineModal = {
       }
 
       return normalizedFactor;
+    };
+
+    let uniformOpacitySyncInProgress = false;
+
+    const buildUniformOpacityMatrix = (matrix = [], targetAlpha = 255) => {
+      const clampedAlpha = clampNumber(Number(targetAlpha) || 0, 0, 255);
+      let changedCells = 0;
+      const nextMatrix = matrix.map((row) =>
+        row.map((cell) => {
+          const nextCell = cell.slice();
+          if (isVisibleCell(nextCell) && nextCell[3] !== clampedAlpha) {
+            nextCell[3] = clampedAlpha;
+            changedCells++;
+          }
+          return nextCell;
+        }),
+      );
+
+      return { matrix: nextMatrix, changedCells, alpha: clampedAlpha };
+    };
+
+    const applyUniformOpacityToEditor = ({ captureUndo = false } = {}) => {
+      const ole = s('object-layer-engine');
+      if (!ole || !ObjectLayerEngineModal.uniformOpacityEnabled || uniformOpacitySyncInProgress) return false;
+
+      let currentFrame = null;
+      try {
+        const exportedMatrix = ole.exportMatrixJSON();
+        currentFrame = typeof exportedMatrix === 'string' ? JSON.parse(exportedMatrix) : exportedMatrix;
+      } catch (error) {
+        return false;
+      }
+
+      const currentMatrix = currentFrame?.matrix;
+      if (!Array.isArray(currentMatrix) || !currentMatrix.length || !currentMatrix[0]?.length) {
+        return false;
+      }
+
+      const targetAlpha = clampNumber(ole.getBrushAlpha?.() ?? ole.getBrushColor?.()?.[3] ?? 255, 0, 255);
+      const nextFrame = buildUniformOpacityMatrix(currentMatrix, targetAlpha);
+      if (!nextFrame.changedCells) return false;
+
+      const nextSnapshot = {
+        width: currentFrame.width || currentMatrix[0].length,
+        height: currentFrame.height || currentMatrix.length,
+        matrix: nextFrame.matrix,
+      };
+      const beforeSnapshot = captureUndo && typeof ole._snapshot === 'function' ? ole._snapshot() : null;
+
+      if (
+        captureUndo &&
+        beforeSnapshot &&
+        typeof ole._pushUndo === 'function' &&
+        typeof ole._matricesEqual === 'function' &&
+        !ole._matricesEqual(beforeSnapshot, nextSnapshot)
+      ) {
+        ole._pushUndo(beforeSnapshot);
+      }
+
+      uniformOpacitySyncInProgress = true;
+      try {
+        ole.loadMatrix(nextFrame.matrix);
+      } finally {
+        uniformOpacitySyncInProgress = false;
+      }
+
+      return true;
     };
 
     // Helper function to update UI when entering edit mode
@@ -1311,6 +1381,15 @@ const ObjectLayerEngineModal = {
       if (editor) {
         editor.addEventListener('brushcolorchange', syncPaletteFromEditor);
       }
+
+      const syncUniformOpacityFromEditor = () => {
+        applyUniformOpacityToEditor();
+      };
+
+      if (editor) {
+        editor.addEventListener('brushcolorchange', syncUniformOpacityFromEditor);
+        editor.addEventListener('matrixload', syncUniformOpacityFromEditor);
+      }
       syncPaletteFromEditor();
 
       const setDistortionStatus = (message, tone = 'muted') => {
@@ -1810,6 +1889,27 @@ const ObjectLayerEngineModal = {
         <div class="in section-mp-border" style="margin-top: 10px;">
           <div class="in sub-title-modal"><i class="fa-solid fa-palette"></i> Brush palette</div>
           <color-palette class="${colorPaletteClass}" value="#FF0000"></color-palette>
+          <div class="fl" style="align-items: center; gap: 8px; margin-top: 8px;">
+            ${await ToggleSwitch.Render({
+              id: UNIFORM_OPACITY_TOGGLE_ID,
+              type: 'checkbox',
+              displayMode: 'checkbox',
+              containerClass: 'in fll',
+              checked: ObjectLayerEngineModal.uniformOpacityEnabled,
+              on: {
+                checked: () => {
+                  ObjectLayerEngineModal.uniformOpacityEnabled = true;
+                  applyUniformOpacityToEditor({ captureUndo: true });
+                },
+                unchecked: () => {
+                  ObjectLayerEngineModal.uniformOpacityEnabled = false;
+                },
+              },
+            })}
+            <div class="section-mp" style="font-size: 14px;">
+              Keep all visible cells at the current opacity bar value
+            </div>
+          </div>
         </div>
         <div class="in section-mp-border" style="margin-top: 10px;">
           <div class="in sub-title-modal"><i class="fa-solid fa-wand-magic-sparkles"></i> Canvas macro</div>
