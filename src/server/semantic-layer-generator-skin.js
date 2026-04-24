@@ -21,7 +21,8 @@
  *
  * UP direction derives from DOWN but colours the head area with hair instead
  * of skin (the back of the head is visible).
- * RIGHT direction mirrors LEFT (direction 06) template horizontally.
+ * The canonical side template is direction 06 (right); LEFT is derived by
+ * mirroring it so generated frame keys stay aligned with 04 = left and 06 = right.
  *
  * @module src/server/semantic-layer-generator-skin.js
  * @namespace SemanticLayerGeneratorSkin
@@ -161,18 +162,18 @@ const ZONES = (() => {
     return { skin: RAW.down.skin, shirt: RAW.down.shirt, pants, shoes, hair: RAW.down.hair, border: RAW.down.border };
   })();
 
-  const left = (() => {
+  const right = (() => {
     const { pants, shoes } = splitLegs(RAW.left.legs);
     return { skin: RAW.left.skin, shirt: RAW.left.shirt, pants, shoes, hair: RAW.left.hair, border: RAW.left.border };
   })();
 
-  const right = {
-    skin: mirrorH(left.skin),
-    shirt: mirrorH(left.shirt),
-    pants: mirrorH(left.pants),
-    shoes: mirrorH(left.shoes),
-    hair: mirrorH(left.hair),
-    border: mirrorH(left.border),
+  const left = {
+    skin: mirrorH(right.skin),
+    shirt: mirrorH(right.shirt),
+    pants: mirrorH(right.pants),
+    shoes: mirrorH(right.shoes),
+    hair: mirrorH(right.hair),
+    border: mirrorH(right.border),
   };
 
   // UP: same body layout as DOWN but head pixels (y <= HEAD_Y_MAX) are painted
