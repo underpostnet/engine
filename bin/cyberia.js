@@ -1816,14 +1816,29 @@ try {
         logger.info('Exported CyberiaInstance', { code: instanceCode });
 
         // 1b. Export linked CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
-        const instanceConf =
+        // If no conf doc exists yet (instance created before auto-upsert logic), create one using
+        // schema defaults — identical to the behaviour in CyberiaInstanceService.post().
+        let instanceConf =
           (await CyberiaInstanceConf.findOne({ instanceCode }).lean()) ||
           (instance.conf ? await CyberiaInstanceConf.findById(instance.conf).lean() : null);
+        if (!instanceConf) {
+          logger.info('No CyberiaInstanceConf found — creating default', { instanceCode });
+          const created = await CyberiaInstanceConf.findOneAndUpdate(
+            { instanceCode },
+            { $setOnInsert: { instanceCode } },
+            { upsert: true, new: true },
+          );
+          // Back-fill the instance.conf ref if it was missing
+          if (created && !instance.conf) {
+            await CyberiaInstance.findByIdAndUpdate(instance._id, { conf: created._id });
+          }
+          instanceConf = created?.toObject ? created.toObject() : created;
+        }
         if (instanceConf) {
           fs.writeJsonSync(`${backupDir}/cyberia-instance-conf.json`, instanceConf, { spaces: 2 });
           logger.info('Exported CyberiaInstanceConf', { instanceCode });
         } else {
-          logger.warn('No CyberiaInstanceConf found for instance', { instanceCode });
+          logger.warn('Could not create or find CyberiaInstanceConf', { instanceCode });
         }
 
         // 2. Collect all map codes (instance maps + portal targets)
