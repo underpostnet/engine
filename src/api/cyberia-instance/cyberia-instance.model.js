@@ -52,6 +52,9 @@ const CyberiaInstanceSchema = new Schema(
     // Vertex set of the graph
     cyberiaMapCodes: { type: [String], default: [] },
 
+    // Instance-level object layer item IDs.
+    itemIds: { type: [String], default: [] },
+
     // Directed edge set of the graph
     portals: { type: [PortalEdgeSchema], default: [] },
 
