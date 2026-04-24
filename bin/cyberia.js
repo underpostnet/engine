@@ -1749,6 +1749,7 @@ try {
       await DataBaseProvider.load({
         apis: [
           'cyberia-instance',
+          'cyberia-instance-conf',
           'cyberia-map',
           'cyberia-entity',
           'object-layer',
@@ -1764,6 +1765,7 @@ try {
 
       const dbModels = DataBaseProvider.instance[`${host}${path}`].mongoose.models;
       const CyberiaInstance = dbModels.CyberiaInstance;
+      const CyberiaInstanceConf = dbModels.CyberiaInstanceConf;
       const CyberiaMap = dbModels.CyberiaMap;
       const ObjectLayer = dbModels.ObjectLayer;
       const ObjectLayerRenderFrames = dbModels.ObjectLayerRenderFrames;
@@ -1813,6 +1815,17 @@ try {
         }
         logger.info('Exported CyberiaInstance', { code: instanceCode });
 
+        // 1b. Export linked CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
+        const instanceConf =
+          (await CyberiaInstanceConf.findOne({ instanceCode }).lean()) ||
+          (instance.conf ? await CyberiaInstanceConf.findById(instance.conf).lean() : null);
+        if (instanceConf) {
+          fs.writeJsonSync(`${backupDir}/cyberia-instance-conf.json`, instanceConf, { spaces: 2 });
+          logger.info('Exported CyberiaInstanceConf', { instanceCode });
+        } else {
+          logger.warn('No CyberiaInstanceConf found for instance', { instanceCode });
+        }
+
         // 2. Collect all map codes (instance maps + portal targets)
         const mapCodes = new Set(instance.cyberiaMapCodes || []);
         for (const portal of instance.portals || []) {
@@ -1837,6 +1850,33 @@ try {
           for (const entity of map.entities || []) {
             for (const itemId of entity.objectLayerItemIds || []) {
               objectLayerItemIds.add(itemId);
+            }
+          }
+        }
+
+        // 4b. Add instance-level itemIds
+        for (const id of instance.itemIds || []) {
+          if (id) objectLayerItemIds.add(id);
+        }
+
+        // 4c. Add all itemIds referenced by CyberiaInstanceConf (entityDefaults + skillConfig).
+        //     This ensures liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers and
+        //     skill trigger items are included even if no map entity currently uses them.
+        if (instanceConf) {
+          for (const ed of instanceConf.entityDefaults || []) {
+            for (const id of ed.liveItemIds || []) if (id) objectLayerItemIds.add(id);
+            for (const id of ed.deadItemIds || []) if (id) objectLayerItemIds.add(id);
+            for (const id of ed.dropItemIds || []) if (id) objectLayerItemIds.add(id);
+            for (const slot of ed.defaultObjectLayers || []) {
+              if (slot.itemId) objectLayerItemIds.add(slot.itemId);
+            }
+          }
+          for (const sc of instanceConf.skillConfig || []) {
+            if (sc.triggerItemId) objectLayerItemIds.add(sc.triggerItemId);
+            for (const skill of sc.skills || []) {
+              if (skill.summonedEntityItemId && !skill.summonedEntityItemId.startsWith('$')) {
+                objectLayerItemIds.add(skill.summonedEntityItemId);
+              }
             }
           }
         }
@@ -1943,6 +1983,29 @@ try {
                 for (const entity of map.entities || []) {
                   for (const itemId of entity.objectLayerItemIds || []) {
                     dropOlItemIds.add(itemId);
+                  }
+                }
+              }
+
+              // Add instance-level itemIds (may not appear in any map entity)
+              for (const id of existingInstance.itemIds || []) if (id) dropOlItemIds.add(id);
+
+              // Add conf entityDefaults and skillConfig itemIds (liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers)
+              const existingConf =
+                (await CyberiaInstanceConf.findOne({ instanceCode }).lean()) ||
+                (existingInstance.conf ? await CyberiaInstanceConf.findById(existingInstance.conf).lean() : null);
+              if (existingConf) {
+                for (const ed of existingConf.entityDefaults || []) {
+                  for (const id of ed.liveItemIds || []) if (id) dropOlItemIds.add(id);
+                  for (const id of ed.deadItemIds || []) if (id) dropOlItemIds.add(id);
+                  for (const id of ed.dropItemIds || []) if (id) dropOlItemIds.add(id);
+                  for (const slot of ed.defaultObjectLayers || []) if (slot.itemId) dropOlItemIds.add(slot.itemId);
+                }
+                for (const sc of existingConf.skillConfig || []) {
+                  if (sc.triggerItemId) dropOlItemIds.add(sc.triggerItemId);
+                  for (const skill of sc.skills || []) {
+                    if (skill.summonedEntityItemId && !skill.summonedEntityItemId.startsWith('$'))
+                      dropOlItemIds.add(skill.summonedEntityItemId);
                   }
                 }
               }
@@ -2061,6 +2124,8 @@ try {
 
             await CyberiaInstance.deleteOne({ code: instanceCode });
             logger.info('Dropped CyberiaInstance', { code: instanceCode });
+            await CyberiaInstanceConf.deleteOne({ instanceCode });
+            logger.info('Dropped CyberiaInstanceConf', { instanceCode });
           } else {
             logger.info('No existing instance to drop', { code: instanceCode });
           }
@@ -2163,6 +2228,15 @@ try {
             if (ok) repinCount++;
           }
           logger.info(`IPFS re-pin: ${repinCount}/${pinnedCids.size} CIDs pinned`);
+
+          // Restore MFS paths so Kubo "Files" view and MFS-based lookups work correctly
+          const mfsDocs = ipfsDocs.filter((d) => d.cid && d.mfsPath);
+          let mfsRestoreCount = 0;
+          for (const doc of mfsDocs) {
+            const ok = await IpfsClient.restoreMfsPath(doc.cid, doc.mfsPath);
+            if (ok) mfsRestoreCount++;
+          }
+          logger.info(`IPFS MFS restore: ${mfsRestoreCount}/${mfsDocs.length} paths restored`);
         }
 
         // 6. Import maps (preserveUUID: delete by code then create with exact _id)
@@ -2180,6 +2254,18 @@ try {
             mapCount++;
           }
           logger.info(`Imported ${mapCount} CyberiaMap document(s)`);
+        }
+
+        // 6b. Import CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
+        const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
+        if (fs.existsSync(confImportPath)) {
+          const confData = fs.readJsonSync(confImportPath);
+          if (confData._id) await CyberiaInstanceConf.deleteOne({ _id: confData._id });
+          await CyberiaInstanceConf.deleteOne({ instanceCode: confData.instanceCode });
+          await CyberiaInstanceConf.create(confData);
+          logger.info('Imported CyberiaInstanceConf', { instanceCode: confData.instanceCode });
+        } else {
+          logger.warn(`CyberiaInstanceConf backup not found: ${confImportPath}`);
         }
 
         // 7. Import instance (preserveUUID: delete by code then create with exact _id)
@@ -2222,6 +2308,29 @@ try {
               for (const entity of map.entities || []) {
                 for (const itemId of entity.objectLayerItemIds || []) {
                   dropOlItemIds.add(itemId);
+                }
+              }
+            }
+
+            // Add instance-level itemIds (may not appear in any map entity)
+            for (const id of existingInstance.itemIds || []) if (id) dropOlItemIds.add(id);
+
+            // Add conf entityDefaults and skillConfig itemIds (liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers)
+            const existingConf =
+              (await CyberiaInstanceConf.findOne({ instanceCode }).lean()) ||
+              (existingInstance.conf ? await CyberiaInstanceConf.findById(existingInstance.conf).lean() : null);
+            if (existingConf) {
+              for (const ed of existingConf.entityDefaults || []) {
+                for (const id of ed.liveItemIds || []) if (id) dropOlItemIds.add(id);
+                for (const id of ed.deadItemIds || []) if (id) dropOlItemIds.add(id);
+                for (const id of ed.dropItemIds || []) if (id) dropOlItemIds.add(id);
+                for (const slot of ed.defaultObjectLayers || []) if (slot.itemId) dropOlItemIds.add(slot.itemId);
+              }
+              for (const sc of existingConf.skillConfig || []) {
+                if (sc.triggerItemId) dropOlItemIds.add(sc.triggerItemId);
+                for (const skill of sc.skills || []) {
+                  if (skill.summonedEntityItemId && !skill.summonedEntityItemId.startsWith('$'))
+                    dropOlItemIds.add(skill.summonedEntityItemId);
                 }
               }
             }
@@ -2332,6 +2441,8 @@ try {
 
           await CyberiaInstance.deleteOne({ code: instanceCode });
           logger.info('Dropped CyberiaInstance', { code: instanceCode });
+          await CyberiaInstanceConf.deleteOne({ instanceCode });
+          logger.info('Dropped CyberiaInstanceConf', { instanceCode });
         } else {
           logger.info('No existing instance to drop', { code: instanceCode });
         }
@@ -3312,32 +3423,32 @@ try {
         // 'floor-water',
         // 'floor-stone',
         // 'floor-lava',
-        // 'skin-random',
-        // 'skin-dark',
-        // 'skin-light',
-        // 'skin-vivid',
-        // 'skin-natural',
-        // 'skin-shaved',
-        'resource-desert-petal',
-        'resource-desert-stone',
-        'resource-desert-polygon',
-        'resource-desert-thread',
-        'resource-grass-petal',
-        'resource-grass-stone',
-        'resource-grass-polygon',
-        'resource-grass-thread',
-        'resource-water-petal',
-        'resource-water-stone',
-        'resource-water-polygon',
-        'resource-water-thread',
-        'resource-stone-petal',
-        'resource-stone-stone',
-        'resource-stone-polygon',
-        'resource-stone-thread',
-        'resource-lava-petal',
-        'resource-lava-stone',
-        'resource-lava-polygon',
-        'resource-lava-thread',
+        'skin-random',
+        'skin-dark',
+        'skin-light',
+        'skin-vivid',
+        'skin-natural',
+        'skin-shaved',
+        // 'resource-desert-petal',
+        // 'resource-desert-stone',
+        // 'resource-desert-polygon',
+        // 'resource-desert-thread',
+        // 'resource-grass-petal',
+        // 'resource-grass-stone',
+        // 'resource-grass-polygon',
+        // 'resource-grass-thread',
+        // 'resource-water-petal',
+        // 'resource-water-stone',
+        // 'resource-water-polygon',
+        // 'resource-water-thread',
+        // 'resource-stone-petal',
+        // 'resource-stone-stone',
+        // 'resource-stone-polygon',
+        // 'resource-stone-thread',
+        // 'resource-lava-petal',
+        // 'resource-lava-stone',
+        // 'resource-lava-polygon',
+        // 'resource-lava-thread',
       ];
 
       const baseSeed = options.seed || 'example';

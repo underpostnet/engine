@@ -415,6 +415,37 @@ const removeMfsPath = async (mfsPath, recursive = true) => {
   }
 };
 
+/**
+ * Restore a CID into the Kubo MFS at a specific path (e.g. when re-importing a backup).
+ * Creates the parent directory if needed, removes any existing entry, then copies the CID.
+ *
+ * @param {string} cid      – IPFS CID to copy into MFS.
+ * @param {string} mfsPath  – Full destination MFS path, e.g. `/object-layer/sword/sword_data.json`.
+ * @returns {Promise<boolean>} `true` when the MFS entry was created successfully.
+ */
+const restoreMfsPath = async (cid, mfsPath) => {
+  const kuboUrl = getIpfsApiUrl();
+  const destDir = mfsPath.substring(0, mfsPath.lastIndexOf('/')) || '/';
+  try {
+    await fetch(`${kuboUrl}/api/v0/files/mkdir?arg=${encodeURIComponent(destDir)}&parents=true`, { method: 'POST' });
+    await fetch(`${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(mfsPath)}&force=true`, { method: 'POST' });
+    const cpRes = await fetch(
+      `${kuboUrl}/api/v0/files/cp?arg=/ipfs/${encodeURIComponent(cid)}&arg=${encodeURIComponent(mfsPath)}`,
+      { method: 'POST' },
+    );
+    if (!cpRes.ok) {
+      const text = await cpRes.text();
+      logger.warn(`IPFS MFS restore failed (${cpRes.status}): ${text} – ${mfsPath}`);
+      return false;
+    }
+    logger.info(`IPFS MFS restore OK – ${mfsPath} → ${cid}`);
+    return true;
+  } catch (err) {
+    logger.warn(`IPFS MFS restore unreachable: ${err.message}`);
+    return false;
+  }
+};
+
 // ─────────────────────────────────────────────────────────
 //  Export
 // ─────────────────────────────────────────────────────────
@@ -432,6 +463,7 @@ const IpfsClient = {
   listClusterPins,
   listKuboPins,
   removeMfsPath,
+  restoreMfsPath,
   /**
    * Check whether a single CID is currently pinned on the local Kubo node.
    * Uses the pin/ls?arg=<cid> endpoint which returns only that one pin
