@@ -86,6 +86,8 @@ const DEFAULT_DISTORTION_TYPE = DISTORTION_TYPES[0].value;
 const DEFAULT_DISTORTION_STATUS =
   'Applies the selected canvas behavior directly to the current editor frame. factorA controls distortion density or mosaic tile scale.';
 const DEFAULT_DISTORTION_FACTOR_A = 0.12;
+const DEFAULT_STAT_RANDOM_MIN = 0;
+const DEFAULT_STAT_RANDOM_MAX = 10;
 const UNIFORM_OPACITY_TOGGLE_ID = 'ol-uniform-opacity-lock';
 const DIRECTION_PREVIEW_MODAL_ID = 'modal-object-layer-direction-preview';
 const CANVAS_BEHAVIOR_BY_VALUE = Object.freeze(
@@ -138,6 +140,7 @@ const normalizeColorCell = (cell = [255, 0, 0, 255]) => [
   clampNumber(Math.round(cell[2] || 0), 0, 255),
   clampNumber(Math.round(cell[3] ?? 255), 0, 255),
 ];
+const getRenderedInputNode = (id = '') => s(`.${id}`) || s(`#${id}-name`) || s(`#${id}`);
 
 const countChangedCells = (baseMatrix = [], nextMatrix = []) => {
   const height = Math.max(baseMatrix.length, nextMatrix.length);
@@ -634,9 +637,15 @@ const ObjectLayerEngineModal = {
     // Clear stat inputs with correct IDs
     const statTypes = Object.keys(ObjectLayerEngineModal.statDescriptions);
     for (const stat of statTypes) {
-      const statInput = s(`#ol-input-item-stats-${stat}`);
+      const statInput = getRenderedInputNode(`ol-input-item-stats-${stat}`);
       if (statInput) statInput.value = '0';
     }
+
+    const statRandomMinInput = getRenderedInputNode('ol-input-stats-random-min');
+    if (statRandomMinInput) statRandomMinInput.value = String(DEFAULT_STAT_RANDOM_MIN);
+
+    const statRandomMaxInput = getRenderedInputNode('ol-input-stats-random-max');
+    if (statRandomMaxInput) statRandomMaxInput.value = String(DEFAULT_STAT_RANDOM_MAX);
 
     // Clear DropDown displays
     const templateDropdownCurrent = s(`.dropdown-current-ol-dropdown-template`);
@@ -717,6 +726,9 @@ const ObjectLayerEngineModal = {
     const distortionDropdownId = 'ol-dropdown-distortion-type';
     const distortionApplyBtnClass = 'ol-btn-apply-distortion';
     const distortionStatusClass = 'ol-distortion-status';
+    const statsRandomizeBtnClass = 'ol-btn-randomize-stats';
+    const statsRandomMinInputId = 'ol-input-stats-random-min';
+    const statsRandomMaxInputId = 'ol-input-stats-random-max';
 
     // Check if we have an 'id' query parameter to load existing object layer
     const queryParams = getQueryParams();
@@ -743,6 +755,44 @@ const ObjectLayerEngineModal = {
       }
 
       return normalizedFactor;
+    };
+
+    const readRandomStatBounds = () => {
+      const minInput = getRenderedInputNode(statsRandomMinInputId);
+      const maxInput = getRenderedInputNode(statsRandomMaxInputId);
+      let minValue = Number.parseInt(minInput?.value, 10);
+      let maxValue = Number.parseInt(maxInput?.value, 10);
+
+      minValue = clampNumber(Number.isFinite(minValue) ? minValue : DEFAULT_STAT_RANDOM_MIN, 0, 10);
+      maxValue = clampNumber(Number.isFinite(maxValue) ? maxValue : DEFAULT_STAT_RANDOM_MAX, 0, 10);
+
+      if (minValue > maxValue) {
+        const nextMin = maxValue;
+        maxValue = minValue;
+        minValue = nextMin;
+      }
+
+      if (minInput) minInput.value = String(minValue);
+      if (maxInput) maxInput.value = String(maxValue);
+
+      return { minValue, maxValue };
+    };
+
+    const randomizeStatInputs = () => {
+      const { minValue, maxValue } = readRandomStatBounds();
+
+      for (const statType of statTypes) {
+        const statInput = getRenderedInputNode(`ol-input-item-stats-${statType}`);
+        if (!statInput) continue;
+
+        const randomValue = Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue;
+        statInput.value = String(randomValue);
+      }
+
+      NotificationManager.Push({
+        html: `Stats randomized between ${minValue} and ${maxValue}.`,
+        status: 'success',
+      });
     };
 
     let uniformOpacitySyncInProgress = false;
@@ -1645,6 +1695,10 @@ const ObjectLayerEngineModal = {
       });
       setDistortionStatus(DEFAULT_DISTORTION_STATUS);
 
+      EventsUI.onClick(`.${statsRandomizeBtnClass}`, async () => {
+        randomizeStatInputs();
+      });
+
       const persistObjectLayer = async ({ clone = false } = {}) => {
         const isUpdateMode = Boolean(ObjectLayerEngineModal.existingObjectLayerId) && !clone;
 
@@ -1991,6 +2045,10 @@ const ObjectLayerEngineModal = {
           font-size: 20px;
           min-height: 50px;
         }
+        .ol-btn-randomize-stats {
+          min-height: 50px;
+          padding: 0.5rem 0.75rem;
+        }
         .ol-number-label {
           width: 120px;
           font-size: 16px;
@@ -2242,6 +2300,38 @@ const ObjectLayerEngineModal = {
         <div class="in fll ${idSectionB}-col-b">
           <div class="in section-mp section-mp-border">
             <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
+            <div class="fl" style="align-items: flex-end; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+              <div class="in fll" style="width: 110px;">
+                ${await Input.Render({
+                  id: statsRandomMinInputId,
+                  label: html`Random min`,
+                  containerClass: 'inl',
+                  type: 'number',
+                  min: 0,
+                  max: 10,
+                  placeholder: true,
+                  value: DEFAULT_STAT_RANDOM_MIN,
+                })}
+              </div>
+              <div class="in fll" style="width: 110px;">
+                ${await Input.Render({
+                  id: statsRandomMaxInputId,
+                  label: html`Random max`,
+                  containerClass: 'inl',
+                  type: 'number',
+                  min: 0,
+                  max: 10,
+                  placeholder: true,
+                  value: DEFAULT_STAT_RANDOM_MAX,
+                })}
+              </div>
+              <div class="in fll">
+                ${await BtnIcon.Render({
+                  label: html`<i class="fa-solid fa-dice"></i> Randomize`,
+                  class: statsRandomizeBtnClass,
+                })}
+              </div>
+            </div>
             ${statsInputsRender}
           </div>
         </div>
