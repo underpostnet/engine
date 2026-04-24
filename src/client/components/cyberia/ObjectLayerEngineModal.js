@@ -18,33 +18,82 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import * as _ from '../cyberia/ObjectLayerEngine.js';
 import '../core/ColorPaletteElement.js';
 
+const CANVAS_BEHAVIOR_ICON = 'fa-solid fa-shapes';
+
 const DISTORTION_TYPES = Object.freeze([
   {
     value: 'position-jitter',
     label: 'Position Jitter',
-    icon: 'fa-solid fa-arrows-left-right-to-line',
+    group: 'distortion',
+    icon: CANVAS_BEHAVIOR_ICON,
   },
   {
     value: 'rotation-drift',
     label: 'Rotation Drift',
-    icon: 'fa-solid fa-rotate',
+    group: 'distortion',
+    icon: CANVAS_BEHAVIOR_ICON,
   },
   {
     value: 'scale-wobble',
     label: 'Scale Wobble',
-    icon: 'fa-solid fa-up-right-and-down-left-from-center',
+    group: 'distortion',
+    icon: CANVAS_BEHAVIOR_ICON,
   },
   {
     value: 'particle-drift',
     label: 'Particle Drift',
-    icon: 'fa-solid fa-wand-magic-sparkles',
+    group: 'distortion',
+    icon: CANVAS_BEHAVIOR_ICON,
   },
 ]);
 
+const MOSAIC_TYPES = Object.freeze([
+  {
+    value: 'mosaic-diamond-checker',
+    label: 'Diamond Checker',
+    group: 'mosaic',
+    icon: CANVAS_BEHAVIOR_ICON,
+  },
+  {
+    value: 'mosaic-rhombus-lattice',
+    label: 'Rhombus Lattice',
+    group: 'mosaic',
+    icon: CANVAS_BEHAVIOR_ICON,
+  },
+  {
+    value: 'mosaic-zigzag-rows',
+    label: 'Zigzag Rows',
+    group: 'mosaic',
+    icon: CANVAS_BEHAVIOR_ICON,
+  },
+  {
+    value: 'mosaic-staggered-tiles',
+    label: 'Staggered Tiles',
+    group: 'mosaic',
+    icon: CANVAS_BEHAVIOR_ICON,
+  },
+  {
+    value: 'mosaic-brick-offset',
+    label: 'Brick Offset',
+    group: 'mosaic',
+    icon: CANVAS_BEHAVIOR_ICON,
+  },
+]);
+
+const CANVAS_BEHAVIORS = Object.freeze([...DISTORTION_TYPES, ...MOSAIC_TYPES]);
+
 const DEFAULT_DISTORTION_TYPE = DISTORTION_TYPES[0].value;
 const DEFAULT_DISTORTION_STATUS =
-  'Applies to the current editor frame only. Use the direction button to persist the distorted frame.';
+  'Applies the selected canvas behavior directly to the current editor frame. factorA controls distortion density or mosaic tile scale.';
 const DEFAULT_DISTORTION_FACTOR_A = 0.12;
+const CANVAS_BEHAVIOR_BY_VALUE = Object.freeze(
+  Object.fromEntries(CANVAS_BEHAVIORS.map((entry) => [entry.value, entry])),
+);
+const isMosaicBehavior = (value = '') => CANVAS_BEHAVIOR_BY_VALUE[value]?.group === 'mosaic';
+const getCanvasBehaviorDisplay = (value = DEFAULT_DISTORTION_TYPE) => {
+  const behavior = CANVAS_BEHAVIOR_BY_VALUE[value] || CANVAS_BEHAVIOR_BY_VALUE[DEFAULT_DISTORTION_TYPE];
+  return `<i class="${CANVAS_BEHAVIOR_ICON}"></i> ${behavior.label}`;
+};
 
 const hashString = (str = '') => {
   let hash = 0;
@@ -77,6 +126,16 @@ const sampleSmoothNoise = (seed, x, y) => {
 
 const isVisibleCell = (cell) => Array.isArray(cell) && (cell[3] || 0) > 0;
 const cloneMatrix = (matrix = []) => matrix.map((row) => row.map((cell) => cell.slice()));
+const modulo = (value, divisor) => {
+  if (!divisor) return 0;
+  return ((value % divisor) + divisor) % divisor;
+};
+const normalizeColorCell = (cell = [255, 0, 0, 255]) => [
+  clampNumber(Math.round(cell[0] || 0), 0, 255),
+  clampNumber(Math.round(cell[1] || 0), 0, 255),
+  clampNumber(Math.round(cell[2] || 0), 0, 255),
+  clampNumber(Math.round(cell[3] ?? 255), 0, 255),
+];
 
 const countChangedCells = (baseMatrix = [], nextMatrix = []) => {
   const height = Math.max(baseMatrix.length, nextMatrix.length);
@@ -363,6 +422,97 @@ const buildDistortedMatrix = (
   };
 };
 
+const getMosaicTileSize = (width, height, factorA = DEFAULT_DISTORTION_FACTOR_A) => {
+  const minDimension = Math.max(1, Math.min(width, height));
+  const normalizedFactor = clampNumber(Number.isFinite(factorA) ? factorA : DEFAULT_DISTORTION_FACTOR_A, 0.01, 1);
+  return clampNumber(
+    Math.round(1 + normalizedFactor * Math.max(2, Math.min(10, Math.floor(minDimension / 2)))),
+    1,
+    minDimension,
+  );
+};
+
+const buildMosaicMatrix = (
+  baseMatrix,
+  mosaicType,
+  factorA = DEFAULT_DISTORTION_FACTOR_A,
+  brushCell = [255, 0, 0, 255],
+) => {
+  const height = baseMatrix.length;
+  const width = baseMatrix[0]?.length || 0;
+  const result = cloneMatrix(baseMatrix);
+
+  if (!height || !width) {
+    return { matrix: result, changedCells: 0, paintedCells: 0, tileSize: 1 };
+  }
+
+  const tileSize = getMosaicTileSize(width, height, factorA);
+  const gap = Math.max(1, Math.floor(tileSize / 2));
+  const thickness = Math.max(1, Math.ceil(tileSize / 3));
+  const paintCell = normalizeColorCell(brushCell);
+  let paintedCells = 0;
+
+  const shouldPaint = (x, y) => {
+    switch (mosaicType) {
+      case 'mosaic-diamond-checker': {
+        const span = tileSize * 2 + gap;
+        const tileX = Math.floor(x / span);
+        const tileY = Math.floor(y / span);
+        if ((tileX + tileY) % 2 !== 0) return false;
+        const localX = modulo(x, span) - tileSize;
+        const localY = modulo(y, span) - tileSize;
+        return Math.abs(localX) + Math.abs(localY) <= tileSize - 1;
+      }
+      case 'mosaic-rhombus-lattice': {
+        const period = tileSize * 2 + gap;
+        const diagonalA = modulo(x + y, period);
+        const diagonalB = modulo(x - y, period);
+        return diagonalA < thickness || diagonalB < thickness;
+      }
+      case 'mosaic-zigzag-rows': {
+        const zigzagWidth = Math.max(2, tileSize * 2 + gap);
+        const bandHeight = Math.max(1, tileSize);
+        const rowIndex = Math.floor(y / bandHeight);
+        const localX = modulo(x + (rowIndex % 2) * tileSize, zigzagWidth);
+        const ridge = modulo(y, bandHeight);
+        return Math.abs(localX - ridge) < thickness || Math.abs(localX - (zigzagWidth - ridge - 1)) < thickness;
+      }
+      case 'mosaic-staggered-tiles': {
+        const step = tileSize + gap;
+        const rowIndex = Math.floor(y / step);
+        const localX = modulo(x + (rowIndex % 2) * Math.floor(step / 2), step);
+        const localY = modulo(y, step);
+        return localX < tileSize && localY < tileSize;
+      }
+      case 'mosaic-brick-offset': {
+        const brickWidth = tileSize * 2 + gap;
+        const brickHeight = tileSize + gap;
+        const rowIndex = Math.floor(y / brickHeight);
+        const localX = modulo(x + (rowIndex % 2) * Math.floor(brickWidth / 2), brickWidth);
+        const localY = modulo(y, brickHeight);
+        return localX < brickWidth - gap && localY < tileSize;
+      }
+      default:
+        return false;
+    }
+  };
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!shouldPaint(x, y)) continue;
+      paintedCells++;
+      result[y][x] = paintCell.slice();
+    }
+  }
+
+  return {
+    matrix: result,
+    changedCells: countChangedCells(baseMatrix, result),
+    paintedCells,
+    tileSize,
+  };
+};
+
 const ObjectLayerEngineModal = {
   selectItemType: 'skin',
   itemActivable: false,
@@ -493,8 +643,7 @@ const ObjectLayerEngineModal = {
 
     const distortionDropdownCurrent = s(`.dropdown-current-ol-dropdown-distortion-type`);
     if (distortionDropdownCurrent) {
-      distortionDropdownCurrent.innerHTML =
-        DISTORTION_TYPES.find((entry) => entry.value === DEFAULT_DISTORTION_TYPE)?.label || 'Position Jitter';
+      distortionDropdownCurrent.innerHTML = getCanvasBehaviorDisplay(DEFAULT_DISTORTION_TYPE);
     }
 
     const distortionFactorInput = s('#ol-input-distortion-factor-a') || s('.ol-input-distortion-factor-a');
@@ -1191,31 +1340,47 @@ const ObjectLayerEngineModal = {
           setDistortionStatus('The current frame has no editable matrix data.', 'error');
           return;
         }
-        if (!currentMatrix.some((row) => row.some((cell) => isVisibleCell(cell)))) {
+        const selectedDistortionType = ObjectLayerEngineModal.selectedDistortionType || DEFAULT_DISTORTION_TYPE;
+        const selectedBehavior =
+          CANVAS_BEHAVIOR_BY_VALUE[selectedDistortionType] || CANVAS_BEHAVIOR_BY_VALUE[DEFAULT_DISTORTION_TYPE];
+        const distortionFactorA = readDistortionFactorA();
+        const isMosaicMode = isMosaicBehavior(selectedDistortionType);
+
+        if (!isMosaicMode && !currentMatrix.some((row) => row.some((cell) => isVisibleCell(cell)))) {
           setDistortionStatus('Paint something on the current frame before applying a distortion.', 'error');
           return;
         }
 
-        const selectedDistortionType = ObjectLayerEngineModal.selectedDistortionType || DEFAULT_DISTORTION_TYPE;
-        const distortionFactorA = readDistortionFactorA();
         const baseFrame = currentFrame;
-        const seedBase = Date.now() + hashString(currentJson);
-        let distortionResult = null;
+        let transformationResult = null;
 
-        for (let attempt = 0; attempt < 4; attempt++) {
-          const distortionSeed = seedBase + attempt * 977;
-          distortionResult = buildDistortedMatrix(
+        if (isMosaicMode) {
+          const activeBrushColor = normalizeColorCell(ole.getBrushColor?.() || [255, 0, 0, 255]);
+          transformationResult = buildMosaicMatrix(
             baseFrame.matrix,
             selectedDistortionType,
             distortionFactorA,
-            distortionSeed,
+            activeBrushColor,
           );
-          if (distortionResult.changedCells > 0) break;
+        } else {
+          const seedBase = Date.now() + hashString(currentJson);
+          for (let attempt = 0; attempt < 4; attempt++) {
+            const distortionSeed = seedBase + attempt * 977;
+            transformationResult = buildDistortedMatrix(
+              baseFrame.matrix,
+              selectedDistortionType,
+              distortionFactorA,
+              distortionSeed,
+            );
+            if (transformationResult.changedCells > 0) break;
+          }
         }
 
-        if (!distortionResult || distortionResult.changedCells === 0) {
+        if (!transformationResult || transformationResult.changedCells === 0) {
           setDistortionStatus(
-            'No visible distortion was produced for the current frame. Try applying again or edit the frame shape first.',
+            isMosaicMode
+              ? 'No visible mosaic was painted on the current frame. Try another factorA value or a different active color.'
+              : 'No visible distortion was produced for the current frame. Try applying again or edit the frame shape first.',
             'error',
           );
           return;
@@ -1224,7 +1389,7 @@ const ObjectLayerEngineModal = {
         const nextSnapshot = {
           width: baseFrame.width,
           height: baseFrame.height,
-          matrix: distortionResult.matrix,
+          matrix: transformationResult.matrix,
         };
         const beforeSnapshot = typeof ole._snapshot === 'function' ? ole._snapshot() : null;
 
@@ -1237,14 +1402,19 @@ const ObjectLayerEngineModal = {
           ole._pushUndo(beforeSnapshot);
         }
 
-        ole.loadMatrix(distortionResult.matrix);
+        ole.loadMatrix(transformationResult.matrix);
 
-        const distortionLabel =
-          DISTORTION_TYPES.find((entry) => entry.value === selectedDistortionType)?.label || 'Distortion';
-        setDistortionStatus(
-          `${distortionLabel} applied to the current frame. ${distortionResult.appliedDistortions || 0} local shifts, ${distortionResult.changedCells} cells changed, A=${distortionFactorA.toFixed(2)}.`,
-          'success',
-        );
+        if (isMosaicMode) {
+          setDistortionStatus(
+            `${selectedBehavior.label} painted on the current frame with the active color. tileSize ${transformationResult.tileSize}, ${transformationResult.paintedCells || 0} pattern cells, ${transformationResult.changedCells} cells changed, factorA=${distortionFactorA.toFixed(2)}.`,
+            'success',
+          );
+        } else {
+          setDistortionStatus(
+            `${selectedBehavior.label} applied to the current frame. ${transformationResult.appliedDistortions || 0} local shifts, ${transformationResult.changedCells} cells changed, factorA=${distortionFactorA.toFixed(2)}.`,
+            'success',
+          );
+        }
       };
 
       EventsUI.onClick(`.${distortionApplyBtnClass}`, async () => {
@@ -1642,32 +1812,58 @@ const ObjectLayerEngineModal = {
           <color-palette class="${colorPaletteClass}" value="#FF0000"></color-palette>
         </div>
         <div class="in section-mp-border" style="margin-top: 10px;">
-          <div class="in sub-title-modal"><i class="fa-solid fa-wand-magic-sparkles"></i> Distortion macro</div>
+          <div class="in sub-title-modal"><i class="fa-solid fa-wand-magic-sparkles"></i> Canvas macro</div>
           <div class="fl" style="align-items: flex-start; gap: 8px; flex-wrap: wrap;">
             <div class="in fll" style="min-width: 240px;">
               ${await DropDown.Render({
                 id: distortionDropdownId,
                 value: ObjectLayerEngineModal.selectedDistortionType,
-                label: html`Select distortion`,
-                data: DISTORTION_TYPES.map((distortion) => ({
-                  value: distortion.value,
-                  display: html`<i class="${distortion.icon}"></i> ${distortion.label}`,
-                  onClick: async () => {
-                    ObjectLayerEngineModal.selectedDistortionType = distortion.value;
-                    readDistortionFactorA();
-                    const statusNode = s(`.${distortionStatusClass}`);
-                    if (statusNode) {
-                      statusNode.style.color = '#888';
-                      statusNode.innerHTML = `${distortion.label} ready for direct canvas apply. ${DEFAULT_DISTORTION_STATUS}`;
-                    }
+                label: html`Select behavior`,
+                disableSearchBox: true,
+                data: [
+                  {
+                    kind: 'group',
+                    value: 'group-distortion-behaviors',
+                    display: html`<div style="padding: 0 6px; color: #9d9d9d;">Distortion behaviors</div>`,
                   },
-                })),
+                  ...DISTORTION_TYPES.map((distortion) => ({
+                    value: distortion.value,
+                    display: html`<i class="${CANVAS_BEHAVIOR_ICON}"></i> ${distortion.label}`,
+                    onClick: async () => {
+                      ObjectLayerEngineModal.selectedDistortionType = distortion.value;
+                      readDistortionFactorA();
+                      const statusNode = s(`.${distortionStatusClass}`);
+                      if (statusNode) {
+                        statusNode.style.color = '#888';
+                        statusNode.innerHTML = `${distortion.label} ready for direct canvas apply. factorA controls local distortion density.`;
+                      }
+                    },
+                  })),
+                  {
+                    kind: 'group',
+                    value: 'group-mosaic-behaviors',
+                    display: html`<div style="padding: 0 6px; color: #9d9d9d;">Mosaic drawing behaviors</div>`,
+                  },
+                  ...MOSAIC_TYPES.map((mosaic) => ({
+                    value: mosaic.value,
+                    display: html`<i class="${CANVAS_BEHAVIOR_ICON}"></i> ${mosaic.label}`,
+                    onClick: async () => {
+                      ObjectLayerEngineModal.selectedDistortionType = mosaic.value;
+                      readDistortionFactorA();
+                      const statusNode = s(`.${distortionStatusClass}`);
+                      if (statusNode) {
+                        statusNode.style.color = '#888';
+                        statusNode.innerHTML = `${mosaic.label} ready for direct canvas apply. factorA controls tile size and density.`;
+                      }
+                    },
+                  })),
+                ],
               })}
             </div>
             <div class="in fll" style="width: 120px;">
               ${await Input.Render({
                 id: `ol-input-distortion-factor-a`,
-                label: html`<i class="fa-solid fa-sliders"></i> Factor A`,
+                label: html`factorA`,
                 containerClass: 'inl',
                 type: 'number',
                 min: 0.01,
@@ -1679,7 +1875,7 @@ const ObjectLayerEngineModal = {
             <div class="in fll">
               ${await BtnIcon.Render({
                 class: distortionApplyBtnClass,
-                label: html`<i class="fa-solid fa-bolt"></i> Apply Distortion`,
+                label: html`<i class="fa-solid fa-bolt"></i> Apply To Frame`,
               })}
             </div>
           </div>

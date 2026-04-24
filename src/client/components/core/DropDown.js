@@ -118,65 +118,71 @@ const DropDown = {
       for (const optionData of data) {
         index++;
         const i = index;
-        const valueDisplay = optionData.value.trim().replaceAll(' ', '-');
-        setTimeout(() => {
-          const onclick = async (e) => {
-            if (options && options.lastSelectClass && s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`)) {
-              s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`).classList.remove(options.lastSelectClass);
-            }
-            this.Tokens[id].lastSelectValue = valueDisplay;
-            if (options && options.lastSelectClass && s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`)) {
-              s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`).classList.add(options.lastSelectClass);
-            }
+        const optionValue = typeof optionData.value === 'string' ? optionData.value : `option-${i}`;
+        const valueDisplay = optionValue.trim().replaceAll(' ', '-');
+        const isGroup = optionData.kind === 'group' || optionData.nonSelectable === true;
+        if (!isGroup) {
+          setTimeout(() => {
+            const onclick = async (e) => {
+              if (options && options.lastSelectClass && s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`)) {
+                s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`).classList.remove(options.lastSelectClass);
+              }
+              this.Tokens[id].lastSelectValue = valueDisplay;
+              if (options && options.lastSelectClass && s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`)) {
+                s(`.dropdown-option-${this.Tokens[id].lastSelectValue}`).classList.add(options.lastSelectClass);
+              }
 
-            if (
-              !(options && options.disableClose) &&
-              (options.type !== 'checkbox' || optionData.value === 'close' || optionData.value === 'reset')
-            )
-              s(`.dropdown-option-${id}`).classList.add('hide');
+              if (
+                !(options && options.disableClose) &&
+                (options.type !== 'checkbox' || optionData.value === 'close' || optionData.value === 'reset')
+              )
+                s(`.dropdown-option-${id}`).classList.add('hide');
 
-            if (options.type === 'checkbox' && ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`])
-              ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`].click();
-            if (optionData.value !== 'close') {
-              if (optionData.value !== 'reset') {
-                if (options.type === 'checkbox') {
-                  _renderSelectedBadges();
-                } else {
-                  htmls(`.dropdown-current-${id}`, optionData.display);
-                }
-              } else htmls(`.dropdown-current-${id}`, '');
+              if (options.type === 'checkbox' && ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`])
+                ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`].click();
+              if (optionData.value !== 'close') {
+                if (optionData.value !== 'reset') {
+                  if (options.type === 'checkbox') {
+                    _renderSelectedBadges();
+                  } else {
+                    htmls(`.dropdown-current-${id}`, optionData.display);
+                  }
+                } else htmls(`.dropdown-current-${id}`, '');
 
-              this.Tokens[id].value =
-                options.type === 'checkbox'
-                  ? options.serviceProvider
-                    ? Object.values(DropDown.Tokens[id].oncheckvalues).map((v) => v.data)
-                    : data.filter((d) => d.checked).map((d) => d.data)
-                  : optionData.data;
+                this.Tokens[id].value =
+                  options.type === 'checkbox'
+                    ? options.serviceProvider
+                      ? Object.values(DropDown.Tokens[id].oncheckvalues).map((v) => v.data)
+                      : data.filter((d) => d.checked).map((d) => d.data)
+                    : optionData.data;
 
-              console.warn('current value dropdown id:' + id, this.Tokens[id].value);
+                console.warn('current value dropdown id:' + id, this.Tokens[id].value);
 
-              s(`.${id}`).value = this.Tokens[id].value;
+                s(`.${id}`).value = this.Tokens[id].value;
 
-              optionData.onClick(e);
-            }
-          };
+                optionData.onClick(e);
+              }
+            };
 
-          this.Tokens[id].onClickEvents[`dropdown-option-${id}-${i}`] = onclick;
-          this.Tokens[id].onClickEvents[`dropdown-option-${id}-${valueDisplay}`] = onclick;
-          this.Tokens[id].onClickEvents[`dropdown-option-${valueDisplay}`] = onclick;
+            this.Tokens[id].onClickEvents[`dropdown-option-${id}-${i}`] = onclick;
+            this.Tokens[id].onClickEvents[`dropdown-option-${id}-${valueDisplay}`] = onclick;
+            this.Tokens[id].onClickEvents[`dropdown-option-${valueDisplay}`] = onclick;
 
-          s(`.dropdown-option-${id}-${i}`).onclick = onclick;
-        });
+            s(`.dropdown-option-${id}-${i}`).onclick = onclick;
+          });
+        }
         render += html`
           <div
-            class="in dropdown-option dropdown-option-${id}-${i} dropdown-option-${id}-${valueDisplay} dropdown-option-${valueDisplay} ${valueDisplay ===
-              'reset' &&
-            options &&
-            !(options.resetOption === true)
-              ? 'hide'
+            class="in dropdown-option ${isGroup
+              ? `dropdown-option-group dropdown-option-group-${id}`
+              : `dropdown-option-${id}-${i} dropdown-option-${id}-${valueDisplay} dropdown-option-${valueDisplay} ${
+                  valueDisplay === 'reset' && options && !(options.resetOption === true) ? 'hide' : ''
+                }`}"
+            style="${isGroup
+              ? 'cursor:default;opacity:.8;font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding-top:8px;padding-bottom:6px;'
               : ''}"
           >
-            ${options.type === 'checkbox' && optionData.value !== 'close' && optionData.value !== 'reset'
+            ${!isGroup && options.type === 'checkbox' && optionData.value !== 'close' && optionData.value !== 'reset'
               ? html`
                   ${await ToggleSwitch.Render({
                     id: `checkbox-role-${valueDisplay}`,
