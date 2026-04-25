@@ -1747,6 +1747,7 @@ try {
         apis: [
           'cyberia-instance',
           'cyberia-instance-conf',
+          'cyberia-dialogue',
           'cyberia-map',
           'cyberia-entity',
           'object-layer',
@@ -1763,6 +1764,7 @@ try {
       const dbModels = DataBaseProvider.instance[`${host}${path}`].mongoose.models;
       const CyberiaInstance = dbModels.CyberiaInstance;
       const CyberiaInstanceConf = dbModels.CyberiaInstanceConf;
+      const CyberiaDialogue = dbModels.CyberiaDialogue;
       const CyberiaMap = dbModels.CyberiaMap;
       const ObjectLayer = dbModels.ObjectLayer;
       const ObjectLayerRenderFrames = dbModels.ObjectLayerRenderFrames;
@@ -1823,6 +1825,31 @@ try {
           ...(entry.mfsPath ? { mfsPath: entry.mfsPath } : {}),
           ...(entry.mfsPaths.length ? { mfsPaths: entry.mfsPaths } : {}),
         }));
+
+      const getDefaultDialoguesByItemId = (itemIds = []) => {
+        const requestedItemIds = new Set(itemIds.filter(Boolean));
+        const defaultsByItemId = new Map();
+
+        for (const dialogue of DefaultCyberiaDialogues) {
+          if (!requestedItemIds.has(dialogue.itemId)) continue;
+          if (!defaultsByItemId.has(dialogue.itemId)) {
+            defaultsByItemId.set(dialogue.itemId, []);
+          }
+          defaultsByItemId.get(dialogue.itemId).push({
+            itemId: dialogue.itemId,
+            order: dialogue.order ?? 0,
+            speaker: dialogue.speaker ?? '',
+            text: dialogue.text,
+            mood: dialogue.mood ?? 'neutral',
+          });
+        }
+
+        for (const dialogues of defaultsByItemId.values()) {
+          dialogues.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        }
+
+        return defaultsByItemId;
+      };
 
       const rewriteImportedCidReferences = async ({ oldCid, newCid, resourceType }) => {
         if (!oldCid || !newCid || oldCid === newCid) return;
@@ -1966,6 +1993,72 @@ try {
                 objectLayerItemIds.add(skill.summonedEntityItemId);
               }
             }
+          }
+        }
+
+        // 4d. Export dialogues for all relevant itemIds. If an item has no dialogue docs yet
+        //     but ships with DefaultCyberiaDialogues, seed those defaults into Mongo first.
+        if (objectLayerItemIds.size > 0) {
+          const requestedItemIds = [...objectLayerItemIds];
+          const defaultDialoguesByItemId = getDefaultDialoguesByItemId(requestedItemIds);
+          const existingDialogueDocs = await CyberiaDialogue.find({
+            itemId: { $in: requestedItemIds },
+          })
+            .sort({ itemId: 1, order: 1 })
+            .lean();
+
+          const existingDialogueItemIds = new Set(
+            existingDialogueDocs.map((dialogue) => dialogue.itemId).filter(Boolean),
+          );
+          let seededDialogueCount = 0;
+
+          for (const [itemId, dialogues] of defaultDialoguesByItemId.entries()) {
+            if (existingDialogueItemIds.has(itemId)) continue;
+
+            for (const dialogue of dialogues) {
+              await CyberiaDialogue.findOneAndUpdate(
+                { itemId: dialogue.itemId, order: dialogue.order },
+                {
+                  $set: {
+                    speaker: dialogue.speaker,
+                    text: dialogue.text,
+                    mood: dialogue.mood,
+                  },
+                },
+                { upsert: true },
+              );
+              seededDialogueCount++;
+            }
+          }
+
+          const dialogueDocs = await CyberiaDialogue.find({ itemId: { $in: requestedItemIds } })
+            .sort({ itemId: 1, order: 1 })
+            .lean();
+
+          if (seededDialogueCount > 0) {
+            logger.info(`Seeded ${seededDialogueCount} CyberiaDialogue default record(s) for export`);
+          }
+
+          if (dialogueDocs.length > 0) {
+            fs.ensureDirSync(`${backupDir}/cyberia-dialogues`);
+            const dialoguesByItemId = new Map();
+
+            for (const dialogue of dialogueDocs) {
+              if (!dialoguesByItemId.has(dialogue.itemId)) {
+                dialoguesByItemId.set(dialogue.itemId, []);
+              }
+              dialoguesByItemId.get(dialogue.itemId).push(dialogue);
+            }
+
+            for (const [itemId, dialogues] of dialoguesByItemId.entries()) {
+              fs.writeJsonSync(`${backupDir}/cyberia-dialogues/${encodeURIComponent(itemId)}.json`, dialogues, {
+                spaces: 2,
+              });
+            }
+
+            logger.info(`Exported ${dialogueDocs.length} CyberiaDialogue document(s)`, {
+              itemIds: [...dialoguesByItemId.keys()],
+            });
           }
         }
 
@@ -2476,7 +2569,36 @@ try {
           logger.warn(`Instance file not found: ${instancePath}`);
         }
 
-        // 8. Restore IPFS pin records and payloads
+        // 8. Import CyberiaDialogue documents
+        const dialoguesDir = `${backupDir}/cyberia-dialogues`;
+        if (fs.existsSync(dialoguesDir)) {
+          const dialogueFiles = fs.readdirSync(dialoguesDir).filter((f) => f.endsWith('.json'));
+          let dialogueCount = 0;
+
+          for (const file of dialogueFiles) {
+            const rawDialogueData = fs.readJsonSync(`${dialoguesDir}/${file}`);
+            const dialogues = Array.isArray(rawDialogueData) ? rawDialogueData : [rawDialogueData];
+            const dialogueItemIds = [...new Set(dialogues.map((dialogue) => dialogue.itemId).filter(Boolean))];
+            if (dialogueItemIds.length === 0) {
+              logger.warn(`Skipping CyberiaDialogue backup without itemId: ${file}`);
+              continue;
+            }
+
+            await CyberiaDialogue.deleteMany({ itemId: { $in: dialogueItemIds } });
+
+            const dialogueIds = dialogues.map((dialogue) => dialogue._id).filter(Boolean);
+            if (dialogueIds.length > 0) {
+              await CyberiaDialogue.deleteMany({ _id: { $in: dialogueIds } });
+            }
+
+            await CyberiaDialogue.create(dialogues);
+            dialogueCount += dialogues.length;
+          }
+
+          logger.info(`Imported ${dialogueCount} CyberiaDialogue document(s)`);
+        }
+
+        // 9. Restore IPFS pin records and payloads
         const ipfsFile = `${backupDir}/ipfs/pins.json`;
         if (fs.existsSync(ipfsFile)) {
           const ipfsDocs = fs.readJsonSync(ipfsFile);
