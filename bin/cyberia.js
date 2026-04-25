@@ -1702,6 +1702,10 @@ try {
     .command('instance [instance-code]')
     .option('--export [path]', 'Export instance and related documents to a backup directory')
     .option('--import [path]', 'Import instance and related documents from a backup directory (preserveUUID, upsert)')
+    .option(
+      '--conf',
+      'When used with --export or --import, only process cyberia-instance.json and cyberia-instance-conf.json',
+    )
     .option('--drop', 'Drop existing instance, maps and object layers before importing')
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
@@ -1912,13 +1916,12 @@ try {
         fs.ensureDirSync(backupDir);
         logger.info('Exporting instance', { code: instanceCode, backupDir });
 
-        fs.ensureDirSync(`${backupDir}/files`);
-
         // Helper: export a File document to the files/ directory
         const exportFileDoc = async (fileId, fileKey) => {
           if (!fileId) return;
           const file = await File.findById(fileId).lean();
           if (!file) return;
+          fs.ensureDirSync(`${backupDir}/files`);
           const fileExport = { ...file };
           // Handle both Node.js Buffer and BSON Binary types from .lean()
           if (fileExport.data) {
@@ -1932,7 +1935,7 @@ try {
 
         // 1. Save instance document + thumbnail
         fs.writeJsonSync(`${backupDir}/cyberia-instance.json`, instance, { spaces: 2 });
-        if (instance.thumbnail) {
+        if (!options.conf && instance.thumbnail) {
           await exportFileDoc(instance.thumbnail, `thumb-instance-${instanceCode}`);
         }
         logger.info('Exported CyberiaInstance', { code: instanceCode });
@@ -1961,6 +1964,15 @@ try {
           logger.info('Exported CyberiaInstanceConf', { instanceCode });
         } else {
           logger.warn('Could not create or find CyberiaInstanceConf', { instanceCode });
+        }
+
+        if (options.conf) {
+          logger.info('Instance export completed in --conf mode', {
+            backupDir,
+            exportedFiles: ['cyberia-instance.json', 'cyberia-instance-conf.json'],
+          });
+          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+          return;
         }
 
         // 2. Collect all map codes (instance maps + portal targets)
@@ -2359,7 +2371,7 @@ try {
         logger.info('Importing instance', { code: instanceCode, backupDir });
 
         // 0. Drop existing documents if --drop is set
-        if (options.drop) {
+        if (options.drop && !options.conf) {
           const existingInstance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
           if (existingInstance) {
             const dropMapCodes = new Set(existingInstance.cyberiaMapCodes || []);
@@ -2529,6 +2541,41 @@ try {
           } else {
             logger.info('No existing instance to drop', { code: instanceCode });
           }
+        } else if (options.drop && options.conf) {
+          logger.info(
+            'Skipping full instance drop because --conf only imports cyberia-instance.json and cyberia-instance-conf.json',
+          );
+        }
+
+        if (options.conf) {
+          const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
+          if (fs.existsSync(confImportPath)) {
+            const confData = fs.readJsonSync(confImportPath);
+            if (confData._id) await CyberiaInstanceConf.deleteOne({ _id: confData._id });
+            await CyberiaInstanceConf.deleteOne({ instanceCode: confData.instanceCode });
+            await CyberiaInstanceConf.create(confData);
+            logger.info('Imported CyberiaInstanceConf', { instanceCode: confData.instanceCode });
+          } else {
+            logger.warn(`CyberiaInstanceConf backup not found: ${confImportPath}`);
+          }
+
+          const instancePath = `${backupDir}/cyberia-instance.json`;
+          if (fs.existsSync(instancePath)) {
+            const instanceData = fs.readJsonSync(instancePath);
+            await CyberiaInstance.deleteOne({ code: instanceCode });
+            await CyberiaInstance.deleteOne({ _id: instanceData._id });
+            await CyberiaInstance.create(instanceData);
+            logger.info('Imported CyberiaInstance', { code: instanceCode });
+          } else {
+            logger.warn(`Instance file not found: ${instancePath}`);
+          }
+
+          logger.info('Instance import completed in --conf mode', {
+            backupDir,
+            importedFiles: ['cyberia-instance.json', 'cyberia-instance-conf.json'],
+          });
+          await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+          return;
         }
 
         // 1. Import File documents first (atlas PNG + thumbnail dependencies)
