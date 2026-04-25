@@ -1941,29 +1941,55 @@ try {
 
           // Export IPFS pin records for all collected CIDs.
           // Back-fill resourceType from mfsPath for legacy records that pre-date the required field.
-          // Abort the export (error) if any record still has no resolvable resourceType.
+          // For records with neither mfsPath nor resourceType, cross-reference against ObjectLayer
+          // and AtlasSpriteSheet documents to infer the correct type automatically.
+          // Truly orphaned records (no type resolvable, no document reference) are warned and skipped.
           if (allCids.size > 0) {
             const ipfsDocs = await Ipfs.find({ cid: { $in: [...allCids] } }).lean();
             if (ipfsDocs.length > 0) {
+              // Build an in-memory CID→resourceType map from the ObjectLayer docs already loaded
+              const cidTypeFromDocs = new Map();
+              for (const ol of objectLayers) {
+                if (ol.cid) cidTypeFromDocs.set(ol.cid, 'object-layer-data');
+                if (ol.data?.render?.cid) cidTypeFromDocs.set(ol.data.render.cid, 'atlas-sprite-sheet');
+                if (ol.data?.render?.metadataCid) cidTypeFromDocs.set(ol.data.render.metadataCid, 'atlas-metadata');
+              }
+              // Also check AtlasSpriteSheet docs backed up in this run
+              const atlasFiles = fs.existsSync(`${backupDir}/atlas-sprite-sheets`)
+                ? fs.readdirSync(`${backupDir}/atlas-sprite-sheets`).filter((f) => f.endsWith('.json'))
+                : [];
+              for (const af of atlasFiles) {
+                try {
+                  const atl = fs.readJsonSync(`${backupDir}/atlas-sprite-sheets/${af}`);
+                  if (atl.cid) cidTypeFromDocs.set(atl.cid, 'atlas-sprite-sheet');
+                } catch (_) {}
+              }
+
               const inferResourceType = (doc) => {
                 if (doc.resourceType) return doc.resourceType;
                 const p = doc.mfsPath || '';
                 if (p.endsWith('_atlas_sprite_sheet.png')) return 'atlas-sprite-sheet';
                 if (p.endsWith('_atlas_sprite_sheet_metadata.json')) return 'atlas-metadata';
                 if (p.endsWith('_data.json')) return 'object-layer-data';
-                return null;
+                // Fall back to document cross-reference
+                return cidTypeFromDocs.get(doc.cid) ?? null;
               };
-              const unresolvable = ipfsDocs.filter((d) => !inferResourceType(d));
-              if (unresolvable.length > 0) {
-                for (const d of unresolvable) {
-                  logger.error(
-                    `Ipfs record is missing resourceType and cannot be inferred from mfsPath — export aborted. Fix this record in MongoDB before re-exporting. cid: ${d.cid}, mfsPath: ${d.mfsPath ?? '(none)'}`,
-                  );
+
+              const sanitised = [];
+              for (const doc of ipfsDocs) {
+                const rt = inferResourceType(doc);
+                if (!rt) {
+                  logger.warn(`Ipfs record has no resolvable resourceType — skipping from export (orphaned legacy pin)`, {
+                    cid: doc.cid,
+                    mfsPath: doc.mfsPath ?? null,
+                    resourceType: doc.resourceType ?? null,
+                    _id: doc._id?.toString(),
+                    knownCids: [...cidTypeFromDocs.keys()],
+                  });
+                  continue;
                 }
-                await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
-                process.exit(1);
+                sanitised.push({ ...doc, resourceType: rt });
               }
-              const sanitised = ipfsDocs.map((d) => ({ ...d, resourceType: inferResourceType(d) }));
               fs.writeJsonSync(`${backupDir}/ipfs/pins.json`, sanitised, { spaces: 2 });
               logger.info(`Exported ${sanitised.length} Ipfs pin record(s)`);
             }
