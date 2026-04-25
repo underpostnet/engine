@@ -1795,6 +1795,28 @@ try {
         return [...paths];
       };
 
+      const inferResourceType = (doc = {}) => {
+        if (doc.resourceType) return doc.resourceType;
+        for (const path of collectMfsPaths(doc)) {
+          if (path.endsWith('_atlas_sprite_sheet.png')) return 'atlas-sprite-sheet';
+          if (path.endsWith('_atlas_sprite_sheet_metadata.json')) return 'atlas-metadata';
+          if (path.endsWith('_data.json')) return 'object-layer-data';
+        }
+        return null;
+      };
+
+      const findInstanceRelatedIpfsDoc = (ipfsDocs, { linkedCid, resourceType, mfsPath }) =>
+        ipfsDocs.find(
+          (doc) =>
+            inferResourceType(doc) === resourceType &&
+            linkedCid &&
+            doc.cid === linkedCid &&
+            collectMfsPaths(doc).includes(mfsPath),
+        ) ||
+        ipfsDocs.find((doc) => inferResourceType(doc) === resourceType && linkedCid && doc.cid === linkedCid) ||
+        ipfsDocs.find((doc) => inferResourceType(doc) === resourceType && collectMfsPaths(doc).includes(mfsPath)) ||
+        null;
+
       const upsertCanonicalPinEntry = (pinMap, { cid, resourceType, mfsPath = '' }) => {
         if (!cid || !resourceType) return;
         const key = `${resourceType}:${cid}`;
@@ -2075,8 +2097,26 @@ try {
           fs.ensureDirSync(`${backupDir}/ipfs/content`);
 
           const canonicalPins = new Map();
+          const expectedObjectLayerIpfsRefs = [];
           const ipfsPayloadFailures = [];
           let ipfsPayloadExportCount = 0;
+          let ipfsPayloadAliasCount = 0;
+
+          const writeBackupPayload = (cid, payloadBuffer) => {
+            if (!cid) return false;
+            const payloadPath = `${backupDir}/ipfs/content/${cid}.bin`;
+            if (fs.existsSync(payloadPath)) return false;
+            fs.writeFileSync(payloadPath, payloadBuffer);
+            ipfsPayloadExportCount++;
+            return true;
+          };
+
+          const writeBackupPayloadAlias = ({ canonicalCid, linkedCid, payloadBuffer }) => {
+            if (!linkedCid || linkedCid === canonicalCid) return;
+            if (writeBackupPayload(linkedCid, payloadBuffer)) {
+              ipfsPayloadAliasCount++;
+            }
+          };
 
           const exportCanonicalPayload = async ({ payloadBuffer, resourceType, mfsPath, filename, itemKey }) => {
             const hashResult = await IpfsClient.hashBufferForIpfs(payloadBuffer, filename);
@@ -2085,17 +2125,7 @@ try {
               return null;
             }
 
-            const payloadPath = `${backupDir}/ipfs/content/${hashResult.cid}.bin`;
-            if (!fs.existsSync(payloadPath)) {
-              fs.writeFileSync(payloadPath, payloadBuffer);
-              ipfsPayloadExportCount++;
-            }
-
-            upsertCanonicalPinEntry(canonicalPins, {
-              cid: hashResult.cid,
-              resourceType,
-              mfsPath,
-            });
+            writeBackupPayload(hashResult.cid, payloadBuffer);
             return hashResult.cid;
           };
 
@@ -2155,6 +2185,20 @@ try {
               });
               if (!atlasCid) continue;
 
+              const linkedAtlasCid = atlas.cid || ol.data?.render?.cid || atlasCid;
+              writeBackupPayloadAlias({
+                canonicalCid: atlasCid,
+                linkedCid: linkedAtlasCid,
+                payloadBuffer: atlasBuffer,
+              });
+              expectedObjectLayerIpfsRefs.push({
+                itemKey,
+                resourceType: 'atlas-sprite-sheet',
+                mfsPath: itemPaths.atlasSpriteSheet,
+                linkedCid: linkedAtlasCid,
+                fallbackCid: atlasCid,
+              });
+
               const atlasMetadataBuffer = Buffer.from(stringify(atlasExport.metadata || {}), 'utf-8');
               const atlasMetadataCid = await exportCanonicalPayload({
                 payloadBuffer: atlasMetadataBuffer,
@@ -2164,6 +2208,20 @@ try {
                 itemKey,
               });
               if (!atlasMetadataCid) continue;
+
+              const linkedAtlasMetadataCid = ol.data?.render?.metadataCid || atlasMetadataCid;
+              writeBackupPayloadAlias({
+                canonicalCid: atlasMetadataCid,
+                linkedCid: linkedAtlasMetadataCid,
+                payloadBuffer: atlasMetadataBuffer,
+              });
+              expectedObjectLayerIpfsRefs.push({
+                itemKey,
+                resourceType: 'atlas-metadata',
+                mfsPath: itemPaths.atlasMetadata,
+                linkedCid: linkedAtlasMetadataCid,
+                fallbackCid: atlasMetadataCid,
+              });
 
               atlasExport.cid = atlasCid;
               objectLayerExport.data.render.cid = atlasCid;
@@ -2193,6 +2251,20 @@ try {
             });
             if (!objectLayerCid) continue;
 
+            const linkedObjectLayerCid = ol.cid || objectLayerCid;
+            writeBackupPayloadAlias({
+              canonicalCid: objectLayerCid,
+              linkedCid: linkedObjectLayerCid,
+              payloadBuffer: objectLayerBuffer,
+            });
+            expectedObjectLayerIpfsRefs.push({
+              itemKey,
+              resourceType: 'object-layer-data',
+              mfsPath: itemPaths.objectLayerData,
+              linkedCid: linkedObjectLayerCid,
+              fallbackCid: objectLayerCid,
+            });
+
             objectLayerExport.cid = objectLayerCid;
             fs.writeJsonSync(`${backupDir}/object-layers/${itemKey}.json`, objectLayerExport, { spaces: 2 });
           }
@@ -2205,10 +2277,60 @@ try {
             process.exit(1);
           }
 
+          const relatedPinPaths = [
+            ...new Set(expectedObjectLayerIpfsRefs.map((entry) => entry.mfsPath).filter(Boolean)),
+          ];
+          const relatedPinCids = [
+            ...new Set(
+              expectedObjectLayerIpfsRefs.flatMap((entry) => [entry.linkedCid, entry.fallbackCid]).filter(Boolean),
+            ),
+          ];
+          const relatedIpfsDocs =
+            relatedPinPaths.length > 0 || relatedPinCids.length > 0
+              ? await Ipfs.find({
+                  $or: [
+                    ...(relatedPinPaths.length ? [{ mfsPath: { $in: relatedPinPaths } }] : []),
+                    ...(relatedPinPaths.length ? [{ mfsPaths: { $in: relatedPinPaths } }] : []),
+                    ...(relatedPinCids.length ? [{ cid: { $in: relatedPinCids } }] : []),
+                  ],
+                }).lean()
+              : [];
+
+          let ipfsCollectionMatchCount = 0;
+          let ipfsCollectionFallbackCount = 0;
+
+          for (const ref of expectedObjectLayerIpfsRefs) {
+            const matchingDoc = findInstanceRelatedIpfsDoc(relatedIpfsDocs, ref);
+            const exportCid = matchingDoc?.cid || ref.linkedCid || ref.fallbackCid;
+
+            if (!exportCid) {
+              logger.warn('Skipping instance IPFS pin export because the ObjectLayer ref has no linked CID', {
+                itemKey: ref.itemKey,
+                resourceType: ref.resourceType,
+                mfsPath: ref.mfsPath,
+              });
+              continue;
+            }
+
+            upsertCanonicalPinEntry(canonicalPins, {
+              cid: exportCid,
+              resourceType: ref.resourceType,
+              mfsPath: ref.mfsPath,
+            });
+
+            if (matchingDoc) ipfsCollectionMatchCount++;
+            else ipfsCollectionFallbackCount++;
+          }
+
           const sanitised = serialiseCanonicalPins(canonicalPins);
           fs.writeJsonSync(`${backupDir}/ipfs/pins.json`, sanitised, { spaces: 2 });
           logger.info(
-            `Exported ${sanitised.length} canonical Ipfs pin record(s) and ${ipfsPayloadExportCount} raw payload file(s)`,
+            `Exported ${sanitised.length} instance-related Ipfs pin record(s) and ${ipfsPayloadExportCount} raw payload file(s)`,
+            {
+              matchedFromIpfsCollection: ipfsCollectionMatchCount,
+              fallbackFromObjectLayerRefs: ipfsCollectionFallbackCount,
+              rawPayloadAliases: ipfsPayloadAliasCount,
+            },
           );
 
           logger.info(`Exported ${objectLayers.length} ObjectLayer document(s)`, {
@@ -2606,19 +2728,6 @@ try {
           let ipfsCount = 0;
           let ipfsSkipped = 0;
 
-          // Infer resourceType from mfsPath for legacy records that pre-date the required field.
-          // MFS path conventions (from atlas-sprite-sheet.service.js and object-layer.service.js):
-          //   /object-layer/<id>/<id>_atlas_sprite_sheet.png       → 'atlas-sprite-sheet'
-          //   /object-layer/<id>/<id>_atlas_sprite_sheet_metadata.json → 'atlas-metadata'
-          //   /object-layer/<id>/<id>_data.json                    → 'object-layer-data'
-          const inferResourceType = (doc) => {
-            if (doc.resourceType) return doc.resourceType;
-            const p = doc.mfsPath || '';
-            if (p.endsWith('_atlas_sprite_sheet.png')) return 'atlas-sprite-sheet';
-            if (p.endsWith('_atlas_sprite_sheet_metadata.json')) return 'atlas-metadata';
-            if (p.endsWith('_data.json')) return 'object-layer-data';
-            return null;
-          };
           const backupPins = new Map();
           for (const doc of ipfsDocs) {
             const resourceType = inferResourceType(doc);
