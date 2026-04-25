@@ -16,6 +16,7 @@
 import dotenv from 'dotenv';
 import { Command } from 'commander';
 import fs from 'fs-extra';
+import stringify from 'fast-json-stable-stringify';
 import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { generateBesuManifests, deployBesu, removeBesu } from '../src/server/besu-genesis-generator.js';
@@ -29,18 +30,14 @@ import {
   buildImgFromTile,
 } from '../src/server/object-layer.js';
 import { AtlasSpriteSheetGenerator } from '../src/server/atlas-sprite-sheet-generator.js';
-import {
-  generateFrame,
-  generateMultiFrame,
-  lookupSemantic,
-  semanticRegistry,
-} from '../src/server/semantic-layer-generator.js';
+import { generateMultiFrame, lookupSemantic, semanticRegistry } from '../src/server/semantic-layer-generator.js';
 import { IpfsClient } from '../src/server/ipfs-client.js';
 import { createPinRecord } from '../src/api/ipfs/ipfs.service.js';
 import { program as underpostProgram } from '../src/cli/index.js';
 import crypto from 'crypto';
 import nodePath from 'path';
 import Underpost from '../src/index.js';
+import { newInstance } from '../src/client/components/core/CommonJs.js';
 import {
   ITEM_TYPES as itemTypes,
   DefaultCyberiaItems,
@@ -1773,6 +1770,82 @@ try {
       const File = dbModels.File;
       const Ipfs = dbModels.Ipfs;
 
+      const toBuffer = (value) => {
+        if (!value) return null;
+        if (Buffer.isBuffer(value)) return value;
+        if (value.type === 'Buffer' && Array.isArray(value.data)) return Buffer.from(value.data);
+        if (value.buffer) return Buffer.from(value.buffer);
+        return Buffer.from(value);
+      };
+
+      const getCanonicalIpfsPaths = (itemKey) => ({
+        objectLayerData: `/object-layer/${itemKey}/${itemKey}_data.json`,
+        atlasSpriteSheet: `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet.png`,
+        atlasMetadata: `/object-layer/${itemKey}/${itemKey}_atlas_sprite_sheet_metadata.json`,
+      });
+
+      const collectMfsPaths = (doc = {}) => {
+        const paths = new Set();
+        if (doc.mfsPath) paths.add(doc.mfsPath);
+        for (const p of doc.mfsPaths || []) {
+          if (p) paths.add(p);
+        }
+        return [...paths];
+      };
+
+      const upsertCanonicalPinEntry = (pinMap, { cid, resourceType, mfsPath = '' }) => {
+        if (!cid || !resourceType) return;
+        const key = `${resourceType}:${cid}`;
+        const nextPath = mfsPath || '';
+        if (!pinMap.has(key)) {
+          pinMap.set(key, {
+            cid,
+            resourceType,
+            mfsPath: nextPath,
+            mfsPaths: nextPath ? [nextPath] : [],
+          });
+          return;
+        }
+
+        const existing = pinMap.get(key);
+        if (nextPath && !existing.mfsPaths.includes(nextPath)) {
+          existing.mfsPaths.push(nextPath);
+        }
+        if (!existing.mfsPath && nextPath) {
+          existing.mfsPath = nextPath;
+        }
+      };
+
+      const serialiseCanonicalPins = (pinMap) =>
+        [...pinMap.values()].map((entry) => ({
+          cid: entry.cid,
+          resourceType: entry.resourceType,
+          ...(entry.mfsPath ? { mfsPath: entry.mfsPath } : {}),
+          ...(entry.mfsPaths.length ? { mfsPaths: entry.mfsPaths } : {}),
+        }));
+
+      const rewriteImportedCidReferences = async ({ oldCid, newCid, resourceType }) => {
+        if (!oldCid || !newCid || oldCid === newCid) return;
+
+        if (resourceType === 'object-layer-data') {
+          await ObjectLayer.updateMany({ cid: oldCid }, { $set: { cid: newCid } });
+          return;
+        }
+
+        if (resourceType === 'atlas-sprite-sheet') {
+          await AtlasSpriteSheet.updateMany({ cid: oldCid }, { $set: { cid: newCid } });
+          await ObjectLayer.updateMany({ 'data.render.cid': oldCid }, { $set: { 'data.render.cid': newCid } });
+          return;
+        }
+
+        if (resourceType === 'atlas-metadata') {
+          await ObjectLayer.updateMany(
+            { 'data.render.metadataCid': oldCid },
+            { $set: { 'data.render.metadataCid': newCid } },
+          );
+        }
+      };
+
       // ── EXPORT ──────────────────────────────────────────────────────
       if (options.export !== undefined) {
         const instance = await CyberiaInstance.findOne({ code: instanceCode }).lean();
@@ -1906,94 +1979,144 @@ try {
           fs.ensureDirSync(`${backupDir}/render-frames`);
           fs.ensureDirSync(`${backupDir}/atlas-sprite-sheets`);
           fs.ensureDirSync(`${backupDir}/ipfs`);
+          fs.ensureDirSync(`${backupDir}/ipfs/content`);
 
-          const allCids = new Set();
+          const canonicalPins = new Map();
+          const ipfsPayloadFailures = [];
+          let ipfsPayloadExportCount = 0;
+
+          const exportCanonicalPayload = async ({ payloadBuffer, resourceType, mfsPath, filename, itemKey }) => {
+            const hashResult = await IpfsClient.hashBufferForIpfs(payloadBuffer, filename);
+            if (!hashResult?.cid) {
+              ipfsPayloadFailures.push({ itemKey, resourceType, mfsPath, reason: 'Failed to hash payload via Kubo' });
+              return null;
+            }
+
+            const payloadPath = `${backupDir}/ipfs/content/${hashResult.cid}.bin`;
+            if (!fs.existsSync(payloadPath)) {
+              fs.writeFileSync(payloadPath, payloadBuffer);
+              ipfsPayloadExportCount++;
+            }
+
+            upsertCanonicalPinEntry(canonicalPins, {
+              cid: hashResult.cid,
+              resourceType,
+              mfsPath,
+            });
+            return hashResult.cid;
+          };
 
           for (const ol of objectLayers) {
-            const fileName = ol.data?.item?.id || ol._id.toString();
-            fs.writeJsonSync(`${backupDir}/object-layers/${fileName}.json`, ol, { spaces: 2 });
+            const itemKey = ol.data?.item?.id || ol._id.toString();
+            const itemPaths = getCanonicalIpfsPaths(itemKey);
+            const objectLayerExport = newInstance(ol);
+
+            if (!objectLayerExport.data.render) {
+              objectLayerExport.data.render = {};
+            }
 
             // Export ObjectLayerRenderFrames
             if (ol.objectLayerRenderFramesId) {
               const rf = await ObjectLayerRenderFrames.findById(ol.objectLayerRenderFramesId).lean();
               if (rf) {
-                fs.writeJsonSync(`${backupDir}/render-frames/${fileName}.json`, rf, { spaces: 2 });
+                fs.writeJsonSync(`${backupDir}/render-frames/${itemKey}.json`, rf, { spaces: 2 });
               }
             }
 
-            // Export AtlasSpriteSheet + its File
+            // Export AtlasSpriteSheet + its File using canonical payload bytes from the DB state.
             if (ol.atlasSpriteSheetId) {
               const atlas = await AtlasSpriteSheet.findById(ol.atlasSpriteSheetId).lean();
-              if (atlas) {
-                fs.writeJsonSync(`${backupDir}/atlas-sprite-sheets/${fileName}.json`, atlas, { spaces: 2 });
-                if (atlas.fileId) {
-                  await exportFileDoc(atlas.fileId, `atlas-${fileName}`);
-                }
-                if (atlas.cid) allCids.add(atlas.cid);
+              if (!atlas) {
+                ipfsPayloadFailures.push({
+                  itemKey,
+                  resourceType: 'atlas-sprite-sheet',
+                  mfsPath: itemPaths.atlasSpriteSheet,
+                  reason: 'AtlasSpriteSheet document not found in MongoDB',
+                });
+                continue;
               }
+
+              const atlasExport = newInstance(atlas);
+              if (atlas.fileId) {
+                await exportFileDoc(atlas.fileId, `atlas-${itemKey}`);
+              }
+
+              const atlasFile = atlas.fileId ? await File.findById(atlas.fileId).lean() : null;
+              const atlasBuffer = toBuffer(atlasFile?.data);
+              if (!atlasBuffer) {
+                ipfsPayloadFailures.push({
+                  itemKey,
+                  resourceType: 'atlas-sprite-sheet',
+                  mfsPath: itemPaths.atlasSpriteSheet,
+                  reason: 'Atlas File payload not found in MongoDB',
+                });
+                continue;
+              }
+
+              const atlasCid = await exportCanonicalPayload({
+                payloadBuffer: atlasBuffer,
+                resourceType: 'atlas-sprite-sheet',
+                mfsPath: itemPaths.atlasSpriteSheet,
+                filename: `${itemKey}_atlas_sprite_sheet.png`,
+                itemKey,
+              });
+              if (!atlasCid) continue;
+
+              const atlasMetadataBuffer = Buffer.from(stringify(atlasExport.metadata || {}), 'utf-8');
+              const atlasMetadataCid = await exportCanonicalPayload({
+                payloadBuffer: atlasMetadataBuffer,
+                resourceType: 'atlas-metadata',
+                mfsPath: itemPaths.atlasMetadata,
+                filename: `${itemKey}_atlas_sprite_sheet_metadata.json`,
+                itemKey,
+              });
+              if (!atlasMetadataCid) continue;
+
+              atlasExport.cid = atlasCid;
+              objectLayerExport.data.render.cid = atlasCid;
+              objectLayerExport.data.render.metadataCid = atlasMetadataCid;
+              fs.writeJsonSync(`${backupDir}/atlas-sprite-sheets/${itemKey}.json`, atlasExport, { spaces: 2 });
+            } else {
+              if (objectLayerExport.data.render?.cid || objectLayerExport.data.render?.metadataCid) {
+                ipfsPayloadFailures.push({
+                  itemKey,
+                  resourceType: 'atlas-sprite-sheet',
+                  mfsPath: itemPaths.atlasSpriteSheet,
+                  reason: 'ObjectLayer references atlas CIDs but no AtlasSpriteSheet document exists',
+                });
+                continue;
+              }
+              delete objectLayerExport.data.render.cid;
+              delete objectLayerExport.data.render.metadataCid;
             }
 
-            // Collect CIDs for IPFS pin records
-            if (ol.cid) allCids.add(ol.cid);
-            if (ol.data?.render?.cid) allCids.add(ol.data.render.cid);
-            if (ol.data?.render?.metadataCid) allCids.add(ol.data.render.metadataCid);
+            const objectLayerBuffer = Buffer.from(stringify(objectLayerExport.data || {}), 'utf-8');
+            const objectLayerCid = await exportCanonicalPayload({
+              payloadBuffer: objectLayerBuffer,
+              resourceType: 'object-layer-data',
+              mfsPath: itemPaths.objectLayerData,
+              filename: `${itemKey}_data.json`,
+              itemKey,
+            });
+            if (!objectLayerCid) continue;
+
+            objectLayerExport.cid = objectLayerCid;
+            fs.writeJsonSync(`${backupDir}/object-layers/${itemKey}.json`, objectLayerExport, { spaces: 2 });
           }
 
-          // Export IPFS pin records for all collected CIDs.
-          // Back-fill resourceType from mfsPath for legacy records that pre-date the required field.
-          // For records with neither mfsPath nor resourceType, cross-reference against ObjectLayer
-          // and AtlasSpriteSheet documents to infer the correct type automatically.
-          // Truly orphaned records (no type resolvable, no document reference) are warned and skipped.
-          if (allCids.size > 0) {
-            const ipfsDocs = await Ipfs.find({ cid: { $in: [...allCids] } }).lean();
-            if (ipfsDocs.length > 0) {
-              // Build an in-memory CID→resourceType map from the ObjectLayer docs already loaded
-              const cidTypeFromDocs = new Map();
-              for (const ol of objectLayers) {
-                if (ol.cid) cidTypeFromDocs.set(ol.cid, 'object-layer-data');
-                if (ol.data?.render?.cid) cidTypeFromDocs.set(ol.data.render.cid, 'atlas-sprite-sheet');
-                if (ol.data?.render?.metadataCid) cidTypeFromDocs.set(ol.data.render.metadataCid, 'atlas-metadata');
-              }
-              // Also check AtlasSpriteSheet docs backed up in this run
-              const atlasFiles = fs.existsSync(`${backupDir}/atlas-sprite-sheets`)
-                ? fs.readdirSync(`${backupDir}/atlas-sprite-sheets`).filter((f) => f.endsWith('.json'))
-                : [];
-              for (const af of atlasFiles) {
-                try {
-                  const atl = fs.readJsonSync(`${backupDir}/atlas-sprite-sheets/${af}`);
-                  if (atl.cid) cidTypeFromDocs.set(atl.cid, 'atlas-sprite-sheet');
-                } catch (_) {}
-              }
-
-              const inferResourceType = (doc) => {
-                if (doc.resourceType) return doc.resourceType;
-                const p = doc.mfsPath || '';
-                if (p.endsWith('_atlas_sprite_sheet.png')) return 'atlas-sprite-sheet';
-                if (p.endsWith('_atlas_sprite_sheet_metadata.json')) return 'atlas-metadata';
-                if (p.endsWith('_data.json')) return 'object-layer-data';
-                // Fall back to document cross-reference
-                return cidTypeFromDocs.get(doc.cid) ?? null;
-              };
-
-              const sanitised = [];
-              for (const doc of ipfsDocs) {
-                const rt = inferResourceType(doc);
-                if (!rt) {
-                  logger.warn(`Ipfs record has no resolvable resourceType — skipping from export (orphaned legacy pin)`, {
-                    cid: doc.cid,
-                    mfsPath: doc.mfsPath ?? null,
-                    resourceType: doc.resourceType ?? null,
-                    _id: doc._id?.toString(),
-                    knownCids: [...cidTypeFromDocs.keys()],
-                  });
-                  continue;
-                }
-                sanitised.push({ ...doc, resourceType: rt });
-              }
-              fs.writeJsonSync(`${backupDir}/ipfs/pins.json`, sanitised, { spaces: 2 });
-              logger.info(`Exported ${sanitised.length} Ipfs pin record(s)`);
+          if (ipfsPayloadFailures.length > 0) {
+            for (const failure of ipfsPayloadFailures) {
+              logger.error('Canonical IPFS payload export failed', failure);
             }
+            await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+            process.exit(1);
           }
+
+          const sanitised = serialiseCanonicalPins(canonicalPins);
+          fs.writeJsonSync(`${backupDir}/ipfs/pins.json`, sanitised, { spaces: 2 });
+          logger.info(
+            `Exported ${sanitised.length} canonical Ipfs pin record(s) and ${ipfsPayloadExportCount} raw payload file(s)`,
+          );
 
           logger.info(`Exported ${objectLayers.length} ObjectLayer document(s)`, {
             itemIds: [...objectLayerItemIds],
@@ -2314,74 +2437,14 @@ try {
           logger.info(`Static frame PNGs written: ${staticWriteCount} file(s) across src/client/public and public/`);
         }
 
-        // 5. Import IPFS pin records and re-pin CIDs
-        const ipfsFile = `${backupDir}/ipfs/pins.json`;
-        if (fs.existsSync(ipfsFile)) {
-          const ipfsDocs = fs.readJsonSync(ipfsFile);
-          let ipfsCount = 0;
-          let ipfsSkipped = 0;
-          const pinnedCids = new Set();
-
-          // Infer resourceType from mfsPath for legacy records that pre-date the required field.
-          // MFS path conventions (from atlas-sprite-sheet.service.js and object-layer.service.js):
-          //   /object-layer/<id>/<id>_atlas_sprite_sheet.png       → 'atlas-sprite-sheet'
-          //   /object-layer/<id>/<id>_atlas_sprite_sheet_metadata.json → 'atlas-metadata'
-          //   /object-layer/<id>/<id>_data.json                    → 'object-layer-data'
-          const inferResourceType = (doc) => {
-            if (doc.resourceType) return doc.resourceType;
-            const p = doc.mfsPath || '';
-            if (p.endsWith('_atlas_sprite_sheet.png')) return 'atlas-sprite-sheet';
-            if (p.endsWith('_atlas_sprite_sheet_metadata.json')) return 'atlas-metadata';
-            if (p.endsWith('_data.json')) return 'object-layer-data';
-            return null;
-          };
-
-          for (const doc of ipfsDocs) {
-            const resourceType = inferResourceType(doc);
-            if (!resourceType) {
-              logger.error(
-                `Ipfs record is missing resourceType and cannot be inferred (cid: ${doc.cid}, mfsPath: ${doc.mfsPath ?? '(none)'}) — skipping. Re-export after fixing the source DB record.`,
-              );
-              ipfsSkipped++;
-              continue;
-            }
-            const resolved = { ...doc, resourceType };
-            await Ipfs.deleteOne({ _id: resolved._id });
-            await Ipfs.deleteOne({ cid: resolved.cid, resourceType: resolved.resourceType });
-            await Ipfs.create(resolved);
-            ipfsCount++;
-            if (resolved.cid) pinnedCids.add(resolved.cid);
-          }
-          logger.info(`Imported ${ipfsCount} Ipfs pin record(s)${ipfsSkipped ? `, skipped ${ipfsSkipped} (missing resourceType)` : ''}`);
-
-          // Re-pin CIDs to IPFS Kubo + Cluster
-          let repinCount = 0;
-          for (const cid of pinnedCids) {
-            const ok = await IpfsClient.pinCid(cid);
-            if (ok) repinCount++;
-          }
-          logger.info(`IPFS re-pin: ${repinCount}/${pinnedCids.size} CIDs pinned`);
-
-          // Restore MFS paths so Kubo "Files" view and MFS-based lookups work correctly
-          const mfsDocs = ipfsDocs.filter((d) => d.cid && d.mfsPath);
-          let mfsRestoreCount = 0;
-          for (const doc of mfsDocs) {
-            const ok = await IpfsClient.restoreMfsPath(doc.cid, doc.mfsPath);
-            if (ok) mfsRestoreCount++;
-          }
-          logger.info(`IPFS MFS restore: ${mfsRestoreCount}/${mfsDocs.length} paths restored`);
-        }
-
-        // 6. Import maps (preserveUUID: delete by code then create with exact _id)
+        // 5. Import maps (preserveUUID: delete by code then create with exact _id)
         const mapsDir = `${backupDir}/maps`;
         if (fs.existsSync(mapsDir)) {
           const mapFiles = fs.readdirSync(mapsDir).filter((f) => f.endsWith('.json'));
           let mapCount = 0;
           for (const file of mapFiles) {
             const mapData = fs.readJsonSync(`${mapsDir}/${file}`);
-            // Remove any existing map with this code (may have different _id)
             await CyberiaMap.deleteOne({ code: mapData.code });
-            // Also remove if an old doc with this _id exists
             await CyberiaMap.deleteOne({ _id: mapData._id });
             await CyberiaMap.create(mapData);
             mapCount++;
@@ -2389,7 +2452,7 @@ try {
           logger.info(`Imported ${mapCount} CyberiaMap document(s)`);
         }
 
-        // 6b. Import CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
+        // 6. Import CyberiaInstanceConf (skillRules, equipmentRules, entityDefaults, etc.)
         const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
         if (fs.existsSync(confImportPath)) {
           const confData = fs.readJsonSync(confImportPath);
@@ -2411,6 +2474,267 @@ try {
           logger.info('Imported CyberiaInstance', { code: instanceCode });
         } else {
           logger.warn(`Instance file not found: ${instancePath}`);
+        }
+
+        // 8. Restore IPFS pin records and payloads
+        const ipfsFile = `${backupDir}/ipfs/pins.json`;
+        if (fs.existsSync(ipfsFile)) {
+          const ipfsDocs = fs.readJsonSync(ipfsFile);
+          const ipfsContentDir = `${backupDir}/ipfs/content`;
+          let ipfsCount = 0;
+          let ipfsSkipped = 0;
+
+          // Infer resourceType from mfsPath for legacy records that pre-date the required field.
+          // MFS path conventions (from atlas-sprite-sheet.service.js and object-layer.service.js):
+          //   /object-layer/<id>/<id>_atlas_sprite_sheet.png       → 'atlas-sprite-sheet'
+          //   /object-layer/<id>/<id>_atlas_sprite_sheet_metadata.json → 'atlas-metadata'
+          //   /object-layer/<id>/<id>_data.json                    → 'object-layer-data'
+          const inferResourceType = (doc) => {
+            if (doc.resourceType) return doc.resourceType;
+            const p = doc.mfsPath || '';
+            if (p.endsWith('_atlas_sprite_sheet.png')) return 'atlas-sprite-sheet';
+            if (p.endsWith('_atlas_sprite_sheet_metadata.json')) return 'atlas-metadata';
+            if (p.endsWith('_data.json')) return 'object-layer-data';
+            return null;
+          };
+          const backupPins = new Map();
+          for (const doc of ipfsDocs) {
+            const resourceType = inferResourceType(doc);
+            if (!resourceType) {
+              logger.warn(
+                `Ipfs record is missing resourceType and cannot be inferred (cid: ${doc.cid}, mfsPath: ${doc.mfsPath ?? '(none)'}) — skipping`,
+              );
+              ipfsSkipped++;
+              continue;
+            }
+
+            const mfsPaths = collectMfsPaths(doc);
+            if (mfsPaths.length === 0) {
+              upsertCanonicalPinEntry(backupPins, { cid: doc.cid, resourceType, mfsPath: '' });
+            } else {
+              for (const mfsPath of mfsPaths) {
+                upsertCanonicalPinEntry(backupPins, { cid: doc.cid, resourceType, mfsPath });
+              }
+            }
+          }
+
+          const backupPinEntries = serialiseCanonicalPins(backupPins);
+          const backupCids = [...new Set(backupPinEntries.map((entry) => entry.cid).filter(Boolean))];
+          if (backupCids.length > 0) {
+            await Ipfs.deleteMany({ cid: { $in: backupCids } });
+          }
+
+          const restoreAdditionalMfsPaths = async (cid, mfsPaths, primaryPath) => {
+            let restoredCount = 0;
+            for (const mfsPath of mfsPaths) {
+              if (!mfsPath || mfsPath === primaryPath) continue;
+              const ok = await IpfsClient.restoreMfsPath(cid, mfsPath);
+              if (ok) restoredCount++;
+            }
+            return restoredCount;
+          };
+
+          const upsertImportedPin = async ({ cid, resourceType, mfsPath }) => {
+            if (!cid || !resourceType) return;
+            await Ipfs.deleteMany({ cid, resourceType });
+            await createPinRecord({ cid, resourceType, mfsPath: mfsPath || '', options: { host, path } });
+          };
+
+          if (fs.existsSync(ipfsContentDir)) {
+            let cidRewriteCount = 0;
+            let extraMfsRestoreCount = 0;
+
+            for (const [index, doc] of backupPinEntries.entries()) {
+              const mfsPaths = collectMfsPaths(doc);
+              const primaryPath = mfsPaths[0] || '';
+              const payloadPath = `${ipfsContentDir}/${doc.cid}.bin`;
+
+              logger.info('IPFS raw payload restore start', {
+                index: index + 1,
+                total: backupPinEntries.length,
+                cid: doc.cid,
+                resourceType: doc.resourceType,
+                mfsPath: primaryPath || null,
+              });
+
+              if (!fs.existsSync(payloadPath)) {
+                logger.warn('IPFS raw payload file missing from backup', {
+                  cid: doc.cid,
+                  resourceType: doc.resourceType,
+                  mfsPath: primaryPath || null,
+                });
+                ipfsSkipped++;
+                continue;
+              }
+
+              const addResult = await IpfsClient.addToIpfs(
+                fs.readFileSync(payloadPath),
+                nodePath.basename(primaryPath || doc.cid),
+                primaryPath || undefined,
+              );
+
+              if (!addResult?.cid) {
+                logger.warn('IPFS raw payload restore failed', {
+                  cid: doc.cid,
+                  resourceType: doc.resourceType,
+                  mfsPath: primaryPath || null,
+                });
+                ipfsSkipped++;
+                continue;
+              }
+
+              const finalCid = addResult.cid;
+              if (doc.cid !== finalCid) {
+                await rewriteImportedCidReferences({
+                  oldCid: doc.cid,
+                  newCid: finalCid,
+                  resourceType: doc.resourceType,
+                });
+                cidRewriteCount++;
+                logger.warn('IPFS raw payload CID mismatch during import; rewriting imported references', {
+                  oldCid: doc.cid,
+                  newCid: finalCid,
+                  resourceType: doc.resourceType,
+                  mfsPath: primaryPath || null,
+                });
+              }
+
+              extraMfsRestoreCount += await restoreAdditionalMfsPaths(finalCid, mfsPaths, primaryPath);
+              await upsertImportedPin({ cid: finalCid, resourceType: doc.resourceType, mfsPath: primaryPath });
+              ipfsCount++;
+            }
+
+            logger.info(
+              `Imported ${ipfsCount} Ipfs pin record(s) from exact backup payloads${ipfsSkipped ? `, skipped ${ipfsSkipped}` : ''}`,
+            );
+            logger.info(
+              `IPFS raw payload restore: ${ipfsCount}/${backupPinEntries.length} record(s) restored, ${extraMfsRestoreCount} additional MFS path(s) restored${cidRewriteCount ? `, ${cidRewriteCount} CID rewrite(s)` : ''}`,
+            );
+          } else {
+            logger.warn(
+              'Backup has no raw IPFS payload files under ipfs/content/. Rebuilding a canonical IPFS layout from imported ObjectLayer, AtlasSpriteSheet, and File documents.',
+            );
+
+            const importedItemIds = fs.existsSync(olDir)
+              ? fs
+                  .readdirSync(olDir)
+                  .filter((f) => f.endsWith('.json'))
+                  .map((f) => nodePath.basename(f, '.json'))
+              : [];
+            const importedObjectLayers = importedItemIds.length
+              ? await ObjectLayer.find({ 'data.item.id': { $in: importedItemIds } }).lean()
+              : [];
+
+            let rebuiltObjectLayers = 0;
+
+            for (const [index, objectLayerDoc] of importedObjectLayers.entries()) {
+              const itemKey = objectLayerDoc.data?.item?.id || objectLayerDoc._id.toString();
+              const itemPaths = getCanonicalIpfsPaths(itemKey);
+              const updatedData = newInstance(objectLayerDoc.data || {});
+              if (!updatedData.render) updatedData.render = {};
+
+              logger.info('IPFS legacy canonical rebuild start', {
+                index: index + 1,
+                total: importedObjectLayers.length,
+                itemKey,
+              });
+
+              let atlasCid = '';
+              let atlasMetadataCid = '';
+
+              if (objectLayerDoc.atlasSpriteSheetId) {
+                const atlasDoc = await AtlasSpriteSheet.findById(objectLayerDoc.atlasSpriteSheetId).lean();
+                if (atlasDoc) {
+                  const atlasFile = atlasDoc.fileId ? await File.findById(atlasDoc.fileId).lean() : null;
+                  const atlasBuffer = toBuffer(atlasFile?.data);
+
+                  if (atlasBuffer) {
+                    const atlasAddResult = await IpfsClient.addBufferToIpfs(
+                      atlasBuffer,
+                      `${itemKey}_atlas_sprite_sheet.png`,
+                      itemPaths.atlasSpriteSheet,
+                    );
+                    if (atlasAddResult?.cid) {
+                      atlasCid = atlasAddResult.cid;
+                      await AtlasSpriteSheet.updateOne({ _id: atlasDoc._id }, { $set: { cid: atlasCid } });
+                      await createPinRecord({
+                        cid: atlasCid,
+                        resourceType: 'atlas-sprite-sheet',
+                        mfsPath: itemPaths.atlasSpriteSheet,
+                        options: { host, path },
+                      });
+                      ipfsCount++;
+                    } else {
+                      logger.warn(`Failed to rebuild atlas sprite sheet payload for '${itemKey}'`);
+                    }
+                  } else if (atlasDoc.fileId) {
+                    logger.warn(`Atlas File payload missing for '${itemKey}'`);
+                  }
+
+                  const atlasMetadataResult = await IpfsClient.addJsonToIpfs(
+                    atlasDoc.metadata || {},
+                    `${itemKey}_atlas_sprite_sheet_metadata.json`,
+                    itemPaths.atlasMetadata,
+                  );
+                  if (atlasMetadataResult?.cid) {
+                    atlasMetadataCid = atlasMetadataResult.cid;
+                    await createPinRecord({
+                      cid: atlasMetadataCid,
+                      resourceType: 'atlas-metadata',
+                      mfsPath: itemPaths.atlasMetadata,
+                      options: { host, path },
+                    });
+                    ipfsCount++;
+                  } else {
+                    logger.warn(`Failed to rebuild atlas metadata payload for '${itemKey}'`);
+                  }
+                }
+              }
+
+              if (atlasCid) {
+                updatedData.render.cid = atlasCid;
+              } else {
+                delete updatedData.render.cid;
+              }
+              if (atlasMetadataCid) {
+                updatedData.render.metadataCid = atlasMetadataCid;
+              } else {
+                delete updatedData.render.metadataCid;
+              }
+
+              const objectLayerAddResult = await IpfsClient.addJsonToIpfs(
+                updatedData,
+                `${itemKey}_data.json`,
+                itemPaths.objectLayerData,
+              );
+              if (objectLayerAddResult?.cid) {
+                await ObjectLayer.updateOne(
+                  { _id: objectLayerDoc._id },
+                  {
+                    $set: {
+                      cid: objectLayerAddResult.cid,
+                      data: updatedData,
+                    },
+                  },
+                );
+                await createPinRecord({
+                  cid: objectLayerAddResult.cid,
+                  resourceType: 'object-layer-data',
+                  mfsPath: itemPaths.objectLayerData,
+                  options: { host, path },
+                });
+                ipfsCount++;
+                rebuiltObjectLayers++;
+              } else {
+                logger.warn(`Failed to rebuild object-layer-data payload for '${itemKey}'`);
+                ipfsSkipped++;
+              }
+            }
+
+            logger.info(
+              `Legacy IPFS rebuild: ${rebuiltObjectLayers}/${importedObjectLayers.length} ObjectLayer payload(s) rebuilt, ${ipfsCount} canonical pin record(s) upserted${ipfsSkipped ? `, skipped ${ipfsSkipped}` : ''}`,
+            );
+          }
         }
 
         logger.info('Instance import completed', { backupDir });

@@ -15,6 +15,34 @@ import stringify from 'fast-json-stable-stringify';
 import { loggerFactory } from './logger.js';
 
 const logger = loggerFactory(import.meta);
+const DEFAULT_IPFS_HTTP_TIMEOUT_MS = Number(process.env.IPFS_HTTP_TIMEOUT_MS || 10000);
+
+const getRequestTimeoutMs = (kind = 'kubo') => {
+  if (kind === 'cluster') {
+    return Number(process.env.IPFS_CLUSTER_TIMEOUT_MS || DEFAULT_IPFS_HTTP_TIMEOUT_MS);
+  }
+  if (kind === 'gateway') {
+    return Number(process.env.IPFS_GATEWAY_TIMEOUT_MS || DEFAULT_IPFS_HTTP_TIMEOUT_MS);
+  }
+  return Number(process.env.IPFS_KUBO_TIMEOUT_MS || DEFAULT_IPFS_HTTP_TIMEOUT_MS);
+};
+
+const fetchWithTimeout = async (url, options = {}, { kind = 'kubo', label = url } = {}) => {
+  const controller = new AbortController();
+  const timeoutMs = getRequestTimeoutMs(kind);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`${label} timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
 
 // ─────────────────────────────────────────────────────────
 //  URL helpers
@@ -80,10 +108,14 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
   let cid;
   let size;
   try {
-    const res = await fetch(`${kuboUrl}/api/v0/add?pin=true&cid-version=1`, {
-      method: 'POST',
-      body: formData,
-    });
+    const res = await fetchWithTimeout(
+      `${kuboUrl}/api/v0/add?pin=true&cid-version=1`,
+      {
+        method: 'POST',
+        body: formData,
+      },
+      { kind: 'kubo', label: `IPFS Kubo add ${filename}` },
+    );
 
     if (!res.ok) {
       const text = await res.text();
@@ -102,9 +134,13 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
 
   // ── Step 2: pin to the Cluster ───────────────────────
   try {
-    const clusterRes = await fetch(`${clusterUrl}/pins/${encodeURIComponent(cid)}`, {
-      method: 'POST',
-    });
+    const clusterRes = await fetchWithTimeout(
+      `${clusterUrl}/pins/${encodeURIComponent(cid)}`,
+      {
+        method: 'POST',
+      },
+      { kind: 'cluster', label: `IPFS Cluster pin ${cid}` },
+    );
 
     if (!clusterRes.ok) {
       const text = await clusterRes.text();
@@ -121,17 +157,26 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
   const destDir = destPath.substring(0, destPath.lastIndexOf('/')) || '/';
   try {
     // Ensure parent directory exists in MFS
-    await fetch(`${kuboUrl}/api/v0/files/mkdir?arg=${encodeURIComponent(destDir)}&parents=true`, { method: 'POST' });
+    await fetchWithTimeout(
+      `${kuboUrl}/api/v0/files/mkdir?arg=${encodeURIComponent(destDir)}&parents=true`,
+      { method: 'POST' },
+      { kind: 'kubo', label: `IPFS MFS mkdir ${destDir}` },
+    );
 
     // Remove existing entry if present (cp fails on duplicates)
-    await fetch(`${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(destPath)}&force=true`, {
-      method: 'POST',
-    });
+    await fetchWithTimeout(
+      `${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(destPath)}&force=true`,
+      {
+        method: 'POST',
+      },
+      { kind: 'kubo', label: `IPFS MFS rm ${destPath}` },
+    );
 
     // Copy the CID into MFS
-    const cpRes = await fetch(
+    const cpRes = await fetchWithTimeout(
       `${kuboUrl}/api/v0/files/cp?arg=/ipfs/${encodeURIComponent(cid)}&arg=${encodeURIComponent(destPath)}`,
       { method: 'POST' },
+      { kind: 'kubo', label: `IPFS MFS cp ${destPath}` },
     );
 
     if (!cpRes.ok) {
@@ -165,6 +210,57 @@ const addJsonToIpfs = async (obj, filename = 'data.json', mfsPath) => {
 };
 
 /**
+ * Compute the CID that Kubo would assign to a payload without pinning or copying it into MFS.
+ * Useful when building canonical backup manifests from the actual bytes that will be restored later.
+ *
+ * @param {Buffer|string} content
+ * @param {string} [filename='data']
+ * @returns {Promise<IpfsAddResult|null>}
+ */
+const hashContentForIpfs = async (content, filename = 'data') => {
+  const kuboUrl = getIpfsApiUrl();
+  const buf = Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf-8');
+  const formData = new FormData();
+  formData.append('file', new Blob([buf]), filename);
+
+  try {
+    const res = await fetchWithTimeout(
+      `${kuboUrl}/api/v0/add?only-hash=true&pin=false&cid-version=1`,
+      {
+        method: 'POST',
+        body: formData,
+      },
+      { kind: 'kubo', label: `IPFS Kubo only-hash ${filename}` },
+    );
+
+    if (!res.ok) {
+      const text = await res.text();
+      logger.error(`IPFS Kubo only-hash failed (${res.status}): ${text}`);
+      return null;
+    }
+
+    const json = await res.json();
+    return { cid: json.Hash, size: Number(json.Size) };
+  } catch (err) {
+    logger.warn(`IPFS Kubo only-hash unreachable at ${kuboUrl}: ${err.message}`);
+    return null;
+  }
+};
+
+/**
+ * Compute the CID for a JSON-serialisable object using the same stable stringification
+ * that the regular addJsonToIpfs path uses.
+ *
+ * @param {any} obj
+ * @param {string} [filename='data.json']
+ * @returns {Promise<IpfsAddResult|null>}
+ */
+const hashJsonForIpfs = async (obj, filename = 'data.json') => {
+  const payload = stringify(obj);
+  return hashContentForIpfs(Buffer.from(payload, 'utf-8'), filename);
+};
+
+/**
  * Add a binary buffer (e.g. a PNG image) to IPFS.
  *
  * @param {Buffer} buffer   – raw image / file bytes.
@@ -174,6 +270,17 @@ const addJsonToIpfs = async (obj, filename = 'data.json', mfsPath) => {
  */
 const addBufferToIpfs = async (buffer, filename, mfsPath) => {
   return addToIpfs(buffer, filename, mfsPath);
+};
+
+/**
+ * Compute the CID for a binary buffer without pinning it.
+ *
+ * @param {Buffer} buffer
+ * @param {string} filename
+ * @returns {Promise<IpfsAddResult|null>}
+ */
+const hashBufferForIpfs = async (buffer, filename) => {
+  return hashContentForIpfs(buffer, filename);
 };
 
 // ─────────────────────────────────────────────────────────
@@ -194,9 +301,13 @@ const pinCid = async (cid, type = 'recursive') => {
 
   // Kubo pin
   try {
-    const res = await fetch(`${kuboUrl}/api/v0/pin/add?arg=${encodeURIComponent(cid)}&type=${type}`, {
-      method: 'POST',
-    });
+    const res = await fetchWithTimeout(
+      `${kuboUrl}/api/v0/pin/add?arg=${encodeURIComponent(cid)}&type=${type}`,
+      {
+        method: 'POST',
+      },
+      { kind: 'kubo', label: `IPFS Kubo pin/add ${cid}` },
+    );
     if (!res.ok) {
       const text = await res.text();
       logger.error(`IPFS Kubo pin/add failed (${res.status}): ${text}`);
@@ -210,9 +321,13 @@ const pinCid = async (cid, type = 'recursive') => {
 
   // Cluster pin
   try {
-    const clusterRes = await fetch(`${clusterUrl}/pins/${encodeURIComponent(cid)}`, {
-      method: 'POST',
-    });
+    const clusterRes = await fetchWithTimeout(
+      `${clusterUrl}/pins/${encodeURIComponent(cid)}`,
+      {
+        method: 'POST',
+      },
+      { kind: 'cluster', label: `IPFS Cluster pin ${cid}` },
+    );
     if (!clusterRes.ok) {
       const text = await clusterRes.text();
       logger.warn(`IPFS Cluster pin failed (${clusterRes.status}): ${text}`);
@@ -239,9 +354,13 @@ const unpinCid = async (cid) => {
 
   // Cluster unpin
   try {
-    const clusterRes = await fetch(`${clusterUrl}/pins/${encodeURIComponent(cid)}`, {
-      method: 'DELETE',
-    });
+    const clusterRes = await fetchWithTimeout(
+      `${clusterUrl}/pins/${encodeURIComponent(cid)}`,
+      {
+        method: 'DELETE',
+      },
+      { kind: 'cluster', label: `IPFS Cluster unpin ${cid}` },
+    );
     if (!clusterRes.ok) {
       const text = await clusterRes.text();
       if (clusterRes.status === 404) {
@@ -258,9 +377,13 @@ const unpinCid = async (cid) => {
 
   // Kubo unpin
   try {
-    const res = await fetch(`${kuboUrl}/api/v0/pin/rm?arg=${encodeURIComponent(cid)}`, {
-      method: 'POST',
-    });
+    const res = await fetchWithTimeout(
+      `${kuboUrl}/api/v0/pin/rm?arg=${encodeURIComponent(cid)}`,
+      {
+        method: 'POST',
+      },
+      { kind: 'kubo', label: `IPFS Kubo pin/rm ${cid}` },
+    );
     if (!res.ok) {
       const text = await res.text();
       // "not pinned or pinned indirectly" means the CID is already unpinned – treat as success
@@ -294,7 +417,14 @@ const unpinCid = async (cid) => {
 const getFromIpfs = async (cid) => {
   const url = getGatewayUrl();
   try {
-    const res = await fetch(`${url}/ipfs/${encodeURIComponent(cid)}`);
+    const res = await fetchWithTimeout(
+      `${url}/ipfs/${encodeURIComponent(cid)}`,
+      {},
+      {
+        kind: 'gateway',
+        label: `IPFS gateway GET ${cid}`,
+      },
+    );
     if (!res.ok) {
       logger.error(`IPFS gateway GET failed (${res.status}) for ${cid}`);
       return null;
@@ -320,7 +450,14 @@ const getFromIpfs = async (cid) => {
 const listClusterPins = async () => {
   const clusterUrl = getClusterApiUrl();
   try {
-    const res = await fetch(`${clusterUrl}/pins`);
+    const res = await fetchWithTimeout(
+      `${clusterUrl}/pins`,
+      {},
+      {
+        kind: 'cluster',
+        label: 'IPFS Cluster list pins',
+      },
+    );
     if (res.status === 204) {
       // 204 No Content → the cluster has no pins at all.
       return [];
@@ -358,9 +495,13 @@ const listClusterPins = async () => {
 const listKuboPins = async (type = 'recursive') => {
   const kuboUrl = getIpfsApiUrl();
   try {
-    const res = await fetch(`${kuboUrl}/api/v0/pin/ls?type=${type}`, {
-      method: 'POST',
-    });
+    const res = await fetchWithTimeout(
+      `${kuboUrl}/api/v0/pin/ls?type=${type}`,
+      {
+        method: 'POST',
+      },
+      { kind: 'kubo', label: `IPFS Kubo pin/ls type=${type}` },
+    );
     if (!res.ok) {
       const text = await res.text();
       logger.error(`IPFS Kubo pin/ls failed (${res.status}): ${text}`);
@@ -391,16 +532,21 @@ const removeMfsPath = async (mfsPath, recursive = true) => {
   const kuboUrl = getIpfsApiUrl();
   try {
     // First check if the path exists via stat; if it doesn't we can return early.
-    const statRes = await fetch(`${kuboUrl}/api/v0/files/stat?arg=${encodeURIComponent(mfsPath)}`, { method: 'POST' });
+    const statRes = await fetchWithTimeout(
+      `${kuboUrl}/api/v0/files/stat?arg=${encodeURIComponent(mfsPath)}`,
+      { method: 'POST' },
+      { kind: 'kubo', label: `IPFS MFS stat ${mfsPath}` },
+    );
     if (!statRes.ok) {
       // Path doesn't exist – nothing to remove.
       logger.info(`IPFS MFS rm – path does not exist, skipping: ${mfsPath}`);
       return true;
     }
 
-    const rmRes = await fetch(
+    const rmRes = await fetchWithTimeout(
       `${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(mfsPath)}&force=true${recursive ? '&recursive=true' : ''}`,
       { method: 'POST' },
+      { kind: 'kubo', label: `IPFS MFS rm ${mfsPath}` },
     );
     if (!rmRes.ok) {
       const text = await rmRes.text();
@@ -427,11 +573,20 @@ const restoreMfsPath = async (cid, mfsPath) => {
   const kuboUrl = getIpfsApiUrl();
   const destDir = mfsPath.substring(0, mfsPath.lastIndexOf('/')) || '/';
   try {
-    await fetch(`${kuboUrl}/api/v0/files/mkdir?arg=${encodeURIComponent(destDir)}&parents=true`, { method: 'POST' });
-    await fetch(`${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(mfsPath)}&force=true`, { method: 'POST' });
-    const cpRes = await fetch(
+    await fetchWithTimeout(
+      `${kuboUrl}/api/v0/files/mkdir?arg=${encodeURIComponent(destDir)}&parents=true`,
+      { method: 'POST' },
+      { kind: 'kubo', label: `IPFS MFS mkdir ${destDir}` },
+    );
+    await fetchWithTimeout(
+      `${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(mfsPath)}&force=true`,
+      { method: 'POST' },
+      { kind: 'kubo', label: `IPFS MFS rm ${mfsPath}` },
+    );
+    const cpRes = await fetchWithTimeout(
       `${kuboUrl}/api/v0/files/cp?arg=/ipfs/${encodeURIComponent(cid)}&arg=${encodeURIComponent(mfsPath)}`,
       { method: 'POST' },
+      { kind: 'kubo', label: `IPFS MFS restore ${mfsPath}` },
     );
     if (!cpRes.ok) {
       const text = await cpRes.text();
@@ -457,6 +612,9 @@ const IpfsClient = {
   addToIpfs,
   addJsonToIpfs,
   addBufferToIpfs,
+  hashContentForIpfs,
+  hashJsonForIpfs,
+  hashBufferForIpfs,
   pinCid,
   unpinCid,
   getFromIpfs,
@@ -475,7 +633,11 @@ const IpfsClient = {
   isCidPinned: async (cid) => {
     const kuboUrl = getIpfsApiUrl();
     try {
-      const res = await fetch(`${kuboUrl}/api/v0/pin/ls?arg=${encodeURIComponent(cid)}&type=all`, { method: 'POST' });
+      const res = await fetchWithTimeout(
+        `${kuboUrl}/api/v0/pin/ls?arg=${encodeURIComponent(cid)}&type=all`,
+        { method: 'POST' },
+        { kind: 'kubo', label: `IPFS Kubo pin/ls ${cid}` },
+      );
       if (!res.ok) return false;
       const json = await res.json();
       return !!(json.Keys && json.Keys[cid]);
