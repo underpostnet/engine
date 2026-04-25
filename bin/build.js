@@ -55,6 +55,13 @@ if (process.argv.includes('conf')) {
         if (itcScript.match(_confName))
           fs.copySync(`./engine-private/itc-scripts/${itcScript}`, `../${privateRepoName}/itc-scripts/${itcScript}`);
     }
+    switch (_confName) {
+      case 'dd-cyberia':
+        fs.copySync(`./engine-private/cyberia-instances/FOREST`, `../${privateRepoName}/cyberia-instances/FOREST`);
+        break;
+      default:
+        break;
+    }
     shellExec(
       `cd ../${privateRepoName}` +
         ` && git add .` +
