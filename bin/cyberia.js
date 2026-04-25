@@ -1706,7 +1706,7 @@ try {
       '--conf',
       'When used with --export or --import, only process cyberia-instance.json and cyberia-instance-conf.json',
     )
-    .option('--drop', 'Drop existing instance, maps and object layers before importing')
+    .option('--drop', 'Drop all documents associated with the instance code before importing or as a standalone action')
     .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
     .option('--mongo-host <mongo-host>', 'Mongo host override')
     .option('--dev', 'Force development environment')
@@ -2383,13 +2383,41 @@ try {
             // Collect thumbnail File IDs to drop
             const thumbFileIds = [];
             if (existingInstance.thumbnail) thumbFileIds.push(existingInstance.thumbnail);
+            const dropOlItemIds = new Set();
 
             // Query other instances/maps for shared thumbnail exclusion
             const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
 
+            // Add instance-level itemIds (may not appear in any map entity)
+            for (const id of existingInstance.itemIds || []) if (id) dropOlItemIds.add(id);
+
+            // Add conf entityDefaults and skillConfig itemIds (liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers)
+            const existingConf =
+              (await CyberiaInstanceConf.findOne({ instanceCode }).lean()) ||
+              (existingInstance.conf ? await CyberiaInstanceConf.findById(existingInstance.conf).lean() : null);
+            if (existingConf) {
+              for (const ed of existingConf.entityDefaults || []) {
+                for (const id of ed.liveItemIds || []) if (id) dropOlItemIds.add(id);
+                for (const id of ed.deadItemIds || []) if (id) dropOlItemIds.add(id);
+                for (const id of ed.dropItemIds || []) if (id) dropOlItemIds.add(id);
+                for (const slot of ed.defaultObjectLayers || []) if (slot.itemId) dropOlItemIds.add(slot.itemId);
+              }
+              for (const sc of existingConf.skillConfig || []) {
+                if (sc.triggerItemId) dropOlItemIds.add(sc.triggerItemId);
+                for (const skill of sc.skills || []) {
+                  if (skill.summonedEntityItemId && !skill.summonedEntityItemId.startsWith('$'))
+                    dropOlItemIds.add(skill.summonedEntityItemId);
+                }
+              }
+            }
+
+            const otherMaps = await CyberiaMap.find(
+              { code: { $nin: [...dropMapCodes] } },
+              { 'entities.objectLayerItemIds': 1, thumbnail: 1 },
+            ).lean();
+
             if (dropMapCodes.size > 0) {
               const dropMaps = await CyberiaMap.find({ code: { $in: [...dropMapCodes] } }).lean();
-              const dropOlItemIds = new Set();
               for (const map of dropMaps) {
                 if (map.thumbnail) thumbFileIds.push(map.thumbnail);
                 for (const entity of map.entities || []) {
@@ -2399,133 +2427,106 @@ try {
                 }
               }
 
-              // Add instance-level itemIds (may not appear in any map entity)
-              for (const id of existingInstance.itemIds || []) if (id) dropOlItemIds.add(id);
-
-              // Add conf entityDefaults and skillConfig itemIds (liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers)
-              const existingConf =
-                (await CyberiaInstanceConf.findOne({ instanceCode }).lean()) ||
-                (existingInstance.conf ? await CyberiaInstanceConf.findById(existingInstance.conf).lean() : null);
-              if (existingConf) {
-                for (const ed of existingConf.entityDefaults || []) {
-                  for (const id of ed.liveItemIds || []) if (id) dropOlItemIds.add(id);
-                  for (const id of ed.deadItemIds || []) if (id) dropOlItemIds.add(id);
-                  for (const id of ed.dropItemIds || []) if (id) dropOlItemIds.add(id);
-                  for (const slot of ed.defaultObjectLayers || []) if (slot.itemId) dropOlItemIds.add(slot.itemId);
-                }
-                for (const sc of existingConf.skillConfig || []) {
-                  if (sc.triggerItemId) dropOlItemIds.add(sc.triggerItemId);
-                  for (const skill of sc.skills || []) {
-                    if (skill.summonedEntityItemId && !skill.summonedEntityItemId.startsWith('$'))
-                      dropOlItemIds.add(skill.summonedEntityItemId);
-                  }
-                }
-              }
-
-              // Exclude OL item IDs referenced by maps outside this instance
-              const otherMaps = await CyberiaMap.find(
-                { code: { $nin: [...dropMapCodes] } },
-                { 'entities.objectLayerItemIds': 1, thumbnail: 1 },
-              ).lean();
-              const sharedOlItemIds = new Set();
-              for (const m of otherMaps) {
-                for (const entity of m.entities || []) {
-                  for (const itemId of entity.objectLayerItemIds || []) {
-                    if (dropOlItemIds.has(itemId)) sharedOlItemIds.add(itemId);
-                  }
-                }
-              }
-              for (const shared of sharedOlItemIds) dropOlItemIds.delete(shared);
-              if (sharedOlItemIds.size > 0) {
-                logger.info(`Preserved ${sharedOlItemIds.size} ObjectLayer(s) shared with other maps`);
-              }
-
-              // Exclude thumbnail File IDs referenced by other instances or maps
-              const otherMapThumbs = otherMaps.map((m) => m.thumbnail?.toString()).filter(Boolean);
-              const otherInstThumbs = otherInstances.map((i) => i.thumbnail?.toString()).filter(Boolean);
-              const sharedThumbIds = new Set([...otherMapThumbs, ...otherInstThumbs]);
-              for (let i = thumbFileIds.length - 1; i >= 0; i--) {
-                if (sharedThumbIds.has(thumbFileIds[i].toString())) thumbFileIds.splice(i, 1);
-              }
-
-              if (dropOlItemIds.size > 0) {
-                // Gather ObjectLayers to collect related doc IDs and CIDs
-                const olDocs = await ObjectLayer.find(
-                  { 'data.item.id': { $in: [...dropOlItemIds] } },
-                  {
-                    cid: 1,
-                    'data.item.id': 1,
-                    'data.render': 1,
-                    objectLayerRenderFramesId: 1,
-                    atlasSpriteSheetId: 1,
-                  },
-                ).lean();
-
-                const cidsToUnpin = new Set();
-                const renderFrameIds = [];
-                const atlasIds = [];
-                const itemKeysToClean = new Set();
-
-                for (const doc of olDocs) {
-                  if (doc.cid) cidsToUnpin.add(doc.cid);
-                  if (doc.data?.render?.cid) cidsToUnpin.add(doc.data.render.cid);
-                  if (doc.data?.render?.metadataCid) cidsToUnpin.add(doc.data.render.metadataCid);
-                  if (doc.data?.item?.id) itemKeysToClean.add(doc.data.item.id);
-                  if (doc.objectLayerRenderFramesId) renderFrameIds.push(doc.objectLayerRenderFramesId);
-                  if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
-                }
-
-                // Delete AtlasSpriteSheet + referenced File docs
-                if (atlasIds.length > 0) {
-                  const atlasDocs = await AtlasSpriteSheet.find(
-                    { _id: { $in: atlasIds } },
-                    { fileId: 1, cid: 1 },
-                  ).lean();
-                  const atlasFileIds = atlasDocs.map((a) => a.fileId).filter(Boolean);
-                  for (const atlas of atlasDocs) {
-                    if (atlas.cid) cidsToUnpin.add(atlas.cid);
-                  }
-                  if (atlasFileIds.length > 0) {
-                    const fileResult = await File.deleteMany({ _id: { $in: atlasFileIds } });
-                    logger.info(`Dropped ${fileResult.deletedCount} File document(s) (atlas)`);
-                  }
-                  const atlasResult = await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
-                  logger.info(`Dropped ${atlasResult.deletedCount} AtlasSpriteSheet document(s)`);
-                }
-
-                // Delete RenderFrames
-                if (renderFrameIds.length > 0) {
-                  const rfResult = await ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFrameIds } });
-                  logger.info(`Dropped ${rfResult.deletedCount} ObjectLayerRenderFrames document(s)`);
-                }
-
-                // Delete IPFS pin records
-                if (cidsToUnpin.size > 0) {
-                  const ipfsResult = await Ipfs.deleteMany({ cid: { $in: [...cidsToUnpin] } });
-                  logger.info(`Dropped ${ipfsResult.deletedCount} Ipfs pin record(s)`);
-                }
-
-                // Unpin CIDs from IPFS Kubo + Cluster and remove MFS paths
-                let unpinCount = 0;
-                for (const cid of cidsToUnpin) {
-                  const ok = await IpfsClient.unpinCid(cid);
-                  if (ok) unpinCount++;
-                }
-                let mfsCount = 0;
-                for (const itemKey of itemKeysToClean) {
-                  const ok = await IpfsClient.removeMfsPath(`/object-layer/${itemKey}`);
-                  if (ok) mfsCount++;
-                }
-                logger.info(
-                  `IPFS cleanup: ${unpinCount}/${cidsToUnpin.size} CIDs unpinned, ${mfsCount}/${itemKeysToClean.size} MFS paths removed`,
-                );
-
-                const olResult = await ObjectLayer.deleteMany({ 'data.item.id': { $in: [...dropOlItemIds] } });
-                logger.info(`Dropped ${olResult.deletedCount} ObjectLayer document(s)`);
-              }
-
               const mapResult = await CyberiaMap.deleteMany({ code: { $in: [...dropMapCodes] } });
               logger.info(`Dropped ${mapResult.deletedCount} CyberiaMap document(s)`);
+            }
+
+            // Exclude OL item IDs referenced by maps outside this instance
+            const sharedOlItemIds = new Set();
+            for (const m of otherMaps) {
+              for (const entity of m.entities || []) {
+                for (const itemId of entity.objectLayerItemIds || []) {
+                  if (dropOlItemIds.has(itemId)) sharedOlItemIds.add(itemId);
+                }
+              }
+            }
+            for (const shared of sharedOlItemIds) dropOlItemIds.delete(shared);
+            if (sharedOlItemIds.size > 0) {
+              logger.info(`Preserved ${sharedOlItemIds.size} ObjectLayer(s) shared with other maps`);
+            }
+
+            // Exclude thumbnail File IDs referenced by other instances or maps
+            const otherMapThumbs = otherMaps.map((m) => m.thumbnail?.toString()).filter(Boolean);
+            const otherInstThumbs = otherInstances.map((i) => i.thumbnail?.toString()).filter(Boolean);
+            const sharedThumbIds = new Set([...otherMapThumbs, ...otherInstThumbs]);
+            for (let i = thumbFileIds.length - 1; i >= 0; i--) {
+              if (sharedThumbIds.has(thumbFileIds[i].toString())) thumbFileIds.splice(i, 1);
+            }
+
+            if (dropOlItemIds.size > 0) {
+              const dialogueResult = await CyberiaDialogue.deleteMany({ itemId: { $in: [...dropOlItemIds] } });
+              logger.info(`Dropped ${dialogueResult.deletedCount} CyberiaDialogue document(s)`);
+
+              // Gather ObjectLayers to collect related doc IDs and CIDs
+              const olDocs = await ObjectLayer.find(
+                { 'data.item.id': { $in: [...dropOlItemIds] } },
+                {
+                  cid: 1,
+                  'data.item.id': 1,
+                  'data.render': 1,
+                  objectLayerRenderFramesId: 1,
+                  atlasSpriteSheetId: 1,
+                },
+              ).lean();
+
+              const cidsToUnpin = new Set();
+              const renderFrameIds = [];
+              const atlasIds = [];
+              const itemKeysToClean = new Set();
+
+              for (const doc of olDocs) {
+                if (doc.cid) cidsToUnpin.add(doc.cid);
+                if (doc.data?.render?.cid) cidsToUnpin.add(doc.data.render.cid);
+                if (doc.data?.render?.metadataCid) cidsToUnpin.add(doc.data.render.metadataCid);
+                if (doc.data?.item?.id) itemKeysToClean.add(doc.data.item.id);
+                if (doc.objectLayerRenderFramesId) renderFrameIds.push(doc.objectLayerRenderFramesId);
+                if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
+              }
+
+              // Delete AtlasSpriteSheet + referenced File docs
+              if (atlasIds.length > 0) {
+                const atlasDocs = await AtlasSpriteSheet.find({ _id: { $in: atlasIds } }, { fileId: 1, cid: 1 }).lean();
+                const atlasFileIds = atlasDocs.map((a) => a.fileId).filter(Boolean);
+                for (const atlas of atlasDocs) {
+                  if (atlas.cid) cidsToUnpin.add(atlas.cid);
+                }
+                if (atlasFileIds.length > 0) {
+                  const fileResult = await File.deleteMany({ _id: { $in: atlasFileIds } });
+                  logger.info(`Dropped ${fileResult.deletedCount} File document(s) (atlas)`);
+                }
+                const atlasResult = await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
+                logger.info(`Dropped ${atlasResult.deletedCount} AtlasSpriteSheet document(s)`);
+              }
+
+              // Delete RenderFrames
+              if (renderFrameIds.length > 0) {
+                const rfResult = await ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFrameIds } });
+                logger.info(`Dropped ${rfResult.deletedCount} ObjectLayerRenderFrames document(s)`);
+              }
+
+              // Delete IPFS pin records
+              if (cidsToUnpin.size > 0) {
+                const ipfsResult = await Ipfs.deleteMany({ cid: { $in: [...cidsToUnpin] } });
+                logger.info(`Dropped ${ipfsResult.deletedCount} Ipfs pin record(s)`);
+              }
+
+              // Unpin CIDs from IPFS Kubo + Cluster and remove MFS paths
+              let unpinCount = 0;
+              for (const cid of cidsToUnpin) {
+                const ok = await IpfsClient.unpinCid(cid);
+                if (ok) unpinCount++;
+              }
+              let mfsCount = 0;
+              for (const itemKey of itemKeysToClean) {
+                const ok = await IpfsClient.removeMfsPath(`/object-layer/${itemKey}`);
+                if (ok) mfsCount++;
+              }
+              logger.info(
+                `IPFS cleanup: ${unpinCount}/${cidsToUnpin.size} CIDs unpinned, ${mfsCount}/${itemKeysToClean.size} MFS paths removed`,
+              );
+
+              const olResult = await ObjectLayer.deleteMany({ 'data.item.id': { $in: [...dropOlItemIds] } });
+              logger.info(`Dropped ${olResult.deletedCount} ObjectLayer document(s)`);
             }
 
             // Drop thumbnail File documents (instance + maps), excluding shared ones
@@ -3031,13 +3032,41 @@ try {
           // Collect thumbnail File IDs to drop
           const thumbFileIds = [];
           if (existingInstance.thumbnail) thumbFileIds.push(existingInstance.thumbnail);
+          const dropOlItemIds = new Set();
 
           // Query other instances for shared thumbnail exclusion
           const otherInstances = await CyberiaInstance.find({ code: { $ne: instanceCode } }, { thumbnail: 1 }).lean();
 
+          // Add instance-level itemIds (may not appear in any map entity)
+          for (const id of existingInstance.itemIds || []) if (id) dropOlItemIds.add(id);
+
+          // Add conf entityDefaults and skillConfig itemIds (liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers)
+          const existingConf =
+            (await CyberiaInstanceConf.findOne({ instanceCode }).lean()) ||
+            (existingInstance.conf ? await CyberiaInstanceConf.findById(existingInstance.conf).lean() : null);
+          if (existingConf) {
+            for (const ed of existingConf.entityDefaults || []) {
+              for (const id of ed.liveItemIds || []) if (id) dropOlItemIds.add(id);
+              for (const id of ed.deadItemIds || []) if (id) dropOlItemIds.add(id);
+              for (const id of ed.dropItemIds || []) if (id) dropOlItemIds.add(id);
+              for (const slot of ed.defaultObjectLayers || []) if (slot.itemId) dropOlItemIds.add(slot.itemId);
+            }
+            for (const sc of existingConf.skillConfig || []) {
+              if (sc.triggerItemId) dropOlItemIds.add(sc.triggerItemId);
+              for (const skill of sc.skills || []) {
+                if (skill.summonedEntityItemId && !skill.summonedEntityItemId.startsWith('$'))
+                  dropOlItemIds.add(skill.summonedEntityItemId);
+              }
+            }
+          }
+
+          const otherMaps = await CyberiaMap.find(
+            { code: { $nin: [...dropMapCodes] } },
+            { 'entities.objectLayerItemIds': 1, thumbnail: 1 },
+          ).lean();
+
           if (dropMapCodes.size > 0) {
             const dropMaps = await CyberiaMap.find({ code: { $in: [...dropMapCodes] } }).lean();
-            const dropOlItemIds = new Set();
             for (const map of dropMaps) {
               if (map.thumbnail) thumbFileIds.push(map.thumbnail);
               for (const entity of map.entities || []) {
@@ -3046,126 +3075,101 @@ try {
                 }
               }
             }
-
-            // Add instance-level itemIds (may not appear in any map entity)
-            for (const id of existingInstance.itemIds || []) if (id) dropOlItemIds.add(id);
-
-            // Add conf entityDefaults and skillConfig itemIds (liveItemIds, deadItemIds, dropItemIds, defaultObjectLayers)
-            const existingConf =
-              (await CyberiaInstanceConf.findOne({ instanceCode }).lean()) ||
-              (existingInstance.conf ? await CyberiaInstanceConf.findById(existingInstance.conf).lean() : null);
-            if (existingConf) {
-              for (const ed of existingConf.entityDefaults || []) {
-                for (const id of ed.liveItemIds || []) if (id) dropOlItemIds.add(id);
-                for (const id of ed.deadItemIds || []) if (id) dropOlItemIds.add(id);
-                for (const id of ed.dropItemIds || []) if (id) dropOlItemIds.add(id);
-                for (const slot of ed.defaultObjectLayers || []) if (slot.itemId) dropOlItemIds.add(slot.itemId);
-              }
-              for (const sc of existingConf.skillConfig || []) {
-                if (sc.triggerItemId) dropOlItemIds.add(sc.triggerItemId);
-                for (const skill of sc.skills || []) {
-                  if (skill.summonedEntityItemId && !skill.summonedEntityItemId.startsWith('$'))
-                    dropOlItemIds.add(skill.summonedEntityItemId);
-                }
-              }
-            }
-
-            // Exclude OL item IDs referenced by maps outside this instance
-            const otherMaps = await CyberiaMap.find(
-              { code: { $nin: [...dropMapCodes] } },
-              { 'entities.objectLayerItemIds': 1, thumbnail: 1 },
-            ).lean();
-            const sharedOlItemIds = new Set();
-            for (const m of otherMaps) {
-              for (const entity of m.entities || []) {
-                for (const itemId of entity.objectLayerItemIds || []) {
-                  if (dropOlItemIds.has(itemId)) sharedOlItemIds.add(itemId);
-                }
-              }
-            }
-            for (const shared of sharedOlItemIds) dropOlItemIds.delete(shared);
-            if (sharedOlItemIds.size > 0) {
-              logger.info(`Preserved ${sharedOlItemIds.size} ObjectLayer(s) shared with other maps`);
-            }
-
-            // Exclude thumbnail File IDs referenced by other instances or maps
-            const otherMapThumbs = otherMaps.map((m) => m.thumbnail?.toString()).filter(Boolean);
-            const otherInstThumbs = otherInstances.map((i) => i.thumbnail?.toString()).filter(Boolean);
-            const sharedThumbIds = new Set([...otherMapThumbs, ...otherInstThumbs]);
-            for (let i = thumbFileIds.length - 1; i >= 0; i--) {
-              if (sharedThumbIds.has(thumbFileIds[i].toString())) thumbFileIds.splice(i, 1);
-            }
-
-            if (dropOlItemIds.size > 0) {
-              const olDocs = await ObjectLayer.find(
-                { 'data.item.id': { $in: [...dropOlItemIds] } },
-                {
-                  cid: 1,
-                  'data.item.id': 1,
-                  'data.render': 1,
-                  objectLayerRenderFramesId: 1,
-                  atlasSpriteSheetId: 1,
-                },
-              ).lean();
-
-              const cidsToUnpin = new Set();
-              const renderFrameIds = [];
-              const atlasIds = [];
-              const itemKeysToClean = new Set();
-
-              for (const doc of olDocs) {
-                if (doc.cid) cidsToUnpin.add(doc.cid);
-                if (doc.data?.render?.cid) cidsToUnpin.add(doc.data.render.cid);
-                if (doc.data?.render?.metadataCid) cidsToUnpin.add(doc.data.render.metadataCid);
-                if (doc.data?.item?.id) itemKeysToClean.add(doc.data.item.id);
-                if (doc.objectLayerRenderFramesId) renderFrameIds.push(doc.objectLayerRenderFramesId);
-                if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
-              }
-
-              if (atlasIds.length > 0) {
-                const atlasDocs = await AtlasSpriteSheet.find({ _id: { $in: atlasIds } }, { fileId: 1, cid: 1 }).lean();
-                const atlasFileIds = atlasDocs.map((a) => a.fileId).filter(Boolean);
-                for (const atlas of atlasDocs) {
-                  if (atlas.cid) cidsToUnpin.add(atlas.cid);
-                }
-                if (atlasFileIds.length > 0) {
-                  const fileResult = await File.deleteMany({ _id: { $in: atlasFileIds } });
-                  logger.info(`Dropped ${fileResult.deletedCount} File document(s) (atlas)`);
-                }
-                const atlasResult = await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
-                logger.info(`Dropped ${atlasResult.deletedCount} AtlasSpriteSheet document(s)`);
-              }
-
-              if (renderFrameIds.length > 0) {
-                const rfResult = await ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFrameIds } });
-                logger.info(`Dropped ${rfResult.deletedCount} ObjectLayerRenderFrames document(s)`);
-              }
-
-              if (cidsToUnpin.size > 0) {
-                const ipfsResult = await Ipfs.deleteMany({ cid: { $in: [...cidsToUnpin] } });
-                logger.info(`Dropped ${ipfsResult.deletedCount} Ipfs pin record(s)`);
-              }
-
-              let unpinCount = 0;
-              for (const cid of cidsToUnpin) {
-                const ok = await IpfsClient.unpinCid(cid);
-                if (ok) unpinCount++;
-              }
-              let mfsCount = 0;
-              for (const itemKey of itemKeysToClean) {
-                const ok = await IpfsClient.removeMfsPath(`/object-layer/${itemKey}`);
-                if (ok) mfsCount++;
-              }
-              logger.info(
-                `IPFS cleanup: ${unpinCount}/${cidsToUnpin.size} CIDs unpinned, ${mfsCount}/${itemKeysToClean.size} MFS paths removed`,
-              );
-
-              const olResult = await ObjectLayer.deleteMany({ 'data.item.id': { $in: [...dropOlItemIds] } });
-              logger.info(`Dropped ${olResult.deletedCount} ObjectLayer document(s)`);
-            }
-
             const mapResult = await CyberiaMap.deleteMany({ code: { $in: [...dropMapCodes] } });
             logger.info(`Dropped ${mapResult.deletedCount} CyberiaMap document(s)`);
+          }
+
+          // Exclude OL item IDs referenced by maps outside this instance
+          const sharedOlItemIds = new Set();
+          for (const m of otherMaps) {
+            for (const entity of m.entities || []) {
+              for (const itemId of entity.objectLayerItemIds || []) {
+                if (dropOlItemIds.has(itemId)) sharedOlItemIds.add(itemId);
+              }
+            }
+          }
+          for (const shared of sharedOlItemIds) dropOlItemIds.delete(shared);
+          if (sharedOlItemIds.size > 0) {
+            logger.info(`Preserved ${sharedOlItemIds.size} ObjectLayer(s) shared with other maps`);
+          }
+
+          // Exclude thumbnail File IDs referenced by other instances or maps
+          const otherMapThumbs = otherMaps.map((m) => m.thumbnail?.toString()).filter(Boolean);
+          const otherInstThumbs = otherInstances.map((i) => i.thumbnail?.toString()).filter(Boolean);
+          const sharedThumbIds = new Set([...otherMapThumbs, ...otherInstThumbs]);
+          for (let i = thumbFileIds.length - 1; i >= 0; i--) {
+            if (sharedThumbIds.has(thumbFileIds[i].toString())) thumbFileIds.splice(i, 1);
+          }
+
+          if (dropOlItemIds.size > 0) {
+            const dialogueResult = await CyberiaDialogue.deleteMany({ itemId: { $in: [...dropOlItemIds] } });
+            logger.info(`Dropped ${dialogueResult.deletedCount} CyberiaDialogue document(s)`);
+
+            const olDocs = await ObjectLayer.find(
+              { 'data.item.id': { $in: [...dropOlItemIds] } },
+              {
+                cid: 1,
+                'data.item.id': 1,
+                'data.render': 1,
+                objectLayerRenderFramesId: 1,
+                atlasSpriteSheetId: 1,
+              },
+            ).lean();
+
+            const cidsToUnpin = new Set();
+            const renderFrameIds = [];
+            const atlasIds = [];
+            const itemKeysToClean = new Set();
+
+            for (const doc of olDocs) {
+              if (doc.cid) cidsToUnpin.add(doc.cid);
+              if (doc.data?.render?.cid) cidsToUnpin.add(doc.data.render.cid);
+              if (doc.data?.render?.metadataCid) cidsToUnpin.add(doc.data.render.metadataCid);
+              if (doc.data?.item?.id) itemKeysToClean.add(doc.data.item.id);
+              if (doc.objectLayerRenderFramesId) renderFrameIds.push(doc.objectLayerRenderFramesId);
+              if (doc.atlasSpriteSheetId) atlasIds.push(doc.atlasSpriteSheetId);
+            }
+
+            if (atlasIds.length > 0) {
+              const atlasDocs = await AtlasSpriteSheet.find({ _id: { $in: atlasIds } }, { fileId: 1, cid: 1 }).lean();
+              const atlasFileIds = atlasDocs.map((a) => a.fileId).filter(Boolean);
+              for (const atlas of atlasDocs) {
+                if (atlas.cid) cidsToUnpin.add(atlas.cid);
+              }
+              if (atlasFileIds.length > 0) {
+                const fileResult = await File.deleteMany({ _id: { $in: atlasFileIds } });
+                logger.info(`Dropped ${fileResult.deletedCount} File document(s) (atlas)`);
+              }
+              const atlasResult = await AtlasSpriteSheet.deleteMany({ _id: { $in: atlasIds } });
+              logger.info(`Dropped ${atlasResult.deletedCount} AtlasSpriteSheet document(s)`);
+            }
+
+            if (renderFrameIds.length > 0) {
+              const rfResult = await ObjectLayerRenderFrames.deleteMany({ _id: { $in: renderFrameIds } });
+              logger.info(`Dropped ${rfResult.deletedCount} ObjectLayerRenderFrames document(s)`);
+            }
+
+            if (cidsToUnpin.size > 0) {
+              const ipfsResult = await Ipfs.deleteMany({ cid: { $in: [...cidsToUnpin] } });
+              logger.info(`Dropped ${ipfsResult.deletedCount} Ipfs pin record(s)`);
+            }
+
+            let unpinCount = 0;
+            for (const cid of cidsToUnpin) {
+              const ok = await IpfsClient.unpinCid(cid);
+              if (ok) unpinCount++;
+            }
+            let mfsCount = 0;
+            for (const itemKey of itemKeysToClean) {
+              const ok = await IpfsClient.removeMfsPath(`/object-layer/${itemKey}`);
+              if (ok) mfsCount++;
+            }
+            logger.info(
+              `IPFS cleanup: ${unpinCount}/${cidsToUnpin.size} CIDs unpinned, ${mfsCount}/${itemKeysToClean.size} MFS paths removed`,
+            );
+
+            const olResult = await ObjectLayer.deleteMany({ 'data.item.id': { $in: [...dropOlItemIds] } });
+            logger.info(`Dropped ${olResult.deletedCount} ObjectLayer document(s)`);
           }
 
           // Drop thumbnail File documents (instance + maps), excluding shared ones
