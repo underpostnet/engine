@@ -613,7 +613,6 @@ program
   .option('--k3s', 'Sets the k3s cluster context for the runner execution.')
   .option('--kind', 'Sets the kind cluster context for the runner execution.')
   .option('--git-clean', 'Runs git clean on volume mount paths before copying.')
-  .option('--log-type <log-type>', 'Sets the log type for the runner execution.')
   .option('--deploy-id <deploy-id>', 'Sets deploy id context for the runner execution.')
   .option('--user <user>', 'Sets user context for the runner execution.')
   .option('--hosts <hosts>', 'Comma-separated list of hosts for the runner execution.')

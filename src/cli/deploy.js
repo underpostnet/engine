@@ -624,6 +624,8 @@ EOF`);
                 path: instance.path,
                 fromPort: instance.fromPort,
                 toPort: instance.toPort,
+                fromDebugPort: instance.fromDebugPort,
+                toDebugPort: instance.toDebugPort,
                 traffic: Underpost.deploy.getCurrentTraffic(_deployId, { namespace, hostTest: instance.host }),
               });
             }
@@ -1092,11 +1094,10 @@ ${renderHosts}`,
      * @param {string} targetTraffic - Target traffic status for the deployment.
      * @param {Array<string>} ignorePods - List of pod names to ignore.
      * @param {string} [namespace='default'] - Kubernetes namespace for the deployment.
-     * @param {string} [outLogType=''] - Type of log output.
      * @returns {object} - Object containing the ready status of the deployment.
      * @memberof UnderpostDeploy
      */
-    async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = [], namespace = 'default', outLogType = '') {
+    async monitorReadyRunner(deployId, env, targetTraffic, ignorePods = [], namespace = 'default') {
       let checkStatusIteration = 0;
       const checkStatusIterationMsDelay = 1000;
       const maxIterations = 3000;
@@ -1134,32 +1135,30 @@ ${renderHosts}`,
           }
         }
 
-        switch (outLogType) {
-          case 'underpost': {
-            let indexOf = -1;
-            for (const pod of result.notReadyPods) {
-              indexOf++;
-              const { NAME, out } = pod;
+        {
+          let indexOf = -1;
+          for (const pod of result.notReadyPods) {
+            indexOf++;
+            const { NAME, out } = pod;
 
-              if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match(deploymentId))
-                lastMsg[NAME] = 'Starting deployment';
-              else if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match('underpost'))
-                lastMsg[NAME] = 'Installing underpost cli';
-              else if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match('task'))
-                lastMsg[NAME] = 'Initializing setup task';
-              else if (out.match('Empty environment variables')) lastMsg[NAME] = 'Setup environment';
-              else if (out.match(`${deployId}-${env}-build-deployment`)) lastMsg[NAME] = 'Building apps/services';
-              else if (out.match(`${deployId}-${env}-initializing-deployment`))
-                lastMsg[NAME] = 'Initializing apps/services';
-              else if (!lastMsg[NAME]) lastMsg[NAME] = `Waiting for status`;
+            if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match(deploymentId))
+              lastMsg[NAME] = 'Starting deployment';
+            // else if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match('underpost'))
+            //   lastMsg[NAME] = 'Installing underpost cli';
+            else if (out.match('not') && out.match('found') && checkStatusIteration <= 20 && out.match('task'))
+              lastMsg[NAME] = 'Initializing setup task';
+            else if (out.match('Empty environment variables')) lastMsg[NAME] = 'Setup environment';
+            else if (out.match(`${deployId}-${env}-build-deployment`)) lastMsg[NAME] = 'Building apps/services';
+            else if (out.match(`${deployId}-${env}-initializing-deployment`))
+              lastMsg[NAME] = 'Initializing apps/services';
+            else if (!lastMsg[NAME]) lastMsg[NAME] = `Waiting for status`;
 
-              console.log(
-                'Target pod:',
-                NAME[NAME.match('green') ? 'bgGreen' : 'bgBlue'].bold.black,
-                '| Status:',
-                lastMsg[NAME].bold.magenta,
-              );
-            }
+            console.log(
+              'Target pod:',
+              NAME[NAME.match('green') ? 'bgGreen' : 'bgBlue'].bold.black,
+              '| Status:',
+              lastMsg[NAME].bold.magenta,
+            );
           }
         }
         await timer(checkStatusIterationMsDelay);

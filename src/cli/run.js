@@ -93,7 +93,6 @@ const logger = loggerFactory(import.meta);
  * @property {boolean} kubeadm - Whether to run in kubeadm mode.
  * @property {boolean} kind - Whether to run in kind mode.
  * @property {boolean} k3s - Whether to run in k3s mode.
- * @property {string} logType - The type of log to generate.
  * @property {string} hosts - The hosts to use.
  * @property {string} deployId - The deployment ID.
  * @property {string} instanceId - The instance ID.
@@ -158,7 +157,6 @@ const DEFAULT_OPTION = {
   kubeadm: false,
   kind: false,
   k3s: false,
-  logType: '',
   hosts: '',
   deployId: '',
   instanceId: '',
@@ -928,12 +926,17 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
           image: _image,
           fromPort: _fromPort,
           toPort: _toPort,
+          fromDebugPort: _fromDebugPort,
+          toDebugPort: _toDebugPort,
           cmd: _cmd,
           volumes: _volumes,
           metadata: _metadata,
         } = instance;
         if (id !== _id) continue;
         const _deployId = `${deployId}-${_id}`;
+        // Use debug ports in development when defined, fall back to production ports.
+        if (env === 'development' && _fromDebugPort) _fromPort = _fromDebugPort;
+        if (env === 'development' && _toDebugPort) _toPort = _toDebugPort;
         const currentTraffic = Underpost.deploy.getCurrentTraffic(_deployId, {
           hostTest: _host,
           namespace: options.namespace,
@@ -1003,12 +1006,17 @@ EOF
           image: _image,
           fromPort: _fromPort,
           toPort: _toPort,
+          fromDebugPort: _fromDebugPort,
+          toDebugPort: _toDebugPort,
           cmd: _cmd,
           volumes: _volumes,
           metadata: _metadata,
         } = instance;
         if (id !== _id) continue;
         const _deployId = `${deployId}-${_id}`;
+        // Use debug ports in development when defined, fall back to production ports.
+        if (env === 'development' && _fromDebugPort) _fromPort = _fromDebugPort;
+        if (env === 'development' && _toDebugPort) _toPort = _toDebugPort;
         etcHosts.push(_host);
         if (options.expose) continue;
         // Examples images:
@@ -1095,7 +1103,6 @@ EOF
           targetTraffic,
           ignorePods,
           options.namespace,
-          options.logType,
         );
 
         if (!ready) {
@@ -1112,6 +1119,117 @@ EOF
       if (options.etcHosts) {
         const hostListenResult = Underpost.deploy.etcHostFactory(etcHosts);
         logger.info(hostListenResult.renderHosts);
+      }
+    },
+
+    /**
+     * @method instance-build-manifest
+     * @description Builds a Kubernetes Deployment + Service manifest for a specific instance entry
+     * from `conf.instances.json` and writes it to a file.
+     * Traffic colour is automatically chosen as the opposite of the current live colour (blue/green),
+     * defaulting to `blue` when no deployment is running yet.
+     *
+     * If `--build` is supplied the image is built from the project Dockerfile and loaded into the
+     * cluster before the manifest is written (kind by default; `--kubeadm` / `--k3s` override).
+     *
+     * @param {string} path - Comma-separated: `deployId,instanceId[,projectPath]`.
+     *   `projectPath` is the root directory that contains the `Dockerfile` (e.g. `./cyberia-client`).
+     *   The manifest is always written to `<projectPath>/deployment.yaml`, or `./deployment.yaml`
+     *   when `projectPath` is omitted.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'instance-build-manifest': (path, options = DEFAULT_OPTION) => {
+      const env = options.dev ? 'development' : 'production';
+      let [deployId, id, projectPath] = path.split(',');
+      const outputPath = projectPath ? `${projectPath}/deployment.yaml` : './deployment.yaml';
+
+      const confInstances = JSON.parse(
+        fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
+      );
+
+      for (const instance of confInstances) {
+        let {
+          id: _id,
+          host: _host,
+          path: _path,
+          image: _image,
+          fromPort: _fromPort,
+          toPort: _toPort,
+          fromDebugPort: _fromDebugPort,
+          toDebugPort: _toDebugPort,
+          cmd: _cmd,
+          volumes: _volumes,
+          metadata: _metadata,
+        } = instance;
+        if (id !== _id) continue;
+
+        const _deployId = `${deployId}-${_id}`;
+        if (!_image) _image = `underpost/underpost-engine:${Underpost.version}`;
+        // Use debug ports in development when defined, fall back to production ports.
+        if (env === 'development' && _fromDebugPort) _fromPort = _fromDebugPort;
+        if (env === 'development' && _toDebugPort) _toPort = _toDebugPort;
+
+        // Build image from projectPath Dockerfile and load into cluster when --build is set.
+        if (options.build && projectPath) {
+          const isKind = !options.kubeadm && !options.k3s;
+          Underpost.image.build({
+            path: projectPath,
+            imageName: _image,
+            podmanSave: true,
+            imagePath: projectPath,
+            kind: isKind,
+            kubeadm: !!options.kubeadm,
+            k3s: !!options.k3s,
+            reset: !!options.reset,
+            dev: options.dev,
+          });
+          logger.info(`[instance-build-manifest] Image built and loaded`, {
+            image: _image,
+            cluster: isKind ? 'kind' : options.kubeadm ? 'kubeadm' : 'k3s',
+          });
+        }
+
+        // Determine target traffic: opposite of current, or 'blue' if nothing is running yet.
+        const currentTraffic = Underpost.deploy.getCurrentTraffic(_deployId, {
+          hostTest: _host,
+          namespace: options.namespace,
+        });
+        const targetTraffic = currentTraffic ? (currentTraffic === 'blue' ? 'green' : 'blue') : 'blue';
+
+        // Resolve {{grpc-service-dns}} using the parent deploy's current (or default) traffic.
+        const parentTraffic = Underpost.deploy.getCurrentTraffic(deployId, { namespace: options.namespace }) || 'blue';
+        const resolvedCmd = _cmd[env].map((c) =>
+          c.replaceAll(
+            '{{grpc-service-dns}}',
+            `${deployId}-grpc-service-${env}-${parentTraffic}.${options.namespace || 'default'}.svc.cluster.local:50051`,
+          ),
+        );
+
+        const deploymentYaml =
+          `---\n` +
+          Underpost.deploy
+            .deploymentYamlPartsFactory({
+              deployId: _deployId,
+              env,
+              suffix: targetTraffic,
+              resources: Underpost.deploy.resourcesFactory(options),
+              replicas: options.replicas,
+              image: _image,
+              namespace: options.namespace,
+              volumes: _volumes,
+              cmd: resolvedCmd,
+            })
+            .replace('{{ports}}', buildKindPorts(_fromPort, _toPort));
+
+        fs.writeFileSync(outputPath, deploymentYaml, 'utf8');
+        logger.info(`[instance-build-manifest] Manifest written to ${outputPath}`, {
+          deployId: _deployId,
+          env,
+          traffic: targetTraffic,
+          image: _image,
+        });
+        break;
       }
     },
 

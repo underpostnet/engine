@@ -53,17 +53,19 @@ Create a configuration file at `./engine-private/conf/<deploy-id>/conf.instances
 
 ### Configuration Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | string | Unique identifier for the instance |
-| `host` | string | Domain name for the instance |
-| `path` | string | URL path prefix (default: `/`) |
-| `image` | string | Docker image to deploy (optional, defaults to `underpost/underpost-engine`) |
-| `fromPort` | number | Container port to expose |
-| `toPort` | number | Target port mapping |
-| `cmd` | object | Commands for different environments |
-| `volumes` | array | Volume mount configurations |
-| `metadata` | object | Additional metadata |
+| Parameter       | Type   | Description                                                                               |
+| --------------- | ------ | ----------------------------------------------------------------------------------------- |
+| `id`            | string | Unique identifier for the instance                                                        |
+| `host`          | string | Domain name for the instance                                                              |
+| `path`          | string | URL path prefix (default: `/`)                                                            |
+| `image`         | string | Docker image to deploy (optional, defaults to `underpost/underpost-engine`)               |
+| `fromPort`      | number | Container port to expose (production)                                                     |
+| `toPort`        | number | Target port mapping (production)                                                          |
+| `fromDebugPort` | number | Container port to expose in development/`--dev` mode (optional, falls back to `fromPort`) |
+| `toDebugPort`   | number | Target port mapping in development/`--dev` mode (optional, falls back to `toPort`)        |
+| `cmd`           | object | Commands for different environments                                                       |
+| `volumes`       | array  | Volume mount configurations                                                               |
+| `metadata`      | object | Additional metadata                                                                       |
 
 ## Core Commands
 
@@ -83,6 +85,7 @@ underpost run --namespace production --node-name worker-01 instance myapp,app-1,
 ```
 
 **Example:**
+
 ```bash
 # Deploy instance 'api-v1' from 'myapp' deployment with 2 replicas
 underpost run instance myapp,api-v1,2
@@ -101,6 +104,7 @@ underpost run --tls --namespace production instance-promote myapp,api-v1
 ```
 
 **What it does:**
+
 - Detects current traffic routing (blue or green)
 - Switches to the alternate version
 - Updates HTTPProxy configuration
@@ -225,6 +229,7 @@ Specify a custom image in your configuration:
 ```
 
 Or use the default Underpost engine image:
+
 ```json
 {
   "id": "custom-app",
@@ -280,6 +285,7 @@ underpost run instance-promote myapp,api-v1
 ### Traffic Routing
 
 The system automatically:
+
 - Detects current active version (blue/green)
 - Creates new pods with alternate version tag
 - Updates HTTPProxy to route traffic
@@ -289,26 +295,26 @@ The system automatically:
 
 ### Common Options
 
-| Option | Description |
-|--------|-------------|
-| `--dev` | Use development mode (Kind cluster) |
-| `--namespace <ns>` | Kubernetes namespace (default: `default`) |
-| `--node-name <name>` | Deploy to specific node |
-| `--tls` | Enable TLS/SSL certificates |
-| `--etc-hosts` | Update /etc/hosts for local DNS |
-| `--expose` | Expose service externally |
-| `--replicas <n>` | Number of pod replicas |
-| `--force` | Force operation, override warnings |
+| Option               | Description                               |
+| -------------------- | ----------------------------------------- |
+| `--dev`              | Use development mode (Kind cluster)       |
+| `--namespace <ns>`   | Kubernetes namespace (default: `default`) |
+| `--node-name <name>` | Deploy to specific node                   |
+| `--tls`              | Enable TLS/SSL certificates               |
+| `--etc-hosts`        | Update /etc/hosts for local DNS           |
+| `--expose`           | Expose service externally                 |
+| `--replicas <n>`     | Number of pod replicas                    |
+| `--force`            | Force operation, override warnings        |
 
 ### Run Command Specific Options
 
-| Option | Description |
-|--------|-------------|
-| `--pod-name <name>` | Custom pod name |
-| `--image-name <image>` | Override image from config |
-| `--volume-host-path <path>` | Host path for volume |
-| `--volume-mount-path <path>` | Container mount path |
-| `--claim-name <name>` | PVC claim name |
+| Option                       | Description                |
+| ---------------------------- | -------------------------- |
+| `--pod-name <name>`          | Custom pod name            |
+| `--image-name <image>`       | Override image from config |
+| `--volume-host-path <path>`  | Host path for volume       |
+| `--volume-mount-path <path>` | Container mount path       |
+| `--claim-name <name>`        | PVC claim name             |
 
 ## Troubleshooting
 
