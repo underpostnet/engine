@@ -104,16 +104,26 @@ const splitFileByMb = ({ filePath, partSizeMb, logger }) => {
 const getZipPartPaths = (zipPath) => {
   const zipDir = dir.dirname(zipPath);
   const zipBase = dir.basename(zipPath);
+  const partPrefixDot = `${zipBase}.part`;
+  const partPrefixDash = `${zipBase}-part`;
+
+  const getPartIndex = (name) => {
+    const dotIndex = name.startsWith(partPrefixDot) ? Number(name.slice(partPrefixDot.length)) : NaN;
+    if (Number.isFinite(dotIndex)) return dotIndex;
+
+    const dashIndex = name.startsWith(partPrefixDash) ? Number(name.slice(partPrefixDash.length)) : NaN;
+    return dashIndex;
+  };
 
   return fs
     .readdirSync(zipDir)
-    .filter((name) => name.startsWith(`${zipBase}.part`))
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .filter((name) => name.startsWith(partPrefixDot) || name.startsWith(partPrefixDash))
+    .sort((a, b) => getPartIndex(a) - getPartIndex(b))
     .map((name) => dir.join(zipDir, name));
 };
 
 const resolveClientBuildZip = (buildPrefix) => {
-  const normalizedPrefix = buildPrefix.replace(/\.zip(?:\.part\d+)?$/, '');
+  const normalizedPrefix = buildPrefix.replace(/\.zip(?:[.-]part\d+|[.-]part\*)?$/, '').replace(/[.-]part\*$/, '');
   const candidatePrefixes = uniqueArray([
     normalizedPrefix,
     normalizedPrefix.endsWith('-') ? normalizedPrefix : `${normalizedPrefix}-`,
@@ -148,8 +158,8 @@ const resolveClientBuildZip = (buildPrefix) => {
   const matches = uniqueArray(
     fs
       .readdirSync(searchDir)
-      .filter((name) => name.startsWith(prefixBase) && /\.zip(?:\.part\d+)?$/.test(name))
-      .map((name) => name.replace(/\.part\d+$/, '')),
+      .filter((name) => name.startsWith(prefixBase) && /\.zip(?:[.-]part\d+)?$/.test(name))
+      .map((name) => name.replace(/[.-]part\d+$/, '')),
   );
 
   if (matches.length === 1) {
@@ -169,6 +179,33 @@ const resolveClientBuildZip = (buildPrefix) => {
   }
 
   throw new Error(`No build zip or split parts found for: ${buildPrefix}`);
+};
+
+/**
+ * Merges split ZIP parts back into a single ZIP file.
+ * @param {object} options
+ * @param {string} options.buildPrefix - The build prefix path (e.g. build/underpost.net/underpost.net-).
+ * @param {object} options.logger - Logger instance.
+ * @returns {{ zipPath: string, partPaths: string[], mergedBytes: number }}
+ */
+const mergeClientBuildZip = ({ buildPrefix, logger }) => {
+  const { zipPath, partPaths } = resolveClientBuildZip(buildPrefix);
+
+  if (partPaths.length === 0) {
+    logger.warn('merge-zip: no split parts found, nothing to merge', { buildPrefix, zipPath });
+    return { zipPath, partPaths, mergedBytes: 0 };
+  }
+
+  const mergedBuffer = Buffer.concat(partPaths.map((partPath) => fs.readFileSync(partPath)));
+  fs.writeFileSync(zipPath, mergedBuffer);
+
+  logger.warn('merge-zip: merged split parts into zip', {
+    zipPath,
+    parts: partPaths.length,
+    mergedBytes: mergedBuffer.length,
+  });
+
+  return { zipPath, partPaths, mergedBytes: mergedBuffer.length };
 };
 
 const unzipClientBuild = ({ buildPrefix, logger }) => {
@@ -967,4 +1004,4 @@ ${fs.readFileSync(`${rootClientPath}/sw.js`, 'utf8')}`,
   }
 };
 
-export { buildClient, copyNonExistingFiles, unzipClientBuild };
+export { buildClient, copyNonExistingFiles, unzipClientBuild, mergeClientBuildZip };

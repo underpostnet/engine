@@ -48,6 +48,7 @@ program
   .option('--build-zip', 'Create zip files of the builds')
   .option('--split <mb>', 'Split generated zip files into parts of the specified size in MB')
   .option('--unzip <build-prefix>', 'Extract a built client zip or split zip parts using the given build prefix')
+  .option('--merge-zip <build-prefix>', 'Merge split ZIP parts back into a single ZIP file for the given build prefix')
   .option('--lite-build', 'Skip full build (default is full build)')
   .option('--icons-build', 'Build icons')
   .description('Builds client assets, single replicas, and/or syncs environment ports.')
