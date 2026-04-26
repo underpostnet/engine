@@ -44,6 +44,24 @@ spec:
   selector:
     app: dd-test-development-blue
   ports:
+    - name: 'tcp-4033'
+      protocol: TCP
+      port: 4033
+      targetPort: 4033
+    - name: 'udp-4033'
+      protocol: UDP
+      port: 4033
+      targetPort: 4033
+
+    - name: 'tcp-4034'
+      protocol: TCP
+      port: 4034
+      targetPort: 4034
+    - name: 'udp-4034'
+      protocol: UDP
+      port: 4034
+      targetPort: 4034
+
     - name: 'tcp-4035'
       protocol: TCP
       port: 4035
@@ -70,24 +88,6 @@ spec:
       protocol: UDP
       port: 4037
       targetPort: 4037
-
-    - name: 'tcp-4038'
-      protocol: TCP
-      port: 4038
-      targetPort: 4038
-    - name: 'udp-4038'
-      protocol: UDP
-      port: 4038
-      targetPort: 4038
-
-    - name: 'tcp-4039'
-      protocol: TCP
-      port: 4039
-      targetPort: 4039
-    - name: 'udp-4039'
-      protocol: UDP
-      port: 4039
-      targetPort: 4039
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -135,6 +135,24 @@ spec:
   selector:
     app: dd-test-development-green
   ports:
+    - name: 'tcp-4033'
+      protocol: TCP
+      port: 4033
+      targetPort: 4033
+    - name: 'udp-4033'
+      protocol: UDP
+      port: 4033
+      targetPort: 4033
+
+    - name: 'tcp-4034'
+      protocol: TCP
+      port: 4034
+      targetPort: 4034
+    - name: 'udp-4034'
+      protocol: UDP
+      port: 4034
+      targetPort: 4034
+
     - name: 'tcp-4035'
       protocol: TCP
       port: 4035
@@ -161,22 +179,4 @@ spec:
       protocol: UDP
       port: 4037
       targetPort: 4037
-
-    - name: 'tcp-4038'
-      protocol: TCP
-      port: 4038
-      targetPort: 4038
-    - name: 'udp-4038'
-      protocol: UDP
-      port: 4038
-      targetPort: 4038
-
-    - name: 'tcp-4039'
-      protocol: TCP
-      port: 4039
-      targetPort: 4039
-    - name: 'udp-4039'
-      protocol: UDP
-      port: 4039
-      targetPort: 4039
   type: LoadBalancer

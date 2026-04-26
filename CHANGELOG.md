@@ -4,10 +4,16 @@
 
 ### github-actions
 
+- Update container images and simplify base command in CLI sync function ([e5d22868d](https://github.com/underpostnet/engine/commit/e5d22868d610f11fc241bdfa3ddc4fb5eb39a18d))
 - Fix deployment command to remove redundant sync flag in engine-cyberia workflow ([f4d959738](https://github.com/underpostnet/engine/commit/f4d9597383c39eeeb4b7742b4d3f3a554eb85585))
 - Fix sync command in CI workflows to remove hardcoded image version for engine core and cyberia deployments ([1d6aa177b](https://github.com/underpostnet/engine/commit/1d6aa177b14362f6b2c7bcd81043738ad671277d))
 - Update deployment commands in CI workflows to remove hardcoded image versions and enhance command execution ([5af414cc1](https://github.com/underpostnet/engine/commit/5af414cc13bc4448ff187277b1fd1f5f6740ffa9))
 - Refactor deployment commands to comment out npm installations and adjust secret command execution based on environment options ([0a72d037e](https://github.com/underpostnet/engine/commit/0a72d037eb20ef45d53e84af8a54714314e3da11))
+
+### engine
+
+- Update deployment configurations and update service ports ([e0a78d38b](https://github.com/underpostnet/engine/commit/e0a78d38bfc87353ab3490de3b6824fd1cb991b4))
+- Update moduleResolution in jsconfig to use 'bundler' ([307f5e106](https://github.com/underpostnet/engine/commit/307f5e1062edbb6b3356f0ccb0088cb90ee662cc))
 
 ### cli-fs
 
@@ -127,10 +133,6 @@
 ### client-cyberia-instance
 
 - Refactor instance persistence logic to improve notification handling and streamline save functionality ([45a6a3a32](https://github.com/underpostnet/engine/commit/45a6a3a32adc6dc4ed4e4b76ce48be3a81d576fb))
-
-### engine
-
-- Update moduleResolution in jsconfig to use 'bundler' ([307f5e106](https://github.com/underpostnet/engine/commit/307f5e1062edbb6b3356f0ccb0088cb90ee662cc))
 
 ### client-cyberia-map-engine
 
