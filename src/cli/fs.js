@@ -96,26 +96,36 @@ class UnderpostFileStorage {
       // In recursive remove mode, delete every tracked storage key under the requested path,
       // even when local files/directories are already missing.
       if (options.rm === true) {
-        const prefix = path.endsWith('/') ? path : `${path}/`;
-        const associatedPaths = Object.keys(storage || {}).filter(
-          (storedPath) => storedPath === path || storedPath.startsWith(prefix),
-        );
+        const normalizedPath = typeof path === 'string' ? path.trim() : '';
+        const basePath = normalizedPath.replace(/\/+$/, '');
+        const hasPathFilter = basePath.length > 0;
+
+        const associatedPaths = Object.keys(storage || {}).filter((storedPath) => {
+          if (!hasPathFilter) return true;
+          return storedPath === basePath || storedPath.startsWith(`${basePath}/`);
+        });
 
         for (const associatedPath of associatedPaths) {
           await Underpost.fs.delete(associatedPath);
           if (storage) delete storage[associatedPath];
         }
 
-        if (options.force === true && fs.existsSync(path)) fs.removeSync(path);
+        if (hasPathFilter && options.force === true && fs.existsSync(basePath)) fs.removeSync(basePath);
 
         Underpost.fs.writeStorageConf(storage, storageConf);
 
-        if (associatedPaths.length === 0) logger.warn('No associated tracked storage paths found', { path });
-        else logger.info('Removed associated tracked storage paths', { path, removed: associatedPaths.length });
+        if (associatedPaths.length === 0)
+          logger.warn('No associated tracked storage paths found', { path: hasPathFilter ? basePath : '*' });
+        else
+          logger.info('Removed associated tracked storage paths', {
+            path: hasPathFilter ? basePath : '*',
+            removed: associatedPaths.length,
+          });
 
         if (options.git === true) {
-          shellExec(`cd ${path} && git add .`);
-          shellExec(`underpost cmt ${path} feat`);
+          const gitPath = hasPathFilter ? basePath : '.';
+          shellExec(`cd ${gitPath} && git add .`);
+          shellExec(`underpost cmt ${gitPath} feat`);
         }
 
         return;
