@@ -83,7 +83,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
             sudo -n -- /bin/bash -lc "node bin run metadata dd-core"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm dd-core,1,,localhost/rockylinux9-underpost:v2.98.3"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm dd-core"
   init:
     if: >-
       github.repository == 'underpostnet/engine'

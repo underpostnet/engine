@@ -87,7 +87,7 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run clean src/client/public/underpost"
             sudo -n -- /bin/bash -lc "node bin fs src/client/public/underpost --git --pull --recursive --deploy-id dd-cyberia --storage-file-path './engine-private/conf/dd-cyberia/storage.underpost.json'"
             sudo -n -- /bin/bash -lc "npm run test"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --timeout-response 300000ms dd-cyberia,1,,localhost/rockylinux9-underpost:v2.98.3 --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-env,underpost start --build --run dd-cyberia production'"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none --timeout-response 300000ms dd-cyberia --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-env,underpost start --build --run dd-cyberia production'"
   init:
     if: >-
       github.repository == 'underpostnet/engine'
