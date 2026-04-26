@@ -488,6 +488,7 @@ program
   .option('--recursive', 'Uploads files recursively from the specified path.')
   .option('--deploy-id <deploy-id>', 'Specifies the deployment configuration ID for file operations.')
   .option('--pull', 'Downloads the specified file.')
+  .option('--omit-unzip', 'With --pull, keeps the downloaded .zip file and skips extraction.')
   .option('--force', 'Forces the action, overriding any warnings or conflicts.')
   .option('--storage-file-path <storage-file-path>', 'Specifies a custom file storage path.')
   .description('Manages file storage, defaulting to file upload operations.')
