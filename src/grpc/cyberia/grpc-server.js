@@ -516,7 +516,19 @@ function buildHandlers(dbKey) {
         }
 
         // ── Instance found — load maps + entity OLs + config default OLs ──────
-        const conf = inst.conf || {};
+        // `populate('conf')` returns null when the ObjectId ref is missing or
+        // orphaned (e.g. after a --conf import that preserved a stale _id).
+        // Fall back to a direct instanceCode lookup so aoiRadius and all other
+        // tuning fields are always read from the database, never silently
+        // replaced by FALLBACK_CONFIG_DEFAULTS.
+        let conf = inst.conf;
+        if (!conf) {
+          conf = await models.CyberiaInstanceConf.findOne({ instanceCode }).lean();
+          if (conf) {
+            logger.warn(`getFullInstance: conf ref missing on instance "${instanceCode}" — resolved by instanceCode lookup`);
+          }
+        }
+        conf = conf || {};
         const mapCodes = inst.cyberiaMapCodes || [];
         const mapDocs = mapCodes.length ? await models.CyberiaMap.find({ code: { $in: mapCodes } }).lean() : [];
 

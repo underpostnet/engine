@@ -2550,25 +2550,37 @@ try {
 
         if (options.conf) {
           const confImportPath = `${backupDir}/cyberia-instance-conf.json`;
+          let importedConf = null;
           if (fs.existsSync(confImportPath)) {
             const confData = fs.readJsonSync(confImportPath);
             if (confData._id) await CyberiaInstanceConf.deleteOne({ _id: confData._id });
             await CyberiaInstanceConf.deleteOne({ instanceCode: confData.instanceCode });
-            await CyberiaInstanceConf.create(confData);
+            // Always bump updatedAt so the Go server's version hash changes and
+            // ReloadWorld re-applies the config without requiring a full restart.
+            confData.updatedAt = new Date();
+            importedConf = await CyberiaInstanceConf.create(confData);
             logger.info('Imported CyberiaInstanceConf', { instanceCode: confData.instanceCode });
           } else {
             logger.warn(`CyberiaInstanceConf backup not found: ${confImportPath}`);
           }
 
-          const instancePath = `${backupDir}/cyberia-instance.json`;
-          if (fs.existsSync(instancePath)) {
-            const instanceData = fs.readJsonSync(instancePath);
-            await CyberiaInstance.deleteOne({ code: instanceCode });
-            await CyberiaInstance.deleteOne({ _id: instanceData._id });
-            await CyberiaInstance.create(instanceData);
-            logger.info('Imported CyberiaInstance', { code: instanceCode });
+          // In --conf mode we must NOT delete + recreate the CyberiaInstance because
+          // that would overwrite cyberiaMapCodes / portals / itemIds with whatever was
+          // in the (possibly stale) backup, effectively removing the live maps and OLs
+          // from the instance.  Only update the conf ref and bump updatedAt so the Go
+          // server's version hash changes and ReloadWorld re-applies the config.
+          if (importedConf) {
+            const result = await CyberiaInstance.updateOne(
+              { code: instanceCode },
+              { $set: { conf: importedConf._id, updatedAt: new Date() } },
+            );
+            if (result.matchedCount > 0) {
+              logger.info('Updated CyberiaInstance conf ref', { code: instanceCode });
+            } else {
+              logger.warn(`CyberiaInstance not found in DB for code "${instanceCode}" — cannot update conf ref`);
+            }
           } else {
-            logger.warn(`Instance file not found: ${instancePath}`);
+            logger.warn(`Skipping CyberiaInstance conf ref update — no conf was imported`);
           }
 
           logger.info('Instance import completed in --conf mode', {
