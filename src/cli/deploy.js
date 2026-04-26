@@ -9,6 +9,7 @@ import {
   buildPortProxyRouter,
   buildProxyRouter,
   Config,
+  cronDeployIdResolve,
   deployRangePortFactory,
   getDataDeploy,
   loadConfServerJson,
@@ -804,9 +805,10 @@ EOF`);
      * @memberof UnderpostDeploy
      */
     configMap(env, namespace = 'default') {
+      const cronDeployId = cronDeployIdResolve() || 'dd-cron';
       shellExec(`kubectl delete secret underpost-config -n ${namespace} --ignore-not-found`);
       shellExec(
-        `kubectl create secret generic underpost-config --from-env-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env} --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
+        `kubectl create secret generic underpost-config --from-env-file=/home/dd/engine/engine-private/conf/${cronDeployId}/.env.${env} --dry-run=client -o yaml | kubectl apply -f - -n ${namespace}`,
       );
     },
     /**
