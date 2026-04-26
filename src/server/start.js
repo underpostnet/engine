@@ -131,11 +131,13 @@ class UnderpostStartUp {
      * @param {boolean} options.build - Whether to build the deployment.
      * @param {boolean} options.run - Whether to run the deployment.
      * @param {boolean} options.underpostQuicklyInstall - Whether to use underpost quickly install.
+     * @param {boolean} options.skipPullBase - Whether to skip pulling the base code.
+     * @param {boolean} options.skipFullBuild - Whether to skip building the full client bundle.
      */
     async callback(
       deployId = 'dd-default',
       env = 'development',
-      options = { build: false, run: false, underpostQuicklyInstall: false },
+      options = { build: false, run: false, underpostQuicklyInstall: false, skipPullBase: false, skipFullBuild: false },
     ) {
       Underpost.env.set('container-status', `${deployId}-${env}-build-deployment`);
       if (options.build === true) await Underpost.start.build(deployId, env, options);
@@ -149,12 +151,13 @@ class UnderpostStartUp {
      * @param {Object} options - Options for the build.
      * @param {boolean} options.skipPullBase - Whether to skip pulling the base code and use the current workspace code directly.
      * @param {boolean} options.underpostQuicklyInstall - Whether to use underpost quickly install.
+     * @param {boolean} options.skipFullBuild - Whether to skip building the full client bundle.
      * @memberof UnderpostStartUp
      */
     async build(
       deployId = 'dd-default',
       env = 'development',
-      options = { underpostQuicklyInstall: false, skipPullBase: false },
+      options = { underpostQuicklyInstall: false, skipPullBase: false, skipFullBuild: false },
     ) {
       const buildBasePath = `/home/dd`;
       const repoName = `engine-${deployId.split('-')[1]}`;
@@ -173,7 +176,7 @@ class UnderpostStartUp {
         for (const itcScript of itcScripts)
           if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
       }
-      shellExec(`node bin client ${deployId}`);
+      if (!options.skipFullBuild) shellExec(`node bin client ${deployId}`);
     },
     /**
      * Runs a deployment.
