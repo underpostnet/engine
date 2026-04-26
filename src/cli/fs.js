@@ -92,6 +92,35 @@ class UnderpostFileStorage {
       },
     ) {
       const { storage, storageConf } = Underpost.fs.getStorageConf(options);
+
+      // In recursive remove mode, delete every tracked storage key under the requested path,
+      // even when local files/directories are already missing.
+      if (options.rm === true) {
+        const prefix = path.endsWith('/') ? path : `${path}/`;
+        const associatedPaths = Object.keys(storage || {}).filter(
+          (storedPath) => storedPath === path || storedPath.startsWith(prefix),
+        );
+
+        for (const associatedPath of associatedPaths) {
+          await Underpost.fs.delete(associatedPath);
+          if (storage) delete storage[associatedPath];
+        }
+
+        if (options.force === true && fs.existsSync(path)) fs.removeSync(path);
+
+        Underpost.fs.writeStorageConf(storage, storageConf);
+
+        if (associatedPaths.length === 0) logger.warn('No associated tracked storage paths found', { path });
+        else logger.info('Removed associated tracked storage paths', { path, removed: associatedPaths.length });
+
+        if (options.git === true) {
+          shellExec(`cd ${path} && git add .`);
+          shellExec(`underpost cmt ${path} feat`);
+        }
+
+        return;
+      }
+
       const deleteFiles = options.pull === true ? [] : Underpost.repo.getDeleteFiles(path);
       for (const relativePath of deleteFiles) {
         const _path = path + '/' + relativePath;
