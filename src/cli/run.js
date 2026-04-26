@@ -650,7 +650,7 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
     sync: async (path, options = DEFAULT_OPTION) => {
       // Dev usage: node bin run --dev --build sync dd-default
       const env = options.dev ? 'development' : 'production';
-      const baseCommand = options.dev ? 'node bin' : 'underpost';
+      const baseCommand = 'node bin'; // options.dev ? 'node bin' : 'underpost';
       const baseClusterCommand = options.dev ? ' --dev' : '';
       const clusterFlag = options.k3s ? ' --k3s' : options.kind ? ' --kind' : ' --kubeadm';
       const defaultPath = [
