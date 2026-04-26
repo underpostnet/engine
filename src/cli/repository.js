@@ -21,7 +21,7 @@ import {
   buildReplicaId,
   writeEnv,
 } from '../server/conf.js';
-import { buildClient } from '../server/client-build.js';
+import { buildClient, unzipClientBuild } from '../server/client-build.js';
 import { DefaultConf } from '../../conf.js';
 import Underpost from '../index.js';
 
@@ -643,6 +643,7 @@ class UnderpostRepository {
      * @param {boolean} [options.singleReplica=false] - If true, builds single replica folders instead of full client.
      * @param {boolean} [options.buildZip=false] - If true, creates zip files of the builds.
      * @param {string|number} [options.split=''] - Optional ZIP part size in MB. When set with buildZip, writes split parts.
+     * @param {string} [options.unzip=''] - Optional build ZIP prefix to extract from ./build.
      * @param {boolean} [options.liteBuild=false] - If true, skips full build (default is full build).
      * @param {boolean} [options.iconsBuild=false] - If true, builds icons.
      * @returns {Promise<boolean>} A promise that resolves when the build is complete.
@@ -658,12 +659,21 @@ class UnderpostRepository {
         singleReplica: false,
         buildZip: false,
         split: '',
+        unzip: '',
         liteBuild: false,
         iconsBuild: false,
       },
     ) {
       return new Promise(async (resolve, reject) => {
         try {
+          if (options.unzip) {
+            unzipClientBuild({
+              buildPrefix: options.unzip,
+              logger,
+            });
+            return resolve(true);
+          }
+
           // Handle singleReplica operation (must run before syncEnvPort to ensure replica dirs exist)
           if (options.singleReplica) {
             const replicaPath = path;

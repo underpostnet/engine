@@ -101,6 +101,103 @@ const splitFileByMb = ({ filePath, partSizeMb, logger }) => {
   return partPaths;
 };
 
+const getZipPartPaths = (zipPath) => {
+  const zipDir = dir.dirname(zipPath);
+  const zipBase = dir.basename(zipPath);
+
+  return fs
+    .readdirSync(zipDir)
+    .filter((name) => name.startsWith(`${zipBase}.part`))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map((name) => dir.join(zipDir, name));
+};
+
+const resolveClientBuildZip = (buildPrefix) => {
+  const normalizedPrefix = buildPrefix.replace(/\.zip(?:\.part\d+)?$/, '');
+  const candidatePrefixes = uniqueArray([
+    normalizedPrefix,
+    normalizedPrefix.endsWith('-') ? normalizedPrefix : `${normalizedPrefix}-`,
+  ]);
+
+  for (const prefix of candidatePrefixes) {
+    const zipPath = `${prefix}.zip`;
+    if (fs.existsSync(zipPath)) {
+      return {
+        buildPrefix: prefix,
+        zipPath,
+        partPaths: [],
+      };
+    }
+
+    const partPaths = fs.existsSync(dir.dirname(zipPath)) ? getZipPartPaths(zipPath) : [];
+    if (partPaths.length > 0) {
+      return {
+        buildPrefix: prefix,
+        zipPath,
+        partPaths,
+      };
+    }
+  }
+
+  const searchDir = dir.dirname(normalizedPrefix);
+  const prefixBase = dir.basename(normalizedPrefix);
+  if (!fs.existsSync(searchDir)) {
+    throw new Error(`Build directory not found: ${searchDir}`);
+  }
+
+  const matches = uniqueArray(
+    fs
+      .readdirSync(searchDir)
+      .filter((name) => name.startsWith(prefixBase) && /\.zip(?:\.part\d+)?$/.test(name))
+      .map((name) => name.replace(/\.part\d+$/, '')),
+  );
+
+  if (matches.length === 1) {
+    const zipPath = dir.join(searchDir, matches[0]);
+    const partPaths = getZipPartPaths(zipPath);
+    return {
+      buildPrefix: zipPath.replace(/\.zip$/, ''),
+      zipPath,
+      partPaths,
+    };
+  }
+
+  if (matches.length > 1) {
+    throw new Error(
+      `Multiple build zip matches found for '${buildPrefix}': ${matches.join(', ')}. Use a more specific --unzip path.`,
+    );
+  }
+
+  throw new Error(`No build zip or split parts found for: ${buildPrefix}`);
+};
+
+const unzipClientBuild = ({ buildPrefix, logger }) => {
+  const { zipPath, partPaths, buildPrefix: resolvedBuildPrefix } = resolveClientBuildZip(buildPrefix);
+  const outputPath = resolvedBuildPrefix.replace(/-$/, '');
+
+  fs.removeSync(outputPath);
+  fs.mkdirSync(outputPath, { recursive: true });
+
+  const zip =
+    partPaths.length > 0
+      ? new AdmZip(Buffer.concat(partPaths.map((partPath) => fs.readFileSync(partPath))))
+      : new AdmZip(zipPath);
+
+  zip.extractAllTo(outputPath, true);
+
+  logger.warn('unzip build', {
+    source: partPaths.length > 0 ? partPaths : [zipPath],
+    outputPath,
+    splitParts: partPaths.length,
+  });
+
+  return {
+    outputPath,
+    zipPath,
+    partPaths,
+  };
+};
+
 /** @type {string} Default XSL sitemap template used when no `sitemap` source file exists in the public directory. */
 const defaultSitemapXsl = `<?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0"
@@ -862,10 +959,12 @@ ${fs.readFileSync(`${rootClientPath}/sw.js`, 'utf8')}`,
             partSizeMb: options.split,
             logger,
           });
+          fs.removeSync(zipPath);
+          logger.warn('removed original zip after split', { zipPath });
         }
       }
     }
   }
 };
 
-export { buildClient, copyNonExistingFiles };
+export { buildClient, copyNonExistingFiles, unzipClientBuild };
