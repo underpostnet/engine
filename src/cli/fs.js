@@ -238,16 +238,22 @@ class UnderpostFileStorage {
      * @returns {Promise<void>} A promise that resolves when the file is pulled.
      * @memberof UnderpostFileStorage
      */
-    async pull(path, options = { omitUnzip: false }) {
+    async pull(path, options = { omitUnzip: false, force: false }) {
       Underpost.fs.cloudinaryConfig();
       const folder = dir.dirname(path);
       if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+      const zipPath = `${path}.zip`;
+
+      if (options.omitUnzip === true && options.force !== true && fs.existsSync(zipPath)) {
+        logger.warn('pull skipped, zip already exists and omit-unzip is enabled', { path, zipPath });
+        return;
+      }
+
       const downloadResult = await cloudinary.utils.download_archive_url({
         public_ids: [path],
         resource_type: 'raw',
       });
       logger.info('download result', downloadResult);
-      const zipPath = `${path}.zip`;
       await Downloader.downloadFile(downloadResult, zipPath);
 
       if (options.omitUnzip === true) {
