@@ -2299,7 +2299,8 @@ EOF`;
      * @method push-bundle
      * @description Builds the client zip for the specified deployment, splits it into parts, and uploads to file storage.
      *   Steps: set env, build+split zip, switch to cron env, upload parts to storage.
-     * @param {string} path - Deploy ID (e.g. 'dd-cyberia'). Falls back to options.deployId or 'dd-default'.
+     * @param {string} path - Optional `fsPath.splitOption` string.
+     *   Examples: `build` (default split 8), `build.16` (split 16 MB), `build.none-split` (no split flag).
      * @param {Object} options - The default underpost runner options for customizing workflow.
      * @param {string} [options.deployId] - Override deploy ID.
      * @param {boolean} [options.dev] - Use development environment; defaults to production.
@@ -2308,11 +2309,32 @@ EOF`;
     'push-bundle': (path = '', options = DEFAULT_OPTION) => {
       const baseCommand = options.dev ? 'node bin' : 'underpost';
       const env = options.dev ? 'development' : 'production';
-      const deployId = options.deployId || path || 'dd-default';
+      const deployId = options.deployId || 'dd-default';
+      const pathParts = (path || '').split('.');
+      const fsPath = (pathParts[0] || '').trim() || 'build';
+      const splitOption = (pathParts[1] || '').trim();
+
+      let splitFlag = '--split 8';
+      if (splitOption) {
+        if (splitOption === 'none-split') {
+          splitFlag = '';
+        } else {
+          const splitMb = Number(splitOption);
+          if (Number.isFinite(splitMb) && splitMb > 0) {
+            splitFlag = `--split ${splitMb}`;
+          } else {
+            logger.warn('push-bundle: invalid split option, using default split 8', {
+              path,
+              splitOption,
+            });
+          }
+        }
+      }
+
       shellExec(`${baseCommand} env ${deployId} ${env}`);
-      shellExec(`${baseCommand} client ${deployId} --build-zip --split 8`);
+      shellExec(`${baseCommand} client ${deployId} --build-zip${splitFlag ? ` ${splitFlag}` : ''}`);
       shellExec(
-        `${baseCommand} fs build --recursive --deploy-id ${deployId} --storage-file-path engine-private/conf/${deployId}/storage.bundle.json --force`,
+        `${baseCommand} fs ${fsPath} --recursive --deploy-id ${deployId} --storage-file-path engine-private/conf/${deployId}/storage.bundle.json --force`,
       );
     },
 
@@ -2356,9 +2378,26 @@ EOF`;
         `${baseCommand} fs build --recursive --deploy-id ${deployId} --storage-file-path engine-private/conf/${deployId}/storage.bundle.json --pull --omit-unzip`,
       );
       for (const host of hosts) {
-        shellExec(`${baseCommand} client --merge-zip build/${host}-.zip`);
-        shellExec(`${baseCommand} client --unzip build/${host}-.zip`);
-        shellExec(`sudo rm -rf build/${host}-.zip`);
+        const zipPath = `build/${host}-.zip`;
+        const hasZip = fs.existsSync(zipPath);
+        const hasParts =
+          fs.existsSync('./build') &&
+          fs
+            .readdirSync('./build')
+            .some((name) => name.startsWith(`${host}-.zip.part`) || name.startsWith(`${host}-.zip-part`));
+
+        if (!hasZip && !hasParts) {
+          logger.warn(`Bundle not found for host '${host}'. Skipping host.`, {
+            zipPath,
+            deployId,
+          });
+          continue;
+        }
+
+        if (hasParts) shellExec(`${baseCommand} client --merge-zip ${zipPath}`);
+        shellExec(`${baseCommand} client --unzip ${zipPath}`);
+        shellExec(`sudo rm -rf ${zipPath}`);
+        if (fs.existsSync(`public/${host}`)) shellExec(`sudo rm -rf public/${host}`);
         shellExec(`sudo mv build/${host} public/${host}`);
       }
     },
