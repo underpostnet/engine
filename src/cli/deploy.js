@@ -131,8 +131,8 @@ class UnderpostDeploy {
     deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas, image, namespace, volumes, cmd }) {
       if (!cmd)
         cmd = [
-          `npm install -g npm@11.2.0`,
-          `npm install -g underpost`,
+          // `npm install -g npm@11.2.0`,
+          // `npm install -g underpost`,
           `underpost secret underpost --create-from-env`,
           `underpost start --build --run ${deployId} ${env}`,
         ];
@@ -142,7 +142,8 @@ class UnderpostDeploy {
         ? JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.volume.json`, 'utf8'))
         : [];
       volumes = volumes.concat(confVolume);
-      const containerImage = image ? image : `localhost/rockylinux9-underpost:v${packageJson.version}`;
+      // const containerImage = image ? image : `localhost/rockylinux9-underpost:v${packageJson.version}`;
+      const containerImage = image ? image : `underpost/underpost-engine:v${packageJson.version}`;
       return `apiVersion: apps/v1
 kind: Deployment
 metadata:
