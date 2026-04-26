@@ -311,19 +311,6 @@ const buildClient = async (
 
     buildAcmeChallengePath(acmeChallengeFullPath);
 
-    if (publicClientId && publicClientId.startsWith('html-website-templates')) {
-      if (!fs.existsSync(`/home/dd/html-website-templates/`))
-        shellExec(`cd /home/dd && git clone https://github.com/designmodo/html-website-templates.git`);
-      if (!fs.existsSync(`${rootClientPath}/index.php`)) {
-        fs.copySync(`/home/dd/html-website-templates/${publicClientId.split('-publicClientId-')[1]}`, rootClientPath);
-        Underpost.repo.initLocalRepo({ path: rootClientPath });
-        shellExec(`cd ${rootClientPath} && git add . && git commit -m "Base template implementation"`);
-        // git remote add origin git@github.com:<username>/<repo>.git
-        fs.writeFileSync(`${rootClientPath}/.git/.htaccess`, `Deny from all`, 'utf8');
-      }
-      return;
-    }
-
     fs.removeSync(rootClientPath);
 
     if (fs.existsSync(`./src/client/public/${publicClientId}`)) {
