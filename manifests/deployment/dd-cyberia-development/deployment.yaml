@@ -20,7 +20,8 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-blue
-          image: localhost/rockylinux9-underpost:v3.2.5
+          image: underpost/underpost-engine:v3.2.5
+          imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
                 name: underpost-config
@@ -29,8 +30,6 @@ spec:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 &&
-              npm install -g underpost &&
               underpost secret underpost --create-from-env &&
               underpost start --build --run dd-cyberia development
 
@@ -170,114 +169,6 @@ spec:
       protocol: UDP
       port: 4016
       targetPort: 4016
-
-    - name: 'tcp-4017'
-      protocol: TCP
-      port: 4017
-      targetPort: 4017
-    - name: 'udp-4017'
-      protocol: UDP
-      port: 4017
-      targetPort: 4017
-
-    - name: 'tcp-4018'
-      protocol: TCP
-      port: 4018
-      targetPort: 4018
-    - name: 'udp-4018'
-      protocol: UDP
-      port: 4018
-      targetPort: 4018
-
-    - name: 'tcp-4019'
-      protocol: TCP
-      port: 4019
-      targetPort: 4019
-    - name: 'udp-4019'
-      protocol: UDP
-      port: 4019
-      targetPort: 4019
-
-    - name: 'tcp-4020'
-      protocol: TCP
-      port: 4020
-      targetPort: 4020
-    - name: 'udp-4020'
-      protocol: UDP
-      port: 4020
-      targetPort: 4020
-
-    - name: 'tcp-4021'
-      protocol: TCP
-      port: 4021
-      targetPort: 4021
-    - name: 'udp-4021'
-      protocol: UDP
-      port: 4021
-      targetPort: 4021
-
-    - name: 'tcp-4022'
-      protocol: TCP
-      port: 4022
-      targetPort: 4022
-    - name: 'udp-4022'
-      protocol: UDP
-      port: 4022
-      targetPort: 4022
-
-    - name: 'tcp-4023'
-      protocol: TCP
-      port: 4023
-      targetPort: 4023
-    - name: 'udp-4023'
-      protocol: UDP
-      port: 4023
-      targetPort: 4023
-
-    - name: 'tcp-4024'
-      protocol: TCP
-      port: 4024
-      targetPort: 4024
-    - name: 'udp-4024'
-      protocol: UDP
-      port: 4024
-      targetPort: 4024
-
-    - name: 'tcp-4025'
-      protocol: TCP
-      port: 4025
-      targetPort: 4025
-    - name: 'udp-4025'
-      protocol: UDP
-      port: 4025
-      targetPort: 4025
-
-    - name: 'tcp-4026'
-      protocol: TCP
-      port: 4026
-      targetPort: 4026
-    - name: 'udp-4026'
-      protocol: UDP
-      port: 4026
-      targetPort: 4026
-
-    - name: 'tcp-4027'
-      protocol: TCP
-      port: 4027
-      targetPort: 4027
-    - name: 'udp-4027'
-      protocol: UDP
-      port: 4027
-      targetPort: 4027
-
-    - name: 'tcp-4028'
-      protocol: TCP
-      port: 4028
-      targetPort: 4028
-    - name: 'udp-4028'
-      protocol: UDP
-      port: 4028
-      targetPort: 4028
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -301,7 +192,8 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development-green
-          image: localhost/rockylinux9-underpost:v3.2.5
+          image: underpost/underpost-engine:v3.2.5
+          imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
                 name: underpost-config
@@ -310,8 +202,6 @@ spec:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 &&
-              npm install -g underpost &&
               underpost secret underpost --create-from-env &&
               underpost start --build --run dd-cyberia development
 
@@ -451,112 +341,4 @@ spec:
       protocol: UDP
       port: 4016
       targetPort: 4016
-
-    - name: 'tcp-4017'
-      protocol: TCP
-      port: 4017
-      targetPort: 4017
-    - name: 'udp-4017'
-      protocol: UDP
-      port: 4017
-      targetPort: 4017
-
-    - name: 'tcp-4018'
-      protocol: TCP
-      port: 4018
-      targetPort: 4018
-    - name: 'udp-4018'
-      protocol: UDP
-      port: 4018
-      targetPort: 4018
-
-    - name: 'tcp-4019'
-      protocol: TCP
-      port: 4019
-      targetPort: 4019
-    - name: 'udp-4019'
-      protocol: UDP
-      port: 4019
-      targetPort: 4019
-
-    - name: 'tcp-4020'
-      protocol: TCP
-      port: 4020
-      targetPort: 4020
-    - name: 'udp-4020'
-      protocol: UDP
-      port: 4020
-      targetPort: 4020
-
-    - name: 'tcp-4021'
-      protocol: TCP
-      port: 4021
-      targetPort: 4021
-    - name: 'udp-4021'
-      protocol: UDP
-      port: 4021
-      targetPort: 4021
-
-    - name: 'tcp-4022'
-      protocol: TCP
-      port: 4022
-      targetPort: 4022
-    - name: 'udp-4022'
-      protocol: UDP
-      port: 4022
-      targetPort: 4022
-
-    - name: 'tcp-4023'
-      protocol: TCP
-      port: 4023
-      targetPort: 4023
-    - name: 'udp-4023'
-      protocol: UDP
-      port: 4023
-      targetPort: 4023
-
-    - name: 'tcp-4024'
-      protocol: TCP
-      port: 4024
-      targetPort: 4024
-    - name: 'udp-4024'
-      protocol: UDP
-      port: 4024
-      targetPort: 4024
-
-    - name: 'tcp-4025'
-      protocol: TCP
-      port: 4025
-      targetPort: 4025
-    - name: 'udp-4025'
-      protocol: UDP
-      port: 4025
-      targetPort: 4025
-
-    - name: 'tcp-4026'
-      protocol: TCP
-      port: 4026
-      targetPort: 4026
-    - name: 'udp-4026'
-      protocol: UDP
-      port: 4026
-      targetPort: 4026
-
-    - name: 'tcp-4027'
-      protocol: TCP
-      port: 4027
-      targetPort: 4027
-    - name: 'udp-4027'
-      protocol: UDP
-      port: 4027
-      targetPort: 4027
-
-    - name: 'tcp-4028'
-      protocol: TCP
-      port: 4028
-      targetPort: 4028
-    - name: 'udp-4028'
-      protocol: UDP
-      port: 4028
-      targetPort: 4028
   type: LoadBalancer

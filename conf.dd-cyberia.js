@@ -574,31 +574,6 @@ const DefaultConf = /**/ {
   server: {
     'underpost.net': {
       '/': {
-        replicas: ['/r1'],
-        client: 'underpost',
-        runtime: 'nodejs',
-        apis: ['user', 'file', 'test', 'document'],
-        apiBaseProxyPath: null,
-        apiBaseHost: null,
-        origins: [],
-        ws: 'core',
-        peer: true,
-        proxy: [80, 443],
-        db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_NEXODEV' },
-        valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },
-        mailer: {
-          sender: { email: 'env:MAILER_SENDER_EMAIL', name: 'env:MAILER_SENDER_NAME' },
-          transport: {
-            host: 'env:SMTP_HOST',
-            port: 'env:SMTP_PORT',
-            secure: true,
-            auth: { user: 'env:SMTP_AUTH_USER', pass: 'env:SMTP_AUTH_PASS' },
-          },
-        },
-      },
-      '/singlereplicas1': {
-        replicas: ['/r5'],
-        singleReplica: true,
         client: 'underpost',
         runtime: 'nodejs',
         apis: ['user', 'file', 'test', 'document'],
@@ -677,12 +652,10 @@ const DefaultConf = /**/ {
             auth: { user: 'env:SMTP_AUTH_USER_CYBERIA', pass: 'env:SMTP_AUTH_PASS_CYBERIA' },
           },
         },
-        replicas: ['/r1', '/r2'],
         grpc: { module: 'cyberia', port: 50051 },
       },
       '/single-replica': {
         singleReplica: true,
-        replicas: ['/r3', '/r4'],
         client: 'cyberia-portal',
         runtime: 'nodejs',
         apis: [

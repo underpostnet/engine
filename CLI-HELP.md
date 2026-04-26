@@ -85,18 +85,29 @@ Options:
 Builds client assets, single replicas, and/or syncs environment ports.
 
 Arguments:
-  deploy-id         The deployment ID to build. (default: "dd-default")
-  sub-conf          The sub-configuration for the build. (default: "")
-  host              Comma-separated hosts to filter the build. (default: "")
-  path              Comma-separated paths to filter the build. (default: "")
+  deploy-id                   The deployment ID to build. (default:
+                              "dd-default")
+  sub-conf                    The sub-configuration for the build. (default: "")
+  host                        Comma-separated hosts to filter the build.
+                              (default: "")
+  path                        Comma-separated paths to filter the build.
+                              (default: "")
 
 Options:
-  --sync-env-port   Sync environment port assignments across all deploy IDs
-  --single-replica  Build single replica folders instead of full client
-  --build-zip       Create zip files of the builds
-  --lite-build      Skip full build (default is full build)
-  --icons-build     Build icons
-  -h, --help        display help for command
+  --sync-env-port             Sync environment port assignments across all
+                              deploy IDs
+  --single-replica            Build single replica folders instead of full
+                              client
+  --build-zip                 Create zip files of the builds
+  --split <mb>                Split generated zip files into parts of the
+                              specified size in MB
+  --unzip <build-prefix>      Extract a built client zip or split zip parts
+                              using the given build prefix
+  --merge-zip <build-prefix>  Merge split ZIP parts back into a single ZIP file
+                              for the given build prefix
+  --lite-build                Skip full build (default is full build)
+  --icons-build               Build icons
+  -h, --help                  display help for command
  
 ```
   
@@ -124,6 +135,8 @@ Options:
                                installation.
   --skip-pull-base             Skips cloning repositories, uses current
                                workspace code directly.
+  --skip-full-build            Skips the full client bundle build during
+                               deployment.
   -h, --help                   display help for command
  
 ```
@@ -749,6 +762,7 @@ Options:
   --recursive                              Uploads files recursively from the specified path.
   --deploy-id <deploy-id>                  Specifies the deployment configuration ID for file operations.
   --pull                                   Downloads the specified file.
+  --omit-unzip                             With --pull, keeps the downloaded .zip file and skips extraction.
   --force                                  Forces the action, overriding any warnings or conflicts.
   --storage-file-path <storage-file-path>  Specifies a custom file storage path.
   -h, --help                               display help for command
@@ -877,7 +891,7 @@ Options:
 Runs specified scripts using various runners.
 
 Arguments:
-  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,template-deploy-image,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job.
+  runner-id                                       The runner ID to run. Options: dev-cluster,ipfs-expose,metadata,svc-ls,svc-rm,ssh-deploy-info,dev-hosts-expose,dev-hosts-restore,cluster-build,template-deploy,template-deploy-local,template-deploy-image,docker-image,clean,pull,release-deploy,ssh-deploy,ide,crypto-policy,sync,stop,ssh-deploy-stop,ssh-deploy-db-rollback,ssh-deploy-db,ssh-deploy-db-status,tz,get-proxy,instance-promote,instance,instance-build-manifest,ls-deployments,host-update,dd-container,ip-info,db-client,git-conf,promote,metrics,cluster,deploy,disk-clean,disk-devices,disk-usage,dev,service,etc-hosts,sh,log,ps,pid-info,background,ports,deploy-test,tf-vae-test,spark-template,pull-rocky-image,rmi,kill,generate-pass,secret,underpost-config,gpu-env,tf-gpu-test,deploy-job,push-bundle,pull-bundle.
   path                                            The input value, identifier, or path for the operation.
 
 Options:
@@ -925,7 +939,6 @@ Options:
   --k3s                                           Sets the k3s cluster context for the runner execution.
   --kind                                          Sets the kind cluster context for the runner execution.
   --git-clean                                     Runs git clean on volume mount paths before copying.
-  --log-type <log-type>                           Sets the log type for the runner execution.
   --deploy-id <deploy-id>                         Sets deploy id context for the runner execution.
   --user <user>                                   Sets user context for the runner execution.
   --hosts <hosts>                                 Comma-separated list of hosts for the runner execution.

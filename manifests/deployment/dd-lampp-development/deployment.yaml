@@ -20,7 +20,8 @@ spec:
     spec:
       containers:
         - name: dd-lampp-development-blue
-          image: localhost/rockylinux9-underpost:v3.2.5
+          image: underpost/underpost-engine:v3.2.5
+          imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
                 name: underpost-config
@@ -29,8 +30,6 @@ spec:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 &&
-              npm install -g underpost &&
               underpost secret underpost --create-from-env &&
               underpost start --build --run dd-lampp development
 
@@ -103,7 +102,8 @@ spec:
     spec:
       containers:
         - name: dd-lampp-development-green
-          image: localhost/rockylinux9-underpost:v3.2.5
+          image: underpost/underpost-engine:v3.2.5
+          imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
                 name: underpost-config
@@ -112,8 +112,6 @@ spec:
             - /bin/sh
             - -c
             - >
-              npm install -g npm@11.2.0 &&
-              npm install -g underpost &&
               underpost secret underpost --create-from-env &&
               underpost start --build --run dd-lampp development
 

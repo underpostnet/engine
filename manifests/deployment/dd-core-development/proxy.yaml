@@ -15,7 +15,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4029
+          port: 4019
           weight: 100
     
 ---
@@ -27,6 +27,156 @@ metadata:
 spec:
   virtualhost:
     fqdn: www.dogmadual.com
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4020
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4021
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: nexodev.org
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4022
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.nexodev.org
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: www.nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4023
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4024
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: healthcare.nexodev.org
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: healthcare.nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4025
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4026
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.bymyelectrics.com
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: www.bymyelectrics.com
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4027
+          weight: 100
+    
+    - conditions:
+        - prefix: /peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4028
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: bymyelectrics.com
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: bymyelectrics.com
+  routes:
+    - conditions:
+        - prefix: /
+      
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-blue-service
+          port: 4029
+          weight: 100
+    
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: vitaintegral.nexodev.org
+  namespace: default
+spec:
+  virtualhost:
+    fqdn: vitaintegral.nexodev.org
   routes:
     - conditions:
         - prefix: /
@@ -50,192 +200,6 @@ spec:
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  name: nexodev.org
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: nexodev.org
-  routes:
-    - conditions:
-        - prefix: /
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4032
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: www.nexodev.org
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: www.nexodev.org
-  routes:
-    - conditions:
-        - prefix: /
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4033
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4034
-          weight: 100
-    
-    - conditions:
-        - prefix: /r1
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4035
-          weight: 100
-    
-    - conditions:
-        - prefix: /r1/peer
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4036
-          weight: 100
-    
-    - conditions:
-        - prefix: /r2
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4037
-          weight: 100
-    
-    - conditions:
-        - prefix: /r2/peer
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4038
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: healthcare.nexodev.org
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: healthcare.nexodev.org
-  routes:
-    - conditions:
-        - prefix: /
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4039
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4040
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: www.bymyelectrics.com
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: www.bymyelectrics.com
-  routes:
-    - conditions:
-        - prefix: /
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4041
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4042
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: bymyelectrics.com
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: bymyelectrics.com
-  routes:
-    - conditions:
-        - prefix: /
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4043
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: vitaintegral.nexodev.org
-  namespace: default
-spec:
-  virtualhost:
-    fqdn: vitaintegral.nexodev.org
-  routes:
-    - conditions:
-        - prefix: /
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4044
-          weight: 100
-    
-    - conditions:
-        - prefix: /peer
-      
-      enableWebsockets: true
-      services:
-        - name: dd-core-development-blue-service
-          port: 4045
-          weight: 100
-    
----
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
   name: www.cecinasmarcelina.com
   namespace: default
 spec:
@@ -248,7 +212,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4046
+          port: 4032
           weight: 100
     
     - conditions:
@@ -257,7 +221,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4047
+          port: 4033
           weight: 100
     
 ---
@@ -276,6 +240,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-core-development-blue-service
-          port: 4048
+          port: 4034
           weight: 100
     
