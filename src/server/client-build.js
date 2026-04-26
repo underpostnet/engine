@@ -82,6 +82,15 @@ const splitFileByMb = ({ filePath, partSizeMb, logger }) => {
     throw new Error(`Invalid --split value: ${partSizeMb}`);
   }
 
+  // Clean ALL stale part files (any naming variant) before writing new ones
+  const zipDir = dir.dirname(filePath);
+  const zipBase = dir.basename(filePath);
+  if (fs.existsSync(zipDir)) {
+    fs.readdirSync(zipDir)
+      .filter((name) => name.startsWith(`${zipBase}.part`) || name.startsWith(`${zipBase}-part`))
+      .forEach((name) => fs.removeSync(dir.join(zipDir, name)));
+  }
+
   const fileBuffer = fs.readFileSync(filePath);
   const partPaths = [];
 
@@ -107,17 +116,21 @@ const getZipPartPaths = (zipPath) => {
   const partPrefixDot = `${zipBase}.part`;
   const partPrefixDash = `${zipBase}-part`;
 
-  const getPartIndex = (name) => {
-    const dotIndex = name.startsWith(partPrefixDot) ? Number(name.slice(partPrefixDot.length)) : NaN;
-    if (Number.isFinite(dotIndex)) return dotIndex;
+  const parsePartIndex = (rawSuffix) => {
+    // Strip optional .zip suffix added by pull/download (e.g. '001.zip' → '001')
+    const digits = rawSuffix.replace(/\.zip$/i, '');
+    return /^\d+$/.test(digits) ? Number(digits) : NaN;
+  };
 
-    const dashIndex = name.startsWith(partPrefixDash) ? Number(name.slice(partPrefixDash.length)) : NaN;
-    return dashIndex;
+  const getPartIndex = (name) => {
+    if (name.startsWith(partPrefixDot)) return parsePartIndex(name.slice(partPrefixDot.length));
+    if (name.startsWith(partPrefixDash)) return parsePartIndex(name.slice(partPrefixDash.length));
+    return NaN;
   };
 
   return fs
     .readdirSync(zipDir)
-    .filter((name) => name.startsWith(partPrefixDot) || name.startsWith(partPrefixDash))
+    .filter((name) => Number.isFinite(getPartIndex(name)))
     .sort((a, b) => getPartIndex(a) - getPartIndex(b))
     .map((name) => dir.join(zipDir, name));
 };
@@ -189,14 +202,60 @@ const resolveClientBuildZip = (buildPrefix) => {
  * @returns {{ zipPath: string, partPaths: string[], mergedBytes: number }}
  */
 const mergeClientBuildZip = ({ buildPrefix, logger }) => {
-  const { zipPath, partPaths } = resolveClientBuildZip(buildPrefix);
+  // Normalize to get the zip path, then look for parts directly (bypassing resolveClientBuildZip
+  // which prefers an existing monolithic zip over parts).
+  const normalizedPrefix = buildPrefix.replace(/\.zip(?:[.-]part\d+)?$/, '').replace(/[-.]$/, '') + '-';
+  const candidatePrefixes = uniqueArray([buildPrefix, buildPrefix.endsWith('-') ? buildPrefix : `${buildPrefix}-`]);
+
+  let zipPath;
+  let partPaths = [];
+
+  for (const prefix of candidatePrefixes) {
+    const candidate = prefix.endsWith('.zip') ? prefix : `${prefix}.zip`;
+    const parts = getZipPartPaths(candidate);
+    if (parts.length > 0) {
+      zipPath = candidate;
+      partPaths = parts;
+      break;
+    }
+  }
 
   if (partPaths.length === 0) {
+    // Fall back to resolveClientBuildZip for the zipPath
+    const resolved = resolveClientBuildZip(buildPrefix);
+    zipPath = resolved.zipPath;
     logger.warn('merge-zip: no split parts found, nothing to merge', { buildPrefix, zipPath });
     return { zipPath, partPaths, mergedBytes: 0 };
   }
 
-  const mergedBuffer = Buffer.concat(partPaths.map((partPath) => fs.readFileSync(partPath)));
+  // For each part, extract raw bytes: if the part file is a Cloudinary wrapper zip
+  // (downloaded via pull without --omit-unzip or with --omit-unzip keeping the .zip),
+  // extract the inner entry rather than using the wrapper bytes.
+  const readPartBytes = (partPath) => {
+    const rawBytes = fs.readFileSync(partPath);
+    // Check for ZIP magic bytes (PK\x03\x04)
+    if (rawBytes[0] === 0x50 && rawBytes[1] === 0x4b && rawBytes[2] === 0x03 && rawBytes[3] === 0x04) {
+      try {
+        const wrapperZip = new AdmZip(rawBytes);
+        const entries = wrapperZip.getEntries();
+        // The inner entry is the original part file (without the outer .zip wrapper)
+        const partBase = dir.basename(partPath).replace(/\.zip$/i, '');
+        const entry = entries.find((e) => e.entryName === partBase || e.entryName.endsWith('/' + partBase));
+        if (entry) {
+          return entry.getData();
+        }
+        // Fallback: single-entry archive
+        if (entries.length === 1) {
+          return entries[0].getData();
+        }
+      } catch (_) {
+        // Not a valid zip or extraction failed — use raw bytes
+      }
+    }
+    return rawBytes;
+  };
+
+  const mergedBuffer = Buffer.concat(partPaths.map(readPartBytes));
   fs.writeFileSync(zipPath, mergedBuffer);
 
   logger.warn('merge-zip: merged split parts into zip', {
