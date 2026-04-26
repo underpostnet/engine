@@ -2039,6 +2039,16 @@ EOF
       shellCd('/home/dd/engine');
     },
     /**
+     * @method pull-rocky-image
+     * @description Pulls the base `rockylinux:9` image from Docker Hub via Podman.
+     * @param {string} path - The input value, identifier, or path for the operation.
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
+    'pull-rocky-image': (path, options = DEFAULT_OPTION) => {
+      shellExec(`sudo podman pull docker.io/library/rockylinux:9`);
+    },
+    /**
      * @method rmi
      * @description Forces the removal of all local Podman images (`podman rmi $(podman images -qa) --force`).
      * @param {string} path - The input value, identifier, or path for the operation.

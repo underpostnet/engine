@@ -99,6 +99,7 @@ class UnderpostImage {
       if (!path) path = '.';
       if (!imageName) imageName = `rockylinux9-underpost:${Underpost.version}`;
       if (!imagePath) imagePath = '.';
+      if (imageName.match('/')) imageName = imageName.split('/')[1];
       if (!version) version = 'latest';
       version = imageName && imageName.match(':') ? '' : `:${version}`;
       const podManImg = `localhost/${imageName}${version}`;

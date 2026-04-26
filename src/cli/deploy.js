@@ -164,6 +164,7 @@ spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
           image: ${containerImage}
+          imagePullPolicy: ${containerImage.startsWith('localhost/') ? 'Never' : 'IfNotPresent'}
           envFrom:
             - secretRef:
                 name: underpost-config
