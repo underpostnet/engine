@@ -76,6 +76,31 @@ const copyNonExistingFiles = (src, dest) => {
   }
 };
 
+const splitFileByMb = ({ filePath, partSizeMb, logger }) => {
+  const partSizeBytes = Math.floor(Number(partSizeMb) * 1024 * 1024);
+  if (!Number.isFinite(partSizeBytes) || partSizeBytes <= 0) {
+    throw new Error(`Invalid --split value: ${partSizeMb}`);
+  }
+
+  const fileBuffer = fs.readFileSync(filePath);
+  const partPaths = [];
+
+  for (let offset = 0, partIndex = 0; offset < fileBuffer.length; offset += partSizeBytes, partIndex++) {
+    const partBuffer = fileBuffer.subarray(offset, offset + partSizeBytes);
+    const partPath = `${filePath}.part${String(partIndex + 1).padStart(3, '0')}`;
+    fs.writeFileSync(partPath, partBuffer);
+    partPaths.push(partPath);
+  }
+
+  logger.warn('split zip', {
+    filePath,
+    partSizeMb: Number(partSizeMb),
+    parts: partPaths.length,
+  });
+
+  return partPaths;
+};
+
 /** @type {string} Default XSL sitemap template used when no `sitemap` source file exists in the public directory. */
 const defaultSitemapXsl = `<?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="1.0"
@@ -235,6 +260,7 @@ const defaultSitemapXsl = `<?xml version="1.0" encoding="UTF-8"?>
  * @param {Array} options.liveClientBuildPaths - List of paths to build incrementally.
  * @param {Array} options.instances - List of instances to build.
  * @param {boolean} options.buildZip - Whether to create zip files of the builds.
+ * @param {string|number} options.split - Optional zip split size in MB.
  * @param {boolean} options.fullBuild - Whether to perform a full build.
  * @param {boolean} options.iconsBuild - Whether to build icons.
  * @returns {Promise<void>} - Promise that resolves when the build is complete.
@@ -247,6 +273,7 @@ const buildClient = async (
     liveClientBuildPaths: [],
     instances: [],
     buildZip: false,
+    split: '',
     fullBuild: false,
     iconsBuild: false,
   },
@@ -823,10 +850,19 @@ ${fs.readFileSync(`${rootClientPath}/sw.js`, 'utf8')}`,
         }
 
         const buildId = `${host}-${path.replaceAll('/', '')}`;
+        const zipPath = `./build/${buildId}.zip`;
 
-        logger.warn('write zip', `./build/${buildId}.zip`);
+        logger.warn('write zip', zipPath);
 
-        zip.writeZip(`./build/${buildId}.zip`);
+        zip.writeZip(zipPath);
+
+        if (options.split) {
+          splitFileByMb({
+            filePath: zipPath,
+            partSizeMb: options.split,
+            logger,
+          });
+        }
       }
     }
   }

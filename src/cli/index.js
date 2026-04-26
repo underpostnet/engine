@@ -46,6 +46,7 @@ program
   .option('--sync-env-port', 'Sync environment port assignments across all deploy IDs')
   .option('--single-replica', 'Build single replica folders instead of full client')
   .option('--build-zip', 'Create zip files of the builds')
+  .option('--split <mb>', 'Split generated zip files into parts of the specified size in MB')
   .option('--lite-build', 'Skip full build (default is full build)')
   .option('--icons-build', 'Build icons')
   .description('Builds client assets, single replicas, and/or syncs environment ports.')

@@ -642,6 +642,7 @@ class UnderpostRepository {
      * @param {boolean} [options.syncEnvPort=false] - If true, syncs environment port assignments across all deploy IDs.
      * @param {boolean} [options.singleReplica=false] - If true, builds single replica folders instead of full client.
      * @param {boolean} [options.buildZip=false] - If true, creates zip files of the builds.
+     * @param {string|number} [options.split=''] - Optional ZIP part size in MB. When set with buildZip, writes split parts.
      * @param {boolean} [options.liteBuild=false] - If true, skips full build (default is full build).
      * @param {boolean} [options.iconsBuild=false] - If true, builds icons.
      * @returns {Promise<boolean>} A promise that resolves when the build is complete.
@@ -656,6 +657,7 @@ class UnderpostRepository {
         syncEnvPort: false,
         singleReplica: false,
         buildZip: false,
+        split: '',
         liteBuild: false,
         iconsBuild: false,
       },
@@ -827,6 +829,7 @@ class UnderpostRepository {
             }
             await buildClient({
               buildZip: options.buildZip || false,
+              split: options.split || '',
               fullBuild: options.liteBuild ? false : true,
               iconsBuild: options.iconsBuild || false,
             });
