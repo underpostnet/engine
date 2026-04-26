@@ -38,6 +38,8 @@ import { ssrFactory } from './ssr.js';
  * @memberof clientBuild
  */
 const copyNonExistingFiles = (src, dest) => {
+  if (dir.basename(src) === '.git') return;
+
   // Ensure source exists
   if (!fs.existsSync(src)) {
     throw new Error(`Source directory does not exist: ${src}`);
@@ -316,17 +318,13 @@ const buildClient = async (
     if (fs.existsSync(`./src/client/public/${publicClientId}`)) {
       if (iconsBuild === true) await buildIcons({ publicClientId, metadata });
 
-      fs.copySync(
-        `./src/client/public/${publicClientId}`,
-        rootClientPath /* {
-            filter: function (name) {
-              console.log(name);
-              return true;
-            },
-          } */,
-      );
+      fs.copySync(`./src/client/public/${publicClientId}`, rootClientPath, {
+        filter: (sourcePath) => !sourcePath.split(dir.sep).includes('.git'),
+      });
     } else if (fs.existsSync(`./engine-private/src/client/public/${publicClientId}`)) {
-      fs.copySync(`./engine-private/src/client/public/${publicClientId}`, rootClientPath);
+      fs.copySync(`./engine-private/src/client/public/${publicClientId}`, rootClientPath, {
+        filter: (sourcePath) => !sourcePath.split(dir.sep).includes('.git'),
+      });
     }
     if (dists)
       for (const dist of dists) {
