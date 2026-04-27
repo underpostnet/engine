@@ -27,14 +27,7 @@ const RichText = {
       // easyMDE.value();
       // easyMDE.value(val);
     });
-    return html` <style>
-        .md-container {
-          background: white;
-        }
-        .md-container button {
-          color: black;
-        }
-      </style>
+    return html` <style></style>
       <div class="in md-container"><textarea class="${id}"></textarea></div>`;
   },
 };
