@@ -92,24 +92,11 @@ const Docs = {
 
         const applyJsDocsTheme = (isDark) => {
           try {
-            const iframeWin = iframeEl.contentWindow;
-            if (!iframeWin) return;
-            const theme = isDark ? 'dark' : 'light';
-            if (typeof iframeWin.updateTheme === 'function') {
-              // clean-jsdoc-theme exposes updateTheme() globally
-              iframeWin.updateTheme(theme);
-            } else {
-              // Fallback: replicate localUpdateTheme manually
-              const iframeDoc = iframeEl.contentDocument || iframeWin.document;
-              if (!iframeDoc || !iframeDoc.body) return;
-              iframeDoc.body.setAttribute('data-theme', theme);
-              iframeDoc.body.classList.remove('dark', 'light');
-              iframeDoc.body.classList.add(theme);
-              const iconID = isDark ? '#light-theme-icon' : '#dark-theme-icon';
-              const svgUses = sIframe(iframeEl, '.theme-svg-use') ? iframeDoc.querySelectorAll('.theme-svg-use') : [];
-              svgUses.forEach((svg) => svg.setAttribute('xlink:href', iconID));
-              iframeWin.localStorage?.setItem('theme', theme);
-            }
+            const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
+            if (!iframeDoc || !iframeDoc.documentElement) return;
+            // TypeDoc built-in theme: data-theme on <html>, stored as 'tsd-theme' in localStorage
+            iframeDoc.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            iframeEl.contentWindow?.localStorage?.setItem('tsd-theme', isDark ? 'dark' : 'light');
           } catch (e) {
             // cross-origin or security restriction — safe to ignore
           }

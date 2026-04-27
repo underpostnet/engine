@@ -324,59 +324,56 @@ const buildApiDocs = async ({
 };
 
 /**
- * Builds JSDoc documentation
+ * Builds API documentation using TypeDoc (generates a modern static site from JSDoc-annotated JS).
+ * Config is read from the base typedoc JSON, merged with runtime values, written to a temporary
+ * file, and deleted after the build — the base config file is never mutated on disk.
  * @function buildJsDocs
  * @memberof clientBuildDocs
- * @param {Object} options - JSDoc build options
+ * @param {Object} options - TypeDoc build options
  * @param {string} options.host - The hostname for the documentation
  * @param {string} options.path - The base path for the documentation
  * @param {Object} options.metadata - Metadata for the documentation
- * @param {string} options.publicClientId - Client ID used to resolve the tutorials/references directory
+ * @param {string} options.publicClientId - Client ID used to resolve the references directory
  * @param {Object} options.docs - Documentation config from server conf
- * @param {string} options.docs.jsJsonPath - Path to the JSDoc JSON config file
+ * @param {string} options.docs.jsJsonPath - Path to the base typedoc JSON config file
+ * @param {string} options.docsDestination - Resolved output path for the generated docs
  */
-const buildJsDocs = async ({ host, path, metadata = {}, publicClientId, docs }) => {
+const buildJsDocs = async ({ host, path, metadata = {}, publicClientId, docs, docsDestination }) => {
   const logger = loggerFactory(import.meta);
 
-  const jsDocSourcePath = docs.jsJsonPath;
-  if (!fs.existsSync(jsDocSourcePath)) {
-    logger.warn('jsdoc config not found, skipping', jsDocSourcePath);
+  const typedocConfigPath = docs.jsJsonPath;
+  if (!fs.existsSync(typedocConfigPath)) {
+    logger.warn('typedoc config not found, skipping', typedocConfigPath);
     return;
   }
-  const jsDocsConfig = JSON.parse(fs.readFileSync(jsDocSourcePath, 'utf8'));
-  logger.info('using jsdoc config', jsDocSourcePath);
+  const baseConfig = JSON.parse(fs.readFileSync(typedocConfigPath, 'utf8'));
+  logger.info('using typedoc config', typedocConfigPath);
 
-  jsDocsConfig.opts.destination = `./public/${host}${path === '/' ? path : `${path}/`}docs/`;
-  jsDocsConfig.opts.theme_opts.title = metadata?.title ? metadata.title : undefined;
-  jsDocsConfig.opts.theme_opts.favicon = `./public/${host}${path === '/' ? '/' : `${path}/`}favicon.ico`;
+  // Build runtime config in memory — never mutate the base config file
+  // tsconfig must be absolute so TypeDoc resolves it regardless of where the
+  // tmp config file is located on disk.
+  const runtimeConfig = {
+    ...baseConfig,
+    tsconfig: fs.realpathSync(baseConfig.tsconfig || './tsconfig.docs.json'),
+    out: docsDestination,
+    name: metadata?.title || baseConfig.name,
+    favicon: `./public/${host}${path === '/' ? '/' : `${path}/`}favicon.ico`,
+  };
 
-  const tutorialsPath = `./src/client/public/${publicClientId}/docs/references`;
-
+  // Include extra reference documents as TypeDoc document pages
+  // TypeDoc 0.28+: option is `projectDocuments`, not `documents`
   if (Array.isArray(docs.references) && docs.references.length > 0) {
-    fs.mkdirSync(tutorialsPath, { recursive: true });
-    for (const refPath of docs.references) {
-      if (fs.existsSync(refPath)) {
-        const fileName = refPath.split('/').pop();
-        fs.copySync(refPath, `${tutorialsPath}/${fileName}`);
-        logger.info('copied reference to tutorials', refPath);
-      }
-    }
+    runtimeConfig.projectDocuments = docs.references.filter((p) => fs.existsSync(p));
+    if (runtimeConfig.projectDocuments.length > 0) logger.info('typedoc documents', runtimeConfig.projectDocuments);
   }
 
-  if (fs.existsSync(tutorialsPath) && fs.readdirSync(tutorialsPath).length > 0) {
-    jsDocsConfig.opts.tutorials = tutorialsPath;
-    if (jsDocsConfig.opts.theme_opts.sections && !jsDocsConfig.opts.theme_opts.sections.includes('Tutorials')) {
-      jsDocsConfig.opts.theme_opts.sections.push('Tutorials');
-    }
-    logger.info('build jsdoc tutorials', tutorialsPath);
-  } else {
-    delete jsDocsConfig.opts.tutorials;
-  }
+  const tmpConfigPath = `.typedoc.tmp.json`;
+  fs.writeFileSync(tmpConfigPath, JSON.stringify(runtimeConfig, null, 2), 'utf8');
+  logger.warn('build typedoc view', docsDestination);
 
-  fs.writeFileSync(jsDocSourcePath, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
-  logger.warn('build jsdoc view', jsDocsConfig.opts.destination);
+  shellExec(`node_modules/.bin/typedoc --options ${tmpConfigPath}`, { silent: true });
 
-  shellExec(`npx jsdoc -c ${jsDocSourcePath}`, { silent: true });
+  fs.removeSync(tmpConfigPath);
 };
 
 /**
@@ -384,17 +381,13 @@ const buildJsDocs = async ({ host, path, metadata = {}, publicClientId, docs }) 
  * @function buildCoverage
  * @memberof clientBuildDocs
  * @param {Object} options - Coverage build options
- * @param {string} options.host - The hostname for the coverage
- * @param {string} options.path - The base path for the coverage
  * @param {Object} options.docs - Documentation config from server conf
- * @param {string} options.docs.coveragePath - Directory where to run npm run coverage
+ * @param {string} options.docs.coveragePath - Directory where coverage reports are generated
+ * @param {string} options.docsDestination - Resolved output path where docs were built
  */
-const buildCoverage = async ({ host, path, docs }) => {
+const buildCoverage = async ({ docs, docsDestination }) => {
   const logger = loggerFactory(import.meta);
-  const jsDocSourcePath = docs.jsJsonPath;
-  const jsDocsConfig = JSON.parse(fs.readFileSync(jsDocSourcePath, 'utf8'));
-  const coveragePath = docs.coveragePath;
-  const coverageOutputDir = docs.coverageOutputDir || 'coverage';
+  const { coveragePath, coverageOutputDir = 'coverage' } = docs;
 
   const coverageOutputPath = `${coveragePath}/coverage`;
   if (!fs.existsSync(coverageOutputPath)) {
@@ -412,7 +405,7 @@ const buildCoverage = async ({ host, path, docs }) => {
   }
 
   if (fs.existsSync(coverageOutputPath) && fs.readdirSync(coverageOutputPath).length > 0) {
-    const coverageBuildPath = `${jsDocsConfig.opts.destination}${coverageOutputDir}`;
+    const coverageBuildPath = `${docsDestination}${coverageOutputDir}`;
     fs.mkdirSync(coverageBuildPath, { recursive: true });
     // Hardhat 3 outputs HTML to coverage/html/; Hardhat 2 / c8 output directly to coverage/
     const coverageHtmlSubdir = `${coverageOutputPath}/html`;
@@ -453,8 +446,14 @@ const buildDocs = async ({
   packageData,
   docs,
 }) => {
-  await buildJsDocs({ host, path, metadata, publicClientId, docs });
-  await buildCoverage({ host, path, docs });
+  const pathPrefix = path === '/' ? '/' : `${path}/`;
+  // TypeDoc output is versioned: served at /docs/engine/{version}/
+  const version = (packageData?.version || '').replace(/^v/, '');
+  const jsDocsDestination = `./public/${host}${pathPrefix}docs/engine/${version}/`;
+  // Coverage output at /docs/coverage/ (or /docs/{coverageOutputDir}/)
+  const coverageBaseDestination = `./public/${host}${pathPrefix}docs/`;
+  await buildJsDocs({ host, path, metadata, publicClientId, docs, docsDestination: jsDocsDestination });
+  await buildCoverage({ docs, docsDestination: coverageBaseDestination });
   await buildApiDocs({
     host,
     path,

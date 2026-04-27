@@ -631,7 +631,7 @@ const DefaultConf = /**/ {
         peer: true,
         docs: {
           coveragePath: './hardhat',
-          jsJsonPath: './jsdoc.dd-cyberia.json',
+          jsJsonPath: './typedoc.dd-cyberia.json',
           coverageOutputDir: 'hardhat-coverage',
           references: ['./hardhat/README.md', './hardhat/WHITE-PAPER.md'],
         },

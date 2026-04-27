@@ -1,0 +1,20 @@
+{
+  "name": "Nexodev - ERP, CRM Development & Cloud DevOps Services",
+  "entryPoints": ["./src/server", "./src/api", "./src/db", "./src/ws", "./src/grpc", "./src/mailer", "./src/runtime"],
+  "entryPointStrategy": "expand",
+  "exclude": ["**/node_modules/**", "**/docs/**", "**/client/**"],
+  "out": "./public/www.nexodev.org/docs/",
+  "readme": "./README.md",
+  "tsconfig": "./tsconfig.docs.json",
+  "skipErrorChecking": true,
+  "logLevel": "Error",
+  "includeVersion": true,
+  "hideGenerator": true,
+  "searchInComments": true,
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "categorizeByGroup": true,
+  "sort": ["source-order"]
+}

@@ -804,7 +804,7 @@ const DefaultConf = /**/ {
         origins: ['https://www.nexodev.org', 'https://underpost.net', 'https://underpostnet.github.io'],
         ws: 'core',
         peer: true,
-        docs: { coveragePath: './', jsJsonPath: './jsdoc.json', references: [] },
+        docs: { coveragePath: './', jsJsonPath: './typedoc.json', references: [] },
         proxy: [80, 443],
         db: { provider: 'mongoose', host: 'env:DB_HOST', name: 'env:DB_NAME_NEXODEV' },
         valkey: { port: 'env:VALKEY_PORT', host: 'env:VALKEY_HOST' },

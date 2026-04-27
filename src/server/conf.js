@@ -457,7 +457,7 @@ const loadConf = (deployId = DEFAULT_DEPLOY_ID, subConf) => {
     fs.removeSync(`${path}/.env.production`);
     fs.removeSync(`${path}/.env.development`);
     fs.removeSync(`${path}/.env.test`);
-    if (fs.existsSync(`${path}/jsdoc.json`)) shellExec(`git checkout ${path}/jsdoc.json`);
+    if (fs.existsSync(`${path}/typedoc.json`)) shellExec(`git checkout ${path}/typedoc.json`);
     shellExec(`git checkout ${path}/package.json`);
     shellExec(`git checkout ${path}/package-lock.json`);
     return;
@@ -1211,7 +1211,7 @@ const validateTemplatePath = (absolutePath = '') => {
     return false;
   }
   if (absolutePath.match('conf.dd-') && absolutePath.match('.js')) return false;
-  if (absolutePath.match('jsdoc.dd-') && absolutePath.match('.json')) return false;
+  if (absolutePath.match('typedoc.dd-') && absolutePath.match('.json')) return false;
   if (
     absolutePath.match('src/client/services/') &&
     !clients.find((p) => absolutePath.match(`src/client/services/${p}/`))
