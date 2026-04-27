@@ -1024,12 +1024,13 @@ EOF
         // `localhost/rockylinux9-underpost:${Underpost.version}`
         if (!_image) _image = `underpost/underpost-engine:${Underpost.version}`;
 
-        Underpost.image.pullDockerHubImage({
-          dockerhubImage: _image,
-          kind: options.kind || (!options.nodeName && !options.kubeadm && !options.k3s),
-          kubeadm: options.nodeName || options.kubeadm,
-          k3s: options.k3s,
-        });
+        if (_image && !_image.startsWith('localhost'))
+          Underpost.image.pullDockerHubImage({
+            dockerhubImage: _image,
+            kind: options.kind || (!options.nodeName && !options.kubeadm && !options.k3s),
+            kubeadm: options.nodeName || options.kubeadm,
+            k3s: options.k3s,
+          });
 
         const currentTraffic = Underpost.deploy.getCurrentTraffic(_deployId, {
           hostTest: _host,
