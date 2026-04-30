@@ -27,6 +27,13 @@ const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  */
 const srcFormatted = (src) => src.replace(/(?<=[\s({[,;=+!?:^])(html|css)`/g, '`');
 
+const resolveBrowserImportPath = (basePrefix, relativePath) => {
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(basePrefix)) {
+    return new URL(relativePath, basePrefix.endsWith('/') ? basePrefix : `${basePrefix}/`).toString();
+  }
+  return path.posix.normalize(`${basePrefix}${relativePath}`);
+};
+
 /**
  * Converts a JavaScript object into a string that can be embedded in client-side code
  * and parsed back into an object (e.g., 'JSON.parse(`{...}`)').
@@ -76,21 +83,29 @@ const importRewritePlugin = ({
       }
     }
 
-    // Rewrite relative imports to absolute paths based on proxy path and module
+    // Rewrite app-relative imports to absolute paths based on proxy path and module.
+    // Do not touch node_modules relative imports so esbuild can bundle package internals.
     build.onResolve({ filter: /^\.\.?\// }, (args) => {
-      const basePrefix = `${prefix}${basePath ? `${basePath}/` : ''}`;
-      if (args.path.startsWith('./')) {
-        return {
-          path: `${basePrefix}${module ? `${module}/` : ''}${args.path.slice(2)}`,
-          external: true,
-        };
+      const normalizedImporter = (args.importer || '').replace(/\\/g, '/');
+      if (!normalizedImporter.includes('/src/client/')) {
+        return;
       }
-      if (args.path.startsWith('../')) {
-        return {
-          path: `${basePrefix}${args.path.slice(3)}`,
-          external: true,
-        };
+
+      // Extract the path relative to /src/client/
+      // Handle cases where the path might have duplicates or be in various formats
+      const srcClientIndex = normalizedImporter.lastIndexOf('/src/client/');
+      if (srcClientIndex === -1) {
+        return;
       }
+      const importerFromClientRoot = normalizedImporter.substring(srcClientIndex + '/src/client/'.length);
+      const importerDir = path.posix.dirname(importerFromClientRoot);
+      const resolvedFromClientRoot = path.posix.normalize(path.posix.join(importerDir, args.path));
+      const result = resolveBrowserImportPath(prefix, resolvedFromClientRoot);
+
+      return {
+        path: result,
+        external: true,
+      };
     });
 
     // For client app modules we externalize bare imports; for SW builds we let esbuild bundle them.

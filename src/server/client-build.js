@@ -692,6 +692,30 @@ const buildClient = async (
             });
             fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
           }
+
+          // Auto-build guest module files when user module is processed
+          if (module === 'user') {
+            const guestModuleDir = './src/client/services/user';
+            const guestServicePath = `${guestModuleDir}/guest.service.js`;
+            if (fs.existsSync(guestServicePath)) {
+              if (!fs.existsSync(`${rootClientPath}/services/user`))
+                fs.mkdirSync(`${rootClientPath}/services/user`, { recursive: true });
+
+              const guestJsPublicPath = `${rootClientPath}/services/user/guest.service.js`;
+
+              if (!enableLiveRebuild || options.liveClientBuildPaths.find((p) => p.srcBuildPath === guestServicePath)) {
+                const guestJsSrc = await transformClientJs(guestServicePath, {
+                  dists,
+                  proxyPath: path,
+                  basePath: 'services',
+                  module: 'user',
+                  baseHost,
+                  minify: minifyBuild,
+                });
+                fs.writeFileSync(guestJsPublicPath, guestJsSrc, 'utf8');
+              }
+            }
+          }
         }
       }
 
