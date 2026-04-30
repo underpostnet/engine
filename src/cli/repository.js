@@ -826,6 +826,9 @@ class UnderpostRepository {
             let argPath = path ? path.split(',') : [];
             let deployIdSingleReplicas = [];
             let singleReplicaHosts = [];
+            const isReplicaContext = resolvedDeployId
+              ? fs.existsSync(`./engine-private/replica/${resolvedDeployId}`)
+              : false;
             const serverConf = resolvedDeployId
               ? readConfJson(resolvedDeployId, 'server', { loadReplicas: true })
               : Config.default.server;
@@ -836,7 +839,7 @@ class UnderpostRepository {
                 if (argHost.length && argPath.length && (!argHost.includes(host) || !argPath.includes(path))) {
                   delete serverConf[host][path];
                 } else {
-                  if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
+                  if (!isReplicaContext && serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
                     singleReplicaHosts.push({ host, path });
                     deployIdSingleReplicas = deployIdSingleReplicas.concat(
                       serverConf[host][path].replicas.map((replica) =>
@@ -853,7 +856,13 @@ class UnderpostRepository {
               fullBuild: options.liteBuild ? false : true,
               iconsBuild: options.iconsBuild || false,
             });
-            for (const replicaDeployId of deployIdSingleReplicas) await Underpost.repo.client(replicaDeployId);
+            for (const replicaDeployId of deployIdSingleReplicas) {
+              if (!fs.existsSync(`./engine-private/replica/${replicaDeployId}`)) {
+                logger.warn('Skip replica client build: replica folder not found', { replicaDeployId });
+                continue;
+              }
+              await Underpost.repo.client(replicaDeployId);
+            }
 
             return resolve(true);
           }
