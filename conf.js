@@ -65,9 +65,11 @@ const DefaultConf = /**/ {
           'SearchBox',
           'SocketIoHandler',
           'AppStore',
+          'ClientEvent',
+          'EventBus',
         ],
         default: [
-          'MenuDefault',
+          'AppShellDefault',
           'RoutesDefault',
           'AppStoreDefault',
           'CssDefault',
