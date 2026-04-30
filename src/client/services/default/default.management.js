@@ -346,13 +346,13 @@ class DefaultManagement {
       eGui;
       tokens;
       async init(params) {
-        DefaultManagement.eGui = document.createElement('div');
-        DefaultManagement.tokens = {};
+        this.eGui = document.createElement('div');
+        this.tokens = {};
         const { rowIndex } = params;
         const { createdAt, updatedAt } = params.data;
-        const cellRenderId = getId(DefaultManagement.tokens, `${serviceId}-`);
-        DefaultManagement.tokens[cellRenderId] = {};
-        DefaultManagement.eGui.innerHTML = html` ${await BtnIcon.instance({
+        const cellRenderId = getId(this.tokens, `${serviceId}-`);
+        this.tokens[cellRenderId] = {};
+        this.eGui.innerHTML = html` ${await BtnIcon.instance({
           label: html`<div class="abs center">
             <i class="fas fa-times"></i>
           </div> `,
@@ -404,7 +404,7 @@ class DefaultManagement {
         });
       }
       getGui() {
-        return DefaultManagement.eGui;
+        return this.eGui;
       }
       refresh(params) {
         return true;

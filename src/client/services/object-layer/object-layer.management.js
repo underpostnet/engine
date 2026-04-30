@@ -23,15 +23,15 @@ class ObjectLayerManagement {
       eGui;
 
       async init(params) {
-        ObjectLayerManagement.eGui = document.createElement('div');
+        this.eGui = document.createElement('div');
         const { data } = params;
 
         if (!data || !data._id) {
-          ObjectLayerManagement.eGui.innerHTML = '';
+          this.eGui.innerHTML = '';
           return;
         }
 
-        ObjectLayerManagement.eGui.innerHTML = html` ${await BtnIcon.instance({
+        this.eGui.innerHTML = html` ${await BtnIcon.instance({
           label: html`<div class="abs center">
             <i class="fas fa-eye"></i>
           </div> `,
@@ -39,7 +39,7 @@ class ObjectLayerManagement {
         })}`;
 
         setTimeout(() => {
-          const btn = ObjectLayerManagement.eGui.querySelector(`.btn-view-object-layer-${data._id}`);
+          const btn = this.eGui.querySelector(`.btn-view-object-layer-${data._id}`);
           if (btn)
             btn.onclick = async () =>
               setTimeout(async () => {
@@ -56,7 +56,7 @@ class ObjectLayerManagement {
       }
 
       getGui() {
-        return ObjectLayerManagement.eGui;
+        return this.eGui;
       }
 
       refresh(params) {
@@ -69,15 +69,15 @@ class ObjectLayerManagement {
       eGui;
 
       async init(params) {
-        ObjectLayerManagement.eGui = document.createElement('div');
+        this.eGui = document.createElement('div');
         const { data } = params;
 
         if (!data || !data._id) {
-          ObjectLayerManagement.eGui.innerHTML = '';
+          this.eGui.innerHTML = '';
           return;
         }
 
-        ObjectLayerManagement.eGui.innerHTML = html` ${await BtnIcon.instance({
+        this.eGui.innerHTML = html` ${await BtnIcon.instance({
           label: html`<div class="abs center">
             <i class="fas fa-edit"></i>
           </div> `,
@@ -85,7 +85,7 @@ class ObjectLayerManagement {
         })}`;
 
         setTimeout(() => {
-          const btn = ObjectLayerManagement.eGui.querySelector(`.btn-edit-object-layer-${data._id}`);
+          const btn = this.eGui.querySelector(`.btn-edit-object-layer-${data._id}`);
           if (btn)
             btn.onclick = async () =>
               setTimeout(async () => {
@@ -100,7 +100,7 @@ class ObjectLayerManagement {
       }
 
       getGui() {
-        return ObjectLayerManagement.eGui;
+        return this.eGui;
       }
 
       refresh(params) {
@@ -113,11 +113,11 @@ class ObjectLayerManagement {
       eGui;
 
       async init(params) {
-        ObjectLayerManagement.eGui = document.createElement('div');
+        this.eGui = document.createElement('div');
         const { data } = params;
 
         if (!data || !data.data || !data.data.item) {
-          ObjectLayerManagement.eGui.innerHTML = '';
+          this.eGui.innerHTML = '';
           return;
         }
 
@@ -125,7 +125,7 @@ class ObjectLayerManagement {
         const imagePath = `${getProxyPath()}assets/${type}/${id}/08/0.png`;
 
         // Container with both image and fallback
-        ObjectLayerManagement.eGui.innerHTML = html`
+        this.eGui.innerHTML = html`
           <div style="position: relative; width: 100px; height: 100px;">
             <img
               class="inl frame-08-preview"
@@ -145,7 +145,7 @@ class ObjectLayerManagement {
       }
 
       getGui() {
-        return ObjectLayerManagement.eGui;
+        return this.eGui;
       }
 
       refresh(params) {
@@ -160,15 +160,15 @@ class ObjectLayerManagement {
       eGui;
 
       async init(params) {
-        ObjectLayerManagement.eGui = document.createElement('div');
+        this.eGui = document.createElement('div');
         const { data } = params;
 
         if (!data || !data._id || !canDelete) {
-          ObjectLayerManagement.eGui.innerHTML = '';
+          this.eGui.innerHTML = '';
           return;
         }
 
-        ObjectLayerManagement.eGui.innerHTML = html` ${await BtnIcon.instance({
+        this.eGui.innerHTML = html` ${await BtnIcon.instance({
           label: html`<div class="abs center">
             <i class="fas fa-trash" style="color: #dc3545;"></i>
           </div> `,
@@ -176,7 +176,7 @@ class ObjectLayerManagement {
         })}`;
 
         setTimeout(() => {
-          const btn = ObjectLayerManagement.eGui.querySelector(`.btn-delete-object-layer-${data._id}`);
+          const btn = this.eGui.querySelector(`.btn-delete-object-layer-${data._id}`);
           if (btn)
             btn.onclick = async () => {
               const itemId = data?.data?.item?.id || data._id;
@@ -226,7 +226,7 @@ class ObjectLayerManagement {
       }
 
       getGui() {
-        return ObjectLayerManagement.eGui;
+        return this.eGui;
       }
 
       refresh(params) {
@@ -239,16 +239,16 @@ class ObjectLayerManagement {
         eGui;
 
         async init(params) {
-          ObjectLayerManagement.eGui = document.createElement('div');
+          this.eGui = document.createElement('div');
           const { data } = params;
           const cid = cidAccessor(data) || '';
 
           if (!cid) {
-            ObjectLayerManagement.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
+            this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
             return;
           }
 
-          ObjectLayerManagement.eGui.innerHTML = html`<span
+          this.eGui.innerHTML = html`<span
             title="${cid}"
             style="font-family: monospace; font-size: 11px; cursor: default; user-select: all;"
             >${cid}</span
@@ -256,7 +256,7 @@ class ObjectLayerManagement {
         }
 
         getGui() {
-          return ObjectLayerManagement.eGui;
+          return this.eGui;
         }
 
         refresh(params) {

@@ -18,13 +18,13 @@ class CyberiaMapManagement {
       tokens;
 
       async init(params) {
-        CyberiaMapManagement.eGui = document.createElement('div');
-        CyberiaMapManagement.tokens = {};
+        this.eGui = document.createElement('div');
+        this.tokens = {};
 
-        const cellRenderId = getId(CyberiaMapManagement.tokens, 'load-map-');
-        CyberiaMapManagement.tokens[cellRenderId] = {};
+        const cellRenderId = getId(this.tokens, 'load-map-');
+        this.tokens[cellRenderId] = {};
 
-        CyberiaMapManagement.eGui.innerHTML = html`${await BtnIcon.instance({
+        this.eGui.innerHTML = html`${await BtnIcon.instance({
           label: html`<div class="abs center">
             <i class="fa-solid fa-upload"></i>
           </div>`,
@@ -58,7 +58,7 @@ class CyberiaMapManagement {
       }
 
       getGui() {
-        return CyberiaMapManagement.eGui;
+        return this.eGui;
       }
 
       refresh(params) {
@@ -70,29 +70,29 @@ class CyberiaMapManagement {
       eGui;
 
       async init(params) {
-        CyberiaMapManagement.eGui = document.createElement('div');
+        this.eGui = document.createElement('div');
         const { data } = params;
 
         if (!data || !data.thumbnail) {
-          CyberiaMapManagement.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
+          this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
           return;
         }
 
         const thumbnailId = typeof data.thumbnail === 'object' ? data.thumbnail._id : data.thumbnail;
         if (!thumbnailId) {
-          CyberiaMapManagement.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
+          this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
           return;
         }
 
         const imageSrc = getApiBaseUrl({ id: thumbnailId, endpoint: 'file/blob' });
 
-        CyberiaMapManagement.eGui.innerHTML = html`
+        this.eGui.innerHTML = html`
           <div style="position: relative; width: 60px; height: 60px;">
             <img
               src="${imageSrc}"
               style="width: 60px; height: 60px; object-fit: cover; display: block; border: 1px solid #555;"
-              onload="CyberiaMapManagement.style.display='block'; CyberiaMapManagement.nextElementSibling.style.display='none';"
-              onerror="CyberiaMapManagement.style.display='none'; CyberiaMapManagement.nextElementSibling.style.display='flex';"
+              onload="this.style.display='block'; this.nextElementSibling.style.display='none';"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
             />
             <div
               style="position: absolute; top: 0; left: 0; width: 60px; height: 60px; display: none; align-items: center; justify-content: center;"
@@ -104,7 +104,7 @@ class CyberiaMapManagement {
       }
 
       getGui() {
-        return CyberiaMapManagement.eGui;
+        return this.eGui;
       }
 
       refresh(params) {
