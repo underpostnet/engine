@@ -17,7 +17,7 @@ const logger = loggerFactory(import.meta, { trace: true });
  * @description Holds event listeners for router changes.
  * @memberof PwaRouter
  */
-class RouterEvents {}
+const RouterEvents = {};
 
 /**
  * @type {Object.<string, function>}\n

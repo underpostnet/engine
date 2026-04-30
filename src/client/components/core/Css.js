@@ -169,12 +169,12 @@ const renderDefaultWindowsModalButtonContent = (options) => {
   return { barConfig: barConfigInstance };
 };
 let darkTheme = true;
-class ThemeEvents {}
+const ThemeEvents = {};
 const TriggerThemeEvents = () => {
   localStorage.setItem('_theme', Css.currentTheme);
   Object.keys(ThemeEvents).map((keyEvent) => ThemeEvents[keyEvent]());
 };
-class Themes {}
+const Themes = {};
 const addTheme = (options) => {
   ThemesScope.push(options);
   Themes[options.theme] = async (barOptions) => {

@@ -9,9 +9,9 @@ import { hashPassword } from './auth.js';
 import { loggerFactory } from './logger.js';
 const logger = loggerFactory(import.meta);
 // Per-instance registries keyed by `${host}${path}`
-class ValkeyInstances {}
-class DummyStores {} // in-memory Maps per instance
-class ValkeyStatus {} // 'connected' | 'dummy' | 'error' | undefined
+const ValkeyInstances = {};
+const DummyStores = {}; // in-memory Maps per instance
+const ValkeyStatus = {}; // 'connected' | 'dummy' | 'error' | undefined
 /**
  * Checks if any Valkey instance is connected.
  * This is a backward-compatible overall flag.
