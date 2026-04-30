@@ -235,6 +235,68 @@ class PwaWorker {
     });
   }
 
+  async clearAllCaches() {
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+    return cacheNames.length;
+  }
+
+  async clearWorkboxIndexedDb() {
+    if (!('indexedDB' in window) || typeof indexedDB.databases !== 'function') return 0;
+    const databases = await indexedDB.databases();
+    const workboxDatabases = databases
+      .map((database) => database.name)
+      .filter(
+        (name) =>
+          typeof name === 'string' &&
+          (name.toLowerCase().includes('workbox') ||
+            name.toLowerCase().includes('background-sync') ||
+            name.includes('api-mutation-queue')),
+      );
+
+    await Promise.all(
+      workboxDatabases.map(
+        (name) =>
+          new Promise((resolve) => {
+            const request = indexedDB.deleteDatabase(name);
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => resolve(false);
+            request.onblocked = () => resolve(false);
+          }),
+      ),
+    );
+
+    return workboxDatabases.length;
+  }
+
+  async requestWorkboxReset() {
+    if (!(navigator.serviceWorker && navigator.serviceWorker.controller)) return false;
+
+    return new Promise((resolve) => {
+      const channel = new MessageChannel();
+      const timeoutId = setTimeout(() => resolve(false), 1500);
+
+      channel.port1.onmessage = (event) => {
+        clearTimeout(timeoutId);
+        resolve(event.data?.status === 'workbox-reset-done');
+      };
+
+      navigator.serviceWorker.controller.postMessage({ status: 'workbox-reset' }, [channel.port2]);
+    });
+  }
+
+  async resetWorkboxAndRestart() {
+    localStorage.clear();
+    sessionStorage.clear();
+
+    await this.requestWorkboxReset();
+    await this.uninstall();
+    await this.clearAllCaches();
+    await this.clearWorkboxIndexedDb();
+    await this.install();
+    await this.reload(600);
+  }
+
   /**
    * Updates the application by clearing specific caches and running the service worker update logic.
    * Cache names matching 'components/', 'services/', or '.index.js' are deleted.
@@ -395,10 +457,8 @@ class PwaWorker {
       // Event listener for the clean cache button
       EventsUI.onClick(`.btn-clean-cache`, async (e) => {
         e.preventDefault();
-        // Clear local storage, uninstall the worker, and reload
-        localStorage.clear();
-        await this.uninstall();
-        await this.reload();
+        // Full reset: workbox runtime state + SW registrations + client storage.
+        await this.resetWorkboxAndRestart();
       });
     });
     return html` <div class="in">

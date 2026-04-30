@@ -33,6 +33,27 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  const payload = event.data || {};
+
+  if (payload.status === 'skipWaiting') {
+    self.skipWaiting();
+    return;
+  }
+
+  if (payload.status === 'workbox-reset') {
+    event.waitUntil(
+      (async () => {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+        if (event.ports && event.ports[0]) {
+          event.ports[0].postMessage({ status: 'workbox-reset-done', deleted: cacheNames.length });
+        }
+      })(),
+    );
+  }
+});
+
 // ─── Precaching ───────────────────────────────────────────────────────────────
 precacheAndRoute(PRE_CACHED_RESOURCES.map((url) => ({ url, revision: null })));
 cleanupOutdatedCaches();
