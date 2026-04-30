@@ -10,9 +10,9 @@ class LoadingAnimation {
     tokens: {},
     getId: (id) => `bar-progress-${id.slice(1)}`,
     play: async function (container) {
-      const id = LoadingAnimation.getId(container);
+      const id = LoadingAnimation.bar.getId(container);
       const idEvent = s4() + s4() + s4();
-      LoadingAnimation.tokens[container] = `${idEvent}`;
+      LoadingAnimation.bar.tokens[container] = `${idEvent}`;
       // diagonal-bar-background-animation
       // #6d68ff #790079
       append(
@@ -37,15 +37,15 @@ class LoadingAnimation {
         { time: 5000, value: 1 },
       ])
         setTimeout(() => {
-          if (LoadingAnimation.tokens[container] === idEvent && s(`.${id}`)) {
+          if (LoadingAnimation.bar.tokens[container] === idEvent && s(`.${id}`)) {
             s(`.${id}`).style.left = `-${frame.value}%`;
             // const percentageRender = html`${100 - frame.value}%`;
           }
         }, frame.time);
     },
     stop: function (container) {
-      const id = LoadingAnimation.getId(container);
-      delete LoadingAnimation.tokens[container];
+      const id = LoadingAnimation.bar.getId(container);
+      delete LoadingAnimation.bar.tokens[container];
       if (!s(`.${id}`)) return;
       s(`.${id}`).style.left = '0%';
       s(`.${id}`).style.opacity = 1;
@@ -57,7 +57,7 @@ class LoadingAnimation {
     getId: (id) => `spinner-progress-${id.slice(1)}`,
     play: async function (container, spinner, options = { append: '', prepend: '' }) {
       if (!s(container)) return;
-      const id = LoadingAnimation.getId(container);
+      const id = LoadingAnimation.spinner.getId(container);
       let render;
       switch (spinner) {
         case 'dual-ring':
@@ -88,7 +88,7 @@ class LoadingAnimation {
       if (label) label.classList.add('hide');
     },
     stop: function (container) {
-      const id = LoadingAnimation.getId(container);
+      const id = LoadingAnimation.spinner.getId(container);
       if (!s(`.${id}`)) return;
       s(`.${id}`).remove();
       const label = BtnIcon.findLabel(s(container));
