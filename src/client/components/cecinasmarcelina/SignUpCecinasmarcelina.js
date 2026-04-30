@@ -1,9 +1,11 @@
 import { SignUp } from '../core/SignUp.js';
 
-const SignUpCecinasmarcelina = function () {
-  SignUp.Event['SignUpCecinasmarcelina'] = async (options) => {
+class SignUpCecinasmarcelina {
+  static instance() {
+  SignUp.onSignup(async (options) => {
     const { user } = options;
-  };
-};
+  }, { key: 'SignUpCecinasmarcelina' });
+  }
+}
 
 export { SignUpCecinasmarcelina };

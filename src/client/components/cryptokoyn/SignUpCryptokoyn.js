@@ -1,9 +1,11 @@
 import { SignUp } from '../core/SignUp.js';
 
-const SignUpCryptokoyn = function () {
-  SignUp.Event['SignUpCryptokoyn'] = async (options) => {
+class SignUpCryptokoyn {
+  static instance() {
+  SignUp.onSignup(async (options) => {
     const { user } = options;
-  };
-};
+  }, { key: 'SignUpCryptokoyn' });
+  }
+}
 
 export { SignUpCryptokoyn };

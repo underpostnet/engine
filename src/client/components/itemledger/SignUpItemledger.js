@@ -1,9 +1,11 @@
 import { SignUp } from '../core/SignUp.js';
 
-const SignUpItemledger = function () {
-  SignUp.Event['SignUpItemledger'] = async (options) => {
+class SignUpItemledger {
+  static instance() {
+  SignUp.onSignup(async (options) => {
     const { user } = options;
-  };
-};
+  }, { key: 'SignUpItemledger' });
+  }
+}
 
 export { SignUpItemledger };

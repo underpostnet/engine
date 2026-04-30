@@ -1,5 +1,6 @@
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
+import { AuthEventType, authLogoutEvents } from './ClientEvents.js';
 import { LogIn } from './LogIn.js';
 import { Translate } from './Translate.js';
 import { htmls, s } from './VanillaJs.js';
@@ -7,8 +8,18 @@ import { WebhookProvider } from './Webhook.js';
 import { NotificationManager } from './NotificationManager.js';
 class LogOut {
   static Event = {};
+  static onLogout(listener, options = {}) {
+    return authLogoutEvents.on(AuthEventType.logout, listener, options);
+  }
+  static offLogout(key) {
+    return authLogoutEvents.off(key);
+  }
+  static hasLogoutListener(key) {
+    return authLogoutEvents.has(key);
+  }
   static async Trigger(options) {
     await WebhookProvider.unregister();
+    await authLogoutEvents.emit(AuthEventType.logout, options);
     for (const eventKey of Object.keys(LogOut.Event)) await LogOut.Event[eventKey](options);
     if (s(`.session`))
       htmls(

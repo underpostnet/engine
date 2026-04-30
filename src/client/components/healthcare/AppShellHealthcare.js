@@ -548,8 +548,8 @@ class AppShellHealthcare {
         html: async () => {
           setTimeout(() => {
             Modal.Data['modal-calendar'].onCloseListener['TopRefreshEvent'] = () => {
-              delete LogIn.Event['model-appointment-calendar'];
-              delete LogOut.Event['model-appointment-calendar'];
+              LogIn.offLogin('model-appointment-calendar');
+              LogOut.offLogout('model-appointment-calendar');
             };
             const authSwitch = () => {
               if (!s(`.btn-calendar-panel-${idModal}-add`)) return;
@@ -559,8 +559,8 @@ class AppShellHealthcare {
                 s(`.btn-calendar-panel-${idModal}-add`).classList.add('hide');
               }
             };
-            LogIn.Event['model-appointment-calendar'] = authSwitch;
-            LogOut.Event['model-appointment-calendar'] = authSwitch;
+            LogIn.onLogin(authSwitch, { key: 'model-appointment-calendar' });
+            LogOut.onLogout(authSwitch, { key: 'model-appointment-calendar' });
             setTimeout(() => {
               if (s(`.main-body-btn-ui-open`).classList.contains('hide')) s(`.main-body-btn-ui`).click();
 

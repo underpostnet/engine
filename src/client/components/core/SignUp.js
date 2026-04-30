@@ -1,6 +1,7 @@
 import { UserService } from '../../services/user/user.service.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
+import { AuthEventType, authSignupEvents } from './ClientEvents.js';
 import { EventsUI } from './EventsUI.js';
 import { Input } from './Input.js';
 import { NotificationManager } from './NotificationManager.js';
@@ -9,7 +10,17 @@ import { Validator } from './Validator.js';
 import { s } from './VanillaJs.js';
 class SignUp {
   static Event = {};
+  static onSignup(listener, options = {}) {
+    return authSignupEvents.on(AuthEventType.signup, listener, options);
+  }
+  static offSignup(key) {
+    return authSignupEvents.off(key);
+  }
+  static hasSignupListener(key) {
+    return authSignupEvents.has(key);
+  }
   static async Trigger(options) {
+    await authSignupEvents.emit(AuthEventType.signup, options);
     for (const eventKey of Object.keys(SignUp.Event)) await SignUp.Event[eventKey](options);
   }
   static async instance(options = { bottomRender: async () => '' }) {

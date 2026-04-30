@@ -7,6 +7,7 @@ import { EventsUI } from './EventsUI.js';
 import { Input } from './Input.js';
 import { loggerFactory } from './Logger.js';
 import { NotificationManager } from './NotificationManager.js';
+import { AuthEventType, authLoginEvents } from './ClientEvents.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { htmls, s } from './VanillaJs.js';
@@ -23,9 +24,19 @@ class LogIn {
     },
   };
   static Event = {};
+  static onLogin(listener, options = {}) {
+    return authLoginEvents.on(AuthEventType.login, listener, options);
+  }
+  static offLogin(key) {
+    return authLoginEvents.off(key);
+  }
+  static hasLoginListener(key) {
+    return authLoginEvents.has(key);
+  }
   static async Trigger(options) {
     const { user } = options;
     if (user) LogIn.Scope.user.main.model.user = { ...LogIn.Scope.user.main.model.user, ...user };
+    await authLoginEvents.emit(AuthEventType.login, options);
     for (const eventKey of Object.keys(LogIn.Event)) await LogIn.Event[eventKey](options);
     if (!user || user.role === 'guest') return;
     await WebhookProvider.register({ user });

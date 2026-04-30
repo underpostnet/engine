@@ -1,9 +1,11 @@
 import { SignUp } from '../core/SignUp.js';
 
-const SignUpNexodev = function () {
-  SignUp.Event['SignUpNexodev'] = async (options) => {
+class SignUpNexodev {
+  static instance() {
+  SignUp.onSignup(async (options) => {
     const { user } = options;
-  };
-};
+  }, { key: 'SignUpNexodev' });
+  }
+}
 
 export { SignUpNexodev };

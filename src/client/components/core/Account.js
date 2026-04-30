@@ -19,9 +19,9 @@ import { loggerFactory } from './Logger.js';
 
 const logger = loggerFactory(import.meta);
 
-const Account = {
-  UpdateEvent: {},
-  instance: async function (options = { user: {}, bottomRender: async () => '', idModal: '' }) {
+class Account {
+  static UpdateEvent = {};
+  static async instance(options = { user: {}, bottomRender: async () => '', idModal: '' }) {
     // app profile page design example
     // CSS animated backgrounds
     let { user, idModal } = options;
@@ -544,13 +544,13 @@ const Account = {
         })}
       </div>
     `;
-  },
-  triggerUpdateEvent: async function (options = { user: {} }) {
+  }
+  static async triggerUpdateEvent(options = { user: {} }) {
     for (const updateEvent of Object.keys(this.UpdateEvent)) {
       await this.UpdateEvent[updateEvent](options);
     }
-  },
-  renderVerifyEmailStatus: function (user) {
+  }
+  static renderVerifyEmailStatus(user) {
     if (s('.verify-email-status')) {
       if (s(`.btn-confirm-email`)) {
         if (user.emailConfirmed) s(`.btn-confirm-email`).classList.add('hide');
@@ -563,9 +563,9 @@ const Account = {
       );
       if (user.emailConfirmed === true) s(`.account-email`).setAttribute('disabled', '');
     }
-  },
-  instanceModalUiEvents: async (user) => null,
-  updateForm: async function (user) {
+  }
+  static instanceModalUiEvents = async (user) => null;
+  static async updateForm(user) {
     if (!s(`.modal-account`)) return;
 
     // Always sync the current user data into LogIn.Scope, preserving profileImage if it exists
@@ -611,7 +611,7 @@ const Account = {
         ToggleSwitch.Tokens['account-public-profile'].click();
       }
     }
-  },
-};
+  }
+}
 
 export { Account };

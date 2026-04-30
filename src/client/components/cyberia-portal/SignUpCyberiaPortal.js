@@ -1,11 +1,13 @@
 // import { createCyberiaUser } from '../../services/cyberia-user/cyberia-user.service.js';
 import { SignUp } from '../core/SignUp.js';
 
-const SignUpCyberiaPortal = function () {
-  SignUp.Event['SignUpCyberiaPortal'] = async (options) => {
+class SignUpCyberiaPortal {
+  static instance() {
+  SignUp.onSignup(async (options) => {
     const { user } = options;
     // await createCyberiaUser({ user });
-  };
-};
+  }, { key: 'SignUpCyberiaPortal' });
+  }
+}
 
 export { SignUpCyberiaPortal };

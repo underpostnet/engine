@@ -76,6 +76,21 @@ class PwaWorker {
     return window.renderPayload.dev || location.origin.match('localhost') || location.origin.match('127.0.0.1');
   }
 
+  async runComponentInit(component, options) {
+    if (!component) return;
+    if (Array.isArray(component)) {
+      for (const item of component) await this.runComponentInit(item, options);
+      return;
+    }
+    if (typeof component.instance === 'function') {
+      await component.instance(options);
+      return;
+    }
+    if (typeof component === 'function') {
+      await component(options);
+    }
+  }
+
   /**
    * Bootstraps the app with a declarative options object.
    * Shared core inits (Css, TranslateCore, Responsive, SocketIo, Keyboard) run
@@ -151,28 +166,25 @@ class PwaWorker {
     if (typeof render !== 'function' || render.instance) {
       // shared core inits
       if (themes) await Css.loadThemes(themes);
-      await TranslateCore.instance();
-      // app-specific translate(s)
-      if (translate) {
-        const translates = Array.isArray(translate) ? translate : [translate];
-        for (const t of translates) await t.instance();
-      }
-      await Responsive.instance();
+      await this.runComponentInit(TranslateCore);
+      await this.runComponentInit(translate);
+      await this.runComponentInit(Responsive);
       // app shell render
       if (render && typeof render.instance === 'function') {
         const htmlMainBody = typeof template === 'function' ? template : undefined;
-        await render.instance(htmlMainBody ? { htmlMainBody } : undefined);
+        await this.runComponentInit(render, htmlMainBody ? { htmlMainBody } : undefined);
       }
       // socket init
       const channels = appStore ? appStore.Data : (session && session.socket && session.socket.Data) || undefined;
-      await SocketIo.instance({ channels, path: socketPath });
+      await this.runComponentInit(SocketIo, { channels, path: socketPath });
       if (session) {
-        if (session.socket && typeof session.socket.instance === 'function') await session.socket.instance();
-        if (typeof session.login === 'function') await session.login();
-        if (typeof session.signout === 'function') await session.signout();
-        if (typeof session.signup === 'function') await session.signup();
+        await this.runComponentInit(session.socket);
+        await this.runComponentInit(session.login);
+        await this.runComponentInit(session.logout || session.signout);
+        await this.runComponentInit(session.signup);
+        await this.runComponentInit(session.account);
       }
-      await Keyboard.instance();
+      await this.runComponentInit(Keyboard);
     } else {
       // ── legacy raw render callback (backward-compat) ─────────────────────
       await render();
