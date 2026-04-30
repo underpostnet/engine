@@ -65,7 +65,7 @@ const DefaultConf = /**/ {
           'SearchBox',
           'SocketIoHandler',
           'AppStore',
-          'ClientEvent',
+          'ClientEvents',
           'EventBus',
         ],
         default: [
