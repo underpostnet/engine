@@ -969,93 +969,18 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
       if (client) {
         let PRE_CACHED_RESOURCES = [];
 
-        if (fs.existsSync(`${rootClientPath}/sw.js`)) {
-          const precacheExtAllowList = new Set([
-            '.html',
-            '.js',
-            '.json',
-            '.xml',
-            '.txt',
-            '.webmanifest',
-            '.ico',
-            '.png',
-            '.svg',
-          ]);
-          const ssrClientConf = confSSR[getCapVariableName(client)] || {};
-          const prioritizedRoutePaths = new Set();
+        const normalizePrecacheRoutePath = (candidatePath) => {
+          const routePath =
+            typeof candidatePath === 'string' && candidatePath.trim().length > 0 ? candidatePath.trim() : '/offline';
+          const withLeadingSlash = routePath.startsWith('/') ? routePath : `/${routePath}`;
+          const withoutTrailingSlash = withLeadingSlash.replace(/\/+$/, '');
+          return withoutTrailingSlash.length > 0 ? withoutTrailingSlash : '/';
+        };
 
-          for (const pageType of ['offline', 'pages']) {
-            if (Array.isArray(ssrClientConf[pageType])) {
-              for (const page of ssrClientConf[pageType]) {
-                if (page && page.path) prioritizedRoutePaths.add(page.path);
-              }
-            }
-          }
-
-          if (Array.isArray(ssrClientConf.body)) {
-            for (const ssrBodyComponent of ssrClientConf.body) {
-              if (typeof ssrBodyComponent === 'string' && /^\d{3}$/.test(ssrBodyComponent)) {
-                prioritizedRoutePaths.add(`/${ssrBodyComponent}`);
-              }
-            }
-          }
-
-          const prioritizedRouteBaseNames = new Set(
-            [...prioritizedRoutePaths]
-              .map((routePath) => routePath.replace(/^\//, '').replace(/\/$/, ''))
-              .filter((routePath) => routePath.length > 0),
-          );
-
-          const isPrecacheCriticalPath = (resourcePath) => {
-            if (resourcePath.startsWith('/dist/')) return false;
-            if (resourcePath.startsWith('/styles/')) return false;
-            if (resourcePath.startsWith('/components/')) return false;
-            if (resourcePath.startsWith('/services/')) return false;
-
-            if (
-              resourcePath === '/sw.js' ||
-              resourcePath === '/index.html' ||
-              resourcePath === '/default.index.js' ||
-              resourcePath === '/site.webmanifest' ||
-              resourcePath === '/browserconfig.xml' ||
-              resourcePath === '/robots.txt' ||
-              resourcePath === '/sitemap.xml' ||
-              resourcePath === '/sitemap' ||
-              resourcePath === '/yandex-browser-manifest.json' ||
-              /^\/favicon(?:-\d+x\d+)?\.png$/i.test(resourcePath) ||
-              resourcePath === '/favicon.ico' ||
-              /^\/android-chrome-\d+x\d+\.png$/i.test(resourcePath) ||
-              /^\/apple-touch-icon(?:-\d+x\d+)?(?:-precomposed)?\.png$/i.test(resourcePath) ||
-              /^\/mstile-\d+x\d+\.png$/i.test(resourcePath) ||
-              resourcePath === '/safari-pinned-tab.svg'
-            ) {
-              return true;
-            }
-
-            const routeAssetMatch = resourcePath.match(
-              /^\/([^/]+)\/(index\.html|default\.index\.js|site\.webmanifest|browserconfig\.xml)$/i,
-            );
-            return Boolean(routeAssetMatch && prioritizedRouteBaseNames.has(routeAssetMatch[1]));
-          };
-
-          const staticClientFiles = (await fs.readdir(rootClientPath, { recursive: true }))
-            .map((relativePath) => `/${String(relativePath).replaceAll('\\', '/')}`)
-            .filter((resourcePath) => {
-              if (resourcePath[1] === '.') return false;
-              if (resourcePath.startsWith('/src/') || resourcePath.includes('/src/')) return false;
-              if (resourcePath.startsWith('/node_modules/') || resourcePath.includes('/node_modules/')) return false;
-              if (resourcePath.endsWith('.map')) return false;
-              if (!isPrecacheCriticalPath(resourcePath)) return false;
-
-              const parsedExt = dir.extname(resourcePath).toLowerCase();
-              if (parsedExt && !precacheExtAllowList.has(parsedExt)) return false;
-
-              const absolutePath = dir.join(rootClientPath, resourcePath.slice(1));
-              return fs.existsSync(absolutePath) && !fs.statSync(absolutePath).isDirectory();
-            });
-
-          PRE_CACHED_RESOURCES = staticClientFiles;
-        }
+        const toPrecacheIndexUrl = (routePath) => {
+          const normalizedRoutePath = normalizePrecacheRoutePath(routePath);
+          return `${path === '/' ? '' : path}${normalizedRoutePath === '/' ? '' : normalizedRoutePath}/index.html`;
+        };
 
         for (const pageType of ['offline', 'pages']) {
           if (confSSR[getCapVariableName(client)] && confSSR[getCapVariableName(client)][pageType]) {
@@ -1083,7 +1008,11 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
                 rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
               }${page.path === '/' ? page.path : `${page.path}/`}`;
 
-              PRE_CACHED_RESOURCES.push(`${path === '/' ? '' : path}${page.path === '/' ? '' : page.path}/index.html`);
+              // Install-time precache is intentionally restricted to SSR offline pages.
+              // All other routes/assets are loaded lazily at runtime.
+              if (pageType === 'offline') {
+                PRE_CACHED_RESOURCES.push(toPrecacheIndexUrl(page.path));
+              }
 
               if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
 
@@ -1110,10 +1039,41 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
 
         {
           const cacheScope = path === '/' ? 'root' : path.replaceAll('/', '_');
+          const ssrClientConf = confSSR[getCapVariableName(client)] || {};
+          const ssrOfflinePages = Array.isArray(ssrClientConf.offline) ? ssrClientConf.offline : [];
+          const normalizeSsrRoutePath = (candidatePath, fallbackPath) => {
+            const value =
+              typeof candidatePath === 'string' && candidatePath.trim().length > 0
+                ? candidatePath.trim()
+                : fallbackPath;
+            const withLeadingSlash = value.startsWith('/') ? value : `/${value}`;
+            const withoutTrailingSlash = withLeadingSlash.replace(/\/+$/, '');
+            return withoutTrailingSlash.length > 0 ? withoutTrailingSlash : '/';
+          };
+
+          const offlineSsrPage =
+            ssrOfflinePages.find(
+              (page) =>
+                page?.client === 'NoNetworkConnection' ||
+                /no\s*network|offline/i.test(`${page?.title || ''} ${page?.client || ''} ${page?.path || ''}`),
+            ) || ssrOfflinePages[0];
+
+          const maintenanceSsrPage =
+            ssrOfflinePages.find(
+              (page) =>
+                page?.client === 'Maintenance' ||
+                /maintenance/i.test(`${page?.title || ''} ${page?.client || ''} ${page?.path || ''}`),
+            ) || ssrOfflinePages[1];
+
+          const offlinePath = normalizeSsrRoutePath(offlineSsrPage?.path, '/offline');
+          const maintenancePath = normalizeSsrRoutePath(maintenanceSsrPage?.path, '/maintenance');
+
           const renderPayload = {
             PRE_CACHED_RESOURCES: uniqueArray(PRE_CACHED_RESOURCES),
             PROXY_PATH: path,
             CACHE_PREFIX: `engine-core-v3-${cacheScope}`,
+            OFFLINE_PATH: offlinePath,
+            MAINTENANCE_PATH: maintenancePath,
           };
           fs.writeFileSync(
             `${rootClientPath}/sw.js`,
