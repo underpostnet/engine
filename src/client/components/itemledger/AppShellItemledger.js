@@ -10,23 +10,21 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
-import { AppStoreBymyelectrics } from './AppStoreBymyelectrics.js';
+import { AppStoreItemledger } from './AppStoreItemledger.js';
 import Sortable from 'sortablejs';
-import { RouterBymyelectrics, BannerAppTemplate } from './RoutesBymyelectrics.js';
-import { SettingsBymyelectrics } from './SettingsBymyelectrics.js';
+import { RouterItemledger, BannerAppTemplate } from './RoutesItemledger.js';
+import { SettingsItemledger } from './SettingsItemledger.js';
 import { Badge } from '../core/Badge.js';
 import { Docs } from '../core/Docs.js';
 import { Recover } from '../core/Recover.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
-import { Page500 } from '../core/500.js';
-import { Page404 } from '../core/404.js';
 
-const MenuBymyelectrics = {
-  Data: {},
-  Render: async function (options = { htmlMainBody: () => html`` }) {
-    const id = getId(this.Data, 'menu-');
-    this.Data[id] = {};
-    const RouterInstance = RouterBymyelectrics();
+class AppShellItemledger {
+  static Data = {};
+  static async Render (options = { htmlMainBody: () => html`` }) {
+    const id = getId(AppShellItemledger.Data, 'menu-');
+    AppShellItemledger.Data[id] = {};
+    const RouterInstance = RouterItemledger();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 
@@ -40,7 +38,7 @@ const MenuBymyelectrics = {
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-home"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/home.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
             }),
             // style: 'display: none',
@@ -50,10 +48,10 @@ const MenuBymyelectrics = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-log-in hide',
+            class: 'in wfa main-btn-menu main-btn-log-in',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-in-alt"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
             }),
             attrs: `data-id="log-in"`,
@@ -62,10 +60,10 @@ const MenuBymyelectrics = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-sign-up hide',
+            class: 'in wfa main-btn-menu main-btn-sign-up',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-plus"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
             }),
             attrs: `data-id="sign-up"`,
@@ -77,7 +75,7 @@ const MenuBymyelectrics = {
             class: 'in wfa main-btn-menu main-btn-log-out',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-out-alt"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
             }),
             attrs: `data-id="log-out"`,
@@ -90,7 +88,7 @@ const MenuBymyelectrics = {
             class: 'in wfa main-btn-menu main-btn-account',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-circle"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/account.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
             }),
             style: 'display: none',
@@ -103,7 +101,7 @@ const MenuBymyelectrics = {
             class: 'in wfa main-btn-menu main-btn-settings',
             useMenuBtn: true,
             label: renderMenuLabel({
-              icon: html`<i class="fas fa-sliders-h"></i>`,
+              icon: html`<img class="inl itemledger-menu-icon" src="${getProxyPath()}assets/ui-icons/settings.png" />`,
               text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
             }),
             attrs: `data-id="settings"`,
@@ -135,85 +133,15 @@ const MenuBymyelectrics = {
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
           })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-default-management hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('default-management')}</span>`,
-            }),
-            attrs: `data-id="default-management"`,
-            tabHref: `${getProxyPath()}default-management`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('default-management')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-404 hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-triangle-exclamation"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('404')}</span>`,
-            }),
-            attrs: `data-id="404"`,
-            tabHref: `${getProxyPath()}404`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('404')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-500 hide',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-circle-exclamation"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('500')}</span>`,
-            }),
-            attrs: `data-id="500"`,
-            tabHref: `${getProxyPath()}500`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('500')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-dossier',
-            useMenuBtn: true,
-            label: renderMenuLabel({
-              icon: html`<i class="fa-regular fa-file-lines"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('dossier')}</span>`,
-            }),
-            attrs: `data-id="dossier"`,
-            tabHref: `${getProxyPath()}docs/Dossier-By-My-Electrics-2025.pdf`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('dossier')),
-          })}
         </div>
       `,
       barConfig: newInstance(barConfig),
-      slideMenuTopBarBannerFix: async () => {
-        return html` <style>
-            .bme-bar-logo {
-              height: 150px;
-              padding-left: 20px;
-              top: -25px;
-            }
-            .slide-menu-top-bar-fix {
-              overflow: hidden;
-            }
-          </style>
-
-          <div class="fl">
-            <img
-              class="in fll bme-bar-logo ${!darkTheme ? '' : 'negative-color'}"
-              src="${getProxyPath()}assets/social.png"
-            />
-          </div>`;
-      },
       title: BannerAppTemplate,
       // titleClass: 'hide',
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {
-          const srcLogo = `${getProxyPath()}android-chrome-192x192.png`;
-          htmls(
-            '.action-btn-app-icon-render',
-            html`<img class="inl top-bar-app-icon ${!darkTheme ? '' : 'negative-color'}" src="${srcLogo}" />`,
-          );
+          const srcLogo = `${getProxyPath()}assets/ui-icons/itemledger.png`;
+          htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
         };
         setTimeout(ThemeEvents['titleRender']);
         return '';
@@ -221,9 +149,10 @@ const MenuBymyelectrics = {
       mode: 'slide-menu',
       RouterInstance,
       htmlMainBody: options?.htmlMainBody ? options.htmlMainBody : undefined,
+      searchCustomImgClass: 'itemledger-menu-icon',
     });
 
-    this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
+    AppShellItemledger.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
       group: `menu-sortable`,
       forceFallback: true,
@@ -279,8 +208,8 @@ const MenuBymyelectrics = {
         route: 'sign-up',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-user-plus"></i>`,
-          text: Translate.Render('sign-up'),
+          icon: html`<img class="inl itemledger-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.Render('sign-up')}</span>`,
         }),
         html: async () => await SignUp.Render({ idModal: 'modal-sign-up' }),
         handleType: 'bar',
@@ -298,8 +227,8 @@ const MenuBymyelectrics = {
         route: 'log-out',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-sign-out-alt"></i>`,
-          text: Translate.Render('log-out'),
+          icon: html`<img class="inl itemledger-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.Render('log-out')}</span>`,
         }),
         html: async () => await LogOut.Render(),
         handleType: 'bar',
@@ -317,8 +246,8 @@ const MenuBymyelectrics = {
         route: 'log-in',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-sign-in-alt"></i>`,
-          text: Translate.Render('log-in'),
+          icon: html`<img class="inl itemledger-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.Render('log-in')}</span>`,
         }),
         html: async () => await LogIn.Render(),
         handleType: 'bar',
@@ -336,13 +265,13 @@ const MenuBymyelectrics = {
         route: 'account',
         barConfig,
         title: renderViewTitle({
-          icon: html`<i class="fas fa-user-circle"></i>`,
-          text: Translate.Render('account'),
+          icon: html`<img class="inl itemledger-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/account.png" />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.Render('account')}</span>`,
         }),
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: AppStoreBymyelectrics.Data.user.main.model.user,
+            user: AppStoreItemledger.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -360,10 +289,13 @@ const MenuBymyelectrics = {
         route: 'settings',
         barConfig,
         title: renderViewTitle({
-          icon: html` <i class="fas fa-sliders-h"></i>`,
-          text: Translate.Render('settings'),
+          icon: html`<img
+            class="inl itemledger-menu-icon-modal"
+            src="${getProxyPath()}assets/ui-icons/settings.png"
+          />`,
+          text: `<span class='inl itemledger-text-title-modal'>${Translate.Render('settings')}</span>`,
         }),
-        html: async () => await SettingsBymyelectrics.Render({ idModal: 'modal-settings' }),
+        html: async () => await SettingsItemledger.Render({ idModal: 'modal-settings' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -407,7 +339,7 @@ const MenuBymyelectrics = {
           text: Translate.Render('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: AppStoreBymyelectrics.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreItemledger.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -415,70 +347,7 @@ const MenuBymyelectrics = {
         RouterInstance,
       });
     });
+  }
+}
 
-    EventsUI.onClick(`.main-btn-default-management`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-default-management',
-        route: 'default-management',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-          text: Translate.Render('default-management'),
-        }),
-        html: async () => await DefaultManagement.RenderTable(),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-404`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-404',
-        route: '404',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-triangle-exclamation"></i>`,
-          text: Translate.Render('404'),
-        }),
-        html: async () => await Page404.Render({ idModal: 'modal-404' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        observer: true,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-500`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-500',
-        route: '500',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-circle-exclamation"></i>`,
-          text: Translate.Render('500'),
-        }),
-        html: async () => await Page500.Render({ idModal: 'modal-500' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        observer: true,
-      });
-    });
-    EventsUI.onClick(`.main-btn-dossier`, async () => {
-      location.href = `${getProxyPath()}docs/Dossier-By-My-Electrics-2025.pdf`;
-    });
-  },
-};
-
-export { MenuBymyelectrics };
+export { AppShellItemledger };

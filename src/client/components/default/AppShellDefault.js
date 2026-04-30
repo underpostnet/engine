@@ -10,24 +10,25 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { extractUsernameFromPath, getProxyPath, getQueryParams } from '../core/Router.js';
-import { AppStoreCecinasmarcelina } from './AppStoreCecinasmarcelina.js';
+import { AppStoreDefault } from './AppStoreDefault.js';
 import Sortable from 'sortablejs';
-import { RouterCecinasmarcelina, BannerAppTemplate } from './RoutesCecinasmarcelina.js';
-import { SettingsCecinasmarcelina } from './SettingsCecinasmarcelina.js';
+import { RouterDefault, BannerAppTemplate } from './RoutesDefault.js';
+import { SettingsDefault } from './SettingsDefault.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
+import { DefaultManagement } from '../../services/default/default.management.js';
 import { Page500 } from '../core/500.js';
 import { Page404 } from '../core/404.js';
 import { PanelForm } from '../core/PanelForm.js';
 import { Chat } from '../core/Chat.js';
 import { PublicProfile } from '../core/PublicProfile.js';
 
-const MenuCecinasmarcelina = {
-  Data: {},
-  Render: async function (options = { htmlMainBody: () => html`` }) {
-    const id = getId(this.Data, 'menu-');
-    this.Data[id] = {};
-    const RouterInstance = RouterCecinasmarcelina();
+class AppShellDefault {
+  static Data = {};
+  static async Render (options = { htmlMainBody: () => html`` }) {
+    const id = getId(AppShellDefault.Data, 'menu-');
+    AppShellDefault.Data[id] = {};
+    const RouterInstance = RouterDefault();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 
@@ -139,6 +140,18 @@ const MenuCecinasmarcelina = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
           })}
           ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-default-management',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('default-management')}</span>`,
+            }),
+            attrs: `data-id="default-management"`,
+            tabHref: `${getProxyPath()}default-management`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('default-management')),
+          })}
+          ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-404 hide',
             useMenuBtn: true,
             label: renderMenuLabel({
@@ -195,29 +208,16 @@ const MenuCecinasmarcelina = {
         </div>
       `,
       barConfig: newInstance(barConfig),
-      slideMenuTopBarBannerFix: async () => {
-        return html` <style>
-            .cm-bar-logo {
-              height: 150px;
-              padding-left: 20px;
-              top: -25px;
-            }
-            .slide-menu-top-bar-fix {
-              overflow: hidden;
-            }
-          </style>
-
-          <div class="fl">
-            <img class="in fll cm-bar-logo" src="${getProxyPath()}android-chrome-256x256.png" />
-          </div>`;
-      },
       title: BannerAppTemplate,
       // titleClass: 'hide',
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {
-          const srcLogo = `${getProxyPath()}android-chrome-256x256.png`;
+          const srcLogo = `${getProxyPath()}apple-touch-icon-114x114-precomposed.png`;
 
-          htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+          htmls(
+            '.action-btn-app-icon-render',
+            html`<img class="inl top-bar-app-icon ${darkTheme ? 'negative-color' : ''}" src="${srcLogo}" />`,
+          );
         };
         setTimeout(ThemeEvents['titleRender']);
         return '';
@@ -228,373 +228,211 @@ const MenuCecinasmarcelina = {
     });
 
     ThemeEvents['main-theme-handler'] = () => {
-      if (s(`.style-ssr-background-image`)) {
-        if (darkTheme) {
-          htmls(
-            `.style-ssr-background-image`,
-            css`
-              .ssr-background-image {
-                background: #1a0a0a;
-              }
-            `,
-          );
-        } else {
-          htmls(
-            `.style-ssr-background-image`,
-            css`
-              .ssr-background-image {
-                background: #faeee6;
-              }
-            `,
-          );
-        }
-      }
-      if (s(`.style-lading-render`))
+      if (darkTheme) {
+        const backgroundImage = `${getProxyPath()}assets/background/dark.svg`;
         htmls(
-          `.style-lading-render`,
-          html` <style>
-            .landing-page {
-              font-family:
-                'Segoe UI',
-                system-ui,
-                -apple-system,
-                sans-serif;
-              line-height: 1.6;
-              max-width: 1200px;
-              margin: 0 auto;
-              padding: 0 1rem;
-              color: ${darkTheme ? '#f5ddd0' : '#3d1111'};
+          `.style-ssr-background-image`,
+          css`
+            .ssr-background-image {
+              background-image: url('${backgroundImage}');
             }
-
-            /* Hero - full viewport cover */
-            .hero-section {
-              position: relative;
-              text-align: center;
-              padding: 0;
-              margin: 0 calc(-50vw + 50%);
-              width: 100vw;
-              min-height: calc(100vh - 50px);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              background-image: url('${getProxyPath()}assets/background/hero.webp');
-              background-size: cover;
-              background-position: center;
-              overflow: visible;
-            }
-            .hero-overlay {
-              position: absolute;
-              inset: 0;
-              background: ${darkTheme
-              ? 'linear-gradient(180deg, rgba(26,10,10,0.85) 0%, rgba(61,17,17,0.75) 100%)'
-              : 'linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(245,221,208,0.82) 100%)'};
-            }
-            .hero-inner {
-              position: relative;
-              z-index: 1;
-              padding: 4rem 2rem;
-              max-width: 700px;
-            }
-            .hero-logo {
-              width: 330px;
-              height: auto;
-              border-radius: 50%;
-              object-fit: cover;
-              margin-bottom: 1.5rem;
-              box-shadow: 0 4px 20px ${darkTheme ? 'rgba(0,0,0,0.5)' : 'rgba(139,69,19,0.25)'};
-              ${darkTheme ? 'filter: brightness(1.1);' : ''}
-            }
-            .hero-title {
-              font-size: 2.6rem;
-              margin-bottom: 0.75rem;
-              line-height: 1.2;
-              background: linear-gradient(
-                135deg,
-                ${darkTheme ? '#c0392b' : '#8b4513'},
-                ${darkTheme ? '#e74c3c' : '#a0522d'}
-              );
-              -webkit-background-clip: text;
-              -webkit-text-fill-color: transparent;
-            }
-            .hero-subtitle {
-              font-size: 1.2rem;
-              font-weight: 600;
-              color: ${darkTheme ? '#e8a87c' : '#8b4513'};
-              margin-bottom: 0.75rem;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-            }
-            .hero-description {
-              font-size: 1.05rem;
-              color: ${darkTheme ? '#c4a08a' : '#6b4423'};
-              margin-bottom: 2rem;
-              font-style: italic;
-            }
-            .hero-cta {
-              display: flex;
-              gap: 1rem;
-              justify-content: center;
-              margin-top: 1.5rem;
-            }
-            .btn {
-              padding: 0.75rem 1.5rem;
-              border-radius: 8px;
-              font-weight: 600;
-              cursor: pointer;
-              transition: all 0.3s ease;
-              font-size: 1rem;
-            }
-            .btn:hover {
-              transform: translateY(-2px);
-            }
-            .btn-primary {
-              background: ${darkTheme ? '#8b0000' : '#8b4513'};
-              color: #fff;
-              border: 2px solid ${darkTheme ? '#8b0000' : '#8b4513'};
-            }
-            .btn-primary:hover {
-              background: ${darkTheme ? '#a02020' : '#a0522d'};
-              border-color: ${darkTheme ? '#a02020' : '#a0522d'};
-              color: #fff;
-            }
-            .btn-outline {
-              background: transparent;
-              color: ${darkTheme ? '#c0392b' : '#8b4513'};
-              border: 2px solid ${darkTheme ? '#c0392b' : '#8b4513'};
-            }
-            .btn-outline:hover {
-              background: ${darkTheme ? '#c0392b' : '#8b4513'};
-              color: #fff;
-            }
-
-            /* Section lead */
-            .section-lead {
-              font-size: 1.05rem;
-              color: ${darkTheme ? '#c4a08a' : '#6b4423'};
-              max-width: 650px;
-              margin: -1.5rem auto 2.5rem;
-              font-style: italic;
-            }
-
-            /* Products */
-            .products-section {
-              padding: 4rem 1rem;
-              text-align: center;
-            }
-            .products-section h2,
-            .pillars-section h2,
-            .about-section h2 {
-              font-size: 2rem;
-              margin-bottom: 2.5rem;
-              color: ${darkTheme ? '#e74c3c' : '#8b4513'};
-            }
-            .products-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-              gap: 1.5rem;
-            }
-            .product-card {
-              background: ${darkTheme ? 'rgba(61, 17, 17, 0.5)' : '#fff'};
-              padding: 2rem 1.5rem;
-              border-radius: 12px;
-              box-shadow: 0 4px 15px ${darkTheme ? 'rgba(0,0,0,0.3)' : 'rgba(139,69,19,0.1)'};
-              transition:
-                transform 0.3s ease,
-                box-shadow 0.3s ease;
-            }
-            .product-card:hover {
-              box-shadow: 0 10px 30px ${darkTheme ? 'rgba(0,0,0,0.4)' : 'rgba(139,69,19,0.2)'};
-            }
-            .product-icon {
-              font-size: 2.5rem;
-              margin-bottom: 0.75rem;
-            }
-            .product-card h3 {
-              font-size: 1.15rem;
-              margin-bottom: 0.5rem;
-              color: ${darkTheme ? '#f5ddd0' : '#3d1111'};
-            }
-            .product-card p {
-              font-size: 0.95rem;
-              color: ${darkTheme ? '#c4a08a' : '#6b4423'};
-              line-height: 1.5;
-            }
-
-            /* About */
-            .about-section {
-              padding: 4rem 2rem;
-              text-align: center;
-              background: ${darkTheme ? 'rgba(61, 17, 17, 0.3)' : 'rgba(245, 221, 208, 0.35)'};
-              border-radius: 16px;
-              margin: 2rem 0;
-            }
-            .about-tagline {
-              font-size: 1.2rem;
-              font-weight: 600;
-              color: ${darkTheme ? '#e8a87c' : '#8b4513'};
-              margin-bottom: 1.5rem;
-            }
-            .about-content p {
-              font-size: 1rem;
-              color: ${darkTheme ? '#c4a08a' : '#6b4423'};
-              max-width: 750px;
-              margin: 0 auto 1rem;
-              line-height: 1.7;
-            }
-
-            /* Pillars */
-            .pillars-section {
-              padding: 4rem 1rem;
-              text-align: center;
-            }
-            .pillars-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-              gap: 1.5rem;
-            }
-            .pillar-card {
-              background: ${darkTheme ? 'rgba(61, 17, 17, 0.5)' : '#fff'};
-              padding: 2rem 1.5rem;
-              border-radius: 12px;
-              box-shadow: 0 4px 15px ${darkTheme ? 'rgba(0,0,0,0.3)' : 'rgba(139,69,19,0.1)'};
-              transition:
-                transform 0.3s ease,
-                box-shadow 0.3s ease;
-            }
-            .pillar-card:hover {
-              box-shadow: 0 10px 30px ${darkTheme ? 'rgba(0,0,0,0.4)' : 'rgba(139,69,19,0.2)'};
-            }
-            .pillar-icon {
-              font-size: 2.5rem;
-              margin-bottom: 0.75rem;
-            }
-            .pillar-card h3 {
-              font-size: 1.15rem;
-              margin-bottom: 0.5rem;
-              color: ${darkTheme ? '#f5ddd0' : '#3d1111'};
-            }
-            .pillar-card p {
-              font-size: 0.95rem;
-              color: ${darkTheme ? '#c4a08a' : '#6b4423'};
-              line-height: 1.5;
-            }
-
-            /* Location */
-            .location-section {
-              padding: 4rem 1rem;
-              text-align: center;
-              background: ${darkTheme ? 'rgba(61, 17, 17, 0.3)' : 'rgba(245, 221, 208, 0.4)'};
-              border-radius: 16px;
-              margin: 2rem 0;
-            }
-            .location-section h2 {
-              font-size: 2rem;
-              color: ${darkTheme ? '#e74c3c' : '#8b4513'};
-              margin-bottom: 0.5rem;
-            }
-            .location-tagline {
-              font-size: 1.15rem;
-              font-weight: 600;
-              color: ${darkTheme ? '#e8a87c' : '#8b4513'};
-              margin-bottom: 1rem;
-              font-style: italic;
-            }
-            .location-description {
-              font-size: 1.05rem;
-              color: ${darkTheme ? '#c4a08a' : '#6b4423'};
-              max-width: 700px;
-              margin: 0 auto;
-            }
-
-            /* Contact */
-            .contact-section {
-              padding: 3rem 1rem;
-              text-align: left;
-            }
-            .contact-section h2 {
-              font-size: 1.6rem;
-              color: ${darkTheme ? '#e74c3c' : '#8b4513'};
-              margin-bottom: 1.5rem;
-            }
-            .contact-info {
-              display: flex;
-              flex-direction: column;
-              align-items: flex-start;
-              gap: 1rem;
-            }
-            .contact-item {
-              display: flex;
-              align-items: center;
-              gap: 0.6rem;
-              font-size: 0.95rem;
-              color: ${darkTheme ? '#f5ddd0' : '#3d1111'};
-              border-radius: 10px;
-              transition: background 0.3s ease, transform 0.2s ease;
-            }
-            .contact-item:hover {
-              transform: translateY(-2px);
-            }
-            .contact-item i {
-              color: ${darkTheme ? '#c0392b' : '#8b4513'};
-              font-size: 1.3rem;
-              width: 24px;
-              text-align: center;
-              flex-shrink: 0;
-            }
-            .contact-item a {
-              color: ${darkTheme ? '#e8a87c' : '#8b4513'};
-              text-decoration: none;
-              transition: color 0.2s ease;
-            }
-            .contact-item a:hover {
-              color: ${darkTheme ? '#f5ddd0' : '#c0392b'};
-            }
-
-            /* Footer */
-            .landing-footer {
-              padding: 2rem 1rem;
-              margin-top: 4rem;
-              text-align: center;
-              border-top: 1px solid ${darkTheme ? 'rgba(139,0,0,0.3)' : 'rgba(139,69,19,0.2)'};
-              color: ${darkTheme ? '#c4a08a' : '#6b4423'};
-              font-size: 0.9rem;
-            }
-
-            @media (max-width: 767px) {
-              .hero-title {
-                font-size: 2rem;
-              }
-              .hero-inner {
-                padding: 2rem 1rem;
-              }
-              .hero-logo {
-                width: 180px;
-              }
-              .hero-cta {
-                flex-direction: column;
-                align-items: center;
-                gap: 0.6rem;
-                margin-top: 1rem;
-              }
-              .btn {
-                padding: 0.6rem 1.2rem;
-                font-size: 0.9rem;
-                width: 100%;
-                max-width: 220px;
-                text-align: center;
-              }
-              .products-grid,
-              .pillars-grid {
-                grid-template-columns: 1fr;
-              }
-            }
-          </style>`,
+          `,
         );
+      } else {
+        const backgroundImage = `${getProxyPath()}assets/background/white0-min.jpg`;
+        htmls(
+          `.style-ssr-background-image`,
+          css`
+            .ssr-background-image {
+              background-image: url('${backgroundImage}');
+            }
+          `,
+        );
+      }
+      htmls(
+        `.style-lading-render`,
+        html` <style>
+          .landing-container {
+            min-height: calc(100vh - 100px);
+            display: flex;
+            /*    align-items: center; */
+            justify-content: center;
+
+            padding: 2rem;
+            color: ${darkTheme ? '#fff' : '#333'};
+            transition: all 0.3s ease;
+          }
+
+          .content-wrapper {
+            text-align: center;
+            max-width: 1200px;
+            width: 100%;
+            padding: 2rem;
+            animation: fadeIn 1s ease-out;
+          }
+
+          .animated-text {
+            margin-bottom: 3rem;
+          }
+
+          .greeting {
+            display: block;
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: slideIn 1s ease-out;
+          }
+
+          .subtitle {
+            display: block;
+            font-size: 1.5rem;
+            color: ${darkTheme ? '#a0aec0' : '#4a5568'};
+            margin-top: 1rem;
+            opacity: 0;
+            animation: fadeInUp 0.8s ease-out 0.3s forwards;
+          }
+
+          .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+          }
+
+          .feature-card {
+            background: ${darkTheme ? 'rgba(255, 255, 255, 0.05)' : 'white'};
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition:
+              transform 0.3s ease,
+              box-shadow 0.3s ease;
+            opacity: 0;
+            animation: fadeInUp 0.6s ease-out forwards;
+          }
+
+          .feature-card:nth-child(1) {
+            animation-delay: 0.5s;
+          }
+          .feature-card:nth-child(2) {
+            animation-delay: 0.7s;
+          }
+          .feature-card:nth-child(3) {
+            animation-delay: 0.9s;
+          }
+
+          .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+          }
+
+          .feature-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+          }
+
+          .feature-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+            color: ${darkTheme ? '#e2e8f0' : '#2d3748'};
+          }
+
+          .feature-card p {
+            color: ${darkTheme ? '#a0aec0' : '#4a5568'};
+            line-height: 1.6;
+          }
+
+          .cta-button {
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+            opacity: 0;
+            animation: fadeIn 0.8s ease-out 1.2s forwards;
+          }
+
+          .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+            background: linear-gradient(90deg, #3e38b4, #602bbc);
+            color: white;
+          }
+
+          .cta-button:active {
+            transform: translateY(0);
+          }
+
+          .button-icon {
+            transition: transform 0.3s ease;
+          }
+
+          .cta-button:hover .button-icon {
+            transform: translateX(4px);
+          }
+
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+            }
+            to {
+              opacity: 1;
+            }
+          }
+
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          @keyframes slideIn {
+            from {
+              opacity: 0;
+              transform: translateX(-30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(0);
+            }
+          }
+
+          @media (max-width: 768px) {
+            .greeting {
+              font-size: 2.5rem;
+            }
+
+            .subtitle {
+              font-size: 1.25rem;
+            }
+
+            .features {
+              grid-template-columns: 1fr;
+            }
+          }
+        </style>`,
+      );
     };
 
     setTimeout(ThemeEvents['main-theme-handler']);
 
-    this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
+    AppShellDefault.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
       group: `menu-sortable`,
       forceFallback: true,
@@ -713,7 +551,7 @@ const MenuCecinasmarcelina = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: AppStoreCecinasmarcelina.Data.user.main.model.user,
+            user: AppStoreDefault.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -727,7 +565,7 @@ const MenuCecinasmarcelina = {
     EventsUI.onClick(`.main-btn-public-profile`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       const idModal = 'modal-public-profile';
-      const user = AppStoreCecinasmarcelina.Data.user.main.model.user;
+      const user = AppStoreDefault.Data.user.main.model.user;
 
       // Check if modal already exists
       const existingModal = s(`.${idModal}`);
@@ -777,7 +615,7 @@ const MenuCecinasmarcelina = {
           icon: html` <i class="fas fa-sliders-h"></i>`,
           text: Translate.Render('settings'),
         }),
-        html: async () => await SettingsCecinasmarcelina.Render({ idModal: 'modal-settings' }),
+        html: async () => await SettingsDefault.Render({ idModal: 'modal-settings' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -797,12 +635,32 @@ const MenuCecinasmarcelina = {
           text: Translate.Render('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: AppStoreCecinasmarcelina.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreDefault.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-default-management`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-default-management',
+        route: 'default-management',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
+          text: Translate.Render('default-management'),
+        }),
+        html: async () => await DefaultManagement.RenderTable(),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        observer: true,
       });
     });
 
@@ -863,9 +721,9 @@ const MenuCecinasmarcelina = {
         html: async () => {
           setTimeout(async () => {
             await PanelForm.instance({
-              idPanel: 'cecinasmarcelina-blog',
-              cecinasmarcelinaUrlImage: `${getProxyPath()}android-chrome-96x96.png`,
-              appStore: AppStoreCecinasmarcelina,
+              idPanel: 'default-blog',
+              defaultUrlImage: `${getProxyPath()}android-chrome-96x96.png`,
+              appStore: AppStoreDefault,
               parentIdModal: idModal,
               scrollClassContainer: `html-${idModal}`,
               route: routeModal,
@@ -901,7 +759,7 @@ const MenuCecinasmarcelina = {
         barMode,
       });
     });
-  },
-};
+  }
+}
 
-export { MenuCecinasmarcelina };
+export { AppShellDefault };

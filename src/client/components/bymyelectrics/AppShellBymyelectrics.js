@@ -1,7 +1,7 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
+import { Css, darkTheme, ThemeEvents, Themes } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -10,19 +10,23 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
-import { AppStoreDogmadual } from './AppStoreDogmadual.js';
+import { AppStoreBymyelectrics } from './AppStoreBymyelectrics.js';
 import Sortable from 'sortablejs';
-import { RouterDogmadual, BannerAppTemplate } from './RoutesDogmadual.js';
+import { RouterBymyelectrics, BannerAppTemplate } from './RoutesBymyelectrics.js';
+import { SettingsBymyelectrics } from './SettingsBymyelectrics.js';
 import { Badge } from '../core/Badge.js';
-import { SettingsDogmadual } from './SettingsDogmadual.js';
+import { Docs } from '../core/Docs.js';
 import { Recover } from '../core/Recover.js';
+import { DefaultManagement } from '../../services/default/default.management.js';
+import { Page500 } from '../core/500.js';
+import { Page404 } from '../core/404.js';
 
-const MenuDogmadual = {
-  Data: {},
-  Render: async function (options = { htmlMainBody: () => html`` }) {
-    const id = getId(this.Data, 'menu-');
-    this.Data[id] = {};
-    const RouterInstance = RouterDogmadual();
+class AppShellBymyelectrics {
+  static Data = {};
+  static async Render (options = { htmlMainBody: () => html`` }) {
+    const id = getId(AppShellBymyelectrics.Data, 'menu-');
+    AppShellBymyelectrics.Data[id] = {};
+    const RouterInstance = RouterBymyelectrics();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 
@@ -46,7 +50,7 @@ const MenuDogmadual = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-log-in',
+            class: 'in wfa main-btn-menu main-btn-log-in hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
@@ -58,7 +62,7 @@ const MenuDogmadual = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-sign-up',
+            class: 'in wfa main-btn-menu main-btn-sign-up hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
@@ -108,6 +112,18 @@ const MenuDogmadual = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
           })}
           ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-docs hide',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<i class="fas fa-book"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('docs')}</span>`,
+            }),
+            attrs: `data-id="docs"`,
+            tabHref: `${getProxyPath()}docs`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs')),
+          })}
+          ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-recover hide',
             useMenuBtn: true,
             label: renderMenuLabel({
@@ -119,27 +135,95 @@ const MenuDogmadual = {
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
           })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-default-management hide',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('default-management')}</span>`,
+            }),
+            attrs: `data-id="default-management"`,
+            tabHref: `${getProxyPath()}default-management`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('default-management')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-404 hide',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-triangle-exclamation"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('404')}</span>`,
+            }),
+            attrs: `data-id="404"`,
+            tabHref: `${getProxyPath()}404`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('404')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-500 hide',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-circle-exclamation"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('500')}</span>`,
+            }),
+            attrs: `data-id="500"`,
+            tabHref: `${getProxyPath()}500`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('500')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-dossier',
+            useMenuBtn: true,
+            label: renderMenuLabel({
+              icon: html`<i class="fa-regular fa-file-lines"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('dossier')}</span>`,
+            }),
+            attrs: `data-id="dossier"`,
+            tabHref: `${getProxyPath()}docs/Dossier-By-My-Electrics-2025.pdf`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('dossier')),
+          })}
         </div>
       `,
       barConfig: newInstance(barConfig),
+      slideMenuTopBarBannerFix: async () => {
+        return html` <style>
+            .bme-bar-logo {
+              height: 150px;
+              padding-left: 20px;
+              top: -25px;
+            }
+            .slide-menu-top-bar-fix {
+              overflow: hidden;
+            }
+          </style>
+
+          <div class="fl">
+            <img
+              class="in fll bme-bar-logo ${!darkTheme ? '' : 'negative-color'}"
+              src="${getProxyPath()}assets/social.png"
+            />
+          </div>`;
+      },
       title: BannerAppTemplate,
       // titleClass: 'hide',
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {
-          const srcLogo = darkTheme
-            ? `${getProxyPath()}assets/logo/dogmadual-white-t.png`
-            : `${getProxyPath()}assets/logo/dogmadual-black-t.png`;
-          htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+          const srcLogo = `${getProxyPath()}android-chrome-192x192.png`;
+          htmls(
+            '.action-btn-app-icon-render',
+            html`<img class="inl top-bar-app-icon ${!darkTheme ? '' : 'negative-color'}" src="${srcLogo}" />`,
+          );
         };
         setTimeout(ThemeEvents['titleRender']);
         return '';
       },
       mode: 'slide-menu',
       RouterInstance,
-      htmlMainBody: options.htmlMainBody,
+      htmlMainBody: options?.htmlMainBody ? options.htmlMainBody : undefined,
     });
 
-    this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
+    AppShellBymyelectrics.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
       group: `menu-sortable`,
       forceFallback: true,
@@ -258,7 +342,7 @@ const MenuDogmadual = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: AppStoreDogmadual.Data.user.main.model.user,
+            user: AppStoreBymyelectrics.Data.user.main.model.user,
             disabled: [],
           }),
         handleType: 'bar',
@@ -279,8 +363,31 @@ const MenuDogmadual = {
           icon: html` <i class="fas fa-sliders-h"></i>`,
           text: Translate.Render('settings'),
         }),
-        html: async () => await SettingsDogmadual.Render({ idModal: 'modal-settings' }),
+        html: async () => await SettingsBymyelectrics.Render({ idModal: 'modal-settings' }),
         handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-docs`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-docs',
+        route: 'docs',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fas fa-book"></i>`,
+          text: Translate.Render('docs'),
+        }),
+        html: async () =>
+          await Docs.Init({
+            idModal: 'modal-docs',
+          }),
+        handleType: 'bar',
+        observer: true,
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
@@ -300,7 +407,7 @@ const MenuDogmadual = {
           text: Translate.Render('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: AppStoreDogmadual.Data.user.main.model.user }),
+          await Recover.Render({ idModal: 'modal-recover', user: AppStoreBymyelectrics.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -308,7 +415,70 @@ const MenuDogmadual = {
         RouterInstance,
       });
     });
-  },
-};
 
-export { MenuDogmadual };
+    EventsUI.onClick(`.main-btn-default-management`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-default-management',
+        route: 'default-management',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
+          text: Translate.Render('default-management'),
+        }),
+        html: async () => await DefaultManagement.RenderTable(),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        observer: true,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-404`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-404',
+        route: '404',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-triangle-exclamation"></i>`,
+          text: Translate.Render('404'),
+        }),
+        html: async () => await Page404.Render({ idModal: 'modal-404' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        observer: true,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-500`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-500',
+        route: '500',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-circle-exclamation"></i>`,
+          text: Translate.Render('500'),
+        }),
+        html: async () => await Page500.Render({ idModal: 'modal-500' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        observer: true,
+      });
+    });
+    EventsUI.onClick(`.main-btn-dossier`, async () => {
+      location.href = `${getProxyPath()}docs/Dossier-By-My-Electrics-2025.pdf`;
+    });
+  }
+}
+
+export { AppShellBymyelectrics };

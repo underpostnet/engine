@@ -26,11 +26,11 @@ import { Polyhedron } from '../core/Polyhedron.js';
 import { FileExplorer } from '../core/FileExplorer.js';
 import { Content } from '../core/Content.js';
 
-const MenuUnderpost = {
-  Data: {},
-  Render: async function () {
-    const id = getId(this.Data, 'menu-');
-    this.Data[id] = {};
+class AppShellUnderpost {
+  static Data = {};
+  static async Render () {
+    const id = getId(AppShellUnderpost.Data, 'menu-');
+    AppShellUnderpost.Data[id] = {};
     const RouterInstance = RouterUnderpost();
 
     const { barConfig } = await Themes[Css.currentTheme]();
@@ -337,7 +337,7 @@ const MenuUnderpost = {
     };
     setTimeout(ThemeEvents['underpost-main-theme-event']);
 
-    this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
+    AppShellUnderpost.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
       group: `menu-sortable`,
       forceFallback: true,
@@ -685,7 +685,7 @@ const MenuUnderpost = {
     EventsUI.onClick(`.main-btn-github`, async () => {
       location.href = `https://github.com/underpostnet/pwa-microservices-template/`;
     });
-  },
-};
+  }
+}
 
-export { MenuUnderpost };
+export { AppShellUnderpost };

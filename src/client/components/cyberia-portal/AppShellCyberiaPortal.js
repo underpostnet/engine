@@ -32,11 +32,11 @@ import { MainBodyCyberiaPortal } from './MainBodyCyberiaPortal.js';
 import { MapEngineCyberia } from '../cyberia/MapEngineCyberia.js';
 import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
 
-const MenuCyberiaPortal = {
-  Data: {},
-  Render: async function () {
-    const id = getId(this.Data, 'menu-');
-    this.Data[id] = {};
+class AppShellCyberiaPortal {
+  static Data = {};
+  static async Render () {
+    const id = getId(AppShellCyberiaPortal.Data, 'menu-');
+    AppShellCyberiaPortal.Data[id] = {};
     const RouterInstance = RouterCyberiaPortal();
 
     const { barConfig } = await Themes[Css.currentTheme]();
@@ -276,7 +276,7 @@ const MenuCyberiaPortal = {
       searchCustomImgClass: 'cyberia-menu-icon',
     });
 
-    this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
+    AppShellCyberiaPortal.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
       group: `menu-sortable`,
       forceFallback: true,
@@ -668,7 +668,7 @@ const MenuCyberiaPortal = {
       const { protocol, hostname } = window.location;
       return (location.href = `${protocol}//${hostname}/admin${['', 0][random(0, 1)]}`);
     };
-  },
-};
+  }
+}
 
-export { MenuCyberiaPortal };
+export { AppShellCyberiaPortal };

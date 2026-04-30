@@ -6,7 +6,7 @@ import { TranslateCore } from './components/core/Translate.js';
 import { LogInHealthcare } from './components/healthcare/LogInHealthcare.js';
 import { LogOutHealthcare } from './components/healthcare/LogOutHealthcare.js';
 import { SignUpHealthcare } from './components/healthcare/SignUpHealthcare.js';
-import { MenuHealthcare } from './components/healthcare/MenuHealthcare.js';
+import { AppShellHealthcare } from './components/healthcare/AppShellHealthcare.js';
 import { RouterHealthcare } from './components/healthcare/RoutesHealthcare.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { AppStoreHealthcare } from './components/healthcare/AppStoreHealthcare.js';
@@ -24,7 +24,7 @@ window.onload = () =>
       await TranslateCore.Init();
       await TranslateHealthcare.Init();
       await Responsive.Init();
-      await MenuHealthcare.Render();
+      await AppShellHealthcare.Render();
       await SocketIo.Init({ channels: AppStoreHealthcare.Data });
       await SocketIoHealthcare.Init();
       await LogInHealthcare();

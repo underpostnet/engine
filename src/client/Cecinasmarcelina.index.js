@@ -6,7 +6,7 @@ import { TranslateCore } from './components/core/Translate.js';
 import { LogInCecinasmarcelina } from './components/cecinasmarcelina/LogInCecinasmarcelina.js';
 import { LogOutCecinasmarcelina } from './components/cecinasmarcelina/LogOutCecinasmarcelina.js';
 import { SignUpCecinasmarcelina } from './components/cecinasmarcelina/SignUpCecinasmarcelina.js';
-import { MenuCecinasmarcelina } from './components/cecinasmarcelina/MenuCecinasmarcelina.js';
+import { AppShellCecinasmarcelina } from './components/cecinasmarcelina/AppShellCecinasmarcelina.js';
 import { RouterCecinasmarcelina } from './components/cecinasmarcelina/RoutesCecinasmarcelina.js';
 import { TranslateCecinasmarcelina } from './components/cecinasmarcelina/TranslateCecinasmarcelina.js';
 import { Worker } from './components/core/Worker.js';
@@ -259,7 +259,7 @@ window.onload = () =>
       await TranslateCore.Init();
       await TranslateCecinasmarcelina.Init();
       await Responsive.Init();
-      await MenuCecinasmarcelina.Render({ htmlMainBody });
+      await AppShellCecinasmarcelina.Render({ htmlMainBody });
       await SocketIo.Init({
         channels: AppStoreCecinasmarcelina.Data,
         path: `/`,

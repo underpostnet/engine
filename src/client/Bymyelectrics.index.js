@@ -6,7 +6,7 @@ import { Translate, TranslateCore } from './components/core/Translate.js';
 import { LogInBymyelectrics } from './components/bymyelectrics/LogInBymyelectrics.js';
 import { LogOutBymyelectrics } from './components/bymyelectrics/LogOutBymyelectrics.js';
 import { SignUpBymyelectrics } from './components/bymyelectrics/SignUpBymyelectrics.js';
-import { MenuBymyelectrics } from './components/bymyelectrics/MenuBymyelectrics.js';
+import { AppShellBymyelectrics } from './components/bymyelectrics/AppShellBymyelectrics.js';
 import { RouterBymyelectrics } from './components/bymyelectrics/RoutesBymyelectrics.js';
 import { TranslateBymyelectrics } from './components/bymyelectrics/TranslateBymyelectrics.js';
 import { Worker } from './components/core/Worker.js';
@@ -212,7 +212,7 @@ window.onload = () =>
       await TranslateCore.Init();
       await TranslateBymyelectrics.Init();
       await Responsive.Init();
-      await MenuBymyelectrics.Render({ htmlMainBody });
+      await AppShellBymyelectrics.Render({ htmlMainBody });
       await SocketIo.Init({ channels: AppStoreBymyelectrics.Data });
       await SocketIoBymyelectrics.Init();
       await LogInBymyelectrics();

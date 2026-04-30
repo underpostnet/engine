@@ -6,7 +6,7 @@ import { TranslateCore } from './components/core/Translate.js';
 import { LogInDefault } from './components/default/LogInDefault.js';
 import { LogOutDefault } from './components/default/LogOutDefault.js';
 import { SignUpDefault } from './components/default/SignUpDefault.js';
-import { MenuDefault } from './components/default/MenuDefault.js';
+import { AppShellDefault } from './components/default/AppShellDefault.js';
 import { RouterDefault } from './components/default/RoutesDefault.js';
 import { TranslateDefault } from './components/default/TranslateDefault.js';
 import { Worker } from './components/core/Worker.js';
@@ -68,7 +68,7 @@ window.onload = () =>
       await TranslateCore.Init();
       await TranslateDefault.Init();
       await Responsive.Init();
-      await MenuDefault.Render({ htmlMainBody });
+      await AppShellDefault.Render({ htmlMainBody });
       await SocketIo.Init({
         channels: AppStoreDefault.Data,
         path: `/`,

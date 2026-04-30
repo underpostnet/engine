@@ -6,7 +6,7 @@ import { TranslateCore } from './components/core/Translate.js';
 import { LogInCyberiaPortal } from './components/cyberia-portal/LogInCyberiaPortal.js';
 import { LogOutCyberiaPortal } from './components/cyberia-portal/LogOutCyberiaPortal.js';
 import { SignUpCyberiaPortal } from './components/cyberia-portal/SignUpCyberiaPortal.js';
-import { MenuCyberiaPortal } from './components/cyberia-portal/MenuCyberiaPortal.js';
+import { AppShellCyberiaPortal } from './components/cyberia-portal/AppShellCyberiaPortal.js';
 import { RouterCyberiaPortal } from './components/cyberia-portal/RoutesCyberiaPortal.js';
 import { TranslateCyberiaPortal } from './components/cyberia-portal/TranslateCyberiaPortal.js';
 import { Worker } from './components/core/Worker.js';
@@ -24,7 +24,7 @@ window.onload = () =>
       await TranslateCore.Init();
       await TranslateCyberiaPortal.Init();
       await Responsive.Init();
-      await MenuCyberiaPortal.Render();
+      await AppShellCyberiaPortal.Render();
       await SocketIo.Init({ channels: AppStoreCyberiaPortal.Data });
       await SocketIoCyberiaPortal.Init();
       await LogInCyberiaPortal();

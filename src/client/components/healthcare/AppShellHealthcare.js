@@ -26,11 +26,11 @@ import { getProxyPath, getQueryParams } from '../core/Router.js';
 
 const logger = loggerFactory(import.meta);
 
-const MenuHealthcare = {
-  Data: {},
-  Render: async function () {
-    const id = getId(this.Data, 'menu-');
-    this.Data[id] = {};
+class AppShellHealthcare {
+  static Data = {};
+  static async Render () {
+    const id = getId(AppShellHealthcare.Data, 'menu-');
+    AppShellHealthcare.Data[id] = {};
     const RouterInstance = RouterHealthcare();
 
     const { barConfig } = await Themes[Css.currentTheme]();
@@ -319,7 +319,7 @@ const MenuHealthcare = {
       },
     });
 
-    this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
+    AppShellHealthcare.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,
       group: `menu-sortable`,
       forceFallback: true,
@@ -689,7 +689,7 @@ const MenuHealthcare = {
         RouterInstance,
       });
     });
-  },
-};
+  }
+}
 
-export { MenuHealthcare };
+export { AppShellHealthcare };

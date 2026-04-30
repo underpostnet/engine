@@ -6,7 +6,7 @@ import { TranslateCore } from './components/core/Translate.js';
 import { LogInItemledger } from './components/itemledger/LogInItemledger.js';
 import { LogOutItemledger } from './components/itemledger/LogOutItemledger.js';
 import { SignUpItemledger } from './components/itemledger/SignUpItemledger.js';
-import { MenuItemledger } from './components/itemledger/MenuItemledger.js';
+import { AppShellItemledger } from './components/itemledger/AppShellItemledger.js';
 import { RouterItemledger } from './components/itemledger/RoutesItemledger.js';
 import { TranslateItemledger } from './components/itemledger/TranslateItemledger.js';
 import { Worker } from './components/core/Worker.js';
@@ -30,7 +30,7 @@ window.onload = () =>
       await TranslateCore.Init();
       await TranslateItemledger.Init();
       await Responsive.Init();
-      await MenuItemledger.Render({ htmlMainBody });
+      await AppShellItemledger.Render({ htmlMainBody });
       await SocketIo.Init({ channels: AppStoreItemledger.Data });
       await SocketIoItemledger.Init();
       await LogInItemledger();

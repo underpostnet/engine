@@ -50,11 +50,11 @@ import { getProxyPath, getQueryParams, setQueryParams } from '../core/Router.js'
 import { CronManagement } from '../../services/cron/cron.management.js';
 import { Scroll } from '../core/Scroll.js';
 
-const MenuNexodev = {
-  Data: {},
-  Render: async function (options = { htmlMainBody: () => '' }) {
-    const id = getId(this.Data, 'menu-');
-    this.Data[id] = {};
+class AppShellNexodev {
+  static Data = {};
+  static async Render (options = { htmlMainBody: () => '' }) {
+    const id = getId(AppShellNexodev.Data, 'menu-');
+    AppShellNexodev.Data[id] = {};
     const RouterInstance = RouterNexodev();
 
     const { barConfig } = await Themes[Css.currentTheme]();
@@ -436,11 +436,11 @@ const MenuNexodev = {
         onStart: async function (/**Event*/ evt) {
           if (Modal.subMenuBtnClass['docs']) {
             if (isSubMenuOpen('docs')) await subMenuRender('docs');
-            MenuNexodev.Data[id].sortable = sortableFactor();
+            AppShellNexodev.Data[id].sortable = sortableFactor();
           }
         },
       });
-    MenuNexodev.Data[id].sortable = sortableFactor();
+    AppShellNexodev.Data[id].sortable = sortableFactor();
 
     EventsUI.onClick(`.main-btn-sign-up`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
@@ -916,7 +916,7 @@ const MenuNexodev = {
 
       Modal.Data['modal-menu'].homeModals.push('modal-test');
     });
-  },
-};
+  }
+}
 
-export { MenuNexodev };
+export { AppShellNexodev };

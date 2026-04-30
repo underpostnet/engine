@@ -6,7 +6,7 @@ import { TranslateCore } from './components/core/Translate.js';
 import { LogInUnderpost } from './components/underpost/LogInUnderpost.js';
 import { LogOutUnderpost } from './components/underpost/LogOutUnderpost.js';
 import { SignUpUnderpost } from './components/underpost/SignUpUnderpost.js';
-import { MenuUnderpost } from './components/underpost/MenuUnderpost.js';
+import { AppShellUnderpost } from './components/underpost/AppShellUnderpost.js';
 import { RouterUnderpost } from './components/underpost/RoutesUnderpost.js';
 import { TranslateUnderpost } from './components/underpost/TranslateUnderpost.js';
 import { Worker } from './components/core/Worker.js';
@@ -24,7 +24,7 @@ window.onload = () =>
       await TranslateCore.Init();
       await TranslateUnderpost.Init();
       await Responsive.Init();
-      await MenuUnderpost.Render();
+      await AppShellUnderpost.Render();
       await SocketIo.Init({ channels: AppStoreUnderpost.Data });
       await SocketIoUnderpost.Init();
       await LogInUnderpost();
