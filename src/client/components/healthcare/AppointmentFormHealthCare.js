@@ -9,11 +9,24 @@ import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
 import { Validator } from '../core/Validator.js';
 import { s } from '../core/VanillaJs.js';
+import { AppointmentEventType, appointmentEvents } from '../core/ClientEvents.js';
 import { AppStoreHealthcare } from './AppStoreHealthcare.js';
 // https://ewr50l16.forms.app/consulta-nutricional-ayleenbertini
 class AppointmentFormHealthcare {
   static Event = {};
+  static onSubmitted(listener, options = {}) {
+    if (options.key) AppointmentFormHealthcare.Event[options.key] = listener;
+    return appointmentEvents.on(AppointmentEventType.submitted, listener, options);
+  }
+  static offSubmitted(key) {
+    delete AppointmentFormHealthcare.Event[key];
+    return appointmentEvents.off(key);
+  }
+  static hasSubmittedListener(key) {
+    return appointmentEvents.has(key);
+  }
   static async Trigger(options) {
+    await appointmentEvents.emit(AppointmentEventType.submitted, options);
     for (const eventKey of Object.keys(AppointmentFormHealthcare.Event))
       await AppointmentFormHealthcare.Event[eventKey](options);
   }

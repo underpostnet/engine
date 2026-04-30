@@ -115,7 +115,7 @@ class CalendarCore {
     };
     setTimeout(() => {
       renderCalendar();
-      Translate.Event['fullcalendar-lang'] = () => {
+      const applyFullCalendarLang = () => {
         CalendarCore.Data[options.idModal].calendar.setOption('locale', s(`html`).lang);
         if (s(`.fc-timegrid-axis-cushion`)) htmls(`.fc-timegrid-axis-cushion`, Translate.instance('all-day'));
         if (s(`.fc-dayGridMonth-button`)) htmls(`.fc-dayGridMonth-button`, Translate.instance('month'));
@@ -123,25 +123,26 @@ class CalendarCore {
         if (s(`.fc-listWeek-button`)) htmls(`.fc-listWeek-button`, Translate.instance('summary'));
         if (s(`.fc-today-button`)) htmls(`.fc-today-button`, Translate.instance('today'));
       };
+      Translate.onChanged(applyFullCalendarLang, { key: 'fullcalendar-lang' });
       setTimeout(() => {
-        Translate.Event['fullcalendar-lang']();
+        applyFullCalendarLang();
         s(`.fc-dayGridMonth-button`).onclick = () => {
-          Translate.Event['fullcalendar-lang']();
+          applyFullCalendarLang();
         };
         s(`.fc-listWeek-button`).onclick = () => {
-          Translate.Event['fullcalendar-lang']();
+          applyFullCalendarLang();
         };
         s(`.fc-timeGridWeek-button`).onclick = () => {
-          Translate.Event['fullcalendar-lang']();
+          applyFullCalendarLang();
         };
         s(`.fc-next-button`).onclick = () => {
-          Translate.Event['fullcalendar-lang']();
+          applyFullCalendarLang();
         };
         s(`.fc-prev-button`).onclick = () => {
-          Translate.Event['fullcalendar-lang']();
+          applyFullCalendarLang();
         };
         s(`.fc-today-button`).onclick = () => {
-          Translate.Event['fullcalendar-lang']();
+          applyFullCalendarLang();
         };
       });
       sa(`.fc-button-group`)[1].style.float = 'right';
@@ -246,7 +247,7 @@ class CalendarCore {
                 s(`.main-body-calendar-${options.idModal}`).classList.add('hide');
                 // renderCalendar();
                 CalendarCore.Data[options.idModal].calendar.setOption('height', 700);
-                Translate.Event['fullcalendar-lang']();
+                Translate.emitChanged({ lang: s('html').lang });
               },
             },
           ],

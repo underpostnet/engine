@@ -15,12 +15,24 @@ import { Validator } from './Validator.js';
 import { append, htmls, s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { AccountEventType, accountEvents } from './ClientEvents.js';
 import { loggerFactory } from './Logger.js';
 
 const logger = loggerFactory(import.meta);
 
 class Account {
   static UpdateEvent = {};
+  static onUpdated(listener, options = {}) {
+    if (options.key) Account.UpdateEvent[options.key] = listener;
+    return accountEvents.on(AccountEventType.updated, listener, options);
+  }
+  static offUpdated(key) {
+    delete Account.UpdateEvent[key];
+    return accountEvents.off(key);
+  }
+  static hasUpdatedListener(key) {
+    return accountEvents.has(key);
+  }
   static async instance(options = { user: {}, bottomRender: async () => '', idModal: '' }) {
     // app profile page design example
     // CSS animated backgrounds
@@ -546,6 +558,7 @@ class Account {
     `;
   }
   static async triggerUpdateEvent(options = { user: {} }) {
+    await accountEvents.emit(AccountEventType.updated, options);
     for (const updateEvent of Object.keys(this.UpdateEvent)) {
       await this.UpdateEvent[updateEvent](options);
     }

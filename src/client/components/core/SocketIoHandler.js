@@ -35,7 +35,7 @@ class SocketIoHandlerProvider {
       instance() {
         return new Promise((resolve) => {
           for (const type of Object.keys(appStore.Data)) {
-            SocketIo.Event[type][s4()] = async (args) => {
+            SocketIo.onChannel(type, async ({ args }) => {
               args = JSON.parse(args[0]);
               switch (type) {
                 case 'chat':
@@ -61,10 +61,10 @@ class SocketIoHandlerProvider {
                 default:
                   break;
               }
-            };
+            }, { key: s4() });
           }
-          SocketIo.Event.connect[s4()] = async (reason) => {};
-          SocketIo.Event.disconnect[s4()] = async (reason) => {};
+          SocketIo.onConnect(async ({ id }) => {}, { key: s4() });
+          SocketIo.onDisconnect(async ({ reason }) => {}, { key: s4() });
           return resolve();
         });
       },

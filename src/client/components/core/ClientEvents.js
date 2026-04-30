@@ -33,6 +33,18 @@ const RecoverEventType = {
   triggered: 'recover:triggered',
 };
 
+const KeyboardEventType = {
+  pressed: 'keyboard:pressed',
+};
+
+const AccountEventType = {
+  updated: 'account:updated',
+};
+
+const AppointmentEventType = {
+  submitted: 'appointment:submitted',
+};
+
 const authLoginEvents = new EventBus();
 const authLogoutEvents = new EventBus();
 const authSignupEvents = new EventBus();
@@ -44,6 +56,9 @@ const responsiveSettledEvents = new EventBus();
 const responsiveOrientationEvents = new EventBus();
 const responsiveOrientationSettledEvents = new EventBus();
 const recoverEvents = new EventBus();
+const keyboardEvents = new EventBus();
+const accountEvents = new EventBus();
+const appointmentEvents = new EventBus();
 
 export {
   AuthEventType,
@@ -52,6 +67,9 @@ export {
   TranslateEventType,
   ResponsiveEventType,
   RecoverEventType,
+  KeyboardEventType,
+  AccountEventType,
+  AppointmentEventType,
   authLoginEvents,
   authLogoutEvents,
   authSignupEvents,
@@ -63,4 +81,7 @@ export {
   responsiveOrientationEvents,
   responsiveOrientationSettledEvents,
   recoverEvents,
+  keyboardEvents,
+  accountEvents,
+  appointmentEvents,
 };

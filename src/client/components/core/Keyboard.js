@@ -1,11 +1,22 @@
 import { cap, getId } from './CommonJs.js';
+import { KeyboardEventType, keyboardEvents } from './ClientEvents.js';
 class Keyboard {
   static ActiveKey = {};
   static Event = {};
+  static onPressed(listener, options = {}) {
+    return keyboardEvents.on(KeyboardEventType.pressed, listener, options);
+  }
+  static offPressed(key) {
+    return keyboardEvents.off(key);
+  }
+  static hasPressedListener(key) {
+    return keyboardEvents.has(key);
+  }
   static async instance() {
     const callBackTime = 45;
     window.onkeydown = (e = new KeyboardEvent()) => {
       Keyboard.ActiveKey[e.key] = true;
+      keyboardEvents.emit(KeyboardEventType.pressed, { key: e.key, activeKeys: { ...Keyboard.ActiveKey }, event: e });
       // e.composedPath()
       // if (['Tab'].includes(e.key)) {
       //   e.preventDefault();

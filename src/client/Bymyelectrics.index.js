@@ -22,9 +22,9 @@ const BymyelectricsTemplate = async () => {
   const id1DynamicCol = `dynamicCol-1`;
 
   setTimeout(() => {
-    Responsive.Event[`landing`] = () => {
+    Responsive.onChanged(() => {
       s(`.home-first-screen`).style.height = ` ${windowGetH() - 100}px`;
-    };
+    }, { key: 'landing' });
   });
   return html`
     <style>

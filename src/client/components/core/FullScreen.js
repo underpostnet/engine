@@ -176,9 +176,9 @@ class FullScreen {
     // Setup event listeners once
     FullScreen._addEventListeners();
     // Update responsive event
-    Responsive.Event['full-screen-settings'] = () => {
+    Responsive.onChanged(() => {
       FullScreen._syncToggleState();
-    };
+    }, { key: 'full-screen-settings' });
     return html`<div class="in section-mp">
       ${await ToggleSwitch.instance({
         wrapper: true,

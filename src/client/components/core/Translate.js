@@ -1,4 +1,5 @@
 import { newInstance, getId, cap, capFirst } from './CommonJs.js';
+import { TranslateEventType, translateEvents } from './ClientEvents.js';
 import { DropDown } from './DropDown.js';
 import { loggerFactory } from './Logger.js';
 import { s, htmls, getLang } from './VanillaJs.js';
@@ -27,7 +28,22 @@ class Translate {
             : textFormatted(Translate.Token[translateHash][lang]);
       }
     });
+    Translate.emitChanged({ lang });
     for (const keyEvent of Object.keys(Translate.Event)) Translate.Event[keyEvent]();
+  }
+  static onChanged(listener, options = {}) {
+    if (options.key) Translate.Event[options.key] = listener;
+    return translateEvents.on(TranslateEventType.changed, listener, options);
+  }
+  static offChanged(key) {
+    delete Translate.Event[key];
+    return translateEvents.off(key);
+  }
+  static hasChangedListener(key) {
+    return translateEvents.has(key);
+  }
+  static async emitChanged(detail) {
+    await translateEvents.emit(TranslateEventType.changed, detail);
   }
   static instance(keyLang, placeholder, options = { disableTextFormat: false }) {
     if (!(keyLang in Translate.Data)) {

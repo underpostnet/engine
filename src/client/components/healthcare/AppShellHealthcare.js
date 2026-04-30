@@ -516,15 +516,15 @@ class AppShellHealthcare {
       });
       if (!eventData) return { status: 'error' };
       const cleanEvent = () => {
-        delete AppointmentFormHealthcare.Event[idModal];
+        AppointmentFormHealthcare.offSubmitted(idModal);
         delete Modal.Data[idModal].onCloseListener[idModal];
       };
       return await new Promise((resolve) => {
-        AppointmentFormHealthcare.Event[idModal] = async ({ status, data, message }) => {
+        AppointmentFormHealthcare.onSubmitted(async ({ status, data, message }) => {
           cleanEvent();
           await Modal.removeModal(idModal);
           return resolve({ status });
-        };
+        }, { key: idModal });
         Modal.Data[idModal].onCloseListener[idModal] = () => {
           cleanEvent();
           return resolve({ status: 'error' });

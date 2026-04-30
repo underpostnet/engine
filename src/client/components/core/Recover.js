@@ -8,9 +8,22 @@ import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { s } from './VanillaJs.js';
 import { getProxyPath, getQueryParams } from './Router.js';
+import { RecoverEventType, recoverEvents } from './ClientEvents.js';
 class Recover {
   static Event = {};
+  static onTriggered(listener, options = {}) {
+    if (options.key) Recover.Event[options.key] = listener;
+    return recoverEvents.on(RecoverEventType.triggered, listener, options);
+  }
+  static offTriggered(key) {
+    delete Recover.Event[key];
+    return recoverEvents.off(key);
+  }
+  static hasTriggeredListener(key) {
+    return recoverEvents.has(key);
+  }
   static async Trigger(options) {
+    await recoverEvents.emit(RecoverEventType.triggered, options);
     for (const eventKey of Object.keys(Recover.Event)) await Recover.Event[eventKey](options);
   }
   static async instance(options = { idModal: '', user: {}, bottomRender: async () => '' }) {

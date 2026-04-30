@@ -6,6 +6,7 @@
  * @namespace SocketIoProvider
  */
 import { io } from 'socket.io/client-dist/socket.io.esm.min.js';
+import { SocketEventType, socketEvents } from './ClientEvents.js';
 import { loggerFactory } from './Logger.js';
 import { getWsBasePath, getWsBaseUrl } from '../../services/core/core.service.js';
 
@@ -46,6 +47,30 @@ class SocketIoProvider {
    * @type {string|undefined}
    */
   static host;
+  static onConnect(listener, options = {}) {
+    return socketEvents.on(SocketEventType.connect, listener, options);
+  }
+  static offConnect(key) {
+    return socketEvents.off(key);
+  }
+  static onConnectError(listener, options = {}) {
+    return socketEvents.on(SocketEventType.connectError, listener, options);
+  }
+  static offConnectError(key) {
+    return socketEvents.off(key);
+  }
+  static onDisconnect(listener, options = {}) {
+    return socketEvents.on(SocketEventType.disconnect, listener, options);
+  }
+  static offDisconnect(key) {
+    return socketEvents.off(key);
+  }
+  static onChannel(type, listener, options = {}) {
+    return socketEvents.on(SocketEventType.channel(type), listener, options);
+  }
+  static offChannel(key) {
+    return socketEvents.off(key);
+  }
 
   /**
    * Emits a JSON-serialized payload to the server on the specified channel.
@@ -93,16 +118,19 @@ class SocketIoProvider {
 
     this.socket.on('connect', () => {
       logger.info(`event: connect | session id: ${this.socket.id}`);
+      socketEvents.emit(SocketEventType.connect, { id: this.socket.id });
       Object.keys(this.Event.connect).map((keyEvent) => this.Event.connect[keyEvent]());
     });
 
     this.socket.on('connect_error', (err) => {
       logger.info(`event: connect_error | reason: ${err.message}`);
+      socketEvents.emit(SocketEventType.connectError, { error: err });
       Object.keys(this.Event.connect_error).map((keyEvent) => this.Event.connect_error[keyEvent](err));
     });
 
     this.socket.on('disconnect', (reason) => {
       logger.info(`event: disconnect | reason: ${reason}`);
+      socketEvents.emit(SocketEventType.disconnect, { reason });
       Object.keys(this.Event.disconnect).map((keyEvent) => this.Event.disconnect[keyEvent](reason));
     });
 
@@ -120,8 +148,9 @@ class SocketIoProvider {
   static setChannels(channels) {
     Object.keys(channels).map((type) => {
       logger.info(`load chanel`, type);
-      this.Event[type] = {};
+      if (!this.Event[type]) this.Event[type] = {};
       this.socket.on(type, (...args) => {
+        socketEvents.emit(SocketEventType.channel(type), { type, args });
         Object.keys(this.Event[type]).map((keyEvent) => this.Event[type][keyEvent](args));
       });
     });
