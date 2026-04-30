@@ -82,7 +82,7 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
-            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none 'dd-lampp,1,,localhost/dd-test-php8:v3.1.3' --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-env,underpost start --build --run dd-lampp production'"
+            sudo -n -- /bin/bash -lc "node bin run sync --kubeadm --deploy-id-cron-jobs none 'dd-lampp,1,,underpost/wp:v3.2.5'"
   init:
     if: >-
       github.repository == 'underpostnet/engine'
@@ -115,6 +115,6 @@ jobs:
             cd /home/dd/engine
             sudo -n -- /bin/bash -lc "node bin run pull"
             sudo -n -- /bin/bash -lc "npm install"
-            sudo -n -- /bin/bash -lc "node bin deploy dd-lampp production --kubeadm --sync --build-manifest --image 'localhost/dd-test-php8:v3.1.3' --versions green --replicas 1 --cmd 'npm install -g npm@11.2.0,npm install -g underpost,underpost secret underpost --create-from-env,underpost start --build --run dd-lampp production'"
+            sudo -n -- /bin/bash -lc "node bin deploy dd-lampp production --kubeadm --sync --build-manifest --image 'underpost/wp:v3.2.5' --versions green --replicas 1"
             sudo -n -- /bin/bash -lc "node bin deploy dd-lampp production --cert --kubeadm --disable-update-proxy"
             sudo -n -- /bin/bash -lc "node bin monitor dd-lampp production --ready-deployment --promote --versions green --replicas 1"

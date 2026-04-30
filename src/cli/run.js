@@ -1135,15 +1135,22 @@ EOF
      *
      * @param {string} path - Comma-separated: `deployId,instanceId[,projectPath]`.
      *   `projectPath` is the root directory that contains the `Dockerfile` (e.g. `./cyberia-client`).
-     *   The manifest is always written to `<projectPath>/deployment.yaml`, or `./deployment.yaml`
-     *   when `projectPath` is omitted.
+     *   Artifacts are written to `<projectPath>/manifests/<env>/Dockerfile` and
+     *   `<projectPath>/manifests/<env>/deployment.yaml`.
+     *   In production, files are also copied to `<projectPath>/Dockerfile` and
+     *   `<projectPath>/deployment.yaml`.
      * @param {Object} options - The default underpost runner options for customizing workflow
      * @memberof UnderpostRun
      */
     'instance-build-manifest': (path, options = DEFAULT_OPTION) => {
       const env = options.dev ? 'development' : 'production';
       let [deployId, id, projectPath] = path.split(',');
-      const outputPath = projectPath ? `${projectPath}/deployment.yaml` : './deployment.yaml';
+      const rootPath = projectPath ? projectPath : '.';
+      const envManifestPath = `${rootPath}/manifests/${env}`;
+      const outputPath = `${envManifestPath}/deployment.yaml`;
+      const dockerfileManifestPath = `${envManifestPath}/Dockerfile`;
+
+      fs.mkdirpSync(envManifestPath);
 
       const confInstances = JSON.parse(
         fs.readFileSync(`./engine-private/conf/${deployId}/conf.instances.json`, 'utf8'),
@@ -1162,8 +1169,17 @@ EOF
           cmd: _cmd,
           volumes: _volumes,
           metadata: _metadata,
+          runtime: _runtime,
         } = instance;
         if (id !== _id) continue;
+
+        // Resolve Dockerfile source: use runtime-specific path when instance defines a runtime.
+        const dockerfileSourcePath = _runtime ? `src/runtime/${_runtime}/Dockerfile` : `${rootPath}/Dockerfile`;
+        if (fs.existsSync(dockerfileSourcePath)) {
+          fs.copyFileSync(dockerfileSourcePath, dockerfileManifestPath);
+        } else {
+          logger.warn(`[instance-build-manifest] Dockerfile not found at ${dockerfileSourcePath}`);
+        }
 
         const _deployId = `${deployId}-${_id}`;
         if (!_image) _image = `underpost/underpost-engine:${Underpost.version}`;
@@ -1230,6 +1246,18 @@ EOF
           traffic: targetTraffic,
           image: _image,
         });
+
+        if (env === 'production') {
+          if (fs.existsSync(dockerfileManifestPath)) {
+            fs.copyFileSync(dockerfileManifestPath, `${rootPath}/Dockerfile`);
+          }
+          fs.copyFileSync(outputPath, `${rootPath}/deployment.yaml`);
+          logger.info('[instance-build-manifest] Production artifacts copied to project root', {
+            rootPath,
+            dockerfile: `${rootPath}/Dockerfile`,
+            deployment: `${rootPath}/deployment.yaml`,
+          });
+        }
         break;
       }
     },

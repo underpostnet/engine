@@ -1,23 +1,25 @@
 FROM rockylinux:9
 
-# Update and install required packages
-RUN dnf -y update && \
-    dnf -y install epel-release && \
-    dnf -y install --allowerasing \
-    bzip2 \
-    sudo \
-    curl \
-    net-tools \
-    openssh-server \
-    nano \
-    vim-enhanced \
-    less \
-    openssl-devel \
-    wget \
-    git \
-    gnupg2 \
-    libnsl \
-    perl && \
+# ── System packages (build tools + raylib web dependencies) ───────────────────
+RUN dnf install -y epel-release && \
+    curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
+    dnf groupinstall -y "Development Tools" && \
+    dnf install -y \
+        cmake git wget unzip \
+        python3 python3.11 \
+        nodejs \
+        alsa-lib-devel \
+        mesa-libGL-devel \
+        mesa-libGLU-devel \
+        libX11-devel \
+        libXrandr-devel \
+        libXi-devel \
+        libXcursor-devel \
+        libXinerama-devel \
+        libXfixes-devel \
+        freeglut-devel \
+        glfw-devel \
+        libatomic.x86_64 && \
     dnf clean all
 
 # --- Download and install XAMPP (PHP 8.2)
@@ -38,20 +40,10 @@ RUN echo 'export PATH="/opt/lampp/bin:/usr/local/bin:${PATH}"' > /etc/profile.d/
 # Provide a no-op sendmail so PHP plugins don't error on mail calls
 RUN printf '#!/bin/sh\ncat > /dev/null\n' > /usr/sbin/sendmail && chmod +x /usr/sbin/sendmail
 
-# Install Node.js
-RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
-RUN dnf install nodejs -y
-RUN dnf clean all
+# ── underpost CLI ──────────────────────────────────────────────────────────────
+RUN npm install -g underpost
 
-# Verify Node.js and npm versions
-RUN node --version
-RUN npm --version
-
-# Create non-root user for secure container execution (cron jobs, init containers)
-# Deployment containers override to root via securityContext when npm install -g is needed
-RUN useradd -m -u 1000 -s /bin/bash dd
-
-# Set working directory
+# Runtime root expected by startup/build scripts.
 WORKDIR /home/dd
 
 EXPOSE 22

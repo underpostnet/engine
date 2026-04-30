@@ -4221,6 +4221,16 @@ try {
       logger.info('All semantic examples generated.');
     });
 
+  runner
+    .command('build-manifest')
+    .description('Build k8s resource manifest YAML files from templates')
+    .action(() => {
+      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' --kubeadm`);
+      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-client,./cyberia-client' --kind --dev`);
+      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' --kubeadm`);
+      shellExec(`node bin run instance-build-manifest 'dd-cyberia,mmo-server,./cyberia-server' --kind --dev`);
+    });
+
   if (underpostProgram.commands.find((c) => c._name == process.argv[2]))
     throw new Error('Trigger underpost passthrough');
 

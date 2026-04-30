@@ -19,7 +19,8 @@ RUN dnf install -y epel-release && \
         libXfixes-devel \
         freeglut-devel \
         glfw-devel \
-        libatomic.x86_64 && \
+        libatomic.x86_64 \
+        golang && \
     dnf clean all
 
 # ── underpost CLI ──────────────────────────────────────────────────────────────
@@ -28,9 +29,14 @@ RUN npm install -g underpost
 # Runtime root expected by startup/build scripts.
 WORKDIR /home/dd
 
-EXPOSE 22
-EXPOSE 80
-EXPOSE 443
-EXPOSE 3000-3100
-EXPOSE 4000-4100
+RUN mkdir -p /home/dd/engine/cyberia-server
+COPY cyberia-server/ /home/dd/engine/cyberia-server/
+
+RUN cd /home/dd/engine/cyberia-server && \
+    go mod download && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o server .
+
+EXPOSE 8081
+
+CMD ["/home/dd/engine/cyberia-server/server"]
 
