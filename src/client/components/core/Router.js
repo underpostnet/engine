@@ -90,10 +90,10 @@ const setRouterReady = () => {
 
 /**
  * Determines the base path for the application, often used for routing within a sub-directory.
- * It checks the current URL's pathname and `window.Routes` to return the appropriate proxy path.
+ * It checks the current URL's pathname and the active registered routes to return the appropriate proxy path.
  *
  * @returns {string} The calculated proxy path. Returns `/<first-segment>/` if a segment exists,
- *          otherwise `/`. If `window.Routes` indicates the path is a root route, it returns `/`.
+ *          otherwise `/`. If the registered routes indicate the path is a root route, it returns `/`.
  * @memberof PwaRouter
  */
 const getProxyPath = () => {

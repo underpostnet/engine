@@ -12,6 +12,7 @@ import { EventsUI } from './EventsUI.js';
 import { LoadingAnimation } from './LoadingAnimation.js';
 import { loggerFactory } from './Logger.js';
 import { LoadRouter } from './Router.js';
+import { registerRoutes } from './Router.js';
 import { Translate } from './Translate.js';
 import { s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
@@ -159,6 +160,7 @@ class PwaWorker {
     }
 
     this.RouterInstance = typeof router?.instance === 'function' ? router.instance() : router();
+    if (this.RouterInstance?.Routes) registerRoutes(this.RouterInstance.Routes);
     const isInstall = await this.status();
     if (!isInstall) await this.install();
 
