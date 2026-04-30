@@ -7,7 +7,7 @@ import { Translate } from './Translate.js';
 // https://css-loaders.com/3d/
 class Polyhedron {
   static Tokens = {};
-  static async Render(options) {
+  static async instance(options) {
     const id = options?.id ? options.id : getId(Polyhedron.Tokens, 'polyhedron-');
     if (!Polyhedron.Tokens[id])
       Polyhedron.Tokens[id] = {
@@ -853,29 +853,29 @@ class Polyhedron {
         <div class="in fll polyhedron-${id}-col-a">
           <div class="in section-mp">
             <div class="in sub-title-modal"><i class="fa-solid fa-arrows-spin"></i> Rotate</div>
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `inl section-mp btn-custom btn-polyhedron-rotate-up-${id}`,
               label: html`<i class="fa-solid fa-angle-up"></i>`,
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `inl section-mp btn-custom btn-polyhedron-rotate-down-${id}`,
               label: html`<i class="fa-solid fa-angle-down"></i>`,
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `inl section-mp btn-custom btn-polyhedron-rotate-left-${id}`,
               label: html`<i class="fa-solid fa-angle-left"></i>`,
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `inl section-mp btn-custom btn-polyhedron-rotate-right-${id}`,
               label: html`<i class="fa-solid fa-angle-right"></i>`,
             })}
 
             <div class="in sub-title-modal"><i class="fa-solid fa-magnifying-glass"></i> Zoom</div>
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `inl section-mp btn-custom btn-polyhedron-add-zoom-${id}`,
               label: html`<i class="fa-solid fa-plus"></i>`,
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `inl section-mp btn-custom btn-polyhedron-remove-zoom-${id}`,
               label: html`<i class="fa-solid fa-minus"></i>`,
             })}
@@ -903,11 +903,11 @@ class Polyhedron {
               <option value="bottom">bottom</option>
             </select>
             <input class="in polyhedron-face-image-file-${id}" type="file" accept="image/*" />
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `inl section-mp btn-custom btn-polyhedron-clear-face-image-${id}`,
-              label: html`<i class="fa-solid fa-eraser"></i> ${Translate.Render('clear')}`,
+              label: html`<i class="fa-solid fa-eraser"></i> ${Translate.instance('clear')}`,
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `inl section-mp btn-custom btn-polyhedron-immersive-${id}`,
               label: html`<i class="fa-solid fa-expand"></i> Immersive`,
             })}
@@ -915,7 +915,7 @@ class Polyhedron {
         </div>
         <div class="in fll polyhedron-${id}-col-b">
           <div class="in section-mp">
-            <div class="in sub-title-modal"><i class="fa-solid fa-vector-square"></i> Render</div>
+            <div class="in sub-title-modal"><i class="fa-solid fa-vector-square"></i> instance</div>
             <div class="in scene-${id}">
               <canvas class="polyhedron-immersive-canvas-${id}"></canvas>
 

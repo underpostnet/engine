@@ -16,7 +16,7 @@ class LabGalleryUnderpost {
     { title: 'CELLULAR AUTOMATA SIMULATOR', path: 'life' },
     { title: 'VANILLAJS SNAKE', path: 'snake' },
   ];
-  static async Render() {
+  static async instance() {
     const id = getId(LabGalleryUnderpost.Tokens, 'lab-gallery-');
     let render = '';
     let i = -1;
@@ -28,7 +28,7 @@ class LabGalleryUnderpost {
           const ModalId = `modal-${viewLabId}`;
           const { barConfig } = await Themes[Css.currentTheme]();
           setQueryPath({ path: 'lab-gallery', queryPath: view.path });
-          await Modal.Render({
+          await Modal.instance({
             barConfig,
             title: renderViewTitle({
               icon: html`<i class="fa-solid fa-photo-film"></i>`,
@@ -54,7 +54,7 @@ class LabGalleryUnderpost {
           }
         </style>
         <div class="in">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: `wfa btn-lab-gallery btn-${viewLabId}`,
             label: html`<i class="fa-solid fa-arrow-up-right-from-square"></i> &nbsp &nbsp${view.title}`,
           })}

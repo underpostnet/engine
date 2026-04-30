@@ -17,7 +17,7 @@ const PublicProfile = {
 
     // Check if modal exists and is registered in Modal.Data
     if (!Modal.Data[idModal]) {
-      return await this.Render(options);
+      return await this.instance(options);
     }
 
     try {
@@ -35,7 +35,7 @@ const PublicProfile = {
       this._cleanupProfileData({ idModal });
 
       // Re-render the profile content with new user
-      const newContent = await this.Render({ ...options, disableUpdate: true });
+      const newContent = await this.instance({ ...options, disableUpdate: true });
 
       // Update modal content using Modal.writeHTML with smooth transition
       Modal.writeHTML({ idModal, html: newContent });
@@ -186,7 +186,7 @@ const PublicProfile = {
     }
   },
 
-  Render: async function (
+  instance: async function (
     options = {
       idModal: '',
       user: {},
@@ -436,7 +436,7 @@ const PublicProfile = {
               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px ${colors.buttonShadow}';"
             >
               <i class="fa-solid fa-home"></i>
-              ${Translate.Render('go-home')}
+              ${Translate.instance('go-home')}
             </a>
             <a
               href="javascript:history.back()"
@@ -459,7 +459,7 @@ const PublicProfile = {
               onmouseout="this.style.background='transparent'; this.style.borderColor='${colors.primaryColor}40';"
             >
               <i class="fa-solid fa-arrow-left"></i>
-              ${Translate.Render('go-back')}
+              ${Translate.instance('go-back')}
             </a>
           </div>
         </div>
@@ -468,7 +468,7 @@ const PublicProfile = {
 
     if (!userId && !username) {
       return renderErrorState(
-        Translate.Render('user-not-found'),
+        Translate.instance('user-not-found'),
         'fa-user-slash',
         "The user you're looking for could not be found. Please check the username and try again.",
       );
@@ -503,13 +503,13 @@ const PublicProfile = {
       } else {
         if (result.message && result.message.toLowerCase().match('private'))
           return renderErrorState(
-            Translate.Render('profile-is-private'),
+            Translate.instance('profile-is-private'),
             'fa-lock',
             'This user has chosen to keep their profile private. Respect their privacy and check back later if they change their settings.',
           );
         else
           return renderErrorState(
-            Translate.Render('user-not-found'),
+            Translate.instance('user-not-found'),
             'fa-user-slash',
             'This user profile does not exist or has been removed. Please verify the username.',
           );
@@ -517,7 +517,7 @@ const PublicProfile = {
     } catch (error) {
       console.error('Error fetching public profile:', error);
       return renderErrorState(
-        Translate.Render('error-loading-profile'),
+        Translate.instance('error-loading-profile'),
         'fa-circle-exclamation',
         'We encountered an issue loading this profile. Please try again in a moment or contact support if the problem persists.',
       );
@@ -526,7 +526,7 @@ const PublicProfile = {
     // If user doesn't have public profile enabled
     if (!userData.publicProfile) {
       return renderErrorState(
-        Translate.Render('profile-is-private'),
+        Translate.instance('profile-is-private'),
         'fa-lock',
         'This user has chosen to keep their profile private. Respect their privacy and check back later if they change their settings.',
       );
@@ -765,7 +765,7 @@ const PublicProfile = {
                       transition: color 0.3s ease-in-out;
                     "
                   >
-                    ${Translate.Render('no-description')}
+                    ${Translate.instance('no-description')}
                   </p>`}
             </div>
 
@@ -792,7 +792,7 @@ const PublicProfile = {
                 "
               >
                 <i class="fa-solid fa-calendar" style="margin-right: 6px;"></i>
-                ${Translate.Render('member-since')}: ${new Date(userData.createdAt).toLocaleDateString()}
+                ${Translate.instance('member-since')}: ${new Date(userData.createdAt).toLocaleDateString()}
               </span>
             </div>
 
@@ -817,7 +817,7 @@ const PublicProfile = {
               <a
                 class="${profileId}-button"
                 href="javascript:void(0)"
-                title="${Translate.Render('view-profile')}"
+                title="${Translate.instance('view-profile')}"
                 style="
                   display: inline-flex;
                   align-items: center;

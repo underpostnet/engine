@@ -7,7 +7,7 @@ import { Translate } from './Translate.js';
 import { s, htmls } from './VanillaJs.js';
 class DropDown {
   static Tokens = {};
-  static async Render(options) {
+  static async instance(options) {
     const id = options.id ? options.id : getId(DropDown.Tokens, 'dropdown-');
     DropDown.Tokens[id] = {
       onClickEvents: {},
@@ -27,7 +27,7 @@ class DropDown {
       let badgesHtml = '';
       for (const [key, val] of selected) {
         badgesHtml += html`<span class="inl" style="display:inline-flex;align-items:center;margin:2px;">
-          ${await Badge.Render({
+          ${await Badge.instance({
             text: html`<i class="fa-solid fa-tag" style="margin-right:3px;font-size:9px;"></i>${val.display}`,
             style: {
               background: darkTheme ? '#335' : '#cde',
@@ -67,7 +67,7 @@ class DropDown {
     DropDown.Tokens[id]._renderSelectedBadges = _renderSelectedBadges;
     options.data.push({
       value: 'reset',
-      display: html`<i class="fa-solid fa-broom"></i> ${Translate.Render('clear')}`,
+      display: html`<i class="fa-solid fa-broom"></i> ${Translate.instance('clear')}`,
       onClick: () => {
         console.log('DropDown onClick', DropDown.value);
         if (options && options.resetOnClick) options.resetOnClick();
@@ -96,7 +96,7 @@ class DropDown {
     if (!(options && options.disableClose))
       options.data.push({
         value: 'close',
-        display: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
+        display: html`<i class="fa-solid fa-xmark"></i> ${Translate.instance('close')}`,
         onClick: function () {
           console.log('DropDown onClick', DropDown.value);
         },
@@ -168,7 +168,7 @@ class DropDown {
           >
             ${!isGroup && options.type === 'checkbox' && optionData.value !== 'close' && optionData.value !== 'reset'
               ? html`
-                  ${await ToggleSwitch.Render({
+                  ${await ToggleSwitch.instance({
                     id: `checkbox-role-${valueDisplay}`,
                     type: 'checkbox',
                     disabledOnClick: true,
@@ -241,7 +241,7 @@ class DropDown {
           htmls(
             `.${id}-render-container`,
             html` <div class="inl" style="padding: 10px; color: red">
-              <i class="fas fa-exclamation-circle"></i> ${Translate.Render('no-result-found')}
+              <i class="fas fa-exclamation-circle"></i> ${Translate.instance('no-result-found')}
             </div>`,
           );
         }
@@ -277,7 +277,7 @@ class DropDown {
                 htmls(
                   `.${id}-render-container`,
                   html` <div class="inl" style="padding: 10px; color: red">
-                    <i class="fas fa-exclamation-circle"></i> ${Translate.Render('no-result-found')}
+                    <i class="fas fa-exclamation-circle"></i> ${Translate.instance('no-result-found')}
                   </div>`,
                 );
               }
@@ -305,9 +305,9 @@ class DropDown {
         ></div>
         <div class="in dropdown-option-${id} hide">
           <div class="in dropdown-option ${options && options.disableSearchBox ? 'hide' : ''}">
-            ${await Input.Render({
+            ${await Input.instance({
               id: `search-box-${id}`,
-              label: html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.Render('search')}`,
+              label: html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.instance('search')}`,
               containerClass: 'in',
               placeholder: true,
             })}

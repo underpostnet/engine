@@ -225,7 +225,7 @@ const SearchBox = {
     const subtitle = result.subtitle || '';
     const tags = result.tags || [];
 
-    // Render tags if available
+    // instance tags if available
     const tagsHtml =
       tags.length > 0
         ? `<div class="search-result-tags">
@@ -396,7 +396,7 @@ const SearchBox = {
    * @memberof SearchBoxClient.SearchBox
    * @param {Array<object>} results - Array of search results to render.
    * @param {string} containerId - Results container element ID or class name.
-   * @param {object} [context={}] - Render context passed to renderers and handlers.
+   * @param {object} [context={}] - instance context passed to renderers and handlers.
    * @returns {void}
    */
   renderResults: function (results, containerId, context = {}) {
@@ -542,7 +542,7 @@ const SearchBox = {
    * @param {HTMLElement} [result.fontAwesomeIcon] - FontAwesome icon element.
    * @param {HTMLElement} [result.imgElement] - Image icon element.
    * @param {number} index - The index of this result in the results array.
-   * @param {object} [context={}] - Render context object.
+   * @param {object} [context={}] - instance context object.
    * @param {object} [context.options] - Additional rendering options.
    * @returns {string} HTML string for the route search result.
    */
@@ -584,7 +584,7 @@ const SearchBox = {
       }
     }
 
-    const translatedText = Translate.Render(routerId);
+    const translatedText = Translate.instance(routerId);
 
     return html`
       <div

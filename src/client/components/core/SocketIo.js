@@ -75,7 +75,7 @@ class SocketIoProvider {
    * @param {Object.<string, Object>} [options.channels] - Channel definitions to register listeners for.
    * @returns {Promise<void>}
    */
-  static async Init(options) {
+  static async instance(options) {
     if (this.socket) this.socket.disconnect();
     const path = getWsBasePath();
     this.host = options.host ? options.host : getWsBaseUrl({ wsBasePath: '' });

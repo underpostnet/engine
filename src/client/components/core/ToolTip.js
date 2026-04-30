@@ -3,7 +3,7 @@ import { append, s } from './VanillaJs.js';
 import { Modal } from './Modal.js';
 class ToolTip {
   static Tokens = {};
-  static async Render(
+  static async instance(
     options = { container: '', htmlRender: '', id: '', classList: '', useVisibilityHover: false, useMenuBtn: false },
   ) {
     const { container, htmlRender, id, useVisibilityHover } = options;

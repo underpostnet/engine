@@ -3,7 +3,7 @@ import { Modal } from './Modal.js';
 import { s } from './VanillaJs.js';
 class RichText {
   static Tokens = {};
-  static async Render(options = { id: '', parentIdModal: '' }) {
+  static async instance(options = { id: '', parentIdModal: '' }) {
     const id = options?.id ? options.id : getId(RichText.Tokens, 'rich-text-');
     RichText.Tokens[id] = {};
     setTimeout(() => {

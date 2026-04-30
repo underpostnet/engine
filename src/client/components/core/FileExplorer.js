@@ -67,7 +67,7 @@ class FolderHeaderComp {
 }
 class FileExplorer {
   static Api = {};
-  static async Render(options = { idModal: '' }) {
+  static async instance(options = { idModal: '' }) {
     const { idModal } = options;
     FileExplorer.Api[idModal] = options;
     const gridFolderId = 'folder-explorer-grid';
@@ -347,14 +347,14 @@ class FileExplorer {
         // Check authentication before upload
         if (!Auth.getToken()) {
           return NotificationManager.Push({
-            html: Translate.Render(`error-user-not-authenticated`),
+            html: Translate.instance(`error-user-not-authenticated`),
             status: 'error',
           });
         }
         const { errorMessage } = await validators();
         if (!formBodyFiles)
           return NotificationManager.Push({
-            html: Translate.Render(`warning-upload-no-selects-file`),
+            html: Translate.instance(`warning-upload-no-selects-file`),
             status: 'warning',
           });
         if (errorMessage) return;
@@ -363,7 +363,7 @@ class FileExplorer {
           const { status, data } = await FileService.post({ body: formBodyFiles });
           if (status === 'error' || !data) {
             return NotificationManager.Push({
-              html: Translate.Render(`error-upload-file`),
+              html: Translate.instance(`error-upload-file`),
               status: 'error',
             });
           }
@@ -397,7 +397,7 @@ class FileExplorer {
           AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
           updatePaginationUI();
           NotificationManager.Push({
-            html: Translate.Render(`${status}-upload-file`),
+            html: Translate.instance(`${status}-upload-file`),
             status,
           });
           if (status === 'success') {
@@ -447,7 +447,7 @@ class FileExplorer {
         e.preventDefault();
         await copyData(window.location.href);
         NotificationManager.Push({
-          html: Translate.Render('success-copy-data'),
+          html: Translate.instance('success-copy-data'),
           status: 'success',
         });
       });
@@ -476,37 +476,37 @@ class FileExplorer {
         const hasMdFile = !!params.data.hasMdFile;
         FileExplorer.eGui.innerHTML = html`
           <div class="fl">
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `in fll management-table-btn-mini btn-file-download-${params.data._id}${!hasGenericFile ? ' btn-disabled' : ''}`,
               label: html` <i class="fas fa-download"></i>`,
               type: 'button',
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `in fll management-table-btn-mini btn-file-delete-${params.data._id}`,
               label: html` <i class="fa-solid fa-circle-xmark"></i>`,
               type: 'button',
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `in fll management-table-btn-mini btn-file-view-${params.data._id}`,
               label: html` <i class="fas fa-eye"></i>`,
               type: 'button',
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `in fll management-table-btn-mini btn-file-copy-content-link-${params.data._id}${!hasGenericFile ? ' btn-disabled' : ''}`,
               label: html`<i class="fas fa-copy"></i>`,
               type: 'button',
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `in fll management-table-btn-mini btn-file-copy-md-link-${params.data._id}${!hasMdFile ? ' btn-disabled' : ''}`,
               label: html`<i class="fas fa-file-code"></i>`,
               type: 'button',
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `in fll management-table-btn-mini btn-file-edit-${params.data._id}`,
               label: html`<i class="fas fa-edit"></i>`,
               type: 'button',
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `in fll management-table-btn-mini ${toggleId}`,
               label: isPublic
                 ? html`<i class="fas fa-globe" style="color: #4caf50;"></i>`
@@ -570,7 +570,7 @@ class FileExplorer {
             if (!hasGenericFile || !blobUri) return;
             await copyData(blobUri);
             NotificationManager.Push({
-              html: Translate.Render('success-copy-data'),
+              html: Translate.instance('success-copy-data'),
               status: 'success',
             });
           });
@@ -579,7 +579,7 @@ class FileExplorer {
             if (!hasMdFile || !mdBlobUri) return;
             await copyData(mdBlobUri);
             NotificationManager.Push({
-              html: Translate.Render('success-copy-data'),
+              html: Translate.instance('success-copy-data'),
               status: 'success',
             });
           });
@@ -611,7 +611,7 @@ class FileExplorer {
                   html: async () => {
                     return html`
                       <div class="in section-mp" style="text-align: center">
-                        ${Translate.Render('confirm-delete-item')}
+                        ${Translate.instance('confirm-delete-item')}
                         <br />
                         "${params.data.title}"
                       </div>
@@ -661,7 +661,7 @@ class FileExplorer {
                   html: async () => {
                     return html`
                       <div class="in section-mp" style="text-align: center">
-                        ${Translate.Render('confirm-make-public')}
+                        ${Translate.instance('confirm-make-public')}
                         <br />
                         "${params.data.title}"
                       </div>
@@ -705,8 +705,8 @@ class FileExplorer {
                   }
                   NotificationManager.Push({
                     html: data.isPublic
-                      ? Translate.Render('document-now-public')
-                      : Translate.Render('document-now-private'),
+                      ? Translate.instance('document-now-public')
+                      : Translate.instance('document-now-private'),
                     status: 'success',
                   });
                 } else {
@@ -715,7 +715,7 @@ class FileExplorer {
               } catch (error) {
                 logger.error('Toggle public failed:', error);
                 NotificationManager.Push({
-                  html: Translate.Render('error-toggle-public'),
+                  html: Translate.instance('error-toggle-public'),
                   status: 'error',
                 });
               }
@@ -744,16 +744,16 @@ class FileExplorer {
                       style="text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid rgba(128,128,128,0.3);"
                     >
                       <p style="color: #888; font-size: 14px; margin: 0;">
-                        ${Translate.Render('editing')}: <strong style="color: inherit;">${params.data.title}</strong>
+                        ${Translate.instance('editing')}: <strong style="color: inherit;">${params.data.title}</strong>
                       </p>
                     </div>
 
                     <!-- Document Title -->
                     <div class="in section-mp" style="margin-bottom: 20px;">
-                      ${await Input.Render({
+                      ${await Input.instance({
                         id: `edit-doc-title-${params.data._id}`,
                         type: 'text',
-                        label: html`<i class="fas fa-heading"></i> ${Translate.Render('doc-title')}`,
+                        label: html`<i class="fas fa-heading"></i> ${Translate.instance('doc-title')}`,
                         containerClass: 'in section-mp input-container-width',
                         placeholder: true,
                         value: params.data.title || '',
@@ -763,10 +763,10 @@ class FileExplorer {
                     <!-- MD File Name -->
                     <div class="in section-mp" style="margin-bottom: 20px;">
                       ${hasMdFile
-                        ? await Input.Render({
+                        ? await Input.instance({
                             id: `edit-doc-md-file-${params.data._id}`,
                             type: 'text',
-                            label: html`<i class="fas fa-file-code"></i> ${Translate.Render('md-file-name')}
+                            label: html`<i class="fas fa-file-code"></i> ${Translate.instance('md-file-name')}
                               <span style="font-size: 11px; color: #888; margin-left: 8px;">(${mdFileMimetype})</span>`,
                             containerClass: 'in section-mp input-container-width',
                             placeholder: true,
@@ -775,12 +775,12 @@ class FileExplorer {
                         : html`
                             <div class="in section-mp input-container-width" style="opacity: 0.6;">
                               <label style="display: block; margin-bottom: 5px;">
-                                <i class="fas fa-file-code"></i> ${Translate.Render('md-file-name')}
+                                <i class="fas fa-file-code"></i> ${Translate.instance('md-file-name')}
                               </label>
                               <div
                                 style="padding: 10px 12px; border: 1px dashed rgba(128,128,128,0.5); border-radius: 4px; color: #888; font-style: italic;"
                               >
-                                <i class="fas fa-info-circle"></i> ${Translate.Render('no-md-file-attached')}
+                                <i class="fas fa-info-circle"></i> ${Translate.instance('no-md-file-attached')}
                               </div>
                             </div>
                           `}
@@ -789,10 +789,10 @@ class FileExplorer {
                     <!-- Generic File Name -->
                     <div class="in section-mp" style="margin-bottom: 20px;">
                       ${hasGenericFile
-                        ? await Input.Render({
+                        ? await Input.instance({
                             id: `edit-doc-file-${params.data._id}`,
                             type: 'text',
-                            label: html`<i class="fas fa-file"></i> ${Translate.Render('generic-file-name')}
+                            label: html`<i class="fas fa-file"></i> ${Translate.instance('generic-file-name')}
                               <span style="font-size: 11px; color: #888; margin-left: 8px;"
                                 >(${genericFileMimetype})</span
                               >`,
@@ -803,12 +803,12 @@ class FileExplorer {
                         : html`
                             <div class="in section-mp input-container-width" style="opacity: 0.6;">
                               <label style="display: block; margin-bottom: 5px;">
-                                <i class="fas fa-file"></i> ${Translate.Render('generic-file-name')}
+                                <i class="fas fa-file"></i> ${Translate.instance('generic-file-name')}
                               </label>
                               <div
                                 style="padding: 10px 12px; border: 1px dashed rgba(128,128,128,0.5); border-radius: 4px; color: #888; font-style: italic;"
                               >
-                                <i class="fas fa-info-circle"></i> ${Translate.Render('no-generic-file-attached')}
+                                <i class="fas fa-info-circle"></i> ${Translate.instance('no-generic-file-attached')}
                               </div>
                             </div>
                           `}
@@ -816,10 +816,10 @@ class FileExplorer {
 
                     <!-- Location -->
                     <div class="in section-mp" style="margin-bottom: 25px;">
-                      ${await Input.Render({
+                      ${await Input.instance({
                         id: `edit-doc-location-${params.data._id}`,
                         type: 'text',
-                        label: html`<i class="fas fa-folder"></i> ${Translate.Render('location')}`,
+                        label: html`<i class="fas fa-folder"></i> ${Translate.instance('location')}`,
                         containerClass: 'in section-mp input-container-width',
                         placeholder: true,
                         value: params.data.location || '/',
@@ -832,16 +832,16 @@ class FileExplorer {
                       style="margin-top: 30px; border-top: 1px solid rgba(128,128,128,0.3); padding-top: 20px;"
                     >
                       <div class="in fll" style="width: 50%; padding: 5px;">
-                        ${await BtnIcon.Render({
+                        ${await BtnIcon.instance({
                           class: `in wfa btn-edit-doc-cancel-${params.data._id}`,
-                          label: html`<i class="fas fa-times"></i> ${Translate.Render('cancel')}`,
+                          label: html`<i class="fas fa-times"></i> ${Translate.instance('cancel')}`,
                           type: 'button',
                         })}
                       </div>
                       <div class="in fll" style="width: 50%; padding: 5px;">
-                        ${await BtnIcon.Render({
+                        ${await BtnIcon.instance({
                           class: `in wfa btn-edit-doc-submit-${params.data._id}`,
-                          label: html`<i class="fas fa-save"></i> ${Translate.Render('save')}`,
+                          label: html`<i class="fas fa-save"></i> ${Translate.instance('save')}`,
                           type: 'button',
                         })}
                       </div>
@@ -850,12 +850,12 @@ class FileExplorer {
                 `;
               };
               const { barConfig } = await Themes[Css.currentTheme]();
-              await Modal.Render({
+              await Modal.instance({
                 id: editModalId,
                 barConfig,
                 title: renderViewTitle({
                   icon: html`<i class="fas fa-edit"></i>`,
-                  text: Translate.Render('edit-document'),
+                  text: Translate.instance('edit-document'),
                 }),
                 html: editFormHtml,
                 handleType: 'bar',
@@ -878,7 +878,7 @@ class FileExplorer {
                     const newFileName = hasGenericFile ? s(`.edit-doc-file-${params.data._id}`)?.value.trim() : null;
                     if (!newTitle) {
                       NotificationManager.Push({
-                        html: Translate.Render('error-title-required'),
+                        html: Translate.instance('error-title-required'),
                         status: 'error',
                       });
                       return;
@@ -940,7 +940,7 @@ class FileExplorer {
                         AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
                         updatePaginationUI();
                         NotificationManager.Push({
-                          html: Translate.Render('success-update-document'),
+                          html: Translate.instance('success-update-document'),
                           status: 'success',
                         });
                         // If location changed, navigate to the new location
@@ -958,7 +958,7 @@ class FileExplorer {
                     } catch (error) {
                       logger.error('Update document failed:', error);
                       NotificationManager.Push({
-                        html: Translate.Render('error-update-document'),
+                        html: Translate.instance('error-update-document'),
                         status: 'error',
                       });
                     }
@@ -997,7 +997,7 @@ class FileExplorer {
         FileExplorer.eGui = document.createElement('div');
         FileExplorer.eGui.innerHTML = html`
           <div class="fl">
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `in fll management-table-btn-mini btn-folder-delete-${id}`,
               label: html` <i class="fa-solid fa-circle-xmark"></i>`,
               type: 'button',
@@ -1012,7 +1012,7 @@ class FileExplorer {
                 html: async () => {
                   return html`
                     <div class="in section-mp" style="text-align: center">
-                      ${Translate.Render('confirm-delete-item')}
+                      ${Translate.instance('confirm-delete-item')}
                       <br />
                       "${params.data.location}"
                     </div>
@@ -1039,7 +1039,7 @@ class FileExplorer {
                 }
               }
               NotificationManager.Push({
-                html: Translate.Render('success-delete'),
+                html: Translate.instance('success-delete'),
                 status: 'success',
               });
               documentInstance = documentInstance.filter((f) => !idFilesDelete.includes(f._id));
@@ -1068,48 +1068,48 @@ class FileExplorer {
     return html`
       <form>
         <div class="fl">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in fll management-table-btn-mini btn-input-home-directory',
             label: html`<i class="fas fa-home"></i>
-              <!-- ${Translate.Render('home-directory')} -->`,
+              <!-- ${Translate.instance('home-directory')} -->`,
             type: 'button',
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in fll management-table-btn-mini btn-input-back-explorer',
             label: html` <i class="fa-solid fa-circle-left"></i>
-              <!-- ${Translate.Render('go')} -->`,
+              <!-- ${Translate.instance('go')} -->`,
             type: 'button',
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in fll management-table-btn-mini btn-input-forward-explorer',
             label: html` <i class="fa-solid fa-circle-right"></i>
-              <!-- ${Translate.Render('go')} -->`,
+              <!-- ${Translate.instance('go')} -->`,
             type: 'button',
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in fll management-table-btn-mini btn-input-go-explorer',
             label: html`<i class="fas fa-sync-alt"></i>
-              <!-- ${Translate.Render('go')} -->`,
+              <!-- ${Translate.instance('go')} -->`,
             type: 'submit',
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in fll management-table-btn-mini btn-input-copy-directory',
             label: html`<i class="fas fa-copy"></i>
-              <!-- ${Translate.Render('home-directory')} -->`,
+              <!-- ${Translate.instance('home-directory')} -->`,
             type: 'button',
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in fll management-table-btn-mini btn-input-upload-file',
             label: html`<i class="fa-solid fa-cloud-arrow-up"></i>
-              <!-- ${Translate.Render('home-directory')} -->`,
+              <!-- ${Translate.instance('home-directory')} -->`,
             type: 'button',
           })}
         </div>
         <div class="in">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `file-explorer-query-nav`,
             type: 'text',
-            label: html`<i class="fab fa-wpexplorer"></i> ${Translate.Render('current-path')}`,
+            label: html`<i class="fab fa-wpexplorer"></i> ${Translate.instance('current-path')}`,
             containerClass: 'in section-mp input-container-width',
             placeholder: true,
             value: location,
@@ -1122,28 +1122,28 @@ class FileExplorer {
         })}
         <div class="fl file-explorer-search-container">
           <div class="in fll file-explorer-search-col-a">
-            ${await Input.Render({
+            ${await Input.instance({
               id: `file-explorer-search-title`,
               type: 'text',
-              label: html`<i class="fas fa-search"></i> ${Translate.Render('doc-title')}`,
+              label: html`<i class="fas fa-search"></i> ${Translate.instance('doc-title')}`,
               containerClass: 'in section-mp input-container-width',
               placeholder: true,
             })}
           </div>
           <div class="in fll file-explorer-search-col-b">
-            ${await Input.Render({
+            ${await Input.instance({
               id: `file-explorer-search-md-file`,
               type: 'text',
-              label: html`<i class="fas fa-file-code"></i> ${Translate.Render('md-file-name')}`,
+              label: html`<i class="fas fa-file-code"></i> ${Translate.instance('md-file-name')}`,
               containerClass: 'in section-mp input-container-width',
               placeholder: true,
             })}
           </div>
           <div class="in fll file-explorer-search-col-c">
-            ${await Input.Render({
+            ${await Input.instance({
               id: `file-explorer-search-file`,
               type: 'text',
-              label: html`<i class="fas fa-file"></i> ${Translate.Render('generic-file-name')}`,
+              label: html`<i class="fas fa-file"></i> ${Translate.instance('generic-file-name')}`,
               containerClass: 'in section-mp input-container-width',
               placeholder: true,
             })}
@@ -1152,13 +1152,13 @@ class FileExplorer {
             class="in fll file-explorer-search-col-d"
             style="display: flex; align-items: center; justify-content: center; height: 100%;"
           >
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in management-table-btn-mini file-explorer-search-submit',
               label: html`<i class="fas fa-search"></i>`,
               type: 'button',
               style: 'top: 10px; margin-right: 5px;',
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in management-table-btn-mini file-explorer-search-clear',
               label: html`<i class="fas fa-broom"></i>`,
               type: 'button',
@@ -1171,7 +1171,7 @@ class FileExplorer {
         <div class="in fll explorer-file-col">
           <div class="in explorer-file-sub-col section-mp">
             <div class="in">
-              ${await AgGrid.Render({
+              ${await AgGrid.instance({
                 id: gridFolderId,
                 darkTheme,
                 // style: {
@@ -1260,7 +1260,7 @@ class FileExplorer {
         <div class="in fll explorer-file-col">
           <div class="in explorer-file-sub-col section-mp">
             <div class="in">
-              ${await AgGrid.Render({
+              ${await AgGrid.instance({
                 id: gridFileId,
                 darkTheme,
                 // style: {
@@ -1292,9 +1292,9 @@ class FileExplorer {
             </div>
             <div class="fl file-explorer-pagination" style="padding: 5px 0;">
               <div class="in fll" style="width: 33.33%;">
-                ${await BtnIcon.Render({
+                ${await BtnIcon.instance({
                   class: 'in wfa file-explorer-prev-btn',
-                  label: html`<i class="fa-solid fa-chevron-left"></i> ${Translate.Render('previous')}`,
+                  label: html`<i class="fa-solid fa-chevron-left"></i> ${Translate.instance('previous')}`,
                   type: 'button',
                 })}
               </div>
@@ -1306,9 +1306,9 @@ class FileExplorer {
                 >
               </div>
               <div class="in fll" style="width: 33.33%;">
-                ${await BtnIcon.Render({
+                ${await BtnIcon.instance({
                   class: 'in wfa file-explorer-next-btn',
-                  label: html`${Translate.Render('next')} <i class="fa-solid fa-chevron-right"></i>`,
+                  label: html`${Translate.instance('next')} <i class="fa-solid fa-chevron-right"></i>`,
                   type: 'button',
                 })}
               </div>
@@ -1317,7 +1317,7 @@ class FileExplorer {
         </div>
       </div>
       <form class="file-explorer-uploader" style="display: none">
-        ${await InputFile.Render(
+        ${await InputFile.instance(
           {
             id: idDropFileInput,
             multiple: true,
@@ -1334,7 +1334,7 @@ class FileExplorer {
           },
         )}
         <div class="in">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa section-mp btn-input-file-explorer',
             style: renderCssAttr({
               style: {
@@ -1343,7 +1343,7 @@ class FileExplorer {
                 padding: '20px',
               },
             }),
-            label: html`<i class="fa-solid fa-cloud-arrow-up"></i> ${Translate.Render('upload')}`,
+            label: html`<i class="fa-solid fa-cloud-arrow-up"></i> ${Translate.instance('upload')}`,
             type: 'submit',
           })}
         </div>

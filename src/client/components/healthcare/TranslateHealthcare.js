@@ -2,7 +2,7 @@ import { Translate } from '../core/Translate.js';
 import { NutritionalTips, medicalSpecialties, MenuHomeHealthcare } from './CommonHealthcare.js';
 
 class TranslateHealthcare {
-  static async Init() {
+  static async instance() {
     // Translate.Data['isMobilePhone'] = { en: '', es: '' };
     Translate.Data['healthcare'] = { en: 'healthcare', es: 'salud' };
     Translate.Data['healthcare-appointment'] = { en: 'Healthcare appointment', es: 'Agendar consulta' };

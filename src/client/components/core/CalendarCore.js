@@ -21,7 +21,7 @@ const eventDateFactory = (event) =>
 class CalendarCore {
   static async RenderStyle() {}
   static Data = {};
-  static async Render(options = { idModal: '', appStore: {}, hiddenDates: [] }) {
+  static async instance(options = { idModal: '', appStore: {}, hiddenDates: [] }) {
     CalendarCore.Data[options.idModal] = {
       data: [],
       originData: [],
@@ -35,7 +35,7 @@ class CalendarCore {
         id: `${getQueryParams().cid ? getQueryParams().cid : Auth.getToken() ? 'creatorUser' : ''}`,
       });
       NotificationManager.Push({
-        html: result.status === 'success' ? Translate.Render('success-get-events-scheduler') : result.message,
+        html: result.status === 'success' ? Translate.instance('success-get-events-scheduler') : result.message,
         status: result.status,
       });
       if (result.status === 'success') {
@@ -117,11 +117,11 @@ class CalendarCore {
       renderCalendar();
       Translate.Event['fullcalendar-lang'] = () => {
         CalendarCore.Data[options.idModal].calendar.setOption('locale', s(`html`).lang);
-        if (s(`.fc-timegrid-axis-cushion`)) htmls(`.fc-timegrid-axis-cushion`, Translate.Render('all-day'));
-        if (s(`.fc-dayGridMonth-button`)) htmls(`.fc-dayGridMonth-button`, Translate.Render('month'));
-        if (s(`.fc-timeGridWeek-button`)) htmls(`.fc-timeGridWeek-button`, Translate.Render('week'));
-        if (s(`.fc-listWeek-button`)) htmls(`.fc-listWeek-button`, Translate.Render('summary'));
-        if (s(`.fc-today-button`)) htmls(`.fc-today-button`, Translate.Render('today'));
+        if (s(`.fc-timegrid-axis-cushion`)) htmls(`.fc-timegrid-axis-cushion`, Translate.instance('all-day'));
+        if (s(`.fc-dayGridMonth-button`)) htmls(`.fc-dayGridMonth-button`, Translate.instance('month'));
+        if (s(`.fc-timeGridWeek-button`)) htmls(`.fc-timeGridWeek-button`, Translate.instance('week'));
+        if (s(`.fc-listWeek-button`)) htmls(`.fc-listWeek-button`, Translate.instance('summary'));
+        if (s(`.fc-today-button`)) htmls(`.fc-today-button`, Translate.instance('today'));
       };
       setTimeout(() => {
         Translate.Event['fullcalendar-lang']();
@@ -212,7 +212,7 @@ class CalendarCore {
       };
     });
     const panelRender = async () => {
-      return html`${await Panel.Render({
+      return html`${await Panel.instance({
           idPanel,
           parentIdModal: options.idModal,
           formData,
@@ -240,7 +240,7 @@ class CalendarCore {
           },
           customButtons: [
             {
-              label: html`<i class="fa-regular fa-calendar-days"></i> ${Translate.Render('calendar')}`,
+              label: html`<i class="fa-regular fa-calendar-days"></i> ${Translate.instance('calendar')}`,
               onClick: function () {
                 s(`.calendar-container`).classList.remove('hide');
                 s(`.main-body-calendar-${options.idModal}`).classList.add('hide');
@@ -270,8 +270,8 @@ class CalendarCore {
                 html:
                   status === 'success'
                     ? editId
-                      ? Translate.Render('success-edit-event-scheduler')
-                      : Translate.Render('success-add-event-scheduler')
+                      ? Translate.instance('success-edit-event-scheduler')
+                      : Translate.instance('success-add-event-scheduler')
                     : message,
                 status: status,
               });
@@ -306,7 +306,7 @@ class CalendarCore {
                 html: async () => {
                   return html`
                     <div class="in section-mp" style="text-align: center">
-                      ${Translate.Render('confirm-delete-item')}
+                      ${Translate.instance('confirm-delete-item')}
                       <br />
                       "${data.description}"
                     </div>
@@ -422,9 +422,9 @@ class CalendarCore {
       </style>
       <div class="in calendar-container hide">
         <div class="in modal calendar-buttons-container">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: `inl section-mp btn-custom close-calendar-container flr`,
-            label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
+            label: html`<i class="fa-solid fa-xmark"></i> ${Translate.instance('close')}`,
             type: 'button',
           })}
         </div>

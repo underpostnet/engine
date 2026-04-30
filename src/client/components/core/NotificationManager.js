@@ -37,7 +37,7 @@ class NotificationManager {
     barConfig.buttons.menu.disabled = true;
     const idNotification = getId(NotificationManager.Tokens, 'board-notification-');
     NotificationManager.Tokens[idNotification] = {};
-    await Modal.Render({
+    await Modal.instance({
       title: html`<div class="in notification-manager-date">${getIsoDate(new Date())}</div>
         ${options.html}`,
       html: '',

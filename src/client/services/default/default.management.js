@@ -352,7 +352,7 @@ class DefaultManagement {
         const { createdAt, updatedAt } = params.data;
         const cellRenderId = getId(DefaultManagement.tokens, `${serviceId}-`);
         DefaultManagement.tokens[cellRenderId] = {};
-        DefaultManagement.eGui.innerHTML = html` ${await BtnIcon.Render({
+        DefaultManagement.eGui.innerHTML = html` ${await BtnIcon.instance({
           label: html`<div class="abs center">
             <i class="fas fa-times"></i>
           </div> `,
@@ -366,7 +366,7 @@ class DefaultManagement {
                 html: async () => {
                   return html`
                     <div class="in section-mp" style="text-align: center">
-                      ${Translate.Render('confirm-delete-item')}
+                      ${Translate.instance('confirm-delete-item')}
                       ${Object.keys(params.data).length > 0
                         ? html`<br />
                             "${options.defaultColKeyFocus
@@ -383,7 +383,7 @@ class DefaultManagement {
               if (params.data._id) result = await ServiceProvider.delete({ id: params.data._id });
               else result = { status: 'success' };
               NotificationManager.Push({
-                html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
+                html: result.status === 'error' ? result.message : Translate.instance('item-success-delete'),
                 status: result.status,
               });
               if (result.status === 'success') {
@@ -478,7 +478,7 @@ class DefaultManagement {
           data: rowObj,
         };
         // NotificationManager.Push({
-        //   html: result.status === 'error' ? result.message : `${Translate.Render('success-create-item')}`,
+        //   html: result.status === 'error' ? result.message : `${Translate.instance('success-create-item')}`,
         //   status: result.status,
         // });
         if (result.status === 'success') {
@@ -554,7 +554,7 @@ class DefaultManagement {
             html: async () => {
               return html`
                 <div class="in section-mp" style="text-align: center;">
-                  <strong>${Translate.Render('confirm-delete-all-data')}</strong>
+                  <strong>${Translate.instance('confirm-delete-all-data')}</strong>
                 </div>
               `;
             },
@@ -565,7 +565,7 @@ class DefaultManagement {
         if (confirmResult.status === 'cancelled') return;
         const result = await ServiceProvider.delete();
         NotificationManager.Push({
-          html: result.status === 'error' ? result.message : Translate.Render('success-delete-all-items'),
+          html: result.status === 'error' ? result.message : Translate.instance('success-delete-all-items'),
           status: result.status,
         });
         if (result.status === 'success') {
@@ -698,7 +698,7 @@ class DefaultManagement {
           // Reload table
           await DefaultManagement.loadTable(id, { force: true, reload: true });
           NotificationManager.Push({
-            html: Translate.Render('success-clear-filter') || 'Filters cleared',
+            html: Translate.instance('success-clear-filter') || 'Filters cleared',
             status: 'success',
           });
         } catch (error) {
@@ -715,7 +715,7 @@ class DefaultManagement {
           // Other option: Refresh cells to update UI
           // DefaultManagement.refreshTable(id);
           NotificationManager.Push({
-            html: Translate.Render('success-reload-data') || 'Data reloaded successfully',
+            html: Translate.instance('success-reload-data') || 'Data reloaded successfully',
             status: 'success',
           });
         } catch (error) {
@@ -807,41 +807,41 @@ class DefaultManagement {
       };
     }, 1);
     return html`<div class="fl management-table-toolbar">
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: `in fll section-mp management-table-btn-mini management-table-btn-add-${id} ${permissions.add ? '' : 'hide'}`,
           label: html`<div class="abs center btn-add-${id}-label"><i class="fa-solid fa-circle-plus"></i></div> `,
           type: 'button',
         })}
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: `in fll section-mp management-table-btn-mini management-table-btn-save-${id} hide`,
           label: html`<div class="abs center btn-save-${id}-label"><i class="fas fa-save"></i></div> `,
           type: 'button',
         })}
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: `in fll section-mp management-table-btn-mini management-table-btn-stop-${id} hide`,
           label: html`<div class="abs center btn-save-${id}-label"><i class="fa-solid fa-rectangle-xmark"></i></div> `,
           type: 'button',
         })}
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: `in fll section-mp management-table-btn-mini management-table-btn-clean-${id} ${permissions.remove ? '' : 'hide'}`,
           label: html`<div class="abs center btn-clean-${id}-label"><i class="fas fa-broom"></i></div> `,
           type: 'button',
         })}
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: `in fll section-mp management-table-btn-mini management-table-btn-clear-filter-${id} ${Object.keys(filterModel).length > 0 || sortModel.length > 0 || urlId ? '' : 'hide'}`,
           label: html`<div class="abs center btn-clear-filter-${id}-label">
             <i class="fa-solid fa-filter-circle-xmark"></i>
           </div> `,
           type: 'button',
         })}
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: `in fll section-mp management-table-btn-mini management-table-btn-reload-${id} ${permissions.reload ? '' : 'hide'}`,
           label: html`<div class="abs center btn-reload-${id}-label"><i class="fas fa-sync-alt"></i></div> `,
           type: 'button',
         })}
       </div>
       <div class="in section-mp">
-        ${await AgGrid.Render({
+        ${await AgGrid.instance({
           id: gridId,
           parentModal: options.idModal,
           usePagination: true,
@@ -927,7 +927,7 @@ class DefaultManagement {
                 const body = event.data ? event.data : {};
                 const result = await ServiceProvider.put({ id: event.data._id, body });
                 NotificationManager.Push({
-                  html: result.status === 'error' ? result.message : `${Translate.Render('success-update-item')}`,
+                  html: result.status === 'error' ? result.message : `${Translate.instance('success-update-item')}`,
                   status: result.status,
                 });
                 if (result.status === 'success') {
@@ -985,7 +985,7 @@ class DefaultManagement {
               if (!event.data._id) {
                 result = await ServiceProvider.post({ body: event.data });
                 NotificationManager.Push({
-                  html: result.status === 'error' ? result.message : `${Translate.Render('success-create-item')}`,
+                  html: result.status === 'error' ? result.message : `${Translate.instance('success-create-item')}`,
                   status: result.status,
                 });
                 if (result.status === 'success') {

@@ -24,7 +24,7 @@ const logger = loggerFactory(import.meta);
 
 const Panel = {
   Tokens: {},
-  Render: async function (
+  instance: async function (
     options = {
       idPanel: '',
       parentIdModal: '',
@@ -106,7 +106,7 @@ const Panel = {
                 await copyData(shareUrl);
                 await NotificationManager.Push({
                   status: 'success',
-                  html: html`<div>${Translate.Render('link-copied')}</div>`,
+                  html: html`<div>${Translate.instance('link-copied')}</div>`,
                 });
                 // Track the copy share link event
                 await DocumentService.patch({ id: obj._id, action: 'copy-share-link' });
@@ -132,7 +132,7 @@ const Panel = {
                 logger.error('Error copying share link:', error);
                 await NotificationManager.Push({
                   status: 'error',
-                  html: html`<div>${Translate.Render('error-copying-link')}</div>`,
+                  html: html`<div>${Translate.instance('error-copying-link')}</div>`,
                 });
               }
             },
@@ -165,7 +165,7 @@ const Panel = {
                   await copyData(foundFiles.mdFileId.mdPlain);
                   await NotificationManager.Push({
                     status: 'success',
-                    html: html`<div>${Translate.Render('markdown-source-copied')}</div>`,
+                    html: html`<div>${Translate.instance('markdown-source-copied')}</div>`,
                   });
                 } else {
                   await NotificationManager.Push({
@@ -177,7 +177,7 @@ const Panel = {
                 logger.error('Error copying markdown source:', error);
                 await NotificationManager.Push({
                   status: 'error',
-                  html: html`<div>${Translate.Render('error-copying-markdown')}</div>`,
+                  html: html`<div>${Translate.instance('error-copying-markdown')}</div>`,
                 });
               }
             },
@@ -327,24 +327,24 @@ const Panel = {
 
       return html` <div class="in box-shadow ${idPanel} ${idPanel}-${id}" style="position: relative;">
         <div class="fl ${idPanel}-tools session-fl-log-in  ${obj.tools ? '' : 'hide'}">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-delete-${id}`,
             label: html`<div class="abs center"><i class="fas fa-trash"></i></div>`,
             useVisibilityHover: true,
-            tooltipHtml: await Badge.Render({
+            tooltipHtml: await Badge.instance({
               id: `tooltip-${idPanel}-${id}`,
-              text: `${Translate.Render(`delete`)}`,
+              text: `${Translate.instance(`delete`)}`,
               classList: '',
               style: { top: `-22px`, left: '-13px' },
             }),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-edit-${id}`,
             label: html`<div class="abs center"><i class="fas fa-edit"></i></div>`,
             useVisibilityHover: true,
-            tooltipHtml: await Badge.Render({
+            tooltipHtml: await Badge.instance({
               id: `tooltip-${idPanel}-${id}`,
-              text: `${Translate.Render(`edit`)}`,
+              text: `${Translate.instance(`edit`)}`,
               classList: '',
               style: { top: `-22px`, left: '-5px' },
             }),
@@ -451,7 +451,7 @@ const Panel = {
                           tagColor = hasThemeColor ? darkenHex(themeColor, 0.5) : '#ffffff';
                         }
 
-                        tagRender += await Badge.Render({
+                        tagRender += await Badge.instance({
                           text: tag,
                           classList: 'inl panel-tag-clickable',
                           style: {
@@ -513,10 +513,10 @@ const Panel = {
                     if (obj[infoKey] && obj[infoKey].length > 0 && formDataObj)
                       return html`<div class="in ${idPanel}-row">
                         <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
-                          ${keyIcon} ${Translate.Render(infoKey)}:</span
+                          ${keyIcon} ${Translate.instance(infoKey)}:</span
                         >
                         <span class="${idPanel}-row-value"
-                          >${valueIcon} ${obj[infoKey].map((k) => Translate.Render(k)).join(', ')}</span
+                          >${valueIcon} ${obj[infoKey].map((k) => Translate.instance(k)).join(', ')}</span
                         >
                       </div> `;
                   }
@@ -530,8 +530,8 @@ const Panel = {
                         <span class="${idPanel}-row-pin-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
                           ${keyIcon}
                           ${formDataObj.translateCode
-                            ? Translate.Render(formDataObj.translateCode)
-                            : Translate.Render(infoKey)}:</span
+                            ? Translate.instance(formDataObj.translateCode)
+                            : Translate.instance(infoKey)}:</span
                         >
                         <span class="${idPanel}-row-pin-value">${valueIcon} ${obj[infoKey]}</span>
                       </div> `;
@@ -546,8 +546,8 @@ const Panel = {
                         <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
                           ${keyIcon}
                           ${formDataObj.translateCode
-                            ? Translate.Render(formDataObj.translateCode)
-                            : Translate.Render(infoKey)}:</span
+                            ? Translate.instance(formDataObj.translateCode)
+                            : Translate.instance(infoKey)}:</span
                         >
                         <span class="${idPanel}-row-value"> ${valueIcon} ${obj[infoKey]}</span>
                       </div> `;
@@ -583,7 +583,7 @@ const Panel = {
                       class="${idPanel}-share-tooltip-${id}"
                       style="position: absolute; bottom: 50px; right: 0; background: rgba(0,0,0,0.8); color: white; padding: 6px 10px; border-radius: 4px; font-size: 12px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;"
                     >
-                      ${Translate.Render('copy-share-link')}
+                      ${Translate.instance('copy-share-link')}
                     </div>
                   </div>`
                 : ''}
@@ -610,9 +610,9 @@ const Panel = {
 
     let render = '';
     let renderForm = html` <div class="in modal" style="top: 0px; z-index: 1; padding-bottom: 5px">
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: `inl section-mp btn-custom btn-${idPanel}-close`,
-          label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
+          label: html`<i class="fa-solid fa-xmark"></i> ${Translate.instance('close')}`,
           type: 'button',
         })}
       </div>
@@ -623,9 +623,9 @@ const Panel = {
       switch (modelData.inputType) {
         case 'dropdown-checkbox': {
           renderForm += html`<div class="in section-mp">
-            ${await DropDown.Render({
+            ${await DropDown.instance({
               id: `${modelData.id}`,
-              label: html`${Translate.Render(modelData.model)}`,
+              label: html`${Translate.instance(modelData.model)}`,
               type: 'checkbox',
               value: modelData.dropdown.options[0],
               resetOption: true,
@@ -635,7 +635,7 @@ const Panel = {
                   value: dKey,
                   data: dKey,
                   checked: false,
-                  display: html`${Translate.Render(dKey)}`,
+                  display: html`${Translate.instance(dKey)}`,
                   onClick: function () {
                     logger.info('DropDown onClick', this.checked);
                   },
@@ -647,9 +647,9 @@ const Panel = {
         }
         case 'dropdown':
           renderForm += html` <div class="in section-mp">
-            ${await DropDown.Render({
+            ${await DropDown.instance({
               id: `${modelData.id}`,
-              label: html`${Translate.Render(modelData.model)}`,
+              label: html`${Translate.instance(modelData.model)}`,
               containerClass: `${idPanel}-dropdown`,
               // type: 'checkbox',
               value: modelData.dropdown.options[0].replaceAll(' ', '-').toLowerCase(),
@@ -659,7 +659,7 @@ const Panel = {
                   value: key,
                   data: dKey,
                   // checked: true,
-                  display: html`${Translate.Render(dKey)}`,
+                  display: html`${Translate.instance(dKey)}`,
                   onClick: function () {},
                 };
               }),
@@ -668,7 +668,7 @@ const Panel = {
           break;
         case 'md': {
           renderForm += html`<div class="in section-mp">
-            ${await RichText.Render({ id: modelData.id, parentIdModal: options.parentIdModal })}
+            ${await RichText.instance({ id: modelData.id, parentIdModal: options.parentIdModal })}
           </div>`;
           break;
         }
@@ -688,11 +688,11 @@ const Panel = {
                 <div class="in fll" style="width: 70%">
                   <div class="in">
                     ${modelData.panel && modelData.panel.icon ? modelData.panel.icon : ''}
-                    ${Translate.Render(modelData.model)}
+                    ${Translate.instance(modelData.model)}
                   </div>
                 </div>
                 <div class="in fll" style="width: 30%">
-                  ${await ToggleSwitch.Render({
+                  ${await ToggleSwitch.instance({
                     id: `${modelData.id}`,
                     containerClass: 'inl',
                     disabledOnClick: true,
@@ -734,14 +734,14 @@ const Panel = {
               htmls(`.file-name-render-${modelData.id}`, htmlFileRender);
             };
           });
-          renderForm += `${await Input.Render({
+          renderForm += `${await Input.instance({
             inputClass: 'hide',
             id: `${modelData.id}`,
             type: modelData.inputType,
             multiple: true,
             // autocomplete: 'new-password',
-            label: html`<i class="fa-solid fa-file-arrow-up"></i> ${Translate.Render('select')}
-              ${Translate.Render('file')}`,
+            label: html`<i class="fa-solid fa-file-arrow-up"></i> ${Translate.instance('select')}
+              ${Translate.instance('file')}`,
             containerClass: 'in section-mp width-mini-box input-container',
             placeholder: true,
             extension: () =>
@@ -751,18 +751,18 @@ const Panel = {
             // disabled: true,
             // disabledEye: true,
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: `inl section-mp btn-custom btn-${idPanel}-clean-file`,
-            label: html`<i class="fa-solid fa-file-circle-xmark"></i> ${Translate.Render('clear-file')}`,
+            label: html`<i class="fa-solid fa-file-circle-xmark"></i> ${Translate.instance('clear-file')}`,
             type: 'button',
           })}`;
           break;
         default:
-          renderForm += `${await Input.Render({
+          renderForm += `${await Input.instance({
             id: `${modelData.id}`,
             type: modelData.inputType,
             // autocomplete: 'new-password',
-            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render(modelData.model)}`,
+            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance(modelData.model)}`,
             containerClass: 'in section-mp width-mini-box input-container',
             placeholder: true,
             // disabled: true,
@@ -772,15 +772,18 @@ const Panel = {
       }
     }
     let renderFormBtn = html`
-      ${await BtnIcon.Render({
+      ${await BtnIcon.instance({
         class: `inl section-mp btn-custom btn-${idPanel}-submit`,
-        label: html`<span class="btn-${idPanel}-label-add"><i class="fas fa-plus"></i> ${Translate.Render('add')}</span
-          ><span class="btn-${idPanel}-label-edit hide"><i class="fas fa-edit"></i> ${Translate.Render('edit')}</span>`,
+        label: html`<span class="btn-${idPanel}-label-add"
+            ><i class="fas fa-plus"></i> ${Translate.instance('add')}</span
+          ><span class="btn-${idPanel}-label-edit hide"
+            ><i class="fas fa-edit"></i> ${Translate.instance('edit')}</span
+          >`,
         type: 'submit',
       })}
-      ${await BtnIcon.Render({
+      ${await BtnIcon.instance({
         class: `inl section-mp btn-custom btn-${idPanel}-clean`,
-        label: html`<i class="fa-solid fa-broom"></i> ${Translate.Render('clear')}`,
+        label: html`<i class="fa-solid fa-broom"></i> ${Translate.instance('clear')}`,
         type: 'button',
       })}
     `;
@@ -883,7 +886,7 @@ const Panel = {
     if (data.length > 0) for (const obj of data) render += await renderPanel(obj);
     else {
       render += html`<div class="in" style="min-height: 200px">
-        <div class="abs center"><i class="fas fa-exclamation-circle"></i> ${Translate.Render(`no-result-found`)}</div>
+        <div class="abs center"><i class="fas fa-exclamation-circle"></i> ${Translate.instance(`no-result-found`)}</div>
       </div>`;
 
       if (options.on.noResultFound) setTimeout(options.on.noResultFound);
@@ -902,7 +905,7 @@ const Panel = {
           setTimeout(() => {
             s(`.${btnSelector}`).onclick = () => dataBtn.onClick();
           });
-        customButtonsRender += ` ${await BtnIcon.Render({
+        customButtonsRender += ` ${await BtnIcon.instance({
           class: `inl section-mp btn-custom ${btnSelector}`,
           label: dataBtn.label,
           type: 'button',
@@ -1089,11 +1092,11 @@ const Panel = {
       <div class="${idPanel}-container">
         <div class="in modal ${idPanel}-form-container ${options.formContainerClass ? options.formContainerClass : ''}">
           <div class="in ${idPanel}-form-header">
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `inl section-mp btn-custom btn-${idPanel}-add ${
                 options?.role?.add ? (!options.role.add() ? 'hide' : '') : ''
               }`,
-              label: html`<i class="fas fa-plus"></i> ${Translate.Render('add')}`,
+              label: html`<i class="fas fa-plus"></i> ${Translate.instance('add')}`,
               type: 'button',
             })}
             <!-- pagination component -->

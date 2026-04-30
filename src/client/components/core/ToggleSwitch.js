@@ -4,7 +4,7 @@ import { htmls, s } from './VanillaJs.js';
 const logger = loggerFactory(import.meta);
 class ToggleSwitch {
   static Tokens = {};
-  static async Render(options) {
+  static async instance(options) {
     const id = options?.id ? options.id : getId(ToggleSwitch.Tokens, 'toggle-switch-');
     ToggleSwitch.Tokens[id] = {};
     const widthContent = 60;

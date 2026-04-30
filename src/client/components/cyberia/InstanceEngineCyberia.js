@@ -52,7 +52,7 @@ class InstanceEngineCyberia {
   }
 
   static async buildItemIdsDropdown() {
-    return await DropDown.Render({
+    return await DropDown.instance({
       id: InstanceEngineCyberia.itemIdsDropdownId,
       label: html`Object Layer Item IDs`,
       data: [],
@@ -238,8 +238,8 @@ class InstanceEngineCyberia {
             result.status === 'error'
               ? result.message
               : isUpdate
-                ? Translate.Render('success-update-item')
-                : Translate.Render('success-create-item'),
+                ? Translate.instance('success-update-item')
+                : Translate.instance('success-create-item'),
           status: result.status,
         });
       }
@@ -409,7 +409,7 @@ class InstanceEngineCyberia {
             const persistResult = await persistInstance({ notify: false });
             if (!persistResult || persistResult.status !== 'success' || !InstanceEngineCyberia.currentInstanceId) {
               NotificationManager.Push({
-                html: persistResult?.message || Translate.Render('save-instance-first') || 'Save the instance first.',
+                html: persistResult?.message || Translate.instance('save-instance-first') || 'Save the instance first.',
                 status: persistResult?.status === 'error' ? 'error' : 'warning',
               });
               return;
@@ -532,7 +532,7 @@ class InstanceEngineCyberia {
       ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcFields, type: 'search-inputs' })}
       <div class="fl">
         <div class="in fll ${dcFields}-col-a">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idCode,
             label: html`Code`,
             containerClass: 'inl',
@@ -540,7 +540,7 @@ class InstanceEngineCyberia {
           })}
         </div>
         <div class="in fll ${dcFields}-col-b">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idName,
             label: html`Name`,
             containerClass: 'inl',
@@ -548,7 +548,7 @@ class InstanceEngineCyberia {
           })}
         </div>
         <div class="in fll ${dcFields}-col-c">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idDescription,
             label: html`Description`,
             containerClass: 'inl',
@@ -559,7 +559,7 @@ class InstanceEngineCyberia {
       ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcMetaFields, type: 'search-inputs' })}
       <div class="fl">
         <div class="in fll ${dcMetaFields}-col-a">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idTags,
             label: html`Tags (comma separated)`,
             containerClass: 'inl',
@@ -567,7 +567,7 @@ class InstanceEngineCyberia {
           })}
         </div>
         <div class="in fll ${dcMetaFields}-col-b">
-          ${await DropDown.Render({
+          ${await DropDown.instance({
             id: idStatus,
             label: html`Status`,
             data: statusOptions.map((opt) => ({ ...opt })),
@@ -586,12 +586,12 @@ class InstanceEngineCyberia {
       </div>
       <div class="in section-mp" style="margin-top: 5px;">
         <div class="in instance-engine-thumbnail-preview" style="margin-bottom: 5px;"></div>
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: 'wfa btn-instance-engine-toggle-thumbnail',
           label: html`<i class="fa-solid fa-caret-right instance-engine-thumbnail-caret"></i> Thumbnail`,
         })}
         <div class="in instance-engine-thumbnail-body hide">
-          ${await InputFile.Render(
+          ${await InputFile.instance(
             {
               id: idThumbnail,
               multiple: false,
@@ -623,7 +623,7 @@ class InstanceEngineCyberia {
         </div>
       </div>
       <div class="in section-mp" style="margin-top: 10px;">
-        ${await DropDown.Render({
+        ${await DropDown.instance({
           id: idMapCodesDropdown,
           label: html`Cyberia Map Codes`,
           data: [],
@@ -650,7 +650,7 @@ class InstanceEngineCyberia {
         ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalSource, type: 'search-inputs' })}
         <div class="fl">
           <div class="in fll ${dcPortalSource}-col-a">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idSourceMapCode,
               label: html`Source Map Code`,
               containerClass: 'inl',
@@ -658,7 +658,7 @@ class InstanceEngineCyberia {
             })}
           </div>
           <div class="in fll ${dcPortalSource}-col-b">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idSourceCellX,
               label: html`Source Cell X`,
               containerClass: 'inl',
@@ -668,7 +668,7 @@ class InstanceEngineCyberia {
             })}
           </div>
           <div class="in fll ${dcPortalSource}-col-c">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idSourceCellY,
               label: html`Source Cell Y`,
               containerClass: 'inl',
@@ -681,7 +681,7 @@ class InstanceEngineCyberia {
         ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalTarget, type: 'search-inputs' })}
         <div class="fl">
           <div class="in fll ${dcPortalTarget}-col-a">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idTargetMapCode,
               label: html`Target Map Code`,
               containerClass: 'inl',
@@ -689,7 +689,7 @@ class InstanceEngineCyberia {
             })}
           </div>
           <div class="in fll ${dcPortalTarget}-col-b">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idTargetCellX,
               label: html`Target Cell X`,
               containerClass: 'inl',
@@ -699,7 +699,7 @@ class InstanceEngineCyberia {
             })}
           </div>
           <div class="in fll ${dcPortalTarget}-col-c">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idTargetCellY,
               label: html`Target Cell Y`,
               containerClass: 'inl',
@@ -710,17 +710,17 @@ class InstanceEngineCyberia {
           </div>
         </div>
         <div class="in" style="display:flex;gap:5px;flex-wrap:wrap;">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-instance-engine-add-portal',
             label: html`<i class="fa-solid fa-plus"></i> Add Portal`,
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-instance-engine-portal-connect',
             label: html`<i class="fa-solid fa-circle-nodes"></i> Portal Connector`,
           })}
         </div>
         <div class="in" style="margin-top: 10px;">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-instance-engine-toggle-portal-filter',
             label: html`<i class="fa-solid fa-caret-right instance-engine-portal-filter-caret"></i> Filters`,
           })}
@@ -728,7 +728,7 @@ class InstanceEngineCyberia {
             ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcPortalFilter, type: 'a-50-b-50' })}
             <div class="fl">
               <div class="in fll ${dcPortalFilter}-col-a">
-                ${await Input.Render({
+                ${await Input.instance({
                   id: idFilterSource,
                   label: html`Source Map Code`,
                   containerClass: 'inl',
@@ -737,7 +737,7 @@ class InstanceEngineCyberia {
                 })}
               </div>
               <div class="in fll ${dcPortalFilter}-col-b">
-                ${await Input.Render({
+                ${await Input.instance({
                   id: idFilterTarget,
                   label: html`Target Map Code`,
                   containerClass: 'inl',
@@ -747,7 +747,7 @@ class InstanceEngineCyberia {
               </div>
             </div>
             <div class="in" style="margin-top:5px;">
-              ${await BtnIcon.Render({
+              ${await BtnIcon.instance({
                 class: 'wfa btn-instance-engine-clear-portal-filter',
                 label: html`<i class="fa-solid fa-broom"></i> Clear Filters`,
               })}
@@ -760,13 +760,13 @@ class InstanceEngineCyberia {
         ${dynamicCol({ containerSelector: 'instance-engine-container', id: dcSaveNew, type: 'a-50-b-50' })}
         <div class="fl">
           <div class="in fll ${dcSaveNew}-col-a" style="padding: 5px;">
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'wfa btn-instance-engine-save',
               label: html`<i class="fa-solid fa-floppy-disk"></i> Save Instance`,
             })}
           </div>
           <div class="in fll ${dcSaveNew}-col-b" style="padding: 5px;">
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'wfa btn-instance-engine-new',
               label: html`<i class="fa-solid fa-file"></i> New Instance`,
             })}

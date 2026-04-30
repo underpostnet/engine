@@ -4,7 +4,7 @@ import { ToolTip } from './ToolTip.js';
 import { getAllChildNodes, htmlStrSanitize, s } from './VanillaJs.js';
 class BtnIcon {
   static Tokens = {};
-  static async Render(
+  static async instance(
     options = {
       class: '',
       type: '',
@@ -56,7 +56,7 @@ class BtnIcon {
     if (options.tooltipHtml)
       setTimeout(() => {
         if (s(`.${tokenId}`))
-          ToolTip.Render({
+          ToolTip.instance({
             container: `.${tokenId}`,
             id: tokenId,
             htmlRender: options.tooltipHtml,

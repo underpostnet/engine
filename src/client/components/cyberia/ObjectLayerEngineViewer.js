@@ -49,7 +49,7 @@ class ObjectLayerEngineViewer {
     };
     return directionCodeMap[key] || null;
   }
-  static async Render({ appStore }) {
+  static async instance({ appStore }) {
     const id = 'object-layer-engine-viewer';
     // Reset currentObjectId when modal is rendered to ensure Reload triggers properly
     ObjectLayerEngineViewer.Data.currentObjectId = undefined;
@@ -152,7 +152,7 @@ class ObjectLayerEngineViewer {
       const modes = ['idle', 'walking'];
       ObjectLayerEngineViewer.Data.currentDirection = 'down';
       ObjectLayerEngineViewer.Data.currentMode = 'idle';
-      // Render the viewer UI
+      // instance the viewer UI
       await ObjectLayerEngineViewer.renderViewer({ appStore });
       // Generate WebP
       if (!skipWebp) {

@@ -28,11 +28,11 @@ class SocketIoHandlerProvider {
    *
    * @static
    * @param {import('./AppStore.js').AppStore} appStore - The app-specific AppStore instance.
-   * @returns {{ Init: function(): Promise<void> }} An object with an `Init` method for SocketIo event registration.
+   * @returns {{ instance: function(): Promise<void> }} An object with an `instance` method for SocketIo event registration.
    */
   static create(appStore) {
     return {
-      Init() {
+      instance() {
         return new Promise((resolve) => {
           for (const type of Object.keys(appStore.Data)) {
             SocketIo.Event[type][s4()] = async (args) => {

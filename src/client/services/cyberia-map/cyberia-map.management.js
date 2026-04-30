@@ -24,7 +24,7 @@ class CyberiaMapManagement {
         const cellRenderId = getId(CyberiaMapManagement.tokens, 'load-map-');
         CyberiaMapManagement.tokens[cellRenderId] = {};
 
-        CyberiaMapManagement.eGui.innerHTML = html`${await BtnIcon.Render({
+        CyberiaMapManagement.eGui.innerHTML = html`${await BtnIcon.instance({
           label: html`<div class="abs center">
             <i class="fa-solid fa-upload"></i>
           </div>`,

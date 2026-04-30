@@ -24,7 +24,7 @@ class CyberiaInstanceManagement {
         const cellRenderId = getId(CyberiaInstanceManagement.tokens, 'load-instance-');
         CyberiaInstanceManagement.tokens[cellRenderId] = {};
 
-        CyberiaInstanceManagement.eGui.innerHTML = html`${await BtnIcon.Render({
+        CyberiaInstanceManagement.eGui.innerHTML = html`${await BtnIcon.instance({
           label: html`<div class="abs center">
             <i class="fa-solid fa-upload"></i>
           </div>`,

@@ -13,7 +13,7 @@ class Recover {
   static async Trigger(options) {
     for (const eventKey of Object.keys(Recover.Event)) await Recover.Event[eventKey](options);
   }
-  static async Render(options = { idModal: '', user: {}, bottomRender: async () => '' }) {
+  static async instance(options = { idModal: '', user: {}, bottomRender: async () => '' }) {
     const { idModal, user } = options;
     let mode = 'recover-verify-email';
     const recoverToken = getQueryParams().payload;
@@ -81,7 +81,9 @@ class Recover {
             });
             NotificationManager.Push({
               html:
-                result.status === 'error' ? result.message : Translate.Render(`${result.status}-recover-verify-email`),
+                result.status === 'error'
+                  ? result.message
+                  : Translate.instance(`${result.status}-recover-verify-email`),
               status: result.status,
             });
             if (result.status === 'success') {
@@ -94,7 +96,7 @@ class Recover {
             const result = await UserService.put({ id: `recover/${recoverToken}`, body });
             NotificationManager.Push({
               html:
-                typeof result.data === 'string' ? result.data : Translate.Render(`${result.status}-recover-password`),
+                typeof result.data === 'string' ? result.data : Translate.instance(`${result.status}-recover-password`),
               status: result.status,
             });
             if (result.status === 'success') {
@@ -123,66 +125,69 @@ class Recover {
       };
     });
     return html`
-      ${await BtnIcon.Render({
+      ${await BtnIcon.instance({
         class: 'in section-mp form-button btn-recover-log-in hide',
-        label: Translate.Render('log-in'),
+        label: Translate.instance('log-in'),
         type: 'button',
       })}
       <form class="in">
         <div class="in">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `recover-username`,
             type: 'text',
-            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('username')}`,
+            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('username')}`,
             containerClass: `inl section-mp width-mini-box input-container ${formData[`recover-username`].show() ? '' : 'hide'}`,
             placeholder: true,
           })}
         </div>
         <div class="in">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `recover-email`,
             type: 'email',
-            label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
+            label: html`<i class="fa-solid fa-envelope"></i> ${Translate.instance('email')}`,
             containerClass: `inl section-mp width-mini-box input-container ${formData[`recover-email`].show() ? '' : 'hide'}`,
             placeholder: true,
             autocomplete: 'email',
           })}
         </div>
         <div class="in">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `recover-password`,
             type: 'password',
             autocomplete: 'new-password',
-            label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
+            label: html`<i class="fa-solid fa-lock"></i> ${Translate.instance('password')}`,
             containerClass: `inl section-mp width-mini-box input-container ${formData[`recover-password`].show() ? '' : 'hide'}`,
             placeholder: true,
           })}
         </div>
         <div class="in">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `recover-repeat-password`,
             type: 'password',
             autocomplete: 'new-password',
-            label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('repeat')} ${Translate.Render('password')}`,
+            label: html`<i class="fa-solid fa-lock"></i> ${Translate.instance('repeat')}
+              ${Translate.instance('password')}`,
             containerClass: `inl section-mp width-mini-box input-container ${formData[`recover-repeat-password`].show() ? '' : 'hide'}`,
             placeholder: true,
           })}
         </div>
         ${options?.bottomRender ? await options.bottomRender() : ``}
         <div class="in recover-send-btn-container">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in section-mp form-button btn-recover',
-            label: Translate.Render(mode === 'recover-verify-email' ? 'send-recover-verify-email' : 'change-password'),
+            label: Translate.instance(
+              mode === 'recover-verify-email' ? 'send-recover-verify-email' : 'change-password',
+            ),
             type: 'button',
           })}
         </div>
         <div class="in recover-resend-btn-container hide">
           <div class="in section-mp form-button" style="color: #ed9d0f">
-            <i class="fa-solid fa-triangle-exclamation"></i> ${Translate.Render('15-min-valid-recover-email')}
+            <i class="fa-solid fa-triangle-exclamation"></i> ${Translate.instance('15-min-valid-recover-email')}
           </div>
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in section-mp form-button btn-recover-resend',
-            label: html`${Translate.Render('resend')} ${Translate.Render('recover-verify-email')}`,
+            label: html`${Translate.instance('resend')} ${Translate.instance('recover-verify-email')}`,
             type: 'submit',
           })}
         </div>

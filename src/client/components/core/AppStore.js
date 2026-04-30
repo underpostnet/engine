@@ -10,7 +10,7 @@
  * @classdesc Per-app singleton state store for WebSocket channel data and authenticated user state.
  *
  * Usage: `AppStoreX.Data.user.main.model.user` — the authenticated user object.
- * `AppStoreX.Data` keys (`chat`, `mailer`, `stream`, etc.) — channel definitions for `SocketIo.Init`.
+ * `AppStoreX.Data` keys (`chat`, `mailer`, `stream`, etc.) — channel definitions for `SocketIo.instance`.
  * @memberof AppStore
  */
 class AppStore {

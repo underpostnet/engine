@@ -1,7 +1,7 @@
 import { getProxyPath, getQueryParams } from '../core/Router.js';
 
 class CyberpunkBloggerUnderpost {
-  static async Render() {
+  static async instance() {
     let renderBlog = '';
     if (getQueryParams().type === 'blog') {
       renderBlog += html`<style>

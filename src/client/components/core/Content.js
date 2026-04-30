@@ -32,7 +32,7 @@ const attachMarkdownLinkHandlers = (containerSelector) => {
         id: `external-link-${s4()}`,
         html: async () => html`
           <div class="in section-mp" style="text-align: center; padding: 20px;">
-            <p>${Translate.Render('external-link-warning')}</p>
+            <p>${Translate.instance('external-link-warning')}</p>
             <p style="word-break: break-all; margin-top: 10px;"><strong>${href}</strong></p>
           </div>
         `,
@@ -56,7 +56,7 @@ const attachMarkdownLinkHandlers = (containerSelector) => {
 };
 
 class Content {
-  static async Render(options = { idModal: '', titleIcon: '' }) {
+  static async instance(options = { idModal: '', titleIcon: '' }) {
     const { idModal } = options;
     setTimeout(async () => {
       try {
@@ -145,7 +145,10 @@ class Content {
         Modal.Data[idModal].onObserverListener[`main-content-observer`]();
       } catch (error) {
         htmls(`.content-render-${idModal}`, '');
-        htmls(`.error-${idModal}`, html`<i class="fas fa-exclamation-circle"></i> ${Translate.Render(error.message)}`);
+        htmls(
+          `.error-${idModal}`,
+          html`<i class="fas fa-exclamation-circle"></i> ${Translate.instance(error.message)}`,
+        );
         s(`.error-${idModal}`).classList.remove('hide');
       }
       s(`.ssr-shimmer-content-${idModal}`).classList.add('hide');

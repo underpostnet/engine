@@ -5232,7 +5232,7 @@ const getDataColors = () =>
 const logger = loggerFactory(import.meta);
 class ColorPalette {
   static Palettes = {};
-  static async Render() {
+  static async instance() {
     let render = '';
     for (const colorData of getDataColors()) {
       const idColor = `color-${s4()}-${colorData.number}`;
@@ -5241,14 +5241,14 @@ class ColorPalette {
           ? (s(`.btn-palette-${idColor}`).onclick = async () => {
               logger.info(colorData);
               NotificationManager.Push({
-                html: Translate.Render('color-copy'),
+                html: Translate.instance('color-copy'),
                 status: 'success',
               });
               copyData(colorData.hex);
             })
           : null,
       );
-      render += await BtnIcon.Render({
+      render += await BtnIcon.instance({
         class: `btn-palette-${idColor}`,
         label: html` ${colorData.name} - ${colorData.hex} <br />
           <div class="inl" style="background: ${colorData.hex}; width: 80px; height: 20px;"></div>`,

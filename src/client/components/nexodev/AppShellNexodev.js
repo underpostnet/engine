@@ -52,7 +52,7 @@ import { Scroll } from '../core/Scroll.js';
 
 class AppShellNexodev {
   static Data = {};
-  static async Render(options = { htmlMainBody: () => '' }) {
+  static async instance(options = { htmlMainBody: () => '' }) {
     const id = getId(AppShellNexodev.Data, 'menu-');
     AppShellNexodev.Data[id] = {};
     const RouterInstance = RouterNexodev();
@@ -61,67 +61,67 @@ class AppShellNexodev {
 
     const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
     const barMode = 'top-bottom-bar';
-    await Modal.Render({
+    await Modal.instance({
       id: 'modal-menu',
       html: html`
         <div class="fl menu-btn-container">
           <div class="fl menu-btn-container-main">
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-blog',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fa-solid fa-file-invoice"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('blog')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('blog')}</span>`,
               }),
               attrs: `data-id="blog"`,
               tabHref: `${getProxyPath()}blog`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('blog', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-calendar',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-calendar-alt"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('calendar')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('calendar')}</span>`,
               }),
               attrs: `data-id="calendar"`,
               tabHref: `${getProxyPath()}calendar`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('calendar', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('calendar', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-dashboard',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fa-solid fa-chart-line"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('dashboard')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('dashboard')}</span>`,
               }),
               attrs: `data-id="dashboard"`,
               tabHref: `${getProxyPath()}dashboard`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('dashboard', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('dashboard', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-stream',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fa-solid fa-video"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('stream')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('stream')}</span>`,
               }),
               attrs: `data-id="stream"`,
               tabHref: `${getProxyPath()}stream`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('stream', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('stream', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-docs',
               useMenuBtn: true,
               label: html`<div class="in">
                 ${renderMenuLabel({
                   icon: html`<i class="fas fa-book"></i>`,
                   text: html`<span class="menu-label-text"
-                    >${Translate.Render('docs')}
+                    >${Translate.instance('docs')}
                     <i
                       class="fas fa-caret-down inl down-arrow-submenu down-arrow-submenu-docs"
                       style="rotate: 0deg; transition: 0.4s;"
@@ -132,41 +132,41 @@ class AppShellNexodev {
               attrs: `data-id="docs"`,
               tabHref: `${getProxyPath()}docs`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('docs', 'right')),
             })}
             <div class="abs menu-btn-container-children-docs"></div>
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-content',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="far fa-file"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('content')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('content')}</span>`,
               }),
               attrs: `data-id="content"`,
               tabHref: `${getProxyPath()}content`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('content', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('content', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-cloud',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-cloud"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('cloud')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('cloud')}</span>`,
               }),
               attrs: `data-id="cloud"`,
               tabHref: `${getProxyPath()}cloud`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cloud', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cloud', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-chat',
               useMenuBtn: true,
               label: html`${renderMenuLabel({
                 icon: html`<i class="far fa-comments"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('chat')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('chat')}</span>`,
               })}
-              ${await Badge.Render({
+              ${await Badge.instance({
                 id: 'main-btn-chat',
                 type: 'circle-red',
                 style: badgeNotificationMenuStyle,
@@ -175,144 +175,144 @@ class AppShellNexodev {
               attrs: `data-id="chat"`,
               tabHref: `${getProxyPath()}chat`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('chat', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('chat', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-settings',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-sliders-h"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('settings')}</span>`,
               }),
               attrs: `data-id="settings"`,
               tabHref: `${getProxyPath()}settings`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-home"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('home')}</span>`,
               }),
               // style: 'display: none',
               attrs: `data-id="home"`,
               tabHref: `${getProxyPath()}`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('home', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-log-in',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-sign-in-alt"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('log-in')}</span>`,
               }),
               attrs: `data-id="log-in"`,
               tabHref: `${getProxyPath()}log-in`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-in', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-sign-up',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-user-plus"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('sign-up')}</span>`,
               }),
               attrs: `data-id="sign-up"`,
               tabHref: `${getProxyPath()}sign-up`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('sign-up', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('sign-up', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-log-out',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-sign-out-alt"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('log-out')}</span>`,
               }),
               attrs: `data-id="log-out"`,
               tabHref: `${getProxyPath()}log-out`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-out', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-out', 'right')),
               style: 'display: none',
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-account',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-user-circle"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('account')}</span>`,
               }),
               style: 'display: none',
               attrs: `data-id="account"`,
               tabHref: `${getProxyPath()}account`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('account', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-wallet',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html` <i class="fas fa-wallet"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('wallet')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('wallet')}</span>`,
               }),
               attrs: `data-id="wallet"`,
               tabHref: `${getProxyPath()}wallet`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('wallet', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('wallet', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-recover hide',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('recover')}</span>`,
               }),
               attrs: `data-id="recover"`,
               tabHref: `${getProxyPath()}recover`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('recover', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-default-management',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('default-management')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('default-management')}</span>`,
               }),
               attrs: `data-id="default-management"`,
               tabHref: `${getProxyPath()}default-management`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('default-management', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('default-management', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-user-management',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-users-cog"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('user-management')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('user-management')}</span>`,
               }),
               attrs: `data-id="user-management"`,
               tabHref: `${getProxyPath()}user-management`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('user-management', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('user-management', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-instance-management',
               useMenuBtn: true,
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-layer-group"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('instance-management')}</span>`,
+                text: html`<span class="menu-label-text">${Translate.instance('instance-management')}</span>`,
               }),
               attrs: `data-id="instance-management"`,
               tabHref: `${getProxyPath()}instance-management`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('instance-management', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('instance-management', 'right')),
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'in wfa main-btn-menu main-btn-cron-management',
               useMenuBtn: true,
               label: renderMenuLabel({
@@ -323,13 +323,13 @@ class AppShellNexodev {
                   />
                 </svg>`,
                 text: html`<span class="menu-label-text"
-                  ><div class="inl" style="top: -5px">${Translate.Render('cron-management')}</div></span
+                  ><div class="inl" style="top: -5px">${Translate.instance('cron-management')}</div></span
                 >`,
               }),
               attrs: `data-id="cron-management"`,
               tabHref: `${getProxyPath()}cron-management`,
               handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cron-management', 'right')),
+              tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cron-management', 'right')),
             })}
           </div>
         </div>
@@ -444,15 +444,15 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-sign-up`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-sign-up',
         route: 'sign-up',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-user-plus"></i>`,
-          text: Translate.Render('sign-up'),
+          text: Translate.instance('sign-up'),
         }),
-        html: async () => await SignUp.Render({ idModal: 'modal-sign-up' }),
+        html: async () => await SignUp.instance({ idModal: 'modal-sign-up' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -464,15 +464,15 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-log-out`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-log-out',
         route: 'log-out',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-sign-out-alt"></i>`,
-          text: Translate.Render('log-out'),
+          text: Translate.instance('log-out'),
         }),
-        html: async () => await LogOut.Render(),
+        html: async () => await LogOut.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -484,15 +484,15 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-log-in`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-log-in',
         route: 'log-in',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-sign-in-alt"></i>`,
-          text: Translate.Render('log-in'),
+          text: Translate.instance('log-in'),
         }),
-        html: async () => await LogIn.Render(),
+        html: async () => await LogIn.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -507,13 +507,13 @@ class AppShellNexodev {
       const idModal = 'modal-blog';
       const routeModal = 'blog';
       const idEvent = `form-panel-${idModal}`;
-      await Modal.Render({
+      await Modal.instance({
         id: idModal,
         route: routeModal,
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fa-solid fa-file-invoice"></i>`,
-          text: Translate.Render('blog'),
+          text: Translate.instance('blog'),
         }),
         observer: true,
         html: async () => {
@@ -539,15 +539,15 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-wallet`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-wallet',
         route: 'wallet',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-wallet"></i>`,
-          text: Translate.Render('wallet'),
+          text: Translate.instance('wallet'),
         }),
-        html: async () => await Wallet.Render({ idModal: 'modal-wallet' }),
+        html: async () => await Wallet.instance({ idModal: 'modal-wallet' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -559,16 +559,16 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-account`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-account',
         route: 'account',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-user-circle"></i>`,
-          text: Translate.Render('account'),
+          text: Translate.instance('account'),
         }),
         html: async () =>
-          await Account.Render({
+          await Account.instance({
             idModal: 'modal-account',
             user: AppStoreNexodev.Data.user.main.model.user,
             disabled: [],
@@ -584,16 +584,16 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-dashboard`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-dashboard',
         route: 'dashboard',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fa-solid fa-chart-line"></i>`,
-          text: Translate.Render('dashboard'),
+          text: Translate.instance('dashboard'),
         }),
         html: async () =>
-          await DashboardNexodev.Render({
+          await DashboardNexodev.instance({
             idModal: 'modal-dashboard',
           }),
         handleType: 'bar',
@@ -607,16 +607,16 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-stream`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-stream',
         route: 'stream',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fa-solid fa-video"></i>`,
-          text: Translate.Render('stream'),
+          text: Translate.instance('stream'),
         }),
         html: async () =>
-          await StreamNexodev.Render({
+          await StreamNexodev.instance({
             idModal: 'modal-stream',
           }),
         handleType: 'bar',
@@ -631,16 +631,16 @@ class AppShellNexodev {
     EventsUI.onClick(`.main-btn-calendar`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       const route = 'calendar';
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-calendar',
         route,
         barConfig,
         title: renderViewTitle({
           icon: html` <i class="fas fa-calendar-alt"></i>`,
-          text: Translate.Render('calendar'),
+          text: Translate.instance('calendar'),
         }),
         html: async () => {
-          return await CalendarNexodev.Render({
+          return await CalendarNexodev.instance({
             idModal: 'modal-calendar',
             appStore: AppStoreNexodev,
             route,
@@ -667,16 +667,16 @@ class AppShellNexodev {
       }
 
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: `modal-content${subModalId}`,
         route: 'content',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="far fa-file"></i>`,
-          text: Translate.Render('content'),
+          text: Translate.instance('content'),
         }),
         html: async () =>
-          await Content.Render({
+          await Content.instance({
             idModal: `modal-content${subModalId}`,
           }),
         query: true,
@@ -692,15 +692,15 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-cloud`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-cloud',
         route: 'cloud',
         barConfig,
         title: renderViewTitle({
           icon: html` <i class="fas fa-cloud"></i>`,
-          text: Translate.Render('cloud'),
+          text: Translate.instance('cloud'),
         }),
-        html: async () => await FileExplorer.Render({ idModal: 'modal-cloud' }),
+        html: async () => await FileExplorer.instance({ idModal: 'modal-cloud' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -712,15 +712,15 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-chat`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-chat',
         route: 'chat',
         barConfig,
         title: renderViewTitle({
           icon: html` <i class="far fa-comments"></i>`,
-          text: Translate.Render('chat'),
+          text: Translate.instance('chat'),
         }),
-        html: async () => await Chat.Render({ idModal: 'modal-chat' }),
+        html: async () => await Chat.instance({ idModal: 'modal-chat' }),
         handleType: 'bar',
         maximize: true,
         observer: true,
@@ -733,15 +733,15 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-settings`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-settings',
         route: 'settings',
         barConfig,
         title: renderViewTitle({
           icon: html` <i class="fas fa-sliders-h"></i>`,
-          text: Translate.Render('settings'),
+          text: Translate.instance('settings'),
         }),
-        html: async () => await SettingsNexodev.Render({ idModal: 'modal-settings' }),
+        html: async () => await SettingsNexodev.instance({ idModal: 'modal-settings' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -758,16 +758,16 @@ class AppShellNexodev {
       }
 
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-docs',
         route: 'docs',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-book"></i>`,
-          text: Translate.Render('docs'),
+          text: Translate.instance('docs'),
         }),
         html: async () =>
-          await Docs.Init({
+          await Docs.instance({
             idModal: 'modal-docs',
           }),
         handleType: 'bar',
@@ -782,16 +782,16 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-recover`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-recover',
         route: 'recover',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
-          text: Translate.Render('recover'),
+          text: Translate.instance('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: AppStoreNexodev.Data.user.main.model.user }),
+          await Recover.instance({ idModal: 'modal-recover', user: AppStoreNexodev.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -803,13 +803,13 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-default-management`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-default-management',
         route: 'default-management',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-          text: Translate.Render('default-management'),
+          text: Translate.instance('default-management'),
         }),
         html: async () => await DefaultManagement.RenderTable(),
         handleType: 'bar',
@@ -824,13 +824,13 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-user-management`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-user-management',
         route: 'user-management',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-users-cog"></i>`,
-          text: Translate.Render('user-management'),
+          text: Translate.instance('user-management'),
         }),
         html: async () => await UserManagement.RenderTable({ appStore: AppStoreNexodev }),
         handleType: 'bar',
@@ -845,13 +845,13 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-instance-management`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-instance-management',
         route: 'instance-management',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-layer-group"></i>`,
-          text: Translate.Render('instance-management'),
+          text: Translate.instance('instance-management'),
         }),
         html: async () => InstanceManagement.RenderTable({ appStore: AppStoreNexodev }),
         handleType: 'bar',
@@ -866,7 +866,7 @@ class AppShellNexodev {
 
     EventsUI.onClick(`.main-btn-cron-management`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-cron-management',
         route: 'cron-management',
         barConfig,
@@ -877,7 +877,7 @@ class AppShellNexodev {
               d="M22.8 19.4c.1 0 .1.1 0 .2l-1 1.7c-.1.1-.2.1-.3.1l-1.2-.4c-.3.2-.5.3-.8.5l-.2 1.3c0 .1-.1.2-.2.2h-2c-.1 0-.2-.1-.3-.2l-.2-1.3c-.3-.1-.6-.3-.8-.5l-1.2.5c-.1 0-.2 0-.3-.1l-1-1.7c-.1-.1 0-.2.1-.3l1.1-.8v-1l-1.1-.8c-.1-.1-.1-.2-.1-.3l1-1.7c.1-.1.2-.1.3-.1l1.2.5c.3-.2.5-.3.8-.5l.2-1.3c0-.1.1-.2.3-.2h2c.1 0 .2.1.2.2l.2 1.3c.3.1.6.3.9.5l1.2-.5c.1 0 .3 0 .3.1l1 1.7c.1.1 0 .2-.1.3l-1.1.8v1zM19.5 18c0-.8-.7-1.5-1.5-1.5s-1.5.7-1.5 1.5s.7 1.5 1.5 1.5s1.5-.7 1.5-1.5M13 14V8h-2v6m4-13H9v2h6zm-3.7 19C7.8 19.6 5 16.6 5 13c0-3.9 3.1-7 7-7c3.2 0 5.9 2.1 6.7 5c.8.1 1.5.3 2.2.6c-.3-1.6-.9-3-1.9-4.2L20.5 6c-.5-.5-1-1-1.5-1.4L17.6 6c-1.5-1.3-3.5-2-5.6-2c-5 0-9 4-9 9s4 9 9 9h.3c-.5-.6-.8-1.3-1-2"
             />
           </svg>`,
-          text: html`<div class="inl" style="top:-5px">${Translate.Render('cron-management')}</div>`,
+          text: html`<div class="inl" style="top:-5px">${Translate.instance('cron-management')}</div>`,
         }),
         html: async () => CronManagement.RenderTable({ appStore: AppStoreNexodev }),
         handleType: 'bar',
@@ -895,7 +895,7 @@ class AppShellNexodev {
       const { barConfig } = await Themes[Css.currentTheme]();
 
       // create simple modal arbritatry for test
-      Modal.Render({
+      Modal.instance({
         id: 'modal-test',
         barConfig,
         title: 'Test',

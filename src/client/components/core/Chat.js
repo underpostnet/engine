@@ -7,7 +7,7 @@ import { Translate } from './Translate.js';
 import { s, append } from './VanillaJs.js';
 class Chat {
   static Data = {};
-  static async Render(options) {
+  static async instance(options) {
     const { idModal } = options;
     Chat.Data[idModal] = {};
     setTimeout(() => {
@@ -28,16 +28,16 @@ class Chat {
     return html`
       <form>
         <div class="in section-mp chat-box ${idModal}-chat-box"></div>
-        ${await Input.Render({
+        ${await Input.instance({
           id: `input-chat-${idModal}`,
-          label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('write')}`,
+          label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('write')}`,
           containerClass: 'in section-mp width-mini-box-hover input-container-width',
           placeholder: true,
         })}
         <div class="in">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: `btn-send-chat-${idModal}`,
-            label: Translate.Render('send'),
+            label: Translate.instance('send'),
             type: 'submit',
           })}
         </div>

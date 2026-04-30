@@ -704,7 +704,7 @@ const ObjectLayerEngineModal = {
       return null;
     }
   },
-  Render: async (options = { idModal: '', appStore: {} }) => {
+  instance: async (options = { idModal: '', appStore: {} }) => {
     // Clear all cached data at the start of each render to prevent contamination
     ObjectLayerEngineModal.clearData();
 
@@ -1084,7 +1084,7 @@ const ObjectLayerEngineModal = {
       const previewWidth = Math.max(180, cellsW * pixelSize);
       const previewHeight = Math.max(180, cellsH * pixelSize);
 
-      await Modal.Render({
+      await Modal.instance({
         id: DIRECTION_PREVIEW_MODAL_ID,
         barConfig,
         title: `${directionCodeLabels[directionCode] || directionCode} Preview`,
@@ -1185,11 +1185,11 @@ const ObjectLayerEngineModal = {
               src="${URL.createObjectURL(image)}"
               data-direction-code="${capturedDirectionCode}"
             />
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               label: html`<i class="fa-solid fa-edit"></i>`,
               class: `abs direction-code-bar-edit-btn direction-code-bar-edit-btn-${id}`,
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               label: html`<i class="fa-solid fa-trash"></i>`,
               class: `abs direction-code-bar-trash-btn direction-code-bar-trash-btn-${id}`,
             })}
@@ -1335,14 +1335,14 @@ const ObjectLayerEngineModal = {
             <div class="in fll">
               <div class="in direction-code-bar-frames-title">${directionCodeLabels[directionCode]}</div>
               <div class="fl direction-code-bar-btn-row" style="gap: 6px;">
-                ${await BtnIcon.Render({
+                ${await BtnIcon.instance({
                   label: html`
                     <i class="fa-solid fa-plus direction-code-bar-frames-btn-icon-add-${directionCode}"></i>
                     <i class="fa-solid fa-edit direction-code-bar-frames-btn-icon-edit-${directionCode} hide"></i>
                   `,
                   class: `direction-code-bar-frames-btn-add direction-code-bar-frames-btn-${directionCode}`,
                 })}
-                ${await BtnIcon.Render({
+                ${await BtnIcon.instance({
                   label: html`<i class="fa-solid fa-play"></i>`,
                   class: `direction-code-bar-preview-btn direction-code-bar-preview-btn-${directionCode}`,
                 })}
@@ -1360,7 +1360,7 @@ const ObjectLayerEngineModal = {
       const statValue = loadedData?.metadata?.data?.stats?.[statType] || 0;
       statsInputsRender += html`
         <div class="inl" style="margin-bottom: 10px; position: relative;">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `ol-input-item-stats-${statType}`,
             label: html`<div
               title="${statInfo.description} ${statInfo.detail}"
@@ -2101,7 +2101,7 @@ const ObjectLayerEngineModal = {
           <div class="in sub-title-modal"><i class="fa-solid fa-palette"></i> Brush palette</div>
           <color-palette class="${colorPaletteClass}" value="#FF0000"></color-palette>
           <div class="fl" style="align-items: center; gap: 8px; margin-top: 8px;">
-            ${await ToggleSwitch.Render({
+            ${await ToggleSwitch.instance({
               id: UNIFORM_OPACITY_TOGGLE_ID,
               type: 'checkbox',
               displayMode: 'checkbox',
@@ -2126,7 +2126,7 @@ const ObjectLayerEngineModal = {
           <div class="in sub-title-modal"><i class="fa-solid fa-wand-magic-sparkles"></i> Canvas macro</div>
           <div class="fl" style="align-items: flex-start; gap: 8px; flex-wrap: wrap;">
             <div class="in fll" style="min-width: 240px;">
-              ${await DropDown.Render({
+              ${await DropDown.instance({
                 id: distortionDropdownId,
                 value: ObjectLayerEngineModal.selectedDistortionType,
                 label: html`Select behavior`,
@@ -2172,7 +2172,7 @@ const ObjectLayerEngineModal = {
               })}
             </div>
             <div class="in fll" style="width: 120px;">
-              ${await Input.Render({
+              ${await Input.instance({
                 id: `ol-input-distortion-factor-a`,
                 label: html`factorA`,
                 containerClass: 'inl',
@@ -2184,7 +2184,7 @@ const ObjectLayerEngineModal = {
               })}
             </div>
             <div class="in fll">
-              ${await BtnIcon.Render({
+              ${await BtnIcon.instance({
                 class: distortionApplyBtnClass,
                 label: html`<i class="fa-solid fa-bolt"></i> Apply To Frame`,
               })}
@@ -2198,16 +2198,16 @@ const ObjectLayerEngineModal = {
       </div>
 
       <div class="in section-mp section-mp-border">
-        <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Render data</div>
+        <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> instance data</div>
         ${dynamicCol({ containerSelector: options.idModal, id: idSectionA })}
 
         <div class="fl">
           <div class="in fll ${idSectionA}-col-a">
             <div class="in section-mp">
-              ${await DropDown.Render({
+              ${await DropDown.instance({
                 id: 'ol-dropdown-template',
                 value: ObjectLayerEngineModal.templates[0].id,
-                label: html`${Translate.Render('select-template')}`,
+                label: html`${Translate.instance('select-template')}`,
                 data: ObjectLayerEngineModal.templates.map((template) => {
                   return {
                     value: template.id,
@@ -2222,7 +2222,7 @@ const ObjectLayerEngineModal = {
           </div>
           <div class="in fll ${idSectionA}-col-b">
             <div class="in section-mp-border" style="width: 135px;">
-              ${await Input.Render({
+              ${await Input.instance({
                 id: `ol-input-render-frame-duration`,
                 label: html`<div class="inl ol-number-label">
                   <i class="fa-solid fa-chart-simple"></i> Frame duration
@@ -2245,25 +2245,25 @@ const ObjectLayerEngineModal = {
         <div class="in fll ${idSectionB}-col-a">
           <div class="in section-mp section-mp-border">
             <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Item data</div>
-            ${await Input.Render({
+            ${await Input.instance({
               id: `ol-input-item-id`,
-              label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('item-id')}`,
+              label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('item-id')}`,
               containerClass: '',
               placeholder: true,
               value: loadedData?.metadata?.data?.item?.id || '',
             })}
-            ${await Input.Render({
+            ${await Input.instance({
               id: `ol-input-item-description`,
-              label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('item-description')}`,
+              label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('item-description')}`,
               containerClass: '',
               placeholder: true,
               value: loadedData?.metadata?.data?.item?.description || '',
             })}
             <div class="in section-mp">
-              ${await DropDown.Render({
+              ${await DropDown.instance({
                 id: 'ol-dropdown-item-type',
                 value: ObjectLayerEngineModal.selectItemType,
-                label: html`${Translate.Render('select-item-type')}`,
+                label: html`${Translate.instance('select-item-type')}`,
                 data: itemTypes.map((itemType) => {
                   return {
                     value: itemType,
@@ -2277,10 +2277,10 @@ const ObjectLayerEngineModal = {
               })}
             </div>
             <div class="in section-mp">
-              ${await ToggleSwitch.Render({
+              ${await ToggleSwitch.instance({
                 id: 'ol-toggle-item-activable',
                 wrapper: true,
-                wrapperLabel: html`${Translate.Render('item-activable')}`,
+                wrapperLabel: html`${Translate.instance('item-activable')}`,
                 disabledOnClick: true,
                 checked: ObjectLayerEngineModal.itemActivable,
                 on: {
@@ -2302,7 +2302,7 @@ const ObjectLayerEngineModal = {
             <div class="in sub-title-modal"><i class="fa-solid fa-database"></i> Stats data</div>
             <div class="fl" style="align-items: flex-end; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
               <div class="in fll" style="width: 110px;">
-                ${await Input.Render({
+                ${await Input.instance({
                   id: statsRandomMinInputId,
                   label: html`Random min`,
                   containerClass: 'inl',
@@ -2314,7 +2314,7 @@ const ObjectLayerEngineModal = {
                 })}
               </div>
               <div class="in fll" style="width: 110px;">
-                ${await Input.Render({
+                ${await Input.instance({
                   id: statsRandomMaxInputId,
                   label: html`Random max`,
                   containerClass: 'inl',
@@ -2326,7 +2326,7 @@ const ObjectLayerEngineModal = {
                 })}
               </div>
               <div class="in fll">
-                ${await BtnIcon.Render({
+                ${await BtnIcon.instance({
                   label: html`<i class="fa-solid fa-dice"></i> Randomize`,
                   class: statsRandomizeBtnClass,
                 })}
@@ -2338,19 +2338,19 @@ const ObjectLayerEngineModal = {
       </div>
 
       <div class="fl section-mp">
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           label: html`<i class="submit-btn-icon fa-solid fa-folder-open"></i>
-            ${ObjectLayerEngineModal.existingObjectLayerId ? 'Update' : Translate.Render('save')}`,
+            ${ObjectLayerEngineModal.existingObjectLayerId ? 'Update' : Translate.instance('save')}`,
           class: `in flr ol-btn-save`,
         })}
         ${ObjectLayerEngineModal.existingObjectLayerId
-          ? await BtnIcon.Render({
+          ? await BtnIcon.instance({
               label: html`<i class="submit-btn-icon fa-solid fa-clone"></i> Clone`,
               class: `in flr ol-btn-clone`,
             })
           : ''}
-        ${await BtnIcon.Render({
-          label: html`<i class="submit-btn-icon fa-solid fa-broom"></i> ${Translate.Render('reset')}`,
+        ${await BtnIcon.instance({
+          label: html`<i class="submit-btn-icon fa-solid fa-broom"></i> ${Translate.instance('reset')}`,
           class: `in flr ol-btn-reset`,
         })}
       </div>

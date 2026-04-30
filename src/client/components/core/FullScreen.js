@@ -180,9 +180,9 @@ class FullScreen {
       FullScreen._syncToggleState();
     };
     return html`<div class="in section-mp">
-      ${await ToggleSwitch.Render({
+      ${await ToggleSwitch.instance({
         wrapper: true,
-        wrapperLabel: html`<i class="fa-solid fa-expand"></i> ${Translate.Render('fullscreen')}`,
+        wrapperLabel: html`<i class="fa-solid fa-expand"></i> ${Translate.instance('fullscreen')}`,
         id: 'fullscreen',
         disabledOnClick: true,
         checked: FullScreen._fullScreenSwitch,

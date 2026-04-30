@@ -4,7 +4,7 @@ import { getProxyPath } from '../core/Router.js';
 import { htmls, s } from '../core/VanillaJs.js';
 
 class MainBodyCyberiaPortal {
-  static async Render() {
+  static async instance() {
     setTimeout(() => {
       EventsUI.onClick('.cta-button', () => {
         console.log('Enter the world button clicked');

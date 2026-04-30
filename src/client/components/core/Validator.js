@@ -10,7 +10,7 @@ class Validator {
   static renderErrorMessage(rule, text) {
     return html` <div class="in">
       ${renderStatus('error', { class: 'inl' })} &nbsp
-      <span style="color: red">${text ? textFormatted(text) : Translate.Render(rule.type)}</span>
+      <span style="color: red">${text ? textFormatted(text) : Translate.instance(rule.type)}</span>
     </div>`;
   }
   static instance(validators, callBack = (value) => {}) {
@@ -64,7 +64,7 @@ class Validator {
                 if (!isChileanIdentityDocument(s(`.${validatorData.id}`).value)) {
                   errorMessage += Validator.renderErrorMessage(
                     undefined,
-                    Translate.Render('invalid-identity-document'),
+                    Translate.instance('invalid-identity-document'),
                   );
                 }
 
@@ -74,13 +74,19 @@ class Validator {
                 const username = s(`.${validatorData.id}`).value;
                 // Check if username is empty or only whitespace
                 if (!username || username.trim() === '') {
-                  errorMessage += Validator.renderErrorMessage(undefined, Translate.Render('invalid-username-format'));
+                  errorMessage += Validator.renderErrorMessage(
+                    undefined,
+                    Translate.instance('invalid-username-format'),
+                  );
                   break;
                 }
                 // Check if username contains only valid characters (no spaces or special chars)
                 const usernameRegex = /^[a-zA-Z0-9_-]+$/;
                 if (!usernameRegex.test(username)) {
-                  errorMessage += Validator.renderErrorMessage(undefined, Translate.Render('invalid-username-format'));
+                  errorMessage += Validator.renderErrorMessage(
+                    undefined,
+                    Translate.instance('invalid-username-format'),
+                  );
                 }
 
                 break;

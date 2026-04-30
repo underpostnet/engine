@@ -91,7 +91,7 @@ const BymyelectricsTemplate = async () => {
     ${borderChar(2, 'black', ['.home-first-screen'])}
     <div class="in home-first-screen" style="height: ${windowGetH() - 100}px">
       <div class="abs center proyectistas-p">
-        ${Translate.Render('electrical-designers', undefined, { disableTextFormat: true })}
+        ${Translate.instance('electrical-designers', undefined, { disableTextFormat: true })}
       </div>
     </div>
     ${dynamicCol({ containerSelector: id1DynamicCol, id: id1DynamicCol, type: 'a-50-b-50' })}
@@ -163,13 +163,13 @@ const BymyelectricsTemplate = async () => {
         </div>
         <div class="in fll ${id0DynamicCol}-col-b">
           <br /><br />
-          <div class="in section-mp">${Translate.Render('description-0')}</div>
-          <div class="in section-mp">${Translate.Render('description-1')}</div>
+          <div class="in section-mp">${Translate.instance('description-0')}</div>
+          <div class="in section-mp">${Translate.instance('description-1')}</div>
         </div>
       </div>   -->
       <br />
       <!--
-      <div class="in sub-title">${Translate.Render('our-clients')}</div>
+      <div class="in sub-title">${Translate.instance('our-clients')}</div>
       <br />
       <img class="in clients-img" src="${getProxyPath()}assets/clients.png" />
       <br />

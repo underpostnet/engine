@@ -21,7 +21,7 @@ const logger = loggerFactory(import.meta);
 
 const Account = {
   UpdateEvent: {},
-  Render: async function (options = { user: {}, bottomRender: async () => '', idModal: '' }) {
+  instance: async function (options = { user: {}, bottomRender: async () => '', idModal: '' }) {
     // app profile page design example
     // CSS animated backgrounds
     let { user, idModal } = options;
@@ -82,7 +82,7 @@ const Account = {
           const currentUser = LogIn.Scope.user.main.model.user;
           if (!currentUser || !currentUser._id) {
             NotificationManager.Push({
-              html: Translate.Render('error-user-not-authenticated'),
+              html: Translate.instance('error-user-not-authenticated'),
               status: 'error',
             });
             return;
@@ -90,7 +90,7 @@ const Account = {
           // Guest users cannot submit form
           if (currentUser.role === 'guest') {
             NotificationManager.Push({
-              html: Translate.Render('error-user-not-authenticated'),
+              html: Translate.instance('error-user-not-authenticated'),
               status: 'error',
             });
             return;
@@ -99,7 +99,7 @@ const Account = {
           const { successKeys, errorKeys, errorMessage } = await validators();
           if (errorMessage) {
             NotificationManager.Push({
-              html: `${errorKeys.map((e) => Translate.Render(e.replace('account-', '')))} ${errorMessage}`,
+              html: `${errorKeys.map((e) => Translate.instance(e.replace('account-', '')))} ${errorMessage}`,
             });
             return;
           }
@@ -117,7 +117,7 @@ const Account = {
             html:
               result.status === 'error' && result.message
                 ? result.message
-                : Translate.Render(`${result.status}-update-user`),
+                : Translate.instance(`${result.status}-update-user`),
             status: result.status,
           });
           if (result.status === 'success') {
@@ -151,7 +151,7 @@ const Account = {
             const currentUser = LogIn.Scope.user.main.model.user;
             if (!currentUser || !currentUser._id) {
               NotificationManager.Push({
-                html: Translate.Render('error-user-not-authenticated'),
+                html: Translate.instance('error-user-not-authenticated'),
                 status: 'error',
               });
               return;
@@ -159,7 +159,7 @@ const Account = {
             // Guest users cannot verify email
             if (currentUser.role === 'guest') {
               NotificationManager.Push({
-                html: Translate.Render('error-user-not-authenticated'),
+                html: Translate.instance('error-user-not-authenticated'),
                 status: 'error',
               });
               return;
@@ -173,7 +173,7 @@ const Account = {
               },
             });
             NotificationManager.Push({
-              html: result.status === 'error' ? result.message : Translate.Render(`email send`),
+              html: result.status === 'error' ? result.message : Translate.instance(`email send`),
               status: result.status,
             });
           });
@@ -196,7 +196,7 @@ const Account = {
             const currentUser = LogIn.Scope.user.main.model.user;
             if (!currentUser || !currentUser._id) {
               NotificationManager.Push({
-                html: Translate.Render('error-user-not-authenticated'),
+                html: Translate.instance('error-user-not-authenticated'),
                 status: 'error',
               });
               s(`.account-profile-image`).style.opacity = 1;
@@ -205,7 +205,7 @@ const Account = {
             // Guest users cannot upload profile images
             if (currentUser.role === 'guest') {
               NotificationManager.Push({
-                html: Translate.Render('error-user-not-authenticated'),
+                html: Translate.instance('error-user-not-authenticated'),
                 status: 'error',
               });
               s(`.account-profile-image`).style.opacity = 1;
@@ -259,12 +259,12 @@ const Account = {
               if (topbarImg) topbarImg.src = newImageSrc;
 
               NotificationManager.Push({
-                html: Translate.Render('success-update-user'),
+                html: Translate.instance('success-update-user'),
                 status: 'success',
               });
             } else {
               NotificationManager.Push({
-                html: data?.message || Translate.Render('file-upload-failed'),
+                html: data?.message || Translate.instance('file-upload-failed'),
                 status: 'error',
               });
             }
@@ -286,7 +286,7 @@ const Account = {
               html: async () => {
                 return html`
                   <div class="in section-mp" style="text-align: center">
-                    ${Translate.Render('confirm-delete-account')}
+                    ${Translate.instance('confirm-delete-account')}
                   </div>
                 `;
               },
@@ -304,7 +304,7 @@ const Account = {
           const descriptionValue = s(`.account-brief-description`).value;
           if (!descriptionValue || descriptionValue === 'undefined' || descriptionValue.trim() === '') {
             NotificationManager.Push({
-              html: Translate.Render('brief-description-cannot-be-empty'),
+              html: Translate.instance('brief-description-cannot-be-empty'),
               status: 'error',
             });
             return;
@@ -313,7 +313,7 @@ const Account = {
           const currentUser = LogIn.Scope.user.main.model.user;
           if (!currentUser || !currentUser._id) {
             NotificationManager.Push({
-              html: Translate.Render('error-user-not-authenticated'),
+              html: Translate.instance('error-user-not-authenticated'),
               status: 'error',
             });
             return;
@@ -321,7 +321,7 @@ const Account = {
           // Guest users cannot update brief description
           if (currentUser.role === 'guest') {
             NotificationManager.Push({
-              html: Translate.Render('error-user-not-authenticated'),
+              html: Translate.instance('error-user-not-authenticated'),
               status: 'error',
             });
             return;
@@ -331,7 +331,7 @@ const Account = {
             html:
               result.status === 'error' && result.message
                 ? result.message
-                : Translate.Render(`${result.status}-update-user`),
+                : Translate.instance(`${result.status}-update-user`),
             status: result.status,
           });
           if (result.status === 'success') {
@@ -357,7 +357,7 @@ const Account = {
               const currentUser = LogIn.Scope.user.main.model.user;
               if (!currentUser || !currentUser._id) {
                 NotificationManager.Push({
-                  html: Translate.Render('error-user-not-authenticated'),
+                  html: Translate.instance('error-user-not-authenticated'),
                   status: 'error',
                 });
                 return;
@@ -365,7 +365,7 @@ const Account = {
               // Guest users cannot toggle public profile
               if (currentUser.role === 'guest') {
                 NotificationManager.Push({
-                  html: Translate.Render('error-user-not-authenticated'),
+                  html: Translate.instance('error-user-not-authenticated'),
                   status: 'error',
                 });
                 return;
@@ -375,7 +375,7 @@ const Account = {
                 html:
                   result.status === 'error' && result.message
                     ? result.message
-                    : Translate.Render(`${result.status}-update-user`),
+                    : Translate.instance(`${result.status}-update-user`),
                 status: result.status,
               });
               if (result.status === 'success') {
@@ -403,14 +403,14 @@ const Account = {
           const currentUser = LogIn.Scope.user.main.model.user;
           if (!currentUser || !currentUser._id) {
             NotificationManager.Push({
-              html: Translate.Render('error-user-not-authenticated'),
+              html: Translate.instance('error-user-not-authenticated'),
               status: 'error',
             });
             return;
           }
           const result = await UserService.delete({ id: currentUser._id });
           NotificationManager.Push({
-            html: result.status === 'error' ? result.message : Translate.Render(`success-delete-account`),
+            html: result.status === 'error' ? result.message : Translate.instance(`success-delete-account`),
             status: result.status,
           });
           s(`.btn-account-delete-confirm`).classList.remove('hide');
@@ -436,27 +436,27 @@ const Account = {
 
       <form class="in">
         <div class="in">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `account-username`,
             type: 'text',
-            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('username')}`,
+            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.instance('username')}`,
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             disabled: false,
             extension: async () =>
-              html`${await BtnIcon.Render({
+              html`${await BtnIcon.instance({
                 class: `in wfa btn-input-extension btn-account-update-username`,
                 type: 'button',
                 style: 'text-align: left',
-                label: html`${Translate.Render(`update`)}`,
+                label: html`${Translate.instance(`update`)}`,
               })}`,
           })}
         </div>
         <div class="in">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `account-email`,
             type: 'email',
-            label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
+            label: html`<i class="fa-solid fa-envelope"></i> ${Translate.instance('email')}`,
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             autocomplete: 'email',
@@ -464,57 +464,57 @@ const Account = {
             extension: !(options && options.disabled && options.disabled.includes('emailConfirm'))
               ? async () =>
                   html`<div class="in verify-email-status"></div>
-                    ${await BtnIcon.Render({
+                    ${await BtnIcon.instance({
                       class: `in wfa btn-input-extension btn-confirm-email`,
                       type: 'button',
                       style: 'text-align: left',
                       label: html`<div class="in">
-                        <i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
-                        ${Translate.Render('verify-email')}
+                        <i class="fa-solid fa-paper-plane"></i> ${Translate.instance('send')}
+                        ${Translate.instance('verify-email')}
                       </div> `,
                     })}`
               : undefined,
           })}
         </div>
         <div class="in">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `account-password`,
             type: 'password',
             autocomplete: 'new-password',
-            label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
+            label: html`<i class="fa-solid fa-lock"></i> ${Translate.instance('password')}`,
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             disabled: true,
             disabledEye: true,
             extension: async () =>
-              html`${await BtnIcon.Render({
+              html`${await BtnIcon.instance({
                 class: `in wfa btn-input-extension btn-account-change-password`,
                 type: 'button',
                 style: 'text-align: left',
-                label: html`${Translate.Render(`change-password`)}`,
+                label: html`${Translate.instance(`change-password`)}`,
               })}`,
           })}
         </div>
         <div class="in">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `account-brief-description`,
-            label: html`<i class="fa-solid fa-pen-fancy"></i> ${Translate.Render('brief-description')}`,
+            label: html`<i class="fa-solid fa-pen-fancy"></i> ${Translate.instance('brief-description')}`,
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             rows: 4,
             extension: async () =>
-              html`${await BtnIcon.Render({
+              html`${await BtnIcon.instance({
                 class: `in wfa btn-input-extension btn-brief-description-update`,
                 type: 'button',
                 style: 'text-align: left',
-                label: html`${Translate.Render(`update`)}`,
+                label: html`${Translate.instance(`update`)}`,
               })}`,
           })}
         </div>
         <div class="in section-mp">
-          ${await ToggleSwitch.Render({
+          ${await ToggleSwitch.instance({
             wrapper: true,
-            wrapperLabel: html`<i class="fa-solid fa-globe"></i> ${Translate.Render('public-profile')}`,
+            wrapperLabel: html`<i class="fa-solid fa-globe"></i> ${Translate.instance('public-profile')}`,
             id: 'account-public-profile',
             disabledOnClick: true,
             checked: user.publicProfile ? true : false,
@@ -522,23 +522,23 @@ const Account = {
         </div>
         ${options?.bottomRender ? await options.bottomRender() : ``}
         <div class="in hide">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in section-mp form-button btn-account',
-            label: Translate.Render('update'),
+            label: Translate.instance('update'),
             type: 'submit',
           })}
         </div>
       </form>
       <div class="in">
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: 'in section-mp form-button btn-account-delete hide',
-          label: html` ${Translate.Render(`delete-account`)}`,
+          label: html` ${Translate.instance(`delete-account`)}`,
           type: 'button',
           style: 'color: #5f5f5f',
         })}
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: 'in section-mp form-button btn-account-delete-confirm',
-          label: html` ${Translate.Render(`delete-account`)}`,
+          label: html` ${Translate.instance(`delete-account`)}`,
           type: 'button',
           style: 'color: #5f5f5f',
         })}
@@ -558,8 +558,8 @@ const Account = {
       }
       htmls(
         '.verify-email-status',
-        html`${renderStatus(user.emailConfirmed ? 'success' : 'error', { class: 'inl' })} ${Translate.Render('email')}
-        ${Translate.Render(user.emailConfirmed ? 'confirmed' : 'unconfirmed')}`,
+        html`${renderStatus(user.emailConfirmed ? 'success' : 'error', { class: 'inl' })} ${Translate.instance('email')}
+        ${Translate.instance(user.emailConfirmed ? 'confirmed' : 'unconfirmed')}`,
       );
       if (user.emailConfirmed === true) s(`.account-email`).setAttribute('disabled', '');
     }

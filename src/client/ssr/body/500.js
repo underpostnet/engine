@@ -23,7 +23,7 @@ const main = () => {
         es: 'Volver a  <br> la pagina principal',
       },
     },
-    Render: function (id) {
+    instance: function (id) {
       return this.Data[id][getLang()] ? this.Data[id][getLang()] : this.Data[id]['en'];
     },
   };
@@ -57,9 +57,9 @@ const main = () => {
         <br />
         <span class="bold">500</span>
         <br />
-        <br />${Translate.Render('page-broken')} <br />
+        <br />${Translate.instance('page-broken')} <br />
         <br />
-        <a target="_top" href="${location.origin}">${Translate.Render('back')}</a>
+        <a target="_top" href="${location.origin}">${Translate.instance('back')}</a>
       </div>`,
   );
 };

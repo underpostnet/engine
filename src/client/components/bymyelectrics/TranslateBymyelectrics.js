@@ -1,7 +1,7 @@
 import { Translate } from '../core/Translate.js';
 
 class TranslateBymyelectrics {
-  static async Init() {
+  static async instance() {
     Translate.Data['description-0'] = {
       es: html`Ingeniería By My Electrics Ltda. es una empresa consultora de ingeniería eléctrica constituida en 2024,
         ha participado como proyectista para el proyecto de depósito y relaves en Rajo,

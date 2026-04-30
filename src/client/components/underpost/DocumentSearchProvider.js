@@ -97,7 +97,7 @@ const DocumentSearchProvider = {
    * @param {string} result.createdAt - Document creation date.
    * @param {object} result.data - Full document data object.
    * @param {number} index - The index of this result in the results array.
-   * @param {object} context - Render context object.
+   * @param {object} context - instance context object.
    * @returns {string} HTML string for the search result card.
    */
   renderResult: (result, index, context) => {

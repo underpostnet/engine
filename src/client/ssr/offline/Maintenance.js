@@ -15,7 +15,7 @@ const main = () => {
         es: 'El servidor está en mantenimiento <br> volveremos pronto.',
       },
     },
-    Render: function (id) {
+    instance: function (id) {
       return this.Data[id][getLang()] ? this.Data[id][getLang()] : this.Data[id]['en'];
     },
   };
@@ -47,7 +47,7 @@ const main = () => {
       <div class="abs center" style="top: 45%">
         ${icon}
         <br />
-        <br />${Translate.Render('server-maintenance')}
+        <br />${Translate.instance('server-maintenance')}
       </div>`,
   );
 };

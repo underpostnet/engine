@@ -4,7 +4,7 @@ import { Translate } from '../core/Translate.js';
 import { Worker } from '../core/Worker.js';
 
 class SettingsDogmadual {
-  static async Render() {
+  static async instance() {
     let render = await FullScreen.RenderSetting();
     render += await Css.RenderSetting();
     render += await Translate.RenderSetting();

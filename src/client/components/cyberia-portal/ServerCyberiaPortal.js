@@ -10,7 +10,7 @@ import { MainUserCyberia } from '../cyberia/MainUserCyberia.js';
 import { SocketIoCyberia } from '../cyberia/SocketIoCyberia.js';
 class ServerCyberiaPortal {
   static Tokens = {};
-  static async Render(options = { idModal: '', events: {} }) {
+  static async instance(options = { idModal: '', events: {} }) {
     const id = options?.idModal ? options.idModal : getId(ServerCyberiaPortal.Tokens, 'server-cyberia-');
     ServerCyberiaPortal.Tokens[id] = {
       events: {},
@@ -32,7 +32,7 @@ class ServerCyberiaPortal {
       async init(params) {
         ServerCyberiaPortal.eGui = document.createElement('div');
         const { name, status, port } = params.data;
-        ServerCyberiaPortal.eGui.innerHTML = html` ${await BtnIcon.Render({
+        ServerCyberiaPortal.eGui.innerHTML = html` ${await BtnIcon.instance({
           label: html`<i class="fas fa-play-circle"></i>`,
           class: `btn-server-${name}-${id}`,
         })}`;
@@ -78,7 +78,7 @@ class ServerCyberiaPortal {
         return true;
       }
     }
-    return html` ${await AgGrid.Render({
+    return html` ${await AgGrid.instance({
       id: gridId,
       darkTheme,
       // style: {

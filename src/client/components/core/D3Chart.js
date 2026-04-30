@@ -3,7 +3,7 @@ import { connectedScatterplotChart } from '../chart/connectedScatterplotChart.js
 // https://takanori-fujiwara.github.io/d3-gallery-javascript/
 
 class D3Chart {
-  static async Render() {
+  static async instance() {
     setTimeout(async () => {
       const driving = await d3.csv('/data/driving.csv', d3.autoType);
 

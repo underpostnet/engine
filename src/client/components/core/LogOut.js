@@ -35,23 +35,23 @@ class LogOut {
         </style>`,
       );
   }
-  static async Render() {
+  static async instance() {
     setTimeout(() => {
       s('.btn-log-out').onclick = async (e) => {
         e.preventDefault();
         await Auth.sessionOut();
         NotificationManager.Push({
-          html: Translate.Render(`success-logout`),
+          html: Translate.instance(`success-logout`),
           status: 'success',
         });
       };
     });
-    // Translate.Render('confirm-logout')
+    // Translate.instance('confirm-logout')
     return html` <form class="in">
       <div class="in">
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: 'inl section-mp btn-custom btn-log-out',
-          label: html`<i class="fa-solid fa-power-off"></i> ${Translate.Render('log-out')}`,
+          label: html`<i class="fa-solid fa-power-off"></i> ${Translate.instance('log-out')}`,
           type: 'submit',
         })}
       </div>

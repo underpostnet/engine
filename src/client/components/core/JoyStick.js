@@ -5,7 +5,7 @@ import { getProxyPath } from './Router.js';
 const logger = loggerFactory(import.meta);
 class JoyStick {
   static Tokens = {};
-  static async Render(options = { id: '', callback: ({ joyDataSet }) => {}, callBackTime: 50 }) {
+  static async instance(options = { id: '', callback: ({ joyDataSet }) => {}, callBackTime: 50 }) {
     const { callback, callBackTime } = options;
     const id = options.id ? options.id : getId(JoyStick.Tokens, 'joystick-');
     JoyStick.Tokens[id] = { callback };

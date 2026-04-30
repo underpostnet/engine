@@ -10,7 +10,7 @@ import { Translate } from './Translate.js';
 import { copyData, htmls, s } from './VanillaJs.js';
 class Wallet {
   static Data = {};
-  static async Render(options) {
+  static async instance(options) {
     const id = getId(Wallet.Data, 'wallet-');
     setTimeout(async () => {
       EventsUI.onClick(`.btn-generate-keys-${id}`, async (e) => {
@@ -46,8 +46,8 @@ class Wallet {
           });
         }
         NotificationManager.Push({
-          // html: Translate.Render(`${result.status}-generate-keys`),
-          html: Translate.Render(`success-generate-keys`),
+          // html: Translate.instance(`${result.status}-generate-keys`),
+          html: Translate.instance(`success-generate-keys`),
           // status: result.status,
           status: 'success',
         });
@@ -55,7 +55,7 @@ class Wallet {
           e.preventDefault();
           await copyData(displayKeys);
           NotificationManager.Push({
-            html: Translate.Render('success-copy-data'),
+            html: Translate.instance('success-copy-data'),
             status: 'success',
           });
         });
@@ -72,14 +72,14 @@ class Wallet {
               based on elliptic curve digital signature,
               <a href="https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto">more info</a>.
             </div>
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `inl section-mp btn-custom btn-generate-keys-${id}`,
-              label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.Render('generate')}
-                ${Translate.Render('keys')}`,
+              label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.instance('generate')}
+                ${Translate.instance('keys')}`,
             })}
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `inl section-mp btn-custom btn-copy-keys-${id}`,
-              label: html`<i class="fas fa-copy"></i> ${Translate.Render('copy')} ${Translate.Render('keys')}`,
+              label: html`<i class="fas fa-copy"></i> ${Translate.instance('copy')} ${Translate.instance('keys')}`,
             })}
           </div>
         </div>

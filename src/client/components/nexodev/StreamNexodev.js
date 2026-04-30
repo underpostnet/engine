@@ -6,7 +6,7 @@ import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 
 class StreamNexodev {
-  static async Render(
+  static async instance(
     options = {
       idModal: 'modal-stream',
     },
@@ -33,7 +33,7 @@ class StreamNexodev {
 
       if (!stream)
         return NotificationManager.Push({
-          html: Translate.Render('no-can-connect-stream-device'),
+          html: Translate.instance('no-can-connect-stream-device'),
           status: 'warning',
         });
 

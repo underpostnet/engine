@@ -29,7 +29,7 @@ class Translate {
     });
     for (const keyEvent of Object.keys(Translate.Event)) Translate.Event[keyEvent]();
   }
-  static Render(keyLang, placeholder, options = { disableTextFormat: false }) {
+  static instance(keyLang, placeholder, options = { disableTextFormat: false }) {
     if (!(keyLang in Translate.Data)) {
       // TODO: add translate package or library for this case
       // logger.warn('translate key lang does not exist: ', keyLang);
@@ -60,13 +60,13 @@ class Translate {
   }
   static async RenderSetting(id) {
     return html` <div class="in section-mp">
-      ${await DropDown.Render({
+      ${await DropDown.instance({
         id: id ?? 'settings-lang',
         value: s('html').lang ? s('html').lang : 'en',
-        label: html`${Translate.Render('lang')}`,
+        label: html`${Translate.instance('lang')}`,
         data: ['en', 'es'].map((language) => {
           return {
-            display: html`<i class="fa-solid fa-language"></i> ${Translate.Render(language)}`,
+            display: html`<i class="fa-solid fa-language"></i> ${Translate.instance(language)}`,
             value: language,
             onClick: () => Translate.renderLang(language),
           };
@@ -76,7 +76,7 @@ class Translate {
   }
 }
 class TranslateCore {
-  static async Init() {
+  static async instance() {
     s('html').lang = getLang();
     Translate.Data = {
       ...Translate.Data,

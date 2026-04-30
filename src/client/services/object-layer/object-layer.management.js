@@ -31,7 +31,7 @@ class ObjectLayerManagement {
           return;
         }
 
-        ObjectLayerManagement.eGui.innerHTML = html` ${await BtnIcon.Render({
+        ObjectLayerManagement.eGui.innerHTML = html` ${await BtnIcon.instance({
           label: html`<div class="abs center">
             <i class="fas fa-eye"></i>
           </div> `,
@@ -77,7 +77,7 @@ class ObjectLayerManagement {
           return;
         }
 
-        ObjectLayerManagement.eGui.innerHTML = html` ${await BtnIcon.Render({
+        ObjectLayerManagement.eGui.innerHTML = html` ${await BtnIcon.instance({
           label: html`<div class="abs center">
             <i class="fas fa-edit"></i>
           </div> `,
@@ -168,7 +168,7 @@ class ObjectLayerManagement {
           return;
         }
 
-        ObjectLayerManagement.eGui.innerHTML = html` ${await BtnIcon.Render({
+        ObjectLayerManagement.eGui.innerHTML = html` ${await BtnIcon.instance({
           label: html`<div class="abs center">
             <i class="fas fa-trash" style="color: #dc3545;"></i>
           </div> `,
@@ -306,7 +306,7 @@ class ObjectLayerManagement {
       },
       {
         field: 'data.render.cid',
-        headerName: 'Render CID',
+        headerName: 'instance CID',
         width: 160,
         cellRenderer: AtlasCidRenderer,
         editable: false,
@@ -315,7 +315,7 @@ class ObjectLayerManagement {
       },
       {
         field: 'data.render.metadataCid',
-        headerName: 'Render Metadata CID',
+        headerName: 'instance Metadata CID',
         width: 160,
         cellRenderer: MetadataCidRenderer,
         editable: false,

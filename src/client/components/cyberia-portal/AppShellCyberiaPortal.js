@@ -34,124 +34,124 @@ import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
 
 class AppShellCyberiaPortal {
   static Data = {};
-  static async Render() {
+  static async instance() {
     const id = getId(AppShellCyberiaPortal.Data, 'menu-');
     AppShellCyberiaPortal.Data[id] = {};
     const RouterInstance = RouterCyberiaPortal();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 
-    await Modal.Render({
+    await Modal.instance({
       id: 'modal-menu',
       html: html`
         <div class="fl menu-btn-container">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/home.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('home')}</span>`,
             }),
             // style: 'display: none',
             attrs: `data-id="0"`,
             tabHref: `${getProxyPath()}`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('home')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-log-in',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('log-in')}</span>`,
             }),
             attrs: `data-id="log-in"`,
             tabHref: `${getProxyPath()}log-in`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-in')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-sign-up',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('sign-up')}</span>`,
             }),
             attrs: `data-id="sign-up"`,
             tabHref: `${getProxyPath()}sign-up`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('sign-up')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('sign-up')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-log-out',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('log-out')}</span>`,
             }),
             attrs: `data-id="log-out"`,
             style: 'display: none',
             tabHref: `${getProxyPath()}log-out`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-out')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-out')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-account',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/account.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('account')}</span>`,
             }),
             style: 'display: none',
             attrs: `data-id="account"`,
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('account')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-settings',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/settings.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('settings')}</span>`,
             }),
             attrs: `data-id="settings"`,
             tabHref: `${getProxyPath()}settings`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-server hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-server"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('server')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('server')}</span>`,
             }),
             attrs: `data-id="server"`,
             tabHref: `${getProxyPath()}server`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('server')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('server')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-chat',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/chat.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('chat')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('chat')}</span>`,
             }),
             attrs: `data-id="chat"`,
             tabHref: `${getProxyPath()}chat`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('chat')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('chat')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-docs',
             useMenuBtn: true,
             label: html`<div class="in">
               ${renderMenuLabel({
                 icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
                 text: html`<span class="menu-label-text"
-                  >${Translate.Render('docs')}
+                  >${Translate.instance('docs')}
                   <i
                     class="fas fa-caret-down inl down-arrow-submenu down-arrow-submenu-docs"
                     style="rotate: 0deg; transition: 0.4s;"
@@ -162,98 +162,98 @@ class AppShellCyberiaPortal {
             attrs: `data-id="docs"`,
             tabHref: `${getProxyPath()}docs`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('docs')),
           })}
           <div class="abs menu-btn-container-children-docs"></div>
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-admin hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-user-tie"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('admin')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('admin')}</span>`,
             }),
             attrs: `data-id="admin"`,
             tabHref: `/admin`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('admin')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('admin')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-recover hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('recover')}</span>`,
             }),
             attrs: `data-id="recover"`,
             tabHref: `${getProxyPath()}recover`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('recover')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-object-layer-engine',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('object-layer-engine')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('object-layer-engine')}</span>`,
             }),
             attrs: `data-id="object-layer-engine"`,
             tabHref: `${getProxyPath()}object-layer-engine`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('object-layer-engine')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('object-layer-engine')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-object-layer-engine-management hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('object-layer-engine-management')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('object-layer-engine-management')}</span>`,
             }),
             attrs: `data-id="object-layer-engine-management"`,
             tabHref: `${getProxyPath()}object-layer-engine-management`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('object-layer-engine-management')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('object-layer-engine-management')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-object-layer-engine-viewer',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('object-layer-engine-viewer')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('object-layer-engine-viewer')}</span>`,
             }),
             attrs: `data-id="object-layer-engine-viewer"`,
             tabHref: `${getProxyPath()}object-layer-engine-viewer`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('object-layer-engine-viewer')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('object-layer-engine-viewer')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-cyberia-map-engine',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('cyberia-map-engine')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('cyberia-map-engine')}</span>`,
             }),
             attrs: `data-id="cyberia-map-engine"`,
             tabHref: `${getProxyPath()}cyberia-map-engine`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cyberia-map-engine')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cyberia-map-engine')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-cyberia-instance-engine',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('cyberia-instance-engine')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('cyberia-instance-engine')}</span>`,
             }),
             attrs: `data-id="cyberia-instance-engine"`,
             tabHref: `${getProxyPath()}cyberia-instance-engine`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cyberia-instance-engine')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cyberia-instance-engine')),
           })}
         </div>
       `,
       // htmlMainBody: async () => {
       //   return '';
-      //   return await ServerCyberiaPortal.Render({
+      //   return await ServerCyberiaPortal.instance({
       //     idModal: 'modal-server-body',
       //     events: {
       //       'change-server-body': async ({ name }) => {
@@ -270,7 +270,7 @@ class AppShellCyberiaPortal {
         return '';
       },
       // mode: 'slide-menu-right',
-      htmlMainBody: async () => await MainBodyCyberiaPortal.Render(),
+      htmlMainBody: async () => await MainBodyCyberiaPortal.instance(),
       mode: 'slide-menu',
       RouterInstance,
       searchCustomImgClass: 'cyberia-menu-icon',
@@ -356,15 +356,15 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-sign-up`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-sign-up',
         route: 'sign-up',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('sign-up')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('sign-up')}</span>`,
         }),
-        html: async () => await SignUp.Render({ idModal: 'modal-sign-up' }),
+        html: async () => await SignUp.instance({ idModal: 'modal-sign-up' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -375,15 +375,15 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-log-out`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-log-out',
         route: 'log-out',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('log-out')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('log-out')}</span>`,
         }),
-        html: async () => await LogOut.Render(),
+        html: async () => await LogOut.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -394,15 +394,15 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-log-in`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-log-in',
         route: 'log-in',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('log-in')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('log-in')}</span>`,
         }),
-        html: async () => await LogIn.Render(),
+        html: async () => await LogIn.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -413,16 +413,16 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-account`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-account',
         route: 'account',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/account.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('account')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('account')}</span>`,
         }),
         html: async () =>
-          await Account.Render({
+          await Account.instance({
             idModal: 'modal-account',
             user: AppStoreCyberiaPortal.Data.user.main.model.user,
             disabled: [],
@@ -437,15 +437,15 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-settings`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-settings',
         route: 'settings',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/settings.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('settings')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('settings')}</span>`,
         }),
-        html: async () => await SettingsCyberiaPortal.Render({ idModal: 'modal-settings' }),
+        html: async () => await SettingsCyberiaPortal.instance({ idModal: 'modal-settings' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -456,15 +456,15 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-chat`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-chat',
         route: 'chat',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/chat.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('chat')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('chat')}</span>`,
         }),
-        html: async () => await Chat.Render({ idModal: 'modal-chat' }),
+        html: async () => await Chat.instance({ idModal: 'modal-chat' }),
         handleType: 'bar',
         maximize: true,
         observer: true,
@@ -481,16 +481,16 @@ class AppShellCyberiaPortal {
       }
 
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-docs',
         route: 'docs',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/wiki.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('docs')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('docs')}</span>`,
         }),
         html: async () =>
-          await Docs.Init({
+          await Docs.instance({
             idModal: 'modal-docs',
             subMenuIcon: (type) =>
               html`<img class="inl cyberia-menu-icon" src="${getProxyPath()}assets/ui-icons/arrow-right.png" />`,
@@ -509,16 +509,16 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-server`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-server',
         route: 'server',
         barConfig,
         title: renderViewTitle({
           icon: html` <i class="fas fa-server"></i>`,
-          text: Translate.Render('server'),
+          text: Translate.instance('server'),
         }),
         html: async () => '',
-        // await ServerCyberiaPortal.Render({
+        // await ServerCyberiaPortal.instance({
         //   idModal: 'modal-server',
         //   events: {
         //     'change-server': async ({ name }) => {
@@ -537,16 +537,16 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-recover`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-recover',
         route: 'recover',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/update.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('recover')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('recover')}</span>`,
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: AppStoreCyberiaPortal.Data.user.main.model.user }),
+          await Recover.instance({ idModal: 'modal-recover', user: AppStoreCyberiaPortal.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -557,16 +557,16 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-object-layer-engine`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-object-layer-engine',
         route: 'object-layer-engine',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
-          text: `<span class='inl cyberia-text-title-modal' > ${Translate.Render('object-layer-engine')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal' > ${Translate.instance('object-layer-engine')}</span>`,
         }),
         html: async () =>
-          await ObjectLayerEngineModal.Render({
+          await ObjectLayerEngineModal.instance({
             idModal: 'modal-object-layer-engine',
             appStore: AppStoreCyberiaPortal,
           }),
@@ -580,13 +580,13 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-object-layer-engine-management`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-object-layer-engine-management',
         route: 'object-layer-engine-management',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('object-layer-engine-management')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('object-layer-engine-management')}</span>`,
         }),
         html: async () =>
           ObjectLayerManagement.RenderTable({
@@ -603,16 +603,16 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-object-layer-engine-viewer`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-object-layer-engine-viewer',
         route: 'object-layer-engine-viewer',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('object-layer-engine-viewer')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('object-layer-engine-viewer')}</span>`,
         }),
         html: async () =>
-          ObjectLayerEngineViewer.Render({
+          ObjectLayerEngineViewer.instance({
             appStore: AppStoreCyberiaPortal,
           }),
         handleType: 'bar',
@@ -626,13 +626,13 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-cyberia-map-engine`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-cyberia-map-engine',
         route: 'cyberia-map-engine',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('cyberia-map-engine')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('cyberia-map-engine')}</span>`,
         }),
         html: async () => await MapEngineCyberia.render({ appStore: AppStoreCyberiaPortal }),
         handleType: 'bar',
@@ -646,13 +646,13 @@ class AppShellCyberiaPortal {
 
     EventsUI.onClick(`.main-btn-cyberia-instance-engine`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-cyberia-instance-engine',
         route: 'cyberia-instance-engine',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl cyberia-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/engine.png" />`,
-          text: `<span class='inl cyberia-text-title-modal'>${Translate.Render('cyberia-instance-engine')}</span>`,
+          text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('cyberia-instance-engine')}</span>`,
         }),
         html: async () => await InstanceEngineCyberia.render({ appStore: AppStoreCyberiaPortal }),
         handleType: 'bar',

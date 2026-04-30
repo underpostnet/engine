@@ -19,7 +19,7 @@ const main = () => {
         es: 'Volver a  <br> la pagina principal',
       },
     },
-    Render: function (id) {
+    instance: function (id) {
       return this.Data[id][getLang()] ? this.Data[id][getLang()] : this.Data[id]['en'];
     },
   };
@@ -49,9 +49,9 @@ const main = () => {
         ${icon}
         <br />
         <br />
-        <br />${Translate.Render('no-internet-connection')} <br />
+        <br />${Translate.instance('no-internet-connection')} <br />
         <br />
-        <a target="_top" href="${location.origin}">${Translate.Render('back')}</a>
+        <a target="_top" href="${location.origin}">${Translate.instance('back')}</a>
       </div>`,
   );
 };

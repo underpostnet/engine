@@ -173,7 +173,7 @@ class Input {
   /**
    * Renders an input element based on the provided options.
    * @async
-   * @function Render
+   * @function instance
    * @memberof InputClient.Input
    * @param {Object} options - Input configuration options.
    * @param {string} options.id - Unique identifier for the input.
@@ -185,7 +185,7 @@ class Input {
    * @param {boolean} [options.disabled] - Whether the input is disabled.
    * @returns {Promise<string>} HTML string for the input component.
    */
-  static async Render(options) {
+  static async instance(options) {
     const { id } = options;
     options?.placeholder
       ? options.placeholder === true
@@ -403,7 +403,7 @@ class Input {
   }
 }
 class InputFile {
-  static async Render(
+  static async instance(
     options = { id: '', multiple: false, extensionsAccept: [] },
     on = { change: () => {}, clear: () => {} },
   ) {
@@ -487,13 +487,13 @@ class InputFile {
             ${extensionsAccept.length > 0 ? `accept="${extensionsAccept.join(', ')}"` : ''}
           />
           <div class="in">
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: `wfa btn-clear-input-file-${id}`,
-              label: `<i class="fa-solid fa-broom"></i> ${Translate.Render('clear')}`,
+              label: `<i class="fa-solid fa-broom"></i> ${Translate.instance('clear')}`,
             })}
           </div>
           <div class="in">
-            ${await AgGrid.Render({
+            ${await AgGrid.instance({
               id: gridId,
               darkTheme,
               style: {
@@ -515,7 +515,7 @@ class InputFile {
         <div class="in section-mp input-file-sub-col drop-zone-${id}">
           <div class="abs center">
             <i class="fas fa-cloud" style="font-size: 30px"></i><br />
-            ${Translate.Render('drop-file')}
+            ${Translate.instance('drop-file')}
           </div>
         </div>
       </div>

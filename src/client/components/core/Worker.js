@@ -85,8 +85,8 @@ class PwaWorker {
    * @param {function(): object}          options.router       - Function returning the router instance.
    * @param {function(): Promise<string>} [options.template]   - Async function returning the landing HTML body.
    * @param {Array}                       [options.themes]     - CSS theme array passed to Css.loadThemes().
-   * @param {object|Array}                [options.translate]  - App translate class(es) with static Init().
-   * @param {object}                      [options.render]     - AppShell class with static Render().
+   * @param {object|Array}                [options.translate]  - App translate class(es) with static instance().
+   * @param {object}                      [options.render]     - AppShell class with static instance().
    * @param {string}                      [options.socketPath] - Socket.IO path override.
    * @param {object}                      [options.appStore]   - AppStore whose .Data is used for socket channels.
    * @param {object}                      [options.session]    - Session components: { socket, login, signout, signup }.
@@ -148,31 +148,31 @@ class PwaWorker {
     if (!isInstall) await this.install();
 
     // ── declarative bootstrap path ──────────────────────────────────────────
-    if (typeof render !== 'function' || render.Render) {
+    if (typeof render !== 'function' || render.instance) {
       // shared core inits
       if (themes) await Css.loadThemes(themes);
-      await TranslateCore.Init();
+      await TranslateCore.instance();
       // app-specific translate(s)
       if (translate) {
         const translates = Array.isArray(translate) ? translate : [translate];
-        for (const t of translates) await t.Init();
+        for (const t of translates) await t.instance();
       }
-      await Responsive.Init();
+      await Responsive.instance();
       // app shell render
-      if (render && typeof render.Render === 'function') {
+      if (render && typeof render.instance === 'function') {
         const htmlMainBody = typeof template === 'function' ? template : undefined;
-        await render.Render(htmlMainBody ? { htmlMainBody } : undefined);
+        await render.instance(htmlMainBody ? { htmlMainBody } : undefined);
       }
       // socket init
       const channels = appStore ? appStore.Data : (session && session.socket && session.socket.Data) || undefined;
-      await SocketIo.Init({ channels, path: socketPath });
+      await SocketIo.instance({ channels, path: socketPath });
       if (session) {
-        if (session.socket && typeof session.socket.Init === 'function') await session.socket.Init();
+        if (session.socket && typeof session.socket.instance === 'function') await session.socket.instance();
         if (typeof session.login === 'function') await session.login();
         if (typeof session.signout === 'function') await session.signout();
         if (typeof session.signup === 'function') await session.signup();
       }
-      await Keyboard.Init();
+      await Keyboard.instance();
     } else {
       // ── legacy raw render callback (backward-compat) ─────────────────────
       await render();
@@ -390,21 +390,21 @@ class PwaWorker {
       });
     });
     return html` <div class="in">
-      ${await BtnIcon.Render({
+      ${await BtnIcon.instance({
         class: 'inl section-mp btn-custom btn-install-service-controller hide',
-        label: html`<i class="fas fa-download"></i> ${Translate.Render('Install control service')}`,
+        label: html`<i class="fas fa-download"></i> ${Translate.instance('Install control service')}`,
       })}
-      ${await BtnIcon.Render({
+      ${await BtnIcon.instance({
         class: 'inl section-mp btn-custom btn-uninstall-service-controller hide',
-        label: html`<i class="far fa-trash-alt"></i> ${Translate.Render('Uninstall control service')}`,
+        label: html`<i class="far fa-trash-alt"></i> ${Translate.instance('Uninstall control service')}`,
       })}
-      ${await BtnIcon.Render({
+      ${await BtnIcon.instance({
         class: 'inl section-mp btn-custom btn-clean-cache',
-        label: html`<i class="fa-solid fa-broom"></i> ${Translate.Render('clean-cache')}`,
+        label: html`<i class="fa-solid fa-broom"></i> ${Translate.instance('clean-cache')}`,
       })}
-      ${await BtnIcon.Render({
+      ${await BtnIcon.instance({
         class: 'inl section-mp btn-custom btn-reload hide',
-        label: html`<i class="fas fa-sync-alt"></i> ${Translate.Render('Reload')}`,
+        label: html`<i class="fas fa-sync-alt"></i> ${Translate.instance('Reload')}`,
       })}
     </div>`;
   }

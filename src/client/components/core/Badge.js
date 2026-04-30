@@ -4,7 +4,7 @@ import { Modal } from './Modal.js';
 import { append, prepend, s } from './VanillaJs.js';
 class Badge {
   static Tokens = {};
-  static async Render(options = { id: '', type: 'circle-red', classList: '', text: '', style: '' }) {
+  static async instance(options = { id: '', type: 'circle-red', classList: '', text: '', style: '' }) {
     if (!options.id) options.id = getId(Badge.Tokens, 'badge-');
     else options.id = 'badge-' + options.id;
     if (options && options.style && !options.style.color) options.style.color = 'white';

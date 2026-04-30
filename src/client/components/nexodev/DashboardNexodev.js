@@ -7,7 +7,7 @@ import { Modal } from '../core/Modal.js';
 import { s } from '../core/VanillaJs.js';
 class DashboardNexodev {
   static Tokens = {};
-  static async Render(options = { idModal: '' }) {
+  static async instance(options = { idModal: '' }) {
     const id = options.idModal;
     const { idModal } = options;
     DashboardNexodev.Tokens[id] = { ...DashboardNexodev.Tokens[id], ...options };
@@ -224,14 +224,14 @@ class DashboardNexodev {
           <div class="in section-mp">
             <div class="in sub-title-modal"><i class="fa-solid fa-chart-column sub-title-icon"></i> &nbsp Plot</div>
           </div>
-          <div class="in section-mp">${await D3Chart.Render()}</div>
+          <div class="in section-mp">${await D3Chart.instance()}</div>
         </div>
         <div class="in fll section-0-${id}-col-b" data-id="1">
           <div class="in section-mp">
             <div class="in sub-title-modal"><i class="far fa-list-alt sub-title-icon"></i> &nbsp Clients</div>
           </div>
           <div class="in section-mp">
-            ${await AgGrid.Render({
+            ${await AgGrid.instance({
               id: `ag-grid-${idModal}`,
               enableCellChangeFlash: true,
               darkTheme,

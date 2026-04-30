@@ -13,7 +13,7 @@ const maintenance = async () => {
   return html` <div class="abs center" style="top: 45%">
     ${icon}
     <br />
-    <br />${Translate.Render('server-maintenance')}
+    <br />${Translate.instance('server-maintenance')}
   </div>`;
 };
 const noInternet = async () => {
@@ -26,7 +26,7 @@ const noInternet = async () => {
   return html` <div class="abs center" style="top: 45%">
     ${icon}
     <br />
-    <br />${Translate.Render('no-internet-connection')}
+    <br />${Translate.instance('no-internet-connection')}
   </div>`;
 };
 const e404 = async () => {
@@ -44,9 +44,9 @@ const e404 = async () => {
     <br />
     <span class="bold">404</span>
     <br />
-    <br />${Translate.Render('page-not-found')} <br />
+    <br />${Translate.instance('page-not-found')} <br />
     <br />
-    <a target="_top" href="${location.origin}">${Translate.Render('back')}</a>
+    <a target="_top" href="${location.origin}">${Translate.instance('back')}</a>
   </div>`;
 };
 const e500 = async () => {
@@ -62,9 +62,9 @@ const e500 = async () => {
     <br />
     <span class="bold">500</span>
     <br />
-    <br />${Translate.Render('page-broken')} <br />
+    <br />${Translate.instance('page-broken')} <br />
     <br />
-    <a target="_top" href="${location.origin}">${Translate.Render('back')}</a>
+    <a target="_top" href="${location.origin}">${Translate.instance('back')}</a>
   </div>`;
 };
 class Alert {

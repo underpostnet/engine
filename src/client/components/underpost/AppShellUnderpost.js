@@ -28,33 +28,33 @@ import { Content } from '../core/Content.js';
 
 class AppShellUnderpost {
   static Data = {};
-  static async Render() {
+  static async instance() {
     const id = getId(AppShellUnderpost.Data, 'menu-');
     AppShellUnderpost.Data[id] = {};
     const RouterInstance = RouterUnderpost();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 
-    await Modal.Render({
+    await Modal.instance({
       id: 'modal-menu',
       html: html`
         <div class="fl menu-btn-container">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-contracultura-cyberpunk',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/blogger.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('contracultura-cyberpunk')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('contracultura-cyberpunk')}</span>`,
             }),
             // style: 'display: none',
             attrs: `data-id="contracultura-cyberpunk"`,
             tabHref: `${getProxyPath()}contracultura-cyberpunk`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('blog')),
           })}
           ${true
             ? ''
-            : await BtnIcon.Render({
+            : await BtnIcon.instance({
                 class: 'in wfa main-btn-menu main-btn-lab-gallery hide',
                 useMenuBtn: true,
                 label: renderMenuLabel({
@@ -62,139 +62,139 @@ class AppShellUnderpost {
                     class="inl underpost-menu-icon"
                     src="${getProxyPath()}assets/ui-icons/gallery.png"
                   />`,
-                  text: html`<span class="menu-label-text">${Translate.Render('lab-gallery')}</span>`,
+                  text: html`<span class="menu-label-text">${Translate.instance('lab-gallery')}</span>`,
                 }),
                 // style: 'display: none',
                 attrs: `data-id="lab-gallery"`,
                 tabHref: `${getProxyPath()}lab-gallery`,
                 handleContainerClass: 'handle-btn-container',
-                tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog')),
+                tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('blog')),
               })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/home.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('home')}</span>`,
             }),
             // style: 'display: none',
             attrs: `data-id="home"`,
             tabHref: `${getProxyPath()}`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('home')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-log-in',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('log-in')}</span>`,
             }),
             attrs: `data-id="log-in"`,
             tabHref: `${getProxyPath()}log-in`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-in')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-sign-up',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('sign-up')}</span>`,
             }),
             attrs: `data-id="sign-up"`,
             tabHref: `${getProxyPath()}sign-up`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('sign-up')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('sign-up')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-log-out',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('log-out')}</span>`,
             }),
             attrs: `data-id="log-out"`,
             style: 'display: none',
             tabHref: `${getProxyPath()}log-out`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-out')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-out')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-account',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/account.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('account')}</span>`,
             }),
             style: 'display: none',
             attrs: `data-id="account"`,
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('account')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-public-profile',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/character.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('public-profile')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('public-profile')}</span>`,
             }),
             style: 'display: none',
             attrs: `data-id="public-profile"`,
             tabHref: `${getProxyPath()}u`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('public-profile')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('public-profile')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-content hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/doc.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('content')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('content')}</span>`,
             }),
             attrs: `data-id="content"`,
             tabHref: `${getProxyPath()}content`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('content')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('content')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-cloud hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/cloud.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('cloud')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('cloud')}</span>`,
             }),
             attrs: `data-id="cloud"`,
             tabHref: `${getProxyPath()}cloud`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cloud')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('cloud')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-settings',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/settings.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('settings')}</span>`,
             }),
             attrs: `data-id="settings"`,
             tabHref: `${getProxyPath()}settings`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-recover hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/update.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('recover')}</span>`,
             }),
             attrs: `data-id="recover"`,
             tabHref: `${getProxyPath()}recover`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('recover')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-polyhedron',
             useMenuBtn: true,
             label: renderMenuLabel({
@@ -204,19 +204,19 @@ class AppShellUnderpost {
             attrs: `data-id="polyhedron"`,
             tabHref: `${getProxyPath()}polyhedron`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('polyhedron')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('polyhedron')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-github',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<img class="inl underpost-menu-icon" src="${getProxyPath()}assets/ui-icons/github.png" />`,
-              text: html`<span class="menu-label-text">${Translate.Render('github')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('github')}</span>`,
             }),
             attrs: `data-id="github"`,
             tabHref: `https://github.com/underpostnet/`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('github')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('github')),
           })}
         </div>
       `,
@@ -388,15 +388,15 @@ class AppShellUnderpost {
 
     EventsUI.onClick(`.main-btn-sign-up`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-sign-up',
         route: 'sign-up',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('sign-up')}</span>`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('sign-up')}</span>`,
         }),
-        html: async () => await SignUp.Render({ idModal: 'modal-sign-up' }),
+        html: async () => await SignUp.instance({ idModal: 'modal-sign-up' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -407,15 +407,15 @@ class AppShellUnderpost {
 
     EventsUI.onClick(`.main-btn-log-out`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-log-out',
         route: 'log-out',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-out.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('log-out')}</span>`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('log-out')}</span>`,
         }),
-        html: async () => await LogOut.Render(),
+        html: async () => await LogOut.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -426,15 +426,15 @@ class AppShellUnderpost {
 
     EventsUI.onClick(`.main-btn-log-in`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-log-in',
         route: 'log-in',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('log-in')}</span>`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('log-in')}</span>`,
         }),
-        html: async () => await LogIn.Render(),
+        html: async () => await LogIn.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -445,15 +445,15 @@ class AppShellUnderpost {
 
     EventsUI.onClick(`.main-btn-lab-gallery`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-lab-gallery',
         route: 'lab-gallery',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/gallery.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('lab-gallery')}</span>`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('lab-gallery')}</span>`,
         }),
-        html: async () => await LabGalleryUnderpost.Render(),
+        html: async () => await LabGalleryUnderpost.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -464,15 +464,15 @@ class AppShellUnderpost {
 
     EventsUI.onClick(`.main-btn-contracultura-cyberpunk`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-contracultura-cyberpunk',
         route: 'contracultura-cyberpunk',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/blogger.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('contracultura-cyberpunk')}</span>`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('contracultura-cyberpunk')}</span>`,
         }),
-        html: async () => await CyberpunkBloggerUnderpost.Render(),
+        html: async () => await CyberpunkBloggerUnderpost.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -483,16 +483,16 @@ class AppShellUnderpost {
 
     EventsUI.onClick(`.main-btn-account`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-account',
         route: 'account',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/account.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('account')}</span>`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('account')}</span>`,
         }),
         html: async () =>
-          await Account.Render({
+          await Account.instance({
             idModal: 'modal-account',
             user: AppStoreUnderpost.Data.user.main.model.user,
             disabled: [],
@@ -532,17 +532,17 @@ class AppShellUnderpost {
         }
       }
 
-      await Modal.Render({
+      await Modal.instance({
         id: idModal,
         route: 'u',
         barConfig,
         title: '',
         //   renderViewTitle({
         //   icon: html`<i class="fas fa-user-circle"></i>`,
-        //   text: Translate.Render('public-profile'),
+        //   text: Translate.instance('public-profile'),
         // }),
         html: async () =>
-          await PublicProfile.Render({
+          await PublicProfile.instance({
             idModal,
             user: targetUser,
           }),
@@ -557,15 +557,15 @@ class AppShellUnderpost {
 
     EventsUI.onClick(`.main-btn-settings`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-settings',
         route: 'settings',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/settings.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('settings')}</span>`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('settings')}</span>`,
         }),
-        html: async () => await SettingsUnderpost.Render({ idModal: 'modal-settings' }),
+        html: async () => await SettingsUnderpost.instance({ idModal: 'modal-settings' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -584,16 +584,16 @@ class AppShellUnderpost {
       }
 
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: `modal-content${subModalId}`,
         route: 'content',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/doc.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('content')}</span>`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('content')}</span>`,
         }),
         html: async () =>
-          await Content.Render({
+          await Content.instance({
             idModal: `modal-content${subModalId}`,
             titleIcon: html`<img
               class="inl underpost-menu-icon-modal"
@@ -612,15 +612,15 @@ class AppShellUnderpost {
 
     EventsUI.onClick(`.main-btn-cloud`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-cloud',
         route: 'cloud',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/cloud.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('cloud')}</span>`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('cloud')}</span>`,
         }),
-        html: async () => await FileExplorer.Render({ idModal: 'modal-cloud' }),
+        html: async () => await FileExplorer.instance({ idModal: 'modal-cloud' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -631,16 +631,16 @@ class AppShellUnderpost {
 
     EventsUI.onClick(`.main-btn-recover`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-recover',
         route: 'recover',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="inl underpost-menu-icon-modal" src="${getProxyPath()}assets/ui-icons/update.png" />`,
-          text: `<span class='inl underpost-text-title-modal'>${Translate.Render('recover')}</span>`,
+          text: `<span class='inl underpost-text-title-modal'>${Translate.instance('recover')}</span>`,
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: AppStoreUnderpost.Data.user.main.model.user }),
+          await Recover.instance({ idModal: 'modal-recover', user: AppStoreUnderpost.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -651,7 +651,7 @@ class AppShellUnderpost {
 
     EventsUI.onClick(`.main-btn-polyhedron`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-polyhedron',
         route: 'polyhedron',
         barConfig,
@@ -663,7 +663,7 @@ class AppShellUnderpost {
           text: `<span class='inl underpost-text-title-modal'>Polyhedron</span>`,
         }),
         html: async () =>
-          await Polyhedron.Render({
+          await Polyhedron.instance({
             idModal: 'modal-polyhedron',
             style: {
               scene: { background: '#111' },

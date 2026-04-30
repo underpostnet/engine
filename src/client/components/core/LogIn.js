@@ -103,7 +103,7 @@ class LogIn {
       );
     }
   }
-  static async Render() {
+  static async instance() {
     setTimeout(async () => {
       const formData = [
         { model: 'email', id: `log-in-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
@@ -129,7 +129,7 @@ class LogIn {
         } else s(`.login-attempt-warn-container0`).classList.add('hide');
         if (result.status === 'success') await Auth.sessionIn(result);
         NotificationManager.Push({
-          html: result.status === 'success' ? Translate.Render(`${result.status}-user-log-in`) : result.message,
+          html: result.status === 'success' ? Translate.instance(`${result.status}-user-log-in`) : result.message,
           status: result.status,
         });
       });
@@ -142,55 +142,55 @@ class LogIn {
     });
     return html`
       <div class="in">
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: 'in section-mp form-button btn-log-in-i-not-have-account',
-          label: html`<i class="fas fa-user-plus"></i> ${Translate.Render(`i-not-have-account`)}
+          label: html`<i class="fas fa-user-plus"></i> ${Translate.instance(`i-not-have-account`)}
             <br />
-            ${Translate.Render(`sign-up`)}`,
+            ${Translate.instance(`sign-up`)}`,
           type: 'button',
         })}
       </div>
       <form class="in">
         <div class="in">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `log-in-email`,
             type: 'email',
-            label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
+            label: html`<i class="fa-solid fa-envelope"></i> ${Translate.instance('email')}`,
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             autocomplete: 'email',
           })}
         </div>
         <div class="in">
-          ${await Input.Render({
+          ${await Input.instance({
             id: `log-in-password`,
             type: 'password',
             autocomplete: 'new-password',
-            label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
+            label: html`<i class="fa-solid fa-lock"></i> ${Translate.instance('password')}`,
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
           })}
         </div>
         <div class="in">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in section-mp form-button btn-log-in-forgot-password',
-            label: html`<i class="fas fa-question-circle"></i> ${Translate.Render(`forgot-password`)}`,
+            label: html`<i class="fas fa-question-circle"></i> ${Translate.instance(`forgot-password`)}`,
             type: 'button',
           })}
         </div>
         <div class="in section-mp form-button login-attempt-warn-container hide">
-          <i class="fa-solid fa-triangle-exclamation"></i> ${Translate.Render('login-attempts-remaining')}
+          <i class="fa-solid fa-triangle-exclamation"></i> ${Translate.instance('login-attempts-remaining')}
           <span style="color: #ed9d0f" class="login-attempt-warn-value"></span>
         </div>
         <div class="in section-mp form-button login-attempt-warn-container0 hide">
-          <i class="fa-solid fa-triangle-exclamation"></i> ${Translate.Render('account-locked-try-again-in')}
+          <i class="fa-solid fa-triangle-exclamation"></i> ${Translate.instance('account-locked-try-again-in')}
           <span style="color: #ed9d0f" class="login-attempt-warn-value0"></span>
         </div>
 
         <div class="in">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in section-mp form-button btn-log-in',
-            label: Translate.Render('log-in'),
+            label: Translate.instance('log-in'),
             type: 'submit',
           })}
         </div>

@@ -99,7 +99,7 @@ class MapEngineCyberia {
   }
 
   static async buildObjectLayerDropdown() {
-    return await DropDown.Render({
+    return await DropDown.instance({
       id: MapEngineCyberia.objectLayerDropdownId,
       label: html`Object Layers`,
       data: [],
@@ -893,8 +893,8 @@ class MapEngineCyberia {
           result.status === 'error'
             ? result.message
             : MapEngineCyberia.currentMapId
-              ? Translate.Render('success-update-item')
-              : Translate.Render('success-create-item'),
+              ? Translate.instance('success-update-item')
+              : Translate.instance('success-create-item'),
         status: result.status,
       });
       if (result.status === 'success') {
@@ -946,7 +946,7 @@ class MapEngineCyberia {
       if (cloneThumbnailId) body.thumbnail = cloneThumbnailId;
       const result = await CyberiaMapService.post({ body });
       NotificationManager.Push({
-        html: result.status === 'error' ? result.message : Translate.Render('success-create-item'),
+        html: result.status === 'error' ? result.message : Translate.instance('success-create-item'),
         status: result.status,
       });
       if (result.status === 'success') {
@@ -1291,7 +1291,7 @@ class MapEngineCyberia {
       ${dynamicCol({ containerSelector: 'map-engine-container', id: dcMapFields, type: 'search-inputs' })}
       <div class="fl">
         <div class="in fll ${dcMapFields}-col-a">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idCode,
             label: html`Code`,
             containerClass: 'inl',
@@ -1299,7 +1299,7 @@ class MapEngineCyberia {
           })}
         </div>
         <div class="in fll ${dcMapFields}-col-b">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idName,
             label: html`Name`,
             containerClass: 'inl',
@@ -1307,7 +1307,7 @@ class MapEngineCyberia {
           })}
         </div>
         <div class="in fll ${dcMapFields}-col-c">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idDescription,
             label: html`Description`,
             containerClass: 'inl',
@@ -1318,7 +1318,7 @@ class MapEngineCyberia {
       ${dynamicCol({ containerSelector: 'map-engine-container', id: dcMetaFields, type: 'search-inputs' })}
       <div class="fl">
         <div class="in fll ${dcMetaFields}-col-a">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idTags,
             label: html`Tags (comma separated)`,
             containerClass: 'inl',
@@ -1326,7 +1326,7 @@ class MapEngineCyberia {
           })}
         </div>
         <div class="in fll ${dcMetaFields}-col-b">
-          ${await DropDown.Render({
+          ${await DropDown.instance({
             id: idStatus,
             label: html`Status`,
             data: statusOptions.map((opt) => ({ ...opt })),
@@ -1345,12 +1345,12 @@ class MapEngineCyberia {
       </div>
       <div class="in section-mp" style="margin-top: 5px;">
         <div class="in map-engine-thumbnail-preview" style="margin-bottom: 5px;"></div>
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: 'wfa btn-map-engine-capture-thumbnail',
           label: html`<i class="fa-solid fa-camera"></i> Capture Thumbnail`,
         })}
         <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left; margin: 5px 0;">
-          ${await ToggleSwitch.Render({
+          ${await ToggleSwitch.instance({
             id: 'map-engine-capture-obj-layer-thumb',
             type: 'checkbox',
             displayMode: 'checkbox',
@@ -1367,12 +1367,12 @@ class MapEngineCyberia {
           })}
           <div class="section-mp">&nbsp &nbsp Capture Object Layer Map Thumbnail on Save/Update/Clone</div>
         </div>
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: 'wfa btn-map-engine-toggle-thumbnail',
           label: html`<i class="fa-solid fa-caret-right map-engine-thumbnail-caret"></i> Thumbnail`,
         })}
         <div class="in map-engine-thumbnail-body hide">
-          ${await InputFile.Render(
+          ${await InputFile.instance(
             {
               id: idThumbnail,
               multiple: false,
@@ -1406,7 +1406,7 @@ class MapEngineCyberia {
       ${dynamicCol({ containerSelector: 'map-engine-container', id: dcGridSize, type: 'a-50-b-50' })}
       <div class="fl">
         <div class="in fll ${dcGridSize}-col-a">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idX,
             label: html`X`,
             containerClass: 'inl',
@@ -1416,7 +1416,7 @@ class MapEngineCyberia {
           })}
         </div>
         <div class="in fll ${dcGridSize}-col-b">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idY,
             label: html`Y`,
             containerClass: 'inl',
@@ -1429,7 +1429,7 @@ class MapEngineCyberia {
       ${dynamicCol({ containerSelector: 'map-engine-container', id: dcCellSize, type: 'a-50-b-50' })}
       <div class="fl">
         <div class="in fll ${dcCellSize}-col-a">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idCellW,
             label: html`Cell Width (px)`,
             containerClass: 'inl',
@@ -1439,7 +1439,7 @@ class MapEngineCyberia {
           })}
         </div>
         <div class="in fll ${dcCellSize}-col-b">
-          ${await Input.Render({
+          ${await Input.instance({
             id: idCellH,
             label: html`Cell Height (px)`,
             containerClass: 'inl',
@@ -1451,7 +1451,7 @@ class MapEngineCyberia {
       </div>
       <div class="fl">
         <div class="in wfa" style="padding: 10px; max-width: 200px; margin: auto;">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-map-engine-generate',
             label: html`<i class="fa-solid fa-arrows-rotate"></i> Generate`,
           })}
@@ -1462,7 +1462,7 @@ class MapEngineCyberia {
         <div class="fl" style="margin-bottom: 5px;">
           <div class="in fll ${dcCanvasOpts}-col-a">
             <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
-              ${await ToggleSwitch.Render({
+              ${await ToggleSwitch.instance({
                 id: 'map-engine-show-grid',
                 type: 'checkbox',
                 displayMode: 'checkbox',
@@ -1484,7 +1484,7 @@ class MapEngineCyberia {
           </div>
           <div class="in fll ${dcCanvasOpts}-col-b">
             <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
-              ${await ToggleSwitch.Render({
+              ${await ToggleSwitch.instance({
                 id: 'map-engine-add-on-click',
                 type: 'checkbox',
                 displayMode: 'checkbox',
@@ -1504,7 +1504,7 @@ class MapEngineCyberia {
           </div>
           <div class="in fll ${dcCanvasOpts}-col-c">
             <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left;">
-              ${await ToggleSwitch.Render({
+              ${await ToggleSwitch.instance({
                 id: 'map-engine-show-object-layers',
                 type: 'checkbox',
                 displayMode: 'checkbox',
@@ -1534,7 +1534,7 @@ class MapEngineCyberia {
         ${dynamicCol({ containerSelector: 'map-engine-container', id: dcEntityType, type: 'a-50-b-50' })}
         <div class="fl">
           <div class="in fll ${dcEntityType}-col-a">
-            ${await DropDown.Render({
+            ${await DropDown.instance({
               id: idEntityType,
               label: html`Entity Type`,
               data: MapEngineCyberia.getEntityTypeDropdownOptions(),
@@ -1543,7 +1543,7 @@ class MapEngineCyberia {
             })}
           </div>
           <div class="in fll ${dcEntityType}-col-b">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idColor,
               label: html`Color`,
               containerClass: 'inl',
@@ -1586,7 +1586,7 @@ class MapEngineCyberia {
         ${dynamicCol({ containerSelector: 'map-engine-container', id: dcCellPos, type: 'a-50-b-50' })}
         <div class="fl">
           <div class="in fll ${dcCellPos}-col-a">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idInitCellX,
               label: html`initCellX`,
               containerClass: 'inl',
@@ -1596,7 +1596,7 @@ class MapEngineCyberia {
             })}
           </div>
           <div class="in fll ${dcCellPos}-col-b">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idInitCellY,
               label: html`initCellY`,
               containerClass: 'inl',
@@ -1609,7 +1609,7 @@ class MapEngineCyberia {
         ${dynamicCol({ containerSelector: 'map-engine-container', id: dcDim, type: 'a-50-b-50' })}
         <div class="fl">
           <div class="in fll ${dcDim}-col-a">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idDimX,
               label: html`dimX`,
               containerClass: 'inl',
@@ -1619,7 +1619,7 @@ class MapEngineCyberia {
             })}
           </div>
           <div class="in fll ${dcDim}-col-b">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idDimY,
               label: html`dimY`,
               containerClass: 'inl',
@@ -1632,7 +1632,7 @@ class MapEngineCyberia {
         ${dynamicCol({ containerSelector: 'map-engine-container', id: dcFactors, type: 'a-50-b-50' })}
         <div class="fl">
           <div class="in fll ${dcFactors}-col-a">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idFactorA,
               label: html`factorA`,
               containerClass: 'inl',
@@ -1642,7 +1642,7 @@ class MapEngineCyberia {
             })}
           </div>
           <div class="in fll ${dcFactors}-col-b">
-            ${await Input.Render({
+            ${await Input.instance({
               id: idFactorB,
               label: html`factorB`,
               containerClass: 'inl',
@@ -1652,7 +1652,7 @@ class MapEngineCyberia {
             })}
           </div>
         </div>
-        ${await Input.Render({
+        ${await Input.instance({
           id: idVariationPreserve,
           label: html`Variation Preserve List`,
           containerClass: 'inl',
@@ -1660,7 +1660,7 @@ class MapEngineCyberia {
           placeholder: true,
         })}
         <div class="fl" style="align-items: center; gap: 8px; font-size: 20px; text-align: left; margin: 5px 0;">
-          ${await ToggleSwitch.Render({
+          ${await ToggleSwitch.instance({
             id: 'map-engine-random-dim',
             type: 'checkbox',
             displayMode: 'checkbox',
@@ -1687,7 +1687,7 @@ class MapEngineCyberia {
           </div>
           <div class="fl">
             <div class="in fll" style="flex:1;padding-right:5px;">
-              ${await Input.Render({
+              ${await Input.instance({
                 id: idRenameSourceObjectLayer,
                 label: html`Source ItemId`,
                 containerClass: 'inl',
@@ -1696,7 +1696,7 @@ class MapEngineCyberia {
               })}
             </div>
             <div class="in fll" style="flex:1;padding-left:5px;">
-              ${await Input.Render({
+              ${await Input.instance({
                 id: idRenameTargetObjectLayer,
                 label: html`Target ItemId`,
                 containerClass: 'inl',
@@ -1706,56 +1706,56 @@ class MapEngineCyberia {
             </div>
           </div>
           <div class="in" style="margin-top: 5px;">
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'wfa btn-map-engine-rename-filtered-object-layer-item-id',
               label: html`<i class="fa-solid fa-arrow-right-arrow-left"></i> Rename Filtered ItemId`,
             })}
           </div>
         </div>
         <div class="in">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-map-engine-add-entity',
             label: html`<i class="fa-solid fa-plus"></i> Add Entity`,
           })}
         </div>
         <div class="in" style="margin-top: 5px;">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-map-engine-fill-map',
             label: html`<i class="fa-solid fa-fill-drip"></i> Map Fill`,
           })}
         </div>
         <div class="in" style="margin-top: 5px;">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-map-engine-generate-variation',
             label: html`<i class="fa-solid fa-shuffle"></i> Generate Variation`,
           })}
         </div>
         <div class="in" style="margin-top: 5px;">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-map-engine-swap-preserve-entities',
             label: html`<i class="fa-solid fa-arrows-rotate"></i> Swap Preserve Positions`,
           })}
         </div>
         <div class="in" style="margin-top: 5px;">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-map-engine-replace-preserve-entities',
             label: html`<i class="fa-solid fa-wand-magic-sparkles"></i> Replace Preserve Entities`,
           })}
         </div>
         <div class="in" style="margin-top: 5px;">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-map-engine-flip-horizontal',
             label: html`<i class="fa-solid fa-arrows-left-right"></i> Flip Horizontal`,
           })}
         </div>
         <div class="in" style="margin-top: 5px;">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-map-engine-flip-vertical',
             label: html`<i class="fa-solid fa-arrows-up-down"></i> Flip Vertical`,
           })}
         </div>
         <div class="in" style="margin-top: 10px;">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'wfa btn-map-engine-toggle-entity-filter',
             label: html`<i class="fa-solid fa-caret-right map-engine-entity-filter-caret"></i> Filters`,
           })}
@@ -1763,7 +1763,7 @@ class MapEngineCyberia {
             ${dynamicCol({ containerSelector: 'map-engine-container', id: dcEntityFilter, type: 'search-inputs' })}
             <div class="fl">
               <div class="in fll ${dcEntityFilter}-col-a">
-                ${await Input.Render({
+                ${await Input.instance({
                   id: idFilterEntityType,
                   label: html`Entity Type`,
                   containerClass: 'inl',
@@ -1772,7 +1772,7 @@ class MapEngineCyberia {
                 })}
               </div>
               <div class="in fll ${dcEntityFilter}-col-b">
-                ${await Input.Render({
+                ${await Input.instance({
                   id: idFilterInitX,
                   label: html`initCellX`,
                   containerClass: 'inl',
@@ -1781,7 +1781,7 @@ class MapEngineCyberia {
                 })}
               </div>
               <div class="in fll ${dcEntityFilter}-col-c">
-                ${await Input.Render({
+                ${await Input.instance({
                   id: idFilterInitY,
                   label: html`initCellY`,
                   containerClass: 'inl',
@@ -1797,13 +1797,13 @@ class MapEngineCyberia {
               Showing 0 of 0 entities
             </div>
             <div class="in" style="margin-top:5px;">
-              ${await BtnIcon.Render({
+              ${await BtnIcon.instance({
                 class: 'wfa btn-map-engine-clear-entity-filter',
                 label: html`<i class="fa-solid fa-broom"></i> Clear Filters`,
               })}
             </div>
             <div class="in" style="margin-top:5px;">
-              ${await BtnIcon.Render({
+              ${await BtnIcon.instance({
                 class: 'wfa btn-map-engine-clear-all-entities',
                 label: html`<i class="fa-solid fa-trash-can"></i> Delete All Entities`,
               })}
@@ -1814,19 +1814,19 @@ class MapEngineCyberia {
         ${dynamicCol({ containerSelector: 'map-engine-container', id: dcSaveNew, type: 'search-inputs' })}
         <div class="fl" style="margin-top: 10px;">
           <div class="in fll ${dcSaveNew}-col-a" style="padding: 5px;">
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'wfa btn-map-engine-save-map',
               label: html`<i class="fa-solid fa-floppy-disk"></i> Save Map`,
             })}
           </div>
           <div class="in fll ${dcSaveNew}-col-b" style="padding: 5px;">
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'wfa btn-map-engine-clone-map',
               label: html`<i class="fa-solid fa-clone"></i> Clone Map`,
             })}
           </div>
           <div class="in fll ${dcSaveNew}-col-c" style="padding: 5px;">
-            ${await BtnIcon.Render({
+            ${await BtnIcon.instance({
               class: 'wfa btn-map-engine-new-map',
               label: html`<i class="fa-solid fa-file"></i> New Map`,
             })}

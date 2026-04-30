@@ -27,7 +27,7 @@ class Responsive {
     }
   }
   static resize = 0;
-  static async Init() {
+  static async instance() {
     Responsive.resizeCallback();
     window.onresize = (e, force) => {
       Responsive.resize++;

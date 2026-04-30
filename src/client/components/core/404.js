@@ -3,7 +3,7 @@ import { Modal } from './Modal.js';
 import { s } from './VanillaJs.js';
 
 class Page404 {
-  static async Render(options = { idModal: '' }) {
+  static async instance(options = { idModal: '' }) {
     setTimeout(() => {
       Modal.Data[options.idModal].onObserverListener['404'] = () => {
         if (s(`.container-404-${options.idModal}`))

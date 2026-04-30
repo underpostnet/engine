@@ -28,7 +28,7 @@ const logger = loggerFactory(import.meta);
 
 class AppShellHealthcare {
   static Data = {};
-  static async Render() {
+  static async instance() {
     const id = getId(AppShellHealthcare.Data, 'menu-');
     AppShellHealthcare.Data[id] = {};
     const RouterInstance = RouterHealthcare();
@@ -36,98 +36,98 @@ class AppShellHealthcare {
     const { barConfig } = await Themes[Css.currentTheme]();
 
     const vitaintegralMod = location.host.match('vitaintegral') || getQueryParams().vitaintegral;
-    await Modal.Render({
+    await Modal.instance({
       id: 'modal-menu',
       html: html`
         <div class="fl menu-btn-container">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-settings',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sliders-h"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('settings')}</span>`,
             }),
             attrs: `data-id="settings"`,
             tabHref: `${getProxyPath()}settings`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('settings')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-home"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('home')}</span>`,
             }),
             // style: 'display: none',
             attrs: `data-id="home"`,
             tabHref: `${getProxyPath()}`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('home')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-log-in',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('log-in')}</span>`,
             }),
             attrs: `data-id="log-in"`,
             tabHref: `${getProxyPath()}log-in`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-in')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-sign-up',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('sign-up')}</span>`,
             }),
             attrs: `data-id="sign-up"`,
             tabHref: `${getProxyPath()}sign-up`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('sign-up')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('sign-up')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-log-out',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-out-alt"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('log-out')}</span>`,
             }),
             attrs: `data-id="log-out"`,
             tabHref: `${getProxyPath()}log-out`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-out')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('log-out')),
             style: 'display: none',
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-account',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-circle"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('account')}</span>`,
             }),
             style: 'display: none',
             attrs: `data-id="account"`,
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('account')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-recover hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('recover')}</span>`,
             }),
             attrs: `data-id="recover"`,
             tabHref: `${getProxyPath()}recover`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('recover')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-nutrition-tips hide',
             useMenuBtn: true,
             label: renderMenuLabel({
@@ -136,15 +136,15 @@ class AppShellHealthcare {
                 src="${getProxyPath()}${MenuHomeHealthcare['nutrition-tips'].icon}"
               />`,
               text: html`<span class="inl menu-label-text menu-label-text-slide-menu-icon"
-                >${Translate.Render('nutrition-tips')}</span
+                >${Translate.instance('nutrition-tips')}</span
               >`,
             }),
             attrs: `data-id="nutrition-tips"`,
             tabHref: `${getProxyPath()}nutrition-tips`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('nutrition-tips')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('nutrition-tips')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-record-mood hide',
             useMenuBtn: true,
             label: renderMenuLabel({
@@ -153,50 +153,52 @@ class AppShellHealthcare {
                 src="${getProxyPath()}${MenuHomeHealthcare['record-mood'].icon}"
               />`,
               text: html`<span class="inl menu-label-text menu-label-text-slide-menu-icon"
-                >${Translate.Render('record-mood')}</span
+                >${Translate.instance('record-mood')}</span
               >`,
             }),
             attrs: `data-id="record-mood"`,
             tabHref: `${getProxyPath()}record-mood`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('record-mood')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('record-mood')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-calendar',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fas fa-calendar-alt"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('healthcare-appointment')}</span>
-                <!-- ${Translate.Render('calendar')} --->`,
+              text: html`<span class="menu-label-text">${Translate.instance('healthcare-appointment')}</span>
+                <!-- ${Translate.instance('calendar')} --->`,
             }),
             attrs: `data-id="calendar"`,
             tabHref: `${getProxyPath()}calendar`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('calendar')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('calendar')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-healthcare-appointment hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html` <i class="fas fa-medkit"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('healthcare-appointment')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.instance('healthcare-appointment')}</span>`,
             }),
             attrs: `data-id="healthcare-appointment"`,
             tabHref: `${getProxyPath()}healthcare-appointment`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('healthcare-appointment', 'right')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('healthcare-appointment', 'right')),
           })}
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: 'in wfa main-btn-menu main-btn-healthcare-appointment-management hide',
             useMenuBtn: true,
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('healthcare-appointment-management')}</span>`,
+              text: html`<span class="menu-label-text"
+                >${Translate.instance('healthcare-appointment-management')}</span
+              >`,
             }),
             attrs: `data-id="healthcare-appointment-management"`,
             tabHref: `${getProxyPath()}healthcare-appointment-management`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('healthcare-appointment-management')),
+            tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption('healthcare-appointment-management')),
           })}
         </div>
       `,
@@ -289,11 +291,11 @@ class AppShellHealthcare {
         for (const routeId of Object.keys(MenuHomeHealthcare)) {
           if (vitaintegralMod && routeId === 'size-baby') continue;
           const { icon } = MenuHomeHealthcare[routeId];
-          render += html`${await BtnIcon.Render({
+          render += html`${await BtnIcon.instance({
             label: html`<div class="abs center" style="top: 30%">
                 <img class="inl home-menu-icon no-drag" src="${getProxyPath()}${icon}" />
               </div>
-              <div class="abs center" style="top: 75%">${Translate.Render(routeId)}</div>`,
+              <div class="abs center" style="top: 75%">${Translate.instance(routeId)}</div>`,
             class: `in fll home-body-btn home-body-btn-${routeId}`,
           })}`;
         }
@@ -311,7 +313,7 @@ class AppShellHealthcare {
                 class="in ${vitaintegralMod ? `vitaintegral-banner` : `healthcare-banner`} hide"
                 src="${getProxyPath()}assets/${vitaintegralMod ? `vitaintegral/logo.png` : `icons/23.png`}"
               />
-              ${Translate.Render('¿')}${Translate.Render('home-getting')}
+              ${Translate.instance('¿')}${Translate.instance('home-getting')}
             </div>
             ${render}
           </div>
@@ -370,16 +372,16 @@ class AppShellHealthcare {
 
     EventsUI.onClick(`.main-btn-sign-up`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-sign-up',
         route: 'sign-up',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-user-plus"></i>`,
-          text: Translate.Render('sign-up'),
+          text: Translate.instance('sign-up'),
         }),
         html: async () =>
-          await SignUp.Render({
+          await SignUp.instance({
             idModal: 'modal-sign-up',
             bottomRender: async () => html` <div class="in section-mp"></div>`,
           }),
@@ -393,15 +395,15 @@ class AppShellHealthcare {
 
     EventsUI.onClick(`.main-btn-log-out`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-log-out',
         route: 'log-out',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-sign-out-alt"></i>`,
-          text: Translate.Render('log-out'),
+          text: Translate.instance('log-out'),
         }),
-        html: async () => await LogOut.Render(),
+        html: async () => await LogOut.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -412,15 +414,15 @@ class AppShellHealthcare {
 
     EventsUI.onClick(`.main-btn-log-in`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-log-in',
         route: 'log-in',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-sign-in-alt"></i>`,
-          text: Translate.Render('log-in'),
+          text: Translate.instance('log-in'),
         }),
-        html: async () => await LogIn.Render(),
+        html: async () => await LogIn.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -431,16 +433,16 @@ class AppShellHealthcare {
 
     EventsUI.onClick(`.main-btn-account`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-account',
         route: 'account',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fas fa-user-circle"></i>`,
-          text: Translate.Render('account'),
+          text: Translate.instance('account'),
         }),
         html: async () =>
-          await Account.Render({
+          await Account.instance({
             idModal: 'modal-account',
             user: AppStoreHealthcare.Data.user.main.model.user,
             disabled: [],
@@ -455,15 +457,15 @@ class AppShellHealthcare {
 
     EventsUI.onClick(`.main-btn-settings`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-settings',
         route: 'settings',
         barConfig,
         title: renderViewTitle({
           icon: html` <i class="fas fa-sliders-h"></i>`,
-          text: Translate.Render('settings'),
+          text: Translate.instance('settings'),
         }),
-        html: async () => await SettingsHealthcare.Render({ idModal: 'modal-settings' }),
+        html: async () => await SettingsHealthcare.instance({ idModal: 'modal-settings' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -474,16 +476,16 @@ class AppShellHealthcare {
 
     EventsUI.onClick(`.main-btn-recover`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-recover',
         route: 'recover',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
-          text: Translate.Render('recover'),
+          text: Translate.instance('recover'),
         }),
         html: async () =>
-          await Recover.Render({ idModal: 'modal-recover', user: AppStoreHealthcare.Data.user.main.model.user }),
+          await Recover.instance({ idModal: 'modal-recover', user: AppStoreHealthcare.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -495,16 +497,16 @@ class AppShellHealthcare {
     const appoimentFormRender = async (eventData) => {
       const { barConfig } = await Themes[Css.currentTheme]();
       const idModal = `modal-healthcare-appointment${eventData ? `-${new Date(eventData.start).getTime()}` : ''}`;
-      await Modal.Render({
+      await Modal.instance({
         id: idModal,
         route: 'healthcare-appointment',
         barConfig,
         title: renderViewTitle({
           icon: html` <i class="fas fa-medkit"></i>`,
-          text: `${eventData ? `${eventData.event.title} ` : ''}${Translate.Render('healthcare-appointment')}`,
+          text: `${eventData ? `${eventData.event.title} ` : ''}${Translate.instance('healthcare-appointment')}`,
         }),
         html: async () =>
-          await AppointmentFormHealthcare.Render({ idModal: 'modal-healthcare-appointment' }, eventData),
+          await AppointmentFormHealthcare.instance({ idModal: 'modal-healthcare-appointment' }, eventData),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -535,13 +537,13 @@ class AppShellHealthcare {
       const { barConfig } = await Themes[Css.currentTheme]();
       const route = 'calendar';
       const { data: hiddenDates } = await HealthcareAppointmentService.get({ id: 'appointment-dates' });
-      await Modal.Render({
+      await Modal.instance({
         id: idModal,
         route,
         barConfig,
         title: renderViewTitle({
           icon: html` <i class="fas fa-calendar-alt"></i>`,
-          text: html`${Translate.Render('healthcare-appointment')}`, // Translate.Render('calendar'),
+          text: html`${Translate.instance('healthcare-appointment')}`, // Translate.instance('calendar'),
         }),
         html: async () => {
           setTimeout(() => {
@@ -570,7 +572,7 @@ class AppShellHealthcare {
               }, 1500);
             });
           });
-          return await CalendarCore.Render({
+          return await CalendarCore.instance({
             idModal,
             appStore: AppStoreHealthcare,
             route,
@@ -604,13 +606,13 @@ class AppShellHealthcare {
 
     EventsUI.onClick(`.main-btn-healthcare-appointment-management`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-healthcare-appointment-management',
         route: 'healthcare-appointment-management',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-          text: Translate.Render('healthcare-appointment-management'),
+          text: Translate.instance('healthcare-appointment-management'),
         }),
         html: async () => await HealthcareAppointmentManagement.RenderTable({ appStore: AppStoreHealthcare }),
         handleType: 'bar',
@@ -623,15 +625,15 @@ class AppShellHealthcare {
 
     EventsUI.onClick(`.main-btn-record-mood`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-record-mood',
         route: 'record-mood',
         barConfig,
         title: renderViewTitle({
           icon: html`<img class="slide-menu-icon" src="${getProxyPath()}${MenuHomeHealthcare['record-mood'].icon}" />`,
-          text: Translate.Render('record-mood'),
+          text: Translate.instance('record-mood'),
         }),
-        html: await RecordMoodHealthcare.Render({ idModal: 'modal-record-mood' }),
+        html: await RecordMoodHealthcare.instance({ idModal: 'modal-record-mood' }),
         observer: true,
         handleType: 'bar',
         maximize: true,
@@ -643,7 +645,7 @@ class AppShellHealthcare {
 
     EventsUI.onClick(`.main-btn-nutrition-tips`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
+      await Modal.instance({
         id: 'modal-nutrition-tips',
         route: 'nutrition-tips',
         barConfig,
@@ -652,7 +654,7 @@ class AppShellHealthcare {
             class="slide-menu-icon"
             src="${getProxyPath()}${MenuHomeHealthcare['nutrition-tips'].icon}"
           />`,
-          text: Translate.Render('nutrition-tips'),
+          text: Translate.instance('nutrition-tips'),
         }),
         html: async () => {
           let render = '';
@@ -673,7 +675,7 @@ class AppShellHealthcare {
                   </div>
                   <div class="in fll" style="width: 70%;">
                     <div class="in nutrition-tips-panel-cell">
-                      <br />${Translate.Render(`nutrition-tips-${indexTip}`)}
+                      <br />${Translate.instance(`nutrition-tips-${indexTip}`)}
                     </div>
                   </div>
                 </div>

@@ -14,7 +14,7 @@ class Docs {
       Modal.Data['modal-docs'] && Modal.Data['modal-docs'].options.barMode
         ? Modal.Data['modal-docs'].options.barMode
         : undefined;
-    await Modal.Render({
+    await Modal.instance({
       barConfig,
       title: renderViewTitle(docData),
       id: ModalId,
@@ -248,7 +248,7 @@ class Docs {
     },
   ];
   static Tokens = {};
-  static async Init(options = {}) {
+  static async instance(options = {}) {
     const { idModal } = options;
     Docs.Tokens[idModal] = options;
     setTimeout(() => {
@@ -311,12 +311,12 @@ class Docs {
           ? options.subMenuIcon(docData.type)
           : docData.icon;
       docMenuRender += html`
-        ${await BtnIcon.Render({
+        ${await BtnIcon.instance({
           class: `in wfa main-btn-menu submenu-btn btn-docs btn-docs-${docData.type}`,
           label: html`<span class="inl menu-btn-icon">${subMenuIcon}</span
             ><span class="menu-label-text menu-label-text-docs"> ${docData.text} </span>`,
           tabHref,
-          tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption(docData.text, 'right')),
+          tooltipHtml: await Badge.instance(buildBadgeToolTipMenuOption(docData.text, 'right')),
           useMenuBtn: true,
         })}
       `;

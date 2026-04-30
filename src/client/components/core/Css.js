@@ -54,11 +54,11 @@ class Css {
     const localStorageTheme = localStorage.getItem('_theme');
     if (localStorageTheme && Themes[localStorageTheme]) {
       const themeOption = ThemesScope.find((t) => t.theme === localStorageTheme);
-      if (themeOption) return await Css.Init(themeOption);
+      if (themeOption) return await Css.instance(themeOption);
     }
-    await Css.Init();
+    await Css.instance();
   }
-  static async Init(options) {
+  static async instance(options) {
     if (!options) options = ThemesScope[0];
     const { theme } = options;
     // Inject menu button container styles
@@ -73,10 +73,10 @@ class Css {
   }
   static async RenderSetting() {
     return html` <div class="in section-mp">
-      ${await DropDown.Render({
+      ${await DropDown.instance({
         id: 'settings-theme',
         value: Css.currentTheme,
-        label: html`${Translate.Render('theme')}`,
+        label: html`${Translate.instance('theme')}`,
         data: ThemesScope.map((themeOption) => {
           return {
             display: html`<i class="fa-solid fa-brush"></i> ${themeOption.theme}`,

@@ -218,7 +218,7 @@ class Auth {
           setTimeout(() => {
             s(`.main-btn-log-in`).click();
             NotificationManager.Push({
-              html: Translate.Render(`expired-session`),
+              html: Translate.instance(`expired-session`),
               status: 'warning',
             });
           });

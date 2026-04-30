@@ -8,7 +8,7 @@ import { Modal } from './Modal.js';
 class AgGrid {
   static grids = {};
   static theme = `ag-theme-alpine`;
-  static async Render(options) {
+  static async instance(options) {
     let { id, paginationOptions } = options;
     setTimeout(() => {
       // Normalize rowSelection from deprecated string form to object form (AG Grid v32.2.1+)

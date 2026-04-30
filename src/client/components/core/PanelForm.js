@@ -147,7 +147,7 @@ class PanelForm {
     ];
     const titleIcon = html`<i class="fa-solid fa-quote-left title-icon-${idPanel}"></i>`;
     const panelRender = async ({ data }) =>
-      await Panel.Render({
+      await Panel.instance({
         idPanel,
         formData,
         data,
@@ -214,7 +214,7 @@ class PanelForm {
               html: async () => {
                 return html`
                   <div class="in section-mp" style="text-align: center">
-                    ${Translate.Render('confirm-delete-item')}
+                    ${Translate.instance('confirm-delete-item')}
                     <br />
                     "${data.title}"
                   </div>
@@ -355,7 +355,7 @@ class PanelForm {
             const hasFiles = data.fileId && data.fileId.length > 0;
             if (!data.title || (!hasMdContent && !hasFiles)) {
               NotificationManager.Push({
-                html: Translate.Render('require-title-and-content-or-file'),
+                html: Translate.instance('require-title-and-content-or-file'),
                 status: 'error',
               });
               return { data: [], status: 'error', message: 'Must provide either content or attach a file' };
@@ -442,7 +442,7 @@ class PanelForm {
                 const { status, data: uploadedFiles } = await FileService.post({ body });
                 // await timer(3000);
                 NotificationManager.Push({
-                  html: Translate.Render(`${status}-upload-file`),
+                  html: Translate.instance(`${status}-upload-file`),
                   status,
                 });
                 if (status === 'success' && uploadedFiles && Array.isArray(uploadedFiles)) {
@@ -539,8 +539,8 @@ class PanelForm {
               html:
                 status === 'success'
                   ? originObj
-                    ? Translate.Render('success-edit-post')
-                    : Translate.Render('success-add-post')
+                    ? Translate.instance('success-edit-post')
+                    : Translate.instance('success-add-post')
                   : message,
               status: status,
             });
@@ -810,7 +810,7 @@ class PanelForm {
             ? newInstance(appStore.Data.user.main.model.user._id)
             : null;
           lastCid = cid;
-          logger.warn('Init render panel data');
+          logger.warn('instance render panel data');
           PanelForm.Data[idPanel] = {
             ...PanelForm.Data[idPanel],
             originData: [],

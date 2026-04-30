@@ -1,8 +1,8 @@
 import { CalendarCore } from '../core/CalendarCore.js';
 
 class CalendarHealthcare {
-  static async Render(options) {
-    return html`${await CalendarCore.Render(options)}`;
+  static async instance(options) {
+    return html`${await CalendarCore.instance(options)}`;
   }
 }
 

@@ -2,7 +2,7 @@ import { cap, getId } from './CommonJs.js';
 class Keyboard {
   static ActiveKey = {};
   static Event = {};
-  static async Init() {
+  static async instance() {
     const callBackTime = 45;
     window.onkeydown = (e = new KeyboardEvent()) => {
       Keyboard.ActiveKey[e.key] = true;

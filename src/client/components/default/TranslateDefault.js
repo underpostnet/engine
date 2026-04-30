@@ -1,7 +1,7 @@
 import { Translate } from '../core/Translate.js';
 
 class TranslateDefault {
-  static async Init() {}
+  static async instance() {}
 }
 
 export { TranslateDefault };

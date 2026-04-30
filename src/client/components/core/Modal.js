@@ -42,7 +42,7 @@ const logger = loggerFactory(import.meta, { trace: true });
 const Modal = {
   Data: {},
 
-  Render: async function (
+  instance: async function (
     options = {
       id: '',
       barConfig: {},
@@ -447,14 +447,14 @@ const Modal = {
                   class="fl top-bar  ${options.barClass ? options.barClass : ''}"
                   style="height: ${originHeightTopBar}px;"
                 >
-                  ${await BtnIcon.Render({
+                  ${await BtnIcon.instance({
                     style: `height: 100%`,
                     class: 'in fll main-btn-menu action-bar-box action-btn-close hide',
                     label: html` <div class="${contentIconClass} action-btn-close-render">
                       <i class="fa-solid fa-xmark"></i>
                     </div>`,
                   })}
-                  ${await BtnIcon.Render({
+                  ${await BtnIcon.instance({
                     style: `height: 100%`,
                     class: `in fll main-btn-menu action-bar-box action-btn-app-icon ${
                       options?.disableTools?.includes('app-icon') ? 'hide' : ''
@@ -466,10 +466,12 @@ const Modal = {
                       ? 'hide'
                       : ''}"
                   >
-                    ${await Input.Render({
+                    ${await Input.instance({
                       id: inputSearchBoxId,
                       autocomplete: 'off',
-                      placeholder: Modal.mobileModal() ? Translate.Render('search', '.top-bar-search-box') : undefined, // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.Render('search')}`,
+                      placeholder: Modal.mobileModal()
+                        ? Translate.instance('search', '.top-bar-search-box')
+                        : undefined, // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.instance('search')}`,
                       placeholderIcon: html`<div
                         class="in fll"
                         style="width: ${originHeightTopBar}px; height: ${originHeightTopBar}px;"
@@ -480,19 +482,19 @@ const Modal = {
                               class="inl wfm key-shortcut-container-info"
                               style="${renderCssAttr({ style: { top: '10px', left: '60px' } })}"
                             >
-                              ${await Badge.Render({
+                              ${await Badge.instance({
                                 id: 'shortcut-key-info-search',
                                 text: 'Shift',
                                 classList: 'inl',
                                 style: { 'z-index': 1 },
                               })}
-                              ${await Badge.Render({
+                              ${await Badge.instance({
                                 id: 'shortcut-key-info-search',
                                 text: '+',
                                 classList: 'inl',
                                 style: { 'z-index': 1, background: 'none', color: '#5f5f5f' },
                               })}
-                              ${await Badge.Render({
+                              ${await Badge.instance({
                                 id: 'shortcut-key-info-search',
                                 text: 'k',
                                 classList: 'inl',
@@ -508,12 +510,12 @@ const Modal = {
                   <div
                     class="abs top-box-profile-container ${options?.disableTools?.includes('profile') ? 'hide' : ''}"
                   >
-                    ${await BtnIcon.Render({
+                    ${await BtnIcon.instance({
                       style: `height: 100%`,
                       class: 'in fll session-in-log-in main-btn-menu action-bar-box action-btn-profile-log-in',
                       label: html` <div class="${contentIconClass} action-btn-profile-log-in-render"></div>`,
                     })}
-                    ${await BtnIcon.Render({
+                    ${await BtnIcon.instance({
                       style: `height: 100%`,
                       class: 'in fll session-in-log-out main-btn-menu action-bar-box action-btn-profile-log-out',
                       label: html` <div class="${contentIconClass} action-btn-profile-log-out-render">
@@ -618,8 +620,8 @@ const Modal = {
                 if (results.length === 0) {
                   append(
                     `.html-${searchBoxHistoryId}`,
-                    await BtnIcon.Render({
-                      label: html`<i class="fas fa-exclamation-circle"></i> ${Translate.Render('no-result-found')}`,
+                    await BtnIcon.instance({
+                      label: html`<i class="fas fa-exclamation-circle"></i> ${Translate.instance('no-result-found')}`,
                       class: `wfa`,
                       style: renderCssAttr({
                         style: {
@@ -784,7 +786,7 @@ const Modal = {
                   barConfig.buttons.menu.disabled = true;
                   barConfig.buttons.close.disabled = false;
 
-                  await Modal.Render({
+                  await Modal.instance({
                     id: searchBoxHistoryId,
                     barConfig,
                     title: html`<div
@@ -794,13 +796,13 @@ const Modal = {
                         <div class="search-box-recent-title">
                           ${renderViewTitle({
                             icon: html`<i class="fas fa-history mini-title"></i>`,
-                            text: Translate.Render('recent'),
+                            text: Translate.instance('recent'),
                           })}
                         </div>
                         <div class="search-box-result-title hide">
                           ${renderViewTitle({
                             icon: html`<i class="far fa-list-alt mini-title"></i>`,
-                            text: Translate.Render('results'),
+                            text: Translate.instance('results'),
                           })}
                         </div>
                       </div>
@@ -865,7 +867,7 @@ const Modal = {
                   }
 
                   // Add clear all button to the bar area, before the close button
-                  const clearAllBtnHtml = await BtnIcon.Render({
+                  const clearAllBtnHtml = await BtnIcon.instance({
                     class: `btn-search-history-clear-all btn-modal-default btn-modal-default-${searchBoxHistoryId}`,
                     label: html`<i class="fas fa-trash-alt"></i>`,
                     attrs: `title="Clear all recent items"`,
@@ -1032,7 +1034,7 @@ const Modal = {
                 barConfig.buttons.menu.disabled = true;
                 barConfig.buttons.close.disabled = true;
                 const id = 'main-body';
-                await Modal.Render({
+                await Modal.instance({
                   id,
                   barConfig,
                   html: options.htmlMainBody ? options.htmlMainBody : () => html``,
@@ -1127,7 +1129,7 @@ const Modal = {
                     class="fl ${options.barClass ? options.barClass : ''}"
                     style="height: ${originHeightBottomBar}px;"
                   >
-                    ${await BtnIcon.Render({
+                    ${await BtnIcon.instance({
                       style: `height: 100%`,
                       class: `in fl${
                         options.mode === 'slide-menu-right' ? 'r' : 'l'
@@ -1142,35 +1144,35 @@ const Modal = {
                         </div>
                       `,
                     })}
-                    ${await BtnIcon.Render({
+                    ${await BtnIcon.instance({
                       style: `height: 100%`,
                       class: `in flr main-btn-menu action-bar-box action-btn-lang ${
                         options?.disableTools?.includes('lang') ? 'hide' : ''
                       }`,
                       label: html` <div class="${contentIconClass} action-btn-lang-render"></div>`,
                     })}
-                    ${await BtnIcon.Render({
+                    ${await BtnIcon.instance({
                       style: `height: 100%`,
                       class: `in flr main-btn-menu action-bar-box action-btn-theme ${
                         options?.disableTools?.includes('theme') ? 'hide' : ''
                       }`,
                       label: html` <div class="${contentIconClass} action-btn-theme-render"></div>`,
                     })}
-                    ${await BtnIcon.Render({
+                    ${await BtnIcon.instance({
                       style: `height: 100%`,
                       class: `in flr main-btn-menu action-bar-box action-btn-home ${
                         options?.disableTools?.includes('navigator') ? 'hide' : ''
                       }`,
                       label: html` <div class="${contentIconClass}"><i class="fas fa-home"></i></div>`,
                     })}
-                    ${await BtnIcon.Render({
+                    ${await BtnIcon.instance({
                       style: `height: 100%`,
                       class: `in flr main-btn-menu action-bar-box action-btn-right ${
                         options?.disableTools?.includes('navigator') ? 'hide' : ''
                       }`,
                       label: html` <div class="${contentIconClass}"><i class="fas fa-chevron-right"></i></div>`,
                     })}
-                    ${await BtnIcon.Render({
+                    ${await BtnIcon.instance({
                       style: `height: 100%`,
                       class: `in flr main-btn-menu action-bar-box action-btn-left ${
                         options?.disableTools?.includes('navigator') ? 'hide' : ''
@@ -1182,7 +1184,7 @@ const Modal = {
                 if (options.heightBottomBar === 0 && options.heightTopBar > 0) {
                   append(`.slide-menu-top-bar`, html` <div class="in ${id}">${await html()}</div>`);
                 } else {
-                  await Modal.Render({
+                  await Modal.instance({
                     id,
                     barConfig,
                     html,
@@ -1290,12 +1292,12 @@ const Modal = {
                     barConfig.buttons.restore.disabled = true;
                     barConfig.buttons.menu.disabled = true;
                     barConfig.buttons.close.disabled = false;
-                    await Modal.Render({
+                    await Modal.instance({
                       id,
                       barConfig,
                       title: html`${renderViewTitle({
                         icon: html`<i class="fas fa-language mini-title"></i>`,
-                        text: Translate.Render('select lang'),
+                        text: Translate.instance('select lang'),
                       })}`,
                       html: async () => html`${await Translate.RenderSetting('action-drop-modal' + id)}`,
                       titleClass: 'mini-title',
@@ -1349,7 +1351,7 @@ const Modal = {
                 barConfig.buttons.menu.disabled = true;
                 barConfig.buttons.close.disabled = true;
                 const id = 'main-body-top';
-                await Modal.Render({
+                await Modal.instance({
                   id,
                   barConfig,
                   html: () => html``,
@@ -1511,7 +1513,7 @@ const Modal = {
             >
               <div class="btn-bar-modal-container-render-${idModal}"></div>
               <div class="in flr bar-default-modal" style="z-index: 1">
-                ${await BtnIcon.Render({
+                ${await BtnIcon.instance({
                   class: `btn-minimize-${idModal} btn-modal-default btn-modal-default-${idModal} ${
                     options?.btnContainerClass ? options.btnContainerClass : ''
                   } ${options?.barConfig?.buttons?.minimize?.disabled ? 'hide' : ''}`,
@@ -1519,7 +1521,7 @@ const Modal = {
                     ${options?.barConfig?.buttons?.minimize?.label ? options.barConfig.buttons.minimize.label : html`_`}
                   </div>`,
                 })}
-                ${await BtnIcon.Render({
+                ${await BtnIcon.instance({
                   class: `btn-restore-${idModal} btn-modal-default btn-modal-default-${idModal} ${
                     options?.btnContainerClass ? options.btnContainerClass : ''
                   } ${options?.barConfig?.buttons?.restore?.disabled ? 'hide' : ''}`,
@@ -1528,7 +1530,7 @@ const Modal = {
                   </div>`,
                   style: 'display: none',
                 })}
-                ${await BtnIcon.Render({
+                ${await BtnIcon.instance({
                   class: `btn-maximize-${idModal} btn-modal-default btn-modal-default-${idModal} ${
                     options?.btnContainerClass ? options.btnContainerClass : ''
                   } ${options?.barConfig?.buttons?.maximize?.disabled ? 'hide' : ''}`,
@@ -1536,7 +1538,7 @@ const Modal = {
                     ${options?.barConfig?.buttons?.maximize?.label ? options.barConfig.buttons.maximize.label : html`▢`}
                   </div>`,
                 })}
-                ${await BtnIcon.Render({
+                ${await BtnIcon.instance({
                   class: `btn-close-${idModal} btn-modal-default btn-modal-default-${idModal} ${
                     options?.btnContainerClass ? options.btnContainerClass : ''
                   } ${options?.barConfig?.buttons?.close?.disabled ? 'hide' : ''}`,
@@ -1544,7 +1546,7 @@ const Modal = {
                     ${options?.barConfig?.buttons?.close?.label ? options.barConfig.buttons.close.label : html`X`}
                   </div>`,
                 })}
-                ${await BtnIcon.Render({
+                ${await BtnIcon.instance({
                   class: `btn-menu-${idModal} btn-modal-default btn-modal-default-${idModal} ${
                     options?.btnContainerClass ? options.btnContainerClass : ''
                   } ${options?.barConfig?.buttons?.menu?.disabled ? 'hide' : ''}`,
@@ -1572,7 +1574,7 @@ const Modal = {
                   class="stq modal"
                   style="${renderCssAttr({ style: { height: '50px', 'z-index': 1, top: '0px' } })}"
                 >
-                  ${await BtnIcon.Render({
+                  ${await BtnIcon.instance({
                     style: renderCssAttr({ style: { height: '100%', color: '#5f5f5f' } }),
                     class: `in flr main-btn-menu action-bar-box btn-icon-menu-mode`,
                     label: html` <div class="abs center">
@@ -1588,14 +1590,14 @@ const Modal = {
                       ></i>
                     </div>`,
                   })}
-                  ${await BtnIcon.Render({
+                  ${await BtnIcon.instance({
                     style: renderCssAttr({ style: { height: '100%', color: '#5f5f5f' } }),
                     class: `in flr main-btn-menu action-bar-box btn-icon-menu-back hide`,
                     label: html`<div class="abs center"><i class="fas fa-undo-alt"></i></div>`,
                   })}
                   <div class="abs sub-menu-title-container-${idModal} ac">
                     <div class="abs nav-title-display-${idModal}">
-                      <!-- <i class="fas fa-home"></i> ${Translate.Render('home')} -->
+                      <!-- <i class="fas fa-home"></i> ${Translate.instance('home')} -->
                     </div>
                   </div>
                   <div class="abs nav-path-container-${idModal} ahc bold">
@@ -1635,7 +1637,7 @@ const Modal = {
       case 'slide-menu-right':
       case 'slide-menu-left':
         const backMenuButtonEvent = async () => {
-          // htmls(`.nav-title-display-${'modal-menu'}`, html`<i class="fas fa-home"></i> ${Translate.Render('home')}`);
+          // htmls(`.nav-title-display-${'modal-menu'}`, html`<i class="fas fa-home"></i> ${Translate.instance('home')}`);
           htmls(`.nav-title-display-${'modal-menu'}`, html``);
           htmls(`.nav-path-display-${idModal}`, '');
           s(`.btn-icon-menu-back`).classList.add('hide');
@@ -2189,23 +2191,23 @@ const Modal = {
         </div>
         ${await options.html()}
         <div class="in section-mp">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: `in section-mp form-button btn-confirm-${id}`,
-            label: Translate.Render('confirm'),
+            label: Translate.instance('confirm'),
             type: 'submit',
             style: `margin: auto`,
           })}
         </div>
         <div class="in section-mp ${options.disableBtnCancel ? 'hide' : ''}">
-          ${await BtnIcon.Render({
+          ${await BtnIcon.instance({
             class: `in section-mp form-button btn-cancel-${id}`,
-            label: Translate.Render('cancel'),
+            label: Translate.instance('cancel'),
             type: 'submit',
             style: `margin: auto`,
           })}
         </div>
       `;
-      await Modal.Render({
+      await Modal.instance({
         id,
         barConfig,
         titleClass: 'hide',
@@ -2478,7 +2480,7 @@ const renderViewTitle = (
 const buildBadgeToolTipMenuOption = (id, sideKey = 'left') => {
   const option = {
     id: `tooltip-content-main-btn-${id}`,
-    text: `${Translate.Render(`${id}`)}`,
+    text: `${Translate.instance(`${id}`)}`,
     classList: 'tooltip-menu',
     style: { top: `-40px` },
   };
