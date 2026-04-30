@@ -109,7 +109,7 @@ class ObjectLayerEngineViewer {
     }
     htmls(
       `#${id}`,
-      await ObjectLayerManagement.RenderTable({
+      await ObjectLayerManagement.instance({
         appStore,
         idModal,
       }),

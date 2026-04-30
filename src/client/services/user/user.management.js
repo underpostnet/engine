@@ -2,10 +2,10 @@ import { DefaultManagement } from '../default/default.management.js';
 import { UserService } from './user.service.js';
 
 class UserManagement {
-  static RenderTable = async ({ appStore }) => {
+  static instance = async ({ appStore }) => {
     const user = appStore.Data.user.main.model.user;
     const { role } = user;
-    return await DefaultManagement.RenderTable({
+    return await DefaultManagement.instance({
       idModal: 'modal-user-management',
       serviceId: 'user-management',
       entity: 'user',

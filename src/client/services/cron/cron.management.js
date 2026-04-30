@@ -3,7 +3,7 @@ import { UserService } from '../user/user.service.js';
 import { CronService } from './cron.service.js';
 
 class CronManagement {
-  static RenderTable = async ({ appStore }) => {
+  static instance = async ({ appStore }) => {
     const user = appStore.Data.user.main.model.user;
     const { role } = user;
     let columnDefs = [
@@ -22,7 +22,7 @@ class CronManagement {
       default:
         break;
     }
-    return await DefaultManagement.RenderTable({
+    return await DefaultManagement.instance({
       idModal: 'modal-cron-management',
       serviceId: 'cron-management',
       entity: 'cron',

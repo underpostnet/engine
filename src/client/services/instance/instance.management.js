@@ -3,7 +3,7 @@ import { UserService } from '../user/user.service.js';
 import { InstanceService } from './instance.service.js';
 
 class InstanceManagement {
-  static RenderTable = async ({ appStore }) => {
+  static instance = async ({ appStore }) => {
     const user = appStore.Data.user.main.model.user;
     const { role } = user;
     let columnDefs = [
@@ -44,7 +44,7 @@ class InstanceManagement {
       default:
         break;
     }
-    return await DefaultManagement.RenderTable({
+    return await DefaultManagement.instance({
       idModal: 'modal-instance-management',
       serviceId: 'instance-management',
       entity: 'instance',

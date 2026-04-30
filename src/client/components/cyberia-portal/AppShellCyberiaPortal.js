@@ -589,7 +589,7 @@ class AppShellCyberiaPortal {
           text: `<span class='inl cyberia-text-title-modal'>${Translate.instance('object-layer-engine-management')}</span>`,
         }),
         html: async () =>
-          ObjectLayerManagement.RenderTable({
+          ObjectLayerManagement.instance({
             appStore: AppStoreCyberiaPortal,
           }),
         handleType: 'bar',

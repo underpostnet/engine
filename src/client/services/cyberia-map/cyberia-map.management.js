@@ -8,7 +8,7 @@ import { CyberiaMapService } from './cyberia-map.service.js';
 import { getApiBaseUrl } from '../core/core.service.js';
 
 class CyberiaMapManagement {
-  static RenderTable = async (options = {}) => {
+  static instance = async (options = {}) => {
     const { idModal: rawIdModal, customEvent, readyRowDataEvent, loadMapCallback, appStore } = options;
     const idModal = rawIdModal || 'modal-cyberia-map-management';
     const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
@@ -112,7 +112,7 @@ class CyberiaMapManagement {
       }
     }
 
-    const renderResult = await DefaultManagement.RenderTable({
+    const renderResult = await DefaultManagement.instance({
       idModal,
       serviceId: 'cyberia-map-management',
       entity: 'cyberia-map',

@@ -654,7 +654,7 @@ class AppShellDefault {
           icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
           text: Translate.instance('default-management'),
         }),
-        html: async () => await DefaultManagement.RenderTable(),
+        html: async () => await DefaultManagement.instance(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

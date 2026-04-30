@@ -1257,7 +1257,7 @@ class MapEngineCyberia {
       { value: 'archived', display: 'archived', data: 'archived', onClick: () => {} },
     ];
 
-    const managementTableHtml = await CyberiaMapManagement.RenderTable({
+    const managementTableHtml = await CyberiaMapManagement.instance({
       idModal: managementId,
       loadMapCallback: loadMap,
       appStore,

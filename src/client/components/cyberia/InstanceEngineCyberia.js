@@ -507,7 +507,7 @@ class InstanceEngineCyberia {
       { value: 'archived', display: 'archived', data: 'archived', onClick: () => {} },
     ];
 
-    const managementTableHtml = await CyberiaInstanceManagement.RenderTable({
+    const managementTableHtml = await CyberiaInstanceManagement.instance({
       idModal: managementId,
       loadInstanceCallback: loadInstance,
       appStore,

@@ -520,11 +520,14 @@ class AppShellHealthcare {
         delete Modal.Data[idModal].onCloseListener[idModal];
       };
       return await new Promise((resolve) => {
-        AppointmentFormHealthcare.onSubmitted(async ({ status, data, message }) => {
-          cleanEvent();
-          await Modal.removeModal(idModal);
-          return resolve({ status });
-        }, { key: idModal });
+        AppointmentFormHealthcare.onSubmitted(
+          async ({ status, data, message }) => {
+            cleanEvent();
+            await Modal.removeModal(idModal);
+            return resolve({ status });
+          },
+          { key: idModal },
+        );
         Modal.Data[idModal].onCloseListener[idModal] = () => {
           cleanEvent();
           return resolve({ status: 'error' });
@@ -614,7 +617,7 @@ class AppShellHealthcare {
           icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
           text: Translate.instance('healthcare-appointment-management'),
         }),
-        html: async () => await HealthcareAppointmentManagement.RenderTable({ appStore: AppStoreHealthcare }),
+        html: async () => await HealthcareAppointmentManagement.instance({ appStore: AppStoreHealthcare }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

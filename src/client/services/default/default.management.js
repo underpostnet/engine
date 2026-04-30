@@ -268,11 +268,11 @@ class DefaultManagement {
       });
     }
   }
-  static async RenderTable(options = DefaultOptions) {
+  static async instance(options = DefaultOptions) {
     if (!options) options = DefaultOptions;
     const { serviceId, columnDefs, entity, defaultColKeyFocus, ServiceProvider, permissions, paginationOptions } =
       options;
-    logger.info('DefaultManagement RenderTable', options);
+    logger.info('DefaultManagement instance', options);
     const id = options?.idModal ? options.idModal : getId(DefaultManagement.Tokens, `${serviceId}-`);
     const gridId = `${serviceId}-grid-${id}`;
     const queryParamsListenerId = `default-management-${id}`;

@@ -11,7 +11,7 @@ import { NotificationManager } from '../../components/core/NotificationManager.j
 import { AgGrid } from '../../components/core/AgGrid.js';
 
 class ObjectLayerManagement {
-  static RenderTable = async ({ appStore, idModal: rawIdModal }) => {
+  static instance = async ({ appStore, idModal: rawIdModal }) => {
     const idModal = rawIdModal || 'modal-object-layer-engine-management';
     const serviceId = 'object-layer-engine-management';
     const gridId = `${serviceId}-grid-${idModal}`;
@@ -364,7 +364,7 @@ class ObjectLayerManagement {
         : []),
     ];
 
-    return await DefaultManagement.RenderTable({
+    return await DefaultManagement.instance({
       idModal,
       serviceId,
       entity: 'object-layer',
