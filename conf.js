@@ -70,7 +70,7 @@ const DefaultConf = /**/ {
         ],
         default: [
           'AppShellDefault',
-          'RoutesDefault',
+          'RouterDefault',
           'AppStoreDefault',
           'CssDefault',
           'LogInDefault',

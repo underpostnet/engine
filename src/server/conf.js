@@ -1156,6 +1156,7 @@ const getDataDeploy = async (
 
   let buildDataDeploy = [];
   for (const deployObj of dataDeploy) {
+    const isReplicaDeploy = fs.existsSync(`./engine-private/replica/${deployObj.deployId}`);
     const serverConf = loadReplicas(
       deployObj.deployId,
       loadConfServerJson(`./engine-private/conf/${deployObj.deployId}/conf.server.json`),
@@ -1163,7 +1164,7 @@ const getDataDeploy = async (
     let replicaDataDeploy = [];
     for (const host of Object.keys(serverConf))
       for (const path of Object.keys(serverConf[host])) {
-        if (serverConf[host][path].replicas && serverConf[host][path].singleReplica) {
+        if (!isReplicaDeploy && serverConf[host][path].replicas && serverConf[host][path].singleReplica) {
           if (options && options.buildSingleReplica)
             await Underpost.repo.client(deployObj.deployId, '', host, path, {
               singleReplica: true,
