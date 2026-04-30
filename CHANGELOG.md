@@ -1,9 +1,64 @@
 # Changelog
 
-## 2026-04-26
+## 2026-04-30
+
+### cli-client
+
+- Add checks for replica context in repository and configuration handling ([a8d925ad3](https://github.com/underpostnet/engine/commit/a8d925ad37e57a1f99fc15826dc2ddd265d2c120))
+- Add checks for replica context in repository and configuration handling ([c42462968](https://github.com/underpostnet/engine/commit/c424629688226e3b8b20a0828c0fe8e8a1003cc3))
+- Add --merge-zip option and implement mergeClientBuildZip function for combining split ZIP parts ([15408be66](https://github.com/underpostnet/engine/commit/15408be66eb6fab1276a05625eb768baa9ae9ea4))
+
+### client-core
+
+- Refactor management components to use instance methods instead of static RenderTable ([67382a9d5](https://github.com/underpostnet/engine/commit/67382a9d5576ac8dad54b36de4ea14730cda2fe0))
+- Fix LoadingAnimation to correctly reference img tokens and simplify onload/onerror handlers in ObjectLayerManagement ([051bb65dc](https://github.com/underpostnet/engine/commit/051bb65dc5631dd96296ea8e254a1818576b10a8))
+- Refactor Modal, Panel, PublicProfile, SearchBox, and ObjectLayerEngineModal components to use class syntax and static properties for improved structure and maintainability ([3e514e579](https://github.com/underpostnet/engine/commit/3e514e57913bc90475b7b8fc06bef43eb583428a))
+- Remove JoyStick component and its associated functionality from the codebase ([e08173436](https://github.com/underpostnet/engine/commit/e08173436a3788f7fd8d80dc966973fec04f556d))
+- Add Modal layout synchronization and streamline Docs component by removing unused Responsive references ([2fa05c3b9](https://github.com/underpostnet/engine/commit/2fa05c3b9a2cb2a1ecdf1ddbb433885a4b6d769d))
+- Refactor Responsive event handlers in Docs and Modal ([2a2e0c90e](https://github.com/underpostnet/engine/commit/2a2e0c90ec7c7d5887cedb824bb0677bf7489b19))
+- Update routing logic to use registered routes in getProxyPath and register routes in PwaWorker initialization ([c70544559](https://github.com/underpostnet/engine/commit/c7054455937636e84894a4b709ae5c73704becb1))
+- Refactor routing structure by consolidating route definitions into dedicated Router files for Cryptokoyn, CyberiaPortal, Default, Dogmadual, Healthcare, Itemledger, Nexodev, and Underpost components. Removed legacy Routes files and updated imports accordingly. This change enhances code organization and maintainability. ([68d6accdb](https://github.com/underpostnet/engine/commit/68d6accdb15aca8fd58f5336eee8e4bfa570b588))
+- FIx LoadingAnimation methods to use correct token storage for bar and spinner components ([3884039c3](https://github.com/underpostnet/engine/commit/3884039c3d36b097e1dd465917eb88be20bd38b2))
+- Update default configuration to replace 'MenuDefault' with 'AppShellDefault' for improved clarity ([c0eae3962](https://github.com/underpostnet/engine/commit/c0eae3962476d4183555e9ef80e7048347b31bf0))
+- Refactor event handling to use new event system across components for improved responsiveness and maintainability ([d3c33f71f](https://github.com/underpostnet/engine/commit/d3c33f71ffe12a8e695121aab027e61e41e96014))
+- Refactor authentication components to use EventBus for login, logout, and signup events ([119104765](https://github.com/underpostnet/engine/commit/1191047652a0c51e6484eca40f931d9c7c3af49f))
+- Refactor rendering methods to use 'instance' instead of 'Render' in various components and services for consistency and clarity ([4b9424f6d](https://github.com/underpostnet/engine/commit/4b9424f6d945183e0450bc527a41e2049f18e8a9))
+- Fix to use const for event listener objects in Css, Router, and Valkey modules ([35b3987d5](https://github.com/underpostnet/engine/commit/35b3987d556e19d5dd92d3c707f3cb770d81e1b4))
+- Refactor to ES6 class static methods ([6f5625594](https://github.com/underpostnet/engine/commit/6f5625594b6b1efd74ffb30f9e01b77a121c7bd2))
+- Refactor entry point files to streamline initialization and improve structure ([97d833c20](https://github.com/underpostnet/engine/commit/97d833c20658c864c3c76665b2f0d94b21e8c939))
+- Rename Menu to AppShell components with menu and routing functionality ([503aca7d9](https://github.com/underpostnet/engine/commit/503aca7d9620eaac43ed0eb67e753b794b44c284))
+- Remove inline styles from RichText component ([8256212be](https://github.com/underpostnet/engine/commit/8256212be9cd50a1efd34f06a18d52cc6b334cdc))
+- Add 'add-component' command to deploy script for dynamic component management ([ac166e3ca](https://github.com/underpostnet/engine/commit/ac166e3ca590237877fc49c02e7fa527f7dc3dfe))
+
+### engine-core
+
+- Refactor DefaultManagement and ObjectLayerManagement to use instance properties instead of static properties for eGui and tokens ([2d7da8169](https://github.com/underpostnet/engine/commit/2d7da81695556d3404cca1ddbf8a794ac1a4c75d))
+- Add cecinasmarcelina client assets ([045fe5add](https://github.com/underpostnet/engine/commit/045fe5adda88a3c0ce487ee3189611a718ce90fd))
+- Add cecinasmarcelina base client ([d67924b1a](https://github.com/underpostnet/engine/commit/d67924b1a002cc2e55772f6334da86c010303ec8))
+
+### conf
+
+- Rename 'ClientEvent' to 'ClientEvents' for consistency in configuration ([bddd3daa0](https://github.com/underpostnet/engine/commit/bddd3daa0bf217d817ea05ce3d94e805900ab4b1))
+
+### bin-deploy
+
+- Refactor 'add-component' command to support optional parameters and improve error handling for component addition ([3d5103d11](https://github.com/underpostnet/engine/commit/3d5103d11bcadeeee530cd32d8ad7ab342f4fc7e))
+
+### docs
+
+- Fix iframe handling in Docs component to maintain parent scroll position and synchronize layout on navigation ([032bd1a81](https://github.com/underpostnet/engine/commit/032bd1a8193a3386edd0fe28c63ea863c3ce6d16))
+- Migrate from JSDoc to TypeDoc for documentation generation ([596bd8d46](https://github.com/underpostnet/engine/commit/596bd8d462f5b2b6a2f185285b555554e7440563))
+
+### cli-run
+
+- Fix image pulling logic to prevent unnecessary Docker Hub requests for local images ([88556c528](https://github.com/underpostnet/engine/commit/88556c5281c7986479b1710a693b21592cc0ecd8))
+- Add push-bundle and pull-bundle methods for zip file handling and deployment ([e82379907](https://github.com/underpostnet/engine/commit/e82379907267e483177e6be2374cb6c922aa42b2))
+- Add pull-rocky-image method to pull Rocky Linux image via Podman ([59f7e6245](https://github.com/underpostnet/engine/commit/59f7e6245b2b5a49fbd14e28632915952f0cde00))
 
 ### github-actions
 
+- Refactor deployment commands to simplify sync and remove redundant npm installations ([9cce90390](https://github.com/underpostnet/engine/commit/9cce9039041ec5b160453a38e7b81ba72899b886))
+- Update deployment configurations, service ports, and proxy settings for development environments ([07efd0975](https://github.com/underpostnet/engine/commit/07efd09750fd2976c89bbe37f500a0c9f439179b))
 - Update container images and simplify base command in CLI sync function ([e5d22868d](https://github.com/underpostnet/engine/commit/e5d22868d610f11fc241bdfa3ddc4fb5eb39a18d))
 - Fix deployment command to remove redundant sync flag in engine-cyberia workflow ([f4d959738](https://github.com/underpostnet/engine/commit/f4d9597383c39eeeb4b7742b4d3f3a554eb85585))
 - Fix sync command in CI workflows to remove hardcoded image version for engine core and cyberia deployments ([1d6aa177b](https://github.com/underpostnet/engine/commit/1d6aa177b14362f6b2c7bcd81043738ad671277d))
@@ -23,15 +78,6 @@
 - Add --omit-unzip option to pull command to retain downloaded zip files ([a5cf84b11](https://github.com/underpostnet/engine/commit/a5cf84b111aae533cc1fe5dc09809928695826d1))
 - Refactor recursive removal logic in UnderpostFileStorage to improve path handling and logging ([f890ae6a8](https://github.com/underpostnet/engine/commit/f890ae6a8d7004a74ec96b219dd3f455db894183))
 - Implement recursive removal of tracked storage keys and enhance logging for associated paths ([5cb5d7172](https://github.com/underpostnet/engine/commit/5cb5d71724ac2c687a105ed0a953a9d36e0fbc20))
-
-### cli-run
-
-- Add push-bundle and pull-bundle methods for zip file handling and deployment ([e82379907](https://github.com/underpostnet/engine/commit/e82379907267e483177e6be2374cb6c922aa42b2))
-- Add pull-rocky-image method to pull Rocky Linux image via Podman ([59f7e6245](https://github.com/underpostnet/engine/commit/59f7e6245b2b5a49fbd14e28632915952f0cde00))
-
-### cli-client
-
-- Add --merge-zip option and implement mergeClientBuildZip function for combining split ZIP parts ([15408be66](https://github.com/underpostnet/engine/commit/15408be66eb6fab1276a05625eb768baa9ae9ea4))
 
 ### cli-start
 
@@ -126,10 +172,6 @@
 
 - Implement entity history management with undo/redo functionality in MapEngineCyberia ([2dba89547](https://github.com/underpostnet/engine/commit/2dba89547604567060ea156f29ea9e59628aaff7))
 
-### client-core
-
-- Add 'add-component' command to deploy script for dynamic component management ([ac166e3ca](https://github.com/underpostnet/engine/commit/ac166e3ca590237877fc49c02e7fa527f7dc3dfe))
-
 ### client-cyberia-instance
 
 - Refactor instance persistence logic to improve notification handling and streamline save functionality ([45a6a3a32](https://github.com/underpostnet/engine/commit/45a6a3a32adc6dc4ed4e4b76ce48be3a81d576fb))
@@ -151,11 +193,6 @@
 ### gitub-actions
 
 - Update theme color and enhance service configurations for dd-core and dd-test deployments ([d03c4baf5](https://github.com/underpostnet/engine/commit/d03c4baf5f7a8ac74b5f731f27931c79084d97d8))
-
-### engine-core
-
-- Add cecinasmarcelina client assets ([045fe5add](https://github.com/underpostnet/engine/commit/045fe5adda88a3c0ce487ee3189611a718ce90fd))
-- Add cecinasmarcelina base client ([d67924b1a](https://github.com/underpostnet/engine/commit/d67924b1a002cc2e55772f6334da86c010303ec8))
 
 ## New release v:3.2.5 (2026-04-16)
 

@@ -36,6 +36,42 @@ spec:
           port: 4035
           weight: 100
     
+    - conditions:
+        - prefix: /r1
+      
+      enableWebsockets: true
+      services:
+        - name: dd-test-development-blue-service
+          port: 4036
+          weight: 100
+    
+    - conditions:
+        - prefix: /r1/peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-test-development-blue-service
+          port: 4037
+          weight: 100
+    
+    - conditions:
+        - prefix: /r2
+      
+      enableWebsockets: true
+      services:
+        - name: dd-test-development-blue-service
+          port: 4038
+          weight: 100
+    
+    - conditions:
+        - prefix: /r2/peer
+      
+      enableWebsockets: true
+      services:
+        - name: dd-test-development-blue-service
+          port: 4039
+          weight: 100
+    
 ---
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
@@ -52,7 +88,7 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
-          port: 4036
+          port: 4040
           weight: 100
     
     - conditions:
@@ -61,6 +97,6 @@ spec:
       enableWebsockets: true
       services:
         - name: dd-test-development-blue-service
-          port: 4037
+          port: 4041
           weight: 100
     

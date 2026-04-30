@@ -88,6 +88,42 @@ spec:
       protocol: UDP
       port: 4037
       targetPort: 4037
+
+    - name: 'tcp-4038'
+      protocol: TCP
+      port: 4038
+      targetPort: 4038
+    - name: 'udp-4038'
+      protocol: UDP
+      port: 4038
+      targetPort: 4038
+
+    - name: 'tcp-4039'
+      protocol: TCP
+      port: 4039
+      targetPort: 4039
+    - name: 'udp-4039'
+      protocol: UDP
+      port: 4039
+      targetPort: 4039
+
+    - name: 'tcp-4040'
+      protocol: TCP
+      port: 4040
+      targetPort: 4040
+    - name: 'udp-4040'
+      protocol: UDP
+      port: 4040
+      targetPort: 4040
+
+    - name: 'tcp-4041'
+      protocol: TCP
+      port: 4041
+      targetPort: 4041
+    - name: 'udp-4041'
+      protocol: UDP
+      port: 4041
+      targetPort: 4041
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -179,4 +215,40 @@ spec:
       protocol: UDP
       port: 4037
       targetPort: 4037
+
+    - name: 'tcp-4038'
+      protocol: TCP
+      port: 4038
+      targetPort: 4038
+    - name: 'udp-4038'
+      protocol: UDP
+      port: 4038
+      targetPort: 4038
+
+    - name: 'tcp-4039'
+      protocol: TCP
+      port: 4039
+      targetPort: 4039
+    - name: 'udp-4039'
+      protocol: UDP
+      port: 4039
+      targetPort: 4039
+
+    - name: 'tcp-4040'
+      protocol: TCP
+      port: 4040
+      targetPort: 4040
+    - name: 'udp-4040'
+      protocol: UDP
+      port: 4040
+      targetPort: 4040
+
+    - name: 'tcp-4041'
+      protocol: TCP
+      port: 4041
+      targetPort: 4041
+    - name: 'udp-4041'
+      protocol: UDP
+      port: 4041
+      targetPort: 4041
   type: LoadBalancer
