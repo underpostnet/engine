@@ -2442,6 +2442,35 @@ const Modal = {
     s(`.bottom-bar`).classList.remove('hide');
     s(`.modal-menu`).classList.remove('hide');
   },
+  /**
+   * Re-applies canonical top/height layout for maximized slide-menu-backed view modals.
+   * This avoids iframe navigation leaving view containers offset at the top.
+   */
+  syncViewLayout: function () {
+    const modalMenuOptions = this.Data['modal-menu']?.options || {};
+    const uiCollapsed = !!s(`.main-body-btn-ui-close`) && s(`.main-body-btn-ui-close`).classList.contains('hide');
+    const topOffset = uiCollapsed ? 0 : modalMenuOptions.heightTopBar ? modalMenuOptions.heightTopBar : 50;
+    const bottomOffset = uiCollapsed ? 0 : modalMenuOptions.heightBottomBar ? modalMenuOptions.heightBottomBar : 0;
+    const height = `${windowGetH() - topOffset - bottomOffset}px`;
+
+    Object.keys(this.Data).forEach((idModal) => {
+      const modalData = this.Data[idModal];
+      const modalEl = s(`.${idModal}`);
+      if (!modalData || !modalEl || !modalData.slideMenu) return;
+      if (s(`.btn-restore-${idModal}`) && s(`.btn-restore-${idModal}`).style.display === 'none') return;
+
+      modalEl.style.position = 'fixed';
+      modalEl.style.translate = '0px 0px';
+      modalEl.style.transform = '';
+      modalEl.style.top = `${topOffset}px`;
+      modalEl.style.height = height;
+    });
+
+    for (const id of coreUI) {
+      const key = `view-${id}`;
+      if (Responsive.hasChangedListener(key)) Responsive.triggerChanged(key);
+    }
+  },
   RenderSeoSanitizer: async () => {
     sa('img').forEach((img) => {
       if (!img.getAttribute('alt')) img.setAttribute('alt', 'image ' + Worker.title + ' ' + s4());

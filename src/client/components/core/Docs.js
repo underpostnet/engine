@@ -2,8 +2,7 @@ import { Badge } from './Badge.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Css, darkTheme, renderCssAttr, simpleIconsRender, ThemeEvents, Themes } from './Css.js';
 import { buildBadgeToolTipMenuOption, Modal, renderViewTitle } from './Modal.js';
-import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent, getProxyPath, coreUI } from './Router.js';
-import { Responsive } from './Responsive.js';
+import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent, getProxyPath } from './Router.js';
 import { htmls, s, sIframe } from './VanillaJs.js';
 // https://mintlify.com/docs/quickstart
 class Docs {
@@ -52,14 +51,7 @@ class Docs {
     let unbindIframeLayoutSync = null;
     if (iframeEl) {
       const scheduleViewLayoutSync = () => {
-        const sync = () => {
-          for (const id of coreUI) {
-            const key = `view-${id}`;
-            if (Responsive.hasChangedListener(key)) Responsive.triggerChanged(key);
-          }
-          const currentModalViewKey = `view-${ModalId}`;
-          if (Responsive.hasChangedListener(currentModalViewKey)) Responsive.triggerChanged(currentModalViewKey);
-        };
+        const sync = () => Modal.syncViewLayout();
         sync();
         setTimeout(sync, 0);
         setTimeout(sync, 120);
