@@ -25,11 +25,11 @@ const handleRequest = (serviceMethod) => async (req, res, options) => {
   }
 };
 
-const UserController = {
-  post: handleRequest(UserService.post),
-  get: handleRequest(UserService.get),
-  delete: handleRequest(UserService.delete),
-  put: handleRequest(UserService.put),
-};
+class UserController {
+  static post = handleRequest(UserService.post);
+  static get = handleRequest(UserService.get);
+  static delete = handleRequest(UserService.delete);
+  static put = handleRequest(UserService.put);
+}
 
 export { UserController };

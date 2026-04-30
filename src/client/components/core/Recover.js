@@ -8,13 +8,12 @@ import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { s } from './VanillaJs.js';
 import { getProxyPath, getQueryParams } from './Router.js';
-
-const Recover = {
-  Event: {},
-  Trigger: async function (options) {
-    for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
-  },
-  Render: async function (options = { idModal: '', user: {}, bottomRender: async () => '' }) {
+class Recover {
+  static Event = {};
+  static async Trigger(options) {
+    for (const eventKey of Object.keys(Recover.Event)) await Recover.Event[eventKey](options);
+  }
+  static async Render(options = { idModal: '', user: {}, bottomRender: async () => '' }) {
     const { idModal, user } = options;
     let mode = 'recover-verify-email';
     const recoverToken = getQueryParams().payload;
@@ -25,7 +24,7 @@ const Recover = {
         rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
         show: () => false,
         disable: function () {
-          return !this.show();
+          return !Recover.show();
         },
       },
       'recover-email': {
@@ -34,7 +33,7 @@ const Recover = {
         rules: [{ type: 'isEmpty' }, { type: 'isEmail' }],
         show: () => mode === 'recover-verify-email',
         disable: function () {
-          return !this.show();
+          return !Recover.show();
         },
       },
       'recover-password': {
@@ -43,7 +42,7 @@ const Recover = {
         rules: [{ type: 'isStrongPassword' }],
         show: () => mode === 'change-password',
         disable: function () {
-          return !this.show();
+          return !Recover.show();
         },
       },
       'recover-repeat-password': {
@@ -51,23 +50,19 @@ const Recover = {
         rules: [{ type: 'isEmpty' }, { type: 'passwordMismatch', options: `recover-password` }],
         show: () => mode === 'change-password',
         disable: function () {
-          return !this.show();
+          return !Recover.show();
         },
       },
     };
-
     if (recoverToken) {
       mode = 'change-password';
     }
-
     setTimeout(async () => {
       if (user && user.email) {
         s(`.recover-email`).value = user.role === 'guest' ? '' : user.email;
         if (user.emailConfirmed) s(`.recover-email`).setAttribute('disabled', '');
       }
-
       const validators = await Validator.instance(formData);
-
       EventsUI.onClick(`.btn-recover`, async (e) => {
         e.preventDefault();
         s(`.recover-resend-btn-container`).classList.add('hide');
@@ -112,7 +107,7 @@ const Recover = {
                 s(`.input-container-recover-repeat-password`).classList.add('hide');
                 s(`.btn-recover-log-in`).classList.remove('hide');
               }
-              this.Trigger({ user: result.data });
+              Recover.Trigger({ user: result.data });
             }
             break;
           }
@@ -139,9 +134,7 @@ const Recover = {
             id: `recover-username`,
             type: 'text',
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('username')}`,
-            containerClass: `inl section-mp width-mini-box input-container ${
-              formData[`recover-username`].show() ? '' : 'hide'
-            }`,
+            containerClass: `inl section-mp width-mini-box input-container ${formData[`recover-username`].show() ? '' : 'hide'}`,
             placeholder: true,
           })}
         </div>
@@ -150,9 +143,7 @@ const Recover = {
             id: `recover-email`,
             type: 'email',
             label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
-            containerClass: `inl section-mp width-mini-box input-container ${
-              formData[`recover-email`].show() ? '' : 'hide'
-            }`,
+            containerClass: `inl section-mp width-mini-box input-container ${formData[`recover-email`].show() ? '' : 'hide'}`,
             placeholder: true,
             autocomplete: 'email',
           })}
@@ -163,9 +154,7 @@ const Recover = {
             type: 'password',
             autocomplete: 'new-password',
             label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
-            containerClass: `inl section-mp width-mini-box input-container ${
-              formData[`recover-password`].show() ? '' : 'hide'
-            }`,
+            containerClass: `inl section-mp width-mini-box input-container ${formData[`recover-password`].show() ? '' : 'hide'}`,
             placeholder: true,
           })}
         </div>
@@ -175,9 +164,7 @@ const Recover = {
             type: 'password',
             autocomplete: 'new-password',
             label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('repeat')} ${Translate.Render('password')}`,
-            containerClass: `inl section-mp width-mini-box input-container ${
-              formData[`recover-repeat-password`].show() ? '' : 'hide'
-            }`,
+            containerClass: `inl section-mp width-mini-box input-container ${formData[`recover-repeat-password`].show() ? '' : 'hide'}`,
             placeholder: true,
           })}
         </div>
@@ -201,7 +188,6 @@ const Recover = {
         </div>
       </form>
     `;
-  },
-};
-
+  }
+}
 export { Recover };

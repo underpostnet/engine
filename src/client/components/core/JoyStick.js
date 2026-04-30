@@ -2,15 +2,13 @@ import JoystickController from 'joystick-controller';
 import { getDirection, getId } from './CommonJs.js';
 import { append, s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
-
 const logger = loggerFactory(import.meta);
-
-const JoyStick = {
-  Tokens: {},
-  Render: async function (options = { id: '', callback: ({ joyDataSet }) => {}, callBackTime: 50 }) {
+class JoyStick {
+  static Tokens = {};
+  static async Render(options = { id: '', callback: ({ joyDataSet }) => {}, callBackTime: 50 }) {
     const { callback, callBackTime } = options;
-    const id = options.id ? options.id : getId(this.Tokens, 'joystick-');
-    this.Tokens[id] = { callback };
+    const id = options.id ? options.id : getId(JoyStick.Tokens, 'joystick-');
+    JoyStick.Tokens[id] = { callback };
     append(
       'body',
       html`
@@ -42,8 +40,7 @@ const JoyStick = {
         </div>
       `,
     );
-
-    this.Tokens[id].instance = new JoystickController(
+    JoyStick.Tokens[id].instance = new JoystickController(
       {
         maxRange: 70,
         level: 10,
@@ -63,18 +60,17 @@ const JoyStick = {
       },
       (args = { x, y, leveledX, leveledY, distance, angle }) => {
         const { angle } = args;
-        if (angle === 0) return (this.Tokens[id].joyDataSet = undefined);
+        if (angle === 0) return (JoyStick.Tokens[id].joyDataSet = undefined);
         const radians = parseFloat(angle);
         const direction = getDirection({ radians });
-        this.Tokens[id].joyDataSet = { ...args, radians, direction };
+        JoyStick.Tokens[id].joyDataSet = { ...args, radians, direction };
         // logger.info(this.Tokens[id].joyDataSet, id);
       },
     );
     setInterval(() => {
-      if (!this.Tokens[id].joyDataSet || !this.Tokens[id].joyDataSet.direction) return;
-      this.Tokens[id].callback({ joyDataSet: this.Tokens[id].joyDataSet });
+      if (!JoyStick.Tokens[id].joyDataSet || !JoyStick.Tokens[id].joyDataSet.direction) return;
+      JoyStick.Tokens[id].callback({ joyDataSet: JoyStick.Tokens[id].joyDataSet });
     }, callBackTime);
-  },
-};
-
+  }
+}
 export { JoyStick };

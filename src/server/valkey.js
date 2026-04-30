@@ -3,19 +3,15 @@
  * @module src/server/valkey.js
  * @namespace ValkeyService
  */
-
 import Valkey from 'iovalkey';
 import mongoose from 'mongoose';
 import { hashPassword } from './auth.js';
 import { loggerFactory } from './logger.js';
-
 const logger = loggerFactory(import.meta);
-
 // Per-instance registries keyed by `${host}${path}`
-const ValkeyInstances = {};
-const DummyStores = {}; // in-memory Maps per instance
-const ValkeyStatus = {}; // 'connected' | 'dummy' | 'error' | undefined
-
+class ValkeyInstances {}
+class DummyStores {} // in-memory Maps per instance
+class ValkeyStatus {} // 'connected' | 'dummy' | 'error' | undefined
 /**
  * Checks if any Valkey instance is connected.
  * This is a backward-compatible overall flag.
@@ -23,7 +19,6 @@ const ValkeyStatus = {}; // 'connected' | 'dummy' | 'error' | undefined
  * @memberof ValkeyService
  */
 const isValkeyEnable = () => Object.values(ValkeyStatus).some((s) => s === 'connected');
-
 /**
  * Generates a unique key for a Valkey instance based on its host and path.
  * @param {object} [opts={ host: '', path: '' }] - The instance options.
@@ -34,7 +29,6 @@ const isValkeyEnable = () => Object.values(ValkeyStatus).some((s) => s === 'conn
  * @memberof ValkeyService
  */
 const _instanceKey = (opts = { host: '', path: '' }) => `${opts.host || ''}${opts.path || ''}`;
-
 /**
  * Creates and manages a connection to a Valkey server for a given instance.
  * It sets up a client, attaches event listeners for connection status, and implements a fallback to an in-memory dummy store if the connection fails.
@@ -52,10 +46,8 @@ const createValkeyConnection = async (
   const key = _instanceKey(instance);
   // Initialize dummy store for the instance
   if (!DummyStores[key]) DummyStores[key] = new Map();
-
   try {
     const client = await ValkeyAPI.valkeyClientFactory(valkeyServerConnectionOptions);
-
     // Attach listeners for visibility
     client.on?.('ready', () => {
       ValkeyStatus[key] = 'connected';
@@ -74,7 +66,6 @@ const createValkeyConnection = async (
       if (ValkeyStatus[key] !== 'dummy') ValkeyStatus[key] = 'error';
       logger.warn('Valkey connection ended', { instance, status: ValkeyStatus[key] });
     });
-
     // Probe connectivity with a short timeout
     const probe = async () => {
       try {
@@ -88,20 +79,16 @@ const createValkeyConnection = async (
         logger.warn('Valkey probe failed, falling back to dummy', { instance, error: e?.message });
       }
     };
-
     // Race with timeout to avoid hanging
     await Promise.race([probe(), new Promise((resolve) => setTimeout(resolve, 1000))]);
-
     ValkeyInstances[key] = client;
     if (!ValkeyStatus[key]) ValkeyStatus[key] = 'dummy';
   } catch (err) {
     ValkeyStatus[key] = 'dummy';
     logger.warn('Valkey client creation failed, using dummy', { instance, error: err?.message });
   }
-
   return ValkeyInstances[key];
 };
-
 /**
  * Factory function to create a Data Transfer Object (DTO) from a payload.
  * It filters the payload to include only the keys specified in the `select` object.
@@ -117,7 +104,6 @@ const selectDtoFactory = (payload, select) => {
   }
   return result;
 };
-
 /**
  * Factory function to create a new Valkey client instance.
  * @param {object} options - Connection options for the iovalkey client.
@@ -146,7 +132,6 @@ const valkeyClientFactory = async (options) => {
   // });
   return valkey;
 };
-
 /**
  * Retrieves an object from Valkey by key for a specific instance.
  * If the Valkey client is not connected or an error occurs, it falls back to the dummy in-memory store.
@@ -176,7 +161,6 @@ const getValkeyObject = async (options = { host: '', path: '' }, key = '') => {
   // Dummy fallback returns stored value as-is (string or object)
   return DummyStores[k]?.get(key) ?? null;
 };
-
 /**
  * Sets an object or string in Valkey for a specific instance.
  * If the Valkey client is not connected, it writes to the in-memory dummy store instead.
@@ -203,7 +187,6 @@ const setValkeyObject = async (options = { host: '', path: '' }, key = '', paylo
   DummyStores[k].set(key, isString ? payload : payload);
   return 'OK';
 };
-
 /**
  * Updates an existing object in Valkey by merging it with a new payload.
  * It retrieves the current object, merges it with the new payload, and sets the updated object back.
@@ -220,7 +203,6 @@ const updateValkeyObject = async (options = { host: '', path: '' }, key = '', pa
   base.updatedAt = new Date().toISOString();
   return await setValkeyObject(options, key, { ...base, ...payload });
 };
-
 /**
  * Factory function to create a new object based on a model schema.
  * It generates a new object with default properties like `_id`, `createdAt`, and `updatedAt`,
@@ -264,22 +246,20 @@ const valkeyObjectFactory = async (options = { host: 'localhost', path: '', obje
       throw new Error(`model schema not found: ${model}`);
   }
 };
-
 /**
  * A collection of Valkey-related API functions.
  * @type {object}
  * @memberof ValkeyServiceService
  */
-const ValkeyAPI = {
-  valkeyClientFactory,
-  selectDtoFactory,
-  getValkeyObject,
-  setValkeyObject,
-  valkeyObjectFactory,
-  updateValkeyObject,
-  createValkeyConnection,
-};
-
+class ValkeyAPI {
+  static valkeyClientFactory = valkeyClientFactory;
+  static selectDtoFactory = selectDtoFactory;
+  static getValkeyObject = getValkeyObject;
+  static setValkeyObject = setValkeyObject;
+  static valkeyObjectFactory = valkeyObjectFactory;
+  static updateValkeyObject = updateValkeyObject;
+  static createValkeyConnection = createValkeyConnection;
+}
 export {
   valkeyClientFactory,
   selectDtoFactory,

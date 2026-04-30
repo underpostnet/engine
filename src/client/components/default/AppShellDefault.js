@@ -25,7 +25,7 @@ import { PublicProfile } from '../core/PublicProfile.js';
 
 class AppShellDefault {
   static Data = {};
-  static async Render (options = { htmlMainBody: () => html`` }) {
+  static async Render(options = { htmlMainBody: () => html`` }) {
     const id = getId(AppShellDefault.Data, 'menu-');
     AppShellDefault.Data[id] = {};
     const RouterInstance = RouterDefault();

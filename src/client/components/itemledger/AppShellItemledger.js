@@ -21,7 +21,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 
 class AppShellItemledger {
   static Data = {};
-  static async Render (options = { htmlMainBody: () => html`` }) {
+  static async Render(options = { htmlMainBody: () => html`` }) {
     const id = getId(AppShellItemledger.Data, 'menu-');
     AppShellItemledger.Data[id] = {};
     const RouterInstance = RouterItemledger();

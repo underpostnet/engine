@@ -10,18 +10,16 @@ import { Translate } from '../core/Translate.js';
 import { Validator } from '../core/Validator.js';
 import { s } from '../core/VanillaJs.js';
 import { AppStoreHealthcare } from './AppStoreHealthcare.js';
-
 // https://ewr50l16.forms.app/consulta-nutricional-ayleenbertini
-
-const AppointmentFormHealthcare = {
-  Event: {},
-  Trigger: async function (options) {
-    for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
-  },
-  Render: async function (options = { bottomRender: async () => '' }, eventData) {
+class AppointmentFormHealthcare {
+  static Event = {};
+  static async Trigger(options) {
+    for (const eventKey of Object.keys(AppointmentFormHealthcare.Event))
+      await AppointmentFormHealthcare.Event[eventKey](options);
+  }
+  static async Render(options = { bottomRender: async () => '' }, eventData) {
     let mode = 'healthcare-company-public';
     const id0DynamicCol = `dynamicCol-0`;
-
     setTimeout(async () => {
       const formData = [
         {
@@ -42,7 +40,6 @@ const AppointmentFormHealthcare = {
         { model: 'email', id: `healthcare-appointment-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
       ];
       const validators = await Validator.instance(formData);
-
       EventsUI.onClick(`.btn-healthcare-appointment`, async (e) => {
         e.preventDefault();
         const { errorMessage } = await validators();
@@ -61,7 +58,6 @@ const AppointmentFormHealthcare = {
                   ];
                 }
                 break;
-
               default:
                 {
                   patient[inputData.model] = s(`.${inputData.id}`).value;
@@ -70,7 +66,6 @@ const AppointmentFormHealthcare = {
             }
           }
         }
-
         const { data, status, message } = await HealthcareAppointmentService.post({
           body: {
             date: eventData.start,
@@ -96,9 +91,8 @@ const AppointmentFormHealthcare = {
           html: status === 'success' ? Translate.Render('appointment-scheduled') : message,
           status,
         });
-
         if (status === 'success') {
-          await this.Trigger({ data, status, message });
+          await AppointmentFormHealthcare.Trigger({ data, status, message });
           const confirmResult = await Modal.RenderConfirm({
             icon: html`<i class="fas fa-check" style="color: green"></i>`,
             disableBtnCancel: true,
@@ -113,16 +107,13 @@ const AppointmentFormHealthcare = {
           });
           if (confirmResult.status === 'cancelled') return;
         }
-
         // Translate.Render(`${result.status}-upload-appointment`),
       });
-
       s(`.toggle-form-container-healthcare-healthcare-company-private`).onclick = () => {
         ToggleSwitch.Tokens[`healthcare-healthcare-company-private-toggle`].click();
         ToggleSwitch.Tokens[`healthcare-healthcare-company-public-toggle`].click();
         mode = 'healthcare-company-private';
       };
-
       s(`.toggle-form-container-healthcare-healthcare-company-public`).onclick = () => {
         ToggleSwitch.Tokens[`healthcare-healthcare-company-private-toggle`].click();
         ToggleSwitch.Tokens[`healthcare-healthcare-company-public-toggle`].click();
@@ -247,7 +238,6 @@ const AppointmentFormHealthcare = {
         </div>
       </form>
     `;
-  },
-};
-
+  }
+}
 export { AppointmentFormHealthcare };

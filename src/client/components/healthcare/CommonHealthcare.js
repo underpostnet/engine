@@ -175,99 +175,94 @@ const medicalSpecialties = [
     },
   },
 ];
-const MenuHomeHealthcare = {
-  'nutrition-tips': {
+class MenuHomeHealthcare {
+  static 'nutrition-tips' = {
     displayName: {
       es: 'Consejos de Nutrición',
       en: 'Nutritional Tips',
     },
     icon: 'assets/icons/12.png',
     route: '/nutrition-tips',
-  },
-
-  'register-food-intake': {
+  };
+  static 'register-food-intake' = {
     displayName: {
       es: 'Registro de Ingesta de Alimentos',
       en: 'Register Food Intake',
     },
     icon: 'assets/icons/13.png',
     route: '/register-food-intake',
-  },
-
-  'take-care-cardiovascular': {
+  };
+  static 'take-care-cardiovascular' = {
     displayName: {
       es: 'Cuida tu salud cardiovascular',
       en: 'Take Care of Your Cardiovascular health',
     },
     icon: 'assets/icons/14.png',
     route: '/take-care-cardiovascular',
-  },
-
-  'vitals-signs': {
+  };
+  static 'vitals-signs' = {
     displayName: {
       es: 'Signos Vitales',
       en: 'Vital Signs',
     },
     icon: 'assets/icons/16.png',
     route: '/vitals-signs',
-  },
-  'size-baby': {
+  };
+  static 'size-baby' = {
     displayName: {
       es: 'Tamaño de tu bebé',
       en: 'Size of your baby',
     },
     icon: 'assets/icons/22.png',
     route: '/chat-with-nutritionist',
-  },
-  'recipe-book': {
+  };
+  static 'recipe-book' = {
     displayName: {
       es: 'Recetario',
       en: 'Recipe Book',
     },
     icon: 'assets/icons/15.png',
     route: '/recipe-book',
-  },
-  'record-mood': {
+  };
+  static 'record-mood' = {
     displayName: {
       es: 'Registra tu estado de ánimo',
       en: 'Record mood',
     },
     icon: 'assets/icons/17.png',
     route: '/record-mood',
-  },
-  forum: {
+  };
+  static forum = {
     displayName: {
       es: 'Foro / Comunidad',
       en: 'Forum / Community',
     },
     icon: 'assets/icons/19.png',
     route: '/forum',
-  },
-  'smart-recommender': {
+  };
+  static 'smart-recommender' = {
     displayName: {
       es: 'Recomendador inteligente',
       en: 'Smart Recommender',
     },
     icon: 'assets/icons/20.png',
     route: '/smart-recommender',
-  },
-  'smart-chatbot': {
+  };
+  static 'smart-chatbot' = {
     displayName: {
       es: 'Chatbot Inteligente',
       en: 'Smart Chatbot',
     },
     icon: 'assets/icons/21.png',
     route: '/smart-chatbot',
-  },
-};
-
+  };
+}
 const NutritionalTips = [
   { icon: 'assets/icons/1.png', displayName: { es: 'Revisar los últimos tips', en: 'Review latest tips' } },
   {
     icon: 'assets/icons/6.png',
     displayName: { es: 'Tips para mejorar tu estado nutricional', en: 'Tips to improve your nutritional status' },
   },
-
   {
     icon: 'assets/icons/5.png',
     displayName: { es: 'Tips de actividad física y autocuidado', en: 'Physical activity and self-care tips' },

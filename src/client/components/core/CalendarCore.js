@@ -10,32 +10,26 @@ import { Responsive } from './Responsive.js';
 import { listenQueryPathInstance, RouterEvents, setQueryPath, getQueryParams } from './Router.js';
 import { Translate } from './Translate.js';
 import { append, getTimeZone, htmls, s, sa } from './VanillaJs.js';
-
 // https://fullcalendar.io/docs/event-object
-
 const daysOfWeekOptions = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-
 const eventDateFactory = (event) =>
   newInstance({
     event: { ...event.extendedProps, title: event._def.title },
     start: event.start,
     end: event.end,
   });
-
-const CalendarCore = {
-  RenderStyle: async function () {},
-  Data: {},
-  Render: async function (options = { idModal: '', appStore: {}, hiddenDates: [] }) {
-    this.Data[options.idModal] = {
+class CalendarCore {
+  static async RenderStyle() {}
+  static Data = {};
+  static async Render(options = { idModal: '', appStore: {}, hiddenDates: [] }) {
+    CalendarCore.Data[options.idModal] = {
       data: [],
       originData: [],
       filesData: [],
       calendar: {},
       hiddenDates: options.hiddenDates ? options.hiddenDates : [],
     };
-
     const titleIcon = html`<i class="fas fa-calendar-alt"></i>`;
-
     const getPanelData = async () => {
       const result = await EventSchedulerService.get({
         id: `${getQueryParams().cid ? getQueryParams().cid : Auth.getToken() ? 'creatorUser' : ''}`,
@@ -46,13 +40,12 @@ const CalendarCore = {
       });
       if (result.status === 'success') {
         const resultData = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
-        this.Data[options.idModal].filesData = [];
-        this.Data[options.idModal].originData = newInstance(resultData);
-        this.Data[options.idModal].data = resultData.map((o) => {
+        CalendarCore.Data[options.idModal].filesData = [];
+        CalendarCore.Data[options.idModal].originData = newInstance(resultData);
+        CalendarCore.Data[options.idModal].data = resultData.map((o) => {
           if (o.creatorUserId && options.appStore.Data.user.main.model.user._id === o.creatorUserId) o.tools = true;
           o.id = o._id;
-
-          this.Data[options.idModal].filesData.push({});
+          CalendarCore.Data[options.idModal].filesData.push({});
           return o;
         });
         setTimeout(() => {
@@ -69,17 +62,15 @@ const CalendarCore = {
               // o.exdate = ['2024-04-02'];
               // delete o.end;
               // delete o.start;
-
               return o;
             }),
           );
         });
       }
     };
-
     const renderCalendar = (events) => {
       const calendarEl = s(`.calendar-${idPanel}`);
-      this.Data[options.idModal].calendar = new FullCalendar.Calendar(calendarEl, {
+      CalendarCore.Data[options.idModal].calendar = new FullCalendar.Calendar(calendarEl, {
         allDaySlot: false,
         plugins: [
           FullCalendar.DayGrid.default,
@@ -120,13 +111,12 @@ const CalendarCore = {
             return ['hide'];
         },
       });
-
-      this.Data[options.idModal].calendar.render();
+      CalendarCore.Data[options.idModal].calendar.render();
     };
     setTimeout(() => {
       renderCalendar();
       Translate.Event['fullcalendar-lang'] = () => {
-        this.Data[options.idModal].calendar.setOption('locale', s(`html`).lang);
+        CalendarCore.Data[options.idModal].calendar.setOption('locale', s(`html`).lang);
         if (s(`.fc-timegrid-axis-cushion`)) htmls(`.fc-timegrid-axis-cushion`, Translate.Render('all-day'));
         if (s(`.fc-dayGridMonth-button`)) htmls(`.fc-dayGridMonth-button`, Translate.Render('month'));
         if (s(`.fc-timeGridWeek-button`)) htmls(`.fc-timeGridWeek-button`, Translate.Render('week'));
@@ -154,10 +144,8 @@ const CalendarCore = {
           Translate.Event['fullcalendar-lang']();
         };
       });
-
       sa(`.fc-button-group`)[1].style.float = 'right';
     });
-
     const idPanel = `calendar-panel-${options.idModal}`;
     const formData = [
       {
@@ -217,25 +205,23 @@ const CalendarCore = {
         panel: { type: 'info-row' },
       },
     ];
-
     setTimeout(() => {
       s(`.close-calendar-container`).onclick = () => {
         s(`.calendar-container`).classList.add('hide');
         s(`.main-body-calendar-${options.idModal}`).classList.remove('hide');
       };
     });
-
     const panelRender = async () => {
       return html`${await Panel.Render({
           idPanel,
           parentIdModal: options.idModal,
           formData,
-          data: this.Data[options.idModal].data,
+          data: CalendarCore.Data[options.idModal].data,
           formContainerClass: '',
           scrollClassContainer: `main-body-calendar-${options.idModal}`,
           role: options.role,
-          originData: () => this.Data[options.idModal].originData,
-          filesData: () => this.Data[options.idModal].filesData,
+          originData: () => CalendarCore.Data[options.idModal].originData,
+          filesData: () => CalendarCore.Data[options.idModal].filesData,
           onClick: async function ({ payload }) {
             if (options.route) {
               setQueryPath({ path: options.route, queryPath: payload._id });
@@ -289,12 +275,10 @@ const CalendarCore = {
                     : message,
                 status: status,
               });
-
               if (status === 'success') {
                 documentData.tools = true;
                 // data._id = documentData._id;
                 data = documentData;
-
                 let originObj, indexOriginObj;
                 let filesData = {};
                 if (editId) {
@@ -310,7 +294,6 @@ const CalendarCore = {
                   CalendarCore.Data[options.idModal].data.push(data);
                   CalendarCore.Data[options.idModal].filesData.push(filesData);
                 }
-
                 setQueryPath({ path: options.route, queryPath: documentData._id });
                 if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
                 await CalendarCore.Data[options.idModal].updatePanel();
@@ -339,10 +322,8 @@ const CalendarCore = {
                   html: status,
                   status,
                 });
-
                 setQueryPath({ path: options.route, queryPath: '' });
                 await CalendarCore.Data[options.idModal].updatePanel();
-
                 return { status };
               }
               return { status: 'error' };
@@ -351,9 +332,8 @@ const CalendarCore = {
         })}
         <div class="in" style="margin-bottom: 100px"></div>`;
     };
-
     let lastCid;
-    this.Data[options.idModal].updatePanel = async () => {
+    CalendarCore.Data[options.idModal].updatePanel = async () => {
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
       if (lastCid === cid) return;
       lastCid = cid;
@@ -364,7 +344,6 @@ const CalendarCore = {
         htmls(`.main-body-calendar-${options.idModal}`, await panelRender());
       }
     };
-
     if (options.route) {
       listenQueryPathInstance({
         id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
@@ -377,7 +356,7 @@ const CalendarCore = {
         Modal.Data['modal-menu'].onHome[idPanel] = async () => {
           lastCid = undefined;
           setQueryPath({ path: options.route, queryPath: '' });
-          await this.Data[idPanel].updatePanel();
+          await CalendarCore.Data[idPanel].updatePanel();
         };
     }
     return html`
@@ -452,7 +431,6 @@ const CalendarCore = {
         <div class="in"><div class="calendar-${idPanel}"></div></div>
       </div>
     `;
-  },
-};
-
+  }
+}
 export { CalendarCore };

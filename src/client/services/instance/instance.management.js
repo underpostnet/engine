@@ -2,8 +2,8 @@ import { DefaultManagement } from '../default/default.management.js';
 import { UserService } from '../user/user.service.js';
 import { InstanceService } from './instance.service.js';
 
-const InstanceManagement = {
-  RenderTable: async ({ appStore }) => {
+class InstanceManagement {
+  static RenderTable = async ({ appStore }) => {
     const user = appStore.Data.user.main.model.user;
     const { role } = user;
     let columnDefs = [
@@ -72,7 +72,7 @@ const InstanceManagement = {
       defaultColKeyFocus: 'host',
       ServiceProvider: InstanceService,
     });
-  },
-};
+  };
+}
 
 export { InstanceManagement };

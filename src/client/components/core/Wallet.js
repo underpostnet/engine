@@ -8,42 +8,34 @@ import { EventsUI } from './EventsUI.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { copyData, htmls, s } from './VanillaJs.js';
-
-const Wallet = {
-  Data: {},
-  Render: async function (options) {
-    const id = getId(this.Data, 'wallet-');
+class Wallet {
+  static Data = {};
+  static async Render(options) {
+    const id = getId(Wallet.Data, 'wallet-');
     setTimeout(async () => {
       EventsUI.onClick(`.btn-generate-keys-${id}`, async (e) => {
         e.preventDefault();
-
         const algorithm = {
           name: 'ECDSA',
           namedCurve: 'P-384',
           hash: 'SHA-256',
         };
         const format = 'jwk';
-
         (async () => {
           return;
           const { data: payload } = await UserService.get({ id: 'public-key-sign-token' });
-
           const signature = await window.crypto.subtle.sign(
             algorithm,
             keyPair.privateKey,
-            new TextEncoder().encode(payload), // Encode data to Uint8Array,
+            new TextEncoder().encode(payload),
           );
-
           const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signature)));
         })();
-
         const keyPair = await window.crypto.subtle.generateKey(algorithm, true, ['sign', 'verify']);
         const privateKey = await window.crypto.subtle.exportKey(format, keyPair.privateKey);
         const publicKey = await window.crypto.subtle.exportKey(format, keyPair.publicKey);
-
         const displayKeys = JSON.stringify({ privateKey, publicKey }, null, 4);
         htmls('.keys-display', displayKeys);
-
         if (Auth.getToken()) {
           const result = await CryptoService.post({
             body: {
@@ -53,14 +45,12 @@ const Wallet = {
             },
           });
         }
-
         NotificationManager.Push({
           // html: Translate.Render(`${result.status}-generate-keys`),
           html: Translate.Render(`success-generate-keys`),
           // status: result.status,
           status: 'success',
         });
-
         EventsUI.onClick(`.btn-copy-keys-${id}`, async (e) => {
           e.preventDefault();
           await copyData(displayKeys);
@@ -100,7 +90,6 @@ const Wallet = {
         </div>
       </div>
     `;
-  },
-};
-
+  }
+}
 export { Wallet };

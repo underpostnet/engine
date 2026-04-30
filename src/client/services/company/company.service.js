@@ -1,15 +1,11 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { getApiBaseUrl, headersFactory, payloadFactory } from '../core/core.service.js';
-
 const logger = loggerFactory(import.meta);
-
 logger.info('Load service');
-
 const endpoint = 'company';
-
-const CompanyService = {
-  post: (options = { id: '', body: {} }) =>
+class CompanyService {
+  static post = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
@@ -28,8 +24,8 @@ const CompanyService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  put: (options = { id: '', body: {} }) =>
+    );
+  static put = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
@@ -48,8 +44,8 @@ const CompanyService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  get: (options = { id: '', body: {} }) =>
+    );
+  static get = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'GET',
@@ -67,8 +63,8 @@ const CompanyService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  delete: (options = { id: '', body: {} }) =>
+    );
+  static delete = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
@@ -87,7 +83,6 @@ const CompanyService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-};
-
+    );
+}
 export { CompanyService };

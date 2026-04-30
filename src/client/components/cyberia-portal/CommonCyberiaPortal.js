@@ -3,7 +3,6 @@
  * Keep this file free of runtime-specific imports so the same registry can be
  * consumed by client, server, and CLI code.
  */
-
 const ITEM_TYPES = Object.freeze({
   skin: 'skin',
   breastplate: 'breastplate',
@@ -16,7 +15,6 @@ const ITEM_TYPES = Object.freeze({
   foreground: 'foreground',
   resource: 'resource',
 });
-
 const ENTITY_TYPES = Object.freeze({
   player: 'player',
   other_player: 'other_player',
@@ -29,7 +27,6 @@ const ENTITY_TYPES = Object.freeze({
   foreground: 'foreground',
   resource: 'resource',
 });
-
 const ENTITY_TYPE_TO_ITEM_TYPES = Object.freeze({
   [ENTITY_TYPES.player]: Object.freeze([ITEM_TYPES.skin, ITEM_TYPES.breastplate, ITEM_TYPES.weapon]),
   [ENTITY_TYPES.other_player]: Object.freeze([ITEM_TYPES.skin, ITEM_TYPES.breastplate, ITEM_TYPES.weapon]),
@@ -42,15 +39,13 @@ const ENTITY_TYPE_TO_ITEM_TYPES = Object.freeze({
   [ENTITY_TYPES.foreground]: Object.freeze([ITEM_TYPES.foreground]),
   [ENTITY_TYPES.resource]: Object.freeze([ITEM_TYPES.resource]),
 });
-
-const CyberiaDependencies = {
-  'maxrects-packer': '^2.7.3',
-  pngjs: '^7.0.0',
-  jimp: '^1.6.0',
-  sharp: '^0.34.5',
-  ethers: '~6.16.0',
-};
-
+class CyberiaDependencies {
+  static 'maxrects-packer' = '^2.7.3';
+  static pngjs = '^7.0.0';
+  static jimp = '^1.6.0';
+  static sharp = '^0.34.5';
+  static ethers = '~6.16.0';
+}
 const DefaultCyberiaItems = [
   { item: { id: 'coin', type: ITEM_TYPES.coin } },
   // { item: { id: 'red-power', type: 'skill' } },
@@ -77,24 +72,19 @@ const DefaultCyberiaItems = [
   { item: { id: 'agent', type: ITEM_TYPES.skin } },
   { item: { id: 'grass', type: ITEM_TYPES.floor } },
 ];
-
 const DEFAULT_CYBERIA_ITEM_BY_ID = Object.freeze(
   DefaultCyberiaItems.reduce((acc, entry) => {
     acc[entry.item.id] = entry;
     return acc;
   }, {}),
 );
-
 const getDefaultCyberiaItemById = (itemId) => DEFAULT_CYBERIA_ITEM_BY_ID[itemId] || null;
-
 const getDefaultCyberiaItemsByItemType = (itemType) =>
   DefaultCyberiaItems.filter((entry) => entry.item.type === itemType);
-
 const getDefaultCyberiaItemsByEntityType = (entityType) => {
   const allowedTypes = ENTITY_TYPE_TO_ITEM_TYPES[entityType] || [];
   return DefaultCyberiaItems.filter((entry) => allowedTypes.includes(entry.item.type));
 };
-
 const DefaultSkillConfig = [
   // { triggerItemId: 'anon', logicEventIds: ['doppelganger'] },
   {
@@ -105,7 +95,6 @@ const DefaultSkillConfig = [
   // { triggerItemId: 'purple', logicEventIds: ['doppelganger'] },
   // { triggerItemId: 'atlas_pistol_mk2_bullet', logicEventIds: ['doppelganger'] },
 ];
-
 /**
  * Default dialogue seeds for every non-commented entry in DefaultCyberiaItems.
  * Each item maps to an array of dialogue records following the CyberiaDialogue
@@ -281,7 +270,6 @@ const DefaultCyberiaDialogues = [
     mood: 'neutral',
   },
 ];
-
 export {
   ITEM_TYPES,
   ENTITY_TYPES,

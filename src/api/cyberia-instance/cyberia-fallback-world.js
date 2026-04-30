@@ -175,7 +175,4 @@ function generateFallbackWorld(opts = {}) {
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
-export {
-  generateFallbackWorld,
-  generateFallbackMap,
-};
+export { generateFallbackWorld, generateFallbackMap };

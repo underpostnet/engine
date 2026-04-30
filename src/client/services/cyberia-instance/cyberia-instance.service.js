@@ -1,15 +1,11 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { getApiBaseUrl, headersFactory, payloadFactory, buildQueryUrl } from '../core/core.service.js';
-
 const logger = loggerFactory(import.meta);
-
 logger.info('Load service');
-
 const endpoint = 'cyberia-instance';
-
-const CyberiaInstanceService = {
-  post: (options = { id: '', body: {} }) =>
+class CyberiaInstanceService {
+  static post = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
@@ -28,8 +24,8 @@ const CyberiaInstanceService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  put: (options = { id: '', body: {} }) =>
+    );
+  static put = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
@@ -48,8 +44,8 @@ const CyberiaInstanceService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  get: (options = {}) => {
+    );
+  static get = (options = {}) => {
     const { id, page, limit, filterModel, sortModel, sort, asc, order } = options;
     const url = buildQueryUrl(getApiBaseUrl({ id, endpoint }), {
       page,
@@ -60,7 +56,6 @@ const CyberiaInstanceService = {
       asc,
       order,
     });
-
     return new Promise((resolve, reject) =>
       fetch(url.toString(), {
         method: 'GET',
@@ -79,8 +74,8 @@ const CyberiaInstanceService = {
           return reject(error);
         }),
     );
-  },
-  portalConnect: (options = { id: '' }) =>
+  };
+  static portalConnect = (options = { id: '' }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: `${options.id}/portal-connect`, endpoint }), {
         method: 'GET',
@@ -96,8 +91,8 @@ const CyberiaInstanceService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  delete: (options = { id: '', body: {} }) =>
+    );
+  static delete = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
@@ -116,7 +111,6 @@ const CyberiaInstanceService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-};
-
+    );
+}
 export { CyberiaInstanceService };

@@ -1,15 +1,11 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { getApiBaseUrl, headersFactory, payloadFactory, buildQueryUrl } from '../core/core.service.js';
-
 const logger = loggerFactory(import.meta);
-
 logger.info('Load service');
-
 const endpoint = 'atlas-sprite-sheet';
-
-const AtlasSpriteSheetService = {
-  generateAtlas: (options = { id: '' }) =>
+class AtlasSpriteSheetService {
+  static generateAtlas = (options = { id: '' }) =>
     new Promise((resolve, reject) =>
       fetch(`${getApiBaseUrl({ endpoint })}/generate/${options.id}`, {
         method: 'POST',
@@ -27,8 +23,8 @@ const AtlasSpriteSheetService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  deleteByObjectLayerId: (options = { id: '' }) =>
+    );
+  static deleteByObjectLayerId = (options = { id: '' }) =>
     new Promise((resolve, reject) =>
       fetch(`${getApiBaseUrl({ endpoint })}/object-layer/${options.id}`, {
         method: 'DELETE',
@@ -46,8 +42,8 @@ const AtlasSpriteSheetService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  post: (options = { id: '', body: {} }) =>
+    );
+  static post = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
@@ -66,8 +62,8 @@ const AtlasSpriteSheetService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  put: (options = { id: '', body: {} }) =>
+    );
+  static put = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
@@ -86,8 +82,8 @@ const AtlasSpriteSheetService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  get: (options = {}) => {
+    );
+  static get = (options = {}) => {
     const { id, page, limit, filterModel, sortModel, sort, asc, order } = options;
     const url = buildQueryUrl(getApiBaseUrl({ id, endpoint }), {
       page,
@@ -98,7 +94,6 @@ const AtlasSpriteSheetService = {
       asc,
       order,
     });
-
     return new Promise((resolve, reject) =>
       fetch(url.toString(), {
         method: 'GET',
@@ -117,8 +112,8 @@ const AtlasSpriteSheetService = {
           return reject(error);
         }),
     );
-  },
-  delete: (options = { id: '', body: {} }) =>
+  };
+  static delete = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
@@ -137,7 +132,6 @@ const AtlasSpriteSheetService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-};
-
+    );
+}
 export { AtlasSpriteSheetService };

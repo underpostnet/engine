@@ -1,7 +1,5 @@
 import { Schema, model, Types } from 'mongoose';
-
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
-
 const InstanceSchema = new Schema(
   {
     deployId: { type: String },
@@ -20,9 +18,8 @@ const InstanceSchema = new Schema(
     timestamps: true,
   },
 );
-
-const InstanceDto = {
-  populate: {
+class InstanceDto {
+  static populate = {
     get: () => {
       return {
         path: 'userId',
@@ -30,11 +27,8 @@ const InstanceDto = {
         select: '_id email',
       };
     },
-  },
-};
-
+  };
+}
 const InstanceModel = model('Instance', InstanceSchema);
-
 const ProviderSchema = InstanceSchema;
-
 export { InstanceSchema, InstanceModel, ProviderSchema, InstanceDto };

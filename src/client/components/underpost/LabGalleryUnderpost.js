@@ -4,10 +4,9 @@ import { Css, Themes } from '../core/Css.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { listenQueryPathInstance, setQueryPath } from '../core/Router.js';
 import { s } from '../core/VanillaJs.js';
-
-const LabGalleryUnderpost = {
-  Tokens: {},
-  View: [
+class LabGalleryUnderpost {
+  static Tokens = {};
+  static View = [
     { title: '3D PLOT DEMO', path: '3dplotdemo' },
     { title: 'PATH FINDING', path: 'pathfinding' },
     { title: 'SURVIVAL BALL GAME', path: 'survival' },
@@ -16,12 +15,12 @@ const LabGalleryUnderpost = {
     { title: 'BOT VIRTUAL WORLD', path: 'bots' },
     { title: 'CELLULAR AUTOMATA SIMULATOR', path: 'life' },
     { title: 'VANILLAJS SNAKE', path: 'snake' },
-  ],
-  Render: async function () {
-    const id = getId(this.Tokens, 'lab-gallery-');
+  ];
+  static async Render() {
+    const id = getId(LabGalleryUnderpost.Tokens, 'lab-gallery-');
     let render = '';
     let i = -1;
-    for (const view of this.View) {
+    for (const view of LabGalleryUnderpost.View) {
       i++;
       const viewLabId = `${id}-${i}`;
       setTimeout(() => {
@@ -67,16 +66,14 @@ const LabGalleryUnderpost = {
       id,
       routeId: 'lab-gallery',
       event: (path) => {
-        const indexView = this.View.findIndex((view) => view.path === path);
+        const indexView = LabGalleryUnderpost.View.findIndex((view) => view.path === path);
         if (indexView > -1) {
           const viewLabId = `${id}-${indexView}`;
           if (s(`.btn-${viewLabId}`)) s(`.btn-${viewLabId}`).click();
         }
       },
     });
-
     return render;
-  },
-};
-
+  }
+}
 export { LabGalleryUnderpost };

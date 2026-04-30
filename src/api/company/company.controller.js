@@ -3,8 +3,8 @@ import { CompanyService } from './company.service.js';
 
 const logger = loggerFactory(import.meta);
 
-const CompanyController = {
-  post: async (req, res, options) => {
+class CompanyController {
+  static post = async (req, res, options) => {
     try {
       const result = await CompanyService.post(req, res, options);
       return res.status(200).json({
@@ -18,8 +18,8 @@ const CompanyController = {
         message: error.message,
       });
     }
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     try {
       const result = await CompanyService.get(req, res, options);
       return res.status(200).json({
@@ -33,8 +33,8 @@ const CompanyController = {
         message: error.message,
       });
     }
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     try {
       const result = await CompanyService.put(req, res, options);
       return res.status(200).json({
@@ -48,8 +48,8 @@ const CompanyController = {
         message: error.message,
       });
     }
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     try {
       const result = await CompanyService.delete(req, res, options);
       return res.status(200).json({
@@ -63,7 +63,7 @@ const CompanyController = {
         message: error.message,
       });
     }
-  },
-};
+  };
+}
 
 export { CompanyController };

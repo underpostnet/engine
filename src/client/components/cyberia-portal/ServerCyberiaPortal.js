@@ -8,16 +8,16 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { MainUserCyberia } from '../cyberia/MainUserCyberia.js';
 import { SocketIoCyberia } from '../cyberia/SocketIoCyberia.js';
-
-const ServerCyberiaPortal = {
-  Tokens: {},
-  Render: async function (options = { idModal: '', events: {} }) {
-    const id = options?.idModal ? options.idModal : getId(this.Tokens, 'server-cyberia-');
-    this.Tokens[id] = {
+class ServerCyberiaPortal {
+  static Tokens = {};
+  static async Render(options = { idModal: '', events: {} }) {
+    const id = options?.idModal ? options.idModal : getId(ServerCyberiaPortal.Tokens, 'server-cyberia-');
+    ServerCyberiaPortal.Tokens[id] = {
       events: {},
     };
     if (options && options.events)
-      for (const keyEvent of Object.keys(options.events)) this.Tokens[id].events[keyEvent] = options.events[keyEvent];
+      for (const keyEvent of Object.keys(options.events))
+        ServerCyberiaPortal.Tokens[id].events[keyEvent] = options.events[keyEvent];
     const gridId = `server-grid-${id}`;
     setTimeout(async () => {
       const resultWorldCyberias = await CyberiaWorldService.get({ id: 'all' });
@@ -29,67 +29,51 @@ const ServerCyberiaPortal = {
     });
     class LoadGridServerActionsRenderer {
       eGui;
-
       async init(params) {
-        this.eGui = document.createElement('div');
+        ServerCyberiaPortal.eGui = document.createElement('div');
         const { name, status, port } = params.data;
-
-        this.eGui.innerHTML = html` ${await BtnIcon.Render({
+        ServerCyberiaPortal.eGui.innerHTML = html` ${await BtnIcon.Render({
           label: html`<i class="fas fa-play-circle"></i>`,
           class: `btn-server-${name}-${id}`,
         })}`;
       }
-
       getGui() {
-        return this.eGui;
+        return ServerCyberiaPortal.eGui;
       }
-
       refresh(params) {
         return true;
       }
     }
-
     class LoadGridServerNameRenderer {
       eGui;
-
       async init(params) {
-        this.eGui = document.createElement('div');
+        ServerCyberiaPortal.eGui = document.createElement('div');
         const { name, status, port } = params.data;
-
-        this.eGui.innerHTML = html`<img
+        ServerCyberiaPortal.eGui.innerHTML = html`<img
             class="inl server-icon"
             src="${getProxyPath()}assets/ui-icons/world-default-forest-city.png"
           />
           ${name}`;
-
         setTimeout(() => {});
       }
-
       getGui() {
-        return this.eGui;
+        return ServerCyberiaPortal.eGui;
       }
-
       refresh(params) {
         return true;
       }
     }
-
     class LoadGridServerStatusRenderer {
       eGui;
-
       async init(params) {
-        this.eGui = document.createElement('div');
+        ServerCyberiaPortal.eGui = document.createElement('div');
         const { name, status, port } = params.data;
-
-        this.eGui.innerHTML = html`online <span class="server-status-circle">●</span>`;
-
+        ServerCyberiaPortal.eGui.innerHTML = html`online <span class="server-status-circle">●</span>`;
         setTimeout(() => {});
       }
-
       getGui() {
-        return this.eGui;
+        return ServerCyberiaPortal.eGui;
       }
-
       refresh(params) {
         return true;
       }
@@ -124,13 +108,12 @@ const ServerCyberiaPortal = {
         },
       },
     })}`;
-  },
-  internalChangeServer: async (options = { name: '' }) => {
+  }
+  static internalChangeServer = async (options = { name: '' }) => {
     s(`.ssr-loading-bar`).style.display = 'flow-root';
     htmls(`.ssr-play-btn-container`, '');
     await SocketIoCyberia.changeServer(options?.name ? options : undefined);
     await MainUserCyberia.finishSetup();
-  },
-};
-
+  };
+}
 export { ServerCyberiaPortal };

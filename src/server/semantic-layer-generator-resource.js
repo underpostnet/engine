@@ -56,14 +56,14 @@ const SHAPE_FAMILIES = {
         scaleBase: 0.45,
         scaleRange: 0.15,
         scaleVariance: 0.1,
-        rotationBase: 90,              // vertical parabolas
+        rotationBase: 90, // vertical parabolas
         rotationVariance: 10,
         colorShift: 18,
         jitter: 0.04,
         noiseLevel: 0.04,
         detailLevel: 1.2,
         sparsity: 0.05,
-        centerBias: 0.6,              // cluster near tile centre
+        centerBias: 0.6, // cluster near tile centre
         frameJitter: 0.008,
         frameRotation: 1.5,
         frameScale: 0.004,
@@ -156,7 +156,7 @@ const SHAPE_FAMILIES = {
         noiseLevel: 0.0,
         detailLevel: 1.3,
         sparsity: 0.0,
-        centerBias: 0.75,             // stack near tile centre
+        centerBias: 0.75, // stack near tile centre
         frameJitter: 0.003,
         frameRotation: 0.8,
         frameScale: 0.002,

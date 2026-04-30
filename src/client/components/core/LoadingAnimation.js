@@ -4,17 +4,15 @@ import { darkTheme, renderCssAttr, subThemeManager } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { append, htmls, s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
-
 const logger = loggerFactory(import.meta);
-
-const LoadingAnimation = {
-  bar: {
+class LoadingAnimation {
+  static bar = {
     tokens: {},
     getId: (id) => `bar-progress-${id.slice(1)}`,
     play: async function (container) {
-      const id = this.getId(container);
+      const id = LoadingAnimation.getId(container);
       const idEvent = s4() + s4() + s4();
-      this.tokens[container] = `${idEvent}`;
+      LoadingAnimation.tokens[container] = `${idEvent}`;
       // diagonal-bar-background-animation
       // #6d68ff #790079
       append(
@@ -39,28 +37,27 @@ const LoadingAnimation = {
         { time: 5000, value: 1 },
       ])
         setTimeout(() => {
-          if (this.tokens[container] === idEvent && s(`.${id}`)) {
+          if (LoadingAnimation.tokens[container] === idEvent && s(`.${id}`)) {
             s(`.${id}`).style.left = `-${frame.value}%`;
             // const percentageRender = html`${100 - frame.value}%`;
           }
         }, frame.time);
     },
     stop: function (container) {
-      const id = this.getId(container);
-      delete this.tokens[container];
+      const id = LoadingAnimation.getId(container);
+      delete LoadingAnimation.tokens[container];
       if (!s(`.${id}`)) return;
       s(`.${id}`).style.left = '0%';
       s(`.${id}`).style.opacity = 1;
       setTimeout(() => (s(`.${id}`).style.opacity = 0));
       setTimeout(() => s(`.${id}`).remove(), 400);
     },
-  },
-  spinner: {
+  };
+  static spinner = {
     getId: (id) => `spinner-progress-${id.slice(1)}`,
     play: async function (container, spinner, options = { append: '', prepend: '' }) {
       if (!s(container)) return;
-      const id = this.getId(container);
-
+      const id = LoadingAnimation.getId(container);
       let render;
       switch (spinner) {
         case 'dual-ring':
@@ -71,11 +68,9 @@ const LoadingAnimation = {
           render = html`<div class="lds-dual-ring-mini"></div>`;
           break;
       }
-
       const style = {
         'text-align': 'center',
       };
-
       append(
         container,
         html`
@@ -93,30 +88,30 @@ const LoadingAnimation = {
       if (label) label.classList.add('hide');
     },
     stop: function (container) {
-      const id = this.getId(container);
+      const id = LoadingAnimation.getId(container);
       if (!s(`.${id}`)) return;
       s(`.${id}`).remove();
       const label = BtnIcon.findLabel(s(container));
       if (label) label.classList.remove('hide');
     },
-  },
-  img: {
+  };
+  static img = {
     tokens: {},
     load: function ({ key, src, classes, style }) {
-      this.tokens[key] = { src, classes, style };
+      LoadingAnimation.tokens[key] = { src, classes, style };
     },
     play: function (container, key) {
       append(
         container,
         html`<img
-          ${this.tokens[key].classes ? `class="${this.tokens[key].classes}"` : ''}
-          ${this.tokens[key].style ? `style="${this.tokens[key].style}"` : ''}
-          src="${getProxyPath()}${this.tokens[key].src}"
+          ${LoadingAnimation.tokens[key].classes ? `class="${LoadingAnimation.tokens[key].classes}"` : ''}
+          ${LoadingAnimation.tokens[key].style ? `style="${LoadingAnimation.tokens[key].style}"` : ''}
+          src="${getProxyPath()}${LoadingAnimation.tokens[key].src}"
         />`,
       );
     },
-  },
-  barLevel: {
+  };
+  static barLevel = {
     append: () => {
       if (Array.from(sa('.ssr-loading-bar-block')).length >= 5) return;
       s(`.ssr-blink-bar`).classList.remove('ssr-blink-bar');
@@ -125,17 +120,16 @@ const LoadingAnimation = {
     clear: () => {
       htmls('.ssr-loading-bar', html`<div class="ssr-loading-bar-block ssr-blink-bar"></div>`);
     },
-  },
-  removeSplashScreen: function (backgroundContainer, callBack) {
+  };
+  static removeSplashScreen(backgroundContainer, callBack) {
     if (s(`.clean-cache-container`)) s(`.clean-cache-container`).style.display = 'none';
     if (!backgroundContainer) backgroundContainer = '.ssr-background';
     if (s(backgroundContainer)) {
       s(backgroundContainer).style.display = 'none';
       if (callBack) callBack();
     }
-  },
-
-  RenderCurrentSrcLoad: function (event) {
+  }
+  static RenderCurrentSrcLoad(event) {
     if (s(`.ssr-loading-info`)) {
       let nameSrcLoad = event.data.path;
       if (nameSrcLoad) {
@@ -153,6 +147,6 @@ const LoadingAnimation = {
           );
       }
     }
-  },
-};
+  }
+}
 export { LoadingAnimation };

@@ -3,8 +3,8 @@ import { CyberiaDialogueService } from './cyberia-dialogue.service.js';
 
 const logger = loggerFactory(import.meta);
 
-const CyberiaDialogueController = {
-  post: async (req, res, options) => {
+class CyberiaDialogueController {
+  static post = async (req, res, options) => {
     try {
       const result = await CyberiaDialogueService.post(req, res, options);
       return res.status(200).json({
@@ -18,8 +18,8 @@ const CyberiaDialogueController = {
         message: error.message,
       });
     }
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     try {
       const { page, limit } = req.query;
       const result = await CyberiaDialogueService.get(
@@ -38,8 +38,8 @@ const CyberiaDialogueController = {
         message: error.message,
       });
     }
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     try {
       const result = await CyberiaDialogueService.put(req, res, options);
       return res.status(200).json({
@@ -53,8 +53,8 @@ const CyberiaDialogueController = {
         message: error.message,
       });
     }
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     try {
       const result = await CyberiaDialogueService.delete(req, res, options);
       return res.status(200).json({
@@ -68,8 +68,8 @@ const CyberiaDialogueController = {
         message: error.message,
       });
     }
-  },
-  getByItemId: async (req, res, options) => {
+  };
+  static getByItemId = async (req, res, options) => {
     try {
       if (req && req.headers && req.headers.origin) {
         res.set('Access-Control-Allow-Origin', req.headers.origin);
@@ -87,7 +87,7 @@ const CyberiaDialogueController = {
         message: error.message,
       });
     }
-  },
-};
+  };
+}
 
 export { CyberiaDialogueController };

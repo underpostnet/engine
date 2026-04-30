@@ -153,11 +153,11 @@ const CssCommonCryptokoyn = async () => {
     <div class="ag-grid-style"></div>`;
 };
 
-const CssCryptokoynDark = {
-  theme: 'cryptokoyn-dark',
-  dark: true,
-  barButtonsIconTheme: 'img',
-  render: async () => {
+class CssCryptokoynDark {
+  static theme = 'cryptokoyn-dark';
+  static dark = true;
+  static barButtonsIconTheme = 'img';
+  static render = async () => {
     return (
       (await CssCommonCryptokoyn()) +
       html`
@@ -177,14 +177,14 @@ const CssCryptokoynDark = {
         ${borderChar(2, `#ff0d0d`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
       `
     );
-  },
-};
+  };
+}
 
-const CssCryptokoynLight = {
-  theme: 'cryptokoyn-light',
-  dark: false,
-  barButtonsIconTheme: 'img',
-  render: async () => {
+class CssCryptokoynLight {
+  static theme = 'cryptokoyn-light';
+  static dark = false;
+  static barButtonsIconTheme = 'img';
+  static render = async () => {
     return (
       (await CssCommonCryptokoyn()) +
       html`
@@ -206,7 +206,7 @@ const CssCryptokoynLight = {
         ${borderChar(1, `#010101`, ['button', '.a-btn'], true)}
       `
     );
-  },
-};
+  };
+}
 
 export { CssCryptokoynDark, CssCommonCryptokoyn, CssCryptokoynLight };

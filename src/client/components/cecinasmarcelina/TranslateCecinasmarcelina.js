@@ -1,7 +1,7 @@
 import { Translate } from '../core/Translate.js';
 
-const TranslateCecinasmarcelina = {
-  Init: async function () {},
-};
+class TranslateCecinasmarcelina {
+  static async Init() {}
+}
 
 export { TranslateCecinasmarcelina };

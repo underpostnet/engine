@@ -1,15 +1,11 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { getApiBaseUrl, headersFactory, payloadFactory } from '../core/core.service.js';
-
 const logger = loggerFactory(import.meta);
-
 logger.info('Load service');
-
 const endpoint = 'document';
-
-const DocumentService = {
-  post: (options = { id: '', body: {} }) =>
+class DocumentService {
+  static post = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
@@ -28,8 +24,8 @@ const DocumentService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  get: (options = { id: '' }) =>
+    );
+  static get = (options = { id: '' }) =>
     new Promise((resolve, reject) => {
       const url = new URL(getApiBaseUrl({ id: options.id, endpoint }));
       if (options.params) {
@@ -51,8 +47,8 @@ const DocumentService = {
           logger.error(error);
           return reject(error);
         });
-    }),
-  delete: (options = { id: '', body: {} }) =>
+    });
+  static delete = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
@@ -71,8 +67,8 @@ const DocumentService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  put: (options = { id: '', body: {} }) =>
+    );
+  static put = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
@@ -91,8 +87,8 @@ const DocumentService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  patch: (options = { id: '', action: '' }) =>
+    );
+  static patch = (options = { id: '', action: '' }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: `${options.id}/${options.action}`, endpoint }), {
         method: 'PATCH',
@@ -110,8 +106,8 @@ const DocumentService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  high: (options = { params: {} }) =>
+    );
+  static high = (options = { params: {} }) =>
     new Promise((resolve, reject) => {
       const url = new URL(getApiBaseUrl({ id: 'public/high', endpoint }));
       if (options.params) {
@@ -133,7 +129,6 @@ const DocumentService = {
           logger.error(error);
           return reject(error);
         });
-    }),
-};
-
+    });
+}
 export { DocumentService };

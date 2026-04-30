@@ -27,7 +27,7 @@ const logger = loggerFactory(import.meta);
  * @namespace FileServiceServer.FileServiceDto
  * @memberof FileServiceServer
  */
-const FileServiceDto = {
+class FileServiceDto {
   /**
    * Returns file metadata only (no buffer data).
    * Used for list responses and API integration.
@@ -36,7 +36,7 @@ const FileServiceDto = {
    * @param {Object} file - File document from database.
    * @returns {Object|null} File metadata object, or null if file is falsy.
    */
-  toMetadata: (file) => {
+  static toMetadata = (file) => {
     if (!file) return null;
     return {
       _id: file._id,
@@ -48,7 +48,7 @@ const FileServiceDto = {
       createdAt: file.createdAt,
       updatedAt: file.updatedAt,
     };
-  },
+  };
 
   /**
    * Transforms array of files to metadata only.
@@ -57,10 +57,10 @@ const FileServiceDto = {
    * @param {Array} files - Array of file documents.
    * @returns {Array} Array of file metadata objects.
    */
-  toMetadataArray: (files) => {
+  static toMetadataArray = (files) => {
     if (!Array.isArray(files)) return [];
     return files.map((file) => FileServiceDto.toMetadata(file));
-  },
+  };
 
   /**
    * Ensures UTF-8 encoding for filenames.
@@ -70,14 +70,14 @@ const FileServiceDto = {
    * @param {string} filename - Raw filename from upload.
    * @returns {string} UTF-8 encoded filename.
    */
-  normalizeFilename: (filename) => {
+  static normalizeFilename = (filename) => {
     if (!filename) return '';
     // Ensure string and normalize to UTF-8
     let normalized = String(filename);
     // Replace any incorrectly encoded sequences
     normalized = Buffer.from(normalized, 'utf8').toString('utf8');
     return normalized;
-  },
+  };
 
   /**
    * Get select fields for metadata-only queries.
@@ -86,17 +86,17 @@ const FileServiceDto = {
    * @memberof FileServiceServer.FileServiceDto
    * @returns {string} Space-separated list of field names for metadata selection.
    */
-  metadataSelect: () => {
+  static metadataSelect = () => {
     return '_id name mimetype size encoding md5 cid createdAt updatedAt';
-  },
-};
+  };
+}
 
 /**
  * File Factory for file extraction, upload, and creation utilities.
  * @namespace FileServiceServer.FileFactory
  * @memberof FileServiceServer
  */
-const FileFactory = {
+class FileFactory {
   /**
    * Extract files from request.
    * Handles both standard 'file' field and custom fields.
@@ -105,7 +105,7 @@ const FileFactory = {
    * @param {Object} req - Express request object with files.
    * @returns {Array} Array of extracted file objects.
    */
-  filesExtract: (req) => {
+  static filesExtract = (req) => {
     const files = [];
     if (!req.files || Object.keys(req.files).length === 0) {
       return files;
@@ -139,7 +139,7 @@ const FileFactory = {
     }
 
     return files;
-  },
+  };
 
   /**
    * Upload files to database with UTF-8 encoding.
@@ -150,7 +150,7 @@ const FileFactory = {
    * @param {import('mongoose').Model} File - Mongoose File model.
    * @returns {Promise<Array>} Array of uploaded file metadata objects.
    */
-  upload: async function (req, File) {
+  static async upload(req, File) {
     const results = FileFactory.filesExtract(req);
     let index = -1;
 
@@ -172,7 +172,7 @@ const FileFactory = {
     }
 
     return results;
-  },
+  }
 
   /**
    * Convert string to hexadecimal.
@@ -181,9 +181,9 @@ const FileFactory = {
    * @param {string} [raw=''] - Raw string to convert.
    * @returns {string} Hexadecimal representation of the string.
    */
-  hex: (raw = '') => {
+  static hex = (raw = '') => {
     return Buffer.from(raw, 'utf8').toString('hex');
-  },
+  };
 
   /**
    * Get MIME type from file path based on extension.
@@ -192,7 +192,7 @@ const FileFactory = {
    * @param {string} path - File path or filename with extension.
    * @returns {string} MIME type string.
    */
-  getMymeTypeFromPath: (path) => {
+  static getMymeTypeFromPath = (path) => {
     const ext = String(path || '')
       .toLowerCase()
       .split('.')
@@ -210,7 +210,7 @@ const FileFactory = {
       json: 'application/json',
     };
     return mimeTypes[ext] || 'application/octet-stream';
-  },
+  };
 
   /**
    * Create file object with proper encoding.
@@ -220,7 +220,7 @@ const FileFactory = {
    * @param {string} [name=''] - File name.
    * @returns {Object} File object with name, data, size, encoding, mimetype, and md5.
    */
-  create: (data = Buffer.from([]), name = '') => {
+  static create = (data = Buffer.from([]), name = '') => {
     const normalizedName = FileServiceDto.normalizeFilename(name);
 
     return {
@@ -234,8 +234,8 @@ const FileFactory = {
       md5: crypto.createHash('md5').update(data).digest('hex'),
       cid: undefined,
     };
-  },
-};
+  };
+}
 
 /**
  * File cleanup utilities for preventing orphaned files.
@@ -244,7 +244,7 @@ const FileFactory = {
  * @namespace FileServiceServer.FileCleanup
  * @memberof FileServiceServer
  */
-const FileCleanup = {
+class FileCleanup {
   /**
    * Clean up old file references when document fields are updated.
    * Deletes old files that are being replaced by new file IDs.
@@ -258,7 +258,7 @@ const FileCleanup = {
    * @param {import('mongoose').Model} options.File - Mongoose File model.
    * @returns {Promise<Array>} Array of deleted file IDs.
    */
-  cleanupReplacedFiles: async ({ oldDoc, newData, fileFields, File }) => {
+  static cleanupReplacedFiles = async ({ oldDoc, newData, fileFields, File }) => {
     const deletedFileIds = [];
 
     for (const field of fileFields) {
@@ -281,7 +281,7 @@ const FileCleanup = {
     }
 
     return deletedFileIds;
-  },
+  };
 
   /**
    * Delete all files referenced in a document.
@@ -297,7 +297,7 @@ const FileCleanup = {
    * @param {import('mongoose').Model} options.File - Mongoose File model.
    * @returns {Promise<Array>} Array of deleted file IDs.
    */
-  deleteDocumentFiles: async ({ doc, fileFields, File }) => {
+  static deleteDocumentFiles = async ({ doc, fileFields, File }) => {
     const deletedFileIds = [];
 
     for (const field of fileFields) {
@@ -318,15 +318,15 @@ const FileCleanup = {
     }
 
     return deletedFileIds;
-  },
-};
+  };
+}
 
 /**
  * File Service for handling REST API file operations.
  * @namespace FileServiceServer.FileService
  * @memberof FileServiceServer
  */
-const FileService = {
+class FileService {
   /**
    * POST - Upload files.
    * Returns metadata-only response (no buffer data).
@@ -338,7 +338,7 @@ const FileService = {
    * @param {Object} options - Request options containing host and path.
    * @returns {Promise<Array>} Array of uploaded file metadata objects.
    */
-  post: async (req, res, options) => {
+  static post = async (req, res, options) => {
     // Check that user is authenticated and not a guest
     if (!req.auth || !req.auth.user || req.auth.user.role === 'guest') {
       throw new Error('Authentication required. Guest users cannot upload files.');
@@ -349,7 +349,7 @@ const FileService = {
 
     const uploadedFiles = await FileFactory.upload(req, File);
     return FileServiceDto.toMetadataArray(uploadedFiles);
-  },
+  };
 
   /**
    * GET - Retrieve files.
@@ -365,7 +365,7 @@ const FileService = {
    * @returns {Promise<Array|Buffer>} Array of file metadata objects or Buffer for blob endpoint.
    * @throws {Error} If file not found or user not authorized.
    */
-  get: async (req, res, options) => {
+  static get = async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
     /** @type {import('../document/document.model.js').DocumentModel} */
@@ -467,7 +467,7 @@ const FileService = {
         return FileServiceDto.toMetadataArray(files);
       }
     }
-  },
+  };
 
   /**
    * DELETE - Remove files.
@@ -480,7 +480,7 @@ const FileService = {
    * @returns {Promise<Object>} Deleted file metadata object.
    * @throws {Error} If file not found.
    */
-  delete: async (req, res, options) => {
+  static delete = async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 
@@ -491,7 +491,7 @@ const FileService = {
     }
 
     return FileServiceDto.toMetadata(result);
-  },
-};
+  };
+}
 
 export { FileService, FileFactory, FileServiceDto, FileCleanup };

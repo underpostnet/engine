@@ -3,9 +3,7 @@
  * @module src/api/object-layer/object-layer.model.js
  * @namespace CyberiaObjectLayerModel
  */
-
 import { Schema, model } from 'mongoose';
-
 /**
  * @typedef {Object} Stats
  * @property {number} effect - The effect attribute value
@@ -27,7 +25,6 @@ const StatsSchema = new Schema(
   },
   { _id: false },
 );
-
 /**
  * @typedef {Object} Item
  * @property {string} id - Unique identifier for the item
@@ -45,7 +42,6 @@ const ItemSchema = new Schema(
   },
   { _id: false },
 );
-
 /**
  * @typedef {Object} Ledger
  * Blockchain protocol metadata linking the visual object-layer prefab to its economic reality.
@@ -68,7 +64,6 @@ const LedgerSchema = new Schema(
   },
   { _id: false },
 );
-
 /**
  * @typedef {Object} Render
  * IPFS content identifiers for the consolidated atlas sprite sheet.
@@ -83,7 +78,6 @@ const RenderSchema = new Schema(
   },
   { _id: false },
 );
-
 /**
  * @typedef {Object} ObjectLayer
  * @property {Object} data - Object layer data
@@ -138,11 +132,9 @@ const ObjectLayerSchema = new Schema(
     toObject: { virtuals: true },
   },
 );
-
 // Index for faster querying
 ObjectLayerSchema.index({ 'data.item.id': 1 });
 ObjectLayerSchema.index({ 'data.item.type': 1 });
-
 // Add text index for searchable fields
 ObjectLayerSchema.index(
   {
@@ -158,7 +150,6 @@ ObjectLayerSchema.index(
     },
   },
 );
-
 // Pre-save hook to ensure data consistency
 ObjectLayerSchema.pre('save', function () {
   // Ensure all required fields are present
@@ -167,14 +158,11 @@ ObjectLayerSchema.pre('save', function () {
   }
   // cid (object layer data JSON) and data.render.cid (atlas PNG) are optional – default to ''
 });
-
 // Create and export the model
 const ObjectLayerModel = model('ObjectLayer', ObjectLayerSchema);
-
 const ProviderSchema = ObjectLayerSchema;
-
-const ObjectLayerDto = {
-  select: {
+class ObjectLayerDto {
+  static select = {
     get: () => {
       return {
         _id: 1,
@@ -207,7 +195,6 @@ const ObjectLayerDto = {
         objectLayerRenderFramesId: 1,
       };
     },
-  },
-};
-
+  };
+}
 export { ObjectLayerSchema, ObjectLayerModel, ProviderSchema, ObjectLayerDto };

@@ -8,7 +8,10 @@ import { SocketIoCecinasmarcelina } from './components/cecinasmarcelina/SocketIo
 import { LogInCecinasmarcelina } from './components/cecinasmarcelina/LogInCecinasmarcelina.js';
 import { LogOutCecinasmarcelina } from './components/cecinasmarcelina/LogOutCecinasmarcelina.js';
 import { SignUpCecinasmarcelina } from './components/cecinasmarcelina/SignUpCecinasmarcelina.js';
-import { CssCecinasmarcelinaDark, CssCecinasmarcelinaLight } from './components/cecinasmarcelina/CssCecinasmarcelina.js';
+import {
+  CssCecinasmarcelinaDark,
+  CssCecinasmarcelinaLight,
+} from './components/cecinasmarcelina/CssCecinasmarcelina.js';
 import { TranslateCecinasmarcelina } from './components/cecinasmarcelina/TranslateCecinasmarcelina.js';
 import { EventsUI } from './components/core/EventsUI.js';
 import { s } from './components/core/VanillaJs.js';

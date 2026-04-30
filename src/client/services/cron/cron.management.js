@@ -2,8 +2,8 @@ import { DefaultManagement } from '../default/default.management.js';
 import { UserService } from '../user/user.service.js';
 import { CronService } from './cron.service.js';
 
-const CronManagement = {
-  RenderTable: async ({ appStore }) => {
+class CronManagement {
+  static RenderTable = async ({ appStore }) => {
     const user = appStore.Data.user.main.model.user;
     const { role } = user;
     let columnDefs = [
@@ -50,7 +50,7 @@ const CronManagement = {
       defaultColKeyFocus: 'host',
       ServiceProvider: CronService,
     });
-  },
-};
+  };
+}
 
 export { CronManagement };

@@ -2,8 +2,8 @@ import { loggerFactory } from '../../server/logger.js';
 import { FileService } from './file.service.js';
 const logger = loggerFactory(import.meta);
 
-const FileController = {
-  post: async (req, res, options) => {
+class FileController {
+  static post = async (req, res, options) => {
     try {
       return res.status(200).json({
         status: 'success',
@@ -16,8 +16,8 @@ const FileController = {
         message: error.message,
       });
     }
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     try {
       if (req && req.headers && req.headers.origin) {
         res.set('Access-Control-Allow-Origin', req.headers.origin);
@@ -38,8 +38,8 @@ const FileController = {
         message: error.message,
       });
     }
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     try {
       const result = await FileService.delete(req, res, options);
       return res.status(200).json({
@@ -53,7 +53,7 @@ const FileController = {
         message: error.message,
       });
     }
-  },
-};
+  };
+}
 
 export { FileController };

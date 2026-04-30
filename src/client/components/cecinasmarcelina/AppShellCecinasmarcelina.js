@@ -24,7 +24,7 @@ import { PublicProfile } from '../core/PublicProfile.js';
 
 class AppShellCecinasmarcelina {
   static Data = {};
-  static async Render (options = { htmlMainBody: () => html`` }) {
+  static async Render(options = { htmlMainBody: () => html`` }) {
     const id = getId(AppShellCecinasmarcelina.Data, 'menu-');
     AppShellCecinasmarcelina.Data[id] = {};
     const RouterInstance = RouterCecinasmarcelina();

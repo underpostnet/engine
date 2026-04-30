@@ -1,7 +1,7 @@
 import { Translate } from '../core/Translate.js';
 
-const TranslateCyberiaPortal = {
-  Init: async function () {
+class TranslateCyberiaPortal {
+  static async Init() {
     Translate.Data['object-layer-engine'] = {
       en: 'Object Layer Engine',
       es: 'Object Layer Engine',
@@ -22,7 +22,7 @@ const TranslateCyberiaPortal = {
       en: 'Cyberia Instance Engine',
       es: 'Cyberia Instance Engine',
     };
-  },
-};
+  }
+}
 
 export { TranslateCyberiaPortal };

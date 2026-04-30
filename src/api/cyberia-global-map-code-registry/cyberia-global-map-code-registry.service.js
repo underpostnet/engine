@@ -4,15 +4,17 @@ import { DataQuery } from '../../server/data-query.js';
 
 const logger = loggerFactory(import.meta);
 
-const CyberiaGlobalMapCodeRegistryService = {
-  post: async (req, res, options) => {
+class CyberiaGlobalMapCodeRegistryService {
+  static post = async (req, res, options) => {
     /** @type {import('./cyberia-global-map-code-registry.model.js').CyberiaGlobalMapCodeRegistryModel} */
-    const CyberiaGlobalMapCodeRegistry = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
+    const CyberiaGlobalMapCodeRegistry =
+      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
     return await new CyberiaGlobalMapCodeRegistry(req.body).save();
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     /** @type {import('./cyberia-global-map-code-registry.model.js').CyberiaGlobalMapCodeRegistryModel} */
-    const CyberiaGlobalMapCodeRegistry = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
+    const CyberiaGlobalMapCodeRegistry =
+      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
     if (req.params.id) return await CyberiaGlobalMapCodeRegistry.findById(req.params.id);
 
     // Parse query parameters using DataQuery helper
@@ -25,18 +27,20 @@ const CyberiaGlobalMapCodeRegistryService = {
 
     const totalPages = Math.ceil(total / limit);
     return { data, total, page, totalPages };
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     /** @type {import('./cyberia-global-map-code-registry.model.js').CyberiaGlobalMapCodeRegistryModel} */
-    const CyberiaGlobalMapCodeRegistry = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
+    const CyberiaGlobalMapCodeRegistry =
+      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
     return await CyberiaGlobalMapCodeRegistry.findByIdAndUpdate(req.params.id, req.body);
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     /** @type {import('./cyberia-global-map-code-registry.model.js').CyberiaGlobalMapCodeRegistryModel} */
-    const CyberiaGlobalMapCodeRegistry = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
+    const CyberiaGlobalMapCodeRegistry =
+      DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaGlobalMapCodeRegistry;
     if (req.params.id) return await CyberiaGlobalMapCodeRegistry.findByIdAndDelete(req.params.id);
     else return await CyberiaGlobalMapCodeRegistry.deleteMany();
-  },
-};
+  };
+}
 
 export { CyberiaGlobalMapCodeRegistryService };

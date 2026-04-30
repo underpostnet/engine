@@ -3,9 +3,7 @@ import { loggerFactory } from '../../server/logger.js';
 import { DataQuery } from '../../server/data-query.js';
 import { IpfsClient } from '../../server/ipfs-client.js';
 import { IpfsDto } from './ipfs.model.js';
-
 const logger = loggerFactory(import.meta);
-
 /**
  * Upsert a CID registry entry.
  * Called by asset services (ObjectLayer, AtlasSpriteSheet) after a successful
@@ -28,7 +26,6 @@ const createPinRecord = async ({ cid, resourceType, mfsPath = '', options }) => 
   logger.info(`IPFS registry upserted – CID: ${cid}, type: ${resourceType}, mfsPath: ${mfsPath}`);
   return record;
 };
-
 /**
  * Remove all DB registry entries for a CID, then best-effort unpin from the IPFS node.
  * Always deletes DB records first so the registry stays clean even if the node is down.
@@ -47,22 +44,18 @@ const removePinRecordsAndUnpin = async (cid, options) => {
     logger.warn(`Best-effort IPFS unpin failed for CID ${cid}: ${err.message}`);
   }
 };
-
-const IpfsService = {
+class IpfsService {
   /** Expose helpers so other modules can import them directly. */
-  createPinRecord,
-  removePinRecordsAndUnpin,
-
+  static createPinRecord = createPinRecord;
+  static removePinRecordsAndUnpin = removePinRecordsAndUnpin;
   // ──────────────────────────────────────────────
   //  Standard CRUD
   // ──────────────────────────────────────────────
-
-  post: async (req, res, options) => {
+  static post = async (req, res, options) => {
     const Ipfs = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Ipfs;
     return await new Ipfs(req.body).save();
-  },
-
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     const Ipfs = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Ipfs;
     if (req.params.id) {
       return await Ipfs.findById(req.params.id).select(IpfsDto.select.get());
@@ -74,14 +67,12 @@ const IpfsService = {
     ]);
     const totalPages = Math.ceil(total / limit);
     return { data, total, page, totalPages };
-  },
-
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     const Ipfs = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Ipfs;
     return await Ipfs.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
-  },
-
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     const Ipfs = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Ipfs;
     if (req.params.id) {
       const record = await Ipfs.findById(req.params.id);
@@ -101,12 +92,10 @@ const IpfsService = {
       return null;
     }
     return await Ipfs.deleteMany();
-  },
-
+  };
   // ──────────────────────────────────────────────
   //  Health / audit
   // ──────────────────────────────────────────────
-
   /**
    * GET /ipfs/verify
    *
@@ -117,10 +106,9 @@ const IpfsService = {
    * Response shape:
    *   { total, pinned, unpinned, errors, entries: [{ cid, resourceType, mfsPath, pinned, error? }] }
    */
-  verify: async (req, res, options) => {
+  static verify = async (req, res, options) => {
     const Ipfs = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Ipfs;
     const records = await Ipfs.find({}).select(IpfsDto.select.get()).lean();
-
     let pinned = 0;
     let unpinned = 0;
     let errors = 0;
@@ -137,9 +125,7 @@ const IpfsService = {
         }
       }),
     );
-
     return { total: records.length, pinned, unpinned, errors, entries };
-  },
-};
-
+  };
+}
 export { IpfsService, createPinRecord, removePinRecordsAndUnpin };

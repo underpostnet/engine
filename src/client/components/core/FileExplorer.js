@@ -16,75 +16,58 @@ import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { copyData, downloadFile, s } from './VanillaJs.js';
 import { getProxyPath, getQueryParams, setPath, setQueryParams, listenQueryParamsChange } from './Router.js';
-
 const logger = loggerFactory(import.meta);
-
 class LoadFolderRenderer {
   eGui;
-
   async init(params) {
     console.log('LoadFolderRenderer created', params);
     // params.data._id
-
     this.eGui = document.createElement('div');
     this.eGui.innerHTML = html`<i class="fas fa-folder"></i> ${params.data.location}`;
   }
-
   getGui() {
     return this.eGui;
   }
-
   refresh(params) {
     console.log('LoadFolderRenderer refreshed', params);
     return true;
   }
 }
-
 class LoadFileNameRenderer {
   eGui;
-
   async init(params) {
     console.log('LoadFileNameRenderer created', params);
     // params.data._id
-
     this.eGui = document.createElement('div');
     this.eGui.innerHTML = html`<i class="fas fa-file"></i> ${params.data.name}`;
   }
-
   getGui() {
     return this.eGui;
   }
-
   refresh(params) {
     console.log('LoadFileNameRenderer refreshed', params);
     return true;
   }
 }
-
 class FolderHeaderComp {
   eGui;
-
   async init(params) {
     console.log('FolderHeaderComp created', params);
     // params.data._id
-
     this.eGui = document.createElement('div');
     this.eGui.innerHTML = html`<i class="fas fa-file"></i>`;
   }
-
   getGui() {
     return this.eGui;
   }
-
   refresh(params) {
     console.log('FolderHeaderComp refreshed', params);
     return true;
   }
 }
-
-const FileExplorer = {
-  Api: {},
-  Render: async function (options = { idModal: '' }) {
+class FileExplorer {
+  static Api = {};
+  static async Render(options = { idModal: '' }) {
     const { idModal } = options;
     FileExplorer.Api[idModal] = options;
     const gridFolderId = 'folder-explorer-grid';
@@ -92,15 +75,13 @@ const FileExplorer = {
     const idDropFileInput = 'file-explorer';
     let formBodyFiles;
     const query = getQueryParams();
-    let location = query?.location ? this.locationFormat({ f: query }) : '/';
+    let location = query?.location ? FileExplorer.locationFormat({ f: query }) : '/';
     let files, folders, documentId, documentInstance;
-
     // Simple pagination state
     const PAGE_SIZE = 5;
     let currentPage = query?.page ? parseInt(query.page) - 1 : 0;
     if (currentPage < 0) currentPage = 0;
     let displayedFiles = [];
-
     // Search filter state - initialize from URL query param
     let searchFilters = {
       title: query?.title || '',
@@ -120,7 +101,6 @@ const FileExplorer = {
     const applySearchFilter = () => {
       filteredFiles = files;
     };
-
     const updatePaginationUI = () => {
       const paginationInfo = s(`.file-explorer-pagination-info`);
       const prevBtn = s(`.file-explorer-prev-btn`);
@@ -145,31 +125,26 @@ const FileExplorer = {
         nextBtn.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
       }
     };
-
     const getPagedFiles = () => {
       const start = currentPage * PAGE_SIZE;
       const end = start + PAGE_SIZE;
       return filteredFiles.slice(start, end);
     };
-
     FileExplorer.Api[idModal].displayList = async () => {
       if (!s(`.${idModal}`)) return;
       const query = getQueryParams();
-      location = query?.location ? this.locationFormat({ f: query }) : '/';
+      location = query?.location ? FileExplorer.locationFormat({ f: query }) : '/';
       s(`.file-explorer-query-nav`).value = location;
-
       // Sync search filters from URL
       searchFilters = {
         title: query?.title || '',
         mdFile: query?.mdFile || '',
         file: query?.file || '',
       };
-
       if (s(`.file-explorer-search-title`)) s(`.file-explorer-search-title`).value = searchFilters.title;
       if (s(`.file-explorer-search-md-file`)) s(`.file-explorer-search-md-file`).value = searchFilters.mdFile;
       if (s(`.file-explorer-search-file`)) s(`.file-explorer-search-file`).value = searchFilters.file;
-
-      const format = this.documentDataFormat({ document: documentInstance, location, searchFilters });
+      const format = FileExplorer.documentDataFormat({ document: documentInstance, location, searchFilters });
       files = format.files;
       folders = format.folders;
       applySearchFilter();
@@ -194,7 +169,7 @@ const FileExplorer = {
           });
           // Handle both old format (array) and new format with pagination
           const document = Array.isArray(responseData) ? responseData : responseData.data || [];
-          const format = this.documentDataFormat({ document, location, searchFilters });
+          const format = FileExplorer.documentDataFormat({ document, location, searchFilters });
           files = format.files;
           documentId = format.documentId;
           folders = format.folders;
@@ -212,7 +187,6 @@ const FileExplorer = {
         if (s(`.${idModal}`) && optionsUpdate && optionsUpdate.display) await FileExplorer.Api[idModal].displayList();
       });
     };
-
     RouterEvents['file-explorer'] = ({ path, pushPath, route }) => {
       if (route === 'cloud')
         setTimeout(async () => {
@@ -220,14 +194,12 @@ const FileExplorer = {
           await FileExplorer.Api[idModal].displayList();
         });
     };
-
     // Listen for query param changes (browser back/forward navigation)
     listenQueryParamsChange({
       id: queryParamsListenerId,
       event: async (queryParams) => {
         if (!s(`.${idModal}`)) return;
         if (isProcessingQueryChange) return;
-
         const tab = queryParams?.tab || '';
         if (tab === 'upload') {
           s(`.file-explorer-nav`).style.display = 'none';
@@ -236,7 +208,6 @@ const FileExplorer = {
           s(`.file-explorer-nav`).style.display = 'block';
           s(`.file-explorer-uploader`).style.display = 'none';
         }
-
         const page = queryParams?.page ? parseInt(queryParams.page) - 1 : 0;
         if (page !== currentPage) {
           currentPage = page >= 0 ? page : 0;
@@ -246,13 +217,11 @@ const FileExplorer = {
           }
           updatePaginationUI();
         }
-
         const newFilters = {
           title: queryParams?.title || '',
           mdFile: queryParams?.mdFile || '',
           file: queryParams?.file || '',
         };
-
         if (
           newFilters.title !== searchFilters.title ||
           newFilters.mdFile !== searchFilters.mdFile ||
@@ -260,20 +229,16 @@ const FileExplorer = {
         ) {
           isProcessingQueryChange = true;
           searchFilters = newFilters;
-
           if (s(`.file-explorer-search-title`)) s(`.file-explorer-search-title`).value = searchFilters.title;
           if (s(`.file-explorer-search-md-file`)) s(`.file-explorer-search-md-file`).value = searchFilters.mdFile;
           if (s(`.file-explorer-search-file`)) s(`.file-explorer-search-file`).value = searchFilters.file;
-
           await FileExplorer.Api[idModal].updateData({ display: true });
-
           setTimeout(() => {
             isProcessingQueryChange = false;
           }, 100);
         }
       },
     });
-
     // Pagination button event handlers
     setTimeout(() => {
       EventsUI.onClick(`.file-explorer-prev-btn`, (e) => {
@@ -282,17 +247,14 @@ const FileExplorer = {
           setQueryParams({ page: currentPage }, { replace: false });
         }
       });
-
       EventsUI.onClick(`.file-explorer-next-btn`, (e) => {
         e.preventDefault();
         if ((currentPage + 1) * PAGE_SIZE < filteredFiles.length) {
           setQueryParams({ page: currentPage + 2 }, { replace: false });
         }
       });
-
       // Search input handlers
       let searchTimeout;
-
       const setupSearchInput = (selector, key) => {
         const el = s(selector);
         if (el) {
@@ -302,24 +264,18 @@ const FileExplorer = {
             searchTimeout = setTimeout(async () => {
               const val = e.target.value.trim();
               if (val === searchFilters[key]) return;
-
               isProcessingQueryChange = true;
               searchFilters[key] = val;
               await FileExplorer.Api[idModal].updateData({ display: true });
-
               const queryParams = {};
               if (searchFilters.title) queryParams.title = searchFilters.title;
               if (searchFilters.mdFile) queryParams.mdFile = searchFilters.mdFile;
               if (searchFilters.file) queryParams.file = searchFilters.file;
-
               if (!searchFilters.title) queryParams.title = null;
               if (!searchFilters.mdFile) queryParams.mdFile = null;
               if (!searchFilters.file) queryParams.file = null;
-
               queryParams.page = 1;
-
               setQueryParams(queryParams, { replace: false });
-
               setTimeout(() => {
                 isProcessingQueryChange = false;
               }, 100);
@@ -330,71 +286,52 @@ const FileExplorer = {
           });
         }
       };
-
       setupSearchInput(`.file-explorer-search-title`, 'title');
       setupSearchInput(`.file-explorer-search-md-file`, 'mdFile');
       setupSearchInput(`.file-explorer-search-file`, 'file');
-
       // Submit search button
       EventsUI.onClick(`.file-explorer-search-submit`, async (e) => {
         e.preventDefault();
         clearTimeout(searchTimeout);
-
         const titleVal = s(`.file-explorer-search-title`)?.value.trim() || '';
         const mdFileVal = s(`.file-explorer-search-md-file`)?.value.trim() || '';
         const fileVal = s(`.file-explorer-search-file`)?.value.trim() || '';
-
         searchFilters = { title: titleVal, mdFile: mdFileVal, file: fileVal };
-
         isProcessingQueryChange = true;
-
         const queryParams = {};
         if (searchFilters.title) queryParams.title = searchFilters.title;
         if (searchFilters.mdFile) queryParams.mdFile = searchFilters.mdFile;
         if (searchFilters.file) queryParams.file = searchFilters.file;
-
         if (!searchFilters.title) queryParams.title = null;
         if (!searchFilters.mdFile) queryParams.mdFile = null;
         if (!searchFilters.file) queryParams.file = null;
-
         queryParams.page = 1;
-
         setQueryParams(queryParams, { replace: false });
-
         await FileExplorer.Api[idModal].updateData({ display: true });
-
         setTimeout(() => {
           isProcessingQueryChange = false;
         }, 100);
       });
-
       // Clear search button
       EventsUI.onClick(`.file-explorer-search-clear`, (e) => {
         e.preventDefault();
-
         if (!searchFilters.title && !searchFilters.mdFile && !searchFilters.file) return;
-
         isProcessingQueryChange = true;
         if (s(`.file-explorer-search-title`)) s(`.file-explorer-search-title`).value = '';
         if (s(`.file-explorer-search-md-file`)) s(`.file-explorer-search-md-file`).value = '';
         if (s(`.file-explorer-search-file`)) s(`.file-explorer-search-file`).value = '';
-
         searchFilters = { title: '', mdFile: '', file: '' };
-
         applySearchFilter();
         currentPage = 0;
         displayedFiles = getPagedFiles();
         AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
         updatePaginationUI();
-
         setQueryParams({ title: null, mdFile: null, file: null, page: 1 }, { replace: false });
-
         setTimeout(() => {
           isProcessingQueryChange = false;
         }, 100);
       });
     });
-
     setTimeout(async () => {
       FileExplorer.Api[idModal].updateData({ display: true });
       const formData = [
@@ -405,10 +342,8 @@ const FileExplorer = {
         },
       ];
       const validators = await Validator.instance(formData);
-
       EventsUI.onClick(`.btn-input-file-explorer`, async (e) => {
         e.preventDefault();
-
         // Check authentication before upload
         if (!Auth.getToken()) {
           return NotificationManager.Push({
@@ -416,7 +351,6 @@ const FileExplorer = {
             status: 'error',
           });
         }
-
         const { errorMessage } = await validators();
         if (!formBodyFiles)
           return NotificationManager.Push({
@@ -440,7 +374,7 @@ const FileExplorer = {
           // for (const inputData of formData) {
           //   if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
           // }
-          location = this.locationFormat({ f: { location: s(`.file-explorer-query-nav`).value } });
+          location = FileExplorer.locationFormat({ f: { location: s(`.file-explorer-query-nav`).value } });
           let status = 'success';
           for (const file of fileData) {
             const result = await DocumentService.post({
@@ -453,7 +387,7 @@ const FileExplorer = {
             if (result.status === 'success') documentInstance.push({ ...result.data, fileId: file });
             else if (status !== 'error') status = 'error';
           }
-          const format = this.documentDataFormat({ document: documentInstance, location });
+          const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
           files = format.files;
           folders = format.folders;
           applySearchFilter();
@@ -478,10 +412,9 @@ const FileExplorer = {
           }
         }
       });
-
       EventsUI.onClick(`.btn-input-go-explorer`, async (e) => {
         e.preventDefault();
-        const newLocation = this.locationFormat({ f: { location: s(`.file-explorer-query-nav`).value } });
+        const newLocation = FileExplorer.locationFormat({ f: { location: s(`.file-explorer-query-nav`).value } });
         if (newLocation === location) return;
         location = newLocation;
         setPath(`${window.location.pathname}?location=${location}`);
@@ -491,18 +424,16 @@ const FileExplorer = {
       });
       EventsUI.onClick(`.btn-input-home-directory`, async (e) => {
         e.preventDefault();
-
         if (getQueryParams()?.tab === 'upload') {
           setQueryParams({ tab: null }, { replace: false });
           return;
         }
-
         let newLocation = '/';
         if (newLocation === location) return;
         location = newLocation;
         setPath(`${window.location.pathname}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
-        const format = this.documentDataFormat({ document: documentInstance, location });
+        const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
         files = format.files;
         folders = format.folders;
         applySearchFilter();
@@ -533,21 +464,17 @@ const FileExplorer = {
         setQueryParams({ tab: 'upload' }, { replace: false });
       });
     });
-
     class LoadFileActionsRenderer {
       eGui;
-
       async init(params) {
         console.log('LoadFileActionsRenderer created', params);
         // params.data._id
-
-        this.eGui = document.createElement('div');
+        FileExplorer.eGui = document.createElement('div');
         const isPublic = params.data.isPublic;
         const toggleId = `toggle-public-${params.data._id}`;
         const hasGenericFile = !!params.data.hasGenericFile;
         const hasMdFile = !!params.data.hasMdFile;
-
-        this.eGui.innerHTML = html`
+        FileExplorer.eGui.innerHTML = html`
           <div class="fl">
             ${await BtnIcon.Render({
               class: `in fll management-table-btn-mini btn-file-download-${params.data._id}${!hasGenericFile ? ' btn-disabled' : ''}`,
@@ -588,27 +515,22 @@ const FileExplorer = {
             })}
           </div>
         `;
-
         setTimeout(() => {
           const uri = `${getProxyPath()}content/?cid=${params.data._id}`;
           const url = `${window.location.origin}${uri}`;
-
           const originObj = documentInstance.find((d) => d._id === params.data._id);
           const blobUri =
             originObj && originObj.fileId
               ? getApiBaseUrl({ id: originObj.fileId._id, endpoint: 'file/blob' })
               : undefined;
-
           const mdBlobUri =
             originObj && originObj.mdFileId
               ? getApiBaseUrl({ id: originObj.mdFileId._id, endpoint: 'file/blob' })
               : undefined;
-
           if (!originObj) {
             s(`.btn-file-view-${params.data._id}`).classList.add('hide');
             s(`.btn-file-copy-content-link-${params.data._id}`).classList.add('hide');
           }
-
           // Disable download button if no generic file
           if (!hasGenericFile) {
             const dlBtn = s(`.btn-file-download-${params.data._id}`);
@@ -618,7 +540,6 @@ const FileExplorer = {
               dlBtn.style.pointerEvents = 'none';
             }
           }
-
           // Disable copy generic file link button if no generic file
           if (!hasGenericFile) {
             const copyBtn = s(`.btn-file-copy-content-link-${params.data._id}`);
@@ -628,7 +549,6 @@ const FileExplorer = {
               copyBtn.style.pointerEvents = 'none';
             }
           }
-
           // Disable copy md file link button if no md file
           if (!hasMdFile) {
             const mdCopyBtn = s(`.btn-file-copy-md-link-${params.data._id}`);
@@ -638,7 +558,6 @@ const FileExplorer = {
               mdCopyBtn.style.pointerEvents = 'none';
             }
           }
-
           EventsUI.onClick(`.btn-file-view-${params.data._id}`, async (e) => {
             e.preventDefault();
             if (location.href !== url) {
@@ -646,7 +565,6 @@ const FileExplorer = {
               s(`.main-btn-content`).click();
             }
           });
-
           EventsUI.onClick(`.btn-file-copy-content-link-${params.data._id}`, async (e) => {
             e.preventDefault();
             if (!hasGenericFile || !blobUri) return;
@@ -656,7 +574,6 @@ const FileExplorer = {
               status: 'success',
             });
           });
-
           EventsUI.onClick(`.btn-file-copy-md-link-${params.data._id}`, async (e) => {
             e.preventDefault();
             if (!hasMdFile || !mdBlobUri) return;
@@ -666,7 +583,6 @@ const FileExplorer = {
               status: 'success',
             });
           });
-
           EventsUI.onClick(`.btn-file-download-${params.data._id}`, async (e) => {
             e.preventDefault();
             if (!hasGenericFile) return;
@@ -704,7 +620,6 @@ const FileExplorer = {
                   id: `delete-${params.data._id}`,
                 });
                 if (confirmResult.status !== 'confirm') return;
-
                 const { data, status, message } = await FileService.delete({
                   id: params.data.fileId,
                 });
@@ -722,7 +637,6 @@ const FileExplorer = {
                 status,
               });
               if (status === 'error') return;
-
               documentInstance = documentInstance.filter((f) => f._id !== params.data._id);
               const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
               files = format.files;
@@ -736,13 +650,11 @@ const FileExplorer = {
             },
             { context: 'modal' },
           );
-
           // Toggle public/private status
           EventsUI.onClick(
             `.${toggleId}`,
             async (e) => {
               e.preventDefault();
-
               // If document is currently private, show confirmation before making public
               if (!params.data.isPublic) {
                 const confirmResult = await Modal.RenderConfirm({
@@ -759,29 +671,24 @@ const FileExplorer = {
                 });
                 if (confirmResult.status !== 'confirm') return;
               }
-
               try {
                 const { data, status } = await DocumentService.patch({
                   id: params.data._id,
                   action: 'toggle-public',
                 });
-
                 if (status === 'success') {
                   // Update local data
                   params.data.isPublic = data.isPublic;
-
                   // Update documentInstance
                   const docIndex = documentInstance.findIndex((d) => d._id === params.data._id);
                   if (docIndex !== -1) {
                     documentInstance[docIndex].isPublic = data.isPublic;
                   }
-
                   // Refresh the isPublic column cell in the grid
                   const rowNode = AgGrid.grids[gridFileId].getRowNode(params.node.id);
                   if (rowNode) {
                     rowNode.setDataValue('isPublic', data.isPublic);
                   }
-
                   // Update button icon
                   const btnElement = s(`.${toggleId}`);
                   if (btnElement) {
@@ -796,7 +703,6 @@ const FileExplorer = {
                       }
                     }
                   }
-
                   NotificationManager.Push({
                     html: data.isPublic
                       ? Translate.Render('document-now-public')
@@ -816,24 +722,19 @@ const FileExplorer = {
             },
             { context: 'modal' },
           );
-
           // Edit document button
           EventsUI.onClick(
             `.btn-file-edit-${params.data._id}`,
             async (e) => {
               e.preventDefault();
-
               // Get the original document data from documentInstance
               const originDoc = documentInstance.find((d) => d._id === params.data._id);
               const editModalId = `edit-doc-${params.data._id}`;
-
               // Check file existence for proper UX
               const hasMdFile = !!(originDoc && originDoc.mdFileId);
               const hasGenericFile = !!(originDoc && originDoc.fileId);
-
               const mdFileMimetype = hasMdFile ? originDoc.mdFileId.mimetype : '';
               const genericFileMimetype = hasGenericFile ? originDoc.fileId.mimetype : '';
-
               const editFormHtml = async () => {
                 return html`
                   <div class="in edit-document-form" style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -948,9 +849,7 @@ const FileExplorer = {
                   </div>
                 `;
               };
-
               const { barConfig } = await Themes[Css.currentTheme]();
-
               await Modal.Render({
                 id: editModalId,
                 barConfig,
@@ -966,21 +865,17 @@ const FileExplorer = {
                 RouterInstance: Modal.Data[options.idModal].options.RouterInstance,
                 barMode: Modal.Data[options.idModal].options.barMode,
               });
-
               // Handle submit button
               setTimeout(() => {
                 EventsUI.onClick(
                   `.btn-edit-doc-submit-${params.data._id}`,
                   async (ev) => {
                     ev.preventDefault();
-
                     const newTitle = s(`.edit-doc-title-${params.data._id}`).value.trim();
                     const newLocation = s(`.edit-doc-location-${params.data._id}`).value.trim();
-
                     // Get file names only if files exist
                     const newMdFileName = hasMdFile ? s(`.edit-doc-md-file-${params.data._id}`)?.value.trim() : null;
                     const newFileName = hasGenericFile ? s(`.edit-doc-file-${params.data._id}`)?.value.trim() : null;
-
                     if (!newTitle) {
                       NotificationManager.Push({
                         html: Translate.Render('error-title-required'),
@@ -988,15 +883,12 @@ const FileExplorer = {
                       });
                       return;
                     }
-
                     const formattedLocation = FileExplorer.locationFormat({ f: { location: newLocation || '/' } });
-
                     try {
                       const updateBody = {
                         title: newTitle,
                         location: formattedLocation,
                       };
-
                       // Preserve existing fields from the original document
                       if (originDoc) {
                         if (originDoc.fileId) updateBody.fileId = originDoc.fileId._id || originDoc.fileId;
@@ -1004,7 +896,6 @@ const FileExplorer = {
                         if (originDoc.tags) updateBody.tags = originDoc.tags;
                         if (typeof originDoc.isPublic !== 'undefined') updateBody.isPublic = originDoc.isPublic;
                       }
-
                       // Include file name updates if files exist and names changed
                       if (hasMdFile && newMdFileName && newMdFileName !== params.data.mdFileName) {
                         updateBody.mdFileName = newMdFileName;
@@ -1012,23 +903,19 @@ const FileExplorer = {
                       if (hasGenericFile && newFileName && newFileName !== params.data.fileName) {
                         updateBody.fileName = newFileName;
                       }
-
                       const { data, status } = await DocumentService.put({
                         id: params.data._id,
                         body: updateBody,
                       });
-
                       if (status === 'success') {
                         // Check if location changed
                         const locationChanged = formattedLocation !== params.data.location;
-
                         // Update local data
                         params.data.title = newTitle;
                         params.data.name = newTitle;
                         params.data.location = formattedLocation;
                         if (hasMdFile && newMdFileName) params.data.mdFileName = newMdFileName;
                         if (hasGenericFile && newFileName) params.data.fileName = newFileName;
-
                         // Update documentInstance
                         const docIndex = documentInstance.findIndex((d) => d._id === params.data._id);
                         if (docIndex !== -1) {
@@ -1042,7 +929,6 @@ const FileExplorer = {
                             documentInstance[docIndex].fileId.name = newFileName;
                           }
                         }
-
                         // Refresh the grid with new location
                         const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
                         files = format.files;
@@ -1053,22 +939,18 @@ const FileExplorer = {
                         AgGrid.grids[gridFileId].setGridOption('rowData', displayedFiles);
                         AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
                         updatePaginationUI();
-
                         NotificationManager.Push({
                           html: Translate.Render('success-update-document'),
                           status: 'success',
                         });
-
                         // If location changed, navigate to the new location
                         if (!s(`.file-explorer-query-nav`)) s(`.main-btn-cloud`).click();
-
                         if (locationChanged)
                           setTimeout(() => {
                             location = formattedLocation;
                             setPath(`${window.location.pathname}?location=${location}`);
                             s(`.file-explorer-query-nav`).value = location;
                           });
-
                         Modal.removeModal(editModalId);
                       } else {
                         throw new Error('Failed to update document');
@@ -1083,7 +965,6 @@ const FileExplorer = {
                   },
                   { context: 'modal' },
                 );
-
                 // Handle cancel button
                 EventsUI.onClick(
                   `.btn-edit-doc-cancel-${params.data._id}`,
@@ -1099,27 +980,22 @@ const FileExplorer = {
           );
         });
       }
-
       getGui() {
-        return this.eGui;
+        return FileExplorer.eGui;
       }
-
       refresh(params) {
         console.log('LoadFileActionsRenderer refreshed', params);
         return true;
       }
     }
-
     class LoadFolderActionsRenderer {
       eGui;
-
       async init(params) {
         console.log('LoadFolderActionsRenderer created', params);
         // params.data._id
         const id = params.data.locationId;
-
-        this.eGui = document.createElement('div');
-        this.eGui.innerHTML = html`
+        FileExplorer.eGui = document.createElement('div');
+        FileExplorer.eGui.innerHTML = html`
           <div class="fl">
             ${await BtnIcon.Render({
               class: `in fll management-table-btn-mini btn-folder-delete-${id}`,
@@ -1128,7 +1004,6 @@ const FileExplorer = {
             })}
           </div>
         `;
-
         setTimeout(() => {
           EventsUI.onClick(
             `.btn-folder-delete-${id}`,
@@ -1146,11 +1021,10 @@ const FileExplorer = {
                 id: `delete-${id}`,
               });
               if (confirmResult.status !== 'confirm') return;
-
               e.preventDefault();
               const idFilesDelete = [];
               for (const file of documentInstance.filter(
-                (f) => FileExplorer.locationFormat({ f }) === params.data.location, // .startsWith(params.data.location),
+                (f) => FileExplorer.locationFormat({ f }) === params.data.location,
               )) {
                 {
                   const { data, status, message } = await FileService.delete({
@@ -1183,17 +1057,14 @@ const FileExplorer = {
           );
         });
       }
-
       getGui() {
-        return this.eGui;
+        return FileExplorer.eGui;
       }
-
       refresh(params) {
         console.log('LoadFolderActionsRenderer refreshed', params);
         return true;
       }
     }
-
     return html`
       <form>
         <div class="fl">
@@ -1331,7 +1202,7 @@ const FileExplorer = {
                         location = newLocation;
                         setPath(`${window.location.pathname}?location=${location}`);
                         s(`.file-explorer-query-nav`).value = location;
-                        const format = this.documentDataFormat({ document: documentInstance, location });
+                        const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
                         files = format.files;
                         folders = format.folders;
                         applySearchFilter();
@@ -1370,7 +1241,7 @@ const FileExplorer = {
                       location = newLocation;
                       setPath(`${window.location.pathname}?location=${location}`);
                       s(`.file-explorer-query-nav`).value = location;
-                      const format = this.documentDataFormat({ document: documentInstance, location });
+                      const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
                       files = format.files;
                       folders = format.folders;
                       applySearchFilter();
@@ -1478,16 +1349,16 @@ const FileExplorer = {
         </div>
       </form>
     `;
-  },
-  locationFormat: function ({ f }) {
+  }
+  static locationFormat({ f }) {
     if (f.location[0] !== '/') f.location = `/${f.location}`;
     if (f.location !== '/' && f.location[f.location.length - 1] === '/') f.location = f.location.slice(0, -1);
     return f.location;
-  },
-  documentDataFormat: function ({ document, location, searchFilters }) {
+  }
+  static documentDataFormat({ document, location, searchFilters }) {
     let files = document.map((f) => {
       return {
-        location: this.locationFormat({ f }),
+        location: FileExplorer.locationFormat({ f }),
         name: f.title,
         mdFileName: f.mdFileId?.name || '',
         fileName: f.fileId?.name || '',
@@ -1511,9 +1382,7 @@ const FileExplorer = {
         locationId: `loc-${i}`,
       };
     });
-
     const isSearching = searchFilters && (searchFilters.title || searchFilters.mdFile || searchFilters.file);
-
     if (!isSearching) {
       files = files.filter((f) => f.location === location);
       folders = folders
@@ -1532,7 +1401,6 @@ const FileExplorer = {
         .filter((f) => f.fileCount > 0);
     }
     return { files, documentId, folders };
-  },
-};
-
+  }
+}
 export { FileExplorer };

@@ -3,8 +3,8 @@ import { CronService } from './cron.service.js';
 
 const logger = loggerFactory(import.meta);
 
-const CronController = {
-  post: async (req, res, options) => {
+class CronController {
+  static post = async (req, res, options) => {
     try {
       const result = await CronService.post(req, res, options);
       return res.status(200).json({
@@ -18,8 +18,8 @@ const CronController = {
         message: error.message,
       });
     }
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     try {
       const result = await CronService.get(req, res, options);
       return res.status(200).json({
@@ -33,8 +33,8 @@ const CronController = {
         message: error.message,
       });
     }
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     try {
       const result = await CronService.put(req, res, options);
       return res.status(200).json({
@@ -48,8 +48,8 @@ const CronController = {
         message: error.message,
       });
     }
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     try {
       const result = await CronService.delete(req, res, options);
       return res.status(200).json({
@@ -63,7 +63,7 @@ const CronController = {
         message: error.message,
       });
     }
-  },
-};
+  };
+}
 
 export { CronController };

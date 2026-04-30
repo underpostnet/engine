@@ -4,35 +4,30 @@
  * @module src/server/process.js
  * @namespace Process
  */
-
 // https://nodejs.org/api/process
-
 import shell from 'shelljs';
 import { loggerFactory } from './logger.js';
 import clipboard from 'clipboardy';
 import Underpost from '../index.js';
 import { getNpmRootPath } from './conf.js';
-
 const logger = loggerFactory(import.meta);
-
 /**
  * Gets the current working directory, replacing backslashes with forward slashes for consistency.
  * @memberof Process
  * @returns {string} The root directory path.
  */
 const getRootDirectory = () => process.cwd().replace(/\\/g, '/');
-
 /**
  * Controls and manages process-level events and signals.
  * @namespace ProcessController
  */
-const ProcessController = {
+class ProcessController {
   /**
    * List of signals to listen for for graceful shutdown/handling.
    * @memberof ProcessController
    * @type {string[]}
    */
-  SIG: [
+  static SIG = [
     'SIGPIPE',
     'SIGHUP',
     'SIGTERM',
@@ -45,29 +40,26 @@ const ProcessController = {
     'SIGFPE',
     'SIGSEGV',
     'SIGILL',
-  ],
-
+  ];
   /**
    * Sets up listeners for various process signals defined in {@link ProcessController.SIG}.
    * Handles graceful exit on 'SIGINT' (Ctrl+C).
    * @memberof ProcessController
    * @returns {Array<process.Process>} An array of process listener handles.
    */
-  onSigListen: function () {
-    return this.SIG.map((sig) =>
+  static onSigListen() {
+    return ProcessController.SIG.map((sig) =>
       process.on(sig, (...args) => {
-        this.logger.info(`process on ${sig}`, args);
+        ProcessController.logger.info(`process on ${sig}`, args);
         switch (sig) {
           case 'SIGINT':
             return process.exit();
-
           default:
             break;
         }
       }),
     );
-  },
-
+  }
   /**
    * Initializes the ProcessController.
    * Sets up signal listeners, registers a listener for the 'exit' event, and cleans up temporary deployment environment variables.
@@ -75,16 +67,15 @@ const ProcessController = {
    * @param {Object} logger - The logger instance to use for internal logging.
    * @returns {void}
    */
-  init: function (logger) {
-    this.logger = logger;
+  static init(logger) {
+    ProcessController.logger = logger;
     process.on('exit', (...args) => {
-      this.logger.info(`process on exit`, args);
+      ProcessController.logger.info(`process on exit`, args);
     });
-    this.onSigListen();
+    ProcessController.onSigListen();
     Underpost.env.delete('await-deploy');
-  },
-};
-
+  }
+}
 /**
  * Executes a shell command using shelljs.
  * @memberof Process
@@ -105,7 +96,6 @@ const shellExec = (
   if (options.callback) return shell.exec(cmd, options, options.callback);
   return options.stdout ? shell.exec(cmd, options).stdout : shell.exec(cmd, options);
 };
-
 /**
  * Changes the current working directory using shelljs.
  * @memberof Process
@@ -118,7 +108,6 @@ const shellCd = (cd, options = { disableLog: false }) => {
   if (!options.disableLog) logger.info(`cd`, cd);
   return shell.cd(cd);
 };
-
 /**
  * Wraps a command to run it as a daemon process in a shell (keeping the process alive/terminal open).
  * @memberof Process
@@ -126,7 +115,6 @@ const shellCd = (cd, options = { disableLog: false }) => {
  * @returns {string} The shell command string for the daemon process.
  */
 const daemonProcess = (cmd) => `exec bash -c '${cmd}; exec tail -f /dev/null'`;
-
 /**
  * Retrieves the process ID (PID) of the most recently created gnome-terminal instance.
  * Note: This function is environment-specific (GNOME/Linux) and uses `pgrep -n`.
@@ -136,7 +124,6 @@ const daemonProcess = (cmd) => `exec bash -c '${cmd}; exec tail -f /dev/null'`;
 // list all terminals: pgrep gnome-terminal
 // list last terminal: pgrep -n gnome-terminal
 const getTerminalPid = () => JSON.parse(shellExec(`pgrep -n gnome-terminal`, { stdout: true, silent: true }));
-
 /**
  * Copies text content to the system clipboard using clipboardy.
  * Logs the copied content for confirmation.
@@ -148,5 +135,4 @@ function pbcopy(data) {
   clipboard.writeSync(data || '🦄');
   logger.info(`copied to clipboard`, clipboard.readSync());
 }
-
 export { ProcessController, getRootDirectory, shellExec, shellCd, pbcopy, getTerminalPid, daemonProcess };

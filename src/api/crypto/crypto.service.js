@@ -3,8 +3,8 @@ import crypto from 'crypto';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 const logger = loggerFactory(import.meta);
 
-const CryptoService = {
-  post: async (req, res, options) => {
+class CryptoService {
+  static post = async (req, res, options) => {
     /** @type {import('./crypto.model.js').CryptoModel} */
     const Crypto = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Crypto;
     /** @type {import('../user/user.model.js').UserModel} */
@@ -48,17 +48,17 @@ const CryptoService = {
         return publicKey;
       }
     }
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     switch (req.params.id) {
       default:
     }
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     switch (req.params.id) {
       default:
     }
-  },
-};
+  };
+}
 
 export { CryptoService };

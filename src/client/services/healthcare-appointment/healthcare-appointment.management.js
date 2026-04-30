@@ -2,8 +2,8 @@ import { commonModeratorGuard } from '../../components/core/CommonJs.js';
 import { DefaultManagement } from '../default/default.management.js';
 import { HealthcareAppointmentService } from './healthcare-appointment.service.js';
 
-const HealthcareAppointmentManagement = {
-  RenderTable: async ({ appStore }) => {
+class HealthcareAppointmentManagement {
+  static RenderTable = async ({ appStore }) => {
     const user = appStore.Data.user.main.model.user;
     const { role } = user;
     return await DefaultManagement.RenderTable({
@@ -52,6 +52,6 @@ const HealthcareAppointmentManagement = {
       },
       ServiceProvider: HealthcareAppointmentService,
     });
-  },
-};
+  };
+}
 export { HealthcareAppointmentManagement };

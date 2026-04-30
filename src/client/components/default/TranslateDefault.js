@@ -1,7 +1,7 @@
 import { Translate } from '../core/Translate.js';
 
-const TranslateDefault = {
-  Init: async function () {},
-};
+class TranslateDefault {
+  static async Init() {}
+}
 
 export { TranslateDefault };

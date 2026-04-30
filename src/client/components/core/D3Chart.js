@@ -2,8 +2,8 @@ import { connectedScatterplotChart } from '../chart/connectedScatterplotChart.js
 
 // https://takanori-fujiwara.github.io/d3-gallery-javascript/
 
-const D3Chart = {
-  Render: async function () {
+class D3Chart {
+  static async Render() {
     setTimeout(async () => {
       const driving = await d3.csv('/data/driving.csv', d3.autoType);
 
@@ -38,7 +38,7 @@ const D3Chart = {
       <div class="in chart-container"></div>
       <div class="in chart-panel"></div>
     `;
-  },
-};
+  }
+}
 
 export { D3Chart };

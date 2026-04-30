@@ -3,9 +3,7 @@
  * @module src/api/object-layer-render-frames/object-layer-render-frames.model.js
  * @namespace CyberiaObjectLayerRenderFramesModel
  */
-
 import { Schema, model } from 'mongoose';
-
 /**
  * @typedef {Object} ObjectLayerRenderFramesDirections
  * @property {number[][][]} up_idle - Up idle animation frames
@@ -51,7 +49,6 @@ const ObjectLayerRenderFramesDirectionsSchema = new Schema(
   },
   { _id: false },
 );
-
 /**
  * @typedef {Object} ObjectLayerRenderFrames
  * @property {RenderFrames} frames - Animation frames for different states
@@ -73,7 +70,6 @@ const ObjectLayerRenderFramesSchema = new Schema(
     toObject: { virtuals: true },
   },
 );
-
 // Pre-save hook to ensure data consistency
 ObjectLayerRenderFramesSchema.pre('save', function () {
   // Ensure all required fields are present
@@ -81,21 +77,17 @@ ObjectLayerRenderFramesSchema.pre('save', function () {
     throw new Error('Missing required fields: frames, colors, or frame_duration');
   }
 });
-
 // Create and export the model
 const ObjectLayerRenderFramesModel = model('ObjectLayerRenderFrames', ObjectLayerRenderFramesSchema);
-
 const ProviderSchema = ObjectLayerRenderFramesSchema;
-
-const ObjectLayerRenderFramesDto = {
-  select: {
+class ObjectLayerRenderFramesDto {
+  static select = {
     get: () => {
       return { _id: 1, frame_duration: 1 };
     },
     getFull: () => {
       return { _id: 1, frames: 1, colors: 1, frame_duration: 1 };
     },
-  },
-};
-
+  };
+}
 export { ObjectLayerRenderFramesSchema, ObjectLayerRenderFramesModel, ProviderSchema, ObjectLayerRenderFramesDto };

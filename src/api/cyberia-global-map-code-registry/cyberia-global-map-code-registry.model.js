@@ -4,9 +4,7 @@
  * @module src/api/cyberia-global-map-code-registry/cyberia-global-map-code-registry.model.js
  * @namespace CyberiaGlobalMapCodeRegistryModel
  */
-
 import { Schema, model } from 'mongoose';
-
 /**
  * @typedef {Object} CyberiaGlobalMapCodeRegistry
  * @property {string} mapCode - Global unique identifier for the map (never repeats across the whole universe)
@@ -30,7 +28,6 @@ const CyberiaGlobalMapCodeRegistrySchema = new Schema(
       index: true,
       trim: true,
     },
-
     // Instance this map belongs to
     instanceCode: {
       type: String,
@@ -38,32 +35,27 @@ const CyberiaGlobalMapCodeRegistrySchema = new Schema(
       index: true,
       trim: true,
     },
-
     // Reference to the full instance document
     instanceId: {
       type: Schema.Types.ObjectId,
       ref: 'CyberiaInstance',
       required: true,
     },
-
     // Status control
     status: {
       type: String,
       enum: ['active', 'deprecated', 'locked', 'maintenance'],
       default: 'active',
     },
-
     // Used for portal hot-reload and cache invalidation
     lastPortalUpdate: {
       type: Date,
       default: Date.now,
     },
-
     // Optional checksum for data integrity
     checksum: {
       type: String,
     },
-
     // Version counter (useful for live updates)
     version: {
       type: Number,
@@ -76,34 +68,28 @@ const CyberiaGlobalMapCodeRegistrySchema = new Schema(
     toObject: { virtuals: true },
   },
 );
-
 // ──────────────────────────────────────────────────────────────
 // Indexes for high-performance queries
 // ──────────────────────────────────────────────────────────────
 CyberiaGlobalMapCodeRegistrySchema.index({ mapCode: 1 }, { unique: true });
 CyberiaGlobalMapCodeRegistrySchema.index({ instanceCode: 1, mapCode: 1 });
 CyberiaGlobalMapCodeRegistrySchema.index({ instanceId: 1 });
-
 // Pre-save hook to ensure data consistency and auto-increment version
 CyberiaGlobalMapCodeRegistrySchema.pre('save', function () {
   if (!this.mapCode || !this.instanceCode || !this.instanceId) {
     throw new Error('GlobalMapCodeRegistry: mapCode, instanceCode and instanceId are required');
   }
-
   // Auto-increment version on every update
   if (this.isModified()) {
     this.version = (this.version || 0) + 1;
     this.lastPortalUpdate = new Date();
   }
 });
-
 // Create and export the model
 const GlobalMapCodeRegistryModel = model('GlobalMapCodeRegistry', CyberiaGlobalMapCodeRegistrySchema);
-
 const ProviderSchema = CyberiaGlobalMapCodeRegistrySchema;
-
-const GlobalMapCodeRegistryDto = {
-  select: {
+class GlobalMapCodeRegistryDto {
+  static select = {
     get: () => {
       return {
         _id: 1,
@@ -125,7 +111,6 @@ const GlobalMapCodeRegistryDto = {
         status: 1,
       };
     },
-  },
-};
-
+  };
+}
 export { CyberiaGlobalMapCodeRegistrySchema, GlobalMapCodeRegistryModel, ProviderSchema, GlobalMapCodeRegistryDto };

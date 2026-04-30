@@ -14,16 +14,12 @@ import { Scroll } from './Scroll.js';
 import { LoadingAnimation } from './LoadingAnimation.js';
 import { loggerFactory } from './Logger.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
-
 const logger = loggerFactory(import.meta, { trace: true });
-
 function sanitizeFilename(title, options = {}) {
   const { replacement = '-', maxLength = 255, preserveExtension = true } = options;
-
   if (typeof title !== 'string' || title.trim() === '') {
     return 'untitled';
   }
-
   // 1) Extract extension (optional)
   let name = title;
   let ext = '';
@@ -34,43 +30,32 @@ function sanitizeFilename(title, options = {}) {
       name = title.slice(0, -ext.length);
     }
   }
-
   // 2) Normalize Unicode and remove diacritics
   name = name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
-
   // 3) Remove control characters and null bytes
   name = name.replace(/[\x00-\x1f\x7f]/g, '');
-
   // 4) Remove forbidden filename characters (Windows / POSIX)
   name = name.replace(/[<>:"/\\|?*\u0000]/g, '');
-
   // 5) Collapse whitespace and replace with separator
   name = name.replace(/\s+/g, replacement);
-
   // 6) Collapse multiple separators
   const escaped = replacement.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
   name = name.replace(new RegExp(`${escaped}{2,}`, 'g'), replacement);
-
   // 7) Trim dots and separators from edges
   name = name.replace(new RegExp(`^[\\.${escaped}]+|[\\.${escaped}]+$`, 'g'), '');
-
   // 8) Protect against Windows reserved names
   if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(name)) {
     name = '_' + name;
   }
-
   // 9) Enforce max length
   const maxNameLength = Math.max(1, maxLength - ext.length);
   if (name.length > maxNameLength) {
     name = name.slice(0, maxNameLength);
   }
-
   // 10) Fallback
   if (!name) name = 'untitled';
-
   return name + ext;
 }
-
 const userInfoFactory = (userDoc) => ({
   username: userDoc.userId.username,
   email: userDoc.userId.email,
@@ -78,10 +63,9 @@ const userInfoFactory = (userDoc) => ({
   profileImageId: userDoc.userId.profileImageId,
   briefDescription: userDoc.userId.briefDescription,
 });
-
-const PanelForm = {
-  Data: {},
-  instance: async function (
+class PanelForm {
+  static Data = {};
+  static async instance(
     options = {
       idPanel: '',
       defaultUrlImage: '',
@@ -98,11 +82,10 @@ const PanelForm = {
     },
   ) {
     const { idPanel, defaultUrlImage, appStore } = options;
-
     // Authenticated users don't need 'public' tag - they see all their own posts
     // Only include 'public' for unauthenticated users (handled by backend)
     let prefixTags = [idPanel];
-    this.Data[idPanel] = {
+    PanelForm.Data[idPanel] = {
       originData: [],
       data: [],
       filesData: [],
@@ -112,7 +95,6 @@ const PanelForm = {
       loading: false,
       lasIdAvailable: null,
     };
-
     const formData = [
       {
         id: 'panel-title',
@@ -163,7 +145,6 @@ const PanelForm = {
         },
       },
     ];
-
     const titleIcon = html`<i class="fa-solid fa-quote-left title-icon-${idPanel}"></i>`;
     const panelRender = async ({ data }) =>
       await Panel.Render({
@@ -193,10 +174,8 @@ const PanelForm = {
               render: imageShimmer(),
             });
           }
-
           // Get the filesData for this item
           const filesDataItem = PanelForm.Data[idPanel].filesData.find((f) => f._id === options.data._id);
-
           // Priority 1: Check if there's an actual file (not markdown content)
           // fileId array defaults to [null] for batch upload logic
           const fileBlob = filesDataItem?.fileId?.fileBlob;
@@ -210,7 +189,6 @@ const PanelForm = {
               },
             });
           }
-
           // Priority 2: If no actual file, show default image
           // (Don't show markdown content in file area - mdFileId stays in content area)
           return await options.htmlRender({
@@ -252,29 +230,23 @@ const PanelForm = {
                 html: status,
                 status,
               });
-
               // Handle cid query param update (supports comma-separated list)
               if (status === 'success') {
                 const currentCid = getQueryParams().cid;
-
                 if (currentCid) {
                   // Parse cid as comma-separated list
                   const cidList = currentCid
                     .split(',')
                     .map((id) => id.trim())
                     .filter((id) => id);
-
                   // Remove the deleted panel's id from the list
                   const updatedCidList = cidList.filter((id) => id !== data.id);
-
                   if (updatedCidList.length !== cidList.length) {
                     // Wait for DOM cleanup before updating query
-
                     if (updatedCidList.length === 0) {
                       // No cids remain, clear query and reload panels with limit
                       logger.warn('All cids removed, clearing query');
                       setQueryPath({ path: options.route, queryPath: '' });
-
                       if (options.parentIdModal) Modal.Data[options.parentIdModal].query = window.location.search;
                       if (PanelForm.Data[idPanel].updatePanel) await PanelForm.Data[idPanel].updatePanel();
                     } else {
@@ -285,41 +257,32 @@ const PanelForm = {
                       if (options.parentIdModal) Modal.Data[options.parentIdModal].query = actualQuery;
                     }
                   }
-
                   // Return early to skip smart deletion logic when cid is present
                   return { status };
                 }
               }
-
               // Smart deletion: remove from arrays and intelligently load more if needed
               if (status === 'success') {
                 const panelData = PanelForm.Data[idPanel];
-
                 // Remove the deleted item from all data arrays
                 const indexInOrigin = panelData.originData.findIndex((d) => d._id === data._id);
                 const indexInData = panelData.data.findIndex((d) => d._id === data._id);
                 const indexInFiles = panelData.filesData.findIndex((d) => d._id === data._id);
-
                 if (indexInOrigin > -1) panelData.originData.splice(indexInOrigin, 1);
                 if (indexInData > -1) panelData.data.splice(indexInData, 1);
                 if (indexInFiles > -1) panelData.filesData.splice(indexInFiles, 1);
-
                 // Adjust skip count since we removed an item
                 if (panelData.skip > 0) panelData.skip--;
-
                 // If panels are below limit and there might be more, load them
                 if (panelData.data.length < panelData.limit && panelData.hasMore && !panelData.loading) {
                   const oldDataCount = panelData.data.length;
                   const needed = panelData.limit - panelData.data.length; // Calculate exact number needed
                   const originalLimit = panelData.limit;
-
                   // Temporarily set limit to only fetch what's needed (1-to-1 replacement)
                   panelData.limit = needed;
                   await getPanelData(true); // Load only the needed items
                   panelData.limit = originalLimit; // Restore original limit
-
                   const newItems = panelData.data.slice(oldDataCount);
-
                   if (oldDataCount === 0) {
                     // List was empty, render all panels
                     if (panelData.data.length > 0) {
@@ -331,7 +294,6 @@ const PanelForm = {
                           <div class="in panel-placeholder-bottom panel-placeholder-bottom-${idPanel}"></div>
                         `,
                       );
-
                       // Show spinner if there's potentially more data
                       const lastOriginItem = panelData.originData[panelData.originData.length - 1];
                       if (
@@ -360,7 +322,6 @@ const PanelForm = {
                   }
                 }
               }
-
               return { status };
             }
             return { status: 'error' };
@@ -392,7 +353,6 @@ const PanelForm = {
             // Validate that either mdFileId has content OR fileId has files
             const hasMdContent = data.mdFileId && data.mdFileId.trim().length > 0;
             const hasFiles = data.fileId && data.fileId.length > 0;
-
             if (!data.title || (!hasMdContent && !hasFiles)) {
               NotificationManager.Push({
                 html: Translate.Render('require-title-and-content-or-file'),
@@ -400,25 +360,20 @@ const PanelForm = {
               });
               return { data: [], status: 'error', message: 'Must provide either content or attach a file' };
             }
-
             // Sanitize title for filename - normalize UTF-8 string
             // In browser, strings are already UTF-16, just ensure valid characters
             const sanitizedTitle = sanitizeFilename(data.title);
-
             let mdFileId;
             const mdFileName = `${getCapVariableName(sanitizedTitle)}.md`;
             const location = `${prefixTags.join('/')}`;
-
             // Only create markdown file if there's actual content
             let md = null;
             let mdBlob = null;
             let mdPlain = null;
-
             if (hasMdContent) {
               // Markdown content is already UTF-16 in browser, use as-is
               const blob = new Blob([data.mdFileId], { type: 'text/markdown' });
               md = new File([blob], mdFileName, { type: 'text/markdown' });
-
               mdBlob = {
                 data: {
                   data: await getDataFromInputFile(md),
@@ -428,7 +383,6 @@ const PanelForm = {
               };
               mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(mdBlob.data.data, mdBlob.mimetype));
             }
-
             // Parse and normalize tags
             // Note: 'public' tag is automatically extracted by the backend and converted to isPublic field
             // It will be filtered from the tags array to keep visibility control separate from content tags
@@ -452,14 +406,12 @@ const PanelForm = {
                 originFileObj = PanelForm.Data[idPanel].filesData.find((d) => d._id === editId);
               }
             }
-
             const baseNewDoc = newInstance(data);
             baseNewDoc.tags = tags.filter((t) => !prefixTags.includes(t));
             baseNewDoc.mdFileId = hasMdContent
               ? `<div class="markdown-content">${marked.parse(data.mdFileId)}</div>`
               : null;
             baseNewDoc.userId = appStore.Data.user?.main?.model?.user?._id;
-
             // Ensure profileImageId is properly formatted as object with _id property
             const profileImageIdValue = appStore.Data.user?.main?.model?.user?.profileImageId;
             const formattedProfileImageId = profileImageIdValue
@@ -467,7 +419,6 @@ const PanelForm = {
                 ? { _id: profileImageIdValue }
                 : profileImageIdValue
               : null;
-
             baseNewDoc.userInfo = {
               username: appStore.Data.user?.main?.model?.user?.username,
               email: appStore.Data.user?.main?.model?.user?.email,
@@ -475,18 +426,14 @@ const PanelForm = {
               profileImageId: formattedProfileImageId,
             };
             baseNewDoc.tools = true;
-
             const documents = [];
             let message = '';
             let status = 'success';
             let indexFormDoc = -1;
-
             const inputFiles = data.fileId ? data.fileId : [null];
-
             for (const file of inputFiles) {
               indexFormDoc++;
               let fileId = undefined; // Reset for each iteration - only set if user uploaded a file
-
               await (async () => {
                 const body = new FormData();
                 // Only append md file if it was created (has content)
@@ -506,7 +453,6 @@ const PanelForm = {
                   // Both can be markdown files, but we must distinguish:
                   // Rich text editor content → mdFileId
                   // User-uploaded file → fileId
-
                   for (const uploadedFile of uploadedFiles) {
                     if (hasMdContent && uploadedFile.name === mdFileName) {
                       // This is the markdown file created FROM rich text editor
@@ -518,7 +464,6 @@ const PanelForm = {
                       logger.info(`Assigned user-uploaded file to fileId: ${uploadedFile.name}`);
                     }
                   }
-
                   // Validation: mdFileId should exist only if rich text content was provided
                   if (hasMdContent && !mdFileId) {
                     logger.error(
@@ -544,7 +489,6 @@ const PanelForm = {
                 : await DocumentService.post({
                     body,
                   });
-
               const newDoc = {
                 ...baseNewDoc,
                 fileId: file ? URL.createObjectURL(file) : undefined,
@@ -561,10 +505,8 @@ const PanelForm = {
                     ? userInfoFactory(documentData)
                     : null),
               };
-
               if (documentStatus === 'error') status = 'error';
               if (message) message += `${indexFormDoc === 0 ? '' : ', '}${documentMessage}`;
-
               const filesData = {
                 id: documentData._id,
                 _id: documentData._id,
@@ -582,7 +524,6 @@ const PanelForm = {
                   filePlain: undefined,
                 },
               };
-
               if (originObj && indexFormDoc === 0) {
                 PanelForm.Data[idPanel].originData[indexOriginObj] = documentData;
                 PanelForm.Data[idPanel].data[indexOriginObj] = newDoc;
@@ -594,7 +535,6 @@ const PanelForm = {
               }
               documents.push(newDoc);
             }
-
             NotificationManager.Push({
               html:
                 status === 'success'
@@ -604,21 +544,17 @@ const PanelForm = {
                   : message,
               status: status,
             });
-
             setQueryPath({ path: options.route, queryPath: documents.map((d) => d._id).join(',') });
             if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
-
             return { data: documents, status, message };
           },
         },
       });
-
     const getPanelData = async (isLoadMore = false) => {
       const panelData = PanelForm.Data[idPanel];
       logger.warn('getPanelData called, isLoadMore:', isLoadMore);
       try {
         const cidQuery = getQueryParams().cid;
-
         // When cid query exists, bypass pagination and loading checks
         if (!cidQuery) {
           if (panelData.loading || !panelData.hasMore) {
@@ -626,48 +562,39 @@ const PanelForm = {
             return;
           }
         }
-
         panelData.loading = true;
-
         if (!isLoadMore) {
           // Reset for a fresh load
           panelData.skip = 0;
           panelData.hasMore = true;
         }
-
         // When cid query exists, don't apply skip/limit pagination
         const params = {
           tags: prefixTags.join(','),
           ...(cidQuery && { cid: cidQuery }),
         };
-
         // Only apply pagination when there's no cid query
         if (!cidQuery) {
           params.skip = panelData.skip;
           params.limit = panelData.limit;
         }
-
         const result = await DocumentService.get({
           params,
           id: 'public/',
         });
-
         if (result.status === 'success') {
           if (!isLoadMore) {
             panelData.originData = [];
             panelData.filesData = [];
             panelData.data = [];
           }
-
           panelData.originData.push(...newInstance(result.data.data));
           panelData.lasIdAvailable = result.data.lastId;
-
           for (const documentObject of result.data.data) {
             let mdFileId, fileId;
             let mdBlob, fileBlob;
             let mdPlain, filePlain;
             let parsedMarkdown = '';
-
             try {
               // Fetch markdown content if mdFileId exists
               if (documentObject.mdFileId) {
@@ -693,7 +620,6 @@ const PanelForm = {
                   parsedMarkdown = '';
                 }
               }
-
               // Handle optional fileId
               if (documentObject.fileId) {
                 const fileIdValue = documentObject.fileId._id || documentObject.fileId;
@@ -708,7 +634,6 @@ const PanelForm = {
                   logger.error('Error fetching file metadata:', fileIdValue, fetchError);
                 }
               }
-
               // Store file metadata and references
               panelData.filesData.push({
                 id: documentObject._id,
@@ -716,7 +641,6 @@ const PanelForm = {
                 mdFileId: { mdBlob, mdPlain },
                 fileId: { fileBlob, filePlain },
               });
-
               // Add to data array for display - use pre-parsed markdown
               panelData.data.push({
                 id: documentObject._id,
@@ -753,7 +677,6 @@ const PanelForm = {
                 mdFileId: { mdBlob: null, mdPlain: '' },
                 fileId: { fileBlob: null, filePlain: undefined },
               });
-
               panelData.data.push({
                 id: documentObject._id,
                 title: documentObject.title,
@@ -780,7 +703,6 @@ const PanelForm = {
               });
             }
           }
-
           // Only update pagination when not using cid query
           if (!cidQuery) {
             panelData.skip += result.data.data.length;
@@ -789,7 +711,6 @@ const PanelForm = {
             // When cid query is used, disable infinite scroll
             panelData.hasMore = false;
           }
-
           const lastItem = result.data.data[result.data.data.length - 1];
           if (result.data.data.length === 0 || (lastItem && lastItem._id === panelData.lasIdAvailable)) {
             LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
@@ -805,7 +726,6 @@ const PanelForm = {
       } catch (error) {
         logger.error(error);
       }
-
       await timer(250);
       panelData.loading = false;
       LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
@@ -859,10 +779,10 @@ const PanelForm = {
     let loadingGetData = false;
     closeModalRouteChangeEvents[idPanel] = () => {
       setTimeout(() => {
-        this.Data[idPanel].updatePanel();
+        PanelForm.Data[idPanel].updatePanel();
       });
     };
-    this.Data[idPanel].updatePanel = async (...args) => {
+    PanelForm.Data[idPanel].updatePanel = async (...args) => {
       const _updatePanel = async (...args) => {
         try {
           const cid = getQueryParams().cid ? getQueryParams().cid : '';
@@ -871,7 +791,6 @@ const PanelForm = {
             appStore.Data.user.main.model.user &&
             appStore.Data.user.main.model.user._id &&
             lastUserId !== appStore.Data.user.main.model.user._id;
-
           logger.warn(
             {
               idPanel,
@@ -882,22 +801,18 @@ const PanelForm = {
               ? JSON.stringify(appStore.Data.user.main.model.user, null, 4)
               : 'No user data',
           );
-
           // Normalize empty values for comparison (undefined, null, '' should all be treated as empty)
           const normalizedCid = cid || '';
           const normalizedLastCid = lastCid || '';
-
           if (loadingGetData || (normalizedLastCid === normalizedCid && !forceUpdate)) return;
           loadingGetData = true;
           lastUserId = appStore.Data.user?.main?.model?.user?._id
             ? newInstance(appStore.Data.user.main.model.user._id)
             : null;
           lastCid = cid;
-
           logger.warn('Init render panel data');
-
-          this.Data[idPanel] = {
-            ...this.Data[idPanel],
+          PanelForm.Data[idPanel] = {
+            ...PanelForm.Data[idPanel],
             originData: [],
             data: [],
             filesData: [],
@@ -905,47 +820,37 @@ const PanelForm = {
             hasMore: true,
             loading: false,
           };
-
           // Always reset skip to 0 when reloading (whether cid exists or not)
-          this.Data[idPanel].skip = 0;
-
+          PanelForm.Data[idPanel].skip = 0;
           const containerSelector = `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`;
           htmls(containerSelector, await renderSrrPanelData());
-
           await getPanelData();
-
           htmls(
             containerSelector,
             html`
-              <div class="in">${await panelRender({ data: this.Data[idPanel].data })}</div>
+              <div class="in">${await panelRender({ data: PanelForm.Data[idPanel].data })}</div>
               <div class="in panel-placeholder-bottom panel-placeholder-bottom-${idPanel}"></div>
             `,
           );
-
-          const lastOriginItem = this.Data[idPanel].originData[this.Data[idPanel].originData.length - 1];
+          const lastOriginItem = PanelForm.Data[idPanel].originData[PanelForm.Data[idPanel].originData.length - 1];
           if (
-            !this.Data[idPanel].lasIdAvailable ||
+            !PanelForm.Data[idPanel].lasIdAvailable ||
             !lastOriginItem ||
-            this.Data[idPanel].lasIdAvailable !== lastOriginItem._id
+            PanelForm.Data[idPanel].lasIdAvailable !== lastOriginItem._id
           )
             LoadingAnimation.spinner.play(`.panel-placeholder-bottom-${idPanel}`, 'dual-ring-mini');
-
           const scrollContainerSelector = `.modal-${options.route}`;
-
           // Always remove old scroll event before setting new one
-          if (this.Data[idPanel].removeScrollEvent) {
-            this.Data[idPanel].removeScrollEvent();
+          if (PanelForm.Data[idPanel].removeScrollEvent) {
+            PanelForm.Data[idPanel].removeScrollEvent();
           }
-
           if (cid) {
             LoadingAnimation.spinner.stop(`.panel-placeholder-bottom-${idPanel}`);
             return;
           }
-
           const { removeEvent } = Scroll.setEvent(scrollContainerSelector, async (payload) => {
             const panelData = PanelForm.Data[idPanel];
             if (!panelData) return;
-
             // Infinite scroll: load more items at bottom
             if (payload.atBottom && panelData.hasMore && !panelData.loading) {
               const oldDataCount = panelData.data.length;
@@ -957,8 +862,7 @@ const PanelForm = {
               }
             }
           });
-          this.Data[idPanel].removeScrollEvent = removeEvent;
-
+          PanelForm.Data[idPanel].removeScrollEvent = removeEvent;
           if (!firsUpdateEvent && options.firsUpdateEvent) {
             firsUpdateEvent = true;
             await options.firsUpdateEvent();
@@ -967,7 +871,6 @@ const PanelForm = {
           logger.error(error);
         }
       };
-
       await _updatePanel(...args);
       loadingGetData = false;
     };
@@ -998,14 +901,11 @@ const PanelForm = {
           await PanelForm.Data[idPanel].updatePanel();
         };
     }
-
     if (options.parentIdModal) {
       htmls(`.html-${options.parentIdModal}`, await renderSrrPanelData());
       return '';
     }
-
     return await renderSrrPanelData();
-  },
-};
-
+  }
+}
 export { PanelForm };

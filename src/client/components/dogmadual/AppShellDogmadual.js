@@ -19,7 +19,7 @@ import { Recover } from '../core/Recover.js';
 
 class AppShellDogmadual {
   static Data = {};
-  static async Render (options = { htmlMainBody: () => html`` }) {
+  static async Render(options = { htmlMainBody: () => html`` }) {
     const id = getId(AppShellDogmadual.Data, 'menu-');
     AppShellDogmadual.Data[id] = {};
     const RouterInstance = RouterDogmadual();

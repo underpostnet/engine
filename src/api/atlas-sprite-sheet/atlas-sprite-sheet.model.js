@@ -3,9 +3,7 @@
  * @module src/api/atlas-sprite-sheet/atlas-sprite-sheet.model.js
  * @namespace CyberiaAtlasSpriteSheetModel
  */
-
 import { Schema, model, Types } from 'mongoose';
-
 /**
  * @typedef {Object} FrameMetadata
  * @property {number} x - X position in the atlas
@@ -25,7 +23,6 @@ const FrameMetadataSchema = new Schema(
   },
   { _id: false },
 );
-
 /**
  * @typedef {Object} DirectionFrames
  * @property {FrameMetadata[]} up_idle - Up idle animation frames
@@ -71,7 +68,6 @@ const DirectionFramesSchema = new Schema(
   },
   { _id: false },
 );
-
 /**
  * @typedef {Object} AtlasSpriteSheet
  * @property {Types.ObjectId} fileId - Reference to File document (consolidated PNG)
@@ -114,24 +110,19 @@ const AtlasSpriteSheetSchema = new Schema(
     toObject: { virtuals: true },
   },
 );
-
 // Indexes for efficient querying
 AtlasSpriteSheetSchema.index({ 'metadata.itemKey': 1 }, { unique: true });
 AtlasSpriteSheetSchema.index({ fileId: 1 });
-
 // Pre-save validation
 AtlasSpriteSheetSchema.pre('save', function () {
   if (!this.fileId || !this.metadata) {
     throw new Error('AtlasSpriteSheet missing required fields: fileId or metadata');
   }
 });
-
 const AtlasSpriteSheetModel = model('AtlasSpriteSheet', AtlasSpriteSheetSchema);
-
 const ProviderSchema = AtlasSpriteSheetSchema;
-
-const AtlasSpriteSheetDto = {
-  select: {
+class AtlasSpriteSheetDto {
+  static select = {
     get: () => {
       return {
         _id: 1,
@@ -159,7 +150,6 @@ const AtlasSpriteSheetDto = {
         updatedAt: 1,
       };
     },
-  },
-};
-
+  };
+}
 export { AtlasSpriteSheetSchema, AtlasSpriteSheetModel, ProviderSchema, AtlasSpriteSheetDto };

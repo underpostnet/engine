@@ -1,7 +1,7 @@
 import { Translate } from '../core/Translate.js';
 
-const TranslateItemledger = {
-  Init: async function () {},
-};
+class TranslateItemledger {
+  static async Init() {}
+}
 
 export { TranslateItemledger };

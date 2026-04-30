@@ -1,8 +1,8 @@
 import { DefaultManagement } from '../default/default.management.js';
 import { UserService } from './user.service.js';
 
-const UserManagement = {
-  RenderTable: async ({ appStore }) => {
+class UserManagement {
+  static RenderTable = async ({ appStore }) => {
     const user = appStore.Data.user.main.model.user;
     const { role } = user;
     return await DefaultManagement.RenderTable({
@@ -46,6 +46,6 @@ const UserManagement = {
       defaultColKeyFocus: 'username',
       ServiceProvider: UserService,
     });
-  },
-};
+  };
+}
 export { UserManagement };

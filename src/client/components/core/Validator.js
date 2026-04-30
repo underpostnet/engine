@@ -6,14 +6,14 @@ import { htmls, s } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const Validator = {
-  renderErrorMessage: function (rule, text) {
+class Validator {
+  static renderErrorMessage(rule, text) {
     return html` <div class="in">
       ${renderStatus('error', { class: 'inl' })} &nbsp
       <span style="color: red">${text ? textFormatted(text) : Translate.Render(rule.type)}</span>
     </div>`;
-  },
-  instance: function (validators, callBack = (value) => {}) {
+  }
+  static instance(validators, callBack = (value) => {}) {
     const validatorFunction = {};
     if (!Array.isArray(validators)) validators = Object.values(validators);
     for (const validatorData of validators) {
@@ -31,7 +31,7 @@ const Validator = {
                   if (errors.length > 0)
                     errorMessage += errors
                       .map((translateMessage) =>
-                        this.renderErrorMessage(
+                        Validator.renderErrorMessage(
                           undefined,
                           html`
                             ${translateMessage[s('html').lang]
@@ -45,23 +45,27 @@ const Validator = {
                 break;
               case 'isEmpty':
                 if (validator.isEmpty(s(`.${validatorData.id}`).value, { ignore_whitespace: true }))
-                  errorMessage += this.renderErrorMessage(rule);
+                  errorMessage += Validator.renderErrorMessage(rule);
                 break;
               case 'isEmail':
-                if (!validator.isEmail(s(`.${validatorData.id}`).value)) errorMessage += this.renderErrorMessage(rule);
+                if (!validator.isEmail(s(`.${validatorData.id}`).value))
+                  errorMessage += Validator.renderErrorMessage(rule);
                 break;
               case 'passwordMismatch':
                 if (!validator.equals(s(`.${validatorData.id}`).value, s(`.${rule.options}`).value))
-                  errorMessage += this.renderErrorMessage(rule);
+                  errorMessage += Validator.renderErrorMessage(rule);
                 break;
               case 'isLength':
                 if (!validator.isLength(s(`.${validatorData.id}`).value, rule.options))
-                  errorMessage += this.renderErrorMessage(rule);
+                  errorMessage += Validator.renderErrorMessage(rule);
                 break;
 
               case 'isChileanIdentityDocument': {
                 if (!isChileanIdentityDocument(s(`.${validatorData.id}`).value)) {
-                  errorMessage += this.renderErrorMessage(undefined, Translate.Render('invalid-identity-document'));
+                  errorMessage += Validator.renderErrorMessage(
+                    undefined,
+                    Translate.Render('invalid-identity-document'),
+                  );
                 }
 
                 break;
@@ -70,13 +74,13 @@ const Validator = {
                 const username = s(`.${validatorData.id}`).value;
                 // Check if username is empty or only whitespace
                 if (!username || username.trim() === '') {
-                  errorMessage += this.renderErrorMessage(undefined, Translate.Render('invalid-username-format'));
+                  errorMessage += Validator.renderErrorMessage(undefined, Translate.Render('invalid-username-format'));
                   break;
                 }
                 // Check if username contains only valid characters (no spaces or special chars)
                 const usernameRegex = /^[a-zA-Z0-9_-]+$/;
                 if (!usernameRegex.test(username)) {
-                  errorMessage += this.renderErrorMessage(undefined, Translate.Render('invalid-username-format'));
+                  errorMessage += Validator.renderErrorMessage(undefined, Translate.Render('invalid-username-format'));
                 }
 
                 break;
@@ -86,7 +90,7 @@ const Validator = {
                   validator[rule.type] &&
                   !validator[rule.type](s(`.${validatorData.id}`).value, rule?.options ? rule.options : undefined)
                 )
-                  errorMessage += this.renderErrorMessage(rule);
+                  errorMessage += Validator.renderErrorMessage(rule);
                 break;
             }
           }
@@ -124,7 +128,7 @@ const Validator = {
       }
       return { errorMessage, errorKeys, successKeys };
     };
-  },
-};
+  }
+}
 
 export { Validator };

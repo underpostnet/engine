@@ -7,13 +7,12 @@ import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { s } from './VanillaJs.js';
-
-const SignUp = {
-  Event: {},
-  Trigger: async function (options) {
-    for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
-  },
-  Render: async function (options = { bottomRender: async () => '' }) {
+class SignUp {
+  static Event = {};
+  static async Trigger(options) {
+    for (const eventKey of Object.keys(SignUp.Event)) await SignUp.Event[eventKey](options);
+  }
+  static async Render(options = { bottomRender: async () => '' }) {
     setTimeout(async () => {
       const formData = [
         {
@@ -33,7 +32,6 @@ const SignUp = {
         },
       ];
       const validators = await Validator.instance(formData);
-
       EventsUI.onClick(`.btn-sign-up`, async (e) => {
         e.preventDefault();
         const { errorMessage } = await validators();
@@ -138,7 +136,6 @@ const SignUp = {
         </div>
       </form>
     `;
-  },
-};
-
+  }
+}
 export { SignUp };

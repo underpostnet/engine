@@ -2,10 +2,9 @@ import { getId, s4 } from './CommonJs.js';
 import { renderCssAttr } from './Css.js';
 import { ToolTip } from './ToolTip.js';
 import { getAllChildNodes, htmlStrSanitize, s } from './VanillaJs.js';
-
-const BtnIcon = {
-  Tokens: {},
-  Render: async function (
+class BtnIcon {
+  static Tokens = {};
+  static async Render(
     options = {
       class: '',
       type: '',
@@ -19,9 +18,9 @@ const BtnIcon = {
       useMenuBtn: false,
     },
   ) {
-    const tokenId = getId(this.Tokens, 'btn-token-');
+    const tokenId = getId(BtnIcon.Tokens, 'btn-token-');
     if (options.useMenuBtn) options.class += ' main-menu-btn-selector';
-    this.Tokens[tokenId] = { ...options };
+    BtnIcon.Tokens[tokenId] = { ...options };
     setTimeout(() => {
       if (s(`.a-${tokenId}`)) s(`.a-${tokenId}`).onclick = (e) => e.preventDefault();
     });
@@ -66,15 +65,15 @@ const BtnIcon = {
           });
       });
     return render;
-  },
+  }
   // https://developer.mozilla.org/en-US/docs/Games/Techniques/Control_mechanisms/Mobile_touch
-  TouchTokens: {},
-  RenderTouch: async function (options = { id: '', Events: {} }) {
+  static TouchTokens = {};
+  static async RenderTouch(options = { id: '', Events: {} }) {
     const { id } = options;
-    this.TouchTokens[id] = { Events: {}, ...options };
+    BtnIcon.TouchTokens[id] = { Events: {}, ...options };
     setTimeout(() => {
       const triggerTouchEvents = () => {
-        for (const event of Object.keys(this.TouchTokens[id].Events)) this.TouchTokens[id].Events[event]();
+        for (const event of Object.keys(BtnIcon.TouchTokens[id].Events)) BtnIcon.TouchTokens[id].Events[event]();
       };
       if (s(`.${id}`)) {
         s(`.${id}`).addEventListener('touchstart', () => {
@@ -101,11 +100,10 @@ const BtnIcon = {
       style="${renderCssAttr({ style: { width: '100%', height: '100%', top: '0px', left: '0px', border: 'none' } })}"
     >
     </canvas>`;
-  },
-  findLabel: (el) =>
+  }
+  static findLabel = (el) =>
     getAllChildNodes(el).find((e) => {
       return e.classList && Array.from(e.classList).find((e) => e.match('BtnIcon-label'));
-    }),
-};
-
+    });
+}
 export { BtnIcon };

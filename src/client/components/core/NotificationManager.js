@@ -2,11 +2,10 @@ import { getId, getIsoDate } from './CommonJs.js';
 import { Css, Themes } from './Css.js';
 import { Modal } from './Modal.js';
 import { append, prepend, s } from './VanillaJs.js';
-
-const NotificationManager = {
-  Types: ['success', 'error', 'warning', 'info'],
-  RenderBoard: async function (options) {
-    this.options = options;
+class NotificationManager {
+  static Types = ['success', 'error', 'warning', 'info'];
+  static async RenderBoard(options) {
+    NotificationManager.options = options;
     append(
       'body',
       html`
@@ -28,16 +27,16 @@ const NotificationManager = {
         <div class="fix notification-board-container"></div>
       `,
     );
-  },
-  Tokens: {},
-  Push: async function (options = { status: '', html: '' }) {
+  }
+  static Tokens = {};
+  static async Push(options = { status: '', html: '' }) {
     const { barConfig } = await Themes[Css.currentTheme](); // newInstance
     barConfig.buttons.maximize.disabled = true;
     barConfig.buttons.minimize.disabled = true;
     barConfig.buttons.restore.disabled = true;
     barConfig.buttons.menu.disabled = true;
-    const idNotification = getId(this.Tokens, 'board-notification-');
-    this.Tokens[idNotification] = {};
+    const idNotification = getId(NotificationManager.Tokens, 'board-notification-');
+    NotificationManager.Tokens[idNotification] = {};
     await Modal.Render({
       title: html`<div class="in notification-manager-date">${getIsoDate(new Date())}</div>
         ${options.html}`,
@@ -57,8 +56,8 @@ const NotificationManager = {
     setTimeout(() => {
       if (s(`.btn-close-${idNotification}`)) s(`.btn-close-${idNotification}`).click();
     }, 2000);
-  },
-  NotificationScheme: {
+  }
+  static NotificationScheme = {
     // Visual Options
     body: '<String>',
     icon: '<URL String>',
@@ -66,11 +65,9 @@ const NotificationManager = {
     badge: '<URL String>',
     dir: "<String of 'auto' | 'ltr' | 'rtl'>",
     timestamp: '<Long>',
-
     // Both visual & behavioral options
     actions: '<Array of Strings>',
     data: '<Anything>',
-
     // Behavioral Options
     tag: '<String>',
     requireInteraction: '<boolean>',
@@ -78,7 +75,6 @@ const NotificationManager = {
     vibrate: '<Array of Integers>',
     sound: '<URL String>',
     silent: '<Boolean>',
-  },
-};
-
+  };
+}
 export { NotificationManager };

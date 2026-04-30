@@ -195,11 +195,11 @@ const CssCommonCyberia = async () => {
     <div class="ag-grid-style"></div>`;
 };
 
-const CssCyberiaDark = {
-  theme: 'cyberia-dark',
-  dark: true,
-  barButtonsIconTheme: 'img',
-  render: async () => {
+class CssCyberiaDark {
+  static theme = 'cyberia-dark';
+  static dark = true;
+  static barButtonsIconTheme = 'img';
+  static render = async () => {
     return (
       (await CssCommonCyberia()) +
       html`
@@ -219,14 +219,14 @@ const CssCyberiaDark = {
         ${borderChar(2, `#ffcc00`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
       `
     );
-  },
-};
+  };
+}
 
-const CssCyberiaLight = {
-  theme: 'cyberia-light',
-  dark: false,
-  barButtonsIconTheme: 'img',
-  render: async () => {
+class CssCyberiaLight {
+  static theme = 'cyberia-light';
+  static dark = false;
+  static barButtonsIconTheme = 'img';
+  static render = async () => {
     return (
       (await CssCommonCyberia()) +
       html`
@@ -248,7 +248,7 @@ const CssCyberiaLight = {
         ${borderChar(1, `#010101`, ['button', '.a-btn'], true)}
       `
     );
-  },
-};
+  };
+}
 
 export { CssCyberiaDark, CssCommonCyberia, CssCyberiaLight };

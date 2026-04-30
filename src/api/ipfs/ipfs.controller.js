@@ -3,8 +3,8 @@ import { IpfsService } from './ipfs.service.js';
 
 const logger = loggerFactory(import.meta);
 
-const IpfsController = {
-  post: async (req, res, options) => {
+class IpfsController {
+  static post = async (req, res, options) => {
     try {
       const result = await IpfsService.post(req, res, options);
       return res.status(200).json({
@@ -18,8 +18,8 @@ const IpfsController = {
         message: error.message,
       });
     }
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     try {
       const { page, limit } = req.query;
       const result = await IpfsService.get(
@@ -38,8 +38,8 @@ const IpfsController = {
         message: error.message,
       });
     }
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     try {
       const result = await IpfsService.put(req, res, options);
       return res.status(200).json({
@@ -53,8 +53,8 @@ const IpfsController = {
         message: error.message,
       });
     }
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     try {
       const result = await IpfsService.delete(req, res, options);
       return res.status(200).json({
@@ -68,8 +68,8 @@ const IpfsController = {
         message: error.message,
       });
     }
-  },
-  verify: async (req, res, options) => {
+  };
+  static verify = async (req, res, options) => {
     try {
       const result = await IpfsService.verify(req, res, options);
       return res.status(200).json({ status: 'success', data: result });
@@ -77,7 +77,7 @@ const IpfsController = {
       logger.error(error, error.stack);
       return res.status(400).json({ status: 'error', message: error.message });
     }
-  },
-};
+  };
+}
 
 export { IpfsController };

@@ -28,7 +28,7 @@ const logger = loggerFactory(import.meta);
 
 class AppShellHealthcare {
   static Data = {};
-  static async Render () {
+  static async Render() {
     const id = getId(AppShellHealthcare.Data, 'menu-');
     AppShellHealthcare.Data[id] = {};
     const RouterInstance = RouterHealthcare();

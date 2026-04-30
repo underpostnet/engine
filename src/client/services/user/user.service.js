@@ -1,23 +1,18 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { getApiBaseUrl, headersFactory, payloadFactory, buildQueryUrl } from '../core/core.service.js';
-
 const logger = loggerFactory(import.meta);
-
 logger.info('Load service');
-
 const endpoint = 'user';
-
-const UserMock = {
-  default: {
+class UserMock {
+  static default = {
     username: 'guest',
     email: `guest@${location.hostname}`,
     role: 'guest',
-  },
-};
-
-const UserService = {
-  post: (options = { id: '', body: {} }) =>
+  };
+}
+class UserService {
+  static post = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
@@ -36,8 +31,8 @@ const UserService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  get: (options = {}) => {
+    );
+  static get = (options = {}) => {
     const { id = 'all', page, limit, filterModel, sortModel, sort, asc, order } = options;
     const url = buildQueryUrl(getApiBaseUrl({ id, endpoint }), {
       page,
@@ -66,8 +61,8 @@ const UserService = {
           return reject(error);
         }),
     );
-  },
-  delete: (options = { id: '', body: {} }) =>
+  };
+  static delete = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
@@ -86,8 +81,8 @@ const UserService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  put: (options = { id: '', body: {}, headerId: '' }) =>
+    );
+  static put = (options = { id: '', body: {}, headerId: '' }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
@@ -106,7 +101,6 @@ const UserService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-};
-
+    );
+}
 export { UserService, UserMock };

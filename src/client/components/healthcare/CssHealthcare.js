@@ -83,11 +83,11 @@ const CssCommonHealthcare = async () => {
     ${borderChar(1, 'black', [])} ${boxShadow({ selector: `.home-body-btn` })}`;
 };
 
-const CssHealthcareDark = {
-  themePair: 'healthcare-light',
-  theme: 'healthcare-dark',
-  dark: true,
-  render: async () => {
+class CssHealthcareDark {
+  static themePair = 'healthcare-light';
+  static theme = 'healthcare-dark';
+  static dark = true;
+  static render = async () => {
     return (
       (await CssCommonHealthcare()) +
       html`
@@ -138,13 +138,13 @@ const CssHealthcareDark = {
         </style>
       `
     );
-  },
-};
-const CssHealthcareLight = {
-  themePair: 'healthcare-dark',
-  theme: 'healthcare-light',
-  dark: false,
-  render: async () => {
+  };
+}
+class CssHealthcareLight {
+  static themePair = 'healthcare-dark';
+  static theme = 'healthcare-light';
+  static dark = false;
+  static render = async () => {
     return (
       (await CssCommonHealthcare()) +
       html`
@@ -195,7 +195,7 @@ const CssHealthcareLight = {
         </style>
       `
     );
-  },
-};
+  };
+}
 
 export { CssHealthcareDark, CssHealthcareLight, CssCommonHealthcare };

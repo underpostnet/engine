@@ -4,19 +4,19 @@ import { FileCleanup } from '../file/file.service.js';
 
 const logger = loggerFactory(import.meta);
 
-const CompanyService = {
-  post: async (req, res, options) => {
+class CompanyService {
+  static post = async (req, res, options) => {
     /** @type {import('./company.model.js').CompanyModel} */
     const Company = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Company;
     return await new Company(req.body).save();
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     /** @type {import('./company.model.js').CompanyModel} */
     const Company = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Company;
     if (req.params.id) return await Company.findById(req.params.id);
     return await Company.find();
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     /** @type {import('./company.model.js').CompanyModel} */
     const Company = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Company;
     /** @type {import('../file/file.model.js').FileModel} */
@@ -34,8 +34,8 @@ const CompanyService = {
     });
 
     return await Company.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     /** @type {import('./company.model.js').CompanyModel} */
     const Company = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Company;
     /** @type {import('../file/file.model.js').FileModel} */
@@ -64,7 +64,7 @@ const CompanyService = {
       }
       return await Company.deleteMany();
     }
-  },
-};
+  };
+}
 
 export { CompanyService };

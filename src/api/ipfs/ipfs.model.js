@@ -21,9 +21,7 @@
  * @module src/api/ipfs/ipfs.model.js
  * @namespace IpfsModel
  */
-
 import { Schema, model } from 'mongoose';
-
 const IpfsSchema = new Schema(
   {
     cid: {
@@ -50,22 +48,16 @@ const IpfsSchema = new Schema(
     timestamps: true,
   },
 );
-
 // One DB record per (CID, resourceType) pair.
 IpfsSchema.index({ cid: 1, resourceType: 1 }, { unique: true });
-
 // Fast look-ups for health-check and garbage-collection by type.
 IpfsSchema.index({ resourceType: 1 });
-
 // Fast look-ups for targeted MFS cleanup.
 IpfsSchema.index({ mfsPath: 1 });
-
 const IpfsModel = model('Ipfs', IpfsSchema);
-
 const ProviderSchema = IpfsSchema;
-
-const IpfsDto = {
-  select: {
+class IpfsDto {
+  static select = {
     get: () => ({
       _id: 1,
       cid: 1,
@@ -74,7 +66,6 @@ const IpfsDto = {
       createdAt: 1,
       updatedAt: 1,
     }),
-  },
-};
-
+  };
+}
 export { IpfsSchema, IpfsModel, ProviderSchema, IpfsDto };

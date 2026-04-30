@@ -1,15 +1,11 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { getApiBaseUrl, headersFactory, payloadFactory, buildQueryUrl } from '../core/core.service.js';
-
 const logger = loggerFactory(import.meta);
-
 logger.info('Load service');
-
 const endpoint = 'cyberia-instance-conf';
-
-const CyberiaInstanceConfService = {
-  post: (options = { id: '', body: {} }) =>
+class CyberiaInstanceConfService {
+  static post = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
@@ -28,8 +24,8 @@ const CyberiaInstanceConfService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  put: (options = { id: '', body: {} }) =>
+    );
+  static put = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
@@ -48,8 +44,8 @@ const CyberiaInstanceConfService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  get: (options = {}) => {
+    );
+  static get = (options = {}) => {
     const { id, page, limit, filterModel, sortModel, sort, asc, order } = options;
     const url = buildQueryUrl(getApiBaseUrl({ id, endpoint }), {
       page,
@@ -60,7 +56,6 @@ const CyberiaInstanceConfService = {
       asc,
       order,
     });
-
     return new Promise((resolve, reject) =>
       fetch(url.toString(), {
         method: 'GET',
@@ -79,8 +74,8 @@ const CyberiaInstanceConfService = {
           return reject(error);
         }),
     );
-  },
-  delete: (options = { id: '', body: {} }) =>
+  };
+  static delete = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
@@ -99,7 +94,6 @@ const CyberiaInstanceConfService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-};
-
+    );
+}
 export { CyberiaInstanceConfService };

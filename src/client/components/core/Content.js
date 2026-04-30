@@ -55,8 +55,8 @@ const attachMarkdownLinkHandlers = (containerSelector) => {
   });
 };
 
-const Content = {
-  Render: async function (options = { idModal: '', titleIcon: '' }) {
+class Content {
+  static async Render(options = { idModal: '', titleIcon: '' }) {
     const { idModal } = options;
     setTimeout(async () => {
       try {
@@ -140,8 +140,8 @@ const Content = {
         htmls(`.content-render-${idModal}`, ``);
 
         // Pass file IDs to RenderFile - it will fetch blobs as needed
-        if (md) await this.RenderFile({ idModal, file: md, id: md._id });
-        if (file) await this.RenderFile({ idModal, file, id: file._id });
+        if (md) await Content.RenderFile({ idModal, file: md, id: md._id });
+        if (file) await Content.RenderFile({ idModal, file, id: file._id });
         Modal.Data[idModal].onObserverListener[`main-content-observer`]();
       } catch (error) {
         htmls(`.content-render-${idModal}`, '');
@@ -164,14 +164,14 @@ const Content = {
         ${imageShimmer()}
       </div>
       <div class="abs center error-${idModal} hide"></div>`;
-  },
+  }
 
   /**
    * Helper function to get file content
    * Supports both legacy format (with buffer data) and new format (metadata only)
    * For new format, fetches content from blob endpoint
    */
-  getFileContent: async function (file, options = {}) {
+  static async getFileContent(file, options = {}) {
     // If custom URL provided, use it
     if (options.url) {
       return await CoreService.getRaw({ url: options.url });
@@ -197,9 +197,9 @@ const Content = {
     }
 
     throw new Error('No file content available');
-  },
+  }
 
-  RenderFile: async function (
+  static async RenderFile(
     options = {
       file: {
         _id: '',
@@ -308,13 +308,13 @@ ${JSON.stringify(JSON.parse(content), null, 4)}</pre
     if (ext === 'md') {
       attachMarkdownLinkHandlers(container);
     }
-  },
+  }
 
   /**
    * Generate appropriate URL for file display
    * Prefers blob endpoint for new metadata-only format
    */
-  urlFactory: async function (options) {
+  static async urlFactory(options) {
     // If custom URL provided, use it
     if (options.url) {
       return options.url;
@@ -340,7 +340,7 @@ ${JSON.stringify(JSON.parse(content), null, 4)}</pre
     }
 
     return null;
-  },
-};
+  }
+}
 
 export { Content, attachMarkdownLinkHandlers };

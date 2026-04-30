@@ -5,7 +5,6 @@
  * @module src/client/components/core/Input.js
  * @namespace InputClient
  */
-
 import { AgGrid } from './AgGrid.js';
 import { BtnIcon } from './BtnIcon.js';
 import { isValidDate } from './CommonJs.js';
@@ -18,7 +17,6 @@ import { Translate } from './Translate.js';
 import { htmls, htmlStrSanitize, s } from './VanillaJs.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { FileService } from '../../services/file/file.service.js';
-
 /**
  * Logger instance for this module.
  * @type {Function}
@@ -26,7 +24,6 @@ import { FileService } from '../../services/file/file.service.js';
  * @private
  */
 const logger = loggerFactory(import.meta);
-
 /**
  * Creates a FormData object from file input event.
  * Filters files by extension if provided.
@@ -49,7 +46,6 @@ const fileFormDataFactory = (e, extensions) => {
   }
   return form;
 };
-
 /**
  * Convert file data to File object.
  * Supports both legacy format (with buffer data) and new format (metadata only).
@@ -72,7 +68,6 @@ const getFileFromFileData = (fileData) => {
     logger.error('getFileFromFileData: fileData is undefined');
     return null;
   }
-
   // Check if this is legacy format with buffer data
   if (fileData.data?.data) {
     try {
@@ -83,7 +78,6 @@ const getFileFromFileData = (fileData) => {
       return null;
     }
   }
-
   // New format - metadata only, cannot create File without content
   // Return null and let caller fetch from blob endpoint if needed
   if (fileData._id && !fileData.data?.data) {
@@ -93,11 +87,9 @@ const getFileFromFileData = (fileData) => {
     );
     return null;
   }
-
   logger.error('getFileFromFileData: Invalid file data structure', fileData);
   return null;
 };
-
 /**
  * Fetch file content from blob endpoint and create File object.
  * Used for metadata-only format files during edit mode.
@@ -116,14 +108,12 @@ const getFileFromBlobEndpoint = async (fileData) => {
   if (!fileData || !fileData._id) {
     return null;
   }
-
   try {
     const { data: blobArray, status } = await FileService.get({ id: `blob/${fileData._id}` });
     if (status !== 'success' || !blobArray || !blobArray[0]) {
       logger.error('Failed to fetch file from blob endpoint');
       return null;
     }
-
     const blob = blobArray[0];
     return new File([blob], fileData.name || 'file', { type: fileData.mimetype || blob.type });
   } catch (error) {
@@ -131,7 +121,6 @@ const getFileFromBlobEndpoint = async (fileData) => {
     return null;
   }
 };
-
 /**
  * Get image/file source URL from file data.
  * Supports both legacy format (with buffer) and new format (metadata only).
@@ -151,7 +140,6 @@ const getSrcFromFileData = (fileData) => {
     logger.error('getSrcFromFileData: fileData is undefined');
     return null;
   }
-
   // Legacy format with buffer data - create object URL
   if (fileData.data?.data) {
     try {
@@ -163,7 +151,6 @@ const getSrcFromFileData = (fileData) => {
       logger.error('Error getting src from legacy buffer data:', error);
     }
   }
-
   // New format - use blob endpoint
   if (fileData._id) {
     try {
@@ -173,18 +160,16 @@ const getSrcFromFileData = (fileData) => {
       return null;
     }
   }
-
   logger.error('getSrcFromFileData: Cannot generate src, invalid file data:', fileData);
   return null;
 };
-
 /**
  * Input component for rendering various form input types.
  * Supports text, password, file, color, date, dropdown, toggle, rich text, and grid inputs.
  * @namespace InputClient.Input
  * @memberof InputClient
  */
-const Input = {
+class Input {
   /**
    * Renders an input element based on the provided options.
    * @async
@@ -200,7 +185,7 @@ const Input = {
    * @param {boolean} [options.disabled] - Whether the input is disabled.
    * @returns {Promise<string>} HTML string for the input component.
    */
-  Render: async function (options) {
+  static async Render(options) {
     const { id } = options;
     options?.placeholder
       ? options.placeholder === true
@@ -213,7 +198,6 @@ const Input = {
         ['color', 'file'].includes(options.type) ? s(`.${id}`).click() : s(`.${id}`).focus();
         ['datetime-local'].includes(options.type) ? s(`.${id}`).showPicker() : s(`.${id}`).focus();
       };
-
       if (s(`.btn-eye-${id}`))
         s(`.btn-eye-${id}`).onclick = () => {
           if (s(`.fa-eye-slash-${id}`).style.display === 'none') {
@@ -227,9 +211,7 @@ const Input = {
           s(`.${id}`).type = 'password';
         };
     });
-
     const labelValue = htmlStrSanitize(options.label) ? htmlStrSanitize(options.label) : id;
-
     const inputElement = html` <label for="${id}-name">
         <span class="hide">${labelValue}</span>
         <input
@@ -252,7 +234,6 @@ const Input = {
       <div class="${id}-input-extension input-info input-extension ${options?.extension ? '' : 'hide'}">
         ${options?.extension ? await options.extension() : ''}
       </div>`;
-
     return html` <div class="${options?.containerClass ? options.containerClass + ' ' : ''} input-container-${id}">
       <div class="in">
         ${options?.label ? html`<div class="in input-label input-label-${id}">${options.label}</div>` : ''}
@@ -274,15 +255,15 @@ const Input = {
         <div class="in input-info input-info-${id}">&nbsp</div>
       </div>
     </div>`;
-  },
-  parseJson: (selector) => {
+  }
+  static parseJson = (selector) => {
     try {
       return JSON.parse(s(selector).value);
     } catch (error) {
       return s(selector).value;
     }
-  },
-  getValues: function (formData) {
+  };
+  static getValues(formData) {
     const obj = {};
     for (const inputData of formData) {
       if (inputData.disableRender) continue;
@@ -297,11 +278,9 @@ const Input = {
         case 'checkbox-on-off':
           obj[inputData.model] = s(`.${inputData.id}-checkbox`).checked;
           continue;
-
         default:
           break;
       }
-
       if (!s(`.${inputData.id}`) || !s(`.${inputData.id}`).value || s(`.${inputData.id}`).value === 'undefined')
         continue;
       if ('model' in inputData) {
@@ -309,17 +288,15 @@ const Input = {
       }
     }
     return obj;
-  },
-  cleanValues: function (formData) {
+  }
+  static cleanValues(formData) {
     const obj = {};
     for (const inputData of formData) {
       if (!s(`.${inputData.id}`)) continue;
-
       switch (inputData.inputType) {
         case 'file':
           s(`.${inputData.id}`).inputFiles = undefined;
           s(`.${inputData.id}`).value = null;
-
           if (s(`.file-name-render-${inputData.id}`) && s(`.${inputData.id}`).fileNameInputExtDefaultContent)
             htmls(`.file-name-render-${inputData.id}`, `${s(`.${inputData.id}`).fileNameInputExtDefaultContent}`);
           continue;
@@ -339,60 +316,49 @@ const Input = {
           if (s(`.${inputData.id}-checkbox`).checked) ToggleSwitch.Tokens[inputData.id].click();
           continue;
           break;
-
         default:
           break;
       }
-
       if ('model' in inputData) {
         if (!['dropdown'].includes(inputData.inputType)) s(`.${inputData.id}`).value = '';
       }
       if (s(`.input-info-${inputData.id}`)) htmls(`.input-info-${inputData.id}`, html`&nbsp`);
     }
     return obj;
-  },
-  setValues: async function (formData, obj, originObj, fileObj) {
+  }
+  static async setValues(formData, obj, originObj, fileObj) {
     setTimeout(async () => {
       for (const inputData of formData) {
         if (!s(`.${inputData.id}`)) continue;
-
         switch (inputData.inputType) {
           case 'file':
             if (fileObj && fileObj[inputData.model] && s(`.${inputData.id}`)) {
               const dataTransfer = new DataTransfer();
-
               if (fileObj[inputData.model].fileBlob) {
                 let fileBlobData = getFileFromFileData(fileObj[inputData.model].fileBlob);
-
                 // If fileBlob is metadata-only, try to fetch from blob endpoint
                 if (!fileBlobData && fileObj[inputData.model].fileBlob?._id) {
                   fileBlobData = await getFileFromBlobEndpoint(fileObj[inputData.model].fileBlob);
                 }
-
                 if (fileBlobData) {
                   dataTransfer.items.add(fileBlobData);
                 }
               }
-
               if (fileObj[inputData.model].mdBlob) {
                 let mdBlobData = getFileFromFileData(fileObj[inputData.model].mdBlob);
-
                 // If mdBlob is metadata-only, try to fetch from blob endpoint
                 if (!mdBlobData && fileObj[inputData.model].mdBlob?._id) {
                   mdBlobData = await getFileFromBlobEndpoint(fileObj[inputData.model].mdBlob);
                 }
-
                 if (mdBlobData) {
                   dataTransfer.items.add(mdBlobData);
                 }
               }
-
               if (dataTransfer.files.length) {
                 s(`.${inputData.id}`).files = dataTransfer.files;
                 s(`.${inputData.id}`).onchange({ target: s(`.${inputData.id}`) });
               }
             }
-
             continue;
             break;
           case 'md':
@@ -401,7 +367,6 @@ const Input = {
             }
             continue;
             break;
-
           case 'dropdown-checkbox': {
             s(`.dropdown-option-${inputData.id}-reset`).click();
             for (const opt of originObj[inputData.model]) s(`.dropdown-option-${inputData.id}-${opt}`).click();
@@ -429,18 +394,16 @@ const Input = {
           default:
             break;
         }
-
         if ('model' in inputData) {
           if (!['dropdown'].includes(inputData.inputType)) s(`.${inputData.id}`).value = obj[inputData.model];
         }
         if (s(`.input-info-${inputData.id}`)) htmls(`.input-info-${inputData.id}`, html`&nbsp`);
       }
     });
-  },
-};
-
-const InputFile = {
-  Render: async function (
+  }
+}
+class InputFile {
+  static async Render(
     options = { id: '', multiple: false, extensionsAccept: [] },
     on = { change: () => {}, clear: () => {} },
   ) {
@@ -455,7 +418,6 @@ const InputFile = {
         AgGrid.grids[gridId].setGridOption('rowData', []);
         if (on && typeof on.clear === 'function') on.clear();
       };
-
       ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (event) {
         s(`.drop-zone-${id}`).addEventListener(event, function (e) {
           e.preventDefault();
@@ -465,25 +427,23 @@ const InputFile = {
       s(`.drop-zone-${id}`).addEventListener(
         'dragover',
         function (e) {
-          this.classList.add('drop-hover-container');
+          InputFile.classList.add('drop-hover-container');
         },
         false,
       );
-
       s(`.drop-zone-${id}`).addEventListener(
         'dragleave',
         function (e) {
-          this.classList.remove('drop-hover-container');
+          InputFile.classList.remove('drop-hover-container');
         },
         false,
       );
       s(`.drop-zone-${id}`).addEventListener(
         'drop',
         function (e) {
-          this.classList.remove('drop-hover-container');
+          InputFile.classList.remove('drop-hover-container');
           const files = e.dataTransfer.files;
           const dataTransfer = new DataTransfer();
-
           let countFiles = 0;
           Array.prototype.forEach.call(files, (file) => {
             // logger.info(file);
@@ -491,17 +451,14 @@ const InputFile = {
             dataTransfer.items.add(file);
             countFiles++;
           });
-
           s(`.${id}`).files = dataTransfer.files;
           s(`.${id}`).onchange({ target: s(`.${id}`) });
         },
         false,
       );
-
       s(`.drop-zone-${id}`).addEventListener('click', function (e) {
         s(`.${id}`).click();
       });
-
       s(`.${id}`).onchange = (e) => {
         // logger.info('e', e);
         const fileGridData = [];
@@ -563,14 +520,12 @@ const InputFile = {
         </div>
       </div>
     </div>`;
-  },
-};
-
+  }
+}
 function isTextInputFocused() {
   const active = document.activeElement;
   return active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
 }
-
 export {
   Input,
   InputFile,

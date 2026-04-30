@@ -10,13 +10,10 @@
  * @module src/server/ipfs-client.js
  * @namespace IpfsClient
  */
-
 import stringify from 'fast-json-stable-stringify';
 import { loggerFactory } from './logger.js';
-
 const logger = loggerFactory(import.meta);
 const DEFAULT_IPFS_HTTP_TIMEOUT_MS = Number(process.env.IPFS_HTTP_TIMEOUT_MS || 10000);
-
 const getRequestTimeoutMs = (kind = 'kubo') => {
   if (kind === 'cluster') {
     return Number(process.env.IPFS_CLUSTER_TIMEOUT_MS || DEFAULT_IPFS_HTTP_TIMEOUT_MS);
@@ -26,12 +23,10 @@ const getRequestTimeoutMs = (kind = 'kubo') => {
   }
   return Number(process.env.IPFS_KUBO_TIMEOUT_MS || DEFAULT_IPFS_HTTP_TIMEOUT_MS);
 };
-
 const fetchWithTimeout = async (url, options = {}, { kind = 'kubo', label = url } = {}) => {
   const controller = new AbortController();
   const timeoutMs = getRequestTimeoutMs(kind);
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } catch (err) {
@@ -43,18 +38,15 @@ const fetchWithTimeout = async (url, options = {}, { kind = 'kubo', label = url 
     clearTimeout(timeoutId);
   }
 };
-
 // ─────────────────────────────────────────────────────────
 //  URL helpers
 // ─────────────────────────────────────────────────────────
-
 /**
  * Base URL of the Kubo RPC API (port 5001).
  * @returns {string}
  */
 const getIpfsApiUrl = () =>
   process.env.IPFS_API_URL || `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster'}:5001`;
-
 /**
  * Base URL of the IPFS Cluster REST API (port 9094).
  * @returns {string}
@@ -62,7 +54,6 @@ const getIpfsApiUrl = () =>
 const getClusterApiUrl = () =>
   process.env.IPFS_CLUSTER_API_URL ||
   `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster'}:9094`;
-
 /**
  * Base URL of the IPFS HTTP Gateway (port 8080).
  * @returns {string}
@@ -70,17 +61,14 @@ const getClusterApiUrl = () =>
 const getGatewayUrl = () =>
   process.env.IPFS_GATEWAY_URL ||
   `http://${process.env.NODE_ENV === 'development' ? 'localhost' : 'ipfs-cluster'}:8080`;
-
 // ─────────────────────────────────────────────────────────
 //  Core: add content
 // ─────────────────────────────────────────────────────────
-
 /**
  * @typedef {Object} IpfsAddResult
  * @property {string} cid  – CID (Content Identifier) returned by the node.
  * @property {number} size – Cumulative DAG size reported by the node.
  */
-
 /**
  * Add arbitrary bytes to the Kubo node AND pin them on the IPFS Cluster.
  *
@@ -98,12 +86,10 @@ const getGatewayUrl = () =>
 const addToIpfs = async (content, filename = 'data', mfsPath) => {
   const kuboUrl = getIpfsApiUrl();
   const clusterUrl = getClusterApiUrl();
-
   // Build multipart body using native FormData + Blob (Node ≥ 18).
   const buf = Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf-8');
   const formData = new FormData();
   formData.append('file', new Blob([buf]), filename);
-
   // ── Step 1: add to Kubo ──────────────────────────────
   let cid;
   let size;
@@ -116,13 +102,11 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
       },
       { kind: 'kubo', label: `IPFS Kubo add ${filename}` },
     );
-
     if (!res.ok) {
       const text = await res.text();
       logger.error(`IPFS Kubo add failed (${res.status}): ${text}`);
       return null;
     }
-
     const json = await res.json();
     cid = json.Hash;
     size = Number(json.Size);
@@ -131,7 +115,6 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
     logger.warn(`IPFS Kubo node unreachable at ${kuboUrl}: ${err.message}`);
     return null;
   }
-
   // ── Step 2: pin to the Cluster ───────────────────────
   try {
     const clusterRes = await fetchWithTimeout(
@@ -141,7 +124,6 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
       },
       { kind: 'cluster', label: `IPFS Cluster pin ${cid}` },
     );
-
     if (!clusterRes.ok) {
       const text = await clusterRes.text();
       logger.warn(`IPFS Cluster pin failed (${clusterRes.status}): ${text}`);
@@ -151,7 +133,6 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
   } catch (err) {
     logger.warn(`IPFS Cluster unreachable at ${clusterUrl}: ${err.message}`);
   }
-
   // ── Step 3: copy into MFS so the Web UI "Files" section shows it ─
   const destPath = mfsPath || `/pinned/${filename}`;
   const destDir = destPath.substring(0, destPath.lastIndexOf('/')) || '/';
@@ -162,7 +143,6 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
       { method: 'POST' },
       { kind: 'kubo', label: `IPFS MFS mkdir ${destDir}` },
     );
-
     // Remove existing entry if present (cp fails on duplicates)
     await fetchWithTimeout(
       `${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(destPath)}&force=true`,
@@ -171,14 +151,12 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
       },
       { kind: 'kubo', label: `IPFS MFS rm ${destPath}` },
     );
-
     // Copy the CID into MFS
     const cpRes = await fetchWithTimeout(
       `${kuboUrl}/api/v0/files/cp?arg=/ipfs/${encodeURIComponent(cid)}&arg=${encodeURIComponent(destPath)}`,
       { method: 'POST' },
       { kind: 'kubo', label: `IPFS MFS cp ${destPath}` },
     );
-
     if (!cpRes.ok) {
       const text = await cpRes.text();
       logger.warn(`IPFS MFS cp failed (${cpRes.status}): ${text}`);
@@ -188,14 +166,11 @@ const addToIpfs = async (content, filename = 'data', mfsPath) => {
   } catch (err) {
     logger.warn(`IPFS MFS cp unreachable: ${err.message}`);
   }
-
   return { cid, size };
 };
-
 // ─────────────────────────────────────────────────────────
 //  Convenience wrappers
 // ─────────────────────────────────────────────────────────
-
 /**
  * Add a JSON-serialisable object to IPFS.
  *
@@ -208,7 +183,6 @@ const addJsonToIpfs = async (obj, filename = 'data.json', mfsPath) => {
   const payload = stringify(obj);
   return addToIpfs(Buffer.from(payload, 'utf-8'), filename, mfsPath);
 };
-
 /**
  * Compute the CID that Kubo would assign to a payload without pinning or copying it into MFS.
  * Useful when building canonical backup manifests from the actual bytes that will be restored later.
@@ -222,7 +196,6 @@ const hashContentForIpfs = async (content, filename = 'data') => {
   const buf = Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf-8');
   const formData = new FormData();
   formData.append('file', new Blob([buf]), filename);
-
   try {
     const res = await fetchWithTimeout(
       `${kuboUrl}/api/v0/add?only-hash=true&pin=false&cid-version=1`,
@@ -232,13 +205,11 @@ const hashContentForIpfs = async (content, filename = 'data') => {
       },
       { kind: 'kubo', label: `IPFS Kubo only-hash ${filename}` },
     );
-
     if (!res.ok) {
       const text = await res.text();
       logger.error(`IPFS Kubo only-hash failed (${res.status}): ${text}`);
       return null;
     }
-
     const json = await res.json();
     return { cid: json.Hash, size: Number(json.Size) };
   } catch (err) {
@@ -246,7 +217,6 @@ const hashContentForIpfs = async (content, filename = 'data') => {
     return null;
   }
 };
-
 /**
  * Compute the CID for a JSON-serialisable object using the same stable stringification
  * that the regular addJsonToIpfs path uses.
@@ -259,7 +229,6 @@ const hashJsonForIpfs = async (obj, filename = 'data.json') => {
   const payload = stringify(obj);
   return hashContentForIpfs(Buffer.from(payload, 'utf-8'), filename);
 };
-
 /**
  * Add a binary buffer (e.g. a PNG image) to IPFS.
  *
@@ -271,7 +240,6 @@ const hashJsonForIpfs = async (obj, filename = 'data.json') => {
 const addBufferToIpfs = async (buffer, filename, mfsPath) => {
   return addToIpfs(buffer, filename, mfsPath);
 };
-
 /**
  * Compute the CID for a binary buffer without pinning it.
  *
@@ -282,11 +250,9 @@ const addBufferToIpfs = async (buffer, filename, mfsPath) => {
 const hashBufferForIpfs = async (buffer, filename) => {
   return hashContentForIpfs(buffer, filename);
 };
-
 // ─────────────────────────────────────────────────────────
 //  Pin management
 // ─────────────────────────────────────────────────────────
-
 /**
  * Explicitly pin an existing CID on both the Kubo node and the Cluster.
  *
@@ -298,7 +264,6 @@ const pinCid = async (cid, type = 'recursive') => {
   const kuboUrl = getIpfsApiUrl();
   const clusterUrl = getClusterApiUrl();
   let kuboOk = false;
-
   // Kubo pin
   try {
     const res = await fetchWithTimeout(
@@ -318,7 +283,6 @@ const pinCid = async (cid, type = 'recursive') => {
   } catch (err) {
     logger.warn(`IPFS Kubo pin unreachable: ${err.message}`);
   }
-
   // Cluster pin
   try {
     const clusterRes = await fetchWithTimeout(
@@ -337,10 +301,8 @@ const pinCid = async (cid, type = 'recursive') => {
   } catch (err) {
     logger.warn(`IPFS Cluster pin unreachable: ${err.message}`);
   }
-
   return kuboOk;
 };
-
 /**
  * Unpin a CID from both the Kubo node and the Cluster.
  *
@@ -351,7 +313,6 @@ const unpinCid = async (cid) => {
   const kuboUrl = getIpfsApiUrl();
   const clusterUrl = getClusterApiUrl();
   let kuboOk = false;
-
   // Cluster unpin
   try {
     const clusterRes = await fetchWithTimeout(
@@ -374,7 +335,6 @@ const unpinCid = async (cid) => {
   } catch (err) {
     logger.warn(`IPFS Cluster unpin unreachable: ${err.message}`);
   }
-
   // Kubo unpin
   try {
     const res = await fetchWithTimeout(
@@ -400,14 +360,11 @@ const unpinCid = async (cid) => {
   } catch (err) {
     logger.warn(`IPFS Kubo unpin unreachable: ${err.message}`);
   }
-
   return kuboOk;
 };
-
 // ─────────────────────────────────────────────────────────
 //  Retrieval
 // ─────────────────────────────────────────────────────────
-
 /**
  * Retrieve raw bytes for a CID from the IPFS HTTP Gateway (port 8080).
  *
@@ -436,11 +393,9 @@ const getFromIpfs = async (cid) => {
     return null;
   }
 };
-
 // ─────────────────────────────────────────────────────────
 //  Diagnostics
 // ─────────────────────────────────────────────────────────
-
 /**
  * List all pins tracked by the IPFS Cluster (port 9094).
  * Each line in the response is a JSON object with at least a `cid` field.
@@ -485,7 +440,6 @@ const listClusterPins = async () => {
     return [];
   }
 };
-
 /**
  * List pins tracked by the local Kubo node (port 5001).
  *
@@ -514,11 +468,9 @@ const listKuboPins = async (type = 'recursive') => {
     return {};
   }
 };
-
 // ─────────────────────────────────────────────────────────
 //  MFS management
 // ─────────────────────────────────────────────────────────
-
 /**
  * Remove a file or directory from the Kubo MFS (Mutable File System).
  * This cleans up entries visible in the IPFS Web UI "Files" section.
@@ -542,7 +494,6 @@ const removeMfsPath = async (mfsPath, recursive = true) => {
       logger.info(`IPFS MFS rm – path does not exist, skipping: ${mfsPath}`);
       return true;
     }
-
     const rmRes = await fetchWithTimeout(
       `${kuboUrl}/api/v0/files/rm?arg=${encodeURIComponent(mfsPath)}&force=true${recursive ? '&recursive=true' : ''}`,
       { method: 'POST' },
@@ -560,7 +511,6 @@ const removeMfsPath = async (mfsPath, recursive = true) => {
     return false;
   }
 };
-
 /**
  * Restore a CID into the Kubo MFS at a specific path (e.g. when re-importing a backup).
  * Creates the parent directory if needed, removes any existing entry, then copies the CID.
@@ -600,28 +550,26 @@ const restoreMfsPath = async (cid, mfsPath) => {
     return false;
   }
 };
-
 // ─────────────────────────────────────────────────────────
 //  Export
 // ─────────────────────────────────────────────────────────
-
-const IpfsClient = {
-  getIpfsApiUrl,
-  getClusterApiUrl,
-  getGatewayUrl,
-  addToIpfs,
-  addJsonToIpfs,
-  addBufferToIpfs,
-  hashContentForIpfs,
-  hashJsonForIpfs,
-  hashBufferForIpfs,
-  pinCid,
-  unpinCid,
-  getFromIpfs,
-  listClusterPins,
-  listKuboPins,
-  removeMfsPath,
-  restoreMfsPath,
+class IpfsClient {
+  static getIpfsApiUrl = getIpfsApiUrl;
+  static getClusterApiUrl = getClusterApiUrl;
+  static getGatewayUrl = getGatewayUrl;
+  static addToIpfs = addToIpfs;
+  static addJsonToIpfs = addJsonToIpfs;
+  static addBufferToIpfs = addBufferToIpfs;
+  static hashContentForIpfs = hashContentForIpfs;
+  static hashJsonForIpfs = hashJsonForIpfs;
+  static hashBufferForIpfs = hashBufferForIpfs;
+  static pinCid = pinCid;
+  static unpinCid = unpinCid;
+  static getFromIpfs = getFromIpfs;
+  static listClusterPins = listClusterPins;
+  static listKuboPins = listKuboPins;
+  static removeMfsPath = removeMfsPath;
+  static restoreMfsPath = restoreMfsPath;
   /**
    * Check whether a single CID is currently pinned on the local Kubo node.
    * Uses the pin/ls?arg=<cid> endpoint which returns only that one pin
@@ -630,7 +578,7 @@ const IpfsClient = {
    * @param {string} cid - IPFS Content Identifier to check.
    * @returns {Promise<boolean>} true when the CID is pinned.
    */
-  isCidPinned: async (cid) => {
+  static isCidPinned = async (cid) => {
     const kuboUrl = getIpfsApiUrl();
     try {
       const res = await fetchWithTimeout(
@@ -644,7 +592,6 @@ const IpfsClient = {
     } catch {
       return false;
     }
-  },
-};
-
+  };
+}
 export { IpfsClient };

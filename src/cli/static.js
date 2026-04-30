@@ -3,7 +3,6 @@
  * @module src/cli/static.js
  * @namespace UnderpostStatic
  */
-
 import fs from 'fs-extra';
 import path from 'path';
 import express from 'express';
@@ -12,9 +11,7 @@ import { shellExec } from '../server/process.js';
 import Underpost from '../index.js';
 import { JSONweb } from '../server/client-formatted.js';
 import { loggerFactory, loggerMiddleware } from '../server/logger.js';
-
 const logger = loggerFactory(import.meta);
-
 /**
  * @typedef {Object} MetadataOptions
  * @memberof UnderpostStatic
@@ -30,7 +27,6 @@ const logger = loggerFactory(import.meta);
  * @property {Object} [openGraph={}] - Additional Open Graph metadata
  * @property {Object} [twitter={}] - Twitter card metadata
  */
-
 /**
  * @typedef {Object} ScriptOptions
  * @memberof UnderpostStatic
@@ -43,7 +39,6 @@ const logger = loggerFactory(import.meta);
  * @property {string} [crossorigin] - CORS settings
  * @property {Object} [attributes={}] - Additional HTML attributes
  */
-
 /**
  * @typedef {Object} StyleOptions
  * @memberof UnderpostStatic
@@ -53,7 +48,6 @@ const logger = loggerFactory(import.meta);
  * @property {string} [integrity] - Subresource integrity hash
  * @property {string} [crossorigin] - CORS settings
  */
-
 /**
  * @typedef {Object} IconOptions
  * @memberof UnderpostStatic
@@ -62,7 +56,6 @@ const logger = loggerFactory(import.meta);
  * @property {string} [manifest] - Web manifest path
  * @property {Object[]} [additional=[]] - Additional icon definitions
  */
-
 /**
  * @typedef {Object} StaticGenerationOptions
  * @memberof UnderpostStatic
@@ -88,43 +81,40 @@ const logger = loggerFactory(import.meta);
  * @property {string} [dir='ltr'] - HTML dir attribute
  * @property {Object} [microdata=[]] - Structured data (JSON-LD)
  */
-
-const DefaultStaticGenerationOptions = {
-  page: '',
-  title: '',
-  outputPath: '',
-  buildPath: '/',
-  env: 'production',
-  dev: false,
-  minify: true,
-  metadata: {},
-  scripts: {},
-  styles: [],
-  headComponents: [],
-  bodyComponents: [],
-  icons: {},
-  customPayload: {},
-  templateHelpers: {},
-  configFile: '',
-  lang: 'en',
-  dir: 'ltr',
-  microdata: [],
-};
-
+class DefaultStaticGenerationOptions {
+  static page = '';
+  static title = '';
+  static outputPath = '';
+  static buildPath = '/';
+  static env = 'production';
+  static dev = false;
+  static minify = true;
+  static metadata = {};
+  static scripts = {};
+  static styles = [];
+  static headComponents = [];
+  static bodyComponents = [];
+  static icons = {};
+  static customPayload = {};
+  static templateHelpers = {};
+  static configFile = '';
+  static lang = 'en';
+  static dir = 'ltr';
+  static microdata = [];
+}
 /**
  * Template helper functions for common SSR patterns
  * @namespace TemplateHelpers
  */
-const TemplateHelpers = {
+class TemplateHelpers {
   /**
    * Generates a script tag from options
    * @param {ScriptOptions} options - Script options
    * @returns {string} HTML script tag
    * @memberof TemplateHelpers
    */
-  createScriptTag(options) {
+  static createScriptTag(options) {
     const attrs = [];
-
     if (options.type && options.type !== 'text/javascript') {
       attrs.push(`type="${options.type}"`);
     }
@@ -133,49 +123,41 @@ const TemplateHelpers = {
     if (options.src) attrs.push(`src="${options.src}"`);
     if (options.integrity) attrs.push(`integrity="${options.integrity}"`);
     if (options.crossorigin) attrs.push(`crossorigin="${options.crossorigin}"`);
-
     // Add custom attributes
     if (options.attributes) {
       Object.entries(options.attributes).forEach(([key, value]) => {
         attrs.push(`${key}="${value}"`);
       });
     }
-
     const attrString = attrs.length > 0 ? ` ${attrs.join(' ')}` : '';
     const content = options.content || '';
-
     return `<script${attrString}>${content}</script>`;
-  },
-
+  }
   /**
    * Generates a link/style tag from options
    * @param {StyleOptions} options - Style options
    * @returns {string} HTML link or style tag
    * @memberof TemplateHelpers
    */
-  createStyleTag(options) {
+  static createStyleTag(options) {
     if (options.content) {
       return `<style>${options.content}</style>`;
     }
-
     const attrs = [`rel="stylesheet"`];
     if (options.href) attrs.push(`href="${options.href}"`);
     if (options.media) attrs.push(`media="${options.media}"`);
     if (options.integrity) attrs.push(`integrity="${options.integrity}"`);
     if (options.crossorigin) attrs.push(`crossorigin="${options.crossorigin}"`);
-
     return `<link ${attrs.join(' ')}>`;
-  },
-
+  }
   /**
    * Generates icon link tags
    * @param {IconOptions} icons - Icon options
    * @returns {string} HTML icon link tags
    * @memberof TemplateHelpers
    */
-  createIconTags(icons) {
+  static createIconTags(icons) {
     const tags = [];
-
     if (icons.favicon) {
       tags.push(`<link rel="icon" type="image/x-icon" href="${icons.favicon}">`);
     }
@@ -193,19 +175,16 @@ const TemplateHelpers = {
         tags.push(`<link ${attrs}>`);
       });
     }
-
     return tags.join('\n');
-  },
-
+  }
   /**
    * Generates meta tags from metadata object
    * @param {MetadataOptions} metadata - Metadata options
    * @returns {string} HTML meta tags
    * @memberof TemplateHelpers
    */
-  createMetaTags(metadata) {
+  static createMetaTags(metadata) {
     const tags = [];
-
     if (metadata.description) {
       tags.push(`<meta name="description" content="${metadata.description}">`);
     }
@@ -218,7 +197,6 @@ const TemplateHelpers = {
     if (metadata.themeColor) {
       tags.push(`<meta name="theme-color" content="${metadata.themeColor}">`);
     }
-
     // Open Graph
     if (metadata.title) {
       tags.push(`<meta property="og:title" content="${metadata.title}">`);
@@ -239,7 +217,6 @@ const TemplateHelpers = {
     if (metadata.locale) {
       tags.push(`<meta property="og:locale" content="${metadata.locale}">`);
     }
-
     // Twitter Card
     tags.push(`<meta name="twitter:card" content="summary_large_image">`);
     if (metadata.twitter) {
@@ -247,53 +224,46 @@ const TemplateHelpers = {
         tags.push(`<meta name="twitter:${key}" content="${value}">`);
       });
     }
-
     // Additional Open Graph
     if (metadata.openGraph) {
       Object.entries(metadata.openGraph).forEach(([key, value]) => {
         tags.push(`<meta property="og:${key}" content="${value}">`);
       });
     }
-
     return tags.join('\n');
-  },
-
+  }
   /**
    * Generates JSON-LD structured data script tags
    * @param {Object[]} microdata - Array of structured data objects
    * @returns {string} HTML script tags with JSON-LD
    * @memberof TemplateHelpers
    */
-  createMicrodataTags(microdata) {
+  static createMicrodataTags(microdata) {
     if (!microdata || !Array.isArray(microdata) || microdata.length === 0) {
       return '';
     }
-
     return microdata
       .map((data) => `<script type="application/ld+json">\n${JSON.stringify(data, null, 2)}\n</script>`)
       .join('\n');
-  },
-};
-
+  }
+}
 /**
  * Configuration validator
  * @namespace ConfigValidator
  */
-const ConfigValidator = {
+class ConfigValidator {
   /**
    * Validates static generation options
    * @param {StaticGenerationOptions} options - Options to validate
    * @returns {Object} Validation result with isValid flag and errors array
    * @memberof ConfigValidator
    */
-  validate(options) {
+  static validate(options) {
     const errors = [];
-
     // Validate page path
     if (options.page && !fs.existsSync(options.page)) {
       errors.push(`Page component does not exist: ${options.page}`);
     }
-
     // Validate head components
     if (options.headComponents && Array.isArray(options.headComponents)) {
       options.headComponents.forEach((comp) => {
@@ -302,7 +272,6 @@ const ConfigValidator = {
         }
       });
     }
-
     // Validate body components
     if (options.bodyComponents && Array.isArray(options.bodyComponents)) {
       options.bodyComponents.forEach((comp) => {
@@ -311,61 +280,55 @@ const ConfigValidator = {
         }
       });
     }
-
     // Validate environment
     if (options.env && !['development', 'production'].includes(options.env)) {
       logger.warn(`Invalid environment: ${options.env}. Using 'production' as default.`);
     }
-
     return {
       isValid: errors.length === 0,
       errors,
     };
-  },
-};
-
+  }
+}
 /**
  * Configuration file loader
  * @namespace ConfigLoader
  */
-const ConfigLoader = {
+class ConfigLoader {
   /**
    * Loads configuration from a JSON file
    * @param {string} configPath - Path to config file
    * @returns {Object} Configuration object
    * @memberof ConfigLoader
    */
-  load(configPath) {
+  static load(configPath) {
     try {
       if (!fs.existsSync(configPath)) {
         logger.error(`Config file not found: ${configPath}`);
         return {};
       }
-
       const content = fs.readFileSync(configPath, 'utf8');
       return JSON.parse(content);
     } catch (error) {
       logger.error(`Error loading config file: ${error.message}`);
       return {};
     }
-  },
-
+  }
   /**
    * Saves configuration to a JSON file
    * @param {string} configPath - Path to save config
    * @param {Object} config - Configuration object
    * @memberof ConfigLoader
    */
-  save(configPath, config) {
+  static save(configPath, config) {
     try {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
       logger.info(`Config saved to: ${configPath}`);
     } catch (error) {
       logger.error(`Error saving config file: ${error.message}`);
     }
-  },
-};
-
+  }
+}
 /**
  * @class UnderpostStatic
  * @description Enhanced static site generation class with comprehensive customization
@@ -406,7 +369,6 @@ class UnderpostStatic {
         const configPath = typeof options.generateConfig === 'string' ? options.generateConfig : './static-config.json';
         return Underpost.static.generateConfigTemplate(configPath);
       }
-
       // Parse comma-separated options
       if (options.keywords) {
         options.keywords = options.keywords.split(',').map((k) => k.trim());
@@ -428,7 +390,6 @@ class UnderpostStatic {
       if (options.bodyComponents) {
         options.bodyComponents = options.bodyComponents.split(',').map((c) => c.trim());
       }
-
       // Build metadata object from individual options
       options.metadata = {
         ...(options.title && { title: options.title }),
@@ -441,7 +402,6 @@ class UnderpostStatic {
         ...(options.locale && { locale: options.locale }),
         ...(options.siteName && { siteName: options.siteName }),
       };
-
       // Build icons object
       if (options.favicon || options.appleTouchIcon || options.manifest) {
         options.icons = {
@@ -450,13 +410,11 @@ class UnderpostStatic {
           ...(options.manifest && { manifest: options.manifest }),
         };
       }
-
       // Load config from file if specified
       if (options.configFile) {
         const fileConfig = ConfigLoader.load(options.configFile);
         options = { ...fileConfig, ...options }; // CLI options override file config
       }
-
       // Set defaults
       if (!options.outputPath) options.outputPath = '.';
       if (!options.buildPath) options.buildPath = '/';
@@ -465,7 +423,6 @@ class UnderpostStatic {
       if (!options.metadata) options.metadata = {};
       if (!options.lang) options.lang = 'en';
       if (!options.dir) options.dir = 'ltr';
-
       // Merge title for backwards compatibility
       if (options.title && !options.metadata.title) {
         options.metadata.title = options.title;
@@ -473,7 +430,6 @@ class UnderpostStatic {
       if (!options.metadata.title) {
         options.metadata.title = 'Home';
       }
-
       // Validate options
       const validation = ConfigValidator.validate(options);
       if (!validation.isValid) {
@@ -483,44 +439,35 @@ class UnderpostStatic {
           return; // Exit if critical path errors
         }
       }
-
       // Generate page HTML
       if (options.page) {
         try {
           logger.info(`Generating static page: ${options.page}`);
-
           const Render = await ssrFactory();
           const SsrComponent = await ssrFactory(options.page);
-
           // Build head components
           let ssrHeadComponents = '';
-
           // Add custom meta tags
           if (options.metadata) {
             ssrHeadComponents += TemplateHelpers.createMetaTags(options.metadata);
           }
-
           // Add custom icons
           if (options.icons) {
             ssrHeadComponents += '\n' + TemplateHelpers.createIconTags(options.icons);
           }
-
           // Add custom styles
           if (options.styles && Array.isArray(options.styles)) {
             ssrHeadComponents += '\n' + options.styles.map((style) => TemplateHelpers.createStyleTag(style)).join('\n');
           }
-
           // Add custom head scripts
           if (options.scripts?.head && Array.isArray(options.scripts.head)) {
             ssrHeadComponents +=
               '\n' + options.scripts.head.map((script) => TemplateHelpers.createScriptTag(script)).join('\n');
           }
-
           // Add microdata/structured data
           if (options.microdata && Array.isArray(options.microdata)) {
             ssrHeadComponents += '\n' + TemplateHelpers.createMicrodataTags(options.microdata);
           }
-
           // Load additional head components
           if (options.headComponents && Array.isArray(options.headComponents)) {
             for (const compPath of options.headComponents) {
@@ -538,10 +485,8 @@ class UnderpostStatic {
               }
             }
           }
-
           // Build body components
           let ssrBodyComponents = SsrComponent();
-
           // Load additional body components
           if (options.bodyComponents && Array.isArray(options.bodyComponents)) {
             for (const compPath of options.bodyComponents) {
@@ -553,20 +498,17 @@ class UnderpostStatic {
               }
             }
           }
-
           // Add custom body scripts
           if (options.scripts?.body && Array.isArray(options.scripts.body)) {
             ssrBodyComponents +=
               '\n' + options.scripts.body.map((script) => TemplateHelpers.createScriptTag(script)).join('\n');
           }
-
           // Build render payload
           const renderPayload = {
             version: Underpost.version,
             ...(options.env === 'development' ? { dev: true } : undefined),
             ...options.customPayload,
           };
-
           // Generate HTML
           const htmlSrc = Render({
             title: options.metadata.title,
@@ -578,13 +520,11 @@ class UnderpostStatic {
               JSONweb,
             },
           });
-
           // Write output file
           const outputDir = path.dirname(options.outputPath);
           if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
           }
-
           fs.writeFileSync(options.outputPath, htmlSrc, 'utf8');
           logger.info(`Static page generated: ${options.outputPath}`);
         } catch (error) {
@@ -593,7 +533,6 @@ class UnderpostStatic {
           throw error;
         }
       }
-
       // Start standalone static file server if --run-sv is specified
       if (options.runSv !== undefined) {
         const port = typeof options.runSv === 'string' ? parseInt(options.runSv, 10) : 5000;
@@ -601,25 +540,19 @@ class UnderpostStatic {
           options.outputPath && options.outputPath !== '.'
             ? path.dirname(path.resolve(options.outputPath))
             : path.resolve('.');
-
         if (!fs.existsSync(servePath)) {
           logger.error(`Serve path does not exist: ${servePath}`);
           return;
         }
-
         const app = express();
-
         app.use(loggerMiddleware(import.meta, 'debug', () => false));
-
         app.use('/', express.static(servePath));
-
         app.listen(port, () => {
           logger.info(`Static file server running at http://localhost:${port}`);
           logger.info(`Serving files from: ${servePath}`);
         });
       }
     },
-
     /**
      * Helper method to generate a config template file
      *
@@ -693,26 +626,22 @@ class UnderpostStatic {
           customFeature: true,
         },
       };
-
       ConfigLoader.save(outputPath, template);
       logger.info(`Config template generated: ${outputPath}`);
     },
   };
-
   /**
    * Export template helpers for external use
    * @static
    * @memberof UnderpostStatic
    */
   static TemplateHelpers = TemplateHelpers;
-
   /**
    * Export config validator for external use
    * @static
    * @memberof UnderpostStatic
    */
   static ConfigValidator = ConfigValidator;
-
   /**
    * Export config loader for external use
    * @static
@@ -720,6 +649,5 @@ class UnderpostStatic {
    */
   static ConfigLoader = ConfigLoader;
 }
-
 export default UnderpostStatic;
 export { TemplateHelpers, ConfigValidator, ConfigLoader };

@@ -222,11 +222,11 @@ const CssCommonUnderpost = async () => {
     <div class="ag-grid-style"></div>`;
 };
 
-const CssUnderpostDark = {
-  theme: 'underpost-dark',
-  dark: true,
-  barButtonsIconTheme: 'img',
-  render: async () => {
+class CssUnderpostDark {
+  static theme = 'underpost-dark';
+  static dark = true;
+  static barButtonsIconTheme = 'img';
+  static render = async () => {
     return (
       (await CssCommonUnderpost()) +
       html`
@@ -246,14 +246,14 @@ const CssUnderpostDark = {
         ${borderChar(2, `#f70808`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
       `
     );
-  },
-};
+  };
+}
 
-const CssUnderpostLight = {
-  theme: 'underpost-light',
-  dark: false,
-  barButtonsIconTheme: 'img',
-  render: async () => {
+class CssUnderpostLight {
+  static theme = 'underpost-light';
+  static dark = false;
+  static barButtonsIconTheme = 'img';
+  static render = async () => {
     return (
       (await CssCommonUnderpost()) +
       html`
@@ -275,7 +275,7 @@ const CssUnderpostLight = {
         ${borderChar(1, `#010101`, ['button', '.a-btn'], true)}
       `
     );
-  },
-};
+  };
+}
 
 export { CssUnderpostDark, CssCommonUnderpost, CssUnderpostLight };

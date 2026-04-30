@@ -20,7 +20,7 @@ import { Recover } from '../core/Recover.js';
 
 class AppShellCryptokoyn {
   static Data = {};
-  static async Render () {
+  static async Render() {
     const id = getId(AppShellCryptokoyn.Data, 'menu-');
     AppShellCryptokoyn.Data[id] = {};
     const RouterInstance = RouterCryptokoyn();

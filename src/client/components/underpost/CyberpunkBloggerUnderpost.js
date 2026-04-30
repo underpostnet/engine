@@ -1,7 +1,7 @@
 import { getProxyPath, getQueryParams } from '../core/Router.js';
 
-const CyberpunkBloggerUnderpost = {
-  Render: async function () {
+class CyberpunkBloggerUnderpost {
+  static async Render() {
     let renderBlog = '';
     if (getQueryParams().type === 'blog') {
       renderBlog += html`<style>
@@ -873,7 +873,7 @@ const CyberpunkBloggerUnderpost = {
     <br />
     <br /><br />
     `;
-  },
-};
+  }
+}
 
 export { CyberpunkBloggerUnderpost };

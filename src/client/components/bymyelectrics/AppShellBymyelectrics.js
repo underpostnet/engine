@@ -23,7 +23,7 @@ import { Page404 } from '../core/404.js';
 
 class AppShellBymyelectrics {
   static Data = {};
-  static async Render (options = { htmlMainBody: () => html`` }) {
+  static async Render(options = { htmlMainBody: () => html`` }) {
     const id = getId(AppShellBymyelectrics.Data, 'menu-');
     AppShellBymyelectrics.Data[id] = {};
     const RouterInstance = RouterBymyelectrics();

@@ -1,35 +1,33 @@
 import { newInstance } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
 import { getResponsiveData } from './VanillaJs.js';
-
 const logger = loggerFactory(import.meta);
-
-const Responsive = {
-  Data: {},
-  Event: {},
-  DelayEvent: {},
-  Observer: ResizeObserver,
-  getResponsiveData: function () {
-    return newInstance(this.Data);
-  },
-  getResponsiveDataAmplitude: function (options) {
+class Responsive {
+  static Data = {};
+  static Event = {};
+  static DelayEvent = {};
+  static Observer = ResizeObserver;
+  static getResponsiveData() {
+    return newInstance(Responsive.Data);
+  }
+  static getResponsiveDataAmplitude(options) {
     const { dimAmplitude } = options;
-    const ResponsiveDataAmplitude = newInstance(this.Data);
+    const ResponsiveDataAmplitude = newInstance(Responsive.Data);
     ResponsiveDataAmplitude.minValue = ResponsiveDataAmplitude.minValue * dimAmplitude;
     ResponsiveDataAmplitude.maxValue = ResponsiveDataAmplitude.maxValue * dimAmplitude;
     ResponsiveDataAmplitude.width = ResponsiveDataAmplitude.width * dimAmplitude;
     ResponsiveDataAmplitude.height = ResponsiveDataAmplitude.height * dimAmplitude;
     return ResponsiveDataAmplitude;
-  },
-  resizeCallback: function (force) {
+  }
+  static resizeCallback(force) {
     const Data = getResponsiveData();
     if (force === true || Data.minValue !== Responsive.Data.minValue || Data.maxValue !== Responsive.Data.maxValue) {
       Responsive.Data = Data;
       Responsive.triggerEvents();
     }
-  },
-  resize: 0,
-  Init: async function () {
+  }
+  static resize = 0;
+  static async Init() {
     Responsive.resizeCallback();
     window.onresize = (e, force) => {
       Responsive.resize++;
@@ -46,7 +44,6 @@ const Responsive = {
     // alternative option
     // this.Observer = new ResizeObserver(this.resizeCallback);
     // this.Observer.observe(document.documentElement);
-
     // Check if screen.orientation is available before adding event listener
     if (
       typeof screen !== 'undefined' &&
@@ -62,7 +59,6 @@ const Responsive = {
       });
     }
     Responsive.matchMediaOrientationInstance = matchMedia('screen and (orientation:portrait)');
-
     Responsive.matchMediaOrientationInstance.onchange = (e) => {
       console.log('orientation change', Responsive.matchMediaOrientationInstance.matches ? 'portrait' : 'landscape');
       // though beware square will be marked as landscape here,
@@ -71,20 +67,19 @@ const Responsive = {
       setTimeout(() => window.onresize({}, true));
       Responsive.triggerEventsOrientation();
     };
-  },
-  triggerEventsOrientation: function () {
-    for (const event of Object.keys(this.orientationEvent)) this.orientationEvent[event]();
+  }
+  static triggerEventsOrientation() {
+    for (const event of Object.keys(Responsive.orientationEvent)) Responsive.orientationEvent[event]();
     setTimeout(() => {
       window.onresize();
-      for (const event of Object.keys(this.orientationDelayEvent)) this.orientationDelayEvent[event]();
+      for (const event of Object.keys(Responsive.orientationDelayEvent)) Responsive.orientationDelayEvent[event]();
     }, 1500);
-  },
-  triggerEvents: function (keyEvent) {
-    if (keyEvent) return this.Event[keyEvent]();
-    return Object.keys(this.Event).map((key) => this.Event[key]());
-  },
-  orientationEvent: {},
-  orientationDelayEvent: {},
-};
-
+  }
+  static triggerEvents(keyEvent) {
+    if (keyEvent) return Responsive.Event[keyEvent]();
+    return Object.keys(Responsive.Event).map((key) => Responsive.Event[key]());
+  }
+  static orientationEvent = {};
+  static orientationDelayEvent = {};
+}
 export { Responsive };

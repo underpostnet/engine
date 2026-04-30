@@ -3,8 +3,8 @@ import { ObjectLayerRenderFramesService } from './object-layer-render-frames.ser
 
 const logger = loggerFactory(import.meta);
 
-const ObjectLayerRenderFramesController = {
-  post: async (req, res, options) => {
+class ObjectLayerRenderFramesController {
+  static post = async (req, res, options) => {
     try {
       const result = await ObjectLayerRenderFramesService.post(req, res, options);
       return res.status(200).json({
@@ -18,8 +18,8 @@ const ObjectLayerRenderFramesController = {
         message: error.message,
       });
     }
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     try {
       const { page, limit } = req.query;
       const result = await ObjectLayerRenderFramesService.get(
@@ -38,8 +38,8 @@ const ObjectLayerRenderFramesController = {
         message: error.message,
       });
     }
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     try {
       const result = await ObjectLayerRenderFramesService.put(req, res, options);
       return res.status(200).json({
@@ -53,8 +53,8 @@ const ObjectLayerRenderFramesController = {
         message: error.message,
       });
     }
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     try {
       const result = await ObjectLayerRenderFramesService.delete(req, res, options);
       return res.status(200).json({
@@ -68,7 +68,7 @@ const ObjectLayerRenderFramesController = {
         message: error.message,
       });
     }
-  },
-};
+  };
+}
 
 export { ObjectLayerRenderFramesController };

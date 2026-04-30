@@ -5,8 +5,8 @@ import { Stream } from '../core/Stream.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 
-const StreamNexodev = {
-  Render: async function (
+class StreamNexodev {
+  static async Render(
     options = {
       idModal: 'modal-stream',
     },
@@ -112,7 +112,7 @@ const StreamNexodev = {
       });
     });
     return html`<div class="in media-stream-grid"></div>`;
-  },
-};
+  }
+}
 
 export { StreamNexodev };

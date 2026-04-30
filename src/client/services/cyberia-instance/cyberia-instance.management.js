@@ -7,8 +7,8 @@ import { DefaultManagement } from '../default/default.management.js';
 import { CyberiaInstanceService } from './cyberia-instance.service.js';
 import { getApiBaseUrl } from '../core/core.service.js';
 
-const CyberiaInstanceManagement = {
-  RenderTable: async (options = {}) => {
+class CyberiaInstanceManagement {
+  static RenderTable = async (options = {}) => {
     const { idModal: rawIdModal, customEvent, readyRowDataEvent, loadInstanceCallback, appStore } = options;
     const idModal = rawIdModal || 'modal-cyberia-instance-management';
     const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
@@ -18,13 +18,13 @@ const CyberiaInstanceManagement = {
       tokens;
 
       async init(params) {
-        this.eGui = document.createElement('div');
-        this.tokens = {};
+        CyberiaInstanceManagement.eGui = document.createElement('div');
+        CyberiaInstanceManagement.tokens = {};
 
-        const cellRenderId = getId(this.tokens, 'load-instance-');
-        this.tokens[cellRenderId] = {};
+        const cellRenderId = getId(CyberiaInstanceManagement.tokens, 'load-instance-');
+        CyberiaInstanceManagement.tokens[cellRenderId] = {};
 
-        this.eGui.innerHTML = html`${await BtnIcon.Render({
+        CyberiaInstanceManagement.eGui.innerHTML = html`${await BtnIcon.Render({
           label: html`<div class="abs center">
             <i class="fa-solid fa-upload"></i>
           </div>`,
@@ -58,7 +58,7 @@ const CyberiaInstanceManagement = {
       }
 
       getGui() {
-        return this.eGui;
+        return CyberiaInstanceManagement.eGui;
       }
 
       refresh(params) {
@@ -70,29 +70,29 @@ const CyberiaInstanceManagement = {
       eGui;
 
       async init(params) {
-        this.eGui = document.createElement('div');
+        CyberiaInstanceManagement.eGui = document.createElement('div');
         const { data } = params;
 
         if (!data || !data.thumbnail) {
-          this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
+          CyberiaInstanceManagement.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
           return;
         }
 
         const thumbnailId = typeof data.thumbnail === 'object' ? data.thumbnail._id : data.thumbnail;
         if (!thumbnailId) {
-          this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
+          CyberiaInstanceManagement.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
           return;
         }
 
         const imageSrc = getApiBaseUrl({ id: thumbnailId, endpoint: 'file/blob' });
 
-        this.eGui.innerHTML = html`
+        CyberiaInstanceManagement.eGui.innerHTML = html`
           <div style="position: relative; width: 60px; height: 60px;">
             <img
               src="${imageSrc}"
               style="width: 60px; height: 60px; object-fit: cover; display: block; border: 1px solid #555;"
-              onload="this.style.display='block'; this.nextElementSibling.style.display='none';"
-              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+              onload="CyberiaInstanceManagement.style.display='block'; CyberiaInstanceManagement.nextElementSibling.style.display='none';"
+              onerror="CyberiaInstanceManagement.style.display='none'; CyberiaInstanceManagement.nextElementSibling.style.display='flex';"
             />
             <div
               style="position: absolute; top: 0; left: 0; width: 60px; height: 60px; display: none; align-items: center; justify-content: center;"
@@ -104,7 +104,7 @@ const CyberiaInstanceManagement = {
       }
 
       getGui() {
-        return this.eGui;
+        return CyberiaInstanceManagement.eGui;
       }
 
       refresh(params) {
@@ -188,7 +188,7 @@ const CyberiaInstanceManagement = {
     }
 
     return renderResult;
-  },
-};
+  };
+}
 
 export { CyberiaInstanceManagement };

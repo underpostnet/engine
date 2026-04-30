@@ -3,11 +3,9 @@ import { loggerFactory } from '../core/Logger.js';
 import { cssEffect } from './Css.js';
 import { NotificationManager } from './NotificationManager.js';
 import { s, isActiveElement } from './VanillaJs.js';
-
 const logger = loggerFactory(import.meta);
-
-const EventsUI = {
-  on: (id = '', logic = function (e) {}, type = 'onclick', options = {}) => {
+class EventsUI {
+  static on = (id = '', logic = function (e) {}, type = 'onclick', options = {}) => {
     const { loadingContainer } = options;
     if (!s(id)) return;
     let complete = true;
@@ -60,15 +58,15 @@ const EventsUI = {
       if (e && e.preventDefault) e.preventDefault();
       logger.warn('in process', id);
     };
-  },
-  onClick: async function (id = '', logic = async function (e) {}, options = { loadingContainer: '' }) {
-    return await this.on(id, logic, 'onclick', options);
-  },
-  onChange: async function (id = '', logic = async function (e) {}, options = { loadingContainer: '' }) {
-    return await this.on(id, logic, 'onchange', options);
-  },
+  };
+  static async onClick(id = '', logic = async function (e) {}, options = { loadingContainer: '' }) {
+    return await EventsUI.on(id, logic, 'onclick', options);
+  }
+  static async onChange(id = '', logic = async function (e) {}, options = { loadingContainer: '' }) {
+    return await EventsUI.on(id, logic, 'onchange', options);
+  }
   // Shared hover/focus controller extracted from Modal
-  HoverFocusController: function ({ inputSelector, panelSelector, activeElementId, onDismiss } = {}) {
+  static HoverFocusController({ inputSelector, panelSelector, activeElementId, onDismiss } = {}) {
     let hoverPanel = false;
     let hoverInput = false;
     const isActive = () => (activeElementId ? isActiveElement(activeElementId) : false);
@@ -97,14 +95,14 @@ const EventsUI = {
       if (!shouldStay()) onDismiss && onDismiss();
     };
     return { bind, shouldStay, checkDismiss };
-  },
+  }
   // Generic click-outside binding to dismiss a panel/modal
   // Options:
   //  - shouldStay: function -> boolean
   //  - onDismiss: function
   //  - anchors: array of selectors to treat as inside clicks (e.g., input button, panel container)
   //  - graceMs: number of ms after binding to ignore clicks (avoid closing on the same click that opened)
-  bindDismissOnDocumentClick: function ({ shouldStay, onDismiss, anchors = [], graceMs = 200 } = {}) {
+  static bindDismissOnDocumentClick({ shouldStay, onDismiss, anchors = [], graceMs = 200 } = {}) {
     if (typeof document === 'undefined') return () => {};
     const bindAt = Date.now();
     const isInsideAnchors = (target) => {
@@ -127,7 +125,6 @@ const EventsUI = {
     };
     document.addEventListener('click', handler, true);
     return () => document.removeEventListener('click', handler, true);
-  },
-};
-
+  }
+}
 export { EventsUI };

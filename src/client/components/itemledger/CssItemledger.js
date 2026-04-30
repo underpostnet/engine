@@ -153,11 +153,11 @@ const CssCommonItemledger = async () => {
     <div class="ag-grid-style"></div>`;
 };
 
-const CssItemledgerDark = {
-  theme: 'itemledger-dark',
-  dark: true,
-  barButtonsIconTheme: 'img',
-  render: async () => {
+class CssItemledgerDark {
+  static theme = 'itemledger-dark';
+  static dark = true;
+  static barButtonsIconTheme = 'img';
+  static render = async () => {
     return (
       (await CssCommonItemledger()) +
       html`
@@ -177,14 +177,14 @@ const CssItemledgerDark = {
         ${borderChar(2, `#24FBFFFF`, ['.default-slide-menu-top-bar-fix-title-container-text'])}
       `
     );
-  },
-};
+  };
+}
 
-const CssItemledgerLight = {
-  theme: 'itemledger-light',
-  dark: false,
-  barButtonsIconTheme: 'img',
-  render: async () => {
+class CssItemledgerLight {
+  static theme = 'itemledger-light';
+  static dark = false;
+  static barButtonsIconTheme = 'img';
+  static render = async () => {
     return (
       (await CssCommonItemledger()) +
       html`
@@ -206,7 +206,7 @@ const CssItemledgerLight = {
         ${borderChar(1, `#010101`, ['button', '.a-btn'], true)}
       `
     );
-  },
-};
+  };
+}
 
 export { CssItemledgerDark, CssCommonItemledger, CssItemledgerLight };

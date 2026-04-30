@@ -15,11 +15,11 @@ const CssCommonCecinasmarcelina = async () => {
     ${borderChar(1, 'black', [])} ${boxShadow({ selector: `.home-body-btn` })}`;
 };
 
-const CssCecinasmarcelinaDark = {
-  themePair: 'cecinasmarcelina-light',
-  theme: 'cecinasmarcelina-dark',
-  dark: true,
-  render: async () => {
+class CssCecinasmarcelinaDark {
+  static themePair = 'cecinasmarcelina-light';
+  static theme = 'cecinasmarcelina-dark';
+  static dark = true;
+  static render = async () => {
     return (
       (await CssCommonCecinasmarcelina()) +
       html`
@@ -61,14 +61,14 @@ const CssCecinasmarcelinaDark = {
         </style>
       `
     );
-  },
-};
+  };
+}
 
-const CssCecinasmarcelinaLight = {
-  themePair: 'cecinasmarcelina-dark',
-  theme: 'cecinasmarcelina-light',
-  dark: false,
-  render: async () => {
+class CssCecinasmarcelinaLight {
+  static themePair = 'cecinasmarcelina-dark';
+  static theme = 'cecinasmarcelina-light';
+  static dark = false;
+  static render = async () => {
     return (
       (await CssCommonCecinasmarcelina()) +
       html`
@@ -110,7 +110,7 @@ const CssCecinasmarcelinaLight = {
         </style>
       `
     );
-  },
-};
+  };
+}
 
 export { CssCecinasmarcelinaDark, CssCommonCecinasmarcelina, CssCecinasmarcelinaLight };

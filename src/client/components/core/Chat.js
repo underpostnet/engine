@@ -5,12 +5,11 @@ import { Modal } from './Modal.js';
 import { SocketIo } from './SocketIo.js';
 import { Translate } from './Translate.js';
 import { s, append } from './VanillaJs.js';
-
-const Chat = {
-  Data: {},
-  Render: async function (options) {
+class Chat {
+  static Data = {};
+  static async Render(options) {
     const { idModal } = options;
-    this.Data[idModal] = {};
+    Chat.Data[idModal] = {};
     setTimeout(() => {
       Modal.Data[idModal].onObserverListener[`chat-${idModal}`] = (options) => {
         const { height } = options;
@@ -19,7 +18,7 @@ const Chat = {
       s(`.btn-send-chat-${idModal}`).onclick = (e) => {
         e.preventDefault();
         if (!s(`.input-chat-${idModal}`).value) return;
-        this.appendChatBox({ id: SocketIo.socket.id, idModal, message: s(`.input-chat-${idModal}`).value });
+        Chat.appendChatBox({ id: SocketIo.socket.id, idModal, message: s(`.input-chat-${idModal}`).value });
         SocketIo.Emit('chat', {
           message: s(`.input-chat-${idModal}`).value,
         });
@@ -44,8 +43,8 @@ const Chat = {
         </div>
       </form>
     `;
-  },
-  appendChatBox: function (options) {
+  }
+  static appendChatBox(options) {
     const { idModal, id, message } = options;
     if (!s(`.${idModal}-chat-box`)) return;
     append(
@@ -58,7 +57,6 @@ const Chat = {
       `,
     );
     s(`.${idModal}-chat-box`).scrollTop = s(`.${idModal}-chat-box`).scrollHeight;
-  },
-};
-
+  }
+}
 export { Chat };

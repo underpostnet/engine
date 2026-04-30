@@ -21,10 +21,7 @@ import {
   RESOURCE_ENTITY_TYPE_DEFAULTS,
 } from '../cyberia-instance-conf/cyberia-instance-conf.defaults.js';
 
-import {
-  DefaultCyberiaItems,
-  ITEM_TYPES,
-} from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
+import { DefaultCyberiaItems, ITEM_TYPES } from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
 
 import { PORTAL_MODES, PORTAL_MODE_COLOR_KEY, EXTRA_PORTAL_MODES } from './cyberia-portal-connector.js';
 

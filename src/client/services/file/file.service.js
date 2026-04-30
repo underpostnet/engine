@@ -1,15 +1,11 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { getApiBaseUrl, headersFactory, payloadFactory } from '../core/core.service.js';
-
 const logger = loggerFactory(import.meta);
-
 logger.info('Load service');
-
 const endpoint = 'file';
-
-const FileService = {
-  post: (options = { id: '', body: {}, headerId: 'file' }) =>
+class FileService {
+  static post = (options = { id: '', body: {}, headerId: 'file' }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
@@ -27,8 +23,8 @@ const FileService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-  get: (options = { id: '' }) =>
+    );
+  static get = (options = { id: '' }) =>
     new Promise((resolve, reject) => {
       // Handle blob endpoint - fetch binary data directly
       if (options.id && options.id.startsWith('blob/')) {
@@ -73,8 +69,8 @@ const FileService = {
             return reject(error);
           });
       }
-    }),
-  delete: (options = { id: '', body: {} }) =>
+    });
+  static delete = (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
@@ -93,7 +89,6 @@ const FileService = {
           logger.error(error);
           return reject(error);
         }),
-    ),
-};
-
+    );
+}
 export { FileService };

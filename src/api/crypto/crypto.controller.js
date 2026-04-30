@@ -2,8 +2,8 @@ import { loggerFactory } from '../../server/logger.js';
 import { CryptoService } from './crypto.service.js';
 const logger = loggerFactory(import.meta);
 
-const CryptoController = {
-  post: async (req, res, options) => {
+class CryptoController {
+  static post = async (req, res, options) => {
     try {
       return res.status(200).json({
         status: 'success',
@@ -16,8 +16,8 @@ const CryptoController = {
         message: error.message,
       });
     }
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     try {
       return res.status(200).json({
         status: 'success',
@@ -30,8 +30,8 @@ const CryptoController = {
         message: error.message,
       });
     }
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     try {
       const result = await CryptoService.delete(req, res, options);
       return res.status(200).json({
@@ -45,7 +45,7 @@ const CryptoController = {
         message: error.message,
       });
     }
-  },
-};
+  };
+}
 
 export { CryptoController };

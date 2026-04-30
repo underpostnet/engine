@@ -399,9 +399,7 @@ function buildHandlers(dbKey) {
         if (call.request.itemTypeFilter) {
           filter['data.item.type'] = call.request.itemTypeFilter;
         }
-        const cursor = models.ObjectLayer.find(filter)
-          .lean()
-          .cursor();
+        const cursor = models.ObjectLayer.find(filter).lean().cursor();
         for await (const doc of cursor) {
           call.write(toObjectLayerMsg(doc));
         }
@@ -415,8 +413,7 @@ function buildHandlers(dbKey) {
     async getObjectLayer(call, callback) {
       try {
         const models = getModels(dbKey);
-        const doc = await models.ObjectLayer.findOne({ 'data.item.id': call.request.itemId })
-          .lean();
+        const doc = await models.ObjectLayer.findOne({ 'data.item.id': call.request.itemId }).lean();
         if (!doc)
           return callback({ code: grpc.status.NOT_FOUND, message: `ObjectLayer "${call.request.itemId}" not found` });
         callback(null, toObjectLayerMsg(doc));
@@ -482,8 +479,7 @@ function buildHandlers(dbKey) {
           }
 
           const fallbackOlDocs = fallbackItemIds.size
-            ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...fallbackItemIds] } })
-                .lean()
+            ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...fallbackItemIds] } }).lean()
             : [];
 
           callback(null, {
@@ -525,7 +521,9 @@ function buildHandlers(dbKey) {
         if (!conf) {
           conf = await models.CyberiaInstanceConf.findOne({ instanceCode }).lean();
           if (conf) {
-            logger.warn(`getFullInstance: conf ref missing on instance "${instanceCode}" — resolved by instanceCode lookup`);
+            logger.warn(
+              `getFullInstance: conf ref missing on instance "${instanceCode}" — resolved by instanceCode lookup`,
+            );
           }
         }
         conf = conf || {};
@@ -553,8 +551,7 @@ function buildHandlers(dbKey) {
         }
 
         const olDocs = itemIds.size
-          ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...itemIds] } })
-              .lean()
+          ? await models.ObjectLayer.find({ 'data.item.id': { $in: [...itemIds] } }).lean()
           : [];
 
         // Opaque version string from updatedAt timestamps — the Go server
@@ -596,8 +593,8 @@ function buildHandlers(dbKey) {
 // Server lifecycle
 // ═══════════════════════════════════════════════════════════════════
 
-const GrpcServer = {
-  _server: null,
+class GrpcServer {
+  static _server = null;
 
   /**
    * @param {Object} opts
@@ -628,7 +625,7 @@ const GrpcServer = {
         resolve(server);
       });
     });
-  },
+  }
 
   async stop() {
     if (!GrpcServer._server) return;
@@ -639,7 +636,7 @@ const GrpcServer = {
         resolve();
       });
     });
-  },
-};
+  }
+}
 
 export { GrpcServer };

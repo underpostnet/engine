@@ -6,8 +6,8 @@ import { generateFallbackWorld } from './cyberia-fallback-world.js';
 
 const logger = loggerFactory(import.meta);
 
-const CyberiaInstanceService = {
-  post: async (req, res, options) => {
+class CyberiaInstanceService {
+  static post = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
     const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
     const CyberiaInstanceConf =
@@ -34,8 +34,8 @@ const CyberiaInstanceService = {
     }
 
     return instance;
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
     const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
     const populateCreator = { path: 'creator', model: 'User', select: '_id username' };
@@ -51,8 +51,8 @@ const CyberiaInstanceService = {
 
     const totalPages = Math.ceil(total / limit);
     return { data, total, page, totalPages };
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
     const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
     const instance = await CyberiaInstance.findById(req.params.id);
@@ -64,7 +64,7 @@ const CyberiaInstanceService = {
       await File.findByIdAndDelete(instance.thumbnail);
     }
     return await CyberiaInstance.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
-  },
+  };
   /**
    * Central portal connector endpoint.
    *
@@ -79,7 +79,7 @@ const CyberiaInstanceService = {
    *
    *   ?persist=true  — save generated portals to DB
    */
-  portalConnect: async (req, res, options) => {
+  static portalConnect = async (req, res, options) => {
     const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
     const CyberiaMap = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaMap;
 
@@ -112,9 +112,9 @@ const CyberiaInstanceService = {
       ...result,
       persisted: persist,
     };
-  },
+  };
 
-  delete: async (req, res, options) => {
+  static delete = async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
     const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
     if (req.params.id) {
@@ -128,7 +128,7 @@ const CyberiaInstanceService = {
       }
       return await CyberiaInstance.findByIdAndDelete(req.params.id);
     } else return await CyberiaInstance.deleteMany();
-  },
+  };
 
   /**
    * Return an in-memory procedural fallback world.
@@ -142,7 +142,7 @@ const CyberiaInstanceService = {
    *   ?obstacleCount=<number>  — obstacles per map  (random 12–20 if omitted)
    *   ?foregroundCount=<number>— foreground per map (random 6–12 if omitted)
    */
-  fallbackWorld: async (req) => {
+  static fallbackWorld = async (req) => {
     const q = req.query || {};
     return generateFallbackWorld({
       mapCount: q.mapCount ? parseInt(q.mapCount, 10) : undefined,
@@ -150,7 +150,7 @@ const CyberiaInstanceService = {
       obstacleCount: q.obstacleCount ? parseInt(q.obstacleCount, 10) : undefined,
       foregroundCount: q.foregroundCount ? parseInt(q.foregroundCount, 10) : undefined,
     });
-  },
-};
+  };
+}
 
 export { CyberiaInstanceService };

@@ -1,10 +1,10 @@
 import { s } from '../core/VanillaJs.js';
 
-const CssBymyelectricsDark = {
-  theme: 'bymyelectrics-dark',
-  themePair: 'bymyelectrics-light',
-  dark: true,
-  render: async () => {
+class CssBymyelectricsDark {
+  static theme = 'bymyelectrics-dark';
+  static themePair = 'bymyelectrics-light';
+  static dark = true;
+  static render = async () => {
     return html`
       <style>
         .landing-container {
@@ -21,14 +21,14 @@ const CssBymyelectricsDark = {
         }
       </style>
     `;
-  },
-};
+  };
+}
 
-const CssBymyelectricsLight = {
-  theme: 'bymyelectrics-light',
-  themePair: 'bymyelectrics-dark',
-  dark: false,
-  render: async () => {
+class CssBymyelectricsLight {
+  static theme = 'bymyelectrics-light';
+  static themePair = 'bymyelectrics-dark';
+  static dark = false;
+  static render = async () => {
     return html`<style>
       .landing-container {
         color: black;
@@ -40,7 +40,7 @@ const CssBymyelectricsLight = {
         background: #2f5596;
       }
     </style>`;
-  },
-};
+  };
+}
 
 export { CssBymyelectricsDark, CssBymyelectricsLight };

@@ -54,13 +54,19 @@ SrrComponent = ({ backgroundImage }) => html`
     }
     @keyframes l16 {
       0% {
-        background-position: -150% 0, -150% 0;
+        background-position:
+          -150% 0,
+          -150% 0;
       }
       66% {
-        background-position: 250% 0, -150% 0;
+        background-position:
+          250% 0,
+          -150% 0;
       }
       100% {
-        background-position: 250% 0, 250% 0;
+        background-position:
+          250% 0,
+          250% 0;
       }
     }
   </style>
@@ -70,9 +76,10 @@ SrrComponent = ({ backgroundImage }) => html`
       ${new Array(6)
         .fill()
         .map(
-          (v, i) => html`<div class="ssr-abs ssr-btn ssr-btn-${i}">
-            <div class="ssr-shimmer-dark"></div>
-          </div>`,
+          (v, i) =>
+            html`<div class="ssr-abs ssr-btn ssr-btn-${i}">
+              <div class="ssr-shimmer-dark"></div>
+            </div>`,
         )
         .join('')}
 

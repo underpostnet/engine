@@ -1,9 +1,9 @@
 import { CalendarCore } from '../core/CalendarCore.js';
 
-const CalendarNexodev = {
-  Render: async function (options) {
+class CalendarNexodev {
+  static async Render(options) {
     return html`${await CalendarCore.Render(options)}`;
-  },
-};
+  }
+}
 
 export { CalendarNexodev };

@@ -34,7 +34,7 @@ import { InstanceEngineCyberia } from '../cyberia/InstanceEngineCyberia.js';
 
 class AppShellCyberiaPortal {
   static Data = {};
-  static async Render () {
+  static async Render() {
     const id = getId(AppShellCyberiaPortal.Data, 'menu-');
     AppShellCyberiaPortal.Data[id] = {};
     const RouterInstance = RouterCyberiaPortal();

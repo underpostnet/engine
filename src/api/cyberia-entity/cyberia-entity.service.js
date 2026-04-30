@@ -4,13 +4,13 @@ import { DataQuery } from '../../server/data-query.js';
 
 const logger = loggerFactory(import.meta);
 
-const CyberiaEntityService = {
-  post: async (req, res, options) => {
+class CyberiaEntityService {
+  static post = async (req, res, options) => {
     /** @type {import('./cyberia-entity.model.js').CyberiaEntityModel} */
     const CyberiaEntity = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaEntity;
     return await new CyberiaEntity(req.body).save();
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     /** @type {import('./cyberia-entity.model.js').CyberiaEntityModel} */
     const CyberiaEntity = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaEntity;
     if (req.params.id) return await CyberiaEntity.findById(req.params.id);
@@ -25,18 +25,18 @@ const CyberiaEntityService = {
 
     const totalPages = Math.ceil(total / limit);
     return { data, total, page, totalPages };
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     /** @type {import('./cyberia-entity.model.js').CyberiaEntityModel} */
     const CyberiaEntity = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaEntity;
     return await CyberiaEntity.findByIdAndUpdate(req.params.id, req.body);
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     /** @type {import('./cyberia-entity.model.js').CyberiaEntityModel} */
     const CyberiaEntity = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaEntity;
     if (req.params.id) return await CyberiaEntity.findByIdAndDelete(req.params.id);
     else return await CyberiaEntity.deleteMany();
-  },
-};
+  };
+}
 
 export { CyberiaEntityService };

@@ -3,8 +3,8 @@ import { CyberiaGlobalMapCodeRegistryService } from './cyberia-global-map-code-r
 
 const logger = loggerFactory(import.meta);
 
-const CyberiaGlobalMapCodeRegistryController = {
-  post: async (req, res, options) => {
+class CyberiaGlobalMapCodeRegistryController {
+  static post = async (req, res, options) => {
     try {
       const result = await CyberiaGlobalMapCodeRegistryService.post(req, res, options);
       return res.status(200).json({
@@ -18,8 +18,8 @@ const CyberiaGlobalMapCodeRegistryController = {
         message: error.message,
       });
     }
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     try {
       const { page, limit } = req.query;
       const result = await CyberiaGlobalMapCodeRegistryService.get(
@@ -38,8 +38,8 @@ const CyberiaGlobalMapCodeRegistryController = {
         message: error.message,
       });
     }
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     try {
       const result = await CyberiaGlobalMapCodeRegistryService.put(req, res, options);
       return res.status(200).json({
@@ -53,8 +53,8 @@ const CyberiaGlobalMapCodeRegistryController = {
         message: error.message,
       });
     }
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     try {
       const result = await CyberiaGlobalMapCodeRegistryService.delete(req, res, options);
       return res.status(200).json({
@@ -68,7 +68,7 @@ const CyberiaGlobalMapCodeRegistryController = {
         message: error.message,
       });
     }
-  },
-};
+  };
+}
 
 export { CyberiaGlobalMapCodeRegistryController };

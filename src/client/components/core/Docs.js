@@ -4,19 +4,16 @@ import { Css, darkTheme, renderCssAttr, simpleIconsRender, ThemeEvents, Themes }
 import { buildBadgeToolTipMenuOption, Modal, renderViewTitle } from './Modal.js';
 import { listenQueryPathInstance, setQueryPath, closeModalRouteChangeEvent, getProxyPath } from './Router.js';
 import { htmls, s, sIframe } from './VanillaJs.js';
-
 // https://mintlify.com/docs/quickstart
-
-const Docs = {
-  RenderModal: async function (type) {
-    const docData = this.Data.find((d) => d.type === type);
+class Docs {
+  static async RenderModal(type) {
+    const docData = Docs.Data.find((d) => d.type === type);
     const ModalId = `modal-docs-${docData.type}`;
     const { barConfig } = await Themes[Css.currentTheme]();
     const parentBarMode =
       Modal.Data['modal-docs'] && Modal.Data['modal-docs'].options.barMode
         ? Modal.Data['modal-docs'].options.barMode
         : undefined;
-
     await Modal.Render({
       barConfig,
       title: renderViewTitle(docData),
@@ -60,7 +57,6 @@ const Docs = {
         setTimeout(sync, 120);
         setTimeout(sync, 400);
       };
-
       iframeEl.addEventListener('load', () => {
         try {
           const iframeWin = iframeEl.contentWindow;
@@ -80,7 +76,6 @@ const Docs = {
           const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
           if (iframeDoc) {
             if (unbindIframeLayoutSync) unbindIframeLayoutSync();
-
             const onIframeAnchorClick = (e) => {
               if (e.target && e.target.closest && e.target.closest('a')) {
                 scheduleViewLayoutSync();
@@ -88,7 +83,6 @@ const Docs = {
             };
             const onIframeHashChange = () => scheduleViewLayoutSync();
             const onIframePopState = () => scheduleViewLayoutSync();
-
             iframeDoc.addEventListener('click', onIframeAnchorClick, true);
             if (iframeWin) {
               iframeWin.addEventListener('hashchange', onIframeHashChange);
@@ -101,7 +95,6 @@ const Docs = {
                 iframeWin.removeEventListener('popstate', onIframePopState);
               }
             };
-
             iframeDoc.addEventListener('keydown', (e) => {
               if (e.shiftKey && e.key.toLowerCase() === 'k') {
                 e.preventDefault();
@@ -120,13 +113,10 @@ const Docs = {
         } catch (e) {
           // cross-origin or security restriction — safe to ignore
         }
-
         scheduleViewLayoutSync();
       });
-
       if (type === 'src') {
         swaggerThemeEventKey = `jsdocs-iframe-${ModalId}`;
-
         const applyJsDocsTheme = (isDark) => {
           try {
             const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
@@ -138,19 +128,15 @@ const Docs = {
             // cross-origin or security restriction — safe to ignore
           }
         };
-
         // Apply current theme as soon as the iframe content is ready
         iframeEl.addEventListener('load', () => applyJsDocsTheme(darkTheme));
-
         // Keep in sync whenever the parent page theme changes
         ThemeEvents[swaggerThemeEventKey] = () => {
           if (s(`.iframe-${ModalId}`)) applyJsDocsTheme(darkTheme);
         };
       }
-
       if (type === 'api') {
         swaggerThemeEventKey = `swagger-iframe-${ModalId}`;
-
         const applySwaggerTheme = (isDark) => {
           try {
             const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
@@ -167,10 +153,8 @@ const Docs = {
             // cross-origin or security restriction — safe to ignore
           }
         };
-
         // Apply current theme as soon as the iframe content is ready
         iframeEl.addEventListener('load', () => applySwaggerTheme(darkTheme));
-
         // Keep in sync whenever the parent page theme changes
         ThemeEvents[swaggerThemeEventKey] = () => {
           if (s(`.iframe-${ModalId}`)) applySwaggerTheme(darkTheme);
@@ -183,7 +167,6 @@ const Docs = {
         const barHeight = barEl ? barEl.offsetHeight : Modal.headerTitleHeight;
         s(`.iframe-${ModalId}`).style.height = `${s(`.${ModalId}`).offsetHeight - barHeight}px`;
       }
-
       if (type.match('coverage')) {
         simpleIconsRender(`.doc-icon-coverage`);
         simpleIconsRender(`.doc-icon-coverage-link`);
@@ -195,8 +178,8 @@ const Docs = {
       if (swaggerThemeEventKey) delete ThemeEvents[swaggerThemeEventKey];
       closeModalRouteChangeEvent({ closedId: ModalId });
     };
-  },
-  Data: [
+  }
+  static Data = [
     {
       type: 'repo',
       icon: html`<i class="fab fa-github"></i>`,
@@ -263,38 +246,36 @@ const Docs = {
         if (s(`.doc-icon-coverage-link`)) setTimeout(() => simpleIconsRender(`.doc-icon-coverage-link`));
       },
     },
-  ],
-  Tokens: {},
-  Init: async function (options = {}) {
+  ];
+  static Tokens = {};
+  static async Init(options = {}) {
     const { idModal } = options;
-    this.Tokens[idModal] = options;
+    Docs.Tokens[idModal] = options;
     setTimeout(() => {
       s(`.btn-docs-src`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'src' });
-        await this.RenderModal('src');
+        await Docs.RenderModal('src');
       };
       s(`.btn-docs-api`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'api' });
-        await this.RenderModal('api');
+        await Docs.RenderModal('api');
       };
       s(`.btn-docs-coverage`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'coverage' });
-        await this.RenderModal('coverage');
+        await Docs.RenderModal('coverage');
       };
-
       s(`.btn-docs-coverage-link`).onclick = () => {
-        const docData = this.Data.find((d) => d.type === 'coverage-link');
+        const docData = Docs.Data.find((d) => d.type === 'coverage-link');
         location.href = docData.url();
       };
       s(`.btn-docs-repo`).onclick = () => {
-        const docData = this.Data.find((d) => d.type === 'repo');
+        const docData = Docs.Data.find((d) => d.type === 'repo');
         location.href = docData.url();
       };
       s(`.btn-docs-demo`).onclick = () => {
-        const docData = this.Data.find((d) => d.type === 'demo');
+        const docData = Docs.Data.find((d) => d.type === 'demo');
         location.href = docData.url();
       };
-
       listenQueryPathInstance({
         id: options.idModal,
         routeId: 'docs',
@@ -309,7 +290,7 @@ const Docs = {
       });
     });
     let docMenuRender = '';
-    for (const docData of this.Data) {
+    for (const docData of Docs.Data) {
       if (docData.themeEvent) {
         ThemeEvents[`doc-icon-${docData.type}`] = docData.themeEvent;
         setTimeout(ThemeEvents[`doc-icon-${docData.type}`]);
@@ -321,7 +302,6 @@ const Docs = {
           style = renderCssAttr({ style: { height: '45px' } });
           labelStyle = renderCssAttr({ style: { top: '8px', left: '9px' } });
           break;
-
         default:
           break;
       }
@@ -343,9 +323,7 @@ const Docs = {
     }
     // s(`.menu-btn-container-children`).classList.remove('hide');
     // htmls(`.nav-path-display-${'modal-menu'}`, location.pathname);
-
     htmls('.menu-btn-container-children-docs', docMenuRender);
-
     {
       const docsData = [
         {
@@ -385,7 +363,6 @@ const Docs = {
           description: 'Join our developer community',
         },
       ];
-
       return html`
         <style>
           .docs-landing {
@@ -524,7 +501,6 @@ const Docs = {
         </div>
       `;
     }
-  },
-};
-
+  }
+}
 export { Docs };

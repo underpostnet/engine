@@ -1,5 +1,4 @@
 import { Translate } from './Translate.js';
-
 const maintenance = async () => {
   const icon = html`<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24">
     <path
@@ -17,7 +16,6 @@ const maintenance = async () => {
     <br />${Translate.Render('server-maintenance')}
   </div>`;
 };
-
 const noInternet = async () => {
   const icon = html`<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 20 20">
     <path
@@ -31,7 +29,6 @@ const noInternet = async () => {
     <br />${Translate.Render('no-internet-connection')}
   </div>`;
 };
-
 const e404 = async () => {
   const icon = html`
     <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24">
@@ -52,7 +49,6 @@ const e404 = async () => {
     <a target="_top" href="${location.origin}">${Translate.Render('back')}</a>
   </div>`;
 };
-
 const e500 = async () => {
   const icon = html`<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 20 20">
     <path
@@ -71,7 +67,10 @@ const e500 = async () => {
     <a target="_top" href="${location.origin}">${Translate.Render('back')}</a>
   </div>`;
 };
-
-const Alert = { maintenance, noInternet, e404, e500 };
-
+class Alert {
+  static maintenance = maintenance;
+  static noInternet = noInternet;
+  static e404 = e404;
+  static e500 = e500;
+}
 export { Alert };

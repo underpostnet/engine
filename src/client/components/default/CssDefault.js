@@ -8,20 +8,20 @@ const CssCommonDefault = async () => {
   return html``;
 };
 
-const CssDefaultDark = {
-  theme: 'default-dark',
-  dark: true,
-  render: async () => {
+class CssDefaultDark {
+  static theme = 'default-dark';
+  static dark = true;
+  static render = async () => {
     return (await CssCommonDefault()) + html``;
-  },
-};
+  };
+}
 
-const CssDefaultLight = {
-  theme: 'default-light',
-  dark: false,
-  render: async () => {
+class CssDefaultLight {
+  static theme = 'default-light';
+  static dark = false;
+  static render = async () => {
     return (await CssCommonDefault()) + html``;
-  },
-};
+  };
+}
 
 export { CssDefaultDark, CssCommonDefault, CssDefaultLight };

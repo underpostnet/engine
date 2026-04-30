@@ -1,16 +1,14 @@
 // https://www.ag-grid.com/javascript-data-grid/getting-started/
 // https://www.ag-grid.com/javascript-data-grid/themes/
-
 import { ThemeEvents, darkTheme } from './Css.js';
 import { append, htmls, s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
 import './Pagination.js';
 import { Modal } from './Modal.js';
-
-const AgGrid = {
-  grids: {},
-  theme: `ag-theme-alpine`, // quartz
-  Render: async function (options) {
+class AgGrid {
+  static grids = {};
+  static theme = `ag-theme-alpine`;
+  static async Render(options) {
     let { id, paginationOptions } = options;
     setTimeout(() => {
       // Normalize rowSelection from deprecated string form to object form (AG Grid v32.2.1+)
@@ -21,7 +19,6 @@ const AgGrid = {
           mode: mode === 'multiple' ? 'multiRow' : 'singleRow',
         };
       }
-
       // Grid Options: Contains all of the grid configurations
       const gridOptions = {
         // Use legacy CSS theme mode to avoid conflict with Theming API (AG Grid v33+)
@@ -63,24 +60,20 @@ const AgGrid = {
         onSortChanged: options?.onSortChanged,
         // set background colour on every row, this is probably bad, should be using CSS classes
         // rowStyle: { background: 'black' },
-
         // set background colour on even rows again, this looks bad, should be using CSS classes
         // getRowStyle: (params) => {
         //   if (params.node.rowIndex % 2 === 0) {
         //     return { background: 'red' };
         //   }
         // },
-
         // all rows assigned CSS class 'my-green-class'
         // rowClass: 'my-green-class',
-
         // all even rows assigned 'my-shaded-effect'
         // getRowClass: (params) => {
         //   if (params.node.rowIndex % 2 === 0) {
         //     return 'my-shaded-effect';
         //   }
         // },
-
         // domLayout: 'autoHeight', || 'normal'
         // Column Definitions: Defines & controls grid columns.
         columnDefs: options?.gridOptions?.rowData?.[0]
@@ -90,25 +83,23 @@ const AgGrid = {
           : [],
         ...gridOptionsOverrides,
       };
-
       // Your Javascript code to create the grid
       const myGridElement = s(`.${id}`);
-      if (this.grids[id]) this.grids[id].destroy();
-      this.grids[id] = agGrid.createGrid(myGridElement, gridOptions);
+      if (AgGrid.grids[id]) AgGrid.grids[id].destroy();
+      AgGrid.grids[id] = agGrid.createGrid(myGridElement, gridOptions);
       // myGridElement.style.setProperty('width', '100%');
       ThemeEvents[id] = () => {
         if (s(`.${id}`)) {
           // darkTheme has already been updated by Css.js when this event fires
           // If darkTheme is true: remove light class, add dark class
           // If darkTheme is false: remove dark class, add light class
-          s(`.${id}`).classList.remove(this.theme, this.theme + '-dark');
-          s(`.${id}`).classList.add(darkTheme ? this.theme + '-dark' : this.theme);
+          s(`.${id}`).classList.remove(AgGrid.theme, AgGrid.theme + '-dark');
+          s(`.${id}`).classList.add(darkTheme ? AgGrid.theme + '-dark' : AgGrid.theme);
         } else {
           // console.warn('change theme: grid not found');
           delete ThemeEvents[id];
         }
       };
-
       if (!options.style || !options.style.height) {
         if (options.parentModal && Modal.Data[options.parentModal].options.observer) {
           Modal.Data[options.parentModal].onObserverListener[id + '-observer'] = ({ width, height }) => {
@@ -127,15 +118,15 @@ const AgGrid = {
       : '';
     return html`
       <div
-        class="${id} ${darkTheme ? this.theme + '-dark' : this.theme}"
+        class="${id} ${darkTheme ? AgGrid.theme + '-dark' : AgGrid.theme}"
         style="${options?.style
           ? Object.keys(options.style).map((styleKey) => `${styleKey}: ${options.style[styleKey]}; `)
           : ''}"
       ></div>
       ${usePagination ? `<ag-pagination id="ag-pagination-${id}" ${limitOptionsAttr}></ag-pagination>` : ''}
     `;
-  },
-  RenderStyle: async function (
+  }
+  static async RenderStyle(
     options = {
       eventThemeId: 'AgGrid',
       style: {
@@ -147,15 +138,15 @@ const AgGrid = {
     },
   ) {
     /*
-     --ag-foreground-color: rgb(126, 46, 132);
-     --ag-background-color: rgb(249, 245, 227);
-     --ag-header-foreground-color: rgb(204, 245, 172);
-     --ag-header-background-color: rgb(209, 64, 129);
-     --ag-odd-row-background-color: rgb(0, 0, 0, 0.03);
-     --ag-header-column-resize-handle-color: rgb(126, 46, 132);
-
-     --ag-font-size: 17px;
-     */
+         --ag-foreground-color: rgb(126, 46, 132);
+         --ag-background-color: rgb(249, 245, 227);
+         --ag-header-foreground-color: rgb(204, 245, 172);
+         --ag-header-background-color: rgb(209, 64, 129);
+         --ag-odd-row-background-color: rgb(0, 0, 0, 0.03);
+         --ag-header-column-resize-handle-color: rgb(126, 46, 132);
+    
+         --ag-font-size: 17px;
+         */
     if (!s(`.ag-grid-base-style`))
       append(
         'head',
@@ -167,7 +158,7 @@ const AgGrid = {
           /><link
             rel="stylesheet"
             type="text/css"
-            href="${getProxyPath()}styles/ag-grid-community/${this.theme}.min.css"
+            href="${getProxyPath()}styles/ag-grid-community/${AgGrid.theme}.min.css"
           />`,
       );
     ThemeEvents[options.eventThemeId] = () => {
@@ -242,7 +233,6 @@ const AgGrid = {
               </style>`}`,
       );
     };
-  },
-};
-
+  }
+}
 export { AgGrid };

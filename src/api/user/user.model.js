@@ -3,7 +3,6 @@ import validator from 'validator';
 import { userRoleEnum } from '../../client/components/core/CommonJs.js';
 import crypto from 'crypto';
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
-
 const UserSchema = new Schema(
   {
     email: {
@@ -88,13 +87,10 @@ const UserSchema = new Schema(
     timestamps: true,
   },
 );
-
 const UserModel = model('User', UserSchema);
-
 const ProviderSchema = UserSchema;
-
-const UserDto = {
-  select: {
+class UserDto {
+  static select = {
     get: () => {
       return {
         _id: 1,
@@ -112,8 +108,8 @@ const UserDto = {
     getAll: () => {
       return { _id: 1 };
     },
-  },
-  public: {
+  };
+  static public = {
     get: () => {
       return {
         _id: 1,
@@ -125,8 +121,8 @@ const UserDto = {
         updatedAt: 1,
       };
     },
-  },
-  auth: {
+  };
+  static auth = {
     payload: (user, jwtid, ip, userAgent, host, path) => {
       const tokenPayload = {
         _id: user._id.toString(),
@@ -141,7 +137,6 @@ const UserDto = {
       };
       return tokenPayload;
     },
-  },
-};
-
+  };
+}
 export { UserSchema, UserModel, userRoleEnum, ProviderSchema, UserDto };

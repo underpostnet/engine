@@ -4,7 +4,6 @@ import { loggerFactory } from './Logger.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { copyData, s } from './VanillaJs.js';
-
 const colorSRC = [
   {
     name: 'Absolute Zero',
@@ -5215,12 +5214,9 @@ const colorSRC = [
     hex: '#39A78E',
   },
 ];
-
 const colors = {};
 colorSRC.map((c) => (colors[c.name] = c.hex));
-
 const getNumberByHex = (hex) => parseInt(hex.split('#')[1], 16);
-
 const getDataColors = () =>
   orderArrayFromAttrInt(
     Object.keys(colors).map((colorKey) => {
@@ -5233,12 +5229,10 @@ const getDataColors = () =>
     'number',
     true,
   );
-
 const logger = loggerFactory(import.meta);
-
-const ColorPalette = {
-  Palettes: {},
-  Render: async function () {
+class ColorPalette {
+  static Palettes = {};
+  static async Render() {
     let render = '';
     for (const colorData of getDataColors()) {
       const idColor = `color-${s4()}-${colorData.number}`;
@@ -5261,7 +5255,6 @@ const ColorPalette = {
       });
     }
     return html` <div class="in" style="width: 100%; height: 100%; overflow: auto;">${render}</div> `;
-  },
-};
-
+  }
+}
 export { colorSRC, colors, getNumberByHex, ColorPalette };

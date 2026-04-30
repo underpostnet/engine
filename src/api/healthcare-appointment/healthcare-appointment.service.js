@@ -7,8 +7,8 @@ import { HealthcareAppointmentDto } from './healthcare-appointment.model.js';
 
 const logger = loggerFactory(import.meta);
 
-const HealthcareAppointmentService = {
-  post: async (req, res, options) => {
+class HealthcareAppointmentService {
+  static post = async (req, res, options) => {
     /** @type {import('./healthcare-appointment.model.js').HealthcareAppointmentModel} */
     const HealthcareAppointment =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.HealthcareAppointment;
@@ -87,8 +87,8 @@ const HealthcareAppointmentService = {
     })();
 
     return result;
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     /** @type {import('./healthcare-appointment.model.js').HealthcareAppointmentModel} */
     const HealthcareAppointment =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.HealthcareAppointment;
@@ -120,19 +120,19 @@ const HealthcareAppointmentService = {
     ]);
 
     return { data, total, page, totalPages: Math.ceil(total / limit) };
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     /** @type {import('./healthcare-appointment.model.js').HealthcareAppointmentModel} */
     const HealthcareAppointment =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.HealthcareAppointment;
     return await HealthcareAppointment.findByIdAndUpdate(req.params.id, req.body);
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     /** @type {import('./healthcare-appointment.model.js').HealthcareAppointmentModel} */
     const HealthcareAppointment =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.HealthcareAppointment;
     return await HealthcareAppointment.findByIdAndDelete(req.params.id);
-  },
-};
+  };
+}
 
 export { HealthcareAppointmentService };

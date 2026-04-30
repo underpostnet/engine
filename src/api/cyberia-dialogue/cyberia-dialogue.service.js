@@ -4,13 +4,13 @@ import { DataQuery } from '../../server/data-query.js';
 
 const logger = loggerFactory(import.meta);
 
-const CyberiaDialogueService = {
-  post: async (req, res, options) => {
+class CyberiaDialogueService {
+  static post = async (req, res, options) => {
     /** @type {import('./cyberia-dialogue.model.js').CyberiaDialogueModel} */
     const CyberiaDialogue = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaDialogue;
     return await new CyberiaDialogue(req.body).save();
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     /** @type {import('./cyberia-dialogue.model.js').CyberiaDialogueModel} */
     const CyberiaDialogue = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaDialogue;
     if (req.params.id) return await CyberiaDialogue.findById(req.params.id);
@@ -25,19 +25,19 @@ const CyberiaDialogueService = {
 
     const totalPages = Math.ceil(total / limit);
     return { data, total, page, totalPages };
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     /** @type {import('./cyberia-dialogue.model.js').CyberiaDialogueModel} */
     const CyberiaDialogue = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaDialogue;
     return await CyberiaDialogue.findByIdAndUpdate(req.params.id, req.body);
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     /** @type {import('./cyberia-dialogue.model.js').CyberiaDialogueModel} */
     const CyberiaDialogue = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaDialogue;
     if (req.params.id) return await CyberiaDialogue.findByIdAndDelete(req.params.id);
     else return await CyberiaDialogue.deleteMany();
-  },
-  getByItemId: async (req, res, options) => {
+  };
+  static getByItemId = async (req, res, options) => {
     /** @type {import('./cyberia-dialogue.model.js').CyberiaDialogueModel} */
     const CyberiaDialogue = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaDialogue;
     const { itemId } = req.params;
@@ -45,7 +45,7 @@ const CyberiaDialogueService = {
     const data = await CyberiaDialogue.find({ itemId }).sort({ order: 1 }).lean();
     if (!data.length) throw new Error(`No dialogue found for itemId: ${itemId}`);
     return data;
-  },
-};
+  };
+}
 
 export { CyberiaDialogueService };

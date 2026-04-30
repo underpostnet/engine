@@ -7,8 +7,8 @@ import { DefaultManagement } from '../default/default.management.js';
 import { CyberiaMapService } from './cyberia-map.service.js';
 import { getApiBaseUrl } from '../core/core.service.js';
 
-const CyberiaMapManagement = {
-  RenderTable: async (options = {}) => {
+class CyberiaMapManagement {
+  static RenderTable = async (options = {}) => {
     const { idModal: rawIdModal, customEvent, readyRowDataEvent, loadMapCallback, appStore } = options;
     const idModal = rawIdModal || 'modal-cyberia-map-management';
     const role = appStore?.Data?.user?.main?.model?.user?.role || 'guest';
@@ -18,13 +18,13 @@ const CyberiaMapManagement = {
       tokens;
 
       async init(params) {
-        this.eGui = document.createElement('div');
-        this.tokens = {};
+        CyberiaMapManagement.eGui = document.createElement('div');
+        CyberiaMapManagement.tokens = {};
 
-        const cellRenderId = getId(this.tokens, 'load-map-');
-        this.tokens[cellRenderId] = {};
+        const cellRenderId = getId(CyberiaMapManagement.tokens, 'load-map-');
+        CyberiaMapManagement.tokens[cellRenderId] = {};
 
-        this.eGui.innerHTML = html`${await BtnIcon.Render({
+        CyberiaMapManagement.eGui.innerHTML = html`${await BtnIcon.Render({
           label: html`<div class="abs center">
             <i class="fa-solid fa-upload"></i>
           </div>`,
@@ -58,7 +58,7 @@ const CyberiaMapManagement = {
       }
 
       getGui() {
-        return this.eGui;
+        return CyberiaMapManagement.eGui;
       }
 
       refresh(params) {
@@ -70,29 +70,29 @@ const CyberiaMapManagement = {
       eGui;
 
       async init(params) {
-        this.eGui = document.createElement('div');
+        CyberiaMapManagement.eGui = document.createElement('div');
         const { data } = params;
 
         if (!data || !data.thumbnail) {
-          this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
+          CyberiaMapManagement.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
           return;
         }
 
         const thumbnailId = typeof data.thumbnail === 'object' ? data.thumbnail._id : data.thumbnail;
         if (!thumbnailId) {
-          this.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
+          CyberiaMapManagement.eGui.innerHTML = html`<span style="color: #666; font-style: italic;">—</span>`;
           return;
         }
 
         const imageSrc = getApiBaseUrl({ id: thumbnailId, endpoint: 'file/blob' });
 
-        this.eGui.innerHTML = html`
+        CyberiaMapManagement.eGui.innerHTML = html`
           <div style="position: relative; width: 60px; height: 60px;">
             <img
               src="${imageSrc}"
               style="width: 60px; height: 60px; object-fit: cover; display: block; border: 1px solid #555;"
-              onload="this.style.display='block'; this.nextElementSibling.style.display='none';"
-              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+              onload="CyberiaMapManagement.style.display='block'; CyberiaMapManagement.nextElementSibling.style.display='none';"
+              onerror="CyberiaMapManagement.style.display='none'; CyberiaMapManagement.nextElementSibling.style.display='flex';"
             />
             <div
               style="position: absolute; top: 0; left: 0; width: 60px; height: 60px; display: none; align-items: center; justify-content: center;"
@@ -104,7 +104,7 @@ const CyberiaMapManagement = {
       }
 
       getGui() {
-        return this.eGui;
+        return CyberiaMapManagement.eGui;
       }
 
       refresh(params) {
@@ -187,7 +187,7 @@ const CyberiaMapManagement = {
     }
 
     return renderResult;
-  },
-};
+  };
+}
 
 export { CyberiaMapManagement };

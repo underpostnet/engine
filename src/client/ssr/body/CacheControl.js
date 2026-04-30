@@ -78,8 +78,11 @@ SrrComponent = ({ ttiLoadTimeLimit, version }) => {
           (selector) => html`
             <style>
               ${selector} {
-                text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color},
-                  -${px}px -${px}px ${px}px ${color}, ${px}px ${px}px ${px}px ${color};
+                text-shadow:
+                  ${px}px -${px}px ${px}px ${color},
+                  -${px}px ${px}px ${px}px ${color},
+                  -${px}px -${px}px ${px}px ${color},
+                  ${px}px ${px}px ${px}px ${color};
               }
             </style>
           `,

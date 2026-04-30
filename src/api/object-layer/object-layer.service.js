@@ -36,7 +36,7 @@ const logger = loggerFactory(import.meta);
  * @namespace CyberiaObjectLayerService.ObjectLayerService
  * @memberof CyberiaObjectLayerService
  */
-const ObjectLayerService = {
+class ObjectLayerService {
   /**
    * POST handler for creating object layers and uploading frame images.
    *
@@ -59,7 +59,7 @@ const ObjectLayerService = {
    * @returns {Promise<Object>} The created object layer document or frame upload result.
    * @throws {Error} If file validation fails or required parameters are missing.
    */
-  post: async (req, res, options) => {
+  static post = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
 
     if (req.path.startsWith('/frame-image')) {
@@ -245,7 +245,7 @@ const ObjectLayerService = {
     }
 
     return newObjectLayer;
-  },
+  };
 
   /**
    * GET handler for retrieving object layers.
@@ -268,7 +268,7 @@ const ObjectLayerService = {
    * @returns {Promise<Object>} The requested object layer data, list, or frame counts.
    * @throws {Error} If the requested object layer is not found.
    */
-  get: async (req, res, options) => {
+  static get = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
 
@@ -432,7 +432,7 @@ const ObjectLayerService = {
       ObjectLayer.countDocuments(query), // { userId: req.auth.user._id }
     ]);
     return { data, total, page, totalPages: Math.ceil(total / limit) };
-  },
+  };
 
   /**
    * Generates a WebP animation from PNG frame images for a specific direction of an object layer.
@@ -449,7 +449,7 @@ const ObjectLayerService = {
    * @returns {Promise<Buffer>} The generated WebP animation as a Buffer.
    * @throws {Error} If required parameters are missing, frames directory is not found, or img2webp fails.
    */
-  generateWebp: async (req, res, options) => {
+  static generateWebp = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
 
@@ -560,7 +560,7 @@ const ObjectLayerService = {
 
       throw error;
     }
-  },
+  };
 
   /**
    * PUT handler for updating object layers, their frame images, and metadata.
@@ -584,7 +584,7 @@ const ObjectLayerService = {
    * @returns {Promise<Object>} The updated object layer document or frame upload result.
    * @throws {Error} If file validation fails, object layer is not found, or required parameters are missing.
    */
-  put: async (req, res, options) => {
+  static put = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
 
@@ -775,7 +775,7 @@ const ObjectLayerService = {
     }).populate('objectLayerRenderFramesId');
 
     return updatedObjectLayer;
-  },
+  };
 
   /**
    * DELETE handler for removing object layers and all associated resources.
@@ -801,7 +801,7 @@ const ObjectLayerService = {
    * @returns {Promise<Object>} The deleted object layer document or bulk delete count.
    * @throws {Error} If the object layer is not found.
    */
-  delete: async (req, res, options) => {
+  static delete = async (req, res, options) => {
     /** @type {import('./object-layer.model.js').ObjectLayerModel} */
     const ObjectLayer = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.ObjectLayer;
     const ObjectLayerRenderFrames =
@@ -890,7 +890,7 @@ const ObjectLayerService = {
       }
       return { deletedCount: allObjectLayers.length };
     }
-  },
-};
+  };
+}
 
 export { ObjectLayerService };

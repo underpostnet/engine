@@ -5,16 +5,13 @@ import { Modal } from './Modal.js';
 import { Translate } from './Translate.js';
 import { append, htmls, s, sa } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
-
 let ThemesScope = [];
-
 // https://css.github.io/csso/csso.html
 // https://www.fontspace.com/
 // https://www.1001fonts.com/
-
-const Css = {
+class Css {
   // Menu button container transition styles
-  menuButtonContainer: () => css`
+  static menuButtonContainer = () => css`
     .main-btn-menu {
       transition: all 0.2s ease-in-out;
       position: relative;
@@ -44,9 +41,8 @@ const Css = {
       width: 80%;
       background: currentColor;
     }
-  `,
-
-  loadThemes: async function (themes = []) {
+  `;
+  static async loadThemes(themes = []) {
     ThemesScope = [];
     for (const themeOptions of themes) addTheme(themeOptions);
     // if (!ThemesScope.find((t) => t.dark)) addTheme(CssCoreDark);
@@ -58,26 +54,24 @@ const Css = {
     const localStorageTheme = localStorage.getItem('_theme');
     if (localStorageTheme && Themes[localStorageTheme]) {
       const themeOption = ThemesScope.find((t) => t.theme === localStorageTheme);
-      if (themeOption) return await this.Init(themeOption);
+      if (themeOption) return await Css.Init(themeOption);
     }
-    await this.Init();
-  },
-  Init: async function (options) {
+    await Css.Init();
+  }
+  static async Init(options) {
     if (!options) options = ThemesScope[0];
     const { theme } = options;
-
     // Inject menu button container styles
     const styleId = 'menu-btn-container-styles';
     if (!document.getElementById(styleId)) {
       const style = document.createElement('style');
       style.id = styleId;
-      style.textContent = this.menuButtonContainer();
+      style.textContent = Css.menuButtonContainer();
       document.head.appendChild(style);
     }
-
     return await Themes[theme](options);
-  },
-  RenderSetting: async function () {
+  }
+  static async RenderSetting() {
     return html` <div class="in section-mp">
       ${await DropDown.Render({
         id: 'settings-theme',
@@ -92,9 +86,8 @@ const Css = {
         }),
       })}
     </div>`;
-  },
-};
-
+  }
+}
 const barLabels = (options) => {
   return {
     img: {
@@ -135,7 +128,6 @@ const barLabels = (options) => {
     },
   };
 };
-
 const barConfig = (options) => {
   const { barButtonsIconTheme } = options;
   return {
@@ -163,7 +155,6 @@ const barConfig = (options) => {
     },
   };
 };
-
 const renderDefaultWindowsModalButtonContent = (options) => {
   const { barButtonsIconTheme, htmlRender } = options;
   const barConfigInstance = barConfig(options);
@@ -177,16 +168,13 @@ const renderDefaultWindowsModalButtonContent = (options) => {
     });
   return { barConfig: barConfigInstance };
 };
-
 let darkTheme = true;
-const ThemeEvents = {};
+class ThemeEvents {}
 const TriggerThemeEvents = () => {
   localStorage.setItem('_theme', Css.currentTheme);
   Object.keys(ThemeEvents).map((keyEvent) => ThemeEvents[keyEvent]());
 };
-
-const Themes = {};
-
+class Themes {}
 const addTheme = (options) => {
   ThemesScope.push(options);
   Themes[options.theme] = async (barOptions) => {
@@ -213,7 +201,6 @@ const addTheme = (options) => {
     };
   };
 };
-
 const borderChar = (px, color, selectors, hover = false) => {
   if (selectors) {
     return selectors
@@ -284,7 +271,6 @@ const renderMediaQuery = (mediaData) => {
       .join('')}
   `;
 };
-
 const renderStatus = (status, options) => {
   switch (status) {
     case 'success':
@@ -303,9 +289,7 @@ const renderStatus = (status, options) => {
       return html``;
   }
 };
-
 const dynamicColTokens = {};
-
 const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 900 }) => {
   const { containerSelector, id } = options;
   const limitCol = options?.limit ? options.limit : 900;
@@ -339,7 +323,6 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
                 `,
               );
             break;
-
           case 'search-inputs':
             if (s(`.${containerSelector}`).offsetWidth < limitCol)
               htmls(
@@ -369,7 +352,6 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
                 `,
               );
             break;
-
           default:
             if (s(`.${containerSelector}`).offsetWidth < 900)
               htmls(
@@ -404,7 +386,6 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
   });
   return html` <style class="style-${id}-col"></style>`;
 };
-
 const renderBubbleDialog = async function (
   options = {
     id: '',
@@ -435,7 +416,6 @@ const renderBubbleDialog = async function (
         left: 57%;
       `;
       break;
-
     default:
       break;
   }
@@ -476,7 +456,6 @@ const renderBubbleDialog = async function (
     ${await html()}
   </div>`;
 };
-
 const typeWriter = async function ({ id, html, seconds, endHideBlink, container }) {
   if (!seconds) seconds = 2;
   return new Promise((resolve) => {
@@ -533,7 +512,6 @@ const typeWriter = async function ({ id, html, seconds, endHideBlink, container 
     }, seconds * 1000);
   });
 };
-
 const renderCssAttr = (options) =>
   `${
     options && options.style
@@ -542,12 +520,10 @@ const renderCssAttr = (options) =>
           .join(`\n`)
       : ''
   }`;
-
 const renderStyleTag = (styleSelector = 'style-abc', selector, options) =>
   html`<style class="${styleSelector}">
     ${selector} { ${renderCssAttr(options)} }
   </style>`;
-
 function getTranslate3d(el) {
   const values = el.style.transform.split(/\w+\(|\);?/);
   if (!values[1] || !values[1].length) {
@@ -555,7 +531,6 @@ function getTranslate3d(el) {
   }
   return values[1].split(/,\s?/g);
 }
-
 const dashRange = ({ selector, color }) => {
   return html`
     <style>
@@ -653,7 +628,6 @@ const triangle = {
       ></div>`;
   },
 };
-
 const getSectionsStringData = (offsetWidth, text) => {
   const sectionsIndex = [];
   const everyXChar = parseInt(offsetWidth / 4);
@@ -662,7 +636,6 @@ const getSectionsStringData = (offsetWidth, text) => {
     .map((t) => splitEveryXChar(t + '.', everyXChar, ['.', ' ']))
     .flat()
     .filter((p) => p !== '.' && p.trim());
-
   let currentIndex = [0];
   let pi = -1;
   for (const p of phraseArray) {
@@ -680,7 +653,6 @@ const getSectionsStringData = (offsetWidth, text) => {
   }
   return { phraseArray, sectionsIndex };
 };
-
 const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionIndex }) =>
   new Promise((resolve) => {
     let cumulativeSeconds = 0;
@@ -704,9 +676,7 @@ const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionInde
       cumulativeSeconds += seconds;
     }
   });
-
 const cssBrowserCodes = ['webkit', 'moz', 'ms', 'o'];
-
 const scrollBarLightRender = () => {
   return cssBrowserCodes
     .map(
@@ -744,28 +714,22 @@ const scrollBarLightRender = () => {
     )
     .join('');
 };
-
 // adjustHex: supports #RGB #RGBA #RRGGBB #RRGGBBAA
 // preserves alpha channel if present (does not modify it)
 // usage: adjustHex('#24FBFFFF', 0.1)
-
 function adjustHex(hex, factor = 0.1, options = {}) {
   if (typeof hex !== 'string') throw new TypeError('hex must be a string');
   if (typeof factor !== 'number') throw new TypeError('factor must be a number');
-
   // normalize factor: allow -100..100 or -1..1
   if (factor > 1 && factor <= 100) factor = factor / 100;
   if (factor < -1 && factor >= -100) factor = factor / 100;
   factor = Math.max(-1, Math.min(1, factor));
-
   const mode = options.mode === 'hsl' ? 'hsl' : 'mix';
-
   // normalize hex: accept 3,4,6,8 (with or without #)
   let h = hex.replace(/^#/, '').trim();
   if (![3, 4, 6, 8].includes(h.length)) {
     throw new Error('Invalid hex format — expected 3, 4, 6 or 8 hex digits');
   }
-
   // expand shorthand (#RGB or #RGBA -> #RRGGBB or #RRGGBBAA)
   if (h.length === 3 || h.length === 4) {
     h = h
@@ -773,22 +737,17 @@ function adjustHex(hex, factor = 0.1, options = {}) {
       .map((c) => c + c)
       .join('');
   }
-
   const hasAlpha = h.length === 8;
-
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
   const b = parseInt(h.slice(4, 6), 16);
   const a = hasAlpha ? parseInt(h.slice(6, 8), 16) : null; // keep alpha as-is if present
-
   const clamp = (v, a0 = 0, z = 255) => Math.max(a0, Math.min(z, v));
-
   const rgbToHex = (rr, gg, bb, aa = null) => {
     const parts = [rr, gg, bb].map((v) => Math.round(v).toString(16).padStart(2, '0'));
     if (aa !== null) parts.push(Math.round(aa).toString(16).padStart(2, '0'));
     return '#' + parts.join('').toLowerCase();
   };
-
   if (mode === 'mix') {
     // positive: mix toward white (255); negative: mix toward black (0)
     const mixChannel = (c) => {
@@ -799,7 +758,6 @@ function adjustHex(hex, factor = 0.1, options = {}) {
         return clamp(Math.round(c * (1 - aFactor)));
       }
     };
-
     const rr = mixChannel(r);
     const gg = mixChannel(g);
     const bb = mixChannel(b);
@@ -833,7 +791,6 @@ function adjustHex(hex, factor = 0.1, options = {}) {
       }
       return { h, s, l };
     };
-
     const hslToRgb = (h, s, l) => {
       let r, g, b;
       if (s === 0) {
@@ -855,7 +812,6 @@ function adjustHex(hex, factor = 0.1, options = {}) {
       }
       return { r: r * 255, g: g * 255, b: b * 255 };
     };
-
     const { h: hh, s: ss, l: ll } = rgbToHsl(r, g, b);
     // add factor to lightness (factor already normalized -1..1)
     let newL = ll + factor;
@@ -864,13 +820,11 @@ function adjustHex(hex, factor = 0.1, options = {}) {
     return rgbToHex(r2, g2, b2, a);
   }
 }
-
 // Examples (uncomment to test):
 // console.log(adjustHex('#24FBFFFF', 0.1)); // accepts 8-digit input
 // console.log(adjustHex('#24FBFF', 0.1));   // 6-digit
 // console.log(adjustHex('#4bf', -0.2));     // 3-digit
 // console.log(adjustHex('#4bf8', -0.2));    // 4-digit (with alpha)
-
 // Convenience helpers:
 function lightenHex(hex, percentOr01 = 0.1, options = {}) {
   return adjustHex(hex, Math.abs(percentOr01), options);
@@ -878,7 +832,6 @@ function lightenHex(hex, percentOr01 = 0.1, options = {}) {
 function darkenHex(hex, percentOr01 = 0.1, options = {}) {
   return adjustHex(hex, -Math.abs(percentOr01), options);
 }
-
 const subThemeManager = {
   render: async function () {
     if (darkTheme && this.renderDark) {
@@ -947,7 +900,6 @@ const subThemeManager = {
     };
   },
 };
-
 const scrollBarDarkRender = () => {
   return cssBrowserCodes
     .map(
@@ -986,7 +938,6 @@ const scrollBarDarkRender = () => {
     )
     .join('');
 };
-
 const renderWave = ({ id }) => {
   return html`
     <style>
@@ -1071,7 +1022,6 @@ const renderWave = ({ id }) => {
     </div>
   `;
 };
-
 const cssTokensEffect = {};
 const cssTokensContainer = {};
 const cssEffect = async (containerSelector, event) => {
@@ -1100,7 +1050,6 @@ const cssEffect = async (containerSelector, event) => {
     delete cssTokensEffect[id];
   }, 600);
 };
-
 const imageShimmer = () =>
   html`<div
     class="abs center ssr-shimmer-search-box"
@@ -1125,10 +1074,8 @@ const imageShimmer = () =>
       <i class="fa-solid fa-photo-film"></i>
     </div>
   </div>`;
-
 const renderChessPattern = (patternSize = 20) =>
   `background: repeating-conic-gradient(#808080 0 25%, #0000 0 50%) 50% / ${patternSize}px ${patternSize}px`;
-
 const extractBackgroundImageUrl = (element) => {
   const style = window.getComputedStyle(element);
   const imageString = style.backgroundImage;
@@ -1138,15 +1085,12 @@ const extractBackgroundImageUrl = (element) => {
   if (!foundUrl) return null;
   return foundUrl;
 };
-
 const simpleIconsRender = (selector) => {
   sa(selector).forEach((el) => {
     el.src = `https://cdn.simpleicons.org/coveralls/${rgbToHex(window.getComputedStyle(s('html')).color)}`;
   });
 };
-
 const styleFactory = (payload, plain = '') => `style="${renderCssAttr({ style: payload })} ${plain}"`;
-
 export {
   Css,
   Themes,

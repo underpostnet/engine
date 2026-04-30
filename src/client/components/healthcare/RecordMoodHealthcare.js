@@ -10,8 +10,8 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { AppStoreHealthcare } from './AppStoreHealthcare.js';
 
-const RecordMoodHealthcare = {
-  Render: async function ({ idModal }) {
+class RecordMoodHealthcare {
+  static async Render({ idModal }) {
     const cellDim = 120;
     const renderStyle = (wFactorContainer) => {
       return html`<style>
@@ -192,7 +192,7 @@ const RecordMoodHealthcare = {
           })
           .join('')}
       </div>`;
-  },
-};
+  }
+}
 
 export { RecordMoodHealthcare };

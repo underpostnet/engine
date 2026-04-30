@@ -3,14 +3,14 @@ import { FullScreen } from '../core/FullScreen.js';
 import { Translate } from '../core/Translate.js';
 import { Worker } from '../core/Worker.js';
 
-const SettingsDogmadual = {
-  Render: async function () {
+class SettingsDogmadual {
+  static async Render() {
     let render = await FullScreen.RenderSetting();
     render += await Css.RenderSetting();
     render += await Translate.RenderSetting();
     render += await Worker.RenderSetting();
     return render;
-  },
-};
+  }
+}
 
 export { SettingsDogmadual };

@@ -3,8 +3,8 @@ import { CyberiaMapService } from './cyberia-map.service.js';
 
 const logger = loggerFactory(import.meta);
 
-const CyberiaMapController = {
-  post: async (req, res, options) => {
+class CyberiaMapController {
+  static post = async (req, res, options) => {
     try {
       const result = await CyberiaMapService.post(req, res, options);
       return res.status(200).json({
@@ -18,8 +18,8 @@ const CyberiaMapController = {
         message: error.message,
       });
     }
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     try {
       const { page, limit } = req.query;
       const result = await CyberiaMapService.get(
@@ -43,8 +43,8 @@ const CyberiaMapController = {
         message: error.message,
       });
     }
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     try {
       const result = await CyberiaMapService.put(req, res, options);
       return res.status(200).json({
@@ -58,8 +58,8 @@ const CyberiaMapController = {
         message: error.message,
       });
     }
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     try {
       const result = await CyberiaMapService.delete(req, res, options);
       return res.status(200).json({
@@ -73,7 +73,7 @@ const CyberiaMapController = {
         message: error.message,
       });
     }
-  },
-};
+  };
+}
 
 export { CyberiaMapController };

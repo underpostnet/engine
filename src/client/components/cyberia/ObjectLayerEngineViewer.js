@@ -11,7 +11,6 @@ import { ObjectLayerService } from '../../services/object-layer/object-layer.ser
 import { AtlasSpriteSheetService } from '../../services/atlas-sprite-sheet/atlas-sprite-sheet.service.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { append, htmls, s } from '../core/VanillaJs.js';
-
 import { darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from '../core/Css.js';
 import { ObjectLayerManagement } from '../../services/object-layer/object-layer.management.js';
 import { ObjectLayerEngineModal } from './ObjectLayerEngineModal.js';
@@ -20,11 +19,9 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { AgGrid } from '../core/AgGrid.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { createJSONEditor } from 'vanilla-jsoneditor';
-
 const logger = loggerFactory(import.meta);
-
-const ObjectLayerEngineViewer = {
-  Data: {
+class ObjectLayerEngineViewer {
+  static Data = {
     objectLayer: null,
     frameCounts: null,
     currentDirection: 'down',
@@ -36,10 +33,9 @@ const ObjectLayerEngineViewer = {
     isGeneratingAtlas: false,
     webpMetadata: null,
     metadataJsonEditor: null,
-  },
-
+  };
   // Map user-friendly direction/mode to numeric direction codes
-  getDirectionCode: function (direction, mode) {
+  static getDirectionCode(direction, mode) {
     const key = `${direction}_${mode}`;
     const directionCodeMap = {
       down_idle: '08',
@@ -52,36 +48,29 @@ const ObjectLayerEngineViewer = {
       right_walking: '16',
     };
     return directionCodeMap[key] || null;
-  },
-
-  Render: async function ({ appStore }) {
+  }
+  static async Render({ appStore }) {
     const id = 'object-layer-engine-viewer';
-
     // Reset currentObjectId when modal is rendered to ensure Reload triggers properly
-    this.Data.currentObjectId = undefined;
-
+    ObjectLayerEngineViewer.Data.currentObjectId = undefined;
     Modal.Data[`modal-${id}`].onReloadModalListener[id] = async () => {
       ObjectLayerEngineViewer.Reload({ appStore });
     };
-
     // Listen for query parameter changes for smooth navigation
     listenQueryParamsChange({
       id: `${id}-query-listener`,
       event: async (queryParams) => {
         const objectId = queryParams.id || null;
-
         if (!s(`.modal-${id}`) || !s(`#${id}`)) {
           logger.warn('ObjectLayerEngineViewer DOM not ready for query param change');
           return;
         }
-
         // Only reload if object id actually changed (normalize undefined to null for comparison)
-        if (objectId !== this.Data.currentObjectId) {
-          await this.Reload({ appStore });
+        if (objectId !== ObjectLayerEngineViewer.Data.currentObjectId) {
+          await ObjectLayerEngineViewer.Reload({ appStore });
         }
       },
     });
-
     return html`
       <div class="fl">
         <div class="in ${id}" id="${id}">
@@ -91,40 +80,33 @@ const ObjectLayerEngineViewer = {
         </div>
       </div>
     `;
-  },
-
-  renderEmpty: async function ({ appStore }) {
+  }
+  static async renderEmpty({ appStore }) {
     const id = 'object-layer-engine-viewer';
     const idModal = 'modal-object-layer-engine-viewer';
-
     // Check if DOM element exists
     if (!s(`#${id}`)) {
       logger.warn('ObjectLayerEngineViewer DOM not ready for renderEmpty');
       return;
     }
-
     // Clear current object id when rendering empty state
-    this.Data.currentObjectId = null;
-
+    ObjectLayerEngineViewer.Data.currentObjectId = null;
     // Check if the management table grid already exists AND its DOM is still present
     // If it does, don't re-render (just let DefaultManagement's RouterEvents handle URL changes)
     const gridId = `object-layer-engine-management-grid-${idModal}`;
     const gridExists = AgGrid.grids[gridId];
     const gridDomExists = s(`.${gridId}`);
-
     if (gridExists && gridDomExists) {
       // Grid already exists with DOM intact, no need to destroy and recreate it
       // The DefaultManagement RouterEvents listener will handle pagination/filter updates
       return;
     }
-
     // Grid doesn't exist or its DOM was destroyed, render/re-render it
     if (gridExists && !gridDomExists) {
       // Clean up orphaned grid reference
       AgGrid.grids[gridId].destroy();
       delete AgGrid.grids[gridId];
     }
-
     htmls(
       `#${id}`,
       await ObjectLayerManagement.RenderTable({
@@ -132,60 +114,49 @@ const ObjectLayerEngineViewer = {
         idModal,
       }),
     );
-  },
-
-  loadObjectLayer: async function (objectLayerId, appStore, options = {}) {
+  }
+  static async loadObjectLayer(objectLayerId, appStore, options = {}) {
     const { skipWebp = false } = options;
     const id = 'object-layer-engine-viewer';
-
     // Check if DOM element exists
     if (!s(`#${id}`)) {
       logger.warn('ObjectLayerEngineViewer DOM not ready for loadObjectLayer');
       return;
     }
-
     try {
       // Load metadata first
       const { status: metaStatus, data: metadata } = await ObjectLayerService.getMetadata({ id: objectLayerId });
-
       if (metaStatus !== 'success' || !metadata) {
         throw new Error('Failed to load object layer metadata');
       }
-
-      this.Data.objectLayer = metadata;
-
+      ObjectLayerEngineViewer.Data.objectLayer = metadata;
       if (metadata.atlasSpriteSheetId) {
         const { status: atlasStatus, data: atlasData } = await AtlasSpriteSheetService.get({
           id: metadata.atlasSpriteSheetId,
         });
         if (atlasStatus === 'success') {
-          this.Data.atlasSpriteSheet = atlasData;
+          ObjectLayerEngineViewer.Data.atlasSpriteSheet = atlasData;
         }
       } else {
-        this.Data.atlasSpriteSheet = null;
+        ObjectLayerEngineViewer.Data.atlasSpriteSheet = null;
       }
-
       // Load frame counts for all directions
       const { status: frameStatus, data: frameData } = await ObjectLayerService.getFrameCounts({ id: objectLayerId });
-
       if (frameStatus !== 'success' || !frameData) {
         throw new Error('Failed to load frame counts');
       }
-
-      this.Data.frameCounts = frameData.frameCounts;
+      ObjectLayerEngineViewer.Data.frameCounts = frameData.frameCounts;
       // Priority order for directions
       const directions = ['down', 'up', 'left', 'right'];
       // Priority order for modes
       const modes = ['idle', 'walking'];
-      this.Data.currentDirection = 'down';
-      this.Data.currentMode = 'idle';
-
+      ObjectLayerEngineViewer.Data.currentDirection = 'down';
+      ObjectLayerEngineViewer.Data.currentMode = 'idle';
       // Render the viewer UI
-      await this.renderViewer({ appStore });
-
+      await ObjectLayerEngineViewer.renderViewer({ appStore });
       // Generate WebP
       if (!skipWebp) {
-        await this.generateWebp();
+        await ObjectLayerEngineViewer.generateWebp();
       }
     } catch (error) {
       logger.error('Error loading object layer:', error);
@@ -193,7 +164,6 @@ const ObjectLayerEngineViewer = {
         html: `Failed to load object layer: ${error.message}`,
         status: 'error',
       });
-
       htmls(
         `#${id}`,
         html`
@@ -206,42 +176,34 @@ const ObjectLayerEngineViewer = {
         `,
       );
     }
-  },
-
-  renderViewer: async function ({ appStore }) {
+  }
+  static async renderViewer({ appStore }) {
     const id = 'object-layer-engine-viewer';
-    const { objectLayer, frameCounts } = this.Data;
-
+    const { objectLayer, frameCounts } = ObjectLayerEngineViewer.Data;
     if (!objectLayer || !frameCounts) return;
-
     // Check if DOM element exists
     if (!s(`#${id}`)) {
       logger.warn('ObjectLayerEngineViewer DOM not ready for renderViewer');
       return;
     }
-
     const itemType = objectLayer.data.item.type;
     const itemId = objectLayer.data.item.id;
     const itemDescription = objectLayer.data.item.description || '';
     const itemActivable = objectLayer.data.item.activable || false;
-
     // Get ledger data
     const ledger = objectLayer.data.ledger || {};
     const ledgerType = ledger.type || '';
     const ledgerAddress = ledger.address || '';
-
     // Get stats data
     const stats = objectLayer.data.stats || {};
-
     // Helper function to check if direction/mode has frames
     const hasFrames = (direction, mode) => {
-      const numericCode = this.getDirectionCode(direction, mode);
+      const numericCode = ObjectLayerEngineViewer.getDirectionCode(direction, mode);
       return numericCode && frameCounts[numericCode] && frameCounts[numericCode] > 0;
     };
-
     // Helper function to get frame count
     const getFrameCount = (direction, mode) => {
-      const numericCode = this.getDirectionCode(direction, mode);
+      const numericCode = ObjectLayerEngineViewer.getDirectionCode(direction, mode);
       return numericCode ? frameCounts[numericCode] || 0 : 0;
     };
     ThemeEvents[id] = () => {
@@ -662,7 +624,7 @@ const ObjectLayerEngineViewer = {
         <div class="hide style-${id}"></div>
 
         <div class="object-layer-viewer-container">
-          ${this.Data.isGeneratingAtlas
+          ${ObjectLayerEngineViewer.Data.isGeneratingAtlas
             ? html`
                 <div
                   style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 500px; gap: 20px; text-align: center;"
@@ -789,7 +751,7 @@ const ObjectLayerEngineViewer = {
                     <span>WebP</span>
                   </button>
                   <div class="webp-canvas-container chess in" id="webp-canvas-container">
-                    ${!this.Data.webp
+                    ${!ObjectLayerEngineViewer.Data.webp
                       ? html`
                           <div class="webp-placeholder">
                             <i class="fa-solid fa-image"></i>
@@ -811,47 +773,55 @@ const ObjectLayerEngineViewer = {
                     <h4><i class="fa-solid fa-compass"></i> Direction</h4>
                     <div class="button-group">
                       <button
-                        class="control-btn ${this.Data.currentDirection === 'up' ? 'active' : ''}"
+                        class="control-btn ${ObjectLayerEngineViewer.Data.currentDirection === 'up' ? 'active' : ''}"
                         data-direction="up"
-                        ${!hasFrames('up', this.Data.currentMode) ? 'disabled' : ''}
+                        ${!hasFrames('up', ObjectLayerEngineViewer.Data.currentMode) ? 'disabled' : ''}
                       >
                         <i class="fa-solid fa-arrow-up"></i>
                         <span>Up</span>
-                        ${hasFrames('up', this.Data.currentMode)
-                          ? html`<span class="frame-count">(${getFrameCount('up', this.Data.currentMode)})</span>`
+                        ${hasFrames('up', ObjectLayerEngineViewer.Data.currentMode)
+                          ? html`<span class="frame-count"
+                              >(${getFrameCount('up', ObjectLayerEngineViewer.Data.currentMode)})</span
+                            >`
                           : ''}
                       </button>
                       <button
-                        class="control-btn ${this.Data.currentDirection === 'down' ? 'active' : ''}"
+                        class="control-btn ${ObjectLayerEngineViewer.Data.currentDirection === 'down' ? 'active' : ''}"
                         data-direction="down"
-                        ${!hasFrames('down', this.Data.currentMode) ? 'disabled' : ''}
+                        ${!hasFrames('down', ObjectLayerEngineViewer.Data.currentMode) ? 'disabled' : ''}
                       >
                         <i class="fa-solid fa-arrow-down"></i>
                         <span>Down</span>
-                        ${hasFrames('down', this.Data.currentMode)
-                          ? html`<span class="frame-count">(${getFrameCount('down', this.Data.currentMode)})</span>`
+                        ${hasFrames('down', ObjectLayerEngineViewer.Data.currentMode)
+                          ? html`<span class="frame-count"
+                              >(${getFrameCount('down', ObjectLayerEngineViewer.Data.currentMode)})</span
+                            >`
                           : ''}
                       </button>
                       <button
-                        class="control-btn ${this.Data.currentDirection === 'left' ? 'active' : ''}"
+                        class="control-btn ${ObjectLayerEngineViewer.Data.currentDirection === 'left' ? 'active' : ''}"
                         data-direction="left"
-                        ${!hasFrames('left', this.Data.currentMode) ? 'disabled' : ''}
+                        ${!hasFrames('left', ObjectLayerEngineViewer.Data.currentMode) ? 'disabled' : ''}
                       >
                         <i class="fa-solid fa-arrow-left"></i>
                         <span>Left</span>
-                        ${hasFrames('left', this.Data.currentMode)
-                          ? html`<span class="frame-count">(${getFrameCount('left', this.Data.currentMode)})</span>`
+                        ${hasFrames('left', ObjectLayerEngineViewer.Data.currentMode)
+                          ? html`<span class="frame-count"
+                              >(${getFrameCount('left', ObjectLayerEngineViewer.Data.currentMode)})</span
+                            >`
                           : ''}
                       </button>
                       <button
-                        class="control-btn ${this.Data.currentDirection === 'right' ? 'active' : ''}"
+                        class="control-btn ${ObjectLayerEngineViewer.Data.currentDirection === 'right' ? 'active' : ''}"
                         data-direction="right"
-                        ${!hasFrames('right', this.Data.currentMode) ? 'disabled' : ''}
+                        ${!hasFrames('right', ObjectLayerEngineViewer.Data.currentMode) ? 'disabled' : ''}
                       >
                         <i class="fa-solid fa-arrow-right"></i>
                         <span>Right</span>
-                        ${hasFrames('right', this.Data.currentMode)
-                          ? html`<span class="frame-count">(${getFrameCount('right', this.Data.currentMode)})</span>`
+                        ${hasFrames('right', ObjectLayerEngineViewer.Data.currentMode)
+                          ? html`<span class="frame-count"
+                              >(${getFrameCount('right', ObjectLayerEngineViewer.Data.currentMode)})</span
+                            >`
                           : ''}
                       </button>
                     </div>
@@ -861,28 +831,28 @@ const ObjectLayerEngineViewer = {
                     <h4><i class="fa-solid fa-person-running"></i> Mode</h4>
                     <div class="button-group">
                       <button
-                        class="control-btn ${this.Data.currentMode === 'idle' ? 'active' : ''}"
+                        class="control-btn ${ObjectLayerEngineViewer.Data.currentMode === 'idle' ? 'active' : ''}"
                         data-mode="idle"
-                        ${!hasFrames(this.Data.currentDirection, 'idle') ? 'disabled' : ''}
+                        ${!hasFrames(ObjectLayerEngineViewer.Data.currentDirection, 'idle') ? 'disabled' : ''}
                       >
                         <i class="fa-solid fa-user"></i>
                         <span>Idle</span>
-                        ${hasFrames(this.Data.currentDirection, 'idle')
+                        ${hasFrames(ObjectLayerEngineViewer.Data.currentDirection, 'idle')
                           ? html`<span class="frame-count"
-                              >(${getFrameCount(this.Data.currentDirection, 'idle')})</span
+                              >(${getFrameCount(ObjectLayerEngineViewer.Data.currentDirection, 'idle')})</span
                             >`
                           : ''}
                       </button>
                       <button
-                        class="control-btn ${this.Data.currentMode === 'walking' ? 'active' : ''}"
+                        class="control-btn ${ObjectLayerEngineViewer.Data.currentMode === 'walking' ? 'active' : ''}"
                         data-mode="walking"
-                        ${!hasFrames(this.Data.currentDirection, 'walking') ? 'disabled' : ''}
+                        ${!hasFrames(ObjectLayerEngineViewer.Data.currentDirection, 'walking') ? 'disabled' : ''}
                       >
                         <i class="fa-solid fa-person-walking"></i>
                         <span>Walking</span>
-                        ${hasFrames(this.Data.currentDirection, 'walking')
+                        ${hasFrames(ObjectLayerEngineViewer.Data.currentDirection, 'walking')
                           ? html`<span class="frame-count"
-                              >(${getFrameCount(this.Data.currentDirection, 'walking')})</span
+                              >(${getFrameCount(ObjectLayerEngineViewer.Data.currentDirection, 'walking')})</span
                             >`
                           : ''}
                       </button>
@@ -892,16 +862,17 @@ const ObjectLayerEngineViewer = {
                   <div class="control-group">
                     <h4><i class="fa-solid fa-file-image"></i> Atlas Sprite Sheet</h4>
                     <div class="button-group" style="flex-direction: column; align-items: flex-start;">
-                      ${this.Data.atlasSpriteSheet
+                      ${ObjectLayerEngineViewer.Data.atlasSpriteSheet
                         ? html`
                         <div class="atlas-preview-container">
                           ${
-                            this.Data.atlasSpriteSheet.fileId
+                            ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId
                               ? html`
                                   <div class="atlas-img-wrapper">
                                     <img
-                                      src="${getProxyPath()}api/file/blob/${this.Data.atlasSpriteSheet.fileId._id ||
-                                      this.Data.atlasSpriteSheet.fileId}"
+                                      src="${getProxyPath()}api/file/blob/${ObjectLayerEngineViewer.Data
+                                        .atlasSpriteSheet.fileId._id ||
+                                      ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId}"
                                       class="in atlas-img-preview"
                                     />
                                   </div>
@@ -915,14 +886,14 @@ const ObjectLayerEngineViewer = {
                           <div class="atlas-metadata-grid">
                             <div>
                               <p style="padding: 2px"><strong class="item-data-key-label">ID:</strong></p>
-                              <p style="padding: 2px" font-size: 12px;">${this.Data.atlasSpriteSheet._id}</p>
+                              <p style="padding: 2px" font-size: 12px;">${ObjectLayerEngineViewer.Data.atlasSpriteSheet._id}</p>
                             </div>
                             ${
-                              this.Data.atlasSpriteSheet.cid
+                              ObjectLayerEngineViewer.Data.atlasSpriteSheet.cid
                                 ? html`<div style="grid-column: 1 / -1;">
                                     <p style="padding: 2px"><strong class="item-data-key-label">IPFS CID:</strong></p>
                                     <p class="ipfs-cid-value" style="padding: 2px;">
-                                      ${this.Data.atlasSpriteSheet.cid}
+                                      ${ObjectLayerEngineViewer.Data.atlasSpriteSheet.cid}
                                     </p>
                                   </div>`
                                 : ''
@@ -930,18 +901,16 @@ const ObjectLayerEngineViewer = {
                             <div>
                               <p style="padding: 2px"><strong class="item-data-key-label">Dimensions:</strong></p>
                               <p style="padding: 2px">
-                                ${this.Data.atlasSpriteSheet.metadata.atlasWidth}x${
-                                  this.Data.atlasSpriteSheet.metadata.atlasHeight
-                                }
+                                ${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.atlasWidth}x${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.atlasHeight}
                               </p>
                             </div>
                             <div>
                                 <p style="padding: 2px"><strong class="item-data-key-label">Cell Dim:</strong></p>
-                              <p style="padding: 2px">${this.Data.atlasSpriteSheet.metadata.cellPixelDim}px</p>
+                              <p style="padding: 2px">${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.cellPixelDim}px</p>
                             </div>
                             <div>
                                 <p style="padding: 2px"><strong class="item-data-key-label">Item Key:</strong></p>
-                              <p style="padding: 2px">${this.Data.atlasSpriteSheet.metadata.itemKey}</p>
+                              <p style="padding: 2px">${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.itemKey}</p>
                             </div>
                           </div>
                         </div>
@@ -994,31 +963,24 @@ const ObjectLayerEngineViewer = {
     );
     ThemeEvents[id]();
     // Attach event listeners
-    this.attachEventListeners({ appStore });
-
+    ObjectLayerEngineViewer.attachEventListeners({ appStore });
     // If we already have a webp loaded, display it without re-generating
-    if (this.Data.webp) {
-      this.displayWebp();
+    if (ObjectLayerEngineViewer.Data.webp) {
+      ObjectLayerEngineViewer.displayWebp();
     }
-
     // Initialize metadata JSON editor
-    this.initMetadataJsonEditor();
-  },
-
-  displayWebp: async function () {
-    const { webp, webpMetadata } = this.Data;
+    ObjectLayerEngineViewer.initMetadataJsonEditor();
+  }
+  static async displayWebp() {
+    const { webp, webpMetadata } = ObjectLayerEngineViewer.Data;
     if (!webp || !webpMetadata) return;
-
     const { frameCount, frameDuration, currentDirection, currentMode, numericCode } = webpMetadata;
-
     const container = s('#webp-canvas-container');
     if (!container) return;
-
     // Remove one-time placeholder without destroying the rest of the container
     // (clearing innerHTML would also destroy #webp-loading-overlay, breaking showLoading)
     const placeholder = container.querySelector('.webp-placeholder');
     if (placeholder) placeholder.remove();
-
     // Reuse the existing <img> element or create one — never nuke the container
     let img = container.querySelector('img');
     if (!img) {
@@ -1029,7 +991,6 @@ const ObjectLayerEngineViewer = {
       container.insertBefore(img, overlay || null);
     }
     img.src = webp;
-
     // Update info badge in-place or create it once
     const displayArea = s('.webp-display-area');
     if (displayArea) {
@@ -1052,12 +1013,10 @@ const ObjectLayerEngineViewer = {
         <span>${numericCode}</span>
       `;
     }
-  },
-
-  initMetadataJsonEditor: async function () {
+  }
+  static async initMetadataJsonEditor() {
     const container = s('#metadata-json-editor-container');
     if (!container) return;
-
     // Ensure vanilla-jsoneditor dark theme CSS is loaded
     if (!s('.jse-dark-theme-link')) {
       append(
@@ -1070,21 +1029,17 @@ const ObjectLayerEngineViewer = {
         />`,
       );
     }
-
     // Destroy previous instance if any
-    if (this.Data.metadataJsonEditor) {
-      this.Data.metadataJsonEditor.destroy();
-      this.Data.metadataJsonEditor = null;
+    if (ObjectLayerEngineViewer.Data.metadataJsonEditor) {
+      ObjectLayerEngineViewer.Data.metadataJsonEditor.destroy();
+      ObjectLayerEngineViewer.Data.metadataJsonEditor = null;
     }
-
-    const objectLayerId = this.Data.objectLayer?._id;
+    const objectLayerId = ObjectLayerEngineViewer.Data.objectLayer?._id;
     if (!objectLayerId) return;
-
     try {
       const response = await ObjectLayerService.getMetadata({ id: objectLayerId });
       const metadataContent = response.status === 'success' && response.data ? response.data : response;
-
-      this.Data.metadataJsonEditor = createJSONEditor({
+      ObjectLayerEngineViewer.Data.metadataJsonEditor = createJSONEditor({
         target: container,
         props: {
           content: { json: metadataContent },
@@ -1095,13 +1050,11 @@ const ObjectLayerEngineViewer = {
           mode: 'tree',
         },
       });
-
       // Apply dark theme class based on current theme
-      this._applyJsonEditorTheme();
-
+      ObjectLayerEngineViewer._applyJsonEditorTheme();
       // Register theme event to toggle dark/light on the JSON editor
       ThemeEvents['metadata-json-editor-theme'] = () => {
-        this._applyJsonEditorTheme();
+        ObjectLayerEngineViewer._applyJsonEditorTheme();
       };
     } catch (err) {
       logger.warn('Failed to initialize metadata JSON editor:', err);
@@ -1109,9 +1062,8 @@ const ObjectLayerEngineViewer = {
         Failed to load metadata JSON
       </div>`;
     }
-  },
-
-  _applyJsonEditorTheme: function () {
+  }
+  static _applyJsonEditorTheme() {
     const container = s('#metadata-json-editor-container');
     if (!container) return;
     if (darkTheme) {
@@ -1119,14 +1071,11 @@ const ObjectLayerEngineViewer = {
     } else {
       container.classList.remove('jse-theme-dark');
     }
-  },
-
-  deleteObjectLayer: async function ({ appStore } = {}) {
-    const objectLayerId = this.Data.objectLayer?._id;
+  }
+  static async deleteObjectLayer({ appStore } = {}) {
+    const objectLayerId = ObjectLayerEngineViewer.Data.objectLayer?._id;
     if (!objectLayerId) return;
-
-    const itemId = this.Data.objectLayer?.data?.item?.id || objectLayerId;
-
+    const itemId = ObjectLayerEngineViewer.Data.objectLayer?.data?.item?.id || objectLayerId;
     const confirmResult = await Modal.RenderConfirm({
       id: 'delete-object-layer-confirm',
       html: async () => html`
@@ -1139,9 +1088,7 @@ const ObjectLayerEngineViewer = {
         </div>
       `,
     });
-
     if (confirmResult.status !== 'confirm') return;
-
     try {
       const result = await ObjectLayerService.delete({ id: objectLayerId });
       if (result.status === 'success') {
@@ -1149,20 +1096,18 @@ const ObjectLayerEngineViewer = {
           html: `Object layer "${itemId}" deleted successfully`,
           status: 'success',
         });
-
         // Clean up JSON editor and its theme event
-        if (this.Data.metadataJsonEditor) {
-          this.Data.metadataJsonEditor.destroy();
-          this.Data.metadataJsonEditor = null;
+        if (ObjectLayerEngineViewer.Data.metadataJsonEditor) {
+          ObjectLayerEngineViewer.Data.metadataJsonEditor.destroy();
+          ObjectLayerEngineViewer.Data.metadataJsonEditor = null;
         }
         delete ThemeEvents['metadata-json-editor-theme'];
-
         // Navigate back to list
-        this.Data.currentObjectId = undefined;
-        this.Data.objectLayer = null;
-        this.Data.webp = null;
-        this.Data.webpMetadata = null;
-        this.Data.atlasSpriteSheet = null;
+        ObjectLayerEngineViewer.Data.currentObjectId = undefined;
+        ObjectLayerEngineViewer.Data.objectLayer = null;
+        ObjectLayerEngineViewer.Data.webp = null;
+        ObjectLayerEngineViewer.Data.webpMetadata = null;
+        ObjectLayerEngineViewer.Data.atlasSpriteSheet = null;
         setQueryParams({ id: null }, { replace: false });
       } else {
         throw new Error(result.message || 'Failed to delete object layer');
@@ -1174,109 +1119,100 @@ const ObjectLayerEngineViewer = {
         status: 'error',
       });
     }
-  },
-
-  attachEventListeners: function ({ appStore }) {
+  }
+  static attachEventListeners({ appStore }) {
     // Direction buttons
     const directionButtons = document.querySelectorAll('[data-direction]');
     directionButtons.forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         if (e.currentTarget.disabled) return;
         const direction = e.currentTarget.getAttribute('data-direction');
-        if (direction !== this.Data.currentDirection) {
-          this.Data.currentDirection = direction;
+        if (direction !== ObjectLayerEngineViewer.Data.currentDirection) {
+          ObjectLayerEngineViewer.Data.currentDirection = direction;
           // Update button active states without re-rendering the full viewer (prevents flicker)
-          this._updateControlsState();
-          await this.generateWebp();
+          ObjectLayerEngineViewer._updateControlsState();
+          await ObjectLayerEngineViewer.generateWebp();
         }
       });
     });
-
     // Mode buttons
     const modeButtons = document.querySelectorAll('[data-mode]');
     modeButtons.forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         if (e.currentTarget.disabled) return;
         const mode = e.currentTarget.getAttribute('data-mode');
-        if (mode !== this.Data.currentMode) {
-          this.Data.currentMode = mode;
+        if (mode !== ObjectLayerEngineViewer.Data.currentMode) {
+          ObjectLayerEngineViewer.Data.currentMode = mode;
           // Update button active states without re-rendering the full viewer (prevents flicker)
-          this._updateControlsState();
-          await this.generateWebp();
+          ObjectLayerEngineViewer._updateControlsState();
+          await ObjectLayerEngineViewer.generateWebp();
         }
       });
     });
-
     // Download button
     const downloadBtn = s('#download-webp-btn');
     if (downloadBtn) {
       downloadBtn.addEventListener('click', () => {
-        this.downloadWebp();
+        ObjectLayerEngineViewer.downloadWebp();
       });
     }
-
     // Return to list button
     const listBtn = s('#return-to-list-btn');
     if (listBtn) {
       listBtn.addEventListener('click', async () => {
         // Clear object data and reset state
-        this.Data.webp = null;
-        this.Data.webpMetadata = null;
-        this.Data.objectLayer = null;
-        this.Data.frameCounts = null;
-
+        ObjectLayerEngineViewer.Data.webp = null;
+        ObjectLayerEngineViewer.Data.webpMetadata = null;
+        ObjectLayerEngineViewer.Data.objectLayer = null;
+        ObjectLayerEngineViewer.Data.frameCounts = null;
         // Set currentObjectId to null BEFORE setQueryParams so the
         // listenQueryParamsChange listener sees the id already matches
         // and skips calling Reload (avoids double-render race condition)
-        this.Data.currentObjectId = null;
-
+        ObjectLayerEngineViewer.Data.currentObjectId = null;
         // Update the URL to remove the id parameter
         setQueryParams({ id: null }, { replace: false });
-
         // Directly render the list view instead of relying on the
         // listener → Reload → renderEmpty chain which can silently
         // fail when the URL was already clean or currentObjectId
         // was already null
-        await this.renderEmpty({ appStore });
+        await ObjectLayerEngineViewer.renderEmpty({ appStore });
       });
     }
-
     // Edit button
     const editBtn = s('#edit-object-layer-btn');
     if (editBtn) {
       editBtn.addEventListener('click', () => {
-        this.toEngine();
+        ObjectLayerEngineViewer.toEngine();
       });
     }
-
     // Delete button
     const deleteBtn = s('#delete-object-layer-btn');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', async () => {
-        await this.deleteObjectLayer({ appStore });
+        await ObjectLayerEngineViewer.deleteObjectLayer({ appStore });
       });
     }
-
     // Atlas buttons
     if (s('#generate-atlas-btn')) {
       EventsUI.onClick('#generate-atlas-btn', async () => {
-        await this.generateAtlas({ appStore });
+        await ObjectLayerEngineViewer.generateAtlas({ appStore });
       });
     }
-
     const removeAtlasBtn = s('#remove-atlas-btn');
     if (removeAtlasBtn) {
       removeAtlasBtn.addEventListener('click', async () => {
-        await this.removeAtlas({ appStore });
+        await ObjectLayerEngineViewer.removeAtlas({ appStore });
       });
     }
-
     const downloadAtlasPngBtn = s('#download-atlas-png-btn');
     if (downloadAtlasPngBtn) {
       downloadAtlasPngBtn.addEventListener('click', () => {
         const fileId =
-          this.Data && this.Data.atlasSpriteSheet && this.Data.atlasSpriteSheet.fileId
-            ? this.Data.atlasSpriteSheet.fileId._id || this.Data.atlasSpriteSheet.fileId
+          ObjectLayerEngineViewer.Data &&
+          ObjectLayerEngineViewer.Data.atlasSpriteSheet &&
+          ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId
+            ? ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId._id ||
+              ObjectLayerEngineViewer.Data.atlasSpriteSheet.fileId
             : null;
         if (!fileId) {
           NotificationManager.Push({
@@ -1288,47 +1224,43 @@ const ObjectLayerEngineViewer = {
         const url = `${getProxyPath()}api/file/blob/${fileId}`;
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${this.Data.atlasSpriteSheet.metadata.itemKey}-atlas.png`;
+        a.download = `${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.itemKey}-atlas.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
       });
     }
-
     const downloadAtlasJsonBtn = s('#download-atlas-json-btn');
     if (downloadAtlasJsonBtn) {
       downloadAtlasJsonBtn.addEventListener('click', () => {
-        const blob = new Blob([JSON.stringify(this.Data.atlasSpriteSheet.metadata, null, 2)], {
+        const blob = new Blob([JSON.stringify(ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata, null, 2)], {
           type: 'application/json',
         });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${this.Data.atlasSpriteSheet.metadata.itemKey}-atlas-metadata.json`;
+        a.download = `${ObjectLayerEngineViewer.Data.atlasSpriteSheet.metadata.itemKey}-atlas-metadata.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       });
     }
-  },
-
-  generateAtlas: async function ({ appStore } = {}) {
-    const objectLayerId = this.Data.objectLayer._id;
-    this.Data.isGeneratingAtlas = true;
-    await this.renderViewer({ appStore });
-
+  }
+  static async generateAtlas({ appStore } = {}) {
+    const objectLayerId = ObjectLayerEngineViewer.Data.objectLayer._id;
+    ObjectLayerEngineViewer.Data.isGeneratingAtlas = true;
+    await ObjectLayerEngineViewer.renderViewer({ appStore });
     try {
       const { status, data, message } = await AtlasSpriteSheetService.generateAtlas({ id: objectLayerId });
-
       if (status === 'success') {
         NotificationManager.Push({
           html: 'Atlas sprite sheet generated successfully',
           status: 'success',
         });
         // Reset generating flag before reload so renderViewer shows updated content
-        this.Data.isGeneratingAtlas = false;
-        await this.Reload({ appStore, force: true, skipWebp: true });
+        ObjectLayerEngineViewer.Data.isGeneratingAtlas = false;
+        await ObjectLayerEngineViewer.Reload({ appStore, force: true, skipWebp: true });
         return;
       } else {
         throw new Error(message || 'Failed to generate atlas');
@@ -1340,14 +1272,13 @@ const ObjectLayerEngineViewer = {
         status: 'error',
       });
     } finally {
-      if (this.Data.isGeneratingAtlas) {
-        this.Data.isGeneratingAtlas = false;
-        await this.renderViewer({ appStore });
+      if (ObjectLayerEngineViewer.Data.isGeneratingAtlas) {
+        ObjectLayerEngineViewer.Data.isGeneratingAtlas = false;
+        await ObjectLayerEngineViewer.renderViewer({ appStore });
       }
     }
-  },
-
-  removeAtlas: async function ({ appStore } = {}) {
+  }
+  static async removeAtlas({ appStore } = {}) {
     const confirmResult = await Modal.RenderConfirm({
       id: 'remove-atlas-confirm',
       html: async () => html`
@@ -1356,26 +1287,22 @@ const ObjectLayerEngineViewer = {
         </div>
       `,
     });
-
     if (confirmResult.status !== 'confirm') {
       return;
     }
-
-    const objectLayerId = this.Data.objectLayer._id;
-    this.Data.isGeneratingAtlas = true;
-    await this.renderViewer({ appStore });
-
+    const objectLayerId = ObjectLayerEngineViewer.Data.objectLayer._id;
+    ObjectLayerEngineViewer.Data.isGeneratingAtlas = true;
+    await ObjectLayerEngineViewer.renderViewer({ appStore });
     try {
       const { status, message } = await AtlasSpriteSheetService.deleteByObjectLayerId({ id: objectLayerId });
-
       if (status === 'success') {
         NotificationManager.Push({
           html: 'Atlas sprite sheet removed successfully',
           status: 'success',
         });
         // Reset generating flag before reload so renderViewer shows updated content
-        this.Data.isGeneratingAtlas = false;
-        await this.Reload({ appStore, force: true, skipWebp: true });
+        ObjectLayerEngineViewer.Data.isGeneratingAtlas = false;
+        await ObjectLayerEngineViewer.Reload({ appStore, force: true, skipWebp: true });
         return;
       } else {
         throw new Error(message || 'Failed to remove atlas');
@@ -1387,21 +1314,18 @@ const ObjectLayerEngineViewer = {
         status: 'error',
       });
     } finally {
-      if (this.Data.isGeneratingAtlas) {
-        this.Data.isGeneratingAtlas = false;
-        await this.renderViewer({ appStore });
+      if (ObjectLayerEngineViewer.Data.isGeneratingAtlas) {
+        ObjectLayerEngineViewer.Data.isGeneratingAtlas = false;
+        await ObjectLayerEngineViewer.renderViewer({ appStore });
       }
     }
-  },
-
-  generateWebp: async function () {
-    if (this.Data.isGenerating) return;
-
-    const { objectLayer, frameCounts, currentDirection, currentMode } = this.Data;
+  }
+  static async generateWebp() {
+    if (ObjectLayerEngineViewer.Data.isGenerating) return;
+    const { objectLayer, frameCounts, currentDirection, currentMode } = ObjectLayerEngineViewer.Data;
     if (!objectLayer || !frameCounts) return;
-
     // Get numeric direction code
-    const numericCode = this.getDirectionCode(currentDirection, currentMode);
+    const numericCode = ObjectLayerEngineViewer.getDirectionCode(currentDirection, currentMode);
     if (!numericCode) {
       NotificationManager.Push({
         html: `Invalid direction/mode combination: ${currentDirection} ${currentMode}`,
@@ -1409,9 +1333,7 @@ const ObjectLayerEngineViewer = {
       });
       return;
     }
-
     const frameCount = frameCounts[numericCode];
-
     if (!frameCount || frameCount === 0) {
       NotificationManager.Push({
         html: `No frames available for ${currentDirection} ${currentMode}`,
@@ -1419,13 +1341,11 @@ const ObjectLayerEngineViewer = {
       });
       return;
     }
-
     const itemType = objectLayer.data.item.type;
     const itemId = objectLayer.data.item.id;
     const frameDuration = objectLayer.objectLayerRenderFramesId?.frame_duration || 100;
-
-    this.Data.isGenerating = true;
-    this.showLoading(true, 'Generating WebP...');
+    ObjectLayerEngineViewer.Data.isGenerating = true;
+    ObjectLayerEngineViewer.showLoading(true, 'Generating WebP...');
     try {
       // Call the WebP generation API endpoint
       const { status, data } = await ObjectLayerService.generateWebp({
@@ -1433,21 +1353,18 @@ const ObjectLayerEngineViewer = {
         itemId,
         directionCode: numericCode,
       });
-
       if (status === 'success' && data) {
         // Store the blob URL and metadata
-        this.Data.webp = data;
-        this.Data.webpMetadata = {
+        ObjectLayerEngineViewer.Data.webp = data;
+        ObjectLayerEngineViewer.Data.webpMetadata = {
           frameCount,
           frameDuration,
           currentDirection,
           currentMode,
           numericCode,
         };
-
         // Display the WebP in the viewer
-        await this.displayWebp();
-
+        await ObjectLayerEngineViewer.displayWebp();
         // NotificationManager.Push({
         //   html: `WebP generated successfully (${frameCount} frames, ${frameDuration}ms duration)`,
         //   status: 'success',
@@ -1455,36 +1372,33 @@ const ObjectLayerEngineViewer = {
       } else {
         throw new Error('Failed to generate WebP');
       }
-
-      this.Data.isGenerating = false;
-      this.showLoading(false);
+      ObjectLayerEngineViewer.Data.isGenerating = false;
+      ObjectLayerEngineViewer.showLoading(false);
     } catch (error) {
       logger.error('Error generating WebP:', error);
       NotificationManager.Push({
         html: `Failed to generate WebP: ${error.message}`,
         status: 'error',
       });
-      this.Data.isGenerating = false;
-      this.showLoading(false);
+      ObjectLayerEngineViewer.Data.isGenerating = false;
+      ObjectLayerEngineViewer.showLoading(false);
     }
-  },
-
+  }
   /**
    * Updates direction/mode button active states and disabled flags in-place,
    * without re-rendering the viewer. Prevents layout flicker when switching
    * direction or mode while the WebP canvas and surrounding structure stay intact.
    */
-  _updateControlsState: function () {
-    const { currentDirection, currentMode, frameCounts } = this.Data;
+  static _updateControlsState() {
+    const { currentDirection, currentMode, frameCounts } = ObjectLayerEngineViewer.Data;
     const hasFrames = (direction, mode) => {
-      const code = this.getDirectionCode(direction, mode);
+      const code = ObjectLayerEngineViewer.getDirectionCode(direction, mode);
       return !!(code && frameCounts && frameCounts[code] && frameCounts[code] > 0);
     };
     const getFrameCount = (direction, mode) => {
-      const code = this.getDirectionCode(direction, mode);
+      const code = ObjectLayerEngineViewer.getDirectionCode(direction, mode);
       return code ? (frameCounts && frameCounts[code]) || 0 : 0;
     };
-
     document.querySelectorAll('[data-direction]').forEach((btn) => {
       const d = btn.getAttribute('data-direction');
       btn.classList.toggle('active', d === currentDirection);
@@ -1493,7 +1407,6 @@ const ObjectLayerEngineViewer = {
       const countEl = btn.querySelector('.frame-count');
       if (countEl) countEl.textContent = hasFr ? `(${getFrameCount(d, currentMode)})` : '';
     });
-
     document.querySelectorAll('[data-mode]').forEach((btn) => {
       const m = btn.getAttribute('data-mode');
       btn.classList.toggle('active', m === currentMode);
@@ -1502,9 +1415,8 @@ const ObjectLayerEngineViewer = {
       const countEl = btn.querySelector('.frame-count');
       if (countEl) countEl.textContent = hasFr ? `(${getFrameCount(currentDirection, m)})` : '';
     });
-  },
-
-  showLoading: function (show, message = 'Generating WebP...') {
+  }
+  static showLoading(show, message = 'Generating WebP...') {
     const overlay = s('#webp-loading-overlay');
     if (overlay) {
       overlay.style.display = show ? 'flex' : 'none';
@@ -1513,90 +1425,76 @@ const ObjectLayerEngineViewer = {
         loadingText.textContent = message;
       }
     }
-
     const downloadBtn = s('#download-webp-btn');
     if (downloadBtn) {
       downloadBtn.disabled = show;
     }
-
     // Keep existing info badge visible during loading (removes the layout-shift flicker)
-  },
-
-  downloadWebp: function () {
-    if (!this.Data.webp) {
+  }
+  static downloadWebp() {
+    if (!ObjectLayerEngineViewer.Data.webp) {
       NotificationManager.Push({
         html: 'No WebP available to download',
         status: 'warning',
       });
       return;
     }
-
-    const { objectLayer, currentDirection, currentMode } = this.Data;
-    const numericCode = this.getDirectionCode(currentDirection, currentMode);
+    const { objectLayer, currentDirection, currentMode } = ObjectLayerEngineViewer.Data;
+    const numericCode = ObjectLayerEngineViewer.getDirectionCode(currentDirection, currentMode);
     const filename = `${objectLayer.data.item.id}_${currentDirection}_${currentMode}_${numericCode}.webp`;
-
     // Create a temporary anchor element to trigger download
     const a = document.createElement('a');
-    a.href = this.Data.webp;
+    a.href = ObjectLayerEngineViewer.Data.webp;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-
     NotificationManager.Push({
       html: `WebP downloaded: ${filename}`,
       status: 'success',
     });
-  },
-
-  toEngine: function () {
-    const { objectLayer } = this.Data;
+  }
+  static toEngine() {
+    const { objectLayer } = ObjectLayerEngineViewer.Data;
     if (!objectLayer || !objectLayer._id) return;
-
     // Navigate to editor route first
     setPath(`${getProxyPath()}object-layer-engine`);
     // Then add query param without replacing history
     setQueryParams({ id: objectLayer._id }, { replace: true });
-
     if (s(`.modal-object-layer-engine`)) {
       ObjectLayerEngineModal.Reload();
     } else {
       s(`.main-btn-object-layer-engine`)?.click();
     }
-  },
-
-  Reload: async function (options = {}) {
+  }
+  static async Reload(options = {}) {
     const { appStore, force = false, skipWebp = false } = options;
     const queryParams = getQueryParams();
     const objectId = queryParams.id || null;
-
     // Only reload if object id actually changed (same logic as listener) or forced
-    if (objectId !== this.Data.currentObjectId || force) {
-      if (objectId !== this.Data.currentObjectId && !skipWebp) {
-        this.Data.webp = null;
-        this.Data.webpMetadata = null;
+    if (objectId !== ObjectLayerEngineViewer.Data.currentObjectId || force) {
+      if (objectId !== ObjectLayerEngineViewer.Data.currentObjectId && !skipWebp) {
+        ObjectLayerEngineViewer.Data.webp = null;
+        ObjectLayerEngineViewer.Data.webpMetadata = null;
       }
-      this.Data.currentObjectId = objectId;
-
+      ObjectLayerEngineViewer.Data.currentObjectId = objectId;
       if (objectId) {
-        await this.loadObjectLayer(objectId, appStore, { skipWebp });
+        await ObjectLayerEngineViewer.loadObjectLayer(objectId, appStore, { skipWebp });
       } else {
-        await this.renderEmpty({ appStore });
+        await ObjectLayerEngineViewer.renderEmpty({ appStore });
       }
-    } else if (!objectId && (this.Data.currentObjectId === null || force)) {
+    } else if (!objectId && (ObjectLayerEngineViewer.Data.currentObjectId === null || force)) {
       // Special case: if we're already in empty state but DOM might have been reset
       // (e.g., modal reopened), force render the table if DOM is missing
       const id = 'object-layer-engine-viewer';
       const idModal = 'modal-object-layer-engine-viewer';
       const gridId = `object-layer-engine-management-grid-${idModal}`;
       const gridDomExists = s(`.${gridId}`);
-
       if (!gridDomExists) {
         // DOM was reset (e.g., modal HTML reloaded), re-render the table
-        await this.renderEmpty({ appStore });
+        await ObjectLayerEngineViewer.renderEmpty({ appStore });
       }
     }
-  },
-};
-
+  }
+}
 export { ObjectLayerEngineViewer };

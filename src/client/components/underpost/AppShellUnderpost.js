@@ -28,7 +28,7 @@ import { Content } from '../core/Content.js';
 
 class AppShellUnderpost {
   static Data = {};
-  static async Render () {
+  static async Render() {
     const id = getId(AppShellUnderpost.Data, 'menu-');
     AppShellUnderpost.Data[id] = {};
     const RouterInstance = RouterUnderpost();

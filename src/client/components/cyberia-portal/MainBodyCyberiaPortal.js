@@ -3,8 +3,8 @@ import { EventsUI } from '../core/EventsUI.js';
 import { getProxyPath } from '../core/Router.js';
 import { htmls, s } from '../core/VanillaJs.js';
 
-const MainBodyCyberiaPortal = {
-  Render: async function () {
+class MainBodyCyberiaPortal {
+  static async Render() {
     setTimeout(() => {
       EventsUI.onClick('.cta-button', () => {
         console.log('Enter the world button clicked');
@@ -280,7 +280,7 @@ const MainBodyCyberiaPortal = {
         </footer>
       </div>
     `;
-  },
-};
+  }
+}
 
 export { MainBodyCyberiaPortal };

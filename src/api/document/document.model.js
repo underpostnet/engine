@@ -1,7 +1,5 @@
 import { Schema, model, Types } from 'mongoose';
-
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
-
 const DocumentSchema = new Schema(
   {
     userId: {
@@ -35,13 +33,10 @@ const DocumentSchema = new Schema(
     timestamps: true,
   },
 );
-
 const DocumentModel = model('Document', DocumentSchema);
-
 const ProviderSchema = DocumentSchema;
-
-const DocumentDto = {
-  populate: {
+class DocumentDto {
+  static populate = {
     file: () => {
       return {
         path: 'fileId',
@@ -68,34 +63,33 @@ const DocumentDto = {
         },
       };
     },
-  },
-  getTotalCopyShareLinkCount: (document) => {
+  };
+  static getTotalCopyShareLinkCount = (document) => {
     if (!document.share || !document.share.copyShareLinkEvent) return 0;
     return document.share.copyShareLinkEvent.reduce((total, event) => total + (event.count || 0), 0);
-  },
+  };
   /**
    * Filter 'public' tag from tags array
    * The 'public' tag is internal and should not be rendered to users
    * @param {string[]} tags - Array of tags
    * @returns {string[]} - Filtered tags without 'public'
    */
-  filterPublicTag: (tags) => {
+  static filterPublicTag = (tags) => {
     if (!tags || !Array.isArray(tags)) return [];
     return tags.filter((tag) => tag !== 'public');
-  },
+  };
   /**
    * Extract isPublic boolean from tags array and return cleaned tags
    * @param {string[]} tags - Array of tags potentially containing 'public'
    * @returns {{ isPublic: boolean, tags: string[] }} - Object with isPublic flag and cleaned tags
    */
-  extractPublicFromTags: (tags) => {
+  static extractPublicFromTags = (tags) => {
     if (!tags || !Array.isArray(tags)) {
       return { isPublic: false, tags: [] };
     }
     const hasPublicTag = tags.includes('public');
     const cleanedTags = tags.filter((tag) => tag !== 'public');
     return { isPublic: hasPublicTag, tags: cleanedTags };
-  },
-};
-
+  };
+}
 export { DocumentSchema, DocumentModel, ProviderSchema, DocumentDto };

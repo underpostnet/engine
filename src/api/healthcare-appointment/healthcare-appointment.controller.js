@@ -3,8 +3,8 @@ import { HealthcareAppointmentService } from './healthcare-appointment.service.j
 
 const logger = loggerFactory(import.meta);
 
-const HealthcareAppointmentController = {
-  post: async (req, res, options) => {
+class HealthcareAppointmentController {
+  static post = async (req, res, options) => {
     try {
       const result = await HealthcareAppointmentService.post(req, res, options);
       return res.status(200).json({
@@ -18,8 +18,8 @@ const HealthcareAppointmentController = {
         message: error.message,
       });
     }
-  },
-  get: async (req, res, options) => {
+  };
+  static get = async (req, res, options) => {
     try {
       const result = await HealthcareAppointmentService.get(req, res, options);
       return res.status(200).json({
@@ -33,8 +33,8 @@ const HealthcareAppointmentController = {
         message: error.message,
       });
     }
-  },
-  put: async (req, res, options) => {
+  };
+  static put = async (req, res, options) => {
     try {
       const result = await HealthcareAppointmentService.put(req, res, options);
       return res.status(200).json({
@@ -48,8 +48,8 @@ const HealthcareAppointmentController = {
         message: error.message,
       });
     }
-  },
-  delete: async (req, res, options) => {
+  };
+  static delete = async (req, res, options) => {
     try {
       const result = await HealthcareAppointmentService.delete(req, res, options);
       return res.status(200).json({
@@ -63,7 +63,7 @@ const HealthcareAppointmentController = {
         message: error.message,
       });
     }
-  },
-};
+  };
+}
 
 export { HealthcareAppointmentController };

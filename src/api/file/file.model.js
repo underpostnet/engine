@@ -47,7 +47,7 @@ const ProviderSchema = FileSchema;
  * @namespace FileModelServer.FileModelDto
  * @memberof FileModelServer
  */
-const FileModelDto = {
+class FileModelDto {
   /**
    * Returns file metadata only (no buffer data).
    * Used for list responses and API integration.
@@ -56,7 +56,7 @@ const FileModelDto = {
    * @param {Object} file - File document from database.
    * @returns {Object|null} File metadata object, or null if file is falsy.
    */
-  toMetadata: (file) => {
+  static toMetadata = (file) => {
     if (!file) return null;
     return {
       _id: file._id,
@@ -68,7 +68,7 @@ const FileModelDto = {
       createdAt: file.createdAt,
       updatedAt: file.updatedAt,
     };
-  },
+  };
 
   /**
    * Returns file with complete data.
@@ -78,7 +78,7 @@ const FileModelDto = {
    * @param {Object} file - File document from database.
    * @returns {Object|null} Complete file object with buffer data, or null if file is falsy.
    */
-  toFull: (file) => {
+  static toFull = (file) => {
     if (!file) return null;
     return {
       _id: file._id,
@@ -92,7 +92,7 @@ const FileModelDto = {
       createdAt: file.createdAt,
       updatedAt: file.updatedAt,
     };
-  },
+  };
 
   /**
    * Transforms array of files to metadata only.
@@ -101,10 +101,10 @@ const FileModelDto = {
    * @param {Array} files - Array of file documents.
    * @returns {Array} Array of file metadata objects.
    */
-  toMetadataArray: (files) => {
+  static toMetadataArray = (files) => {
     if (!Array.isArray(files)) return [];
     return files.map((file) => FileModelDto.toMetadata(file));
-  },
+  };
 
   /**
    * Ensures UTF-8 encoding for filenames.
@@ -114,14 +114,14 @@ const FileModelDto = {
    * @param {string} filename - Raw filename from upload.
    * @returns {string} UTF-8 encoded filename.
    */
-  normalizeFilename: (filename) => {
+  static normalizeFilename = (filename) => {
     if (!filename) return '';
     // Ensure string and normalize to UTF-8
     let normalized = String(filename);
     // Replace any incorrectly encoded sequences
     normalized = Buffer.from(normalized, 'utf8').toString('utf8');
     return normalized;
-  },
-};
+  };
+}
 
 export { FileSchema, FileModel, ProviderSchema, FileModelDto };

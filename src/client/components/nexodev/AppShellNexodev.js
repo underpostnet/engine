@@ -52,7 +52,7 @@ import { Scroll } from '../core/Scroll.js';
 
 class AppShellNexodev {
   static Data = {};
-  static async Render (options = { htmlMainBody: () => '' }) {
+  static async Render(options = { htmlMainBody: () => '' }) {
     const id = getId(AppShellNexodev.Data, 'menu-');
     AppShellNexodev.Data[id] = {};
     const RouterInstance = RouterNexodev();

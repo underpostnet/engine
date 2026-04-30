@@ -8,17 +8,17 @@ const CssCommonNexodev = async () => {
   return html``;
 };
 
-const CssNexodevDark = {
-  themePair: 'nexodev-light',
-  theme: 'nexodev-dark',
-  dark: true,
-  render: CssCommonNexodev,
-};
-const CssNexodevLight = {
-  themePair: 'nexodev-dark',
-  theme: 'nexodev-light',
-  dark: false,
-  render: CssCommonNexodev,
-};
+class CssNexodevDark {
+  static themePair = 'nexodev-light';
+  static theme = 'nexodev-dark';
+  static dark = true;
+  static render = CssCommonNexodev;
+}
+class CssNexodevLight {
+  static themePair = 'nexodev-dark';
+  static theme = 'nexodev-light';
+  static dark = false;
+  static render = CssCommonNexodev;
+}
 
 export { CssNexodevDark, CssNexodevLight, CssCommonNexodev };

@@ -11,11 +11,9 @@ import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { htmls, s } from './VanillaJs.js';
 import { WebhookProvider } from './Webhook.js';
-
 const logger = loggerFactory(import.meta);
-
-const LogIn = {
-  Scope: {
+class LogIn {
+  static Scope = {
     user: {
       main: {
         model: {
@@ -23,13 +21,12 @@ const LogIn = {
         },
       },
     },
-  },
-  Event: {},
-  Trigger: async function (options) {
+  };
+  static Event = {};
+  static async Trigger(options) {
     const { user } = options;
-    if (user) this.Scope.user.main.model.user = { ...this.Scope.user.main.model.user, ...user };
-
-    for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
+    if (user) LogIn.Scope.user.main.model.user = { ...LogIn.Scope.user.main.model.user, ...user };
+    for (const eventKey of Object.keys(LogIn.Event)) await LogIn.Event[eventKey](options);
     if (!user || user.role === 'guest') return;
     await WebhookProvider.register({ user });
     if (s(`.session`))
@@ -56,15 +53,14 @@ const LogIn = {
           }
         </style>`,
       );
-    if (!this.Scope.user.main.model.user.profileImage) {
+    if (!LogIn.Scope.user.main.model.user.profileImage) {
       // Try to load profile image only if profileImageId exists
-      if (!this.Scope.user.main.model.user.profileImage && user?.profileImageId) {
+      if (!LogIn.Scope.user.main.model.user.profileImage && user?.profileImageId) {
         try {
           const resultFile = await FileService.get({ id: user.profileImageId });
           if (resultFile && resultFile.status === 'success' && resultFile.data[0]) {
             const imageData = resultFile.data[0];
             let imageSrc = null;
-
             try {
               // Handle new metadata-only format
               if (!imageData.data?.data && imageData._id) {
@@ -76,9 +72,8 @@ const LogIn = {
                 const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
                 imageSrc = URL.createObjectURL(imageFile);
               }
-
               if (imageSrc) {
-                this.Scope.user.main.model.user.profileImage = {
+                LogIn.Scope.user.main.model.user.profileImage = {
                   resultFile,
                   imageData,
                   imageSrc,
@@ -97,8 +92,8 @@ const LogIn = {
         html`<div class="abs center top-box-profile-img-container">
           <img
             class="abs center top-box-profile-img"
-            ${this.Scope.user.main.model.user.profileImage
-              ? `src="${this.Scope.user.main.model.user.profileImage.imageSrc}"`
+            ${LogIn.Scope.user.main.model.user.profileImage
+              ? `src="${LogIn.Scope.user.main.model.user.profileImage.imageSrc}"`
               : `src="${getApiBaseUrl({
                   id: 'assets/avatar',
                   endpoint: 'user',
@@ -107,15 +102,14 @@ const LogIn = {
         </div>`,
       );
     }
-  },
-  Render: async function () {
+  }
+  static async Render() {
     setTimeout(async () => {
       const formData = [
         { model: 'email', id: `log-in-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
         { model: 'password', id: `log-in-password`, rules: [{ type: 'isEmpty' }] },
       ];
       const validators = await Validator.instance(formData);
-
       EventsUI.onClick(`.btn-log-in`, async (e) => {
         e.preventDefault();
         const { errorMessage } = await validators();
@@ -125,17 +119,14 @@ const LogIn = {
           if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
         }
         const result = await UserService.post({ id: 'auth', body });
-
         if (result.status === 'error' && result.message.match('attempts')) {
           htmls(`.login-attempt-warn-value`, result.message.split(':')[1]);
           s(`.login-attempt-warn-container`).classList.remove('hide');
         } else s(`.login-attempt-warn-container`).classList.add('hide');
-
         if (result.status === 'error' && result.message.match('locked')) {
           htmls(`.login-attempt-warn-value0`, result.message.split(':')[1]);
           s(`.login-attempt-warn-container0`).classList.remove('hide');
         } else s(`.login-attempt-warn-container0`).classList.add('hide');
-
         if (result.status === 'success') await Auth.sessionIn(result);
         NotificationManager.Push({
           html: result.status === 'success' ? Translate.Render(`${result.status}-user-log-in`) : result.message,
@@ -145,7 +136,6 @@ const LogIn = {
       s(`.btn-log-in-forgot-password`).onclick = () => {
         s(`.main-btn-recover`).click();
       };
-
       s(`.btn-log-in-i-not-have-account`).onclick = () => {
         s(`.main-btn-sign-up`).click();
       };
@@ -206,7 +196,6 @@ const LogIn = {
         </div>
       </form>
     `;
-  },
-};
-
+  }
+}
 export { LogIn };
