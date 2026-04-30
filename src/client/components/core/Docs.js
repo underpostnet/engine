@@ -51,7 +51,16 @@ const Docs = {
     });
     const iframeEl = s(`.iframe-${ModalId}`);
     let swaggerThemeEventKey = null;
+    let unbindIframeLayoutSync = null;
     if (iframeEl) {
+      const scheduleViewLayoutSync = () => {
+        const sync = () => Modal.syncViewLayout();
+        sync();
+        setTimeout(sync, 0);
+        setTimeout(sync, 120);
+        setTimeout(sync, 400);
+      };
+
       iframeEl.addEventListener('load', () => {
         try {
           const iframeWin = iframeEl.contentWindow;
@@ -62,11 +71,37 @@ const Docs = {
         } catch (e) {
           // cross-origin or security restriction — safe to ignore
         }
-        window.scrollTo(0, 0);
+        // Keep the parent window scroll untouched.
+        // These modals are fixed-position; scrolling the parent on iframe navigation
+        // shifts Chrome layout calculations and leaves view modals offset by 50px.
         // Bind Shift+K inside the iframe to focus the parent SearchBox (mirrors app-wide shortcut)
         try {
+          const iframeWin = iframeEl.contentWindow;
           const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow?.document;
           if (iframeDoc) {
+            if (unbindIframeLayoutSync) unbindIframeLayoutSync();
+
+            const onIframeAnchorClick = (e) => {
+              if (e.target && e.target.closest && e.target.closest('a')) {
+                scheduleViewLayoutSync();
+              }
+            };
+            const onIframeHashChange = () => scheduleViewLayoutSync();
+            const onIframePopState = () => scheduleViewLayoutSync();
+
+            iframeDoc.addEventListener('click', onIframeAnchorClick, true);
+            if (iframeWin) {
+              iframeWin.addEventListener('hashchange', onIframeHashChange);
+              iframeWin.addEventListener('popstate', onIframePopState);
+            }
+            unbindIframeLayoutSync = () => {
+              iframeDoc.removeEventListener('click', onIframeAnchorClick, true);
+              if (iframeWin) {
+                iframeWin.removeEventListener('hashchange', onIframeHashChange);
+                iframeWin.removeEventListener('popstate', onIframePopState);
+              }
+            };
+
             iframeDoc.addEventListener('keydown', (e) => {
               if (e.shiftKey && e.key.toLowerCase() === 'k') {
                 e.preventDefault();
@@ -85,6 +120,8 @@ const Docs = {
         } catch (e) {
           // cross-origin or security restriction — safe to ignore
         }
+
+        scheduleViewLayoutSync();
       });
 
       if (type === 'src') {
@@ -154,6 +191,7 @@ const Docs = {
     };
     Modal.Data[ModalId].onObserverListener[ModalId]();
     Modal.Data[ModalId].onCloseListener[ModalId] = () => {
+      if (unbindIframeLayoutSync) unbindIframeLayoutSync();
       if (swaggerThemeEventKey) delete ThemeEvents[swaggerThemeEventKey];
       closeModalRouteChangeEvent({ closedId: ModalId });
     };

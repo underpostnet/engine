@@ -149,23 +149,23 @@ export class PwaWindowDimensions {
    * Get the best-available viewport height in pixels.
    *
    * Priority (from most reliable for "visible" to least):
-   * 1. window.visualViewport.height (if `preferVisualViewport` is true)
-   * 2. document.documentElement.clientHeight (Layout viewport)
-   * 3. window.innerHeight (Window size)
-   * 4. document.body.clientHeight (Body size)
-   * 5. window.visualViewport.height (if `preferVisualViewport` is false)
+   * 1. document.documentElement.clientHeight (Layout viewport, default — stable against iframe scrolls)
+   * 2. window.innerHeight (Window size)
+   * 3. document.body.clientHeight (Body size)
+   * 4. window.visualViewport.height (if `preferVisualViewport` is true; first priority; or last before screen fallbacks)
+   * 5. window.visualViewport.height (if `preferVisualViewport` is false — used as fallback after layout values)
    * 6. window.screen.availHeight / window.screen.height (Physical screen)
    * 7. window.outerHeight (Last resort)
    *
    * @memberof PwaWindowDimensions
    * @static
    * @param {Object} [options]
-   * @param {boolean} [options.preferVisualViewport=true] - When true, visualViewport is checked first (best for visible screen size, e.g., above mobile keyboard).
+   * @param {boolean} [options.preferVisualViewport=false] - When true, visualViewport is checked first (best for visible screen size, e.g., above mobile keyboard). Defaults to false to use stable layout viewport height, preventing Chrome iframe scroll from causing transient visualViewport changes that affect modal sizing.
    * @returns {number|null} Height in px (rounded integer) or null if none found.
    * @memberof PwaWindowDimensions
    */
   static getH(options = {}) {
-    const { preferVisualViewport = true } = options;
+    const { preferVisualViewport = false } = options;
 
     const vv = PwaWindowDimensions.#getFromVisualViewport();
     const de = PwaWindowDimensions.#getFromDocumentElement();
