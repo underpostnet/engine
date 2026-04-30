@@ -52,7 +52,14 @@ const JSONweb = (data) => {
  * @returns {import('esbuild').Plugin}
  * @memberof clientFormatted
  */
-const importRewritePlugin = ({ dists = [], proxyPath, basePath = '', module = '', baseHost = '' }) => ({
+const importRewritePlugin = ({
+  dists = [],
+  proxyPath,
+  basePath = '',
+  module = '',
+  baseHost = '',
+  externalizeBareImports = true,
+}) => ({
   name: 'import-rewrite',
   setup(build) {
     const prefix = `${baseHost}${proxyPath !== '/' ? `${proxyPath}/` : '/'}`;
@@ -86,9 +93,10 @@ const importRewritePlugin = ({ dists = [], proxyPath, basePath = '', module = ''
       }
     });
 
-    // Mark any remaining imports as external
+    // For client app modules we externalize bare imports; for SW builds we let esbuild bundle them.
     build.onResolve({ filter: /.*/ }, (args) => {
       if (args.kind === 'entry-point') return;
+      if (!externalizeBareImports) return;
       return { path: args.path, external: true };
     });
   },
@@ -111,7 +119,15 @@ const importRewritePlugin = ({ dists = [], proxyPath, basePath = '', module = ''
  */
 const transformClientJs = async (
   srcPath,
-  { dists = [], proxyPath, basePath = '', module = '', baseHost = '', minify: shouldMinify = false } = {},
+  {
+    dists = [],
+    proxyPath,
+    basePath = '',
+    module = '',
+    baseHost = '',
+    minify: shouldMinify = false,
+    externalizeBareImports = true,
+  } = {},
 ) => {
   const src = fs.readFileSync(srcPath, 'utf8');
   const stripped = srcFormatted(src);
@@ -130,7 +146,7 @@ const transformClientJs = async (
     target: 'esnext',
     minify: shouldMinify,
     logLevel: 'warning',
-    plugins: [importRewritePlugin({ dists, proxyPath, basePath, module, baseHost })],
+    plugins: [importRewritePlugin({ dists, proxyPath, basePath, module, baseHost, externalizeBareImports })],
   });
 
   return result.outputFiles[0].text;

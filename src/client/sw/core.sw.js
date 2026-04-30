@@ -3,11 +3,12 @@ import { setCacheNameDetails, clientsClaim } from 'workbox-core';
 import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-precaching';
 import { registerRoute, setCatchHandler } from 'workbox-routing';
 import { StaleWhileRevalidate, NetworkFirst, NetworkOnly } from 'workbox-strategies';
+import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
 
 // ─── Runtime config injected by client-build.js ───────────────────────────────
-const CACHE_PREFIX = 'engine-core';
+const CACHE_PREFIX = 'engine-core-v2';
 const PRE_CACHED_RESOURCES = Array.isArray(self.renderPayload?.PRE_CACHED_RESOURCES)
   ? self.renderPayload.PRE_CACHED_RESOURCES
   : [];
@@ -45,6 +46,9 @@ registerRoute(
   new StaleWhileRevalidate({
     cacheName: `${CACHE_PREFIX}-assets`,
     plugins: [
+      new CacheableResponsePlugin({
+        statuses: [0, 200],
+      }),
       new ExpirationPlugin({
         maxEntries: 350,
         maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
@@ -60,6 +64,9 @@ registerRoute(
     cacheName: `${CACHE_PREFIX}-api-get`,
     networkTimeoutSeconds: 5,
     plugins: [
+      new CacheableResponsePlugin({
+        statuses: [0, 200],
+      }),
       new ExpirationPlugin({
         maxEntries: 120,
         maxAgeSeconds: 5 * 60, // 5 minutes
@@ -92,6 +99,9 @@ registerRoute(
         cacheName: `${CACHE_PREFIX}-pages`,
         networkTimeoutSeconds: 4,
         plugins: [
+          new CacheableResponsePlugin({
+            statuses: [0, 200],
+          }),
           new ExpirationPlugin({
             maxEntries: 60,
             maxAgeSeconds: 12 * 60 * 60, // 12 hours

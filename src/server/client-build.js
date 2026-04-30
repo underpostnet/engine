@@ -668,28 +668,18 @@ const buildClient = async (
         for (const module of services) {
           if (!fs.existsSync(`${rootClientPath}/services/${module}`))
             fs.mkdirSync(`${rootClientPath}/services/${module}`, { recursive: true });
+          const moduleDir = `./src/client/services/${module}`;
+          if (!fs.existsSync(moduleDir)) continue;
 
-          if (fs.existsSync(`./src/client/services/${module}/${module}.service.js`)) {
-            const jsSrcPath = `./src/client/services/${module}/${module}.service.js`;
-            const jsPublicPath = `${rootClientPath}/services/${module}/${module}.service.js`;
-            if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath)) continue;
+          const serviceFiles = fs
+            .readdirSync(moduleDir)
+            .filter((name) => name.endsWith('.service.js') || name.endsWith('.management.js'))
+            .sort();
 
-            const jsSrc = await transformClientJs(jsSrcPath, {
-              dists,
-              proxyPath: path,
-              basePath: 'services',
-              module,
-              baseHost,
-              minify: minifyBuild,
-            });
-            fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
-          }
-        }
+          for (const serviceFile of serviceFiles) {
+            const jsSrcPath = `${moduleDir}/${serviceFile}`;
+            const jsPublicPath = `${rootClientPath}/services/${module}/${serviceFile}`;
 
-        for (const module of services) {
-          if (fs.existsSync(`./src/client/services/${module}/${module}.management.js`)) {
-            const jsSrcPath = `./src/client/services/${module}/${module}.management.js`;
-            const jsPublicPath = `${rootClientPath}/services/${module}/${module}.management.js`;
             if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath)) continue;
 
             const jsSrc = await transformClientJs(jsSrcPath, {
@@ -716,7 +706,13 @@ const buildClient = async (
         const jsPublicPath = `${rootClientPath}/sw.js`;
 
         if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
-          const jsSrc = await transformClientJs(jsSrcPath, { dists, proxyPath: path, baseHost, minify: minifyBuild });
+          const jsSrc = await transformClientJs(jsSrcPath, {
+            dists,
+            proxyPath: path,
+            baseHost,
+            minify: minifyBuild,
+            externalizeBareImports: false,
+          });
 
           fs.writeFileSync(jsPublicPath, jsSrc, 'utf8');
         }
