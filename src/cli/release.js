@@ -120,7 +120,7 @@ class UnderpostRelease {
         `./manifests/deployment/dd-default-development/deployment.yaml`,
         fs
           .readFileSync(`./manifests/deployment/dd-default-development/deployment.yaml`, 'utf8')
-          .replaceAll(`underpost:v${version}`, `underpost:v${newVersion}`),
+          .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
         'utf8',
       );
 
@@ -132,6 +132,17 @@ class UnderpostRelease {
             .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
           'utf8',
         );
+
+      // Update version tag in all runtime docker image workflows (type=raw,value=v<version>).
+      for (const wf of fs.readdirSync(`./.github/workflows`)) {
+        if (!wf.match(/^docker-image\..+\.ci\.yml$/) || wf === 'docker-image.ci.yml') continue;
+        const wfPath = `./.github/workflows/${wf}`;
+        fs.writeFileSync(
+          wfPath,
+          fs.readFileSync(wfPath, 'utf8').replaceAll(`type=raw,value=v${version}`, `type=raw,value=v${newVersion}`),
+          'utf8',
+        );
+      }
 
       fs.writeFileSync(
         `./src/index.js`,
