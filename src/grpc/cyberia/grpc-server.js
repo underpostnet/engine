@@ -602,7 +602,7 @@ class GrpcServer {
    * @param {string} opts.path  - DataBaseProvider path key
    * @param {number} [opts.port=50051]
    */
-  async start({ host, path: dbPath, port = 50051 } = {}) {
+  static async start({ host, path: dbPath, port = 50051 } = {}) {
     const dbKey = `${host}${dbPath}`;
     const server = new grpc.Server({
       'grpc.max_send_message_length': 64 * 1024 * 1024,
@@ -627,7 +627,7 @@ class GrpcServer {
     });
   }
 
-  async stop() {
+  static async stop() {
     if (!GrpcServer._server) return;
     return new Promise((resolve) => {
       GrpcServer._server.tryShutdown(() => {

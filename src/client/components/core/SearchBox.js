@@ -14,18 +14,18 @@ import { darkTheme, ThemeEvents, subThemeManager, lightenHex, darkenHex } from '
 const logger = loggerFactory(import.meta);
 
 /**
- * SearchBox singleton object providing extensible search functionality.
+ * SearchBox class providing extensible search functionality.
  * Supports default menu/route search and pluggable search providers with
  * custom rendering, click handlers, and result merging.
  * @memberof SearchBoxClient
  */
-const SearchBox = {
+class SearchBox {
   /**
    * Internal data storage for search state and handlers.
    * @type {object}
    * @memberof SearchBoxClient.SearchBox
    */
-  Data: {},
+  static Data = {};
 
   /**
    * Registry of registered search provider plugins.
@@ -38,7 +38,7 @@ const SearchBox = {
    * @type {Array<object>}
    * @memberof SearchBoxClient.SearchBox
    */
-  providers: [],
+  static providers = [];
 
   /**
    * Recent search results manager with localStorage persistence.
@@ -47,7 +47,7 @@ const SearchBox = {
    * @type {object}
    * @memberof SearchBoxClient.SearchBox
    */
-  RecentResults: {
+  static RecentResults = {
     /**
      * Storage key for localStorage persistence
      * @type {string}
@@ -159,7 +159,7 @@ const SearchBox = {
       });
       this.saveAll(filtered);
     },
-  },
+  };
 
   /**
    * Registers a search provider plugin for extensible search functionality.
@@ -173,7 +173,7 @@ const SearchBox = {
    * @param {number} [provider.priority=50] - Priority for result ordering (lower = higher priority).
    * @returns {void}
    */
-  registerProvider: function (provider) {
+  static registerProvider(provider) {
     if (!provider.id || !provider.search) {
       logger.error('Invalid provider. Must have id and search function');
       return;
@@ -192,7 +192,7 @@ const SearchBox = {
     });
 
     logger.info(`Registered search provider: ${provider.id}`);
-  },
+  }
 
   /**
    * Unregisters a search provider by its ID.
@@ -200,10 +200,10 @@ const SearchBox = {
    * @param {string} providerId - The ID of the provider to unregister.
    * @returns {void}
    */
-  unregisterProvider: function (providerId) {
+  static unregisterProvider(providerId) {
     this.providers = this.providers.filter((p) => p.id !== providerId);
     logger.info(`Unregistered search provider: ${providerId}`);
-  },
+  }
 
   /**
    * Default result renderer with support for tags and badges.
@@ -219,7 +219,7 @@ const SearchBox = {
    * @param {string} result.providerId - Provider ID that generated this result.
    * @returns {string} HTML string for the search result.
    */
-  defaultRenderResult: function (result) {
+  static defaultRenderResult(result) {
     const icon = result.icon || '<i class="fas fa-file"></i>';
     const title = result.title || result.id || 'Untitled';
     const subtitle = result.subtitle || '';
@@ -247,7 +247,7 @@ const SearchBox = {
         </div>
       </div>
     `;
-  },
+  }
 
   /**
    * Navigates through search results using keyboard arrow keys.
@@ -260,7 +260,7 @@ const SearchBox = {
    * @param {number} totalItems - Total number of result items.
    * @returns {number} New active index after navigation.
    */
-  navigateResults: function (direction, containerId, currentIndex, totalItems) {
+  static navigateResults(direction, containerId, currentIndex, totalItems) {
     if (!containerId || totalItems === 0) return currentIndex;
 
     const container = s(`#${containerId}`) || s(`.${containerId}`);
@@ -289,7 +289,7 @@ const SearchBox = {
     }
 
     return newIndex;
-  },
+  }
 
   /**
    * Searches through default application routes for matches.
@@ -303,7 +303,7 @@ const SearchBox = {
    * @param {string} [context.options.searchCustomImgClass] - Custom image class to search for.
    * @returns {Array<object>} Array of route search results.
    */
-  searchRoutes: function (query, context) {
+  static searchRoutes(query, context) {
     const results = [];
     const { RouterInstance, options = {} } = context;
 
@@ -346,7 +346,7 @@ const SearchBox = {
       }
     }
     return results;
-  },
+  }
 
   /**
    * Executes search across all registered providers and default routes.
@@ -356,7 +356,7 @@ const SearchBox = {
    * @param {object} [context={}] - Search context object passed to all providers.
    * @returns {Promise<Array<object>>} Promise resolving to combined, priority-sorted results array.
    */
-  search: async function (query, context = {}) {
+  static async search(query, context = {}) {
     const allResults = [];
 
     // Always include default route search (backward compatible)
@@ -387,7 +387,7 @@ const SearchBox = {
     allResults.sort((a, b) => (a.priority || 50) - (b.priority || 50));
 
     return allResults;
-  },
+  }
 
   /**
    * Renders search results into a container element.
@@ -399,7 +399,7 @@ const SearchBox = {
    * @param {object} [context={}] - instance context passed to renderers and handlers.
    * @returns {void}
    */
-  renderResults: function (results, containerId, context = {}) {
+  static renderResults(results, containerId, context = {}) {
     const container = s(`#${containerId}`) || s(`.${containerId}`);
     if (!container) {
       logger.warn(`Container ${containerId} not found`);
@@ -468,7 +468,7 @@ const SearchBox = {
         provider.attachTagHandlers();
       }
     });
-  },
+  }
 
   /**
    * Attaches delete event handlers to result delete buttons within a specific container.
@@ -481,7 +481,7 @@ const SearchBox = {
    * @param {object} [context={}] - Context object.
    * @returns {void}
    */
-  attachDeleteHandlers: function (container, results, containerId, context = {}) {
+  static attachDeleteHandlers(container, results, containerId, context = {}) {
     // Only select delete buttons within this specific container
     const deleteButtons = container.querySelectorAll('.search-result-delete-btn');
     deleteButtons.forEach((btn) => {
@@ -530,7 +530,7 @@ const SearchBox = {
         }
       });
     });
-  },
+  }
 
   /**
    * Renders a default route search result.
@@ -546,7 +546,7 @@ const SearchBox = {
    * @param {object} [context.options] - Additional rendering options.
    * @returns {string} HTML string for the route search result.
    */
-  renderRouteResult: function (result, index, context = {}) {
+  static renderRouteResult(result, index, context = {}) {
     const { options = {} } = context;
     const routerId = result.routerId;
     const fontAwesomeIcon = result.fontAwesomeIcon;
@@ -600,7 +600,7 @@ const SearchBox = {
         </div>
       </div>
     `;
-  },
+  }
 
   /**
    * Attaches click event handlers to all rendered search results.
@@ -612,7 +612,7 @@ const SearchBox = {
    * @param {Function} [context.onResultClick] - Callback invoked after any result is clicked.
    * @returns {void}
    */
-  attachClickHandlers: function (results, containerId, context = {}) {
+  static attachClickHandlers(results, containerId, context = {}) {
     results.forEach((result, index) => {
       const element = s(`[data-result-index="${index}"]`);
       if (!element) return;
@@ -643,7 +643,7 @@ const SearchBox = {
         }
       };
     });
-  },
+  }
 
   /**
    * Scrolls an element into view within a scrollable container if needed.
@@ -668,7 +668,7 @@ const SearchBox = {
    * @param {HTMLElement} container - The scrollable container (or parent of scrollable).
    * @returns {void}
    */
-  scrollIntoViewIfNeeded: function (element, container) {
+  static scrollIntoViewIfNeeded(element, container) {
     if (!element || !container) return;
 
     // CRITICAL FIX: Find the actual scrollable container
@@ -744,7 +744,7 @@ const SearchBox = {
         });
       }
     }, 0);
-  },
+  }
 
   /**
    * Gets base CSS styles for SearchBox with theme-aware styling.
@@ -753,7 +753,7 @@ const SearchBox = {
    * @memberof SearchBoxClient.SearchBox
    * @returns {string} CSS string containing all base SearchBox styles.
    */
-  getBaseStyles: () => {
+  static getBaseStyles = () => {
     // Get theme color from subThemeManager
     const themeColor = darkTheme ? subThemeManager.darkColor : subThemeManager.lightColor;
     const hasThemeColor = themeColor && themeColor !== null;
@@ -968,7 +968,7 @@ const SearchBox = {
         transition: all 0.2s ease;
       }
     `;
-  },
+  };
 
   /**
    * Injects base SearchBox styles into the document head.
@@ -977,7 +977,7 @@ const SearchBox = {
    * @memberof SearchBoxClient.SearchBox
    * @returns {void}
    */
-  injectStyles: function () {
+  static injectStyles() {
     const styleId = 'search-box-base-styles';
     let styleTag = document.getElementById(styleId);
 
@@ -1001,7 +1001,7 @@ const SearchBox = {
         }
       };
     }
-  },
-};
+  }
+}
 
 export { SearchBox };

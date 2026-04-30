@@ -22,9 +22,10 @@ import { PublicProfile } from './PublicProfile.js';
 
 const logger = loggerFactory(import.meta);
 
-const Panel = {
-  Tokens: {},
-  instance: async function (
+class Panel {
+  static Tokens = {};
+
+  static async instance(
     options = {
       idPanel: '',
       parentIdModal: '',
@@ -1119,8 +1120,8 @@ const Panel = {
         <div class="in ${idPanel}-render">${render}</div>
       </div>
     `;
-  },
-};
+  }
+}
 
 // Function to generate base styles
 function getBaseStyles(idPanel, scrollClassContainer) {

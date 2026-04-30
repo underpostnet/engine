@@ -518,23 +518,23 @@ const buildMosaicMatrix = (
   };
 };
 
-const ObjectLayerEngineModal = {
-  selectItemType: 'skin',
-  itemActivable: false,
-  renderFrameDuration: 100,
-  existingObjectLayerId: null,
-  originalDirectionCodes: [],
-  selectedDistortionType: DEFAULT_DISTORTION_TYPE,
-  distortionFactorA: DEFAULT_DISTORTION_FACTOR_A,
-  uniformOpacityEnabled: false,
-  templates: [
+class ObjectLayerEngineModal {
+  static selectItemType = 'skin';
+  static itemActivable = false;
+  static renderFrameDuration = 100;
+  static existingObjectLayerId = null;
+  static originalDirectionCodes = [];
+  static selectedDistortionType = DEFAULT_DISTORTION_TYPE;
+  static distortionFactorA = DEFAULT_DISTORTION_FACTOR_A;
+  static uniformOpacityEnabled = false;
+  static templates = [
     {
       label: 'empty',
       id: 'empty',
       data: [],
     },
-  ],
-  statDescriptions: {
+  ];
+  static statDescriptions = {
     effect: {
       title: 'Effect',
       icon: 'fa-solid fa-burst',
@@ -572,9 +572,9 @@ const ObjectLayerEngineModal = {
       description: 'Reduces the cooldown time between actions, allowing for more frequent actions.',
       detail: 'It also increases the chance to trigger life-regeneration events.',
     },
-  },
+  };
 
-  RenderTemplate: (colorTemplate) => {
+  static RenderTemplate = (colorTemplate) => {
     const ole = s('object-layer-engine');
     if (!ole) {
       return;
@@ -587,9 +587,11 @@ const ObjectLayerEngineModal = {
 
     const matrix = colorTemplate.map((row) => row.map((hex) => [...hexToRgbA(hex), 255]));
     ole.loadMatrix(matrix);
-  },
-  ObjectLayerData: {},
-  clearData: function () {
+  };
+
+  static ObjectLayerData = {};
+
+  static clearData() {
     this.ObjectLayerData = {};
     this.selectItemType = 'skin';
     this.itemActivable = false;
@@ -667,8 +669,9 @@ const ObjectLayerEngineModal = {
       distortionStatusNode.style.color = '#888';
       distortionStatusNode.innerHTML = DEFAULT_DISTORTION_STATUS;
     }
-  },
-  loadFromDatabase: async (objectLayerId) => {
+  }
+
+  static loadFromDatabase = async (objectLayerId) => {
     try {
       // Load metadata first (lightweight)
       const { status: metaStatus, data: metadata } = await ObjectLayerService.getMetadata({ id: objectLayerId });
@@ -703,8 +706,9 @@ const ObjectLayerEngineModal = {
       });
       return null;
     }
-  },
-  instance: async (options = { idModal: '', appStore: {} }) => {
+  };
+
+  static instance = async (options = { idModal: '', appStore: {} }) => {
     // Clear all cached data at the start of each render to prevent contamination
     ObjectLayerEngineModal.clearData();
 
@@ -2356,8 +2360,9 @@ const ObjectLayerEngineModal = {
       </div>
       <div class="in section-mp"></div>
     `;
-  },
-  getDirectionsFromDirectionCode(directionCode = '08') {
+  };
+
+  static getDirectionsFromDirectionCode(directionCode = '08') {
     let objectLayerFrameDirections = [];
 
     switch (directionCode) {
@@ -2388,8 +2393,9 @@ const ObjectLayerEngineModal = {
     }
 
     return objectLayerFrameDirections;
-  },
-  toManagement: async (id = null) => {
+  }
+
+  static toManagement = async (id = null) => {
     await ObjectLayerEngineModal.clearData();
     const subModalId = 'management';
     const modalId = `modal-object-layer-engine-${subModalId}`;
@@ -2416,8 +2422,9 @@ const ObjectLayerEngineModal = {
       await DefaultManagement.waitGridReady(modalId);
       await DefaultManagement.loadTable(modalId, { force: true, reload: true });
     });
-  },
-  Reload: async function () {
+  };
+
+  static async Reload() {
     // Clear data before reload to prevent contamination
     ObjectLayerEngineModal.clearData();
     const idModal = 'modal-object-layer-engine';
@@ -2426,7 +2433,7 @@ const ObjectLayerEngineModal = {
         idModal,
         html: await Modal.Data[idModal].options.html(),
       });
-  },
-};
+  }
+}
 
 export { ObjectLayerEngineModal };

@@ -7,11 +7,12 @@ import { Modal } from './Modal.js';
 import { getId } from './CommonJs.js';
 import { setPath, getProxyPath, getQueryParams, extractUsernameFromPath, RouterEvents } from './Router.js';
 
-const PublicProfile = {
-  Data: {},
-  currentUsername: null, // Track the currently displayed username for back/forward navigation
+class PublicProfile {
+  static Data = {};
+  /** @type {string|null} Track the currently displayed username for back/forward navigation */
+  static currentUsername = null;
 
-  Update: async function (options = { idModal: '', user: {} }) {
+  static async Update(options = { idModal: '', user: {} }) {
     const { idModal, user } = options;
     const username = user.username || 'Unknown User';
 
@@ -54,9 +55,9 @@ const PublicProfile = {
 
       throw error;
     }
-  },
+  }
 
-  _getLoadingHtml: function (username) {
+  static _getLoadingHtml(username) {
     return html`
       <div class="profile-loading-container">
         <div class="profile-loading-spinner"></div>
@@ -94,9 +95,9 @@ const PublicProfile = {
         </style>
       </div>
     `;
-  },
+  }
 
-  _addTransitionEffect: function (idModal) {
+  static _addTransitionEffect(idModal) {
     // Add smooth transition effect to modal content
     const modalContent = s(`.html-${idModal}`);
     if (modalContent) {
@@ -108,9 +109,9 @@ const PublicProfile = {
         modalContent.style.opacity = '1';
       }, 50);
     }
-  },
+  }
 
-  _getErrorHtml: function (username, errorMessage) {
+  static _getErrorHtml(username, errorMessage) {
     return html`
       <div class="profile-error-container">
         <div class="profile-error-icon">
@@ -169,24 +170,27 @@ const PublicProfile = {
         </style>
       </div>
     `;
-  },
+  }
 
-  _cleanupProfileData: function ({ idModal }) {
+  static _cleanupProfileData({ idModal }) {
     delete ThemeEvents[`error-state-${idModal}`];
     delete ThemeEvents[`profile-${idModal}`];
     delete this.Data[idModal];
-  },
+  }
 
-  _ensureModalState: function (idModal) {
+  static _ensureModalState(idModal) {
     // Ensure modal is in the correct state for content updates
     if (Modal.Data[idModal]) {
       // Reset any modal-specific states that might interfere
       Modal.Data[idModal].updated = true;
       Modal.Data[idModal].lastUpdated = Date.now();
     }
-  },
+  }
 
-  instance: async function (
+  /**
+   * @param {{ idModal?: string, user: { _id?: string, username?: string } }} options
+   */
+  static async instance(
     options = {
       idModal: '',
       user: {},
@@ -850,9 +854,12 @@ const PublicProfile = {
         </div>
       </div>
     `;
-  },
+  }
 
-  Router: async function (options = { idModal: '' }) {
+  /**
+   * @param {{ idModal?: string }} options
+   */
+  static async Router(options = { idModal: '' }) {
     const idModal = options.idModal || 'modal-public-profile';
     // Register RouterEvents listener for back/forward navigation between profiles
     // This ensures the profile updates when the user navigates through browser history
@@ -882,7 +889,7 @@ const PublicProfile = {
         }
       }
     };
-  },
-};
+  }
+}
 
 export { PublicProfile };
