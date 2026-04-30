@@ -1368,82 +1368,163 @@ nvidia/gpu-operator \
     }
 
     case 'add-component': {
-      // node bin/deploy add-component <componentId> <deployId> <clientId> <submoduleId>
+      // node bin/deploy add-component <componentId> [deployId] [clientId] [submoduleId]
       // Example: node bin/deploy add-component ColorPaletteElement dd-cyberia cyberia-portal core
-      //
-      // Adds a component to a client conf.main and related replicas.
-      // - validates src/client/components/<submoduleId>/<componentId>.js exists
-      // - conf.client.json: adds componentId to the specified clientId's components[submoduleId] array
-      // - replica conf.client.json: same treatment for all replicas of deployId
+      // Example: node bin/deploy add-component ColorPaletteElement dd-cyberia
+      // Example: node bin/deploy add-component ColorPaletteElement
+      // Adds a component to client conf.main and related replicas.
+      // - if deployId is omitted: iterates deploys in engine-private/deploy/dd.router
+      // - if clientId is omitted: iterates all clients in each conf.client.json
+      // - if submoduleId is omitted: iterates all available components.<submoduleId> arrays per client
+      // - validates src/client/components/<submoduleId>/<componentId>.js exists before adding
       // Idempotent: skips if the component is already present.
 
       const componentId = process.argv[3];
-      const deployId = process.argv[4];
-      const clientId = process.argv[5];
-      const submoduleId = process.argv[6];
+      const deployIdArg = process.argv[4];
+      const clientIdArg = process.argv[5];
+      const submoduleIdArg = process.argv[6];
 
-      if (!componentId || !deployId || !clientId || !submoduleId) {
-        logger.error('Usage: node bin/deploy add-component <componentId> <deployId> <clientId> <submoduleId>');
+      if (!componentId) {
+        logger.error('Usage: node bin/deploy add-component <componentId> [deployId] [clientId] [submoduleId]');
         logger.error('Example: node bin/deploy add-component ColorPaletteElement dd-cyberia cyberia-portal core');
+        logger.error('Example: node bin/deploy add-component ColorPaletteElement');
         process.exit(1);
       }
 
-      const confFolder = `./engine-private/conf/${deployId}`;
-      if (!fs.existsSync(confFolder)) {
-        logger.error(`Config folder not found: ${confFolder}`);
-        process.exit(1);
-      }
+      const deployIds = deployIdArg
+        ? [deployIdArg]
+        : fs
+            .readFileSync(`./engine-private/deploy/dd.router`, 'utf8')
+            .split(',')
+            .map((d) => d.trim())
+            .filter(Boolean);
 
-      const componentPath = `./src/client/components/${submoduleId}/${componentId}.js`;
-      if (!fs.existsSync(componentPath)) {
-        logger.error(`Component file not found: ${componentPath}`);
-        process.exit(1);
-      }
-
-      const addComponentToClientConf = (filePath, label) => {
-        if (!fs.existsSync(filePath)) return;
+      const addComponentToClientConf = ({ filePath, label, targetClientId, targetSubmoduleId }) => {
+        if (!fs.existsSync(filePath)) return { added: 0, checked: 0, hasComponentFile: false };
 
         const confClient = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        const clientConf = confClient[clientId];
+        const clientIds = targetClientId ? [targetClientId] : Object.keys(confClient);
+        let added = 0;
+        let checked = 0;
+        let hasComponentFile = false;
+        let changed = false;
 
-        if (!clientConf) {
-          logger.warn(`${label}: clientId "${clientId}" not found`);
-          return;
+        for (const currentClientId of clientIds) {
+          const clientConf = confClient[currentClientId];
+          if (!clientConf) {
+            logger.warn(`${label}: clientId "${currentClientId}" not found`);
+            continue;
+          }
+
+          const components = clientConf.components || {};
+          const submoduleIds = targetSubmoduleId
+            ? [targetSubmoduleId]
+            : Object.keys(components).filter((key) => Array.isArray(components[key]));
+
+          for (const currentSubmoduleId of submoduleIds) {
+            checked++;
+
+            if (!Array.isArray(components[currentSubmoduleId])) {
+              logger.warn(`${label}: clientId "${currentClientId}" has no components.${currentSubmoduleId} array`);
+              continue;
+            }
+
+            const componentPath = `./src/client/components/${currentSubmoduleId}/${componentId}.js`;
+            if (!fs.existsSync(componentPath)) {
+              continue;
+            }
+            hasComponentFile = true;
+
+            if (components[currentSubmoduleId].includes(componentId)) {
+              logger.info(
+                `${label}: "${componentId}" already in "${currentClientId}" components.${currentSubmoduleId}`,
+              );
+              continue;
+            }
+
+            components[currentSubmoduleId].push(componentId);
+            changed = true;
+            added++;
+            logger.info(`${label}: added "${componentId}" to "${currentClientId}" components.${currentSubmoduleId}`);
+          }
         }
 
-        if (!clientConf.components || !Array.isArray(clientConf.components[submoduleId])) {
-          logger.warn(`${label}: clientId "${clientId}" has no components.${submoduleId} array`);
-          return;
+        if (changed) {
+          fs.writeFileSync(filePath, JSON.stringify(confClient, null, 4), 'utf8');
         }
 
-        if (clientConf.components[submoduleId].includes(componentId)) {
-          logger.info(`${label}: "${componentId}" already in "${clientId}" components.${submoduleId}`);
-          return;
-        }
-
-        clientConf.components[submoduleId].push(componentId);
-        fs.writeFileSync(filePath, JSON.stringify(confClient, null, 4), 'utf8');
-        logger.info(`${label}: added "${componentId}" to "${clientId}" components.${submoduleId}`);
+        return { added, checked, hasComponentFile };
       };
 
-      addComponentToClientConf(`${confFolder}/conf.client.json`, 'conf.client.json');
+      let totalAdded = 0;
+      let totalChecked = 0;
+      let hasAnyComponentFile = false;
+      const processedDeployIds = [];
 
-      const replicaBase = './engine-private/replica';
-      if (fs.existsSync(replicaBase)) {
-        const replicaDirs = fs
-          .readdirSync(replicaBase)
-          .filter((d) => d.startsWith(`${deployId}-`) && fs.statSync(`${replicaBase}/${d}`).isDirectory());
+      for (const deployId of deployIds) {
+        const confFolder = `./engine-private/conf/${deployId}`;
+        if (!fs.existsSync(confFolder)) {
+          logger.warn(`Config folder not found: ${confFolder}`);
+          continue;
+        }
 
-        for (const replicaDir of replicaDirs) {
-          addComponentToClientConf(
-            `${replicaBase}/${replicaDir}/conf.client.json`,
-            `replica/${replicaDir}/conf.client.json`,
-          );
+        processedDeployIds.push(deployId);
+
+        const mainResult = addComponentToClientConf({
+          filePath: `${confFolder}/conf.client.json`,
+          label: `conf/${deployId}/conf.client.json`,
+          targetClientId: clientIdArg,
+          targetSubmoduleId: submoduleIdArg,
+        });
+        totalAdded += mainResult.added;
+        totalChecked += mainResult.checked;
+        hasAnyComponentFile = hasAnyComponentFile || mainResult.hasComponentFile;
+
+        const replicaBase = './engine-private/replica';
+        if (fs.existsSync(replicaBase)) {
+          const replicaDirs = fs
+            .readdirSync(replicaBase)
+            .filter((d) => d.startsWith(`${deployId}-`) && fs.statSync(`${replicaBase}/${d}`).isDirectory());
+
+          for (const replicaDir of replicaDirs) {
+            const replicaResult = addComponentToClientConf({
+              filePath: `${replicaBase}/${replicaDir}/conf.client.json`,
+              label: `replica/${replicaDir}/conf.client.json`,
+              targetClientId: clientIdArg,
+              targetSubmoduleId: submoduleIdArg,
+            });
+            totalAdded += replicaResult.added;
+            totalChecked += replicaResult.checked;
+            hasAnyComponentFile = hasAnyComponentFile || replicaResult.hasComponentFile;
+          }
         }
       }
 
-      shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
-      logger.info(`Rebuilt default conf for ${deployId}`);
+      if (totalChecked === 0) {
+        logger.error('No eligible target entries found to add the component');
+        process.exit(1);
+      }
+
+      if (!hasAnyComponentFile) {
+        if (submoduleIdArg) {
+          logger.error(`Component file not found: ./src/client/components/${submoduleIdArg}/${componentId}.js`);
+        } else {
+          logger.error(`Component file not found in available submodules for "${componentId}"`);
+        }
+        process.exit(1);
+      }
+
+      for (const deployId of processedDeployIds) {
+        shellExec(`node bin new --default-conf --deploy-id ${deployId}`);
+        logger.info(`Rebuilt default conf for ${deployId}`);
+      }
+
+      logger.info(`add-component summary`, {
+        componentId,
+        deployIds: processedDeployIds,
+        added: totalAdded,
+        checked: totalChecked,
+      });
 
       break;
     }
