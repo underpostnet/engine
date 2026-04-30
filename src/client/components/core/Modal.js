@@ -145,10 +145,13 @@ const Modal = {
             });
           }
 
-          Responsive.onChanged(() => {
-            if (!this.Data[idModal]) return Responsive.offChanged(`view-${idModal}`);
-            if (this.Data[idModal].slideMenu) s(`.${idModal}`).style.height = `${this.Data[idModal].getHeight()}px`;
-          }, { key: `view-${idModal}` });
+          Responsive.onChanged(
+            () => {
+              if (!this.Data[idModal]) return Responsive.offChanged(`view-${idModal}`);
+              if (this.Data[idModal].slideMenu) s(`.${idModal}`).style.height = `${this.Data[idModal].getHeight()}px`;
+            },
+            { key: `view-${idModal}` },
+          );
           Responsive.triggerChanged(`view-${idModal}`);
 
           // Handle view mode modal route
@@ -251,23 +254,30 @@ const Modal = {
             // barConfig.buttons.menu.disabled = true;
             // barConfig.buttons.close.disabled = true;
             options.btnBarModalClass = 'hide';
-            Responsive.onChanged(() => {
-              for (const _idModal of Object.keys(this.Data)) {
-                if (this.Data[_idModal].slideMenu && this.Data[_idModal].slideMenu.id === idModal)
-                  this.Data[_idModal].slideMenu.callBack();
-              }
-              s(`.${idModal}`).style.height = `${Modal.Data[idModal].getHeight()}px`;
-              s(`.${idModal}`).style.left = Modal.Data[idModal].getMenuLeftStyle({
-                open: s(`.btn-bar-center-icon-menu`).classList.contains('hide') ? true : false,
-              });
-              if (s(`.main-body-top`)) {
-                if (Modal.mobileModal()) {
-                  if (s(`.btn-menu-${idModal}`).classList.contains('hide') && collapseSlideMenuWidth !== slideMenuWidth)
-                    s(`.main-body-top`).classList.remove('hide');
-                  if (s(`.btn-close-${idModal}`).classList.contains('hide')) s(`.main-body-top`).classList.add('hide');
-                } else if (!s(`.main-body-top`).classList.contains('hide')) s(`.main-body-top`).classList.add('hide');
-              }
-            }, { key: `slide-menu-${idModal}` });
+            Responsive.onChanged(
+              () => {
+                for (const _idModal of Object.keys(this.Data)) {
+                  if (this.Data[_idModal].slideMenu && this.Data[_idModal].slideMenu.id === idModal)
+                    this.Data[_idModal].slideMenu.callBack();
+                }
+                s(`.${idModal}`).style.height = `${Modal.Data[idModal].getHeight()}px`;
+                s(`.${idModal}`).style.left = Modal.Data[idModal].getMenuLeftStyle({
+                  open: s(`.btn-bar-center-icon-menu`).classList.contains('hide') ? true : false,
+                });
+                if (s(`.main-body-top`)) {
+                  if (Modal.mobileModal()) {
+                    if (
+                      s(`.btn-menu-${idModal}`).classList.contains('hide') &&
+                      collapseSlideMenuWidth !== slideMenuWidth
+                    )
+                      s(`.main-body-top`).classList.remove('hide');
+                    if (s(`.btn-close-${idModal}`).classList.contains('hide'))
+                      s(`.main-body-top`).classList.add('hide');
+                  } else if (!s(`.main-body-top`).classList.contains('hide')) s(`.main-body-top`).classList.add('hide');
+                }
+              },
+              { key: `slide-menu-${idModal}` },
+            );
             barConfig.buttons.menu.onClick = () => {
               Modal.Data[idModal][options.mode].width = slideMenuWidth;
               s(`.btn-menu-${idModal}`).classList.add('hide');
@@ -428,7 +438,8 @@ const Modal = {
                   }
                 });
                 Responsive.triggerChanged(`view-${'main-body'}`);
-                if (Responsive.hasChangedListener(`view-${'bottom-bar'}`)) Responsive.triggerChanged(`view-${'bottom-bar'}`);
+                if (Responsive.hasChangedListener(`view-${'bottom-bar'}`))
+                  Responsive.triggerChanged(`view-${'bottom-bar'}`);
                 if (Responsive.hasChangedListener(`view-${'main-body-top'}`))
                   Responsive.triggerChanged(`view-${'main-body-top'}`);
                 for (const keyEvent of Object.keys(this.Data[idModal].onExpandUiListener)) {
@@ -1058,25 +1069,28 @@ const Modal = {
                 const maxWidthInputSearchBox = 450;
                 const paddingInputSearchBox = 5;
                 const paddingRightSearchBox = 50;
-                Responsive.onChanged(() => {
-                  if (!this.Data[id] || !s(`.${id}`)) return Responsive.offChanged(`view-${id}`);
-                  const widthInputSearchBox =
-                    windowGetW() > maxWidthInputSearchBox ? maxWidthInputSearchBox : windowGetW();
-                  s(`.top-bar-search-box-container`).style.width = `${
-                    widthInputSearchBox - originHeightTopBar - paddingRightSearchBox - 1
-                  }px`;
-                  s(`.top-bar-search-box`).style.width = `${
-                    widthInputSearchBox -
-                    originHeightTopBar * 2 -
-                    paddingRightSearchBox -
-                    paddingInputSearchBox * 2 /*padding input*/ -
-                    10 /* right-margin */
-                  }px`;
-                  s(`.top-bar-search-box`).style.top = `${
-                    (originHeightTopBar - s(`.top-bar-search-box`).clientHeight) / 2
-                  }px`;
-                  if (this.Data[id].slideMenu) s(`.${id}`).style.height = `${Modal.Data[id].getHeight()}px`;
-                }, { key: `view-${id}` });
+                Responsive.onChanged(
+                  () => {
+                    if (!this.Data[id] || !s(`.${id}`)) return Responsive.offChanged(`view-${id}`);
+                    const widthInputSearchBox =
+                      windowGetW() > maxWidthInputSearchBox ? maxWidthInputSearchBox : windowGetW();
+                    s(`.top-bar-search-box-container`).style.width = `${
+                      widthInputSearchBox - originHeightTopBar - paddingRightSearchBox - 1
+                    }px`;
+                    s(`.top-bar-search-box`).style.width = `${
+                      widthInputSearchBox -
+                      originHeightTopBar * 2 -
+                      paddingRightSearchBox -
+                      paddingInputSearchBox * 2 /*padding input*/ -
+                      10 /* right-margin */
+                    }px`;
+                    s(`.top-bar-search-box`).style.top = `${
+                      (originHeightTopBar - s(`.top-bar-search-box`).clientHeight) / 2
+                    }px`;
+                    if (this.Data[id].slideMenu) s(`.${id}`).style.height = `${Modal.Data[id].getHeight()}px`;
+                  },
+                  { key: `view-${id}` },
+                );
                 Responsive.triggerChanged(`view-${id}`);
                 Keyboard.instanceMultiPressKey({
                   id: 'input-search-shortcut-k',
@@ -1204,13 +1218,16 @@ const Modal = {
                     // maximize: true,
                     barMode: options.barMode,
                   });
-                  Responsive.onChanged(() => {
-                    if (!this.Data[id] || !s(`.${id}`)) return Responsive.offChanged(`view-${id}`);
-                    //  <div class="in fll right-offset-menu-bottom-bar" style="height: 100%"></div>
-                    // s(`.right-offset-menu-bottom-bar`).style.width = `${windowGetW() - slideMenuWidth}px`;
-                    s(`.${id}`).style.top = `${Modal.Data['modal-menu'].getTop()}px`;
-                    s(`.${id}`).style.width = `${windowGetW()}px`;
-                  }, { key: `view-${id}` });
+                  Responsive.onChanged(
+                    () => {
+                      if (!this.Data[id] || !s(`.${id}`)) return Responsive.offChanged(`view-${id}`);
+                      //  <div class="in fll right-offset-menu-bottom-bar" style="height: 100%"></div>
+                      // s(`.right-offset-menu-bottom-bar`).style.width = `${windowGetW() - slideMenuWidth}px`;
+                      s(`.${id}`).style.top = `${Modal.Data['modal-menu'].getTop()}px`;
+                      s(`.${id}`).style.width = `${windowGetW()}px`;
+                    },
+                    { key: `view-${id}` },
+                  );
                   // Responsive.Event[`view-${id}`]();
                 }
                 EventsUI.onClick(`.action-btn-left`, (e) => {
@@ -1371,23 +1388,26 @@ const Modal = {
                   barMode: options.barMode,
                 });
 
-                Responsive.onChanged(() => {
-                  if (!this.Data[id] || !s(`.${id}`)) return Responsive.offChanged(`view-${id}`);
-                  s(`.${id}`).style.height =
-                    s(`.main-body-btn-ui-close`).classList.contains('hide') &&
-                    s(`.btn-restore-${id}`).style.display !== 'none'
-                      ? `${windowGetH()}px`
-                      : `${Modal.Data[id].getHeight()}px`;
+                Responsive.onChanged(
+                  () => {
+                    if (!this.Data[id] || !s(`.${id}`)) return Responsive.offChanged(`view-${id}`);
+                    s(`.${id}`).style.height =
+                      s(`.main-body-btn-ui-close`).classList.contains('hide') &&
+                      s(`.btn-restore-${id}`).style.display !== 'none'
+                        ? `${windowGetH()}px`
+                        : `${Modal.Data[id].getHeight()}px`;
 
-                  if (
-                    s(`.main-body-btn-ui-close`).classList.contains('hide') &&
-                    s(`.btn-restore-${id}`).style.display !== 'none'
-                  ) {
-                    s(`.${id}`).style.top = '0px';
-                  } else {
-                    s(`.${id}`).style.top = `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
-                  }
-                }, { key: `view-${id}` });
+                    if (
+                      s(`.main-body-btn-ui-close`).classList.contains('hide') &&
+                      s(`.btn-restore-${id}`).style.display !== 'none'
+                    ) {
+                      s(`.${id}`).style.top = '0px';
+                    } else {
+                      s(`.${id}`).style.top = `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
+                    }
+                  },
+                  { key: `view-${id}` },
+                );
                 Responsive.triggerChanged(`view-${id}`);
 
                 s(`.main-body-top`).onclick = () => s(`.btn-close-modal-menu`).click();
@@ -1967,19 +1987,22 @@ const Modal = {
           callBack,
           id: options.slideMenu,
         };
-        Responsive.onChanged(() => {
-          setTimeout(() => {
-            if (!s(`.${idModal}`) || !s(`.main-body-btn-ui-close`)) return;
-            if (s(`.btn-restore-${idModal}`) && s(`.btn-restore-${idModal}`).style.display !== 'none') {
-              s(`.${idModal}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
-                ? `${windowGetH()}px`
-                : `${Modal.Data[idModal].getHeight()}px`;
-            }
-            s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
-              ? `0px`
-              : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
-          });
-        }, { key: 'h-ui-hide-' + idModal });
+        Responsive.onChanged(
+          () => {
+            setTimeout(() => {
+              if (!s(`.${idModal}`) || !s(`.main-body-btn-ui-close`)) return;
+              if (s(`.btn-restore-${idModal}`) && s(`.btn-restore-${idModal}`).style.display !== 'none') {
+                s(`.${idModal}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
+                  ? `${windowGetH()}px`
+                  : `${Modal.Data[idModal].getHeight()}px`;
+              }
+              s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
+                ? `0px`
+                : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
+            });
+          },
+          { key: 'h-ui-hide-' + idModal },
+        );
         Responsive.triggerChanged('h-ui-hide-' + idModal);
       } else {
         Responsive.offChanged('h-ui-hide-' + idModal);
