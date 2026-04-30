@@ -104,6 +104,8 @@ try {
           './src/server/semantic-layer-generator-resource.js',
           './src/server/besu-genesis-generator.js',
           './src/grpc/cyberia',
+          './src/runtime/cyberia-server',
+          './src/runtime/cyberia-client',
           './test/shape-generator.test.js',
           'bin/cyberia.js',
         ]) {

@@ -195,6 +195,8 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
         '/src/server/semantic-layer-generator-resource.js',
         '/test/shape-generator.test.js',
         '/src/server/besu-genesis-generator.js',
+        '/src/runtime/cyberia-server',
+        '/src/runtime/cyberia-client',
         '/.github/workflows/hardhat.ci.yml',
       ])
         fs.copySync(`.${path}`, `${basePath}${path}`);
