@@ -969,29 +969,75 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
       if (client) {
         let PRE_CACHED_RESOURCES = [];
 
-        if (views && fs.existsSync(`${rootClientPath}/sw.js`)) {
+        if (fs.existsSync(`${rootClientPath}/sw.js`)) {
           const precacheExtAllowList = new Set([
             '.html',
             '.js',
-            '.mjs',
-            '.css',
             '.json',
             '.xml',
             '.txt',
             '.webmanifest',
             '.ico',
             '.png',
-            '.jpg',
-            '.jpeg',
-            '.gif',
             '.svg',
-            '.webp',
-            '.avif',
-            '.woff',
-            '.woff2',
-            '.ttf',
-            '.eot',
           ]);
+          const ssrClientConf = confSSR[getCapVariableName(client)] || {};
+          const prioritizedRoutePaths = new Set();
+
+          for (const pageType of ['offline', 'pages']) {
+            if (Array.isArray(ssrClientConf[pageType])) {
+              for (const page of ssrClientConf[pageType]) {
+                if (page && page.path) prioritizedRoutePaths.add(page.path);
+              }
+            }
+          }
+
+          if (Array.isArray(ssrClientConf.body)) {
+            for (const ssrBodyComponent of ssrClientConf.body) {
+              if (typeof ssrBodyComponent === 'string' && /^\d{3}$/.test(ssrBodyComponent)) {
+                prioritizedRoutePaths.add(`/${ssrBodyComponent}`);
+              }
+            }
+          }
+
+          const prioritizedRouteBaseNames = new Set(
+            [...prioritizedRoutePaths]
+              .map((routePath) => routePath.replace(/^\//, '').replace(/\/$/, ''))
+              .filter((routePath) => routePath.length > 0),
+          );
+
+          const isPrecacheCriticalPath = (resourcePath) => {
+            if (resourcePath.startsWith('/dist/')) return false;
+            if (resourcePath.startsWith('/styles/')) return false;
+            if (resourcePath.startsWith('/components/')) return false;
+            if (resourcePath.startsWith('/services/')) return false;
+
+            if (
+              resourcePath === '/sw.js' ||
+              resourcePath === '/index.html' ||
+              resourcePath === '/default.index.js' ||
+              resourcePath === '/site.webmanifest' ||
+              resourcePath === '/browserconfig.xml' ||
+              resourcePath === '/robots.txt' ||
+              resourcePath === '/sitemap.xml' ||
+              resourcePath === '/sitemap' ||
+              resourcePath === '/yandex-browser-manifest.json' ||
+              /^\/favicon(?:-\d+x\d+)?\.png$/i.test(resourcePath) ||
+              resourcePath === '/favicon.ico' ||
+              /^\/android-chrome-\d+x\d+\.png$/i.test(resourcePath) ||
+              /^\/apple-touch-icon(?:-\d+x\d+)?(?:-precomposed)?\.png$/i.test(resourcePath) ||
+              /^\/mstile-\d+x\d+\.png$/i.test(resourcePath) ||
+              resourcePath === '/safari-pinned-tab.svg'
+            ) {
+              return true;
+            }
+
+            const routeAssetMatch = resourcePath.match(
+              /^\/([^/]+)\/(index\.html|default\.index\.js|site\.webmanifest|browserconfig\.xml)$/i,
+            );
+            return Boolean(routeAssetMatch && prioritizedRouteBaseNames.has(routeAssetMatch[1]));
+          };
+
           const staticClientFiles = (await fs.readdir(rootClientPath, { recursive: true }))
             .map((relativePath) => `/${String(relativePath).replaceAll('\\', '/')}`)
             .filter((resourcePath) => {
@@ -999,6 +1045,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
               if (resourcePath.startsWith('/src/') || resourcePath.includes('/src/')) return false;
               if (resourcePath.startsWith('/node_modules/') || resourcePath.includes('/node_modules/')) return false;
               if (resourcePath.endsWith('.map')) return false;
+              if (!isPrecacheCriticalPath(resourcePath)) return false;
 
               const parsedExt = dir.extname(resourcePath).toLowerCase();
               if (parsedExt && !precacheExtAllowList.has(parsedExt)) return false;
@@ -1007,9 +1054,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
               return fs.existsSync(absolutePath) && !fs.statSync(absolutePath).isDirectory();
             });
 
-          PRE_CACHED_RESOURCES = views
-            .map((view) => `${path === '/' ? '' : path}${view.path}`)
-            .concat(staticClientFiles);
+          PRE_CACHED_RESOURCES = staticClientFiles;
         }
 
         for (const pageType of ['offline', 'pages']) {
@@ -1073,6 +1118,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
           fs.writeFileSync(
             `${rootClientPath}/sw.js`,
             `self.renderPayload = ${JSONweb(renderPayload)};
+self.__WB_DISABLE_DEV_LOGS = true;
 ${fs.readFileSync(`${rootClientPath}/sw.js`, 'utf8')}`,
             'utf8',
           );
