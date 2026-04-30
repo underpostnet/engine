@@ -98,15 +98,15 @@ class LoadingAnimation {
   static img = {
     tokens: {},
     load: function ({ key, src, classes, style }) {
-      LoadingAnimation.tokens[key] = { src, classes, style };
+      LoadingAnimation.img.tokens[key] = { src, classes, style };
     },
     play: function (container, key) {
       append(
         container,
         html`<img
-          ${LoadingAnimation.tokens[key].classes ? `class="${LoadingAnimation.tokens[key].classes}"` : ''}
-          ${LoadingAnimation.tokens[key].style ? `style="${LoadingAnimation.tokens[key].style}"` : ''}
-          src="${getProxyPath()}${LoadingAnimation.tokens[key].src}"
+          ${LoadingAnimation.img.tokens[key].classes ? `class="${LoadingAnimation.img.tokens[key].classes}"` : ''}
+          ${LoadingAnimation.img.tokens[key].style ? `style="${LoadingAnimation.img.tokens[key].style}"` : ''}
+          src="${getProxyPath()}${LoadingAnimation.img.tokens[key].src}"
         />`,
       );
     },

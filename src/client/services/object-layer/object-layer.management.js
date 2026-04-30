@@ -132,8 +132,8 @@ class ObjectLayerManagement {
               src="${imagePath}"
               style="width: 100px; height: 100px; display: block;"
               alt="Frame 08"
-              onload="ObjectLayerManagement.style.display='block'; ObjectLayerManagement.nextElementSibling.style.display='none';"
-              onerror="ObjectLayerManagement.style.display='none'; ObjectLayerManagement.nextElementSibling.style.display='flex';"
+              onload="this.style.display='block'; this.nextElementSibling.style.display='none';"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
             />
             <div
               style="position: absolute; top: 0; left: 0; width: 100px; height: 100px; display: none; align-items: center; justify-content: center; "
