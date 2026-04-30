@@ -151,6 +151,13 @@ const DefaultConf = /**/ {
           import_name: 'socket.io/client-dist/socket.io.esm.min.js',
           import_name_build: '/dist/socket.io/socket.io.esm.min.js',
         },
+        {
+          folder: './node_modules/dexie/dist',
+          public_folder: '/dist/dexie',
+          import_name: 'dexie',
+          import_name_build: '/dist/dexie/dexie.mjs',
+        },
+
         { folder: './node_modules/peerjs/dist', public_folder: '/dist/peerjs' },
       ],
       services: ['default', 'core', 'user', 'test', 'file', 'document'],

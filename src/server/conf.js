@@ -1228,7 +1228,7 @@ const validateTemplatePath = (absolutePath = '') => {
   ) {
     return false;
   }
-  if (absolutePath.match('src/client/sw/') && !clients.find((p) => absolutePath.match(`src/client/sw/${p}.sw.js`))) {
+  if (absolutePath.match('src/client/sw/') && !absolutePath.match('src/client/sw/core.sw.js')) {
     return false;
   }
   if (

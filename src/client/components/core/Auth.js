@@ -14,6 +14,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { SearchBox } from './SearchBox.js';
 import { Translate } from './Translate.js';
 import { s } from './VanillaJs.js';
+import { GuestService } from '../../services/user/guest.service.js';
 
 const logger = loggerFactory(import.meta, { trace: true });
 
@@ -22,20 +23,6 @@ const logger = loggerFactory(import.meta, { trace: true });
  * @memberof AuthClient
  */
 class Auth {
-  /**
-   * The current user access token (JWT).
-   * @type {string}
-   * @method
-   */
-  #token = '';
-
-  /**
-   * The token for anonymous guest sessions.
-   * @type {string}
-   * @method
-   */
-  #guestToken = '';
-
   /**
    * Timeout ID for the token refresh schedule.
    * @type {number | undefined}
@@ -59,7 +46,7 @@ class Auth {
    * @returns {string} The set token value.
    */
   setToken(value = '') {
-    return (this.#token = value);
+    return GuestService.setUserToken(value);
   }
 
   /**
@@ -68,7 +55,7 @@ class Auth {
    * @returns {string} An empty string.
    */
   deleteToken() {
-    return (this.#token = '');
+    return GuestService.clearUserToken();
   }
 
   /**
@@ -77,7 +64,7 @@ class Auth {
    * @returns {string} The JWT token.
    */
   getToken() {
-    return this.#token;
+    return GuestService.getUserToken();
   }
 
   /**
@@ -87,7 +74,7 @@ class Auth {
    * @returns {string} The set guest token value.
    */
   setGuestToken(value = '') {
-    return (this.#guestToken = value);
+    return GuestService.setGuestToken(value);
   }
 
   /**
@@ -96,7 +83,7 @@ class Auth {
    * @returns {string} An empty string.
    */
   deleteGuestToken() {
-    return (this.#guestToken = '');
+    return GuestService.clearGuestToken();
   }
 
   /**
@@ -105,7 +92,7 @@ class Auth {
    * @returns {string} The guest token.
    */
   getGuestToken() {
-    return this.#guestToken;
+    return GuestService.getGuestToken();
   }
 
   /**
@@ -114,9 +101,7 @@ class Auth {
    * @returns {string} The Bearer token string or an empty string.
    */
   getJWT() {
-    if (this.getToken()) return `Bearer ${this.getToken()}`;
-    if (this.getGuestToken()) return `Bearer ${this.getGuestToken()}`;
-    return '';
+    return GuestService.getAuthorizationHeader();
   }
 
   /**
@@ -190,7 +175,7 @@ class Auth {
    */
   async sessionIn(userServicePayload) {
     try {
-      let token = userServicePayload?.data?.token || localStorage.getItem('jwt');
+      let token = userServicePayload?.data?.token || GuestService.getUserToken();
 
       if (token) {
         this.setToken(token);
@@ -204,7 +189,11 @@ class Auth {
         if (status === 'success' && data.token) {
           // A valid user token was found/refreshed
           this.setToken(data.token);
-          localStorage.setItem('jwt', data.token);
+          GuestService.clearGuestToken();
+          await GuestService.setMeta('session', {
+            role: data.user?.role,
+            userId: data.user?._id,
+          });
           // Clear cached profile image to ensure fresh load for new user
           LogIn.Scope.user.main.model.user = {};
           this.renderSessionUI();
@@ -227,17 +216,19 @@ class Auth {
 
       // Cleanup failed user session attempt
       this.deleteToken();
-      localStorage.removeItem('jwt');
 
       // Anon guest session attempt
-      let guestToken = localStorage.getItem('jwt.g');
+      let guestToken = GuestService.getGuestToken();
       if (guestToken) {
         this.setGuestToken(guestToken);
         let { data, status, message } = await UserService.get({ id: 'auth' }); // Verify guest token
         if (status === 'success' && data.token) {
           // Guest token is valid and refreshed
           this.setGuestToken(data.token);
-          localStorage.setItem('jwt.g', data.token);
+          await GuestService.setMeta('guest-session', {
+            role: data.user?.role,
+            userId: data.user?._id,
+          });
           // Clear cached profile image for fresh guest session
           LogIn.Scope.user.main.model.user = {};
           await LogIn.Trigger(data);
@@ -267,7 +258,6 @@ class Auth {
     // 1. End User Session
     try {
       const result = await UserService.delete({ id: 'logout' });
-      localStorage.removeItem('jwt');
       SearchBox.RecentResults.clear();
       this.deleteToken();
       if (this.#refreshTimeout) {
@@ -284,12 +274,10 @@ class Auth {
 
     // 2. Start Guest Session
     try {
-      localStorage.removeItem('jwt.g');
       this.deleteGuestToken();
       const result = await UserService.post({ id: 'guest' }); // Request a new guest token
 
       if (result.status === 'success' && result.data.token) {
-        localStorage.setItem('jwt.g', result.data.token);
         this.setGuestToken(result.data.token);
         // Recursively call sessionIn to complete the guest login process (UI update, etc.)
         return await this.sessionIn();

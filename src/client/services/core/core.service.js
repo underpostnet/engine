@@ -7,6 +7,7 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { getProxyPath } from '../../components/core/Router.js';
+import { GuestService } from '../user/guest.service.js';
 const logger = loggerFactory(import.meta);
 logger.info('Load service');
 const endpoint = 'core';
@@ -84,7 +85,7 @@ const getWsBaseUrl = (options = { id: '', endpoint: '', wsBasePath: '' }) =>
  */
 const headersFactory = (headerId = '') => {
   const headers = {
-    Authorization: Auth.getJWT(),
+    Authorization: GuestService.getAuthorizationHeader() || Auth.getJWT(),
   };
   switch (headerId) {
     case 'file':

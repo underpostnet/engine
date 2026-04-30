@@ -9,7 +9,6 @@ import {
   refreshSessionAndToken,
   logoutSession,
   jwtSign,
-  getBearerToken,
   validatePasswordMiddleware,
 } from '../../server/auth.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
@@ -19,8 +18,8 @@ import validator from 'validator';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { FileFactory, FileCleanup } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
-import { selectDtoFactory, ValkeyAPI } from '../../server/valkey.js';
 import { timer } from '../../client/components/core/CommonJs.js';
+import { GuestService } from '../guest.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -226,15 +225,7 @@ const UserService = {
         } else throw new Error('Invalid credentials');
 
       case 'guest': {
-        const user = await ValkeyAPI.valkeyObjectFactory(options, 'user');
-        await ValkeyAPI.setValkeyObject(options, user.email, user);
-        return {
-          token: jwtSign(
-            UserDto.auth.payload(user, null, req.ip, req.headers['user-agent'], options.host, options.path),
-            options,
-          ),
-          user: selectDtoFactory(user, UserDto.select.get()),
-        };
+        return await GuestService.create(req, options);
       }
 
       default:
@@ -360,21 +351,13 @@ const UserService = {
       case 'auth': {
         let user;
         if (req.auth.user._id.match('guest')) {
-          user = await ValkeyAPI.getValkeyObject(options, req.auth.user.email);
-          if (!user) throw new Error('guest user expired');
+          return await GuestService.auth(req, options);
         } else
           user = await User.findOne({
             _id: req.auth.user._id,
           });
 
         if (!user) throw new Error('user not found');
-
-        const guestUser = await ValkeyAPI.getValkeyObject(options, req.auth.user.email);
-        if (guestUser)
-          return {
-            user: selectDtoFactory(guestUser, UserDto.select.get()),
-            token: getBearerToken(req),
-          };
 
         return {
           token: await refreshSessionAndToken(req, res, User, options),

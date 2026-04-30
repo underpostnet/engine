@@ -711,9 +711,7 @@ const buildClient = async (
       const Render = await ssrFactory();
 
       if (views) {
-        const jsSrcPath = fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
-          ? `./src/client/sw/${publicClientId}.sw.js`
-          : `./src/client/sw/default.sw.js`;
+        const jsSrcPath = `./src/client/sw/core.sw.js`;
 
         const jsPublicPath = `${rootClientPath}/sw.js`;
 

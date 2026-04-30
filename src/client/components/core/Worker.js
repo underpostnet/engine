@@ -299,9 +299,7 @@ class PwaWorker {
     return new Promise((resolve) => {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker
-          .register(`${getProxyPath()}sw.js`, {
-            type: 'module',
-          })
+          .register(`${getProxyPath()}sw.js`)
           .then((...args) => {
             logger.warn('Service Worker Registered', args);
             resolve(args);
