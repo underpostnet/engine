@@ -13,6 +13,25 @@ import { Worker } from './Worker.js';
 const logger = loggerFactory(import.meta, { trace: true });
 
 /**
+ * @type {function | null}
+ * @description The active routes function registered by the current app router.
+ * Replaces the former `window.Routes` global so `getProxyPath` can resolve
+ * sub-directory proxy paths without polluting the global scope.
+ * @memberof PwaRouter
+ */
+let _activeRoutes = null;
+
+/**
+ * Registers the active routes function for the current app.
+ * Called automatically by `LoadRouter`; should not be called manually.
+ * @param {function} routesFn - A function returning the routes object.
+ * @memberof PwaRouter
+ */
+const registerRoutes = (routesFn) => {
+  _activeRoutes = routesFn;
+};
+
+/**
  * @type {Object.<string, function>}
  * @description Holds event listeners for router changes.
  * @memberof PwaRouter
@@ -79,7 +98,7 @@ const setRouterReady = () => {
  */
 const getProxyPath = () => {
   let path = location.pathname.split('/')[1] ? `/${location.pathname.split('/')[1]}/` : '/';
-  if (window.Routes && path !== '/' && path.slice(0, -1) in window.Routes()) path = '/';
+  if (_activeRoutes && path !== '/' && path.slice(0, -1) in _activeRoutes()) path = '/';
   return path;
 };
 
@@ -241,6 +260,7 @@ const Router = function (options = { Routes: () => {}, e: new PopStateEvent() })
  */
 const LoadRouter = async function (RouterInstance) {
   await RouterReady;
+  if (RouterInstance.Routes) registerRoutes(RouterInstance.Routes);
   Router(RouterInstance);
   window.onpopstate = (e) => {
     Router({ ...RouterInstance, e });
@@ -478,6 +498,7 @@ const setQueryParams = (newParams, options = { replace: true }) => {
 
 export {
   RouterEvents,
+  registerRoutes,
   navigateToProfile,
   closeModalRouteChangeEvents,
   coreUI,

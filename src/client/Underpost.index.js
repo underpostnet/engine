@@ -1,7 +1,7 @@
 'use strict';
 
 import { Worker } from './components/core/Worker.js';
-import { RouterUnderpost } from './components/underpost/RoutesUnderpost.js';
+import { RouterUnderpost } from './components/underpost/RouterUnderpost.js';
 import { AppShellUnderpost } from './components/underpost/AppShellUnderpost.js';
 import { AppStoreUnderpost } from './components/underpost/AppStoreUnderpost.js';
 import { SocketIoUnderpost } from './components/underpost/SocketIoUnderpost.js';

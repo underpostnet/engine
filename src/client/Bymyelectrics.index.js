@@ -1,7 +1,7 @@
 'use strict';
 
 import { Worker } from './components/core/Worker.js';
-import { RouterBymyelectrics } from './components/bymyelectrics/RoutesBymyelectrics.js';
+import { RouterBymyelectrics } from './components/bymyelectrics/RouterBymyelectrics.js';
 import { AppShellBymyelectrics } from './components/bymyelectrics/AppShellBymyelectrics.js';
 import { AppStoreBymyelectrics } from './components/bymyelectrics/AppStoreBymyelectrics.js';
 import { SocketIoBymyelectrics } from './components/bymyelectrics/SocketIoBymyelectrics.js';

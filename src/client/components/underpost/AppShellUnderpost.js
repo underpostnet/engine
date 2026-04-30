@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { extractUsernameFromPath, getProxyPath, getQueryParams } from '../core/Router.js';
 import { AppStoreUnderpost } from './AppStoreUnderpost.js';
 import Sortable from 'sortablejs';
-import { RouterUnderpost, BannerAppTemplate } from './RoutesUnderpost.js';
+import { RouterUnderpost, BannerAppTemplate } from './RouterUnderpost.js';
 import { LabGalleryUnderpost } from './LabGalleryUnderpost.js';
 import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
 import { Badge } from '../core/Badge.js';
@@ -31,7 +31,7 @@ class AppShellUnderpost {
   static async instance() {
     const id = getId(AppShellUnderpost.Data, 'menu-');
     AppShellUnderpost.Data[id] = {};
-    const RouterInstance = RouterUnderpost();
+    const RouterInstance = RouterUnderpost.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 

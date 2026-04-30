@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { AppStoreCryptokoyn } from './AppStoreCryptokoyn.js';
 import Sortable from 'sortablejs';
-import { RouterCryptokoyn, BannerAppTemplate } from './RoutesCryptokoyn.js';
+import { RouterCryptokoyn, BannerAppTemplate } from './RouterCryptokoyn.js';
 import { Wallet } from '../core/Wallet.js';
 import { Badge } from '../core/Badge.js';
 import { SettingsCryptokoyn } from './SettingsCryptokoyn.js';
@@ -23,7 +23,7 @@ class AppShellCryptokoyn {
   static async instance() {
     const id = getId(AppShellCryptokoyn.Data, 'menu-');
     AppShellCryptokoyn.Data[id] = {};
-    const RouterInstance = RouterCryptokoyn();
+    const RouterInstance = RouterCryptokoyn.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 

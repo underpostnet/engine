@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { extractUsernameFromPath, getProxyPath, getQueryParams } from '../core/Router.js';
 import { AppStoreDefault } from './AppStoreDefault.js';
 import Sortable from 'sortablejs';
-import { RouterDefault, BannerAppTemplate } from './RoutesDefault.js';
+import { RouterDefault, BannerAppTemplate } from './RouterDefault.js';
 import { SettingsDefault } from './SettingsDefault.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
@@ -28,7 +28,7 @@ class AppShellDefault {
   static async instance(options = { htmlMainBody: () => html`` }) {
     const id = getId(AppShellDefault.Data, 'menu-');
     AppShellDefault.Data[id] = {};
-    const RouterInstance = RouterDefault();
+    const RouterInstance = RouterDefault.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 

@@ -1,7 +1,7 @@
 'use strict';
 
 import { Worker } from './components/core/Worker.js';
-import { RouterCryptokoyn } from './components/cryptokoyn/RoutesCryptokoyn.js';
+import { RouterCryptokoyn } from './components/cryptokoyn/RouterCryptokoyn.js';
 import { AppShellCryptokoyn } from './components/cryptokoyn/AppShellCryptokoyn.js';
 import { AppStoreCryptokoyn } from './components/cryptokoyn/AppStoreCryptokoyn.js';
 import { SocketIoCryptokoyn } from './components/cryptokoyn/SocketIoCryptokoyn.js';

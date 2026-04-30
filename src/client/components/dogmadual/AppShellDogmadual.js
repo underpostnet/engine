@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { AppStoreDogmadual } from './AppStoreDogmadual.js';
 import Sortable from 'sortablejs';
-import { RouterDogmadual, BannerAppTemplate } from './RoutesDogmadual.js';
+import { RouterDogmadual, BannerAppTemplate } from './RouterDogmadual.js';
 import { Badge } from '../core/Badge.js';
 import { SettingsDogmadual } from './SettingsDogmadual.js';
 import { Recover } from '../core/Recover.js';
@@ -22,7 +22,7 @@ class AppShellDogmadual {
   static async instance(options = { htmlMainBody: () => html`` }) {
     const id = getId(AppShellDogmadual.Data, 'menu-');
     AppShellDogmadual.Data[id] = {};
-    const RouterInstance = RouterDogmadual();
+    const RouterInstance = RouterDogmadual.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 

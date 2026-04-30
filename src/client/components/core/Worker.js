@@ -158,7 +158,7 @@ class PwaWorker {
       });
     }
 
-    this.RouterInstance = router();
+    this.RouterInstance = typeof router?.instance === 'function' ? router.instance() : router();
     const isInstall = await this.status();
     if (!isInstall) await this.install();
 

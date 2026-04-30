@@ -30,7 +30,7 @@ import { Translate } from '../core/Translate.js';
 import { htmls, s, sa } from '../core/VanillaJs.js';
 import { AppStoreNexodev } from './AppStoreNexodev.js';
 import Sortable from 'sortablejs';
-import { RouterNexodev, BannerAppTemplate } from './RoutesNexodev.js';
+import { RouterNexodev, BannerAppTemplate } from './RouterNexodev.js';
 import { CalendarNexodev } from './CalendarNexodev.js';
 import { DashboardNexodev } from './DashboardNexodev.js';
 import { StreamNexodev } from './StreamNexodev.js';
@@ -55,7 +55,7 @@ class AppShellNexodev {
   static async instance(options = { htmlMainBody: () => '' }) {
     const id = getId(AppShellNexodev.Data, 'menu-');
     AppShellNexodev.Data[id] = {};
-    const RouterInstance = RouterNexodev();
+    const RouterInstance = RouterNexodev.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 

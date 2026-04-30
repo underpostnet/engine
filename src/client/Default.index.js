@@ -1,7 +1,7 @@
 'use strict';
 
 import { Worker } from './components/core/Worker.js';
-import { RouterDefault } from './components/default/RoutesDefault.js';
+import { RouterDefault } from './components/default/RouterDefault.js';
 import { AppShellDefault } from './components/default/AppShellDefault.js';
 import { AppStoreDefault } from './components/default/AppStoreDefault.js';
 import { SocketIoDefault } from './components/default/SocketIoDefault.js';

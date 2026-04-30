@@ -11,7 +11,7 @@ import { Translate } from '../core/Translate.js';
 import { append, htmls, prepend, s } from '../core/VanillaJs.js';
 import { AppStoreHealthcare } from './AppStoreHealthcare.js';
 import Sortable from 'sortablejs';
-import { RouterHealthcare, BannerAppTemplate } from './RoutesHealthcare.js';
+import { RouterHealthcare, BannerAppTemplate } from './RouterHealthcare.js';
 import { SettingsHealthcare } from './SettingsHealthcare.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Badge } from '../core/Badge.js';
@@ -31,7 +31,7 @@ class AppShellHealthcare {
   static async instance() {
     const id = getId(AppShellHealthcare.Data, 'menu-');
     AppShellHealthcare.Data[id] = {};
-    const RouterInstance = RouterHealthcare();
+    const RouterInstance = RouterHealthcare.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 

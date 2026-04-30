@@ -1,7 +1,7 @@
 'use strict';
 
 import { Worker } from './components/core/Worker.js';
-import { RouterCyberiaPortal } from './components/cyberia-portal/RoutesCyberiaPortal.js';
+import { RouterCyberiaPortal } from './components/cyberia-portal/RouterCyberiaPortal.js';
 import { AppShellCyberiaPortal } from './components/cyberia-portal/AppShellCyberiaPortal.js';
 import { AppStoreCyberiaPortal } from './components/cyberia-portal/AppStoreCyberiaPortal.js';
 import { SocketIoCyberiaPortal } from './components/cyberia-portal/SocketIoCyberiaPortal.js';

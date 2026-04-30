@@ -1,7 +1,7 @@
 'use strict';
 
 import { Worker } from './components/core/Worker.js';
-import { RouterCecinasmarcelina } from './components/cecinasmarcelina/RoutesCecinasmarcelina.js';
+import { RouterCecinasmarcelina } from './components/cecinasmarcelina/RouterCecinasmarcelina.js';
 import { AppShellCecinasmarcelina } from './components/cecinasmarcelina/AppShellCecinasmarcelina.js';
 import { AppStoreCecinasmarcelina } from './components/cecinasmarcelina/AppStoreCecinasmarcelina.js';
 import { SocketIoCecinasmarcelina } from './components/cecinasmarcelina/SocketIoCecinasmarcelina.js';

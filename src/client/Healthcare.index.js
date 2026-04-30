@@ -1,7 +1,7 @@
 'use strict';
 
 import { Worker } from './components/core/Worker.js';
-import { RouterHealthcare } from './components/healthcare/RoutesHealthcare.js';
+import { RouterHealthcare } from './components/healthcare/RouterHealthcare.js';
 import { AppShellHealthcare } from './components/healthcare/AppShellHealthcare.js';
 import { AppStoreHealthcare } from './components/healthcare/AppStoreHealthcare.js';
 import { SocketIoHealthcare } from './components/healthcare/SocketIoHealthcare.js';

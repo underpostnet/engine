@@ -1,7 +1,7 @@
 'use strict';
 
 import { Worker } from './components/core/Worker.js';
-import { RouterItemledger } from './components/itemledger/RoutesItemledger.js';
+import { RouterItemledger } from './components/itemledger/RouterItemledger.js';
 import { AppShellItemledger } from './components/itemledger/AppShellItemledger.js';
 import { AppStoreItemledger } from './components/itemledger/AppStoreItemledger.js';
 import { SocketIoItemledger } from './components/itemledger/SocketIoItemledger.js';

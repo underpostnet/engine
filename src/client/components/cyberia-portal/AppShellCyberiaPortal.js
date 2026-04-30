@@ -20,7 +20,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath, setQueryParams } from '../core/Router.js';
 import { AppStoreCyberiaPortal } from './AppStoreCyberiaPortal.js';
 import Sortable from 'sortablejs';
-import { RouterCyberiaPortal, BannerAppTemplate } from './RoutesCyberiaPortal.js';
+import { RouterCyberiaPortal, BannerAppTemplate } from './RouterCyberiaPortal.js';
 import { SettingsCyberiaPortal } from './SettingsCyberiaPortal.js';
 import { Chat } from '../core/Chat.js';
 import { Badge } from '../core/Badge.js';
@@ -37,7 +37,7 @@ class AppShellCyberiaPortal {
   static async instance() {
     const id = getId(AppShellCyberiaPortal.Data, 'menu-');
     AppShellCyberiaPortal.Data[id] = {};
-    const RouterInstance = RouterCyberiaPortal();
+    const RouterInstance = RouterCyberiaPortal.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 

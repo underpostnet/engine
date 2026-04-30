@@ -1,7 +1,7 @@
 'use strict';
 
 import { Worker } from './components/core/Worker.js';
-import { RouterDogmadual } from './components/dogmadual/RoutesDogmadual.js';
+import { RouterDogmadual } from './components/dogmadual/RouterDogmadual.js';
 import { AppShellDogmadual } from './components/dogmadual/AppShellDogmadual.js';
 import { AppStoreDogmadual } from './components/dogmadual/AppStoreDogmadual.js';
 import { SocketIoDogmadual } from './components/dogmadual/SocketIoDogmadual.js';

@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { extractUsernameFromPath, getProxyPath, getQueryParams } from '../core/Router.js';
 import { AppStoreCecinasmarcelina } from './AppStoreCecinasmarcelina.js';
 import Sortable from 'sortablejs';
-import { RouterCecinasmarcelina, BannerAppTemplate } from './RoutesCecinasmarcelina.js';
+import { RouterCecinasmarcelina, BannerAppTemplate } from './RouterCecinasmarcelina.js';
 import { SettingsCecinasmarcelina } from './SettingsCecinasmarcelina.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
@@ -27,7 +27,7 @@ class AppShellCecinasmarcelina {
   static async instance(options = { htmlMainBody: () => html`` }) {
     const id = getId(AppShellCecinasmarcelina.Data, 'menu-');
     AppShellCecinasmarcelina.Data[id] = {};
-    const RouterInstance = RouterCecinasmarcelina();
+    const RouterInstance = RouterCecinasmarcelina.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 

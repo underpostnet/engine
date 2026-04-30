@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { AppStoreItemledger } from './AppStoreItemledger.js';
 import Sortable from 'sortablejs';
-import { RouterItemledger, BannerAppTemplate } from './RoutesItemledger.js';
+import { RouterItemledger, BannerAppTemplate } from './RouterItemledger.js';
 import { SettingsItemledger } from './SettingsItemledger.js';
 import { Badge } from '../core/Badge.js';
 import { Docs } from '../core/Docs.js';
@@ -24,7 +24,7 @@ class AppShellItemledger {
   static async instance(options = { htmlMainBody: () => html`` }) {
     const id = getId(AppShellItemledger.Data, 'menu-');
     AppShellItemledger.Data[id] = {};
-    const RouterInstance = RouterItemledger();
+    const RouterInstance = RouterItemledger.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 

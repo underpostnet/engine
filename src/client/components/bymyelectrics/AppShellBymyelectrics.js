@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { getProxyPath } from '../core/Router.js';
 import { AppStoreBymyelectrics } from './AppStoreBymyelectrics.js';
 import Sortable from 'sortablejs';
-import { RouterBymyelectrics, BannerAppTemplate } from './RoutesBymyelectrics.js';
+import { RouterBymyelectrics, BannerAppTemplate } from './RouterBymyelectrics.js';
 import { SettingsBymyelectrics } from './SettingsBymyelectrics.js';
 import { Badge } from '../core/Badge.js';
 import { Docs } from '../core/Docs.js';
@@ -26,7 +26,7 @@ class AppShellBymyelectrics {
   static async instance(options = { htmlMainBody: () => html`` }) {
     const id = getId(AppShellBymyelectrics.Data, 'menu-');
     AppShellBymyelectrics.Data[id] = {};
-    const RouterInstance = RouterBymyelectrics();
+    const RouterInstance = RouterBymyelectrics.instance();
 
     const { barConfig } = await Themes[Css.currentTheme]();
 

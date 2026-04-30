@@ -1,7 +1,7 @@
 'use strict';
 
 import { Worker } from './components/core/Worker.js';
-import { RouterNexodev } from './components/nexodev/RoutesNexodev.js';
+import { RouterNexodev } from './components/nexodev/RouterNexodev.js';
 import { AppShellNexodev } from './components/nexodev/AppShellNexodev.js';
 import { AppStoreNexodev } from './components/nexodev/AppStoreNexodev.js';
 import { SocketIoNexodev } from './components/nexodev/SocketIoNexodev.js';
