@@ -8,7 +8,7 @@ import { ExpirationPlugin } from 'workbox-expiration';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
 
 // ─── Runtime config injected by client-build.js ───────────────────────────────
-const CACHE_PREFIX = 'engine-core-v2';
+const CACHE_PREFIX = self.renderPayload?.CACHE_PREFIX || 'engine-core-v3';
 const PRE_CACHED_RESOURCES = Array.isArray(self.renderPayload?.PRE_CACHED_RESOURCES)
   ? self.renderPayload.PRE_CACHED_RESOURCES
   : [];

@@ -970,14 +970,46 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
         let PRE_CACHED_RESOURCES = [];
 
         if (views && fs.existsSync(`${rootClientPath}/sw.js`)) {
-          PRE_CACHED_RESOURCES = await fs.readdir(rootClientPath, { recursive: true });
+          const precacheExtAllowList = new Set([
+            '.html',
+            '.js',
+            '.mjs',
+            '.css',
+            '.json',
+            '.xml',
+            '.txt',
+            '.webmanifest',
+            '.ico',
+            '.png',
+            '.jpg',
+            '.jpeg',
+            '.gif',
+            '.svg',
+            '.webp',
+            '.avif',
+            '.woff',
+            '.woff2',
+            '.ttf',
+            '.eot',
+          ]);
+          const staticClientFiles = (await fs.readdir(rootClientPath, { recursive: true }))
+            .map((relativePath) => `/${String(relativePath).replaceAll('\\', '/')}`)
+            .filter((resourcePath) => {
+              if (resourcePath[1] === '.') return false;
+              if (resourcePath.startsWith('/src/') || resourcePath.includes('/src/')) return false;
+              if (resourcePath.startsWith('/node_modules/') || resourcePath.includes('/node_modules/')) return false;
+              if (resourcePath.endsWith('.map')) return false;
+
+              const parsedExt = dir.extname(resourcePath).toLowerCase();
+              if (parsedExt && !precacheExtAllowList.has(parsedExt)) return false;
+
+              const absolutePath = dir.join(rootClientPath, resourcePath.slice(1));
+              return fs.existsSync(absolutePath) && !fs.statSync(absolutePath).isDirectory();
+            });
+
           PRE_CACHED_RESOURCES = views
             .map((view) => `${path === '/' ? '' : path}${view.path}`)
-            .concat(
-              PRE_CACHED_RESOURCES.map((p) => `/${p}`).filter(
-                (p) => p[1] !== '.' && !fs.statSync(`${rootClientPath}${p}`).isDirectory(),
-              ),
-            );
+            .concat(staticClientFiles);
         }
 
         for (const pageType of ['offline', 'pages']) {
@@ -1032,9 +1064,11 @@ Sitemap: ${sitemapBaseUrl}/sitemap.xml`,
         }
 
         {
+          const cacheScope = path === '/' ? 'root' : path.replaceAll('/', '_');
           const renderPayload = {
             PRE_CACHED_RESOURCES: uniqueArray(PRE_CACHED_RESOURCES),
             PROXY_PATH: path,
+            CACHE_PREFIX: `engine-core-v3-${cacheScope}`,
           };
           fs.writeFileSync(
             `${rootClientPath}/sw.js`,
