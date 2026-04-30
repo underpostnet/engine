@@ -1,29 +1,20 @@
 'use strict';
 
-import { Css, darkTheme } from './components/core/Css.js';
-import { Responsive } from './components/core/Responsive.js';
-import { TranslateCore } from './components/core/Translate.js';
+import { Worker } from './components/core/Worker.js';
+import { RouterCecinasmarcelina } from './components/cecinasmarcelina/RoutesCecinasmarcelina.js';
+import { AppShellCecinasmarcelina } from './components/cecinasmarcelina/AppShellCecinasmarcelina.js';
+import { AppStoreCecinasmarcelina } from './components/cecinasmarcelina/AppStoreCecinasmarcelina.js';
+import { SocketIoCecinasmarcelina } from './components/cecinasmarcelina/SocketIoCecinasmarcelina.js';
 import { LogInCecinasmarcelina } from './components/cecinasmarcelina/LogInCecinasmarcelina.js';
 import { LogOutCecinasmarcelina } from './components/cecinasmarcelina/LogOutCecinasmarcelina.js';
 import { SignUpCecinasmarcelina } from './components/cecinasmarcelina/SignUpCecinasmarcelina.js';
-import { AppShellCecinasmarcelina } from './components/cecinasmarcelina/AppShellCecinasmarcelina.js';
-import { RouterCecinasmarcelina } from './components/cecinasmarcelina/RoutesCecinasmarcelina.js';
+import { CssCecinasmarcelinaDark, CssCecinasmarcelinaLight } from './components/cecinasmarcelina/CssCecinasmarcelina.js';
 import { TranslateCecinasmarcelina } from './components/cecinasmarcelina/TranslateCecinasmarcelina.js';
-import { Worker } from './components/core/Worker.js';
-import { Keyboard } from './components/core/Keyboard.js';
-import { SocketIo } from './components/core/SocketIo.js';
-import { SocketIoCecinasmarcelina } from './components/cecinasmarcelina/SocketIoCecinasmarcelina.js';
-import { AppStoreCecinasmarcelina } from './components/cecinasmarcelina/AppStoreCecinasmarcelina.js';
-import {
-  CssCecinasmarcelinaDark,
-  CssCecinasmarcelinaLight,
-} from './components/cecinasmarcelina/CssCecinasmarcelina.js';
 import { EventsUI } from './components/core/EventsUI.js';
-import { Modal } from './components/core/Modal.js';
 import { s } from './components/core/VanillaJs.js';
 import { getProxyPath } from './components/core/Router.js';
 
-const htmlMainBody = async () => {
+const CecinasmarcelinaTemplate = async () => {
   const style = document.createElement('style');
   style.textContent = css`
     @keyframes fadeIn {
@@ -251,24 +242,21 @@ const htmlMainBody = async () => {
   `;
 };
 
+const CssCecinasmarcelinaThemes = [CssCecinasmarcelinaLight, CssCecinasmarcelinaDark];
+
 window.onload = () =>
   Worker.instance({
     router: RouterCecinasmarcelina,
-    render: async () => {
-      await Css.loadThemes([CssCecinasmarcelinaLight, CssCecinasmarcelinaDark]);
-      await TranslateCore.Init();
-      await TranslateCecinasmarcelina.Init();
-      await Responsive.Init();
-      await AppShellCecinasmarcelina.Render({ htmlMainBody });
-      await SocketIo.Init({
-        channels: AppStoreCecinasmarcelina.Data,
-        path: `/`,
-      });
-      await SocketIoCecinasmarcelina.Init();
-      await LogInCecinasmarcelina();
-      await LogOutCecinasmarcelina();
-      await SignUpCecinasmarcelina();
-      await Keyboard.Init();
-      await Modal.RenderSeoSanitizer();
+    template: CecinasmarcelinaTemplate,
+    themes: CssCecinasmarcelinaThemes,
+    translate: TranslateCecinasmarcelina,
+    render: AppShellCecinasmarcelina,
+    appStore: AppStoreCecinasmarcelina,
+    socketPath: '/',
+    session: {
+      socket: SocketIoCecinasmarcelina,
+      login: LogInCecinasmarcelina,
+      signout: LogOutCecinasmarcelina,
+      signup: SignUpCecinasmarcelina,
     },
   });

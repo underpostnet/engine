@@ -1,33 +1,30 @@
 'use strict';
 
-import { Css } from './components/core/Css.js';
-import { Responsive } from './components/core/Responsive.js';
-import { TranslateCore } from './components/core/Translate.js';
+import { Worker } from './components/core/Worker.js';
+import { RouterCryptokoyn } from './components/cryptokoyn/RoutesCryptokoyn.js';
+import { AppShellCryptokoyn } from './components/cryptokoyn/AppShellCryptokoyn.js';
+import { AppStoreCryptokoyn } from './components/cryptokoyn/AppStoreCryptokoyn.js';
+import { SocketIoCryptokoyn } from './components/cryptokoyn/SocketIoCryptokoyn.js';
 import { LogInCryptokoyn } from './components/cryptokoyn/LogInCryptokoyn.js';
 import { LogOutCryptokoyn } from './components/cryptokoyn/LogOutCryptokoyn.js';
 import { SignUpCryptokoyn } from './components/cryptokoyn/SignUpCryptokoyn.js';
-import { AppShellCryptokoyn } from './components/cryptokoyn/AppShellCryptokoyn.js';
-import { RouterCryptokoyn } from './components/cryptokoyn/RoutesCryptokoyn.js';
-import { Worker } from './components/core/Worker.js';
-import { Keyboard } from './components/core/Keyboard.js';
-import { SocketIo } from './components/core/SocketIo.js';
-import { SocketIoCryptokoyn } from './components/cryptokoyn/SocketIoCryptokoyn.js';
-import { AppStoreCryptokoyn } from './components/cryptokoyn/AppStoreCryptokoyn.js';
 import { CssCryptokoynDark, CssCryptokoynLight } from './components/cryptokoyn/CssCryptokoyn.js';
+
+const CssCryptokoynThemes = [CssCryptokoynDark, CssCryptokoynLight];
 
 window.onload = () =>
   Worker.instance({
     router: RouterCryptokoyn,
-    render: async () => {
-      await Css.loadThemes([CssCryptokoynDark, CssCryptokoynLight]);
-      await TranslateCore.Init();
-      await Responsive.Init();
-      await AppShellCryptokoyn.Render();
-      await SocketIo.Init({ channels: AppStoreCryptokoyn.Data });
-      await SocketIoCryptokoyn.Init();
-      await LogInCryptokoyn();
-      await LogOutCryptokoyn();
-      await SignUpCryptokoyn();
-      await Keyboard.Init();
+
+    themes: CssCryptokoynThemes,
+
+    render: AppShellCryptokoyn,
+    appStore: AppStoreCryptokoyn,
+
+    session: {
+      socket: SocketIoCryptokoyn,
+      login: LogInCryptokoyn,
+      signout: LogOutCryptokoyn,
+      signup: SignUpCryptokoyn,
     },
   });

@@ -1,24 +1,19 @@
 'use strict';
 
-import { Css, darkTheme, ThemeEvents } from './components/core/Css.js';
-import { Responsive } from './components/core/Responsive.js';
-import { TranslateCore } from './components/core/Translate.js';
+import { Worker } from './components/core/Worker.js';
+import { RouterNexodev } from './components/nexodev/RoutesNexodev.js';
+import { AppShellNexodev } from './components/nexodev/AppShellNexodev.js';
+import { AppStoreNexodev } from './components/nexodev/AppStoreNexodev.js';
+import { SocketIoNexodev } from './components/nexodev/SocketIoNexodev.js';
 import { LogInNexodev } from './components/nexodev/LogInNexodev.js';
 import { LogOutNexodev } from './components/nexodev/LogOutNexodev.js';
 import { SignUpNexodev } from './components/nexodev/SignUpNexodev.js';
-import { AppShellNexodev } from './components/nexodev/AppShellNexodev.js';
-import { RouterNexodev } from './components/nexodev/RoutesNexodev.js';
-import { SocketIo } from './components/core/SocketIo.js';
-import { AppStoreNexodev } from './components/nexodev/AppStoreNexodev.js';
-import { SocketIoNexodev } from './components/nexodev/SocketIoNexodev.js';
-import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
-import { Keyboard } from './components/core/Keyboard.js';
 import { s } from './components/core/VanillaJs.js';
 import { getProxyPath } from './components/core/Router.js';
 import { EventsUI } from './components/core/EventsUI.js';
 
-const htmlMainBody = async () => {
+const NexodevTemplate = async () => {
   // Add global styles with animations
   const style = document.createElement('style');
   style.textContent = css`
@@ -525,19 +520,19 @@ const htmlMainBody = async () => {
   `;
 };
 
+const CssNexodevThemes = [CssNexodevLight, CssNexodevDark];
+
 window.onload = () =>
   Worker.instance({
     router: RouterNexodev,
-    render: async () => {
-      await Css.loadThemes([CssNexodevLight, CssNexodevDark]);
-      await TranslateCore.Init();
-      await Responsive.Init();
-      await AppShellNexodev.Render({ htmlMainBody });
-      await SocketIo.Init({ channels: AppStoreNexodev.Data });
-      await SocketIoNexodev.Init();
-      await LogInNexodev();
-      await LogOutNexodev();
-      await SignUpNexodev();
-      await Keyboard.Init();
+    template: NexodevTemplate,
+    themes: CssNexodevThemes,
+    render: AppShellNexodev,
+    appStore: AppStoreNexodev,
+    session: {
+      socket: SocketIoNexodev,
+      login: LogInNexodev,
+      signout: LogOutNexodev,
+      signup: SignUpNexodev,
     },
   });

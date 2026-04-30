@@ -15,6 +15,11 @@ import { LoadRouter } from './Router.js';
 import { Translate } from './Translate.js';
 import { s } from './VanillaJs.js';
 import { getProxyPath } from './Router.js';
+import { Css } from './Css.js';
+import { TranslateCore } from './Translate.js';
+import { Responsive } from './Responsive.js';
+import { SocketIo } from './SocketIo.js';
+import { Keyboard } from './Keyboard.js';
 const logger = loggerFactory(import.meta);
 
 /**
@@ -72,16 +77,23 @@ class PwaWorker {
   }
 
   /**
-   * Initializes the PWA worker, registers global/worker event listeners,
-   * checks service worker status, and renders the initial content.
-   * This is the main entry point for the worker setup.
-   * @memberof PwaWorker
-   * @param {object} options - Configuration options.
-   * @param {function(): object} options.router - Function to get the router instance.
-   * @param {function(): Promise<void>} options.render - Function to render the application's UI.
+   * Bootstraps the app with a declarative options object.
+   * Shared core inits (Css, TranslateCore, Responsive, SocketIo, Keyboard) run
+   * internally in the correct order so index entrypoints only list app-specific components.
+   *
+   * @param {object} options
+   * @param {function(): object}          options.router       - Function returning the router instance.
+   * @param {function(): Promise<string>} [options.template]   - Async function returning the landing HTML body.
+   * @param {Array}                       [options.themes]     - CSS theme array passed to Css.loadThemes().
+   * @param {object|Array}                [options.translate]  - App translate class(es) with static Init().
+   * @param {object}                      [options.render]     - AppShell class with static Render().
+   * @param {string}                      [options.socketPath] - Socket.IO path override.
+   * @param {object}                      [options.appStore]   - AppStore whose .Data is used for socket channels.
+   * @param {object}                      [options.session]    - Session components: { socket, login, signout, signup }.
+   * @param {function(): Promise<void>}   [options.render]     - Legacy raw render callback (backward-compat).
    * @returns {Promise<void>}
    */
-  async instance({ router, render }) {
+  async instance({ router, template, themes, translate, render, socketPath, appStore, session }) {
     window.ononline = async () => {
       logger.warn('ononline');
     };
@@ -134,7 +146,38 @@ class PwaWorker {
     this.RouterInstance = router();
     const isInstall = await this.status();
     if (!isInstall) await this.install();
-    await render();
+
+    // ── declarative bootstrap path ──────────────────────────────────────────
+    if (typeof render !== 'function' || render.Render) {
+      // shared core inits
+      if (themes) await Css.loadThemes(themes);
+      await TranslateCore.Init();
+      // app-specific translate(s)
+      if (translate) {
+        const translates = Array.isArray(translate) ? translate : [translate];
+        for (const t of translates) await t.Init();
+      }
+      await Responsive.Init();
+      // app shell render
+      if (render && typeof render.Render === 'function') {
+        const htmlMainBody = typeof template === 'function' ? template : undefined;
+        await render.Render(htmlMainBody ? { htmlMainBody } : undefined);
+      }
+      // socket init
+      const channels = appStore ? appStore.Data : (session && session.socket && session.socket.Data) || undefined;
+      await SocketIo.Init({ channels, path: socketPath });
+      if (session) {
+        if (session.socket && typeof session.socket.Init === 'function') await session.socket.Init();
+        if (typeof session.login === 'function') await session.login();
+        if (typeof session.signout === 'function') await session.signout();
+        if (typeof session.signup === 'function') await session.signup();
+      }
+      await Keyboard.Init();
+    } else {
+      // ── legacy raw render callback (backward-compat) ─────────────────────
+      await render();
+    }
+    // ────────────────────────────────────────────────────────────────────────
     await LoadRouter(this.RouterInstance);
     LoadingAnimation.removeSplashScreen();
     if (this.devMode()) {

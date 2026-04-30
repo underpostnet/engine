@@ -1,25 +1,23 @@
 'use strict';
 
-import { borderChar, Css, dynamicCol } from './components/core/Css.js';
-import { Responsive } from './components/core/Responsive.js';
-import { Translate, TranslateCore } from './components/core/Translate.js';
+import { Worker } from './components/core/Worker.js';
+import { RouterBymyelectrics } from './components/bymyelectrics/RoutesBymyelectrics.js';
+import { AppShellBymyelectrics } from './components/bymyelectrics/AppShellBymyelectrics.js';
+import { AppStoreBymyelectrics } from './components/bymyelectrics/AppStoreBymyelectrics.js';
+import { SocketIoBymyelectrics } from './components/bymyelectrics/SocketIoBymyelectrics.js';
 import { LogInBymyelectrics } from './components/bymyelectrics/LogInBymyelectrics.js';
 import { LogOutBymyelectrics } from './components/bymyelectrics/LogOutBymyelectrics.js';
 import { SignUpBymyelectrics } from './components/bymyelectrics/SignUpBymyelectrics.js';
-import { AppShellBymyelectrics } from './components/bymyelectrics/AppShellBymyelectrics.js';
-import { RouterBymyelectrics } from './components/bymyelectrics/RoutesBymyelectrics.js';
+import { CssBymyelectricsDark, CssBymyelectricsLight } from './components/bymyelectrics/CssBymyelectrics.js';
 import { TranslateBymyelectrics } from './components/bymyelectrics/TranslateBymyelectrics.js';
-import { Worker } from './components/core/Worker.js';
-import { Keyboard } from './components/core/Keyboard.js';
-import { SocketIo } from './components/core/SocketIo.js';
-import { SocketIoBymyelectrics } from './components/bymyelectrics/SocketIoBymyelectrics.js';
-import { AppStoreBymyelectrics } from './components/bymyelectrics/AppStoreBymyelectrics.js';
+import { borderChar, dynamicCol } from './components/core/Css.js';
+import { Translate } from './components/core/Translate.js';
 import { s } from './components/core/VanillaJs.js';
 import { getProxyPath } from './components/core/Router.js';
-import { CssBymyelectricsDark, CssBymyelectricsLight } from './components/bymyelectrics/CssBymyelectrics.js';
 import { windowGetH } from './components/core/windowGetDimensions.js';
+import { Responsive } from './components/core/Responsive.js';
 
-const htmlMainBody = async () => {
+const BymyelectricsTemplate = async () => {
   const id0DynamicCol = `dynamicCol-0`;
   const id1DynamicCol = `dynamicCol-1`;
 
@@ -204,20 +202,20 @@ const htmlMainBody = async () => {
   `;
 };
 
+const CssBymyelectricsThemes = [CssBymyelectricsLight, CssBymyelectricsDark];
+
 window.onload = () =>
   Worker.instance({
     router: RouterBymyelectrics,
-    render: async () => {
-      await Css.loadThemes([CssBymyelectricsLight, CssBymyelectricsDark]);
-      await TranslateCore.Init();
-      await TranslateBymyelectrics.Init();
-      await Responsive.Init();
-      await AppShellBymyelectrics.Render({ htmlMainBody });
-      await SocketIo.Init({ channels: AppStoreBymyelectrics.Data });
-      await SocketIoBymyelectrics.Init();
-      await LogInBymyelectrics();
-      await LogOutBymyelectrics();
-      await SignUpBymyelectrics();
-      await Keyboard.Init();
+    template: BymyelectricsTemplate,
+    themes: CssBymyelectricsThemes,
+    translate: TranslateBymyelectrics,
+    render: AppShellBymyelectrics,
+    appStore: AppStoreBymyelectrics,
+    session: {
+      socket: SocketIoBymyelectrics,
+      login: LogInBymyelectrics,
+      signout: LogOutBymyelectrics,
+      signup: SignUpBymyelectrics,
     },
   });
