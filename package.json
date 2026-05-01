@@ -110,6 +110,7 @@
     "vanilla-jsoneditor": "^3.12.0",
     "winston": "^3.19.0",
     "workbox-background-sync": "^7.4.0",
+    "workbox-cacheable-response": "^7.4.0",
     "workbox-core": "^7.4.0",
     "workbox-expiration": "^7.4.0",
     "workbox-precaching": "^7.4.0",
