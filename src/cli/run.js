@@ -489,21 +489,6 @@ class UnderpostRun {
       pbcopy(triggerCmd + ' && cd /home/dd/engine');
     },
     /**
-     * @method template-deploy-image
-     * @description Dispatches the Docker image CI workflow for the `engine` repository.
-     * @param {string} path - The input value, identifier, or path for the operation.
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    'template-deploy-image': (path, options = DEFAULT_OPTION) => {
-      Underpost.repo.dispatchWorkflow({
-        repo: `${process.env.GITHUB_USERNAME}/engine`,
-        workflowFile: 'docker-image.ci.yml',
-        ref: 'master',
-        inputs: {},
-      });
-    },
-    /**
      * @method docker-image
      * @description Dispatches the Docker image CI workflow (`docker-image.ci.yml`) for the `engine` repository via `workflow_dispatch`.
      * @param {string} path - The input value, identifier, or path for the operation.
@@ -513,7 +498,7 @@ class UnderpostRun {
     'docker-image': (path, options = DEFAULT_OPTION) => {
       Underpost.repo.dispatchWorkflow({
         repo: `${process.env.GITHUB_USERNAME}/engine`,
-        workflowFile: `docker-image.${path ? `.${path}` : ''}.ci.yml`,
+        workflowFile: `docker-image${path ? `.${path}` : ''}.ci.yml`,
         ref: 'master',
         inputs: {},
       });
