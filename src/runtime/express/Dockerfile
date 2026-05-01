@@ -1,6 +1,6 @@
 FROM rockylinux:9
 
-# System packages 
+# Update and install required packages
 RUN dnf -y update && \
     dnf -y install epel-release && \
     dnf -y install --allowerasing \
@@ -30,17 +30,16 @@ RUN dnf clean all
 RUN node --version
 RUN npm --version
 
-# Install underpost CLI 
+# Install underpost ci/cd cli
 RUN npm install -g underpost
 RUN underpost --version
 
-
-# Runtime root expected by startup/build scripts.
+# Create working directory
 WORKDIR /home/dd
 
+# Expose necessary ports
 EXPOSE 22
 EXPOSE 80
 EXPOSE 443
 EXPOSE 3000-3100
 EXPOSE 4000-4100
-
