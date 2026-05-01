@@ -43,4 +43,3 @@ jobs:
             sudo -n -- /bin/bash -lc "node bin run secret"
             sudo -n -- /bin/bash -lc "node bin run --dev git-conf"
             sudo -n -- /bin/bash -lc "node bin run --dev docker-image"
-            sudo -n -- /bin/bash -lc "node bin run --dev ssh-deploy sync-engine-test"
