@@ -652,6 +652,15 @@ echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com
       image = image ? image : defaultPath[3];
       node = node ? node : defaultPath[4];
       shellExec(`${baseCommand} cluster --ns-use ${options.namespace}`);
+
+      if (image && !image.startsWith('localhost'))
+        Underpost.image.pullDockerHubImage({
+          dockerhubImage: image,
+          kind: options.kind || (!options.nodeName && !options.kubeadm && !options.k3s),
+          kubeadm: options.nodeName || options.kubeadm,
+          k3s: options.k3s,
+        });
+
       if (isDeployRunnerContext(path, options)) {
         if (!options.disablePrivateConfUpdate) {
           const { validVersion } = Underpost.repo.privateConfUpdate(deployId);

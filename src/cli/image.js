@@ -179,6 +179,12 @@ class UnderpostImage {
      * @memberof UnderpostImage
      */
     pullDockerHubImage(options = { k3s: false, kubeadm: false, kind: false, dockerhubImage: '', version: '' }) {
+      if (options.dockerhubImage && options.dockerhubImage.startsWith('localhost')) {
+        logger.warn(`[image] pullDockerHubImage skipped — local image cannot be pulled from Docker Hub`, {
+          dockerhubImage: options.dockerhubImage,
+        });
+        return;
+      }
       if (options.dockerhubImage === 'underpost') {
         options.dockerhubImage = 'underpost/underpost-engine';
         if (!options.version) options.version = Underpost.version;
@@ -186,7 +192,42 @@ class UnderpostImage {
       if (!options.version) options.version = 'latest';
       const version = options.dockerhubImage && options.dockerhubImage.match(':') ? '' : `:${options.version}`;
       const image = `${options.dockerhubImage}${version}`;
-      if (options.kind === true) {
+      const targetKind = options.kind === true;
+      const targetK3s = options.k3s === true;
+      const targetKubeadm = options.kubeadm === true || (!targetKind && !targetK3s);
+
+      const requestedRepo = image.replace(/:[^/]+$/, '');
+      const requestedTag = image.match(/:([^/]+)$/)?.[1] || 'latest';
+      const normalizeRepo = (repo = '') =>
+        repo
+          .trim()
+          .replace(/^localhost\//, '')
+          .replace(/^docker\.io\//, '')
+          .replace(/^library\//, '');
+
+      const currentImages = UnderpostImage.API.list({
+        kind: targetKind,
+        kubeadm: targetKubeadm,
+        k3s: targetK3s,
+        log: false,
+      });
+
+      const existsInCluster = currentImages.some((row) => {
+        const rowImageRaw = String(row.IMAGE || row.image || '').trim();
+        if (!rowImageRaw) return false;
+        const rowImage = rowImageRaw.replace(/:[^/]+$/, '');
+        const rowTag = String(row.TAG || rowImageRaw.match(/:([^/]+)$/)?.[1] || '').trim();
+        return normalizeRepo(rowImage) === normalizeRepo(requestedRepo) && rowTag === requestedTag;
+      });
+
+      if (existsInCluster) {
+        logger.info(`[image] pull skipped. Image already loaded`, {
+          image,
+          clusterType: targetKind ? 'kind' : targetK3s ? 'k3s' : 'kubeadm',
+        });
+        return;
+      }
+      if (targetKind) {
         shellExec(`docker pull ${image}`);
         shellExec(`sudo kind load docker-image ${image}`);
       } else {
