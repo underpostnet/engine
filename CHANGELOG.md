@@ -2,6 +2,12 @@
 
 ## 2026-05-01
 
+### cli-release
+
+- Update workflows to reflect new underpost image versions ([9a5577cba](https://github.com/underpostnet/engine/commit/9a5577cba856b2666e6ac023a9a319782301891d))
+
+## New release v:3.2.8 (2026-05-01)
+
 ### bin-build
 
 - Update build.js to replace jsdoc references with typedoc for documentation generation ([198f69d43](https://github.com/underpostnet/engine/commit/198f69d433fb76da8bfdb1581286a0ce5f2e6454))

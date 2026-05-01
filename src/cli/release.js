@@ -133,6 +133,16 @@ class UnderpostRelease {
           'utf8',
         );
 
+      // Update underpost/* image versions in all engine-*.cd.yml workflows.
+      for (const wf of fs.readdirSync(`./.github/workflows`)) {
+        if (!wf.match(/^engine-.+\.cd\.yml$/)) continue;
+        const wfPath = `./.github/workflows/${wf}`;
+        const updated = fs
+          .readFileSync(wfPath, 'utf8')
+          .replace(/underpost\/([^:'"]+):v[0-9]+\.[0-9]+\.[0-9]+/g, `underpost/$1:v${newVersion}`);
+        fs.writeFileSync(wfPath, updated, 'utf8');
+      }
+
       // Update version tag in all runtime docker image workflows (type=raw,value=v<version>).
       for (const wf of fs.readdirSync(`./.github/workflows`)) {
         if (!wf.match(/^docker-image\..+\.ci\.yml$/) || wf === 'docker-image.ci.yml') continue;
