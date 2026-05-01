@@ -12,14 +12,14 @@ import { s } from '../core/VanillaJs.js';
 import { AppointmentEventType, appointmentEvents } from '../core/ClientEvents.js';
 import { AppStoreHealthcare } from './AppStoreHealthcare.js';
 // https://ewr50l16.forms.app/consulta-nutricional-ayleenbertini
-class AppointmentFormHealthcare {
+class AppointmentFormHealthCare {
   static Event = {};
   static onSubmitted(listener, options = {}) {
-    if (options.key) AppointmentFormHealthcare.Event[options.key] = listener;
+    if (options.key) AppointmentFormHealthCare.Event[options.key] = listener;
     return appointmentEvents.on(AppointmentEventType.submitted, listener, options);
   }
   static offSubmitted(key) {
-    delete AppointmentFormHealthcare.Event[key];
+    delete AppointmentFormHealthCare.Event[key];
     return appointmentEvents.off(key);
   }
   static hasSubmittedListener(key) {
@@ -27,8 +27,8 @@ class AppointmentFormHealthcare {
   }
   static async Trigger(options) {
     await appointmentEvents.emit(AppointmentEventType.submitted, options);
-    for (const eventKey of Object.keys(AppointmentFormHealthcare.Event))
-      await AppointmentFormHealthcare.Event[eventKey](options);
+    for (const eventKey of Object.keys(AppointmentFormHealthCare.Event))
+      await AppointmentFormHealthCare.Event[eventKey](options);
   }
   static async instance(options = { bottomRender: async () => '' }, eventData) {
     let mode = 'healthcare-company-public';
@@ -105,7 +105,7 @@ class AppointmentFormHealthcare {
           status,
         });
         if (status === 'success') {
-          await AppointmentFormHealthcare.Trigger({ data, status, message });
+          await AppointmentFormHealthCare.Trigger({ data, status, message });
           const confirmResult = await Modal.RenderConfirm({
             icon: html`<i class="fas fa-check" style="color: green"></i>`,
             disableBtnCancel: true,
@@ -253,4 +253,4 @@ class AppointmentFormHealthcare {
     `;
   }
 }
-export { AppointmentFormHealthcare };
+export { AppointmentFormHealthCare };

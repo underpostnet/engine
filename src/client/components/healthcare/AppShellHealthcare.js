@@ -18,7 +18,7 @@ import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { MenuHomeHealthcare, NutritionalTips } from './CommonHealthcare.js';
 import { CalendarCore } from '../core/CalendarCore.js';
-import { AppointmentFormHealthcare } from './AppointmentFormHealthCare.js';
+import { AppointmentFormHealthCare } from './AppointmentFormHealthCare.js';
 import { HealthcareAppointmentService } from '../../services/healthcare-appointment/healthcare-appointment.service.js';
 import { HealthcareAppointmentManagement } from '../../services/healthcare-appointment/healthcare-appointment.management.js';
 import { RecordMoodHealthcare } from './RecordMoodHealthcare.js';
@@ -506,7 +506,7 @@ class AppShellHealthcare {
           text: `${eventData ? `${eventData.event.title} ` : ''}${Translate.instance('healthcare-appointment')}`,
         }),
         html: async () =>
-          await AppointmentFormHealthcare.instance({ idModal: 'modal-healthcare-appointment' }, eventData),
+          await AppointmentFormHealthCare.instance({ idModal: 'modal-healthcare-appointment' }, eventData),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -516,11 +516,11 @@ class AppShellHealthcare {
       });
       if (!eventData) return { status: 'error' };
       const cleanEvent = () => {
-        AppointmentFormHealthcare.offSubmitted(idModal);
+        AppointmentFormHealthCare.offSubmitted(idModal);
         delete Modal.Data[idModal].onCloseListener[idModal];
       };
       return await new Promise((resolve) => {
-        AppointmentFormHealthcare.onSubmitted(
+        AppointmentFormHealthCare.onSubmitted(
           async ({ status, data, message }) => {
             cleanEvent();
             await Modal.removeModal(idModal);
