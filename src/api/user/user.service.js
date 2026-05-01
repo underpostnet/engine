@@ -19,7 +19,7 @@ import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { FileFactory, FileCleanup } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
 import { timer } from '../../client/components/core/CommonJs.js';
-import { GuestService } from '../guest.service.js';
+import { GuestService } from './guest.service.js';
 
 const logger = loggerFactory(import.meta);
 

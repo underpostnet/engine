@@ -123,6 +123,8 @@ try {
           `./.github/workflows/gitlab.ci.yml`,
           `./.github/workflows/publish.ci.yml`,
           `./.github/workflows/release.cd.yml`,
+          `./src/client/services/user/guest.service.js`,
+          './src/api/user/guest.service.js',
           './src/ws/IoInterface.js',
           './src/ws/IoServer.js',
         ])
