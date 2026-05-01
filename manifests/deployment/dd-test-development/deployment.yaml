@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: dd-test-development-blue
-          image: underpost/underpost-engine:v3.2.5
+          image: underpost/underpost-engine:v3.2.8
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -147,7 +147,7 @@ spec:
     spec:
       containers:
         - name: dd-test-development-green
-          image: underpost/underpost-engine:v3.2.5
+          image: underpost/underpost-engine:v3.2.8
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:

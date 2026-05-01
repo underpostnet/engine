@@ -2109,13 +2109,6 @@ EOF
       }
     },
     /**
-     * @method secret
-     * @description Creates an Underpost secret named 'underpost' from a file, defaulting to `/home/dd/engine/engine-private/conf/dd-cron/.env.production` if no path is provided.
-     * @param {string} path - The input value, identifier, or path for the operation (used as the optional path to the secret file).
-     * @param {Object} options - The default underpost runner options for customizing workflow
-     * @memberof UnderpostRun
-     */
-    /**
      * @method generate-pass
      * @description Generates a cryptographically secure random password that satisfies all validatePassword
      * constraints (lowercase, uppercase, digit, special char, min 8 chars). Logs the plain password
@@ -2151,7 +2144,13 @@ EOF
       if (options.copy) pbcopy(password);
       else console.log(password);
     },
-
+    /**
+     * @method secret
+     * @description Creates an Underpost secret named 'underpost' from a file, defaulting to `/home/dd/engine/engine-private/conf/dd-cron/.env.production` if no path is provided.
+     * @param {string} path - The input value, identifier, or path for the operation (used as the optional path to the secret file).
+     * @param {Object} options - The default underpost runner options for customizing workflow
+     * @memberof UnderpostRun
+     */
     secret: (path, options = DEFAULT_OPTION) => {
       const secretPath = path ? path : `/home/dd/engine/engine-private/conf/dd-cron/.env.production`;
       const command = `${options.dev ? 'node bin' : 'underpost'} secret underpost --create-from-file ${secretPath}`;

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dd-default-development-blue
-          image: underpost/underpost-engine:v3.2.5
+          image: underpost/underpost-engine:v3.2.8
           #          resources:
           #            requests:
           #              memory: "124Ki"
@@ -98,7 +98,7 @@ spec:
     spec:
       containers:
         - name: dd-default-development-green
-          image: underpost/underpost-engine:v3.2.5
+          image: underpost/underpost-engine:v3.2.8
           #          resources:
           #            requests:
           #              memory: "124Ki"
