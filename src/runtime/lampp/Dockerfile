@@ -1,34 +1,33 @@
 FROM rockylinux:9
 
-# ── System packages (build tools + raylib web dependencies) ───────────────────
-RUN dnf install -y epel-release && \
-    curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
-    dnf groupinstall -y "Development Tools" && \
-    dnf install -y \
-        cmake git wget unzip \
-        python3 python3.11 \
-        nodejs \
-        alsa-lib-devel \
-        mesa-libGL-devel \
-        mesa-libGLU-devel \
-        libX11-devel \
-        libXrandr-devel \
-        libXi-devel \
-        libXcursor-devel \
-        libXinerama-devel \
-        libXfixes-devel \
-        freeglut-devel \
-        glfw-devel \
-        libatomic.x86_64 && \
+# ── System packages 
+RUN dnf -y update && \
+    dnf -y install epel-release && \
+    dnf -y install --allowerasing \
+    bzip2 \
+    sudo \
+    curl \
+    net-tools \
+    openssh-server \
+    nano \
+    vim-enhanced \
+    less \
+    openssl-devel \
+    wget \
+    git \
+    gnupg2 \
+    libnsl \
+    perl && \
     dnf clean all
 
-# --- Download and install XAMPP (PHP 8.2)
+
+# Download and install XAMPP (PHP 8.2)
 RUN curl -L -o /tmp/xampp-linux-installer.run "https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/8.2.12/xampp-linux-x64-8.2.12-0-installer.run" && \
     chmod +x /tmp/xampp-linux-installer.run && \
     bash -c "/tmp/xampp-linux-installer.run --mode unattended" && \
     ln -sf /opt/lampp/lampp /usr/bin/lampp
 
-# --- Create /xampp/htdocs (static root) and set permissions
+# Create /xampp/htdocs (static root) and set permissions
 RUN mkdir -p /opt/lampp/htdocs && \
     chown -R root:root /opt/lampp/htdocs && \
     chmod -R a+rX /opt/lampp/htdocs
@@ -40,7 +39,7 @@ RUN echo 'export PATH="/opt/lampp/bin:/usr/local/bin:${PATH}"' > /etc/profile.d/
 # Provide a no-op sendmail so PHP plugins don't error on mail calls
 RUN printf '#!/bin/sh\ncat > /dev/null\n' > /usr/sbin/sendmail && chmod +x /usr/sbin/sendmail
 
-# ── underpost CLI ──────────────────────────────────────────────────────────────
+# Install underpost CLI 
 RUN npm install -g underpost
 
 # Runtime root expected by startup/build scripts.

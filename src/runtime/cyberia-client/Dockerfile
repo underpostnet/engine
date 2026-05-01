@@ -22,7 +22,7 @@ RUN dnf install -y epel-release && \
         libatomic.x86_64 && \
     dnf clean all
 
-# ── underpost CLI ──────────────────────────────────────────────────────────────
+# Install underpost CLI 
 RUN npm install -g underpost
 
 ENV EMSDK=/home/dd/.emsdk
