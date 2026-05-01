@@ -21,8 +21,19 @@ RUN dnf -y update && \
     dnf clean all
 
 
+# Install Node.js
+RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
+RUN dnf install nodejs -y
+RUN dnf clean all
+
+# Verify Node.js and npm versions
+RUN node --version
+RUN npm --version
+
 # Install underpost CLI 
 RUN npm install -g underpost
+RUN underpost --version
+
 
 # Runtime root expected by startup/build scripts.
 WORKDIR /home/dd

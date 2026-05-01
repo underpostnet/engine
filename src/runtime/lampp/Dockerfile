@@ -1,6 +1,6 @@
 FROM rockylinux:9
 
-# ── System packages 
+# System packages 
 RUN dnf -y update && \
     dnf -y install epel-release && \
     dnf -y install --allowerasing \
@@ -39,8 +39,18 @@ RUN echo 'export PATH="/opt/lampp/bin:/usr/local/bin:${PATH}"' > /etc/profile.d/
 # Provide a no-op sendmail so PHP plugins don't error on mail calls
 RUN printf '#!/bin/sh\ncat > /dev/null\n' > /usr/sbin/sendmail && chmod +x /usr/sbin/sendmail
 
+# Install Node.js
+RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
+RUN dnf install nodejs -y
+RUN dnf clean all
+
+# Verify Node.js and npm versions
+RUN node --version
+RUN npm --version
+
 # Install underpost CLI 
 RUN npm install -g underpost
+RUN underpost --version
 
 # Runtime root expected by startup/build scripts.
 WORKDIR /home/dd
