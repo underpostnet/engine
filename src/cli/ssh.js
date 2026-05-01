@@ -315,7 +315,7 @@ EOF`);
         console.log(`group_name : password_x : GID(Internal Group ID) : user_list`.blue);
         console.log(filter ? groupsOut.replaceAll(filter, filter.red) : groupsOut);
         console.log('Users'.bold.blue);
-        console.log(`usuario : x : UID : GID : GECOS : home_dir : shell`.blue);
+        console.log(`user : x : UID : GID : GECOS : home_dir : shell`.blue);
         console.log(filter ? usersOut.replaceAll(filter, filter.red) : usersOut);
       }
 
