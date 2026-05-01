@@ -38,6 +38,11 @@ RUN echo 'export PATH="/opt/lampp/bin:/usr/local/bin:${PATH}"' > /etc/profile.d/
 # Provide a no-op sendmail so WP plugins don't error on mail calls
 RUN printf '#!/bin/sh\ncat > /dev/null\n' > /usr/sbin/sendmail && chmod +x /usr/sbin/sendmail
 
+# Install Node.js (includes npm)
+RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
+    dnf install -y nodejs && \
+    dnf clean all
+
 # Install WP-CLI
 RUN curl -sL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -o /usr/local/bin/wp && \
     chmod +x /usr/local/bin/wp && \

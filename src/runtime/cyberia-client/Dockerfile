@@ -20,15 +20,18 @@ RUN dnf -y update && \
     perl && \
     dnf clean all
 
-# System packages (raylib gfx + build dependencies)
+# System packages (Node.js)
 RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
-    dnf groupinstall -y "Development Tools" && \
+    dnf install -y nodejs && \
+    dnf clean all
+
+# System packages (raylib gfx + build dependencies)
+RUN dnf groupinstall -y "Development Tools" && \
     dnf install -y \
         cmake \
         unzip \
         python3 \
         python3.11 \
-        nodejs \
         alsa-lib-devel \
         mesa-libGL-devel \
         mesa-libGLU-devel \
