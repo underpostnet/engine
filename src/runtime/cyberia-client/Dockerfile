@@ -1,12 +1,33 @@
 FROM rockylinux:9
 
-# System packages (build tools + raylib web dependencies)
-RUN dnf install -y epel-release && \
-    curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
+# System packages 
+RUN dnf -y update && \
+    dnf -y install epel-release && \
+    dnf -y install --allowerasing \
+    bzip2 \
+    sudo \
+    curl \
+    net-tools \
+    openssh-server \
+    nano \
+    vim-enhanced \
+    less \
+    openssl-devel \
+    wget \
+    git \
+    gnupg2 \
+    libnsl \
+    perl && \
+    dnf clean all
+
+# System packages (raylib gfx + build dependencies)
+RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
     dnf groupinstall -y "Development Tools" && \
     dnf install -y \
-        cmake git wget unzip \
-        python3 python3.11 \
+        cmake \
+        unzip \
+        python3 \
+        python3.11 \
         nodejs \
         alsa-lib-devel \
         mesa-libGL-devel \
