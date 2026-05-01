@@ -1246,6 +1246,12 @@ EOF
           dockerfile: `${rootPath}/Dockerfile`,
           deployment: `${rootPath}/deployment.yaml`,
         });
+        const ciSrc = `./.github/workflows/docker-image.${_runtime}.ci.yml`;
+        if (fs.existsSync(ciSrc)) {
+          if (!fs.existsSync(`${rootPath}/.github/workflows`)) fs.mkdirpSync(`${rootPath}/.github/workflows`);
+          fs.copyFileSync(ciSrc, `${rootPath}/.github/workflows/docker-image.${_runtime}.ci.yml`);
+          logger.info(`[instance-build-manifest] CI workflow copied`, { src: ciSrc });
+        }
       }
     },
 

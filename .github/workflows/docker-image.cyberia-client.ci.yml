@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
 jobs:
   build-and-push:
-    if: github.repository == 'underpostnet/engine-cyberia'
     runs-on: ubuntu-latest
     permissions:
       contents: read
