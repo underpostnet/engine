@@ -217,9 +217,9 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   fs.copyFileSync(`./.github/workflows/${repoName}.ci.yml`, `${basePath}/.github/workflows/${repoName}.ci.yml`);
   fs.copyFileSync(`./.github/workflows/${repoName}.cd.yml`, `${basePath}/.github/workflows/${repoName}.cd.yml`);
 
-  if (fs.existsSync(`./jsdoc.${confName}.json`)) {
-    fs.copyFileSync(`./jsdoc.${confName}.json`, `${basePath}/jsdoc.json`);
-    fs.copyFileSync(`./jsdoc.${confName}.json`, `${basePath}/jsdoc.${confName}.json`);
+  if (fs.existsSync(`./typedoc.${confName}.json`)) {
+    fs.copyFileSync(`./typedoc.${confName}.json`, `${basePath}/typedoc.json`);
+    fs.copyFileSync(`./typedoc.${confName}.json`, `${basePath}/typedoc.${confName}.json`);
   }
 
   if (fs.existsSync(`./manifests/deployment/${confName}-development`))

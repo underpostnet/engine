@@ -20,10 +20,10 @@ RUN dnf -y update && \
     perl && \
     dnf clean all
 
-# System packages (Node.js)
-RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - && \
-    dnf install -y nodejs && \
-    dnf clean all
+# Install Node.js
+RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash -
+RUN dnf install nodejs -y
+RUN dnf clean all
 
 # System packages (raylib gfx + build dependencies)
 RUN dnf groupinstall -y "Development Tools" && \
