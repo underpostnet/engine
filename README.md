@@ -24,7 +24,7 @@
 
 <!-- template-title -->
 
-<div style="font-size: 20px;"><em>End2end</em> continuous integration and continuous deployment cloud to applications federation tools. Develop, build, deploy, test, monitor, and manage multiple runtime applications on virtual machines or container instances.</div>
+<div style="font-size: 20px;"><em>End2end</em> continuous integration and continuous deployment cloud applications toolchain. Develop, build, deploy, test, monitor, and manage multiple runtime applications on virtual machines or container instances.</div>
 
 </div>
 
@@ -61,46 +61,49 @@ npm run dev
 <a target="_top" href="https://www.nexodev.org/docs?cid=src">See Docs here.</a>
 
 <!-- cli-index-start -->
+
 ## underpost ci/cd cli v3.2.5
 
 ### Usage: `underpost [options] [command]`
-  ```
- Options:
-  -V, --version                                              output the version number
-  -h, --help                                                 display help for command
+
+```
+Options:
+-V, --version                                              output the version number
+-h, --help                                                 display help for command
 
 Commands:
-  new [options] [app-name]                                   Initializes a new Underpost project, service, or configuration.
-  client [options] [deploy-id] [sub-conf] [host] [path]      Builds client assets, single replicas, and/or syncs environment ports.
-  start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
-  clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
-  pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
-  cmt [options] [path] [commit-type] [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
-  push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
-  env [deploy-id] [env] [subConf]                            Sets environment variables and configurations related to a specific deployment ID.
-  static [options]                                           Manages static build of page, bundles, and documentation with comprehensive customization options.
-  config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
-  root                                                       Displays the root path of the npm installation.
-  ip [options] [ips]                                         Displays the current public machine IP addresses.
-  cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
-  deploy [options] [deploy-list] [env]                       Manages application deployments, defaulting to deploying development pods.
-  secret [options] <platform>                                Manages secrets for various platforms.
-  image [options]                                            Manages Docker images, including building, saving, and loading into Kubernetes clusters.
-  install                                                    Quickly imports Underpost npm dependencies by copying them.
-  db [options] [deploy-list]                                 Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.
-  metadata [options] [deploy-id] [host] [path]               Manages cluster metadata operations, including import and export.
-  cron [options] [deploy-list] [job-list]                    Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests.
-  fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
-  test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
-  monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
-  ssh [options]                                              Manages SSH credentials and sessions for remote access to cluster nodes or services.
-  run [options] <runner-id> [path]                           Runs specified scripts using various runners.
-  lxd [options]                                              Manages LXD virtual machines as K3s nodes (control plane or workers).
-  baremetal [options] [workflow-id]                          Manages baremetal server operations, including installation, database setup, commissioning, and user management.
-  release [options] [version]                                Release orchestrator for building new versions and deploying releases of the Underpost CLI.
-  help [command]                                             display help for command
- 
+new [options] [app-name]                                   Initializes a new Underpost project, service, or configuration.
+client [options] [deploy-id] [sub-conf] [host] [path]      Builds client assets, single replicas, and/or syncs environment ports.
+start [options] <deploy-id> [env]                          Initiates application servers, build pipelines, or other defined services based on the deployment ID.
+clone [options] <uri>                                      Clones a specified GitHub repository into the current directory.
+pull [options] <path> <uri>                                Pulls the latest changes from a specified GitHub repository.
+cmt [options] [path] [commit-type] [module-tag] [message]  Manages commits to a GitHub repository, supporting various commit types and options.
+push [options] <path> <uri>                                Pushes committed changes from a local repository to a remote GitHub repository.
+env [deploy-id] [env] [subConf]                            Sets environment variables and configurations related to a specific deployment ID.
+static [options]                                           Manages static build of page, bundles, and documentation with comprehensive customization options.
+config [options] <operator> [key] [value]                  Manages Underpost configurations using various operators.
+root                                                       Displays the root path of the npm installation.
+ip [options] [ips]                                         Displays the current public machine IP addresses.
+cluster [options] [pod-name]                               Manages Kubernetes clusters, defaulting to Kind cluster initialization.
+deploy [options] [deploy-list] [env]                       Manages application deployments, defaulting to deploying development pods.
+secret [options] <platform>                                Manages secrets for various platforms.
+image [options]                                            Manages Docker images, including building, saving, and loading into Kubernetes clusters.
+install                                                    Quickly imports Underpost npm dependencies by copying them.
+db [options] [deploy-list]                                 Manages database operations with support for MariaDB and MongoDB, including import/export, multi-pod targeting, and Git integration.
+metadata [options] [deploy-id] [host] [path]               Manages cluster metadata operations, including import and export.
+cron [options] [deploy-list] [job-list]                    Manages cron jobs: execute jobs directly or generate and apply K8s CronJob manifests.
+fs [options] [path]                                        Manages file storage, defaulting to file upload operations.
+test [options] [deploy-list]                               Manages and runs tests, defaulting to the current Underpost default test suite.
+monitor [options] <deploy-id> [env]                        Manages health server monitoring for specified deployments.
+ssh [options]                                              Manages SSH credentials and sessions for remote access to cluster nodes or services.
+run [options] <runner-id> [path]                           Runs specified scripts using various runners.
+lxd [options]                                              Manages LXD virtual machines as K3s nodes (control plane or workers).
+baremetal [options] [workflow-id]                          Manages baremetal server operations, including installation, database setup, commissioning, and user management.
+release [options] [version]                                Release orchestrator for building new versions and deploying releases of the Underpost CLI.
+help [command]                                             display help for command
+
 ```
+
 <!-- cli-index-end -->
 
 <a target="_top" href="https://github.com/underpostnet/pwa-microservices-template/blob/master/CLI-HELP.md">See CLI Docs here.</a>
