@@ -37,7 +37,7 @@ class Recover {
         rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
         show: () => false,
         disable: function () {
-          return !Recover.show();
+          return !this.show();
         },
       },
       'recover-email': {
@@ -46,7 +46,7 @@ class Recover {
         rules: [{ type: 'isEmpty' }, { type: 'isEmail' }],
         show: () => mode === 'recover-verify-email',
         disable: function () {
-          return !Recover.show();
+          return !this.show();
         },
       },
       'recover-password': {
@@ -55,7 +55,7 @@ class Recover {
         rules: [{ type: 'isStrongPassword' }],
         show: () => mode === 'change-password',
         disable: function () {
-          return !Recover.show();
+          return !this.show();
         },
       },
       'recover-repeat-password': {
@@ -63,7 +63,7 @@ class Recover {
         rules: [{ type: 'isEmpty' }, { type: 'passwordMismatch', options: `recover-password` }],
         show: () => mode === 'change-password',
         disable: function () {
-          return !Recover.show();
+          return !this.show();
         },
       },
     };
