@@ -5,7 +5,16 @@
  * @namespace DataQuery
  */
 
-export const DataQuery = {
+/**
+ * @class DataQuery
+ * @description Utility class for parsing request query parameters into Mongoose query options,
+ * including support for AG Grid filterModel and sortModel. Provides a static `parse`
+ * method that takes in request query parameters and returns an object containing the MongoDB
+ * query, sort options, pagination skip/limit, and page number. Designed to be used in API
+ * controllers to handle complex querying needs from the frontend.
+ * @memberof DataQuery
+ */
+class DataQuery {
   /**
    * Parse request query parameters into Mongoose query options
    * @param {Object} params - The request query parameters (req.query)
@@ -20,7 +29,7 @@ export const DataQuery = {
    * @memberof DataQuery
    * @returns {Object} { query, sort, skip, limit, page }
    */
-  parse: (params = {}) => {
+  static parse(params = {}) {
     let { filterModel, sortModel, page, limit, sort: sortParam, asc, order, query: defaultQuery } = params;
 
     // === 1. Pagination ===
@@ -35,7 +44,7 @@ export const DataQuery = {
     const query = DataQuery._parseFilter(filterModel, defaultQuery);
 
     return { query, sort, skip, limit, page };
-  },
+  }
 
   /**
    * Parse sort parameters from AG Grid sortModel or simple sort params
@@ -47,7 +56,7 @@ export const DataQuery = {
    * @return {Object} sort object for Mongoose
    * @memberof DataQuery
    */
-  _parseSort: (sortModel, sortParam, asc, order) => {
+  static _parseSort(sortModel, sortParam, asc, order) {
     const sort = {};
 
     // Parse sortModel from string if needed
@@ -90,7 +99,7 @@ export const DataQuery = {
     }
 
     return sort;
-  },
+  }
 
   /**
    * Parse filter parameters from AG Grid filterModel
@@ -100,7 +109,7 @@ export const DataQuery = {
    * @return {Object} query object for Mongoose
    * @memberof DataQuery
    */
-  _parseFilter: (filterModel, defaultQuery) => {
+  static _parseFilter(filterModel, defaultQuery) {
     let query = defaultQuery ? { ...defaultQuery } : {};
 
     // Parse filterModel from string if needed
@@ -127,7 +136,7 @@ export const DataQuery = {
     });
 
     return query;
-  },
+  }
 
   /**
    * Parse a single field filter
@@ -137,7 +146,7 @@ export const DataQuery = {
    * @return {Object|null} query condition for the field or null if invalid
    * @memberof DataQuery
    */
-  _parseFieldFilter: (field, filter) => {
+  static _parseFieldFilter(field, filter) {
     if (!filter || !filter.filterType) {
       return null;
     }
@@ -158,7 +167,7 @@ export const DataQuery = {
       default:
         return null;
     }
-  },
+  }
 
   /**
    * Parse text filter
@@ -168,7 +177,7 @@ export const DataQuery = {
    * @return {Object|null} query condition for the text field or null if invalid
    * @memberof DataQuery
    */
-  _parseTextFilter: (field, filter) => {
+  static _parseTextFilter(field, filter) {
     const { type, filter: filterValue } = filter;
 
     if (filterValue === null || filterValue === undefined || filterValue === '') {
@@ -219,7 +228,7 @@ export const DataQuery = {
     }
 
     return query;
-  },
+  }
 
   /**
    * Parse number filter
@@ -229,7 +238,7 @@ export const DataQuery = {
    * @return {Object|null} query condition for the number field or null if invalid
    * @memberof DataQuery
    */
-  _parseNumberFilter: (field, filter) => {
+  static _parseNumberFilter(field, filter) {
     const { type, filter: filterValue, filterTo } = filter;
 
     if (filterValue === null || filterValue === undefined) {
@@ -281,7 +290,7 @@ export const DataQuery = {
     }
 
     return query;
-  },
+  }
 
   /**
    * Parse date filter
@@ -291,7 +300,7 @@ export const DataQuery = {
    * @return {Object|null} query condition for the date field or null if invalid
    * @memberof DataQuery
    */
-  _parseDateFilter: (field, filter) => {
+  static _parseDateFilter(field, filter) {
     const { type, dateFrom, dateTo } = filter;
 
     // Handle blank/notBlank without dates
@@ -391,7 +400,7 @@ export const DataQuery = {
     }
 
     return query;
-  },
+  }
 
   /**
    * Parse set filter
@@ -401,7 +410,7 @@ export const DataQuery = {
    * @return {Object|null} query condition for the set field or null if invalid
    * @memberof DataQuery
    */
-  _parseSetFilter: (field, filter) => {
+  static _parseSetFilter(field, filter) {
     const { values } = filter;
 
     if (!Array.isArray(values) || values.length === 0) {
@@ -409,7 +418,7 @@ export const DataQuery = {
     }
 
     return { [field]: { $in: values } };
-  },
+  }
 
   /**
    * Parse multi filter (combines multiple filters with AND/OR)
@@ -419,7 +428,7 @@ export const DataQuery = {
    * @return {Object|null} query condition for the multi filter or null if invalid
    * @memberof DataQuery
    */
-  _parseMultiFilter: (field, filter) => {
+  static _parseMultiFilter(field, filter) {
     const { filterModels, operator } = filter;
 
     if (!Array.isArray(filterModels) || filterModels.length === 0) {
@@ -445,5 +454,8 @@ export const DataQuery = {
       // AND operator (default)
       return { $and: conditions };
     }
-  },
-};
+  }
+}
+
+export { DataQuery };
+export default DataQuery;
