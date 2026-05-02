@@ -49,14 +49,13 @@ RUN dnf groupinstall -y "Development Tools" && \
 # Install underpost CLI 
 RUN npm install -g underpost
 
-ENV EMSDK=/home/dd/.emsdk
-ENV EMSDK_QUIET=1
-ENV EMSDK_PYTHON=/usr/bin/python3.11
+# Install Emscripten SDK for WebAssembly compilation of raylib client.
+ENV EMSDK=/opt/emsdk
 ENV PATH="${EMSDK}:${EMSDK}/upstream/emscripten:${PATH}"
-
-RUN git clone --depth=1 https://github.com/emscripten-core/emsdk.git ${EMSDK} && \
-    cd ${EMSDK} && \
-    ./emsdk install latest && \
+WORKDIR /
+RUN git clone https://github.com/emscripten-core/emsdk.git ${EMSDK}
+WORKDIR ${EMSDK}
+RUN ./emsdk install latest && \
     ./emsdk activate latest
 
 # Runtime root expected by startup/build scripts.
@@ -66,10 +65,10 @@ RUN mkdir -p /home/dd/engine/cyberia-client
 COPY cyberia-client/ /home/dd/engine/cyberia-client/
 
 # Compile both build modes at image build-time to minimize service startup time.
-RUN bash -lc "source ${EMSDK}/emsdk_env.sh && \
-    cd /home/dd/engine/cyberia-client && \
-    make -j\"$(nproc)\" -f Web.mk all BUILD_MODE=RELEASE && \
-    make -j\"$(nproc)\" -f Web.mk all BUILD_MODE=DEBUG"
+WORKDIR /home/dd/engine/cyberia-client
+RUN make -f Web.mk all BUILD_MODE=RELEASE
+RUN make -f Web.mk all BUILD_MODE=DEBUG
+
 
 ENV CYBERIA_PORT=8081
 ENV CYBERIA_WEB_ROOT=/home/dd/engine/cyberia-client/bin/web/release
