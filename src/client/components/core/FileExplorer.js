@@ -469,12 +469,12 @@ class FileExplorer {
       async init(params) {
         console.log('LoadFileActionsRenderer created', params);
         // params.data._id
-        FileExplorer.eGui = document.createElement('div');
+        this.eGui = document.createElement('div');
         const isPublic = params.data.isPublic;
         const toggleId = `toggle-public-${params.data._id}`;
         const hasGenericFile = !!params.data.hasGenericFile;
         const hasMdFile = !!params.data.hasMdFile;
-        FileExplorer.eGui.innerHTML = html`
+        this.eGui.innerHTML = html`
           <div class="fl">
             ${await BtnIcon.instance({
               class: `in fll management-table-btn-mini btn-file-download-${params.data._id}${!hasGenericFile ? ' btn-disabled' : ''}`,
@@ -981,7 +981,7 @@ class FileExplorer {
         });
       }
       getGui() {
-        return FileExplorer.eGui;
+        return this.eGui;
       }
       refresh(params) {
         console.log('LoadFileActionsRenderer refreshed', params);
@@ -994,8 +994,8 @@ class FileExplorer {
         console.log('LoadFolderActionsRenderer created', params);
         // params.data._id
         const id = params.data.locationId;
-        FileExplorer.eGui = document.createElement('div');
-        FileExplorer.eGui.innerHTML = html`
+        this.eGui = document.createElement('div');
+        this.eGui.innerHTML = html`
           <div class="fl">
             ${await BtnIcon.instance({
               class: `in fll management-table-btn-mini btn-folder-delete-${id}`,
@@ -1058,7 +1058,7 @@ class FileExplorer {
         });
       }
       getGui() {
-        return FileExplorer.eGui;
+        return this.eGui;
       }
       refresh(params) {
         console.log('LoadFolderActionsRenderer refreshed', params);
