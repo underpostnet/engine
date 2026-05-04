@@ -291,6 +291,168 @@ const DefaultCyberiaDialogues = [
     text: 'A patch of synthetic grass. It sways gently despite no wind.',
     mood: 'neutral',
   },
+  // ── Quest-talk dialogue lines ────────────────────────────────────────────
+  {
+    code: 'quest-talk-wason',
+    order: 0,
+    speaker: 'Wason',
+    text: 'Wanderer! Glad you stopped by. I need a favor — nothing dangerous... mostly.',
+    mood: 'happy',
+  },
+  {
+    code: 'quest-talk-wason',
+    order: 1,
+    speaker: 'Wason',
+    text: "First, find Alex — she's been surveying the nodes east of here. Then gather a hatchet for me.",
+    mood: 'neutral',
+  },
+  {
+    code: 'quest-talk-wason',
+    order: 2,
+    speaker: 'Wason',
+    text: 'And one more thing: the SCP-2040 anomalies are overrunning my trade routes. Deal with two of them.',
+    mood: 'sad',
+  },
+  {
+    code: 'quest-talk-alex',
+    order: 0,
+    speaker: 'Alex',
+    text: "Wason sent you? Good. The portal anomalies are getting worse. I've logged what I can.",
+    mood: 'neutral',
+  },
+  {
+    code: 'quest-talk-alex',
+    order: 1,
+    speaker: 'Alex',
+    text: 'Tell Wason: the source is somewhere in the deeper nodes. The registry does not lie.',
+    mood: 'neutral',
+  },
+];
+
+/**
+ * Default action catalog — maps each NPC skin ID to one or more interactive
+ * actions the player can trigger from the interact overlay.
+ *
+ * type values:          'quest-talk' | 'shop' | 'craft' | 'storage'
+ * provideItemId:        The NPC's skin itemId that identifies this entity.
+ * dialogCode:           General-purpose default dialogue opened for this action
+ *                       (any action type). Used as the immediate greeting/intro.
+ * questDialogueCodes:   Ordered list of CyberiaDialogue codes that must be
+ *                       completed (in sequence) to satisfy quest-talk step
+ *                       validation.  Distinct from dialogCode — for simple
+ *                       actions they may overlap; for multi-stage quests they
+ *                       can diverge.
+ * grantQuestCode:       CyberiaQuest.code to grant when this quest-talk action
+ *                       is completed.  Empty string = no quest granted.
+ */
+const DefaultCyberiaActions = [
+  {
+    code: 'wason-quest-intro',
+    type: 'quest-talk',
+    label: 'Quest',
+    provideItemId: 'wason',
+    dialogCode: 'quest-talk-wason',
+    questDialogueCodes: ['quest-talk-wason'],
+    grantQuestCode: 'fallback-intro-quest',
+  },
+  {
+    code: 'alex-quest-talk',
+    type: 'quest-talk',
+    label: 'Quest Talk',
+    provideItemId: 'alex',
+    dialogCode: 'quest-talk-alex',
+    questDialogueCodes: ['quest-talk-alex'],
+    grantQuestCode: '',
+  },
+  {
+    code: 'agent-mission-brief',
+    type: 'quest-talk',
+    label: 'Mission Brief',
+    provideItemId: 'agent',
+    dialogCode: 'default-agent',
+    questDialogueCodes: ['default-agent'],
+    grantQuestCode: '',
+  },
+  {
+    // Wason also starts the second test quest after the intro quest is done.
+    code: 'wason-bounty-brief',
+    type: 'quest-talk',
+    label: '📜 Bounty Brief',
+    provideItemId: 'wason',
+    dialogCode: 'quest-talk-wason',
+    questDialogueCodes: ['quest-talk-wason'],
+    grantQuestCode: 'bounty-quest-alpha',
+  },
+];
+
+/**
+ * Default quest definitions for the fallback world.
+ * Mirrors the CyberiaQuestSchema.
+ *
+ * Steps are sequential; the first step where not all objectives are satisfied
+ * is the active step.  Within a step, all objectives must be met before the
+ * step is marked complete.
+ *
+ * Objective types:
+ *   'talk'    — itemId = provideItemId of the NPC to interact with
+ *   'collect' — itemId = item to receive in inventory; quantity = amount
+ *   'kill'    — itemId = entity skin itemId; quantity = kill count
+ *
+ * The Go server uses objective.itemId as the canonical event-match key in
+ * RecordTalkEvent / RecordCollectEvent / RecordKillEvent.
+ */
+const DefaultCyberiaQuests = [
+  {
+    code: 'fallback-intro-quest',
+    title: "The Wanderer's Task",
+    description: 'Help Wason restore order to the fractured nodes.',
+    prerequisitesCyberiaQuestCodes: [],
+    steps: [
+      {
+        id: 'step-talk-alex',
+        description: 'Find Alex and hear her report on the portal anomalies.',
+        objectives: [{ type: 'talk', itemId: 'alex', quantity: 1 }],
+      },
+      {
+        id: 'step-collect-hatchet',
+        description: 'Obtain a hatchet for Wason.',
+        objectives: [{ type: 'collect', itemId: 'hatchet', quantity: 1 }],
+      },
+      {
+        id: 'step-kill-scp',
+        description: 'Eliminate SCP-2040 anomalies threatening the trade routes.',
+        objectives: [{ type: 'kill', itemId: 'scp-2040', quantity: 2 }],
+      },
+    ],
+    rewards: [{ itemId: 'coin', quantity: 50 }],
+  },
+  {
+    // Second test quest: exercises all step types in a different order
+    // (kill → collect → talk) to verify quest engine handles every sequence.
+    // Prerequisite: must complete fallback-intro-quest first.
+    code: 'bounty-quest-alpha',
+    title: 'Alpha Bounty',
+    description: 'A field test: eliminate a threat, claim your reward, then report back.',
+    prerequisitesCyberiaQuestCodes: ['fallback-intro-quest'],
+    steps: [
+      {
+        id: 'step-kill-first',
+        description: 'Eliminate the SCP-2040 threat.',
+        objectives: [{ type: 'kill', itemId: 'scp-2040', quantity: 1 }],
+      },
+      {
+        id: 'step-collect-reward',
+        description: 'Collect the bounty coin drop.',
+        objectives: [{ type: 'collect', itemId: 'coin', quantity: 10 }],
+      },
+      {
+        id: 'step-report-wason',
+        description: 'Report back to Wason.',
+        objectives: [{ type: 'talk', itemId: 'wason', quantity: 1 }],
+      },
+    ],
+    rewards: [{ itemId: 'hatchet', quantity: 1 }],
+  },
 ];
 
 export {
@@ -306,4 +468,6 @@ export {
   DefaultCyberiaItems,
   DefaultSkillConfig,
   DefaultCyberiaDialogues,
+  DefaultCyberiaActions,
+  DefaultCyberiaQuests,
 };

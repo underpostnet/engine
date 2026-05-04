@@ -43,6 +43,8 @@ import {
   DefaultCyberiaItems,
   DefaultSkillConfig,
   DefaultCyberiaDialogues,
+  DefaultCyberiaActions,
+  DefaultCyberiaQuests,
 } from '../src/client/components/cyberia-portal/CommonCyberiaPortal.js';
 
 /**
@@ -4161,6 +4163,162 @@ try {
       }
 
       logger.info(`seed-dialogues: ${upserted} dialogue records upserted`);
+
+      await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+    });
+
+  runner
+    .command('seed-actions')
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option('--dev', 'Force development environment')
+    .description('Upsert DefaultCyberiaActions into the cyberia-action collection (idempotent)')
+    .action(async (options) => {
+      if (!options.envPath) options.envPath = `./.env`;
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
+        const devEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
+        if (fs.existsSync(devEnvPath)) dotenv.config({ path: devEnvPath, override: true });
+      }
+
+      const deployId = process.env.DEFAULT_DEPLOY_ID;
+      const host = process.env.DEFAULT_DEPLOY_HOST;
+      const path = process.env.DEFAULT_DEPLOY_PATH;
+
+      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      if (!fs.existsSync(confServerPath)) {
+        logger.error(`Server config not found: ${confServerPath}`);
+        process.exit(1);
+      }
+      const confServer = loadConfServerJson(confServerPath, { resolve: true });
+      const { db } = confServer[host][path];
+
+      db.host = options.mongoHost
+        ? options.mongoHost
+        : options.dev
+          ? db.host
+          : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
+      logger.info('seed-actions', { deployId, host, path, db });
+
+      await DataBaseProvider.load({ apis: ['cyberia-action', 'cyberia-dialogue'], host, path, db });
+
+      const CyberiaAction = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaAction;
+      const CyberiaDialogue = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaDialogue;
+
+      // Upsert each action record keyed by code — idempotent.
+      let upsertedActions = 0;
+      for (const action of DefaultCyberiaActions) {
+        await CyberiaAction.findOneAndUpdate(
+          { code: action.code },
+          {
+            $set: {
+              type: action.type,
+              label: action.label || '',
+              provideItemId: action.provideItemId,
+              dialogCode: action.dialogCode || '',
+              questDialogueCodes: action.questDialogueCodes || [],
+              grantQuestCode: action.grantQuestCode || '',
+            },
+          },
+          { upsert: true },
+        );
+        upsertedActions++;
+      }
+      logger.info(`seed-actions: ${upsertedActions} action records upserted`);
+
+      // Seed dialogue lines referenced by questDialogueCodes (dialogCode as fallback).
+      const questTalkCodes = new Set(
+        DefaultCyberiaActions.flatMap((a) =>
+          a.questDialogueCodes && a.questDialogueCodes.length
+            ? a.questDialogueCodes
+            : a.dialogCode
+              ? [a.dialogCode]
+              : [],
+        ),
+      );
+      const questTalkLines = DefaultCyberiaDialogues.filter((d) => questTalkCodes.has(d.code));
+      let upsertedQtDlg = 0;
+      for (const dlg of questTalkLines) {
+        await CyberiaDialogue.findOneAndUpdate(
+          { code: dlg.code, order: dlg.order },
+          { $set: { speaker: dlg.speaker, text: dlg.text, mood: dlg.mood } },
+          { upsert: true },
+        );
+        upsertedQtDlg++;
+      }
+      logger.info(`seed-actions: ${upsertedQtDlg} quest-talk dialogue lines upserted`);
+
+      await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+    });
+
+  runner
+    .command('seed-quests')
+    .option('--env-path <env-path>', 'Env path e.g. ./engine-private/conf/dd-cyberia/.env.development')
+    .option('--mongo-host <mongo-host>', 'Mongo host override')
+    .option('--dev', 'Force development environment')
+    .description('Upsert DefaultCyberiaQuests into the cyberia-quest collection (idempotent)')
+    .action(async (options) => {
+      if (!options.envPath) options.envPath = `./.env`;
+      if (fs.existsSync(options.envPath)) dotenv.config({ path: options.envPath, override: true });
+
+      if (options.dev && process.env.DEFAULT_DEPLOY_ID) {
+        const devEnvPath = `./engine-private/conf/${process.env.DEFAULT_DEPLOY_ID}/.env.development`;
+        if (fs.existsSync(devEnvPath)) dotenv.config({ path: devEnvPath, override: true });
+      }
+
+      const deployId = process.env.DEFAULT_DEPLOY_ID;
+      const host = process.env.DEFAULT_DEPLOY_HOST;
+      const path = process.env.DEFAULT_DEPLOY_PATH;
+
+      const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+      if (!fs.existsSync(confServerPath)) {
+        logger.error(`Server config not found: ${confServerPath}`);
+        process.exit(1);
+      }
+      const confServer = loadConfServerJson(confServerPath, { resolve: true });
+      const { db } = confServer[host][path];
+
+      db.host = options.mongoHost
+        ? options.mongoHost
+        : options.dev
+          ? db.host
+          : db.host.replace('127.0.0.1', 'mongodb-0.mongodb-service');
+
+      logger.info('seed-quests', { deployId, host, path, db });
+
+      await DataBaseProvider.load({ apis: ['cyberia-quest'], host, path, db });
+
+      const CyberiaQuest = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaQuest;
+
+      // Upsert each quest keyed by code — idempotent.
+      let upserted = 0;
+      for (const quest of DefaultCyberiaQuests) {
+        await CyberiaQuest.findOneAndUpdate(
+          { code: quest.code },
+          {
+            $set: {
+              title: quest.title,
+              description: quest.description || '',
+              prerequisitesCyberiaQuestCodes: quest.prerequisitesCyberiaQuestCodes || [],
+              steps: quest.steps.map((step) => ({
+                id: step.id,
+                description: step.description || '',
+                objectives: step.objectives.map((obj) => ({
+                  type: obj.type,
+                  itemId: obj.itemId,
+                  quantity: obj.quantity,
+                })),
+              })),
+              rewards: quest.rewards.map((r) => ({ itemId: r.itemId, quantity: r.quantity })),
+            },
+          },
+          { upsert: true },
+        );
+        upserted++;
+      }
+      logger.info(`seed-quests: ${upserted} quest records upserted`);
 
       await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
     });

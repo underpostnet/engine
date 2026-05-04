@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose';
+import { QUEST_STEPS_TYPES } from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
@@ -6,7 +7,8 @@ const CyberiaQuestProgressSchema = new Schema(
   {
     // Matches the Go relay server's player UUID
     playerId: { type: String, required: true, trim: true },
-    questId: { type: String, required: true, trim: true },
+    // References CyberiaQuest.code
+    questCode: { type: String, required: true, trim: true },
     // active | completed | failed
     status: {
       type: String,
@@ -17,13 +19,15 @@ const CyberiaQuestProgressSchema = new Schema(
     stepProgress: [
       {
         stepId: { type: String, required: true },
-        // pending | completed
-        status: { type: String, enum: ['pending', 'completed'], default: 'pending' },
-        // running count for collect/kill steps
-        count: [
+        done: { type: Boolean, default: false },
+        // One entry per objective in CyberiaQuest.steps[].objectives[]
+        objectiveProgress: [
           {
+            type: { type: String, required: true, enum: QUEST_STEPS_TYPES },
             itemId: { type: String, required: true },
-            quantity: { type: Number, default: 0, min: 0 },
+            current: { type: Number, default: 0, min: 0 },
+            required: { type: Number, default: 1, min: 1 },
+            done: { type: Boolean, default: false },
           },
         ],
       },
@@ -34,7 +38,7 @@ const CyberiaQuestProgressSchema = new Schema(
   { timestamps: true },
 );
 
-CyberiaQuestProgressSchema.index({ playerId: 1, questId: 1 }, { unique: true });
+CyberiaQuestProgressSchema.index({ playerId: 1, questCode: 1 }, { unique: true });
 
 const CyberiaQuestProgressModel = model('CyberiaQuestProgress', CyberiaQuestProgressSchema);
 
