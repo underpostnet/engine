@@ -6,11 +6,11 @@ const CyberiaActionSchema = new Schema(
   {
     // Stable slug, e.g. "wason-quest-intro"
     code: { type: String, required: true, unique: true, trim: true },
-    // craft | shop | storage | talk | quest
+    // craft | shop | storage | quest-talk
     type: {
       type: String,
       required: true,
-      enum: ['craft', 'shop', 'storage', 'talk', 'quest'],
+      enum: ['craft', 'shop', 'storage', 'quest-talk'],
     },
     // Human-readable label shown in the overlay
     label: { type: String, required: true, trim: true },
@@ -18,6 +18,39 @@ const CyberiaActionSchema = new Schema(
     // When building the map, entities whose active object layer has a matching
     // item-type and item-id are linked to this action as local providers.
     provideItemId: { type: String, required: true, trim: true },
+
+    // ── Shop payload (populated when type="shop") ──────────────────
+    shopItems: [
+      {
+        itemId: { type: String, required: true, trim: true },
+        priceItemId: { type: String, default: 'coin', trim: true },
+        priceQty: { type: Number, default: 1, min: 0 },
+      },
+    ],
+
+    // ── Craft payload (populated when type="craft") ─────────────────
+    craftRecipes: [
+      {
+        outputsItems: [
+          {
+            itemId: { type: String, required: true, trim: true },
+            qty: { type: Number, default: 1, min: 1 },
+          },
+        ],
+        ingredients: [
+          {
+            itemId: { type: String, required: true, trim: true },
+            qty: { type: Number, default: 1, min: 1 },
+          },
+        ],
+      },
+    ],
+
+    // ── Storage payload (populated when type="storage") ─────────────
+    storageSlots: { type: Number, default: 0, min: 0 },
+
+    // ── Cyberia dialogue codes for type="quest-talk" ─────────────
+    questDialogueCodes: [{ type: String, trim: true }],
   },
   { timestamps: true },
 );
