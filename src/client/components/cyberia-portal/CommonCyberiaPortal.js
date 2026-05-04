@@ -27,6 +27,8 @@ const ENTITY_TYPES = Object.freeze({
   foreground: 'foreground',
   resource: 'resource',
 });
+const QUEST_STEPS_TYPES = Object.freeze(['collect', 'talk', 'kill']);
+const CYBERIA_ACTION_TYPES = Object.freeze(['craft', 'shop', 'storage', 'quest-talk']);
 const ENTITY_TYPE_TO_ITEM_TYPES = Object.freeze({
   [ENTITY_TYPES.player]: Object.freeze([ITEM_TYPES.skin, ITEM_TYPES.breastplate, ITEM_TYPES.weapon]),
   [ENTITY_TYPES.other_player]: Object.freeze([ITEM_TYPES.skin, ITEM_TYPES.breastplate, ITEM_TYPES.weapon]),
@@ -291,77 +293,12 @@ const DefaultCyberiaDialogues = [
   },
 ];
 
-const DefaultCyberiaActions = [
-  {
-    code: 'wason-quest-intro',
-    type: 'quest',
-    label: 'Quest',
-    provideItemId: 'wason',
-  },
-  {
-    code: 'wason-shop',
-    type: 'shop',
-    label: 'Shop',
-    provideItemId: 'wason',
-  },
-  {
-    code: 'alex-quest-portal',
-    type: 'quest',
-    label: 'Quest',
-    provideItemId: 'alex',
-  },
-  {
-    code: 'agent-quest-clearance',
-    type: 'quest',
-    label: 'Mission',
-    provideItemId: 'agent',
-  },
-];
-
-const DefaultCyberiaQuests = [
-  {
-    code: 'fallback-intro-quest',
-    title: "The Wanderer's Task",
-    description:
-      'Wason has been watching the portal network. Something is wrong. Help investigate and push back the anomaly.',
-    npcItemId: 'wason',
-    prerequisites: [],
-    steps: [
-      {
-        id: 'step-talk-alex',
-        type: 'talk',
-        description: 'Speak with Alex — he has been mapping the portal network.',
-        npcItemId: 'alex',
-      },
-      {
-        id: 'step-collect-hatchet',
-        type: 'collect',
-        description: 'Obtain a hatchet. Any means will do.',
-        itemId: 'hatchet',
-        quantity: 1,
-      },
-      {
-        id: 'step-kill-scp',
-        type: 'kill',
-        description: 'Eliminate 2 SCP-2040 entities threatening the node.',
-        entityItemId: 'scp-2040',
-        killCount: 2,
-      },
-    ],
-    rewards: [
-      {
-        itemType: 'coin',
-        itemId: 'coin',
-        quantity: 50,
-      },
-    ],
-  },
-];
-
 export {
   ITEM_TYPES,
   ENTITY_TYPES,
   ENTITY_TYPE_TO_ITEM_TYPES,
+  QUEST_STEPS_TYPES,
+  CYBERIA_ACTION_TYPES,
   getDefaultCyberiaItemById,
   getDefaultCyberiaItemsByItemType,
   getDefaultCyberiaItemsByEntityType,
@@ -369,6 +306,4 @@ export {
   DefaultCyberiaItems,
   DefaultSkillConfig,
   DefaultCyberiaDialogues,
-  DefaultCyberiaActions,
-  DefaultCyberiaQuests,
 };

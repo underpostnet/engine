@@ -20,7 +20,12 @@ const CyberiaQuestProgressSchema = new Schema(
         // pending | completed
         status: { type: String, enum: ['pending', 'completed'], default: 'pending' },
         // running count for collect/kill steps
-        count: { type: Number, default: 0 },
+        count: [
+          {
+            itemId: { type: String, required: true },
+            quantity: { type: Number, default: 0, min: 0 },
+          },
+        ],
       },
     ],
     startedAt: { type: Date, default: Date.now },
