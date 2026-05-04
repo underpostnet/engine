@@ -1857,17 +1857,22 @@ try {
         const defaultsByItemId = new Map();
 
         for (const dialogue of DefaultCyberiaDialogues) {
-          if (!requestedItemIds.has(dialogue.itemId)) continue;
-          if (!defaultsByItemId.has(dialogue.itemId)) {
-            defaultsByItemId.set(dialogue.itemId, []);
+          // Match by code prefix: "default-<itemId>" covers the common case;
+          // callers may also pass a full code directly.
+          const matchingIds = [...requestedItemIds].filter(
+            (id) => dialogue.code === `default-${id}` || dialogue.code === id,
+          );
+          if (!matchingIds.length) continue;
+          for (const id of matchingIds) {
+            if (!defaultsByItemId.has(id)) defaultsByItemId.set(id, []);
+            defaultsByItemId.get(id).push({
+              code: dialogue.code,
+              order: dialogue.order ?? 0,
+              speaker: dialogue.speaker ?? '',
+              text: dialogue.text,
+              mood: dialogue.mood ?? 'neutral',
+            });
           }
-          defaultsByItemId.get(dialogue.itemId).push({
-            itemId: dialogue.itemId,
-            order: dialogue.order ?? 0,
-            speaker: dialogue.speaker ?? '',
-            text: dialogue.text,
-            mood: dialogue.mood ?? 'neutral',
-          });
         }
 
         for (const dialogues of defaultsByItemId.values()) {
@@ -4144,11 +4149,11 @@ try {
 
       const CyberiaDialogue = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaDialogue;
 
-      // Upsert each dialogue record keyed by (itemId, order) — idempotent.
+      // Upsert each dialogue record keyed by (code, order) — idempotent.
       let upserted = 0;
       for (const dlg of DefaultCyberiaDialogues) {
         await CyberiaDialogue.findOneAndUpdate(
-          { itemId: dlg.itemId, order: dlg.order },
+          { code: dlg.code, order: dlg.order },
           { $set: { speaker: dlg.speaker, text: dlg.text, mood: dlg.mood } },
           { upsert: true },
         );

@@ -69,13 +69,13 @@ class CyberiaDialogueController {
       });
     }
   };
-  static getByItemId = async (req, res, options) => {
+  static getByCode = async (req, res, options) => {
     try {
       if (req && req.headers && req.headers.origin) {
         res.set('Access-Control-Allow-Origin', req.headers.origin);
       } else res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      const result = await CyberiaDialogueService.getByItemId(req, res, options);
+      const result = await CyberiaDialogueService.getByCode(req, res, options);
       return res.status(200).json({
         status: 'success',
         data: result,

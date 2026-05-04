@@ -37,13 +37,13 @@ class CyberiaDialogueService {
     if (req.params.id) return await CyberiaDialogue.findByIdAndDelete(req.params.id);
     else return await CyberiaDialogue.deleteMany();
   };
-  static getByItemId = async (req, res, options) => {
+  static getByCode = async (req, res, options) => {
     /** @type {import('./cyberia-dialogue.model.js').CyberiaDialogueModel} */
     const CyberiaDialogue = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaDialogue;
-    const { itemId } = req.params;
-    if (!itemId) throw new Error('itemId parameter is required');
-    const data = await CyberiaDialogue.find({ itemId }).sort({ order: 1 }).lean();
-    if (!data.length) throw new Error(`No dialogue found for itemId: ${itemId}`);
+    const { code } = req.params;
+    if (!code) throw new Error('code parameter is required');
+    const data = await CyberiaDialogue.find({ code }).sort({ order: 1 }).lean();
+    if (!data.length) throw new Error(`No dialogue found for code: ${code}`);
     return data;
   };
 }
