@@ -350,6 +350,8 @@ const DefaultCyberiaActions = [
     code: 'wason-quest-intro',
     type: 'quest-talk',
     label: 'Quest',
+    provideItemId: 'wason',
+    grantQuestCode: 'fallback-intro-quest',
     dialogCode: 'quest-talk-wason',
     questDialogueCodes: ['quest-talk-wason'],
   },
@@ -357,6 +359,8 @@ const DefaultCyberiaActions = [
     code: 'alex-quest-talk',
     type: 'quest-talk',
     label: 'Quest Talk',
+    provideItemId: 'alex',
+    grantQuestCode: '',
     dialogCode: 'quest-talk-alex',
     questDialogueCodes: ['quest-talk-alex'],
   },
@@ -364,13 +368,17 @@ const DefaultCyberiaActions = [
     code: 'agent-mission-brief',
     type: 'quest-talk',
     label: 'Mission Brief',
+    provideItemId: 'agent',
+    grantQuestCode: 'bounty-quest-alpha',
     dialogCode: 'default-agent',
     questDialogueCodes: ['default-agent'],
   },
   {
     code: 'wason-bounty-brief',
     type: 'quest-talk',
-    label: '📜 Bounty Brief',
+    label: 'Bounty Brief',
+    provideItemId: 'wason',
+    grantQuestCode: '',
     dialogCode: 'quest-talk-wason',
     questDialogueCodes: ['quest-talk-wason'],
   },
@@ -391,7 +399,8 @@ const DefaultCyberiaQuests = [
     code: 'fallback-intro-quest',
     title: "The Wanderer's Task",
     description: 'Help Wason restore order to the fractured nodes.',
-    prerequisitesCyberiaQuestCodes: [],
+    prerequisiteCodes: [],
+    unlocksQuestCodes: ['bounty-quest-alpha'],
     steps: [
       {
         id: 'step-talk-alex',
@@ -412,13 +421,13 @@ const DefaultCyberiaQuests = [
     rewards: [{ itemId: 'coin', quantity: 50 }],
   },
   {
-    // Second test quest: exercises all step types in a different order
-    // (kill → collect → talk) to verify quest engine handles every sequence.
-    // Prerequisite: must complete fallback-intro-quest first.
+    // Second quest: exercises all step types in a different order (kill → collect → talk).
+    // Unlocked automatically after completing fallback-intro-quest.
     code: 'bounty-quest-alpha',
     title: 'Alpha Bounty',
     description: 'A field test: eliminate a threat, claim your reward, then report back.',
-    prerequisitesCyberiaQuestCodes: ['fallback-intro-quest'],
+    prerequisiteCodes: ['fallback-intro-quest'],
+    unlocksQuestCodes: [],
     steps: [
       {
         id: 'step-kill-first',

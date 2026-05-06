@@ -1,5 +1,4 @@
 import { Schema, model } from 'mongoose';
-import { QUEST_STEPS_TYPES } from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
@@ -9,25 +8,27 @@ const CyberiaQuestProgressSchema = new Schema(
     playerId: { type: String, required: true, trim: true },
     // References CyberiaQuest.code
     questCode: { type: String, required: true, trim: true },
-    // active | completed | failed
+    // active | completed
+    // Quests do not fail — they stay active until completed or abandoned by the player.
     status: {
       type: String,
       required: true,
-      enum: ['active', 'completed', 'failed'],
+      enum: ['active', 'completed'],
       default: 'active',
     },
+    // One entry per step in the corresponding CyberiaQuest.steps[].
+    // A step is complete when all its objectiveProgress entries satisfy current >= required.
+    // The active step is the first step where not all objectives are done.
+    // done flags are intentionally omitted — completeness is always computed, never stored.
     stepProgress: [
       {
         stepId: { type: String, required: true },
-        done: { type: Boolean, default: false },
-        // One entry per objective in CyberiaQuest.steps[].objectives[]
+        // One entry per objective in CyberiaQuest.steps[i].objectives[].
+        // `required` is denormalized from the quest definition for efficient server checks.
         objectiveProgress: [
           {
-            type: { type: String, required: true, enum: QUEST_STEPS_TYPES },
-            itemId: { type: String, required: true },
             current: { type: Number, default: 0, min: 0 },
             required: { type: Number, default: 1, min: 1 },
-            done: { type: Boolean, default: false },
           },
         ],
       },
@@ -39,6 +40,7 @@ const CyberiaQuestProgressSchema = new Schema(
 );
 
 CyberiaQuestProgressSchema.index({ playerId: 1, questCode: 1 }, { unique: true });
+CyberiaQuestProgressSchema.index({ playerId: 1, status: 1 });
 
 const CyberiaQuestProgressModel = model('CyberiaQuestProgress', CyberiaQuestProgressSchema);
 

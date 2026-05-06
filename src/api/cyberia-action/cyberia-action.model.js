@@ -1,11 +1,13 @@
 import { Schema, model } from 'mongoose';
+import { CYBERIA_ACTION_TYPES } from '../../client/components/cyberia-portal/CommonCyberiaPortal.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
 const CyberiaActionSchema = new Schema(
   {
-    // The action must be provided by the entity that initially
-    // matches the initial position 'x' and initial position 'y'
+    // Spatial origin: the NPC/entity cell that provides this action.
+    // Matched against map entity initCellX/initCellY during instance init
+    // and assignable from ObjectLayerEngineModal.
     sourceMapCode: { type: String, trim: true },
     sourceCellX: { type: Number },
     sourceCellY: { type: Number },
@@ -16,15 +18,31 @@ const CyberiaActionSchema = new Schema(
       type: String,
       required: true,
       trim: true,
-      enum: ['craft', 'shop', 'storage', 'quest-talk'],
+      enum: CYBERIA_ACTION_TYPES,
     },
     label: { type: String, trim: true, default: '' },
 
-    // General-purpose default dialogue opened for this action (any action type).
-    // For quest-talk this is the immediate greeting shown when the button is clicked.
+    // The item ID of the NPC/entity that provides this action.
+    // Used to match 'talk' quest objectives: a step with { type: 'talk', itemId: X }
+    // is satisfied when the player triggers an action where provideItemId === X.
+    // Typically the entity's active skin ObjectLayer item ID (e.g. 'wason', 'alex').
+    provideItemId: { type: String, trim: true, default: '' },
+
+    // Quest code granted to the player on their first interaction with this action.
+    // Used by 'quest-talk' NPCs to start a quest chain on first contact.
+    // Empty string = no quest granted.
+    grantQuestCode: { type: String, trim: true, default: '' },
+
+    // ── Dialogue ──────────────────────────────────────────────────────────
+    // General greeting/intro dialogue shown when the action button is tapped.
     dialogCode: { type: String, trim: true, default: '' },
 
-    // ── Shop payload (populated when type="shop") ──────────────────
+    // Ordered list of CyberiaDialogue codes the player must view to satisfy
+    // a 'talk' quest objective linked to this action via provideItemId.
+    // For simple actions this may match dialogCode; for multi-stage NPCs it can diverge.
+    questDialogueCodes: [{ type: String, trim: true }],
+
+    // ── Shop payload (type="shop") ─────────────────────────────────────────
     shopItems: [
       {
         itemId: { type: String, required: true, trim: true },
@@ -33,10 +51,10 @@ const CyberiaActionSchema = new Schema(
       },
     ],
 
-    // ── Craft payload (populated when type="craft") ─────────────────
+    // ── Craft payload (type="craft") ───────────────────────────────────────
     craftRecipes: [
       {
-        outputsItems: [
+        outputItems: [
           {
             itemId: { type: String, required: true, trim: true },
             qty: { type: Number, default: 1, min: 1 },
@@ -51,15 +69,8 @@ const CyberiaActionSchema = new Schema(
       },
     ],
 
-    // ── Storage payload (populated when type="storage") ─────────────
+    // ── Storage payload (type="storage") ──────────────────────────────────
     storageSlots: { type: Number, default: 0, min: 0 },
-
-    // ── Cyberia dialogue codes for type="quest-talk" ─────────────
-    // Ordered list of CyberiaDialogue codes that must all be completed (in
-    // sequence) to satisfy quest-talk step validation on the Go relay server.
-    // Separate from dialogCode — for simple actions they may share codes;
-    // for multi-stage quests the sequences can diverge.
-    questDialogueCodes: [{ type: String, trim: true }],
   },
   { timestamps: true },
 );
@@ -67,6 +78,7 @@ const CyberiaActionSchema = new Schema(
 CyberiaActionSchema.index({ code: 1 }, { unique: true });
 CyberiaActionSchema.index({ provideItemId: 1 });
 CyberiaActionSchema.index({ grantQuestCode: 1 }, { sparse: true });
+CyberiaActionSchema.index({ sourceMapCode: 1, sourceCellX: 1, sourceCellY: 1 });
 
 const CyberiaActionModel = model('CyberiaAction', CyberiaActionSchema);
 
